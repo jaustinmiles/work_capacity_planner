@@ -5,7 +5,8 @@
       "Bash(mkdir:*)",
       "Bash(npm run start:*)",
       "Bash(pkill:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(npm run lint)"
     ],
     "deny": []
   }

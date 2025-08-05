@@ -1,19 +1,24 @@
 import React, { useState } from 'react'
-import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus } from '@arco-design/web-react/icon'
+import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown } from '@arco-design/web-react'
+import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch } from '@arco-design/web-react/icon'
 import { TaskList } from './components/tasks/TaskList'
 import { TaskForm } from './components/tasks/TaskForm'
+import { SequencedTaskForm } from './components/tasks/SequencedTaskForm'
+import { SequencedTaskView } from './components/tasks/SequencedTaskView'
 import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
 import { useTaskStore } from './store/useTaskStore'
+import { exampleSequencedTask } from '@shared/sequencing-types'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 const MenuItem = Menu.Item
 
 function App() {
-  const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar'>('tasks')
+  const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
+  const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
+  const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
   const { tasks } = useTaskStore()
   
   const incompleteTasks = tasks.filter(task => !task.completed).length
@@ -67,6 +72,12 @@ function App() {
                 <span>Calendar</span>
               </Space>
             </MenuItem>
+            <MenuItem key="workflows">
+              <Space>
+                <IconBranch />
+                <span>Workflows</span>
+              </Space>
+            </MenuItem>
           </Menu>
 
           <div style={{
@@ -75,19 +86,42 @@ function App() {
             left: 20,
             right: 20,
           }}>
-            <Button
-              type="primary"
-              size="large"
-              icon={<IconPlus />}
-              long
-              onClick={() => setTaskFormVisible(true)}
-              style={{ 
-                boxShadow: '0 4px 10px rgba(22, 93, 255, 0.2)',
-                fontWeight: 500,
-              }}
+            <Dropdown
+              trigger="click"
+              droplist={
+                <div style={{ padding: 8 }}>
+                  <Button
+                    type="text"
+                    icon={<IconPlus />}
+                    onClick={() => setTaskFormVisible(true)}
+                    style={{ width: '100%', justifyContent: 'flex-start', marginBottom: 4 }}
+                  >
+                    Simple Task
+                  </Button>
+                  <Button
+                    type="text"
+                    icon={<IconBranch />}
+                    onClick={() => setSequencedTaskFormVisible(true)}
+                    style={{ width: '100%', justifyContent: 'flex-start' }}
+                  >
+                    Sequenced Workflow
+                  </Button>
+                </div>
+              }
             >
-              Add Task
-            </Button>
+              <Button
+                type="primary"
+                size="large"
+                icon={<IconPlus />}
+                long
+                style={{ 
+                  boxShadow: '0 4px 10px rgba(22, 93, 255, 0.2)',
+                  fontWeight: 500,
+                }}
+              >
+                Add Task <IconDown style={{ marginLeft: 8 }} />
+              </Button>
+            </Dropdown>
           </div>
         </Sider>
         
@@ -105,6 +139,7 @@ function App() {
               {activeView === 'tasks' && 'Task Management'}
               {activeView === 'matrix' && 'Priority Matrix'}
               {activeView === 'calendar' && 'Schedule Overview'}
+              {activeView === 'workflows' && 'Sequenced Workflows'}
             </Title>
           </Header>
           
@@ -125,6 +160,26 @@ function App() {
               {activeView === 'calendar' && (
                 <WeeklyCalendar />
               )}
+              
+              {activeView === 'workflows' && (
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                  <Button 
+                    type="primary"
+                    onClick={() => setShowExampleWorkflow(!showExampleWorkflow)}
+                  >
+                    {showExampleWorkflow ? 'Hide' : 'Show'} Example Workflow
+                  </Button>
+                  
+                  {showExampleWorkflow && (
+                    <SequencedTaskView 
+                      task={exampleSequencedTask}
+                      onStartWorkflow={() => console.log('Start workflow')}
+                      onPauseWorkflow={() => console.log('Pause workflow')}
+                      onResetWorkflow={() => console.log('Reset workflow')}
+                    />
+                  )}
+                </Space>
+              )}
             </div>
           </Content>
         </Layout>
@@ -132,6 +187,15 @@ function App() {
         <TaskForm 
           visible={taskFormVisible} 
           onClose={() => setTaskFormVisible(false)} 
+        />
+        
+        <SequencedTaskForm
+          visible={sequencedTaskFormVisible}
+          onClose={() => setSequencedTaskFormVisible(false)}
+          onSubmit={(taskData) => {
+            console.log('Sequenced task created:', taskData)
+            // TODO: Add to store
+          }}
         />
       </Layout>
     </ConfigProvider>

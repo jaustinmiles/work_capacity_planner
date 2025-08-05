@@ -129,10 +129,10 @@ export function WeeklyCalendar() {
           onChange={(date: dayjs.Dayjs) => setSelectedDate(date)}
           panel
           panelWidth={300}
-
           style={{
             background: '#fff',
             borderRadius: '8px',
+            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           }}
         />
         
