@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown } from '@arco-design/web-react'
 import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch } from '@arco-design/web-react/icon'
+import enUS from '@arco-design/web-react/es/locale/en-US'
 import { TaskList } from './components/tasks/TaskList'
 import { TaskForm } from './components/tasks/TaskForm'
 import { SequencedTaskForm } from './components/tasks/SequencedTaskForm'
@@ -19,12 +20,13 @@ function App() {
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
-  const { tasks } = useTaskStore()
+  const { tasks, sequencedTasks, addSequencedTask } = useTaskStore()
   
   const incompleteTasks = tasks.filter(task => !task.completed).length
 
   return (
     <ConfigProvider
+      locale={enUS}
       theme={{
         primaryColor: '#165DFF',
       }}
@@ -163,6 +165,26 @@ function App() {
               
               {activeView === 'workflows' && (
                 <Space direction="vertical" style={{ width: '100%' }} size="large">
+                  {/* User's Created Workflows */}
+                  {sequencedTasks.length > 0 && (
+                    <>
+                      <div style={{ marginBottom: 16 }}>
+                        <Typography.Title heading={5}>Your Workflows ({sequencedTasks.length})</Typography.Title>
+                      </div>
+                      
+                      {sequencedTasks.map(task => (
+                        <SequencedTaskView 
+                          key={task.id}
+                          task={task}
+                          onStartWorkflow={() => console.log('Start workflow:', task.id)}
+                          onPauseWorkflow={() => console.log('Pause workflow:', task.id)}
+                          onResetWorkflow={() => console.log('Reset workflow:', task.id)}
+                        />
+                      ))}
+                    </>
+                  )}
+                  
+                  {/* Example Workflow */}
                   <Button 
                     type="primary"
                     onClick={() => setShowExampleWorkflow(!showExampleWorkflow)}
@@ -194,7 +216,7 @@ function App() {
           onClose={() => setSequencedTaskFormVisible(false)}
           onSubmit={(taskData) => {
             console.log('Sequenced task created:', taskData)
-            // TODO: Add to store
+            addSequencedTask(taskData)
           }}
         />
       </Layout>
