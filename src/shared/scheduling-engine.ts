@@ -82,7 +82,7 @@ export class SchedulingEngine {
       return finalResult
 
     } catch (error) {
-      console.error('Scheduling error:', error)
+      // Return error result - error will be handled by the calling code
       return {
         success: false,
         scheduledItems: [],

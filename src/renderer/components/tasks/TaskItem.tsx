@@ -30,7 +30,7 @@ export function TaskItem({ task }: TaskItemProps) {
         await updateTask(task.id, { name: editedName.trim() })
         setIsEditing(false)
       } catch (error) {
-        console.error('Error updating task:', error)
+        // Error already handled by store
       }
     }
   }

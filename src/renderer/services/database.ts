@@ -37,8 +37,6 @@ export class RendererDatabaseService {
     
     // Wait for electronAPI to be available (it might load asynchronously)
     if (!window.electronAPI) {
-      console.error('window object:', window)
-      console.error('Available properties:', Object.keys(window))
       throw new Error('Electron API not available. Make sure the preload script is loaded correctly.')
     }
   }

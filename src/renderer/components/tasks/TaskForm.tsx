@@ -29,7 +29,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
       onClose()
     } catch (error) {
       // Form validation failed or database error
-      console.error('Error creating task:', error)
+      // Error already handled by store
     }
   }
   

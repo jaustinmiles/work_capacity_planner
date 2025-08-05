@@ -228,9 +228,9 @@ function App() {
                         <SequencedTaskView 
                           key={task.id}
                           task={task}
-                          onStartWorkflow={() => console.log('Start workflow:', task.id)}
-                          onPauseWorkflow={() => console.log('Pause workflow:', task.id)}
-                          onResetWorkflow={() => console.log('Reset workflow:', task.id)}
+                          onStartWorkflow={() => {/* TODO: Implement workflow start */}}
+                          onPauseWorkflow={() => {/* TODO: Implement workflow pause */}}
+                          onResetWorkflow={() => {/* TODO: Implement workflow reset */}}
                         />
                       ))}
                     </>
@@ -247,9 +247,9 @@ function App() {
                   {showExampleWorkflow && (
                     <SequencedTaskView 
                       task={exampleSequencedTask}
-                      onStartWorkflow={() => console.log('Start workflow')}
-                      onPauseWorkflow={() => console.log('Pause workflow')}
-                      onResetWorkflow={() => console.log('Reset workflow')}
+                      onStartWorkflow={() => {/* TODO: Implement workflow start */}}
+                      onPauseWorkflow={() => {/* TODO: Implement workflow pause */}}
+                      onResetWorkflow={() => {/* TODO: Implement workflow reset */}}
                     />
                   )}
                 </Space>
@@ -258,9 +258,9 @@ function App() {
               {activeView === 'timeline' && (
                 <Timeline 
                   weeklySchedule={currentWeeklySchedule}
-                  onItemClick={(item) => console.log('Timeline item clicked:', item)}
-                  onStartItem={(item) => console.log('Start item:', item)}
-                  onPauseItem={(item) => console.log('Pause item:', item)}
+                  onItemClick={() => {/* TODO: Implement timeline item actions */}}
+                  onStartItem={() => {/* TODO: Implement timeline item start */}}
+                  onPauseItem={() => {/* TODO: Implement timeline item pause */}}
                 />
               )}
                 </>
@@ -278,7 +278,7 @@ function App() {
           visible={sequencedTaskFormVisible}
           onClose={() => setSequencedTaskFormVisible(false)}
           onSubmit={async (taskData) => {
-            console.log('Sequenced task created:', taskData)
+            // Task successfully created and added to store
             await addSequencedTask(taskData)
           }}
         />
