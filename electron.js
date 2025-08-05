@@ -76,22 +76,9 @@ try {
 // Import AI service
 let aiService
 try {
-  console.log('ANTHROPIC_API_KEY available:', !!process.env.ANTHROPIC_API_KEY)
-  console.log('OPENAI_API_KEY available:', !!process.env.OPENAI_API_KEY)
   const { getAIService } = require('./dist/ai-service')
   aiService = getAIService()
   console.log('AI service initialized successfully')
-  
-  // Test AI service with a simple call
-  setTimeout(async () => {
-    try {
-      console.log('Testing AI service with simple extraction...')
-      const testResult = await aiService.extractTasksFromBrainstorm('I need to write a report today')
-      console.log('AI test successful:', testResult.tasks?.length, 'tasks extracted')
-    } catch (error) {
-      console.error('AI test failed:', error.message)
-    }
-  }, 2000)
 } catch (error) {
   console.error('Failed to initialize AI service:', error)
 }
@@ -165,15 +152,7 @@ ipcMain.handle('db:getSequencedTaskById', async (_, id) => {
 // IPC handlers for AI operations
 ipcMain.handle('ai:extractTasksFromBrainstorm', async (_, brainstormText) => {
   if (!aiService) throw new Error('AI service not initialized')
-  try {
-    console.log('Processing brainstorm text:', brainstormText?.substring(0, 100) + '...')
-    const result = await aiService.extractTasksFromBrainstorm(brainstormText)
-    console.log('AI processing successful, extracted', result.tasks?.length, 'tasks')
-    return result
-  } catch (error) {
-    console.error('Detailed AI processing error:', error)
-    throw error
-  }
+  return await aiService.extractTasksFromBrainstorm(brainstormText)
 })
 
 ipcMain.handle('ai:generateWorkflowSteps', async (_, taskDescription, context) => {

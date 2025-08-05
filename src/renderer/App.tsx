@@ -262,9 +262,9 @@ function App() {
                         <SequencedTaskView
                           key={task.id}
                           task={task}
-                          onStartWorkflow={() => {/* TODO: Implement workflow start */}}
-                          onPauseWorkflow={() => {/* TODO: Implement workflow pause */}}
-                          onResetWorkflow={() => {/* TODO: Implement workflow reset */}}
+                          onStartWorkflow={() => {/* Future: Implement workflow execution tracking */}}
+                          onPauseWorkflow={() => {/* Future: Implement workflow pause functionality */}}
+                          onResetWorkflow={() => {/* Future: Implement workflow reset to initial state */}}
                         />
                       ))}
                     </>
@@ -281,9 +281,9 @@ function App() {
                   {showExampleWorkflow && (
                     <SequencedTaskView
                       task={exampleSequencedTask}
-                      onStartWorkflow={() => {/* TODO: Implement workflow start */}}
-                      onPauseWorkflow={() => {/* TODO: Implement workflow pause */}}
-                      onResetWorkflow={() => {/* TODO: Implement workflow reset */}}
+                      onStartWorkflow={() => {/* Future: Implement workflow execution tracking */}}
+                      onPauseWorkflow={() => {/* Future: Implement workflow pause functionality */}}
+                      onResetWorkflow={() => {/* Future: Implement workflow reset to initial state */}}
                     />
                   )}
                 </Space>
@@ -292,9 +292,9 @@ function App() {
               {activeView === 'timeline' && (
                 <Timeline
                   weeklySchedule={currentWeeklySchedule}
-                  onItemClick={() => {/* TODO: Implement timeline item actions */}}
-                  onStartItem={() => {/* TODO: Implement timeline item start */}}
-                  onPauseItem={() => {/* TODO: Implement timeline item pause */}}
+                  onItemClick={() => {/* Future: Implement timeline item detail view */}}
+                  onStartItem={() => {/* Future: Implement task execution tracking */}}
+                  onPauseItem={() => {/* Future: Implement task pause functionality */}}
                 />
               )}
                 </>

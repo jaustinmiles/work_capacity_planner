@@ -7,6 +7,8 @@ This document describes the user experience, workflows, and interaction patterns
 **Primary User**: Software engineers and technical professionals who need to manage complex workloads with realistic time constraints and capacity planning.
 
 **User Needs**:
+- Rapidly capture and organize thoughts through natural voice input
+- AI-powered task extraction and intelligent enhancement suggestions
 - Manage both simple tasks and complex multi-step workflows
 - Understand realistic time allocation based on available capacity
 - Visualize work distribution across time
@@ -15,7 +17,32 @@ This document describes the user experience, workflows, and interaction patterns
 
 ## Core User Stories
 
-### Story 1: Basic Task Management
+### Story 1: AI-Powered Task Brainstorming
+**As a busy professional**, I want to quickly capture my thoughts through voice input and have AI organize them into structured tasks so that I can rapidly plan my work without manual organization.
+
+**Acceptance Criteria**:
+- ✅ I can click "AI Brainstorm" to open voice recording modal
+- ✅ I can record natural speech about my projects and deadlines
+- ✅ Speech is automatically transcribed using OpenAI Whisper
+- ✅ Claude AI analyzes my brainstorm and extracts discrete tasks
+- ✅ AI assigns realistic priorities, durations, and task types
+- ✅ I can review and modify AI suggestions before creating tasks
+- ✅ Tasks are created with all metadata and persist in database
+
+**UI Flow**:
+1. User clicks "AI Brainstorm" from Add Task dropdown
+2. Modal opens with voice recording interface
+3. User records natural speech about upcoming work
+4. Real-time transcription displays spoken text
+5. User can edit transcribed text if needed
+6. User clicks "Extract Tasks with AI"
+7. Claude processes text and returns structured task list
+8. User reviews extracted tasks with AI suggestions
+9. For unclear tasks, AI asks contextual questions
+10. User can choose between original and AI-enhanced versions
+11. Tasks are created and appear in normal task list
+
+### Story 2: Basic Task Management
 **As a software engineer**, I want to create and manage individual tasks so that I can track my work items and priorities.
 
 **Acceptance Criteria**:
@@ -196,12 +223,16 @@ This document describes the user experience, workflows, and interaction patterns
 ## Current State vs Future Enhancements
 
 ### Currently Implemented ✅
-- Complete task and workflow CRUD operations
-- Database persistence with SQLite
-- Smart scheduling algorithm
-- Multiple view modes (List, Matrix, Calendar, Timeline)
-- Professional UI with Arco Design components
-- Real-time capacity calculations
+- **AI-Powered Task Creation**: Voice-to-task pipeline with Claude and Whisper APIs
+- **Voice Input System**: Real-time speech recording and transcription
+- **Intelligent Task Analysis**: AI extracts tasks with priorities, durations, and types
+- **Context Enhancement**: AI asks clarifying questions and provides suggestions
+- **Complete Task Management**: Full CRUD operations for tasks and workflows
+- **Database Persistence**: SQLite with secure Electron IPC architecture
+- **Smart Scheduling Algorithm**: Capacity-based task distribution with dependencies
+- **Multiple View Modes**: List, Matrix, Calendar, Workflows, Timeline
+- **Professional UI**: ArcoDesign components with responsive interactions
+- **Real-time Calculations**: Dynamic capacity utilization and scheduling
 
 ### Future Enhancements 🚀
 - **Workflow Execution**: Start/pause/reset workflow functionality (marked as TODO)
@@ -215,6 +246,7 @@ This document describes the user experience, workflows, and interaction patterns
 
 ### Data Flow
 ```
+Voice Input → Whisper API → Claude Analysis → Task Creation → Database → UI Update
 User Action → UI Component → Zustand Store → IPC → Main Process → Database → Response Chain
 ```
 
