@@ -60,7 +60,9 @@
     "wait-on": "^8.0.4"
   },
   "dependencies": {
+    "@arco-design/web-react": "^2.66.2",
     "@prisma/client": "^6.13.0",
+    "dayjs": "^1.11.13",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "zustand": "^5.0.7"

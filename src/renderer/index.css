@@ -1,3 +1,67 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Arco Design overrides for better desktop experience */
+.arco-layout-sider {
+  transition: all 0.2s;
+}
+
+.arco-menu {
+  border-right: none !important;
+}
+
+.arco-menu-item {
+  margin: 4px 12px !important;
+  border-radius: 6px !important;
+  transition: all 0.2s;
+}
+
+.arco-menu-item:hover {
+  background-color: #F2F3F5 !important;
+}
+
+.arco-menu-selected {
+  background-color: #E8F3FF !important;
+  color: #165DFF !important;
+  font-weight: 500;
+}
+
+.arco-card {
+  transition: box-shadow 0.2s;
+}
+
+.arco-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Better scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Electron window styling */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}

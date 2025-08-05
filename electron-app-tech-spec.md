@@ -22,7 +22,7 @@ The Work Capacity Planner is an Electron-based desktop application that helps so
 - **Language**: TypeScript 5.0+
 - **State Management**: Zustand (lightweight, TypeScript-friendly)
 - **Database**: SQLite with Prisma ORM (for local persistence)
-- **UI Framework**: Tailwind CSS with shadcn/ui components
+- **UI Framework**: Arco Design (professional React component library) with Tailwind CSS
 - **Build Tool**: Vite (faster than webpack for development)
 - **Testing**: Vitest + React Testing Library + Playwright (E2E)
 
@@ -463,7 +463,7 @@ npm test
 
 1. **SQLite over cloud**: Privacy-first, works offline
 2. **Zustand over Redux**: Simpler, less boilerplate
-3. **Tailwind over Material-UI**: Better performance, smaller bundle
+3. **Arco Design + Tailwind**: Professional desktop-focused components with utility styling
 4. **Vite over Webpack**: Faster development experience
 5. **TypeScript throughout**: Type safety prevents bugs
 

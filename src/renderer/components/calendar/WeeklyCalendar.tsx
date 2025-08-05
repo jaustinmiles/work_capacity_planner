@@ -1,8 +1,16 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { Calendar, Card, Typography, Space, Statistic, Grid, Tag, Alert } from '@arco-design/web-react'
+import { IconClockCircle, IconDesktop, IconUserGroup } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
+import dayjs from 'dayjs'
+
+const { Title, Text } = Typography
+const { Row, Col } = Grid
 
 export function WeeklyCalendar() {
   const { tasks } = useTaskStore()
+  const [selectedDate, setSelectedDate] = useState(dayjs())
+  
   const incompleteTasks = tasks.filter(task => !task.completed)
   
   // Calculate total work capacity needed
@@ -26,41 +34,118 @@ export function WeeklyCalendar() {
     totalAdminMinutes / 180    // 3 hours = 180 minutes
   ))
   
+  // Custom date cell render for showing task allocation
+  const dateRender = (currentDate: dayjs.Dayjs) => {
+    const isWeekend = currentDate.day() === 0 || currentDate.day() === 6
+    const isToday = currentDate.isSame(dayjs(), 'day')
+    const isFuture = currentDate.isAfter(dayjs(), 'day')
+    
+    // Mock scheduled tasks for demonstration
+    const hasScheduledTasks = isFuture && !isWeekend && Math.random() > 0.5
+    
+    return (
+      <div style={{ 
+        padding: '4px',
+        height: '100%',
+        background: isToday ? '#E8F3FF' : 'transparent',
+        borderRadius: '4px',
+      }}>
+        <div style={{ fontSize: 16, fontWeight: isToday ? 600 : 400 }}>
+          {currentDate.date()}
+        </div>
+        {hasScheduledTasks && (
+          <Space direction="vertical" size={4} style={{ marginTop: 4 }}>
+            <Tag size="small" color="blue" style={{ margin: 0 }}>
+              2h focused
+            </Tag>
+            <Tag size="small" color="green" style={{ margin: 0 }}>
+              1h admin
+            </Tag>
+          </Space>
+        )}
+      </div>
+    )
+  }
+  
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold mb-4">Weekly Calendar</h2>
+    <Space direction="vertical" style={{ width: '100%' }} size="large">
+      {/* Workload Summary Card */}
+      <Card>
+        <Title heading={5} style={{ marginBottom: 16 }}>Workload Summary</Title>
+        
+        <Row gutter={16}>
+          <Col span={8}>
+            <Statistic
+              title={
+                <Space>
+                  <IconDesktop />
+                  <span>Focused Work</span>
+                </Space>
+              }
+              value={`${focusedHours}h ${focusedMins > 0 ? `${focusedMins}m` : ''}`}
+              style={{ color: '#165DFF' }}
+            />
+          </Col>
+          <Col span={8}>
+            <Statistic
+              title={
+                <Space>
+                  <IconUserGroup />
+                  <span>Admin/Meetings</span>
+                </Space>
+              }
+              value={`${adminHours}h ${adminMins > 0 ? `${adminMins}m` : ''}`}
+              style={{ color: '#00B42A' }}
+            />
+          </Col>
+          <Col span={8}>
+            <Statistic
+              title={
+                <Space>
+                  <IconClockCircle />
+                  <span>Days to Complete</span>
+                </Space>
+              }
+              value={daysNeeded}
+              suffix="days"
+              style={{ color: '#FF7D00' }}
+            />
+          </Col>
+        </Row>
+        
+        <Alert
+          type="info"
+          content={`Based on 4 hours of focused work and 3 hours of admin time per day, you'll need approximately ${daysNeeded} working days to complete all active tasks.`}
+          style={{ marginTop: 16 }}
+        />
+      </Card>
       
-      <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-        <h3 className="font-medium text-blue-900 mb-2">Workload Summary</h3>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-blue-700">Focused Work:</p>
-            <p className="font-semibold text-blue-900">
-              {focusedHours}h {focusedMins > 0 && `${focusedMins}m`}
-            </p>
-          </div>
-          <div>
-            <p className="text-blue-700">Admin/Meetings:</p>
-            <p className="font-semibold text-blue-900">
-              {adminHours}h {adminMins > 0 && `${adminMins}m`}
-            </p>
-          </div>
+      {/* Calendar View */}
+      <Card>
+        <Title heading={5} style={{ marginBottom: 16 }}>Schedule View</Title>
+        
+        <Calendar
+          dateRender={dateRender}
+          onChange={(date: dayjs.Dayjs) => setSelectedDate(date)}
+          panel
+          panelWidth={300}
+
+          style={{
+            background: '#fff',
+            borderRadius: '8px',
+          }}
+        />
+        
+        <div style={{ marginTop: 16, padding: 16, background: '#F7F8FA', borderRadius: 8 }}>
+          <Space>
+            <Tag color="blue">Focused Work</Tag>
+            <Tag color="green">Admin/Meetings</Tag>
+            <Text type="secondary">
+              Tasks will be automatically scheduled based on priority and available capacity
+            </Text>
+          </Space>
         </div>
-        <div className="mt-3 pt-3 border-t border-blue-200">
-          <p className="text-blue-700">Estimated days to complete:</p>
-          <p className="font-semibold text-blue-900">{daysNeeded} working days</p>
-        </div>
-      </div>
-      
-      <div className="text-center py-12 text-gray-500">
-        <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        <p className="text-lg font-medium mb-2">Calendar View Coming Soon</p>
-        <p className="text-sm">
-          This will show your tasks scheduled across the week based on available capacity.
-        </p>
-      </div>
-    </div>
+      </Card>
+    </Space>
   )
 }

@@ -1,8 +1,17 @@
 import React from 'react'
+import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip } from '@arco-design/web-react'
+import { IconFire, IconCalendar, IconUser, IconClose, IconPlus } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Task } from '@shared/types'
 
-export function EisenhowerMatrix() {
+const { Row, Col } = Grid
+const { Title, Text } = Typography
+
+interface EisenhowerMatrixProps {
+  onAddTask: () => void
+}
+
+export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { tasks, selectTask } = useTaskStore()
   
   // Only show incomplete tasks in the matrix
@@ -23,94 +32,194 @@ export function EisenhowerMatrix() {
     'eliminate': incompleteTasks.filter(task => categorizeTask(task) === 'eliminate'),
   }
   
-  const quadrantInfo = {
+  const quadrantConfig = {
     'do-first': {
       title: 'Do First',
       subtitle: 'Important & Urgent',
-      color: 'bg-red-50 border-red-200',
-      textColor: 'text-red-700',
+      icon: <IconFire />,
+      color: '#F53F3F',
+      bgColor: '#FFECE8',
+      description: 'Critical tasks requiring immediate attention',
     },
     'schedule': {
       title: 'Schedule',
       subtitle: 'Important & Not Urgent',
-      color: 'bg-blue-50 border-blue-200',
-      textColor: 'text-blue-700',
+      icon: <IconCalendar />,
+      color: '#165DFF',
+      bgColor: '#E8F3FF',
+      description: 'Strategic tasks to plan and execute',
     },
     'delegate': {
       title: 'Delegate',
       subtitle: 'Not Important & Urgent',
-      color: 'bg-yellow-50 border-yellow-200',
-      textColor: 'text-yellow-700',
+      icon: <IconUser />,
+      color: '#FF7D00',
+      bgColor: '#FFF7E8',
+      description: 'Tasks that can be assigned to others',
     },
     'eliminate': {
       title: 'Eliminate',
       subtitle: 'Not Important & Not Urgent',
-      color: 'bg-gray-50 border-gray-200',
-      textColor: 'text-gray-700',
+      icon: <IconClose />,
+      color: '#86909C',
+      bgColor: '#F7F8FA',
+      description: 'Low priority tasks to minimize',
     },
   }
   
-  const TaskCard = ({ task }: { task: Task }) => (
-    <div
-      className="p-2 bg-white rounded shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+  const TaskCard = ({ task, color }: { task: Task; color: string }) => (
+    <Card
+      hoverable
+      style={{
+        cursor: 'pointer',
+        marginBottom: 8,
+        border: `1px solid ${color}20`,
+      }}
       onClick={() => selectTask(task.id)}
     >
-      <h4 className="text-sm font-medium truncate">{task.name}</h4>
-      <div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
-        <span>{task.duration}m</span>
-        <span className="capitalize">{task.type}</span>
-      </div>
-    </div>
+      <Space direction="vertical" style={{ width: '100%' }} size={4}>
+        <Text style={{ fontWeight: 500 }}>{task.name}</Text>
+        <Space size="small">
+          <Tag size="small" color={task.type === 'focused' ? 'blue' : 'green'}>
+            {task.type === 'focused' ? 'Focused' : 'Admin'}
+          </Tag>
+          <Tag size="small">
+            {Math.floor(task.duration / 60)}h {task.duration % 60}m
+          </Tag>
+        </Space>
+      </Space>
+    </Card>
   )
   
+  const QuadrantCard = ({ quadrant }: { quadrant: keyof typeof quadrants }) => {
+    const config = quadrantConfig[quadrant]
+    const tasks = quadrants[quadrant]
+    
+    return (
+      <Card
+        style={{
+          height: '100%',
+          background: config.bgColor,
+          border: `2px solid ${config.color}20`,
+        }}
+      >
+        <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Space style={{ marginBottom: 16 }}>
+            <div style={{ color: config.color, fontSize: 20 }}>
+              {config.icon}
+            </div>
+            <div>
+              <Title heading={6} style={{ margin: 0, color: config.color }}>
+                {config.title}
+                <Badge count={tasks.length} style={{ marginLeft: 8 }} />
+              </Title>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {config.subtitle}
+              </Text>
+            </div>
+          </Space>
+          
+          <Tooltip content={config.description}>
+            <Text type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
+              {config.description}
+            </Text>
+          </Tooltip>
+          
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            {tasks.length === 0 ? (
+              <Empty
+                description={<Text type="secondary">No tasks in this quadrant</Text>}
+                style={{ marginTop: 40 }}
+              />
+            ) : (
+              tasks.map(task => (
+                <TaskCard key={task.id} task={task} color={config.color} />
+              ))
+            )}
+          </div>
+        </div>
+      </Card>
+    )
+  }
+  
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold mb-4">Eisenhower Matrix</h2>
+    <Space direction="vertical" style={{ width: '100%' }} size="large">
+      {/* Header with Add Task Button */}
+      <Card>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <div>
+            <Title heading={5} style={{ margin: 0 }}>
+              Eisenhower Priority Matrix
+            </Title>
+            <Text type="secondary">
+              Organize tasks by importance and urgency to focus on what matters most
+            </Text>
+          </div>
+          <Button type="primary" icon={<IconPlus />} onClick={onAddTask}>
+            Add Task
+          </Button>
+        </Space>
+      </Card>
       
-      <div className="grid grid-cols-2 gap-4 h-[600px]">
-        {/* Axis labels */}
-        <div className="col-span-2 text-center mb-2">
-          <span className="text-sm font-medium text-gray-600">← Less Urgent → More Urgent →</span>
+      {/* Matrix Grid */}
+      <div style={{ position: 'relative' }}>
+        {/* Axis Labels */}
+        <div style={{
+          position: 'absolute',
+          top: -30,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1,
+        }}>
+          <Text type="secondary" style={{ fontWeight: 500 }}>
+            ← Less Urgent ——— More Urgent →
+          </Text>
         </div>
         
-        <div className="row-span-2 flex items-center -ml-8">
-          <span className="text-sm font-medium text-gray-600 -rotate-90 whitespace-nowrap">
-            ← Less Important → More Important →
-          </span>
+        <div style={{
+          position: 'absolute',
+          left: -100,
+          top: '50%',
+          transform: 'translateY(-50%) rotate(-90deg)',
+          zIndex: 1,
+        }}>
+          <Text type="secondary" style={{ fontWeight: 500 }}>
+            ← Less Important ——— More Important →
+          </Text>
         </div>
         
         {/* Quadrants */}
-        <div className="grid grid-cols-2 gap-4 col-span-1 row-span-2">
-          {(['schedule', 'do-first', 'eliminate', 'delegate'] as const).map((quadrant) => {
-            const info = quadrantInfo[quadrant]
-            const tasks = quadrants[quadrant]
-            
-            return (
-              <div
-                key={quadrant}
-                className={`border-2 rounded-lg p-4 ${info.color} overflow-y-auto`}
-              >
-                <div className="mb-3">
-                  <h3 className={`font-semibold ${info.textColor}`}>{info.title}</h3>
-                  <p className="text-xs text-gray-600">{info.subtitle}</p>
-                </div>
-                
-                <div className="space-y-2">
-                  {tasks.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">No tasks</p>
-                  ) : (
-                    tasks.map(task => <TaskCard key={task.id} task={task} />)
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <Row gutter={16} style={{ marginTop: 40, marginLeft: 40 }}>
+          <Col span={12}>
+            <Row gutter={[16, 16]}>
+              <Col span={24} style={{ height: 300 }}>
+                <QuadrantCard quadrant="schedule" />
+              </Col>
+              <Col span={24} style={{ height: 300 }}>
+                <QuadrantCard quadrant="eliminate" />
+              </Col>
+            </Row>
+          </Col>
+          <Col span={12}>
+            <Row gutter={[16, 16]}>
+              <Col span={24} style={{ height: 300 }}>
+                <QuadrantCard quadrant="do-first" />
+              </Col>
+              <Col span={24} style={{ height: 300 }}>
+                <QuadrantCard quadrant="delegate" />
+              </Col>
+            </Row>
+          </Col>
+        </Row>
       </div>
       
-      <div className="mt-4 text-sm text-gray-600">
-        <p>Tasks are categorized based on their importance and urgency scores (7+ is considered high).</p>
-      </div>
-    </div>
+      {/* Info Footer */}
+      <Card style={{ background: '#F7F8FA' }}>
+        <Text type="secondary">
+          Tasks are automatically categorized based on their importance and urgency scores. 
+          Scores of 7 or higher are considered high priority.
+        </Text>
+      </Card>
+    </Space>
   )
 }
