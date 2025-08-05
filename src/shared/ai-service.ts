@@ -76,10 +76,26 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
         throw new Error('Unexpected response type from Claude')
       }
 
-      return JSON.parse(content.text)
+      console.log('Raw Claude response:', content.text.substring(0, 200) + '...')
+      
+      // Try to extract JSON from the response (Claude sometimes adds extra text)
+      let jsonText = content.text.trim()
+      const jsonStart = jsonText.indexOf('{')
+      const jsonEnd = jsonText.lastIndexOf('}')
+      
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
+      }
+      
+      const jsonResult = JSON.parse(jsonText)
+      console.log('AI extraction successful:', jsonResult)
+      return jsonResult
     } catch (error) {
       console.error('Error extracting tasks from brainstorm:', error)
-      throw new Error('Failed to extract tasks from brainstorm text')
+      if (error instanceof SyntaxError) {
+        throw new Error(`Failed to parse AI response as JSON: ${error.message}`)
+      }
+      throw new Error(`Failed to extract tasks from brainstorm text: ${error.message}`)
     }
   }
 
