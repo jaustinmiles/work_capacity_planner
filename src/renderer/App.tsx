@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { TaskList } from './components/tasks/TaskList'
 import { TaskForm } from './components/tasks/TaskForm'
@@ -9,6 +9,8 @@ import { SequencedTaskView } from './components/tasks/SequencedTaskView'
 import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
 import { Timeline } from './components/timeline/Timeline'
+import { BrainstormModal } from './components/ai/BrainstormModal'
+import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
 import { useTaskStore } from './store/useTaskStore'
 import { exampleSequencedTask } from '@shared/sequencing-types'
 
@@ -16,10 +18,23 @@ const { Header, Sider, Content } = Layout
 const { Title } = Typography
 const MenuItem = Menu.Item
 
+interface ExtractedTask {
+  name: string
+  description: string
+  estimatedDuration: number
+  importance: number
+  urgency: number
+  type: 'focused' | 'admin'
+  needsMoreInfo?: boolean
+}
+
 function App() {
   const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
+  const [brainstormModalVisible, setBrainstormModalVisible] = useState(false)
+  const [taskCreationFlowVisible, setTaskCreationFlowVisible] = useState(false)
+  const [extractedTasks, setExtractedTasks] = useState<ExtractedTask[]>([])
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
   const {
     tasks,
@@ -49,6 +64,17 @@ function App() {
       generateWeeklySchedule(monday)
     }
   }, [activeView, currentWeeklySchedule, isScheduling, generateWeeklySchedule])
+
+  const handleTasksExtracted = (tasks: ExtractedTask[]) => {
+    setExtractedTasks(tasks)
+    setBrainstormModalVisible(false)
+    setTaskCreationFlowVisible(true)
+  }
+
+  const handleTaskCreationComplete = () => {
+    setTaskCreationFlowVisible(false)
+    setExtractedTasks([])
+  }
 
   return (
     <ConfigProvider
@@ -124,6 +150,14 @@ function App() {
               trigger="click"
               droplist={
                 <div style={{ padding: 8 }}>
+                  <Button
+                    type="text"
+                    icon={<IconBulb />}
+                    onClick={() => setBrainstormModalVisible(true)}
+                    style={{ width: '100%', justifyContent: 'flex-start', marginBottom: 4 }}
+                  >
+                    AI Brainstorm
+                  </Button>
                   <Button
                     type="text"
                     icon={<IconPlus />}
@@ -281,6 +315,18 @@ function App() {
             // Task successfully created and added to store
             await addSequencedTask(taskData)
           }}
+        />
+
+        <BrainstormModal
+          visible={brainstormModalVisible}
+          onClose={() => setBrainstormModalVisible(false)}
+          onTasksExtracted={handleTasksExtracted}
+        />
+
+        <TaskCreationFlow
+          visible={taskCreationFlowVisible}
+          onClose={handleTaskCreationComplete}
+          extractedTasks={extractedTasks}
         />
       </Layout>
     </ConfigProvider>

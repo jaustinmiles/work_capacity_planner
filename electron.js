@@ -70,6 +70,26 @@ try {
   console.error('Failed to initialize database service:', error)
 }
 
+// Import AI service
+let aiService
+try {
+  const { getAIService } = require('./dist/ai-service')
+  aiService = getAIService()
+  console.log('AI service initialized successfully')
+} catch (error) {
+  console.error('Failed to initialize AI service:', error)
+}
+
+// Import Speech service
+let speechService
+try {
+  const { getSpeechService } = require('./dist/speech-service')
+  speechService = getSpeechService()
+  console.log('Speech service initialized successfully')
+} catch (error) {
+  console.error('Failed to initialize speech service:', error)
+}
+
 // IPC handlers for database operations
 ipcMain.handle('db:getTasks', async () => {
   if (!db) throw new Error('Database not initialized')
@@ -124,4 +144,51 @@ ipcMain.handle('db:getTaskById', async (_, id) => {
 ipcMain.handle('db:getSequencedTaskById', async (_, id) => {
   if (!db) throw new Error('Database not initialized')
   return await db.getSequencedTaskById(id)
+})
+
+// IPC handlers for AI operations
+ipcMain.handle('ai:extractTasksFromBrainstorm', async (_, brainstormText) => {
+  if (!aiService) throw new Error('AI service not initialized')
+  return await aiService.extractTasksFromBrainstorm(brainstormText)
+})
+
+ipcMain.handle('ai:generateWorkflowSteps', async (_, taskDescription, context) => {
+  if (!aiService) throw new Error('AI service not initialized')
+  return await aiService.generateWorkflowSteps(taskDescription, context)
+})
+
+ipcMain.handle('ai:enhanceTaskDetails', async (_, taskName, currentDetails) => {
+  if (!aiService) throw new Error('AI service not initialized')
+  return await aiService.enhanceTaskDetails(taskName, currentDetails)
+})
+
+ipcMain.handle('ai:getContextualQuestions', async (_, taskName, taskDescription) => {
+  if (!aiService) throw new Error('AI service not initialized')
+  return await aiService.getContextualQuestions(taskName, taskDescription)
+})
+
+// IPC handlers for speech operations
+ipcMain.handle('speech:transcribeAudio', async (_, audioFilePath, options) => {
+  if (!speechService) throw new Error('Speech service not initialized')
+  return await speechService.transcribeAudio(audioFilePath, options)
+})
+
+ipcMain.handle('speech:transcribeAudioBuffer', async (_, audioBuffer, filename, options) => {
+  if (!speechService) throw new Error('Speech service not initialized')
+  return await speechService.transcribeAudioBuffer(audioBuffer, filename, options)
+})
+
+ipcMain.handle('speech:getSupportedFormats', async () => {
+  if (!speechService) throw new Error('Speech service not initialized')
+  return speechService.getSupportedFormats()
+})
+
+ipcMain.handle('speech:getBrainstormingSettings', async () => {
+  if (!speechService) throw new Error('Speech service not initialized')
+  return speechService.getBrainstormingSettings()
+})
+
+ipcMain.handle('speech:getWorkflowSettings', async () => {
+  if (!speechService) throw new Error('Speech service not initialized')
+  return speechService.getWorkflowSettings()
 })

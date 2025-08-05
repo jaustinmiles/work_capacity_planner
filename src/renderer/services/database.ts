@@ -18,6 +18,55 @@ declare global {
         getTaskById: (id: string) => Promise<Task | null>
         getSequencedTaskById: (id: string) => Promise<SequencedTask | null>
       }
+      ai: {
+        extractTasksFromBrainstorm: (brainstormText: string) => Promise<{
+          tasks: Array<{
+            name: string
+            description: string
+            estimatedDuration: number
+            importance: number
+            urgency: number
+            type: 'focused' | 'admin'
+            needsMoreInfo?: boolean
+          }>
+          summary: string
+        }>
+        generateWorkflowSteps: (taskDescription: string, context?: any) => Promise<{
+          workflowName: string
+          steps: any[]
+          totalDuration: number
+          notes: string
+        }>
+        enhanceTaskDetails: (taskName: string, currentDetails?: any) => Promise<{
+          suggestions: any
+          confidence: number
+        }>
+        getContextualQuestions: (taskName: string, taskDescription?: string) => Promise<{
+          questions: Array<{
+            question: string
+            type: 'text' | 'number' | 'choice'
+            choices?: string[]
+            purpose: string
+          }>
+        }>
+      }
+      speech: {
+        transcribeAudio: (audioFilePath: string, options?: any) => Promise<{
+          text: string
+        }>
+        transcribeAudioBuffer: (audioBuffer: Buffer, filename: string, options?: any) => Promise<{
+          text: string
+        }>
+        getSupportedFormats: () => Promise<string[]>
+        getBrainstormingSettings: () => Promise<{
+          language: string
+          prompt: string
+        }>
+        getWorkflowSettings: () => Promise<{
+          language: string
+          prompt: string
+        }>
+      }
     }
   }
 }
@@ -94,6 +143,44 @@ export class RendererDatabaseService {
   // Initialize with default data
   async initializeDefaultData(): Promise<void> {
     return await window.electronAPI.db.initializeDefaultData()
+  }
+
+  // AI-powered operations
+  async extractTasksFromBrainstorm(brainstormText: string) {
+    return await window.electronAPI.ai.extractTasksFromBrainstorm(brainstormText)
+  }
+
+  async generateWorkflowSteps(taskDescription: string, context?: any) {
+    return await window.electronAPI.ai.generateWorkflowSteps(taskDescription, context)
+  }
+
+  async enhanceTaskDetails(taskName: string, currentDetails?: any) {
+    return await window.electronAPI.ai.enhanceTaskDetails(taskName, currentDetails)
+  }
+
+  async getContextualQuestions(taskName: string, taskDescription?: string) {
+    return await window.electronAPI.ai.getContextualQuestions(taskName, taskDescription)
+  }
+
+  // Speech-to-text operations
+  async transcribeAudio(audioFilePath: string, options?: any) {
+    return await window.electronAPI.speech.transcribeAudio(audioFilePath, options)
+  }
+
+  async transcribeAudioBuffer(audioBuffer: Buffer, filename: string, options?: any) {
+    return await window.electronAPI.speech.transcribeAudioBuffer(audioBuffer, filename, options)
+  }
+
+  async getSupportedFormats() {
+    return await window.electronAPI.speech.getSupportedFormats()
+  }
+
+  async getBrainstormingSettings() {
+    return await window.electronAPI.speech.getBrainstormingSettings()
+  }
+
+  async getWorkflowSettings() {
+    return await window.electronAPI.speech.getWorkflowSettings()
   }
 }
 
