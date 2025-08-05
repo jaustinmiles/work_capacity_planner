@@ -1,6 +1,13 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { TaskList } from './components/tasks/TaskList'
+import { TaskForm } from './components/tasks/TaskForm'
+import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
+import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
+import { Navigation } from './components/layout/Navigation'
 
 function App() {
+  const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar'>('tasks')
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
@@ -10,12 +17,33 @@ function App() {
           </h1>
         </div>
       </header>
+      
+      <Navigation activeView={activeView} onViewChange={setActiveView} />
+      
       <main>
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="px-4 py-6 sm:px-0">
-            <div className="border-4 border-dashed border-gray-200 rounded-lg h-96 flex items-center justify-center">
-              <p className="text-gray-500">Welcome to Work Capacity Planner</p>
-            </div>
+            {activeView === 'tasks' && (
+              <>
+                <div className="mb-6">
+                  <TaskForm />
+                </div>
+                <TaskList />
+              </>
+            )}
+            
+            {activeView === 'matrix' && (
+              <>
+                <div className="mb-6">
+                  <TaskForm />
+                </div>
+                <EisenhowerMatrix />
+              </>
+            )}
+            
+            {activeView === 'calendar' && (
+              <WeeklyCalendar />
+            )}
           </div>
         </div>
       </main>

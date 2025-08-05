@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('api', {
   
   // Event listeners
   on: (channel: string, callback: Function) => {
-    ipcRenderer.on(channel, (event, ...args) => callback(...args))
+    ipcRenderer.on(channel, (_event: any, ...args: any[]) => callback(...args))
   },
   off: (channel: string, callback: Function) => {
     ipcRenderer.removeListener(channel, callback as any)
