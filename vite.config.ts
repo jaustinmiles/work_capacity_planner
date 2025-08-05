@@ -5,6 +5,7 @@ import path from 'node:path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  root: './src/renderer',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -14,11 +15,11 @@ export default defineConfig({
   },
   base: './',
   build: {
-    outDir: 'dist/renderer',
+    outDir: '../../dist/renderer',
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
+    port: 5174,
     strictPort: true,
   }
 })
