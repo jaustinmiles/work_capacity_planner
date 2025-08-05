@@ -1,21 +1,42 @@
 import { create } from 'zustand'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
+import { SchedulingService } from '@shared/scheduling-service'
+import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
+import { getDatabase } from '../services/database'
 
 interface TaskStore {
   tasks: Task[]
   sequencedTasks: SequencedTask[]
   selectedTaskId: string | null
+  isLoading: boolean
+  error: string | null
+  
+  // Scheduling state
+  currentSchedule: SchedulingResult | null
+  currentWeeklySchedule: WeeklySchedule | null
+  isScheduling: boolean
+  schedulingError: string | null
+  
+  // Data loading actions
+  loadTasks: () => Promise<void>
+  loadSequencedTasks: () => Promise<void>
+  initializeData: () => Promise<void>
   
   // Actions
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void
-  addSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => void
-  updateTask: (id: string, updates: Partial<Task>) => void
-  updateSequencedTask: (id: string, updates: Partial<SequencedTask>) => void
-  deleteTask: (id: string) => void
-  deleteSequencedTask: (id: string) => void
-  toggleTaskComplete: (id: string) => void
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
+  addSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>
+  updateSequencedTask: (id: string, updates: Partial<SequencedTask>) => Promise<void>
+  deleteTask: (id: string) => Promise<void>
+  deleteSequencedTask: (id: string) => Promise<void>
+  toggleTaskComplete: (id: string) => Promise<void>
   selectTask: (id: string | null) => void
+  
+  // Scheduling actions
+  generateSchedule: (options?: { startDate?: Date; tieBreaking?: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical' }) => Promise<void>
+  generateWeeklySchedule: (weekStartDate: Date) => Promise<void>
+  clearSchedule: () => void
   
   // Computed
   getTaskById: (id: string) => Task | undefined
@@ -29,194 +50,218 @@ interface TaskStore {
 // Helper to generate IDs (will be replaced by database IDs later)
 const generateId = () => crypto.randomUUID()
 
+// Create scheduling service instance
+const schedulingService = new SchedulingService()
+
 export const useTaskStore = create<TaskStore>((set, get) => ({
-  tasks: [
-    // Some sample tasks to start with
-    {
-      id: generateId(),
-      name: 'Set up project structure',
-      duration: 120,
-      importance: 8,
-      urgency: 9,
-      type: 'focused',
-      asyncWaitTime: 0,
-      dependencies: [],
-      completed: true,
-      completedAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: generateId(),
-      name: 'Design database schema',
-      duration: 90,
-      importance: 9,
-      urgency: 7,
-      type: 'focused',
-      asyncWaitTime: 0,
-      dependencies: [],
-      completed: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: generateId(),
-      name: 'Review pull requests',
-      duration: 45,
-      importance: 6,
-      urgency: 8,
-      type: 'admin',
-      asyncWaitTime: 0,
-      dependencies: [],
-      completed: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ],
-  sequencedTasks: [
-    // User's "Extended Estimated Stop Distance" workflow
-    {
-      id: generateId(),
-      name: "Extended Estimated Stop Distance",
-      importance: 10,
-      urgency: 10,
-      type: 'focused' as const,
-      notes: "Increase stop distance, change eval timestamps or remove them, retrieve timestamps from egomotion extraction workflow",
-      dependencies: [],
-      completed: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      steps: [
-        {
-          id: "step-0",
-          name: "Get Egomotion Timestamps",
-          duration: 50,
-          type: 'focused' as const,
-          dependsOn: [],
-          asyncWaitTime: 120,
-          status: 'pending' as const
-        },
-        {
-          id: "step-1",
-          name: "Import timestamps, change test config",
-          duration: 60,
-          type: 'focused' as const,
-          dependsOn: ["step-0"],
-          asyncWaitTime: 0,
-          status: 'pending' as const
-        },
-        {
-          id: "step-2",
-          name: "Code changes to allow evaluation past 60m range",
-          duration: 25,
-          type: 'focused' as const,
-          dependsOn: [],
-          asyncWaitTime: 0,
-          status: 'pending' as const
-        },
-        {
-          id: "step-3",
-          name: "Submit workflow with full capability",
-          duration: 60,
-          type: 'focused' as const,
-          dependsOn: ["step-2", "step-1", "step-0"],
-          asyncWaitTime: 240,
-          status: 'pending' as const
-        },
-        {
-          id: "step-4",
-          name: "Unit Test and CL",
-          duration: 75,
-          type: 'focused' as const,
-          dependsOn: ["step-2", "step-1", "step-0"],
-          asyncWaitTime: 120,
-          status: 'pending' as const
-        },
-        {
-          id: "step-5",
-          name: "Verify WF Results/Iterate/Code Complete",
-          duration: 50,
-          type: 'focused' as const,
-          dependsOn: ["step-4", "step-3"],
-          asyncWaitTime: 240,
-          status: 'pending' as const
-        },
-        {
-          id: "step-6",
-          name: "Complete with Buffer",
-          duration: 60,
-          type: 'admin' as const,
-          dependsOn: ["step-5"],
-          asyncWaitTime: 0,
-          status: 'pending' as const
-        }
-      ],
-      totalDuration: 380,
-      criticalPathDuration: 620,
-      worstCaseDuration: 760,
-      overallStatus: 'not_started' as const
-    }
-  ],
+  tasks: [],
+  sequencedTasks: [],
   selectedTaskId: null,
+  isLoading: false,
+  error: null,
   
-  addTask: (taskData) => set((state) => ({
-    tasks: [...state.tasks, {
-      ...taskData,
-      id: generateId(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }]
-  })),
+  // Scheduling state
+  currentSchedule: null,
+  currentWeeklySchedule: null,
+  isScheduling: false,
+  schedulingError: null,
   
-  addSequencedTask: (taskData) => set((state) => ({
-    sequencedTasks: [...state.sequencedTasks, {
-      ...taskData,
-      id: generateId(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }]
-  })),
+  // Data loading actions
+  loadTasks: async () => {
+    try {
+      set({ isLoading: true, error: null })
+      const tasks = await getDatabase().getTasks()
+      set({ tasks, isLoading: false })
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to load tasks',
+        isLoading: false 
+      })
+    }
+  },
+
+  loadSequencedTasks: async () => {
+    try {
+      set({ isLoading: true, error: null })
+      const sequencedTasks = await getDatabase().getSequencedTasks()
+      set({ sequencedTasks, isLoading: false })
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to load sequenced tasks',
+        isLoading: false 
+      })
+    }
+  },
+
+  initializeData: async () => {
+    try {
+      set({ isLoading: true, error: null })
+      await getDatabase().initializeDefaultData()
+      const [tasks, sequencedTasks] = await Promise.all([
+        getDatabase().getTasks(),
+        getDatabase().getSequencedTasks()
+      ])
+      set({ tasks, sequencedTasks, isLoading: false })
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to initialize data',
+        isLoading: false 
+      })
+    }
+  },
   
-  updateTask: (id, updates) => set((state) => ({
-    tasks: state.tasks.map(task => 
-      task.id === id 
-        ? { ...task, ...updates, updatedAt: new Date() }
-        : task
-    )
-  })),
+  addTask: async (taskData) => {
+    try {
+      const task = await getDatabase().createTask(taskData)
+      set((state) => ({
+        tasks: [...state.tasks, task],
+        error: null
+      }))
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to create task'
+      })
+    }
+  },
   
-  updateSequencedTask: (id, updates) => set((state) => ({
-    sequencedTasks: state.sequencedTasks.map(task => 
-      task.id === id 
-        ? { ...task, ...updates, updatedAt: new Date() }
-        : task
-    )
-  })),
+  addSequencedTask: async (taskData) => {
+    try {
+      const sequencedTask = await getDatabase().createSequencedTask(taskData)
+      set((state) => ({
+        sequencedTasks: [...state.sequencedTasks, sequencedTask],
+        error: null
+      }))
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to create sequenced task'
+      })
+    }
+  },
   
-  deleteTask: (id) => set((state) => ({
-    tasks: state.tasks.filter(task => task.id !== id),
-    selectedTaskId: state.selectedTaskId === id ? null : state.selectedTaskId
-  })),
+  updateTask: async (id, updates) => {
+    try {
+      const updatedTask = await getDatabase().updateTask(id, updates)
+      set((state) => ({
+        tasks: state.tasks.map(task => 
+          task.id === id ? updatedTask : task
+        ),
+        error: null
+      }))
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to update task'
+      })
+    }
+  },
   
-  deleteSequencedTask: (id) => set((state) => ({
-    sequencedTasks: state.sequencedTasks.filter(task => task.id !== id),
-    selectedTaskId: state.selectedTaskId === id ? null : state.selectedTaskId
-  })),
+  updateSequencedTask: async (id, updates) => {
+    try {
+      const updatedTask = await getDatabase().updateSequencedTask(id, updates)
+      set((state) => ({
+        sequencedTasks: state.sequencedTasks.map(task => 
+          task.id === id ? updatedTask : task
+        ),
+        error: null
+      }))
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to update sequenced task'
+      })
+    }
+  },
   
-  toggleTaskComplete: (id) => set((state) => ({
-    tasks: state.tasks.map(task => 
-      task.id === id 
-        ? { 
-            ...task, 
-            completed: !task.completed,
-            completedAt: !task.completed ? new Date() : undefined,
-            updatedAt: new Date()
-          }
-        : task
-    )
-  })),
+  deleteTask: async (id) => {
+    try {
+      await getDatabase().deleteTask(id)
+      set((state) => ({
+        tasks: state.tasks.filter(task => task.id !== id),
+        selectedTaskId: state.selectedTaskId === id ? null : state.selectedTaskId,
+        error: null
+      }))
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to delete task'
+      })
+    }
+  },
+  
+  deleteSequencedTask: async (id) => {
+    try {
+      await getDatabase().deleteSequencedTask(id)
+      set((state) => ({
+        sequencedTasks: state.sequencedTasks.filter(task => task.id !== id),
+        selectedTaskId: state.selectedTaskId === id ? null : state.selectedTaskId,
+        error: null
+      }))
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to delete sequenced task'
+      })
+    }
+  },
+  
+  toggleTaskComplete: async (id) => {
+    try {
+      const task = get().tasks.find(t => t.id === id)
+      if (!task) return
+      
+      const updates = {
+        completed: !task.completed,
+        completedAt: !task.completed ? new Date() : undefined
+      }
+      
+      await get().updateTask(id, updates)
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to toggle task completion'
+      })
+    }
+  },
   
   selectTask: (id) => set({ selectedTaskId: id }),
+  
+  // Scheduling actions
+  generateSchedule: async (options = {}) => {
+    set({ isScheduling: true, schedulingError: null })
+    try {
+      const state = get()
+      const schedule = await schedulingService.createSchedule(
+        state.tasks,
+        state.sequencedTasks,
+        options
+      )
+      set({ currentSchedule: schedule, isScheduling: false })
+    } catch (error) {
+      set({ 
+        schedulingError: error instanceof Error ? error.message : 'Unknown scheduling error',
+        isScheduling: false 
+      })
+    }
+  },
+  
+  generateWeeklySchedule: async (weekStartDate: Date) => {
+    set({ isScheduling: true, schedulingError: null })
+    try {
+      const state = get()
+      const weeklySchedule = await schedulingService.createWeeklySchedule(
+        state.tasks,
+        state.sequencedTasks,
+        weekStartDate
+      )
+      set({ currentWeeklySchedule: weeklySchedule, isScheduling: false })
+    } catch (error) {
+      set({ 
+        schedulingError: error instanceof Error ? error.message : 'Unknown scheduling error',
+        isScheduling: false 
+      })
+    }
+  },
+  
+  clearSchedule: () => set({ 
+    currentSchedule: null, 
+    currentWeeklySchedule: null, 
+    schedulingError: null 
+  }),
   
   getTaskById: (id) => get().tasks.find(task => task.id === id),
   

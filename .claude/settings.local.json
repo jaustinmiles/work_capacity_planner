@@ -6,7 +6,8 @@
       "Bash(npm run start:*)",
       "Bash(pkill:*)",
       "Bash(true)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

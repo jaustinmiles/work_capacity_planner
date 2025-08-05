@@ -24,10 +24,14 @@ export function TaskItem({ task }: TaskItemProps) {
                         priorityScore >= 36 ? 'Medium Priority' : 
                         'Low Priority'
   
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editedName.trim()) {
-      updateTask(task.id, { name: editedName.trim() })
-      setIsEditing(false)
+      try {
+        await updateTask(task.id, { name: editedName.trim() })
+        setIsEditing(false)
+      } catch (error) {
+        console.error('Error updating task:', error)
+      }
     }
   }
   
@@ -70,7 +74,9 @@ export function TaskItem({ task }: TaskItemProps) {
         <Space align="start">
           <Checkbox
             checked={task.completed}
-            onChange={() => toggleTaskComplete(task.id)}
+            onChange={() => {
+              toggleTaskComplete(task.id).catch(console.error)
+            }}
             style={{ marginTop: 2 }}
           />
           
@@ -174,7 +180,9 @@ export function TaskItem({ task }: TaskItemProps) {
           <Popconfirm
             title="Delete Task"
             content="Are you sure you want to delete this task?"
-            onOk={() => deleteTask(task.id)}
+            onOk={() => {
+              deleteTask(task.id).catch(console.error)
+            }}
             okText="Delete"
             okButtonProps={{ status: 'danger' }}
           >

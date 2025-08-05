@@ -19,7 +19,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
   const handleSubmit = async () => {
     try {
       const values = await form.validate()
-      addTask({
+      await addTask({
         ...values,
         dependencies: [],
         completed: false,
@@ -28,7 +28,8 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
       form.resetFields()
       onClose()
     } catch (error) {
-      // Form validation failed
+      // Form validation failed or database error
+      console.error('Error creating task:', error)
     }
   }
   

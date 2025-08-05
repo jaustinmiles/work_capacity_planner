@@ -60,6 +60,39 @@ model Meeting {
   schedule      DailySchedule @relation(fields: [scheduleId], references: [id])
 }
 
+model SequencedTask {
+  id                    String   @id @default(uuid())
+  name                  String
+  importance            Int
+  urgency               Int
+  type                  String
+  notes                 String?
+  dependencies          String   @default("[]") // JSON array
+  completed             Boolean  @default(false)
+  totalDuration         Int
+  criticalPathDuration  Int
+  worstCaseDuration     Int
+  overallStatus         String   @default("not_started")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  steps                 TaskStep[]
+}
+
+model TaskStep {
+  id                String   @id @default(uuid())
+  name              String
+  duration          Int
+  type              String
+  dependsOn         String   @default("[]") // JSON array of step IDs
+  asyncWaitTime     Int      @default(0)
+  status            String   @default("pending")
+  sequencedTaskId   String
+  stepIndex         Int
+  
+  sequencedTask     SequencedTask @relation(fields: [sequencedTaskId], references: [id], onDelete: Cascade)
+}
+
 model ScheduledTask {
   id              String   @id @default(uuid())
   taskId          String

@@ -1,0 +1,222 @@
+.timeline-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.timeline-header {
+  margin-bottom: 16px;
+  border: 1px solid #E5E8EF;
+  border-radius: 8px;
+}
+
+.timeline-days {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.timeline-day {
+  border: 1px solid #E5E8EF;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.timeline-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #FAFBFC;
+  border-bottom: 1px solid #E5E8EF;
+}
+
+.timeline-items {
+  padding: 20px;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-item-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 60px;
+  margin-right: 16px;
+  position: relative;
+}
+
+.timeline-connector {
+  width: 2px;
+  height: 40px;
+  background: #E5E8EF;
+  margin-top: 8px;
+  position: relative;
+}
+
+.timeline-connector::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #165DFF;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #E5E8EF;
+}
+
+.timeline-item:last-child .timeline-connector {
+  height: 20px;
+}
+
+.timeline-item-card {
+  flex: 1;
+  border: 1px solid #E5E8EF;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.timeline-item-card:hover {
+  border-color: #165DFF;
+  box-shadow: 0 4px 10px rgba(22, 93, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.timeline-item-card.focused {
+  border-left: 4px solid #165DFF;
+}
+
+.timeline-item-card.admin {
+  border-left: 4px solid #00B42A;
+}
+
+.timeline-item-content {
+  padding: 16px;
+}
+
+.timeline-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.timeline-item-details {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.timeline-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.timeline-item-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #F2F3F5;
+}
+
+.timeline-item-progress-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .timeline-container {
+    padding: 0 16px;
+  }
+  
+  .timeline-day-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .timeline-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .timeline-item-time {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin-right: 0;
+    margin-bottom: 8px;
+  }
+  
+  .timeline-connector {
+    display: none;
+  }
+  
+  .timeline-item-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .timeline-item-details {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* Status-specific styling */
+.timeline-item-card[data-status="completed"] {
+  opacity: 0.8;
+  background: linear-gradient(135deg, #F0F9FF 0%, #FFFFFF 100%);
+}
+
+.timeline-item-card[data-status="in_progress"] {
+  background: linear-gradient(135deg, #FFF7E6 0%, #FFFFFF 100%);
+  animation: pulse 2s infinite;
+}
+
+.timeline-item-card[data-status="waiting"] {
+  opacity: 0.7;
+  background: linear-gradient(135deg, #F5F5F5 0%, #FFFFFF 100%);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 125, 0, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 125, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 125, 0, 0);
+  }
+}
+
+/* High-capacity warning styling */
+.timeline-day[data-over-capacity="true"] {
+  border-color: #F53F3F;
+  background: linear-gradient(135deg, #FFF1F0 0%, #FFFFFF 100%);
+}
+
+.timeline-day[data-over-capacity="true"] .timeline-day-header {
+  background: #FFF1F0;
+  border-bottom-color: #FFCCC7;
+}

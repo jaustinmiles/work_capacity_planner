@@ -30,6 +30,9 @@ npx prisma migrate dev
 # Development - starts both Vite dev server and Electron
 npm run start
 
+# Clean restart (kills processes, fixes permissions, rebuilds)
+npm run restart
+
 # Build
 npm run build
 
@@ -71,9 +74,9 @@ work-capacity-planner/
 ## Architecture Overview
 
 ### Process Architecture
-- **Main Process**: Handles database operations, file system, system tray, auto-updater, and window management
+- **Main Process**: Handles database operations (via Prisma), IPC handlers, file system, and window management
 - **Renderer Process**: Contains React UI, state management (Zustand), and business logic
-- **IPC Communication**: Structured channels for main-renderer communication
+- **IPC Communication**: Secure communication via preload script (contextBridge) for database operations
 
 ### Key Components
 - **TaskManagement**: CRUD operations for tasks with importance/urgency scoring
@@ -88,30 +91,41 @@ work-capacity-planner/
 
 ## Implementation Status
 
-**Phase 1 - UI/UX Complete:**
+**Phase 1 - Core Foundation Complete:**
 - ✅ Electron + React + TypeScript configured
 - ✅ Vite build system with hot reload
 - ✅ Arco Design + Tailwind CSS for professional UI
 - ✅ Prisma with SQLite database
-- ✅ Zustand state management with in-memory tasks
+- ✅ Zustand state management with database persistence
 - ✅ Complete task management UI with CRUD operations
 - ✅ Multiple view navigation (Task List, Eisenhower Matrix, Calendar)
 - ✅ Professional desktop layout with sidebar navigation
 - ✅ Enhanced forms, modals, and user interactions
+- ✅ Secure IPC communication via preload script
+- ✅ Database persistence for both tasks and sequenced workflows
+
+**Phase 2 - Advanced Scheduling Complete:**
+- ✅ Smart scheduling algorithm with capacity-based distribution
+- ✅ Complex workflow management with step-by-step tasks
+- ✅ Dependency resolution and critical path calculation
+- ✅ Timeline visualization with Gantt-style charts
+- ✅ Task priority optimization (importance × urgency scoring)
 
 **Current Features:**
-- Task creation with importance/urgency scoring
-- In-line task editing and deletion
-- Priority-based task sorting and visualization
+- Full CRUD operations for tasks and workflows with database persistence
+- Smart scheduling engine that distributes tasks across available time slots
+- Complex workflow creation with individual steps and dependencies
+- Real-time timeline visualization showing task distribution
 - Eisenhower Matrix for task prioritization
-- Workload capacity calculations
+- Workload capacity calculations respecting daily limits
 - Progress tracking and completion statistics
+- Persistent data storage - no more losing tasks on restart!
 
 **Next steps:**
-- Implement database persistence (replace in-memory storage)
-- Create scheduling algorithm for automatic task distribution
-- Set up IPC communication between main/renderer processes
-- Add calendar integration and actual scheduling
+- Create work day configuration UI (currently pending)
+- Implement async wait period optimization
+- Add calendar integration for meetings and appointments
+- Create advanced analytics and reporting features
 
 ## Key Algorithms
 

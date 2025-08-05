@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch } from '@arco-design/web-react/icon'
+import React, { useState, useEffect } from 'react'
+import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert } from '@arco-design/web-react'
+import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { TaskList } from './components/tasks/TaskList'
 import { TaskForm } from './components/tasks/TaskForm'
@@ -8,6 +8,7 @@ import { SequencedTaskForm } from './components/tasks/SequencedTaskForm'
 import { SequencedTaskView } from './components/tasks/SequencedTaskView'
 import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
+import { Timeline } from './components/timeline/Timeline'
 import { useTaskStore } from './store/useTaskStore'
 import { exampleSequencedTask } from '@shared/sequencing-types'
 
@@ -16,13 +17,38 @@ const { Title } = Typography
 const MenuItem = Menu.Item
 
 function App() {
-  const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows'>('tasks')
+  const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
-  const { tasks, sequencedTasks, addSequencedTask } = useTaskStore()
+  const { 
+    tasks, 
+    sequencedTasks, 
+    addSequencedTask, 
+    currentWeeklySchedule, 
+    isScheduling, 
+    generateWeeklySchedule,
+    initializeData,
+    isLoading,
+    error
+  } = useTaskStore()
   
   const incompleteTasks = tasks.filter(task => !task.completed).length
+
+  // Initialize data when app starts
+  useEffect(() => {
+    initializeData()
+  }, [initializeData])
+
+  // Generate weekly schedule when timeline view is accessed
+  useEffect(() => {
+    if (activeView === 'timeline' && !currentWeeklySchedule && !isScheduling) {
+      const today = new Date()
+      const monday = new Date(today)
+      monday.setDate(today.getDate() - today.getDay() + 1) // Get Monday of current week
+      generateWeeklySchedule(monday)
+    }
+  }, [activeView, currentWeeklySchedule, isScheduling, generateWeeklySchedule])
 
   return (
     <ConfigProvider
@@ -78,6 +104,12 @@ function App() {
               <Space>
                 <IconBranch />
                 <span>Workflows</span>
+              </Space>
+            </MenuItem>
+            <MenuItem key="timeline">
+              <Space>
+                <IconSchedule />
+                <span>Timeline</span>
               </Space>
             </MenuItem>
           </Menu>
@@ -142,6 +174,7 @@ function App() {
               {activeView === 'matrix' && 'Priority Matrix'}
               {activeView === 'calendar' && 'Schedule Overview'}
               {activeView === 'workflows' && 'Sequenced Workflows'}
+              {activeView === 'timeline' && 'Smart Timeline'}
             </Title>
           </Header>
           
@@ -150,7 +183,26 @@ function App() {
             background: '#F7F8FA',
             overflow: 'auto',
           }}>
+            {error && (
+              <Alert
+                type="error"
+                title="Error"
+                content={error}
+                style={{ marginBottom: 16, maxWidth: 1200, margin: '0 auto 16px auto' }}
+                showIcon
+              />
+            )}
+
             <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+              {isLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                  <Spin size={40} />
+                  <div style={{ marginTop: 16 }}>
+                    <Typography.Text type="secondary">Loading data...</Typography.Text>
+                  </div>
+                </div>
+              ) : (
+                <>
               {activeView === 'tasks' && (
                 <TaskList onAddTask={() => setTaskFormVisible(true)} />
               )}
@@ -202,6 +254,17 @@ function App() {
                   )}
                 </Space>
               )}
+              
+              {activeView === 'timeline' && (
+                <Timeline 
+                  weeklySchedule={currentWeeklySchedule}
+                  onItemClick={(item) => console.log('Timeline item clicked:', item)}
+                  onStartItem={(item) => console.log('Start item:', item)}
+                  onPauseItem={(item) => console.log('Pause item:', item)}
+                />
+              )}
+                </>
+              )}
             </div>
           </Content>
         </Layout>
@@ -214,9 +277,9 @@ function App() {
         <SequencedTaskForm
           visible={sequencedTaskFormVisible}
           onClose={() => setSequencedTaskFormVisible(false)}
-          onSubmit={(taskData) => {
+          onSubmit={async (taskData) => {
             console.log('Sequenced task created:', taskData)
-            addSequencedTask(taskData)
+            await addSequencedTask(taskData)
           }}
         />
       </Layout>
