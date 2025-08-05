@@ -285,38 +285,11 @@ export class DatabaseService {
     }
   }
 
-  // Initialize with some default data if database is empty
+  // Initialize database connection (no longer creates default tasks)
   async initializeDefaultData(): Promise<void> {
-    const taskCount = await this.client.task.count()
-    const sequencedTaskCount = await this.client.sequencedTask.count()
-
-    // Only add default data if database is completely empty
-    if (taskCount === 0 && sequencedTaskCount === 0) {
-      // Add some sample tasks
-      await this.createTask({
-        name: 'Review project requirements',
-        duration: 60,
-        importance: 7,
-        urgency: 6,
-        type: 'focused',
-        asyncWaitTime: 0,
-        dependencies: [],
-        completed: false,
-        notes: 'Initial project review and planning',
-      })
-
-      await this.createTask({
-        name: 'Team standup meeting',
-        duration: 30,
-        importance: 5,
-        urgency: 8,
-        type: 'admin',
-        asyncWaitTime: 0,
-        dependencies: [],
-        completed: false,
-        notes: 'Daily team synchronization',
-      })
-    }
+    // Database initialization is handled automatically by Prisma
+    // With AI brainstorming feature, sample tasks are no longer needed
+    // This method is kept for compatibility but doesn't create default data
   }
 
   // Cleanup method
