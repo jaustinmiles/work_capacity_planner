@@ -1,0 +1,26 @@
+appId: com.yourcompany.work-capacity-planner
+productName: Work Capacity Planner
+directories:
+  output: dist-electron
+  buildResources: resources
+files:
+  - dist/**/*
+  - node_modules/**/*
+  - package.json
+extraResources:
+  - from: prisma
+    to: prisma
+    filter:
+      - "**/*"
+      - "!*.db"
+      - "!*.db-journal"
+mac:
+  category: public.app-category.productivity
+  icon: resources/icon.icns
+win:
+  target: nsis
+  icon: resources/icon.ico
+linux:
+  target: AppImage
+  category: Office
+  icon: resources/icon.png

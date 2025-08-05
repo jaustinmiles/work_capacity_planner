@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id              String   @id @default(uuid())
+  name            String
+  duration        Int
+  importance      Int
+  urgency         Int
+  type            String
+  asyncWaitTime   Int      @default(0)
+  dependencies    String   @default("[]") // JSON array of task IDs
+  completed       Boolean  @default(false)
+  completedAt     DateTime?
+  actualDuration  Int?
+  notes           String?
+  projectId       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  project         Project? @relation(fields: [projectId], references: [id])
+  scheduledTasks  ScheduledTask[]
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  color       String
+  createdAt   DateTime @default(now())
+  
+  tasks       Task[]
+}
+
+model DailySchedule {
+  id          String   @id @default(uuid())
+  dayOfWeek   String   @unique
+  startTime   String
+  endTime     String
+  
+  meetings    Meeting[]
+}
+
+model Meeting {
+  id            String   @id @default(uuid())
+  name          String
+  startTime     String
+  endTime       String
+  recurring     Boolean  @default(false)
+  scheduleId    String
+  
+  schedule      DailySchedule @relation(fields: [scheduleId], references: [id])
+}
+
+model ScheduledTask {
+  id              String   @id @default(uuid())
+  taskId          String
+  scheduledDate   DateTime
+  scheduledMinutes Int
+  isPartial       Boolean
+  isStart         Boolean
+  isEnd           Boolean
+  
+  task            Task     @relation(fields: [taskId], references: [id])
+}
