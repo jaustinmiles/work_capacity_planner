@@ -14,16 +14,16 @@ export function TaskItem({ task }: TaskItemProps) {
   const { toggleTaskComplete, deleteTask, selectTask, updateTask } = useTaskStore()
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState(task.name)
-  
+
   const priorityScore = task.importance * task.urgency
-  const priorityColor = priorityScore >= 64 ? 'red' : 
-                       priorityScore >= 36 ? 'orange' : 
+  const priorityColor = priorityScore >= 64 ? 'red' :
+                       priorityScore >= 36 ? 'orange' :
                        'green'
-  
-  const priorityStatus = priorityScore >= 64 ? 'High Priority' : 
-                        priorityScore >= 36 ? 'Medium Priority' : 
+
+  const priorityStatus = priorityScore >= 64 ? 'High Priority' :
+                        priorityScore >= 36 ? 'Medium Priority' :
                         'Low Priority'
-  
+
   const handleSave = async () => {
     if (editedName.trim()) {
       try {
@@ -34,12 +34,12 @@ export function TaskItem({ task }: TaskItemProps) {
       }
     }
   }
-  
+
   const handleCancel = () => {
     setEditedName(task.name)
     setIsEditing(false)
   }
-  
+
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
@@ -48,9 +48,9 @@ export function TaskItem({ task }: TaskItemProps) {
     }
     return `${mins}m`
   }
-  
+
   return (
-    <div 
+    <div
       style={{
         padding: '16px',
         background: task.completed ? '#F7F8FA' : '#fff',
@@ -79,7 +79,7 @@ export function TaskItem({ task }: TaskItemProps) {
             }}
             style={{ marginTop: 2 }}
           />
-          
+
           <div style={{ flex: 1 }}>
             {isEditing ? (
               <Space>
@@ -111,7 +111,7 @@ export function TaskItem({ task }: TaskItemProps) {
                 >
                   {task.name}
                 </Text>
-                
+
                 <div style={{ marginTop: 8 }}>
                   <Space size="medium" wrap>
                     <Tag
@@ -121,7 +121,7 @@ export function TaskItem({ task }: TaskItemProps) {
                     >
                       {formatDuration(task.duration)}
                     </Tag>
-                    
+
                     <Tooltip content={`Importance: ${task.importance}, Urgency: ${task.urgency}`}>
                       <Tag
                         icon={<IconExclamationCircle />}
@@ -131,11 +131,11 @@ export function TaskItem({ task }: TaskItemProps) {
                         {priorityStatus} ({priorityScore})
                       </Tag>
                     </Tooltip>
-                    
+
                     <Tag size="small" color="gray">
                       {task.type === 'focused' ? 'Focused Work' : 'Admin/Meeting'}
                     </Tag>
-                    
+
                     {task.asyncWaitTime > 0 && (
                       <Tag
                         icon={<IconCalendar />}
@@ -147,7 +147,7 @@ export function TaskItem({ task }: TaskItemProps) {
                     )}
                   </Space>
                 </div>
-                
+
                 {task.notes && (
                   <Text
                     type="secondary"
@@ -164,7 +164,7 @@ export function TaskItem({ task }: TaskItemProps) {
             )}
           </div>
         </Space>
-        
+
         <Space>
           {!task.completed && (
             <Tooltip content="Edit task">
@@ -176,7 +176,7 @@ export function TaskItem({ task }: TaskItemProps) {
               />
             </Tooltip>
           )}
-          
+
           <Popconfirm
             title="Delete Task"
             content="Are you sure you want to delete this task?"

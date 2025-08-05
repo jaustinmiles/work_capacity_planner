@@ -13,10 +13,10 @@ interface EisenhowerMatrixProps {
 
 export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { tasks, selectTask } = useTaskStore()
-  
+
   // Only show incomplete tasks in the matrix
   const incompleteTasks = tasks.filter(task => !task.completed)
-  
+
   // Categorize tasks into quadrants
   const categorizeTask = (task: Task) => {
     if (task.importance >= 7 && task.urgency >= 7) return 'do-first'
@@ -24,14 +24,14 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
     if (task.importance < 7 && task.urgency >= 7) return 'delegate'
     return 'eliminate'
   }
-  
+
   const quadrants = {
     'do-first': incompleteTasks.filter(task => categorizeTask(task) === 'do-first'),
     'schedule': incompleteTasks.filter(task => categorizeTask(task) === 'schedule'),
     'delegate': incompleteTasks.filter(task => categorizeTask(task) === 'delegate'),
     'eliminate': incompleteTasks.filter(task => categorizeTask(task) === 'eliminate'),
   }
-  
+
   const quadrantConfig = {
     'do-first': {
       title: 'Do First',
@@ -66,7 +66,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       description: 'Low priority tasks to minimize',
     },
   }
-  
+
   const TaskCard = ({ task, color }: { task: Task; color: string }) => (
     <Card
       hoverable
@@ -90,11 +90,11 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       </Space>
     </Card>
   )
-  
+
   const QuadrantCard = ({ quadrant }: { quadrant: keyof typeof quadrants }) => {
     const config = quadrantConfig[quadrant]
     const tasks = quadrants[quadrant]
-    
+
     return (
       <Card
         style={{
@@ -118,13 +118,13 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               </Text>
             </div>
           </Space>
-          
+
           <Tooltip content={config.description}>
             <Text type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
               {config.description}
             </Text>
           </Tooltip>
-          
+
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             {tasks.length === 0 ? (
               <Empty
@@ -141,7 +141,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       </Card>
     )
   }
-  
+
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       {/* Header with Add Task Button */}
@@ -160,7 +160,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
           </Button>
         </Space>
       </Card>
-      
+
       {/* Matrix Grid */}
       <div style={{ position: 'relative' }}>
         {/* Axis Labels */}
@@ -175,7 +175,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             ← Less Urgent ——— More Urgent →
           </Text>
         </div>
-        
+
         <div style={{
           position: 'absolute',
           left: -100,
@@ -187,7 +187,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             ← Less Important ——— More Important →
           </Text>
         </div>
-        
+
         {/* Quadrants */}
         <Row gutter={16} style={{ marginTop: 40, marginLeft: 40 }}>
           <Col span={12}>
@@ -212,11 +212,11 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
           </Col>
         </Row>
       </div>
-      
+
       {/* Info Footer */}
       <Card style={{ background: '#F7F8FA' }}>
         <Text type="secondary">
-          Tasks are automatically categorized based on their importance and urgency scores. 
+          Tasks are automatically categorized based on their importance and urgency scores.
           Scores of 7 or higher are considered high priority.
         </Text>
       </Card>

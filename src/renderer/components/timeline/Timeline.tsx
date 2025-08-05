@@ -17,14 +17,14 @@ export const Timeline: React.FC<TimelineProps> = ({
   weeklySchedule,
   onItemClick,
   onStartItem,
-  onPauseItem
+  onPauseItem,
 }) => {
   const timelineData = useMemo(() => {
     if (!weeklySchedule) return null
 
     // Group scheduled items by day
     const itemsByDay = new Map<string, ScheduledWorkItem[]>()
-    
+
     weeklySchedule.scheduledItems.forEach(item => {
       const dayKey = item.scheduledDate.toDateString()
       if (!itemsByDay.has(dayKey)) {
@@ -63,10 +63,10 @@ export const Timeline: React.FC<TimelineProps> = ({
   const { itemsByDay, weeklySchedule: schedule } = timelineData
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: false 
+      hour12: false,
     })
   }
 
@@ -108,7 +108,7 @@ export const Timeline: React.FC<TimelineProps> = ({
               }
             </Text>
           </div>
-          
+
           <div style={{ textAlign: 'right' }}>
             <Space direction="vertical" size="small">
               <div>
@@ -153,10 +153,10 @@ export const Timeline: React.FC<TimelineProps> = ({
           const dayDate = new Date(dayKey)
           const dayName = dayDate.toLocaleDateString('en-US', { weekday: 'long' })
           const dayShort = dayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          
+
           const focusedMinutes = items.filter(item => item.type === 'focused').reduce((sum, item) => sum + item.duration, 0)
           const adminMinutes = items.filter(item => item.type === 'admin').reduce((sum, item) => sum + item.duration, 0)
-          
+
           return (
             <Card key={dayKey} className="timeline-day">
               <div className="timeline-day-header">
@@ -177,7 +177,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                   </Space>
                 </div>
               </div>
-              
+
               <div className="timeline-items">
                 {items.map((item, index) => (
                   <div key={item.id} className="timeline-item">
@@ -187,8 +187,8 @@ export const Timeline: React.FC<TimelineProps> = ({
                       </Text>
                       <div className="timeline-connector" />
                     </div>
-                    
-                    <Card 
+
+                    <Card
                       className={`timeline-item-card ${item.type}`}
                       hoverable
                       onClick={() => onItemClick?.(item)}
@@ -205,15 +205,15 @@ export const Timeline: React.FC<TimelineProps> = ({
                               </Text>
                             )}
                           </div>
-                          
+
                           <Space size="small">
-                            <Tag 
+                            <Tag
                               color={getStatusColor(item.status)}
                               size="small"
                             >
                               {item.status}
                             </Tag>
-                            
+
                             <Tooltip content={`${formatDuration(item.duration)} • ${item.type} work`}>
                               <Tag size="small">
                                 <IconClockCircle style={{ marginRight: 4 }} />
@@ -222,19 +222,19 @@ export const Timeline: React.FC<TimelineProps> = ({
                             </Tooltip>
                           </Space>
                         </div>
-                        
+
                         <div className="timeline-item-details">
                           <Text type="secondary" style={{ fontSize: 12 }}>
                             {formatTime(item.scheduledStartTime)} - {formatTime(item.scheduledEndTime)}
                           </Text>
-                          
+
                           {item.asyncWaitTime > 0 && (
                             <Text type="secondary" style={{ fontSize: 12, marginLeft: 16 }}>
                               + {formatDuration(item.asyncWaitTime)} wait
                             </Text>
                           )}
                         </div>
-                        
+
                         {(onStartItem || onPauseItem) && (
                           <div className="timeline-item-actions">
                             {item.status === 'scheduled' && onStartItem && (
@@ -250,7 +250,7 @@ export const Timeline: React.FC<TimelineProps> = ({
                                 Start
                               </Button>
                             )}
-                            
+
                             {item.status === 'in_progress' && onPauseItem && (
                               <Button
                                 type="text"
@@ -267,15 +267,15 @@ export const Timeline: React.FC<TimelineProps> = ({
                           </div>
                         )}
                       </div>
-                      
+
                       {/* Progress bar for capacity visualization */}
                       <div className="timeline-item-progress">
-                        <div 
+                        <div
                           className="timeline-item-progress-bar"
                           style={{
                             backgroundColor: getItemTypeColor(item.type),
                             opacity: 0.3,
-                            width: `${Math.min(100, (item.duration / 240) * 100)}%` // Relative to 4-hour max
+                            width: `${Math.min(100, (item.duration / 240) * 100)}%`, // Relative to 4-hour max
                           }}
                         />
                       </div>

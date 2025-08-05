@@ -12,7 +12,7 @@ import {
   PriorityScore,
   SchedulingConverter,
   AsyncWaitPeriod,
-  WeeklySchedule
+  WeeklySchedule,
 } from './scheduling-models'
 
 /**
@@ -20,7 +20,7 @@ import {
  * Implements the algorithm documented in /docs/scheduling-algorithm.md
  */
 export class SchedulingEngine {
-  
+
   /**
    * Main entry point for scheduling
    */
@@ -28,14 +28,14 @@ export class SchedulingEngine {
     tasks: Task[],
     sequencedTasks: SequencedTask[],
     workDayConfigs: WorkDayConfiguration[],
-    constraints: SchedulingConstraints
+    constraints: SchedulingConstraints,
   ): Promise<SchedulingResult> {
     try {
       // Phase 1: Data Preparation
       const schedulableItems = this.convertToSchedulableItems(tasks, sequencedTasks)
       const priorityScores = this.calculatePriorityScores(schedulableItems, constraints)
       const dependencyGraph = this.buildDependencyGraph(schedulableItems)
-      
+
       // Check for dependency cycles
       const cycleCheck = this.detectDependencyCycles(dependencyGraph)
       if (cycleCheck.hasCycle) {
@@ -54,23 +54,23 @@ export class SchedulingEngine {
             affectedItems: cycleCheck.cycleItems,
             description: 'Circular dependency detected',
             severity: 'error',
-            suggestedResolution: 'Remove or modify dependencies to break the cycle'
+            suggestedResolution: 'Remove or modify dependencies to break the cycle',
           }],
           warnings: [],
-          suggestions: []
+          suggestions: [],
         }
       }
 
       // Phase 2: Time Slot Generation
       const timeSlots = this.generateTimeSlots(workDayConfigs, constraints)
-      
+
       // Phase 3: Dependency-Aware Scheduling
       const schedulingResult = this.scheduleWithDependencies(
         schedulableItems,
         priorityScores,
         dependencyGraph,
         timeSlots,
-        constraints
+        constraints,
       )
 
       // Phase 4: Async Wait Optimization
@@ -97,10 +97,10 @@ export class SchedulingEngine {
           type: 'capacity_exceeded',
           affectedItems: [],
           description: `Scheduling failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          severity: 'error'
+          severity: 'error',
         }],
         warnings: [],
-        suggestions: []
+        suggestions: [],
       }
     }
   }
@@ -121,12 +121,12 @@ export class SchedulingEngine {
         asyncWaitTime: task.asyncWaitTime,
         sourceType: 'simple_task',
         sourceId: task.id,
-        status: task.completed ? 'completed' : 'pending'
+        status: task.completed ? 'completed' : 'pending',
       }),
 
       convertSequencedTask: (sequencedTask: SequencedTask): SchedulableItem[] => {
-        return sequencedTask.steps.map((step, index) => 
-          converter.convertTaskStep(step, sequencedTask.id, index)
+        return sequencedTask.steps.map((step, index) =>
+          converter.convertTaskStep(step, sequencedTask.id, index),
         )
       },
 
@@ -142,17 +142,17 @@ export class SchedulingEngine {
         sourceType: 'workflow_step',
         sourceId: workflowId,
         workflowStepIndex: stepIndex,
-        status: step.status === 'completed' ? 'completed' : 'pending'
-      })
+        status: step.status === 'completed' ? 'completed' : 'pending',
+      }),
     }
 
     const items: SchedulableItem[] = []
-    
+
     // Convert simple tasks
     tasks.forEach(task => {
       items.push(converter.convertSimpleTask(task))
     })
-    
+
     // Convert sequenced tasks
     sequencedTasks.forEach(sequencedTask => {
       items.push(...converter.convertSequencedTask(sequencedTask))
@@ -167,10 +167,10 @@ export class SchedulingEngine {
   private calculatePriorityScores(items: SchedulableItem[], constraints: SchedulingConstraints): PriorityScore[] {
     return items.map(item => {
       const rawScore = item.importance * item.urgency
-      
+
       // Calculate dependency weighting (items with more dependents get slight boost)
-      const dependentCount = items.filter(other => 
-        other.dependsOn.includes(item.id)
+      const dependentCount = items.filter(other =>
+        other.dependsOn.includes(item.id),
       ).length
       const dependencyWeight = Math.log(dependentCount + 1) * 2
 
@@ -201,13 +201,13 @@ export class SchedulingEngine {
         rawScore,
         adjustedScore,
         tieBreakingValue,
-        finalRank: 0 // Will be set after sorting
+        finalRank: 0, // Will be set after sorting
       }
     }).sort((a, b) => {
       if (a.adjustedScore !== b.adjustedScore) {
         return b.adjustedScore - a.adjustedScore // Higher scores first
       }
-      
+
       // Tie-breaking
       if (typeof a.tieBreakingValue === 'number' && typeof b.tieBreakingValue === 'number') {
         return a.tieBreakingValue - b.tieBreakingValue
@@ -216,7 +216,7 @@ export class SchedulingEngine {
       }
     }).map((score, index) => ({
       ...score,
-      finalRank: index + 1
+      finalRank: index + 1,
     }))
   }
 
@@ -225,11 +225,11 @@ export class SchedulingEngine {
    */
   private buildDependencyGraph(items: SchedulableItem[]): Map<string, string[]> {
     const graph = new Map<string, string[]>()
-    
+
     items.forEach(item => {
       graph.set(item.id, item.dependsOn)
     })
-    
+
     return graph
   }
 
@@ -289,18 +289,18 @@ export class SchedulingEngine {
 
     while (currentDate <= endDate) {
       const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][currentDate.getDay()]
-      const workDayConfig = workDayConfigs.find(config => 
-        config.dayOfWeek === dayOfWeek && config.isWorkingDay
+      const workDayConfig = workDayConfigs.find(config =>
+        config.dayOfWeek === dayOfWeek && config.isWorkingDay,
       )
 
       if (workDayConfig) {
         // Create time slots for this work day
         const [startHour, startMinute] = workDayConfig.workStartTime.split(':').map(Number)
         const [endHour, endMinute] = workDayConfig.workEndTime.split(':').map(Number)
-        
+
         const dayStart = new Date(currentDate)
         dayStart.setHours(startHour, startMinute, 0, 0)
-        
+
         const dayEnd = new Date(currentDate)
         dayEnd.setHours(endHour, endMinute, 0, 0)
 
@@ -343,7 +343,7 @@ export class SchedulingEngine {
           remainingFocusedMinutes: focusedCapacity,
           remainingAdminMinutes: adminCapacity,
           slotType: 'work',
-          isBlocked: false
+          isBlocked: false,
         })
       }
 
@@ -361,7 +361,7 @@ export class SchedulingEngine {
     priorityScores: PriorityScore[],
     dependencyGraph: Map<string, string[]>,
     timeSlots: TimeSlot[],
-    constraints: SchedulingConstraints
+    constraints: SchedulingConstraints,
   ): { scheduledItems: ScheduledWorkItem[]; unscheduledItems: SchedulableItem[] } {
     const scheduledItems: ScheduledWorkItem[] = []
     const unscheduledItems: SchedulableItem[] = []
@@ -382,7 +382,7 @@ export class SchedulingEngine {
 
       // Check if all dependencies are satisfied
       const canSchedule = item.dependsOn.every(dep => completedDependencies.has(dep))
-      
+
       if (!canSchedule) {
         unscheduledItems.push(item)
         continue
@@ -390,7 +390,7 @@ export class SchedulingEngine {
 
       // Find best time slot for this item
       const bestSlot = this.findBestTimeSlot(item, timeSlots, constraints)
-      
+
       if (!bestSlot) {
         unscheduledItems.push(item)
         continue
@@ -399,10 +399,10 @@ export class SchedulingEngine {
       // Schedule the item
       const scheduledItem = this.scheduleItemInSlot(item, bestSlot)
       scheduledItems.push(scheduledItem)
-      
+
       // Update time slot capacity
       this.updateSlotCapacity(bestSlot, scheduledItem)
-      
+
       // Mark as completed for dependency resolution
       completedDependencies.add(item.id)
     }
@@ -416,7 +416,7 @@ export class SchedulingEngine {
   private topologicalSort(
     items: SchedulableItem[],
     dependencyGraph: Map<string, string[]>,
-    priorityScores: PriorityScore[]
+    priorityScores: PriorityScore[],
   ): SchedulableItem[] {
     const inDegree = new Map<string, number>()
     const itemMap = new Map<string, SchedulableItem>()
@@ -459,12 +459,12 @@ export class SchedulingEngine {
         if (item.dependsOn.includes(current.id)) {
           const newInDegree = (inDegree.get(item.id) || 0) - 1
           inDegree.set(item.id, newInDegree)
-          
+
           if (newInDegree === 0) {
             // Insert in priority order
             const priority = priorityMap.get(item.id)?.adjustedScore || 0
             let insertIndex = 0
-            while (insertIndex < queue.length && 
+            while (insertIndex < queue.length &&
                    (priorityMap.get(queue[insertIndex].id)?.adjustedScore || 0) > priority) {
               insertIndex++
             }
@@ -483,7 +483,7 @@ export class SchedulingEngine {
   private findBestTimeSlot(
     item: SchedulableItem,
     timeSlots: TimeSlot[],
-    constraints: SchedulingConstraints
+    constraints: SchedulingConstraints,
   ): TimeSlot | null {
     for (const slot of timeSlots) {
       if (this.canFitInSlot(item, slot, constraints)) {
@@ -499,7 +499,7 @@ export class SchedulingEngine {
   private canFitInSlot(
     item: SchedulableItem,
     slot: TimeSlot,
-    constraints: SchedulingConstraints
+    constraints: SchedulingConstraints,
   ): boolean {
     if (slot.isBlocked || slot.slotType !== 'work') {
       return false
@@ -516,7 +516,7 @@ export class SchedulingEngine {
    * Schedule an item in a specific time slot
    */
   private scheduleItemInSlot(item: SchedulableItem, slot: TimeSlot): ScheduledWorkItem {
-    const startTime = new Date(slot.startTime.getTime() + 
+    const startTime = new Date(slot.startTime.getTime() +
       (slot.durationMinutes - (item.type === 'focused' ? slot.remainingFocusedMinutes : slot.remainingAdminMinutes)) * 60000)
     const endTime = new Date(startTime.getTime() + item.duration * 60000)
 
@@ -530,7 +530,7 @@ export class SchedulingEngine {
       consumesAdminTime: item.type === 'admin',
       isOptimallyPlaced: true, // Could be enhanced with more sophisticated logic
       wasRescheduled: false,
-      status: 'scheduled'
+      status: 'scheduled',
     }
   }
 
@@ -539,7 +539,7 @@ export class SchedulingEngine {
    */
   private updateSlotCapacity(slot: TimeSlot, scheduledItem: ScheduledWorkItem): void {
     slot.allocatedItems.push(scheduledItem)
-    
+
     if (scheduledItem.type === 'focused') {
       slot.remainingFocusedMinutes -= scheduledItem.duration
     } else {
@@ -552,7 +552,7 @@ export class SchedulingEngine {
    */
   private optimizeAsyncWaits(
     result: { scheduledItems: ScheduledWorkItem[]; unscheduledItems: SchedulableItem[] },
-    constraints: SchedulingConstraints
+    constraints: SchedulingConstraints,
   ): { scheduledItems: ScheduledWorkItem[]; unscheduledItems: SchedulableItem[] } {
     // Phase 4 implementation would go here
     // For now, return the result as-is
@@ -564,7 +564,7 @@ export class SchedulingEngine {
    */
   private analyzeScheduleAndGenerateSuggestions(
     result: { scheduledItems: ScheduledWorkItem[]; unscheduledItems: SchedulableItem[] },
-    workDayConfigs: WorkDayConfiguration[]
+    workDayConfigs: WorkDayConfiguration[],
   ): SchedulingResult {
     const { scheduledItems, unscheduledItems } = result
 
@@ -577,12 +577,12 @@ export class SchedulingEngine {
       .filter(item => item.type === 'admin')
       .reduce((total, item) => total + item.duration, 0) / 60
 
-    const projectedCompletionDate = scheduledItems.length > 0 
+    const projectedCompletionDate = scheduledItems.length > 0
       ? new Date(Math.max(...scheduledItems.map(item => item.scheduledEndTime.getTime())))
       : new Date()
 
-    const uniqueDays = new Set(scheduledItems.map(item => 
-      item.scheduledDate.toDateString()
+    const uniqueDays = new Set(scheduledItems.map(item =>
+      item.scheduledDate.toDateString(),
     )).size
 
     return {
@@ -597,7 +597,7 @@ export class SchedulingEngine {
       underUtilizedDays: [], // Would be calculated based on utilization analysis
       conflicts: [], // Would include capacity conflicts, impossible deadlines, etc.
       warnings: unscheduledItems.length > 0 ? [`${unscheduledItems.length} items could not be scheduled`] : [],
-      suggestions: [] // Would include optimization suggestions
+      suggestions: [], // Would include optimization suggestions
     }
   }
 }

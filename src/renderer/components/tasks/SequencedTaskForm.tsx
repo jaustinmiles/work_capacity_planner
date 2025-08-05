@@ -15,42 +15,42 @@ interface SequencedTaskFormProps {
 export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskFormProps) {
   const [form] = Form.useForm()
   const [steps, setSteps] = useState<Partial<TaskStep>[]>([
-    { name: '', duration: 60, type: 'focused', dependsOn: [], asyncWaitTime: 0 }
+    { name: '', duration: 60, type: 'focused', dependsOn: [], asyncWaitTime: 0 },
   ])
-  
+
   const addStep = () => {
-    setSteps([...steps, { 
-      name: '', 
-      duration: 60, 
-      type: 'focused', 
-      dependsOn: [], 
-      asyncWaitTime: 0 
+    setSteps([...steps, {
+      name: '',
+      duration: 60,
+      type: 'focused',
+      dependsOn: [],
+      asyncWaitTime: 0,
     }])
   }
-  
+
   const removeStep = (index: number) => {
     if (steps.length > 1) {
       setSteps(steps.filter((_, i) => i !== index))
     }
   }
-  
+
   const updateStep = (index: number, field: string, value: any) => {
     const newSteps = [...steps]
     newSteps[index] = { ...newSteps[index], [field]: value }
     setSteps(newSteps)
   }
-  
+
   const getAvailableDependencies = (currentIndex: number) => {
     return steps.slice(0, currentIndex).map((step, index) => ({
       label: step.name || `Step ${index + 1}`,
-      value: `step-${index}`
+      value: `step-${index}`,
     }))
   }
-  
+
   const handleSubmit = async () => {
     try {
       const values = await form.validate()
-      
+
       // Build the sequenced task
       const sequencedSteps: TaskStep[] = steps.map((step, index) => ({
         id: `step-${index}`,
@@ -60,13 +60,13 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         dependsOn: step.dependsOn || [],
         asyncWaitTime: step.asyncWaitTime || 0,
         status: 'pending' as const,
-        conditionalBranches: step.conditionalBranches
+        conditionalBranches: step.conditionalBranches,
       }))
-      
+
       const totalDuration = sequencedSteps.reduce((sum, step) => sum + step.duration, 0)
       const criticalPathDuration = totalDuration + Math.max(...sequencedSteps.map(s => s.asyncWaitTime))
       const worstCaseDuration = totalDuration * 2 // Rough estimate including retries
-      
+
       const sequencedTask = {
         ...values,
         steps: sequencedSteps,
@@ -75,9 +75,9 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         worstCaseDuration,
         overallStatus: 'not_started',
         dependencies: [],
-        completed: false
+        completed: false,
       }
-      
+
       onSubmit(sequencedTask)
       form.resetFields()
       setSteps([{ name: '', duration: 60, type: 'focused', dependsOn: [], asyncWaitTime: 0 }])
@@ -86,7 +86,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
       // Form validation failed
     }
   }
-  
+
   return (
     <Modal
       title="Create Sequenced Task"
@@ -114,7 +114,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         >
           <Input placeholder="e.g., Feature Implementation with CI/CD and Code Review" />
         </Form.Item>
-        
+
         <Space>
           <Form.Item
             label="Importance (1-10)"
@@ -124,7 +124,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
           >
             <InputNumber min={1} max={10} />
           </Form.Item>
-          
+
           <Form.Item
             label="Urgency (1-10)"
             field="urgency"
@@ -134,7 +134,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
             <InputNumber min={1} max={10} />
           </Form.Item>
         </Space>
-        
+
         <Form.Item
           label="Notes"
           field="notes"
@@ -144,14 +144,14 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
             rows={2}
           />
         </Form.Item>
-        
+
         <Divider />
-        
+
         <div style={{ marginBottom: 16 }}>
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             <Title heading={6}>Workflow Steps</Title>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               size="small"
               icon={<IconPlus />}
               onClick={addStep}
@@ -163,9 +163,9 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
             Define the sequence of steps for this task. Steps will execute in order based on dependencies.
           </Text>
         </div>
-        
+
         {steps.map((step, index) => (
-          <Card 
+          <Card
             key={index}
             size="small"
             style={{ marginBottom: 12 }}
@@ -173,7 +173,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
               <Space>
                 <Text style={{ fontWeight: 500 }}>Step {index + 1}</Text>
                 {steps.length > 1 && (
-                  <Button 
+                  <Button
                     type="text"
                     size="mini"
                     status="danger"
@@ -190,7 +190,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
                 value={step.name}
                 onChange={(value) => updateStep(index, 'name', value)}
               />
-              
+
               <Space>
                 <div>
                   <Text style={{ fontSize: 12, color: '#86909C' }}>Duration (minutes)</Text>
@@ -202,7 +202,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
                     style={{ width: 100, display: 'block' }}
                   />
                 </div>
-                
+
                 <div>
                   <Text style={{ fontSize: 12, color: '#86909C' }}>Type</Text>
                   <Select
@@ -214,7 +214,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
                     <Select.Option value="admin">Admin</Select.Option>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Text style={{ fontSize: 12, color: '#86909C' }}>Async Wait (minutes)</Text>
                   <InputNumber
@@ -226,7 +226,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
                   />
                 </div>
               </Space>
-              
+
               {index > 0 && (
                 <div>
                   <Text style={{ fontSize: 12, color: '#86909C' }}>Depends on steps:</Text>
@@ -248,7 +248,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
             </Space>
           </Card>
         ))}
-        
+
         <Alert
           type="info"
           content={

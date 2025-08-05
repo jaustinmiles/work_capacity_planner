@@ -16,22 +16,22 @@ interface SequencedTaskViewProps {
   onResetWorkflow?: () => void
 }
 
-export function SequencedTaskView({ 
-  task, 
-  onUpdateStep, 
-  onStartWorkflow, 
-  onPauseWorkflow, 
-  onResetWorkflow 
+export function SequencedTaskView({
+  task,
+  onUpdateStep,
+  onStartWorkflow,
+  onPauseWorkflow,
+  onResetWorkflow,
 }: SequencedTaskViewProps) {
   const [showDetails, setShowDetails] = useState(false)
-  
+
   const completedSteps = task.steps.filter(step => step.status === 'completed').length
   const totalSteps = task.steps.length
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0
-  
+
   const currentStep = task.steps.find(step => step.status === 'in_progress')
   const nextStep = task.steps.find(step => step.status === 'pending')
-  
+
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
@@ -40,17 +40,17 @@ export function SequencedTaskView({
     }
     return `${mins}m`
   }
-  
+
   const calculateEstimatedCompletionTime = () => {
     const now = new Date()
     const remainingMinutes = task.steps
       .filter(step => step.status === 'pending')
       .reduce((sum, step) => sum + step.duration + step.asyncWaitTime, 0)
-    
+
     const completionTime = new Date(now.getTime() + remainingMinutes * 60000)
     return completionTime
   }
-  
+
   const getWorkflowStatusColor = () => {
     switch (task.overallStatus) {
       case 'completed': return '#00B42A'
@@ -59,7 +59,7 @@ export function SequencedTaskView({
       default: return '#86909C'
     }
   }
-  
+
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       {/* Main Task Header */}
@@ -71,41 +71,41 @@ export function SequencedTaskView({
                 <Title heading={5} style={{ margin: 0 }}>
                   {task.name}
                 </Title>
-                <Tag 
-                  color={getWorkflowStatusColor()} 
+                <Tag
+                  color={getWorkflowStatusColor()}
                   style={{ textTransform: 'capitalize' }}
                 >
                   {task.overallStatus.replace('_', ' ')}
                 </Tag>
               </Space>
-              
+
               <Text type="secondary">
-                {task.steps.length} steps • {formatDuration(task.totalDuration)} total work • 
+                {task.steps.length} steps • {formatDuration(task.totalDuration)} total work •
                 up to {formatDuration(task.worstCaseDuration)} worst case
               </Text>
-              
-              <Progress 
-                percent={progressPercent} 
+
+              <Progress
+                percent={progressPercent}
                 formatText={(percent) => `${completedSteps}/${totalSteps} steps complete`}
                 style={{ width: 400 }}
               />
             </Space>
           </Col>
-          
+
           <Col>
             <Space>
               {task.overallStatus === 'not_started' && (
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<IconPlayArrow />}
                   onClick={onStartWorkflow}
                 >
                   Start Workflow
                 </Button>
               )}
-              
+
               {task.overallStatus === 'in_progress' && (
-                <Button 
+                <Button
                   status="warning"
                   icon={<IconPause />}
                   onClick={onPauseWorkflow}
@@ -113,8 +113,8 @@ export function SequencedTaskView({
                   Pause
                 </Button>
               )}
-              
-              <Button 
+
+              <Button
                 type="text"
                 icon={<IconRefresh />}
                 onClick={onResetWorkflow}
@@ -125,7 +125,7 @@ export function SequencedTaskView({
           </Col>
         </Row>
       </Card>
-      
+
       {/* Current Status Alert */}
       {currentStep && (
         <Alert
@@ -139,7 +139,7 @@ export function SequencedTaskView({
           }
         />
       )}
-      
+
       {task.overallStatus === 'waiting' && (
         <Alert
           type="warning"
@@ -151,7 +151,7 @@ export function SequencedTaskView({
           }
         />
       )}
-      
+
       {/* Summary Statistics */}
       <Card>
         <Row gutter={16}>
@@ -185,14 +185,14 @@ export function SequencedTaskView({
           </Col>
         </Row>
       </Card>
-      
+
       {/* Workflow Steps */}
       <Card
         title={
           <Space>
             <Title heading={6} style={{ margin: 0 }}>Workflow Steps</Title>
-            <Button 
-              type="text" 
+            <Button
+              type="text"
               size="small"
               icon={<IconDown style={{ transform: showDetails ? 'rotate(180deg)' : 'none' }} />}
               onClick={() => setShowDetails(!showDetails)}
@@ -213,7 +213,7 @@ export function SequencedTaskView({
             />
           ))}
         </div>
-        
+
         {showDetails && (
           <div style={{ marginTop: 24, padding: 16, background: '#F7F8FA', borderRadius: 8 }}>
             <Title heading={6}>Workflow Analysis</Title>

@@ -9,16 +9,16 @@ export interface SchedulableItem {
   type: 'focused' | 'admin'
   importance: number // 1-10
   urgency: number // 1-10
-  
+
   // Dependency tracking
   dependsOn: string[] // IDs of other schedulable items
   asyncWaitTime: number // minutes to wait after completion
-  
+
   // Metadata for tracking
   sourceType: 'simple_task' | 'workflow_step'
   sourceId: string // ID of parent task or workflow
   workflowStepIndex?: number // For workflow steps
-  
+
   // Status
   status: 'pending' | 'scheduled' | 'in_progress' | 'waiting' | 'completed'
   estimatedStart?: Date
@@ -33,11 +33,11 @@ export interface ScheduledWorkItem extends SchedulableItem {
   scheduledStartTime: Date // Exact start time
   scheduledEndTime: Date // Exact end time
   timeSlotId: string
-  
+
   // Capacity tracking
   consumesFocusedTime: boolean
   consumesAdminTime: boolean
-  
+
   // Scheduling metadata
   isOptimallyPlaced: boolean // True if scheduled in ideal priority order
   wasRescheduled: boolean // True if moved from original optimal position
@@ -48,18 +48,18 @@ export interface ScheduledWorkItem extends SchedulableItem {
 export interface WorkDayConfiguration {
   id: string
   dayOfWeek: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday'
-  
+
   // Work hours
   workStartTime: string // "09:00"
   workEndTime: string // "18:00"
-  
+
   // Break times
   breaks: TimeBreak[]
-  
+
   // Capacity limits
   maxFocusedMinutes: number // Default: 240 (4 hours)
   maxAdminMinutes: number // Default: 180 (3 hours)
-  
+
   // Meeting availability
   meetings: Meeting[]
   isWorkingDay: boolean
@@ -80,16 +80,16 @@ export interface TimeSlot {
   startTime: Date
   endTime: Date
   durationMinutes: number
-  
+
   // Capacity information
   availableForFocused: boolean
   availableForAdmin: boolean
-  
+
   // Current allocation
   allocatedItems: ScheduledWorkItem[]
   remainingFocusedMinutes: number
   remainingAdminMinutes: number
-  
+
   // Slot type
   slotType: 'work' | 'break' | 'meeting' | 'async_wait'
   isBlocked: boolean
@@ -101,14 +101,14 @@ export interface SchedulingConstraints {
   // User preferences
   tieBreakingMethod: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical'
   allowOverflow: boolean // Whether to schedule beyond capacity
-  
+
   // Time constraints
   earliestStartDate: Date
   latestEndDate?: Date
-  
+
   // Dependency rules
   strictDependencies: boolean // True = wait for ALL dependencies
-  
+
   // Capacity rules
   enforceDailyLimits: boolean
   allowFocusedOvertime: boolean
@@ -120,21 +120,21 @@ export interface SchedulingResult {
   success: boolean
   scheduledItems: ScheduledWorkItem[]
   unscheduledItems: SchedulableItem[]
-  
+
   // Timeline analysis
   totalWorkDays: number
   totalFocusedHours: number
   totalAdminHours: number
   projectedCompletionDate: Date
-  
+
   // Capacity analysis
   overCapacityDays: Date[]
   underUtilizedDays: Date[]
-  
+
   // Conflicts and warnings
   conflicts: SchedulingConflict[]
   warnings: string[]
-  
+
   // Optimization suggestions
   suggestions: SchedulingOptimization[]
 }
@@ -178,11 +178,11 @@ export interface AsyncWaitPeriod {
   startTime: Date
   endTime: Date
   durationMinutes: number
-  
+
   // What can be scheduled during this wait
   canScheduleFocused: boolean
   canScheduleAdmin: boolean
-  
+
   // Currently scheduled items during wait
   fillerItems: ScheduledWorkItem[]
   remainingCapacity: number

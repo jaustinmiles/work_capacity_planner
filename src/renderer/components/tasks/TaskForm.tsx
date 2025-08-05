@@ -15,7 +15,7 @@ interface TaskFormProps {
 export function TaskForm({ visible, onClose }: TaskFormProps) {
   const { addTask } = useTaskStore()
   const [form] = Form.useForm()
-  
+
   const handleSubmit = async () => {
     try {
       const values = await form.validate()
@@ -24,7 +24,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
         dependencies: [],
         completed: false,
       })
-      
+
       form.resetFields()
       onClose()
     } catch (error) {
@@ -32,7 +32,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
       // Error already handled by store
     }
   }
-  
+
   return (
     <Modal
       title="Create New Task"
@@ -62,7 +62,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
         >
           <Input placeholder="Enter task name" />
         </Form.Item>
-        
+
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
@@ -76,7 +76,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
               </Select>
             </Form.Item>
           </Col>
-          
+
           <Col span={12}>
             <Form.Item
               label={
@@ -97,7 +97,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             </Form.Item>
           </Col>
         </Row>
-        
+
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
@@ -118,7 +118,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
               </Space>
             </Form.Item>
           </Col>
-          
+
           <Col span={12}>
             <Form.Item
               label="Urgency (1-10)"
@@ -139,7 +139,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             </Form.Item>
           </Col>
         </Row>
-        
+
         <Form.Item
           label={
             <Space>
@@ -157,7 +157,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             style={{ width: '100%' }}
           />
         </Form.Item>
-        
+
         <Form.Item
           label="Notes"
           field="notes"

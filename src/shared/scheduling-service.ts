@@ -6,7 +6,7 @@ import {
   SchedulingConstraints,
   SchedulingResult,
   WeeklySchedule,
-  TimeBreak
+  TimeBreak,
 } from './scheduling-models'
 
 /**
@@ -32,10 +32,10 @@ export class SchedulingService {
       tieBreaking?: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical'
       allowOverflow?: boolean
       workDayConfig?: Partial<WorkDayConfiguration>
-    } = {}
+    } = {},
   ): Promise<SchedulingResult> {
     const workDayConfigs = this.createDefaultWorkDayConfigs(options.workDayConfig)
-    
+
     const constraints: SchedulingConstraints = {
       tieBreakingMethod: options.tieBreaking || 'creation_date',
       allowOverflow: options.allowOverflow || false,
@@ -44,7 +44,7 @@ export class SchedulingService {
       strictDependencies: true,
       enforceDailyLimits: true,
       allowFocusedOvertime: false,
-      allowAdminOvertime: false
+      allowAdminOvertime: false,
     }
 
     return await this.engine.scheduleItems(tasks, sequencedTasks, workDayConfigs, constraints)
@@ -60,7 +60,7 @@ export class SchedulingService {
     options: {
       tieBreaking?: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical'
       workDayConfig?: Partial<WorkDayConfiguration>
-    } = {}
+    } = {},
   ): Promise<WeeklySchedule> {
     const weekEndDate = new Date(weekStartDate)
     weekEndDate.setDate(weekEndDate.getDate() + 6)
@@ -69,7 +69,7 @@ export class SchedulingService {
       startDate: weekStartDate,
       endDate: weekEndDate,
       tieBreaking: options.tieBreaking,
-      workDayConfig: options.workDayConfig
+      workDayConfig: options.workDayConfig,
     })
 
     const workDayConfigs = this.createDefaultWorkDayConfigs(options.workDayConfig)
@@ -79,7 +79,7 @@ export class SchedulingService {
       if (config.isWorkingDay) {
         return {
           focusedMinutes: total.focusedMinutes + config.maxFocusedMinutes,
-          adminMinutes: total.adminMinutes + config.maxAdminMinutes
+          adminMinutes: total.adminMinutes + config.maxAdminMinutes,
         }
       }
       return total
@@ -97,12 +97,12 @@ export class SchedulingService {
     const utilization = {
       focusedMinutesUsed,
       adminMinutesUsed,
-      focusedPercentage: totalCapacity.focusedMinutes > 0 
-        ? (focusedMinutesUsed / totalCapacity.focusedMinutes) * 100 
+      focusedPercentage: totalCapacity.focusedMinutes > 0
+        ? (focusedMinutesUsed / totalCapacity.focusedMinutes) * 100
         : 0,
-      adminPercentage: totalCapacity.adminMinutes > 0 
-        ? (adminMinutesUsed / totalCapacity.adminMinutes) * 100 
-        : 0
+      adminPercentage: totalCapacity.adminMinutes > 0
+        ? (adminMinutesUsed / totalCapacity.adminMinutes) * 100
+        : 0,
     }
 
     return {
@@ -111,7 +111,7 @@ export class SchedulingService {
       scheduledItems: schedulingResult.scheduledItems,
       totalCapacity,
       utilization,
-      asyncWaitPeriods: [] // Would be populated by async wait optimization
+      asyncWaitPeriods: [], // Would be populated by async wait optimization
     }
   }
 
@@ -128,12 +128,12 @@ export class SchedulingService {
         tieBreaking: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical'
         allowOverflow: boolean
       }>
-    } = {}
+    } = {},
   ): Promise<Array<{ scenario: string; result: SchedulingResult }>> {
     const scenarios = options.scenarios || [
       { name: 'Default (FIFO)', tieBreaking: 'creation_date' as const, allowOverflow: false },
       { name: 'Quick Wins First', tieBreaking: 'duration_shortest' as const, allowOverflow: false },
-      { name: 'Big Rocks First', tieBreaking: 'duration_longest' as const, allowOverflow: false }
+      { name: 'Big Rocks First', tieBreaking: 'duration_longest' as const, allowOverflow: false },
     ]
 
     const results = []
@@ -141,7 +141,7 @@ export class SchedulingService {
       const result = await this.createSchedule(tasks, sequencedTasks, {
         startDate: options.startDate,
         tieBreaking: scenario.tieBreaking,
-        allowOverflow: scenario.allowOverflow
+        allowOverflow: scenario.allowOverflow,
       })
       results.push({ scenario: scenario.name, result })
     }
@@ -154,7 +154,7 @@ export class SchedulingService {
    */
   async getSchedulingRecommendations(
     tasks: Task[],
-    sequencedTasks: SequencedTask[]
+    sequencedTasks: SequencedTask[],
   ): Promise<{
     workloadAnalysis: {
       totalFocusedHours: number
@@ -175,7 +175,7 @@ export class SchedulingService {
       totalFocusedHours: simulationResult.totalFocusedHours,
       totalAdminHours: simulationResult.totalAdminHours,
       estimatedDays: simulationResult.totalWorkDays,
-      capacityUtilization: (simulationResult.totalFocusedHours + simulationResult.totalAdminHours) / (7 * simulationResult.totalWorkDays) * 100
+      capacityUtilization: (simulationResult.totalFocusedHours + simulationResult.totalAdminHours) / (7 * simulationResult.totalWorkDays) * 100,
     }
 
     const recommendations = []
@@ -186,7 +186,7 @@ export class SchedulingService {
         type: 'capacity' as const,
         title: 'High Capacity Utilization',
         description: 'Your workload is near capacity limits. Consider extending work days or reducing scope.',
-        impact: 'high' as const
+        impact: 'high' as const,
       })
     }
 
@@ -197,7 +197,7 @@ export class SchedulingService {
         type: 'priority' as const,
         title: 'Too Many High-Priority Items',
         description: `You have ${highPriorityTasks} high-priority tasks. Consider re-evaluating priorities.`,
-        impact: 'medium' as const
+        impact: 'medium' as const,
       })
     }
 
@@ -207,20 +207,20 @@ export class SchedulingService {
         type: 'dependency' as const,
         title: 'Dependency Issues Detected',
         description: 'Some tasks have circular dependencies that prevent scheduling.',
-        impact: 'high' as const
+        impact: 'high' as const,
       })
     }
 
     // Optimization recommendations
     const totalAsyncWait = [...tasks, ...sequencedTasks.flatMap(st => st.steps)]
       .reduce((total, item) => total + (item.asyncWaitTime || 0), 0)
-    
+
     if (totalAsyncWait > 120) { // More than 2 hours of wait time
       recommendations.push({
         type: 'optimization' as const,
         title: 'Async Wait Optimization Opportunity',
         description: 'Your tasks have significant wait times that could be filled with other work.',
-        impact: 'medium' as const
+        impact: 'medium' as const,
       })
     }
 
@@ -237,16 +237,16 @@ export class SchedulingService {
         name: 'Lunch Break',
         startTime: '12:00',
         endTime: '13:00',
-        recurring: true
-      }
+        recurring: true,
+      },
     ]
 
     const workDays: Array<WorkDayConfiguration['dayOfWeek']> = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday',
     ]
 
     const weekendDays: Array<WorkDayConfiguration['dayOfWeek']> = [
-      'Saturday', 'Sunday'
+      'Saturday', 'Sunday',
     ]
 
     return [
@@ -260,7 +260,7 @@ export class SchedulingService {
         maxAdminMinutes: 180,   // 3 hours
         meetings: [],
         isWorkingDay: true,
-        ...overrides
+        ...overrides,
       })),
       ...weekendDays.map((day, index) => ({
         id: `weekend_${index}`,
@@ -272,8 +272,8 @@ export class SchedulingService {
         maxAdminMinutes: 0,
         meetings: [],
         isWorkingDay: false,
-        ...overrides
-      }))
+        ...overrides,
+      })),
     ]
   }
 
@@ -283,7 +283,7 @@ export class SchedulingService {
   validateConstraints(
     tasks: Task[],
     sequencedTasks: SequencedTask[],
-    constraints: SchedulingConstraints
+    constraints: SchedulingConstraints,
   ): { isValid: boolean; errors: string[]; warnings: string[] } {
     const errors: string[] = []
     const warnings: string[] = []
@@ -291,7 +291,7 @@ export class SchedulingService {
     // Check for dependency cycles
     const allItems = [...tasks, ...sequencedTasks.flatMap(st => st.steps)]
     const dependencyMap = new Map<string, string[]>()
-    
+
     allItems.forEach(item => {
       const deps = 'dependencies' in item ? item.dependencies : item.dependsOn || []
       dependencyMap.set(item.id, deps)
@@ -336,7 +336,7 @@ export class SchedulingService {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     }
   }
 }

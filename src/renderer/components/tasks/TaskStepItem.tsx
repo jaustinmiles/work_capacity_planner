@@ -22,33 +22,33 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
     }
     return `${mins}m`
   }
-  
+
   const getStatusColor = () => {
     if (isCompleted) return '#00B42A'
     if (isActive) return '#165DFF'
     return '#86909C'
   }
-  
+
   const getStatusIcon = () => {
     if (isCompleted) return <IconCheck />
-    return <div style={{ 
-      width: 16, 
-      height: 16, 
-      borderRadius: '50%', 
+    return <div style={{
+      width: 16,
+      height: 16,
+      borderRadius: '50%',
       background: getStatusColor(),
       color: 'white',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       fontSize: 12,
-      fontWeight: 'bold'
+      fontWeight: 'bold',
     }}>
       {stepIndex + 1}
     </div>
   }
-  
+
   return (
-    <div 
+    <div
       style={{
         display: 'flex',
         alignItems: 'flex-start',
@@ -56,38 +56,38 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
         borderLeft: `2px solid ${getStatusColor()}`,
         paddingLeft: 16,
         marginLeft: 8,
-        position: 'relative'
+        position: 'relative',
       }}
     >
       {/* Step number/status indicator */}
-      <div style={{ 
-        position: 'absolute', 
-        left: -9, 
+      <div style={{
+        position: 'absolute',
+        left: -9,
         top: 12,
         background: '#fff',
-        padding: 1
+        padding: 1,
       }}>
         {getStatusIcon()}
       </div>
-      
+
       <div style={{ flex: 1, marginLeft: 16 }}>
         <div style={{ marginBottom: 8 }}>
-          <Text 
-            style={{ 
-              fontSize: 15, 
+          <Text
+            style={{
+              fontSize: 15,
               fontWeight: isActive ? 600 : 500,
               color: isCompleted ? '#86909C' : '#1D2129',
-              textDecoration: isCompleted ? 'line-through' : 'none'
+              textDecoration: isCompleted ? 'line-through' : 'none',
             }}
           >
             {step.name}
           </Text>
-          
+
           {isActive && (
             <Badge status="processing" text="In Progress" style={{ marginLeft: 8 }} />
           )}
         </div>
-        
+
         <Space size="small" wrap>
           <Tag
             icon={<IconClockCircle />}
@@ -96,11 +96,11 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
           >
             {formatDuration(step.duration)}
           </Tag>
-          
+
           <Tag size="small" color="gray">
             {step.type === 'focused' ? 'Focused Work' : 'Admin/Meeting'}
           </Tag>
-          
+
           {step.asyncWaitTime > 0 && (
             <Tag
               icon={<IconCalendar />}
@@ -110,7 +110,7 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
               Wait: {formatDuration(step.asyncWaitTime)}
             </Tag>
           )}
-          
+
           {step.conditionalBranches && step.conditionalBranches.length > 0 && (
             <Tooltip content={`${step.conditionalBranches.length} conditional branch(es)`}>
               <Tag
@@ -122,7 +122,7 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
               </Tag>
             </Tooltip>
           )}
-          
+
           {step.dependsOn.length > 0 && (
             <Tooltip content={`Depends on ${step.dependsOn.length} step(s)`}>
               <Tag
@@ -135,7 +135,7 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
             </Tooltip>
           )}
         </Space>
-        
+
         {/* Show conditional branches */}
         {step.conditionalBranches && step.conditionalBranches.length > 0 && (
           <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '1px dashed #E5E8EF' }}>
@@ -156,7 +156,7 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
             ))}
           </div>
         )}
-        
+
         {/* Show estimated start time */}
         {estimatedStartTime && (
           <div style={{ marginTop: 8 }}>

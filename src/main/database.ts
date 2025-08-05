@@ -24,7 +24,7 @@ export class DatabaseService {
   // Task operations
   async getTasks(): Promise<Task[]> {
     const tasks = await this.client.task.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     })
 
     return tasks.map(task => ({
@@ -34,7 +34,7 @@ export class DatabaseService {
       notes: task.notes || undefined,
       actualDuration: task.actualDuration || undefined,
       projectId: task.projectId || undefined,
-      dependencies: JSON.parse(task.dependencies)
+      dependencies: JSON.parse(task.dependencies),
     }))
   }
 
@@ -42,8 +42,8 @@ export class DatabaseService {
     const task = await this.client.task.create({
       data: {
         ...taskData,
-        dependencies: JSON.stringify(taskData.dependencies)
-      }
+        dependencies: JSON.stringify(taskData.dependencies),
+      },
     })
 
     return {
@@ -53,7 +53,7 @@ export class DatabaseService {
       notes: task.notes || undefined,
       actualDuration: task.actualDuration || undefined,
       projectId: task.projectId || undefined,
-      dependencies: JSON.parse(task.dependencies)
+      dependencies: JSON.parse(task.dependencies),
     }
   }
 
@@ -68,7 +68,7 @@ export class DatabaseService {
 
     const task = await this.client.task.update({
       where: { id },
-      data: updateData
+      data: updateData,
     })
 
     return {
@@ -78,13 +78,13 @@ export class DatabaseService {
       notes: task.notes || undefined,
       actualDuration: task.actualDuration || undefined,
       projectId: task.projectId || undefined,
-      dependencies: JSON.parse(task.dependencies)
+      dependencies: JSON.parse(task.dependencies),
     }
   }
 
   async deleteTask(id: string): Promise<void> {
     await this.client.task.delete({
-      where: { id }
+      where: { id },
     })
   }
 
@@ -93,10 +93,10 @@ export class DatabaseService {
     const sequencedTasks = await this.client.sequencedTask.findMany({
       include: {
         steps: {
-          orderBy: { stepIndex: 'asc' }
-        }
+          orderBy: { stepIndex: 'asc' },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     })
 
     return sequencedTasks.map(task => ({
@@ -109,8 +109,8 @@ export class DatabaseService {
         ...step,
         type: step.type as 'focused' | 'admin',
         status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
-        dependsOn: JSON.parse(step.dependsOn)
-      }))
+        dependsOn: JSON.parse(step.dependsOn),
+      })),
     }))
   }
 
@@ -125,15 +125,15 @@ export class DatabaseService {
           create: steps.map((step, index) => ({
             ...step,
             dependsOn: JSON.stringify(step.dependsOn),
-            stepIndex: index
-          }))
-        }
+            stepIndex: index,
+          })),
+        },
       },
       include: {
         steps: {
-          orderBy: { stepIndex: 'asc' }
-        }
-      }
+          orderBy: { stepIndex: 'asc' },
+        },
+      },
     })
 
     return {
@@ -146,8 +146,8 @@ export class DatabaseService {
         ...step,
         type: step.type as 'focused' | 'admin',
         status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
-        dependsOn: JSON.parse(step.dependsOn)
-      }))
+        dependsOn: JSON.parse(step.dependsOn),
+      })),
     }
   }
 
@@ -159,7 +159,7 @@ export class DatabaseService {
     if (cleanUpdateData.dependencies) {
       cleanUpdateData.dependencies = JSON.stringify(cleanUpdateData.dependencies)
     }
-    
+
     // Remove fields that shouldn't be updated directly
     delete cleanUpdateData.id
     delete cleanUpdateData.createdAt
@@ -167,14 +167,14 @@ export class DatabaseService {
     // Update the main sequenced task
     await this.client.sequencedTask.update({
       where: { id },
-      data: cleanUpdateData
+      data: cleanUpdateData,
     })
 
     // If steps are provided, update them
     if (steps) {
       // Delete existing steps and recreate them (simpler than complex updates)
       await this.client.taskStep.deleteMany({
-        where: { sequencedTaskId: id }
+        where: { sequencedTaskId: id },
       })
 
       await this.client.taskStep.createMany({
@@ -182,8 +182,8 @@ export class DatabaseService {
           ...step,
           dependsOn: JSON.stringify(step.dependsOn),
           sequencedTaskId: id,
-          stepIndex: index
-        }))
+          stepIndex: index,
+        })),
       })
     }
 
@@ -192,9 +192,9 @@ export class DatabaseService {
       where: { id },
       include: {
         steps: {
-          orderBy: { stepIndex: 'asc' }
-        }
-      }
+          orderBy: { stepIndex: 'asc' },
+        },
+      },
     })
 
     if (!updatedTask) {
@@ -211,14 +211,14 @@ export class DatabaseService {
         ...step,
         type: step.type as 'focused' | 'admin',
         status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
-        dependsOn: JSON.parse(step.dependsOn)
-      }))
+        dependsOn: JSON.parse(step.dependsOn),
+      })),
     }
   }
 
   async deleteSequencedTask(id: string): Promise<void> {
     await this.client.sequencedTask.delete({
-      where: { id }
+      where: { id },
     })
     // TaskSteps will be cascade deleted due to the schema relationship
   }
@@ -229,20 +229,20 @@ export class DatabaseService {
     if (updateData.dependsOn) {
       updateData.dependsOn = JSON.stringify(updateData.dependsOn)
     }
-    
+
     // Remove fields that shouldn't be updated directly
     delete updateData.id
 
     await this.client.taskStep.update({
       where: { id: stepId },
-      data: updateData
+      data: updateData,
     })
   }
 
   // Utility methods
   async getTaskById(id: string): Promise<Task | null> {
     const task = await this.client.task.findUnique({
-      where: { id }
+      where: { id },
     })
 
     if (!task) return null
@@ -254,7 +254,7 @@ export class DatabaseService {
       notes: task.notes || undefined,
       actualDuration: task.actualDuration || undefined,
       projectId: task.projectId || undefined,
-      dependencies: JSON.parse(task.dependencies)
+      dependencies: JSON.parse(task.dependencies),
     }
   }
 
@@ -263,9 +263,9 @@ export class DatabaseService {
       where: { id },
       include: {
         steps: {
-          orderBy: { stepIndex: 'asc' }
-        }
-      }
+          orderBy: { stepIndex: 'asc' },
+        },
+      },
     })
 
     if (!task) return null
@@ -280,8 +280,8 @@ export class DatabaseService {
         ...step,
         type: step.type as 'focused' | 'admin',
         status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
-        dependsOn: JSON.parse(step.dependsOn)
-      }))
+        dependsOn: JSON.parse(step.dependsOn),
+      })),
     }
   }
 
@@ -302,7 +302,7 @@ export class DatabaseService {
         asyncWaitTime: 0,
         dependencies: [],
         completed: false,
-        notes: 'Initial project review and planning'
+        notes: 'Initial project review and planning',
       })
 
       await this.createTask({
@@ -314,7 +314,7 @@ export class DatabaseService {
         asyncWaitTime: 0,
         dependencies: [],
         completed: false,
-        notes: 'Daily team synchronization'
+        notes: 'Daily team synchronization',
       })
     }
   }

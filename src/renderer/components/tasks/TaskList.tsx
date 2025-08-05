@@ -12,21 +12,21 @@ interface TaskListProps {
 
 export function TaskList({ onAddTask }: TaskListProps) {
   const { tasks } = useTaskStore()
-  
+
   const incompleteTasks = tasks.filter(task => !task.completed)
   const completedTasks = tasks.filter(task => task.completed)
-  
+
   // Sort incomplete tasks by priority (importance * urgency)
   const sortedIncompleteTasks = [...incompleteTasks].sort((a, b) => {
     const priorityA = a.importance * a.urgency
     const priorityB = b.importance * b.urgency
     return priorityB - priorityA
   })
-  
+
   // Calculate progress
   const totalTasks = tasks.length
   const completionRate = totalTasks > 0 ? (completedTasks.length / totalTasks) * 100 : 0
-  
+
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       {/* Summary Card */}
@@ -48,7 +48,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
           />
         </Space>
       </Card>
-      
+
       {/* Active Tasks */}
       <Card
         title={
@@ -72,8 +72,8 @@ export function TaskList({ onAddTask }: TaskListProps) {
             description={
               <Space direction="vertical">
                 <Text type="secondary">No active tasks</Text>
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<IconPlus />}
                   onClick={onAddTask}
                 >
@@ -93,7 +93,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
           />
         )}
       </Card>
-      
+
       {/* Completed Tasks */}
       {completedTasks.length > 0 && (
         <Card

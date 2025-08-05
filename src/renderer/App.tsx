@@ -21,18 +21,18 @@ function App() {
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
-  const { 
-    tasks, 
-    sequencedTasks, 
-    addSequencedTask, 
-    currentWeeklySchedule, 
-    isScheduling, 
+  const {
+    tasks,
+    sequencedTasks,
+    addSequencedTask,
+    currentWeeklySchedule,
+    isScheduling,
     generateWeeklySchedule,
     initializeData,
     isLoading,
-    error
+    error,
   } = useTaskStore()
-  
+
   const incompleteTasks = tasks.filter(task => !task.completed).length
 
   // Initialize data when app starts
@@ -65,7 +65,7 @@ function App() {
             boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
           }}
         >
-          <div style={{ 
+          <div style={{
             padding: '24px 20px',
             borderBottom: '1px solid #E5E8EF',
           }}>
@@ -73,7 +73,7 @@ function App() {
               Work Capacity Planner
             </Title>
           </div>
-          
+
           <Menu
             selectedKeys={[activeView]}
             onClickMenuItem={(key) => setActiveView(key as any)}
@@ -148,7 +148,7 @@ function App() {
                 size="large"
                 icon={<IconPlus />}
                 long
-                style={{ 
+                style={{
                   boxShadow: '0 4px 10px rgba(22, 93, 255, 0.2)',
                   fontWeight: 500,
                 }}
@@ -158,7 +158,7 @@ function App() {
             </Dropdown>
           </div>
         </Sider>
-        
+
         <Layout>
           <Header style={{
             background: '#FAFBFC',
@@ -177,7 +177,7 @@ function App() {
               {activeView === 'timeline' && 'Smart Timeline'}
             </Title>
           </Header>
-          
+
           <Content style={{
             padding: 24,
             background: '#F7F8FA',
@@ -206,15 +206,15 @@ function App() {
               {activeView === 'tasks' && (
                 <TaskList onAddTask={() => setTaskFormVisible(true)} />
               )}
-              
+
               {activeView === 'matrix' && (
                 <EisenhowerMatrix onAddTask={() => setTaskFormVisible(true)} />
               )}
-              
+
               {activeView === 'calendar' && (
                 <WeeklyCalendar />
               )}
-              
+
               {activeView === 'workflows' && (
                 <Space direction="vertical" style={{ width: '100%' }} size="large">
                   {/* User's Created Workflows */}
@@ -223,9 +223,9 @@ function App() {
                       <div style={{ marginBottom: 16 }}>
                         <Typography.Title heading={5}>Your Workflows ({sequencedTasks.length})</Typography.Title>
                       </div>
-                      
+
                       {sequencedTasks.map(task => (
-                        <SequencedTaskView 
+                        <SequencedTaskView
                           key={task.id}
                           task={task}
                           onStartWorkflow={() => {/* TODO: Implement workflow start */}}
@@ -235,17 +235,17 @@ function App() {
                       ))}
                     </>
                   )}
-                  
+
                   {/* Example Workflow */}
-                  <Button 
+                  <Button
                     type="primary"
                     onClick={() => setShowExampleWorkflow(!showExampleWorkflow)}
                   >
                     {showExampleWorkflow ? 'Hide' : 'Show'} Example Workflow
                   </Button>
-                  
+
                   {showExampleWorkflow && (
-                    <SequencedTaskView 
+                    <SequencedTaskView
                       task={exampleSequencedTask}
                       onStartWorkflow={() => {/* TODO: Implement workflow start */}}
                       onPauseWorkflow={() => {/* TODO: Implement workflow pause */}}
@@ -254,9 +254,9 @@ function App() {
                   )}
                 </Space>
               )}
-              
+
               {activeView === 'timeline' && (
-                <Timeline 
+                <Timeline
                   weeklySchedule={currentWeeklySchedule}
                   onItemClick={() => {/* TODO: Implement timeline item actions */}}
                   onStartItem={() => {/* TODO: Implement timeline item start */}}
@@ -268,12 +268,12 @@ function App() {
             </div>
           </Content>
         </Layout>
-        
-        <TaskForm 
-          visible={taskFormVisible} 
-          onClose={() => setTaskFormVisible(false)} 
+
+        <TaskForm
+          visible={taskFormVisible}
+          onClose={() => setTaskFormVisible(false)}
         />
-        
+
         <SequencedTaskForm
           visible={sequencedTaskFormVisible}
           onClose={() => setSequencedTaskFormVisible(false)}

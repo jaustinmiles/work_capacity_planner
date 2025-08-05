@@ -11,18 +11,18 @@ interface TaskStore {
   selectedTaskId: string | null
   isLoading: boolean
   error: string | null
-  
+
   // Scheduling state
   currentSchedule: SchedulingResult | null
   currentWeeklySchedule: WeeklySchedule | null
   isScheduling: boolean
   schedulingError: string | null
-  
+
   // Data loading actions
   loadTasks: () => Promise<void>
   loadSequencedTasks: () => Promise<void>
   initializeData: () => Promise<void>
-  
+
   // Actions
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   addSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
@@ -32,12 +32,12 @@ interface TaskStore {
   deleteSequencedTask: (id: string) => Promise<void>
   toggleTaskComplete: (id: string) => Promise<void>
   selectTask: (id: string | null) => void
-  
+
   // Scheduling actions
   generateSchedule: (options?: { startDate?: Date; tieBreaking?: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical' }) => Promise<void>
   generateWeeklySchedule: (weekStartDate: Date) => Promise<void>
   clearSchedule: () => void
-  
+
   // Computed
   getTaskById: (id: string) => Task | undefined
   getSequencedTaskById: (id: string) => SequencedTask | undefined
@@ -59,13 +59,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   selectedTaskId: null,
   isLoading: false,
   error: null,
-  
+
   // Scheduling state
   currentSchedule: null,
   currentWeeklySchedule: null,
   isScheduling: false,
   schedulingError: null,
-  
+
   // Data loading actions
   loadTasks: async () => {
     try {
@@ -73,9 +73,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const tasks = await getDatabase().getTasks()
       set({ tasks, isLoading: false })
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load tasks',
-        isLoading: false 
+        isLoading: false,
       })
     }
   },
@@ -86,9 +86,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const sequencedTasks = await getDatabase().getSequencedTasks()
       set({ sequencedTasks, isLoading: false })
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load sequenced tasks',
-        isLoading: false 
+        isLoading: false,
       })
     }
   },
@@ -99,127 +99,127 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       await getDatabase().initializeDefaultData()
       const [tasks, sequencedTasks] = await Promise.all([
         getDatabase().getTasks(),
-        getDatabase().getSequencedTasks()
+        getDatabase().getSequencedTasks(),
       ])
       set({ tasks, sequencedTasks, isLoading: false })
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to initialize data',
-        isLoading: false 
+        isLoading: false,
       })
     }
   },
-  
+
   addTask: async (taskData) => {
     try {
       const task = await getDatabase().createTask(taskData)
       set((state) => ({
         tasks: [...state.tasks, task],
-        error: null
+        error: null,
       }))
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to create task'
+      set({
+        error: error instanceof Error ? error.message : 'Failed to create task',
       })
     }
   },
-  
+
   addSequencedTask: async (taskData) => {
     try {
       const sequencedTask = await getDatabase().createSequencedTask(taskData)
       set((state) => ({
         sequencedTasks: [...state.sequencedTasks, sequencedTask],
-        error: null
+        error: null,
       }))
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to create sequenced task'
+      set({
+        error: error instanceof Error ? error.message : 'Failed to create sequenced task',
       })
     }
   },
-  
+
   updateTask: async (id, updates) => {
     try {
       const updatedTask = await getDatabase().updateTask(id, updates)
       set((state) => ({
-        tasks: state.tasks.map(task => 
-          task.id === id ? updatedTask : task
+        tasks: state.tasks.map(task =>
+          task.id === id ? updatedTask : task,
         ),
-        error: null
+        error: null,
       }))
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to update task'
+      set({
+        error: error instanceof Error ? error.message : 'Failed to update task',
       })
     }
   },
-  
+
   updateSequencedTask: async (id, updates) => {
     try {
       const updatedTask = await getDatabase().updateSequencedTask(id, updates)
       set((state) => ({
-        sequencedTasks: state.sequencedTasks.map(task => 
-          task.id === id ? updatedTask : task
+        sequencedTasks: state.sequencedTasks.map(task =>
+          task.id === id ? updatedTask : task,
         ),
-        error: null
+        error: null,
       }))
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to update sequenced task'
+      set({
+        error: error instanceof Error ? error.message : 'Failed to update sequenced task',
       })
     }
   },
-  
+
   deleteTask: async (id) => {
     try {
       await getDatabase().deleteTask(id)
       set((state) => ({
         tasks: state.tasks.filter(task => task.id !== id),
         selectedTaskId: state.selectedTaskId === id ? null : state.selectedTaskId,
-        error: null
+        error: null,
       }))
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to delete task'
+      set({
+        error: error instanceof Error ? error.message : 'Failed to delete task',
       })
     }
   },
-  
+
   deleteSequencedTask: async (id) => {
     try {
       await getDatabase().deleteSequencedTask(id)
       set((state) => ({
         sequencedTasks: state.sequencedTasks.filter(task => task.id !== id),
         selectedTaskId: state.selectedTaskId === id ? null : state.selectedTaskId,
-        error: null
+        error: null,
       }))
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to delete sequenced task'
+      set({
+        error: error instanceof Error ? error.message : 'Failed to delete sequenced task',
       })
     }
   },
-  
+
   toggleTaskComplete: async (id) => {
     try {
       const task = get().tasks.find(t => t.id === id)
       if (!task) return
-      
+
       const updates = {
         completed: !task.completed,
-        completedAt: !task.completed ? new Date() : undefined
+        completedAt: !task.completed ? new Date() : undefined,
       }
-      
+
       await get().updateTask(id, updates)
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to toggle task completion'
+      set({
+        error: error instanceof Error ? error.message : 'Failed to toggle task completion',
       })
     }
   },
-  
+
   selectTask: (id) => set({ selectedTaskId: id }),
-  
+
   // Scheduling actions
   generateSchedule: async (options = {}) => {
     set({ isScheduling: true, schedulingError: null })
@@ -228,17 +228,17 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const schedule = await schedulingService.createSchedule(
         state.tasks,
         state.sequencedTasks,
-        options
+        options,
       )
       set({ currentSchedule: schedule, isScheduling: false })
     } catch (error) {
-      set({ 
+      set({
         schedulingError: error instanceof Error ? error.message : 'Unknown scheduling error',
-        isScheduling: false 
+        isScheduling: false,
       })
     }
   },
-  
+
   generateWeeklySchedule: async (weekStartDate: Date) => {
     set({ isScheduling: true, schedulingError: null })
     try {
@@ -246,32 +246,32 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const weeklySchedule = await schedulingService.createWeeklySchedule(
         state.tasks,
         state.sequencedTasks,
-        weekStartDate
+        weekStartDate,
       )
       set({ currentWeeklySchedule: weeklySchedule, isScheduling: false })
     } catch (error) {
-      set({ 
+      set({
         schedulingError: error instanceof Error ? error.message : 'Unknown scheduling error',
-        isScheduling: false 
+        isScheduling: false,
       })
     }
   },
-  
-  clearSchedule: () => set({ 
-    currentSchedule: null, 
-    currentWeeklySchedule: null, 
-    schedulingError: null 
+
+  clearSchedule: () => set({
+    currentSchedule: null,
+    currentWeeklySchedule: null,
+    schedulingError: null,
   }),
-  
+
   getTaskById: (id) => get().tasks.find(task => task.id === id),
-  
+
   getSequencedTaskById: (id) => get().sequencedTasks.find(task => task.id === id),
-  
+
   getIncompleteTasks: () => get().tasks.filter(task => !task.completed),
-  
+
   getCompletedTasks: () => get().tasks.filter(task => task.completed),
-  
+
   getActiveSequencedTasks: () => get().sequencedTasks.filter(task => !task.completed),
-  
+
   getCompletedSequencedTasks: () => get().sequencedTasks.filter(task => task.completed),
 }))

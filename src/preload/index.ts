@@ -16,5 +16,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     initializeDefaultData: () => ipcRenderer.invoke('db:initializeDefaultData'),
     getTaskById: (id: string) => ipcRenderer.invoke('db:getTaskById', id),
     getSequencedTaskById: (id: string) => ipcRenderer.invoke('db:getSequencedTaskById', id),
-  }
+  },
 })

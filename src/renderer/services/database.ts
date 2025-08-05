@@ -34,7 +34,7 @@ export class RendererDatabaseService {
     if (typeof window === 'undefined') {
       throw new Error('Window object not available')
     }
-    
+
     // Wait for electronAPI to be available (it might load asynchronously)
     if (!window.electronAPI) {
       throw new Error('Electron API not available. Make sure the preload script is loaded correctly.')

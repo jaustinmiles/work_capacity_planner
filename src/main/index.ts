@@ -17,7 +17,7 @@ async function createWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: process.env.NODE_ENV === 'development' 
+      preload: process.env.NODE_ENV === 'development'
         ? path.join(__dirname, '../../dist/index.js')
         : path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
