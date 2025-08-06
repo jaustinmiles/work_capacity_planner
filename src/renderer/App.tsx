@@ -9,6 +9,7 @@ import { SequencedTaskView } from './components/tasks/SequencedTaskView'
 import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
 import { Timeline } from './components/timeline/Timeline'
+import { GanttChart } from './components/timeline/GanttChart'
 import { BrainstormModal } from './components/ai/BrainstormModal'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
 import { useTaskStore } from './store/useTaskStore'
@@ -294,7 +295,7 @@ function App() {
               {activeView === 'matrix' && 'Priority Matrix'}
               {activeView === 'calendar' && 'Schedule Overview'}
               {activeView === 'workflows' && 'Sequenced Workflows'}
-              {activeView === 'timeline' && 'Smart Timeline'}
+              {activeView === 'timeline' && 'Timeline & Gantt View'}
             </Title>
           </Header>
 
@@ -396,11 +397,9 @@ function App() {
               )}
 
               {activeView === 'timeline' && (
-                <Timeline
-                  weeklySchedule={currentWeeklySchedule}
-                  onItemClick={() => {/* Future: Implement timeline item detail view */}}
-                  onStartItem={() => {/* Future: Implement task execution tracking */}}
-                  onPauseItem={() => {/* Future: Implement task pause functionality */}}
+                <GanttChart
+                  tasks={tasks}
+                  sequencedTasks={sequencedTasks}
                 />
               )}
                 </>

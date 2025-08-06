@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Badge } from '@arco-design/web-react'
+import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Badge, Modal } from '@arco-design/web-react'
 import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
+import { TaskEdit } from './TaskEdit'
 
 const { Text } = Typography
 
@@ -14,6 +15,7 @@ export function TaskItem({ task }: TaskItemProps) {
   const { toggleTaskComplete, deleteTask, selectTask, updateTask } = useTaskStore()
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState(task.name)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   const priorityScore = task.importance * task.urgency
   const priorityColor = priorityScore >= 64 ? 'red' :
@@ -172,7 +174,7 @@ export function TaskItem({ task }: TaskItemProps) {
                 type="text"
                 size="small"
                 icon={<IconEdit />}
-                onClick={() => setIsEditing(true)}
+                onClick={() => setShowEditModal(true)}
               />
             </Tooltip>
           )}
@@ -197,6 +199,20 @@ export function TaskItem({ task }: TaskItemProps) {
           </Popconfirm>
         </Space>
       </Space>
+      
+      {/* Edit Modal */}
+      <Modal
+        title="Edit Task"
+        visible={showEditModal}
+        onCancel={() => setShowEditModal(false)}
+        footer={null}
+        style={{ width: 800 }}
+      >
+        <TaskEdit
+          task={task}
+          onClose={() => setShowEditModal(false)}
+        />
+      </Modal>
     </div>
   )
 }
