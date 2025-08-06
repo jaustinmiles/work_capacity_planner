@@ -33,6 +33,16 @@ declare global {
         // Development helpers
         deleteAllTasks: () => Promise<void>
         deleteAllSequencedTasks: () => Promise<void>
+        // Work pattern operations
+        getWorkPattern: (date: string) => Promise<any>
+        createWorkPattern: (data: any) => Promise<any>
+        updateWorkPattern: (id: string, data: any) => Promise<any>
+        getWorkTemplates: () => Promise<any[]>
+        // Work session operations
+        createWorkSession: (data: any) => Promise<any>
+        updateWorkSession: (id: string, data: any) => Promise<any>
+        getWorkSessions: (date: string) => Promise<any[]>
+        getTodayAccumulated: (date: string) => Promise<{ focusMinutes: number; adminMinutes: number }>
       }
       ai: {
         extractTasksFromBrainstorm: (brainstormText: string) => Promise<{
@@ -294,6 +304,40 @@ export class RendererDatabaseService {
 
   async deleteAllSequencedTasks() {
     return await window.electronAPI.db.deleteAllSequencedTasks()
+  }
+
+  // Work pattern operations
+  async getWorkPattern(date: string) {
+    return await window.electronAPI.db.getWorkPattern(date)
+  }
+
+  async createWorkPattern(data: any) {
+    return await window.electronAPI.db.createWorkPattern(data)
+  }
+
+  async updateWorkPattern(id: string, data: any) {
+    return await window.electronAPI.db.updateWorkPattern(id, data)
+  }
+
+  async getWorkTemplates() {
+    return await window.electronAPI.db.getWorkTemplates()
+  }
+
+  // Work session operations
+  async createWorkSession(data: any) {
+    return await window.electronAPI.db.createWorkSession(data)
+  }
+
+  async updateWorkSession(id: string, data: any) {
+    return await window.electronAPI.db.updateWorkSession(id, data)
+  }
+
+  async getWorkSessions(date: string) {
+    return await window.electronAPI.db.getWorkSessions(date)
+  }
+
+  async getTodayAccumulated(date: string) {
+    return await window.electronAPI.db.getTodayAccumulated(date)
   }
 }
 

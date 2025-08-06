@@ -548,6 +548,152 @@ export class DatabaseService {
     await this.client.sequencedTask.deleteMany({})
   }
 
+  // Work Pattern operations
+  async getWorkPattern(date: string): Promise<any> {
+    const pattern = await this.client.workPattern.findUnique({
+      where: { date },
+      include: {
+        blocks: true,
+        meetings: true,
+        sessions: true,
+      },
+    })
+    
+    if (!pattern) return null
+    
+    return {
+      ...pattern,
+      meetings: pattern.meetings.map(m => ({
+        ...m,
+        daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
+      })),
+    }
+  }
+
+  async createWorkPattern(data: any): Promise<any> {
+    const { blocks, meetings, ...patternData } = data
+    
+    const pattern = await this.client.workPattern.create({
+      data: {
+        ...patternData,
+        blocks: {
+          create: blocks || [],
+        },
+        meetings: {
+          create: (meetings || []).map((m: any) => ({
+            ...m,
+            daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
+          })),
+        },
+      },
+      include: {
+        blocks: true,
+        meetings: true,
+        sessions: true,
+      },
+    })
+    
+    return {
+      ...pattern,
+      meetings: pattern.meetings.map(m => ({
+        ...m,
+        daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
+      })),
+    }
+  }
+
+  async updateWorkPattern(id: string, data: any): Promise<any> {
+    const { blocks, meetings, ...patternData } = data
+    
+    // Update pattern
+    await this.client.workPattern.update({
+      where: { id },
+      data: patternData,
+    })
+    
+    // Replace blocks if provided
+    if (blocks) {
+      await this.client.workBlock.deleteMany({
+        where: { patternId: id },
+      })
+      
+      await this.client.workBlock.createMany({
+        data: blocks.map((b: any) => ({ ...b, patternId: id })),
+      })
+    }
+    
+    // Replace meetings if provided
+    if (meetings) {
+      await this.client.workMeeting.deleteMany({
+        where: { patternId: id },
+      })
+      
+      await this.client.workMeeting.createMany({
+        data: meetings.map((m: any) => ({
+          ...m,
+          patternId: id,
+          daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
+        })),
+      })
+    }
+    
+    return this.getWorkPattern(patternData.date || id)
+  }
+
+  async getWorkTemplates(): Promise<any[]> {
+    const templates = await this.client.workPattern.findMany({
+      where: { isTemplate: true },
+      include: {
+        blocks: true,
+        meetings: true,
+      },
+    })
+    
+    return templates.map(t => ({
+      ...t,
+      meetings: t.meetings.map(m => ({
+        ...m,
+        daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
+      })),
+    }))
+  }
+
+  // Work Session operations
+  async createWorkSession(data: any): Promise<any> {
+    return this.client.workSession.create({ data })
+  }
+
+  async updateWorkSession(id: string, data: any): Promise<any> {
+    const { id: _, ...updateData } = data
+    return this.client.workSession.update({
+      where: { id },
+      data: updateData,
+    })
+  }
+
+  async getWorkSessions(date: string): Promise<any[]> {
+    const pattern = await this.client.workPattern.findUnique({
+      where: { date },
+      include: { sessions: true },
+    })
+    
+    return pattern?.sessions || []
+  }
+
+  async getTodayAccumulated(date: string): Promise<{ focusMinutes: number; adminMinutes: number }> {
+    const sessions = await this.getWorkSessions(date)
+    
+    return sessions.reduce((acc, session) => {
+      const minutes = session.actualMinutes || session.plannedMinutes
+      if (session.type === 'focused') {
+        acc.focusMinutes += minutes
+      } else {
+        acc.adminMinutes += minutes
+      }
+      return acc
+    }, { focusMinutes: 0, adminMinutes: 0 })
+  }
+
   // Cleanup method
   async disconnect(): Promise<void> {
     await this.client.$disconnect()

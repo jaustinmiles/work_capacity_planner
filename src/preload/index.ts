@@ -32,6 +32,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Development helpers
     deleteAllTasks: () => ipcRenderer.invoke('db:deleteAllTasks'),
     deleteAllSequencedTasks: () => ipcRenderer.invoke('db:deleteAllSequencedTasks'),
+    // Work pattern operations
+    getWorkPattern: (date: string) => ipcRenderer.invoke('db:getWorkPattern', date),
+    createWorkPattern: (data: any) => ipcRenderer.invoke('db:createWorkPattern', data),
+    updateWorkPattern: (id: string, data: any) => ipcRenderer.invoke('db:updateWorkPattern', id, data),
+    getWorkTemplates: () => ipcRenderer.invoke('db:getWorkTemplates'),
+    // Work session operations
+    createWorkSession: (data: any) => ipcRenderer.invoke('db:createWorkSession', data),
+    updateWorkSession: (id: string, data: any) => ipcRenderer.invoke('db:updateWorkSession', id, data),
+    getWorkSessions: (date: string) => ipcRenderer.invoke('db:getWorkSessions', date),
+    getTodayAccumulated: (date: string) => ipcRenderer.invoke('db:getTodayAccumulated', date),
   },
 
   // AI operations

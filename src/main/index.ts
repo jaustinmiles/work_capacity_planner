@@ -110,3 +110,92 @@ ipcMain.handle('db:getTaskById', async (_: any, id: string) => {
 ipcMain.handle('db:getSequencedTaskById', async (_: any, id: string) => {
   return await db.getSequencedTaskById(id)
 })
+
+// Job context handlers
+ipcMain.handle('db:getJobContexts', async () => {
+  return await db.getJobContexts()
+})
+
+ipcMain.handle('db:getActiveJobContext', async () => {
+  return await db.getActiveJobContext()
+})
+
+ipcMain.handle('db:createJobContext', async (_: any, data: any) => {
+  return await db.createJobContext(data)
+})
+
+ipcMain.handle('db:updateJobContext', async (_: any, id: string, updates: any) => {
+  return await db.updateJobContext(id, updates)
+})
+
+ipcMain.handle('db:deleteJobContext', async (_: any, id: string) => {
+  return await db.deleteJobContext(id)
+})
+
+ipcMain.handle('db:addContextEntry', async (_: any, jobContextId: string, entry: any) => {
+  return await db.addContextEntry(jobContextId, entry)
+})
+
+// Jargon dictionary handlers
+ipcMain.handle('db:getJargonEntries', async () => {
+  return await db.getJargonEntries()
+})
+
+ipcMain.handle('db:createJargonEntry', async (_: any, data: any) => {
+  return await db.createJargonEntry(data)
+})
+
+ipcMain.handle('db:updateJargonEntry', async (_: any, id: string, updates: any) => {
+  return await db.updateJargonEntry(id, updates)
+})
+
+ipcMain.handle('db:deleteJargonEntry', async (_: any, id: string) => {
+  return await db.deleteJargonEntry(id)
+})
+
+ipcMain.handle('db:getJargonDictionary', async () => {
+  return await db.getJargonDictionary()
+})
+
+// Development helpers
+ipcMain.handle('db:deleteAllTasks', async () => {
+  return await db.deleteAllTasks()
+})
+
+ipcMain.handle('db:deleteAllSequencedTasks', async () => {
+  return await db.deleteAllSequencedTasks()
+})
+
+// Work pattern handlers
+ipcMain.handle('db:getWorkPattern', async (_: any, date: string) => {
+  return await db.getWorkPattern(date)
+})
+
+ipcMain.handle('db:createWorkPattern', async (_: any, data: any) => {
+  return await db.createWorkPattern(data)
+})
+
+ipcMain.handle('db:updateWorkPattern', async (_: any, id: string, data: any) => {
+  return await db.updateWorkPattern(id, data)
+})
+
+ipcMain.handle('db:getWorkTemplates', async () => {
+  return await db.getWorkTemplates()
+})
+
+// Work session handlers
+ipcMain.handle('db:createWorkSession', async (_: any, data: any) => {
+  return await db.createWorkSession(data)
+})
+
+ipcMain.handle('db:updateWorkSession', async (_: any, id: string, data: any) => {
+  return await db.updateWorkSession(id, data)
+})
+
+ipcMain.handle('db:getWorkSessions', async (_: any, date: string) => {
+  return await db.getWorkSessions(date)
+})
+
+ipcMain.handle('db:getTodayAccumulated', async (_: any, date: string) => {
+  return await db.getTodayAccumulated(date)
+})

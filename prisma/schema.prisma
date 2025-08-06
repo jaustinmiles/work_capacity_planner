@@ -144,3 +144,68 @@ model JargonEntry {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+// New models for flexible work blocks
+
+model WorkPattern {
+  id            String   @id @default(uuid())
+  date          String   @unique // "2025-08-07"
+  isTemplate    Boolean  @default(false)
+  templateName  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  blocks        WorkBlock[]
+  meetings      WorkMeeting[]
+  sessions      WorkSession[]
+}
+
+model WorkBlock {
+  id            String   @id @default(uuid())
+  patternId     String
+  startTime     String   // "09:00"
+  endTime       String   // "12:00"
+  type          String   // "focused" | "admin" | "mixed"
+  focusCapacity Int?     // Override minutes for mixed blocks
+  adminCapacity Int?     // Override minutes for mixed blocks
+  
+  pattern       WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  
+  @@index([patternId])
+}
+
+model WorkMeeting {
+  id            String   @id @default(uuid())
+  patternId     String
+  name          String
+  startTime     String   // "14:00"
+  endTime       String   // "15:00"
+  type          String   // "meeting" | "break" | "personal" | "blocked"
+  recurring     String   @default("none") // "none" | "daily" | "weekly"
+  daysOfWeek    String?  // JSON array [1,3,5] for Mon,Wed,Fri
+  
+  pattern       WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  
+  @@index([patternId])
+}
+
+model WorkSession {
+  id              String   @id @default(uuid())
+  patternId       String
+  taskId          String?
+  sequencedTaskId String?
+  stepId          String?
+  type            String   // "focused" | "admin"
+  startTime       DateTime
+  endTime         DateTime?
+  plannedMinutes  Int
+  actualMinutes   Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+  
+  pattern         WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  
+  @@index([patternId])
+  @@index([taskId])
+  @@index([startTime])
+}
