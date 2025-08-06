@@ -34,7 +34,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
   const { workSettings, updateWorkSettings } = useTaskStore()
   const [form] = Form.useForm()
   const [blockedTimes, setBlockedTimes] = useState<BlockedTime[]>(
-    workSettings?.defaultCapacity.blockedTimes || []
+    workSettings?.defaultCapacity.blockedTimes || [],
   )
   const [editingBlockedTime, setEditingBlockedTime] = useState<BlockedTime | null>(null)
   const [showBlockedTimeForm, setShowBlockedTimeForm] = useState(false)
@@ -43,7 +43,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
     try {
       await form.validate()
       const values = form.getFields()
-      
+
       const newSettings: WorkSettings = {
         defaultWorkHours: {
           startTime: values.startTime.format('HH:mm'),
@@ -60,7 +60,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
         customCapacity: workSettings?.customCapacity || {},
         timeZone: workSettings?.timeZone || DEFAULT_WORK_SETTINGS.timeZone,
       }
-      
+
       await updateWorkSettings(newSettings)
       Message.success('Work settings updated successfully')
       onClose()
@@ -83,8 +83,8 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
   const handleSaveBlockedTime = (blockedTime: BlockedTime) => {
     if (editingBlockedTime && blockedTimes.find(bt => bt.id === editingBlockedTime.id)) {
       // Update existing
-      setBlockedTimes(blockedTimes.map(bt => 
-        bt.id === blockedTime.id ? blockedTime : bt
+      setBlockedTimes(blockedTimes.map(bt =>
+        bt.id === blockedTime.id ? blockedTime : bt,
       ))
     } else {
       // Add new
@@ -328,9 +328,9 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
                   value={editingBlockedTime?.startTime}
                   onChange={(value) => {
                     if (editingBlockedTime && value) {
-                      setEditingBlockedTime({ 
-                        ...editingBlockedTime, 
-                        startTime: value.format('HH:mm') 
+                      setEditingBlockedTime({
+                        ...editingBlockedTime,
+                        startTime: value.format('HH:mm'),
                       })
                     }
                   }}
@@ -345,9 +345,9 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
                   value={editingBlockedTime?.endTime}
                   onChange={(value) => {
                     if (editingBlockedTime && value) {
-                      setEditingBlockedTime({ 
-                        ...editingBlockedTime, 
-                        endTime: value.format('HH:mm') 
+                      setEditingBlockedTime({
+                        ...editingBlockedTime,
+                        endTime: value.format('HH:mm'),
                       })
                     }
                   }}

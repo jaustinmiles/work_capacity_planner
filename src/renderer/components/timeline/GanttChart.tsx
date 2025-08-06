@@ -24,7 +24,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [showSettings, setShowSettings] = useState(false)
   const [workPatterns, setWorkPatterns] = useState<DailyWorkPattern[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  
+
   // Load work patterns for the next 30 days
   useEffect(() => {
     loadWorkPatterns()
@@ -34,13 +34,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const db = getDatabase()
     const patterns: DailyWorkPattern[] = []
     const today = new Date()
-    
+
     // Load patterns for the next 30 days
     for (let i = 0; i < 30; i++) {
       const date = new Date(today)
       date.setDate(date.getDate() + i)
       const dateStr = dayjs(date).format('YYYY-MM-DD')
-      
+
       const pattern = await db.getWorkPattern(dateStr)
       if (pattern) {
         patterns.push({
@@ -51,7 +51,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         })
       }
     }
-    
+
     setWorkPatterns(patterns)
   }
 
@@ -63,69 +63,69 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Calculate chart dimensions
   const chartStartTime = scheduledItems.length > 0 ? scheduledItems[0].startTime : new Date()
-  const chartEndTime = scheduledItems.length > 0 
+  const chartEndTime = scheduledItems.length > 0
     ? new Date(Math.max(...scheduledItems.map(item => item.endTime.getTime())))
     : new Date()
-  
+
   const totalDuration = chartEndTime.getTime() - chartStartTime.getTime()
   const totalHours = totalDuration / (1000 * 60 * 60)
   const totalDays = Math.ceil(totalHours / 8) // Assuming 8-hour workdays
-  
+
   // Calculate chart width based on pixelsPerHour
   const chartWidthPx = totalHours * pixelsPerHour
   const minBlockWidth = 60 // Minimum width for a block in pixels
-  
+
   // Calculate time markers
   const timeMarkers = useMemo(() => {
     const markers = []
     const markerTime = new Date(chartStartTime)
     markerTime.setMinutes(0, 0, 0)
-    
+
     while (markerTime <= chartEndTime) {
       markers.push(new Date(markerTime))
       markerTime.setHours(markerTime.getHours() + 1)
     }
     return markers
   }, [chartStartTime, chartEndTime])
-  
+
   // Calculate day boundaries for visual separation
   const dayBoundaries = useMemo(() => {
     const boundaries = []
     const dayTime = new Date(chartStartTime)
     dayTime.setHours(0, 0, 0, 0)
-    
+
     while (dayTime <= chartEndTime) {
       boundaries.push(new Date(dayTime))
       dayTime.setDate(dayTime.getDate() + 1)
     }
     return boundaries
   }, [chartStartTime, chartEndTime])
-  
+
   const getPositionPx = (date: Date) => {
     const offsetHours = (date.getTime() - chartStartTime.getTime()) / (1000 * 60 * 60)
     return offsetHours * pixelsPerHour
   }
-  
+
   const getDurationPx = (minutes: number) => {
     const hours = minutes / 60
     return Math.max(hours * pixelsPerHour, minBlockWidth)
   }
-  
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
-  
+
   const formatDate = (date: Date) => {
     return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
   }
-  
+
   const getPriorityLabel = (priority: number) => {
     if (priority >= 64) return 'Critical'
     if (priority >= 49) return 'High'
     if (priority >= 36) return 'Medium'
     return 'Low'
   }
-  
+
   const getPriorityColor = (priority: number) => {
     if (priority >= 64) return '#FF4D4F'
     if (priority >= 49) return '#FF7A45'
@@ -136,7 +136,44 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   if (scheduledItems.length === 0) {
     return (
       <Card>
-        <Empty description="No tasks or workflows to display" />
+        <Empty 
+          description={
+            <Space direction="vertical" align="center">
+              <Text>No scheduled items to display</Text>
+              {workPatterns.length === 0 ? (
+                <>
+                  <Text type="secondary">You need to set up your work schedule first</Text>
+                  <Button 
+                    type="primary" 
+                    icon={<IconSettings />}
+                    onClick={() => {
+                      setSelectedDate(dayjs().format('YYYY-MM-DD'))
+                      setShowSettings(true)
+                    }}
+                  >
+                    Create Work Schedule
+                  </Button>
+                </>
+              ) : (
+                <Text type="secondary">Add some tasks or workflows to see them scheduled</Text>
+              )}
+            </Space>
+          }
+        />
+        {/* Work Schedule Modal */}
+        <WorkScheduleModal
+          visible={showSettings}
+          date={selectedDate || dayjs().format('YYYY-MM-DD')}
+          onClose={() => {
+            setShowSettings(false)
+            setSelectedDate(null)
+          }}
+          onSave={async () => {
+            await loadWorkPatterns()
+            setShowSettings(false)
+            setSelectedDate(null)
+          }}
+        />
       </Card>
     )
   }
@@ -215,17 +252,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       {/* Gantt Chart */}
       <Card title="Scheduled Tasks (Priority Order)">
         <div style={{ overflowX: 'auto', overflowY: 'hidden', position: 'relative' }}>
-          <div style={{ 
-            position: 'relative', 
+          <div style={{
+            position: 'relative',
             minHeight: scheduledItems.length * rowHeight + 100,
             width: `${chartWidthPx}px`,
             minWidth: '100%',
           }}>
             {/* Time header */}
-            <div style={{ 
-              position: 'sticky', 
-              top: 0, 
-              background: '#fff', 
+            <div style={{
+              position: 'sticky',
+              top: 0,
+              background: '#fff',
               borderBottom: '2px solid #e5e5e5',
               zIndex: 10,
               height: 60,
@@ -234,10 +271,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               <div style={{ position: 'relative', height: 30, borderBottom: '1px solid #e5e5e5' }}>
                 {dayBoundaries.map((day, index) => {
                   const nextDay = dayBoundaries[index + 1]
-                  const widthPx = nextDay 
+                  const widthPx = nextDay
                     ? getPositionPx(nextDay) - getPositionPx(day)
                     : chartWidthPx - getPositionPx(day)
-                  
+
                   return (
                     <div
                       key={day.getTime()}
@@ -256,7 +293,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   )
                 })}
               </div>
-              
+
               {/* Time labels */}
               <div style={{ position: 'relative', height: 30 }}>
                 {timeMarkers
@@ -355,9 +392,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const widthPx = getDurationPx(item.duration)
                 const isWaitTime = item.isWaitTime
                 const isBlocked = item.isBlocked
-                const isHovered = hoveredItem === item.id || 
+                const isHovered = hoveredItem === item.id ||
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
-                
+
                 return (
                   <div
                     key={item.id}
@@ -374,28 +411,28 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     <Tooltip
                       content={(() => {
                         const lines = [`${item.name}`]
-                        
+
                         if (!item.isWaitTime && !item.isBlocked) {
                           lines.push(`Priority: ${getPriorityLabel(item.priority)} (${item.priority})`)
                           lines.push(`Type: ${item.type === 'task' ? 'Task' : 'Workflow Step'}`)
                         }
-                        
+
                         lines.push(`Duration: ${item.duration < 60 ? `${item.duration} minutes` : `${(item.duration / 60).toFixed(1)} hours`}`)
                         lines.push(`Start: ${formatDate(item.startTime)} ${formatTime(item.startTime)}`)
                         lines.push(`End: ${formatDate(item.endTime)} ${formatTime(item.endTime)}`)
-                        
+
                         if (item.workflowName) {
                           lines.push(`Workflow: ${item.workflowName}`)
                         }
-                        
+
                         if (item.isWaitTime) {
-                          lines.push(`Status: Waiting for async operation`)
+                          lines.push('Status: Waiting for async operation')
                         }
-                        
+
                         if (item.isBlocked) {
-                          lines.push(`Status: Blocked time`)
+                          lines.push('Status: Blocked time')
                         }
-                        
+
                         return lines.join('\n')
                       })()}
                       position="top"
@@ -404,9 +441,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       <div
                         style={{
                           height: '100%',
-                          background: isBlocked 
+                          background: isBlocked
                             ? `repeating-linear-gradient(45deg, ${item.color}, ${item.color} 10px, ${item.color}88 10px, ${item.color}88 20px)`
-                            : isWaitTime 
+                            : isWaitTime
                             ? `repeating-linear-gradient(45deg, ${item.color}44, ${item.color}44 5px, transparent 5px, transparent 10px)`
                             : item.color,
                           opacity: isBlocked ? 0.7 : isWaitTime ? 0.5 : (isHovered ? 1 : 0.85),
@@ -438,7 +475,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                             }}
                           />
                         )}
-                        
+
                         {/* Task name */}
                         {widthPx > 30 && (
                           <Text

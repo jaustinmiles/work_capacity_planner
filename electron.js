@@ -273,3 +273,45 @@ ipcMain.handle('db:deleteAllSequencedTasks', async () => {
   if (!db) throw new Error('Database not initialized')
   return await db.deleteAllSequencedTasks()
 })
+
+// Work pattern handlers
+ipcMain.handle('db:getWorkPattern', async (_, date) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.getWorkPattern(date)
+})
+
+ipcMain.handle('db:createWorkPattern', async (_, data) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.createWorkPattern(data)
+})
+
+ipcMain.handle('db:updateWorkPattern', async (_, id, data) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.updateWorkPattern(id, data)
+})
+
+ipcMain.handle('db:getWorkTemplates', async () => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.getWorkTemplates()
+})
+
+// Work session handlers
+ipcMain.handle('db:createWorkSession', async (_, data) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.createWorkSession(data)
+})
+
+ipcMain.handle('db:updateWorkSession', async (_, id, data) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.updateWorkSession(id, data)
+})
+
+ipcMain.handle('db:getWorkSessions', async (_, date) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.getWorkSessions(date)
+})
+
+ipcMain.handle('db:getTodayAccumulated', async (_, date) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.getTodayAccumulated(date)
+})

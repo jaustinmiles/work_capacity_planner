@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconSchedule, IconCheck, IconEdit, IconPause, IconPlay } from '@arco-design/web-react/icon'
+import { IconSchedule, IconCheck, IconEdit, IconStop, IconCaretRight } from '@arco-design/web-react/icon'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
@@ -40,7 +40,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         db.getWorkPattern(currentDate),
         db.getTodayAccumulated(currentDate),
       ])
-      
+
       setPattern(patternData)
       setAccumulated(accumulatedData)
     } catch (error) {
@@ -62,7 +62,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
   const getBlockCapacity = (block: WorkBlock) => {
     const duration = getBlockDuration(block)
-    
+
     if (block.capacity) {
       return {
         focusMinutes: block.capacity.focusMinutes || 0,
@@ -79,7 +79,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
   const handleStartTracking = async () => {
     if (!currentBlock) return
-    
+
     const db = getDatabase()
     const session = await db.createWorkSession({
       patternId: pattern.id,
@@ -87,23 +87,23 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       startTime: new Date(),
       plannedMinutes: 30, // Default pomodoro
     })
-    
+
     setCurrentSession(session)
     setIsTracking(true)
   }
 
   const handleStopTracking = async () => {
     if (!currentSession) return
-    
+
     const db = getDatabase()
     const endTime = new Date()
     const actualMinutes = Math.round((endTime.getTime() - new Date(currentSession.startTime).getTime()) / 60000)
-    
+
     await db.updateWorkSession(currentSession.id, {
       endTime,
       actualMinutes,
     })
-    
+
     setCurrentSession(null)
     setIsTracking(false)
     loadWorkData() // Refresh accumulated time
@@ -129,7 +129,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     return acc
   }, { focusMinutes: 0, adminMinutes: 0 })
 
-  const focusProgress = totalCapacity.focusMinutes > 0 
+  const focusProgress = totalCapacity.focusMinutes > 0
     ? Math.round((accumulated.focusMinutes / totalCapacity.focusMinutes) * 100)
     : 0
   const adminProgress = totalCapacity.adminMinutes > 0
@@ -161,11 +161,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             <Space direction="vertical" style={{ width: '100%' }}>
               <Text type="secondary">Current Block</Text>
               <Space>
-                <Tag color="green" icon={<IconPlay />}>
+                <Tag color="green" icon={<IconCaretRight />}>
                   {currentBlock.startTime} - {currentBlock.endTime}
                 </Tag>
                 <Tag>
-                  {currentBlock.type === 'focused' ? '🎯 Focused' : 
+                  {currentBlock.type === 'focused' ? '🎯 Focused' :
                    currentBlock.type === 'admin' ? '📋 Admin' : '🔄 Mixed'}
                 </Tag>
               </Space>

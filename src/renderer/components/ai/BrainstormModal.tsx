@@ -99,7 +99,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       }
     }
 
+    // Only run initialization when modal becomes visible
     if (visible) {
+      // Use a ref to track if we've already initialized
       setBrainstormText('')
       setBrainstormResult(null)
       setError(null)
@@ -107,7 +109,12 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setRecordingDuration(0)
       loadJobContext()
       loadJargonDictionary()
-    } else {
+    }
+  }, [visible]) // Remove stopRecording from dependencies
+
+  // Separate effect for cleanup when modal closes
+  useEffect(() => {
+    if (!visible && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       stopRecording()
     }
   }, [visible, stopRecording])
@@ -132,37 +139,93 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
     }
   }, [recordingState])
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up recording if component unmounts
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop()
+          mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
+        } catch (error) {
+          console.error('Error cleaning up recording:', error)
+        }
+      }
+    }
+  }, [])
+
   const startRecording = async () => {
+    // Prevent multiple recordings
+    if (recordingState === 'recording' || mediaRecorderRef.current?.state === 'recording') {
+      console.log('Recording already in progress')
+      return
+    }
+    
     try {
+      console.log('Starting recording...')
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus',
-      })
+      console.log('Got media stream:', stream)
+      
+      // Try to find a supported MIME type
+      let mimeType = 'audio/webm'
+      const possibleTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4',
+      ]
+      
+      for (const type of possibleTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type
+          break
+        }
+      }
+      
+      console.log('Using MIME type:', mimeType)
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType })
+      console.log('Created MediaRecorder:', mediaRecorder)
 
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
 
       mediaRecorder.ondataavailable = (event) => {
+        console.log('Data available:', event.data.size)
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data)
         }
       }
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        await transcribeAudio(audioBlob)
+        console.log('Recording stopped, chunks:', audioChunksRef.current.length)
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
+        await transcribeAudio(audioBlob, `recording.${mimeType.split('/')[1].split(';')[0]}`)
 
         // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop())
       }
 
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event)
+        setError('Recording error occurred')
+        setRecordingState('idle')
+      }
+
       mediaRecorder.start(1000) // Collect data every second
-      setRecordingState('recording')
+      console.log('MediaRecorder started, state:', mediaRecorder.state)
+      
+      // Force state update to ensure UI updates
       setRecordingDuration(0)
       setError(null)
+      setRecordingState('recording')
+      
+      // Log to verify state update was called
+      console.log('Called setRecordingState with "recording"')
     } catch (error) {
       console.error('Error starting recording:', error)
       setError('Failed to access microphone. Please check your permissions.')
+      setRecordingState('idle')
     }
   }
 
@@ -584,6 +647,11 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
               )}
 
               {isTranscribing && <Text type="secondary">Transcribing...</Text>}
+              
+              {/* Debug info */}
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Debug: State={recordingState}, Duration={recordingDuration}s
+              </Text>
             </Space>
           </div>
         </div>

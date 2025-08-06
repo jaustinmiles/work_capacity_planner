@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
-import { 
-  Card, 
-  Space, 
-  Typography, 
-  Button, 
-  InputNumber, 
-  Select, 
-  List, 
+import {
+  Card,
+  Space,
+  Typography,
+  Button,
+  InputNumber,
+  Select,
+  List,
   Tag,
   Modal,
   Form,
@@ -17,9 +17,9 @@ import {
   Divider,
   Tabs,
 } from '@arco-design/web-react'
-import { 
-  IconEdit, 
-  IconSave, 
+import {
+  IconEdit,
+  IconSave,
   IconClose,
   IconUp,
   IconDown,
@@ -88,7 +88,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         criticalPathDuration,
         worstCaseDuration,
       })
-      
+
       Message.success('Workflow updated successfully')
       setIsEditing(false)
       if (onClose) onClose()
@@ -103,36 +103,36 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
   const moveStep = (index: number, direction: 'up' | 'down') => {
     const newSteps = [...editingSteps]
     const targetIndex = direction === 'up' ? index - 1 : index + 1
-    
+
     if (targetIndex >= 0 && targetIndex < newSteps.length) {
       [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]]
-      
+
       // Update dependencies
       newSteps.forEach((step, i) => {
         if (step.dependsOn.includes(`step-${index}`)) {
-          step.dependsOn = step.dependsOn.map(dep => 
-            dep === `step-${index}` ? `step-${targetIndex}` : dep
+          step.dependsOn = step.dependsOn.map(dep =>
+            dep === `step-${index}` ? `step-${targetIndex}` : dep,
           )
         }
         if (step.dependsOn.includes(`step-${targetIndex}`)) {
-          step.dependsOn = step.dependsOn.map(dep => 
-            dep === `step-${targetIndex}` ? `step-${index}` : dep
+          step.dependsOn = step.dependsOn.map(dep =>
+            dep === `step-${targetIndex}` ? `step-${index}` : dep,
           )
         }
       })
-      
+
       setEditingSteps(newSteps)
     }
   }
 
   const deleteStep = (index: number) => {
     const newSteps = editingSteps.filter((_, i) => i !== index)
-    
+
     // Update dependencies
     newSteps.forEach(step => {
       // Remove references to deleted step
       step.dependsOn = step.dependsOn.filter(dep => dep !== `step-${index}`)
-      
+
       // Adjust step references for steps after the deleted one
       step.dependsOn = step.dependsOn.map(dep => {
         const match = dep.match(/^step-(\d+)$/)
@@ -145,7 +145,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         return dep
       })
     })
-    
+
     setEditingSteps(newSteps)
   }
 
@@ -170,7 +170,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
     try {
       await stepForm.validate()
       const values = stepForm.getFields()
-      
+
       if (editingStepIndex !== null) {
         // Edit existing step
         const newSteps = [...editingSteps]
@@ -198,7 +198,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         }
         setEditingSteps([...editingSteps, newStep])
       }
-      
+
       setShowStepModal(false)
       stepForm.resetFields()
     } catch (error) {
@@ -247,8 +247,8 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           <Col>
             <Space>
               {!isEditing ? (
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<IconEdit />}
                   onClick={() => setIsEditing(true)}
                 >
@@ -256,15 +256,15 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                 </Button>
               ) : (
                 <>
-                  <Button 
-                    type="primary" 
+                  <Button
+                    type="primary"
                     icon={<IconSave />}
                     onClick={handleSave}
                     loading={isSaving}
                   >
                     Save Changes
                   </Button>
-                  <Button 
+                  <Button
                     icon={<IconClose />}
                     onClick={() => {
                       setEditingSteps(task.steps.map(step => ({ ...step })))
@@ -364,13 +364,13 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                   </Button>
                 </div>
               )}
-              
+
               <List
                 dataSource={editingSteps}
                 render={(step, index) => (
                   <List.Item
                     key={step.id || step.tempId}
-                    style={{ 
+                    style={{
                       padding: '16px',
                       backgroundColor: index % 2 === 0 ? '#f7f8fa' : 'white',
                       borderRadius: 4,
@@ -383,7 +383,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                           <IconDragDot style={{ fontSize: 20, color: '#86909c' }} />
                         </Col>
                       )}
-                      
+
                       <Col flex="auto">
                         <Space direction="vertical" size="small" style={{ width: '100%' }}>
                           <Space>
@@ -392,7 +392,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                               {step.type === 'focused' ? 'Focused' : 'Admin'}
                             </Tag>
                           </Space>
-                          
+
                           <Space>
                             <Tag size="small">
                               Duration: {formatDuration(step.duration)}
@@ -475,7 +475,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                     <Text type="secondary">Total Duration</Text>
                     <Text strong>
                       {formatDuration(
-                        editingSteps.reduce((sum, step) => sum + step.duration + step.asyncWaitTime, 0)
+                        editingSteps.reduce((sum, step) => sum + step.duration + step.asyncWaitTime, 0),
                       )}
                     </Text>
                   </Space>
@@ -483,7 +483,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
               </Row>
             </div>
           </Tabs.TabPane>
-          
+
           <Tabs.TabPane
             key="graph"
             title={

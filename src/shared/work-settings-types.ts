@@ -30,9 +30,9 @@ export interface WorkSettings {
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = {
   defaultWorkHours: {
-    startTime: "09:00",
-    endTime: "18:00",
-    lunchStart: "12:00",
+    startTime: '09:00',
+    endTime: '18:00',
+    lunchStart: '12:00',
     lunchDuration: 60,
   },
   customWorkHours: {

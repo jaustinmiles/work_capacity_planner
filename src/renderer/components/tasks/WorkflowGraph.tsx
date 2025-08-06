@@ -23,7 +23,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
   const { nodes, maxX, maxY } = useMemo(() => {
     const nodeMap = new Map<string, GraphNode>()
     const levels = new Map<string, number>()
-    
+
     // First pass: create nodes and calculate levels
     task.steps.forEach((step, index) => {
       const node: GraphNode = {
@@ -37,7 +37,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
         dependencies: step.dependsOn,
       }
       nodeMap.set(node.id, node)
-      
+
       // Calculate level based on dependencies
       let level = 0
       step.dependsOn.forEach(depId => {
@@ -46,7 +46,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
       })
       levels.set(node.id, level)
     })
-    
+
     // Group nodes by level
     const levelGroups = new Map<number, GraphNode[]>()
     nodeMap.forEach((node, id) => {
@@ -55,16 +55,16 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
       group.push(node)
       levelGroups.set(level, group)
     })
-    
+
     // Position nodes
     const nodeWidth = 200
     const nodeHeight = 80
     const horizontalGap = 50
     const verticalGap = 100
-    
+
     let maxX = 0
     let maxY = 0
-    
+
     levelGroups.forEach((nodes, level) => {
       nodes.forEach((node, index) => {
         node.x = level * (nodeWidth + horizontalGap) + 20
@@ -73,7 +73,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
         maxY = Math.max(maxY, node.y + nodeHeight)
       })
     })
-    
+
     return { nodes: Array.from(nodeMap.values()), maxX: maxX + 20, maxY: maxY + 20 }
   }, [task])
 
@@ -91,13 +91,13 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
     const fromY = fromNode.y + 40
     const toX = toNode.x
     const toY = toNode.y + 40
-    
+
     // Simple bezier curve
     const controlX1 = fromX + (toX - fromX) / 2
     const controlY1 = fromY
     const controlX2 = fromX + (toX - fromX) / 2
     const controlY2 = toY
-    
+
     return `M ${fromX} ${fromY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${toX} ${toY}`
   }
 
@@ -106,7 +106,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
       <div style={{ width: '100%', overflowX: 'auto', overflowY: 'auto', maxHeight: 600 }}>
         <svg width={maxX} height={maxY} style={{ minWidth: '100%' }}>
           {/* Draw connections */}
-          {nodes.map(node => 
+          {nodes.map(node =>
             node.dependencies.map(depId => {
               const fromNode = nodes.find(n => n.id === depId)
               if (fromNode) {
@@ -128,9 +128,9 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 )
               }
               return null
-            })
+            }),
           )}
-          
+
           {/* Draw nodes */}
           {nodes.map((node, index) => (
             <g key={node.id}>
@@ -145,7 +145,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 stroke={node.type === 'focused' ? '#165DFF' : '#00B42A'}
                 strokeWidth="2"
               />
-              
+
               {/* Step number */}
               <circle
                 cx={node.x + 20}
@@ -163,7 +163,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
               >
                 {index + 1}
               </text>
-              
+
               {/* Node label */}
               <text
                 x={node.x + 100}
@@ -174,7 +174,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
               >
                 {node.label.length > 20 ? node.label.substring(0, 20) + '...' : node.label}
               </text>
-              
+
               {/* Duration */}
               <text
                 x={node.x + 100}
@@ -186,7 +186,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 {formatDuration(node.duration)}
                 {node.asyncWaitTime > 0 && ` + ${formatDuration(node.asyncWaitTime)} wait`}
               </text>
-              
+
               {/* Type tag */}
               <rect
                 x={node.x + 150}
@@ -209,7 +209,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
           ))}
         </svg>
       </div>
-      
+
       <div style={{ marginTop: 16 }}>
         <Space>
           <Tag color="blue">Focused Work</Tag>

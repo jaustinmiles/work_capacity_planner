@@ -199,7 +199,7 @@ export function TaskItem({ task }: TaskItemProps) {
           </Popconfirm>
         </Space>
       </Space>
-      
+
       {/* Edit Modal */}
       <Modal
         title="Edit Task"

@@ -199,11 +199,18 @@ export class DatabaseService {
       await this.client.taskStep.createMany({
         data: steps.map((step, index) => {
           // Remove tempId and id fields that don't exist in the schema
-          const { tempId, templd, id: stepId, ...stepData } = step as any
-          
+          // Remove tempId, templd and id fields that don't exist in the schema
+          const stepData = {
+            name: step.name,
+            duration: step.duration,
+            type: step.type,
+            asyncWaitTime: step.asyncWaitTime || 0,
+            status: step.status || 'pending',
+          }
+
           // Ensure dependsOn is an array
           const dependsOn = Array.isArray(step.dependsOn) ? step.dependsOn : []
-          
+
           // Only include valid fields for TaskStep
           return {
             name: stepData.name,
@@ -558,11 +565,15 @@ export class DatabaseService {
         sessions: true,
       },
     })
-    
+
     if (!pattern) return null
-    
+
     return {
       ...pattern,
+      blocks: pattern.blocks.map(b => ({
+        ...b,
+        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+      })),
       meetings: pattern.meetings.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -572,12 +583,15 @@ export class DatabaseService {
 
   async createWorkPattern(data: any): Promise<any> {
     const { blocks, meetings, ...patternData } = data
-    
+
     const pattern = await this.client.workPattern.create({
       data: {
         ...patternData,
         blocks: {
-          create: blocks || [],
+          create: (blocks || []).map((b: any) => ({
+            ...b,
+            capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+          })),
         },
         meetings: {
           create: (meetings || []).map((m: any) => ({
@@ -592,9 +606,13 @@ export class DatabaseService {
         sessions: true,
       },
     })
-    
+
     return {
       ...pattern,
+      blocks: pattern.blocks.map(b => ({
+        ...b,
+        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+      })),
       meetings: pattern.meetings.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -604,30 +622,34 @@ export class DatabaseService {
 
   async updateWorkPattern(id: string, data: any): Promise<any> {
     const { blocks, meetings, ...patternData } = data
-    
+
     // Update pattern
     await this.client.workPattern.update({
       where: { id },
       data: patternData,
     })
-    
+
     // Replace blocks if provided
     if (blocks) {
       await this.client.workBlock.deleteMany({
         where: { patternId: id },
       })
-      
+
       await this.client.workBlock.createMany({
-        data: blocks.map((b: any) => ({ ...b, patternId: id })),
+        data: blocks.map((b: any) => ({
+          ...b,
+          patternId: id,
+          capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+        })),
       })
     }
-    
+
     // Replace meetings if provided
     if (meetings) {
       await this.client.workMeeting.deleteMany({
         where: { patternId: id },
       })
-      
+
       await this.client.workMeeting.createMany({
         data: meetings.map((m: any) => ({
           ...m,
@@ -636,7 +658,7 @@ export class DatabaseService {
         })),
       })
     }
-    
+
     return this.getWorkPattern(patternData.date || id)
   }
 
@@ -648,9 +670,13 @@ export class DatabaseService {
         meetings: true,
       },
     })
-    
+
     return templates.map(t => ({
       ...t,
+      blocks: t.blocks.map(b => ({
+        ...b,
+        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+      })),
       meetings: t.meetings.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -664,7 +690,8 @@ export class DatabaseService {
   }
 
   async updateWorkSession(id: string, data: any): Promise<any> {
-    const { id: _, ...updateData } = data
+
+    const { id: _id, ...updateData } = data
     return this.client.workSession.update({
       where: { id },
       data: updateData,
@@ -676,13 +703,13 @@ export class DatabaseService {
       where: { date },
       include: { sessions: true },
     })
-    
+
     return pattern?.sessions || []
   }
 
   async getTodayAccumulated(date: string): Promise<{ focusMinutes: number; adminMinutes: number }> {
     const sessions = await this.getWorkSessions(date)
-    
+
     return sessions.reduce((acc, session) => {
       const minutes = session.actualMinutes || session.plannedMinutes
       if (session.type === 'focused') {

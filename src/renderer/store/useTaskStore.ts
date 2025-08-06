@@ -53,7 +53,8 @@ interface TaskStore {
 }
 
 // Helper to generate IDs (will be replaced by database IDs later)
-const generateId = () => crypto.randomUUID()
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const generateId = () => window.crypto.randomUUID()
 
 // Create scheduling service instance
 const schedulingService = new SchedulingService()
@@ -66,7 +67,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   error: null,
   workSettings: (() => {
     try {
-      const saved = localStorage.getItem('workSettings')
+      const saved = window.localStorage.getItem('workSettings')
       return saved ? JSON.parse(saved) : DEFAULT_WORK_SETTINGS
     } catch {
       return DEFAULT_WORK_SETTINGS
@@ -280,7 +281,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   updateWorkSettings: async (settings: WorkSettings) => {
     set({ workSettings: settings })
     // TODO: Persist to localStorage or database
-    localStorage.setItem('workSettings', JSON.stringify(settings))
+    window.localStorage.setItem('workSettings', JSON.stringify(settings))
   },
 
   getTaskById: (id) => get().tasks.find(task => task.id === id),

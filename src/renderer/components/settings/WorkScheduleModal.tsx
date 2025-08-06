@@ -13,11 +13,11 @@ interface WorkScheduleModalProps {
   onSave?: () => void
 }
 
-export function WorkScheduleModal({ 
-  visible, 
+export function WorkScheduleModal({
+  visible,
   date = dayjs().format('YYYY-MM-DD'),
   onClose,
-  onSave
+  onSave,
 }: WorkScheduleModalProps) {
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focusMinutes: 0, adminMinutes: 0 })
@@ -37,7 +37,7 @@ export function WorkScheduleModal({
         db.getWorkPattern(date),
         db.getTodayAccumulated(date),
       ])
-      
+
       setPattern(patternData)
       setAccumulated(accumulatedData)
     } catch (error) {
@@ -50,7 +50,7 @@ export function WorkScheduleModal({
   const handleSave = async (blocks: WorkBlock[], meetings: WorkMeeting[]) => {
     try {
       const db = getDatabase()
-      
+
       if (pattern) {
         // Update existing pattern
         await db.updateWorkPattern(pattern.id, {
@@ -65,7 +65,7 @@ export function WorkScheduleModal({
           meetings,
         })
       }
-      
+
       Message.success('Work schedule saved successfully')
       onSave?.()
       onClose()

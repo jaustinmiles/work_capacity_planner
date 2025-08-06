@@ -134,7 +134,7 @@ export function SequencedTaskView({
               >
                 Reset
               </Button>
-              
+
               <Button
                 type="text"
                 icon={<IconEdit />}
@@ -142,7 +142,7 @@ export function SequencedTaskView({
               >
                 Edit
               </Button>
-              
+
               {onDelete && (
                 <Popconfirm
                   title="Delete this workflow?"

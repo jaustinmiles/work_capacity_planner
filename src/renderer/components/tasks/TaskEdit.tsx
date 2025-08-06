@@ -1,19 +1,19 @@
 import React, { useState } from 'react'
-import { 
-  Card, 
-  Space, 
-  Typography, 
-  Button, 
-  InputNumber, 
-  Select, 
+import {
+  Card,
+  Space,
+  Typography,
+  Button,
+  InputNumber,
+  Select,
   Input,
   Grid,
   Message,
   Tag,
 } from '@arco-design/web-react'
-import { 
-  IconEdit, 
-  IconSave, 
+import {
+  IconEdit,
+  IconSave,
   IconClose,
 } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -89,8 +89,8 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
           <Col>
             <Space>
               {!isEditing ? (
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<IconEdit />}
                   onClick={() => setIsEditing(true)}
                 >
@@ -98,15 +98,15 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
                 </Button>
               ) : (
                 <>
-                  <Button 
-                    type="primary" 
+                  <Button
+                    type="primary"
                     icon={<IconSave />}
                     onClick={handleSave}
                     loading={isSaving}
                   >
                     Save Changes
                   </Button>
-                  <Button 
+                  <Button
                     icon={<IconClose />}
                     onClick={() => {
                       setEditedTask({ ...task })
@@ -281,7 +281,7 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
                 </Space>
               </Col>
             </Row>
-            
+
             {editedTask.notes && (
               <div style={{ marginTop: 16 }}>
                 <Text type="secondary">Notes:</Text>

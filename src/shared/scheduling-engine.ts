@@ -495,7 +495,7 @@ export class SchedulingEngine {
   private canFitInSlot(
     item: SchedulableItem,
     slot: TimeSlot,
-    constraints: SchedulingConstraints,
+    _constraints: SchedulingConstraints,
   ): boolean {
     if (slot.isBlocked || slot.slotType !== 'work') {
       return false
@@ -548,7 +548,7 @@ export class SchedulingEngine {
    */
   private optimizeAsyncWaits(
     result: { scheduledItems: ScheduledWorkItem[]; unscheduledItems: SchedulableItem[] },
-    constraints: SchedulingConstraints,
+    _constraints: SchedulingConstraints,
   ): { scheduledItems: ScheduledWorkItem[]; unscheduledItems: SchedulableItem[] } {
     // Phase 4 implementation would go here
     // For now, return the result as-is
@@ -560,7 +560,7 @@ export class SchedulingEngine {
    */
   private analyzeScheduleAndGenerateSuggestions(
     result: { scheduledItems: ScheduledWorkItem[]; unscheduledItems: SchedulableItem[] },
-    workDayConfigs: WorkDayConfiguration[],
+    _workDayConfigs: WorkDayConfiguration[],
   ): SchedulingResult {
     const { scheduledItems, unscheduledItems } = result
 

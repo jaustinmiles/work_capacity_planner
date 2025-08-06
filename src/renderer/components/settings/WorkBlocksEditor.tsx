@@ -253,7 +253,7 @@ export function WorkBlocksEditor({
               <Card key={block.id} size="small">
                 <Row gutter={16} align="center">
                   <Col span={2}>
-                    <Text strong>#{index + 1}</Text>
+                    <Text style={{ fontWeight: 'bold' }}>#{index + 1}</Text>
                   </Col>
                   <Col span={4}>
                     <TimePicker
@@ -354,7 +354,7 @@ export function WorkBlocksEditor({
               <Card key={meeting.id} size="small">
                 <Row gutter={16} align="center">
                   <Col span={8}>
-                    <Text strong>{meeting.name}</Text>
+                    <Text style={{ fontWeight: 'bold' }}>{meeting.name}</Text>
                   </Col>
                   <Col span={6}>
                     <Text>{meeting.startTime} - {meeting.endTime}</Text>

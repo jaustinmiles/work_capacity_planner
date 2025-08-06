@@ -168,6 +168,7 @@ model WorkBlock {
   type          String   // "focused" | "admin" | "mixed"
   focusCapacity Int?     // Override minutes for mixed blocks
   adminCapacity Int?     // Override minutes for mixed blocks
+  capacity      String?  // JSON object for capacity overrides
   
   pattern       WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
   

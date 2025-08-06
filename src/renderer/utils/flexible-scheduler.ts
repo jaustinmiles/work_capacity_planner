@@ -92,7 +92,7 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
     duration: 0, // Will be calculated from times
     startTime: parseTimeOnDate(date, meeting.startTime),
     endTime: parseTimeOnDate(date, meeting.endTime),
-    color: meeting.type === 'meeting' ? '#3370ff' : 
+    color: meeting.type === 'meeting' ? '#3370ff' :
            meeting.type === 'break' ? '#00b42a' :
            meeting.type === 'personal' ? '#ff7d00' : '#ff4d4f',
     isBlocked: true,
@@ -107,7 +107,7 @@ function canFitInBlock(
   item: WorkItem,
   block: BlockCapacity,
   currentTime: Date,
-  scheduledItems: ScheduledItem[]
+  scheduledItems: ScheduledItem[],
 ): { canFit: boolean; startTime: Date } {
   // Check capacity
   if (item.taskType === 'focused') {
@@ -132,7 +132,7 @@ function canFitInBlock(
   // Check for conflicts with scheduled items
   while (tryTime < block.endTime) {
     const tryEndTime = new Date(tryTime.getTime() + item.duration * 60000)
-    
+
     // Check if this time slot conflicts with any scheduled item
     const hasConflict = scheduledItems.some(scheduled => {
       return !(tryEndTime <= scheduled.startTime || tryTime >= scheduled.endTime)
@@ -153,7 +153,7 @@ export function scheduleItemsWithBlocks(
   tasks: Task[],
   sequencedTasks: SequencedTask[],
   patterns: DailyWorkPattern[],
-  startDate: Date = new Date()
+  startDate: Date = new Date(),
 ): ScheduledItem[] {
   const scheduledItems: ScheduledItem[] = []
   const workItems: WorkItem[] = []
@@ -182,7 +182,7 @@ export function scheduleItemsWithBlocks(
     .filter(workflow => workflow.overallStatus !== 'completed')
     .forEach((workflow, wIndex) => {
       const workflowColor = `hsl(${wIndex * 60}, 70%, 50%)`
-      
+
       workflow.steps
         .filter(step => step.status !== 'completed')
         .forEach((step, stepIndex) => {
@@ -208,7 +208,7 @@ export function scheduleItemsWithBlocks(
   workItems.sort((a, b) => b.priority - a.priority)
 
   // Process each day
-  let currentDate = new Date(startDate)
+  const currentDate = new Date(startDate)
   currentDate.setHours(0, 0, 0, 0)
   let currentTime = new Date(startDate)
   let dayIndex = 0
@@ -217,7 +217,7 @@ export function scheduleItemsWithBlocks(
   while (workItems.length > 0 && dayIndex < maxDays) {
     const dateStr = currentDate.toISOString().split('T')[0]
     const pattern = patterns.find(p => p.date === dateStr)
-    
+
     if (!pattern || pattern.blocks.length === 0) {
       // No pattern for this day, skip to next day
       currentDate.setDate(currentDate.getDate() + 1)
@@ -245,28 +245,27 @@ export function scheduleItemsWithBlocks(
 
     // Try to schedule items in this day's blocks
     let itemsScheduledToday = false
-    
+
     for (let i = 0; i < workItems.length; i++) {
       const item = workItems[i]
-      
+
       // Check dependencies
       if (item.dependencies && item.dependencies.length > 0) {
-        const allDependenciesMet = item.dependencies.every(dep => 
-          completedSteps.has(dep) || 
-          (dep.startsWith('step-') && item.workflowId && 
-           completedSteps.has(`${item.workflowId}-step-${dep.replace('step-', '')}`))
+        const allDependenciesMet = item.dependencies.every(dep =>
+          completedSteps.has(dep) ||
+          (dep.startsWith('step-') && item.workflowId &&
+           completedSteps.has(`${item.workflowId}-step-${dep.replace('step-', '')}`)),
         )
         if (!allDependenciesMet) continue
       }
 
       // Try to fit in available blocks
-      let scheduled = false
       for (const block of blockCapacities) {
         const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems)
-        
+
         if (canFit) {
           const endTime = new Date(startTime.getTime() + item.duration * 60000)
-          
+
           // Schedule the item
           scheduledItems.push({
             id: item.id,
@@ -294,7 +293,7 @@ export function scheduleItemsWithBlocks(
           if (item.asyncWaitTime > 0) {
             const asyncEndTime = new Date(endTime.getTime() + item.asyncWaitTime * 60000)
             asyncWaitEndTimes.set(asyncEndTime, item.id)
-            
+
             scheduledItems.push({
               id: `${item.id}-wait`,
               name: `⏳ Waiting: ${item.name}`,
@@ -318,11 +317,10 @@ export function scheduleItemsWithBlocks(
 
           // Update current time
           currentTime = endTime
-          
+
           // Remove from work items
           workItems.splice(i, 1)
           i-- // Adjust index
-          scheduled = true
           itemsScheduledToday = true
           break
         }

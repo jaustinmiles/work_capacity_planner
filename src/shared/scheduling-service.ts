@@ -283,7 +283,7 @@ export class SchedulingService {
   validateConstraints(
     tasks: Task[],
     sequencedTasks: SequencedTask[],
-    constraints: SchedulingConstraints,
+    _constraints: SchedulingConstraints,
   ): { isValid: boolean; errors: string[]; warnings: string[] } {
     const errors: string[] = []
     const warnings: string[] = []

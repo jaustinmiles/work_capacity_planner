@@ -1,4 +1,4 @@
-import { Task, DailySchedule, Meeting } from './types'
+import { Task, Meeting } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
 
 // Unified model for anything that can be scheduled on the timeline
