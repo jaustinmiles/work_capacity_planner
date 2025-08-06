@@ -1,10 +1,11 @@
 import { Task } from '@shared/types'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
+import { WorkSettings, BlockedTime } from '@shared/work-settings-types'
 
 export interface ScheduledItem {
   id: string
   name: string
-  type: 'task' | 'workflow-step' | 'async-wait'
+  type: 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'lunch'
   priority: number
   duration: number
   startTime: Date
@@ -14,7 +15,8 @@ export interface ScheduledItem {
   workflowName?: string
   stepIndex?: number
   isWaitTime?: boolean
-  originalItem: Task | TaskStep
+  isBlocked?: boolean
+  originalItem?: Task | TaskStep
 }
 
 interface WorkItem {
@@ -32,15 +34,169 @@ interface WorkItem {
   originalItem: Task | TaskStep
 }
 
+interface DailyCapacity {
+  focusMinutesUsed: number
+  adminMinutesUsed: number
+  maxFocusMinutes: number
+  maxAdminMinutes: number
+}
+
+function parseTime(timeStr: string): { hours: number; minutes: number } {
+  const [hours, minutes] = timeStr.split(':').map(Number)
+  return { hours, minutes }
+}
+
+function setTimeOnDate(date: Date, timeStr: string): Date {
+  const { hours, minutes } = parseTime(timeStr)
+  const newDate = new Date(date)
+  newDate.setHours(hours, minutes, 0, 0)
+  return newDate
+}
+
+function isWithinWorkHours(date: Date, workSettings: WorkSettings): boolean {
+  const dayOfWeek = date.getDay()
+  const workHours = workSettings.customWorkHours[dayOfWeek] || workSettings.defaultWorkHours
+  
+  const startTime = setTimeOnDate(date, workHours.startTime)
+  const endTime = setTimeOnDate(date, workHours.endTime)
+  
+  return date >= startTime && date <= endTime
+}
+
+function getNextWorkTime(currentTime: Date, workSettings: WorkSettings): Date {
+  let nextTime = new Date(currentTime)
+  
+  // Skip to next work hour if outside work hours
+  const dayOfWeek = nextTime.getDay()
+  const workHours = workSettings.customWorkHours[dayOfWeek] || workSettings.defaultWorkHours
+  const startTime = setTimeOnDate(nextTime, workHours.startTime)
+  const endTime = setTimeOnDate(nextTime, workHours.endTime)
+  
+  if (nextTime < startTime) {
+    return startTime
+  } else if (nextTime >= endTime) {
+    // Move to next day
+    nextTime.setDate(nextTime.getDate() + 1)
+    nextTime.setHours(0, 0, 0, 0)
+    
+    // Skip weekends
+    while (nextTime.getDay() === 0 || nextTime.getDay() === 6) {
+      nextTime.setDate(nextTime.getDate() + 1)
+    }
+    
+    const nextWorkHours = workSettings.customWorkHours[nextTime.getDay()] || workSettings.defaultWorkHours
+    return setTimeOnDate(nextTime, nextWorkHours.startTime)
+  }
+  
+  return nextTime
+}
+
+function getBlockedTimesForDay(date: Date, workSettings: WorkSettings): ScheduledItem[] {
+  const blockedItems: ScheduledItem[] = []
+  const dayOfWeek = date.getDay()
+  const dateStr = date.toISOString().split('T')[0]
+  
+  // Get work hours for this day
+  const workHours = workSettings.customWorkHours[dayOfWeek] || workSettings.defaultWorkHours
+  
+  // Add lunch break
+  if (workHours.lunchStart && workHours.lunchDuration) {
+    const lunchStart = setTimeOnDate(date, workHours.lunchStart)
+    const lunchEnd = new Date(lunchStart.getTime() + workHours.lunchDuration * 60000)
+    
+    blockedItems.push({
+      id: `lunch-${dateStr}`,
+      name: '🍽️ Lunch Break',
+      type: 'lunch',
+      priority: 0,
+      duration: workHours.lunchDuration,
+      startTime: lunchStart,
+      endTime: lunchEnd,
+      color: '#9CA3AF',
+      isBlocked: true,
+    })
+  }
+  
+  // Add blocked times
+  const capacity = workSettings.customCapacity[dateStr] || workSettings.defaultCapacity
+  capacity.blockedTimes.forEach(blocked => {
+    // Check if this blocked time applies to this day
+    if (blocked.recurring === 'none' || 
+        blocked.recurring === 'daily' ||
+        (blocked.recurring === 'weekly' && blocked.daysOfWeek?.includes(dayOfWeek))) {
+      
+      const blockedStart = setTimeOnDate(date, blocked.startTime)
+      const blockedEnd = setTimeOnDate(date, blocked.endTime)
+      const duration = (blockedEnd.getTime() - blockedStart.getTime()) / 60000
+      
+      blockedItems.push({
+        id: `blocked-${blocked.id}-${dateStr}`,
+        name: `🚫 ${blocked.name}`,
+        type: 'blocked-time',
+        priority: 0,
+        duration,
+        startTime: blockedStart,
+        endTime: blockedEnd,
+        color: '#EF4444',
+        isBlocked: true,
+      })
+    }
+  })
+  
+  return blockedItems
+}
+
+function canScheduleItem(
+  startTime: Date,
+  duration: number,
+  type: 'focused' | 'admin',
+  dailyCapacity: DailyCapacity,
+  workSettings: WorkSettings,
+  scheduledItems: ScheduledItem[]
+): boolean {
+  // Check capacity limits
+  if (type === 'focused') {
+    if (dailyCapacity.focusMinutesUsed + duration > dailyCapacity.maxFocusMinutes) {
+      return false
+    }
+  } else {
+    if (dailyCapacity.adminMinutesUsed + duration > dailyCapacity.maxAdminMinutes) {
+      return false
+    }
+  }
+  
+  // Check for conflicts with blocked times
+  const endTime = new Date(startTime.getTime() + duration * 60000)
+  const dayBlocked = getBlockedTimesForDay(startTime, workSettings)
+  
+  for (const blocked of dayBlocked) {
+    // Check if times overlap
+    if (!(endTime <= blocked.startTime || startTime >= blocked.endTime)) {
+      return false
+    }
+  }
+  
+  // Check for conflicts with already scheduled items
+  for (const item of scheduledItems) {
+    if (!(endTime <= item.startTime || startTime >= item.endTime)) {
+      return false
+    }
+  }
+  
+  return true
+}
+
 export function scheduleItems(
   tasks: Task[],
   sequencedTasks: SequencedTask[],
+  workSettings: WorkSettings,
   startTime: Date = new Date()
 ): ScheduledItem[] {
   const scheduledItems: ScheduledItem[] = []
   const workItems: WorkItem[] = []
   const completedSteps = new Set<string>()
   const asyncWaitEndTimes = new Map<Date, string>() // When async waits end
+  const dailyCapacities = new Map<string, DailyCapacity>()
   
   // Convert all incomplete tasks to work items
   tasks
@@ -88,10 +244,32 @@ export function scheduleItems(
   workItems.sort((a, b) => b.priority - a.priority)
   
   // Schedule items
-  let currentTime = new Date(startTime)
-  currentTime.setHours(9, 0, 0, 0) // Start at 9 AM
+  let currentTime = getNextWorkTime(new Date(startTime), workSettings)
+  
+  // Add blocked times for the first few days
+  for (let i = 0; i < 7; i++) {
+    const checkDate = new Date(currentTime)
+    checkDate.setDate(checkDate.getDate() + i)
+    if (checkDate.getDay() !== 0 && checkDate.getDay() !== 6) { // Skip weekends
+      const dayBlocked = getBlockedTimesForDay(checkDate, workSettings)
+      scheduledItems.push(...dayBlocked)
+    }
+  }
   
   while (workItems.length > 0) {
+    // Get current day capacity
+    const dateStr = currentTime.toISOString().split('T')[0]
+    if (!dailyCapacities.has(dateStr)) {
+      const customCapacity = workSettings.customCapacity[dateStr] || workSettings.defaultCapacity
+      dailyCapacities.set(dateStr, {
+        focusMinutesUsed: 0,
+        adminMinutesUsed: 0,
+        maxFocusMinutes: customCapacity.maxFocusHours * 60,
+        maxAdminMinutes: customCapacity.maxAdminHours * 60,
+      })
+    }
+    const dailyCapacity = dailyCapacities.get(dateStr)!
+    
     // Check if any async waits are completing
     const finishedWaits: Date[] = []
     for (const [endTime, itemId] of asyncWaitEndTimes.entries()) {
@@ -119,6 +297,12 @@ export function scheduleItems(
         if (!allDependenciesMet) continue
       }
       
+      // Check if we can schedule this item (capacity and conflicts)
+      const itemType = item.originalItem.type
+      if (!canScheduleItem(currentTime, item.duration, itemType, dailyCapacity, workSettings, scheduledItems)) {
+        continue
+      }
+      
       // Schedule this item
       const endTime = new Date(currentTime.getTime() + item.duration * 60000)
       
@@ -136,6 +320,13 @@ export function scheduleItems(
         stepIndex: item.stepIndex,
         originalItem: item.originalItem,
       })
+      
+      // Update capacity
+      if (itemType === 'focused') {
+        dailyCapacity.focusMinutesUsed += item.duration
+      } else {
+        dailyCapacity.adminMinutesUsed += item.duration
+      }
       
       // If item has async wait time, schedule it
       if (item.asyncWaitTime > 0) {
@@ -171,35 +362,35 @@ export function scheduleItems(
       
       // Move time forward
       currentTime = endTime
+      currentTime = getNextWorkTime(currentTime, workSettings)
       
-      // Check for lunch break (12-1 PM)
-      const hour = currentTime.getHours()
-      if (hour === 12) {
-        currentTime.setHours(13, 0, 0, 0)
-      }
-      
-      // Check for end of day (6 PM)
-      if (hour >= 18) {
-        currentTime.setDate(currentTime.getDate() + 1)
-        currentTime.setHours(9, 0, 0, 0)
-        
-        // Skip weekends
-        while (currentTime.getDay() === 0 || currentTime.getDay() === 6) {
-          currentTime.setDate(currentTime.getDate() + 1)
-        }
+      // If we've moved to a new day, add blocked times
+      if (currentTime.toISOString().split('T')[0] !== dateStr) {
+        const dayBlocked = getBlockedTimesForDay(currentTime, workSettings)
+        scheduledItems.push(...dayBlocked)
       }
       
       break
     }
     
-    // If nothing was scheduled, advance time to next async completion or next morning
+    // If nothing was scheduled, try next time slot
     if (!scheduled) {
-      if (asyncWaitEndTimes.size > 0) {
-        // Find the earliest async completion
-        const earliestCompletion = Math.min(...Array.from(asyncWaitEndTimes.keys()).map(d => d.getTime()))
-        currentTime = new Date(earliestCompletion)
-      } else {
-        // No more items can be scheduled
+      // Move forward 15 minutes
+      currentTime.setMinutes(currentTime.getMinutes() + 15)
+      currentTime = getNextWorkTime(currentTime, workSettings)
+      
+      // If we've moved to a new day, add blocked times and reset capacity
+      const newDateStr = currentTime.toISOString().split('T')[0]
+      if (newDateStr !== dateStr) {
+        const dayBlocked = getBlockedTimesForDay(currentTime, workSettings)
+        scheduledItems.push(...dayBlocked)
+      }
+      
+      // Safety check: don't schedule too far in the future
+      const maxFutureDate = new Date()
+      maxFutureDate.setMonth(maxFutureDate.getMonth() + 1)
+      if (currentTime > maxFutureDate) {
+        console.warn('Scheduling stopped: too far in the future')
         break
       }
     }

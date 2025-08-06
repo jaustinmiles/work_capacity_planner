@@ -3,6 +3,7 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { SchedulingService } from '@shared/scheduling-service'
 import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
+import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { getDatabase } from '../services/database'
 
 interface TaskStore {
@@ -11,6 +12,7 @@ interface TaskStore {
   selectedTaskId: string | null
   isLoading: boolean
   error: string | null
+  workSettings: WorkSettings
 
   // Scheduling state
   currentSchedule: SchedulingResult | null
@@ -38,6 +40,9 @@ interface TaskStore {
   generateWeeklySchedule: (weekStartDate: Date) => Promise<void>
   clearSchedule: () => void
 
+  // Settings actions
+  updateWorkSettings: (settings: WorkSettings) => Promise<void>
+
   // Computed
   getTaskById: (id: string) => Task | undefined
   getSequencedTaskById: (id: string) => SequencedTask | undefined
@@ -59,6 +64,14 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   selectedTaskId: null,
   isLoading: false,
   error: null,
+  workSettings: (() => {
+    try {
+      const saved = localStorage.getItem('workSettings')
+      return saved ? JSON.parse(saved) : DEFAULT_WORK_SETTINGS
+    } catch {
+      return DEFAULT_WORK_SETTINGS
+    }
+  })(),
 
   // Scheduling state
   currentSchedule: null,
@@ -262,6 +275,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     currentWeeklySchedule: null,
     schedulingError: null,
   }),
+
+  // Settings actions
+  updateWorkSettings: async (settings: WorkSettings) => {
+    set({ workSettings: settings })
+    // TODO: Persist to localStorage or database
+    localStorage.setItem('workSettings', JSON.stringify(settings))
+  },
 
   getTaskById: (id) => get().tasks.find(task => task.id === id),
 

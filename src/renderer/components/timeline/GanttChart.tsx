@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react'
 import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider } from '@arco-design/web-react'
-import { IconPlus, IconMinus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
+import { IconPlus, IconMinus, IconZoomIn, IconZoomOut, IconSettings } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { scheduleItems, ScheduledItem } from '../../utils/scheduler'
+import { useTaskStore } from '../../store/useTaskStore'
+import { WorkSettingsModal } from '../settings/WorkSettingsModal'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -17,10 +19,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [zoom, setZoom] = useState(100) // 100% default zoom
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   
+  const { workSettings } = useTaskStore()
+  const [showSettings, setShowSettings] = useState(false)
+  
   // Use the scheduler to get properly ordered items
   const scheduledItems = useMemo(() => {
-    return scheduleItems(tasks, sequencedTasks)
-  }, [tasks, sequencedTasks])
+    return scheduleItems(tasks, sequencedTasks, workSettings)
+  }, [tasks, sequencedTasks, workSettings])
 
   // Calculate chart dimensions
   const chartStartTime = scheduledItems.length > 0 ? scheduledItems[0].startTime : new Date()
@@ -129,7 +134,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           </Col>
           <Col span={4}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">Zoom</Text>
+              <Text type="secondary">Controls</Text>
               <Space>
                 <Button
                   icon={<IconMinus />}
@@ -144,6 +149,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   onClick={() => setZoom(Math.min(200, zoom + 10))}
                   disabled={zoom >= 200}
                 />
+                <Button
+                  icon={<IconSettings />}
+                  size="small"
+                  onClick={() => setShowSettings(true)}
+                >
+                  Settings
+                </Button>
               </Space>
             </Space>
           </Col>
@@ -292,6 +304,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const left = getPosition(item.startTime)
                 const width = getPosition(item.endTime) - left
                 const isWaitTime = item.isWaitTime
+                const isBlocked = item.isBlocked
                 const isHovered = hoveredItem === item.id || 
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
                 
@@ -324,13 +337,15 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       <div
                         style={{
                           height: '100%',
-                          background: isWaitTime 
+                          background: isBlocked 
+                            ? `repeating-linear-gradient(45deg, ${item.color}, ${item.color} 10px, ${item.color}88 10px, ${item.color}88 20px)`
+                            : isWaitTime 
                             ? `repeating-linear-gradient(45deg, ${item.color}44, ${item.color}44 5px, transparent 5px, transparent 10px)`
                             : item.color,
-                          opacity: isWaitTime ? 0.5 : (isHovered ? 1 : 0.85),
+                          opacity: isBlocked ? 0.7 : isWaitTime ? 0.5 : (isHovered ? 1 : 0.85),
                           borderRadius: 4,
                           border: `1px solid ${item.color}`,
-                          borderStyle: isWaitTime ? 'dashed' : 'solid',
+                          borderStyle: isBlocked ? 'solid' : isWaitTime ? 'dashed' : 'solid',
                           display: 'flex',
                           alignItems: 'center',
                           padding: '0 8px',
@@ -388,11 +403,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             <Tag color="gold">Medium Priority (36-48)</Tag>
             <Tag color="green">Low Priority (&lt;36)</Tag>
             <div style={{ marginLeft: 20 }}>
-              <Text type="secondary">Dashed = Async waiting time</Text>
+              <Text type="secondary">Dashed = Async waiting | Striped = Blocked time</Text>
             </div>
           </Space>
         </div>
       </Card>
+
+      {/* Work Settings Modal */}
+      <WorkSettingsModal
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </Space>
   )
 }
