@@ -1,11 +1,14 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider } from '@arco-design/web-react'
 import { IconPlus, IconMinus, IconZoomIn, IconZoomOut, IconSettings } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { scheduleItems, ScheduledItem } from '../../utils/scheduler'
+import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-scheduler'
+import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { useTaskStore } from '../../store/useTaskStore'
-import { WorkSettingsModal } from '../settings/WorkSettingsModal'
+import { WorkScheduleModal } from '../settings/WorkScheduleModal'
+import { getDatabase } from '../../services/database'
+import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -18,14 +21,45 @@ interface GanttChartProps {
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
-  
-  const { workSettings } = useTaskStore()
   const [showSettings, setShowSettings] = useState(false)
+  const [workPatterns, setWorkPatterns] = useState<DailyWorkPattern[]>([])
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
   
+  // Load work patterns for the next 30 days
+  useEffect(() => {
+    loadWorkPatterns()
+  }, [])
+
+  const loadWorkPatterns = async () => {
+    const db = getDatabase()
+    const patterns: DailyWorkPattern[] = []
+    const today = new Date()
+    
+    // Load patterns for the next 30 days
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(today)
+      date.setDate(date.getDate() + i)
+      const dateStr = dayjs(date).format('YYYY-MM-DD')
+      
+      const pattern = await db.getWorkPattern(dateStr)
+      if (pattern) {
+        patterns.push({
+          date: dateStr,
+          blocks: pattern.blocks,
+          meetings: pattern.meetings,
+          accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        })
+      }
+    }
+    
+    setWorkPatterns(patterns)
+  }
+
   // Use the scheduler to get properly ordered items
   const scheduledItems = useMemo(() => {
-    return scheduleItems(tasks, sequencedTasks, workSettings)
-  }, [tasks, sequencedTasks, workSettings])
+    if (workPatterns.length === 0) return []
+    return scheduleItemsWithBlocks(tasks, sequencedTasks, workPatterns)
+  }, [tasks, sequencedTasks, workPatterns])
 
   // Calculate chart dimensions
   const chartStartTime = scheduledItems.length > 0 ? scheduledItems[0].startTime : new Date()
@@ -164,10 +198,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 </div>
                 <Button
                   icon={<IconSettings />}
-                  onClick={() => setShowSettings(true)}
+                  onClick={() => {
+                    setSelectedDate(dayjs().format('YYYY-MM-DD'))
+                    setShowSettings(true)
+                  }}
                   style={{ width: '100%' }}
                 >
-                  Work Settings
+                  Edit Today's Schedule
                 </Button>
               </Space>
             </Space>
@@ -442,10 +479,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         </div>
       </Card>
 
-      {/* Work Settings Modal */}
-      <WorkSettingsModal
+      {/* Work Schedule Modal */}
+      <WorkScheduleModal
         visible={showSettings}
-        onClose={() => setShowSettings(false)}
+        date={selectedDate || dayjs().format('YYYY-MM-DD')}
+        onClose={() => {
+          setShowSettings(false)
+          setSelectedDate(null)
+        }}
+        onSave={() => {
+          loadWorkPatterns() // Reload patterns after saving
+        }}
       />
     </Space>
   )

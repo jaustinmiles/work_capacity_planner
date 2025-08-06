@@ -11,6 +11,8 @@ import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
 import { GanttChart } from './components/timeline/GanttChart'
 import { BrainstormModal } from './components/ai/BrainstormModal'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
+import { WorkStatusWidget } from './components/status/WorkStatusWidget'
+import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { useTaskStore } from './store/useTaskStore'
 import { exampleSequencedTask } from '@shared/sequencing-types'
 import { getDatabase } from './services/database'
@@ -37,6 +39,7 @@ function App() {
   const [taskCreationFlowVisible, setTaskCreationFlowVisible] = useState(false)
   const [extractedTasks, setExtractedTasks] = useState<ExtractedTask[]>([])
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
+  const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const {
     tasks,
     sequencedTasks,
@@ -225,6 +228,11 @@ function App() {
               </Space>
             </MenuItem>
           </Menu>
+
+          {/* Work Status Widget */}
+          <div style={{ padding: '20px 16px' }}>
+            <WorkStatusWidget onEditSchedule={() => setShowWorkSchedule(true)} />
+          </div>
 
           <div style={{
             position: 'absolute',
@@ -432,6 +440,15 @@ function App() {
           visible={taskCreationFlowVisible}
           onClose={handleTaskCreationComplete}
           extractedTasks={extractedTasks}
+        />
+
+        <WorkScheduleModal
+          visible={showWorkSchedule}
+          onClose={() => setShowWorkSchedule(false)}
+          onSave={() => {
+            // Refresh any data if needed
+            setShowWorkSchedule(false)
+          }}
         />
       </Layout>
     </ConfigProvider>
