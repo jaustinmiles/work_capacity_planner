@@ -8,7 +8,6 @@ import { SequencedTaskForm } from './components/tasks/SequencedTaskForm'
 import { SequencedTaskView } from './components/tasks/SequencedTaskView'
 import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
-import { Timeline } from './components/timeline/Timeline'
 import { GanttChart } from './components/timeline/GanttChart'
 import { BrainstormModal } from './components/ai/BrainstormModal'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
@@ -295,7 +294,7 @@ function App() {
               {activeView === 'matrix' && 'Priority Matrix'}
               {activeView === 'calendar' && 'Schedule Overview'}
               {activeView === 'workflows' && 'Sequenced Workflows'}
-              {activeView === 'timeline' && 'Timeline & Gantt View'}
+              {activeView === 'timeline' && 'Gantt Chart'}
             </Title>
           </Header>
 

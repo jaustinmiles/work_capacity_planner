@@ -21,10 +21,13 @@ An intelligent Electron-based productivity application that combines AI-powered 
 - **Batch Operations**: Delete all tasks for development testing (dev mode)
 
 ### 🎯 Intelligent Scheduling
-- **Capacity-Aware Distribution**: Automatically distributes work based on daily limits
-- **Priority-Driven**: Tasks scheduled by priority scores and dependencies
-- **Timeline Visualization**: Gantt-style timeline showing work distribution
-- **Smart Allocation**: Handles partial task allocation across multiple days
+- **Priority-Based Gantt Chart**: Visual timeline with urgency × importance ordering
+- **Work Hours Management**: Configurable daily work hours with lunch breaks
+- **Capacity Limits**: Set daily limits for focused and administrative work
+- **Blocked Time Slots**: Mark unavailable times for meetings or commitments
+- **Async-Aware Packing**: Efficiently fills time during async wait periods
+- **Infinite Scroll Timeline**: Zoom controls with guaranteed minimum block sizes
+- **Real-time Updates**: Current time indicator and dynamic scheduling
 
 ### 🧠 Context Management
 - **Job Context**: Persistent context about your role and work patterns
@@ -52,10 +55,10 @@ An intelligent Electron-based productivity application that combines AI-powered 
 
 ### Main Views
 1. **Task List**: Complete task management with inline editing
-2. **Eisenhower Matrix**: Visual priority quadrants
+2. **Eisenhower Matrix**: Visual priority quadrants  
 3. **Calendar**: Weekly schedule overview
-4. **Workflows**: Multi-step task sequences
-5. **Timeline**: Smart scheduling visualization
+4. **Workflows**: Multi-step task sequences with visual graph editor
+5. **Gantt Chart**: Priority-based timeline with work hours and capacity limits
 
 ### AI Integration
 - **AI Brainstorm Modal**: Voice recording and transcription
