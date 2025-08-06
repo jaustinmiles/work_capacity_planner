@@ -117,6 +117,10 @@ export function WorkBlocksEditor({
       const meeting: WorkMeeting = {
         ...editingMeeting!,
         ...values,
+        recurring: values.recurring === 'none' ? undefined : {
+          pattern: values.recurring,
+          daysOfWeek: values.recurring === 'weekly' ? [new Date().getDay()] : undefined
+        }
       }
 
       if (editingMeeting && meetings.find(m => m.id === editingMeeting.id)) {
@@ -169,15 +173,15 @@ export function WorkBlocksEditor({
               <Select
                 placeholder="Apply template"
                 value={selectedTemplate}
-                onChange={handleApplyTemplate}
+                onChange={(value) => {
+                  handleApplyTemplate(value)
+                  setSelectedTemplate('') // Clear selection after applying
+                }}
                 style={{ width: 200 }}
               >
                 {DEFAULT_WORK_TEMPLATES.map(template => (
                   <Select.Option key={template.id} value={template.id}>
-                    <Space>
-                      <IconFileAudio />
-                      {template.name}
-                    </Space>
+                    {template.name}
                   </Select.Option>
                 ))}
               </Select>
@@ -248,9 +252,9 @@ export function WorkBlocksEditor({
         {blocks.length === 0 ? (
           <Empty description="No work blocks defined. Add blocks or apply a template." />
         ) : (
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space direction="vertical" style={{ width: '100%' }} size="medium">
             {blocks.map((block, index) => (
-              <Card key={block.id} size="small">
+              <Card key={block.id} size="small" style={{ background: '#fafafa' }}>
                 <Row gutter={16} align="center">
                   <Col span={2}>
                     <Text style={{ fontWeight: 'bold' }}>#{index + 1}</Text>
@@ -369,8 +373,8 @@ export function WorkBlocksEditor({
                     </Tag>
                   </Col>
                   <Col span={3}>
-                    {meeting.recurring !== 'none' && (
-                      <Tag>{meeting.recurring}</Tag>
+                    {meeting.recurring && meeting.recurring.pattern !== 'none' && (
+                      <Tag>{meeting.recurring.pattern}</Tag>
                     )}
                   </Col>
                   <Col span={3}>
@@ -380,7 +384,10 @@ export function WorkBlocksEditor({
                         icon={<IconEdit />}
                         onClick={() => {
                           setEditingMeeting(meeting)
-                          form.setFieldsValue(meeting)
+                          form.setFieldsValue({
+                            ...meeting,
+                            recurring: meeting.recurring?.pattern || 'none'
+                          })
                           setShowMeetingModal(true)
                         }}
                       />

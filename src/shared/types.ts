@@ -9,6 +9,7 @@ export interface Task {
   dependencies: string[] // task IDs
   completed: boolean
   completedAt?: Date
+  deadline?: Date // hard deadline for task
   createdAt: Date
   updatedAt: Date
   actualDuration?: number // for time tracking

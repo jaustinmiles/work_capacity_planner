@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Modal, Form, Input, Select, Slider, InputNumber, Typography, Space, Grid, Button } from '@arco-design/web-react'
+import { Modal, Form, Input, Select, Slider, InputNumber, Typography, Space, Grid, Button, DatePicker } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 
@@ -155,6 +155,27 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             step={5}
             placeholder="0"
             style={{ width: '100%' }}
+          />
+        </Form.Item>
+
+        <Form.Item
+          label={
+            <Space>
+              <IconCalendar />
+              <span>Deadline (Optional)</span>
+            </Space>
+          }
+          field="deadline"
+          extra="Hard deadline for task completion"
+        >
+          <DatePicker
+            showTime
+            placeholder="Select deadline"
+            style={{ width: '100%' }}
+            disabledDate={(current) => {
+              // Disable dates before today
+              return current.isBefore(new Date(), 'day')
+            }}
           />
         </Form.Item>
 

@@ -1,9 +1,10 @@
 import React from 'react'
-import { Card, List, Typography, Empty, Space, Tag, Button, Divider, Progress, Popconfirm, Message } from '@arco-design/web-react'
+import { Card, List, Typography, Empty, Space, Tag, Button, Divider, Progress, Popconfirm } from '@arco-design/web-react'
 import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskItem } from './TaskItem'
 import { getDatabase } from '../../services/database'
+import { Message } from '../common/Message'
 
 const { Title, Text } = Typography
 

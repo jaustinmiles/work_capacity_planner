@@ -24,14 +24,17 @@ export interface DailyWorkPattern {
 export interface Meeting {
   id: string
   name: string
-  startTime: Date
-  endTime: Date
+  startTime: string // "14:00" format
+  endTime: string // "15:00" format
   type: 'meeting' | 'break' | 'personal' | 'blocked'
   recurring?: {
     pattern: 'daily' | 'weekly' | 'none'
     daysOfWeek?: number[] // 0-6
   }
 }
+
+// Alias for compatibility
+export type WorkMeeting = Meeting
 
 export interface WorkSession {
   id: string

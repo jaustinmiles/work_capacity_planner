@@ -425,6 +425,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                           lines.push(`Workflow: ${item.workflowName}`)
                         }
 
+                        if (item.deadline) {
+                          const deadlineStr = dayjs(item.deadline).format('MMM D, YYYY h:mm A')
+                          const isOverdue = dayjs(item.deadline).isBefore(dayjs())
+                          const isUrgent = dayjs(item.deadline).isBefore(dayjs().add(1, 'day'))
+                          lines.push(`Deadline: ${deadlineStr} ${isOverdue ? '(OVERDUE!)' : isUrgent ? '(DUE SOON!)' : ''}`)
+                        }
+
                         if (item.isWaitTime) {
                           lines.push('Status: Waiting for async operation')
                         }
@@ -474,6 +481,29 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                               background: getPriorityColor(item.priority),
                             }}
                           />
+                        )}
+
+                        {/* Deadline indicator */}
+                        {item.deadline && !isWaitTime && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              right: 4,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: dayjs(item.deadline).isBefore(dayjs()) ? '#ff4d4f' : 
+                                         dayjs(item.deadline).isBefore(dayjs().add(1, 'day')) ? '#ff7d00' : '#3370ff',
+                              color: '#fff',
+                              padding: '2px 6px',
+                              borderRadius: 3,
+                              fontSize: 10,
+                              fontWeight: 600,
+                              whiteSpace: 'nowrap',
+                              display: widthPx > 80 ? 'block' : 'none',
+                            }}
+                          >
+                            📅 {dayjs(item.deadline).format('MMM D')}
+                          </div>
                         )}
 
                         {/* Task name */}

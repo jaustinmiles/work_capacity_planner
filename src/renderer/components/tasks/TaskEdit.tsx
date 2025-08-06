@@ -8,16 +8,18 @@ import {
   Select,
   Input,
   Grid,
-  Message,
   Tag,
+  DatePicker,
 } from '@arco-design/web-react'
 import {
   IconEdit,
   IconSave,
   IconClose,
+  IconCalendar,
 } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
+import { Message } from '../common/Message'
 
 const { Title, Text, TextArea } = Typography
 const { Row, Col } = Grid
@@ -230,6 +232,27 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
                     <Select.Option value="pending">Pending</Select.Option>
                     <Select.Option value="completed">Completed</Select.Option>
                   </Select>
+                </Space>
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Text>
+                    <IconCalendar /> Deadline (Optional)
+                  </Text>
+                  <DatePicker
+                    value={editedTask.deadline}
+                    onChange={(value) => setEditedTask({ ...editedTask, deadline: value })}
+                    showTime
+                    placeholder="Select deadline"
+                    style={{ width: '100%' }}
+                    disabledDate={(current) => {
+                      // Disable dates before today
+                      return current && current.isBefore(new Date(), 'day')
+                    }}
+                  />
                 </Space>
               </Col>
             </Row>

@@ -4,6 +4,10 @@ import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCir
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskEdit } from './TaskEdit'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+
+dayjs.extend(relativeTime)
 
 const { Text } = Typography
 
@@ -146,6 +150,19 @@ export function TaskItem({ task }: TaskItemProps) {
                       >
                         Wait: {formatDuration(task.asyncWaitTime)}
                       </Tag>
+                    )}
+
+                    {task.deadline && (
+                      <Tooltip content={`Due: ${dayjs(task.deadline).format('MMM D, YYYY h:mm A')}`}>
+                        <Tag
+                          icon={<IconCalendar />}
+                          color={dayjs(task.deadline).isBefore(dayjs()) ? 'red' : 
+                                 dayjs(task.deadline).isBefore(dayjs().add(1, 'day')) ? 'orange' : 'blue'}
+                          size="small"
+                        >
+                          Due {dayjs(task.deadline).fromNow()}
+                        </Tag>
+                      </Tooltip>
                     )}
                   </Space>
                 </div>

@@ -16,6 +16,7 @@ export interface ScheduledItem {
   stepIndex?: number
   isWaitTime?: boolean
   isBlocked?: boolean
+  deadline?: Date
   originalItem?: Task | TaskStep | WorkMeeting
 }
 
@@ -32,6 +33,7 @@ interface WorkItem {
   workflowName?: string
   stepIndex?: number
   dependencies?: string[]
+  deadline?: Date
   originalItem: Task | TaskStep
 }
 
@@ -173,6 +175,7 @@ export function scheduleItemsWithBlocks(
         duration: task.duration,
         asyncWaitTime: task.asyncWaitTime,
         color: '#6B7280',
+        deadline: task.deadline,
         originalItem: task,
       })
     })
@@ -204,8 +207,27 @@ export function scheduleItemsWithBlocks(
         })
     })
 
-  // Sort by priority
-  workItems.sort((a, b) => b.priority - a.priority)
+  // Sort by deadline urgency and priority
+  workItems.sort((a, b) => {
+    // First check if either has a deadline
+    const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
+    const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
+
+    const now = new Date().getTime()
+    const oneDayMs = 24 * 60 * 60 * 1000
+
+    // If both have deadlines within 24 hours, prioritize the earlier one
+    if (aDeadline - now < oneDayMs && bDeadline - now < oneDayMs) {
+      return aDeadline - bDeadline
+    }
+
+    // If only one has a deadline within 24 hours, prioritize it
+    if (aDeadline - now < oneDayMs) return -1
+    if (bDeadline - now < oneDayMs) return 1
+
+    // Otherwise sort by priority score
+    return b.priority - a.priority
+  })
 
   // Process each day
   const currentDate = new Date(startDate)
@@ -279,6 +301,7 @@ export function scheduleItemsWithBlocks(
             workflowId: item.workflowId,
             workflowName: item.workflowName,
             stepIndex: item.stepIndex,
+            deadline: item.deadline,
             originalItem: item.originalItem,
           })
 
