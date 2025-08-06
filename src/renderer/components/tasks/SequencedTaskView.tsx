@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { Card, Space, Typography, Tag, Button, Collapse, Alert, Statistic, Grid, Progress, Tooltip } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown } from '@arco-design/web-react/icon'
+import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskStepItem } from './TaskStepItem'
+import { SequencedTaskEdit } from './SequencedTaskEdit'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -24,6 +25,7 @@ export function SequencedTaskView({
   onResetWorkflow,
 }: SequencedTaskViewProps) {
   const [showDetails, setShowDetails] = useState(false)
+  const [showEditView, setShowEditView] = useState(false)
 
   const completedSteps = task.steps.filter(step => step.status === 'completed').length
   const totalSteps = task.steps.length
@@ -58,6 +60,15 @@ export function SequencedTaskView({
       case 'waiting': return '#FF7D00'
       default: return '#86909C'
     }
+  }
+
+  if (showEditView) {
+    return (
+      <SequencedTaskEdit
+        task={task}
+        onClose={() => setShowEditView(false)}
+      />
+    )
   }
 
   return (
@@ -120,6 +131,14 @@ export function SequencedTaskView({
                 onClick={onResetWorkflow}
               >
                 Reset
+              </Button>
+              
+              <Button
+                type="text"
+                icon={<IconEdit />}
+                onClick={() => setShowEditView(true)}
+              >
+                Edit
               </Button>
             </Space>
           </Col>
