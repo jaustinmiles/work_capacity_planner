@@ -65,12 +65,25 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       const criticalPathDuration = totalDuration + totalWaitTime
       const worstCaseDuration = criticalPathDuration * 1.5 // Estimate
 
+      // Clean up step data before sending to database
+      const cleanedSteps = editingSteps.map((step, index) => {
+        // Extract only the fields that should be sent to the database
+        const { tempId, ...cleanStep } = step
+        return {
+          id: cleanStep.id,
+          name: cleanStep.name,
+          duration: cleanStep.duration,
+          type: cleanStep.type,
+          dependsOn: cleanStep.dependsOn,
+          asyncWaitTime: cleanStep.asyncWaitTime,
+          status: cleanStep.status,
+          stepIndex: index,
+        }
+      })
+
       await updateSequencedTask(task.id, {
         ...editedTask,
-        steps: editingSteps.map((step, index) => ({
-          ...step,
-          stepIndex: index,
-        })),
+        steps: cleanedSteps,
         totalDuration,
         criticalPathDuration,
         worstCaseDuration,
