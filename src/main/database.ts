@@ -385,7 +385,7 @@ export class DatabaseService {
 
   async updateJobContext(id: string, updates: Partial<any>): Promise<any> {
     const updateData: any = { ...updates }
-    
+
     // Handle JSON fields
     if (updateData.asyncPatterns) {
       updateData.asyncPatterns = JSON.stringify(updateData.asyncPatterns)
@@ -489,7 +489,7 @@ export class DatabaseService {
 
   async updateJargonEntry(id: string, updates: Partial<any>): Promise<any> {
     const updateData: any = { ...updates }
-    
+
     if (updateData.examples) {
       updateData.examples = JSON.stringify(updateData.examples)
     }
@@ -518,11 +518,11 @@ export class DatabaseService {
   async getJargonDictionary(): Promise<Record<string, string>> {
     const entries = await this.client.jargonEntry.findMany()
     const dictionary: Record<string, string> = {}
-    
+
     entries.forEach(entry => {
       dictionary[entry.term.toLowerCase()] = entry.definition
     })
-    
+
     return dictionary
   }
 

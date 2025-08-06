@@ -120,10 +120,10 @@ function App() {
 
       // Show success message
       Message.success(`Created ${workflows.length} workflows and ${standaloneTasks.length} tasks`)
-      
+
       // Close modal
       setBrainstormModalVisible(false)
-      
+
       // Switch to workflows view if workflows were created
       if (workflows.length > 0) {
         setActiveView('workflows')

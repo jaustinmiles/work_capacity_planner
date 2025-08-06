@@ -80,11 +80,11 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
       let jsonText = content.text.trim()
       const jsonStart = jsonText.indexOf('{')
       const jsonEnd = jsonText.lastIndexOf('}')
-      
+
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
         jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
       }
-      
+
       return JSON.parse(jsonText)
     } catch (error) {
       console.error('Error extracting tasks from brainstorm:', error)
@@ -123,7 +123,7 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
     summary: string
   }> {
     const contextInfo = jobContext ? `\n\nJob Context: ${jobContext}` : ''
-    
+
     const prompt = `
 You are an expert at understanding async workflows and dependencies. Analyze the following brainstorm text and extract workflows with natural language dependency interpretation.
 
@@ -137,7 +137,7 @@ Brainstorm text: "${brainstormText}"${contextInfo}
 
 Look for workflow patterns like:
 - "run X then wait for Y, then check Z" → sequence with async wait
-- "start A, when it's done do B" → dependency relationship  
+- "start A, when it's done do B" → dependency relationship
 - "trigger workflow, wait hours, verify results" → async workflow with wait times
 - "submit for review, wait for feedback, address comments" → review cycles
 - "launch job, check back tomorrow" → long async waits
@@ -215,11 +215,11 @@ Focus on understanding the async nature described in natural language. Be realis
       let jsonText = content.text.trim()
       const jsonStart = jsonText.indexOf('{')
       const jsonEnd = jsonText.lastIndexOf('}')
-      
+
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
         jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
       }
-      
+
       return JSON.parse(jsonText)
     } catch (error) {
       console.error('Error extracting workflows from brainstorm:', error)
@@ -400,7 +400,7 @@ Confidence is 0-100 based on how clear and specific the original task was.
     suggestedJobContext?: string
   }> {
     const contextInfo = jobContext ? `\n\nCurrent Job Context: ${jobContext}` : ''
-    
+
     const prompt = `
 You are helping someone clarify their async work patterns and job context to better understand their workflow needs.
 
@@ -462,7 +462,7 @@ Make questions specific to their apparent work patterns. Prioritize questions th
       let jsonText = content.text.trim()
       const jsonStart = jsonText.indexOf('{')
       const jsonEnd = jsonText.lastIndexOf('}')
-      
+
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
         jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
       }
@@ -494,7 +494,7 @@ Task: "${taskName}"${desc}
 
 Generate 3-5 focused questions that would help you better understand:
 - Scope and requirements
-- Dependencies and constraints  
+- Dependencies and constraints
 - Success criteria
 - Time sensitivity factors
 - Resources needed
@@ -509,7 +509,7 @@ Return as JSON:
     },
     {
       "question": "How many people are involved in this task?",
-      "type": "choice", 
+      "type": "choice",
       "choices": ["Just me", "2-3 people", "4-10 people", "Large team (10+)"],
       "purpose": "Understand coordination complexity"
     }

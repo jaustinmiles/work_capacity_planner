@@ -151,7 +151,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
         await transcribeAudio(audioBlob)
-        
+
         // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop())
       }
@@ -185,12 +185,12 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
     try {
       const arrayBuffer = await audioBlob.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
-      
+
       const settings = await getDatabase().getBrainstormingSettings()
       const result = await getDatabase().transcribeAudioBuffer(
         uint8Array as any, // Cast to Buffer-like for IPC
         filename,
-        settings
+        settings,
       )
 
       setBrainstormText(prev => prev + (prev ? ' ' : '') + result.text)
@@ -209,10 +209,10 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
     try {
       // Clear existing text when processing a new file
       setBrainstormText('')
-      
+
       const blob = new Blob([file], { type: file.type })
       await transcribeAudio(blob, file.name)
-      
+
       setUploadedAudioFile(file)
     } catch (error) {
       console.error('Error processing uploaded audio:', error)
@@ -229,18 +229,18 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       const blob = new Blob([file], { type: file.type })
       const arrayBuffer = await blob.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
-      
+
       const settings = await getDatabase().getBrainstormingSettings()
       const result = await getDatabase().transcribeAudioBuffer(
         uint8Array as any,
         file.name,
-        settings
+        settings,
       )
 
       // Append to job context
       setJobContext(prev => prev + (prev ? '\n\n' : '') + result.text)
       setContextAudioFile(file)
-      
+
       // Auto-save the context
       await saveJobContext(jobContext + '\n\n' + result.text)
     } catch (error) {
@@ -257,7 +257,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
     try {
       const activeContext = await getDatabase().getActiveJobContext()
-      
+
       if (activeContext) {
         // Update existing context
         await getDatabase().updateJobContext(activeContext.id, {
@@ -287,11 +287,11 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         definition: newJargonDefinition.trim(),
         category: 'custom',
       })
-      
+
       // Reload jargon dictionary
       const dictionary = await getDatabase().getJargonDictionary()
       setJargonDictionary(dictionary)
-      
+
       // Clear inputs
       setNewJargonTerm('')
       setNewJargonDefinition('')
@@ -313,18 +313,18 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
     try {
       // Create enriched context with jargon dictionary
-      const jargonInfo = Object.keys(jargonDictionary).length > 0 
+      const jargonInfo = Object.keys(jargonDictionary).length > 0
         ? `\n\nIndustry Jargon Dictionary:\n${Object.entries(jargonDictionary)
             .map(([term, def]) => `- ${term}: ${def}`)
             .join('\n')}`
         : ''
-      
+
       const enrichedContext = (jobContext.trim() || '') + jargonInfo
 
       if (processingMode === 'workflows') {
         const result = await getDatabase().extractWorkflowsFromBrainstorm(
-          brainstormText.trim(), 
-          enrichedContext || undefined
+          brainstormText.trim(),
+          enrichedContext || undefined,
         )
         setBrainstormResult(result)
       } else {
@@ -345,8 +345,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         // Handle workflow-first results
         if (onWorkflowsExtracted) {
           onWorkflowsExtracted(
-            brainstormResult.workflows, 
-            brainstormResult.standaloneTasks || []
+            brainstormResult.workflows,
+            brainstormResult.standaloneTasks || [],
           )
         }
       } else if (brainstormResult.tasks && brainstormResult.tasks.length > 0) {
@@ -418,14 +418,14 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
             Choose how you want the AI to interpret your brainstorm text:
           </Text>
           <Space>
-            <Button 
+            <Button
               type={processingMode === 'workflows' ? 'primary' : 'outline'}
               onClick={() => setProcessingMode('workflows')}
               icon={<IconBulb />}
             >
               Workflows (Recommended)
             </Button>
-            <Button 
+            <Button
               type={processingMode === 'tasks' ? 'primary' : 'outline'}
               onClick={() => setProcessingMode('tasks')}
             >
@@ -444,9 +444,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           <div>
             <Space style={{ marginBottom: 12 }}>
               <Title heading={6}>Job Context</Title>
-              <Button 
-                size="small" 
-                type="outline" 
+              <Button
+                size="small"
+                type="outline"
                 onClick={() => setShowJobContextInput(!showJobContextInput)}
               >
                 {showJobContextInput ? 'Hide' : 'Add Context'}
@@ -468,9 +468,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   Context is automatically saved and persisted for future sessions
                 </Text>
-                
+
                 <Divider style={{ margin: '12px 0' }} />
-                
+
                 {/* Voice Context Upload */}
                 <div>
                   <Text strong style={{ fontSize: 14 }}>Or upload a voice memo about your job:</Text>
@@ -484,8 +484,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                     disabled={isProcessingContextAudio}
                     style={{ marginTop: 8 }}
                   >
-                    <Button 
-                      icon={<IconUpload />} 
+                    <Button
+                      icon={<IconUpload />}
                       loading={isProcessingContextAudio}
                       size="small"
                     >
@@ -498,23 +498,23 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                     </Tag>
                   )}
                 </div>
-                
+
                 <Divider style={{ margin: '12px 0' }} />
-                
+
                 {/* Jargon Dictionary */}
                 <div>
                   <Space style={{ marginBottom: 8 }}>
                     <Text strong style={{ fontSize: 14 }}>Industry Jargon Dictionary</Text>
                     <Tag size="small">{Object.keys(jargonDictionary).length} terms</Tag>
-                    <Button 
-                      size="mini" 
+                    <Button
+                      size="mini"
                       type="text"
                       onClick={() => setShowJargonInput(!showJargonInput)}
                     >
                       Add Term
                     </Button>
                   </Space>
-                  
+
                   {showJargonInput && (
                     <Space direction="vertical" style={{ width: '100%', marginBottom: 12 }}>
                       <Input
@@ -539,7 +539,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                       </Space>
                     </Space>
                   )}
-                  
+
                   {Object.keys(jargonDictionary).length > 0 && (
                     <div style={{ maxHeight: 100, overflowY: 'auto', marginTop: 8 }}>
                       {Object.entries(jargonDictionary).map(([term, definition]) => (
@@ -559,12 +559,12 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         <div>
           <Title heading={6}>Voice Input</Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
-            {processingMode === 'workflows' 
+            {processingMode === 'workflows'
               ? 'Describe your async workflows naturally - mention dependencies, wait times, and sequencing.'
               : 'Record your thoughts about upcoming tasks, projects, or ideas.'
             }
           </Text>
-          
+
           <div style={{ marginTop: 16 }}>
             <Space>
               <Button
@@ -572,7 +572,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                 loading={isTranscribing}
                 disabled={isProcessing}
               />
-              
+
               {recordingState !== 'idle' && (
                 <Button
                   icon={<IconStop />}
@@ -582,7 +582,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                   Stop
                 </Button>
               )}
-              
+
               {isTranscribing && <Text type="secondary">Transcribing...</Text>}
             </Space>
           </div>
@@ -594,7 +594,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 12 }}>
             Upload a pre-recorded audio file for transcription (great for development testing!)
           </Text>
-          
+
           <Upload
             accept="audio/*"
             showUploadList={false}
@@ -604,22 +604,22 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
             }}
             disabled={isProcessingAudioFile || isTranscribing}
           >
-            <Button 
-              icon={<IconUpload />} 
+            <Button
+              icon={<IconUpload />}
               loading={isProcessingAudioFile}
               disabled={isTranscribing}
             >
               {isProcessingAudioFile ? 'Processing...' : 'Upload Audio File'}
             </Button>
           </Upload>
-          
+
           {uploadedAudioFile && (
             <Space style={{ marginTop: 8 }}>
               <Tag icon={<IconFile />} closable onClose={() => setUploadedAudioFile(null)}>
                 {uploadedAudioFile.name}
               </Tag>
-              <Button 
-                size="small" 
+              <Button
+                size="small"
                 type="text"
                 onClick={() => processUploadedAudio(uploadedAudioFile)}
               >
@@ -635,16 +635,16 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         <div>
           <Title heading={6}>Brainstorm Text</Title>
           <Text type="secondary" style={{ fontSize: 14 }}>
-            {processingMode === 'workflows' 
+            {processingMode === 'workflows'
               ? 'Describe your async workflows - mention sequences, dependencies, wait times, and handoffs.'
               : 'Edit the transcribed text or type directly. Include details about deadlines, priorities, and requirements.'
             }
           </Text>
-          
+
           <TextArea
             value={brainstormText}
             onChange={setBrainstormText}
-            placeholder={processingMode === 'workflows' 
+            placeholder={processingMode === 'workflows'
               ? "Example: I need to run a workflow that will take a few hours to complete. After that I can check the results and submit for code review. Reviews usually take about a day, then I'll need to address feedback and re-submit..."
               : "Example: I need to finish the quarterly report by Friday, it's high priority. Also need to review the new marketing campaign designs and schedule team meetings for next week..."
             }
@@ -664,9 +664,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
             disabled={!brainstormText.trim() || isTranscribing}
             size="large"
           >
-            {isProcessing 
-              ? 'Processing with Claude Opus 4.1...' 
-              : processingMode === 'workflows' 
+            {isProcessing
+              ? 'Processing with Claude Opus 4.1...'
+              : processingMode === 'workflows'
                 ? 'Generate Async Workflows'
                 : 'Extract Simple Tasks'
             }
@@ -735,7 +735,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                           <Text type="secondary" style={{ fontSize: 14 }}>
                             {workflow.description}
                           </Text>
-                          
+
                           <Space wrap>
                             <Tag size="small" color="blue">
                               Active Work: {workflow.totalDuration}min
@@ -752,14 +752,14 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                             <Text strong style={{ fontSize: 13 }}>Workflow Steps:</Text>
                             <div style={{ marginTop: 8 }}>
                               {workflow.steps.map((step: any, stepIndex: number) => (
-                                <div 
-                                  key={stepIndex} 
-                                  style={{ 
-                                    marginBottom: 8, 
-                                    padding: '8px 12px', 
-                                    backgroundColor: '#f7f8fa', 
+                                <div
+                                  key={stepIndex}
+                                  style={{
+                                    marginBottom: 8,
+                                    padding: '8px 12px',
+                                    backgroundColor: '#f7f8fa',
                                     borderRadius: 4,
-                                    border: '1px solid #e5e6eb'
+                                    border: '1px solid #e5e6eb',
                                   }}
                                 >
                                   <Space style={{ width: '100%', justifyContent: 'space-between' }}>
@@ -913,8 +913,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                     Cancel
                   </Button>
                   <Button type="primary" onClick={handleUseResults}>
-                    {brainstormResult.workflows && brainstormResult.workflows.length > 0 
-                      ? 'Create Workflows & Tasks' 
+                    {brainstormResult.workflows && brainstormResult.workflows.length > 0
+                      ? 'Create Workflows & Tasks'
                       : 'Use These Tasks'
                     }
                   </Button>

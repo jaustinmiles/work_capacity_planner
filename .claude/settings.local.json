@@ -12,7 +12,8 @@
       "Bash(npx tsc:*)",
       "Bash(npm run build:*)",
       "Bash(npm start)",
-      "Bash(npm run restart:*)"
+      "Bash(npm run restart:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

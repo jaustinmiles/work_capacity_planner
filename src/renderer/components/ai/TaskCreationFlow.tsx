@@ -80,11 +80,11 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
     setIsProcessing(true)
     try {
       const result = await getDatabase().getContextualQuestions(task.name, task.description)
-      
-      setTasks(prev => prev.map(t => 
-        t.id === task.id 
+
+      setTasks(prev => prev.map(t =>
+        t.id === task.id
           ? { ...t, questions: result.questions, status: 'gathering_context' }
-          : t
+          : t,
       ))
     } catch (error) {
       console.error('Error getting contextual questions:', error)
@@ -104,11 +104,11 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
       }
 
       const result = await getDatabase().enhanceTaskDetails(task.name, currentDetails)
-      
-      setTasks(prev => prev.map(t => 
-        t.id === task.id 
+
+      setTasks(prev => prev.map(t =>
+        t.id === task.id
           ? { ...t, enhancedSuggestions: result, status: 'enhancing' }
-          : t
+          : t,
       ))
     } catch (error) {
       console.error('Error enhancing task:', error)
@@ -122,7 +122,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
 
     const updatedTask = { ...selectedTask, answers, status: 'ready' as const }
     setTasks(prev => prev.map(t => t.id === selectedTask.id ? updatedTask : t))
-    
+
     setCurrentStep('enhance')
     await enhanceTask(updatedTask)
   }
@@ -132,8 +132,8 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
     try {
       const taskData = {
         name: task.name,
-        duration: useEnhancements && task.enhancedSuggestions?.suggestions?.duration 
-          ? task.enhancedSuggestions.suggestions.duration 
+        duration: useEnhancements && task.enhancedSuggestions?.suggestions?.duration
+          ? task.enhancedSuggestions.suggestions.duration
           : task.estimatedDuration,
         importance: useEnhancements && task.enhancedSuggestions?.suggestions?.importance
           ? task.enhancedSuggestions.suggestions.importance
@@ -153,9 +153,9 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
       }
 
       await addTask(taskData)
-      
-      setTasks(prev => prev.map(t => 
-        t.id === task.id ? { ...t, status: 'created' } : t
+
+      setTasks(prev => prev.map(t =>
+        t.id === task.id ? { ...t, status: 'created' } : t,
       ))
     } catch (error) {
       console.error('Error creating task:', error)
@@ -168,11 +168,11 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
     setIsProcessing(true)
     try {
       const tasksToCreate = tasks.filter(t => t.status === 'ready' || t.status === 'enhancing')
-      
+
       for (const task of tasksToCreate) {
         await createTask(task, useEnhancements)
       }
-      
+
       onClose()
     } catch (error) {
       console.error('Error creating tasks:', error)
@@ -212,8 +212,8 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
         currentStep === 'review' ? (
           <Space>
             <Button onClick={onClose}>Cancel</Button>
-            <Button 
-              type="primary" 
+            <Button
+              type="primary"
               onClick={() => createAllTasks(false)}
               disabled={isProcessing || tasks.every(t => t.status === 'pending' || t.status === 'created')}
               loading={isProcessing}
@@ -259,9 +259,9 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
                     <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                       <Text style={{ fontWeight: 500 }}>{task.name}</Text>
                       <Space>
-                        <Text 
-                          type="secondary" 
-                          style={{ 
+                        <Text
+                          type="secondary"
+                          style={{
                             color: getStatusColor(task.status),
                             fontSize: 12,
                             fontWeight: 500,
@@ -304,7 +304,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
               </Text>
             </div>
           ) : selectedTask.questions ? (
-            <ContextForm 
+            <ContextForm
               questions={selectedTask.questions}
               onSubmit={handleAnswerSubmit}
             />
@@ -315,7 +315,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
       {currentStep === 'enhance' && selectedTask && (
         <div>
           <Title heading={6}>AI Enhancements for: {selectedTask.name}</Title>
-          
+
           {isProcessing ? (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <Spin size={40} />
@@ -324,7 +324,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
               </Text>
             </div>
           ) : selectedTask.enhancedSuggestions ? (
-            <EnhancementView 
+            <EnhancementView
               task={selectedTask}
               onCreateTask={(useEnhancements) => createTask(selectedTask, useEnhancements)}
               isCreating={isProcessing}
@@ -385,7 +385,7 @@ function ContextForm({ questions, onSubmit }: {
           )}
         </Form.Item>
       ))}
-      
+
       <Form.Item>
         <Button type="primary" onClick={handleSubmit}>
           Continue with AI Enhancement
@@ -470,13 +470,13 @@ function EnhancementView({ task, onCreateTask, isCreating }: {
 
       <div style={{ textAlign: 'center', paddingTop: 16 }}>
         <Space>
-          <Button 
+          <Button
             onClick={() => onCreateTask(false)}
             loading={isCreating}
           >
             Use Original
           </Button>
-          <Button 
+          <Button
             type="primary"
             onClick={() => onCreateTask(true)}
             loading={isCreating}

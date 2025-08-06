@@ -59,12 +59,12 @@ export class SpeechService {
    * Convert audio buffer to text (for in-memory audio data)
    */
   async transcribeAudioBuffer(
-    audioBuffer: Buffer, 
+    audioBuffer: Buffer,
     filename: string,
     options?: {
       language?: string
       prompt?: string
-    }
+    },
   ): Promise<{
     text: string
   }> {

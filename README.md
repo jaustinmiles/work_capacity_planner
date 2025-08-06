@@ -4,23 +4,33 @@ An intelligent Electron-based productivity application that combines AI-powered 
 
 ## 🚀 Features
 
-### 🤖 AI-Powered Task Creation
-- **Voice-to-Task Pipeline**: Record natural speech and automatically extract structured tasks
-- **Intelligent Analysis**: Uses Claude AI to understand context, priorities, and requirements
-- **Smart Enhancement**: AI suggests improvements and asks clarifying questions
-- **Natural Language Processing**: Speak naturally about projects, deadlines, and priorities
+### 🤖 AI-Powered Workflow Extraction
+- **Claude Opus 4.1**: Advanced AI model specifically tuned for async workflow understanding
+- **Workflow-First Mode**: Intelligently extracts multi-step workflows with dependencies and wait times
+- **Voice-to-Workflow Pipeline**: Record natural speech and automatically extract complex workflows
+- **Audio File Upload**: Upload pre-recorded audio for development and testing
+- **Smart Questions**: AI asks clarifying questions instead of making assumptions
+- **Context-Aware**: Uses persistent job context and industry jargon for better understanding
 
 ### 📋 Advanced Task Management
 - **Smart Prioritization**: Eisenhower Matrix with importance × urgency scoring
 - **Multi-Step Workflows**: Create complex sequenced tasks with dependencies
+- **Async Wait Times**: Model external delays (code reviews, CI/CD, approvals)
 - **Task Types**: Distinguish between focused work and administrative tasks
 - **Duration Tracking**: Realistic time estimates with capacity-based scheduling
+- **Batch Operations**: Delete all tasks for development testing (dev mode)
 
 ### 🎯 Intelligent Scheduling
 - **Capacity-Aware Distribution**: Automatically distributes work based on daily limits
 - **Priority-Driven**: Tasks scheduled by priority scores and dependencies
 - **Timeline Visualization**: Gantt-style timeline showing work distribution
 - **Smart Allocation**: Handles partial task allocation across multiple days
+
+### 🧠 Context Management
+- **Job Context**: Persistent context about your role and work patterns
+- **Voice Memos**: Add context via voice recordings
+- **Industry Jargon**: Build a dictionary of domain-specific terms
+- **Context Evolution**: Expand and refine context over time
 
 ### 💾 Data Persistence
 - **Local SQLite Database**: All data persists between sessions
@@ -33,8 +43,8 @@ An intelligent Electron-based productivity application that combines AI-powered 
 - **Backend**: Electron with secure IPC architecture
 - **Database**: SQLite with Prisma ORM
 - **AI Services**: 
-  - Anthropic Claude API for task analysis
-  - OpenAI Whisper API for speech-to-text
+  - Claude Opus 4.1 (Anthropic) for advanced workflow extraction
+  - OpenAI Whisper API for speech-to-text transcription
 - **State Management**: Zustand with async operations
 - **Code Quality**: ESLint + TypeScript strict mode
 
@@ -75,13 +85,25 @@ An intelligent Electron-based productivity application that combines AI-powered 
 
 ## 🎯 Workflow Examples
 
-### Voice Brainstorming
-*Record*: "I need to finish the quarterly report by Friday, it's high priority. Also need to review the marketing campaign designs and schedule team meetings for next week..."
+### Async Workflow Extraction
+*Record*: "I need to implement a new feature. First I'll analyze the requirements, then write the code. After that I'll submit for code review which usually takes about a day. Once approved, I'll deploy to staging and wait for QA verification."
 
-*AI Extracts*:
+*AI Extracts Workflow*:
+- **Implement New Feature** (7 steps, ~8 hours active work, 2-3 days total)
+  1. Analyze requirements (60 min)
+  2. Write implementation code (180 min)
+  3. Write unit tests (90 min)
+  4. Submit for code review (30 min) → Wait 24 hours
+  5. Address review feedback (60 min)
+  6. Deploy to staging (30 min) → Wait 4 hours for CI/CD
+  7. Verify with QA (30 min)
+
+### Simple Task Extraction
+*Record*: "I need to finish the quarterly report by Friday, it's high priority. Also need to review the marketing campaign designs."
+
+*AI Extracts Tasks*:
 - **Finish Quarterly Report** (High Priority, 4 hours, Due Friday)
-- **Review Marketing Designs** (Medium Priority, 2 hours)  
-- **Schedule Team Meetings** (Admin, 1 hour)
+- **Review Marketing Designs** (Medium Priority, 2 hours)
 
 ### Smart Scheduling
 The system automatically:

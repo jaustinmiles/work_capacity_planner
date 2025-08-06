@@ -7,12 +7,8 @@ import {
   TimeSlot,
   SchedulingConstraints,
   SchedulingResult,
-  SchedulingConflict,
-  SchedulingOptimization,
   PriorityScore,
   SchedulingConverter,
-  AsyncWaitPeriod,
-  WeeklySchedule,
 } from './scheduling-models'
 
 /**

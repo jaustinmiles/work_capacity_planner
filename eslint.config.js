@@ -111,6 +111,13 @@ module.exports = [
   },
 
   {
+    files: ['**/database.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
+
+  {
     ignores: [
       'node_modules/',
       'dist/',
