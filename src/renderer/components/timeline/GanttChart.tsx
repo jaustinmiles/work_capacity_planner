@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react'
-import { Card, Typography, Space, Tag, Grid, Empty, Tooltip } from '@arco-design/web-react'
+import React, { useMemo, useState } from 'react'
+import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider } from '@arco-design/web-react'
+import { IconPlus, IconMinus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
+import { scheduleItems, ScheduledItem } from '../../utils/scheduler'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -11,114 +13,19 @@ interface GanttChartProps {
   sequencedTasks: SequencedTask[]
 }
 
-interface GanttItem {
-  id: string
-  name: string
-  type: 'task' | 'workflow' | 'step'
-  start: Date
-  end: Date
-  duration: number
-  asyncWaitTime: number
-  color: string
-  workflowId?: string
-  workflowName?: string
-  importance: number
-  urgency: number
-  status: string
-}
-
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
-  // Calculate gantt items with start/end times
-  const ganttItems = useMemo(() => {
-    const items: GanttItem[] = []
-    let currentTime = new Date()
-    currentTime.setHours(9, 0, 0, 0) // Start at 9 AM
-    
-    // Process workflows first
-    sequencedTasks.forEach((workflow, wIndex) => {
-      if (workflow.overallStatus === 'completed') return
-      
-      const workflowColor = `hsl(${wIndex * 60}, 70%, 50%)`
-      let workflowStart = new Date(currentTime)
-      
-      // Add workflow header
-      const totalDuration = workflow.steps.reduce((sum, step) => 
-        sum + step.duration + step.asyncWaitTime, 0
-      )
-      
-      items.push({
-        id: workflow.id,
-        name: workflow.name,
-        type: 'workflow',
-        start: new Date(workflowStart),
-        end: new Date(workflowStart.getTime() + totalDuration * 60000),
-        duration: workflow.totalDuration,
-        asyncWaitTime: workflow.steps.reduce((sum, step) => sum + step.asyncWaitTime, 0),
-        color: workflowColor,
-        importance: workflow.importance,
-        urgency: workflow.urgency,
-        status: workflow.overallStatus,
-      })
-      
-      // Add workflow steps
-      let stepStart = new Date(workflowStart)
-      workflow.steps.forEach((step) => {
-        if (step.status === 'completed') return
-        
-        const stepEnd = new Date(stepStart.getTime() + (step.duration + step.asyncWaitTime) * 60000)
-        
-        items.push({
-          id: step.id,
-          name: `  └─ ${step.name}`,
-          type: 'step',
-          start: new Date(stepStart),
-          end: stepEnd,
-          duration: step.duration,
-          asyncWaitTime: step.asyncWaitTime,
-          color: workflowColor,
-          workflowId: workflow.id,
-          workflowName: workflow.name,
-          importance: workflow.importance,
-          urgency: workflow.urgency,
-          status: step.status,
-        })
-        
-        stepStart = new Date(stepEnd)
-      })
-      
-      // Move to next workflow
-      currentTime = new Date(stepStart.getTime() + 30 * 60000) // 30 min buffer
-    })
-    
-    // Process standalone tasks
-    const incompleteTasks = tasks.filter(task => !task.completed)
-    incompleteTasks.forEach((task) => {
-      const taskEnd = new Date(currentTime.getTime() + (task.duration + task.asyncWaitTime) * 60000)
-      
-      items.push({
-        id: task.id,
-        name: task.name,
-        type: 'task',
-        start: new Date(currentTime),
-        end: taskEnd,
-        duration: task.duration,
-        asyncWaitTime: task.asyncWaitTime,
-        color: '#6B7280',
-        importance: task.importance,
-        urgency: task.urgency,
-        status: task.completed ? 'completed' : 'pending',
-      })
-      
-      currentTime = new Date(taskEnd.getTime() + 15 * 60000) // 15 min buffer
-    })
-    
-    return items
+  const [zoom, setZoom] = useState(100) // 100% default zoom
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null)
+  
+  // Use the scheduler to get properly ordered items
+  const scheduledItems = useMemo(() => {
+    return scheduleItems(tasks, sequencedTasks)
   }, [tasks, sequencedTasks])
 
   // Calculate chart dimensions
-  const chartStartTime = ganttItems.length > 0 ? ganttItems[0].start : new Date()
-  const chartEndTime = ganttItems.length > 0 
-    ? new Date(Math.max(...ganttItems.map(item => item.end.getTime())))
+  const chartStartTime = scheduledItems.length > 0 ? scheduledItems[0].startTime : new Date()
+  const chartEndTime = scheduledItems.length > 0 
+    ? new Date(Math.max(...scheduledItems.map(item => item.endTime.getTime())))
     : new Date()
   
   const totalDuration = chartEndTime.getTime() - chartStartTime.getTime()
@@ -126,13 +33,30 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const totalDays = Math.ceil(totalHours / 8) // Assuming 8-hour workdays
   
   // Calculate time markers
-  const timeMarkers = []
-  const markerTime = new Date(chartStartTime)
-  markerTime.setMinutes(0, 0, 0)
-  while (markerTime <= chartEndTime) {
-    timeMarkers.push(new Date(markerTime))
-    markerTime.setHours(markerTime.getHours() + 1)
-  }
+  const timeMarkers = useMemo(() => {
+    const markers = []
+    const markerTime = new Date(chartStartTime)
+    markerTime.setMinutes(0, 0, 0)
+    
+    while (markerTime <= chartEndTime) {
+      markers.push(new Date(markerTime))
+      markerTime.setHours(markerTime.getHours() + 1)
+    }
+    return markers
+  }, [chartStartTime, chartEndTime])
+  
+  // Calculate day boundaries for visual separation
+  const dayBoundaries = useMemo(() => {
+    const boundaries = []
+    const dayTime = new Date(chartStartTime)
+    dayTime.setHours(0, 0, 0, 0)
+    
+    while (dayTime <= chartEndTime) {
+      boundaries.push(new Date(dayTime))
+      dayTime.setDate(dayTime.getDate() + 1)
+    }
+    return boundaries
+  }, [chartStartTime, chartEndTime])
   
   const getPosition = (date: Date) => {
     const offset = date.getTime() - chartStartTime.getTime()
@@ -144,17 +68,24 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   }
   
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
   }
   
-  const getPriorityColor = (importance: number, urgency: number) => {
-    const score = importance * urgency
-    if (score >= 64) return '#FF4D4F'
-    if (score >= 36) return '#FAAD14'
+  const getPriorityLabel = (priority: number) => {
+    if (priority >= 64) return 'Critical'
+    if (priority >= 49) return 'High'
+    if (priority >= 36) return 'Medium'
+    return 'Low'
+  }
+  
+  const getPriorityColor = (priority: number) => {
+    if (priority >= 64) return '#FF4D4F'
+    if (priority >= 49) return '#FF7A45'
+    if (priority >= 36) return '#FAAD14'
     return '#52C41A'
   }
 
-  if (ganttItems.length === 0) {
+  if (scheduledItems.length === 0) {
     return (
       <Card>
         <Empty description="No tasks or workflows to display" />
@@ -162,251 +93,302 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     )
   }
 
+  // Row height based on zoom
+  const rowHeight = Math.max(30, 40 * (zoom / 100))
+  const chartWidth = `${zoom}%`
+
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       {/* Summary */}
       <Card>
-        <Row gutter={16}>
-          <Col span={6}>
+        <Row gutter={16} align="center">
+          <Col span={5}>
             <Space direction="vertical">
               <Text type="secondary">Total Items</Text>
-              <Title heading={4}>{ganttItems.length}</Title>
+              <Title heading={4}>{scheduledItems.filter(item => !item.isWaitTime).length}</Title>
             </Space>
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Space direction="vertical">
-              <Text type="secondary">Estimated Completion</Text>
-              <Title heading={4}>{formatDate(chartEndTime)} {formatTime(chartEndTime)}</Title>
+              <Text type="secondary">Completion</Text>
+              <Title heading={4}>{formatDate(chartEndTime)}</Title>
+              <Text type="secondary">{formatTime(chartEndTime)}</Text>
             </Space>
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Space direction="vertical">
-              <Text type="secondary">Total Work Days</Text>
+              <Text type="secondary">Work Days</Text>
               <Title heading={4}>{totalDays} days</Title>
             </Space>
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Space direction="vertical">
-              <Text type="secondary">Active Workflows</Text>
+              <Text type="secondary">Workflows</Text>
               <Title heading={4}>{sequencedTasks.filter(w => w.overallStatus !== 'completed').length}</Title>
+            </Space>
+          </Col>
+          <Col span={4}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text type="secondary">Zoom</Text>
+              <Space>
+                <Button
+                  icon={<IconMinus />}
+                  size="small"
+                  onClick={() => setZoom(Math.max(50, zoom - 10))}
+                  disabled={zoom <= 50}
+                />
+                <Text style={{ minWidth: 40, textAlign: 'center' }}>{zoom}%</Text>
+                <Button
+                  icon={<IconPlus />}
+                  size="small"
+                  onClick={() => setZoom(Math.min(200, zoom + 10))}
+                  disabled={zoom >= 200}
+                />
+              </Space>
             </Space>
           </Col>
         </Row>
       </Card>
 
       {/* Gantt Chart */}
-      <Card title="Timeline View">
-        <div style={{ position: 'relative', minHeight: ganttItems.length * 50 + 100, overflow: 'auto' }}>
-          {/* Time header */}
+      <Card title="Scheduled Tasks (Priority Order)">
+        <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
           <div style={{ 
-            position: 'sticky', 
-            top: 0, 
-            background: '#fff', 
-            borderBottom: '2px solid #e5e5e5',
-            zIndex: 10,
-            height: 60,
+            position: 'relative', 
+            minHeight: scheduledItems.length * rowHeight + 100,
+            width: chartWidth,
+            minWidth: '100%',
           }}>
-            {/* Date labels */}
-            <div style={{ position: 'relative', height: 30, borderBottom: '1px solid #e5e5e5' }}>
-              {Array.from(new Set(timeMarkers.map(t => formatDate(t)))).map((date, index) => (
-                <div
-                  key={date}
-                  style={{
-                    position: 'absolute',
-                    left: `${index * 25}%`,
-                    padding: '4px 8px',
-                    fontWeight: 500,
-                  }}
-                >
-                  {date}
-                </div>
-              ))}
-            </div>
-            
-            {/* Time labels */}
-            <div style={{ position: 'relative', height: 30 }}>
-              {timeMarkers.filter((_, i) => i % 2 === 0).map((time) => (
-                <div
-                  key={time.getTime()}
-                  style={{
-                    position: 'absolute',
-                    left: `${getPosition(time)}%`,
-                    transform: 'translateX(-50%)',
-                    fontSize: 12,
-                    color: '#666',
-                    padding: '4px',
-                  }}
-                >
-                  {formatTime(time)}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Chart body */}
-          <div style={{ position: 'relative', paddingTop: 20 }}>
-            {/* Grid lines */}
-            {timeMarkers.map((time) => (
-              <div
-                key={time.getTime()}
-                style={{
-                  position: 'absolute',
-                  left: `${getPosition(time)}%`,
-                  top: 0,
-                  bottom: 0,
-                  width: 1,
-                  background: '#f0f0f0',
-                  zIndex: 0,
-                }}
-              />
-            ))}
-
-            {/* Current time indicator */}
-            <div
-              style={{
-                position: 'absolute',
-                left: `${getPosition(new Date())}%`,
-                top: 0,
-                bottom: 0,
-                width: 2,
-                background: '#ff4d4f',
-                zIndex: 5,
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  top: -10,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  background: '#ff4d4f',
-                  color: 'white',
-                  padding: '2px 8px',
-                  borderRadius: 4,
-                  fontSize: 12,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Now
+            {/* Time header */}
+            <div style={{ 
+              position: 'sticky', 
+              top: 0, 
+              background: '#fff', 
+              borderBottom: '2px solid #e5e5e5',
+              zIndex: 10,
+              height: 60,
+            }}>
+              {/* Date labels */}
+              <div style={{ position: 'relative', height: 30, borderBottom: '1px solid #e5e5e5' }}>
+                {dayBoundaries.map((day, index) => {
+                  const nextDay = dayBoundaries[index + 1]
+                  const width = nextDay 
+                    ? getPosition(nextDay) - getPosition(day)
+                    : 100 - getPosition(day)
+                  
+                  return (
+                    <div
+                      key={day.getTime()}
+                      style={{
+                        position: 'absolute',
+                        left: `${getPosition(day)}%`,
+                        width: `${width}%`,
+                        padding: '4px 8px',
+                        fontWeight: 500,
+                        borderRight: '1px solid #e5e5e5',
+                        background: day.getDay() === 0 || day.getDay() === 6 ? '#f5f5f5' : '#fff',
+                      }}
+                    >
+                      {formatDate(day)}
+                    </div>
+                  )
+                })}
+              </div>
+              
+              {/* Time labels */}
+              <div style={{ position: 'relative', height: 30 }}>
+                {timeMarkers
+                  .filter(time => time.getHours() % 2 === 0 && time.getMinutes() === 0)
+                  .map((time) => (
+                    <div
+                      key={time.getTime()}
+                      style={{
+                        position: 'absolute',
+                        left: `${getPosition(time)}%`,
+                        transform: 'translateX(-50%)',
+                        fontSize: 11,
+                        color: '#666',
+                        padding: '4px',
+                      }}
+                    >
+                      {formatTime(time)}
+                    </div>
+                  ))
+                }
               </div>
             </div>
 
-            {/* Gantt bars */}
-            {ganttItems.map((item, index) => {
-              const left = getPosition(item.start)
-              const width = getPosition(item.end) - left
-              const isWorkflow = item.type === 'workflow'
-              const isStep = item.type === 'step'
-              
-              return (
+            {/* Chart body */}
+            <div style={{ position: 'relative', paddingTop: 10 }}>
+              {/* Grid lines */}
+              {timeMarkers
+                .filter(time => time.getHours() % 2 === 0)
+                .map((time) => (
+                  <div
+                    key={time.getTime()}
+                    style={{
+                      position: 'absolute',
+                      left: `${getPosition(time)}%`,
+                      top: 0,
+                      bottom: 0,
+                      width: 1,
+                      background: '#f0f0f0',
+                      zIndex: 0,
+                    }}
+                  />
+                ))
+              }
+
+              {/* Day separators */}
+              {dayBoundaries.slice(1).map((day) => (
                 <div
-                  key={item.id}
+                  key={`sep-${day.getTime()}`}
                   style={{
                     position: 'absolute',
-                    top: index * 50 + 10,
-                    height: 36,
-                    left: `${left}%`,
-                    width: `${width}%`,
-                    minWidth: 2,
+                    left: `${getPosition(day)}%`,
+                    top: 0,
+                    bottom: 0,
+                    width: 2,
+                    background: '#e0e0e0',
+                    zIndex: 1,
+                  }}
+                />
+              ))}
+
+              {/* Current time indicator */}
+              {new Date() >= chartStartTime && new Date() <= chartEndTime && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${getPosition(new Date())}%`,
+                    top: 0,
+                    bottom: 0,
+                    width: 2,
+                    background: '#ff4d4f',
+                    zIndex: 5,
                   }}
                 >
-                  <Tooltip
-                    content={
-                      <Space direction="vertical" size="small">
-                        <Text>{item.name}</Text>
-                        <Text>Duration: {item.duration}m</Text>
-                        {item.asyncWaitTime > 0 && (
-                          <Text>Wait time: {item.asyncWaitTime}m</Text>
-                        )}
-                        <Text>Start: {formatTime(item.start)}</Text>
-                        <Text>End: {formatTime(item.end)}</Text>
-                      </Space>
-                    }
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -10,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: '#ff4d4f',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      whiteSpace: 'nowrap',
+                    }}
                   >
-                    <div
-                      style={{
-                        height: '100%',
-                        opacity: isStep ? 0.7 : 1,
-                        borderRadius: 4,
-                        border: isWorkflow ? '2px solid ' + item.color : 'none',
-                        borderStyle: isWorkflow ? 'solid' : 'none',
-                        background: isWorkflow 
-                          ? `repeating-linear-gradient(45deg, ${item.color}22, ${item.color}22 10px, ${item.color}33 10px, ${item.color}33 20px)`
-                          : item.color,
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '0 8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'scaleY(1.1)'
-                        e.currentTarget.style.zIndex = '10'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scaleY(1)'
-                        e.currentTarget.style.zIndex = '1'
-                      }}
+                    Now
+                  </div>
+                </div>
+              )}
+
+              {/* Gantt bars */}
+              {scheduledItems.map((item, index) => {
+                const left = getPosition(item.startTime)
+                const width = getPosition(item.endTime) - left
+                const isWaitTime = item.isWaitTime
+                const isHovered = hoveredItem === item.id || 
+                  (item.workflowId && hoveredItem?.startsWith(item.workflowId))
+                
+                return (
+                  <div
+                    key={item.id}
+                    style={{
+                      position: 'absolute',
+                      top: index * rowHeight + 5,
+                      height: rowHeight - 10,
+                      left: `${left}%`,
+                      width: `${width}%`,
+                      minWidth: 2,
+                    }}
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                  >
+                    <Tooltip
+                      content={
+                        <Space direction="vertical" size="small">
+                          <Text>{item.name}</Text>
+                          <Text>Priority: {getPriorityLabel(item.priority)} ({item.priority})</Text>
+                          <Text>Duration: {item.duration}m</Text>
+                          <Text>Start: {formatTime(item.startTime)}</Text>
+                          <Text>End: {formatTime(item.endTime)}</Text>
+                          {item.workflowName && <Text>Workflow: {item.workflowName}</Text>}
+                        </Space>
+                      }
                     >
-                      {/* Priority indicator */}
                       <div
                         style={{
-                          position: 'absolute',
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: 4,
-                          background: getPriorityColor(item.importance, item.urgency),
-                        }}
-                      />
-                      
-                      {/* Task name */}
-                      <Text
-                        style={{
-                          color: isWorkflow ? '#000' : '#fff',
-                          fontSize: isStep ? 12 : 14,
-                          fontWeight: isWorkflow ? 600 : 400,
-                          whiteSpace: 'nowrap',
+                          height: '100%',
+                          background: isWaitTime 
+                            ? `repeating-linear-gradient(45deg, ${item.color}44, ${item.color}44 5px, transparent 5px, transparent 10px)`
+                            : item.color,
+                          opacity: isWaitTime ? 0.5 : (isHovered ? 1 : 0.85),
+                          borderRadius: 4,
+                          border: `1px solid ${item.color}`,
+                          borderStyle: isWaitTime ? 'dashed' : 'solid',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '0 8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          position: 'relative',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          paddingLeft: isStep ? 20 : 8,
+                          transform: isHovered ? 'scaleY(1.1)' : 'scaleY(1)',
+                          zIndex: isHovered ? 10 : 2,
+                          boxShadow: isHovered ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
                         }}
                       >
-                        {item.name}
-                      </Text>
-                      
-                      {/* Async wait indicator */}
-                      {item.asyncWaitTime > 0 && (
-                        <div
+                        {/* Priority indicator */}
+                        {!isWaitTime && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: 4,
+                              background: getPriorityColor(item.priority),
+                            }}
+                          />
+                        )}
+                        
+                        {/* Task name */}
+                        <Text
                           style={{
-                            position: 'absolute',
-                            right: 0,
-                            top: 0,
-                            bottom: 0,
-                            width: `${(item.asyncWaitTime / (item.duration + item.asyncWaitTime)) * 100}%`,
-                            background: 'rgba(0,0,0,0.2)',
-                            borderLeft: '1px dashed rgba(255,255,255,0.5)',
+                            color: '#fff',
+                            fontSize: Math.max(11, 13 * (zoom / 100)),
+                            fontWeight: isWaitTime ? 400 : 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            paddingLeft: isWaitTime ? 0 : 8,
                           }}
-                        />
-                      )}
-                    </div>
-                  </Tooltip>
-                </div>
-              )
-            })}
+                        >
+                          {item.name}
+                        </Text>
+                      </div>
+                    </Tooltip>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
 
         {/* Legend */}
         <div style={{ marginTop: 20, borderTop: '1px solid #e5e5e5', paddingTop: 16 }}>
           <Space>
-            <Tag color="red">High Priority</Tag>
-            <Tag color="orange">Medium Priority</Tag>
-            <Tag color="green">Low Priority</Tag>
+            <Tag color="red">Critical Priority (64+)</Tag>
+            <Tag color="orange">High Priority (49-63)</Tag>
+            <Tag color="gold">Medium Priority (36-48)</Tag>
+            <Tag color="green">Low Priority (&lt;36)</Tag>
             <div style={{ marginLeft: 20 }}>
-              <Text type="secondary">Striped bars = Workflows | Solid bars = Tasks/Steps</Text>
+              <Text type="secondary">Dashed = Async waiting time</Text>
             </div>
           </Space>
         </div>
