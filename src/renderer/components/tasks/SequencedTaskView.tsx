@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Card, Space, Typography, Tag, Button, Collapse, Alert, Statistic, Grid, Progress, Tooltip } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit } from '@arco-design/web-react/icon'
+import { Card, Space, Typography, Tag, Button, Collapse, Alert, Statistic, Grid, Progress, Tooltip, Popconfirm } from '@arco-design/web-react'
+import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskStepItem } from './TaskStepItem'
 import { SequencedTaskEdit } from './SequencedTaskEdit'
@@ -15,6 +15,7 @@ interface SequencedTaskViewProps {
   onStartWorkflow?: () => void
   onPauseWorkflow?: () => void
   onResetWorkflow?: () => void
+  onDelete?: () => void
 }
 
 export function SequencedTaskView({
@@ -23,6 +24,7 @@ export function SequencedTaskView({
   onStartWorkflow,
   onPauseWorkflow,
   onResetWorkflow,
+  onDelete,
 }: SequencedTaskViewProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [showEditView, setShowEditView] = useState(false)
@@ -140,6 +142,25 @@ export function SequencedTaskView({
               >
                 Edit
               </Button>
+              
+              {onDelete && (
+                <Popconfirm
+                  title="Delete this workflow?"
+                  content="This will permanently delete this workflow and all its steps. This action cannot be undone."
+                  onOk={onDelete}
+                  okText="Delete"
+                  cancelText="Cancel"
+                  okButtonProps={{ status: 'danger' }}
+                >
+                  <Button
+                    type="text"
+                    status="danger"
+                    icon={<IconDelete />}
+                  >
+                    Delete
+                  </Button>
+                </Popconfirm>
+              )}
             </Space>
           </Col>
         </Row>

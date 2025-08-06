@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Message } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb } from '@arco-design/web-react/icon'
+import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Message, Popconfirm } from '@arco-design/web-react'
+import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { TaskList } from './components/tasks/TaskList'
 import { TaskForm } from './components/tasks/TaskForm'
@@ -13,6 +13,7 @@ import { BrainstormModal } from './components/ai/BrainstormModal'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
 import { useTaskStore } from './store/useTaskStore'
 import { exampleSequencedTask } from '@shared/sequencing-types'
+import { getDatabase } from './services/database'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
@@ -41,6 +42,7 @@ function App() {
     sequencedTasks,
     addTask,
     addSequencedTask,
+    deleteSequencedTask,
     currentWeeklySchedule,
     isScheduling,
     generateWeeklySchedule,
@@ -137,6 +139,27 @@ function App() {
   const handleTaskCreationComplete = () => {
     setTaskCreationFlowVisible(false)
     setExtractedTasks([])
+  }
+
+  const handleDeleteSequencedTask = async (taskId: string) => {
+    try {
+      await deleteSequencedTask(taskId)
+      Message.success('Workflow deleted successfully')
+    } catch (error) {
+      console.error('Error deleting workflow:', error)
+      Message.error('Failed to delete workflow')
+    }
+  }
+
+  const handleDeleteAllSequencedTasks = async () => {
+    try {
+      await getDatabase().deleteAllSequencedTasks()
+      await initializeData() // Reload all data
+      Message.success('All workflows deleted successfully')
+    } catch (error) {
+      console.error('Error deleting all workflows:', error)
+      Message.error('Failed to delete all workflows')
+    }
   }
 
   return (
@@ -317,8 +340,27 @@ function App() {
                   {/* User's Created Workflows */}
                   {sequencedTasks.length > 0 && (
                     <>
-                      <div style={{ marginBottom: 16 }}>
+                      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Typography.Title heading={5}>Your Workflows ({sequencedTasks.length})</Typography.Title>
+                        {process.env.NODE_ENV === 'development' && sequencedTasks.length > 0 && (
+                          <Popconfirm
+                            title="Delete All Workflows?"
+                            content="This will permanently delete all workflows and their steps. This action cannot be undone."
+                            onOk={handleDeleteAllSequencedTasks}
+                            okText="Delete All"
+                            cancelText="Cancel"
+                            okButtonProps={{ status: 'danger' }}
+                          >
+                            <Button
+                              type="text"
+                              size="small"
+                              status="danger"
+                              icon={<IconDelete />}
+                            >
+                              Delete All Workflows
+                            </Button>
+                          </Popconfirm>
+                        )}
                       </div>
 
                       {sequencedTasks.map(task => (
@@ -328,6 +370,7 @@ function App() {
                           onStartWorkflow={() => {/* Future: Implement workflow execution tracking */}}
                           onPauseWorkflow={() => {/* Future: Implement workflow pause functionality */}}
                           onResetWorkflow={() => {/* Future: Implement workflow reset to initial state */}}
+                          onDelete={() => handleDeleteSequencedTask(task.id)}
                         />
                       ))}
                     </>
