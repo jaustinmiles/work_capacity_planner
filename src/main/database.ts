@@ -115,7 +115,22 @@ export class DatabaseService {
   }
 
   async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>): Promise<SequencedTask> {
-    const { steps, ...sequencedTaskData } = taskData
+    const { steps, ...rawTaskData } = taskData
+
+    // Extract only the fields that exist in the SequencedTask model
+    const sequencedTaskData = {
+      name: rawTaskData.name,
+      importance: rawTaskData.importance,
+      urgency: rawTaskData.urgency,
+      type: rawTaskData.type,
+      notes: rawTaskData.notes,
+      dependencies: rawTaskData.dependencies,
+      completed: rawTaskData.completed,
+      totalDuration: rawTaskData.totalDuration,
+      criticalPathDuration: rawTaskData.criticalPathDuration,
+      worstCaseDuration: rawTaskData.worstCaseDuration,
+      overallStatus: rawTaskData.overallStatus,
+    }
 
     const sequencedTask = await this.client.sequencedTask.create({
       data: {
@@ -123,8 +138,12 @@ export class DatabaseService {
         dependencies: JSON.stringify(sequencedTaskData.dependencies),
         steps: {
           create: steps.map((step, index) => ({
-            ...step,
-            dependsOn: JSON.stringify(step.dependsOn),
+            name: step.name,
+            duration: step.duration,
+            type: step.type,
+            dependsOn: JSON.stringify(step.dependsOn || []),
+            asyncWaitTime: step.asyncWaitTime || 0,
+            status: step.status || 'pending',
             stepIndex: index,
           })),
         },
@@ -290,6 +309,230 @@ export class DatabaseService {
     // Database initialization is handled automatically by Prisma
     // With AI brainstorming feature, sample tasks are no longer needed
     // This method is kept for compatibility but doesn't create default data
+  }
+
+  // Job Context operations
+  async getJobContexts(): Promise<any[]> {
+    const contexts = await this.client.jobContext.findMany({
+      include: {
+        contextEntries: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    return contexts.map(context => ({
+      ...context,
+      asyncPatterns: JSON.parse(context.asyncPatterns),
+      reviewCycles: JSON.parse(context.reviewCycles),
+      tools: JSON.parse(context.tools),
+    }))
+  }
+
+  async getActiveJobContext(): Promise<any | null> {
+    const context = await this.client.jobContext.findFirst({
+      where: { isActive: true },
+      include: {
+        contextEntries: true,
+      },
+    })
+
+    if (!context) return null
+
+    return {
+      ...context,
+      asyncPatterns: JSON.parse(context.asyncPatterns),
+      reviewCycles: JSON.parse(context.reviewCycles),
+      tools: JSON.parse(context.tools),
+    }
+  }
+
+  async createJobContext(data: {
+    name: string
+    description: string
+    context: string
+    asyncPatterns?: any
+    reviewCycles?: any
+    tools?: string[]
+    isActive?: boolean
+  }): Promise<any> {
+    // Deactivate other contexts if this one is being set as active
+    if (data.isActive) {
+      await this.client.jobContext.updateMany({
+        where: { isActive: true },
+        data: { isActive: false },
+      })
+    }
+
+    const context = await this.client.jobContext.create({
+      data: {
+        ...data,
+        asyncPatterns: JSON.stringify(data.asyncPatterns || {}),
+        reviewCycles: JSON.stringify(data.reviewCycles || {}),
+        tools: JSON.stringify(data.tools || []),
+      },
+      include: {
+        contextEntries: true,
+      },
+    })
+
+    return {
+      ...context,
+      asyncPatterns: JSON.parse(context.asyncPatterns),
+      reviewCycles: JSON.parse(context.reviewCycles),
+      tools: JSON.parse(context.tools),
+    }
+  }
+
+  async updateJobContext(id: string, updates: Partial<any>): Promise<any> {
+    const updateData: any = { ...updates }
+    
+    // Handle JSON fields
+    if (updateData.asyncPatterns) {
+      updateData.asyncPatterns = JSON.stringify(updateData.asyncPatterns)
+    }
+    if (updateData.reviewCycles) {
+      updateData.reviewCycles = JSON.stringify(updateData.reviewCycles)
+    }
+    if (updateData.tools) {
+      updateData.tools = JSON.stringify(updateData.tools)
+    }
+
+    // Deactivate other contexts if this one is being set as active
+    if (updateData.isActive) {
+      await this.client.jobContext.updateMany({
+        where: { isActive: true, NOT: { id } },
+        data: { isActive: false },
+      })
+    }
+
+    const context = await this.client.jobContext.update({
+      where: { id },
+      data: updateData,
+      include: {
+        contextEntries: true,
+      },
+    })
+
+    return {
+      ...context,
+      asyncPatterns: JSON.parse(context.asyncPatterns),
+      reviewCycles: JSON.parse(context.reviewCycles),
+      tools: JSON.parse(context.tools),
+    }
+  }
+
+  async deleteJobContext(id: string): Promise<void> {
+    await this.client.jobContext.delete({
+      where: { id },
+    })
+  }
+
+  async addContextEntry(jobContextId: string, entry: {
+    key: string
+    value: string
+    category: string
+    notes?: string
+  }): Promise<any> {
+    return await this.client.contextEntry.upsert({
+      where: {
+        jobContextId_key: {
+          jobContextId,
+          key: entry.key,
+        },
+      },
+      update: {
+        value: entry.value,
+        category: entry.category,
+        notes: entry.notes,
+      },
+      create: {
+        jobContextId,
+        ...entry,
+      },
+    })
+  }
+
+  // Jargon Dictionary operations
+  async getJargonEntries(): Promise<any[]> {
+    const entries = await this.client.jargonEntry.findMany({
+      orderBy: { term: 'asc' },
+    })
+
+    return entries.map(entry => ({
+      ...entry,
+      examples: entry.examples ? JSON.parse(entry.examples) : [],
+      relatedTerms: entry.relatedTerms ? JSON.parse(entry.relatedTerms) : [],
+    }))
+  }
+
+  async createJargonEntry(data: {
+    term: string
+    definition: string
+    category?: string
+    examples?: string[]
+    relatedTerms?: string[]
+  }): Promise<any> {
+    const entry = await this.client.jargonEntry.create({
+      data: {
+        ...data,
+        examples: data.examples ? JSON.stringify(data.examples) : null,
+        relatedTerms: data.relatedTerms ? JSON.stringify(data.relatedTerms) : null,
+      },
+    })
+
+    return {
+      ...entry,
+      examples: entry.examples ? JSON.parse(entry.examples) : [],
+      relatedTerms: entry.relatedTerms ? JSON.parse(entry.relatedTerms) : [],
+    }
+  }
+
+  async updateJargonEntry(id: string, updates: Partial<any>): Promise<any> {
+    const updateData: any = { ...updates }
+    
+    if (updateData.examples) {
+      updateData.examples = JSON.stringify(updateData.examples)
+    }
+    if (updateData.relatedTerms) {
+      updateData.relatedTerms = JSON.stringify(updateData.relatedTerms)
+    }
+
+    const entry = await this.client.jargonEntry.update({
+      where: { id },
+      data: updateData,
+    })
+
+    return {
+      ...entry,
+      examples: entry.examples ? JSON.parse(entry.examples) : [],
+      relatedTerms: entry.relatedTerms ? JSON.parse(entry.relatedTerms) : [],
+    }
+  }
+
+  async deleteJargonEntry(id: string): Promise<void> {
+    await this.client.jargonEntry.delete({
+      where: { id },
+    })
+  }
+
+  async getJargonDictionary(): Promise<Record<string, string>> {
+    const entries = await this.client.jargonEntry.findMany()
+    const dictionary: Record<string, string> = {}
+    
+    entries.forEach(entry => {
+      dictionary[entry.term.toLowerCase()] = entry.definition
+    })
+    
+    return dictionary
+  }
+
+  // Delete all tasks (for development)
+  async deleteAllTasks(): Promise<void> {
+    await this.client.task.deleteMany({})
+  }
+
+  async deleteAllSequencedTasks(): Promise<void> {
+    await this.client.sequencedTask.deleteMany({})
   }
 
   // Cleanup method

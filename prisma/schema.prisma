@@ -104,3 +104,43 @@ model ScheduledTask {
   
   task            Task     @relation(fields: [taskId], references: [id])
 }
+
+model JobContext {
+  id              String   @id @default(uuid())
+  name            String
+  description     String
+  context         String   // Long-form job context description
+  asyncPatterns   String   // JSON object with common async patterns
+  reviewCycles    String   // JSON object with typical review times
+  tools           String   // JSON array of tools/systems used
+  isActive        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  contextEntries  ContextEntry[]
+}
+
+model ContextEntry {
+  id            String   @id @default(uuid())
+  jobContextId  String
+  key           String   // e.g., "code_review_time", "ci_pipeline_duration"
+  value         String   // e.g., "4-24 hours", "30-45 minutes"
+  category      String   // e.g., "async_wait", "process", "tool"
+  notes         String?
+  createdAt     DateTime @default(now())
+  
+  jobContext    JobContext @relation(fields: [jobContextId], references: [id], onDelete: Cascade)
+  
+  @@unique([jobContextId, key])
+}
+
+model JargonEntry {
+  id            String   @id @default(uuid())
+  term          String   @unique
+  definition    String
+  category      String?  // e.g., "technical", "process", "tool", "company"
+  examples      String?  // JSON array of usage examples
+  relatedTerms  String?  // JSON array of related terms
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

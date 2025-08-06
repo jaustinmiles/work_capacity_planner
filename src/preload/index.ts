@@ -16,14 +16,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
     initializeDefaultData: () => ipcRenderer.invoke('db:initializeDefaultData'),
     getTaskById: (id: string) => ipcRenderer.invoke('db:getTaskById', id),
     getSequencedTaskById: (id: string) => ipcRenderer.invoke('db:getSequencedTaskById', id),
+    // Job context operations
+    getJobContexts: () => ipcRenderer.invoke('db:getJobContexts'),
+    getActiveJobContext: () => ipcRenderer.invoke('db:getActiveJobContext'),
+    createJobContext: (data: any) => ipcRenderer.invoke('db:createJobContext', data),
+    updateJobContext: (id: string, updates: any) => ipcRenderer.invoke('db:updateJobContext', id, updates),
+    deleteJobContext: (id: string) => ipcRenderer.invoke('db:deleteJobContext', id),
+    addContextEntry: (jobContextId: string, entry: any) => ipcRenderer.invoke('db:addContextEntry', jobContextId, entry),
+    // Jargon dictionary
+    getJargonEntries: () => ipcRenderer.invoke('db:getJargonEntries'),
+    createJargonEntry: (data: any) => ipcRenderer.invoke('db:createJargonEntry', data),
+    updateJargonEntry: (id: string, updates: any) => ipcRenderer.invoke('db:updateJargonEntry', id, updates),
+    deleteJargonEntry: (id: string) => ipcRenderer.invoke('db:deleteJargonEntry', id),
+    getJargonDictionary: () => ipcRenderer.invoke('db:getJargonDictionary'),
+    // Development helpers
+    deleteAllTasks: () => ipcRenderer.invoke('db:deleteAllTasks'),
+    deleteAllSequencedTasks: () => ipcRenderer.invoke('db:deleteAllSequencedTasks'),
   },
 
   // AI operations
   ai: {
     extractTasksFromBrainstorm: (brainstormText: string) => ipcRenderer.invoke('ai:extractTasksFromBrainstorm', brainstormText),
+    extractWorkflowsFromBrainstorm: (brainstormText: string, jobContext?: string) => ipcRenderer.invoke('ai:extractWorkflowsFromBrainstorm', brainstormText, jobContext),
     generateWorkflowSteps: (taskDescription: string, context?: any) => ipcRenderer.invoke('ai:generateWorkflowSteps', taskDescription, context),
     enhanceTaskDetails: (taskName: string, currentDetails?: any) => ipcRenderer.invoke('ai:enhanceTaskDetails', taskName, currentDetails),
     getContextualQuestions: (taskName: string, taskDescription?: string) => ipcRenderer.invoke('ai:getContextualQuestions', taskName, taskDescription),
+    getJobContextualQuestions: (brainstormText: string, jobContext?: string) => ipcRenderer.invoke('ai:getJobContextualQuestions', brainstormText, jobContext),
   },
 
   // Speech operations

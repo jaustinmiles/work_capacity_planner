@@ -17,10 +17,50 @@ declare global {
         initializeDefaultData: () => Promise<void>
         getTaskById: (id: string) => Promise<Task | null>
         getSequencedTaskById: (id: string) => Promise<SequencedTask | null>
+        // Job context operations
+        getJobContexts: () => Promise<any[]>
+        getActiveJobContext: () => Promise<any | null>
+        createJobContext: (data: any) => Promise<any>
+        updateJobContext: (id: string, updates: any) => Promise<any>
+        deleteJobContext: (id: string) => Promise<void>
+        addContextEntry: (jobContextId: string, entry: any) => Promise<any>
+        // Jargon dictionary
+        getJargonEntries: () => Promise<any[]>
+        createJargonEntry: (data: any) => Promise<any>
+        updateJargonEntry: (id: string, updates: any) => Promise<any>
+        deleteJargonEntry: (id: string) => Promise<void>
+        getJargonDictionary: () => Promise<Record<string, string>>
+        // Development helpers
+        deleteAllTasks: () => Promise<void>
+        deleteAllSequencedTasks: () => Promise<void>
       }
       ai: {
         extractTasksFromBrainstorm: (brainstormText: string) => Promise<{
           tasks: Array<{
+            name: string
+            description: string
+            estimatedDuration: number
+            importance: number
+            urgency: number
+            type: 'focused' | 'admin'
+            needsMoreInfo?: boolean
+          }>
+          summary: string
+        }>
+        extractWorkflowsFromBrainstorm: (brainstormText: string, jobContext?: string) => Promise<{
+          workflows: Array<{
+            name: string
+            description: string
+            importance: number
+            urgency: number
+            type: 'focused' | 'admin'
+            steps: any[]
+            totalDuration: number
+            earliestCompletion: string
+            worstCaseCompletion: string
+            notes: string
+          }>
+          standaloneTasks: Array<{
             name: string
             description: string
             estimatedDuration: number
@@ -48,6 +88,16 @@ declare global {
             choices?: string[]
             purpose: string
           }>
+        }>
+        getJobContextualQuestions: (brainstormText: string, jobContext?: string) => Promise<{
+          questions: Array<{
+            question: string
+            type: 'text' | 'number' | 'choice'
+            choices?: string[]
+            purpose: string
+            priority: 'high' | 'medium' | 'low'
+          }>
+          suggestedJobContext?: string
         }>
       }
       speech: {
@@ -150,6 +200,10 @@ export class RendererDatabaseService {
     return await window.electronAPI.ai.extractTasksFromBrainstorm(brainstormText)
   }
 
+  async extractWorkflowsFromBrainstorm(brainstormText: string, jobContext?: string) {
+    return await window.electronAPI.ai.extractWorkflowsFromBrainstorm(brainstormText, jobContext)
+  }
+
   async generateWorkflowSteps(taskDescription: string, context?: any) {
     return await window.electronAPI.ai.generateWorkflowSteps(taskDescription, context)
   }
@@ -160,6 +214,10 @@ export class RendererDatabaseService {
 
   async getContextualQuestions(taskName: string, taskDescription?: string) {
     return await window.electronAPI.ai.getContextualQuestions(taskName, taskDescription)
+  }
+
+  async getJobContextualQuestions(brainstormText: string, jobContext?: string) {
+    return await window.electronAPI.ai.getJobContextualQuestions(brainstormText, jobContext)
   }
 
   // Speech-to-text operations
@@ -181,6 +239,61 @@ export class RendererDatabaseService {
 
   async getWorkflowSettings() {
     return await window.electronAPI.speech.getWorkflowSettings()
+  }
+
+  // Job context operations
+  async getJobContexts() {
+    return await window.electronAPI.db.getJobContexts()
+  }
+
+  async getActiveJobContext() {
+    return await window.electronAPI.db.getActiveJobContext()
+  }
+
+  async createJobContext(data: any) {
+    return await window.electronAPI.db.createJobContext(data)
+  }
+
+  async updateJobContext(id: string, updates: any) {
+    return await window.electronAPI.db.updateJobContext(id, updates)
+  }
+
+  async deleteJobContext(id: string) {
+    return await window.electronAPI.db.deleteJobContext(id)
+  }
+
+  async addContextEntry(jobContextId: string, entry: any) {
+    return await window.electronAPI.db.addContextEntry(jobContextId, entry)
+  }
+
+  // Jargon dictionary operations
+  async getJargonEntries() {
+    return await window.electronAPI.db.getJargonEntries()
+  }
+
+  async createJargonEntry(data: any) {
+    return await window.electronAPI.db.createJargonEntry(data)
+  }
+
+  async updateJargonEntry(id: string, updates: any) {
+    return await window.electronAPI.db.updateJargonEntry(id, updates)
+  }
+
+  async deleteJargonEntry(id: string) {
+    return await window.electronAPI.db.deleteJargonEntry(id)
+  }
+
+  async getJargonDictionary() {
+    return await window.electronAPI.db.getJargonDictionary()
+  }
+
+  // Development helpers
+  async deleteAllTasks() {
+    return await window.electronAPI.db.deleteAllTasks()
+  }
+
+  async deleteAllSequencedTasks() {
+    return await window.electronAPI.db.deleteAllSequencedTasks()
   }
 }
 

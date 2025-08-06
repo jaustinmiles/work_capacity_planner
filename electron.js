@@ -170,6 +170,16 @@ ipcMain.handle('ai:getContextualQuestions', async (_, taskName, taskDescription)
   return await aiService.getContextualQuestions(taskName, taskDescription)
 })
 
+ipcMain.handle('ai:extractWorkflowsFromBrainstorm', async (_, brainstormText, jobContext) => {
+  if (!aiService) throw new Error('AI service not initialized')
+  return await aiService.extractWorkflowsFromBrainstorm(brainstormText, jobContext)
+})
+
+ipcMain.handle('ai:getJobContextualQuestions', async (_, brainstormText, jobContext) => {
+  if (!aiService) throw new Error('AI service not initialized')
+  return await aiService.getJobContextualQuestions(brainstormText, jobContext)
+})
+
 // IPC handlers for speech operations
 ipcMain.handle('speech:transcribeAudio', async (_, audioFilePath, options) => {
   if (!speechService) throw new Error('Speech service not initialized')
@@ -194,4 +204,72 @@ ipcMain.handle('speech:getBrainstormingSettings', async () => {
 ipcMain.handle('speech:getWorkflowSettings', async () => {
   if (!speechService) throw new Error('Speech service not initialized')
   return speechService.getWorkflowSettings()
+})
+
+// IPC handlers for job context operations
+ipcMain.handle('db:getJobContexts', async () => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.getJobContexts()
+})
+
+ipcMain.handle('db:getActiveJobContext', async () => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.getActiveJobContext()
+})
+
+ipcMain.handle('db:createJobContext', async (_, data) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.createJobContext(data)
+})
+
+ipcMain.handle('db:updateJobContext', async (_, id, updates) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.updateJobContext(id, updates)
+})
+
+ipcMain.handle('db:deleteJobContext', async (_, id) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.deleteJobContext(id)
+})
+
+ipcMain.handle('db:addContextEntry', async (_, jobContextId, entry) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.addContextEntry(jobContextId, entry)
+})
+
+// Jargon dictionary operations
+ipcMain.handle('db:getJargonEntries', async () => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.getJargonEntries()
+})
+
+ipcMain.handle('db:createJargonEntry', async (_, data) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.createJargonEntry(data)
+})
+
+ipcMain.handle('db:updateJargonEntry', async (_, id, updates) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.updateJargonEntry(id, updates)
+})
+
+ipcMain.handle('db:deleteJargonEntry', async (_, id) => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.deleteJargonEntry(id)
+})
+
+ipcMain.handle('db:getJargonDictionary', async () => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.getJargonDictionary()
+})
+
+// Development helpers
+ipcMain.handle('db:deleteAllTasks', async () => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.deleteAllTasks()
+})
+
+ipcMain.handle('db:deleteAllSequencedTasks', async () => {
+  if (!db) throw new Error('Database not initialized')
+  return await db.deleteAllSequencedTasks()
 })

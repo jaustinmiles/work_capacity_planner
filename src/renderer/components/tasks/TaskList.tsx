@@ -1,8 +1,9 @@
 import React from 'react'
-import { Card, List, Typography, Empty, Space, Tag, Button, Divider, Progress } from '@arco-design/web-react'
-import { IconPlus, IconCheckCircle, IconClockCircle } from '@arco-design/web-react/icon'
+import { Card, List, Typography, Empty, Space, Tag, Button, Divider, Progress, Popconfirm, Message } from '@arco-design/web-react'
+import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskItem } from './TaskItem'
+import { getDatabase } from '../../services/database'
 
 const { Title, Text } = Typography
 
@@ -11,10 +12,21 @@ interface TaskListProps {
 }
 
 export function TaskList({ onAddTask }: TaskListProps) {
-  const { tasks } = useTaskStore()
+  const { tasks, loadTasks } = useTaskStore()
 
   const incompleteTasks = tasks.filter(task => !task.completed)
   const completedTasks = tasks.filter(task => task.completed)
+
+  const handleDeleteAllTasks = async () => {
+    try {
+      await getDatabase().deleteAllTasks()
+      await loadTasks() // Reload tasks to update UI
+      Message.success('All tasks deleted successfully')
+    } catch (error) {
+      console.error('Error deleting all tasks:', error)
+      Message.error('Failed to delete all tasks')
+    }
+  }
 
   // Sort incomplete tasks by priority (importance * urgency)
   const sortedIncompleteTasks = [...incompleteTasks].sort((a, b) => {
@@ -56,14 +68,35 @@ export function TaskList({ onAddTask }: TaskListProps) {
             <Title heading={5} style={{ margin: 0 }}>
               Active Tasks
             </Title>
-            <Button
-              type="text"
-              size="small"
-              icon={<IconPlus />}
-              onClick={onAddTask}
-            >
-              Add Task
-            </Button>
+            <Space>
+              <Button
+                type="text"
+                size="small"
+                icon={<IconPlus />}
+                onClick={onAddTask}
+              >
+                Add Task
+              </Button>
+              {process.env.NODE_ENV === 'development' && tasks.length > 0 && (
+                <Popconfirm
+                  title="Delete All Tasks?"
+                  content="This will permanently delete all tasks. This action cannot be undone."
+                  onOk={handleDeleteAllTasks}
+                  okText="Delete All"
+                  cancelText="Cancel"
+                  okButtonProps={{ status: 'danger' }}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    status="danger"
+                    icon={<IconDelete />}
+                  >
+                    Delete All
+                  </Button>
+                </Popconfirm>
+              )}
+            </Space>
           </Space>
         }
       >

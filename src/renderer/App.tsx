@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert } from '@arco-design/web-react'
+import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Message } from '@arco-design/web-react'
 import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { TaskList } from './components/tasks/TaskList'
@@ -39,6 +39,7 @@ function App() {
   const {
     tasks,
     sequencedTasks,
+    addTask,
     addSequencedTask,
     currentWeeklySchedule,
     isScheduling,
@@ -69,6 +70,68 @@ function App() {
     setExtractedTasks(tasks)
     setBrainstormModalVisible(false)
     setTaskCreationFlowVisible(true)
+  }
+
+  const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]) => {
+    try {
+      // Create workflows
+      for (const workflow of workflows) {
+        // Combine description and notes
+        const combinedNotes = workflow.description
+          ? `${workflow.description}${workflow.notes ? '\n\n' + workflow.notes : ''}`
+          : workflow.notes || ''
+
+        const sequencedTask = {
+          name: workflow.name,
+          importance: workflow.importance,
+          urgency: workflow.urgency,
+          type: workflow.type,
+          notes: combinedNotes,
+          dependencies: [],
+          completed: false,
+          totalDuration: workflow.totalDuration,
+          criticalPathDuration: workflow.totalDuration, // Will be calculated properly
+          worstCaseDuration: workflow.totalDuration * 1.5, // Estimate
+          overallStatus: 'not_started' as const,
+          steps: workflow.steps.map((step: any, index: number) => ({
+            ...step,
+            id: `step-${index}`,
+            status: 'pending' as const,
+            stepIndex: index,
+          })),
+        }
+        await addSequencedTask(sequencedTask)
+      }
+
+      // Create standalone tasks
+      for (const task of standaloneTasks) {
+        await addTask({
+          name: task.name,
+          duration: task.estimatedDuration,
+          importance: task.importance,
+          urgency: task.urgency,
+          type: task.type,
+          asyncWaitTime: 0,
+          dependencies: [],
+          completed: false,
+          notes: task.description,
+        })
+      }
+
+      // Show success message
+      Message.success(`Created ${workflows.length} workflows and ${standaloneTasks.length} tasks`)
+      
+      // Close modal
+      setBrainstormModalVisible(false)
+      
+      // Switch to workflows view if workflows were created
+      if (workflows.length > 0) {
+        setActiveView('workflows')
+      }
+    } catch (error) {
+      console.error('Error creating workflows:', error)
+      Message.error('Failed to create workflows and tasks')
+    }
   }
 
   const handleTaskCreationComplete = () => {
@@ -321,6 +384,7 @@ function App() {
           visible={brainstormModalVisible}
           onClose={() => setBrainstormModalVisible(false)}
           onTasksExtracted={handleTasksExtracted}
+          onWorkflowsExtracted={handleWorkflowsExtracted}
         />
 
         <TaskCreationFlow
