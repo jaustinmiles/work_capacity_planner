@@ -16,7 +16,7 @@ interface GanttChartProps {
 }
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
-  const [zoom, setZoom] = useState(100) // 100% default zoom
+  const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   
   const { workSettings } = useTaskStore()
@@ -36,6 +36,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const totalDuration = chartEndTime.getTime() - chartStartTime.getTime()
   const totalHours = totalDuration / (1000 * 60 * 60)
   const totalDays = Math.ceil(totalHours / 8) // Assuming 8-hour workdays
+  
+  // Calculate chart width based on pixelsPerHour
+  const chartWidthPx = totalHours * pixelsPerHour
+  const minBlockWidth = 60 // Minimum width for a block in pixels
   
   // Calculate time markers
   const timeMarkers = useMemo(() => {
@@ -63,9 +67,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     return boundaries
   }, [chartStartTime, chartEndTime])
   
-  const getPosition = (date: Date) => {
-    const offset = date.getTime() - chartStartTime.getTime()
-    return (offset / totalDuration) * 100
+  const getPositionPx = (date: Date) => {
+    const offsetHours = (date.getTime() - chartStartTime.getTime()) / (1000 * 60 * 60)
+    return offsetHours * pixelsPerHour
+  }
+  
+  const getDurationPx = (minutes: number) => {
+    const hours = minutes / 60
+    return Math.max(hours * pixelsPerHour, minBlockWidth)
   }
   
   const formatTime = (date: Date) => {
@@ -99,15 +108,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   }
 
   // Row height based on zoom
-  const rowHeight = Math.max(30, 40 * (zoom / 100))
-  const chartWidth = `${zoom}%`
+  const rowHeight = 40
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       {/* Summary */}
       <Card>
         <Row gutter={16} align="center">
-          <Col span={5}>
+          <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Total Items</Text>
               <Title heading={4}>{scheduledItems.filter(item => !item.isWaitTime).length}</Title>
@@ -120,41 +128,46 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               <Text type="secondary">{formatTime(chartEndTime)}</Text>
             </Space>
           </Col>
-          <Col span={5}>
+          <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Work Days</Text>
               <Title heading={4}>{totalDays} days</Title>
             </Space>
           </Col>
-          <Col span={5}>
+          <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Workflows</Text>
               <Title heading={4}>{sequencedTasks.filter(w => w.overallStatus !== 'completed').length}</Title>
             </Space>
           </Col>
-          <Col span={4}>
+          <Col span={7}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">Controls</Text>
-              <Space>
-                <Button
-                  icon={<IconMinus />}
-                  size="small"
-                  onClick={() => setZoom(Math.max(50, zoom - 10))}
-                  disabled={zoom <= 50}
-                />
-                <Text style={{ minWidth: 40, textAlign: 'center' }}>{zoom}%</Text>
-                <Button
-                  icon={<IconPlus />}
-                  size="small"
-                  onClick={() => setZoom(Math.min(200, zoom + 10))}
-                  disabled={zoom >= 200}
-                />
+              <Text type="secondary">View Controls</Text>
+              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <IconZoomOut />
+                  <Slider
+                    min={30}
+                    max={240}
+                    step={10}
+                    value={pixelsPerHour}
+                    onChange={(value) => setPixelsPerHour(value as number)}
+                    style={{ flex: 1 }}
+                    formatTooltip={(value) => {
+                      if (value < 60) return 'Compact'
+                      if (value < 120) return 'Normal'
+                      if (value < 180) return 'Detailed'
+                      return 'Extra Detailed'
+                    }}
+                  />
+                  <IconZoomIn />
+                </div>
                 <Button
                   icon={<IconSettings />}
-                  size="small"
                   onClick={() => setShowSettings(true)}
+                  style={{ width: '100%' }}
                 >
-                  Settings
+                  Work Settings
                 </Button>
               </Space>
             </Space>
@@ -164,11 +177,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
       {/* Gantt Chart */}
       <Card title="Scheduled Tasks (Priority Order)">
-        <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
+        <div style={{ overflowX: 'auto', overflowY: 'hidden', position: 'relative' }}>
           <div style={{ 
             position: 'relative', 
             minHeight: scheduledItems.length * rowHeight + 100,
-            width: chartWidth,
+            width: `${chartWidthPx}px`,
             minWidth: '100%',
           }}>
             {/* Time header */}
@@ -184,17 +197,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               <div style={{ position: 'relative', height: 30, borderBottom: '1px solid #e5e5e5' }}>
                 {dayBoundaries.map((day, index) => {
                   const nextDay = dayBoundaries[index + 1]
-                  const width = nextDay 
-                    ? getPosition(nextDay) - getPosition(day)
-                    : 100 - getPosition(day)
+                  const widthPx = nextDay 
+                    ? getPositionPx(nextDay) - getPositionPx(day)
+                    : chartWidthPx - getPositionPx(day)
                   
                   return (
                     <div
                       key={day.getTime()}
                       style={{
                         position: 'absolute',
-                        left: `${getPosition(day)}%`,
-                        width: `${width}%`,
+                        left: `${getPositionPx(day)}px`,
+                        width: `${widthPx}px`,
                         padding: '4px 8px',
                         fontWeight: 500,
                         borderRight: '1px solid #e5e5e5',
@@ -216,7 +229,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       key={time.getTime()}
                       style={{
                         position: 'absolute',
-                        left: `${getPosition(time)}%`,
+                        left: `${getPositionPx(time)}px`,
                         transform: 'translateX(-50%)',
                         fontSize: 11,
                         color: '#666',
@@ -240,7 +253,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     key={time.getTime()}
                     style={{
                       position: 'absolute',
-                      left: `${getPosition(time)}%`,
+                      left: `${getPositionPx(time)}px`,
                       top: 0,
                       bottom: 0,
                       width: 1,
@@ -257,7 +270,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   key={`sep-${day.getTime()}`}
                   style={{
                     position: 'absolute',
-                    left: `${getPosition(day)}%`,
+                    left: `${getPositionPx(day)}px`,
                     top: 0,
                     bottom: 0,
                     width: 2,
@@ -272,7 +285,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 <div
                   style={{
                     position: 'absolute',
-                    left: `${getPosition(new Date())}%`,
+                    left: `${getPositionPx(new Date())}px`,
                     top: 0,
                     bottom: 0,
                     width: 2,
@@ -301,8 +314,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
               {/* Gantt bars */}
               {scheduledItems.map((item, index) => {
-                const left = getPosition(item.startTime)
-                const width = getPosition(item.endTime) - left
+                const leftPx = getPositionPx(item.startTime)
+                const widthPx = getDurationPx(item.duration)
                 const isWaitTime = item.isWaitTime
                 const isBlocked = item.isBlocked
                 const isHovered = hoveredItem === item.id || 
@@ -315,24 +328,66 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       position: 'absolute',
                       top: index * rowHeight + 5,
                       height: rowHeight - 10,
-                      left: `${left}%`,
-                      width: `${width}%`,
-                      minWidth: 2,
+                      left: `${leftPx}px`,
+                      width: `${widthPx}px`,
                     }}
                     onMouseEnter={() => setHoveredItem(item.id)}
                     onMouseLeave={() => setHoveredItem(null)}
                   >
                     <Tooltip
                       content={
-                        <Space direction="vertical" size="small">
-                          <Text>{item.name}</Text>
-                          <Text>Priority: {getPriorityLabel(item.priority)} ({item.priority})</Text>
-                          <Text>Duration: {item.duration}m</Text>
-                          <Text>Start: {formatTime(item.startTime)}</Text>
-                          <Text>End: {formatTime(item.endTime)}</Text>
-                          {item.workflowName && <Text>Workflow: {item.workflowName}</Text>}
-                        </Space>
+                        <div style={{ padding: '8px', minWidth: '250px' }}>
+                          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                            <div>
+                              <Text strong style={{ fontSize: '14px' }}>{item.name}</Text>
+                            </div>
+                            {!item.isWaitTime && !item.isBlocked && (
+                              <>
+                                <div>
+                                  <Text type="secondary">Priority: </Text>
+                                  <Text>{getPriorityLabel(item.priority)} ({item.priority})</Text>
+                                </div>
+                                <div>
+                                  <Text type="secondary">Type: </Text>
+                                  <Text>{item.type === 'task' ? 'Task' : 'Workflow Step'}</Text>
+                                </div>
+                              </>
+                            )}
+                            <div>
+                              <Text type="secondary">Duration: </Text>
+                              <Text>{item.duration < 60 ? `${item.duration} minutes` : `${(item.duration / 60).toFixed(1)} hours`}</Text>
+                            </div>
+                            <div>
+                              <Text type="secondary">Start: </Text>
+                              <Text>{formatDate(item.startTime)} {formatTime(item.startTime)}</Text>
+                            </div>
+                            <div>
+                              <Text type="secondary">End: </Text>
+                              <Text>{formatDate(item.endTime)} {formatTime(item.endTime)}</Text>
+                            </div>
+                            {item.workflowName && (
+                              <div>
+                                <Text type="secondary">Workflow: </Text>
+                                <Text>{item.workflowName}</Text>
+                              </div>
+                            )}
+                            {item.isWaitTime && (
+                              <div>
+                                <Text type="secondary">Status: </Text>
+                                <Text type="warning">Waiting for async operation</Text>
+                              </div>
+                            )}
+                            {item.isBlocked && (
+                              <div>
+                                <Text type="secondary">Status: </Text>
+                                <Text type="danger">Blocked time</Text>
+                              </div>
+                            )}
+                          </Space>
+                        </div>
                       }
+                      position="top"
+                      trigger="hover"
                     >
                       <div
                         style={{
@@ -373,19 +428,22 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         )}
                         
                         {/* Task name */}
-                        <Text
-                          style={{
-                            color: '#fff',
-                            fontSize: Math.max(11, 13 * (zoom / 100)),
-                            fontWeight: isWaitTime ? 400 : 500,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            paddingLeft: isWaitTime ? 0 : 8,
-                          }}
-                        >
-                          {item.name}
-                        </Text>
+                        {widthPx > 30 && (
+                          <Text
+                            style={{
+                              color: '#fff',
+                              fontSize: pixelsPerHour < 60 ? 11 : 13,
+                              fontWeight: isWaitTime ? 400 : 500,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              paddingLeft: isWaitTime ? 0 : 8,
+                              display: 'block',
+                            }}
+                          >
+                            {item.name}
+                          </Text>
+                        )}
                       </div>
                     </Tooltip>
                   </div>

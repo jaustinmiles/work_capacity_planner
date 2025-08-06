@@ -197,6 +197,7 @@ export function scheduleItems(
   const completedSteps = new Set<string>()
   const asyncWaitEndTimes = new Map<Date, string>() // When async waits end
   const dailyCapacities = new Map<string, DailyCapacity>()
+  const blockedDaysAdded = new Set<string>() // Track which days we've added blocked times for
   
   // Convert all incomplete tasks to work items
   tasks
@@ -251,8 +252,12 @@ export function scheduleItems(
     const checkDate = new Date(currentTime)
     checkDate.setDate(checkDate.getDate() + i)
     if (checkDate.getDay() !== 0 && checkDate.getDay() !== 6) { // Skip weekends
-      const dayBlocked = getBlockedTimesForDay(checkDate, workSettings)
-      scheduledItems.push(...dayBlocked)
+      const dateStr = checkDate.toISOString().split('T')[0]
+      if (!blockedDaysAdded.has(dateStr)) {
+        blockedDaysAdded.add(dateStr)
+        const dayBlocked = getBlockedTimesForDay(checkDate, workSettings)
+        scheduledItems.push(...dayBlocked)
+      }
     }
   }
   
@@ -365,7 +370,9 @@ export function scheduleItems(
       currentTime = getNextWorkTime(currentTime, workSettings)
       
       // If we've moved to a new day, add blocked times
-      if (currentTime.toISOString().split('T')[0] !== dateStr) {
+      const newDateStr = currentTime.toISOString().split('T')[0]
+      if (newDateStr !== dateStr && !blockedDaysAdded.has(newDateStr)) {
+        blockedDaysAdded.add(newDateStr)
         const dayBlocked = getBlockedTimesForDay(currentTime, workSettings)
         scheduledItems.push(...dayBlocked)
       }
@@ -381,7 +388,8 @@ export function scheduleItems(
       
       // If we've moved to a new day, add blocked times and reset capacity
       const newDateStr = currentTime.toISOString().split('T')[0]
-      if (newDateStr !== dateStr) {
+      if (newDateStr !== dateStr && !blockedDaysAdded.has(newDateStr)) {
+        blockedDaysAdded.add(newDateStr)
         const dayBlocked = getBlockedTimesForDay(currentTime, workSettings)
         scheduledItems.push(...dayBlocked)
       }
