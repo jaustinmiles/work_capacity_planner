@@ -70,7 +70,6 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         steps: editingSteps.map((step, index) => ({
           ...step,
           stepIndex: index,
-          id: step.tempId || step.id,
         })),
         totalDuration,
         criticalPathDuration,

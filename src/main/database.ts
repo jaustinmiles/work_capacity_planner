@@ -197,12 +197,16 @@ export class DatabaseService {
       })
 
       await this.client.taskStep.createMany({
-        data: steps.map((step, index) => ({
-          ...step,
-          dependsOn: JSON.stringify(step.dependsOn),
-          sequencedTaskId: id,
-          stepIndex: index,
-        })),
+        data: steps.map((step, index) => {
+          // Remove tempId and id fields that don't exist in the schema
+          const { tempId, id: stepId, ...stepData } = step as any
+          return {
+            ...stepData,
+            dependsOn: JSON.stringify(step.dependsOn),
+            sequencedTaskId: id,
+            stepIndex: index,
+          }
+        }),
       })
     }
 
