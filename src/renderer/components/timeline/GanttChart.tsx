@@ -335,57 +335,32 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     onMouseLeave={() => setHoveredItem(null)}
                   >
                     <Tooltip
-                      content={
-                        <div style={{ padding: '8px', minWidth: '250px' }}>
-                          <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                            <div>
-                              <Text strong style={{ fontSize: '14px' }}>{item.name}</Text>
-                            </div>
-                            {!item.isWaitTime && !item.isBlocked && (
-                              <>
-                                <div>
-                                  <Text type="secondary">Priority: </Text>
-                                  <Text>{getPriorityLabel(item.priority)} ({item.priority})</Text>
-                                </div>
-                                <div>
-                                  <Text type="secondary">Type: </Text>
-                                  <Text>{item.type === 'task' ? 'Task' : 'Workflow Step'}</Text>
-                                </div>
-                              </>
-                            )}
-                            <div>
-                              <Text type="secondary">Duration: </Text>
-                              <Text>{item.duration < 60 ? `${item.duration} minutes` : `${(item.duration / 60).toFixed(1)} hours`}</Text>
-                            </div>
-                            <div>
-                              <Text type="secondary">Start: </Text>
-                              <Text>{formatDate(item.startTime)} {formatTime(item.startTime)}</Text>
-                            </div>
-                            <div>
-                              <Text type="secondary">End: </Text>
-                              <Text>{formatDate(item.endTime)} {formatTime(item.endTime)}</Text>
-                            </div>
-                            {item.workflowName && (
-                              <div>
-                                <Text type="secondary">Workflow: </Text>
-                                <Text>{item.workflowName}</Text>
-                              </div>
-                            )}
-                            {item.isWaitTime && (
-                              <div>
-                                <Text type="secondary">Status: </Text>
-                                <Text type="warning">Waiting for async operation</Text>
-                              </div>
-                            )}
-                            {item.isBlocked && (
-                              <div>
-                                <Text type="secondary">Status: </Text>
-                                <Text type="danger">Blocked time</Text>
-                              </div>
-                            )}
-                          </Space>
-                        </div>
-                      }
+                      content={(() => {
+                        const lines = [`${item.name}`]
+                        
+                        if (!item.isWaitTime && !item.isBlocked) {
+                          lines.push(`Priority: ${getPriorityLabel(item.priority)} (${item.priority})`)
+                          lines.push(`Type: ${item.type === 'task' ? 'Task' : 'Workflow Step'}`)
+                        }
+                        
+                        lines.push(`Duration: ${item.duration < 60 ? `${item.duration} minutes` : `${(item.duration / 60).toFixed(1)} hours`}`)
+                        lines.push(`Start: ${formatDate(item.startTime)} ${formatTime(item.startTime)}`)
+                        lines.push(`End: ${formatDate(item.endTime)} ${formatTime(item.endTime)}`)
+                        
+                        if (item.workflowName) {
+                          lines.push(`Workflow: ${item.workflowName}`)
+                        }
+                        
+                        if (item.isWaitTime) {
+                          lines.push(`Status: Waiting for async operation`)
+                        }
+                        
+                        if (item.isBlocked) {
+                          lines.push(`Status: Blocked time`)
+                        }
+                        
+                        return lines.join('\n')
+                      })()}
                       position="top"
                       trigger="hover"
                     >
