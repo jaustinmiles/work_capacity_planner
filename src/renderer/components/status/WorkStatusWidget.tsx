@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconClock, IconCheck, IconEdit, IconPause, IconPlay } from '@arco-design/web-react/icon'
+import { IconSchedule, IconCheck, IconEdit, IconPause, IconPlay } from '@arco-design/web-react/icon'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
@@ -140,7 +140,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     <Card
       title={
         <Space>
-          <IconClock />
+          <IconSchedule />
           <Text>Today's Progress</Text>
         </Space>
       }
@@ -231,7 +231,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         {currentSession && (
           <Card size="small" style={{ background: '#f0f5ff' }}>
             <Space>
-              <IconClock style={{ animation: 'pulse 2s infinite' }} />
+              <IconSchedule style={{ animation: 'pulse 2s infinite' }} />
               <Text>
                 Tracking: {currentSession.type === 'focused' ? 'Focus' : 'Admin'} work
               </Text>

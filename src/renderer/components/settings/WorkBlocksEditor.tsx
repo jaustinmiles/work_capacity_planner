@@ -20,9 +20,9 @@ import {
   IconPlus,
   IconDelete,
   IconEdit,
-  IconClock,
+  IconSchedule,
   IconCalendar,
-  IconTemplate,
+  IconFileAudio,
 } from '@arco-design/web-react/icon'
 import {
   WorkBlock,
@@ -175,7 +175,7 @@ export function WorkBlocksEditor({
                 {DEFAULT_WORK_TEMPLATES.map(template => (
                   <Select.Option key={template.id} value={template.id}>
                     <Space>
-                      <IconTemplate />
+                      <IconFileAudio />
                       {template.name}
                     </Space>
                   </Select.Option>
@@ -235,7 +235,7 @@ export function WorkBlocksEditor({
       <Card
         title={
           <Space>
-            <IconClock />
+            <IconSchedule />
             <Text>Work Blocks</Text>
           </Space>
         }
