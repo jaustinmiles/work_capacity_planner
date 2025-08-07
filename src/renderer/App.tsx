@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { TaskList } from './components/tasks/TaskList'
@@ -14,6 +14,7 @@ import { BrainstormModal } from './components/ai/BrainstormModal'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
+import { SessionManager } from './components/session/SessionManager'
 import { useTaskStore } from './store/useTaskStore'
 import { exampleSequencedTask } from '@shared/sequencing-types'
 import { getDatabase } from './services/database'
@@ -41,6 +42,7 @@ function App() {
   const [extractedTasks, setExtractedTasks] = useState<ExtractedTask[]>([])
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
+  const [showSessionManager, setShowSessionManager] = useState(false)
   const {
     tasks,
     sequencedTasks,
@@ -305,6 +307,16 @@ function App() {
               {activeView === 'workflows' && 'Sequenced Workflows'}
               {activeView === 'timeline' && 'Gantt Chart'}
             </Title>
+
+            <Space>
+              <Button
+                type="text"
+                icon={<IconUserGroup />}
+                onClick={() => setShowSessionManager(true)}
+              >
+                Sessions
+              </Button>
+            </Space>
           </Header>
 
           <Content style={{
@@ -449,6 +461,15 @@ function App() {
           onSave={() => {
             // Refresh any data if needed
             setShowWorkSchedule(false)
+          }}
+        />
+
+        <SessionManager
+          visible={showSessionManager}
+          onClose={() => setShowSessionManager(false)}
+          onSessionChange={() => {
+            // Reload data when session changes
+            loadData()
           }}
         />
       </Layout>

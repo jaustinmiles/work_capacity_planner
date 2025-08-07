@@ -10,6 +10,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Session {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  isActive        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  tasks           Task[]
+  projects        Project[]
+  sequencedTasks  SequencedTask[]
+  scheduledTasks  ScheduledTask[]
+  workPatterns    WorkPattern[]
+  jobContexts     JobContext[]
+  jargonEntries   JargonEntry[]
+}
+
 model Task {
   id              String   @id @default(uuid())
   name            String
@@ -25,9 +42,11 @@ model Task {
   notes           String?
   projectId       String?
   deadline        DateTime?
+  sessionId       String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
+  session         Session  @relation(fields: [sessionId], references: [id])
   project         Project? @relation(fields: [projectId], references: [id])
   scheduledTasks  ScheduledTask[]
 }
@@ -36,8 +55,10 @@ model Project {
   id          String   @id @default(uuid())
   name        String
   color       String
+  sessionId   String
   createdAt   DateTime @default(now())
   
+  session     Session  @relation(fields: [sessionId], references: [id])
   tasks       Task[]
 }
 
@@ -74,9 +95,11 @@ model SequencedTask {
   criticalPathDuration  Int
   worstCaseDuration     Int
   overallStatus         String   @default("not_started")
+  sessionId             String
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
+  session               Session  @relation(fields: [sessionId], references: [id])
   steps                 TaskStep[]
 }
 
@@ -102,7 +125,9 @@ model ScheduledTask {
   isPartial       Boolean
   isStart         Boolean
   isEnd           Boolean
+  sessionId       String
   
+  session         Session  @relation(fields: [sessionId], references: [id])
   task            Task     @relation(fields: [taskId], references: [id])
 }
 
@@ -115,9 +140,11 @@ model JobContext {
   reviewCycles    String   // JSON object with typical review times
   tools           String   // JSON array of tools/systems used
   isActive        Boolean  @default(false)
+  sessionId       String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   
+  session         Session  @relation(fields: [sessionId], references: [id])
   contextEntries  ContextEntry[]
 }
 
@@ -137,28 +164,37 @@ model ContextEntry {
 
 model JargonEntry {
   id            String   @id @default(uuid())
-  term          String   @unique
+  term          String
   definition    String
   category      String?  // e.g., "technical", "process", "tool", "company"
   examples      String?  // JSON array of usage examples
   relatedTerms  String?  // JSON array of related terms
+  sessionId     String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  session       Session  @relation(fields: [sessionId], references: [id])
+  
+  @@unique([sessionId, term])
 }
 
 // New models for flexible work blocks
 
 model WorkPattern {
   id            String   @id @default(uuid())
-  date          String   @unique // "2025-08-07"
+  date          String   // "2025-08-07"
   isTemplate    Boolean  @default(false)
   templateName  String?
+  sessionId     String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
+  session       Session  @relation(fields: [sessionId], references: [id])
   blocks        WorkBlock[]
   meetings      WorkMeeting[]
   sessions      WorkSession[]
+  
+  @@unique([sessionId, date])
 }
 
 model WorkBlock {

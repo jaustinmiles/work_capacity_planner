@@ -1,4 +1,4 @@
-import { Task } from '@shared/types'
+import { Task, Session } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 
 // Type for the Electron API exposed by preload script
@@ -6,10 +6,17 @@ declare global {
   interface Window {
     electronAPI: {
       db: {
+        // Session management
+        getSessions: () => Promise<Session[]>
+        createSession: (name: string, description?: string) => Promise<Session>
+        switchSession: (sessionId: string) => Promise<Session>
+        updateSession: (id: string, updates: { name?: string; description?: string }) => Promise<Session>
+        deleteSession: (id: string) => Promise<void>
+        // Task operations
         getTasks: () => Promise<Task[]>
         getSequencedTasks: () => Promise<SequencedTask[]>
-        createTask: (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Task>
-        createSequencedTask: (taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<SequencedTask>
+        createTask: (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<Task>
+        createSequencedTask: (taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<SequencedTask>
         updateTask: (id: string, updates: Partial<Task>) => Promise<Task>
         updateSequencedTask: (id: string, updates: Partial<SequencedTask>) => Promise<SequencedTask>
         deleteTask: (id: string) => Promise<void>
@@ -157,12 +164,33 @@ export class RendererDatabaseService {
     return RendererDatabaseService.instance
   }
 
+  // Session management
+  async getSessions(): Promise<Session[]> {
+    return await window.electronAPI.db.getSessions()
+  }
+
+  async createSession(name: string, description?: string): Promise<Session> {
+    return await window.electronAPI.db.createSession(name, description)
+  }
+
+  async switchSession(sessionId: string): Promise<Session> {
+    return await window.electronAPI.db.switchSession(sessionId)
+  }
+
+  async updateSession(id: string, updates: { name?: string; description?: string }): Promise<Session> {
+    return await window.electronAPI.db.updateSession(id, updates)
+  }
+
+  async deleteSession(id: string): Promise<void> {
+    return await window.electronAPI.db.deleteSession(id)
+  }
+
   // Task operations
   async getTasks(): Promise<Task[]> {
     return await window.electronAPI.db.getTasks()
   }
 
-  async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
+  async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
     return await window.electronAPI.db.createTask(taskData)
   }
 
@@ -179,7 +207,7 @@ export class RendererDatabaseService {
     return await window.electronAPI.db.getSequencedTasks()
   }
 
-  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>): Promise<SequencedTask> {
+  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
     return await window.electronAPI.db.createSequencedTask(taskData)
   }
 

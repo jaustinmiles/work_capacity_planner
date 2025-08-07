@@ -67,6 +67,27 @@ app.on('window-all-closed', () => {
 const db = DatabaseService.getInstance()
 
 // IPC handlers for database operations
+// Session management handlers
+ipcMain.handle('db:getSessions', async () => {
+  return await db.getSessions()
+})
+
+ipcMain.handle('db:createSession', async (_: any, name: string, description?: string) => {
+  return await db.createSession(name, description)
+})
+
+ipcMain.handle('db:switchSession', async (_: any, sessionId: string) => {
+  return await db.switchSession(sessionId)
+})
+
+ipcMain.handle('db:updateSession', async (_: any, id: string, updates: { name?: string; description?: string }) => {
+  return await db.updateSession(id, updates)
+})
+
+ipcMain.handle('db:deleteSession', async (_: any, id: string) => {
+  return await db.deleteSession(id)
+})
+
 ipcMain.handle('db:getTasks', async () => {
   return await db.getTasks()
 })

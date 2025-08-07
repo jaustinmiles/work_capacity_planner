@@ -5,6 +5,13 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('electronAPI', {
   // Database operations
   db: {
+    // Session management
+    getSessions: () => ipcRenderer.invoke('db:getSessions'),
+    createSession: (name: string, description?: string) => ipcRenderer.invoke('db:createSession', name, description),
+    switchSession: (sessionId: string) => ipcRenderer.invoke('db:switchSession', sessionId),
+    updateSession: (id: string, updates: any) => ipcRenderer.invoke('db:updateSession', id, updates),
+    deleteSession: (id: string) => ipcRenderer.invoke('db:deleteSession', id),
+    // Task operations
     getTasks: () => ipcRenderer.invoke('db:getTasks'),
     getSequencedTasks: () => ipcRenderer.invoke('db:getSequencedTasks'),
     createTask: (taskData: any) => ipcRenderer.invoke('db:createTask', taskData),

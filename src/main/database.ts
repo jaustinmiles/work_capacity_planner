@@ -21,9 +21,103 @@ export class DatabaseService {
     return DatabaseService.instance
   }
 
+  // Session management
+  private activeSessionId: string | null = null
+
+  async getActiveSession() {
+    if (!this.activeSessionId) {
+      // Find the active session or create one if none exists
+      let session = await this.client.session.findFirst({
+        where: { isActive: true },
+      })
+
+      if (!session) {
+        // Create a default session if none exists
+        session = await this.client.session.create({
+          data: {
+            name: 'Default Session',
+            description: 'Initial work session',
+            isActive: true,
+          },
+        })
+      }
+
+      this.activeSessionId = session.id
+    }
+
+    return this.activeSessionId
+  }
+
+  async getSessions() {
+    return await this.client.session.findMany({
+      orderBy: { updatedAt: 'desc' },
+    })
+  }
+
+  async createSession(name: string, description?: string) {
+    // Deactivate all other sessions
+    await this.client.session.updateMany({
+      where: { isActive: true },
+      data: { isActive: false },
+    })
+
+    // Create and activate new session
+    const session = await this.client.session.create({
+      data: {
+        name,
+        description,
+        isActive: true,
+      },
+    })
+
+    this.activeSessionId = session.id
+    return session
+  }
+
+  async switchSession(sessionId: string) {
+    // Deactivate all sessions
+    await this.client.session.updateMany({
+      where: { isActive: true },
+      data: { isActive: false },
+    })
+
+    // Activate the selected session
+    const session = await this.client.session.update({
+      where: { id: sessionId },
+      data: { isActive: true },
+    })
+
+    this.activeSessionId = session.id
+    return session
+  }
+
+  async updateSession(id: string, updates: { name?: string; description?: string }) {
+    return await this.client.session.update({
+      where: { id },
+      data: updates,
+    })
+  }
+
+  async deleteSession(id: string) {
+    // Don't delete the active session
+    const session = await this.client.session.findUnique({
+      where: { id },
+    })
+
+    if (session?.isActive) {
+      throw new Error('Cannot delete the active session')
+    }
+
+    await this.client.session.delete({
+      where: { id },
+    })
+  }
+
   // Task operations
   async getTasks(): Promise<Task[]> {
+    const sessionId = await this.getActiveSession()
     const tasks = await this.client.task.findMany({
+      where: { sessionId },
       orderBy: { createdAt: 'desc' },
     })
 
@@ -38,10 +132,12 @@ export class DatabaseService {
     }))
   }
 
-  async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
+  async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
+    const sessionId = await this.getActiveSession()
     const task = await this.client.task.create({
       data: {
         ...taskData,
+        sessionId,
         dependencies: JSON.stringify(taskData.dependencies),
       },
     })
@@ -90,7 +186,9 @@ export class DatabaseService {
 
   // Sequenced task operations
   async getSequencedTasks(): Promise<SequencedTask[]> {
+    const sessionId = await this.getActiveSession()
     const sequencedTasks = await this.client.sequencedTask.findMany({
+      where: { sessionId },
       include: {
         steps: {
           orderBy: { stepIndex: 'asc' },
@@ -114,7 +212,8 @@ export class DatabaseService {
     }))
   }
 
-  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>): Promise<SequencedTask> {
+  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
+    const sessionId = await this.getActiveSession()
     const { steps, ...rawTaskData } = taskData
 
     // Extract only the fields that exist in the SequencedTask model
@@ -135,6 +234,7 @@ export class DatabaseService {
     const sequencedTask = await this.client.sequencedTask.create({
       data: {
         ...sequencedTaskData,
+        sessionId,
         dependencies: JSON.stringify(sequencedTaskData.dependencies),
         steps: {
           create: steps.map((step, index) => ({

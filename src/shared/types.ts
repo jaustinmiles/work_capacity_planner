@@ -1,3 +1,12 @@
+export interface Session {
+  id: string
+  name: string
+  description?: string
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface Task {
   id: string
   name: string
@@ -10,6 +19,7 @@ export interface Task {
   completed: boolean
   completedAt?: Date
   deadline?: Date // hard deadline for task
+  sessionId: string
   createdAt: Date
   updatedAt: Date
   actualDuration?: number // for time tracking
