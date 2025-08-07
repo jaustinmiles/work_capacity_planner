@@ -289,6 +289,21 @@ export function WorkBlocksEditor({
               <Button onClick={() => setShowSaveAsTemplate(true)}>
                 Save as Template
               </Button>
+              {blocks.length > 0 && (
+                <Popconfirm
+                  title="Clear entire schedule?"
+                  content="This will remove all work blocks and meetings for this day."
+                  onOk={() => {
+                    setBlocks([])
+                    setMeetings([])
+                    Message.warning('Schedule cleared - click Save to confirm')
+                  }}
+                >
+                  <Button status="danger">
+                    Clear Schedule
+                  </Button>
+                </Popconfirm>
+              )}
               {onClose && (
                 <Button onClick={onClose}>Cancel</Button>
               )}

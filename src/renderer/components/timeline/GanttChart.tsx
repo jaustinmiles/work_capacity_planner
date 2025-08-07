@@ -7,6 +7,7 @@ import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-sch
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
+import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
 
@@ -22,6 +23,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showMultiDayEditor, setShowMultiDayEditor] = useState(false)
   const [workPatterns, setWorkPatterns] = useState<DailyWorkPattern[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
@@ -358,6 +360,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     style={{ width: '100%' }}
                   >
                     Edit Today's Schedule
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<IconCalendar />}
+                    onClick={() => setShowMultiDayEditor(true)}
+                    style={{ width: '100%' }}
+                  >
+                    Multi-Day Editor
                   </Button>
                 </Space>
               </Space>
@@ -883,6 +893,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           setShowSettings(false)
           setSelectedDate(null)
         }}
+      />
+
+      {/* Multi-Day Schedule Editor */}
+      <MultiDayScheduleEditor
+        visible={showMultiDayEditor}
+        onClose={() => setShowMultiDayEditor(false)}
+        onSave={() => loadWorkPatterns()}
       />
     </Space>
   )
