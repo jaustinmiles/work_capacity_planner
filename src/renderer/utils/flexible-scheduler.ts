@@ -92,6 +92,10 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
     let startTime = parseTimeOnDate(date, meeting.startTime)
     let endTime = parseTimeOnDate(date, meeting.endTime)
     
+    // Make meeting IDs unique per day
+    const dateStr = date.toISOString().split('T')[0]
+    const uniqueMeetingId = `${meeting.id}-${dateStr}`
+    
     // Handle meetings that cross midnight (like sleep blocks)
     if (endTime <= startTime) {
       // This meeting crosses midnight
@@ -103,7 +107,7 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
         midnight.setHours(0, 0, 0, 0)
         
         items.push({
-          id: `${meeting.id}-night`,
+          id: `${uniqueMeetingId}-night`,
           name: meeting.name,
           type: meeting.type as any,
           priority: 0,
@@ -121,7 +125,7 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
         const morningEnd = parseTimeOnDate(date, meeting.endTime)
         
         items.push({
-          id: `${meeting.id}-morning`,
+          id: `${uniqueMeetingId}-morning`,
           name: meeting.name,
           type: meeting.type as any,
           priority: 0,
@@ -141,7 +145,7 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
     // Only add the regular item if it doesn't cross midnight or isn't a sleep block
     if (endTime > startTime || !(meeting.type === 'blocked' && meeting.name === 'Sleep')) {
       items.push({
-        id: meeting.id,
+        id: uniqueMeetingId,
         name: meeting.name,
         type: meeting.type as any,
         priority: 0,
@@ -346,14 +350,8 @@ export function scheduleItemsWithBlocks(
       }
       newlyFinishedWaits.forEach(time => asyncWaitEndTimes.delete(time))
 
-      // Check dependencies
-      if (item.dependencies && item.dependencies.length > 0) {
-        const allDependenciesMet = item.dependencies.every(dep => {
-          // Direct check for the dependency ID
-          return completedSteps.has(dep)
-        })
-        if (!allDependenciesMet) continue
-      }
+      // For workflow steps, we schedule them in sequence regardless of dependencies
+      // Dependencies are for execution order, not scheduling order
 
       // Try to fit in available blocks
       let itemScheduled = false
