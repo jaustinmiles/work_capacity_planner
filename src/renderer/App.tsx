@@ -157,6 +157,87 @@ function App() {
     }
   }
 
+  const handleStartWorkflow = async (id: string) => {
+    try {
+      // Find the workflow
+      const workflow = sequencedTasks.find(st => st.id === id)
+      if (!workflow) return
+
+      // Update the workflow status to in_progress and set the first step as current
+      const firstPendingStep = workflow.steps.find(step => step.status === 'pending')
+      if (!firstPendingStep) {
+        Message.warning('No pending steps in this workflow')
+        return
+      }
+
+      await updateSequencedTask(id, {
+        overallStatus: 'in_progress',
+        currentStepId: firstPendingStep.id,
+        steps: workflow.steps.map(step => 
+          step.id === firstPendingStep.id 
+            ? { ...step, status: 'in_progress' }
+            : step
+        )
+      })
+
+      Message.success('Workflow started successfully')
+    } catch (error) {
+      console.error('Failed to start workflow:', error)
+      Message.error('Failed to start workflow')
+    }
+  }
+
+  const handlePauseWorkflow = async (id: string) => {
+    try {
+      const workflow = sequencedTasks.find(st => st.id === id)
+      if (!workflow) return
+
+      // Find the current in-progress step and pause it
+      const updatedSteps = workflow.steps.map(step => 
+        step.status === 'in_progress' 
+          ? { ...step, status: 'pending' as const }
+          : step
+      )
+
+      await updateSequencedTask(id, {
+        overallStatus: 'not_started',
+        currentStepId: undefined,
+        steps: updatedSteps
+      })
+
+      Message.success('Workflow paused')
+    } catch (error) {
+      console.error('Failed to pause workflow:', error)
+      Message.error('Failed to pause workflow')
+    }
+  }
+
+  const handleResetWorkflow = async (id: string) => {
+    try {
+      const workflow = sequencedTasks.find(st => st.id === id)
+      if (!workflow) return
+
+      // Reset all steps to pending
+      const resetSteps = workflow.steps.map(step => ({
+        ...step,
+        status: 'pending' as const,
+        completedAt: undefined,
+        actualDuration: undefined
+      }))
+
+      await updateSequencedTask(id, {
+        overallStatus: 'not_started',
+        currentStepId: undefined,
+        steps: resetSteps
+      })
+
+      Message.success('Workflow reset to initial state')
+    } catch (error) {
+      console.error('Failed to reset workflow:', error)
+      Message.error('Failed to reset workflow')
+    }
+  }
+
   const handleDeleteAllSequencedTasks = async () => {
     try {
       await getDatabase().deleteAllSequencedTasks()
@@ -388,9 +469,9 @@ function App() {
                         <SequencedTaskView
                           key={task.id}
                           task={task}
-                          onStartWorkflow={() => {/* Future: Implement workflow execution tracking */}}
-                          onPauseWorkflow={() => {/* Future: Implement workflow pause functionality */}}
-                          onResetWorkflow={() => {/* Future: Implement workflow reset to initial state */}}
+                          onStartWorkflow={() => handleStartWorkflow(task.id)}
+                          onPauseWorkflow={() => handlePauseWorkflow(task.id)}
+                          onResetWorkflow={() => handleResetWorkflow(task.id)}
                           onDelete={() => handleDeleteSequencedTask(task.id)}
                         />
                       ))}
@@ -408,9 +489,9 @@ function App() {
                   {showExampleWorkflow && (
                     <SequencedTaskView
                       task={exampleSequencedTask}
-                      onStartWorkflow={() => {/* Future: Implement workflow execution tracking */}}
-                      onPauseWorkflow={() => {/* Future: Implement workflow pause functionality */}}
-                      onResetWorkflow={() => {/* Future: Implement workflow reset to initial state */}}
+                      onStartWorkflow={() => Message.info('This is just an example workflow')}
+                      onPauseWorkflow={() => Message.info('This is just an example workflow')}
+                      onResetWorkflow={() => Message.info('This is just an example workflow')}
                     />
                   )}
                 </Space>

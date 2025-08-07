@@ -1,6 +1,6 @@
-import React from 'react'
-import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip } from '@arco-design/web-react'
-import { IconFire, IconCalendar, IconUser, IconClose, IconPlus } from '@arco-design/web-react/icon'
+import React, { useState } from 'react'
+import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip, Slider } from '@arco-design/web-react'
+import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Task } from '@shared/types'
 
@@ -12,10 +12,21 @@ interface EisenhowerMatrixProps {
 }
 
 export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
-  const { tasks, selectTask } = useTaskStore()
+  const { tasks, sequencedTasks, selectTask } = useTaskStore()
+  const [zoom, setZoom] = useState(1)
+
+  // Combine regular tasks and sequenced tasks (workflows)
+  // For sequenced tasks, use totalDuration instead of duration
+  const allTasks = [
+    ...tasks,
+    ...sequencedTasks.map(st => ({
+      ...st,
+      duration: st.totalDuration, // Use totalDuration for sequenced tasks
+    }))
+  ]
 
   // Only show incomplete tasks in the matrix
-  const incompleteTasks = tasks.filter(task => !task.completed)
+  const incompleteTasks = allTasks.filter(task => !task.completed)
 
   // Categorize tasks into quadrants
   const categorizeTask = (task: Task) => {
@@ -67,29 +78,39 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
     },
   }
 
-  const TaskCard = ({ task, color }: { task: Task; color: string }) => (
-    <Card
-      hoverable
-      style={{
-        cursor: 'pointer',
-        marginBottom: 8,
-        border: `1px solid ${color}20`,
-      }}
-      onClick={() => selectTask(task.id)}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size={4}>
-        <Text style={{ fontWeight: 500 }}>{task.name}</Text>
-        <Space size="small">
-          <Tag size="small" color={task.type === 'focused' ? 'blue' : 'green'}>
-            {task.type === 'focused' ? 'Focused' : 'Admin'}
-          </Tag>
-          <Tag size="small">
-            {Math.floor(task.duration / 60)}h {task.duration % 60}m
-          </Tag>
+  const TaskCard = ({ task, color }: { task: Task; color: string }) => {
+    // Check if this is a sequenced task (workflow)
+    const isWorkflow = sequencedTasks.some(st => st.id === task.id)
+    
+    return (
+      <Card
+        hoverable
+        style={{
+          cursor: 'pointer',
+          marginBottom: 8,
+          border: `1px solid ${color}20`,
+        }}
+        onClick={() => selectTask(task.id)}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={4}>
+          <Text style={{ fontWeight: 500 }}>{task.name}</Text>
+          <Space size="small">
+            {isWorkflow && (
+              <Tag size="small" color="purple">
+                Workflow
+              </Tag>
+            )}
+            <Tag size="small" color={task.type === 'focused' ? 'blue' : 'green'}>
+              {task.type === 'focused' ? 'Focused' : 'Admin'}
+            </Tag>
+            <Tag size="small">
+              {Math.floor(task.duration / 60)}h {task.duration % 60}m
+            </Tag>
+          </Space>
         </Space>
-      </Space>
-    </Card>
-  )
+      </Card>
+    )
+  }
 
   const QuadrantCard = ({ quadrant }: { quadrant: keyof typeof quadrants }) => {
     const config = quadrantConfig[quadrant]
@@ -144,9 +165,9 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
-      {/* Header with Add Task Button */}
+      {/* Header with Add Task Button and Zoom Controls */}
       <Card>
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Space style={{ width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <Title heading={5} style={{ margin: 0 }}>
               Eisenhower Priority Matrix
@@ -155,62 +176,90 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               Organize tasks by importance and urgency to focus on what matters most
             </Text>
           </div>
-          <Button type="primary" icon={<IconPlus />} onClick={onAddTask}>
-            Add Task
-          </Button>
+          <Space>
+            <Space>
+              <Button icon={<IconZoomOut />} onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} />
+              <Slider
+                value={zoom}
+                onChange={setZoom}
+                min={0.5}
+                max={2}
+                step={0.1}
+                style={{ width: 120 }}
+                formatTooltip={(val) => `${Math.round(val * 100)}%`}
+              />
+              <Button icon={<IconZoomIn />} onClick={() => setZoom(Math.min(2, zoom + 0.1))} />
+            </Space>
+            <Button type="primary" icon={<IconPlus />} onClick={onAddTask}>
+              Add Task
+            </Button>
+          </Space>
         </Space>
       </Card>
 
       {/* Matrix Grid */}
-      <div style={{ position: 'relative' }}>
-        {/* Axis Labels */}
+      <div style={{ 
+        position: 'relative', 
+        overflow: 'auto',
+        maxHeight: 'calc(100vh - 300px)',
+        border: '1px solid #e5e6eb',
+        borderRadius: 4,
+        padding: 16,
+      }}>
         <div style={{
-          position: 'absolute',
-          top: -30,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1,
+          transform: `scale(${zoom})`,
+          transformOrigin: 'top left',
+          width: `${100 / zoom}%`,
         }}>
-          <Text type="secondary" style={{ fontWeight: 500 }}>
-            ← Less Urgent ——— More Urgent →
-          </Text>
-        </div>
+          {/* Axis Labels */}
+          <div style={{
+            position: 'absolute',
+            top: -30,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1,
+          }}>
+            <Text type="secondary" style={{ fontWeight: 500 }}>
+              ← Less Urgent ——— More Urgent →
+            </Text>
+          </div>
 
-        <div style={{
-          position: 'absolute',
-          left: -100,
-          top: '50%',
-          transform: 'translateY(-50%) rotate(-90deg)',
-          zIndex: 1,
-        }}>
-          <Text type="secondary" style={{ fontWeight: 500 }}>
-            ← Less Important ——— More Important →
-          </Text>
-        </div>
+          <div style={{
+            position: 'absolute',
+            left: -100,
+            top: '50%',
+            transform: 'translateY(-50%) rotate(-90deg)',
+            zIndex: 1,
+          }}>
+            <Text type="secondary" style={{ fontWeight: 500 }}>
+              ← Less Important ——— More Important →
+            </Text>
+          </div>
 
-        {/* Quadrants */}
-        <Row gutter={16} style={{ marginTop: 40, marginLeft: 40 }}>
-          <Col span={12}>
-            <Row gutter={[16, 16]}>
-              <Col span={24} style={{ height: 300 }}>
-                <QuadrantCard quadrant="schedule" />
-              </Col>
-              <Col span={24} style={{ height: 300 }}>
-                <QuadrantCard quadrant="eliminate" />
-              </Col>
-            </Row>
-          </Col>
-          <Col span={12}>
-            <Row gutter={[16, 16]}>
-              <Col span={24} style={{ height: 300 }}>
-                <QuadrantCard quadrant="do-first" />
-              </Col>
-              <Col span={24} style={{ height: 300 }}>
-                <QuadrantCard quadrant="delegate" />
-              </Col>
-            </Row>
-          </Col>
-        </Row>
+          {/* Quadrants */}
+          <Row gutter={24} style={{ marginTop: 40, marginLeft: 40 }}>
+            <Col span={12}>
+              <Row gutter={[24, 24]}>
+                <Col span={24} style={{ minHeight: 400 }}>
+                  <QuadrantCard quadrant="schedule" />
+                </Col>
+                <Col span={24} style={{ minHeight: 400 }}>
+                  <QuadrantCard quadrant="eliminate" />
+                </Col>
+              </Row>
+            </Col>
+            <Col span={12}>
+              <Row gutter={[24, 24]}>
+                <Col span={24} style={{ minHeight: 400 }}>
+                  <QuadrantCard quadrant="do-first" />
+                </Col>
+                <Col span={24} style={{ minHeight: 400 }}>
+                  <QuadrantCard quadrant="delegate" />
+                </Col>
+              </Row>
+            </Col>
+          </Row>
+        </div>
       </div>
 
       {/* Info Footer */}
