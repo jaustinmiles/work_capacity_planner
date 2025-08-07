@@ -176,11 +176,11 @@ function App() {
       await updateSequencedTask(id, {
         overallStatus: 'in_progress',
         currentStepId: firstPendingStep.id,
-        steps: workflow.steps.map(step => 
-          step.id === firstPendingStep.id 
+        steps: workflow.steps.map(step =>
+          step.id === firstPendingStep.id
             ? { ...step, status: 'in_progress' }
-            : step
-        )
+            : step,
+        ),
       })
 
       Message.success('Workflow started successfully')
@@ -196,16 +196,16 @@ function App() {
       if (!workflow) return
 
       // Find the current in-progress step and pause it
-      const updatedSteps = workflow.steps.map(step => 
-        step.status === 'in_progress' 
+      const updatedSteps = workflow.steps.map(step =>
+        step.status === 'in_progress'
           ? { ...step, status: 'pending' as const }
-          : step
+          : step,
       )
 
       await updateSequencedTask(id, {
         overallStatus: 'not_started',
         currentStepId: undefined,
-        steps: updatedSteps
+        steps: updatedSteps,
       })
 
       Message.success('Workflow paused')
@@ -225,13 +225,13 @@ function App() {
         ...step,
         status: 'pending' as const,
         completedAt: undefined,
-        actualDuration: undefined
+        actualDuration: undefined,
       }))
 
       await updateSequencedTask(id, {
         overallStatus: 'not_started',
         currentStepId: undefined,
-        steps: resetSteps
+        steps: resetSteps,
       })
 
       Message.success('Workflow reset to initial state')
@@ -473,7 +473,7 @@ function App() {
                             </Button>
                           </Popconfirm>
                         )}
-                        <TestWorkflowCreator />
+                        {process.env.NODE_ENV === 'development' && <TestWorkflowCreator />}
                       </div>
 
                       {sequencedTasks.map(task => (

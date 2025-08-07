@@ -135,13 +135,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Row height based on zoom
   const rowHeight = 40
-  
+
   // Calculate row positions for items (group workflow steps together)
   const itemRowPositions = useMemo(() => {
     const positions = new Map<string, number>()
     let currentRow = 0
     const workflowRows = new Map<string, number>()
-    
+
     scheduledItems.forEach(item => {
       if (item.workflowId) {
         // This is a workflow step
@@ -160,7 +160,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         positions.set(item.id, positions.get(parentId) || currentRow)
       }
     })
-    
+
     return { positions, totalRows: currentRow }
   }, [scheduledItems])
 
@@ -168,15 +168,15 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   if (scheduledItems.length === 0) {
     return (
       <Card>
-        <Empty 
+        <Empty
           description={
             <Space direction="vertical" align="center">
               <Text>No scheduled items to display</Text>
               {workPatterns.length === 0 ? (
                 <>
                   <Text type="secondary">You need to set up your work schedule first</Text>
-                  <Button 
-                    type="primary" 
+                  <Button
+                    type="primary"
                     icon={<IconSettings />}
                     onClick={() => {
                       setSelectedDate(dayjs().format('YYYY-MM-DD'))
@@ -349,24 +349,24 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             {/* Chart body */}
             <div style={{ position: 'relative', paddingTop: 10 }}>
               {/* Row labels and backgrounds */}
-              <div style={{ 
-                position: 'absolute', 
-                left: 0, 
-                top: 0, 
+              <div style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
                 width: '100%',
                 zIndex: 0,
               }}>
                 {Array.from({ length: itemRowPositions.totalRows }).map((_, rowIndex) => {
                   // Find what's in this row
-                  const rowItems = scheduledItems.filter(item => 
-                    itemRowPositions.positions.get(item.id) === rowIndex
+                  const rowItems = scheduledItems.filter(item =>
+                    itemRowPositions.positions.get(item.id) === rowIndex,
                   )
                   const firstItem = rowItems[0]
                   const isWorkflowRow = firstItem?.workflowId
-                  const rowLabel = isWorkflowRow 
-                    ? firstItem.workflowName 
+                  const rowLabel = isWorkflowRow
+                    ? firstItem.workflowName
                     : firstItem?.name.replace(/\[.*\]\s*/, '')
-                  
+
                   return (
                     <div
                       key={rowIndex}
@@ -578,7 +578,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                               right: 4,
                               top: '50%',
                               transform: 'translateY(-50%)',
-                              background: dayjs(item.deadline).isBefore(dayjs()) ? '#ff4d4f' : 
+                              background: dayjs(item.deadline).isBefore(dayjs()) ? '#ff4d4f' :
                                          dayjs(item.deadline).isBefore(dayjs().add(1, 'day')) ? '#ff7d00' : '#3370ff',
                               color: '#fff',
                               padding: '2px 6px',

@@ -17,32 +17,30 @@ interface WorkflowVisualizationProps {
 export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisualizationProps) {
   const [isEditMode, setIsEditMode] = useState(false)
   const { updateSequencedTask, sequencedTasks } = useTaskStore()
-  
+
   if (!task) return null
-  
+
   // Use the latest task data from store
   const currentTask = sequencedTasks.find(t => t.id === task.id) || task
-  
+
   // Reset edit mode when modal closes
   React.useEffect(() => {
     if (!visible) {
       setIsEditMode(false)
     }
   }, [visible])
-  
+
   const handleUpdateDependencies = async (stepId: string, dependencies: string[]) => {
     try {
-      const updatedSteps = currentTask.steps.map(step => 
-        step.id === stepId 
+      const updatedSteps = currentTask.steps.map(step =>
+        step.id === stepId
           ? { ...step, dependsOn: dependencies }
-          : step
+          : step,
       )
-      
+
       await updateSequencedTask(currentTask.id, {
-        steps: updatedSteps
+        steps: updatedSteps,
       })
-      
-      console.log('Workflow dependencies updated successfully')
     } catch (error) {
       console.error('Failed to update dependencies:', error)
     }
@@ -80,8 +78,8 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
           </Space>
         </div>
         {isEditMode ? (
-        <InteractiveWorkflowGraph 
-          task={currentTask} 
+        <InteractiveWorkflowGraph
+          task={currentTask}
           isEditable={true}
           onUpdateDependencies={handleUpdateDependencies}
         />

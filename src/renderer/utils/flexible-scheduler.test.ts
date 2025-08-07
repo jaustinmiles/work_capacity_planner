@@ -137,9 +137,9 @@ describe('Flexible Scheduler', () => {
 
       // Check that tasks are scheduled within capacity limits
       const focusBlock = scheduled.filter(
-        item => item.startTime.getHours() >= 9 && item.startTime.getHours() < 12
+        item => item.startTime.getHours() >= 9 && item.startTime.getHours() < 12,
       )
-      
+
       // The focused block (9-12) has 180 minutes capacity
       // So both 120-minute focus tasks should fit
       expect(focusBlock.length).toBeGreaterThanOrEqual(1)

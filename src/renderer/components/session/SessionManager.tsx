@@ -70,7 +70,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       const values = await form.validate()
       const db = getDatabase()
       await db.createSession(values.name, values.description)
-      
+
       Message.success('Session created and activated')
       form.resetFields()
       setCreateModalVisible(false)
@@ -86,7 +86,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
     try {
       const db = getDatabase()
       await db.switchSession(sessionId)
-      
+
       Message.success('Switched to session')
       await loadSessions()
       onSessionChange?.()
@@ -103,7 +103,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       const values = await form.validate()
       const db = getDatabase()
       await db.updateSession(editingSession.id, values)
-      
+
       Message.success('Session updated')
       form.resetFields()
       setEditingSession(null)
@@ -118,7 +118,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
     try {
       const db = getDatabase()
       await db.deleteSession(sessionId)
-      
+
       Message.success('Session deleted')
       await loadSessions()
     } catch (error) {

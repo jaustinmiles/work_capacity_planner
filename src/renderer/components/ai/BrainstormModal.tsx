@@ -160,12 +160,12 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       console.log('Recording already in progress')
       return
     }
-    
+
     try {
       console.log('Starting recording...')
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       console.log('Got media stream:', stream)
-      
+
       // Try to find a supported MIME type
       let mimeType = 'audio/webm'
       const possibleTypes = [
@@ -174,16 +174,16 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         'audio/ogg;codecs=opus',
         'audio/mp4',
       ]
-      
+
       for (const type of possibleTypes) {
         if (MediaRecorder.isTypeSupported(type)) {
           mimeType = type
           break
         }
       }
-      
+
       console.log('Using MIME type:', mimeType)
-      
+
       const mediaRecorder = new MediaRecorder(stream, { mimeType })
       console.log('Created MediaRecorder:', mediaRecorder)
 
@@ -214,12 +214,12 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       mediaRecorder.start(1000) // Collect data every second
       console.log('MediaRecorder started, state:', mediaRecorder.state)
-      
+
       // Force state update to ensure UI updates
       setRecordingDuration(0)
       setError(null)
       setRecordingState('recording')
-      
+
       // Log to verify state update was called
       console.log('Called setRecordingState with "recording"')
     } catch (error) {
@@ -647,7 +647,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
               )}
 
               {isTranscribing && <Text type="secondary">Transcribing...</Text>}
-              
+
               {/* Debug info */}
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Debug: State={recordingState}, Duration={recordingDuration}s

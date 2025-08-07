@@ -455,9 +455,9 @@ export class DatabaseService {
   async getActiveJobContext(): Promise<any | null> {
     const sessionId = await this.getActiveSession()
     const context = await this.client.jobContext.findFirst({
-      where: { 
+      where: {
         sessionId,
-        isActive: true 
+        isActive: true,
       },
       include: {
         contextEntries: true,
@@ -652,7 +652,7 @@ export class DatabaseService {
   async getJargonDictionary(): Promise<Record<string, string>> {
     const sessionId = await this.getActiveSession()
     const entries = await this.client.jargonEntry.findMany({
-      where: { sessionId }
+      where: { sessionId },
     })
     const dictionary: Record<string, string> = {}
 
@@ -676,11 +676,11 @@ export class DatabaseService {
   async getWorkPattern(date: string): Promise<any> {
     const sessionId = await this.getActiveSession()
     const pattern = await this.client.workPattern.findUnique({
-      where: { 
+      where: {
         sessionId_date: {
           sessionId,
-          date
-        }
+          date,
+        },
       },
       include: {
         blocks: true,
@@ -815,8 +815,7 @@ export class DatabaseService {
   }
 
   async updateWorkSession(id: string, data: any): Promise<any> {
-
-    const { id: _id, ...updateData } = data
+    const { id: _, ...updateData } = data
     return this.client.workSession.update({
       where: { id },
       data: updateData,
@@ -826,11 +825,11 @@ export class DatabaseService {
   async getWorkSessions(date: string): Promise<any[]> {
     const sessionId = await this.getActiveSession()
     const pattern = await this.client.workPattern.findUnique({
-      where: { 
+      where: {
         sessionId_date: {
           sessionId,
-          date
-        }
+          date,
+        },
       },
       include: { sessions: true },
     })

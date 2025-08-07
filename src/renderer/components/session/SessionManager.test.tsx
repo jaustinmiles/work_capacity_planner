@@ -17,7 +17,7 @@ describe('SessionManager', () => {
         visible={true}
         onClose={mockOnClose}
         onSessionChange={mockOnSessionChange}
-      />
+      />,
     )
 
     expect(screen.getByText('Session Management')).toBeInTheDocument()
@@ -34,7 +34,7 @@ describe('SessionManager', () => {
         updatedAt: new Date('2024-01-15'),
       },
       {
-        id: 'session-2', 
+        id: 'session-2',
         name: 'Planning Session',
         description: 'Q1 planning',
         isActive: false,
@@ -50,7 +50,7 @@ describe('SessionManager', () => {
         visible={true}
         onClose={mockOnClose}
         onSessionChange={mockOnSessionChange}
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -64,7 +64,7 @@ describe('SessionManager', () => {
 
   it('should create a new session', async () => {
     const user = userEvent.setup()
-    
+
     window.electronAPI.db.getSessions.mockResolvedValue([])
     window.electronAPI.db.createSession.mockResolvedValue({
       id: 'new-session',
@@ -80,7 +80,7 @@ describe('SessionManager', () => {
         visible={true}
         onClose={mockOnClose}
         onSessionChange={mockOnSessionChange}
-      />
+      />,
     )
 
     // Click new session button
@@ -90,7 +90,7 @@ describe('SessionManager', () => {
     // Fill in the form
     const nameInput = screen.getByPlaceholderText('e.g., Project Alpha, Q4 Planning')
     const descriptionInput = screen.getByPlaceholderText('Describe what this session is for...')
-    
+
     await user.type(nameInput, 'New Project')
     await user.type(descriptionInput, 'Test description')
 
@@ -101,7 +101,7 @@ describe('SessionManager', () => {
     await waitFor(() => {
       expect(window.electronAPI.db.createSession).toHaveBeenCalledWith(
         'New Project',
-        'Test description'
+        'Test description',
       )
       expect(mockOnSessionChange).toHaveBeenCalled()
     })
@@ -109,7 +109,7 @@ describe('SessionManager', () => {
 
   it('should switch between sessions', async () => {
     const user = userEvent.setup()
-    
+
     const mockSessions = [
       {
         id: 'session-1',
@@ -138,7 +138,7 @@ describe('SessionManager', () => {
         visible={true}
         onClose={mockOnClose}
         onSessionChange={mockOnSessionChange}
-      />
+      />,
     )
 
     await waitFor(() => {
@@ -173,7 +173,7 @@ describe('SessionManager', () => {
         visible={true}
         onClose={mockOnClose}
         onSessionChange={mockOnSessionChange}
-      />
+      />,
     )
 
     await waitFor(() => {

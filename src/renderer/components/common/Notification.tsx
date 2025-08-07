@@ -119,7 +119,7 @@ class NotificationManager {
             onClose={() => this.remove(id)}
           />
         ))}
-      </div>
+      </div>,
     )
   }
 

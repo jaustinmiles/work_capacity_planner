@@ -119,8 +119,8 @@ export function WorkBlocksEditor({
         ...values,
         recurring: values.recurring === 'none' ? undefined : {
           pattern: values.recurring,
-          daysOfWeek: values.recurring === 'weekly' ? [new Date().getDay()] : undefined
-        }
+          daysOfWeek: values.recurring === 'weekly' ? [new Date().getDay()] : undefined,
+        },
       }
 
       if (editingMeeting && meetings.find(m => m.id === editingMeeting.id)) {
@@ -386,7 +386,7 @@ export function WorkBlocksEditor({
                           setEditingMeeting(meeting)
                           form.setFieldsValue({
                             ...meeting,
-                            recurring: meeting.recurring?.pattern || 'none'
+                            recurring: meeting.recurring?.pattern || 'none',
                           })
                           setShowMeetingModal(true)
                         }}

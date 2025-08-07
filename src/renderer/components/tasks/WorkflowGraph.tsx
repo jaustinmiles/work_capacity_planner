@@ -22,7 +22,7 @@ interface GraphNode {
 
 export function WorkflowGraph({ task }: WorkflowGraphProps) {
   const { sequencedTasks } = useTaskStore()
-  
+
   // Always use the latest task data from store
   const currentTask = sequencedTasks.find(t => t.id === task.id) || task
   const { nodes, maxX, maxY } = useMemo(() => {
@@ -134,7 +134,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 )
               }
               return null
-            }).filter(Boolean)
+            }).filter(Boolean),
           )}
 
           {/* Draw nodes */}

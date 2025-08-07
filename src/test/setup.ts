@@ -5,11 +5,11 @@ import { vi } from 'vitest'
 vi.mock('dayjs', () => {
   const actual = vi.importActual('dayjs')
   const dayjs = actual.default
-  
+
   // Add the relativeTime plugin
   const relativeTime = vi.importActual('dayjs/plugin/relativeTime')
   dayjs.extend(relativeTime.default)
-  
+
   return {
     default: dayjs,
     __esModule: true,

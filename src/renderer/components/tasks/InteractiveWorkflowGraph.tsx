@@ -65,7 +65,7 @@ const WorkflowNode = ({ data }: { data: any }) => {
           }}
         />
       )}
-      
+
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <div
           style={{
@@ -121,12 +121,12 @@ export function InteractiveWorkflowGraph({
   const nodeTypes = useMemo(() => ({
     workflow: WorkflowNode,
   }), [])
-  
+
   // Convert task steps to React Flow nodes
   const initialNodes = useMemo(() => {
     const nodes: Node[] = []
     const levelMap = new Map<string, number>()
-    
+
     // Calculate levels based on dependencies
     task.steps.forEach((step) => {
       let level = 0
@@ -171,13 +171,13 @@ export function InteractiveWorkflowGraph({
   // Convert dependencies to React Flow edges
   const initialEdges = useMemo(() => {
     const edges: Edge[] = []
-    
+
     task.steps.forEach((step) => {
       step.dependsOn.forEach((depId) => {
         // Ensure both source and target steps exist
         const sourceExists = task.steps.some(s => s.id === depId)
         const targetExists = task.steps.some(s => s.id === step.id)
-        
+
         if (sourceExists && targetExists) {
           edges.push({
             id: `${depId}-${step.id}`,
@@ -197,18 +197,17 @@ export function InteractiveWorkflowGraph({
       })
     })
 
-    console.log('Initial edges from task data:', edges)
     return edges
   }, [task])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
-  
+
   // Update nodes when task changes
   useEffect(() => {
     setNodes(initialNodes)
   }, [initialNodes, setNodes])
-  
+
   // Update edges when task changes (but only if not actively editing)
   useEffect(() => {
     if (!isEditable) {
@@ -229,10 +228,10 @@ export function InteractiveWorkflowGraph({
       while (stack.length > 0) {
         const current = stack.pop()!
         if (current === target) return true
-        
+
         if (!visited.has(current)) {
           visited.add(current)
-          
+
           // Add all nodes that depend on current
           edges.forEach(edge => {
             if (edge.source === current && !visited.has(edge.target)) {
@@ -280,7 +279,7 @@ export function InteractiveWorkflowGraph({
         }
       }
     },
-    [isValidConnection, setEdges, onUpdateDependencies, task.steps]
+    [isValidConnection, setEdges, onUpdateDependencies, task.steps],
   )
 
   const onEdgeDelete = useCallback(
@@ -298,7 +297,7 @@ export function InteractiveWorkflowGraph({
         })
       }
     },
-    [setEdges, onUpdateDependencies, task.steps]
+    [setEdges, onUpdateDependencies, task.steps],
   )
 
   return (
@@ -333,7 +332,7 @@ export function InteractiveWorkflowGraph({
           <Controls />
         </ReactFlow>
       </div>
-      
+
       {isEditable && (
         <div style={{ padding: 16, borderTop: '1px solid #e5e6eb' }}>
           <Space direction="vertical">

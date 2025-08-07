@@ -24,11 +24,11 @@ describe('RendererDatabaseService', () => {
     })
 
     it('should create a new session', async () => {
-      const mockSession = { 
-        id: 'new-session', 
+      const mockSession = {
+        id: 'new-session',
         name: 'New Session',
         description: 'Test description',
-        isActive: true 
+        isActive: true,
       }
       window.electronAPI.db.createSession.mockResolvedValue(mockSession)
 
@@ -52,11 +52,11 @@ describe('RendererDatabaseService', () => {
   describe('Task Operations', () => {
     it('should get tasks from electron API', async () => {
       const mockTasks = [
-        { 
-          id: '1', 
-          name: 'Task 1', 
+        {
+          id: '1',
+          name: 'Task 1',
           completed: false,
-          sessionId: 'session-1'
+          sessionId: 'session-1',
         },
       ]
       window.electronAPI.db.getTasks.mockResolvedValue(mockTasks)

@@ -50,7 +50,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       ...step,
       // Ensure each step has an ID for dependency tracking
       id: step.id || `step-${task.id}-${index}`,
-    }))
+    })),
   )
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -122,7 +122,6 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         worstCaseDuration,
       })
 
-      console.log('Workflow updated successfully')
       setIsEditing(false)
       if (onClose) onClose()
     } catch (error) {
@@ -348,7 +347,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       )}
 
       {/* Steps List */}
-      <Card 
+      <Card
         title="Workflow Steps"
         bodyStyle={{ padding: 24 }}
       >

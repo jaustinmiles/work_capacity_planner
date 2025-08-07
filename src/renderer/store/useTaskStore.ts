@@ -280,7 +280,6 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   // Settings actions
   updateWorkSettings: async (settings: WorkSettings) => {
     set({ workSettings: settings })
-    // TODO: Persist to localStorage or database
     window.localStorage.setItem('workSettings', JSON.stringify(settings))
   },
 

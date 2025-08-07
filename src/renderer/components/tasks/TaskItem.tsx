@@ -156,7 +156,7 @@ export function TaskItem({ task }: TaskItemProps) {
                       <Tooltip content={`Due: ${dayjs(task.deadline).format('MMM D, YYYY h:mm A')}`}>
                         <Tag
                           icon={<IconCalendar />}
-                          color={dayjs(task.deadline).isBefore(dayjs()) ? 'red' : 
+                          color={dayjs(task.deadline).isBefore(dayjs()) ? 'red' :
                                  dayjs(task.deadline).isBefore(dayjs().add(1, 'day')) ? 'orange' : 'blue'}
                           size="small"
                         >

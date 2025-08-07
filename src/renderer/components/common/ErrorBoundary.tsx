@@ -68,10 +68,10 @@ export class ErrorBoundary extends Component<Props, State> {
                     <summary style={{ cursor: 'pointer', color: '#86909c' }}>
                       Component Stack Trace
                     </summary>
-                    <pre style={{ 
-                      marginTop: 8, 
-                      padding: 12, 
-                      background: '#f5f5f5', 
+                    <pre style={{
+                      marginTop: 8,
+                      padding: 12,
+                      background: '#f5f5f5',
                       borderRadius: 4,
                       fontSize: 12,
                       overflow: 'auto',

@@ -27,9 +27,9 @@ describe('GanttChart', () => {
 
   it('maintains consistent hook order across renders', () => {
     const { rerender } = render(
-      <GanttChart tasks={mockTasks} sequencedTasks={mockSequencedTasks} />
+      <GanttChart tasks={mockTasks} sequencedTasks={mockSequencedTasks} />,
     )
-    
+
     // Re-render with same props - should not throw hooks error
     expect(() => {
       rerender(<GanttChart tasks={mockTasks} sequencedTasks={mockSequencedTasks} />)

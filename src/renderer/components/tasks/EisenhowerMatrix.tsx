@@ -22,7 +22,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
     ...sequencedTasks.map(st => ({
       ...st,
       duration: st.totalDuration, // Use totalDuration for sequenced tasks
-    }))
+    })),
   ]
 
   // Only show incomplete tasks in the matrix
@@ -81,7 +81,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const TaskCard = ({ task, color }: { task: Task; color: string }) => {
     // Check if this is a sequenced task (workflow)
     const isWorkflow = sequencedTasks.some(st => st.id === task.id)
-    
+
     return (
       <Card
         hoverable
@@ -198,8 +198,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       </Card>
 
       {/* Matrix Grid */}
-      <div style={{ 
-        position: 'relative', 
+      <div style={{
+        position: 'relative',
         overflow: 'auto',
         maxHeight: 'calc(100vh - 300px)',
         border: '1px solid #e5e6eb',

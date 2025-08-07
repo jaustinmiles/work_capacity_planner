@@ -64,7 +64,6 @@ export function TestWorkflowCreator() {
     }
 
     await addSequencedTask(testWorkflow)
-    console.log('Test workflow created!')
   }
 
   return (
