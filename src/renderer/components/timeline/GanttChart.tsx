@@ -141,7 +141,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const positions = new Map<string, number>()
     let currentRow = 0
     const workflowRows = new Map<string, number>()
+    const workflowProgress = new Map<string, { completed: number, total: number }>()
 
+    // First pass: calculate workflow progress
+    scheduledItems.forEach(item => {
+      if (item.workflowId && item.type === 'workflow-step' && !item.isWaitTime) {
+        if (!workflowProgress.has(item.workflowId)) {
+          workflowProgress.set(item.workflowId, { completed: 0, total: 0 })
+        }
+        const progress = workflowProgress.get(item.workflowId)!
+        progress.total++
+        if (item.originalItem && 'status' in item.originalItem && item.originalItem.status === 'completed') {
+          progress.completed++
+        }
+      }
+    })
+
+    // Second pass: assign positions
     scheduledItems.forEach(item => {
       if (item.workflowId) {
         // This is a workflow step
@@ -161,7 +177,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       }
     })
 
-    return { positions, totalRows: currentRow }
+    return { positions, totalRows: currentRow, workflowProgress }
   }, [scheduledItems])
 
   // Early return for empty state - AFTER all hooks
@@ -399,7 +415,26 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                             alignItems: 'center',
                           }}
                         >
-                          {isWorkflowRow && '🔄 '}{rowLabel}
+                          {isWorkflowRow && (
+                            <>
+                              <span style={{ marginRight: 6 }}>🔄</span>
+                              <span style={{ flex: 1 }}>{rowLabel}</span>
+                              {itemRowPositions.workflowProgress.has(firstItem.workflowId) && (
+                                <span style={{ 
+                                  marginLeft: 8, 
+                                  fontSize: 11, 
+                                  color: '#999',
+                                  backgroundColor: 'rgba(0,0,0,0.05)',
+                                  padding: '2px 6px',
+                                  borderRadius: 10,
+                                }}>
+                                  {itemRowPositions.workflowProgress.get(firstItem.workflowId)!.completed}/
+                                  {itemRowPositions.workflowProgress.get(firstItem.workflowId)!.total}
+                                </span>
+                              )}
+                            </>
+                          )}
+                          {!isWorkflowRow && rowLabel}
                         </div>
                       )}
                     </div>
@@ -472,6 +507,70 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   </div>
                 </div>
               )}
+
+              {/* Dependency arrows - render before bars so they appear behind */}
+              <svg
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }}
+              >
+                {scheduledItems.map((item) => {
+                  if (!item.originalItem || !('dependsOn' in item.originalItem) || !item.originalItem.dependsOn) {
+                    return null
+                  }
+                  
+                  const dependencies = item.originalItem.dependsOn as string[]
+                  
+                  return dependencies.map((depId) => {
+                    // Find the dependent item
+                    const dependentItem = scheduledItems.find(si => 
+                      si.originalItem && 'id' in si.originalItem && si.originalItem.id === depId
+                    )
+                    
+                    if (!dependentItem || !itemRowPositions.positions.has(dependentItem.id) || !itemRowPositions.positions.has(item.id)) {
+                      return null
+                    }
+                    
+                    const fromX = getPositionPx(dependentItem.endTime)
+                    const fromY = (itemRowPositions.positions.get(dependentItem.id) || 0) * rowHeight + rowHeight / 2
+                    const toX = getPositionPx(item.startTime)
+                    const toY = (itemRowPositions.positions.get(item.id) || 0) * rowHeight + rowHeight / 2
+                    
+                    // Calculate control points for a nice curve
+                    const midX = (fromX + toX) / 2
+                    const ctrlX1 = midX
+                    const ctrlX2 = midX
+                    
+                    return (
+                      <g key={`${dependentItem.id}-${item.id}`}>
+                        {/* Arrow path */}
+                        <path
+                          d={`M ${fromX} ${fromY} C ${ctrlX1} ${fromY}, ${ctrlX2} ${toY}, ${toX} ${toY}`}
+                          stroke={item.color}
+                          strokeWidth="2"
+                          fill="none"
+                          strokeDasharray={item.isWaitTime ? "5,5" : "none"}
+                          opacity={0.6}
+                        />
+                        {/* Arrow head */}
+                        {!item.isWaitTime && (
+                          <polygon
+                            points={`${toX},${toY} ${toX - 8},${toY - 4} ${toX - 8},${toY + 4}`}
+                            fill={item.color}
+                            opacity={0.8}
+                          />
+                        )}
+                      </g>
+                    )
+                  })
+                })}
+              </svg>
 
               {/* Gantt bars */}
               {scheduledItems.map((item, index) => {
@@ -607,6 +706,18 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                               display: 'block',
                             }}
                           >
+                            {item.stepIndex !== undefined && !isWaitTime && (
+                              <span style={{ 
+                                marginRight: 4, 
+                                fontWeight: 'bold',
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                padding: '0 3px',
+                                borderRadius: 3,
+                                fontSize: '0.9em',
+                              }}>
+                                {item.stepIndex + 1}
+                              </span>
+                            )}
                             {item.workflowId ? item.name.replace(/^\[.*?\]\s*/, '') : item.name}
                           </Text>
                         )}
@@ -621,14 +732,38 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
         {/* Legend */}
         <div style={{ marginTop: 20, borderTop: '1px solid #e5e5e5', paddingTop: 16 }}>
-          <Space>
-            <Tag color="red">Critical Priority (64+)</Tag>
-            <Tag color="orange">High Priority (49-63)</Tag>
-            <Tag color="gold">Medium Priority (36-48)</Tag>
-            <Tag color="green">Low Priority (&lt;36)</Tag>
-            <div style={{ marginLeft: 20 }}>
-              <Text type="secondary">Dashed = Async waiting | Striped = Blocked time</Text>
-            </div>
+          <Space direction="vertical" size="small">
+            <Space>
+              <Tag color="red">Critical Priority (64+)</Tag>
+              <Tag color="orange">High Priority (49-63)</Tag>
+              <Tag color="gold">Medium Priority (36-48)</Tag>
+              <Tag color="green">Low Priority (&lt;36)</Tag>
+            </Space>
+            <Space>
+              <Text type="secondary">
+                <span style={{ marginRight: 16 }}>
+                  <span style={{ 
+                    display: 'inline-block',
+                    width: 20,
+                    height: 2,
+                    backgroundColor: '#999',
+                    verticalAlign: 'middle',
+                    marginRight: 4
+                  }} />
+                  Dependencies
+                </span>
+                <span style={{ marginRight: 16 }}>Dashed = Async waiting</span>
+                <span style={{ marginRight: 16 }}>Striped = Blocked time</span>
+                <span style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  padding: '0 4px',
+                  borderRadius: 3,
+                  marginRight: 4,
+                  color: '#666'
+                }}>1</span>
+                Step number
+              </Text>
+            </Space>
           </Space>
         </div>
       </Card>

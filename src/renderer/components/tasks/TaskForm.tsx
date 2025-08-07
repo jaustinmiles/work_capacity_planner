@@ -19,11 +19,16 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
   const handleSubmit = async () => {
     try {
       const values = await form.validate()
-      await addTask({
+      
+      // Convert deadline to ISO string if present
+      const taskData = {
         ...values,
+        deadline: values.deadline ? values.deadline.toISOString() : undefined,
         dependencies: [],
         completed: false,
-      })
+      }
+      
+      await addTask(taskData)
 
       form.resetFields()
       onClose()
