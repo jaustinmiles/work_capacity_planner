@@ -54,7 +54,7 @@ export function WorkScheduleModal({
     try {
       const db = getDatabase()
 
-      if (pattern) {
+      if (pattern && pattern.id) {
         // Update existing pattern
         await db.updateWorkPattern(pattern.id, {
           blocks,
@@ -62,16 +62,19 @@ export function WorkScheduleModal({
         })
       } else {
         // Create new pattern
-        await db.createWorkPattern({
+        const newPattern = await db.createWorkPattern({
           date,
           blocks,
           meetings,
         })
+        // Update local state with the new pattern
+        setPattern(newPattern)
       }
 
       Message.success('Work schedule saved successfully')
       onSave?.()
-      onClose()
+      // Reload pattern to ensure we have the latest data
+      await loadPattern()
     } catch (error) {
       console.error('Failed to save work pattern:', error)
       Message.error('Failed to save work schedule')

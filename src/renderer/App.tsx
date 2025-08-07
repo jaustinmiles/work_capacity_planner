@@ -17,6 +17,7 @@ import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { SessionManager } from './components/session/SessionManager'
+import { DevTools } from './components/dev/DevTools'
 import { useTaskStore } from './store/useTaskStore'
 import { exampleSequencedTask } from '@shared/sequencing-types'
 import { getDatabase } from './services/database'
@@ -45,6 +46,7 @@ function App() {
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
+  const [showDevTools, setShowDevTools] = useState(false)
   const {
     tasks,
     sequencedTasks,
@@ -66,6 +68,20 @@ function App() {
   useEffect(() => {
     initializeData()
   }, [initializeData])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + Shift + D for DevTools
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
+        e.preventDefault()
+        setShowDevTools(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Generate weekly schedule when timeline view is accessed
   useEffect(() => {
@@ -566,6 +582,10 @@ function App() {
             // Reload data when session changes
             initializeData()
           }}
+        />
+        <DevTools
+          visible={showDevTools}
+          onClose={() => setShowDevTools(false)}
         />
       </Layout>
     </ConfigProvider>

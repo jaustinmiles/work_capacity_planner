@@ -43,14 +43,16 @@ const { Row, Col } = Grid
 interface WorkBlocksEditorProps {
   date: string
   pattern?: {
+    id?: string
     blocks: WorkBlock[]
     meetings: WorkMeeting[]
+    templateName?: string
   }
   accumulated?: {
     focusMinutes: number
     adminMinutes: number
   }
-  onSave: (blocks: WorkBlock[], meetings: WorkMeeting[]) => void
+  onSave: (blocks: WorkBlock[], meetings: WorkMeeting[]) => void | Promise<void>
   onClose?: () => void
 }
 
@@ -197,12 +199,12 @@ export function WorkBlocksEditor({
     setMeetings(meetings.filter(m => m.id !== id))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (blocks.length === 0) {
       Message.error('Please add at least one work block')
       return
     }
-    onSave(blocks, meetings)
+    await onSave(blocks, meetings)
   }
 
   const handleSaveAsTemplate = async () => {
@@ -213,28 +215,20 @@ export function WorkBlocksEditor({
     
     try {
       // First save the current schedule
-      handleSave()
+      await handleSave()
       
-      // Wait a bit for the save to complete
-      setTimeout(async () => {
-        try {
-          // Then save it as a template
-          await getDatabase().saveAsTemplate(date, templateName.trim())
-          
-          Message.success(`Template "${templateName}" saved successfully`)
-          setShowSaveAsTemplate(false)
-          setTemplateName('')
-          
-          // Reload templates
-          loadUserTemplates()
-        } catch (error) {
-          console.error('Failed to save template:', error)
-          Message.error('Failed to save template')
-        }
-      }, 500)
+      // Then save it as a template
+      await getDatabase().saveAsTemplate(date, templateName.trim())
+      
+      Message.success(`Template "${templateName}" saved successfully`)
+      setShowSaveAsTemplate(false)
+      setTemplateName('')
+      
+      // Reload templates
+      loadUserTemplates()
     } catch (error) {
       console.error('Failed to save template:', error)
-      Message.error('Failed to save template')
+      Message.error('Failed to save template. Please save the schedule first.')
     }
   }
 

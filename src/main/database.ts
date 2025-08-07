@@ -766,10 +766,32 @@ export class DatabaseService {
 
   async saveAsTemplate(date: string, templateName: string): Promise<any> {
     const sessionId = await this.getActiveSession()
-    const existingPattern = await this.getWorkPattern(date)
     
+    // Try to get the pattern for the date
+    let existingPattern = await this.getWorkPattern(date)
+    
+    // If no pattern exists, check if we just created one
     if (!existingPattern) {
-      throw new Error('No pattern found for this date')
+      // Wait a bit and try again (in case of race condition)
+      await new Promise(resolve => setTimeout(resolve, 100))
+      existingPattern = await this.getWorkPattern(date)
+      
+      if (!existingPattern) {
+        throw new Error('No work schedule found for this date. Please save the schedule first.')
+      }
+    }
+
+    // Check if a template with this name already exists
+    const existingTemplate = await this.client.workPattern.findFirst({
+      where: {
+        sessionId,
+        isTemplate: true,
+        templateName,
+      },
+    })
+
+    if (existingTemplate) {
+      throw new Error(`A template named "${templateName}" already exists`)
     }
 
     // Create a new template based on the existing pattern
