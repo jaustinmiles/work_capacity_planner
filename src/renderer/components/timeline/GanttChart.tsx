@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
-import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider } from '@arco-design/web-react'
-import { IconPlus, IconMinus, IconZoomIn, IconZoomOut, IconSettings } from '@arco-design/web-react/icon'
+import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, DatePicker, Alert } from '@arco-design/web-react'
+import { IconPlus, IconMinus, IconZoomIn, IconZoomOut, IconSettings, IconCalendar } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-scheduler'
@@ -40,6 +40,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       const date = new Date(today)
       date.setDate(date.getDate() + i)
       const dateStr = dayjs(date).format('YYYY-MM-DD')
+      const dayOfWeek = date.getDay()
 
       const pattern = await db.getWorkPattern(dateStr)
       if (pattern) {
@@ -47,6 +48,30 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           date: dateStr,
           blocks: pattern.blocks,
           meetings: pattern.meetings,
+          accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        })
+      } else if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        // If no pattern exists and it's a weekday, create a default pattern
+        // This allows scheduling on future days even without explicit patterns
+        patterns.push({
+          date: dateStr,
+          blocks: [
+            {
+              id: `default-morning-${dateStr}`,
+              startTime: '09:00',
+              endTime: '12:00',
+              type: 'mixed',
+              capacity: { focusMinutes: 120, adminMinutes: 60 }
+            },
+            {
+              id: `default-afternoon-${dateStr}`,
+              startTime: '13:00',
+              endTime: '17:00',
+              type: 'mixed',
+              capacity: { focusMinutes: 180, adminMinutes: 60 }
+            }
+          ],
+          meetings: [],
           accumulated: { focusMinutes: 0, adminMinutes: 0 },
         })
       }
@@ -228,6 +253,31 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
+      {/* Info about default patterns */}
+      {workPatterns.some(p => p.blocks.some(b => b.id.startsWith('default-'))) && (
+        <Alert
+          type="info"
+          content={
+            <Space>
+              <Text>
+                Using default work schedule (9AM-12PM, 1PM-5PM) for future weekdays without custom patterns.
+              </Text>
+              <Button
+                type="text"
+                size="small"
+                onClick={() => {
+                  setSelectedDate(dayjs().add(1, 'day').format('YYYY-MM-DD'))
+                  setShowSettings(true)
+                }}
+              >
+                Customize Tomorrow's Schedule
+              </Button>
+            </Space>
+          }
+          closable
+        />
+      )}
+      
       {/* Summary */}
       <Card>
         <Row gutter={16} align="center">
@@ -278,16 +328,33 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   />
                   <IconZoomIn />
                 </div>
-                <Button
-                  icon={<IconSettings />}
-                  onClick={() => {
-                    setSelectedDate(dayjs().format('YYYY-MM-DD'))
-                    setShowSettings(true)
-                  }}
-                  style={{ width: '100%' }}
-                >
-                  Edit Today's Schedule
-                </Button>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <DatePicker
+                    value={selectedDate ? dayjs(selectedDate) : undefined}
+                    onChange={(date) => {
+                      if (date) {
+                        setSelectedDate(date.format('YYYY-MM-DD'))
+                        setShowSettings(true)
+                      }
+                    }}
+                    placeholder="Select day to edit"
+                    style={{ width: '100%' }}
+                    disabledDate={(current) => {
+                      // Don't disable any dates - allow editing past and future
+                      return false
+                    }}
+                  />
+                  <Button
+                    icon={<IconSettings />}
+                    onClick={() => {
+                      setSelectedDate(dayjs().format('YYYY-MM-DD'))
+                      setShowSettings(true)
+                    }}
+                    style={{ width: '100%' }}
+                  >
+                    Edit Today's Schedule
+                  </Button>
+                </Space>
               </Space>
             </Space>
           </Col>
@@ -319,6 +386,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   const widthPx = nextDay
                     ? getPositionPx(nextDay) - getPositionPx(day)
                     : chartWidthPx - getPositionPx(day)
+                  
+                  const dateStr = dayjs(day).format('YYYY-MM-DD')
+                  const pattern = workPatterns.find(p => p.date === dateStr)
+                  const hasCustomPattern = pattern && !pattern.blocks.some(b => b.id.startsWith('default-'))
+                  const isWeekend = day.getDay() === 0 || day.getDay() === 6
 
                   return (
                     <div
@@ -330,10 +402,22 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         padding: '4px 8px',
                         fontWeight: 500,
                         borderRight: '1px solid #e5e5e5',
-                        background: day.getDay() === 0 || day.getDay() === 6 ? '#f5f5f5' : '#fff',
+                        background: isWeekend ? '#f5f5f5' : hasCustomPattern ? '#e6f7ff' : '#fff',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => {
+                        setSelectedDate(dateStr)
+                        setShowSettings(true)
                       }}
                     >
-                      {formatDate(day)}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>{formatDate(day)}</span>
+                        {hasCustomPattern && (
+                          <Tag size="small" color="blue" style={{ marginLeft: 4 }}>
+                            Custom
+                          </Tag>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
