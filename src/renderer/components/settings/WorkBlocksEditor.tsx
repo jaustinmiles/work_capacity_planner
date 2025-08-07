@@ -149,7 +149,7 @@ export function WorkBlocksEditor({
         if (userTemplate?.meetings) {
           const newMeetings = userTemplate.meetings.map((m: any, index: number) => ({
             ...m,
-            id: `meeting-${Date.now()}-${index}`,
+            id: `meeting-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
           }))
           setMeetings(newMeetings)
         }
@@ -176,10 +176,6 @@ export function WorkBlocksEditor({
       const meeting: WorkMeeting = {
         ...editingMeeting!,
         ...values,
-        recurring: values.recurring === 'none' ? undefined : {
-          pattern: values.recurring,
-          daysOfWeek: values.recurring === 'weekly' ? [new Date().getDay()] : undefined,
-        },
       }
 
       if (editingMeeting && meetings.find(m => m.id === editingMeeting.id)) {
@@ -454,9 +450,23 @@ export function WorkBlocksEditor({
           </Space>
         }
         extra={
-          <Button icon={<IconPlus />} onClick={handleAddMeeting}>
-            Add Meeting
-          </Button>
+          <Space>
+            <Button icon={<IconMoon />} onClick={() => {
+              const sleepBlock: WorkMeeting = {
+                id: `sleep-${Date.now()}`,
+                name: 'Sleep',
+                startTime: '22:00',
+                endTime: '06:00',
+                type: 'blocked',
+              }
+              setMeetings([...meetings, sleepBlock])
+            }}>
+              Add Sleep Block
+            </Button>
+            <Button icon={<IconPlus />} onClick={handleAddMeeting}>
+              Add Meeting
+            </Button>
+          </Space>
         }
       >
         {meetings.length === 0 ? (
@@ -482,8 +492,8 @@ export function WorkBlocksEditor({
                     </Tag>
                   </Col>
                   <Col span={3}>
-                    {meeting.recurring && meeting.recurring.pattern !== 'none' && (
-                      <Tag>{meeting.recurring.pattern}</Tag>
+                    {meeting.recurring && meeting.recurring !== 'none' && (
+                      <Tag>{meeting.recurring}</Tag>
                     )}
                   </Col>
                   <Col span={3}>
@@ -495,7 +505,7 @@ export function WorkBlocksEditor({
                           setEditingMeeting(meeting)
                           form.setFieldsValue({
                             ...meeting,
-                            recurring: meeting.recurring?.pattern || 'none',
+                            recurring: meeting.recurring || 'none',
                           })
                           setShowMeetingModal(true)
                         }}

@@ -27,10 +27,8 @@ export interface Meeting {
   startTime: string // "14:00" format
   endTime: string // "15:00" format
   type: 'meeting' | 'break' | 'personal' | 'blocked'
-  recurring?: {
-    pattern: 'daily' | 'weekly' | 'none'
-    daysOfWeek?: number[] // 0-6
-  }
+  recurring?: 'daily' | 'weekly' | 'none'
+  daysOfWeek?: number[] // 0-6 for weekly recurring
 }
 
 // Alias for compatibility

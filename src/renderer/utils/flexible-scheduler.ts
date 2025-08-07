@@ -218,6 +218,7 @@ export function scheduleItemsWithBlocks(
   const workItems: WorkItem[] = []
   const completedSteps = new Set<string>()
   const asyncWaitEndTimes = new Map<Date, string>()
+  
 
   // Convert tasks to work items
   tasks
@@ -334,6 +335,16 @@ export function scheduleItemsWithBlocks(
 
     for (let i = 0; i < workItems.length; i++) {
       const item = workItems[i]
+
+      // First check if any async waits have completed since we last checked
+      const newlyFinishedWaits: Date[] = []
+      for (const [endTime, itemId] of asyncWaitEndTimes.entries()) {
+        if (endTime <= currentTime) {
+          completedSteps.add(itemId)
+          newlyFinishedWaits.push(endTime)
+        }
+      }
+      newlyFinishedWaits.forEach(time => asyncWaitEndTimes.delete(time))
 
       // Check dependencies
       if (item.dependencies && item.dependencies.length > 0) {
