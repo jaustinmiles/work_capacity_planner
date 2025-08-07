@@ -166,6 +166,8 @@ function canFitInBlock(
   currentTime: Date,
   scheduledItems: ScheduledItem[],
 ): { canFit: boolean; startTime: Date } {
+  // Don't count async wait times as conflicts when checking for available slots
+  const nonWaitScheduledItems = scheduledItems.filter(s => !s.isWaitTime)
   // Check capacity
   if (item.taskType === 'focused') {
     if (block.focusMinutesUsed + item.duration > block.focusMinutesTotal) {
@@ -190,8 +192,8 @@ function canFitInBlock(
   while (tryTime < block.endTime) {
     const tryEndTime = new Date(tryTime.getTime() + item.duration * 60000)
 
-    // Check if this time slot conflicts with any scheduled item
-    const hasConflict = scheduledItems.some(scheduled => {
+    // Check if this time slot conflicts with any scheduled item (excluding async waits)
+    const hasConflict = nonWaitScheduledItems.some(scheduled => {
       return !(tryEndTime <= scheduled.startTime || tryTime >= scheduled.endTime)
     })
 
@@ -328,6 +330,7 @@ export function scheduleItemsWithBlocks(
 
     // Try to schedule items in this day's blocks
     let itemsScheduledToday = false
+    let shouldMoveToNextDay = false
 
     for (let i = 0; i < workItems.length; i++) {
       const item = workItems[i]
@@ -342,6 +345,7 @@ export function scheduleItemsWithBlocks(
       }
 
       // Try to fit in available blocks
+      let itemScheduled = false
       for (const block of blockCapacities) {
         const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems)
 
@@ -391,33 +395,109 @@ export function scheduleItemsWithBlocks(
               isWaitTime: true,
               originalItem: item.originalItem,
             })
+            
+            // Update current time to the end of the actual work (not the async wait)
+            // This allows other tasks to be scheduled during the async wait time
+            currentTime = endTime
           } else {
             // Mark the item as completed using its actual ID
             completedSteps.add(item.id)
+            // Update current time to the end of this item
+            currentTime = endTime
           }
-
-          // Update current time
-          currentTime = endTime
+          
+          // If we've scheduled into the next day, update currentDate
+          if (currentTime.getDate() !== currentDate.getDate()) {
+            currentDate.setTime(currentTime.getTime())
+            currentDate.setHours(0, 0, 0, 0)
+          }
 
           // Remove from work items
           workItems.splice(i, 1)
           i-- // Adjust index
           itemsScheduledToday = true
+          itemScheduled = true
+          break
+        }
+      }
+      
+      // If we couldn't schedule this item in any block today, we need to move to next day
+      if (!itemScheduled && blockCapacities.length > 0) {
+        // Check if currentTime is past all blocks for today
+        const lastBlock = blockCapacities[blockCapacities.length - 1]
+        if (currentTime.getTime() >= lastBlock.endTime.getTime()) {
+          shouldMoveToNextDay = true
           break
         }
       }
     }
 
-    // If nothing was scheduled today, move to next day
-    if (!itemsScheduledToday) {
+    // Check if we should move to the next day
+    // Move if: no items scheduled, should move flag is set, or current time is past all blocks
+    const lastBlockEnd = blockCapacities.length > 0 
+      ? blockCapacities[blockCapacities.length - 1].endTime 
+      : new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)
+      
+    if (!itemsScheduledToday || shouldMoveToNextDay || currentTime.getTime() >= lastBlockEnd.getTime()) {
       currentDate.setDate(currentDate.getDate() + 1)
-      currentTime = new Date(currentDate)
-      currentTime.setHours(0, 0, 0, 0)
-      // If we've moved to tomorrow, ensure currentTime is not in the past
-      if (currentTime.getTime() < now.getTime()) {
-        currentTime = new Date(now)
-      }
       dayIndex++
+      
+      // Find the next day's pattern and set currentTime to the start of the first block
+      const nextDateStr = currentDate.toISOString().split('T')[0]
+      const nextPattern = patterns.find(p => p.date === nextDateStr)
+      
+      if (nextPattern && nextPattern.blocks.length > 0) {
+        // Sort blocks by start time and get the earliest
+        const earliestBlock = nextPattern.blocks
+          .sort((a, b) => a.startTime.localeCompare(b.startTime))[0]
+        currentTime = parseTimeOnDate(currentDate, earliestBlock.startTime)
+        
+        // If this time is in the past, use current time
+        if (currentTime.getTime() < now.getTime()) {
+          currentTime = new Date(now)
+        }
+      } else {
+        // No pattern for next day, reset to start of day
+        currentTime = new Date(currentDate)
+        currentTime.setHours(0, 0, 0, 0)
+        if (currentTime.getTime() < now.getTime()) {
+          currentTime = new Date(now)
+        }
+      }
+    } else if (itemsScheduledToday && workItems.length > 0) {
+      // We scheduled some items but have more to go
+      // Check if we need to move to next day based on current time
+      const lastBlockEnd = blockCapacities.length > 0 
+        ? blockCapacities[blockCapacities.length - 1].endTime 
+        : currentTime
+        
+      if (currentTime.getTime() >= lastBlockEnd.getTime()) {
+        currentDate.setDate(currentDate.getDate() + 1)
+        dayIndex++
+        
+        // Find the next day's pattern and set currentTime to the start of the first block
+        const nextDateStr = currentDate.toISOString().split('T')[0]
+        const nextPattern = patterns.find(p => p.date === nextDateStr)
+        
+        if (nextPattern && nextPattern.blocks.length > 0) {
+          // Sort blocks by start time and get the earliest
+          const earliestBlock = nextPattern.blocks
+            .sort((a, b) => a.startTime.localeCompare(b.startTime))[0]
+          currentTime = parseTimeOnDate(currentDate, earliestBlock.startTime)
+          
+          // If this time is in the past, use current time
+          if (currentTime.getTime() < now.getTime()) {
+            currentTime = new Date(now)
+          }
+        } else {
+          // No pattern for next day, reset to start of day
+          currentTime = new Date(currentDate)
+          currentTime.setHours(0, 0, 0, 0)
+          if (currentTime.getTime() < now.getTime()) {
+            currentTime = new Date(now)
+          }
+        }
+      }
     }
   }
 
