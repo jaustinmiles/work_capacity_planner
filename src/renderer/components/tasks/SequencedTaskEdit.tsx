@@ -49,12 +49,49 @@ interface EditingStep extends TaskStep {
 export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
   const { updateSequencedTask } = useTaskStore()
   const [editedTask, setEditedTask] = useState<SequencedTask>({ ...task })
-  const [editingSteps, setEditingSteps] = useState<EditingStep[]>(task.steps.map(step => ({ ...step })))
+  const [editingSteps, setEditingSteps] = useState<EditingStep[]>(
+    task.steps.map((step, index) => ({
+      ...step,
+      // Ensure each step has an ID for dependency tracking
+      id: step.id || `step-${task.id}-${index}`,
+    }))
+  )
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [showStepModal, setShowStepModal] = useState(false)
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null)
   const [stepForm] = Form.useForm()
+
+  // Helper to get step name from dependency ID
+  const getStepNameFromDependency = (depId: string): string => {
+    // Handle both old format (step-N) and step IDs
+    if (depId.startsWith('step-')) {
+      const index = parseInt(depId.replace('step-', ''))
+      const step = editingSteps[index]
+      return step ? `Step ${index + 1}: ${step.name}` : depId
+    }
+    // Handle actual step IDs
+    const step = editingSteps.find(s => s.id === depId)
+    if (step) {
+      const index = editingSteps.indexOf(step)
+      return `Step ${index + 1}: ${step.name}`
+    }
+    return depId
+  }
+
+  // Helper to format dependency list for display
+  const formatDependencyList = (dependsOn: string[]): string => {
+    if (dependsOn.length === 0) return ''
+    return dependsOn.map(dep => {
+      if (dep.startsWith('step-')) {
+        const index = parseInt(dep.replace('step-', ''))
+        const step = editingSteps[index]
+        return step ? step.name : `Step ${index + 1}`
+      }
+      const step = editingSteps.find(s => s.id === dep)
+      return step ? step.name : dep
+    }).join(', ')
+  }
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -105,45 +142,20 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
     const targetIndex = direction === 'up' ? index - 1 : index + 1
 
     if (targetIndex >= 0 && targetIndex < newSteps.length) {
+      // Simply swap the steps - dependencies use IDs now so they don't need updating
       [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]]
-
-      // Update dependencies
-      newSteps.forEach((step, i) => {
-        if (step.dependsOn.includes(`step-${index}`)) {
-          step.dependsOn = step.dependsOn.map(dep =>
-            dep === `step-${index}` ? `step-${targetIndex}` : dep,
-          )
-        }
-        if (step.dependsOn.includes(`step-${targetIndex}`)) {
-          step.dependsOn = step.dependsOn.map(dep =>
-            dep === `step-${targetIndex}` ? `step-${index}` : dep,
-          )
-        }
-      })
-
       setEditingSteps(newSteps)
     }
   }
 
   const deleteStep = (index: number) => {
+    const deletedStep = editingSteps[index]
+    const deletedStepId = deletedStep.id
     const newSteps = editingSteps.filter((_, i) => i !== index)
 
-    // Update dependencies
+    // Update dependencies - remove references to deleted step by ID
     newSteps.forEach(step => {
-      // Remove references to deleted step
-      step.dependsOn = step.dependsOn.filter(dep => dep !== `step-${index}`)
-
-      // Adjust step references for steps after the deleted one
-      step.dependsOn = step.dependsOn.map(dep => {
-        const match = dep.match(/^step-(\d+)$/)
-        if (match) {
-          const stepNum = parseInt(match[1])
-          if (stepNum > index) {
-            return `step-${stepNum - 1}`
-          }
-        }
-        return dep
-      })
+      step.dependsOn = step.dependsOn.filter(dep => dep !== deletedStepId)
     })
 
     setEditingSteps(newSteps)
@@ -184,9 +196,10 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         }
         setEditingSteps(newSteps)
       } else {
-        // Add new step
+        // Add new step with proper ID
+        const newStepIndex = editingSteps.length
         const newStep: EditingStep = {
-          id: '',
+          id: `step-${editedTask.id}-${newStepIndex}`,
           tempId: `temp-${Date.now()}`,
           name: values.name,
           duration: values.duration,
@@ -194,7 +207,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           asyncWaitTime: values.asyncWaitTime || 0,
           dependsOn: values.dependsOn || [],
           status: 'pending',
-          stepIndex: editingSteps.length,
+          stepIndex: newStepIndex,
         }
         setEditingSteps([...editingSteps, newStep])
       }
@@ -404,7 +417,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                             )}
                             {step.dependsOn.length > 0 && (
                               <Tag size="small" color="purple">
-                                Depends on: {step.dependsOn.join(', ')}
+                                Depends on: {formatDependencyList(step.dependsOn)}
                               </Tag>
                             )}
                           </Space>
@@ -564,15 +577,18 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
             label="Dependencies"
             field="dependsOn"
             initialValue={[]}
+            help="Select which steps must complete before this step can start"
           >
             <Select
               mode="multiple"
               placeholder="Select steps this depends on"
+              allowClear
             >
               {editingSteps.map((step, index) => {
-                if (index !== editingStepIndex) {
+                // Don't allow depending on self or steps after this one
+                if (index !== editingStepIndex && (editingStepIndex === null || index < editingStepIndex)) {
                   return (
-                    <Select.Option key={index} value={`step-${index}`}>
+                    <Select.Option key={step.id || index} value={step.id}>
                       Step {index + 1}: {step.name}
                     </Select.Option>
                   )

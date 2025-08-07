@@ -26,8 +26,9 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
 
     // First pass: create nodes and calculate levels
     task.steps.forEach((step, index) => {
+      const nodeId = step.id || `step-${index}`
       const node: GraphNode = {
-        id: `step-${index}`,
+        id: nodeId,
         label: step.name,
         duration: step.duration,
         asyncWaitTime: step.asyncWaitTime,
@@ -36,7 +37,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
         y: 0,
         dependencies: step.dependsOn,
       }
-      nodeMap.set(node.id, node)
+      nodeMap.set(nodeId, node)
 
       // Calculate level based on dependencies
       let level = 0
@@ -44,7 +45,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
         const depLevel = levels.get(depId) || 0
         level = Math.max(level, depLevel + 1)
       })
-      levels.set(node.id, level)
+      levels.set(nodeId, level)
     })
 
     // Group nodes by level

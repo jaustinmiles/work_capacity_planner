@@ -52,18 +52,19 @@ module.exports = [
         allowDirectConstAssertionInArrowFunctions: true,
       }],
       '@typescript-eslint/no-non-null-assertion': 'warn',
-      '@typescript-eslint/strict-boolean-expressions': ['warn', {
-        allowString: true,
-        allowNumber: true,
-        allowNullableObject: true,
-      }],
-      '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/no-misused-promises': 'error',
-      '@typescript-eslint/await-thenable': 'error',
-      '@typescript-eslint/no-unnecessary-condition': 'warn',
-      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
-      '@typescript-eslint/prefer-nullish-coalescing': 'warn',
-      '@typescript-eslint/prefer-optional-chain': 'warn',
+      // Commented out rules that require type information for now
+      // '@typescript-eslint/strict-boolean-expressions': ['warn', {
+      //   allowString: true,
+      //   allowNumber: true,
+      //   allowNullableObject: true,
+      // }],
+      // '@typescript-eslint/no-floating-promises': 'error',
+      // '@typescript-eslint/no-misused-promises': 'error',
+      // '@typescript-eslint/await-thenable': 'error',
+      // '@typescript-eslint/no-unnecessary-condition': 'warn',
+      // '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      // '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+      // '@typescript-eslint/prefer-optional-chain': 'warn',
 
       // React rules
       'react/react-in-jsx-scope': 'off',
