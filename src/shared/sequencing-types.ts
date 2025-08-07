@@ -70,6 +70,7 @@ export const exampleSequencedTask: SequencedTask = {
   type: 'focused',
   dependencies: [],
   completed: false,
+  sessionId: 'default-session',
   createdAt: new Date(),
   updatedAt: new Date(),
   notes: 'Complex workflow with async waits and conditional branches',

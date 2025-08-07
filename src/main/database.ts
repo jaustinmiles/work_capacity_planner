@@ -433,7 +433,9 @@ export class DatabaseService {
 
   // Job Context operations
   async getJobContexts(): Promise<any[]> {
+    const sessionId = await this.getActiveSession()
     const contexts = await this.client.jobContext.findMany({
+      where: { sessionId },
       include: {
         contextEntries: true,
       },
@@ -449,8 +451,12 @@ export class DatabaseService {
   }
 
   async getActiveJobContext(): Promise<any | null> {
+    const sessionId = await this.getActiveSession()
     const context = await this.client.jobContext.findFirst({
-      where: { isActive: true },
+      where: { 
+        sessionId,
+        isActive: true 
+      },
       include: {
         contextEntries: true,
       },
@@ -483,9 +489,11 @@ export class DatabaseService {
       })
     }
 
+    const sessionId = await this.getActiveSession()
     const context = await this.client.jobContext.create({
       data: {
         ...data,
+        sessionId,
         asyncPatterns: JSON.stringify(data.asyncPatterns || {}),
         reviewCycles: JSON.stringify(data.reviewCycles || {}),
         tools: JSON.stringify(data.tools || []),
@@ -574,7 +582,9 @@ export class DatabaseService {
 
   // Jargon Dictionary operations
   async getJargonEntries(): Promise<any[]> {
+    const sessionId = await this.getActiveSession()
     const entries = await this.client.jargonEntry.findMany({
+      where: { sessionId },
       orderBy: { term: 'asc' },
     })
 
@@ -592,9 +602,11 @@ export class DatabaseService {
     examples?: string[]
     relatedTerms?: string[]
   }): Promise<any> {
+    const sessionId = await this.getActiveSession()
     const entry = await this.client.jargonEntry.create({
       data: {
         ...data,
+        sessionId,
         examples: data.examples ? JSON.stringify(data.examples) : null,
         relatedTerms: data.relatedTerms ? JSON.stringify(data.relatedTerms) : null,
       },
@@ -636,7 +648,10 @@ export class DatabaseService {
   }
 
   async getJargonDictionary(): Promise<Record<string, string>> {
-    const entries = await this.client.jargonEntry.findMany()
+    const sessionId = await this.getActiveSession()
+    const entries = await this.client.jargonEntry.findMany({
+      where: { sessionId }
+    })
     const dictionary: Record<string, string> = {}
 
     entries.forEach(entry => {
@@ -657,8 +672,14 @@ export class DatabaseService {
 
   // Work Pattern operations
   async getWorkPattern(date: string): Promise<any> {
+    const sessionId = await this.getActiveSession()
     const pattern = await this.client.workPattern.findUnique({
-      where: { date },
+      where: { 
+        sessionId_date: {
+          sessionId,
+          date
+        }
+      },
       include: {
         blocks: true,
         meetings: true,
@@ -682,11 +703,13 @@ export class DatabaseService {
   }
 
   async createWorkPattern(data: any): Promise<any> {
+    const sessionId = await this.getActiveSession()
     const { blocks, meetings, ...patternData } = data
 
     const pattern = await this.client.workPattern.create({
       data: {
         ...patternData,
+        sessionId,
         blocks: {
           create: (blocks || []).map((b: any) => ({
             ...b,
@@ -799,8 +822,14 @@ export class DatabaseService {
   }
 
   async getWorkSessions(date: string): Promise<any[]> {
+    const sessionId = await this.getActiveSession()
     const pattern = await this.client.workPattern.findUnique({
-      where: { date },
+      where: { 
+        sessionId_date: {
+          sessionId,
+          date
+        }
+      },
       include: { sessions: true },
     })
 
