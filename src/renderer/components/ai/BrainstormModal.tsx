@@ -536,7 +536,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
                 {/* Voice Context Upload */}
                 <div>
-                  <Text strong style={{ fontSize: 14 }}>Or upload a voice memo about your job:</Text>
+                  <Text style={{ fontSize: 14, fontWeight: 'bold' }}>Or upload a voice memo about your job:</Text>
                   <Upload
                     accept="audio/*"
                     showUploadList={false}
@@ -567,7 +567,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                 {/* Jargon Dictionary */}
                 <div>
                   <Space style={{ marginBottom: 8 }}>
-                    <Text strong style={{ fontSize: 14 }}>Industry Jargon Dictionary</Text>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold' }}>Industry Jargon Dictionary</Text>
                     <Tag size="small">{Object.keys(jargonDictionary).length} terms</Tag>
                     <Button
                       size="mini"
@@ -767,7 +767,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           >
             <Space direction="vertical" style={{ width: '100%' }} size="medium">
               <div>
-                <Text strong>Summary:</Text>
+                <Text style={{ fontWeight: 'bold' }}>Summary:</Text>
                 <Text style={{ display: 'block', marginTop: 8 }}>
                   {brainstormResult.summary}
                 </Text>
@@ -776,7 +776,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
               {/* Workflows Section */}
               {brainstormResult.workflows && brainstormResult.workflows.length > 0 && (
                 <div>
-                  <Text strong>Async Workflows ({brainstormResult.workflows.length}):</Text>
+                  <Text style={{ fontWeight: 'bold' }}>Async Workflows ({brainstormResult.workflows.length}):</Text>
                   <div style={{ marginTop: 12 }}>
                     {brainstormResult.workflows.map((workflow, index) => (
                       <Card
@@ -817,7 +817,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                           </Space>
 
                           <div style={{ marginTop: 12 }}>
-                            <Text strong style={{ fontSize: 13 }}>Workflow Steps:</Text>
+                            <Text style={{ fontSize: 13, fontWeight: 'bold' }}>Workflow Steps:</Text>
                             <div style={{ marginTop: 8 }}>
                               {workflow.steps.map((step: any, stepIndex: number) => (
                                 <div
@@ -858,7 +858,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                           {workflow.notes && (
                             <div style={{ marginTop: 12, padding: 12, backgroundColor: '#f0f9ff', borderRadius: 4 }}>
                               <Text style={{ fontSize: 13 }}>
-                                <strong>Notes:</strong> {workflow.notes}
+                                <span style={{ fontWeight: 'bold' }}>Notes:</span> {workflow.notes}
                               </Text>
                             </div>
                           )}
@@ -872,7 +872,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
               {/* Standalone Tasks Section */}
               {brainstormResult.standaloneTasks && brainstormResult.standaloneTasks.length > 0 && (
                 <div>
-                  <Text strong>Standalone Tasks ({brainstormResult.standaloneTasks.length}):</Text>
+                  <Text style={{ fontWeight: 'bold' }}>Standalone Tasks ({brainstormResult.standaloneTasks.length}):</Text>
                   <div style={{ marginTop: 12 }}>
                     {brainstormResult.standaloneTasks.map((task, index) => (
                       <Card
@@ -925,7 +925,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
               {/* Legacy Tasks Section (for task-only mode) */}
               {brainstormResult.tasks && brainstormResult.tasks.length > 0 && (
                 <div>
-                  <Text strong>Extracted Tasks ({brainstormResult.tasks.length}):</Text>
+                  <Text style={{ fontWeight: 'bold' }}>Extracted Tasks ({brainstormResult.tasks.length}):</Text>
                   <div style={{ marginTop: 12 }}>
                     {brainstormResult.tasks.map((task, index) => (
                       <Card

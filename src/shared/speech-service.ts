@@ -150,6 +150,19 @@ export class SpeechService {
       prompt: 'This is a detailed description of a work process or workflow. The speaker may mention specific steps, dependencies, time estimates, and technical requirements.',
     }
   }
+
+  /**
+   * Get optimal transcription settings for work pattern scheduling
+   */
+  getSchedulingSettings(): {
+    language: string
+    prompt: string
+  } {
+    return {
+      language: 'en', // English
+      prompt: 'This is a description of work availability and scheduling preferences. The speaker will mention available time blocks, days of the week, specific hours, focus time requirements, admin time needs, meetings, and work patterns.',
+    }
+  }
 }
 
 // Singleton instance with lazy initialization

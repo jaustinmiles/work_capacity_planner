@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Modal } from '@arco-design/web-react'
+import { Modal, Button, Space } from '@arco-design/web-react'
+import { IconFileAudio } from '@arco-design/web-react/icon'
 import { WorkBlocksEditor } from './WorkBlocksEditor'
+import { VoiceScheduleModal } from './VoiceScheduleModal'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
@@ -22,6 +24,7 @@ export function WorkScheduleModal({
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focusMinutes: 0, adminMinutes: 0 })
   const [loading, setLoading] = useState(false)
+  const [showVoiceModal, setShowVoiceModal] = useState(false)
 
   useEffect(() => {
     if (visible) {
@@ -75,9 +78,32 @@ export function WorkScheduleModal({
     }
   }
 
+  const handleVoiceSchedule = (schedule: { blocks: WorkBlock[], meetings: WorkMeeting[] }) => {
+    // Pass the extracted schedule to the editor
+    setPattern({
+      ...pattern,
+      blocks: schedule.blocks,
+      meetings: schedule.meetings,
+    })
+    setShowVoiceModal(false)
+    Message.success('Voice schedule imported successfully')
+  }
+
   return (
+    <>
     <Modal
-      title={`Work Schedule - ${dayjs(date).format('MMMM D, YYYY')}`}
+      title={
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <span>Work Schedule - {dayjs(date).format('MMMM D, YYYY')}</span>
+          <Button
+            icon={<IconFileAudio />}
+            onClick={() => setShowVoiceModal(true)}
+            size="small"
+          >
+            Voice Input
+          </Button>
+        </Space>
+      }
       visible={visible}
       onCancel={onClose}
       footer={null}
@@ -95,5 +121,13 @@ export function WorkScheduleModal({
         />
       )}
     </Modal>
+
+    <VoiceScheduleModal
+      visible={showVoiceModal}
+      onClose={() => setShowVoiceModal(false)}
+      onScheduleExtracted={handleVoiceSchedule}
+      targetDate={date}
+    />
+    </>
   )
 }

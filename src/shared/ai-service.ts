@@ -475,6 +475,115 @@ Make questions specific to their apparent work patterns. Prioritize questions th
   }
 
   /**
+   * Extract work schedule from voice description
+   */
+  async extractScheduleFromVoice(voiceText: string, targetDate: string): Promise<{
+    date: string
+    blocks: Array<{
+      id: string
+      startTime: string
+      endTime: string
+      type: 'focused' | 'admin' | 'mixed'
+      capacity?: {
+        focusMinutes: number
+        adminMinutes: number
+      }
+    }>
+    meetings: Array<{
+      id: string
+      name: string
+      startTime: string
+      endTime: string
+      type: 'meeting' | 'break' | 'personal' | 'blocked'
+    }>
+    summary: string
+  }> {
+    const prompt = `
+You are a scheduling assistant helping someone plan their work day. Analyze the following voice description and extract a structured work schedule.
+
+Voice description: "${voiceText}"
+Target date: ${targetDate}
+
+Extract:
+1. Work blocks - continuous periods of available work time
+2. Meetings/breaks - specific scheduled events
+3. Time allocations - how much focus vs admin time is needed
+
+For work blocks:
+- If they mention specific focus/admin time needs, create "mixed" blocks with capacity
+- If they specify a block for only one type, use "focused" or "admin"
+- Infer reasonable time blocks based on typical work patterns if not explicit
+
+For meetings:
+- Extract any mentioned meetings, standups, breaks, lunch, etc.
+- Use appropriate types: "meeting" for work meetings, "break" for breaks/lunch, "personal" for personal time
+
+Return as JSON:
+{
+  "date": "${targetDate}",
+  "blocks": [
+    {
+      "id": "block-1",
+      "startTime": "09:00",
+      "endTime": "12:00",
+      "type": "mixed",
+      "capacity": {
+        "focusMinutes": 120,
+        "adminMinutes": 60
+      }
+    }
+  ],
+  "meetings": [
+    {
+      "id": "meeting-1",
+      "name": "Team Standup",
+      "startTime": "10:00",
+      "endTime": "10:30",
+      "type": "meeting"
+    }
+  ],
+  "summary": "8-hour workday with 4 hours focus time, 2 hours admin, standup at 10am, and lunch break"
+}
+
+Important:
+- Use 24-hour time format (HH:MM)
+- Ensure blocks don't overlap with meetings
+- Split blocks around meetings if needed
+- Generate unique IDs for each block/meeting
+`
+
+    try {
+      const response = await this.anthropic.messages.create({
+        model: 'claude-opus-4-1-20250805',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: prompt,
+        }],
+      })
+
+      const content = response.content[0]
+      if (content.type !== 'text') {
+        throw new Error('Unexpected response type from Claude')
+      }
+
+      // Extract JSON from the response
+      let jsonText = content.text.trim()
+      const jsonStart = jsonText.indexOf('{')
+      const jsonEnd = jsonText.lastIndexOf('}')
+
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
+      }
+
+      return JSON.parse(jsonText)
+    } catch (error) {
+      console.error('Error extracting schedule from voice:', error)
+      throw new Error('Failed to extract schedule from voice description')
+    }
+  }
+
+  /**
    * Get contextual questions to gather more information about a task
    */
   async getContextualQuestions(taskName: string, taskDescription?: string): Promise<{

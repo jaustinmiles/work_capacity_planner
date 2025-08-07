@@ -15,6 +15,7 @@ import {
   Modal,
   Form,
   Input,
+  Checkbox,
 } from '@arco-design/web-react'
 import {
   IconPlus,
@@ -65,6 +66,8 @@ export function WorkBlocksEditor({
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [editingMeeting, setEditingMeeting] = useState<WorkMeeting | null>(null)
   const [form] = Form.useForm()
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false)
+  const [templateName, setTemplateName] = useState('')
 
   // Calculate capacity
   const totalCapacity = getTotalCapacity(blocks)
@@ -161,11 +164,18 @@ export function WorkBlocksEditor({
       <Card>
         <Row justify="space-between" align="center">
           <Col>
-            <Space>
-              <IconCalendar style={{ fontSize: 24 }} />
-              <Title heading={4} style={{ margin: 0 }}>
-                Work Schedule for {dayjs(date).format('MMMM D, YYYY')}
-              </Title>
+            <Space direction="vertical" size="small">
+              <Space>
+                <IconCalendar style={{ fontSize: 24 }} />
+                <Title heading={4} style={{ margin: 0 }}>
+                  Work Schedule for {dayjs(date).format('MMMM D, YYYY')}
+                </Title>
+              </Space>
+              {pattern?.templateName && (
+                <Text type="secondary" style={{ marginLeft: 32 }}>
+                  Template: {pattern.templateName}
+                </Text>
+              )}
             </Space>
           </Col>
           <Col>
@@ -290,14 +300,14 @@ export function WorkBlocksEditor({
                     </Select>
                   </Col>
                   <Col span={6}>
-                    {block.type === 'mixed' && (
+                    {block.type === 'mixed' ? (
                       <Space>
                         <InputNumber
                           placeholder="Focus mins"
                           value={block.capacity?.focusMinutes}
                           onChange={(value) =>
                             handleUpdateBlock(block.id, {
-                              capacity: { ...block.capacity, focusMinutes: value },
+                              capacity: { ...block.capacity, focusMinutes: value || 0 },
                             })
                           }
                           min={0}
@@ -308,13 +318,17 @@ export function WorkBlocksEditor({
                           value={block.capacity?.adminMinutes}
                           onChange={(value) =>
                             handleUpdateBlock(block.id, {
-                              capacity: { ...block.capacity, adminMinutes: value },
+                              capacity: { ...block.capacity, adminMinutes: value || 0 },
                             })
                           }
                           min={0}
                           style={{ width: 100 }}
                         />
                       </Space>
+                    ) : (
+                      <Text type="secondary">
+                        {block.type === 'focused' ? 'All focus time' : 'All admin time'}
+                      </Text>
                     )}
                   </Col>
                   <Col span={2}>

@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('node:path')
 import { DatabaseService } from './database'
+import { getAIService } from '../shared/ai-service'
+import { getSpeechService } from '../shared/speech-service'
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (process.platform === 'win32') {
@@ -219,4 +221,71 @@ ipcMain.handle('db:getWorkSessions', async (_: any, date: string) => {
 
 ipcMain.handle('db:getTodayAccumulated', async (_: any, date: string) => {
   return await db.getTodayAccumulated(date)
+})
+
+// AI operation handlers
+ipcMain.handle('ai:extractTasksFromBrainstorm', async (_: any, brainstormText: string) => {
+  const aiService = getAIService()
+  return await aiService.extractTasksFromBrainstorm(brainstormText)
+})
+
+ipcMain.handle('ai:extractWorkflowsFromBrainstorm', async (_: any, brainstormText: string, jobContext?: string) => {
+  const aiService = getAIService()
+  return await aiService.extractWorkflowsFromBrainstorm(brainstormText, jobContext)
+})
+
+ipcMain.handle('ai:generateWorkflowSteps', async (_: any, taskDescription: string, context?: any) => {
+  const aiService = getAIService()
+  return await aiService.generateWorkflowSteps(taskDescription, context)
+})
+
+ipcMain.handle('ai:enhanceTaskDetails', async (_: any, taskName: string, currentDetails?: any) => {
+  const aiService = getAIService()
+  return await aiService.enhanceTaskDetails(taskName, currentDetails)
+})
+
+ipcMain.handle('ai:getContextualQuestions', async (_: any, taskName: string, taskDescription?: string) => {
+  const aiService = getAIService()
+  return await aiService.getContextualQuestions(taskName, taskDescription)
+})
+
+ipcMain.handle('ai:getJobContextualQuestions', async (_: any, brainstormText: string, jobContext?: string) => {
+  const aiService = getAIService()
+  return await aiService.getJobContextualQuestions(brainstormText, jobContext)
+})
+
+ipcMain.handle('ai:extractScheduleFromVoice', async (_: any, voiceText: string, targetDate: string) => {
+  const aiService = getAIService()
+  return await aiService.extractScheduleFromVoice(voiceText, targetDate)
+})
+
+// Speech operation handlers
+ipcMain.handle('speech:transcribeAudio', async (_: any, audioFilePath: string, options?: any) => {
+  const speechService = getSpeechService()
+  return await speechService.transcribeAudio(audioFilePath, options)
+})
+
+ipcMain.handle('speech:transcribeAudioBuffer', async (_: any, audioBuffer: Buffer, filename: string, options?: any) => {
+  const speechService = getSpeechService()
+  return await speechService.transcribeAudioBuffer(audioBuffer, filename, options)
+})
+
+ipcMain.handle('speech:getSupportedFormats', async () => {
+  const speechService = getSpeechService()
+  return speechService.getSupportedFormats()
+})
+
+ipcMain.handle('speech:getBrainstormingSettings', async () => {
+  const speechService = getSpeechService()
+  return speechService.getBrainstormingSettings()
+})
+
+ipcMain.handle('speech:getWorkflowSettings', async () => {
+  const speechService = getSpeechService()
+  return speechService.getWorkflowSettings()
+})
+
+ipcMain.handle('speech:getSchedulingSettings', async () => {
+  const speechService = getSpeechService()
+  return speechService.getSchedulingSettings()
 })

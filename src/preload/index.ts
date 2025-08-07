@@ -59,6 +59,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     enhanceTaskDetails: (taskName: string, currentDetails?: any) => ipcRenderer.invoke('ai:enhanceTaskDetails', taskName, currentDetails),
     getContextualQuestions: (taskName: string, taskDescription?: string) => ipcRenderer.invoke('ai:getContextualQuestions', taskName, taskDescription),
     getJobContextualQuestions: (brainstormText: string, jobContext?: string) => ipcRenderer.invoke('ai:getJobContextualQuestions', brainstormText, jobContext),
+    extractScheduleFromVoice: (voiceText: string, targetDate: string) => ipcRenderer.invoke('ai:extractScheduleFromVoice', voiceText, targetDate),
   },
 
   // Speech operations
@@ -68,5 +69,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSupportedFormats: () => ipcRenderer.invoke('speech:getSupportedFormats'),
     getBrainstormingSettings: () => ipcRenderer.invoke('speech:getBrainstormingSettings'),
     getWorkflowSettings: () => ipcRenderer.invoke('speech:getWorkflowSettings'),
+    getSchedulingSettings: () => ipcRenderer.invoke('speech:getSchedulingSettings'),
   },
 })

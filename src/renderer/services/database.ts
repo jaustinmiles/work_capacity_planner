@@ -116,6 +116,27 @@ declare global {
           }>
           suggestedJobContext?: string
         }>
+        extractScheduleFromVoice: (voiceText: string, targetDate: string) => Promise<{
+          date: string
+          blocks: Array<{
+            id: string
+            startTime: string
+            endTime: string
+            type: 'focused' | 'admin' | 'mixed'
+            capacity?: {
+              focusMinutes: number
+              adminMinutes: number
+            }
+          }>
+          meetings: Array<{
+            id: string
+            name: string
+            startTime: string
+            endTime: string
+            type: 'meeting' | 'break' | 'personal' | 'blocked'
+          }>
+          summary: string
+        }>
       }
       speech: {
         transcribeAudio: (audioFilePath: string, options?: any) => Promise<{
@@ -130,6 +151,10 @@ declare global {
           prompt: string
         }>
         getWorkflowSettings: () => Promise<{
+          language: string
+          prompt: string
+        }>
+        getSchedulingSettings: () => Promise<{
           language: string
           prompt: string
         }>
@@ -258,6 +283,10 @@ export class RendererDatabaseService {
     return await window.electronAPI.ai.getJobContextualQuestions(brainstormText, jobContext)
   }
 
+  async extractScheduleFromVoice(voiceText: string, targetDate: string) {
+    return await window.electronAPI.ai.extractScheduleFromVoice(voiceText, targetDate)
+  }
+
   // Speech-to-text operations
   async transcribeAudio(audioFilePath: string, options?: any) {
     return await window.electronAPI.speech.transcribeAudio(audioFilePath, options)
@@ -277,6 +306,10 @@ export class RendererDatabaseService {
 
   async getWorkflowSettings() {
     return await window.electronAPI.speech.getWorkflowSettings()
+  }
+
+  async getSchedulingSettings() {
+    return await window.electronAPI.speech.getSchedulingSettings()
   }
 
   // Job context operations
