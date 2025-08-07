@@ -33,14 +33,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const loadWorkPatterns = async () => {
     const db = getDatabase()
     const patterns: DailyWorkPattern[] = []
-    const today = new Date()
+    const today = dayjs().startOf('day')
 
     // Load patterns for the next 30 days
     for (let i = 0; i < 30; i++) {
-      const date = new Date(today)
-      date.setDate(date.getDate() + i)
-      const dateStr = dayjs(date).format('YYYY-MM-DD')
-      const dayOfWeek = date.getDay()
+      const date = today.add(i, 'day')
+      const dateStr = date.format('YYYY-MM-DD')
+      const dayOfWeek = date.day()
 
       const pattern = await db.getWorkPattern(dateStr)
       if (pattern) {
@@ -75,22 +74,31 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           accumulated: { focusMinutes: 0, adminMinutes: 0 },
         })
       }
+
+      console.log(`Pattern for ${dateStr}:`, pattern ? 'Custom' : (dayOfWeek !== 0 && dayOfWeek !== 6 ? 'Default' : 'None'))
     }
 
+    console.log(`Loaded ${patterns.length} work patterns`)
     setWorkPatterns(patterns)
   }
 
   // Use the scheduler to get properly ordered items
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
-    return scheduleItemsWithBlocks(tasks, sequencedTasks, workPatterns)
+    // Pass current time as start date to ensure scheduling starts from now
+    const items = scheduleItemsWithBlocks(tasks, sequencedTasks, workPatterns, new Date())
+    console.log(`Scheduled ${items.length} items across patterns`)
+    return items
   }, [tasks, sequencedTasks, workPatterns])
 
   // Calculate chart dimensions
-  const chartStartTime = scheduledItems.length > 0 ? scheduledItems[0].startTime : new Date()
+  const now = new Date()
+  const chartStartTime = scheduledItems.length > 0 
+    ? new Date(Math.min(scheduledItems[0].startTime.getTime(), now.getTime()))
+    : now
   const chartEndTime = scheduledItems.length > 0
     ? new Date(Math.max(...scheduledItems.map(item => item.endTime.getTime())))
-    : new Date()
+    : new Date(now.getTime() + 8 * 60 * 60 * 1000) // Default to 8 hours from now
 
   const totalDuration = chartEndTime.getTime() - chartStartTime.getTime()
   const totalHours = totalDuration / (1000 * 60 * 60)
@@ -331,9 +339,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <DatePicker
                     value={selectedDate ? dayjs(selectedDate) : undefined}
-                    onChange={(date) => {
-                      if (date) {
-                        setSelectedDate(date.format('YYYY-MM-DD'))
+                    onChange={(dateString, date) => {
+                      console.log('DatePicker onChange:', { dateString, date })
+                      if (dateString) {
+                        setSelectedDate(dateString)
                         setShowSettings(true)
                       }
                     }}
@@ -860,8 +869,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           setShowSettings(false)
           setSelectedDate(null)
         }}
-        onSave={() => {
-          loadWorkPatterns() // Reload patterns after saving
+        onSave={async () => {
+          await loadWorkPatterns() // Reload patterns after saving
+          setShowSettings(false)
+          setSelectedDate(null)
         }}
       />
     </Space>

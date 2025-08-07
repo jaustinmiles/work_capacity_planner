@@ -245,7 +245,7 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
                   </Text>
                   <DatePicker
                     value={editedTask.deadline}
-                    onChange={(value) => setEditedTask({ ...editedTask, deadline: value })}
+                    onChange={(dateString, date) => setEditedTask({ ...editedTask, deadline: dateString })}
                     showTime
                     placeholder="Select deadline"
                     style={{ width: '100%' }}

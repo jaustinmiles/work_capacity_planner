@@ -157,6 +157,12 @@ export function scheduleItemsWithBlocks(
   patterns: DailyWorkPattern[],
   startDate: Date = new Date(),
 ): ScheduledItem[] {
+  console.log('Scheduling with:', {
+    tasksCount: tasks.filter(t => !t.completed).length,
+    workflowsCount: sequencedTasks.filter(w => w.overallStatus !== 'completed').length,
+    patternsCount: patterns.length,
+    startDate: startDate.toISOString()
+  })
   const scheduledItems: ScheduledItem[] = []
   const workItems: WorkItem[] = []
   const completedSteps = new Set<string>()
@@ -230,20 +236,27 @@ export function scheduleItemsWithBlocks(
   })
 
   // Process each day
+  const now = new Date()
   const currentDate = new Date(startDate)
   currentDate.setHours(0, 0, 0, 0)
-  let currentTime = new Date(startDate)
+  let currentTime = new Date(Math.max(startDate.getTime(), now.getTime())) // Don't schedule in the past
   let dayIndex = 0
   const maxDays = 30 // Limit to 30 days
 
   while (workItems.length > 0 && dayIndex < maxDays) {
     const dateStr = currentDate.toISOString().split('T')[0]
     const pattern = patterns.find(p => p.date === dateStr)
+    console.log(`Processing day ${dateStr}, pattern found:`, !!pattern, 'Current time:', currentTime.toISOString())
 
     if (!pattern || pattern.blocks.length === 0) {
       // No pattern for this day, skip to next day
       currentDate.setDate(currentDate.getDate() + 1)
       currentTime = new Date(currentDate)
+      currentTime.setHours(0, 0, 0, 0)
+      // If we've moved to tomorrow, ensure currentTime is not in the past
+      if (currentTime.getTime() < now.getTime()) {
+        currentTime = new Date(now)
+      }
       dayIndex++
       continue
     }
@@ -267,6 +280,7 @@ export function scheduleItemsWithBlocks(
 
     // Try to schedule items in this day's blocks
     let itemsScheduledToday = false
+    console.log(`Trying to schedule ${workItems.length} items in ${blockCapacities.length} blocks`)
 
     for (let i = 0; i < workItems.length; i++) {
       const item = workItems[i]
@@ -283,9 +297,11 @@ export function scheduleItemsWithBlocks(
       // Try to fit in available blocks
       for (const block of blockCapacities) {
         const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems)
+        console.log(`Block ${block.blockId}: canFit=${canFit}, currentTime=${currentTime.toISOString()}, blockStart=${block.startTime.toISOString()}, blockEnd=${block.endTime.toISOString()}`)
 
         if (canFit) {
           const endTime = new Date(startTime.getTime() + item.duration * 60000)
+          console.log(`Scheduling item '${item.name}' from ${startTime.toISOString()} to ${endTime.toISOString()}`)
 
           // Schedule the item
           scheduledItems.push({
@@ -351,9 +367,16 @@ export function scheduleItemsWithBlocks(
     if (!itemsScheduledToday) {
       currentDate.setDate(currentDate.getDate() + 1)
       currentTime = new Date(currentDate)
+      currentTime.setHours(0, 0, 0, 0)
+      // If we've moved to tomorrow, ensure currentTime is not in the past
+      if (currentTime.getTime() < now.getTime()) {
+        currentTime = new Date(now)
+      }
       dayIndex++
+      console.log(`No items scheduled today, moving to next day: ${currentDate.toISOString()}`)
     }
   }
 
+  console.log(`Scheduling complete. Total items scheduled: ${scheduledItems.length}`)
   return scheduledItems
 }
