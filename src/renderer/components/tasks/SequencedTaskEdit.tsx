@@ -15,7 +15,6 @@ import {
   Message,
   Popconfirm,
   Divider,
-  Tabs,
 } from '@arco-design/web-react'
 import {
   IconEdit,
@@ -26,12 +25,9 @@ import {
   IconDelete,
   IconPlus,
   IconDragDot,
-  IconMindMapping,
-  IconList,
 } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
-import { WorkflowGraph } from './WorkflowGraph'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -352,19 +348,11 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         </Card>
       )}
 
-      {/* Steps View - List or Graph */}
-      <Card bodyStyle={{ padding: 0 }}>
-        <Tabs defaultActiveTab="list">
-          <Tabs.TabPane
-            key="list"
-            title={
-              <Space>
-                <IconList />
-                Steps List
-              </Space>
-            }
-          >
-            <div style={{ padding: 24 }}>
+      {/* Steps List */}
+      <Card 
+        title="Workflow Steps"
+        bodyStyle={{ padding: 24 }}
+      >
               {isEditing && (
                 <div style={{ marginBottom: 16, textAlign: 'right' }}>
                   <Button
@@ -494,23 +482,6 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                   </Space>
                 </Col>
               </Row>
-            </div>
-          </Tabs.TabPane>
-
-          <Tabs.TabPane
-            key="graph"
-            title={
-              <Space>
-                <IconMindMapping />
-                Graph View
-              </Space>
-            }
-          >
-            <div style={{ padding: 24 }}>
-              <WorkflowGraph task={{ ...editedTask, steps: editingSteps }} />
-            </div>
-          </Tabs.TabPane>
-        </Tabs>
       </Card>
 
       {/* Step Edit Modal */}

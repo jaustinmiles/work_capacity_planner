@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { Card, Space, Typography, Tag, Button, Collapse, Alert, Statistic, Grid, Progress, Tooltip, Popconfirm } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete } from '@arco-design/web-react/icon'
+import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskStepItem } from './TaskStepItem'
 import { SequencedTaskEdit } from './SequencedTaskEdit'
+import { WorkflowVisualization } from './WorkflowVisualization'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -28,6 +29,7 @@ export function SequencedTaskView({
 }: SequencedTaskViewProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [showEditView, setShowEditView] = useState(false)
+  const [showVisualization, setShowVisualization] = useState(false)
 
   const completedSteps = task.steps.filter(step => step.status === 'completed').length
   const totalSteps = task.steps.length
@@ -133,6 +135,14 @@ export function SequencedTaskView({
                 onClick={onResetWorkflow}
               >
                 Reset
+              </Button>
+
+              <Button
+                type="text"
+                icon={<IconMindMapping />}
+                onClick={() => setShowVisualization(true)}
+              >
+                View Graph
               </Button>
 
               <Button
@@ -274,6 +284,21 @@ export function SequencedTaskView({
           </div>
         )}
       </Card>
+
+      {/* Workflow Visualization Modal */}
+      <WorkflowVisualization
+        task={task}
+        visible={showVisualization}
+        onClose={() => setShowVisualization(false)}
+      />
+
+      {/* Edit Modal */}
+      {showEditView && (
+        <SequencedTaskEdit
+          task={task}
+          onClose={() => setShowEditView(false)}
+        />
+      )}
     </Space>
   )
 }
