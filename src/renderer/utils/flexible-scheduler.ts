@@ -119,7 +119,7 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
           originalItem: meeting,
         })
         
-        // 2. From midnight to end time (previous day)
+        // 2. From midnight to end time (current day)
         const prevMidnight = new Date(date)
         prevMidnight.setHours(0, 0, 0, 0)
         const morningEnd = parseTimeOnDate(date, meeting.endTime)
@@ -142,8 +142,11 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
       }
     }
     
-    // Only add the regular item if it doesn't cross midnight or isn't a sleep block
-    if (endTime > startTime || !(meeting.type === 'blocked' && meeting.name === 'Sleep')) {
+    // Only add the regular item if it's not a sleep block that crosses midnight
+    const isSleepBlock = meeting.type === 'blocked' && meeting.name === 'Sleep'
+    const crossesMidnight = endTime <= startTime
+    
+    if (!isSleepBlock || !crossesMidnight) {
       items.push({
         id: uniqueMeetingId,
         name: meeting.name,

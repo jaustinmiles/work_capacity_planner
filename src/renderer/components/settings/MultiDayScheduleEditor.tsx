@@ -30,6 +30,9 @@ import { getDatabase } from '../../services/database'
 import { WorkBlocksEditor } from './WorkBlocksEditor'
 import { VoiceScheduleModal } from './VoiceScheduleModal'
 import dayjs from 'dayjs'
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
+
+dayjs.extend(isSameOrBefore)
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
