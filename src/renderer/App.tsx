@@ -122,7 +122,7 @@ function App() {
           overallStatus: 'not_started' as const,
           steps: workflow.steps.map((step: any, index: number) => ({
             ...step,
-            id: `step-${index}`,
+            id: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${index}`,
             status: 'pending' as const,
             stepIndex: index,
           })),

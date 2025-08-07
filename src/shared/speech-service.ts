@@ -32,6 +32,20 @@ export class SpeechService {
         throw new Error('Audio file exceeds 25MB limit for Whisper API')
       }
 
+      // Copy file to archive if it's not already in our tmp directory
+      if (!audioFilePath.includes('/tmp/work-planner-audio')) {
+        const tempDir = '/tmp/work-planner-audio'
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true })
+        }
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const filename = path.basename(audioFilePath)
+        const archivePath = path.join(tempDir, `audio_${timestamp}_${filename}`)
+        fs.copyFileSync(audioFilePath, archivePath)
+        console.log(`Audio file archived to: ${archivePath}`)
+      }
+
       // Create a readable stream for the audio file
       const audioStream = fs.createReadStream(audioFilePath)
 
@@ -67,6 +81,7 @@ export class SpeechService {
     },
   ): Promise<{
     text: string
+    savedPath: string
   }> {
     try {
       const fileSizeInMB = audioBuffer.length / (1024 * 1024)
@@ -75,23 +90,27 @@ export class SpeechService {
         throw new Error('Audio buffer exceeds 25MB limit for Whisper API')
       }
 
-      // Create a temporary file to work with the OpenAI API
-      const tempDir = path.join(process.cwd(), 'temp')
+      // Save audio files to system tmp directory
+      const tempDir = '/tmp/work-planner-audio'
       if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir, { recursive: true })
       }
 
-      const tempFilePath = path.join(tempDir, `temp_audio_${Date.now()}_${filename}`)
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const tempFilePath = path.join(tempDir, `audio_${timestamp}_${filename}`)
       fs.writeFileSync(tempFilePath, audioBuffer)
+      console.log(`Audio file saved to: ${tempFilePath}`)
 
       try {
         const result = await this.transcribeAudio(tempFilePath, options)
-        return result
-      } finally {
-        // Clean up temporary file
-        if (fs.existsSync(tempFilePath)) {
-          fs.unlinkSync(tempFilePath)
+        return {
+          ...result,
+          savedPath: tempFilePath
         }
+      } catch (error) {
+        // Keep the file even if transcription fails
+        console.error('Transcription failed, but audio file preserved at:', tempFilePath)
+        throw error
       }
     } catch (error) {
       console.error('Error transcribing audio buffer:', error)

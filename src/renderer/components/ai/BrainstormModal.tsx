@@ -64,10 +64,15 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
   const [showJargonInput, setShowJargonInput] = useState(false)
   const [newJargonTerm, setNewJargonTerm] = useState('')
   const [newJargonDefinition, setNewJargonDefinition] = useState('')
+  const [contextRecordingState, setContextRecordingState] = useState<RecordingState>('idle')
+  const [contextRecordingDuration, setContextRecordingDuration] = useState(0)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const contextMediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const contextAudioChunksRef = useRef<Blob[]>([])
+  const contextRecordingTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Define stopRecording before using it in useEffect
   const stopRecording = useCallback(() => {
@@ -76,6 +81,75 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setRecordingState('stopped')
     }
   }, [recordingState])
+
+  // Context recording functions
+  const startContextRecording = async () => {
+    if (contextRecordingState === 'recording' || contextMediaRecorderRef.current?.state === 'recording') {
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : 'audio/webm'
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
+        audioBitsPerSecond: 128000,
+      })
+
+      contextMediaRecorderRef.current = mediaRecorder
+      contextAudioChunksRef.current = []
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          contextAudioChunksRef.current.push(event.data)
+        }
+      }
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(contextAudioChunksRef.current, { type: mimeType })
+        
+        // Process as context audio
+        setIsProcessingContextAudio(true)
+        try {
+          const audioFile = new File([audioBlob], `context-recording.${mimeType.split('/')[1].split(';')[0]}`, { type: mimeType })
+          await processContextAudio(audioFile)
+        } finally {
+          setIsProcessingContextAudio(false)
+        }
+
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop())
+      }
+
+      mediaRecorder.onerror = (event) => {
+        console.error('Context MediaRecorder error:', event)
+        setError('Context recording error occurred')
+        setContextRecordingState('idle')
+      }
+
+      mediaRecorder.start(100)
+      setContextRecordingDuration(0)
+      setError(null)
+      setContextRecordingState('recording')
+    } catch (error) {
+      console.error('Error starting context recording:', error)
+      setError('Failed to access microphone. Please check your permissions.')
+      setContextRecordingState('idle')
+    }
+  }
+
+  const stopContextRecording = useCallback(() => {
+    if (contextMediaRecorderRef.current && contextRecordingState !== 'idle') {
+      contextMediaRecorderRef.current.stop()
+      setContextRecordingState('stopped')
+    }
+  }, [contextRecordingState])
 
   // Load active job context and jargon dictionary when modal opens
   useEffect(() => {
@@ -107,6 +181,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setError(null)
       setRecordingState('idle')
       setRecordingDuration(0)
+      setContextRecordingState('idle')
+      setContextRecordingDuration(0)
       loadJobContext()
       loadJargonDictionary()
     }
@@ -138,6 +214,26 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       }
     }
   }, [recordingState])
+
+  // Context recording timer
+  useEffect(() => {
+    if (contextRecordingState === 'recording') {
+      contextRecordingTimerRef.current = setInterval(() => {
+        setContextRecordingDuration(prev => prev + 1)
+      }, 1000)
+    } else {
+      if (contextRecordingTimerRef.current) {
+        clearInterval(contextRecordingTimerRef.current)
+        contextRecordingTimerRef.current = null
+      }
+    }
+
+    return () => {
+      if (contextRecordingTimerRef.current) {
+        clearInterval(contextRecordingTimerRef.current)
+      }
+    }
+  }, [contextRecordingState])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -522,27 +618,39 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
                 <Divider style={{ margin: '12px 0' }} />
 
-                {/* Voice Context Upload */}
+                {/* Voice Context Options */}
                 <div>
-                  <Text style={{ fontSize: 14, fontWeight: 'bold' }}>Or upload a voice memo about your job:</Text>
-                  <Upload
-                    accept="audio/*"
-                    showUploadList={false}
-                    beforeUpload={(file) => {
-                      processContextAudio(file)
-                      return false
-                    }}
-                    disabled={isProcessingContextAudio}
-                    style={{ marginTop: 8 }}
-                  >
-                    <Button
-                      icon={<IconUpload />}
+                  <Text style={{ fontSize: 14, fontWeight: 'bold' }}>Or use voice input:</Text>
+                  <Space style={{ marginTop: 8 }}>
+                    <Upload
+                      accept="audio/*"
+                      showUploadList={false}
+                      beforeUpload={(file) => {
+                        processContextAudio(file)
+                        return false
+                      }}
+                      disabled={isProcessingContextAudio}
+                    >
+                      <Button
+                        icon={<IconUpload />}
                       loading={isProcessingContextAudio}
                       size="small"
                     >
                       {isProcessingContextAudio ? 'Processing...' : 'Upload Voice Context'}
                     </Button>
                   </Upload>
+                    <Button
+                      icon={contextRecordingState === 'recording' ? <IconStop /> : <IconSoundFill />}
+                      loading={isProcessingContextAudio && contextRecordingState === 'stopped'}
+                      onClick={contextRecordingState === 'recording' ? stopContextRecording : startContextRecording}
+                      size="small"
+                      status={contextRecordingState === 'recording' ? 'danger' : 'default'}
+                    >
+                      {contextRecordingState === 'recording' 
+                        ? `Recording... ${formatDuration(contextRecordingDuration)}`
+                        : 'Record Context'}
+                    </Button>
+                  </Space>
                   {contextAudioFile && (
                     <Tag icon={<IconFile />} style={{ marginTop: 8 }}>
                       {contextAudioFile.name}
