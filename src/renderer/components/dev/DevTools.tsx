@@ -13,28 +13,26 @@ interface DevToolsProps {
 
 export function DevTools({ visible, onClose }: DevToolsProps) {
   const [isClearing, setIsClearing] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const handleClearAllData = async () => {
-    Modal.confirm({
-      title: 'Clear All User Data?',
-      content: 'This will delete all tasks, workflows, schedules, and settings. Sessions will be kept but cleared. This action cannot be undone.',
-      okText: 'Clear All Data',
-      okButtonProps: { status: 'danger' },
-      onOk: async () => {
-        setIsClearing(true)
-        try {
-          await getDatabase().deleteAllUserData()
-          Message.success('All user data cleared successfully')
-          // Reload the page to refresh everything
-          setTimeout(() => window.location.reload(), 1000)
-        } catch (error) {
-          console.error('Failed to clear data:', error)
-          Message.error('Failed to clear user data')
-        } finally {
-          setIsClearing(false)
-        }
-      },
-    })
+    setShowConfirm(true)
+  }
+
+  const performClearData = async () => {
+    setIsClearing(true)
+    setShowConfirm(false)
+    try {
+      await getDatabase().deleteAllUserData()
+      Message.success('All user data cleared successfully')
+      // Reload the page to refresh everything
+      setTimeout(() => window.location.reload(), 1000)
+    } catch (error) {
+      console.error('Failed to clear data:', error)
+      Message.error('Failed to clear user data')
+    } finally {
+      setIsClearing(false)
+    }
   }
 
   return (
@@ -76,6 +74,24 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
           </Space>
         </div>
       </Space>
+
+      {/* Custom Confirmation Modal */}
+      <Modal
+        title="Clear All User Data?"
+        visible={showConfirm}
+        onOk={performClearData}
+        onCancel={() => setShowConfirm(false)}
+        okText="Clear All Data"
+        okButtonProps={{ status: 'danger', loading: isClearing }}
+        cancelButtonProps={{ disabled: isClearing }}
+        maskClosable={!isClearing}
+      >
+        <Alert
+          type="error"
+          content="This will delete all tasks, workflows, schedules, and settings. Sessions will be kept but cleared. This action cannot be undone."
+          showIcon
+        />
+      </Modal>
     </Modal>
   )
 }
