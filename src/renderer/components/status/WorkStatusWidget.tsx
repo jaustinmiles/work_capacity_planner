@@ -217,13 +217,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             title="Remaining Focus"
             value={Math.max(0, totalCapacity.focusMinutes - accumulated.focusMinutes)}
             suffix="min"
-            valueStyle={{ fontSize: 20 }}
           />
           <Statistic
             title="Remaining Admin"
             value={Math.max(0, totalCapacity.adminMinutes - accumulated.adminMinutes)}
             suffix="min"
-            valueStyle={{ fontSize: 20 }}
           />
         </Space>
 

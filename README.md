@@ -18,6 +18,9 @@ An intelligent Electron-based productivity application that combines AI-powered 
 - **Async Wait Times**: Model external delays (code reviews, CI/CD, approvals)
 - **Task Types**: Distinguish between focused work and administrative tasks
 - **Duration Tracking**: Realistic time estimates with capacity-based scheduling
+- **Hard Deadlines**: Priority boost for tasks approaching deadlines
+- **Workflow Controls**: Start, pause, and reset workflow execution
+- **Session Management**: Multiple work contexts with isolated data
 - **Batch Operations**: Delete all tasks for development testing (dev mode)
 
 ### 🎯 Intelligent Scheduling
@@ -49,16 +52,17 @@ An intelligent Electron-based productivity application that combines AI-powered 
   - Claude Opus 4.1 (Anthropic) for advanced workflow extraction
   - OpenAI Whisper API for speech-to-text transcription
 - **State Management**: Zustand with async operations
+- **Testing**: Vitest with React Testing Library
 - **Code Quality**: ESLint + TypeScript strict mode
 
 ## 📱 User Interface
 
 ### Main Views
 1. **Task List**: Complete task management with inline editing
-2. **Eisenhower Matrix**: Visual priority quadrants  
-3. **Calendar**: Weekly schedule overview
+2. **Eisenhower Matrix**: Visual priority quadrants with workflow support and zoom controls
+3. **Calendar**: Weekly schedule overview  
 4. **Workflows**: Multi-step task sequences with visual graph editor
-5. **Gantt Chart**: Priority-based timeline with work hours and capacity limits
+5. **Timeline (Gantt Chart)**: Priority-based timeline with work hours and capacity limits
 
 ### AI Integration
 - **AI Brainstorm Modal**: Voice recording and transcription
@@ -134,12 +138,17 @@ Voice Input → Whisper API → Claude Analysis → Task Creation → Database �
 - Voice recording and speech-to-text transcription
 - AI-powered task extraction and enhancement
 - Complete task and workflow management
-- Smart scheduling with capacity management
+- Smart scheduling with capacity management and deadline prioritization
 - Timeline visualization and data persistence
+- Session management for multiple work contexts
+- Workflow execution controls (start/pause/reset)
+- Eisenhower matrix with zoom and workflow support
 - Comprehensive error handling and user feedback
+- Testing infrastructure with Vitest
 
 ### 🔮 Future Enhancements
-- Workflow execution tracking
+- Improved workflow dependency editing (fix naming inconsistencies)
+- Move graph view out of edit modal with proper controls
 - Task timing and productivity analytics
 - Calendar integration for meetings
 - Advanced reporting and insights

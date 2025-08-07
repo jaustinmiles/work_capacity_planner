@@ -18,7 +18,8 @@ task_planner/
 │   │   ├── components/    # UI components
 │   │   │   ├── ai/        # AI integration components
 │   │   │   ├── calendar/  # Calendar views
-│   │   │   ├── common/    # Shared components
+│   │   │   ├── common/    # Shared components (Message wrapper)
+│   │   │   ├── session/   # Session management
 │   │   │   ├── settings/  # Settings modals
 │   │   │   ├── tasks/     # Task management
 │   │   │   └── timeline/  # Gantt chart
@@ -32,6 +33,8 @@ task_planner/
 │       └── ai-service.ts  # AI integration logic
 ├── prisma/
 │   └── schema.prisma      # Database schema
+├── test/                  # Test configuration
+│   └── setup.ts          # Test environment setup
 └── dist/                  # Build output
 
 ```
@@ -68,10 +71,10 @@ task_planner/
 
 #### Task Management (`components/tasks/`)
 - `TaskList.tsx`: Main task list with inline editing
-- `TaskEdit.tsx`: Task property editing
-- `SequencedTaskView.tsx`: Workflow management
-- `SequencedTaskEdit.tsx`: Workflow editing with graph viz
-- `EisenhowerMatrix.tsx`: Priority matrix view
+- `TaskEdit.tsx`: Task property editing with deadline support
+- `SequencedTaskView.tsx`: Workflow management with execution controls
+- `SequencedTaskEdit.tsx`: Workflow editing with graph viz (needs refactoring)
+- `EisenhowerMatrix.tsx`: Priority matrix with workflow support and zoom
 
 #### Scheduling (`components/timeline/`)
 - `GanttChart.tsx`: Priority-based Gantt chart with zoom
@@ -79,6 +82,10 @@ task_planner/
 
 #### Settings (`components/settings/`)
 - `WorkSettingsModal.tsx`: Work hours and capacity configuration
+- `WorkScheduleModal.tsx`: Daily work block scheduling
+
+#### Session Management (`components/session/`)
+- `SessionManager.tsx`: Multiple work context management
 
 ### 3. Shared Code (`src/shared/`)
 
@@ -131,12 +138,16 @@ task_planner/
 ### Database Schema
 
 **Tables:**
-- `Task`: Single tasks with priority, duration, type
-- `SequencedTask`: Multi-step workflows
+- `Session`: Work contexts for data isolation
+- `Task`: Single tasks with priority, duration, type, deadline
+- `SequencedTask`: Multi-step workflows with execution status
 - `TaskStep`: Individual steps in workflows
 - `JobContext`: Persistent work context
 - `ContextEntry`: Key-value context pairs
 - `JargonEntry`: Industry-specific terminology
+- `WorkPattern`: Daily work schedules with blocks
+- `WorkBlock`: Time blocks with capacity tracking
+- `Meeting`: Scheduled meetings that block time
 
 ## Security Architecture
 
@@ -226,7 +237,16 @@ For more intelligent async-aware scheduling:
 - User-friendly error messages
 
 ### Testing Strategy
-- Unit tests for scheduling algorithm
+- Unit tests for scheduling algorithm (Vitest)
+- Component tests with React Testing Library
 - Integration tests for IPC channels
 - E2E tests for critical workflows
 - Manual testing of voice features
+
+### Recent Improvements
+- React 19 compatibility (Message component wrapper)
+- Session management for multiple work contexts
+- Deadline prioritization in scheduling
+- Workflow execution controls (start/pause/reset)
+- Enhanced TypeScript strictness in ESLint
+- Testing infrastructure with Vitest

@@ -8,14 +8,16 @@ This is a Work Capacity Planner - an Electron-based desktop application for mana
 
 ## Technology Stack
 
-- **Framework**: Electron 26+ with React 18
-- **Language**: TypeScript 5.0+
-- **State Management**: Zustand
-- **Database**: SQLite with Prisma ORM
+- **Framework**: Electron 26+ with React 19
+- **Language**: TypeScript 5.0+ with strict mode
+- **State Management**: Zustand with session-aware persistence
+- **Database**: SQLite with Prisma ORM (session-isolated data)
 - **UI Framework**: Arco Design (professional React component library) + Tailwind CSS
 - **Date/Time**: dayjs (lightweight date manipulation library)
 - **Build Tool**: Vite
 - **Testing**: Vitest + React Testing Library + Playwright
+- **AI Services**: Claude Opus 4.1 + OpenAI Whisper API
+- **Code Quality**: ESLint with enhanced TypeScript rules
 
 ## Development Commands
 
@@ -49,25 +51,26 @@ npm run lint
 ## Project Structure
 
 ```
-work-capacity-planner/
+task-planner/
 ├── src/
-│   ├── main/           # Electron main process
-│   ├── renderer/       # React app
-│   ├── shared/         # Shared types and utilities
-│   └── preload/        # Preload scripts
+│   ├── main/              # Electron main process (database, IPC, AI services)
+│   ├── renderer/          # React app
+│   │   ├── components/
+│   │   │   ├── ai/        # AI-powered brainstorming
+│   │   │   ├── session/   # Work context management
+│   │   │   └── tasks/     # Task and workflow components
+│   │   ├── store/         # Zustand state management
+│   │   └── utils/         # Scheduling algorithms
+│   ├── shared/            # Shared types and utilities
+│   └── test/              # Test setup and utilities
 ├── prisma/
-│   ├── schema.prisma
+│   ├── schema.prisma      # Database schema with sessions
 │   └── migrations/
-├── resources/          # App icons, etc.
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-├── .github/            # CI/CD workflows
-├── electron-builder.yml
+├── docs/                  # Technical documentation
+├── vitest.config.ts       # Test configuration
+├── eslint.config.js       # Linting rules
 ├── package.json
 ├── tsconfig.json
-├── vite.config.ts
 └── README.md
 ```
 
@@ -85,9 +88,11 @@ work-capacity-planner/
 - **Database**: Local SQLite with Prisma ORM for persistence
 
 ### Core Data Models
-- **Task**: Contains duration, importance, urgency, type, async wait time, and dependencies
-- **DailySchedule**: Configurable work hours and meetings per weekday
-- **ScheduledTask**: Represents when tasks are scheduled with partial task support
+- **Session**: Work contexts for data isolation (multiple projects/clients)
+- **Task**: Contains duration, importance, urgency, type, async wait time, dependencies, and hard deadlines
+- **SequencedTask**: Multi-step workflows with execution tracking
+- **WorkPattern**: Daily work schedules with time blocks and capacity
+- **JobContext**: Persistent context about user's role and work patterns
 
 ## Implementation Status
 
@@ -111,27 +116,33 @@ work-capacity-planner/
 - ✅ Timeline visualization with Gantt-style charts
 - ✅ Task priority optimization (importance × urgency scoring)
 
-**Current Features:**
-- Full CRUD operations for tasks and workflows with database persistence
-- Smart scheduling engine that distributes tasks across available time slots
-- Complex workflow creation with individual steps and dependencies
-- Real-time timeline visualization showing task distribution
-- Eisenhower Matrix for task prioritization
-- Workload capacity calculations respecting daily limits
-- Progress tracking and completion statistics
-- Persistent data storage - no more losing tasks on restart!
+**Phase 3 - AI Integration Complete:**
+- ✅ Voice recording with Whisper transcription
+- ✅ Claude Opus 4.1 for task/workflow extraction
+- ✅ Job context and jargon dictionary persistence
+- ✅ AI-powered task enhancement and clarification
+- ✅ Natural language to structured task conversion
 
-**Next steps:**
-- Create work day configuration UI (currently pending)
-- Implement async wait period optimization
-- Add calendar integration for meetings and appointments
-- Create advanced analytics and reporting features
+**Phase 4 - Recent Enhancements:**
+- ✅ Session management for multiple work contexts
+- ✅ Hard deadline support with priority boosting
+- ✅ Workflow execution controls (start/pause/reset)
+- ✅ Eisenhower matrix zoom and workflow integration
+- ✅ React 19 compatibility fixes
+- ✅ Testing infrastructure with Vitest
+- ✅ Enhanced TypeScript linting rules
+
+**Known Issues to Fix:**
+- ⚠️ Workflow dependency naming inconsistencies in edit mode
+- ⚠️ Graph view placement (should not be in edit modal)
+- ⚠️ Missing edit controls in graph visualization
 
 ## Key Algorithms
 
-- **Task Scheduling**: Distributes tasks across days based on available capacity
+- **Task Scheduling**: Priority-based scheduling with deadline awareness
 - **Dependency Resolution**: Topological sort considering dependencies and priorities
-- **Capacity Calculation**: Accounts for meetings when determining available work time
+- **Capacity Calculation**: Work blocks with type-specific capacity tracking
+- **Deadline Prioritization**: Tasks within 24 hours get priority boost
 
 ## UI/UX Design Patterns
 
@@ -145,7 +156,35 @@ work-capacity-planner/
 
 ## Testing Strategy
 
-- Unit tests for business logic and algorithms
+- Unit tests for business logic and algorithms (Vitest)
+- Component tests with React Testing Library
 - Integration tests for IPC and database operations
 - E2E tests for critical workflows using Playwright
 - Performance tests for scheduling with large datasets
+
+## Common Patterns & Best Practices
+
+### React 19 Compatibility
+- Use custom Message wrapper instead of Arco's direct Message API
+- Avoid non-standard DOM props (e.g., valueStyle)
+
+### Session Management
+- All database queries filter by active sessionId
+- Session context persists across app restarts
+- Use SessionManager component for switching contexts
+
+### Error Handling
+- Always show user-friendly error messages
+- Log detailed errors to console for debugging
+- Use try-catch in all async operations
+
+### TypeScript Patterns
+- Strict mode enabled - no implicit any
+- Use type guards for runtime validation
+- Prefer interfaces over type aliases for objects
+
+### Code Organization
+- Components in feature-based folders
+- Shared types in /shared directory
+- Database operations only in main process
+- State management through Zustand store
