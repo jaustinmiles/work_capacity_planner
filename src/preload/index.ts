@@ -51,6 +51,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateWorkSession: (id: string, data: any) => ipcRenderer.invoke('db:updateWorkSession', id, data),
     getWorkSessions: (date: string) => ipcRenderer.invoke('db:getWorkSessions', date),
     getTodayAccumulated: (date: string) => ipcRenderer.invoke('db:getTodayAccumulated', date),
+    // Progress tracking operations
+    createStepWorkSession: (data: any) => ipcRenderer.invoke('db:createStepWorkSession', data),
+    updateTaskStepProgress: (stepId: string, data: any) => ipcRenderer.invoke('db:updateTaskStepProgress', stepId, data),
+    getStepWorkSessions: (stepId: string) => ipcRenderer.invoke('db:getStepWorkSessions', stepId),
+    recordTimeEstimate: (data: any) => ipcRenderer.invoke('db:recordTimeEstimate', data),
+    getTimeAccuracyStats: (filters?: any) => ipcRenderer.invoke('db:getTimeAccuracyStats', filters),
   },
 
   // AI operations

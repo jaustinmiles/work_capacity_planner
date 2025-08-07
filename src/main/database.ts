@@ -950,6 +950,145 @@ export class DatabaseService {
     }, { focusMinutes: 0, adminMinutes: 0 })
   }
 
+  // Progress tracking operations
+  async createStepWorkSession(data: {
+    taskStepId: string;
+    startTime: Date;
+    duration: number;
+    notes?: string;
+  }): Promise<any> {
+    return this.client.stepWorkSession.create({ data })
+  }
+
+  async updateTaskStepProgress(stepId: string, data: {
+    actualDuration?: number;
+    percentComplete?: number;
+    status?: string;
+    completedAt?: Date;
+    startedAt?: Date;
+  }): Promise<any> {
+    return this.client.taskStep.update({
+      where: { id: stepId },
+      data,
+    })
+  }
+
+  async getStepWorkSessions(stepId: string): Promise<any[]> {
+    return this.client.stepWorkSession.findMany({
+      where: { taskStepId: stepId },
+      orderBy: { startTime: 'desc' },
+    })
+  }
+
+  async recordTimeEstimate(data: {
+    taskType: string;
+    estimatedMinutes: number;
+    actualMinutes: number;
+    workflowCategory?: string;
+  }): Promise<void> {
+    const sessionId = await this.getActiveSession()
+    const variance = ((data.actualMinutes - data.estimatedMinutes) / data.estimatedMinutes) * 100
+
+    await this.client.timeEstimateAccuracy.create({
+      data: {
+        sessionId,
+        taskType: data.taskType,
+        estimatedMinutes: data.estimatedMinutes,
+        actualMinutes: data.actualMinutes,
+        variance,
+        workflowCategory: data.workflowCategory,
+      },
+    })
+  }
+
+  async getTimeAccuracyStats(filters?: {
+    taskType?: string;
+    dateRange?: { start: Date; end: Date };
+  }): Promise<{
+    averageVariance: number;
+    totalSamples: number;
+    overestimateCount: number;
+    underestimateCount: number;
+    accurateCount: number;
+    byTaskType: Record<string, { variance: number; samples: number }>;
+  }> {
+    const sessionId = await this.getActiveSession()
+    const where: any = { sessionId }
+
+    if (filters?.taskType) {
+      where.taskType = filters.taskType
+    }
+
+    if (filters?.dateRange) {
+      where.createdAt = {
+        gte: filters.dateRange.start,
+        lte: filters.dateRange.end,
+      }
+    }
+
+    const records = await this.client.timeEstimateAccuracy.findMany({ where })
+
+    if (records.length === 0) {
+      return {
+        averageVariance: 0,
+        totalSamples: 0,
+        overestimateCount: 0,
+        underestimateCount: 0,
+        accurateCount: 0,
+        byTaskType: {},
+      }
+    }
+
+    const stats = records.reduce(
+      (acc, record) => {
+        acc.totalVariance += record.variance
+        
+        if (record.variance > 10) {
+          acc.overestimateCount++
+        } else if (record.variance < -10) {
+          acc.underestimateCount++
+        } else {
+          acc.accurateCount++
+        }
+
+        if (!acc.byTaskType[record.taskType]) {
+          acc.byTaskType[record.taskType] = { totalVariance: 0, count: 0 }
+        }
+        acc.byTaskType[record.taskType].totalVariance += record.variance
+        acc.byTaskType[record.taskType].count++
+
+        return acc
+      },
+      {
+        totalVariance: 0,
+        overestimateCount: 0,
+        underestimateCount: 0,
+        accurateCount: 0,
+        byTaskType: {} as Record<string, { totalVariance: number; count: number }>,
+      }
+    )
+
+    const byTaskType = Object.entries(stats.byTaskType).reduce(
+      (acc, [type, data]) => {
+        acc[type] = {
+          variance: data.totalVariance / data.count,
+          samples: data.count,
+        }
+        return acc
+      },
+      {} as Record<string, { variance: number; samples: number }>
+    )
+
+    return {
+      averageVariance: stats.totalVariance / records.length,
+      totalSamples: records.length,
+      overestimateCount: stats.overestimateCount,
+      underestimateCount: stats.underestimateCount,
+      accurateCount: stats.accurateCount,
+      byTaskType,
+    }
+  }
+
   // Cleanup method
   async disconnect(): Promise<void> {
     await this.client.$disconnect()

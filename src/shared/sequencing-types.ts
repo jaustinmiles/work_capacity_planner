@@ -17,6 +17,11 @@ export interface TaskStep {
   status: 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped'
   completedAt?: Date
   actualDuration?: number
+  
+  // Progress tracking (new fields)
+  startedAt?: Date
+  percentComplete: number // 0-100, default 0
+  stepIndex?: number // position in workflow
 }
 
 export interface ConditionalBranch {
@@ -84,6 +89,7 @@ export const exampleSequencedTask: SequencedTask = {
       dependsOn: [],
       asyncWaitTime: 0,
       status: 'pending',
+      percentComplete: 0,
     },
     {
       id: 'step-2',
@@ -93,6 +99,7 @@ export const exampleSequencedTask: SequencedTask = {
       dependsOn: ['step-1'], // sequential after data mining
       asyncWaitTime: 0,
       status: 'pending',
+      percentComplete: 0,
     },
     {
       id: 'step-3',
@@ -102,6 +109,7 @@ export const exampleSequencedTask: SequencedTask = {
       dependsOn: ['step-2'],
       asyncWaitTime: 60, // wait 1 hour for workflow to complete
       status: 'pending',
+      percentComplete: 0,
     },
     {
       id: 'step-4',
@@ -111,6 +119,7 @@ export const exampleSequencedTask: SequencedTask = {
       dependsOn: ['step-3'],
       asyncWaitTime: 0,
       status: 'pending',
+      percentComplete: 0,
       conditionalBranches: [{
         id: 'branch-1',
         condition: 'Verification fails, need to fix and re-run workflow',
@@ -127,6 +136,7 @@ export const exampleSequencedTask: SequencedTask = {
       dependsOn: ['step-4'],
       asyncWaitTime: 480, // 8 hours for review (worst case)
       status: 'pending',
+      percentComplete: 0,
       conditionalBranches: [{
         id: 'branch-2',
         condition: 'Review feedback requires changes',
@@ -140,6 +150,7 @@ export const exampleSequencedTask: SequencedTask = {
             dependsOn: ['step-5'],
             asyncWaitTime: 240, // 4 hours for re-review
             status: 'pending',
+            percentComplete: 0,
           },
         ],
       }],

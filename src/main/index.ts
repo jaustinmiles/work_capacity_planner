@@ -231,6 +231,27 @@ ipcMain.handle('db:getTodayAccumulated', async (_event: IpcMainInvokeEvent, date
   return await db.getTodayAccumulated(date)
 })
 
+// Progress tracking handlers
+ipcMain.handle('db:createStepWorkSession', async (_event: IpcMainInvokeEvent, data: any) => {
+  return await db.createStepWorkSession(data)
+})
+
+ipcMain.handle('db:updateTaskStepProgress', async (_event: IpcMainInvokeEvent, stepId: string, data: any) => {
+  return await db.updateTaskStepProgress(stepId, data)
+})
+
+ipcMain.handle('db:getStepWorkSessions', async (_event: IpcMainInvokeEvent, stepId: string) => {
+  return await db.getStepWorkSessions(stepId)
+})
+
+ipcMain.handle('db:recordTimeEstimate', async (_event: IpcMainInvokeEvent, data: any) => {
+  return await db.recordTimeEstimate(data)
+})
+
+ipcMain.handle('db:getTimeAccuracyStats', async (_event: IpcMainInvokeEvent, filters?: any) => {
+  return await db.getTimeAccuracyStats(filters)
+})
+
 // AI operation handlers
 ipcMain.handle('ai:extractTasksFromBrainstorm', async (_event: IpcMainInvokeEvent, brainstormText: string) => {
   const aiService = getAIService()

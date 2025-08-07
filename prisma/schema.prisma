@@ -25,6 +25,7 @@ model Session {
   workPatterns    WorkPattern[]
   jobContexts     JobContext[]
   jargonEntries   JargonEntry[]
+  timeAccuracy    TimeEstimateAccuracy[]
 }
 
 model Task {
@@ -114,7 +115,14 @@ model TaskStep {
   sequencedTaskId   String
   stepIndex         Int
   
+  // Progress tracking fields
+  actualDuration    Int?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  percentComplete   Int      @default(0)
+  
   sequencedTask     SequencedTask @relation(fields: [sequencedTaskId], references: [id], onDelete: Cascade)
+  workSessions      StepWorkSession[]
 }
 
 model ScheduledTask {
@@ -246,4 +254,37 @@ model WorkSession {
   @@index([patternId])
   @@index([taskId])
   @@index([startTime])
+}
+
+// New model for step-specific work sessions
+model StepWorkSession {
+  id              String   @id @default(uuid())
+  taskStepId      String
+  startTime       DateTime
+  endTime         DateTime?
+  duration        Int      // minutes worked
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  taskStep        TaskStep @relation(fields: [taskStepId], references: [id], onDelete: Cascade)
+  
+  @@index([taskStepId])
+}
+
+// Model for tracking time estimation accuracy
+model TimeEstimateAccuracy {
+  id                String   @id @default(uuid())
+  sessionId         String
+  taskType          String   // "focused" | "admin"
+  workflowCategory  String?
+  estimatedMinutes  Int
+  actualMinutes     Int
+  variance          Float    // percentage variance
+  createdAt         DateTime @default(now())
+  
+  session           Session  @relation(fields: [sessionId], references: [id])
+  
+  @@index([sessionId])
+  @@index([taskType])
 }
