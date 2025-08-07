@@ -355,6 +355,9 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
         {/* Text Input Section */}
         <div>
           <Title heading={6}>Schedule Description</Title>
+          <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
+            Type or dictate your schedule requirements below
+          </Text>
           <TextArea
             value={scheduleText}
             onChange={setScheduleText}

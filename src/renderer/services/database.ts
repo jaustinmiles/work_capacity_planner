@@ -40,11 +40,13 @@ declare global {
         // Development helpers
         deleteAllTasks: () => Promise<void>
         deleteAllSequencedTasks: () => Promise<void>
+        deleteAllUserData: () => Promise<void>
         // Work pattern operations
         getWorkPattern: (date: string) => Promise<any>
         createWorkPattern: (data: any) => Promise<any>
         updateWorkPattern: (id: string, data: any) => Promise<any>
         getWorkTemplates: () => Promise<any[]>
+        saveAsTemplate: (date: string, templateName: string) => Promise<any>
         // Work session operations
         createWorkSession: (data: any) => Promise<any>
         updateWorkSession: (id: string, data: any) => Promise<any>
@@ -367,6 +369,10 @@ export class RendererDatabaseService {
     return await window.electronAPI.db.deleteAllSequencedTasks()
   }
 
+  async deleteAllUserData() {
+    return await window.electronAPI.db.deleteAllUserData()
+  }
+
   // Work pattern operations
   async getWorkPattern(date: string) {
     return await window.electronAPI.db.getWorkPattern(date)
@@ -382,6 +388,10 @@ export class RendererDatabaseService {
 
   async getWorkTemplates() {
     return await window.electronAPI.db.getWorkTemplates()
+  }
+
+  async saveAsTemplate(date: string, templateName: string) {
+    return await window.electronAPI.db.saveAsTemplate(date, templateName)
   }
 
   // Work session operations

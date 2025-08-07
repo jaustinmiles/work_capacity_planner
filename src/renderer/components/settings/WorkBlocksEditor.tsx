@@ -34,6 +34,7 @@ import {
   getRemainingCapacity,
 } from '@shared/work-blocks-types'
 import { Message } from '../common/Message'
+import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -68,6 +69,29 @@ export function WorkBlocksEditor({
   const [form] = Form.useForm()
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
+  const [userTemplates, setUserTemplates] = useState<any[]>([])
+
+  // Update local state when pattern prop changes
+  useEffect(() => {
+    if (pattern) {
+      setBlocks(pattern.blocks || [])
+      setMeetings(pattern.meetings || [])
+    }
+  }, [pattern])
+
+  // Load user templates
+  useEffect(() => {
+    loadUserTemplates()
+  }, [])
+
+  const loadUserTemplates = async () => {
+    try {
+      const templates = await getDatabase().getWorkTemplates()
+      setUserTemplates(templates)
+    } catch (error) {
+      console.error('Failed to load user templates:', error)
+    }
+  }
 
   // Calculate capacity
   const totalCapacity = getTotalCapacity(blocks)
@@ -92,13 +116,42 @@ export function WorkBlocksEditor({
   }
 
   const handleApplyTemplate = (templateId: string) => {
-    const template = DEFAULT_WORK_TEMPLATES.find(t => t.id === templateId)
+    // Check default templates first
+    let template = DEFAULT_WORK_TEMPLATES.find(t => t.id === templateId)
+    let isUserTemplate = false
+    
+    // If not found in defaults, check user templates
+    if (!template) {
+      const userTemplate = userTemplates.find(t => t.id === templateId)
+      if (userTemplate) {
+        template = {
+          id: userTemplate.id,
+          name: userTemplate.templateName || 'Custom Template',
+          blocks: userTemplate.blocks,
+        }
+        isUserTemplate = true
+      }
+    }
+    
     if (template) {
       const newBlocks = template.blocks.map((b, index) => ({
         ...b,
         id: `block-${Date.now()}-${index}`,
       }))
       setBlocks(newBlocks)
+      
+      // If it's a user template, also apply meetings
+      if (isUserTemplate) {
+        const userTemplate = userTemplates.find(t => t.id === templateId)
+        if (userTemplate?.meetings) {
+          const newMeetings = userTemplate.meetings.map((m: any, index: number) => ({
+            ...m,
+            id: `meeting-${Date.now()}-${index}`,
+          }))
+          setMeetings(newMeetings)
+        }
+      }
+      
       Message.success(`Applied template: ${template.name}`)
     }
   }
@@ -152,6 +205,39 @@ export function WorkBlocksEditor({
     onSave(blocks, meetings)
   }
 
+  const handleSaveAsTemplate = async () => {
+    if (!templateName.trim()) {
+      Message.error('Please enter a template name')
+      return
+    }
+    
+    try {
+      // First save the current schedule
+      handleSave()
+      
+      // Wait a bit for the save to complete
+      setTimeout(async () => {
+        try {
+          // Then save it as a template
+          await getDatabase().saveAsTemplate(date, templateName.trim())
+          
+          Message.success(`Template "${templateName}" saved successfully`)
+          setShowSaveAsTemplate(false)
+          setTemplateName('')
+          
+          // Reload templates
+          loadUserTemplates()
+        } catch (error) {
+          console.error('Failed to save template:', error)
+          Message.error('Failed to save template')
+        }
+      }, 500)
+    } catch (error) {
+      console.error('Failed to save template:', error)
+      Message.error('Failed to save template')
+    }
+  }
+
   const formatMinutes = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
@@ -189,14 +275,28 @@ export function WorkBlocksEditor({
                 }}
                 style={{ width: 200 }}
               >
-                {DEFAULT_WORK_TEMPLATES.map(template => (
-                  <Select.Option key={template.id} value={template.id}>
-                    {template.name}
-                  </Select.Option>
-                ))}
+                <Select.OptGroup label="Default Templates">
+                  {DEFAULT_WORK_TEMPLATES.map(template => (
+                    <Select.Option key={template.id} value={template.id}>
+                      {template.name}
+                    </Select.Option>
+                  ))}
+                </Select.OptGroup>
+                {userTemplates.length > 0 && (
+                  <Select.OptGroup label="My Templates">
+                    {userTemplates.map(template => (
+                      <Select.Option key={template.id} value={template.id}>
+                        {template.templateName || 'Unnamed Template'}
+                      </Select.Option>
+                    ))}
+                  </Select.OptGroup>
+                )}
               </Select>
               <Button type="primary" onClick={handleSave}>
                 Save Schedule
+              </Button>
+              <Button onClick={() => setShowSaveAsTemplate(true)}>
+                Save as Template
               </Button>
               {onClose && (
                 <Button onClick={onClose}>Cancel</Button>
@@ -485,6 +585,31 @@ export function WorkBlocksEditor({
               <Select.Option value="weekly">Weekly</Select.Option>
             </Select>
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Save as Template Modal */}
+      <Modal
+        title="Save Schedule as Template"
+        visible={showSaveAsTemplate}
+        onOk={handleSaveAsTemplate}
+        onCancel={() => {
+          setShowSaveAsTemplate(false)
+          setTemplateName('')
+        }}
+      >
+        <Form layout="vertical">
+          <Form.Item label="Template Name">
+            <Input
+              placeholder="e.g., My Productive Day, Meeting Heavy Tuesday"
+              value={templateName}
+              onChange={setTemplateName}
+              onPressEnter={handleSaveAsTemplate}
+            />
+          </Form.Item>
+          <Text type="secondary">
+            This will save your current schedule configuration as a reusable template
+          </Text>
         </Form>
       </Modal>
     </Space>

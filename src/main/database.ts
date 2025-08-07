@@ -672,6 +672,25 @@ export class DatabaseService {
     await this.client.sequencedTask.deleteMany({})
   }
 
+  // Delete all user data (for clean slate)
+  async deleteAllUserData(): Promise<void> {
+    // Delete in order to respect foreign key constraints
+    await this.client.workSession.deleteMany({})
+    await this.client.workMeeting.deleteMany({})
+    await this.client.workBlock.deleteMany({})
+    await this.client.workPattern.deleteMany({})
+    await this.client.contextEntry.deleteMany({})
+    await this.client.jargonEntry.deleteMany({})
+    await this.client.jobContext.deleteMany({})
+    await this.client.taskStep.deleteMany({})
+    await this.client.sequencedTask.deleteMany({})
+    await this.client.task.deleteMany({})
+    // Keep sessions but clear their data
+    await this.client.session.updateMany({
+      data: { updatedAt: new Date() }
+    })
+  }
+
   // Work Pattern operations
   async getWorkPattern(date: string): Promise<any> {
     const sessionId = await this.getActiveSession()
@@ -745,6 +764,59 @@ export class DatabaseService {
     }
   }
 
+  async saveAsTemplate(date: string, templateName: string): Promise<any> {
+    const sessionId = await this.getActiveSession()
+    const existingPattern = await this.getWorkPattern(date)
+    
+    if (!existingPattern) {
+      throw new Error('No pattern found for this date')
+    }
+
+    // Create a new template based on the existing pattern
+    const template = await this.client.workPattern.create({
+      data: {
+        date: `template-${Date.now()}`, // Use unique date for templates
+        isTemplate: true,
+        templateName,
+        sessionId,
+        blocks: {
+          create: existingPattern.blocks.map((b: any) => ({
+            startTime: b.startTime,
+            endTime: b.endTime,
+            type: b.type,
+            capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+          })),
+        },
+        meetings: {
+          create: existingPattern.meetings.map((m: any) => ({
+            name: m.name,
+            startTime: m.startTime,
+            endTime: m.endTime,
+            type: m.type,
+            recurring: m.recurring || 'none',
+            daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
+          })),
+        },
+      },
+      include: {
+        blocks: true,
+        meetings: true,
+      },
+    })
+
+    return {
+      ...template,
+      blocks: template.blocks.map(b => ({
+        ...b,
+        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+      })),
+      meetings: template.meetings.map(m => ({
+        ...m,
+        daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
+      })),
+    }
+  }
+
   async updateWorkPattern(id: string, data: any): Promise<any> {
     const { blocks, meetings, ...patternData } = data
 
@@ -788,12 +860,17 @@ export class DatabaseService {
   }
 
   async getWorkTemplates(): Promise<any[]> {
+    const sessionId = await this.getActiveSession()
     const templates = await this.client.workPattern.findMany({
-      where: { isTemplate: true },
+      where: { 
+        isTemplate: true,
+        sessionId
+      },
       include: {
         blocks: true,
         meetings: true,
       },
+      orderBy: { createdAt: 'desc' },
     })
 
     return templates.map(t => ({

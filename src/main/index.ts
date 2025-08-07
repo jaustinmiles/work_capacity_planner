@@ -189,6 +189,10 @@ ipcMain.handle('db:deleteAllSequencedTasks', async () => {
   return await db.deleteAllSequencedTasks()
 })
 
+ipcMain.handle('db:deleteAllUserData', async () => {
+  return await db.deleteAllUserData()
+})
+
 // Work pattern handlers
 ipcMain.handle('db:getWorkPattern', async (_: any, date: string) => {
   return await db.getWorkPattern(date)
@@ -204,6 +208,10 @@ ipcMain.handle('db:updateWorkPattern', async (_: any, id: string, data: any) => 
 
 ipcMain.handle('db:getWorkTemplates', async () => {
   return await db.getWorkTemplates()
+})
+
+ipcMain.handle('db:saveAsTemplate', async (_: any, date: string, templateName: string) => {
+  return await db.saveAsTemplate(date, templateName)
 })
 
 // Work session handlers
