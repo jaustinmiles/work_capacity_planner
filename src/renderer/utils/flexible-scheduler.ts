@@ -225,6 +225,7 @@ export function scheduleItemsWithBlocks(
   const workItems: WorkItem[] = []
   const completedSteps = new Set<string>()
   const asyncWaitEndTimes = new Map<Date, string>()
+  const workflowProgress = new Map<string, number>() // Track how many steps scheduled per workflow
   
 
   // Convert tasks to work items
@@ -272,7 +273,7 @@ export function scheduleItemsWithBlocks(
         })
     })
 
-  // Sort by deadline urgency and priority
+  // Smart sorting: Interleave high-priority tasks with workflow steps
   workItems.sort((a, b) => {
     // First check if either has a deadline
     const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
@@ -290,8 +291,26 @@ export function scheduleItemsWithBlocks(
     if (aDeadline - now < oneDayMs) return -1
     if (bDeadline - now < oneDayMs) return 1
 
-    // Otherwise sort by priority score
-    return b.priority - a.priority
+    // For workflow steps, deprioritize later steps in the workflow
+    const aIsWorkflowStep = a.type === 'workflow-step'
+    const bIsWorkflowStep = b.type === 'workflow-step'
+    
+    if (aIsWorkflowStep && bIsWorkflowStep && a.workflowId === b.workflowId) {
+      // Same workflow - maintain step order
+      return (a.stepIndex || 0) - (b.stepIndex || 0)
+    }
+    
+    // Boost priority of first steps and standalone tasks
+    const aEffectivePriority = aIsWorkflowStep && a.stepIndex > 0 
+      ? a.priority * 0.7 // Reduce priority of later workflow steps
+      : a.priority
+      
+    const bEffectivePriority = bIsWorkflowStep && b.stepIndex > 0 
+      ? b.priority * 0.7 // Reduce priority of later workflow steps
+      : b.priority
+
+    // Sort by effective priority
+    return bEffectivePriority - aEffectivePriority
   })
 
   // Process each day
@@ -340,8 +359,48 @@ export function scheduleItemsWithBlocks(
     let itemsScheduledToday = false
     let shouldMoveToNextDay = false
 
-    for (let i = 0; i < workItems.length; i++) {
-      const item = workItems[i]
+    // Re-sort items based on current workflow progress to ensure good interleaving
+    const itemsToSchedule = [...workItems]
+    itemsToSchedule.sort((a, b) => {
+      // Always respect deadlines first
+      const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
+      const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
+      const now = new Date().getTime()
+      const oneDayMs = 24 * 60 * 60 * 1000
+
+      if (aDeadline - now < oneDayMs && bDeadline - now < oneDayMs) {
+        return aDeadline - bDeadline
+      }
+      if (aDeadline - now < oneDayMs) return -1
+      if (bDeadline - now < oneDayMs) return 1
+
+      // Penalize workflows that have already made progress
+      const aProgress = a.workflowId ? (workflowProgress.get(a.workflowId) || 0) : 0
+      const bProgress = b.workflowId ? (workflowProgress.get(b.workflowId) || 0) : 0
+      
+      // If one workflow has significantly more progress, deprioritize it
+      if (Math.abs(aProgress - bProgress) >= 2) {
+        return aProgress - bProgress // Lower progress = higher priority
+      }
+
+      // Otherwise use the original priority calculation
+      const aIsWorkflowStep = a.type === 'workflow-step'
+      const bIsWorkflowStep = b.type === 'workflow-step'
+      
+      const aEffectivePriority = aIsWorkflowStep && a.stepIndex > 0 
+        ? a.priority * (0.9 - aProgress * 0.1) // Further reduce priority based on workflow progress
+        : a.priority
+        
+      const bEffectivePriority = bIsWorkflowStep && b.stepIndex > 0 
+        ? b.priority * (0.9 - bProgress * 0.1) 
+        : b.priority
+
+      return bEffectivePriority - aEffectivePriority
+    })
+
+    for (let i = 0; i < itemsToSchedule.length; i++) {
+      const item = itemsToSchedule[i]
+      const originalIndex = workItems.findIndex(w => w.id === item.id)
 
       // First check if any async waits have completed since we last checked
       const newlyFinishedWaits: Date[] = []
@@ -387,6 +446,11 @@ export function scheduleItemsWithBlocks(
           } else {
             block.adminMinutesUsed += item.duration
           }
+          
+          // Track workflow progress
+          if (item.workflowId) {
+            workflowProgress.set(item.workflowId, (workflowProgress.get(item.workflowId) || 0) + 1)
+          }
 
           // Handle async wait time
           if (item.asyncWaitTime > 0) {
@@ -424,9 +488,8 @@ export function scheduleItemsWithBlocks(
             currentDate.setHours(0, 0, 0, 0)
           }
 
-          // Remove from work items
-          workItems.splice(i, 1)
-          i-- // Adjust index
+          // Remove from work items using the original index
+          workItems.splice(originalIndex, 1)
           itemsScheduledToday = true
           itemScheduled = true
           break
