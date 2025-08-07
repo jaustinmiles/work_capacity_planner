@@ -3,11 +3,13 @@ import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdow
 import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
+import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { TaskList } from './components/tasks/TaskList'
 import { TaskForm } from './components/tasks/TaskForm'
 import { SequencedTaskForm } from './components/tasks/SequencedTaskForm'
 import { SequencedTaskView } from './components/tasks/SequencedTaskView'
 import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
+import { TestWorkflowCreator } from './components/tasks/TestWorkflowCreator'
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
 import { GanttChart } from './components/timeline/GanttChart'
 import { BrainstormModal } from './components/ai/BrainstormModal'
@@ -48,6 +50,7 @@ function App() {
     sequencedTasks,
     addTask,
     addSequencedTask,
+    updateSequencedTask,
     deleteSequencedTask,
     currentWeeklySchedule,
     isScheduling,
@@ -426,18 +429,25 @@ function App() {
               ) : (
                 <>
               {activeView === 'tasks' && (
-                <TaskList onAddTask={() => setTaskFormVisible(true)} />
+                <ErrorBoundary>
+                  <TaskList onAddTask={() => setTaskFormVisible(true)} />
+                </ErrorBoundary>
               )}
 
               {activeView === 'matrix' && (
-                <EisenhowerMatrix onAddTask={() => setTaskFormVisible(true)} />
+                <ErrorBoundary>
+                  <EisenhowerMatrix onAddTask={() => setTaskFormVisible(true)} />
+                </ErrorBoundary>
               )}
 
               {activeView === 'calendar' && (
-                <WeeklyCalendar />
+                <ErrorBoundary>
+                  <WeeklyCalendar />
+                </ErrorBoundary>
               )}
 
               {activeView === 'workflows' && (
+                <ErrorBoundary>
                 <Space direction="vertical" style={{ width: '100%' }} size="large">
                   {/* User's Created Workflows */}
                   {sequencedTasks.length > 0 && (
@@ -463,6 +473,7 @@ function App() {
                             </Button>
                           </Popconfirm>
                         )}
+                        <TestWorkflowCreator />
                       </div>
 
                       {sequencedTasks.map(task => (
@@ -495,13 +506,16 @@ function App() {
                     />
                   )}
                 </Space>
+                </ErrorBoundary>
               )}
 
               {activeView === 'timeline' && (
-                <GanttChart
-                  tasks={tasks}
-                  sequencedTasks={sequencedTasks}
-                />
+                <ErrorBoundary>
+                  <GanttChart
+                    tasks={tasks}
+                    sequencedTasks={sequencedTasks}
+                  />
+                </ErrorBoundary>
               )}
                 </>
               )}
@@ -550,7 +564,7 @@ function App() {
           onClose={() => setShowSessionManager(false)}
           onSessionChange={() => {
             // Reload data when session changes
-            loadData()
+            initializeData()
           }}
         />
       </Layout>

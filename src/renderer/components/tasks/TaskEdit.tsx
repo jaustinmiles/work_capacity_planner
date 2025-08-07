@@ -21,7 +21,8 @@ import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 
-const { Title, Text, TextArea } = Typography
+const { Title, Text } = Typography
+const { TextArea } = Input
 const { Row, Col } = Grid
 
 interface TaskEditProps {

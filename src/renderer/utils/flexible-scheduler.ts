@@ -273,11 +273,10 @@ export function scheduleItemsWithBlocks(
 
       // Check dependencies
       if (item.dependencies && item.dependencies.length > 0) {
-        const allDependenciesMet = item.dependencies.every(dep =>
-          completedSteps.has(dep) ||
-          (dep.startsWith('step-') && item.workflowId &&
-           completedSteps.has(`${item.workflowId}-step-${dep.replace('step-', '')}`)),
-        )
+        const allDependenciesMet = item.dependencies.every(dep => {
+          // Direct check for the dependency ID
+          return completedSteps.has(dep)
+        })
         if (!allDependenciesMet) continue
       }
 
@@ -332,10 +331,8 @@ export function scheduleItemsWithBlocks(
               originalItem: item.originalItem,
             })
           } else {
+            // Mark the item as completed using its actual ID
             completedSteps.add(item.id)
-            if (item.workflowId && item.stepIndex !== undefined) {
-              completedSteps.add(`${item.workflowId}-step-${item.stepIndex}`)
-            }
           }
 
           // Update current time

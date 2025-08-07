@@ -133,6 +133,38 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     return '#52C41A'
   }
 
+  // Row height based on zoom
+  const rowHeight = 40
+  
+  // Calculate row positions for items (group workflow steps together)
+  const itemRowPositions = useMemo(() => {
+    const positions = new Map<string, number>()
+    let currentRow = 0
+    const workflowRows = new Map<string, number>()
+    
+    scheduledItems.forEach(item => {
+      if (item.workflowId) {
+        // This is a workflow step
+        if (!workflowRows.has(item.workflowId)) {
+          workflowRows.set(item.workflowId, currentRow)
+          currentRow++
+        }
+        positions.set(item.id, workflowRows.get(item.workflowId)!)
+      } else if (!item.isWaitTime) {
+        // This is a standalone task
+        positions.set(item.id, currentRow)
+        currentRow++
+      } else {
+        // For wait times, use the same row as the parent item
+        const parentId = item.id.replace('-wait', '')
+        positions.set(item.id, positions.get(parentId) || currentRow)
+      }
+    })
+    
+    return { positions, totalRows: currentRow }
+  }, [scheduledItems])
+
+  // Early return for empty state - AFTER all hooks
   if (scheduledItems.length === 0) {
     return (
       <Card>
@@ -177,9 +209,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       </Card>
     )
   }
-
-  // Row height based on zoom
-  const rowHeight = 40
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -254,7 +283,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         <div style={{ overflowX: 'auto', overflowY: 'hidden', position: 'relative' }}>
           <div style={{
             position: 'relative',
-            minHeight: scheduledItems.length * rowHeight + 100,
+            minHeight: itemRowPositions.totalRows * rowHeight + 100,
             width: `${chartWidthPx}px`,
             minWidth: '100%',
           }}>
@@ -319,6 +348,64 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
             {/* Chart body */}
             <div style={{ position: 'relative', paddingTop: 10 }}>
+              {/* Row labels and backgrounds */}
+              <div style={{ 
+                position: 'absolute', 
+                left: 0, 
+                top: 0, 
+                width: '100%',
+                zIndex: 0,
+              }}>
+                {Array.from({ length: itemRowPositions.totalRows }).map((_, rowIndex) => {
+                  // Find what's in this row
+                  const rowItems = scheduledItems.filter(item => 
+                    itemRowPositions.positions.get(item.id) === rowIndex
+                  )
+                  const firstItem = rowItems[0]
+                  const isWorkflowRow = firstItem?.workflowId
+                  const rowLabel = isWorkflowRow 
+                    ? firstItem.workflowName 
+                    : firstItem?.name.replace(/\[.*\]\s*/, '')
+                  
+                  return (
+                    <div
+                      key={rowIndex}
+                      style={{
+                        position: 'absolute',
+                        top: rowIndex * rowHeight,
+                        height: rowHeight,
+                        width: '100%',
+                        background: rowIndex % 2 === 0 ? 'transparent' : '#fafafa',
+                        borderBottom: isWorkflowRow ? '2px solid #e5e5e5' : '1px solid #f0f0f0',
+                      }}
+                    >
+                      {rowLabel && (
+                        <div
+                          style={{
+                            position: 'sticky',
+                            left: 0,
+                            background: isWorkflowRow ? '#f0f0ff' : '#f5f5f5',
+                            padding: '8px 12px',
+                            fontSize: 12,
+                            fontWeight: isWorkflowRow ? 600 : 400,
+                            color: isWorkflowRow ? '#5865f2' : '#666',
+                            borderRight: '1px solid #e5e5e5',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            maxWidth: 200,
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          {isWorkflowRow && '🔄 '}{rowLabel}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
               {/* Grid lines */}
               {timeMarkers
                 .filter(time => time.getHours() % 2 === 0)
@@ -400,7 +487,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     key={item.id}
                     style={{
                       position: 'absolute',
-                      top: index * rowHeight + 5,
+                      top: (itemRowPositions.positions.get(item.id) || 0) * rowHeight + 5,
                       height: rowHeight - 10,
                       left: `${leftPx}px`,
                       width: `${widthPx}px`,
@@ -520,7 +607,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                               display: 'block',
                             }}
                           >
-                            {item.name}
+                            {item.workflowId ? item.name.replace(/^\[.*?\]\s*/, '') : item.name}
                           </Text>
                         )}
                       </div>

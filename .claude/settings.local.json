@@ -14,7 +14,9 @@
       "Bash(npm start)",
       "Bash(npm run restart:*)",
       "Bash(find:*)",
-      "Bash(npx prisma migrate dev:*)"
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(sqlite3:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }

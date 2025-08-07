@@ -122,12 +122,11 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         worstCaseDuration,
       })
 
-      Message.success('Workflow updated successfully')
+      console.log('Workflow updated successfully')
       setIsEditing(false)
       if (onClose) onClose()
     } catch (error) {
-      Message.error('Failed to update workflow')
-      console.error('Error updating workflow:', error)
+      console.error('Failed to update workflow:', error)
     } finally {
       setIsSaving(false)
     }
@@ -388,7 +387,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                       <Col flex="auto">
                         <Space direction="vertical" size="small" style={{ width: '100%' }}>
                           <Space>
-                            <Text strong>{index + 1}. {step.name}</Text>
+                            <Text style={{ fontWeight: 'bold' }}>{index + 1}. {step.name}</Text>
                             <Tag size="small" color={step.type === 'focused' ? 'blue' : 'green'}>
                               {step.type === 'focused' ? 'Focused' : 'Admin'}
                             </Tag>
@@ -458,7 +457,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                 <Col span={8}>
                   <Space direction="vertical">
                     <Text type="secondary">Total Active Work</Text>
-                    <Text strong>
+                    <Text style={{ fontWeight: 'bold' }}>
                       {formatDuration(editingSteps.reduce((sum, step) => sum + step.duration, 0))}
                     </Text>
                   </Space>
@@ -466,7 +465,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                 <Col span={8}>
                   <Space direction="vertical">
                     <Text type="secondary">Total Wait Time</Text>
-                    <Text strong>
+                    <Text style={{ fontWeight: 'bold' }}>
                       {formatDuration(editingSteps.reduce((sum, step) => sum + step.asyncWaitTime, 0))}
                     </Text>
                   </Space>
@@ -474,7 +473,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                 <Col span={8}>
                   <Space direction="vertical">
                     <Text type="secondary">Total Duration</Text>
-                    <Text strong>
+                    <Text style={{ fontWeight: 'bold' }}>
                       {formatDuration(
                         editingSteps.reduce((sum, step) => sum + step.duration + step.asyncWaitTime, 0),
                       )}

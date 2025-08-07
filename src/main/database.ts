@@ -238,6 +238,7 @@ export class DatabaseService {
         dependencies: JSON.stringify(sequencedTaskData.dependencies),
         steps: {
           create: steps.map((step, index) => ({
+            id: step.id || `step-${Date.now()}-${index}`,
             name: step.name,
             duration: step.duration,
             type: step.type,
@@ -313,6 +314,7 @@ export class DatabaseService {
 
           // Only include valid fields for TaskStep
           return {
+            id: step.id || `step-${Date.now()}-${index}`,
             name: stepData.name,
             duration: stepData.duration,
             type: stepData.type,

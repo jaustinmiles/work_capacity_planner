@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { Card, Typography, Tag, Space } from '@arco-design/web-react'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
+import { useTaskStore } from '../../store/useTaskStore'
 
 const { Title, Text } = Typography
 
@@ -20,12 +21,16 @@ interface GraphNode {
 }
 
 export function WorkflowGraph({ task }: WorkflowGraphProps) {
+  const { sequencedTasks } = useTaskStore()
+  
+  // Always use the latest task data from store
+  const currentTask = sequencedTasks.find(t => t.id === task.id) || task
   const { nodes, maxX, maxY } = useMemo(() => {
     const nodeMap = new Map<string, GraphNode>()
     const levels = new Map<string, number>()
 
     // First pass: create nodes and calculate levels
-    task.steps.forEach((step, index) => {
+    currentTask.steps.forEach((step, index) => {
       const nodeId = step.id || `step-${index}`
       const node: GraphNode = {
         id: nodeId,
@@ -76,7 +81,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
     })
 
     return { nodes: Array.from(nodeMap.values()), maxX: maxX + 20, maxY: maxY + 20 }
-  }, [task])
+  }, [currentTask])
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
@@ -107,7 +112,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
       <div style={{ width: '100%', overflowX: 'auto', overflowY: 'auto', maxHeight: 600 }}>
         <svg width={maxX} height={maxY} style={{ minWidth: '100%' }}>
           {/* Draw connections */}
-          {nodes.map(node =>
+          {nodes.flatMap(node =>
             node.dependencies.map(depId => {
               const fromNode = nodes.find(n => n.id === depId)
               if (fromNode) {
@@ -129,7 +134,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 )
               }
               return null
-            }),
+            }).filter(Boolean)
           )}
 
           {/* Draw nodes */}

@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run type checking and linting before push
+echo "Running pre-push checks..."
+npm run check || {
+  echo "❌ Pre-push checks failed. Please fix errors before pushing."
+  exit 1
+}
+
+echo "✅ Pre-push checks passed!"
