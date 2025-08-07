@@ -1,5 +1,5 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
-const path = require('node:path')
+import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron'
+import path from 'node:path'
 import { DatabaseService } from './database'
 import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
@@ -9,9 +9,9 @@ if (process.platform === 'win32') {
   app.setAppUserModelId(app.getName())
 }
 
-let mainWindow: any = null
+let mainWindow: BrowserWindow | null = null
 
-async function createWindow() {
+async function createWindow(): Promise<void> {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -74,19 +74,19 @@ ipcMain.handle('db:getSessions', async () => {
   return await db.getSessions()
 })
 
-ipcMain.handle('db:createSession', async (_: any, name: string, description?: string) => {
+ipcMain.handle('db:createSession', async (_event: IpcMainInvokeEvent, name: string, description?: string) => {
   return await db.createSession(name, description)
 })
 
-ipcMain.handle('db:switchSession', async (_: any, sessionId: string) => {
+ipcMain.handle('db:switchSession', async (_event: IpcMainInvokeEvent, sessionId: string) => {
   return await db.switchSession(sessionId)
 })
 
-ipcMain.handle('db:updateSession', async (_: any, id: string, updates: { name?: string; description?: string }) => {
+ipcMain.handle('db:updateSession', async (_event: IpcMainInvokeEvent, id: string, updates: { name?: string; description?: string }) => {
   return await db.updateSession(id, updates)
 })
 
-ipcMain.handle('db:deleteSession', async (_: any, id: string) => {
+ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteSession(id)
 })
 
@@ -98,27 +98,27 @@ ipcMain.handle('db:getSequencedTasks', async () => {
   return await db.getSequencedTasks()
 })
 
-ipcMain.handle('db:createTask', async (_: any, taskData: any) => {
+ipcMain.handle('db:createTask', async (_event: IpcMainInvokeEvent, taskData: any) => {
   return await db.createTask(taskData)
 })
 
-ipcMain.handle('db:createSequencedTask', async (_: any, taskData: any) => {
+ipcMain.handle('db:createSequencedTask', async (_event: IpcMainInvokeEvent, taskData: any) => {
   return await db.createSequencedTask(taskData)
 })
 
-ipcMain.handle('db:updateTask', async (_: any, id: string, updates: any) => {
+ipcMain.handle('db:updateTask', async (_event: IpcMainInvokeEvent, id: string, updates: any) => {
   return await db.updateTask(id, updates)
 })
 
-ipcMain.handle('db:updateSequencedTask', async (_: any, id: string, updates: any) => {
+ipcMain.handle('db:updateSequencedTask', async (_event: IpcMainInvokeEvent, id: string, updates: any) => {
   return await db.updateSequencedTask(id, updates)
 })
 
-ipcMain.handle('db:deleteTask', async (_: any, id: string) => {
+ipcMain.handle('db:deleteTask', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteTask(id)
 })
 
-ipcMain.handle('db:deleteSequencedTask', async (_: any, id: string) => {
+ipcMain.handle('db:deleteSequencedTask', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteSequencedTask(id)
 })
 
@@ -126,11 +126,11 @@ ipcMain.handle('db:initializeDefaultData', async () => {
   return await db.initializeDefaultData()
 })
 
-ipcMain.handle('db:getTaskById', async (_: any, id: string) => {
+ipcMain.handle('db:getTaskById', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.getTaskById(id)
 })
 
-ipcMain.handle('db:getSequencedTaskById', async (_: any, id: string) => {
+ipcMain.handle('db:getSequencedTaskById', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.getSequencedTaskById(id)
 })
 
@@ -143,19 +143,19 @@ ipcMain.handle('db:getActiveJobContext', async () => {
   return await db.getActiveJobContext()
 })
 
-ipcMain.handle('db:createJobContext', async (_: any, data: any) => {
+ipcMain.handle('db:createJobContext', async (_event: IpcMainInvokeEvent, data: any) => {
   return await db.createJobContext(data)
 })
 
-ipcMain.handle('db:updateJobContext', async (_: any, id: string, updates: any) => {
+ipcMain.handle('db:updateJobContext', async (_event: IpcMainInvokeEvent, id: string, updates: any) => {
   return await db.updateJobContext(id, updates)
 })
 
-ipcMain.handle('db:deleteJobContext', async (_: any, id: string) => {
+ipcMain.handle('db:deleteJobContext', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteJobContext(id)
 })
 
-ipcMain.handle('db:addContextEntry', async (_: any, jobContextId: string, entry: any) => {
+ipcMain.handle('db:addContextEntry', async (_event: IpcMainInvokeEvent, jobContextId: string, entry: any) => {
   return await db.addContextEntry(jobContextId, entry)
 })
 
@@ -164,15 +164,15 @@ ipcMain.handle('db:getJargonEntries', async () => {
   return await db.getJargonEntries()
 })
 
-ipcMain.handle('db:createJargonEntry', async (_: any, data: any) => {
+ipcMain.handle('db:createJargonEntry', async (_event: IpcMainInvokeEvent, data: any) => {
   return await db.createJargonEntry(data)
 })
 
-ipcMain.handle('db:updateJargonEntry', async (_: any, id: string, updates: any) => {
+ipcMain.handle('db:updateJargonEntry', async (_event: IpcMainInvokeEvent, id: string, updates: any) => {
   return await db.updateJargonEntry(id, updates)
 })
 
-ipcMain.handle('db:deleteJargonEntry', async (_: any, id: string) => {
+ipcMain.handle('db:deleteJargonEntry', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteJargonEntry(id)
 })
 
@@ -194,15 +194,15 @@ ipcMain.handle('db:deleteAllUserData', async () => {
 })
 
 // Work pattern handlers
-ipcMain.handle('db:getWorkPattern', async (_: any, date: string) => {
+ipcMain.handle('db:getWorkPattern', async (_event: IpcMainInvokeEvent, date: string) => {
   return await db.getWorkPattern(date)
 })
 
-ipcMain.handle('db:createWorkPattern', async (_: any, data: any) => {
+ipcMain.handle('db:createWorkPattern', async (_event: IpcMainInvokeEvent, data: any) => {
   return await db.createWorkPattern(data)
 })
 
-ipcMain.handle('db:updateWorkPattern', async (_: any, id: string, data: any) => {
+ipcMain.handle('db:updateWorkPattern', async (_event: IpcMainInvokeEvent, id: string, data: any) => {
   return await db.updateWorkPattern(id, data)
 })
 
@@ -210,70 +210,70 @@ ipcMain.handle('db:getWorkTemplates', async () => {
   return await db.getWorkTemplates()
 })
 
-ipcMain.handle('db:saveAsTemplate', async (_: any, date: string, templateName: string) => {
+ipcMain.handle('db:saveAsTemplate', async (_event: IpcMainInvokeEvent, date: string, templateName: string) => {
   return await db.saveAsTemplate(date, templateName)
 })
 
 // Work session handlers
-ipcMain.handle('db:createWorkSession', async (_: any, data: any) => {
+ipcMain.handle('db:createWorkSession', async (_event: IpcMainInvokeEvent, data: any) => {
   return await db.createWorkSession(data)
 })
 
-ipcMain.handle('db:updateWorkSession', async (_: any, id: string, data: any) => {
+ipcMain.handle('db:updateWorkSession', async (_event: IpcMainInvokeEvent, id: string, data: any) => {
   return await db.updateWorkSession(id, data)
 })
 
-ipcMain.handle('db:getWorkSessions', async (_: any, date: string) => {
+ipcMain.handle('db:getWorkSessions', async (_event: IpcMainInvokeEvent, date: string) => {
   return await db.getWorkSessions(date)
 })
 
-ipcMain.handle('db:getTodayAccumulated', async (_: any, date: string) => {
+ipcMain.handle('db:getTodayAccumulated', async (_event: IpcMainInvokeEvent, date: string) => {
   return await db.getTodayAccumulated(date)
 })
 
 // AI operation handlers
-ipcMain.handle('ai:extractTasksFromBrainstorm', async (_: any, brainstormText: string) => {
+ipcMain.handle('ai:extractTasksFromBrainstorm', async (_event: IpcMainInvokeEvent, brainstormText: string) => {
   const aiService = getAIService()
   return await aiService.extractTasksFromBrainstorm(brainstormText)
 })
 
-ipcMain.handle('ai:extractWorkflowsFromBrainstorm', async (_: any, brainstormText: string, jobContext?: string) => {
+ipcMain.handle('ai:extractWorkflowsFromBrainstorm', async (_event: IpcMainInvokeEvent, brainstormText: string, jobContext?: string) => {
   const aiService = getAIService()
   return await aiService.extractWorkflowsFromBrainstorm(brainstormText, jobContext)
 })
 
-ipcMain.handle('ai:generateWorkflowSteps', async (_: any, taskDescription: string, context?: any) => {
+ipcMain.handle('ai:generateWorkflowSteps', async (_event: IpcMainInvokeEvent, taskDescription: string, context?: any) => {
   const aiService = getAIService()
   return await aiService.generateWorkflowSteps(taskDescription, context)
 })
 
-ipcMain.handle('ai:enhanceTaskDetails', async (_: any, taskName: string, currentDetails?: any) => {
+ipcMain.handle('ai:enhanceTaskDetails', async (_event: IpcMainInvokeEvent, taskName: string, currentDetails?: any) => {
   const aiService = getAIService()
   return await aiService.enhanceTaskDetails(taskName, currentDetails)
 })
 
-ipcMain.handle('ai:getContextualQuestions', async (_: any, taskName: string, taskDescription?: string) => {
+ipcMain.handle('ai:getContextualQuestions', async (_event: IpcMainInvokeEvent, taskName: string, taskDescription?: string) => {
   const aiService = getAIService()
   return await aiService.getContextualQuestions(taskName, taskDescription)
 })
 
-ipcMain.handle('ai:getJobContextualQuestions', async (_: any, brainstormText: string, jobContext?: string) => {
+ipcMain.handle('ai:getJobContextualQuestions', async (_event: IpcMainInvokeEvent, brainstormText: string, jobContext?: string) => {
   const aiService = getAIService()
   return await aiService.getJobContextualQuestions(brainstormText, jobContext)
 })
 
-ipcMain.handle('ai:extractScheduleFromVoice', async (_: any, voiceText: string, targetDate: string) => {
+ipcMain.handle('ai:extractScheduleFromVoice', async (_event: IpcMainInvokeEvent, voiceText: string, targetDate: string) => {
   const aiService = getAIService()
   return await aiService.extractScheduleFromVoice(voiceText, targetDate)
 })
 
 // Speech operation handlers
-ipcMain.handle('speech:transcribeAudio', async (_: any, audioFilePath: string, options?: any) => {
+ipcMain.handle('speech:transcribeAudio', async (_event: IpcMainInvokeEvent, audioFilePath: string, options?: any) => {
   const speechService = getSpeechService()
   return await speechService.transcribeAudio(audioFilePath, options)
 })
 
-ipcMain.handle('speech:transcribeAudioBuffer', async (_: any, audioBuffer: Buffer, filename: string, options?: any) => {
+ipcMain.handle('speech:transcribeAudioBuffer', async (_event: IpcMainInvokeEvent, audioBuffer: Buffer, filename: string, options?: any) => {
   const speechService = getSpeechService()
   return await speechService.transcribeAudioBuffer(audioBuffer, filename, options)
 })

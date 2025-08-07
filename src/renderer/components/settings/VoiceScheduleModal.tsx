@@ -92,7 +92,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      
+
       let mimeType = 'audio/webm'
       const possibleTypes = [
         'audio/webm;codecs=opus',
@@ -206,7 +206,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
     try {
       const result = await getDatabase().extractScheduleFromVoice(
         scheduleText.trim(),
-        targetDate || dayjs().format('YYYY-MM-DD')
+        targetDate || dayjs().format('YYYY-MM-DD'),
       )
       setScheduleResult(result)
     } catch (error) {

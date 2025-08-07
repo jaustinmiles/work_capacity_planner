@@ -102,8 +102,12 @@ export const DEFAULT_WORK_TEMPLATES: WorkTemplate[] = [
 // Helper functions
 export function getTotalCapacity(blocks: WorkBlock[]): { focusMinutes: number; adminMinutes: number } {
   return blocks.reduce((acc, block) => {
-    const [startHour, startMin] = block.startTime.split(':').map(Number)
-    const [endHour, endMin] = block.endTime.split(':').map(Number)
+    const startParts = block.startTime.split(':').map(Number)
+    const endParts = block.endTime.split(':').map(Number)
+    const startHour = startParts[0] || 0
+    const startMin = startParts[1] || 0
+    const endHour = endParts[0] || 0
+    const endMin = endParts[1] || 0
     const durationMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin)
 
     if (block.capacity) {

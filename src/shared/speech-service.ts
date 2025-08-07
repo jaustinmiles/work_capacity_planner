@@ -38,7 +38,7 @@ export class SpeechService {
         if (!fs.existsSync(tempDir)) {
           fs.mkdirSync(tempDir, { recursive: true })
         }
-        
+
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
         const filename = path.basename(audioFilePath)
         const archivePath = path.join(tempDir, `audio_${timestamp}_${filename}`)
@@ -105,7 +105,7 @@ export class SpeechService {
         const result = await this.transcribeAudio(tempFilePath, options)
         return {
           ...result,
-          savedPath: tempFilePath
+          savedPath: tempFilePath,
         }
       } catch (error) {
         // Keep the file even if transcription fails

@@ -26,8 +26,12 @@ An intelligent Electron-based productivity application that combines AI-powered 
 ### 🎯 Intelligent Scheduling
 - **Priority-Based Gantt Chart**: Visual timeline with urgency × importance ordering
 - **Work Hours Management**: Configurable daily work hours with lunch breaks
+- **Multi-Day Schedule Editor**: Visual calendar for managing schedules across multiple days
+- **Copy/Paste Schedules**: Duplicate schedules between days with one click
+- **Sleep Block Support**: Cross-midnight scheduling for realistic work patterns
 - **Capacity Limits**: Set daily limits for focused and administrative work
 - **Blocked Time Slots**: Mark unavailable times for meetings or commitments
+- **Smart Interleaving**: Prevents workflows from monopolizing schedule
 - **Async-Aware Packing**: Efficiently fills time during async wait periods
 - **Infinite Scroll Timeline**: Zoom controls with guaranteed minimum block sizes
 - **Real-time Updates**: Current time indicator and dynamic scheduling
@@ -143,6 +147,9 @@ Voice Input → Whisper API → Claude Analysis → Task Creation → Database �
 - Session management for multiple work contexts
 - Workflow execution controls (start/pause/reset)
 - Eisenhower matrix with zoom and workflow support
+- Multi-day schedule editor with copy/paste functionality
+- Sleep block scheduling for realistic work patterns
+- Smart workflow interleaving to prevent schedule monopolization
 - Comprehensive error handling and user feedback
 - Testing infrastructure with Vitest
 

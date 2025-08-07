@@ -70,7 +70,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
     try {
       const db = getDatabase()
       const patternsMap = new Map<string, DailyWorkPattern>()
-      
+
       const startDate = dateRange[0]
       const endDate = dateRange[1]
       let currentDate = startDate
@@ -78,7 +78,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       while (currentDate.isSameOrBefore(endDate, 'day')) {
         const dateStr = currentDate.format('YYYY-MM-DD')
         const pattern = await db.getWorkPattern(dateStr)
-        
+
         if (pattern) {
           patternsMap.set(dateStr, {
             date: dateStr,
@@ -87,7 +87,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
             accumulated: { focusMinutes: 0, adminMinutes: 0 },
           })
         }
-        
+
         currentDate = currentDate.add(1, 'day')
       }
 
@@ -119,7 +119,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       }
 
       Message.success(`Schedule saved for ${dayjs(date).format('MMM D, YYYY')}`)
-      
+
       // Reload patterns
       await loadPatterns()
       onSave?.()
@@ -151,7 +151,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       ...b,
       id: `block-${Date.now()}-${index}`,
     }))
-    
+
     const newMeetings = copiedPattern.meetings.map((m, index) => ({
       ...m,
       id: `meeting-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
@@ -175,14 +175,14 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
     while (currentDate.isSameOrBefore(endDate, 'day')) {
       const dateStr = currentDate.format('YYYY-MM-DD')
       const dayOfWeek = currentDate.day()
-      
+
       // Skip weekends and the current date
       if (dayOfWeek !== 0 && dayOfWeek !== 6 && dateStr !== selectedDate) {
         const newBlocks = currentPattern.blocks.map((b, index) => ({
           ...b,
           id: `block-${Date.now()}-${dateStr}-${index}`,
         }))
-        
+
         const newMeetings = currentPattern.meetings.map((m, index) => ({
           ...m,
           id: `meeting-${Date.now()}-${dateStr}-${index}-${Math.random().toString(36).substr(2, 9)}`,
@@ -191,7 +191,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
         await handleSavePattern(dateStr, newBlocks, newMeetings)
         appliedCount++
       }
-      
+
       currentDate = currentDate.add(1, 'day')
     }
 
@@ -203,13 +203,13 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
   const getDayStatus = (date: string) => {
     const pattern = patterns.get(date)
     if (!pattern || pattern.blocks.length === 0) return 'empty'
-    
+
     const totalMinutes = pattern.blocks.reduce((acc, block) => {
       const [startHour, startMin] = block.startTime.split(':').map(Number)
       const [endHour, endMin] = block.endTime.split(':').map(Number)
       return acc + (endHour * 60 + endMin) - (startHour * 60 + startMin)
     }, 0)
-    
+
     if (totalMinutes >= 480) return 'full' // 8+ hours
     if (totalMinutes >= 240) return 'partial' // 4+ hours
     return 'light' // Less than 4 hours
@@ -253,9 +253,9 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
             </div>
           }
           disabled={isWeekend}
-        />
+        />,
       )
-      
+
       currentDate = currentDate.add(1, 'day')
     }
 
@@ -407,7 +407,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
             blocks: [...currentPattern.blocks, ...schedule.blocks],
             meetings: [...currentPattern.meetings, ...schedule.meetings],
           }
-          
+
           // Update the pattern in state
           const newPatterns = new Map(patterns)
           newPatterns.set(selectedDate, {
@@ -416,7 +416,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
             accumulated: { focusMinutes: 0, adminMinutes: 0 },
           })
           setPatterns(newPatterns)
-          
+
           setShowVoiceModal(false)
           Message.success('Voice schedule imported')
         }}

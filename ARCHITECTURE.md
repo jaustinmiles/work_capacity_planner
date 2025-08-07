@@ -20,17 +20,19 @@ task_planner/
 │   │   │   ├── calendar/  # Calendar views
 │   │   │   ├── common/    # Shared components (Message wrapper)
 │   │   │   ├── session/   # Session management
-│   │   │   ├── settings/  # Settings modals
+│   │   │   ├── settings/  # Settings modals & work schedule editor
 │   │   │   ├── tasks/     # Task management
-│   │   │   └── timeline/  # Gantt chart
+│   │   │   ├── timeline/  # Gantt chart & scheduling
+│   │   │   └── layout/    # Navigation & layout components
 │   │   ├── services/      # Frontend services
 │   │   ├── store/         # Zustand state management
 │   │   └── utils/         # Utility functions
 │   └── shared/            # Shared types and services
 │       ├── types.ts       # Core task types
 │       ├── sequencing-types.ts  # Workflow types
-│       ├── work-settings-types.ts # Schedule config
-│       └── ai-service.ts  # AI integration logic
+│       ├── work-blocks-types.ts # Work patterns & scheduling
+│       ├── ai-service.ts  # AI integration logic (Claude)
+│       └── speech-service.ts # Voice transcription (Whisper)
 ├── prisma/
 │   └── schema.prisma      # Database schema
 ├── test/                  # Test configuration
@@ -113,11 +115,13 @@ task_planner/
 ### Scheduling Flow
 ```
 1. Tasks and workflows loaded from database
-2. Work settings applied (hours, capacity, blocks)
-3. Scheduler sorts by priority (urgency × importance)
-4. Items packed into available time slots
-5. Async wait times create gaps for other work
-6. Gantt chart renders scheduled items
+2. Work patterns loaded for next 30 days
+3. Scheduler sorts by priority (urgency × importance + deadline boost)
+4. Workflow steps intelligently interleaved
+5. Items packed into available time slots
+6. Async wait times create gaps for other work  
+7. Cross-midnight handling for sleep blocks
+8. Gantt chart renders scheduled items with dependencies
 ```
 
 ## State Management
@@ -145,9 +149,10 @@ task_planner/
 - `JobContext`: Persistent work context
 - `ContextEntry`: Key-value context pairs
 - `JargonEntry`: Industry-specific terminology
-- `WorkPattern`: Daily work schedules with blocks
+- `WorkPattern`: Daily work schedules with blocks & templates
 - `WorkBlock`: Time blocks with capacity tracking
 - `Meeting`: Scheduled meetings that block time
+- `WorkSession`: Tracking actual work performed
 
 ## Security Architecture
 
@@ -171,14 +176,22 @@ task_planner/
 ### Claude Opus 4.1
 - Advanced workflow extraction
 - Natural language understanding
-- Context-aware processing
+- Context-aware processing with system time
 - Never makes assumptions
+- Schedule extraction from voice input
+
+### OpenAI Whisper
+- High-quality speech-to-text
+- Audio recording persistence to /tmp
+- Direct recording in job context
+- Context-specific transcription prompts
 
 ### Prompt Engineering
 - System prompts emphasize structured output
 - JSON response format for parsing
 - Context injection from job context
 - Jargon dictionary expansion
+- System time awareness for relative dates
 
 ## Performance Optimizations
 

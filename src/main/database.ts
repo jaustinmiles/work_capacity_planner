@@ -24,7 +24,7 @@ export class DatabaseService {
   // Session management
   private activeSessionId: string | null = null
 
-  async getActiveSession() {
+  async getActiveSession(): Promise<string> {
     if (!this.activeSessionId) {
       // Find the active session or create one if none exists
       let session = await this.client.session.findFirst({
@@ -48,13 +48,13 @@ export class DatabaseService {
     return this.activeSessionId
   }
 
-  async getSessions() {
+  async getSessions(): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }[]> {
     return await this.client.session.findMany({
       orderBy: { updatedAt: 'desc' },
     })
   }
 
-  async createSession(name: string, description?: string) {
+  async createSession(name: string, description?: string): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
     // Deactivate all other sessions
     await this.client.session.updateMany({
       where: { isActive: true },
@@ -74,7 +74,7 @@ export class DatabaseService {
     return session
   }
 
-  async switchSession(sessionId: string) {
+  async switchSession(sessionId: string): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
     // Deactivate all sessions
     await this.client.session.updateMany({
       where: { isActive: true },
@@ -91,14 +91,14 @@ export class DatabaseService {
     return session
   }
 
-  async updateSession(id: string, updates: { name?: string; description?: string }) {
+  async updateSession(id: string, updates: { name?: string; description?: string }): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
     return await this.client.session.update({
       where: { id },
       data: updates,
     })
   }
 
-  async deleteSession(id: string) {
+  async deleteSession(id: string): Promise<void> {
     // Don't delete the active session
     const session = await this.client.session.findUnique({
       where: { id },
@@ -687,7 +687,7 @@ export class DatabaseService {
     await this.client.task.deleteMany({})
     // Keep sessions but clear their data
     await this.client.session.updateMany({
-      data: { updatedAt: new Date() }
+      data: { updatedAt: new Date() },
     })
   }
 
@@ -766,16 +766,16 @@ export class DatabaseService {
 
   async saveAsTemplate(date: string, templateName: string): Promise<any> {
     const sessionId = await this.getActiveSession()
-    
+
     // Try to get the pattern for the date
     let existingPattern = await this.getWorkPattern(date)
-    
+
     // If no pattern exists, check if we just created one
     if (!existingPattern) {
       // Wait a bit and try again (in case of race condition)
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => global.setTimeout(resolve, 100))
       existingPattern = await this.getWorkPattern(date)
-      
+
       if (!existingPattern) {
         throw new Error('No work schedule found for this date. Please save the schedule first.')
       }
@@ -884,9 +884,9 @@ export class DatabaseService {
   async getWorkTemplates(): Promise<any[]> {
     const sessionId = await this.getActiveSession()
     const templates = await this.client.workPattern.findMany({
-      where: { 
+      where: {
         isTemplate: true,
-        sessionId
+        sessionId,
       },
       include: {
         blocks: true,
@@ -914,7 +914,7 @@ export class DatabaseService {
   }
 
   async updateWorkSession(id: string, data: any): Promise<any> {
-    const { id: _, ...updateData } = data
+    const { id: _id, ...updateData } = data
     return this.client.workSession.update({
       where: { id },
       data: updateData,

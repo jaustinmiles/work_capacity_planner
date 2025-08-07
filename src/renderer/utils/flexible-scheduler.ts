@@ -87,15 +87,15 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
 
 function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): ScheduledItem[] {
   const items: ScheduledItem[] = []
-  
+
   meetings.forEach(meeting => {
-    let startTime = parseTimeOnDate(date, meeting.startTime)
-    let endTime = parseTimeOnDate(date, meeting.endTime)
-    
+    const startTime = parseTimeOnDate(date, meeting.startTime)
+    const endTime = parseTimeOnDate(date, meeting.endTime)
+
     // Make meeting IDs unique per day
     const dateStr = date.toISOString().split('T')[0]
     const uniqueMeetingId = `${meeting.id}-${dateStr}`
-    
+
     // Handle meetings that cross midnight (like sleep blocks)
     if (endTime <= startTime) {
       // This meeting crosses midnight
@@ -105,11 +105,11 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
         const midnight = new Date(date)
         midnight.setDate(midnight.getDate() + 1)
         midnight.setHours(0, 0, 0, 0)
-        
+
         items.push({
           id: `${uniqueMeetingId}-night`,
           name: meeting.name,
-          type: meeting.type as any,
+          type: meeting.type as 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break',
           priority: 0,
           duration: (midnight.getTime() - startTime.getTime()) / 60000,
           startTime,
@@ -118,16 +118,16 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
           isBlocked: true,
           originalItem: meeting,
         })
-        
+
         // 2. From midnight to end time (current day)
         const prevMidnight = new Date(date)
         prevMidnight.setHours(0, 0, 0, 0)
         const morningEnd = parseTimeOnDate(date, meeting.endTime)
-        
+
         items.push({
           id: `${uniqueMeetingId}-morning`,
           name: meeting.name,
-          type: meeting.type as any,
+          type: meeting.type as 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break',
           priority: 0,
           duration: (morningEnd.getTime() - prevMidnight.getTime()) / 60000,
           startTime: prevMidnight,
@@ -141,16 +141,16 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
         endTime.setDate(endTime.getDate() + 1)
       }
     }
-    
+
     // Only add the regular item if it's not a sleep block that crosses midnight
     const isSleepBlock = meeting.type === 'blocked' && meeting.name === 'Sleep'
     const crossesMidnight = endTime <= startTime
-    
+
     if (!isSleepBlock || !crossesMidnight) {
       items.push({
         id: uniqueMeetingId,
         name: meeting.name,
-        type: meeting.type as any,
+        type: meeting.type as 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break',
         priority: 0,
         duration: (endTime.getTime() - startTime.getTime()) / 60000,
         startTime,
@@ -163,7 +163,7 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
       })
     }
   })
-  
+
   return items
 }
 
@@ -226,7 +226,7 @@ export function scheduleItemsWithBlocks(
   const completedSteps = new Set<string>()
   const asyncWaitEndTimes = new Map<Date, string>()
   const workflowProgress = new Map<string, number>() // Track how many steps scheduled per workflow
-  
+
 
   // Convert tasks to work items
   tasks
@@ -294,18 +294,18 @@ export function scheduleItemsWithBlocks(
     // For workflow steps, deprioritize later steps in the workflow
     const aIsWorkflowStep = a.type === 'workflow-step'
     const bIsWorkflowStep = b.type === 'workflow-step'
-    
+
     if (aIsWorkflowStep && bIsWorkflowStep && a.workflowId === b.workflowId) {
       // Same workflow - maintain step order
       return (a.stepIndex || 0) - (b.stepIndex || 0)
     }
-    
+
     // Boost priority of first steps and standalone tasks
-    const aEffectivePriority = aIsWorkflowStep && a.stepIndex > 0 
+    const aEffectivePriority = aIsWorkflowStep && a.stepIndex > 0
       ? a.priority * 0.7 // Reduce priority of later workflow steps
       : a.priority
-      
-    const bEffectivePriority = bIsWorkflowStep && b.stepIndex > 0 
+
+    const bEffectivePriority = bIsWorkflowStep && b.stepIndex > 0
       ? b.priority * 0.7 // Reduce priority of later workflow steps
       : b.priority
 
@@ -377,7 +377,7 @@ export function scheduleItemsWithBlocks(
       // Penalize workflows that have already made progress
       const aProgress = a.workflowId ? (workflowProgress.get(a.workflowId) || 0) : 0
       const bProgress = b.workflowId ? (workflowProgress.get(b.workflowId) || 0) : 0
-      
+
       // If one workflow has significantly more progress, deprioritize it
       if (Math.abs(aProgress - bProgress) >= 2) {
         return aProgress - bProgress // Lower progress = higher priority
@@ -386,13 +386,13 @@ export function scheduleItemsWithBlocks(
       // Otherwise use the original priority calculation
       const aIsWorkflowStep = a.type === 'workflow-step'
       const bIsWorkflowStep = b.type === 'workflow-step'
-      
-      const aEffectivePriority = aIsWorkflowStep && a.stepIndex > 0 
+
+      const aEffectivePriority = aIsWorkflowStep && a.stepIndex > 0
         ? a.priority * (0.9 - aProgress * 0.1) // Further reduce priority based on workflow progress
         : a.priority
-        
-      const bEffectivePriority = bIsWorkflowStep && b.stepIndex > 0 
-        ? b.priority * (0.9 - bProgress * 0.1) 
+
+      const bEffectivePriority = bIsWorkflowStep && b.stepIndex > 0
+        ? b.priority * (0.9 - bProgress * 0.1)
         : b.priority
 
       return bEffectivePriority - aEffectivePriority
@@ -446,7 +446,7 @@ export function scheduleItemsWithBlocks(
           } else {
             block.adminMinutesUsed += item.duration
           }
-          
+
           // Track workflow progress
           if (item.workflowId) {
             workflowProgress.set(item.workflowId, (workflowProgress.get(item.workflowId) || 0) + 1)
@@ -471,7 +471,7 @@ export function scheduleItemsWithBlocks(
               isWaitTime: true,
               originalItem: item.originalItem,
             })
-            
+
             // Update current time to the end of the actual work (not the async wait)
             // This allows other tasks to be scheduled during the async wait time
             currentTime = endTime
@@ -481,7 +481,7 @@ export function scheduleItemsWithBlocks(
             // Update current time to the end of this item
             currentTime = endTime
           }
-          
+
           // If we've scheduled into the next day, update currentDate
           if (currentTime.getDate() !== currentDate.getDate()) {
             currentDate.setTime(currentTime.getTime())
@@ -495,7 +495,7 @@ export function scheduleItemsWithBlocks(
           break
         }
       }
-      
+
       // If we couldn't schedule this item in any block today, we need to move to next day
       if (!itemScheduled && blockCapacities.length > 0) {
         // Check if currentTime is past all blocks for today
@@ -509,24 +509,24 @@ export function scheduleItemsWithBlocks(
 
     // Check if we should move to the next day
     // Move if: no items scheduled, should move flag is set, or current time is past all blocks
-    const lastBlockEnd = blockCapacities.length > 0 
-      ? blockCapacities[blockCapacities.length - 1].endTime 
+    const lastBlockEnd = blockCapacities.length > 0
+      ? blockCapacities[blockCapacities.length - 1].endTime
       : new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)
-      
+
     if (!itemsScheduledToday || shouldMoveToNextDay || currentTime.getTime() >= lastBlockEnd.getTime()) {
       currentDate.setDate(currentDate.getDate() + 1)
       dayIndex++
-      
+
       // Find the next day's pattern and set currentTime to the start of the first block
       const nextDateStr = currentDate.toISOString().split('T')[0]
       const nextPattern = patterns.find(p => p.date === nextDateStr)
-      
+
       if (nextPattern && nextPattern.blocks.length > 0) {
         // Sort blocks by start time and get the earliest
         const earliestBlock = nextPattern.blocks
           .sort((a, b) => a.startTime.localeCompare(b.startTime))[0]
         currentTime = parseTimeOnDate(currentDate, earliestBlock.startTime)
-        
+
         // If this time is in the past, use current time
         if (currentTime.getTime() < now.getTime()) {
           currentTime = new Date(now)
@@ -542,24 +542,24 @@ export function scheduleItemsWithBlocks(
     } else if (itemsScheduledToday && workItems.length > 0) {
       // We scheduled some items but have more to go
       // Check if we need to move to next day based on current time
-      const lastBlockEnd = blockCapacities.length > 0 
-        ? blockCapacities[blockCapacities.length - 1].endTime 
+      const lastBlockEnd = blockCapacities.length > 0
+        ? blockCapacities[blockCapacities.length - 1].endTime
         : currentTime
-        
+
       if (currentTime.getTime() >= lastBlockEnd.getTime()) {
         currentDate.setDate(currentDate.getDate() + 1)
         dayIndex++
-        
+
         // Find the next day's pattern and set currentTime to the start of the first block
         const nextDateStr = currentDate.toISOString().split('T')[0]
         const nextPattern = patterns.find(p => p.date === nextDateStr)
-        
+
         if (nextPattern && nextPattern.blocks.length > 0) {
           // Sort blocks by start time and get the earliest
           const earliestBlock = nextPattern.blocks
             .sort((a, b) => a.startTime.localeCompare(b.startTime))[0]
           currentTime = parseTimeOnDate(currentDate, earliestBlock.startTime)
-          
+
           // If this time is in the past, use current time
           if (currentTime.getTime() < now.getTime()) {
             currentTime = new Date(now)

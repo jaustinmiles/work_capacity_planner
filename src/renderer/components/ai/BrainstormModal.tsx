@@ -90,7 +90,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      
+
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/mp4')
@@ -113,7 +113,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(contextAudioChunksRef.current, { type: mimeType })
-        
+
         // Process as context audio
         setIsProcessingContextAudio(true)
         try {
@@ -646,7 +646,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                       size="small"
                       status={contextRecordingState === 'recording' ? 'danger' : 'default'}
                     >
-                      {contextRecordingState === 'recording' 
+                      {contextRecordingState === 'recording'
                         ? `Recording... ${formatDuration(contextRecordingDuration)}`
                         : 'Record Context'}
                     </Button>

@@ -62,15 +62,15 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               startTime: '09:00',
               endTime: '12:00',
               type: 'mixed',
-              capacity: { focusMinutes: 120, adminMinutes: 60 }
+              capacity: { focusMinutes: 120, adminMinutes: 60 },
             },
             {
               id: `default-afternoon-${dateStr}`,
               startTime: '13:00',
               endTime: '17:00',
               type: 'mixed',
-              capacity: { focusMinutes: 180, adminMinutes: 60 }
-            }
+              capacity: { focusMinutes: 180, adminMinutes: 60 },
+            },
           ],
           meetings: [],
           accumulated: { focusMinutes: 0, adminMinutes: 0 },
@@ -92,7 +92,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Calculate chart dimensions
   const now = new Date()
-  const chartStartTime = scheduledItems.length > 0 
+  const chartStartTime = scheduledItems.length > 0
     ? new Date(Math.min(scheduledItems[0].startTime.getTime(), now.getTime()))
     : now
   const chartEndTime = scheduledItems.length > 0
@@ -284,7 +284,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           closable
         />
       )}
-      
+
       {/* Summary */}
       <Card>
         <Row gutter={16} align="center">
@@ -401,7 +401,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   const widthPx = nextDay
                     ? getPositionPx(nextDay) - getPositionPx(day)
                     : chartWidthPx - getPositionPx(day)
-                  
+
                   const dateStr = dayjs(day).format('YYYY-MM-DD')
                   const pattern = workPatterns.find(p => p.date === dateStr)
                   const hasCustomPattern = pattern && !pattern.blocks.some(b => b.id.startsWith('default-'))
@@ -519,9 +519,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                               <span style={{ marginRight: 6 }}>🔄</span>
                               <span style={{ flex: 1 }}>{rowLabel}</span>
                               {itemRowPositions.workflowProgress.has(firstItem.workflowId) && (
-                                <span style={{ 
-                                  marginLeft: 8, 
-                                  fontSize: 11, 
+                                <span style={{
+                                  marginLeft: 8,
+                                  fontSize: 11,
                                   color: '#999',
                                   backgroundColor: 'rgba(0,0,0,0.05)',
                                   padding: '2px 6px',
@@ -623,29 +623,29 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   if (!item.originalItem || !('dependsOn' in item.originalItem) || !item.originalItem.dependsOn) {
                     return null
                   }
-                  
+
                   const dependencies = item.originalItem.dependsOn as string[]
-                  
+
                   return dependencies.map((depId) => {
                     // Find the dependent item
-                    const dependentItem = scheduledItems.find(si => 
-                      si.originalItem && 'id' in si.originalItem && si.originalItem.id === depId
+                    const dependentItem = scheduledItems.find(si =>
+                      si.originalItem && 'id' in si.originalItem && si.originalItem.id === depId,
                     )
-                    
+
                     if (!dependentItem || !itemRowPositions.positions.has(dependentItem.id) || !itemRowPositions.positions.has(item.id)) {
                       return null
                     }
-                    
+
                     const fromX = getPositionPx(dependentItem.endTime)
                     const fromY = (itemRowPositions.positions.get(dependentItem.id) || 0) * rowHeight + rowHeight / 2
                     const toX = getPositionPx(item.startTime)
                     const toY = (itemRowPositions.positions.get(item.id) || 0) * rowHeight + rowHeight / 2
-                    
+
                     // Calculate control points for a nice curve
                     const midX = (fromX + toX) / 2
                     const ctrlX1 = midX
                     const ctrlX2 = midX
-                    
+
                     return (
                       <g key={`${dependentItem.id}-${item.id}`}>
                         {/* Arrow path */}
@@ -654,7 +654,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                           stroke={item.color}
                           strokeWidth="2"
                           fill="none"
-                          strokeDasharray={item.isWaitTime ? "5,5" : "none"}
+                          strokeDasharray={item.isWaitTime ? '5,5' : 'none'}
                           opacity={0.6}
                         />
                         {/* Arrow head */}
@@ -677,7 +677,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const widthPx = getDurationPx(item.duration)
                 const isWaitTime = item.isWaitTime
                 const isBlocked = item.isBlocked
-                const isSleep = item.type === 'blocked' && item.originalItem && 
+                const isSleep = item.type === 'blocked' && item.originalItem &&
                   'name' in item.originalItem && item.originalItem.name === 'Sleep'
                 const isHovered = hoveredItem === item.id ||
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
@@ -736,7 +736,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         style={{
                           height: '100%',
                           background: isSleep
-                            ? `linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%)`
+                            ? 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%)'
                             : isBlocked
                             ? `repeating-linear-gradient(45deg, ${item.color}, ${item.color} 10px, ${item.color}88 10px, ${item.color}88 20px)`
                             : isWaitTime
@@ -799,7 +799,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         {isSleep && widthPx > 20 && (
                           <IconMoon style={{ color: '#fff', marginRight: 4, fontSize: 16 }} />
                         )}
-                        
+
                         {/* Task name */}
                         {widthPx > 30 && (
                           <Text
@@ -815,8 +815,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                             }}
                           >
                             {item.stepIndex !== undefined && !isWaitTime && (
-                              <span style={{ 
-                                marginRight: 4, 
+                              <span style={{
+                                marginRight: 4,
                                 fontWeight: 'bold',
                                 backgroundColor: 'rgba(255,255,255,0.2)',
                                 padding: '0 3px',
@@ -850,13 +850,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             <Space>
               <Text type="secondary">
                 <span style={{ marginRight: 16 }}>
-                  <span style={{ 
+                  <span style={{
                     display: 'inline-block',
                     width: 20,
                     height: 2,
                     backgroundColor: '#999',
                     verticalAlign: 'middle',
-                    marginRight: 4
+                    marginRight: 4,
                   }} />
                   Dependencies
                 </span>
@@ -866,12 +866,12 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   <IconMoon style={{ marginRight: 4 }} />
                   Sleep blocks
                 </span>
-                <span style={{ 
+                <span style={{
                   backgroundColor: 'rgba(255,255,255,0.2)',
                   padding: '0 4px',
                   borderRadius: 3,
                   marginRight: 4,
-                  color: '#666'
+                  color: '#666',
                 }}>1</span>
                 Step number
               </Text>

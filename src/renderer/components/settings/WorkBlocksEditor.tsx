@@ -122,7 +122,7 @@ export function WorkBlocksEditor({
     // Check default templates first
     let template = DEFAULT_WORK_TEMPLATES.find(t => t.id === templateId)
     let isUserTemplate = false
-    
+
     // If not found in defaults, check user templates
     if (!template) {
       const userTemplate = userTemplates.find(t => t.id === templateId)
@@ -135,14 +135,14 @@ export function WorkBlocksEditor({
         isUserTemplate = true
       }
     }
-    
+
     if (template) {
       const newBlocks = template.blocks.map((b, index) => ({
         ...b,
         id: `block-${Date.now()}-${index}`,
       }))
       setBlocks(newBlocks)
-      
+
       // If it's a user template, also apply meetings
       if (isUserTemplate) {
         const userTemplate = userTemplates.find(t => t.id === templateId)
@@ -154,7 +154,7 @@ export function WorkBlocksEditor({
           setMeetings(newMeetings)
         }
       }
-      
+
       Message.success(`Applied template: ${template.name}`)
     }
   }
@@ -209,18 +209,18 @@ export function WorkBlocksEditor({
       Message.error('Please enter a template name')
       return
     }
-    
+
     try {
       // First save the current schedule
       await handleSave()
-      
+
       // Then save it as a template
       await getDatabase().saveAsTemplate(date, templateName.trim())
-      
+
       Message.success(`Template "${templateName}" saved successfully`)
       setShowSaveAsTemplate(false)
       setTemplateName('')
-      
+
       // Reload templates
       loadUserTemplates()
     } catch (error) {

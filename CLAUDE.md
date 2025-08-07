@@ -143,6 +143,9 @@ task-planner/
 - **Dependency Resolution**: Topological sort considering dependencies and priorities
 - **Capacity Calculation**: Work blocks with type-specific capacity tracking
 - **Deadline Prioritization**: Tasks within 24 hours get priority boost
+- **Workflow Interleaving**: Smart distribution to prevent monopolization
+- **Async Gap Scheduling**: Efficient packing during wait times
+- **Cross-Midnight Handling**: Support for sleep blocks spanning days
 
 ## UI/UX Design Patterns
 

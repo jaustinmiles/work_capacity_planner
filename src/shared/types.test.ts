@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest'
 import { Task, Session } from './types'
 
 describe('Type definitions', () => {
