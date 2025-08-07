@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, DatePicker, Alert } from '@arco-design/web-react'
-import { IconPlus, IconMinus, IconZoomIn, IconZoomOut, IconSettings, IconCalendar } from '@arco-design/web-react/icon'
+import { IconPlus, IconMinus, IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-scheduler'
@@ -75,10 +75,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         })
       }
 
-      console.log(`Pattern for ${dateStr}:`, pattern ? 'Custom' : (dayOfWeek !== 0 && dayOfWeek !== 6 ? 'Default' : 'None'))
     }
 
-    console.log(`Loaded ${patterns.length} work patterns`)
     setWorkPatterns(patterns)
   }
 
@@ -87,7 +85,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     if (workPatterns.length === 0) return []
     // Pass current time as start date to ensure scheduling starts from now
     const items = scheduleItemsWithBlocks(tasks, sequencedTasks, workPatterns, new Date())
-    console.log(`Scheduled ${items.length} items across patterns`)
     return items
   }, [tasks, sequencedTasks, workPatterns])
 
@@ -340,7 +337,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   <DatePicker
                     value={selectedDate ? dayjs(selectedDate) : undefined}
                     onChange={(dateString, date) => {
-                      console.log('DatePicker onChange:', { dateString, date })
                       if (dateString) {
                         setSelectedDate(dateString)
                         setShowSettings(true)
@@ -671,6 +667,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const widthPx = getDurationPx(item.duration)
                 const isWaitTime = item.isWaitTime
                 const isBlocked = item.isBlocked
+                const isSleep = item.type === 'blocked' && item.originalItem && 
+                  'name' in item.originalItem && item.originalItem.name === 'Sleep'
                 const isHovered = hoveredItem === item.id ||
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
 
@@ -727,7 +725,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       <div
                         style={{
                           height: '100%',
-                          background: isBlocked
+                          background: isSleep
+                            ? `linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%)`
+                            : isBlocked
                             ? `repeating-linear-gradient(45deg, ${item.color}, ${item.color} 10px, ${item.color}88 10px, ${item.color}88 20px)`
                             : isWaitTime
                             ? `repeating-linear-gradient(45deg, ${item.color}44, ${item.color}44 5px, transparent 5px, transparent 10px)`
@@ -785,6 +785,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                           </div>
                         )}
 
+                        {/* Sleep icon for sleep blocks */}
+                        {isSleep && widthPx > 20 && (
+                          <IconMoon style={{ color: '#fff', marginRight: 4, fontSize: 16 }} />
+                        )}
+                        
                         {/* Task name */}
                         {widthPx > 30 && (
                           <Text
@@ -847,6 +852,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 </span>
                 <span style={{ marginRight: 16 }}>Dashed = Async waiting</span>
                 <span style={{ marginRight: 16 }}>Striped = Blocked time</span>
+                <span style={{ marginRight: 16 }}>
+                  <IconMoon style={{ marginRight: 4 }} />
+                  Sleep blocks
+                </span>
                 <span style={{ 
                   backgroundColor: 'rgba(255,255,255,0.2)',
                   padding: '0 4px',

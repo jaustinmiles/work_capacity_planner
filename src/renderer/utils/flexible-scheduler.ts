@@ -86,23 +86,78 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
 }
 
 function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): ScheduledItem[] {
-  return meetings.map(meeting => ({
-    id: meeting.id,
-    name: meeting.name,
-    type: meeting.type as any,
-    priority: 0,
-    duration: 0, // Will be calculated from times
-    startTime: parseTimeOnDate(date, meeting.startTime),
-    endTime: parseTimeOnDate(date, meeting.endTime),
-    color: meeting.type === 'meeting' ? '#3370ff' :
-           meeting.type === 'break' ? '#00b42a' :
-           meeting.type === 'personal' ? '#ff7d00' : '#ff4d4f',
-    isBlocked: true,
-    originalItem: meeting,
-  })).map(item => ({
-    ...item,
-    duration: (item.endTime.getTime() - item.startTime.getTime()) / 60000,
-  }))
+  const items: ScheduledItem[] = []
+  
+  meetings.forEach(meeting => {
+    let startTime = parseTimeOnDate(date, meeting.startTime)
+    let endTime = parseTimeOnDate(date, meeting.endTime)
+    
+    // Handle meetings that cross midnight (like sleep blocks)
+    if (endTime <= startTime) {
+      // This meeting crosses midnight
+      if (meeting.type === 'blocked' && meeting.name === 'Sleep') {
+        // For sleep blocks, we need to create two items:
+        // 1. From start time to midnight
+        const midnight = new Date(date)
+        midnight.setDate(midnight.getDate() + 1)
+        midnight.setHours(0, 0, 0, 0)
+        
+        items.push({
+          id: `${meeting.id}-night`,
+          name: meeting.name,
+          type: meeting.type as any,
+          priority: 0,
+          duration: (midnight.getTime() - startTime.getTime()) / 60000,
+          startTime,
+          endTime: midnight,
+          color: '#ff4d4f',
+          isBlocked: true,
+          originalItem: meeting,
+        })
+        
+        // 2. From midnight to end time (previous day)
+        const prevMidnight = new Date(date)
+        prevMidnight.setHours(0, 0, 0, 0)
+        const morningEnd = parseTimeOnDate(date, meeting.endTime)
+        
+        items.push({
+          id: `${meeting.id}-morning`,
+          name: meeting.name,
+          type: meeting.type as any,
+          priority: 0,
+          duration: (morningEnd.getTime() - prevMidnight.getTime()) / 60000,
+          startTime: prevMidnight,
+          endTime: morningEnd,
+          color: '#ff4d4f',
+          isBlocked: true,
+          originalItem: meeting,
+        })
+      } else {
+        // For other meetings crossing midnight, adjust end time to next day
+        endTime.setDate(endTime.getDate() + 1)
+      }
+    }
+    
+    // Only add the regular item if it doesn't cross midnight or isn't a sleep block
+    if (endTime > startTime || !(meeting.type === 'blocked' && meeting.name === 'Sleep')) {
+      items.push({
+        id: meeting.id,
+        name: meeting.name,
+        type: meeting.type as any,
+        priority: 0,
+        duration: (endTime.getTime() - startTime.getTime()) / 60000,
+        startTime,
+        endTime,
+        color: meeting.type === 'meeting' ? '#3370ff' :
+               meeting.type === 'break' ? '#00b42a' :
+               meeting.type === 'personal' ? '#ff7d00' : '#ff4d4f',
+        isBlocked: true,
+        originalItem: meeting,
+      })
+    }
+  })
+  
+  return items
 }
 
 function canFitInBlock(
@@ -157,12 +212,6 @@ export function scheduleItemsWithBlocks(
   patterns: DailyWorkPattern[],
   startDate: Date = new Date(),
 ): ScheduledItem[] {
-  console.log('Scheduling with:', {
-    tasksCount: tasks.filter(t => !t.completed).length,
-    workflowsCount: sequencedTasks.filter(w => w.overallStatus !== 'completed').length,
-    patternsCount: patterns.length,
-    startDate: startDate.toISOString()
-  })
   const scheduledItems: ScheduledItem[] = []
   const workItems: WorkItem[] = []
   const completedSteps = new Set<string>()
@@ -246,7 +295,6 @@ export function scheduleItemsWithBlocks(
   while (workItems.length > 0 && dayIndex < maxDays) {
     const dateStr = currentDate.toISOString().split('T')[0]
     const pattern = patterns.find(p => p.date === dateStr)
-    console.log(`Processing day ${dateStr}, pattern found:`, !!pattern, 'Current time:', currentTime.toISOString())
 
     if (!pattern || pattern.blocks.length === 0) {
       // No pattern for this day, skip to next day
@@ -280,7 +328,6 @@ export function scheduleItemsWithBlocks(
 
     // Try to schedule items in this day's blocks
     let itemsScheduledToday = false
-    console.log(`Trying to schedule ${workItems.length} items in ${blockCapacities.length} blocks`)
 
     for (let i = 0; i < workItems.length; i++) {
       const item = workItems[i]
@@ -297,11 +344,9 @@ export function scheduleItemsWithBlocks(
       // Try to fit in available blocks
       for (const block of blockCapacities) {
         const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems)
-        console.log(`Block ${block.blockId}: canFit=${canFit}, currentTime=${currentTime.toISOString()}, blockStart=${block.startTime.toISOString()}, blockEnd=${block.endTime.toISOString()}`)
 
         if (canFit) {
           const endTime = new Date(startTime.getTime() + item.duration * 60000)
-          console.log(`Scheduling item '${item.name}' from ${startTime.toISOString()} to ${endTime.toISOString()}`)
 
           // Schedule the item
           scheduledItems.push({
@@ -373,10 +418,8 @@ export function scheduleItemsWithBlocks(
         currentTime = new Date(now)
       }
       dayIndex++
-      console.log(`No items scheduled today, moving to next day: ${currentDate.toISOString()}`)
     }
   }
 
-  console.log(`Scheduling complete. Total items scheduled: ${scheduledItems.length}`)
   return scheduledItems
 }

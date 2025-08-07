@@ -24,6 +24,7 @@ import {
   IconSchedule,
   IconCalendar,
   IconFileAudio,
+  IconMoon,
 } from '@arco-design/web-react/icon'
 import {
   WorkBlock,
