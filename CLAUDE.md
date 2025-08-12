@@ -75,6 +75,7 @@ npm run check  # Runs both typecheck and lint
    npm run build:preload  # Builds preload script
    npm run typecheck      # Must have 0 errors
    npm run lint           # Address any new errors
+   npm test              # Run unit tests (when available)
    
    # If any of these fail, fix the issues before proceeding
    ```

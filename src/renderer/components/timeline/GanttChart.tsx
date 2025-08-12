@@ -191,11 +191,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
     // Second pass: assign positions
     scheduledItems.forEach(item => {
-      // Skip blocked items (meetings, breaks, etc.) - they don't get rows
-      if (item.isBlocked) {
-        return
-      }
-      
       if (item.workflowId) {
         // This is a workflow step
         if (!workflowRows.has(item.workflowId)) {
@@ -687,12 +682,15 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const isHovered = hoveredItem === item.id ||
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
 
+                // For blocked items, use a fixed negative position to overlay on timeline
+                const topPosition = isBlocked ? -5 : (itemRowPositions.positions.get(item.id) || 0) * rowHeight + 5
+
                 return (
                   <div
-                    key={item.id}
+                    key={`${item.id}-${index}`}
                     style={{
                       position: 'absolute',
-                      top: (itemRowPositions.positions.get(item.id) || 0) * rowHeight + 5,
+                      top: topPosition,
                       height: rowHeight - 10,
                       left: `${leftPx}px`,
                       width: `${widthPx}px`,
