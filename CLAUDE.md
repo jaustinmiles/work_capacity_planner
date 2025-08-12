@@ -46,7 +46,50 @@ npm run prisma:studio
 
 # Lint/typecheck
 npm run lint
+npm run typecheck
+
+# Check everything before committing
+npm run check  # Runs both typecheck and lint
 ```
+
+## IMPORTANT: Development Workflow
+
+**ALWAYS follow this workflow when making changes:**
+
+1. **Before Starting Development**
+   ```bash
+   # Ensure clean state
+   npm run typecheck  # Should pass with 0 errors
+   npm run lint       # Should have minimal warnings
+   ```
+
+2. **During Development**
+   - Make incremental changes
+   - Run `npm run typecheck` after significant changes
+   - Test components in isolation when possible
+
+3. **Before Declaring "Task Complete"**
+   ```bash
+   # MANDATORY checks - ALL must pass:
+   npm run build:main     # Builds main process
+   npm run build:preload  # Builds preload script
+   npm run typecheck      # Must have 0 errors
+   npm run lint           # Address any new errors
+   
+   # If any of these fail, fix the issues before proceeding
+   ```
+
+4. **Common Issues to Watch For**
+   - Import errors: Always check existing imports before adding new libraries
+   - Arco Design usage: Use `@arco-design/web-react` components and icons
+   - TypeScript strict mode: Handle all nullable types properly
+   - React 19 compatibility: Some libraries may have warnings
+
+5. **Testing New Features**
+   - Start the dev server: `npm run start`
+   - Check browser console for runtime errors
+   - Test the feature end-to-end
+   - Verify no regression in existing features
 
 ## Project Structure
 
@@ -154,6 +197,51 @@ task-planner/
 - **Modal-based forms** for task creation and editing
 - **Card-based content organization** for better visual hierarchy
 - **Interactive elements** with hover effects, tooltips, and confirmation dialogs
+
+## Code Patterns and Best Practices
+
+### UI Components
+- **ALWAYS use Arco Design components** - Never assume other UI libraries
+- Import pattern: `import { Button, Card, Space } from '@arco-design/web-react'`
+- Icons: `import { IconName } from '@arco-design/web-react/icon'`
+- Typography: Use `Typography.Title` and `Typography.Text` components
+- Grid: Use `const { Row, Col } = Grid` destructuring
+
+### State Management
+- Use Zustand store hooks: `useTaskStore`, `useSessionStore`
+- Always handle async operations with try/catch
+- Update local state optimistically, then sync with database
+
+### Database Operations
+- All database methods return Promises
+- Use typed parameters and return types
+- Handle nullable fields properly in TypeScript
+- Check if methods exist before calling them
+
+### TypeScript Patterns
+```typescript
+// Handle nullable types
+const value = nullableValue ?? defaultValue
+
+// Type guards for unions
+if ('steps' in task) {
+  // task is SequencedTask
+}
+
+// Proper async error handling
+try {
+  await someAsyncOperation()
+} catch (error) {
+  console.error('Descriptive error message:', error)
+}
+```
+
+### Common Pitfalls to Avoid
+1. **Don't assume libraries** - Always check what's already in use
+2. **Don't skip type checking** - Run `npm run typecheck` frequently
+3. **Don't ignore nullable types** - TypeScript strict mode requires proper handling
+4. **Don't mix UI libraries** - Stick to Arco Design components
+5. **Don't forget IPC patterns** - Use preload script for all database calls
 - **Progress visualization** with completion rates and statistics
 - **Responsive grid layouts** for matrix views and dashboards
 

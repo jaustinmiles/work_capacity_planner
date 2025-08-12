@@ -4,7 +4,15 @@ import { SequencedTask } from '@shared/sequencing-types'
 import { SchedulingService } from '@shared/scheduling-service'
 import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
+import { StepWorkSession } from '@shared/workflow-progress-types'
 import { getDatabase } from '../services/database'
+
+interface WorkSession {
+  stepId: string
+  startTime: Date
+  isPaused: boolean
+  duration: number // accumulated minutes
+}
 
 interface TaskStore {
   tasks: Task[]
@@ -19,6 +27,10 @@ interface TaskStore {
   currentWeeklySchedule: WeeklySchedule | null
   isScheduling: boolean
   schedulingError: string | null
+
+  // Progress tracking state
+  activeWorkSessions: Map<string, WorkSession>
+  workSessionHistory: StepWorkSession[]
 
   // Data loading actions
   loadTasks: () => Promise<void>
@@ -43,6 +55,14 @@ interface TaskStore {
   // Settings actions
   updateWorkSettings: (settings: WorkSettings) => Promise<void>
 
+  // Progress tracking actions
+  startWorkOnStep: (stepId: string, workflowId: string) => void
+  pauseWorkOnStep: (stepId: string) => void
+  completeStep: (stepId: string, actualMinutes?: number, notes?: string) => Promise<void>
+  updateStepProgress: (stepId: string, percentComplete: number) => Promise<void>
+  logWorkSession: (stepId: string, minutes: number, notes?: string) => Promise<void>
+  loadWorkSessionHistory: (stepId: string) => Promise<void>
+
   // Computed
   getTaskById: (id: string) => Task | undefined
   getSequencedTaskById: (id: string) => SequencedTask | undefined
@@ -50,6 +70,7 @@ interface TaskStore {
   getCompletedTasks: () => Task[]
   getActiveSequencedTasks: () => SequencedTask[]
   getCompletedSequencedTasks: () => SequencedTask[]
+  getActiveWorkSession: (stepId: string) => WorkSession | undefined
 }
 
 // Helper to generate IDs (will be replaced by database IDs later)
@@ -79,6 +100,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   currentWeeklySchedule: null,
   isScheduling: false,
   schedulingError: null,
+
+  // Progress tracking state
+  activeWorkSessions: new Map(),
+  workSessionHistory: [],
 
   // Data loading actions
   loadTasks: async () => {
@@ -294,4 +319,183 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   getActiveSequencedTasks: () => get().sequencedTasks.filter(task => !task.completed),
 
   getCompletedSequencedTasks: () => get().sequencedTasks.filter(task => task.completed),
+
+  // Progress tracking actions
+  startWorkOnStep: (stepId: string, workflowId: string) => {
+    const state = get()
+    const activeSession = state.activeWorkSessions.get(stepId)
+    
+    if (activeSession && !activeSession.isPaused) {
+      console.warn(`Work session for step ${stepId} is already active`)
+      return
+    }
+
+    const newSession: WorkSession = {
+      stepId,
+      startTime: new Date(),
+      isPaused: false,
+      duration: activeSession?.duration || 0,
+    }
+
+    const newSessions = new Map(state.activeWorkSessions)
+    newSessions.set(stepId, newSession)
+    
+    set({ activeWorkSessions: newSessions })
+
+    // Update step status in database
+    getDatabase().updateTaskStepProgress(stepId, {
+      status: 'in_progress',
+      startedAt: activeSession ? undefined : new Date(),
+    }).catch(error => {
+      console.error('Failed to update step progress:', error)
+    })
+  },
+
+  pauseWorkOnStep: (stepId: string) => {
+    const state = get()
+    const session = state.activeWorkSessions.get(stepId)
+    
+    if (!session || session.isPaused) {
+      console.warn(`No active work session for step ${stepId}`)
+      return
+    }
+
+    // Calculate duration since last start
+    const elapsed = Date.now() - session.startTime.getTime()
+    const newDuration = session.duration + Math.floor(elapsed / 60000) // Convert to minutes
+
+    const updatedSession: WorkSession = {
+      ...session,
+      isPaused: true,
+      duration: newDuration,
+    }
+
+    const newSessions = new Map(state.activeWorkSessions)
+    newSessions.set(stepId, updatedSession)
+    
+    set({ activeWorkSessions: newSessions })
+  },
+
+  completeStep: async (stepId: string, actualMinutes?: number, notes?: string) => {
+    const state = get()
+    const session = state.activeWorkSessions.get(stepId)
+    
+    let totalMinutes = actualMinutes || 0
+    
+    if (session && !actualMinutes) {
+      // Calculate final duration if session is active
+      const elapsed = session.isPaused ? 0 : Date.now() - session.startTime.getTime()
+      totalMinutes = session.duration + Math.floor(elapsed / 60000)
+    }
+
+    try {
+      // Create work session record
+      if (totalMinutes > 0) {
+        await getDatabase().createStepWorkSession({
+          taskStepId: stepId,
+          startTime: session?.startTime || new Date(),
+          duration: totalMinutes,
+          notes,
+        })
+      }
+
+      // Update step progress
+      await getDatabase().updateTaskStepProgress(stepId, {
+        status: 'completed',
+        completedAt: new Date(),
+        actualDuration: totalMinutes,
+        percentComplete: 100,
+        // If the step was never started, set startedAt to when it was completed minus duration
+        startedAt: session?.startTime || new Date(Date.now() - totalMinutes * 60000),
+      })
+
+      // Remove from active sessions
+      const newSessions = new Map(state.activeWorkSessions)
+      newSessions.delete(stepId)
+      set({ activeWorkSessions: newSessions })
+
+      // Reload the sequenced task to get updated data
+      const task = state.sequencedTasks.find(t => 
+        t.steps.some(s => s.id === stepId)
+      )
+      if (task) {
+        const updatedTask = await getDatabase().getSequencedTaskById(task.id)
+        set(state => ({
+          sequencedTasks: state.sequencedTasks.map(t =>
+            t.id === task.id ? updatedTask : t
+          ),
+        }))
+      }
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to complete step',
+      })
+    }
+  },
+
+  updateStepProgress: async (stepId: string, percentComplete: number) => {
+    try {
+      await getDatabase().updateTaskStepProgress(stepId, {
+        percentComplete: Math.min(100, Math.max(0, percentComplete)),
+      })
+
+      // Update local state
+      set(state => ({
+        sequencedTasks: state.sequencedTasks.map(task => ({
+          ...task,
+          steps: task.steps.map(step =>
+            step.id === stepId
+              ? { ...step, percentComplete: Math.min(100, Math.max(0, percentComplete)) }
+              : step
+          ),
+        })),
+      }))
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to update step progress',
+      })
+    }
+  },
+
+  logWorkSession: async (stepId: string, minutes: number, notes?: string) => {
+    try {
+      await getDatabase().createStepWorkSession({
+        taskStepId: stepId,
+        startTime: new Date(Date.now() - minutes * 60000), // Start time is minutes ago
+        duration: minutes,
+        notes,
+      })
+
+      // Update step's actual duration
+      const step = get().sequencedTasks
+        .flatMap(t => t.steps)
+        .find(s => s.id === stepId)
+      
+      if (step) {
+        const newActualDuration = (step.actualDuration || 0) + minutes
+        await getDatabase().updateTaskStepProgress(stepId, {
+          actualDuration: newActualDuration,
+        })
+      }
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to log work session',
+      })
+    }
+  },
+
+  loadWorkSessionHistory: async (stepId: string) => {
+    try {
+      const sessions = await getDatabase().getStepWorkSessions(stepId)
+      set({ workSessionHistory: sessions })
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to load work session history',
+      })
+    }
+  },
+
+  getActiveWorkSession: (stepId: string) => {
+    return get().activeWorkSessions.get(stepId)
+  },
 }))

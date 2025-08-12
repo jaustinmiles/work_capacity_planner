@@ -283,6 +283,7 @@ export class DatabaseService {
     // Remove fields that shouldn't be updated directly
     delete cleanUpdateData.id
     delete cleanUpdateData.createdAt
+    delete cleanUpdateData.currentStepId  // This field exists in the type but not in the database
 
     // Update the main sequenced task
     await this.client.sequencedTask.update({

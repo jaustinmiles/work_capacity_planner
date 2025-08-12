@@ -52,6 +52,12 @@ declare global {
         updateWorkSession: (id: string, data: any) => Promise<any>
         getWorkSessions: (date: string) => Promise<any[]>
         getTodayAccumulated: (date: string) => Promise<{ focusMinutes: number; adminMinutes: number }>
+        // Progress tracking operations
+        createStepWorkSession: (data: any) => Promise<any>
+        updateTaskStepProgress: (stepId: string, data: any) => Promise<any>
+        getStepWorkSessions: (stepId: string) => Promise<any[]>
+        recordTimeEstimate: (data: any) => Promise<any>
+        getTimeAccuracyStats: (filters?: any) => Promise<any>
       }
       ai: {
         extractTasksFromBrainstorm: (brainstormText: string) => Promise<{
@@ -409,6 +415,27 @@ export class RendererDatabaseService {
 
   async getTodayAccumulated(date: string) {
     return await window.electronAPI.db.getTodayAccumulated(date)
+  }
+
+  // Progress tracking operations
+  async createStepWorkSession(data: any) {
+    return await window.electronAPI.db.createStepWorkSession(data)
+  }
+
+  async updateTaskStepProgress(stepId: string, data: any) {
+    return await window.electronAPI.db.updateTaskStepProgress(stepId, data)
+  }
+
+  async getStepWorkSessions(stepId: string) {
+    return await window.electronAPI.db.getStepWorkSessions(stepId)
+  }
+
+  async recordTimeEstimate(data: any) {
+    return await window.electronAPI.db.recordTimeEstimate(data)
+  }
+
+  async getTimeAccuracyStats(filters?: any) {
+    return await window.electronAPI.db.getTimeAccuracyStats(filters)
   }
 }
 

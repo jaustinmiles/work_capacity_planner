@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
-import { Card, Space, Typography, Tag, Button, Collapse, Alert, Statistic, Grid, Progress, Tooltip, Popconfirm } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping } from '@arco-design/web-react/icon'
+import { Card, Space, Typography, Tag, Button, Collapse, Alert, Statistic, Grid, Progress, Tooltip, Popconfirm, Tabs } from '@arco-design/web-react'
+import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskStepItem } from './TaskStepItem'
 import { SequencedTaskEdit } from './SequencedTaskEdit'
 import { WorkflowVisualization } from './WorkflowVisualization'
+import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -30,6 +31,7 @@ export function SequencedTaskView({
   const [showDetails, setShowDetails] = useState(false)
   const [showEditView, setShowEditView] = useState(false)
   const [showVisualization, setShowVisualization] = useState(false)
+  const [activeTab, setActiveTab] = useState<string>('overview')
 
   const completedSteps = task.steps.filter(step => step.status === 'completed').length
   const totalSteps = task.steps.length
@@ -202,87 +204,120 @@ export function SequencedTaskView({
         />
       )}
 
-      {/* Summary Statistics */}
+      {/* Tabbed View */}
       <Card>
-        <Row gutter={16}>
-          <Col span={6}>
-            <Statistic
-              title="Total Duration"
-              value={formatDuration(task.totalDuration)}
-              prefix={<IconClockCircle />}
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="Critical Path"
-              value={formatDuration(task.criticalPathDuration)}
-              prefix={<IconCalendar />}
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="Worst Case"
-              value={formatDuration(task.worstCaseDuration)}
-              prefix={<IconBranch />}
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="Est. Completion"
-              value={calculateEstimatedCompletionTime().toLocaleDateString()}
-              suffix={calculateEstimatedCompletionTime().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            />
-          </Col>
-        </Row>
-      </Card>
+        <Tabs
+          activeTab={activeTab}
+          onChange={setActiveTab}
+          type="rounded"
+        >
+          <Tabs.TabPane
+            key="overview"
+            title={
+              <span>
+                <IconCalendar style={{ marginRight: 8 }} />
+                Overview
+              </span>
+            }
+          >
+            <Space direction="vertical" style={{ width: '100%' }} size="large">
+              {/* Summary Statistics */}
+              <Card>
+                <Row gutter={16}>
+                  <Col span={6}>
+                    <Statistic
+                      title="Total Duration"
+                      value={formatDuration(task.totalDuration)}
+                      prefix={<IconClockCircle />}
+                    />
+                  </Col>
+                  <Col span={6}>
+                    <Statistic
+                      title="Critical Path"
+                      value={formatDuration(task.criticalPathDuration)}
+                      prefix={<IconCalendar />}
+                    />
+                  </Col>
+                  <Col span={6}>
+                    <Statistic
+                      title="Worst Case"
+                      value={formatDuration(task.worstCaseDuration)}
+                      prefix={<IconBranch />}
+                    />
+                  </Col>
+                  <Col span={6}>
+                    <Statistic
+                      title="Est. Completion"
+                      value={calculateEstimatedCompletionTime().toLocaleDateString()}
+                      suffix={calculateEstimatedCompletionTime().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    />
+                  </Col>
+                </Row>
+              </Card>
 
-      {/* Workflow Steps */}
-      <Card
-        title={
-          <Space>
-            <Title heading={6} style={{ margin: 0 }}>Workflow Steps</Title>
-            <Button
-              type="text"
-              size="small"
-              icon={<IconDown style={{ transform: showDetails ? 'rotate(180deg)' : 'none' }} />}
-              onClick={() => setShowDetails(!showDetails)}
-            >
-              {showDetails ? 'Hide Details' : 'Show Details'}
-            </Button>
-          </Space>
-        }
-      >
-        <div style={{ position: 'relative' }}>
-          {task.steps.map((step, index) => (
-            <TaskStepItem
-              key={step.id}
-              step={step}
-              stepIndex={index}
-              isActive={step.status === 'in_progress'}
-              isCompleted={step.status === 'completed'}
-            />
-          ))}
-        </div>
+              {/* Workflow Steps */}
+              <Card
+                title={
+                  <Space>
+                    <Title heading={6} style={{ margin: 0 }}>Workflow Steps</Title>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<IconDown style={{ transform: showDetails ? 'rotate(180deg)' : 'none' }} />}
+                      onClick={() => setShowDetails(!showDetails)}
+                    >
+                      {showDetails ? 'Hide Details' : 'Show Details'}
+                    </Button>
+                  </Space>
+                }
+              >
+                <div style={{ position: 'relative' }}>
+                  {task.steps.map((step, index) => (
+                    <TaskStepItem
+                      key={step.id}
+                      step={step}
+                      stepIndex={index}
+                      isActive={step.status === 'in_progress'}
+                      isCompleted={step.status === 'completed'}
+                    />
+                  ))}
+                </div>
 
-        {showDetails && (
-          <div style={{ marginTop: 24, padding: 16, background: '#F7F8FA', borderRadius: 8 }}>
-            <Title heading={6}>Workflow Analysis</Title>
-            <Space direction="vertical" size="small">
-              <Text>
-                • <strong>Sequential Dependencies:</strong> Each step builds on the previous ones
-              </Text>
-              <Text>
-                • <strong>Async Wait Times:</strong> Built-in delays for external processes
-              </Text>
-              <Text>
-                • <strong>Conditional Branches:</strong> Automatic handling of failure scenarios
-              </Text>
-              <Text>
-                • <strong>Worst-Case Planning:</strong> Includes all possible retry scenarios
-              </Text>
+                {showDetails && (
+                  <div style={{ marginTop: 24, padding: 16, background: '#F7F8FA', borderRadius: 8 }}>
+                    <Title heading={6}>Workflow Analysis</Title>
+                    <Space direction="vertical" size="small">
+                      <Text>
+                        • <strong>Sequential Dependencies:</strong> Each step builds on the previous ones
+                      </Text>
+                      <Text>
+                        • <strong>Async Wait Times:</strong> Built-in delays for external processes
+                      </Text>
+                      <Text>
+                        • <strong>Conditional Branches:</strong> Automatic handling of failure scenarios
+                      </Text>
+                      <Text>
+                        • <strong>Worst-Case Planning:</strong> Includes all possible retry scenarios
+                      </Text>
+                    </Space>
+                  </div>
+                )}
+              </Card>
             </Space>
-          </div>
-        )}
+          </Tabs.TabPane>
+          
+          <Tabs.TabPane
+            key="progress"
+            title={
+              <span>
+                <IconHistory style={{ marginRight: 8 }} />
+                Progress Tracking
+              </span>
+            }
+          >
+            <WorkflowProgressTracker workflow={task} />
+          </Tabs.TabPane>
+        </Tabs>
       </Card>
 
       {/* Workflow Visualization Modal */}

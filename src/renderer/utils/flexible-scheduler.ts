@@ -92,9 +92,10 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
     const startTime = parseTimeOnDate(date, meeting.startTime)
     const endTime = parseTimeOnDate(date, meeting.endTime)
 
-    // Make meeting IDs unique per day
+    // Make meeting IDs unique per day - ensure uniqueness even for duplicate meeting IDs
     const dateStr = date.toISOString().split('T')[0]
-    const uniqueMeetingId = `${meeting.id}-${dateStr}`
+    const randomSuffix = Math.random().toString(36).substr(2, 9)
+    const uniqueMeetingId = `${meeting.id}-${dateStr}-${randomSuffix}`
 
     // Handle meetings that cross midnight (like sleep blocks)
     if (endTime <= startTime) {
