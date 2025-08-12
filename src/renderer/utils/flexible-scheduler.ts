@@ -88,14 +88,13 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
 function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): ScheduledItem[] {
   const items: ScheduledItem[] = []
 
-  meetings.forEach(meeting => {
+  meetings.forEach((meeting, index) => {
     const startTime = parseTimeOnDate(date, meeting.startTime)
     const endTime = parseTimeOnDate(date, meeting.endTime)
 
-    // Make meeting IDs unique per day - ensure uniqueness even for duplicate meeting IDs
+    // Make meeting IDs unique per day using index to avoid duplicates
     const dateStr = date.toISOString().split('T')[0]
-    const randomSuffix = Math.random().toString(36).substr(2, 9)
-    const uniqueMeetingId = `${meeting.id}-${dateStr}-${randomSuffix}`
+    const uniqueMeetingId = `meeting-${dateStr}-${index}`
 
     // Handle meetings that cross midnight (like sleep blocks)
     if (endTime <= startTime) {

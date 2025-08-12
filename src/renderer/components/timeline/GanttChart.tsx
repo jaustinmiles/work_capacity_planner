@@ -191,6 +191,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
     // Second pass: assign positions
     scheduledItems.forEach(item => {
+      // Skip blocked items (meetings, breaks, etc.) - they don't get rows
+      if (item.isBlocked) {
+        return
+      }
+      
       if (item.workflowId) {
         // This is a workflow step
         if (!workflowRows.has(item.workflowId)) {
