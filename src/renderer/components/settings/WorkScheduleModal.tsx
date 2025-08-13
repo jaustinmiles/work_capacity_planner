@@ -43,8 +43,8 @@ export function WorkScheduleModal({
 
       setPattern(patternData)
       setAccumulated({
-        focusMinutes: accumulatedData.focusMinutes || 0,
-        adminMinutes: accumulatedData.adminMinutes || 0
+        focusMinutes: (accumulatedData as any).focusMinutes || (accumulatedData as any).focused || 0,
+        adminMinutes: (accumulatedData as any).adminMinutes || (accumulatedData as any).admin || 0
       })
     } catch (error) {
       console.error('Failed to load work pattern:', error)

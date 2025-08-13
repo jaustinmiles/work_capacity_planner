@@ -365,6 +365,10 @@ try {
 3. **Don't ignore nullable types** - TypeScript strict mode requires proper handling
 4. **Don't mix UI libraries** - Stick to Arco Design components
 5. **Don't forget IPC patterns** - Use preload script for all database calls
+6. **Don't disable TypeScript strict checks** - Fix the root cause, not the symptom
+7. **Don't create TaskStep without required fields** - Always include `taskId` and `percentComplete`
+8. **Don't mix property names** - Use `focusMinutes/adminMinutes` not `focused/admin`
+9. **Don't use hardcoded strings** - Use enums or constants for repeated string values (e.g., 'blocked-time', 'Sleep', 'pending', task types, status values)
 - **Progress visualization** with completion rates and statistics
 - **Responsive grid layouts** for matrix views and dashboards
 

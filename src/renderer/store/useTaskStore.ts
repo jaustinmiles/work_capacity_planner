@@ -4,11 +4,11 @@ import { SequencedTask } from '@shared/sequencing-types'
 import { SchedulingService } from '@shared/scheduling-service'
 import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
-import { WorkSession } from '@shared/workflow-progress-types'
+import { WorkSession as ImportedWorkSession } from '@shared/workflow-progress-types'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
 
-interface WorkSession {
+interface LocalWorkSession {
   stepId: string
   startTime: Date
   isPaused: boolean
@@ -30,8 +30,8 @@ interface TaskStore {
   schedulingError: string | null
 
   // Progress tracking state
-  activeWorkSessions: Map<string, WorkSession>
-  workSessionHistory: StepWorkSession[]
+  activeWorkSessions: Map<string, LocalWorkSession>
+  workSessionHistory: ImportedWorkSession[]
 
   // Data loading actions
   loadTasks: () => Promise<void>
@@ -71,7 +71,7 @@ interface TaskStore {
   getCompletedTasks: () => Task[]
   getActiveSequencedTasks: () => SequencedTask[]
   getCompletedSequencedTasks: () => SequencedTask[]
-  getActiveWorkSession: (stepId: string) => WorkSession | undefined
+  getActiveWorkSession: (stepId: string) => LocalWorkSession | undefined
 }
 
 // Helper to generate IDs (will be replaced by database IDs later)
@@ -337,7 +337,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       return
     }
 
-    const newSession: WorkSession = {
+    const newSession: LocalWorkSession = {
       stepId,
       startTime: new Date(),
       isPaused: false,
@@ -371,7 +371,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const elapsed = Date.now() - session.startTime.getTime()
     const newDuration = session.duration + Math.floor(elapsed / 60000) // Convert to minutes
 
-    const updatedSession: WorkSession = {
+    const updatedSession: LocalWorkSession = {
       ...session,
       isPaused: true,
       duration: newDuration,

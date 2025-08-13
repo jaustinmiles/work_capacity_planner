@@ -54,12 +54,15 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
       // Build the sequenced task
       const sequencedSteps: TaskStep[] = steps.map((step, index) => ({
         id: `step-${index}`,
+        taskId: '',  // Will be set when saved
         name: step.name || `Step ${index + 1}`,
         duration: step.duration || 60,
         type: step.type || 'focused',
         dependsOn: step.dependsOn || [],
         asyncWaitTime: step.asyncWaitTime || 0,
         status: 'pending' as const,
+        stepIndex: index,
+        percentComplete: 0,
         // conditionalBranches: step.conditionalBranches, // Not in TaskStep type
       }))
 

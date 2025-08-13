@@ -137,8 +137,8 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
             </Tag>
           )}
 
-          {step.conditionalBranches && step.conditionalBranches.length > 0 && (
-            <Tooltip content={`${step.conditionalBranches.length} conditional branch(es)`}>
+          {false && (step as any).conditionalBranches && (step as any).conditionalBranches.length > 0 && (
+            <Tooltip content={`${(step as any).conditionalBranches.length} conditional branch(es)`}>
               <Tag
                 icon={<IconBranch />}
                 color="purple"
@@ -163,9 +163,9 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
         </Space>
 
         {/* Show conditional branches */}
-        {step.conditionalBranches && step.conditionalBranches.length > 0 && (
+        {false && (step as any).conditionalBranches && (step as any).conditionalBranches.length > 0 && (
           <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '1px dashed #E5E8EF' }}>
-            {step.conditionalBranches.map((branch: any) => (
+            {(step as any).conditionalBranches.map((branch: any) => (
               <div key={branch.id} style={{ marginBottom: 4 }}>
                 <Space size="small">
                   <IconBranch style={{ color: '#FF7D00', fontSize: 12 }} />

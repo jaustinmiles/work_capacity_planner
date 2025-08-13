@@ -136,7 +136,7 @@ export class SchedulingService {
       { name: 'Big Rocks First', tieBreaking: 'duration_longest' as const, allowOverflow: false },
     ]
 
-    const results = []
+    const results: Array<{ scenario: string; result: SchedulingResult }> = []
     for (const scenario of scenarios) {
       const result = await this.createSchedule(tasks, sequencedTasks, {
         startDate: options.startDate,
@@ -178,7 +178,12 @@ export class SchedulingService {
       capacityUtilization: (simulationResult.totalFocusedHours + simulationResult.totalAdminHours) / (7 * simulationResult.totalWorkDays) * 100,
     }
 
-    const recommendations = []
+    const recommendations: Array<{
+      type: 'capacity' | 'priority' | 'dependency' | 'optimization'
+      title: string
+      description: string
+      impact: 'high' | 'medium' | 'low'
+    }> = []
 
     // Capacity recommendations
     if (workloadAnalysis.capacityUtilization > 85) {

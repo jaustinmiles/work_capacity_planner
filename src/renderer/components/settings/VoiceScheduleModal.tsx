@@ -208,7 +208,18 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
         scheduleText.trim(),
         targetDate || dayjs().format('YYYY-MM-DD'),
       )
-      setScheduleResult(result)
+      // Convert capacity format if needed
+      const convertedResult = {
+        ...result,
+        blocks: result.blocks.map((block: any) => ({
+          ...block,
+          capacity: block.capacity ? {
+            focusMinutes: block.capacity.focusMinutes || block.capacity.focused || 0,
+            adminMinutes: block.capacity.adminMinutes || block.capacity.admin || 0,
+          } : undefined,
+        })),
+      }
+      setScheduleResult(convertedResult)
     } catch (error) {
       console.error('Error processing schedule:', error)
       setError('Failed to process schedule with AI. Please try again.')

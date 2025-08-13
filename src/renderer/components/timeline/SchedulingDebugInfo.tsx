@@ -21,6 +21,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
         expandIconPosition="right"
       >
         <Collapse.Item
+          name="debug"
           key="debug"
           header={
             <Space>

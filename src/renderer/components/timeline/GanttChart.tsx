@@ -116,7 +116,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Calculate time markers
   const timeMarkers = useMemo(() => {
-    const markers = []
+    const markers: Date[] = []
     const markerTime = new Date(chartStartTime)
     markerTime.setMinutes(0, 0, 0)
 
@@ -129,7 +129,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Calculate day boundaries for visual separation
   const dayBoundaries = useMemo(() => {
-    const boundaries = []
+    const boundaries: Date[] = []
     const dayTime = new Date(chartStartTime)
     dayTime.setHours(0, 0, 0, 0)
 
@@ -396,7 +396,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     icon={<IconInfoCircle />}
                     onClick={() => setShowDebugInfo(!showDebugInfo)}
                     style={{ width: '100%' }}
-                    type={debugInfo && (debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0) ? 'warning' : 'default'}
+                    type={debugInfo && (debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0) ? 'primary' : 'default'}
                   >
                     Debug Info
                   </Button>
@@ -568,7 +568,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                             <>
                               <span style={{ marginRight: 6 }}>🔄</span>
                               <span style={{ flex: 1 }}>{rowLabel}</span>
-                              {itemRowPositions.workflowProgress.has(firstItem.workflowId) && (
+                              {firstItem.workflowId && itemRowPositions.workflowProgress.has(firstItem.workflowId) && (
                                 <span style={{
                                   marginLeft: 8,
                                   fontSize: 11,
@@ -577,8 +577,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                                   padding: '2px 6px',
                                   borderRadius: 10,
                                 }}>
-                                  {itemRowPositions.workflowProgress.get(firstItem.workflowId)!.completed}/
-                                  {itemRowPositions.workflowProgress.get(firstItem.workflowId)!.total}
+                                  {itemRowPositions.workflowProgress.get(firstItem.workflowId!)!.completed}/
+                                  {itemRowPositions.workflowProgress.get(firstItem.workflowId!)!.total}
                                 </span>
                               )}
                             </>
@@ -727,7 +727,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const widthPx = getDurationPx(item.duration)
                 const isWaitTime = item.isWaitTime
                 const isBlocked = item.isBlocked
-                const isSleep = item.type === 'blocked' && item.originalItem &&
+                const isSleep = item.type === 'blocked-time' && item.originalItem &&
                   'name' in item.originalItem && item.originalItem.name === 'Sleep'
                 const isHovered = hoveredItem === item.id ||
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))

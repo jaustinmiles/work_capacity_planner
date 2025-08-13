@@ -6,7 +6,7 @@ export function TestWorkflowCreator() {
   const { addSequencedTask } = useTaskStore()
 
   const createTestWorkflow = async () => {
-    const testWorkflow: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'> = {
+    const testWorkflow: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'> = {
       name: 'Test Workflow with Dependencies',
       importance: 7,
       urgency: 7,
@@ -14,10 +14,13 @@ export function TestWorkflowCreator() {
       dependencies: [],
       completed: false,
       notes: 'Test workflow to verify dependency rendering',
-      totalDuration: 180,
+      duration: 180,
       criticalPathDuration: 180,
       worstCaseDuration: 240,
       overallStatus: 'not_started',
+      sessionId: 'default',  // Add required sessionId
+      asyncWaitTime: 0,
+      hasSteps: true,
       steps: [
         {
           id: 'step-test-1',

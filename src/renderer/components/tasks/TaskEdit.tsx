@@ -245,7 +245,7 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
                   </Text>
                   <DatePicker
                     value={editedTask.deadline}
-                    onChange={(dateString) => setEditedTask({ ...editedTask, deadline: dateString })}
+                    onChange={(dateString) => setEditedTask({ ...editedTask, deadline: dateString ? new Date(dateString) : undefined })}
                     showTime
                     placeholder="Select deadline"
                     style={{ width: '100%' }}
@@ -283,25 +283,25 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
               <Col span={6}>
                 <Space direction="vertical">
                   <Text type="secondary">Duration</Text>
-                  <Text strong>{formatDuration(editedTask.duration)}</Text>
+                  <Text style={{ fontWeight: 'bold' }}>{formatDuration(editedTask.duration)}</Text>
                 </Space>
               </Col>
               <Col span={6}>
                 <Space direction="vertical">
                   <Text type="secondary">Async Wait Time</Text>
-                  <Text strong>{formatDuration(editedTask.asyncWaitTime)}</Text>
+                  <Text style={{ fontWeight: 'bold' }}>{formatDuration(editedTask.asyncWaitTime)}</Text>
                 </Space>
               </Col>
               <Col span={6}>
                 <Space direction="vertical">
                   <Text type="secondary">Total Time</Text>
-                  <Text strong>{formatDuration(editedTask.duration + editedTask.asyncWaitTime)}</Text>
+                  <Text style={{ fontWeight: 'bold' }}>{formatDuration(editedTask.duration + editedTask.asyncWaitTime)}</Text>
                 </Space>
               </Col>
               <Col span={6}>
                 <Space direction="vertical">
                   <Text type="secondary">Type</Text>
-                  <Text strong>{editedTask.type === 'focused' ? 'Focused Work' : 'Admin Task'}</Text>
+                  <Text style={{ fontWeight: 'bold' }}>{editedTask.type === 'focused' ? 'Focused Work' : 'Admin Task'}</Text>
                 </Space>
               </Col>
             </Row>

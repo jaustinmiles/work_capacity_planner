@@ -327,7 +327,7 @@ export function InteractiveWorkflowGraph({
           nodesConnectable={isEditable}
           elementsSelectable={isEditable}
         >
-          <Background variant="dots" gap={12} size={1} color="#ddd" />
+          <Background variant={'dots' as any} gap={12} size={1} color="#ddd" />
           <MiniMap />
           <Controls />
         </ReactFlow>
