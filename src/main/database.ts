@@ -65,7 +65,7 @@ export class DatabaseService {
     const session = await this.client.session.create({
       data: {
         name,
-        description,
+        description: description ?? null,
         isActive: true,
       },
     })
@@ -463,7 +463,7 @@ export class DatabaseService {
       update: {
         value: entry.value,
         category: entry.category,
-        notes: entry.notes,
+        notes: entry.notes ?? null,
       },
       create: {
         jobContextId,
@@ -816,13 +816,13 @@ export class DatabaseService {
     return this.client.workSession.create({
       data: {
         taskId: data.taskId,
-        stepId: data.stepId,
+        stepId: data.stepId ?? null,
         type: data.type,
         startTime: data.startTime,
         endTime: new Date(data.startTime.getTime() + data.duration * 60000),
         plannedMinutes: data.duration,
         actualMinutes: data.duration,
-        notes: data.notes,
+        notes: data.notes ?? null,
       },
     })
   }
@@ -944,7 +944,7 @@ export class DatabaseService {
         estimatedMinutes: data.estimatedMinutes,
         actualMinutes: data.actualMinutes,
         variance,
-        workflowCategory: data.workflowCategory,
+        workflowCategory: data.workflowCategory ?? null,
       },
     })
   }

@@ -22,7 +22,9 @@
       "Bash(npm run:*)",
       "Bash(node:*)",
       "Bash(cp:*)",
-      "Bash(npx prisma generate:*)"
+      "Bash(npx prisma generate:*)",
+      "Bash(/tmp/fix-react-imports.sh:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

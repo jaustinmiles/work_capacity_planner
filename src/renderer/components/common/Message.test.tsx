@@ -1,5 +1,5 @@
+import { describe, it, expect } from 'vitest'
 import { Message } from './Message'
-import { vi } from 'vitest'
 
 describe('Message', () => {
   it('should have success method', () => {

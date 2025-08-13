@@ -1,11 +1,12 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TaskTimeLoggingModal } from '../TaskTimeLoggingModal'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { appEvents, EVENTS } from '../../../utils/events'
 import { Message } from '@arco-design/web-react'
+import { createMockTask } from '@shared/test-utils'
 
 // Mock the store
 vi.mock('../../../store/useTaskStore')
@@ -34,21 +35,16 @@ vi.mock('@arco-design/web-react', async () => {
 })
 
 describe('TaskTimeLoggingModal', () => {
-  const mockTask = {
+  const mockTask = createMockTask({
     id: '1',
     name: 'Test Task',
     duration: 60,
     actualDuration: 0,
     completed: false,
-    type: 'focused' as const,
+    type: 'focused',
     importance: 8,
-    urgency: 7,
-    asyncWaitTime: 0,
-    dependencies: [],
-    sessionId: 'session-1',
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
+    urgency: 7
+  })
 
   const mockUpdateTask = vi.fn()
   const mockOnClose = vi.fn()
@@ -96,7 +92,7 @@ describe('TaskTimeLoggingModal', () => {
   })
 
   it('should accumulate time when task already has actualDuration', async () => {
-    const taskWithTime = { ...mockTask, actualDuration: 45 }
+    const taskWithTime = createMockTask({ ...mockTask, actualDuration: 45 })
     const user = userEvent.setup()
     render(<TaskTimeLoggingModal task={taskWithTime} visible={true} onClose={mockOnClose} />)
     
@@ -137,7 +133,7 @@ describe('TaskTimeLoggingModal', () => {
   })
 
   it('should not show warning for completed tasks', async () => {
-    const completedTask = { ...mockTask, completed: true }
+    const completedTask = createMockTask({ ...mockTask, completed: true })
     const user = userEvent.setup()
     render(<TaskTimeLoggingModal task={completedTask} visible={true} onClose={mockOnClose} />)
     
@@ -172,7 +168,7 @@ describe('TaskTimeLoggingModal', () => {
   })
 
   it('should format time correctly', () => {
-    const longTask = { ...mockTask, duration: 135, actualDuration: 195 }
+    const longTask = createMockTask({ ...mockTask, duration: 135, actualDuration: 195 })
     render(<TaskTimeLoggingModal task={longTask} visible={true} onClose={mockOnClose} />)
     
     expect(screen.getByText('2h 15m')).toBeDefined() // Estimated

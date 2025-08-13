@@ -1,5 +1,5 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { RendererDatabaseService } from './database'
-import { vi } from 'vitest'
 
 describe('RendererDatabaseService', () => {
   let db: RendererDatabaseService

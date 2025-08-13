@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest'
 import { scheduleItemsWithBlocks } from './flexible-scheduler'
 import { Task } from '@shared/types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm } from '@arco-design/web-react'
 import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'

@@ -49,6 +49,10 @@ describe('Type definitions', () => {
         sessionId: 'session-id',
         createdAt: new Date(),
         updatedAt: new Date(),
+        hasSteps: false,
+        overallStatus: 'not_started',
+        criticalPathDuration: 60,
+        worstCaseDuration: 60,
       }
 
       expect(task.sessionId).toBe('session-id')
@@ -72,6 +76,10 @@ describe('Type definitions', () => {
         deadline: new Date('2024-12-31'),
         createdAt: new Date(),
         updatedAt: new Date(),
+        hasSteps: false,
+        overallStatus: 'not_started',
+        criticalPathDuration: 60,
+        worstCaseDuration: 60,
       }
 
       expect(task.deadline).toBeInstanceOf(Date)
