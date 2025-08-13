@@ -22,7 +22,7 @@ export function WorkScheduleModal({
   onSave,
 }: WorkScheduleModalProps) {
   const [pattern, setPattern] = useState<any>(null)
-  const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0 })
+  const [accumulated, setAccumulated] = useState({ focusMinutes: 0, adminMinutes: 0 })
   const [loading, setLoading] = useState(false)
   const [showVoiceModal, setShowVoiceModal] = useState(false)
 

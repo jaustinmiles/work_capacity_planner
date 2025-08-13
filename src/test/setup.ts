@@ -44,7 +44,7 @@ global.window = Object.assign(global.window, {
       getWorkPattern: vi.fn().mockResolvedValue(null),
       createWorkPattern: vi.fn(),
       updateWorkPattern: vi.fn(),
-      getTodayAccumulated: vi.fn().mockResolvedValue({ focused: 0, admin: 0 }),
+      getTodayAccumulated: vi.fn().mockResolvedValue({ focusMinutes: 0, adminMinutes: 0 }),
       // Job context
       getJobContexts: vi.fn().mockResolvedValue([]),
       getActiveJobContext: vi.fn().mockResolvedValue(null),

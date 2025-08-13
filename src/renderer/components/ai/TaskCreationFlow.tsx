@@ -153,8 +153,12 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
         sessionId: '',  // Will be set by database
         hasSteps: false,
         overallStatus: 'not_started' as const,
-        criticalPathDuration: parsedData.duration,
-        worstCaseDuration: parsedData.duration,
+        criticalPathDuration: useEnhancements && task.enhancedSuggestions?.suggestions?.duration
+          ? task.enhancedSuggestions.suggestions.duration
+          : task.estimatedDuration,
+        worstCaseDuration: useEnhancements && task.enhancedSuggestions?.suggestions?.duration
+          ? task.enhancedSuggestions.suggestions.duration
+          : task.estimatedDuration,
       }
 
       await addTask(taskData)

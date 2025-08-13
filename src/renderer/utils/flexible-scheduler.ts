@@ -62,10 +62,10 @@ interface BlockCapacity {
   blockId: string
   startTime: Date
   endTime: Date
-  focusedTotal: number
-  adminTotal: number
-  focusedUsed: number
-  adminUsed: number
+  focusMinutesTotal: number
+  adminMinutesTotal: number
+  focusMinutesUsed: number
+  adminMinutesUsed: number
 }
 
 function parseTimeOnDate(date: Date, timeStr: string): Date {
@@ -80,29 +80,29 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
   const endTime = parseTimeOnDate(date, block.endTime)
   const durationMinutes = (endTime.getTime() - startTime.getTime()) / 60000
 
-  let focused = 0
-  let admin = 0
+  let focusMinutes = 0
+  let adminMinutes = 0
 
   if (block.capacity) {
-    focused = block.capacity.focused || 0
-    admin = block.capacity.admin || 0
+    focusMinutes = block.capacity.focusMinutes || 0
+    adminMinutes = block.capacity.adminMinutes || 0
   } else if (block.type === 'focused') {
-    focused = durationMinutes
+    focusMinutes = durationMinutes
   } else if (block.type === 'admin') {
-    admin = durationMinutes
+    adminMinutes = durationMinutes
   } else { // mixed
-    focused = durationMinutes / 2
-    admin = durationMinutes / 2
+    focusMinutes = durationMinutes / 2
+    adminMinutes = durationMinutes / 2
   }
 
   return {
     blockId: block.id,
     startTime,
     endTime,
-    focusedTotal: focused,
-    adminTotal: admin,
-    focusedUsed: 0,
-    adminUsed: 0,
+    focusMinutesTotal: focusMinutes,
+    adminMinutesTotal: adminMinutes,
+    focusMinutesUsed: 0,
+    adminMinutesUsed: 0,
   }
 }
 
@@ -202,11 +202,11 @@ function canFitInBlock(
   const nonWaitScheduledItems = scheduledItems.filter(s => !s.isWaitTime)
   // Check capacity
   if (item.taskType === 'focused') {
-    if (block.focusedUsed + item.duration > block.focusedTotal) {
+    if (block.focusMinutesUsed + item.duration > block.focusMinutesTotal) {
       return { canFit: false, startTime: currentTime }
     }
   } else {
-    if (block.adminUsed + item.duration > block.adminTotal) {
+    if (block.adminMinutesUsed + item.duration > block.adminMinutesTotal) {
       return { canFit: false, startTime: currentTime }
     }
   }
@@ -413,8 +413,8 @@ export function scheduleItemsWithBlocksAndDebug(
     // Track initial block state for debugging
     const blockStartState = blockCapacities.map(block => {
       // Calculate effective capacity based on current time
-      let effectiveFocusMinutes = block.focusedTotal
-      let effectiveAdminMinutes = block.adminTotal
+      let effectiveFocusMinutes = block.focusMinutesTotal
+      let effectiveAdminMinutes = block.adminMinutesTotal
       let timeConstraint = ''
       
       if (currentTime > block.startTime && currentTime < block.endTime) {
@@ -423,8 +423,8 @@ export function scheduleItemsWithBlocksAndDebug(
         const totalMinutes = Math.floor((block.endTime.getTime() - block.startTime.getTime()) / 60000)
         const ratio = remainingMinutes / totalMinutes
         
-        effectiveFocusMinutes = Math.floor(block.focusedTotal * ratio)
-        effectiveAdminMinutes = Math.floor(block.adminTotal * ratio)
+        effectiveFocusMinutes = Math.floor(block.focusMinutesTotal * ratio)
+        effectiveAdminMinutes = Math.floor(block.adminMinutesTotal * ratio)
         timeConstraint = ` (started at ${currentTime.toLocaleTimeString()})`
       } else if (currentTime >= block.endTime) {
         // This block is in the past
@@ -597,9 +597,9 @@ export function scheduleItemsWithBlocksAndDebug(
 
           // Update block capacity
           if (item.taskType === 'focused') {
-            block.focusedUsed += item.duration
+            block.focusMinutesUsed += item.duration
           } else {
-            block.adminUsed += item.duration
+            block.adminMinutesUsed += item.duration
           }
 
           // Track workflow progress
@@ -658,9 +658,9 @@ export function scheduleItemsWithBlocksAndDebug(
         
         if (blockCapacities.every(block => {
           if (item.taskType === 'focused') {
-            return block.focusedUsed + item.duration > block.focusedTotal
+            return block.focusMinutesUsed + item.duration > block.focusMinutesTotal
           } else {
-            return block.adminUsed + item.duration > block.adminTotal
+            return block.adminMinutesUsed + item.duration > block.adminMinutesTotal
           }
         })) {
           reason = `No block has enough ${item.taskType} capacity (needs ${item.duration} minutes)`
@@ -692,8 +692,8 @@ export function scheduleItemsWithBlocksAndDebug(
       // Track block utilization before moving to next day
       blockCapacities.forEach((block, index) => {
         const original = blockStartState[index]
-        const unusedFocus = block.focusedTotal - block.focusedUsed
-        const unusedAdmin = block.adminTotal - block.adminUsed
+        const unusedFocus = block.focusMinutesTotal - block.focusMinutesUsed
+        const unusedAdmin = block.adminMinutesTotal - block.adminMinutesUsed
         
         let unusedReason: string | undefined
         if (unusedFocus > 30 || unusedAdmin > 30) {
@@ -712,10 +712,10 @@ export function scheduleItemsWithBlocksAndDebug(
           blockId: block.blockId,
           startTime: block.startTime.toLocaleTimeString(),
           endTime: block.endTime.toLocaleTimeString(),
-          focusUsed: block.focusedUsed,
-          focusTotal: block.focusedTotal,
-          adminUsed: block.adminUsed,
-          adminTotal: block.adminTotal,
+          focusUsed: block.focusMinutesUsed,
+          focusTotal: block.focusMinutesTotal,
+          adminUsed: block.adminMinutesUsed,
+          adminTotal: block.adminMinutesTotal,
           unusedReason: unusedReason || blockState?.timeConstraint
         })
       })
@@ -803,10 +803,10 @@ export function scheduleItemsWithBlocksAndDebug(
             blockId: block.blockId,
             startTime: block.startTime.toLocaleTimeString(),
             endTime: block.endTime.toLocaleTimeString(),
-            focusUsed: block.focusedUsed,
-            focusTotal: block.focusedTotal,
-            adminUsed: block.adminUsed,
-            adminTotal: block.adminTotal,
+            focusUsed: block.focusMinutesUsed,
+            focusTotal: block.focusMinutesTotal,
+            adminUsed: block.adminMinutesUsed,
+            adminTotal: block.adminMinutesTotal,
             unusedReason: blockState?.timeConstraint || undefined
           })
         }

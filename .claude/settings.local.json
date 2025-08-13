@@ -39,7 +39,8 @@
       "Bash(/tmp/fix-all-unused.sh:*)",
       "Bash(/tmp/fix-test-types.sh:*)",
       "Bash(/tmp/fix-common-ts-errors.sh:*)",
-      "Bash(/tmp/cleanup-duplicates.sh:*)"
+      "Bash(/tmp/cleanup-duplicates.sh:*)",
+      "Bash(/tmp/selective-revert.sh:*)"
     ],
     "deny": []
   }

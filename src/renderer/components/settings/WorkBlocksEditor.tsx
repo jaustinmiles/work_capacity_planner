@@ -46,8 +46,8 @@ interface WorkBlocksEditorProps {
     templateName?: string
   }
   accumulated?: {
-    focused: number
-    admin: number
+    focusMinutes: number
+    adminMinutes: number
   }
   onSave: (blocks: WorkBlock[], meetings: WorkMeeting[]) => void | Promise<void>
   onClose?: () => void
@@ -56,7 +56,7 @@ interface WorkBlocksEditorProps {
 export function WorkBlocksEditor({
   date,
   pattern,
-  accumulated = { focused: 0, admin: 0 },
+  accumulated = { focusMinutes: 0, adminMinutes: 0 },
   onSave,
   onClose,
 }: WorkBlocksEditorProps) {
@@ -314,20 +314,20 @@ export function WorkBlocksEditor({
           <Col span={6}>
             <Space direction="vertical">
               <Text type="secondary">Total Focus Time</Text>
-              <Title heading={5}>{formatMinutes(totalCapacity.focused)}</Title>
+              <Title heading={5}>{formatMinutes(totalCapacity.focusMinutes)}</Title>
             </Space>
           </Col>
           <Col span={6}>
             <Space direction="vertical">
               <Text type="secondary">Total Admin Time</Text>
-              <Title heading={5}>{formatMinutes(totalCapacity.admin)}</Title>
+              <Title heading={5}>{formatMinutes(totalCapacity.adminMinutes)}</Title>
             </Space>
           </Col>
           <Col span={6}>
             <Space direction="vertical">
               <Text type="secondary">Used Today</Text>
               <Title heading={5}>
-                {formatMinutes(accumulated.focused)} / {formatMinutes(accumulated.admin)}
+                {formatMinutes(accumulated.focusMinutes)} / {formatMinutes(accumulated.adminMinutes)}
               </Title>
             </Space>
           </Col>
@@ -335,11 +335,11 @@ export function WorkBlocksEditor({
             <Space direction="vertical">
               <Text type="secondary">Remaining</Text>
               <Title heading={5}>
-                <Tag color={remainingCapacity.focused > 0 ? 'green' : 'red'}>
-                  {formatMinutes(remainingCapacity.focused)} focus
+                <Tag color={remainingCapacity.focusMinutes > 0 ? 'green' : 'red'}>
+                  {formatMinutes(remainingCapacity.focusMinutes)} focus
                 </Tag>
-                <Tag color={remainingCapacity.admin > 0 ? 'green' : 'red'}>
-                  {formatMinutes(remainingCapacity.admin)} admin
+                <Tag color={remainingCapacity.adminMinutes > 0 ? 'green' : 'red'}>
+                  {formatMinutes(remainingCapacity.adminMinutes)} admin
                 </Tag>
               </Title>
             </Space>
@@ -406,10 +406,10 @@ export function WorkBlocksEditor({
                       <Space>
                         <InputNumber
                           placeholder="Focus mins"
-                          value={block.capacity?.focused}
+                          value={block.capacity?.focusMinutes}
                           onChange={(value) =>
                             handleUpdateBlock(block.id, {
-                              capacity: { ...block.capacity, focused: value || 0 },
+                              capacity: { ...block.capacity, focusMinutes: value || 0 },
                             })
                           }
                           min={0}
@@ -417,10 +417,10 @@ export function WorkBlocksEditor({
                         />
                         <InputNumber
                           placeholder="Admin mins"
-                          value={block.capacity?.admin}
+                          value={block.capacity?.adminMinutes}
                           onChange={(value) =>
                             handleUpdateBlock(block.id, {
-                              capacity: { ...block.capacity, admin: value || 0 },
+                              capacity: { ...block.capacity, adminMinutes: value || 0 },
                             })
                           }
                           min={0}

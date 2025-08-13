@@ -330,7 +330,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
                     if (editingBlockedTime && value) {
                       setEditingBlockedTime({
                         ...editingBlockedTime,
-                        startTime: value,
+                        startTime: value.format('HH:mm'),
                       })
                     }
                   }}
@@ -347,7 +347,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
                     if (editingBlockedTime && value) {
                       setEditingBlockedTime({
                         ...editingBlockedTime,
-                        endTime: value,
+                        endTime: value.format('HH:mm'),
                       })
                     }
                   }}

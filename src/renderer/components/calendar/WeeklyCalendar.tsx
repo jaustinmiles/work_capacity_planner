@@ -40,7 +40,7 @@ export function WeeklyCalendar() {
             date: dateStr,
             blocks: pattern.blocks,
             meetings: pattern.meetings,
-            accumulated: { focused: 0, admin: 0 },
+            accumulated: { focusMinutes: 0, adminMinutes: 0 },
           })
         } else if (dayOfWeek !== 0 && dayOfWeek !== 6) {
           // If no pattern exists and it's a weekday, create a default pattern
@@ -52,18 +52,18 @@ export function WeeklyCalendar() {
                 startTime: '09:00',
                 endTime: '12:00',
                 type: 'mixed',
-                capacity: { focused: 120, admin: 60 },
+                capacity: { focusMinutes: 120, adminMinutes: 60 },
               },
               {
                 id: `default-afternoon-${dateStr}`,
                 startTime: '13:00',
                 endTime: '17:00',
                 type: 'mixed',
-                capacity: { focused: 180, admin: 60 },
+                capacity: { focusMinutes: 180, adminMinutes: 60 },
               },
             ],
             meetings: [],
-            accumulated: { focused: 0, admin: 0 },
+            accumulated: { focusMinutes: 0, adminMinutes: 0 },
           })
         }
       }
@@ -151,7 +151,7 @@ export function WeeklyCalendar() {
         (item.originalItem as any).type === 'focused')
       .reduce((sum, item) => sum + item.duration, 0)
     
-    const admin = daySchedule
+    const adminMinutes = daySchedule
       .filter(item => item.originalItem && 'type' in item.originalItem && 
         (item.originalItem as any).type === 'admin')
       .reduce((sum, item) => sum + item.duration, 0)
@@ -184,9 +184,9 @@ export function WeeklyCalendar() {
                 {Math.floor(focusedMinutes / 60)}h {focusedMinutes % 60 > 0 ? `${focusedMinutes % 60}m` : ''}
               </Tag>
             )}
-            {admin > 0 && (
+            {adminMinutes > 0 && (
               <Tag size="small" color="green" style={{ margin: 0 }}>
-                {Math.floor(admin / 60)}h {admin % 60 > 0 ? `${admin % 60}m` : ''}
+                {Math.floor(adminMinutes / 60)}h {adminMinutes % 60 > 0 ? `${adminMinutes % 60}m` : ''}
               </Tag>
             )}
           </Space>
@@ -280,7 +280,7 @@ export function WeeklyCalendar() {
                 >
                   <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                     <div>
-                      <Text style={{ fontWeight: "bold" }}>{task.name}</Text>
+                      <Text style={{ fontWeight: 600 }}>{task.name}</Text>
                       <br />
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         {task.duration} min • 
@@ -386,7 +386,7 @@ export function WeeklyCalendar() {
                           }}
                         >
                           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                            <Text style={{ fontWeight: "bold" }}>{item.name}</Text>
+                            <Text style={{ fontWeight: 600 }}>{item.name}</Text>
                             <Text type="secondary">
                               {dayjs(item.startTime).format('h:mm A')} - {dayjs(item.endTime).format('h:mm A')}
                             </Text>

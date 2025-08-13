@@ -1,3 +1,4 @@
+import React from 'react'
 import { Button } from '@arco-design/web-react'
 import { useTaskStore } from '../../store/useTaskStore'
 import { SequencedTask } from '@shared/sequencing-types'
@@ -14,7 +15,7 @@ export function TestWorkflowCreator() {
       dependencies: [],
       completed: false,
       notes: 'Test workflow to verify dependency rendering',
-      duration: 180,
+      totalDuration: 180,
       criticalPathDuration: 180,
       worstCaseDuration: 240,
       overallStatus: 'not_started',

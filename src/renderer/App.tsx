@@ -120,7 +120,7 @@ function App() {
           duration: workflow.duration,
           asyncWaitTime: 0,
           sessionId: '',  // Will be set by database
-          hasSteps: true,
+          hasSteps: true as true,
           criticalPathDuration: workflow.duration, // Will be calculated properly
           worstCaseDuration: workflow.duration * 1.5, // Estimate
           overallStatus: 'not_started' as const,
@@ -264,7 +264,7 @@ function App() {
 
       await updateSequencedTask(id, {
         overallStatus: 'not_started',
-        currentStepId: null,
+        currentStepId: null as any,
         steps: resetSteps,
       })
 

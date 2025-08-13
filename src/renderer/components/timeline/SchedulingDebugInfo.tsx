@@ -1,4 +1,5 @@
-import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
+import React from 'react'
+import { Card, Typography, Space, Collapse, Tag, Alert, Table, Descriptions } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
 import { SchedulingDebugInfo as DebugInfo } from '../../utils/flexible-scheduler'
 

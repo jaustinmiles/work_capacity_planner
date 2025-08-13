@@ -37,7 +37,7 @@ describe('Database Validation Tests', () => {
           importance: 5,
           urgency: 5,
           type: 'focused',
-        sessionId: 'test-session',          sessionId: testSessionId,
+          sessionId: testSessionId,
           hasSteps: false,
           overallStatus: 'not_started',
           criticalPathDuration: 60,
@@ -50,9 +50,9 @@ describe('Database Validation Tests', () => {
       })
 
       expect(task).toBeDefined()
-      expect(task?.name).toBe('Test Task')
-      expect(task?.hasSteps).toBe(false)
-      expect(task?.overallStatus).toBe('not_started')
+      expect(task.name).toBe('Test Task')
+      expect(task.hasSteps).toBe(false)
+      expect(task.overallStatus).toBe('not_started')
     })
 
     it('should handle boolean fields correctly', async () => {
@@ -64,7 +64,7 @@ describe('Database Validation Tests', () => {
           importance: 3,
           urgency: 3,
           type: 'admin',
-        sessionId: 'test-session',          sessionId: testSessionId,
+          sessionId: testSessionId,
           hasSteps: true,
           completed: true,
           overallStatus: 'completed',
@@ -76,8 +76,8 @@ describe('Database Validation Tests', () => {
         },
       })
 
-      expect(task?.hasSteps).toBe(true)
-      expect(task?.completed).toBe(true)
+      expect(task.hasSteps).toBe(true)
+      expect(task.completed).toBe(true)
     })
   })
 
@@ -96,7 +96,7 @@ describe('Database Validation Tests', () => {
                 startTime: '09:00',
                 endTime: '17:00',
                 type: 'focused',
-        sessionId: 'test-session',                focusCapacity: 240,
+                focusCapacity: 240,
                 adminCapacity: 0,
               },
             ],
@@ -109,7 +109,7 @@ describe('Database Validation Tests', () => {
                 startTime: '10:00',
                 endTime: '11:00',
                 type: 'meeting',
-        sessionId: 'test-session',                recurring: 'none',
+                recurring: 'none',
               },
             ],
           },
@@ -121,8 +121,8 @@ describe('Database Validation Tests', () => {
       })
 
       expect(pattern).toBeDefined()
-      expect(pattern?.WorkBlock).toHaveLength(1)
-      expect(pattern?.WorkMeeting).toHaveLength(1)
+      expect(pattern.WorkBlock).toHaveLength(1)
+      expect(pattern.WorkMeeting).toHaveLength(1)
       expect(pattern.WorkBlock[0].startTime).toBe('09:00')
       expect(pattern.WorkMeeting[0].name).toBe('Test Meeting')
     })
@@ -142,9 +142,9 @@ describe('Database Validation Tests', () => {
                 startTime: '06:00',
                 endTime: '14:00',
                 type: 'mixed',
-        sessionId: 'test-session',                focusCapacity: 180,
+                focusCapacity: 180,
                 adminCapacity: 120,
-                capacity: JSON.stringify({ focused: 180, admin: 120 }),
+                capacity: JSON.stringify({ focusMinutes: 180, adminMinutes: 120 }),
               },
             ],
           },
@@ -154,9 +154,9 @@ describe('Database Validation Tests', () => {
         },
       })
 
-      expect(template?.isTemplate).toBe(true)
-      expect(template?.templateName).toBe('Test Template')
-      expect(template?.WorkBlock).toHaveLength(1)
+      expect(template.isTemplate).toBe(true)
+      expect(template.templateName).toBe('Test Template')
+      expect(template.WorkBlock).toHaveLength(1)
     })
   })
 

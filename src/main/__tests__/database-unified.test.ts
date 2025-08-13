@@ -191,8 +191,6 @@ describe('Database - Unified Task Model', () => {
     describe('createTask', () => {
       it('should create a simple task', async () => {
         const newTask = {
-          id: 'step-' + Math.random().toString(36).substr(2, 9),
-          taskId: 'test-task',
           name: 'New Task',
           duration: 45,
           importance: 7,
@@ -232,8 +230,6 @@ describe('Database - Unified Task Model', () => {
 
       it.skip('should create a workflow task with steps - Task type does not support steps', async () => {
         const workflowData = {
-          id: 'step-' + Math.random().toString(36).substr(2, 9),
-          taskId: 'test-task',
           name: 'New Workflow',
           duration: 180,
           importance: 8,
@@ -318,8 +314,6 @@ describe('Database - Unified Task Model', () => {
     describe('updateTask', () => {
       it('should update task fields', async () => {
         const updates = {
-          id: 'step-' + Math.random().toString(36).substr(2, 9),
-          taskId: 'test-task',
           name: 'Updated Task',
           duration: 90,
           completed: true,

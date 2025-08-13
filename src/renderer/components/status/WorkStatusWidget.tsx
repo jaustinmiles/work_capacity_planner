@@ -16,9 +16,10 @@ interface WorkStatusWidgetProps {
 export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const [currentDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [pattern, setPattern] = useState<any>(null)
-  const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0 })
+  const [accumulated, setAccumulated] = useState({ focusMinutes: 0, adminMinutes: 0 })
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
+  const [isTracking, setIsTracking] = useState(false)
 
   useEffect(() => {
     loadWorkData()
@@ -78,19 +79,30 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
     if (block.capacity) {
       return {
-        focused: block.capacity.focused || 0,
-        admin: block.capacity.admin || 0,
+        focusMinutes: block.capacity.focusMinutes || 0,
+        adminMinutes: block.capacity.adminMinutes || 0,
       }
     } else if (block.type === 'focused') {
-      return { focused: duration, admin: 0 }
+      return { focusMinutes: duration, adminMinutes: 0 }
     } else if (block.type === 'admin') {
-      return { focused: 0, admin: duration }
+      return { focusMinutes: 0, adminMinutes: duration }
     } else {
-      return { focused: duration / 2, admin: duration / 2 }
+      return { focusMinutes: duration / 2, adminMinutes: duration / 2 }
     }
   }
 
+  const handleStartTracking = async () => {
+    if (!currentBlock) return
+    
+    // For now, just indicate tracking state
+    // Real work session creation happens when logging time
+    setIsTracking(true)
+  }
 
+  const handleStopTracking = async () => {
+    setIsTracking(false)
+    loadWorkData() // Refresh accumulated time
+  }
 
   if (!pattern) {
     return (
@@ -107,16 +119,16 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
   const totalCapacity = pattern.blocks.reduce((acc: any, block: WorkBlock) => {
     const capacity = getBlockCapacity(block)
-    acc.focused += capacity.focused
-    acc.admin += capacity.admin
+    acc.focusMinutes += capacity.focusMinutes
+    acc.adminMinutes += capacity.adminMinutes
     return acc
-  }, { focused: 0, admin: 0 })
+  }, { focusMinutes: 0, adminMinutes: 0 })
 
-  const focusProgress = totalCapacity.focused > 0
-    ? Math.round((accumulated.focused / totalCapacity.focused) * 100)
+  const focusProgress = totalCapacity.focusMinutes > 0
+    ? Math.round((accumulated.focusMinutes / totalCapacity.focusMinutes) * 100)
     : 0
-  const adminProgress = totalCapacity.admin > 0
-    ? Math.round((accumulated.admin / totalCapacity.admin) * 100)
+  const adminProgress = totalCapacity.adminMinutes > 0
+    ? Math.round((accumulated.adminMinutes / totalCapacity.adminMinutes) * 100)
     : 0
 
   return (
@@ -144,11 +156,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             <Text strong>Today's Planned Capacity</Text>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
               <Text>🎯 Focus Time:</Text>
-              <Tag color="blue">{formatMinutes(totalCapacity.focused)}</Tag>
+              <Tag color="blue">{formatMinutes(totalCapacity.focusMinutes)}</Tag>
             </Space>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
               <Text>📋 Admin Time:</Text>
-              <Tag color="orange">{formatMinutes(totalCapacity.admin)}</Tag>
+              <Tag color="orange">{formatMinutes(totalCapacity.adminMinutes)}</Tag>
             </Space>
           </Space>
         </div>
@@ -185,7 +197,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                   <Text type="secondary" style={{ fontSize: '12px' }}>
                     {(() => {
                       const capacity = getBlockCapacity(nextBlock)
-                      return `Capacity: ${formatMinutes(capacity.focused)} focus, ${formatMinutes(capacity.admin)} admin`
+                      return `Capacity: ${formatMinutes(capacity.focusMinutes)} focus, ${formatMinutes(capacity.adminMinutes)} admin`
                     })()}
                   </Text>
                 </>
@@ -203,14 +215,14 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             <div>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text>Focus</Text>
-                <Text>{formatMinutes(accumulated.focused)} / {formatMinutes(totalCapacity.focused)}</Text>
+                <Text>{formatMinutes(accumulated.focusMinutes)} / {formatMinutes(totalCapacity.focusMinutes)}</Text>
               </Space>
               <Progress percent={focusProgress} color={focusProgress >= 100 ? '#00b42a' : '#165dff'} />
             </div>
             <div>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text>Admin</Text>
-                <Text>{formatMinutes(accumulated.admin)} / {formatMinutes(totalCapacity.admin)}</Text>
+                <Text>{formatMinutes(accumulated.adminMinutes)} / {formatMinutes(totalCapacity.adminMinutes)}</Text>
               </Space>
               <Progress percent={adminProgress} color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'} />
             </div>
@@ -221,12 +233,12 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         <Space style={{ width: '100%', justifyContent: 'space-around' }}>
           <Statistic
             title="Remaining Focus"
-            value={Math.max(0, totalCapacity.focused - accumulated.focused)}
+            value={Math.max(0, totalCapacity.focusMinutes - accumulated.focusMinutes)}
             suffix="min"
           />
           <Statistic
             title="Remaining Admin"
-            value={Math.max(0, totalCapacity.admin - accumulated.admin)}
+            value={Math.max(0, totalCapacity.adminMinutes - accumulated.adminMinutes)}
             suffix="min"
           />
         </Space>
