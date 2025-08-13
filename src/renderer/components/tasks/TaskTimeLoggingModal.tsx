@@ -39,9 +39,10 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       
       await getDatabase().createWorkSession({
         taskId: task.id,
-        type: task.type,
+        type: task.type as 'focused' | 'admin',
         startTime: startTime,
-        duration: timeSpent,
+        plannedMinutes: timeSpent,
+        actualMinutes: timeSpent,
         notes: values.notes || ''
       })
       

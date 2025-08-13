@@ -132,7 +132,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       title={
         <Space>
           <IconSchedule />
-          <Text>Today's Progress</Text>
+          <Text>Work Capacity - {dayjs().format('MMM D')}</Text>
         </Space>
       }
       extra={
@@ -146,11 +146,26 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       }
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
-        {/* Current Status */}
+        {/* Planned Capacity */}
+        <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Text strong>Today's Planned Capacity</Text>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Text>🎯 Focus Time:</Text>
+              <Tag color="blue">{formatMinutes(totalCapacity.focusMinutes)}</Tag>
+            </Space>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Text>📋 Admin Time:</Text>
+              <Tag color="orange">{formatMinutes(totalCapacity.adminMinutes)}</Tag>
+            </Space>
+          </Space>
+        </div>
+
+        {/* Current/Next Block */}
         <div>
           {currentBlock ? (
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">Current Block</Text>
+              <Text type="secondary">Currently in Work Block</Text>
               <Space>
                 <Tag color="green" icon={<IconCaretRight />}>
                   {currentBlock.startTime} - {currentBlock.endTime}
@@ -160,23 +175,30 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                    currentBlock.type === 'admin' ? '📋 Admin' : '🔄 Mixed'}
                 </Tag>
               </Space>
-              {!isTracking ? (
-                <Button type="primary" onClick={handleStartTracking}>
-                  Start Tracking
-                </Button>
-              ) : (
-                <Button status="warning" onClick={handleStopTracking}>
-                  Stop Tracking
-                </Button>
-              )}
             </Space>
           ) : (
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">Not in work hours</Text>
-              {nextBlock && (
-                <Text>
-                  Next block starts at <Tag>{nextBlock.startTime}</Tag>
-                </Text>
+              {nextBlock ? (
+                <>
+                  <Text type="secondary">Next Work Block</Text>
+                  <Space>
+                    <Tag color="cyan">
+                      {nextBlock.startTime} - {nextBlock.endTime}
+                    </Tag>
+                    <Tag>
+                      {nextBlock.type === 'focused' ? '🎯 Focus' :
+                       nextBlock.type === 'admin' ? '📋 Admin' : '🔄 Mixed'}
+                    </Tag>
+                  </Space>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    {(() => {
+                      const capacity = getBlockCapacity(nextBlock)
+                      return `Capacity: ${formatMinutes(capacity.focusMinutes)} focus, ${formatMinutes(capacity.adminMinutes)} admin`
+                    })()}
+                  </Text>
+                </>
+              ) : (
+                <Text type="secondary">No more work blocks today</Text>
               )}
             </Space>
           )}
@@ -184,17 +206,18 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
         {/* Progress */}
         <div>
+          <Text type="secondary" style={{ marginBottom: '8px', display: 'block' }}>Completed Today</Text>
           <Space direction="vertical" style={{ width: '100%' }}>
             <div>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text>Focus Time</Text>
+                <Text>Focus</Text>
                 <Text>{formatMinutes(accumulated.focusMinutes)} / {formatMinutes(totalCapacity.focusMinutes)}</Text>
               </Space>
               <Progress percent={focusProgress} color={focusProgress >= 100 ? '#00b42a' : '#165dff'} />
             </div>
             <div>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text>Admin Time</Text>
+                <Text>Admin</Text>
                 <Text>{formatMinutes(accumulated.adminMinutes)} / {formatMinutes(totalCapacity.adminMinutes)}</Text>
               </Space>
               <Progress percent={adminProgress} color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'} />
@@ -216,20 +239,6 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
           />
         </Space>
 
-        {/* Active Session */}
-        {isTracking && (
-          <Card size="small" style={{ background: '#f0f5ff' }}>
-            <Space>
-              <IconSchedule style={{ animation: 'pulse 2s infinite' }} />
-              <Text>
-                Tracking work time...
-              </Text>
-              <Text type="secondary">
-                Remember to log your time when finished
-              </Text>
-            </Space>
-          </Card>
-        )}
       </Space>
     </Card>
   )

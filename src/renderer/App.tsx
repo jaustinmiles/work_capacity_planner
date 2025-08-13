@@ -502,7 +502,14 @@ function App() {
                         {process.env.NODE_ENV === 'development' && <TestWorkflowCreator />}
                       </div>
 
-                      {sequencedTasks.map(task => (
+                      {sequencedTasks
+                        .sort((a, b) => {
+                          // Sort by priority (importance * urgency) descending
+                          const priorityA = a.importance * a.urgency
+                          const priorityB = b.importance * b.urgency
+                          return priorityB - priorityA
+                        })
+                        .map(task => (
                         <SequencedTaskView
                           key={task.id}
                           task={task}
