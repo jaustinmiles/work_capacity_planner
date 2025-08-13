@@ -87,6 +87,21 @@ An intelligent Electron-based productivity application that combines AI-powered 
 4. Initialize database: `npx prisma generate`
 5. Start development: `npm run start`
 
+### Development Commands
+```bash
+npm run start          # Start development server
+npm run build          # Build for production
+npm run typecheck      # Run TypeScript type checking (must pass with 0 errors)
+npm run lint           # Run ESLint
+npm test              # Run test suite
+npm run test:ui       # Run tests with UI
+npm run test:coverage # Generate test coverage report
+npm run prisma:studio # Open Prisma database viewer
+npm run prisma:migrate dev # Run database migrations
+npm run restart       # Clean restart (kills processes, rebuilds)
+npm run check         # Run both typecheck and lint
+```
+
 ### Usage
 1. **Create Tasks**: Click "Add Task" → Choose "AI Brainstorm" for voice input
 2. **Record Voice**: Speak naturally about your projects and deadlines
@@ -147,15 +162,28 @@ Voice Input → Whisper API → Claude Analysis → Task Creation → Database �
 - Session management for multiple work contexts
 - Workflow execution controls (start/pause/reset)
 - Eisenhower matrix with zoom and workflow support
+- Unified task model (workflows and tasks in single table)
+- Database migration from dual model completed
+- TypeScript strict mode fully enforced (0 errors)
+- Comprehensive test suite (78 passing tests)
 - Multi-day schedule editor with copy/paste functionality
 - Sleep block scheduling for realistic work patterns
 - Smart workflow interleaving to prevent schedule monopolization
 - Comprehensive error handling and user feedback
 - Testing infrastructure with Vitest
 
+### 🚧 In Development
+- **Locked Task Scheduling**: Fixed-time tasks (e.g., meetings at exact times)
+- **Voice Progress Tracking**: Update task progress via voice
+- **Improved Workflow Step UI**: Better controls for marking steps complete
+
 ### 🔮 Future Enhancements
-- Improved workflow dependency editing (fix naming inconsistencies)
-- Move graph view out of edit modal with proper controls
+- Data export (CSV/JSON)
+- Dark mode theme support
+- Keyboard shortcuts and navigation
+- Undo/redo functionality
+- Advanced search and filtering
+- Performance optimizations for 500+ tasks
 - Task timing and productivity analytics
 - Calendar integration for meetings
 - Advanced reporting and insights

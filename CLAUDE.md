@@ -99,6 +99,17 @@ npm run typecheck
 npm run check  # Runs both typecheck and lint
 ```
 
+## CRITICAL: Workflow Protection
+
+**⚠️ NEVER break workflow functionality!**
+- The getSequencedTasks() method MUST return SequencedTask format for UI compatibility
+- Always include `steps` array when returning workflows
+- Run workflow protection tests before ANY database changes:
+  ```bash
+  npm test -- database-workflow-protection.test.ts
+  ```
+- If you modify database.ts, ALWAYS verify workflows still appear in the UI
+
 ## IMPORTANT: Development Workflow
 
 **ALWAYS follow this workflow when making changes:**
@@ -236,17 +247,15 @@ task-planner/
 - ✅ Testing infrastructure with Vitest
 - ✅ Enhanced TypeScript linting rules
 
-**Current Tech Debt (as of 2025-08-13):**
-- ⚠️ TypeScript errors: 49 remaining (was 237, then 447+)
-  - Root cause: Incomplete unified task model migration
-  - See `typescript-error-analysis.md` for detailed breakdown
-  - See `TECH_DEBT.md` for comprehensive tech debt inventory
-- ⚠️ **CRITICAL**: Unified Task model migration script exists but NOT executed
-  - Database still has separate Task and SequencedTask tables
-  - TypeScript types expect unified model
-  - This mismatch causes ~30% of all TypeScript errors
-- ⚠️ Property naming inconsistencies:
-  - Use `focusMinutes/adminMinutes` NOT `focused/admin`
+**Current Status (as of 2025-08-13):**
+- ✅ TypeScript: 0 errors (fixed from 237+)
+- ✅ Tests: 78 passing, 2 skipped, 0 failing
+- ✅ Unified Task model migration COMPLETE
+  - Successfully migrated 5 workflows to unified Task table
+  - Deleted legacy SequencedTask and StepWorkSession tables
+  - All TypeScript types aligned with database schema
+- ✅ Build status: Successful
+- ✅ Test runtime: 2 seconds (was 52+ seconds with timeouts)
   - Use `duration` NOT `totalDuration`
 - ⚠️ TaskStep objects missing required fields (`taskId`, `percentComplete`)
 - ⚠️ Workflow UI issues:

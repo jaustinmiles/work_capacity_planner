@@ -1,5 +1,6 @@
-import { Modal, Form, Input, Select, Slider, InputNumber, Space, Grid, DatePicker } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar } from '@arco-design/web-react/icon'
+import React from 'react'
+import { Modal, Form, Input, Select, Slider, InputNumber, Space, Grid, DatePicker, Checkbox } from '@arco-design/web-react'
+import { IconClockCircle, IconCalendar, IconLock } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 
 const { TextArea } = Input
@@ -13,15 +14,18 @@ interface TaskFormProps {
 export function TaskForm({ visible, onClose }: TaskFormProps) {
   const { addTask } = useTaskStore()
   const [form] = Form.useForm()
+  const [isLocked, setIsLocked] = React.useState(false)
 
   const handleSubmit = async () => {
     try {
       const values = await form.validate()
 
-      // Convert deadline to ISO string if present
+      // Convert deadline and lockedStartTime to ISO string if present
       const taskData = {
         ...values,
         deadline: values.deadline ? values.deadline.toISOString() : undefined,
+        lockedStartTime: values.lockedStartTime ? values.lockedStartTime.toISOString() : undefined,
+        isLocked: values.isLocked || false,
         dependencies: [],
         completed: false,
       }
@@ -181,6 +185,42 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             }}
           />
         </Form.Item>
+
+        <Form.Item
+          label={
+            <Space>
+              <IconLock />
+              <span>Lock to Specific Time</span>
+            </Space>
+          }
+          field="isLocked"
+          extra="Task must start at an exact time (e.g., meetings, appointments)"
+        >
+          <Checkbox onChange={(checked) => setIsLocked(checked)}>
+            Lock this task to a specific start time
+          </Checkbox>
+        </Form.Item>
+
+        {isLocked && (
+          <Form.Item
+            label={
+              <Space>
+                <IconClockCircle />
+                <span>Locked Start Time</span>
+              </Space>
+            }
+            field="lockedStartTime"
+            extra="The exact time this task must start"
+            rules={[{ required: true, message: 'Please select a start time for the locked task' }]}
+          >
+          <DatePicker
+            showTime
+            placeholder="Select exact start time"
+            style={{ width: '100%' }}
+            format="YYYY-MM-DD HH:mm"
+          />
+          </Form.Item>
+        )}
 
         <Form.Item
           label="Notes"

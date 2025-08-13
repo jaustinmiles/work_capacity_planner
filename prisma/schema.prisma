@@ -141,6 +141,8 @@ model Task {
   updatedAt            DateTime
   sessionId            String?
   deadline             DateTime?
+  isLocked             Boolean         @default(false)
+  lockedStartTime      DateTime?
   hasSteps             Boolean         @default(false)
   currentStepId        String?
   overallStatus        String          @default("not_started")

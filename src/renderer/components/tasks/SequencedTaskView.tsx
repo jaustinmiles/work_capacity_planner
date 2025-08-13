@@ -21,7 +21,7 @@ interface SequencedTaskViewProps {
 
 export function SequencedTaskView({
   task,
-  // onUpdateStep,
+  onUpdateStep,
   onStartWorkflow,
   onPauseWorkflow,
   onResetWorkflow,
@@ -66,7 +66,18 @@ export function SequencedTaskView({
     }
   }
 
-  // Step completion handlers removed - not currently wired up to TaskStepItem
+  // Step completion handlers
+  const handleStepStart = (stepId: string) => {
+    if (onUpdateStep) {
+      onUpdateStep(stepId, { status: 'in_progress' })
+    }
+  }
+
+  const handleStepComplete = (stepId: string) => {
+    if (onUpdateStep) {
+      onUpdateStep(stepId, { status: 'completed', percentComplete: 100 })
+    }
+  }
 
   if (showEditView) {
     return (
@@ -279,6 +290,8 @@ export function SequencedTaskView({
                       stepIndex={index}
                       isActive={step.status === 'in_progress'}
                       isCompleted={step.status === 'completed'}
+                      onStart={handleStepStart}
+                      onComplete={handleStepComplete}
                     />
                   ))}
                 </div>

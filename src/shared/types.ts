@@ -19,6 +19,8 @@ export interface Task {
   completed: boolean
   completedAt?: Date
   deadline?: Date // hard deadline for task
+  isLocked?: boolean // whether task is locked to specific time
+  lockedStartTime?: Date // specific time task must start
   sessionId: string
   createdAt: Date
   updatedAt: Date

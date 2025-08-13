@@ -14,6 +14,7 @@ vi.mock('@prisma/client', () => {
       findUnique: vi.fn(),
     },
     workSession: {
+      findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -59,140 +60,124 @@ describe('Database - Time Tracking', () => {
     endOfDay.setHours(23, 59, 59, 999)
 
     it('should sum up regular work sessions', async () => {
-      mockPrisma.workPattern.findUnique.mockResolvedValue({
-        sessions: [
-          { type: 'focused', actualMinutes: 30, plannedMinutes: 25 },
-          { type: 'admin', actualMinutes: 45, plannedMinutes: 40 },
-          { type: 'focused', actualMinutes: null, plannedMinutes: 20 }],
-      })
-      mockPrisma.stepWorkSession.findMany.mockResolvedValue([])
-      mockPrisma.task.findMany.mockResolvedValue([])
+      mockPrisma.workSession.findMany.mockResolvedValue([
+        { type: 'focused', actualMinutes: 30, plannedMinutes: 25, Task: { sessionId: 'session-1' } },
+        { type: 'admin', actualMinutes: 45, plannedMinutes: 40, Task: { sessionId: 'session-1' } },
+        { type: 'focused', actualMinutes: null, plannedMinutes: 20, Task: { sessionId: 'session-1' } },
+      ])
 
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
         focused: 50, // 30 + 20
         admin: 45,
+        total: 95, // 50 + 45
       })
     })
 
-    it('should sum up step work sessions', async () => {
-      mockPrisma.workPattern.findUnique.mockResolvedValue({ sessions: [] })
-      mockPrisma.stepWorkSession.findMany.mockResolvedValue([
-        { duration: 25, taskStep: { type: 'focused' } },
-        { duration: 35, taskStep: { type: 'admin' } },
-        { duration: 15, taskStep: { type: 'focused' } }])
-      mockPrisma.task.findMany.mockResolvedValue([])
-
-      const result = await db.getTodayAccumulated(testDate)
-
-      expect(result).toEqual({
-        focused: 40, // 25 + 15
-        admin: 35,
-      })
-    })
-
-    it('should sum up task time logs', async () => {
-      mockPrisma.workPattern.findUnique.mockResolvedValue({ sessions: [] })
-      mockPrisma.stepWorkSession.findMany.mockResolvedValue([])
-      mockPrisma.task.findMany.mockResolvedValue([
-        { type: 'focused', actualDuration: 60 },
-        { type: 'admin', actualDuration: 30 },
-        { type: 'focused', actualDuration: 45 }])
-
-      const result = await db.getTodayAccumulated(testDate)
-
-      expect(result).toEqual({
-        focused: 105, // 60 + 45
-        admin: 30,
-      })
-    })
-
-    it('should combine all sources of time tracking', async () => {
-      mockPrisma.workPattern.findUnique.mockResolvedValue({
-        sessions: [
-          { type: 'focused', actualMinutes: 30, plannedMinutes: 25 }],
-      })
-      mockPrisma.stepWorkSession.findMany.mockResolvedValue([
-        { duration: 25, taskStep: { type: 'focused' } }])
-      mockPrisma.task.findMany.mockResolvedValue([
-        { type: 'focused', actualDuration: 60 }])
-
-      const result = await db.getTodayAccumulated(testDate)
-
-      expect(result).toEqual({
-        focused: 115, // 30 + 25 + 60
-        admin: 0,
-      })
-    })
-
-    it('should handle empty data', async () => {
-      mockPrisma.workPattern.findUnique.mockResolvedValue(null)
-      mockPrisma.stepWorkSession.findMany.mockResolvedValue([])
-      mockPrisma.task.findMany.mockResolvedValue([])
+    it('should handle empty work sessions', async () => {
+      mockPrisma.workSession.findMany.mockResolvedValue([])
 
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
         focused: 0,
         admin: 0,
+        total: 0,
+      })
+    })
+
+    it('should only look at work sessions, not tasks directly', async () => {
+      // The implementation only looks at workSession records
+      mockPrisma.workSession.findMany.mockResolvedValue([])
+
+      const result = await db.getTodayAccumulated(testDate)
+
+      expect(result).toEqual({
+        focused: 0,
+        admin: 0,
+        total: 0,
+      })
+    })
+
+    it('should combine multiple work sessions', async () => {
+      mockPrisma.workSession.findMany.mockResolvedValue([
+        { type: 'focused', actualMinutes: 30, plannedMinutes: 25, Task: { sessionId: 'session-1' } },
+        { type: 'focused', actualMinutes: 25, plannedMinutes: 20, Task: { sessionId: 'session-1' } },
+        { type: 'admin', actualMinutes: 60, plannedMinutes: 50, Task: { sessionId: 'session-1' } },
+      ])
+
+      const result = await db.getTodayAccumulated(testDate)
+
+      expect(result).toEqual({
+        focused: 55, // 30 + 25
+        admin: 60,
+        total: 115, // 55 + 60
+      })
+    })
+
+    it('should handle empty data', async () => {
+      mockPrisma.workSession.findMany.mockResolvedValue([])
+
+      const result = await db.getTodayAccumulated(testDate)
+
+      expect(result).toEqual({
+        focused: 0,
+        admin: 0,
+        total: 0,
       })
     })
 
     it('should filter by session and date correctly', async () => {
-      mockPrisma.workPattern.findUnique.mockResolvedValue({ sessions: [] })
-      mockPrisma.stepWorkSession.findMany.mockResolvedValue([])
-      mockPrisma.task.findMany.mockResolvedValue([])
+      mockPrisma.workSession.findMany.mockResolvedValue([])
 
       await db.getTodayAccumulated(testDate)
 
-      // Check that queries used correct filters
-      expect(mockPrisma.stepWorkSession.findMany).toHaveBeenCalledWith({
+      // Check that workSession query used correct filters
+      expect(mockPrisma.workSession.findMany).toHaveBeenCalledWith({
         where: {
-          startTime: {
-            gte: startOfDay,
-            lte: endOfDay,
+          Task: {
+            sessionId: 'session-1',
           },
-          taskStep: {
-            task: {
-            },
+          startTime: {
+            gte: new Date(`${testDate}T00:00:00.000Z`),
+            lt: new Date(`${testDate}T23:59:59.999Z`),
           },
         },
         include: {
-          taskStep: true,
-        },
-      })
-
-      expect(mockPrisma.task.findMany).toHaveBeenCalledWith({
-        where: {
-          actualDuration: { gt: 0 },
-          updatedAt: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
+          Task: true,
         },
       })
     })
   })
 
   describe('Time logging operations', () => {
-    it('should create step work session', async () => {
+    it('should create work session', async () => {
       const sessionData = {
-        taskStepId: 'step-1',
+        taskId: 'task-1',
+        stepId: 'step-1',
+        type: 'focused' as const,
         startTime: new Date(),
-        duration: 30,
+        plannedMinutes: 30,
         notes: 'Test session',
       }
 
-      mockPrisma.stepWorkSession.create.mockResolvedValue({
+      mockPrisma.workSession.create.mockResolvedValue({
         id: 'session-1',
         ...sessionData,
       })
 
-      await db.createStepWorkSession(sessionData)
+      await db.createWorkSession(sessionData)
 
-      expect(mockPrisma.stepWorkSession.create).toHaveBeenCalledWith({
-        data: sessionData,
+      expect(mockPrisma.workSession.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          taskId: sessionData.taskId,
+          stepId: sessionData.stepId,
+          type: sessionData.type,
+          startTime: sessionData.startTime,
+          plannedMinutes: sessionData.plannedMinutes,
+          notes: sessionData.notes,
+        }),
       })
     })
 

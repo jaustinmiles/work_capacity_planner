@@ -52,6 +52,7 @@ function App() {
     sequencedTasks,
     addTask,
     addSequencedTask,
+    loadSequencedTasks,
     updateSequencedTask,
     deleteSequencedTask,
     currentWeeklySchedule,
@@ -237,6 +238,18 @@ function App() {
     } catch (error) {
       console.error('Failed to pause workflow:', error)
       Message.error('Failed to pause workflow')
+    }
+  }
+
+  const handleUpdateStep = async (stepId: string, updates: any) => {
+    try {
+      await getDatabase().updateTaskStepProgress(stepId, updates)
+      // Refresh the sequenced tasks to show updated status
+      await loadSequencedTasks()
+      Message.success('Step updated successfully')
+    } catch (error) {
+      console.error('Failed to update step:', error)
+      Message.error('Failed to update step')
     }
   }
 
@@ -521,6 +534,7 @@ function App() {
                         <SequencedTaskView
                           key={task.id}
                           task={task}
+                          onUpdateStep={handleUpdateStep}
                           onStartWorkflow={() => handleStartWorkflow(task.id)}
                           onPauseWorkflow={() => handlePauseWorkflow(task.id)}
                           onResetWorkflow={() => handleResetWorkflow(task.id)}

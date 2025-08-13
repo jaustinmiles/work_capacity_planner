@@ -164,6 +164,7 @@ export class DatabaseService {
         hasSteps: !!steps && steps.length > 0,
         criticalPathDuration: taskData.criticalPathDuration || taskData.duration,
         worstCaseDuration: taskData.worstCaseDuration || taskData.duration,
+        updatedAt: new Date(),
       },
     })
 

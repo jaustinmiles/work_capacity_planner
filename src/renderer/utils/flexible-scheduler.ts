@@ -55,6 +55,8 @@ interface WorkItem {
   stepIndex?: number
   dependencies?: string[]
   deadline?: Date
+  isLocked?: boolean
+  lockedStartTime?: Date
   originalItem: Task | TaskStep
 }
 
@@ -307,6 +309,8 @@ export function scheduleItemsWithBlocksAndDebug(
         asyncWaitTime: task.asyncWaitTime,
         color: '#6B7280',
         deadline: task.deadline,
+        isLocked: task.isLocked,
+        lockedStartTime: task.lockedStartTime,
         originalItem: task,
       })
     })
@@ -338,9 +342,18 @@ export function scheduleItemsWithBlocksAndDebug(
         })
     })
 
-  // Smart sorting: Interleave high-priority tasks with workflow steps
+  // Smart sorting: Prioritize locked tasks, then deadlines, then high-priority tasks
   workItems.sort((a, b) => {
-    // First check if either has a deadline
+    // First priority: Locked tasks sorted by their locked start time
+    if (a.isLocked && b.isLocked) {
+      const aTime = a.lockedStartTime ? new Date(a.lockedStartTime).getTime() : Infinity
+      const bTime = b.lockedStartTime ? new Date(b.lockedStartTime).getTime() : Infinity
+      return aTime - bTime
+    }
+    if (a.isLocked) return -1
+    if (b.isLocked) return 1
+
+    // Second priority: Check deadlines
     const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
     const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
 
@@ -459,7 +472,16 @@ export function scheduleItemsWithBlocksAndDebug(
     // Re-sort items based on current workflow progress to ensure good interleaving
     const itemsToSchedule = [...workItems]
     itemsToSchedule.sort((a, b) => {
-      // Always respect deadlines first
+      // Always respect locked tasks first
+      if (a.isLocked && b.isLocked) {
+        const aTime = a.lockedStartTime ? new Date(a.lockedStartTime).getTime() : Infinity
+        const bTime = b.lockedStartTime ? new Date(b.lockedStartTime).getTime() : Infinity
+        return aTime - bTime
+      }
+      if (a.isLocked) return -1
+      if (b.isLocked) return 1
+
+      // Then respect deadlines
       const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
       const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
       const now = new Date().getTime()
@@ -499,6 +521,9 @@ export function scheduleItemsWithBlocksAndDebug(
       const item = itemsToSchedule[i]
       if (!item) continue
       const originalIndex = workItems.findIndex(w => w.id === item.id)
+      
+      // Initialize itemScheduled flag
+      let itemScheduled = false
 
       // First check if any async waits have completed since we last checked
       const newlyFinishedWaits: Date[] = []
@@ -509,6 +534,67 @@ export function scheduleItemsWithBlocksAndDebug(
         }
       }
       newlyFinishedWaits.forEach(time => asyncWaitEndTimes.delete(time))
+
+      // Handle locked tasks - they must be scheduled at their exact time
+      if (item.isLocked && item.lockedStartTime) {
+        const lockedTime = new Date(item.lockedStartTime)
+        const lockedEndTime = new Date(lockedTime.getTime() + item.duration * 60000)
+        
+        // Check if the locked time is on the current day
+        const lockedDateStr = lockedTime.toISOString().split('T')[0]
+        const currentDateStr = currentDate.toISOString().split('T')[0]
+        
+        if (lockedDateStr === currentDateStr) {
+          // Check for conflicts with already scheduled items
+          const hasConflict = scheduledItems.some(scheduled => {
+            return !(lockedEndTime <= scheduled.startTime || lockedTime >= scheduled.endTime)
+          })
+          
+          if (hasConflict) {
+            debugInfo.warnings.push(
+              `Cannot schedule locked task "${item.name}" at ${lockedTime.toLocaleString()} - conflicts with existing scheduled items`
+            )
+          } else {
+            // Schedule the locked task at its exact time
+            scheduledItems.push({
+              id: item.id,
+              name: `🔒 ${item.name}`,
+              type: item.type,
+              priority: item.priority,
+              duration: item.duration,
+              startTime: lockedTime,
+              endTime: lockedEndTime,
+              color: item.color,
+              workflowId: item.workflowId,
+              workflowName: item.workflowName,
+              stepIndex: item.stepIndex,
+              deadline: item.deadline,
+              originalItem: item.originalItem,
+            })
+            
+            // Update current time if needed
+            if (lockedEndTime > currentTime) {
+              currentTime = new Date(lockedEndTime)
+            }
+            
+            // Mark as completed and remove from work items
+            completedSteps.add(item.id)
+            workItems.splice(originalIndex, 1)
+            itemsScheduledToday = true
+            itemScheduled = true
+          }
+        } else if (lockedDateStr < currentDateStr) {
+          // Locked time is in the past - warn and skip
+          debugInfo.warnings.push(
+            `Locked task "${item.name}" has a start time in the past (${lockedTime.toLocaleString()}) - skipping`
+          )
+          workItems.splice(originalIndex, 1)
+          itemScheduled = true
+        }
+        
+        // Skip the normal scheduling logic for locked tasks
+        if (itemScheduled) continue
+      }
 
       // CRITICAL: Check if this item's dependencies are still waiting on async time
       // If a dependency has async wait time, we cannot schedule this item until
@@ -571,7 +657,6 @@ export function scheduleItemsWithBlocksAndDebug(
       }
 
       // Try to fit in available blocks
-      let itemScheduled = false
       for (const block of blockCapacities) {
         const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems)
 
