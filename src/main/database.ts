@@ -1,11 +1,10 @@
 import { PrismaClient } from '@prisma/client'
 import { Task } from '../shared/types'
-import { SequencedTask } from '../shared/sequencing-types'
 
 // Create Prisma client instance
 const prisma = new PrismaClient()
 
-// Database service for managing tasks and sequenced tasks
+// Database service for managing tasks (including workflows)
 export class DatabaseService {
   private static instance: DatabaseService
   private client: PrismaClient
@@ -138,6 +137,9 @@ export class DatabaseService {
     console.log('DB: Querying tasks with sessionId:', sessionId)
     const tasks = await this.client.task.findMany({
       where: { sessionId },
+      include: {
+        TaskStep: true, // Include steps for workflows
+      },
       orderBy: { createdAt: 'desc' },
     })
 
@@ -159,11 +161,36 @@ export class DatabaseService {
         sessionId,
         dependencies: JSON.stringify(taskData.dependencies || []),
         overallStatus: taskData.overallStatus || 'not_started',
-        hasSteps: taskData.hasSteps || false,
+        hasSteps: !!steps && steps.length > 0,
         criticalPathDuration: taskData.criticalPathDuration || taskData.duration,
         worstCaseDuration: taskData.worstCaseDuration || taskData.duration,
       },
     })
+
+    // Create steps if this is a workflow
+    if (steps && steps.length > 0) {
+      await this.client.taskStep.createMany({
+        data: steps.map((step: any, index: number) => ({
+          id: step.id || crypto.randomUUID(),
+          taskId: task.id,
+          name: step.name,
+          duration: step.duration,
+          type: step.type,
+          dependsOn: JSON.stringify(step.dependsOn || []),
+          asyncWaitTime: step.asyncWaitTime || 0,
+          status: step.status || 'pending',
+          stepIndex: step.stepIndex ?? index,
+          percentComplete: step.percentComplete ?? 0,
+        })),
+      })
+
+      // Return task with steps
+      const taskWithSteps = await this.client.task.findUnique({
+        where: { id: task.id },
+        include: { TaskStep: true },
+      })
+      return this.formatTask(taskWithSteps!)
+    }
 
     return this.formatTask(task)
   }
@@ -264,13 +291,19 @@ export class DatabaseService {
       actualDuration: task.actualDuration ?? null,
       deadline: task.deadline ?? null,
       currentStepId: task.currentStepId ?? null,
-      steps: undefined, // Steps are only for SequencedTask
+      steps: task.hasSteps && task.TaskStep ? task.TaskStep.map((step: any) => ({
+        ...step,
+        dependsOn: step.dependsOn ? JSON.parse(step.dependsOn) : [],
+      })) : undefined,
     }
   }
 
   async getTaskById(id: string): Promise<Task | null> {
     const task = await this.client.task.findUnique({
       where: { id },
+      include: {
+        TaskStep: true, // Include steps for workflows
+      },
     })
 
     return task ? this.formatTask(task) : null
@@ -523,132 +556,40 @@ export class DatabaseService {
     })
   }
 
-  // Sequenced Tasks
-  async getSequencedTasks(): Promise<SequencedTask[]> {
-    const sessionId = await this.getActiveSession()
-    const tasks = await this.client.sequencedTask.findMany({
-      where: { sessionId },
-      include: {
-        TaskStep: {
-          orderBy: { stepIndex: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-
-    return tasks.map(task => this.formatSequencedTask(task))
+  // Sequenced Tasks - NOW USING UNIFIED TASK MODEL
+  async getSequencedTasks(): Promise<any[]> {
+    // Redirect to getTasks and filter for workflows
+    const allTasks = await this.getTasks()
+    return allTasks.filter(task => task.hasSteps)
   }
 
-  async getSequencedTaskById(id: string): Promise<SequencedTask | null> {
-    const task = await this.client.sequencedTask.findUnique({
-      where: { id },
-      include: {
-        TaskStep: true,
-      },
-    })
-
-    return task ? this.formatSequencedTask(task) : null
+  async getSequencedTaskById(id: string): Promise<any | null> {
+    // Redirect to getTaskById
+    return await this.getTaskById(id)
   }
 
-  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
-    const sessionId = await this.getActiveSession()
-    const { steps } = taskData
-
-    const task = await this.client.sequencedTask.create({
-      data: {
-        id: crypto.randomUUID(),
-        name: taskData.name,
-        importance: taskData.importance,
-        urgency: taskData.urgency,
-        type: taskData.type,
-        notes: taskData.notes ?? null,
-        dependencies: JSON.stringify(taskData.dependencies || []),
-        completed: taskData.completed || false,
-        totalDuration: taskData.duration,
-        criticalPathDuration: taskData.criticalPathDuration,
-        worstCaseDuration: taskData.worstCaseDuration,
-        overallStatus: taskData.overallStatus || 'not_started',
-        sessionId,
-        updatedAt: new Date(),
-      },
-      include: {
-        TaskStep: true,
-      },
+  async createSequencedTask(taskData: any): Promise<any> {
+    // Redirect to createTask with workflow flag
+    return await this.createTask({
+      ...taskData,
+      hasSteps: true,
+      steps: taskData.steps,
     })
-
-    // Create steps
-    if (steps && steps.length > 0) {
-      await this.client.taskStep.createMany({
-        data: steps.map((step, index) => {
-          const { id: stepId, ...stepData } = step
-          return {
-            id: crypto.randomUUID(),
-            ...stepData,
-            sequencedTaskId: task.id,
-            stepIndex: index,
-            dependsOn: JSON.stringify(step.dependsOn || []),
-          }
-        }),
-      })
-
-      // Fetch with steps
-      const taskWithSteps = await this.client.sequencedTask.findUnique({
-        where: { id: task.id },
-        include: {
-          TaskStep: true,
-        },
-      })
-
-      return this.formatSequencedTask(taskWithSteps!)
-    }
-
-    return this.formatSequencedTask(task)
   }
 
-  async updateSequencedTask(id: string, updates: Partial<Omit<SequencedTask, 'id' | 'createdAt' | 'sessionId'>>): Promise<SequencedTask> {
-    const { steps, ...coreUpdates } = updates
-
-    const updateData: any = {
-      ...coreUpdates,
-      updatedAt: new Date(),
-    }
-
-    if (updates.dependencies !== undefined) {
-      updateData.dependencies = JSON.stringify(updates.dependencies)
-    }
-
-    if (updates.duration !== undefined) {
-      updateData.totalDuration = updates.duration
-    }
-
-    const task = await this.client.sequencedTask.update({
-      where: { id },
-      data: updateData,
-      include: {
-        TaskStep: true,
-      },
-    })
-
-    return this.formatSequencedTask(task)
+  async updateSequencedTask(id: string, updates: any): Promise<any> {
+    // Redirect to updateTask
+    return await this.updateTask(id, updates)
   }
 
   async deleteSequencedTask(id: string): Promise<void> {
-    await this.client.sequencedTask.delete({
-      where: { id },
-    })
+    // Redirect to deleteTask
+    await this.deleteTask(id)
   }
 
-  private formatSequencedTask(task: any): SequencedTask {
-    return {
-      ...task,
-      duration: task.totalDuration,
-      dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
-      steps: task.TaskStep?.map((step: any) => ({
-        ...step,
-        type: step.type as 'focused' | 'admin',
-        dependsOn: step.dependsOn ? JSON.parse(step.dependsOn) : [],
-      })) || [],
-    }
+  private formatSequencedTask(task: any): any {
+    // Redirect to formatTask since we're using unified model
+    return this.formatTask(task)
   }
 
   // Work patterns
@@ -1105,14 +1046,15 @@ export class DatabaseService {
   }
 
   async deleteAllSequencedTasks(): Promise<void> {
+    // Delete all workflows (tasks with hasSteps=true)
     const sessionId = await this.getActiveSession()
-    await this.client.sequencedTask.deleteMany({ where: { sessionId } })
+    await this.client.task.deleteMany({ where: { sessionId, hasSteps: true } })
   }
 
   async deleteAllUserData(): Promise<void> {
     const sessionId = await this.getActiveSession()
     await this.client.task.deleteMany({ where: { sessionId } })
-    await this.client.sequencedTask.deleteMany({ where: { sessionId } })
+    // Note: SequencedTasks are now part of Task table with hasSteps=true
     await this.client.workPattern.deleteMany({ where: { sessionId } })
     await this.client.jobContext.deleteMany({ where: { sessionId } })
     await this.client.jargonEntry.deleteMany({ where: { sessionId } })

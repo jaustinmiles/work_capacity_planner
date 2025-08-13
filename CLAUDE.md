@@ -212,16 +212,22 @@ task-planner/
 - ✅ Enhanced TypeScript linting rules
 
 **Current Tech Debt (as of 2025-08-13):**
-- ⚠️ TypeScript errors: 237 remaining (down from 447+)
-  - 40 unused imports (TS6133)
-  - 33 type assignment errors (TS2322)
-  - 30 missing properties (TS2339)
-  - 25 argument type mismatches (TS2345)
-  - See full breakdown: `npm run typecheck 2>&1 | grep -oE "TS[0-9]+" | sort | uniq -c | sort -nr`
-- ⚠️ Unified Task model migration incomplete in UI components
-- ⚠️ Workflow dependency naming inconsistencies in edit mode
-- ⚠️ Graph view placement (should not be in edit modal)
-- ⚠️ Missing edit controls in graph visualization
+- ⚠️ TypeScript errors: 49 remaining (was 237, then 447+)
+  - Root cause: Incomplete unified task model migration
+  - See `typescript-error-analysis.md` for detailed breakdown
+  - See `TECH_DEBT.md` for comprehensive tech debt inventory
+- ⚠️ **CRITICAL**: Unified Task model migration script exists but NOT executed
+  - Database still has separate Task and SequencedTask tables
+  - TypeScript types expect unified model
+  - This mismatch causes ~30% of all TypeScript errors
+- ⚠️ Property naming inconsistencies:
+  - Use `focusMinutes/adminMinutes` NOT `focused/admin`
+  - Use `duration` NOT `totalDuration`
+- ⚠️ TaskStep objects missing required fields (`taskId`, `percentComplete`)
+- ⚠️ Workflow UI issues:
+  - Graph view incorrectly placed in edit modal
+  - Workflow step completion UI added but not wired
+  - Dependency naming inconsistencies
 
 ## Key Algorithms
 
