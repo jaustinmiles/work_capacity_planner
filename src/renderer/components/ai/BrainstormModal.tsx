@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Modal, Button, Typography, Alert, Space, Card, Input, Tag, Divider, Upload } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, IconCheckCircle, IconUpload, IconFile } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
+import { Message } from '../common/Message'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -356,16 +357,33 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
     setIsProcessingAudioFile(true)
     setError(null)
     try {
+      // Validate file type
+      const supportedFormats = ['mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm']
+      const extension = file.name.split('.').pop()?.toLowerCase()
+      
+      if (!extension || !supportedFormats.includes(extension)) {
+        throw new Error(`Unsupported audio format: ${extension}. Supported formats: ${supportedFormats.join(', ')}`)
+      }
+
       // Clear existing text when processing a new file
       setBrainstormText('')
 
-      const blob = new Blob([file], { type: file.type })
+      // Ensure correct MIME type for WebM files
+      let mimeType = file.type
+      if (extension === 'webm' && (!mimeType || mimeType === 'application/octet-stream')) {
+        mimeType = 'audio/webm'
+      }
+
+      const blob = new Blob([file], { type: mimeType })
       await transcribeAudio(blob, file.name)
 
       setUploadedAudioFile(file)
+      Message.success(`Successfully processed ${file.name}`)
     } catch (error) {
       console.error('Error processing uploaded audio:', error)
-      setError('Failed to process uploaded audio file.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process uploaded audio file.'
+      setError(errorMessage)
+      Message.error(errorMessage)
     } finally {
       setIsProcessingAudioFile(false)
     }
@@ -375,7 +393,21 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
     setIsProcessingContextAudio(true)
     setError(null)
     try {
-      const blob = new Blob([file], { type: file.type })
+      // Validate file type
+      const supportedFormats = ['mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm']
+      const extension = file.name.split('.').pop()?.toLowerCase()
+      
+      if (!extension || !supportedFormats.includes(extension)) {
+        throw new Error(`Unsupported audio format: ${extension}. Supported formats: ${supportedFormats.join(', ')}`)
+      }
+
+      // Ensure correct MIME type for WebM files
+      let mimeType = file.type
+      if (extension === 'webm' && (!mimeType || mimeType === 'application/octet-stream')) {
+        mimeType = 'audio/webm'
+      }
+
+      const blob = new Blob([file], { type: mimeType })
       const arrayBuffer = await blob.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
 
@@ -396,9 +428,13 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       // Extract potential jargon terms using AI
       await extractJargonTerms(fullContext)
+      
+      Message.success(`Successfully processed context from ${file.name}`)
     } catch (error) {
       console.error('Error processing context audio:', error)
-      setError('Failed to process context audio file.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process context audio file.'
+      setError(errorMessage)
+      Message.error(errorMessage)
     } finally {
       setIsProcessingContextAudio(false)
     }

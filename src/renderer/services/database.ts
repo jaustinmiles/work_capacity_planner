@@ -73,6 +73,7 @@ declare global {
           }>
           summary: string
         }>
+        extractJargonTerms: (contextText: string) => Promise<string>
         extractWorkflowsFromBrainstorm: (brainstormText: string, jobContext?: string) => Promise<{
           workflows: Array<{
             name: string
