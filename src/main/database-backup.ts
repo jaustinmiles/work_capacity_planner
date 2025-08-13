@@ -113,10 +113,81 @@ export class DatabaseService {
     })
   }
 
-  // Task operations - Unified model
+  // Task operations
   async getTasks(): Promise<Task[]> {
     const sessionId = await this.getActiveSession()
     const tasks = await this.client.task.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return tasks.map(task => ({
+      ...task,
+      type: task.type as 'focused' | 'admin',
+      completedAt: task.completedAt || undefined,
+      notes: task.notes || undefined,
+      actualDuration: task.actualDuration || undefined,
+      projectId: task.projectId || undefined,
+      dependencies: JSON.parse(task.dependencies),
+    }))
+  }
+
+  async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
+    const sessionId = await this.getActiveSession()
+    const task = await this.client.task.create({
+      data: {
+        ...taskData,
+        sessionId,
+        dependencies: JSON.stringify(taskData.dependencies),
+      },
+    })
+
+    return {
+      ...task,
+      type: task.type as 'focused' | 'admin',
+      completedAt: task.completedAt || undefined,
+      notes: task.notes || undefined,
+      actualDuration: task.actualDuration || undefined,
+      projectId: task.projectId || undefined,
+      dependencies: JSON.parse(task.dependencies),
+    }
+  }
+
+  async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
+    const updateData: any = { ...updates }
+    if (updateData.dependencies) {
+      updateData.dependencies = JSON.stringify(updateData.dependencies)
+    }
+    // Remove fields that shouldn't be updated directly
+    delete updateData.id
+    delete updateData.createdAt
+
+    const task = await this.client.task.update({
+      where: { id },
+      data: updateData,
+    })
+
+    return {
+      ...task,
+      type: task.type as 'focused' | 'admin',
+      completedAt: task.completedAt || undefined,
+      notes: task.notes || undefined,
+      actualDuration: task.actualDuration || undefined,
+      projectId: task.projectId || undefined,
+      dependencies: JSON.parse(task.dependencies),
+    }
+  }
+
+  async deleteTask(id: string): Promise<void> {
+    await this.client.task.delete({
+      where: { id },
+    })
+  }
+
+  // Sequenced task operations
+  async getSequencedTasks(): Promise<SequencedTask[]> {
+    const sessionId = await this.getActiveSession()
+    const sequencedTasks = await this.client.sequencedTask.findMany({
       where: { sessionId },
       include: {
         steps: {
@@ -126,87 +197,58 @@ export class DatabaseService {
       orderBy: { createdAt: 'desc' },
     })
 
-    return tasks.map(task => ({
+    return sequencedTasks.map(task => ({
       ...task,
       type: task.type as 'focused' | 'admin',
       overallStatus: task.overallStatus as 'not_started' | 'in_progress' | 'waiting' | 'completed',
-      dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
-      completedAt: task.completedAt || undefined,
-      actualDuration: task.actualDuration || undefined,
       notes: task.notes || undefined,
-      projectId: task.projectId || undefined,
-      deadline: task.deadline || undefined,
-      currentStepId: task.currentStepId || undefined,
-      steps: task.steps?.map(step => ({
+      dependencies: JSON.parse(task.dependencies),
+      steps: task.steps.map(step => ({
         ...step,
         type: step.type as 'focused' | 'admin',
         status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
-        dependsOn: step.dependsOn ? JSON.parse(step.dependsOn) : [],
-        actualDuration: step.actualDuration || undefined,
-        startedAt: step.startedAt || undefined,
-        completedAt: step.completedAt || undefined,
+        dependsOn: JSON.parse(step.dependsOn),
       })),
     }))
   }
 
-  async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
+  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
     const sessionId = await this.getActiveSession()
-    const { steps, ...coreTaskData } = taskData as any
+    const { steps, ...rawTaskData } = taskData
 
-    // Create the task
-    const task = await this.client.task.create({
+    // Extract only the fields that exist in the SequencedTask model
+    const sequencedTaskData = {
+      name: rawTaskData.name,
+      importance: rawTaskData.importance,
+      urgency: rawTaskData.urgency,
+      type: rawTaskData.type,
+      notes: rawTaskData.notes,
+      dependencies: rawTaskData.dependencies,
+      completed: rawTaskData.completed,
+      totalDuration: rawTaskData.totalDuration,
+      criticalPathDuration: rawTaskData.criticalPathDuration,
+      worstCaseDuration: rawTaskData.worstCaseDuration,
+      overallStatus: rawTaskData.overallStatus,
+    }
+
+    const sequencedTask = await this.client.sequencedTask.create({
       data: {
-        ...coreTaskData,
+        ...sequencedTaskData,
         sessionId,
-        dependencies: JSON.stringify(taskData.dependencies || []),
-        overallStatus: taskData.overallStatus || 'not_started',
-        hasSteps: taskData.hasSteps || false,
-        criticalPathDuration: taskData.criticalPathDuration || taskData.duration,
-        worstCaseDuration: taskData.worstCaseDuration || taskData.duration,
+        dependencies: JSON.stringify(sequencedTaskData.dependencies),
+        steps: {
+          create: steps.map((step, index) => ({
+            id: step.id || `step-${Date.now()}-${index}`,
+            name: step.name,
+            duration: step.duration,
+            type: step.type,
+            dependsOn: JSON.stringify(step.dependsOn || []),
+            asyncWaitTime: step.asyncWaitTime || 0,
+            status: step.status || 'pending',
+            stepIndex: index,
+          })),
+        },
       },
-      include: {
-        steps: true,
-      },
-    })
-
-    // If it has steps, create them
-    if (steps && steps.length > 0) {
-      await this.client.taskStep.createMany({
-        data: steps.map((step: any, index: number) => ({
-          ...step,
-          taskId: task.id,
-          stepIndex: index,
-          dependsOn: JSON.stringify(step.dependsOn || []),
-          status: step.status || 'pending',
-          percentComplete: step.percentComplete || 0,
-        })),
-      })
-
-      // Fetch the task again with steps
-      return this.getTaskById(task.id) as Promise<Task>
-    }
-
-    return this.formatTask(task)
-  }
-
-  async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
-    const { steps, ...updateData } = updates as any
-    const cleanUpdateData: any = { ...updateData }
-
-    // Handle JSON fields
-    if (cleanUpdateData.dependencies) {
-      cleanUpdateData.dependencies = JSON.stringify(cleanUpdateData.dependencies)
-    }
-
-    // Remove computed fields
-    delete cleanUpdateData.id
-    delete cleanUpdateData.createdAt
-    delete cleanUpdateData.updatedAt
-    delete cleanUpdateData.sessionId
-
-    const task = await this.client.task.update({
-      where: { id },
-      data: cleanUpdateData,
       include: {
         steps: {
           orderBy: { stepIndex: 'asc' },
@@ -214,68 +256,113 @@ export class DatabaseService {
       },
     })
 
-    // Handle steps update if provided
-    if (steps) {
-      // This would need more complex logic to handle step updates
-      // For now, we'll skip this as it's rarely needed
-    }
-
-    return this.formatTask(task)
-  }
-
-  async deleteTask(id: string): Promise<void> {
-    await this.client.task.delete({
-      where: { id },
-    })
-  }
-
-  // Helper to format task from DB
-  private formatTask(task: any): Task {
     return {
-      ...task,
-      type: task.type as 'focused' | 'admin',
-      overallStatus: task.overallStatus as 'not_started' | 'in_progress' | 'waiting' | 'completed',
-      dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
-      completedAt: task.completedAt || undefined,
-      actualDuration: task.actualDuration || undefined,
-      notes: task.notes || undefined,
-      projectId: task.projectId || undefined,
-      deadline: task.deadline || undefined,
-      currentStepId: task.currentStepId || undefined,
-      steps: task.steps?.map((step: any) => ({
+      ...sequencedTask,
+      type: sequencedTask.type as 'focused' | 'admin',
+      overallStatus: sequencedTask.overallStatus as 'not_started' | 'in_progress' | 'waiting' | 'completed',
+      notes: sequencedTask.notes || undefined,
+      dependencies: JSON.parse(sequencedTask.dependencies),
+      steps: sequencedTask.steps.map(step => ({
         ...step,
         type: step.type as 'focused' | 'admin',
         status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
-        dependsOn: step.dependsOn ? JSON.parse(step.dependsOn) : [],
-        actualDuration: step.actualDuration || undefined,
-        startedAt: step.startedAt || undefined,
-        completedAt: step.completedAt || undefined,
+        dependsOn: JSON.parse(step.dependsOn),
       })),
     }
   }
 
-  // Sequenced task operations (legacy - now uses unified model)
-  async getSequencedTasks(): Promise<SequencedTask[]> {
-    const tasks = await this.getTasks()
-    return tasks.filter(task => task.hasSteps) as SequencedTask[]
-  }
-
-  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
-    // Map totalDuration to duration for unified model
-    const unifiedTaskData = {
-      ...taskData,
-      duration: (taskData as any).totalDuration || taskData.duration,
-      hasSteps: true,
-    }
-    return this.createTask(unifiedTaskData) as Promise<SequencedTask>
-  }
-
   async updateSequencedTask(id: string, updates: Partial<SequencedTask>): Promise<SequencedTask> {
-    return this.updateTask(id, updates) as Promise<SequencedTask>
+    const { steps, ...updateData } = updates
+    const cleanUpdateData: any = { ...updateData }
+
+    // Handle dependencies serialization
+    if (cleanUpdateData.dependencies) {
+      cleanUpdateData.dependencies = JSON.stringify(cleanUpdateData.dependencies)
+    }
+
+    // Remove fields that shouldn't be updated directly
+    delete cleanUpdateData.id
+    delete cleanUpdateData.createdAt
+    delete cleanUpdateData.currentStepId  // This field exists in the type but not in the database
+
+    // Update the main sequenced task
+    await this.client.sequencedTask.update({
+      where: { id },
+      data: cleanUpdateData,
+    })
+
+    // If steps are provided, update them
+    if (steps) {
+      // Delete existing steps and recreate them (simpler than complex updates)
+      await this.client.taskStep.deleteMany({
+        where: { sequencedTaskId: id },
+      })
+
+      await this.client.taskStep.createMany({
+        data: steps.map((step, index) => {
+          // Remove tempId and id fields that don't exist in the schema
+          // Remove tempId, templd and id fields that don't exist in the schema
+          const stepData = {
+            name: step.name,
+            duration: step.duration,
+            type: step.type,
+            asyncWaitTime: step.asyncWaitTime || 0,
+            status: step.status || 'pending',
+          }
+
+          // Ensure dependsOn is an array
+          const dependsOn = Array.isArray(step.dependsOn) ? step.dependsOn : []
+
+          // Only include valid fields for TaskStep
+          return {
+            id: step.id || `step-${Date.now()}-${index}`,
+            name: stepData.name,
+            duration: stepData.duration,
+            type: stepData.type,
+            dependsOn: JSON.stringify(dependsOn),
+            asyncWaitTime: stepData.asyncWaitTime || 0,
+            status: stepData.status || 'pending',
+            sequencedTaskId: id,
+            stepIndex: index,
+          }
+        }),
+      })
+    }
+
+    // Fetch and return the updated sequenced task
+    const updatedTask = await this.client.sequencedTask.findUnique({
+      where: { id },
+      include: {
+        steps: {
+          orderBy: { stepIndex: 'asc' },
+        },
+      },
+    })
+
+    if (!updatedTask) {
+      throw new Error(`SequencedTask with id ${id} not found`)
+    }
+
+    return {
+      ...updatedTask,
+      type: updatedTask.type as 'focused' | 'admin',
+      overallStatus: updatedTask.overallStatus as 'not_started' | 'in_progress' | 'waiting' | 'completed',
+      notes: updatedTask.notes || undefined,
+      dependencies: JSON.parse(updatedTask.dependencies),
+      steps: updatedTask.steps.map(step => ({
+        ...step,
+        type: step.type as 'focused' | 'admin',
+        status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
+        dependsOn: JSON.parse(step.dependsOn),
+      })),
+    }
   }
 
   async deleteSequencedTask(id: string): Promise<void> {
-    return this.deleteTask(id)
+    await this.client.sequencedTask.delete({
+      where: { id },
+    })
+    // TaskSteps will be cascade deleted due to the schema relationship
   }
 
   // Update individual task step
@@ -287,7 +374,6 @@ export class DatabaseService {
 
     // Remove fields that shouldn't be updated directly
     delete updateData.id
-    delete updateData.taskId
 
     await this.client.taskStep.update({
       where: { id: stepId },
@@ -299,6 +385,24 @@ export class DatabaseService {
   async getTaskById(id: string): Promise<Task | null> {
     const task = await this.client.task.findUnique({
       where: { id },
+    })
+
+    if (!task) return null
+
+    return {
+      ...task,
+      type: task.type as 'focused' | 'admin',
+      completedAt: task.completedAt || undefined,
+      notes: task.notes || undefined,
+      actualDuration: task.actualDuration || undefined,
+      projectId: task.projectId || undefined,
+      dependencies: JSON.parse(task.dependencies),
+    }
+  }
+
+  async getSequencedTaskById(id: string): Promise<SequencedTask | null> {
+    const task = await this.client.sequencedTask.findUnique({
+      where: { id },
       include: {
         steps: {
           orderBy: { stepIndex: 'asc' },
@@ -307,13 +411,20 @@ export class DatabaseService {
     })
 
     if (!task) return null
-    return this.formatTask(task)
-  }
 
-  async getSequencedTaskById(id: string): Promise<SequencedTask | null> {
-    const task = await this.getTaskById(id)
-    if (!task || !task.hasSteps) return null
-    return task as SequencedTask
+    return {
+      ...task,
+      type: task.type as 'focused' | 'admin',
+      overallStatus: task.overallStatus as 'not_started' | 'in_progress' | 'waiting' | 'completed',
+      notes: task.notes || undefined,
+      dependencies: JSON.parse(task.dependencies),
+      steps: task.steps.map(step => ({
+        ...step,
+        type: step.type as 'focused' | 'admin',
+        status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
+        dependsOn: JSON.parse(step.dependsOn),
+      })),
+    }
   }
 
   // Initialize database connection (no longer creates default tasks)
@@ -559,14 +670,7 @@ export class DatabaseService {
   }
 
   async deleteAllSequencedTasks(): Promise<void> {
-    // Delete only tasks with steps
-    const sessionId = await this.getActiveSession()
-    await this.client.task.deleteMany({
-      where: {
-        sessionId,
-        hasSteps: true,
-      },
-    })
+    await this.client.sequencedTask.deleteMany({})
   }
 
   // Delete all user data (for clean slate)
@@ -580,6 +684,7 @@ export class DatabaseService {
     await this.client.jargonEntry.deleteMany({})
     await this.client.jobContext.deleteMany({})
     await this.client.taskStep.deleteMany({})
+    await this.client.sequencedTask.deleteMany({})
     await this.client.task.deleteMany({})
     // Keep sessions but clear their data
     await this.client.session.updateMany({
@@ -804,27 +909,9 @@ export class DatabaseService {
     }))
   }
 
-  // Work Session operations (unified for both tasks and steps)
-  async createWorkSession(data: {
-    taskId: string
-    stepId?: string
-    type: 'focused' | 'admin'
-    startTime: Date
-    duration: number
-    notes?: string
-  }): Promise<any> {
-    return this.client.workSession.create({
-      data: {
-        taskId: data.taskId,
-        stepId: data.stepId,
-        type: data.type,
-        startTime: data.startTime,
-        endTime: new Date(data.startTime.getTime() + data.duration * 60000),
-        plannedMinutes: data.duration,
-        actualMinutes: data.duration,
-        notes: data.notes,
-      },
-    })
+  // Work Session operations
+  async createWorkSession(data: any): Promise<any> {
+    return this.client.workSession.create({ data })
   }
 
   async updateWorkSession(id: string, data: any): Promise<any> {
@@ -853,27 +940,10 @@ export class DatabaseService {
   async getTodayAccumulated(date: string): Promise<{ focusMinutes: number; adminMinutes: number }> {
     const sessionId = await this.getActiveSession()
     
-    // Get work sessions for today
-    const startOfDay = new Date(date)
-    startOfDay.setHours(0, 0, 0, 0)
-    const endOfDay = new Date(date)
-    endOfDay.setHours(23, 59, 59, 999)
-
-    const workSessions = await this.client.workSession.findMany({
-      where: {
-        task: {
-          sessionId,
-        },
-        startTime: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      },
-    })
-
-    // Sum up by type
-    return workSessions.reduce((acc, session) => {
-      const minutes = session.actualMinutes || session.plannedMinutes || 0
+    // Get regular work sessions
+    const sessions = await this.getWorkSessions(date)
+    const regularAccumulated = sessions.reduce((acc, session) => {
+      const minutes = session.actualMinutes || session.plannedMinutes
       if (session.type === 'focused') {
         acc.focusMinutes += minutes
       } else {
@@ -881,6 +951,69 @@ export class DatabaseService {
       }
       return acc
     }, { focusMinutes: 0, adminMinutes: 0 })
+
+    // Get step work sessions for today
+    const startOfDay = new Date(date)
+    startOfDay.setHours(0, 0, 0, 0)
+    const endOfDay = new Date(date)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    const stepSessions = await this.client.stepWorkSession.findMany({
+      where: {
+        startTime: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        taskStep: {
+          sequencedTask: {
+            sessionId,
+          },
+        },
+      },
+      include: {
+        taskStep: true,
+      },
+    })
+
+    // Get task time logs for today
+    const tasks = await this.client.task.findMany({
+      where: {
+        sessionId,
+        actualDuration: { gt: 0 },
+        updatedAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+    })
+
+    // Sum up step work sessions
+    const stepAccumulated = stepSessions.reduce((acc, session) => {
+      if (session.taskStep.type === 'focused') {
+        acc.focusMinutes += session.duration
+      } else {
+        acc.adminMinutes += session.duration
+      }
+      return acc
+    }, { focusMinutes: 0, adminMinutes: 0 })
+
+    // Sum up task time logs (only count time logged today)
+    const taskAccumulated = tasks.reduce((acc, task) => {
+      // Note: This is a simplification - ideally we'd track when the time was logged
+      // For now, we include all actual duration if the task was updated today
+      const minutes = task.actualDuration || 0
+      if (task.type === 'focused') {
+        acc.focusMinutes += minutes
+      } else {
+        acc.adminMinutes += minutes
+      }
+      return acc
+    }, { focusMinutes: 0, adminMinutes: 0 })
+
+    return {
+      focusMinutes: regularAccumulated.focusMinutes + stepAccumulated.focusMinutes + taskAccumulated.focusMinutes,
+      adminMinutes: regularAccumulated.adminMinutes + stepAccumulated.adminMinutes + taskAccumulated.adminMinutes,
+    }
   }
 
   // Progress tracking operations
@@ -890,22 +1023,7 @@ export class DatabaseService {
     duration: number;
     notes?: string;
   }): Promise<any> {
-    // Get the step to find its task
-    const step = await this.client.taskStep.findUnique({
-      where: { id: data.taskStepId },
-    })
-    
-    if (!step) throw new Error('Step not found')
-    
-    // Create work session with unified model
-    return this.createWorkSession({
-      taskId: step.taskId,
-      stepId: data.taskStepId,
-      type: step.type as 'focused' | 'admin',
-      startTime: data.startTime,
-      duration: data.duration,
-      notes: data.notes,
-    })
+    return this.client.stepWorkSession.create({ data })
   }
 
   async updateTaskStepProgress(stepId: string, data: {
@@ -922,8 +1040,8 @@ export class DatabaseService {
   }
 
   async getStepWorkSessions(stepId: string): Promise<any[]> {
-    return this.client.workSession.findMany({
-      where: { stepId },
+    return this.client.stepWorkSession.findMany({
+      where: { taskStepId: stepId },
       orderBy: { startTime: 'desc' },
     })
   }

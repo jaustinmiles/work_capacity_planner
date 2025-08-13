@@ -1,28 +1,7 @@
-import { Task } from './types'
+import { Task, TaskStep } from './types'
 
-export interface TaskStep {
-  id: string
-  name: string
-  duration: number // minutes
-  type: 'focused' | 'admin'
-
-  // Dependency relationships
-  dependsOn: string[] // step IDs that must complete before this step
-  asyncWaitTime: number // time to wait after step completion
-
-  // Conditional execution
-  conditionalBranches?: ConditionalBranch[]
-
-  // Status tracking
-  status: 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped'
-  completedAt?: Date
-  actualDuration?: number
-  
-  // Progress tracking (new fields)
-  startedAt?: Date
-  percentComplete: number // 0-100, default 0
-  stepIndex?: number // position in workflow
-}
+// Re-export TaskStep for backward compatibility
+export { TaskStep } from './types'
 
 export interface ConditionalBranch {
   id: string
@@ -32,17 +11,11 @@ export interface ConditionalBranch {
   repeatFromStepId?: string // step to restart from if needed
 }
 
-export interface SequencedTask extends Omit<Task, 'duration' | 'asyncWaitTime'> {
+// SequencedTask is now just a Task with hasSteps=true
+// This type alias helps with migration
+export type SequencedTask = Task & {
   steps: TaskStep[]
-
-  // Calculated fields
-  totalDuration: number // sum of all step durations
-  criticalPathDuration: number // longest path through the workflow
-  worstCaseDuration: number // duration including all conditional branches
-
-  // Workflow status
-  currentStepId?: string
-  overallStatus: 'not_started' | 'in_progress' | 'waiting' | 'completed'
+  hasSteps: true
 }
 
 export interface WorkflowExecution {
@@ -66,99 +39,145 @@ export interface WorkflowExecution {
   waitingSince?: Date
 }
 
-// Example of your described workflow:
+// Helper function to create a workflow task
+export function createWorkflowTask(params: {
+  name: string
+  importance: number
+  urgency: number
+  type: 'focused' | 'admin'
+  steps: Omit<TaskStep, 'id' | 'taskId'>[]
+  notes?: string
+  sessionId: string
+}): Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'> {
+  const steps: TaskStep[] = params.steps.map((step, index) => ({
+    ...step,
+    id: `step-${index}`,
+    taskId: '', // Will be set when saved
+    stepIndex: index,
+    status: step.status || 'pending',
+    percentComplete: step.percentComplete || 0,
+    dependsOn: step.dependsOn || []
+  }))
+
+  const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0)
+  const criticalPathDuration = calculateCriticalPath(steps)
+  const worstCaseDuration = calculateWorstCase(steps)
+
+  return {
+    name: params.name,
+    duration: totalDuration,
+    importance: params.importance,
+    urgency: params.urgency,
+    type: params.type,
+    asyncWaitTime: 0,
+    dependencies: [],
+    completed: false,
+    notes: params.notes,
+    sessionId: params.sessionId,
+    hasSteps: true,
+    overallStatus: 'not_started',
+    criticalPathDuration,
+    worstCaseDuration,
+    steps
+  }
+}
+
+function calculateCriticalPath(steps: TaskStep[]): number {
+  // Simplified critical path calculation
+  // In reality, this would need to consider dependencies
+  return steps.reduce((sum, step) => sum + step.duration + step.asyncWaitTime, 0)
+}
+
+function calculateWorstCase(steps: TaskStep[]): number {
+  // Simplified worst case calculation
+  // Would need to consider conditional branches
+  return steps.reduce((sum, step) => sum + step.duration + step.asyncWaitTime, 0) * 1.5
+}
+
+// Example remains the same but uses the new structure
 export const exampleSequencedTask: SequencedTask = {
   id: 'task-123',
   name: 'Feature Implementation with CI/CD and Code Review',
+  duration: 365,
   importance: 8,
   urgency: 7,
   type: 'focused',
+  asyncWaitTime: 0,
   dependencies: [],
   completed: false,
+  completedAt: undefined,
+  actualDuration: undefined,
+  deadline: undefined,
+  projectId: undefined,
   sessionId: 'default-session',
   createdAt: new Date(),
   updatedAt: new Date(),
   notes: 'Complex workflow with async waits and conditional branches',
-
+  hasSteps: true,
+  currentStepId: undefined,
+  overallStatus: 'not_started',
+  criticalPathDuration: 425,
+  worstCaseDuration: 1200,
   steps: [
     {
       id: 'step-1',
+      taskId: 'task-123',
       name: 'Data Mining',
-      duration: 120, // 2 hours
+      duration: 120,
       type: 'focused',
       dependsOn: [],
       asyncWaitTime: 0,
       status: 'pending',
+      stepIndex: 0,
       percentComplete: 0,
     },
     {
       id: 'step-2',
+      taskId: 'task-123',
       name: 'Code Authoring',
-      duration: 180, // 3 hours
+      duration: 180,
       type: 'focused',
-      dependsOn: ['step-1'], // sequential after data mining
+      dependsOn: ['step-1'],
       asyncWaitTime: 0,
       status: 'pending',
+      stepIndex: 1,
       percentComplete: 0,
     },
     {
       id: 'step-3',
+      taskId: 'task-123',
       name: 'Workflow Running',
-      duration: 15, // 15 minutes to trigger
+      duration: 15,
       type: 'admin',
       dependsOn: ['step-2'],
-      asyncWaitTime: 60, // wait 1 hour for workflow to complete
+      asyncWaitTime: 60,
       status: 'pending',
+      stepIndex: 2,
       percentComplete: 0,
     },
     {
       id: 'step-4',
+      taskId: 'task-123',
       name: 'Verification',
-      duration: 30, // 30 minutes
+      duration: 30,
       type: 'focused',
       dependsOn: ['step-3'],
       asyncWaitTime: 0,
       status: 'pending',
+      stepIndex: 3,
       percentComplete: 0,
-      conditionalBranches: [{
-        id: 'branch-1',
-        condition: 'Verification fails, need to fix and re-run workflow',
-        probability: 0.4, // 40% chance
-        additionalSteps: [], // will repeat from step-2
-        repeatFromStepId: 'step-2',
-      }],
     },
     {
       id: 'step-5',
+      taskId: 'task-123',
       name: 'CL Process (Submit for Review)',
-      duration: 20, // 20 minutes to create PR
+      duration: 20,
       type: 'admin',
       dependsOn: ['step-4'],
-      asyncWaitTime: 480, // 8 hours for review (worst case)
+      asyncWaitTime: 480,
       status: 'pending',
+      stepIndex: 4,
       percentComplete: 0,
-      conditionalBranches: [{
-        id: 'branch-2',
-        condition: 'Review feedback requires changes',
-        probability: 0.6, // 60% chance
-        additionalSteps: [
-          {
-            id: 'step-5a',
-            name: 'Address Review Feedback',
-            duration: 90,
-            type: 'focused',
-            dependsOn: ['step-5'],
-            asyncWaitTime: 240, // 4 hours for re-review
-            status: 'pending',
-            percentComplete: 0,
-          },
-        ],
-      }],
     },
   ],
-
-  totalDuration: 365, // sum of all step durations
-  criticalPathDuration: 425, // including async waits on critical path
-  worstCaseDuration: 1200, // including all branches and retries
-  overallStatus: 'not_started',
 }

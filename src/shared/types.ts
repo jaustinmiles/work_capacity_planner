@@ -25,6 +25,30 @@ export interface Task {
   actualDuration?: number // for time tracking
   notes?: string
   projectId?: string // for grouping
+  
+  // Workflow support
+  hasSteps: boolean
+  currentStepId?: string
+  overallStatus: 'not_started' | 'in_progress' | 'waiting' | 'completed'
+  criticalPathDuration: number
+  worstCaseDuration: number
+  steps?: TaskStep[] // Optional - populated when needed
+}
+
+export interface TaskStep {
+  id: string
+  taskId: string
+  name: string
+  duration: number
+  type: 'focused' | 'admin'
+  dependsOn: string[] // step IDs
+  asyncWaitTime: number
+  status: 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped'
+  stepIndex: number
+  actualDuration?: number
+  startedAt?: Date
+  completedAt?: Date
+  percentComplete: number
 }
 
 export interface DailySchedule {
