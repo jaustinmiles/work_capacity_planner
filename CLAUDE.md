@@ -21,6 +21,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - Run `npm run typecheck` to verify assumptions
    - Check if tests exist for the area you're modifying
 
+## 🚨 CRITICAL: Workflow Protection
+
+**NEVER modify the unified task model without extreme caution!**
+
+The app uses a unified Task model where workflows are Tasks with `hasSteps: true` and a `steps` array. The UI still expects the old SequencedTask format with `steps` and `totalDuration` fields.
+
+**Critical points:**
+- `getSequencedTasks()` MUST return workflows formatted as SequencedTasks
+- `getTasks()` MUST include the `steps` array for workflows
+- The `formatTask()` method MUST check `task.TaskStep` (capital T) from Prisma
+- Workflows MUST have `totalDuration`, `steps`, `criticalPathDuration`, etc.
+- See `/src/main/__tests__/database-workflow-protection.test.ts` for critical tests
+
+**If workflows stop showing up in the UI:**
+1. Check that `getSequencedTasks()` returns proper format with steps
+2. Verify `formatTask()` includes steps from `task.TaskStep`
+3. Ensure the database query includes `{ TaskStep: true }`
+4. Run the workflow protection tests immediately
+
 ## Project Overview
 
 This is a Work Capacity Planner - an Electron-based desktop application for managing software engineer workload using capacity-based scheduling. The project is currently in the planning phase with a comprehensive technical specification.
@@ -110,6 +129,12 @@ npm run check  # Runs both typecheck and lint
    
    # If any of these fail, fix the issues before proceeding
    ```
+   
+   **🚨 NEVER tell the user a task is complete unless:**
+   - TypeScript has 0 errors (`npm run typecheck`)
+   - All tests pass (`npm test -- --run`)
+   - The app builds successfully
+   - You've manually tested the feature works
 
 4. **Common Issues to Watch For**
    - Import errors: Always check existing imports before adding new libraries
