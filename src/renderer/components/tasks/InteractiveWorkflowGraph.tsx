@@ -13,16 +13,9 @@ import ReactFlow, {
   Position,
   MarkerType,
 } from 'reactflow'
-import { Card, Tag, Space, Typography } from '@arco-design/web-react'
+import { Tag, Space, Typography } from '@arco-design/web-react'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import 'reactflow/dist/style.css'
-
-// Custom styles for React Flow
-const customStyles = {
-  background: '#f5f5f5',
-  width: '100%',
-  height: '100%',
-}
 
 const { Text } = Typography
 
@@ -299,20 +292,17 @@ export function InteractiveWorkflowGraph({
   )
 
   return (
-    <Card
-      title="Interactive Workflow Graph"
-      extra={
-        isEditable && (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {isEditable && (
+        <div style={{ padding: '8px 16px', background: '#fff', borderBottom: '1px solid #e5e6eb' }}>
           <Tag color="orange">
             Drag from right handle to left handle to create dependencies
           </Tag>
-        )
-      }
-      bodyStyle={{ padding: 0 }}
-    >
-      <div style={{ height: 500, background: '#f5f5f5' }}>
+        </div>
+      )}
+      
+      <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <ReactFlow
-          style={customStyles}
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -332,7 +322,7 @@ export function InteractiveWorkflowGraph({
       </div>
 
       {isEditable && (
-        <div style={{ padding: 16, borderTop: '1px solid #e5e6eb' }}>
+        <div style={{ padding: 16, borderTop: '1px solid #e5e6eb', background: '#fff' }}>
           <Space direction="vertical">
             <Text type="secondary">
               • Drag from the right handle of a step to the left handle of another to create a dependency
@@ -346,6 +336,6 @@ export function InteractiveWorkflowGraph({
           </Space>
         </div>
       )}
-    </Card>
+    </div>
   )
 }

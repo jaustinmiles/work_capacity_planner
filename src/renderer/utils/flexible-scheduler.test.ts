@@ -49,9 +49,9 @@ describe('Flexible Scheduler', () => {
 
   describe('Deadline prioritization', () => {
     it('should prioritize tasks with deadlines within 24 hours', () => {
-      const now = new Date()
-      const tomorrow = new Date(now.getTime() + 20 * 60 * 60 * 1000) // 20 hours from now
-      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      const testDate = new Date('2025-12-01T08:00:00')
+      const tomorrow = new Date(testDate.getTime() + 20 * 60 * 60 * 1000) // 20 hours from now
+      const nextWeek = new Date(testDate.getTime() + 7 * 24 * 60 * 60 * 1000)
 
       const urgentTask = createTask({
         id: 'urgent-task',
@@ -77,9 +77,9 @@ describe('Flexible Scheduler', () => {
       })
 
       const tasks = [noDeadlineTask, normalTask, urgentTask]
-      const patterns = [createWorkPattern(now.toISOString().split('T')[0])]
+      const patterns = [createWorkPattern(testDate.toISOString().split('T')[0])]
 
-      const scheduled = scheduleItemsWithBlocks(tasks, [], patterns, now)
+      const scheduled = scheduleItemsWithBlocks(tasks, [], patterns, testDate)
 
       // The urgent task should be scheduled first despite lower priority
       expect(scheduled[0].id).toBe('urgent-task')
@@ -87,9 +87,10 @@ describe('Flexible Scheduler', () => {
     })
 
     it('should sort tasks with same-day deadlines by earliest deadline', () => {
-      const now = new Date()
-      const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000)
-      const in5Hours = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+      // Use a fixed date that aligns with work hours
+      const testDate = new Date('2025-12-01T08:00:00')
+      const in2Hours = new Date(testDate.getTime() + 2 * 60 * 60 * 1000) // 10:00
+      const in5Hours = new Date(testDate.getTime() + 5 * 60 * 60 * 1000) // 13:00
 
       const task1 = createTask({
         id: 'task-5h',
@@ -104,10 +105,14 @@ describe('Flexible Scheduler', () => {
       })
 
       const tasks = [task1, task2]
-      const patterns = [createWorkPattern(now.toISOString().split('T')[0])]
+      const patterns = [createWorkPattern(testDate.toISOString().split('T')[0])]
 
-      const scheduled = scheduleItemsWithBlocks(tasks, [], patterns, now)
+      const scheduled = scheduleItemsWithBlocks(tasks, [], patterns, testDate)
 
+      // Check that both tasks were scheduled
+      expect(scheduled).toBeDefined()
+      expect(scheduled.length).toBe(2)
+      
       // Task due in 2 hours should be scheduled before task due in 5 hours
       expect(scheduled[0].id).toBe('task-2h')
       expect(scheduled[1].id).toBe('task-5h')
@@ -135,12 +140,11 @@ describe('Flexible Scheduler', () => {
       })
 
       const tasks = [focusTask1, focusTask2, adminTask]
-      // Use tomorrow to ensure tasks can be scheduled
-      const tomorrow = new Date()
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      const patterns = [createWorkPattern(tomorrow.toISOString().split('T')[0])]
+      // Use a fixed future date with proper time to ensure scheduling works
+      const testDate = new Date('2025-12-02T08:00:00')
+      const patterns = [createWorkPattern(testDate.toISOString().split('T')[0])]
 
-      const scheduled = scheduleItemsWithBlocks(tasks, [], patterns, tomorrow)
+      const scheduled = scheduleItemsWithBlocks(tasks, [], patterns, testDate)
 
       // Simply verify that at least one task gets scheduled
       // (Scheduling might be limited by time constraints)
@@ -162,8 +166,9 @@ describe('Flexible Scheduler', () => {
         asyncWaitTime: 60, // 1 hour wait
       })
 
-      const patterns = [createWorkPattern(new Date().toISOString().split('T')[0])]
-      const scheduled = scheduleItemsWithBlocks([taskWithWait], [], patterns)
+      const testDate = new Date('2025-12-01T08:00:00')
+      const patterns = [createWorkPattern(testDate.toISOString().split('T')[0])]
+      const scheduled = scheduleItemsWithBlocks([taskWithWait], [], patterns, testDate)
 
       // Should have the task and its wait time
       const mainTask = scheduled.find(item => item.id === 'async-task')

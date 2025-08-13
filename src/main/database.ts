@@ -1083,8 +1083,40 @@ export class DatabaseService {
     return this.upsertContextEntry({ ...entry, jobContextId })
   }
 
-  async getJargonDictionary(): Promise<any[]> {
-    return this.getJargonEntries()
+  async getJargonDictionary(): Promise<Record<string, string>> {
+    const entries = await this.getJargonEntries()
+    const dictionary: Record<string, string> = {}
+    for (const entry of entries) {
+      dictionary[entry.term] = entry.definition || ''
+    }
+    return dictionary
+  }
+  
+  async updateJargonDefinition(term: string, definition: string): Promise<void> {
+    const sessionId = await this.getActiveSession()
+    const existing = await this.client.jargonEntry.findFirst({
+      where: { sessionId, term }
+    })
+    
+    if (existing) {
+      await this.client.jargonEntry.update({
+        where: { id: existing.id },
+        data: { definition, updatedAt: new Date() }
+      })
+    } else {
+      // Create new entry if it doesn't exist
+      await this.client.jargonEntry.create({
+        data: {
+          id: `jargon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          term,
+          definition,
+          sessionId,
+          category: 'custom',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+    }
   }
 
   async deleteAllTasks(): Promise<void> {

@@ -118,12 +118,12 @@ function App() {
           notes: combinedNotes,
           dependencies: [],
           completed: false,
-          duration: workflow.duration,
+          duration: workflow.totalDuration || 0,
           asyncWaitTime: 0,
           sessionId: '',  // Will be set by database
           hasSteps: true as true,
-          criticalPathDuration: workflow.duration, // Will be calculated properly
-          worstCaseDuration: workflow.duration * 1.5, // Estimate
+          criticalPathDuration: workflow.totalDuration || 0, // Will be calculated properly
+          worstCaseDuration: (workflow.totalDuration || 0) * 1.5, // Estimate
           overallStatus: 'not_started' as const,
           steps: workflow.steps.map((step: any, index: number) => ({
             ...step,

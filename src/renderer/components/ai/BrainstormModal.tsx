@@ -31,7 +31,8 @@ interface ExtractedWorkflow {
   urgency: number
   type: 'focused' | 'admin'
   steps: any[]
-  duration: number
+  duration?: number
+  totalDuration: number
   earliestCompletion: string
   worstCaseCompletion: string
   notes: string
@@ -333,6 +334,14 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
   const transcribeAudio = async (audioBlob: Blob, filename: string = 'brainstorm.webm') => {
     setIsTranscribing(true)
     try {
+      // Log audio blob details for debugging
+      console.log('Transcribing audio:', {
+        filename,
+        size: audioBlob.size,
+        type: audioBlob.type,
+        sizeInMB: (audioBlob.size / (1024 * 1024)).toFixed(2) + 'MB'
+      })
+      
       const arrayBuffer = await audioBlob.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
 
@@ -345,9 +354,11 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       setBrainstormText(prev => prev + (prev ? ' ' : '') + result.text)
       setError(null)
+      console.log('Transcription successful, text length:', result.text.length)
     } catch (error) {
       console.error('Error transcribing audio:', error)
-      setError('Failed to transcribe audio. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setError(`Failed to transcribe audio: ${errorMessage}`)
     } finally {
       setIsTranscribing(false)
     }
@@ -565,7 +576,8 @@ Only include terms that are likely industry-specific or technical jargon, not co
         setBrainstormResult({
           workflows: result.workflows.map(wf => ({
             ...wf,
-            duration: wf.duration || 0,
+            duration: wf.totalDuration || 0,
+            totalDuration: wf.totalDuration || 0,
           })),
           standaloneTasks: result.standaloneTasks,
           summary: result.summary,
@@ -796,12 +808,32 @@ Only include terms that are likely industry-specific or technical jargon, not co
                   )}
 
                   {Object.keys(jargonDictionary).length > 0 && (
-                    <div style={{ maxHeight: 100, overflowY: 'auto', marginTop: 8 }}>
-                      {Object.entries(jargonDictionary).map(([term]) => (
-                        <Tag key={term} size="small" style={{ marginRight: 8, marginBottom: 4 }}>
-                          {term}
-                        </Tag>
-                      ))}
+                    <div style={{ maxHeight: 200, overflowY: 'auto', marginTop: 8 }}>
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        {Object.entries(jargonDictionary).map(([term, definition]) => (
+                          <div key={term} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                            <Tag style={{ minWidth: 100 }}>{term}</Tag>
+                            <Input
+                              size="small"
+                              placeholder="Enter definition..."
+                              value={definition}
+                              onChange={async (value) => {
+                                // Update local state immediately
+                                const updated = { ...jargonDictionary, [term]: value }
+                                setJargonDictionary(updated)
+                                
+                                // Save to database (debounced in practice)
+                                try {
+                                  await getDatabase().updateJargonDefinition(term, value)
+                                } catch (error) {
+                                  console.error('Error updating jargon definition:', error)
+                                }
+                              }}
+                              style={{ flex: 1 }}
+                            />
+                          </div>
+                        ))}
+                      </Space>
                     </div>
                   )}
                 </div>

@@ -5,7 +5,6 @@ import {
   Button,
   Typography,
   Grid,
-  TimePicker,
   Select,
   InputNumber,
   Empty,
@@ -14,6 +13,7 @@ import {
   Modal,
   Form,
   Input,
+  TimePicker,
 } from '@arco-design/web-react'
 import {
   IconPlus,
@@ -31,6 +31,7 @@ import {
   getRemainingCapacity,
 } from '@shared/work-blocks-types'
 import { Message } from '../common/Message'
+import { ClockTimePicker } from '../common/ClockTimePicker'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
 
@@ -381,8 +382,7 @@ export function WorkBlocksEditor({
                     <Text style={{ fontWeight: 'bold' }}>#{index + 1}</Text>
                   </Col>
                   <Col span={4}>
-                    <TimePicker
-                      format="HH:mm"
+                    <ClockTimePicker
                       value={block.startTime}
                       onChange={(value) => handleUpdateBlock(block.id, { startTime: value })}
                       style={{ width: '100%' }}
@@ -392,8 +392,7 @@ export function WorkBlocksEditor({
                     <Text>to</Text>
                   </Col>
                   <Col span={4}>
-                    <TimePicker
-                      format="HH:mm"
+                    <ClockTimePicker
                       value={block.endTime}
                       onChange={(value) => handleUpdateBlock(block.id, { endTime: value })}
                       style={{ width: '100%' }}

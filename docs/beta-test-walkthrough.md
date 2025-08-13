@@ -81,18 +81,21 @@ This document outlines the comprehensive user journey for testing the Work Capac
 
 ## Known Issues & Status
 
-### ✅ Fixed Issues
+### ✅ Fixed Issues (2025-08-13)
 - Task creation bug (missing updatedAt field)
-- Message import error in BrainstormModal
+- Message import error in BrainstormModal  
 - Database protection verified (backups exist)
-- WebM audio files now supported with proper error messages
-- Jargon auto-extraction from job context working
 - React Flow graph edges rendering immediately
 - Personal tasks feature added (work/personal categories)
 - Clear Schedule functionality fixed
+- **0 duration bug** - Workflows now save with correct durations (totalDuration field)
+- **WebM upload** - Fixed with proper OpenAI API file handling
+- **Jargon dictionary input** - Added editable fields for definitions
+- **Graph visualization** - Fixed canvas blank issue when editing
+- **Sleep block extraction** - AI now auto-detects sleep times from voice
+- **Time picker UI** - New visual clock interface for intuitive time selection
 
 ### ⚠️ Current Issues
-- Sleep blocks not auto-generating from voice (manual add works)
 - Multi-day scheduling from single voice memo needs testing
 
 ### 🚀 Upcoming Features

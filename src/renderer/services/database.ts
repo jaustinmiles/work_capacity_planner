@@ -35,6 +35,7 @@ declare global {
         getJargonEntries: () => Promise<any[]>
         createJargonEntry: (data: any) => Promise<any>
         updateJargonEntry: (id: string, updates: any) => Promise<any>
+        updateJargonDefinition: (term: string, definition: string) => Promise<void>
         deleteJargonEntry: (id: string) => Promise<void>
         getJargonDictionary: () => Promise<Record<string, string>>
         // Development helpers
@@ -82,7 +83,7 @@ declare global {
             urgency: number
             type: 'focused' | 'admin'
             steps: any[]
-            duration: number
+            totalDuration: number
             earliestCompletion: string
             worstCaseCompletion: string
             notes: string
@@ -371,6 +372,10 @@ export class RendererDatabaseService {
 
   async updateJargonEntry(id: string, updates: any) {
     return await window.electronAPI.db.updateJargonEntry(id, updates)
+  }
+
+  async updateJargonDefinition(term: string, definition: string) {
+    return await window.electronAPI.db.updateJargonDefinition(term, definition)
   }
 
   async deleteJargonEntry(id: string) {

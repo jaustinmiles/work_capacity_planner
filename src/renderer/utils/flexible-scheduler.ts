@@ -388,7 +388,7 @@ export function scheduleItemsWithBlocksAndDebug(
     const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
     const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
 
-    const now = new Date().getTime()
+    const now = startDate.getTime()
     const oneDayMs = 24 * 60 * 60 * 1000
 
     // If both have deadlines within 24 hours, prioritize the earlier one
@@ -515,7 +515,7 @@ export function scheduleItemsWithBlocksAndDebug(
       // Then respect deadlines
       const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
       const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
-      const now = new Date().getTime()
+      const now = startDate.getTime()
       const oneDayMs = 24 * 60 * 60 * 1000
 
       if (aDeadline - now < oneDayMs && bDeadline - now < oneDayMs) {

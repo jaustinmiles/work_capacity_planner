@@ -180,6 +180,10 @@ ipcMain.handle('db:updateJargonEntry', async (_event: IpcMainInvokeEvent, id: st
   return await db.updateJargonEntry(id, updates)
 })
 
+ipcMain.handle('db:updateJargonDefinition', async (_event: IpcMainInvokeEvent, term: string, definition: string) => {
+  return await db.updateJargonDefinition(term, definition)
+})
+
 ipcMain.handle('db:deleteJargonEntry', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteJargonEntry(id)
 })

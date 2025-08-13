@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import { toFile } from 'openai/uploads'
 import fs from 'fs'
 import path from 'path'
 
@@ -46,11 +47,15 @@ export class SpeechService {
         console.log(`Audio file archived to: ${archivePath}`)
       }
 
-      // Create a readable stream for the audio file
-      const audioStream = fs.createReadStream(audioFilePath)
+      // Create a proper file object for OpenAI API
+      const audioBuffer = fs.readFileSync(audioFilePath)
+      const fileName = path.basename(audioFilePath)
+      const audioFile = await toFile(audioBuffer, fileName, {
+        type: this.getMimeType(fileName)
+      })
 
       const transcription = await this.openai.audio.transcriptions.create({
-        file: audioStream,
+        file: audioFile,
         model: 'whisper-1',
         language: options?.language,
         prompt: options?.prompt,
@@ -62,7 +67,21 @@ export class SpeechService {
       }
     } catch (error) {
       console.error('Error transcribing audio:', error)
+      
+      // Provide more specific error messages for common issues
       if (error instanceof Error) {
+        // Check for format-related errors
+        if (error.message.includes('format') || error.message.includes('codec')) {
+          const fileName = path.basename(audioFilePath)
+          const ext = path.extname(fileName).toLowerCase()
+          throw new Error(`Audio format issue with ${ext} file: ${error.message}. Try converting to MP3 or WAV.`)
+        }
+        
+        // Check for file size issues
+        if (error.message.includes('size') || error.message.includes('limit')) {
+          throw new Error(`Audio file too large: ${error.message}`)
+        }
+        
         throw new Error(`Failed to transcribe audio: ${error.message}`)
       }
       throw new Error('Failed to transcribe audio: Unknown error')
@@ -119,6 +138,23 @@ export class SpeechService {
       }
       throw new Error('Failed to transcribe audio buffer: Unknown error')
     }
+  }
+
+  /**
+   * Get MIME type for a file based on its extension
+   */
+  private getMimeType(filename: string): string {
+    const ext = path.extname(filename).toLowerCase().substring(1)
+    const mimeTypes: Record<string, string> = {
+      'mp3': 'audio/mpeg',
+      'mp4': 'audio/mp4',
+      'mpeg': 'audio/mpeg',
+      'mpga': 'audio/mpeg',
+      'm4a': 'audio/mp4',
+      'wav': 'audio/wav',
+      'webm': 'audio/webm',
+    }
+    return mimeTypes[ext] || 'application/octet-stream'
   }
 
   /**

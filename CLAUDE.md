@@ -247,21 +247,20 @@ task-planner/
 - ✅ Testing infrastructure with Vitest
 - ✅ Enhanced TypeScript linting rules
 
-**Current Status (as of 2025-08-13):**
-- ✅ TypeScript: 0 errors (fixed from 237+)
-- ✅ Tests: 78 passing, 2 skipped, 0 failing
-- ✅ Unified Task model migration COMPLETE
-  - Successfully migrated 5 workflows to unified Task table
-  - Deleted legacy SequencedTask and StepWorkSession tables
-  - All TypeScript types aligned with database schema
+**Current Status (as of 2025-08-13 - Beta Test Fixes):**
+- ✅ TypeScript: 0 errors 
+- ✅ Tests: 101 passing, 3 skipped, 0 failing
+- ✅ All beta testing issues resolved:
+  - Fixed 0 duration bug (workflows now use `totalDuration` from AI)
+  - Fixed WebM audio upload with proper OpenAI API handling
+  - Added input fields for jargon dictionary definitions
+  - Fixed graph visualization breaking when editing
+  - Implemented AI sleep block auto-extraction
+  - Created custom ClockTimePicker component for intuitive time selection
 - ✅ Build status: Successful
-- ✅ Test runtime: 2 seconds (was 52+ seconds with timeouts)
-  - Use `duration` NOT `totalDuration`
-- ⚠️ TaskStep objects missing required fields (`taskId`, `percentComplete`)
-- ⚠️ Workflow UI issues:
-  - Graph view incorrectly placed in edit modal
-  - Workflow step completion UI added but not wired
-  - Dependency naming inconsistencies
+- ✅ New components added:
+  - `/src/renderer/components/common/ClockTimePicker.tsx` - Visual clock interface
+  - `/src/renderer/components/common/TimeInput.tsx` - Text-based time input (alternative)
 
 ## Key Algorithms
 

@@ -66,7 +66,7 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
       style={{ width: '90vw', maxWidth: 1200 }}
       maskClosable
     >
-      <div style={{ height: '70vh', overflow: 'auto' }}>
+      <div style={{ height: '70vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
           <Space>
             <span>Edit Mode</span>
@@ -77,15 +77,17 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
             />
           </Space>
         </div>
-        {isEditMode ? (
-        <InteractiveWorkflowGraph
-          task={currentTask}
-          isEditable={true}
-          onUpdateDependencies={handleUpdateDependencies}
-        />
-        ) : (
-          <WorkflowGraph task={currentTask} />
-        )}
+        <div style={{ flex: 1, minHeight: 0, overflow: isEditMode ? 'hidden' : 'auto' }}>
+          {isEditMode ? (
+            <InteractiveWorkflowGraph
+              task={currentTask}
+              isEditable={true}
+              onUpdateDependencies={handleUpdateDependencies}
+            />
+          ) : (
+            <WorkflowGraph task={currentTask} />
+          )}
+        </div>
       </div>
     </Modal>
   )

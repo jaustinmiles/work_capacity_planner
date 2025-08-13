@@ -546,6 +546,7 @@ Extract:
 1. Work blocks - continuous periods of available work time
 2. Meetings/breaks - specific scheduled events
 3. Time allocations - how much focus vs admin time is needed
+4. Sleep blocks - periods designated for sleep
 
 For work blocks:
 - If they mention specific focus/admin time needs, create "mixed" blocks with capacity
@@ -555,6 +556,13 @@ For work blocks:
 For meetings:
 - Extract any mentioned meetings, standups, breaks, lunch, etc.
 - Use appropriate types: "meeting" for work meetings, "break" for breaks/lunch, "personal" for personal time
+
+For sleep blocks:
+- If they mention going to bed, sleeping, waking up, or sleep schedule
+- Create a "blocked" type meeting named "Sleep" 
+- Typical sleep blocks span from evening (e.g., 22:00) to morning (e.g., 06:00)
+- If they mention "getting up at 6am", infer sleep ends at 06:00
+- If they mention "going to bed at 10pm", infer sleep starts at 22:00
 
 Return as JSON:
 {
@@ -578,9 +586,16 @@ Return as JSON:
       "startTime": "10:00",
       "endTime": "10:30",
       "type": "meeting"
+    },
+    {
+      "id": "sleep-1",
+      "name": "Sleep",
+      "startTime": "22:00",
+      "endTime": "06:00",
+      "type": "blocked"
     }
   ],
-  "summary": "8-hour workday with 4 hours focus time, 2 hours admin, standup at 10am, and lunch break"
+  "summary": "8-hour workday with 4 hours focus time, 2 hours admin, standup at 10am, lunch break, and sleep from 10pm to 6am"
 }
 
 Important:
@@ -588,6 +603,8 @@ Important:
 - Ensure blocks don't overlap with meetings
 - Split blocks around meetings if needed
 - Generate unique IDs for each block/meeting
+- Always include sleep blocks if any sleep-related times are mentioned
+- Sleep blocks that cross midnight (e.g., 22:00 to 06:00) are normal and expected
 `
 
     try {
