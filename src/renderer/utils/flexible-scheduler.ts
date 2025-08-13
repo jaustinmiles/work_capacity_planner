@@ -487,8 +487,65 @@ export function scheduleItemsWithBlocksAndDebug(
       }
       newlyFinishedWaits.forEach(time => asyncWaitEndTimes.delete(time))
 
-      // For workflow steps, we schedule them in sequence regardless of dependencies
-      // Dependencies are for execution order, not scheduling order
+      // CRITICAL: Check if this item's dependencies are still waiting on async time
+      // If a dependency has async wait time, we cannot schedule this item until
+      // the async wait completes
+      if (item.dependencies && item.dependencies.length > 0) {
+        let canScheduleItem = true
+        
+        for (const dep of item.dependencies) {
+          // Dependencies can be in format ["name", "id"] or just "id"
+          // Extract the actual step ID (it's the last element if array, or the string itself)
+          const depId = Array.isArray(dep) ? dep[dep.length - 1] : dep
+          
+          // Check if this dependency is still in an async wait period
+          let isWaitingOnAsync = false
+          for (const [asyncEndTime, waitingItemId] of asyncWaitEndTimes.entries()) {
+            if (waitingItemId === depId && asyncEndTime > currentTime) {
+              // This dependency is still waiting, cannot schedule yet
+              canScheduleItem = false
+              isWaitingOnAsync = true
+              debugInfo.warnings.push(
+                `Cannot schedule "${item.name}" yet - waiting for dependency "${depId}" to complete async wait (ends ${asyncEndTime.toLocaleString()})`
+              )
+              break
+            }
+          }
+          
+          if (isWaitingOnAsync) {
+            break // Already found we can't schedule
+          }
+          
+          // Also check if the dependency has been completed/scheduled at all
+          if (!completedSteps.has(depId)) {
+            // Check if it's been scheduled (even if not "completed" in execution terms)
+            const depScheduled = scheduledItems.some(si => si.id === depId)
+            if (!depScheduled) {
+              // Maybe it's a workflow step that hasn't been processed yet
+              // Check if it exists in our workItems
+              const depExists = workItems.some(w => w.id === depId)
+              if (!depExists) {
+                // This dependency doesn't exist - log warning but allow scheduling
+                debugInfo.warnings.push(
+                  `Warning: Dependency "${depId}" for "${item.name}" not found - allowing schedule`
+                )
+              } else {
+                // Dependency exists but not scheduled yet
+                canScheduleItem = false
+                debugInfo.warnings.push(
+                  `Cannot schedule "${item.name}" - dependency "${depId}" not yet scheduled`
+                )
+                break
+              }
+            }
+          }
+        }
+        
+        if (!canScheduleItem) {
+          // Skip this item for now, it will be retried later
+          continue
+        }
+      }
 
       // Try to fit in available blocks
       let itemScheduled = false
