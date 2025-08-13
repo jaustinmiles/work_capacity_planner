@@ -126,8 +126,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null })
       const sequencedTasks = await getDatabase().getSequencedTasks()
+      console.log(`Store: Loaded ${sequencedTasks.length} sequenced tasks:`, sequencedTasks)
       set({ sequencedTasks, isLoading: false })
     } catch (error) {
+      console.error('Store: Error loading sequenced tasks:', error)
       set({
         error: error instanceof Error ? error.message : 'Failed to load sequenced tasks',
         isLoading: false,

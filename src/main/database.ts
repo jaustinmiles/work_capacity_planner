@@ -284,6 +284,11 @@ export class DatabaseService {
 
   // Helper to format task from DB
   private formatTask(task: any): Task {
+    // Debug log to see what we're getting
+    if (task.hasSteps) {
+      console.log(`DB: Formatting task ${task.id}, hasSteps: ${task.hasSteps}, TaskStep exists: ${!!task.TaskStep}, TaskStep length: ${task.TaskStep?.length}`)
+    }
+    
     return {
       ...task,
       dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
@@ -558,28 +563,69 @@ export class DatabaseService {
 
   // Sequenced Tasks - NOW USING UNIFIED TASK MODEL
   async getSequencedTasks(): Promise<any[]> {
-    // Redirect to getTasks and filter for workflows
+    // Get all workflows (tasks with steps) and format them as SequencedTasks for backward compatibility
     const allTasks = await this.getTasks()
-    return allTasks.filter(task => task.hasSteps)
+    const workflows = allTasks.filter(task => task.hasSteps && task.steps)
+    
+    // Format as SequencedTask for UI compatibility
+    return workflows.map(task => ({
+      ...task,
+      totalDuration: task.duration,
+      steps: task.steps || [],
+      // Ensure we have the right structure for UI
+      overallStatus: task.overallStatus || 'not_started',
+      criticalPathDuration: task.criticalPathDuration || task.duration,
+      worstCaseDuration: task.worstCaseDuration || task.duration,
+    }))
   }
 
   async getSequencedTaskById(id: string): Promise<any | null> {
-    // Redirect to getTaskById
-    return await this.getTaskById(id)
+    // Get task and format as SequencedTask for UI compatibility
+    const task = await this.getTaskById(id)
+    if (!task || !task.hasSteps) return null
+    
+    return {
+      ...task,
+      totalDuration: task.duration,
+      steps: task.steps || [],
+      overallStatus: task.overallStatus || 'not_started',
+      criticalPathDuration: task.criticalPathDuration || task.duration,
+      worstCaseDuration: task.worstCaseDuration || task.duration,
+    }
   }
 
   async createSequencedTask(taskData: any): Promise<any> {
-    // Redirect to createTask with workflow flag
-    return await this.createTask({
+    // Create task as workflow and format as SequencedTask
+    const task = await this.createTask({
       ...taskData,
       hasSteps: true,
       steps: taskData.steps,
     })
+    
+    // Return in SequencedTask format for UI compatibility
+    return {
+      ...task,
+      totalDuration: task.duration,
+      steps: task.steps || [],
+      overallStatus: task.overallStatus || 'not_started',
+      criticalPathDuration: task.criticalPathDuration || task.duration,
+      worstCaseDuration: task.worstCaseDuration || task.duration,
+    }
   }
 
   async updateSequencedTask(id: string, updates: any): Promise<any> {
-    // Redirect to updateTask
-    return await this.updateTask(id, updates)
+    // Update task and format as SequencedTask
+    const task = await this.updateTask(id, updates)
+    
+    // Return in SequencedTask format for UI compatibility
+    return {
+      ...task,
+      totalDuration: task.duration,
+      steps: task.steps || [],
+      overallStatus: task.overallStatus || 'not_started',
+      criticalPathDuration: task.criticalPathDuration || task.duration,
+      worstCaseDuration: task.worstCaseDuration || task.duration,
+    }
   }
 
   async deleteSequencedTask(id: string): Promise<void> {
