@@ -193,10 +193,8 @@ export function WorkBlocksEditor({
   }
 
   const handleSave = async () => {
-    if (blocks.length === 0) {
-      Message.error('Please add at least one work block')
-      return
-    }
+    // Allow saving empty schedule for clearing purposes
+    // The user was explicitly warned when clicking "Clear Schedule"
     await onSave(blocks, meetings)
   }
 
@@ -289,10 +287,12 @@ export function WorkBlocksEditor({
                 <Popconfirm
                   title="Clear entire schedule?"
                   content="This will remove all work blocks and meetings for this day."
-                  onOk={() => {
+                  onOk={async () => {
                     setBlocks([])
                     setMeetings([])
-                    Message.warning('Schedule cleared - click Save to confirm')
+                    // Save the cleared schedule immediately
+                    await onSave([], [])
+                    Message.success('Schedule cleared successfully')
                   }}
                 >
                   <Button status="danger">

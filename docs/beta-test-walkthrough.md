@@ -5,16 +5,19 @@ This document outlines the comprehensive user journey for testing the Work Capac
 ## Test Scenario: Complete Workflow from Schedule to Task Execution
 
 ### Phase 1: Schedule Setup
-1. **Voice Schedule Recording**
-   - Start voice recording for schedule and time availability
-   - Describe work blocks, meetings, and available time slots
+1. **Multi-Day Voice Schedule Recording**
+   - Start voice recording for schedule
+   - Describe today's schedule AND tomorrow's schedule in one recording
+   - Example: "Today I'm working 9-5 with a meeting at 2pm. Tomorrow I have a doctor's appointment at 10am and will work from noon to 6pm"
+   - **Verify**: Both days should be populated from single voice memo
    - **Verify**: Sleep blocks should be auto-generated from voice input
    
 2. **Schedule Review & Edit**
-   - Review the generated schedule
+   - Review the generated schedules for multiple days
+   - Navigate between days to verify all were created
    - Make any necessary edits to time blocks
    - Add missing blocks (e.g., sleep if not auto-generated)
-   - **TODO**: Test schedule creation for multiple days
+   - Test "Clear Schedule" functionality
 
 ### Phase 2: Context & Task Creation
 3. **Job Context Setup**
@@ -82,11 +85,15 @@ This document outlines the comprehensive user journey for testing the Work Capac
 - Task creation bug (missing updatedAt field)
 - Message import error in BrainstormModal
 - Database protection verified (backups exist)
+- WebM audio files now supported with proper error messages
+- Jargon auto-extraction from job context working
+- React Flow graph edges rendering immediately
+- Personal tasks feature added (work/personal categories)
+- Clear Schedule functionality fixed
 
 ### ⚠️ Current Issues
-- WebM audio files require conversion to m4a
-- No error messages for unsupported file formats (silent failure)
-- Sleep blocks not auto-generating from voice
+- Sleep blocks not auto-generating from voice (manual add works)
+- Multi-day scheduling from single voice memo needs testing
 
 ### 🚀 Upcoming Features
 - Personal life tasks (separate from work tasks)
@@ -99,10 +106,11 @@ This document outlines the comprehensive user journey for testing the Work Capac
 
 | Step | Feature | Status | Notes |
 |------|---------|--------|-------|
-| 1-2 | Schedule Creation | ✅ Partial | Sleep blocks need fix |
+| 1 | Multi-day Voice Scheduling | ⏳ Testing | Need to verify multi-day from single memo |
+| 2 | Schedule Editing | ✅ Working | Clear function fixed |
 | 3-5 | Context & Brainstorming | ✅ Working | Jargon extraction added |
-| 6-7 | Task Generation | ✅ Working | Type validation needed |
-| 8-10 | Workflow Management | ✅ Working | Graph editing functional |
+| 6-7 | Task Generation | ✅ Working | Personal tasks added |
+| 8-10 | Workflow Management | ✅ Working | Graph edges fixed |
 | 11-12 | Time Tracking | ⏳ Testing | Not fully verified |
 | 13-14 | Views & Voice | 🔄 In Progress | Voice features planned |
 
