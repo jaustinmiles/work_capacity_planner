@@ -290,7 +290,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
             <Col span={12}>
               <RangePicker
                 value={dateRange}
-                onChange={(dates) => {
+                onChange={(dates: any) => {
                   if (dates && dates[0] && dates[1]) {
                     setDateRange([dates[0], dates[1]])
                   }

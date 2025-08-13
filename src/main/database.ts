@@ -134,13 +134,13 @@ export class DatabaseService {
     console.log('DB: Getting active session...')
     const sessionId = await this.getActiveSession()
     console.log('DB: Active session ID:', sessionId)
-    
+
     console.log('DB: Querying tasks with sessionId:', sessionId)
     const tasks = await this.client.task.findMany({
       where: { sessionId },
       orderBy: { createdAt: 'desc' },
     })
-    
+
     console.log(`DB: Found ${tasks.length} raw tasks`)
     const formattedTasks = tasks.map(task => this.formatTask(task))
     console.log(`DB: Returning ${formattedTasks.length} formatted tasks`)
@@ -260,10 +260,10 @@ export class DatabaseService {
     return {
       ...task,
       dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
-      completedAt: task.completedAt || undefined,
-      actualDuration: task.actualDuration || undefined,
-      deadline: task.deadline || undefined,
-      currentStepId: task.currentStepId || undefined,
+      completedAt: task.completedAt ?? null,
+      actualDuration: task.actualDuration ?? null,
+      deadline: task.deadline ?? null,
+      currentStepId: task.currentStepId ?? null,
       steps: undefined, // Steps are only for SequencedTask
     }
   }
@@ -975,7 +975,7 @@ export class DatabaseService {
     console.log(`DB: Getting accumulated time for ${date}`)
     const sessionId = await this.getActiveSession()
     console.log('DB: Active session ID:', sessionId)
-    
+
     const workSessions = await this.client.workSession.findMany({
       where: {
         Task: {
@@ -1012,11 +1012,11 @@ export class DatabaseService {
     const workSessions = await this.client.workSession.findMany({
       where: { taskId },
     })
-    
+
     const total = workSessions.reduce((total, session) => {
       return total + (session.actualMinutes || session.plannedMinutes || 0)
     }, 0)
-    
+
     console.log(`DB: Total logged time for task ${taskId}: ${total} minutes`)
     return total
   }
@@ -1125,7 +1125,7 @@ export class DatabaseService {
   async saveAsTemplate(date: string, templateName: string): Promise<any> {
     const pattern = await this.getWorkPattern(date)
     if (!pattern) throw new Error('No pattern found for date')
-    
+
     return this.createWorkPattern({
       date: `template-${Date.now()}`,
       isTemplate: true,

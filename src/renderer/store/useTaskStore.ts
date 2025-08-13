@@ -4,7 +4,7 @@ import { SequencedTask } from '@shared/sequencing-types'
 import { SchedulingService } from '@shared/scheduling-service'
 import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
-import { StepWorkSession } from '@shared/workflow-progress-types'
+import { WorkSession } from '@shared/workflow-progress-types'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
 
@@ -75,7 +75,7 @@ interface TaskStore {
 }
 
 // Helper to generate IDs (will be replaced by database IDs later)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 
 // Create scheduling service instance
 const schedulingService = new SchedulingService()
@@ -331,7 +331,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   startWorkOnStep: (stepId: string, workflowId: string) => {
     const state = get()
     const activeSession = state.activeWorkSessions.get(stepId)
-    
+
     if (activeSession && !activeSession.isPaused) {
       console.warn(`Work session for step ${stepId} is already active`)
       return
@@ -346,7 +346,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     const newSessions = new Map(state.activeWorkSessions)
     newSessions.set(stepId, newSession)
-    
+
     set({ activeWorkSessions: newSessions })
 
     // Update step status in database
@@ -361,7 +361,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   pauseWorkOnStep: (stepId: string) => {
     const state = get()
     const session = state.activeWorkSessions.get(stepId)
-    
+
     if (!session || session.isPaused) {
       console.warn(`No active work session for step ${stepId}`)
       return
@@ -379,16 +379,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     const newSessions = new Map(state.activeWorkSessions)
     newSessions.set(stepId, updatedSession)
-    
+
     set({ activeWorkSessions: newSessions })
   },
 
   completeStep: async (stepId: string, actualMinutes?: number, notes?: string) => {
     const state = get()
     const session = state.activeWorkSessions.get(stepId)
-    
+
     let totalMinutes = actualMinutes || 0
-    
+
     if (session && !actualMinutes) {
       // Calculate final duration if session is active
       const elapsed = session.isPaused ? 0 : Date.now() - session.startTime.getTime()
@@ -404,7 +404,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           duration: totalMinutes,
           notes,
         })
-        
+
         // Emit event to update other components
         appEvents.emit(EVENTS.TIME_LOGGED)
       }
@@ -425,15 +425,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       set({ activeWorkSessions: newSessions })
 
       // Reload the sequenced task to get updated data
-      const task = state.sequencedTasks.find(t => 
-        t.steps.some(s => s.id === stepId)
+      const task = state.sequencedTasks.find(t =>
+        t.steps.some(s => s.id === stepId),
       )
       if (task) {
         const updatedTask = await getDatabase().getSequencedTaskById(task.id)
         set(state => ({
           sequencedTasks: state.sequencedTasks.map(t =>
-            t.id === task.id ? updatedTask : t
-          ),
+            t.id === task.id ? updatedTask : t,
+          ).filter((t): t is SequencedTask => t !== null),
         }))
       }
     } catch (error) {
@@ -456,7 +456,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           steps: task.steps.map(step =>
             step.id === stepId
               ? { ...step, percentComplete: Math.min(100, Math.max(0, percentComplete)) }
-              : step
+              : step,
           ),
         })),
       }))
@@ -480,13 +480,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const step = get().sequencedTasks
         .flatMap(t => t.steps)
         .find(s => s.id === stepId)
-      
+
       if (step) {
         const newActualDuration = (step.actualDuration || 0) + minutes
         await getDatabase().updateTaskStepProgress(stepId, {
           actualDuration: newActualDuration,
         })
-        
+
         // Emit event to update other components
         appEvents.emit(EVENTS.TIME_LOGGED)
       }

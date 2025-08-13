@@ -172,7 +172,7 @@ describe('Database Validation Tests', () => {
     it('should have required columns in Task table', async () => {
       // This test verifies the schema has the required columns
       const task = await prisma.task.findFirst({ where: { sessionId: testSessionId } })
-      
+
       if (task) {
         expect(task).toHaveProperty('hasSteps')
         expect(task).toHaveProperty('overallStatus')

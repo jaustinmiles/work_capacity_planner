@@ -36,11 +36,11 @@ vi.mock('@prisma/client', () => {
     },
     project: {
       findMany: vi.fn(),
-    }
+    },
   }
 
   return {
-    PrismaClient: vi.fn(() => mockPrismaClient)
+    PrismaClient: vi.fn(() => mockPrismaClient),
   }
 })
 
@@ -52,7 +52,7 @@ describe('Database - Unified Task Model', () => {
     vi.clearAllMocks()
     db = DatabaseService.getInstance()
     mockPrisma = (db as any).client
-    
+
     // Mock active session
     mockPrisma.session.findFirst.mockResolvedValue({ id: 'session-1' })
   })
@@ -77,7 +77,7 @@ describe('Database - Unified Task Model', () => {
       criticalPathDuration: 60,
       worstCaseDuration: 60,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     }
 
     const mockWorkflowTask: SequencedTask = {
@@ -107,7 +107,7 @@ describe('Database - Unified Task Model', () => {
           asyncWaitTime: 0,
           status: 'pending',
           stepIndex: 0,
-          percentComplete: 0
+          percentComplete: 0,
         },
         {
           id: 'step-2',
@@ -119,9 +119,9 @@ describe('Database - Unified Task Model', () => {
           asyncWaitTime: 60,
           status: 'pending',
           stepIndex: 1,
-          percentComplete: 0
-        }
-      ]
+          percentComplete: 0,
+        },
+      ],
     }
 
     describe('getTasks', () => {
@@ -130,16 +130,16 @@ describe('Database - Unified Task Model', () => {
           {
             ...mockSimpleTask,
             dependencies: '[]',
-            steps: []
+            steps: [],
           },
           {
             ...mockWorkflowTask,
             dependencies: '[]',
             steps: mockWorkflowTask.steps.map(s => ({
               ...s,
-              dependsOn: JSON.stringify(s.dependsOn)
-            }))
-          }
+              dependsOn: JSON.stringify(s.dependsOn),
+            })),
+          },
         ])
 
         const tasks = await db.getTasks()
@@ -154,7 +154,7 @@ describe('Database - Unified Task Model', () => {
         mockPrisma.task.findMany.mockResolvedValue([{
           ...mockSimpleTask,
           dependencies: '["task-0", "task-2"]',
-          steps: []
+          steps: [],
         }])
 
         const tasks = await db.getTasks()
@@ -172,12 +172,12 @@ describe('Database - Unified Task Model', () => {
           deadline: null,
           currentStepId: null,
           dependencies: '[]',
-          steps: []
+          steps: [],
         }])
 
         const tasks = await db.getTasks()
         const task = tasks[0]
-        
+
         expect(task).toBeDefined()
         expect(task?.completedAt).toBeUndefined()
         expect(task?.actualDuration).toBeUndefined()
@@ -202,7 +202,7 @@ describe('Database - Unified Task Model', () => {
           hasSteps: false,
           overallStatus: 'not_started' as const,
           criticalPathDuration: 45,
-          worstCaseDuration: 45
+          worstCaseDuration: 45,
         }
 
         mockPrisma.task.create.mockResolvedValue({
@@ -210,7 +210,7 @@ describe('Database - Unified Task Model', () => {
           ...newTask,
           dependencies: '[]',
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         })
 
         const created = await db.createTask(newTask)
@@ -221,9 +221,9 @@ describe('Database - Unified Task Model', () => {
             duration: 45,
             type: 'admin',
         sessionId: 'test-session',            hasSteps: false,
-            dependencies: '[]'
+            dependencies: '[]',
           }),
-          include: { steps: true }
+          include: { steps: true },
         })
         expect(created?.id).toBe('new-task-1')
       })
@@ -253,7 +253,7 @@ describe('Database - Unified Task Model', () => {
               asyncWaitTime: 0,
               status: 'pending' as const,
               stepIndex: 0,
-              percentComplete: 0
+              percentComplete: 0,
             },
             {
               id: 'step-1',
@@ -265,9 +265,9 @@ describe('Database - Unified Task Model', () => {
               asyncWaitTime: 60,
               status: 'pending' as const,
               stepIndex: 1,
-              percentComplete: 0
-            }
-          ]
+              percentComplete: 0,
+            },
+          ],
         }
 
         mockPrisma.task.create.mockResolvedValue({
@@ -275,7 +275,7 @@ describe('Database - Unified Task Model', () => {
           ...workflowData,
           dependencies: '[]',
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         })
 
         mockPrisma.task.findUnique.mockResolvedValue({
@@ -288,8 +288,8 @@ describe('Database - Unified Task Model', () => {
             id: `step-${i}`,
             taskId: 'workflow-new',
             ...s,
-            dependsOn: JSON.stringify(s.dependsOn)
-          }))
+            dependsOn: JSON.stringify(s.dependsOn),
+          })),
         })
 
         const created = await db.createTask(workflowData)
@@ -299,13 +299,13 @@ describe('Database - Unified Task Model', () => {
           data: expect.arrayContaining([
             expect.objectContaining({
               name: 'Step A',
-              taskId: 'workflow-new'
+              taskId: 'workflow-new',
             }),
             expect.objectContaining({
               name: 'Step B',
-              taskId: 'workflow-new'
-            })
-          ])
+              taskId: 'workflow-new',
+            }),
+          ]),
         })
         expect(created?.hasSteps).toBe(true)
       })
@@ -317,13 +317,13 @@ describe('Database - Unified Task Model', () => {
           name: 'Updated Task',
           duration: 90,
           completed: true,
-          completedAt: new Date()
+          completedAt: new Date(),
         }
 
         mockPrisma.task.update.mockResolvedValue({
           ...mockSimpleTask,
           ...updates,
-          dependencies: '[]'
+          dependencies: '[]',
         })
 
         const updated = await db.updateTask('task-1', updates)
@@ -333,21 +333,21 @@ describe('Database - Unified Task Model', () => {
           data: expect.objectContaining({
             name: 'Updated Task',
             duration: 90,
-            completed: true
+            completed: true,
           }),
-          include: { steps: { orderBy: { stepIndex: 'asc' } } }
+          include: { steps: { orderBy: { stepIndex: 'asc' } } },
         })
         expect(updated?.name).toBe('Updated Task')
       })
 
       it('should handle dependencies update', async () => {
         const updates = {
-          dependencies: ['task-2', 'task-3']
+          dependencies: ['task-2', 'task-3'],
         }
 
         mockPrisma.task.update.mockResolvedValue({
           ...mockSimpleTask,
-          dependencies: '["task-2","task-3"]'
+          dependencies: '["task-2","task-3"]',
         })
 
         await db.updateTask('task-1', updates)
@@ -355,9 +355,9 @@ describe('Database - Unified Task Model', () => {
         expect(mockPrisma.task.update).toHaveBeenCalledWith(
           expect.objectContaining({
             data: expect.objectContaining({
-              dependencies: '["task-2","task-3"]'
-            })
-          })
+              dependencies: '["task-2","task-3"]',
+            }),
+          }),
         )
       })
     })
@@ -367,7 +367,7 @@ describe('Database - Unified Task Model', () => {
         await db.deleteTask('task-1')
 
         expect(mockPrisma.task.delete).toHaveBeenCalledWith({
-          where: { id: 'task-1' }
+          where: { id: 'task-1' },
         })
       })
     })
@@ -378,16 +378,16 @@ describe('Database - Unified Task Model', () => {
           {
             ...mockSimpleTask,
             dependencies: '[]',
-            steps: []
+            steps: [],
           },
           {
             ...mockWorkflowTask,
             dependencies: '[]',
             steps: mockWorkflowTask.steps.map(s => ({
               ...s,
-              dependsOn: JSON.stringify(s.dependsOn)
-            }))
-          }
+              dependsOn: JSON.stringify(s.dependsOn),
+            })),
+          },
         ])
 
         const workflows = await db.getSequencedTasks()
@@ -412,13 +412,13 @@ describe('Database - Unified Task Model', () => {
           { type: 'focused', actualMinutes: 30, plannedMinutes: 30 },
           { type: 'admin', actualMinutes: 45, plannedMinutes: 40 },
           { type: 'focused', actualMinutes: null, plannedMinutes: 20 },
-          { type: 'admin', actualMinutes: 15, plannedMinutes: 15 }        ])
+          { type: 'admin', actualMinutes: 15, plannedMinutes: 15 }])
 
         const result = await db.getTodayAccumulated(testDate)
 
         expect(result).toEqual({
           focused: 50, // 30 + 20
-          admin: 60  // 45 + 15
+          admin: 60,  // 45 + 15
         })
       })
 
@@ -429,14 +429,14 @@ describe('Database - Unified Task Model', () => {
 
         expect(result).toEqual({
           focused: 0,
-          admin: 0
+          admin: 0,
         })
       })
 
       it('should use actualMinutes when available', async () => {
         mockPrisma.workSession.findMany.mockResolvedValue([
           { type: 'focused', actualMinutes: 45, plannedMinutes: 30 },
-          { type: 'focused', actualMinutes: null, plannedMinutes: 30 }        ])
+          { type: 'focused', actualMinutes: null, plannedMinutes: 30 }])
 
         const result = await db.getTodayAccumulated(testDate)
 
@@ -451,7 +451,7 @@ describe('Database - Unified Task Model', () => {
           type: 'focused' as const,
         sessionId: 'test-session',          startTime: new Date('2024-01-15T10:00:00'),
           plannedMinutes: 30,
-          notes: 'Test session'
+          notes: 'Test session',
         }
 
         mockPrisma.workSession.create.mockResolvedValue({
@@ -459,7 +459,7 @@ describe('Database - Unified Task Model', () => {
           ...sessionData,
           endTime: new Date('2024-01-15T10:30:00'),
           plannedMinutes: 30,
-          actualMinutes: 30
+          actualMinutes: 30,
         })
 
         await db.createWorkSession(sessionData)
@@ -469,8 +469,8 @@ describe('Database - Unified Task Model', () => {
             taskId: 'task-1',
             type: 'focused',
         sessionId: 'test-session',            plannedMinutes: 30,
-            actualMinutes: 30
-          })
+            actualMinutes: 30,
+          }),
         })
       })
 
@@ -480,7 +480,7 @@ describe('Database - Unified Task Model', () => {
           stepId: 'step-1',
           type: 'admin' as const,
         sessionId: 'test-session',          startTime: new Date('2024-01-15T14:00:00'),
-          plannedMinutes: 45
+          plannedMinutes: 45,
         }
 
         await db.createWorkSession(sessionData)
@@ -490,8 +490,8 @@ describe('Database - Unified Task Model', () => {
             taskId: 'workflow-1',
             stepId: 'step-1',
             type: 'admin',
-        sessionId: 'test-session',            plannedMinutes: 45
-          })
+        sessionId: 'test-session',            plannedMinutes: 45,
+          }),
         })
       })
     })
@@ -504,7 +504,7 @@ describe('Database - Unified Task Model', () => {
         name: 'Migrated Workflow',
         hasSteps: true,
         dependencies: '[]',
-        steps: []
+        steps: [],
       })
 
       const task = await db.getTaskById('migrated-old-workflow-id')
@@ -528,7 +528,7 @@ describe('Database - Unified Task Model', () => {
         criticalPathDuration: 240,
         worstCaseDuration: 300,
         overallStatus: 'not_started' as const,
-        steps: []
+        steps: [],
       }
 
       mockPrisma.task.create.mockResolvedValue({
@@ -538,7 +538,7 @@ describe('Database - Unified Task Model', () => {
         hasSteps: true,
         dependencies: '[]',
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
 
       const created = await db.createSequencedTask(workflowData)
@@ -547,9 +547,9 @@ describe('Database - Unified Task Model', () => {
       expect(mockPrisma.task.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            hasSteps: true
-          })
-        })
+            hasSteps: true,
+          }),
+        }),
       )
     })
   })

@@ -473,7 +473,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       if (processingMode === 'workflows') {
         const result = await getDatabase().extractWorkflowsFromBrainstorm(
           brainstormText.trim(),
-          enrichedContext || undefined,
+          enrichedContext ?? null,
         )
         setBrainstormResult({
           workflows: result.workflows.map(wf => ({

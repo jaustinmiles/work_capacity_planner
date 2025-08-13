@@ -82,12 +82,12 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                 columns={[
                   { title: 'Date', dataIndex: 'date' },
                   { title: 'Block', dataIndex: 'blockId' },
-                  { 
-                    title: 'Time', 
-                    render: (_, record) => `${record.startTime} - ${record.endTime}` 
+                  {
+                    title: 'Time',
+                    render: (_, record) => `${record.startTime} - ${record.endTime}`,
                   },
-                  { 
-                    title: 'Focus', 
+                  {
+                    title: 'Focus',
                     render: (_, record) => {
                       const isFullyUsed = record.focusUsed === record.focusTotal
                       const color = isFullyUsed ? 'green' : record.focusUsed > 0 ? 'blue' : 'gray'
@@ -98,10 +98,10 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                           </Tag>
                         </Space>
                       )
-                    }
+                    },
                   },
-                  { 
-                    title: 'Admin', 
+                  {
+                    title: 'Admin',
                     render: (_, record) => {
                       const isFullyUsed = record.adminUsed === record.adminTotal
                       const color = isFullyUsed ? 'green' : record.adminUsed > 0 ? 'blue' : 'gray'
@@ -112,7 +112,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                           </Tag>
                         </Space>
                       )
-                    }
+                    },
                   },
                   {
                     title: 'Status',
@@ -122,7 +122,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                       if (val.includes('in the past')) return <Tag color="gray">{val}</Tag>
                       if (val.includes('started at')) return <Tag color="blue">{val}</Tag>
                       return <Tag color="orange">{val}</Tag>
-                    }
+                    },
                   },
                 ]}
                 data={debugInfo.blockUtilization}

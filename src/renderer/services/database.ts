@@ -192,7 +192,7 @@ export class RendererDatabaseService {
       console.error('Available window properties:', Object.keys(window))
       throw new Error('Electron API not available. Make sure the preload script is loaded correctly.')
     }
-    
+
     console.log('RendererDatabaseService: Initialized successfully')
   }
 

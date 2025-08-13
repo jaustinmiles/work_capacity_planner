@@ -17,14 +17,14 @@ export interface UseWorkflowProgressReturn {
   // State
   activeWorkSessions: Map<string, any>
   workSessionHistory: any[]
-  
+
   // Actions
   startWork: (stepId: string) => void
   pauseWork: (stepId: string) => void
   completeStep: (stepId: string, actualMinutes?: number, notes?: string) => Promise<void>
   updateProgress: (stepId: string, percentComplete: number) => Promise<void>
   logTime: (stepId: string, minutes: number, notes?: string) => Promise<void>
-  
+
   // Computed
   getStepProgress: (stepId: string) => {
     isActive: boolean
@@ -79,7 +79,7 @@ export function useWorkflowProgress(workflowId?: string): UseWorkflowProgressRet
   const getStepProgress = useCallback((stepId: string) => {
     const session = store.getActiveWorkSession(stepId)
     const step = workflow?.steps.find(s => s.id === stepId)
-    
+
     let elapsedMinutes = 0
     if (session) {
       const elapsed = session.isPaused ? 0 : Date.now() - new Date(session.startTime).getTime()

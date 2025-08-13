@@ -118,7 +118,7 @@ describe('GanttChart', () => {
             startTime: '09:00',
             endTime: '12:00',
             type: 'focused',
-        sessionId: 'test-session',          },
+        sessionId: 'test-session'          },
         ],
         meetings: [],
       })
@@ -134,7 +134,7 @@ describe('GanttChart', () => {
   describe('interactions', () => {
     it('should open work schedule modal when clicking settings button', async () => {
       const user = userEvent.setup()
-      
+
       render(<GanttChart tasks={[]} sequencedTasks={[]} />)
 
       await waitFor(() => {
@@ -148,7 +148,7 @@ describe('GanttChart', () => {
 
     it('should adjust zoom level with slider', async () => {
       const user = userEvent.setup()
-      
+
       // Mock with work pattern
       const { getDatabase } = await import('../../../services/database')
       const mockDb = getDatabase()
@@ -206,7 +206,7 @@ describe('GanttChart', () => {
             startTime: '10:00',
             endTime: '10:30',
             type: 'meeting',
-        sessionId: 'test-session',          },
+        sessionId: 'test-session'          },
         ],
       })
     })
@@ -248,10 +248,10 @@ describe('GanttChart', () => {
 
       await waitFor(() => {
         // Should have date headers
-        const dateStr = new Date('2025-08-12').toLocaleDateString([], { 
-          weekday: 'short', 
-          month: 'short', 
-          day: 'numeric' 
+        const dateStr = new Date('2025-08-12').toLocaleDateString([], {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
         })
         expect(screen.getByText(dateStr)).toBeInTheDocument()
       })
@@ -282,14 +282,14 @@ describe('GanttChart', () => {
             startTime: '10:00',
             endTime: '10:30',
             type: 'meeting',
-        sessionId: 'test-session',          },
+        sessionId: 'test-session'          },
           {
             id: 'meeting-1', // Duplicate ID to test deduplication
             name: 'Meeting 2',
             startTime: '10:00',
             endTime: '10:30',
             type: 'meeting',
-        sessionId: 'test-session',          },
+        sessionId: 'test-session'          },
         ],
       })
 
@@ -304,7 +304,7 @@ describe('GanttChart', () => {
 
       // Check that no duplicate key warnings were logged
       const duplicateKeyErrors = consoleSpy.mock.calls.filter(call =>
-        call.some(arg => typeof arg === 'string' && arg.includes('duplicate key'))
+        call.some(arg => typeof arg === 'string' && arg.includes('duplicate key')),
       )
       expect(duplicateKeyErrors?.length).toBe(0)
 

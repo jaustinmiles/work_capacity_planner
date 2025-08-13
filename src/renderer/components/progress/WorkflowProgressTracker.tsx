@@ -18,7 +18,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
 }) => {
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
   const [showTimeModal, setShowTimeModal] = useState<string | null>(null)
-  
+
   const {
     startWork,
     pauseWork,
@@ -42,20 +42,20 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
     setExpandedSteps(newExpanded)
   }
 
-  const handleStartWork = (step: TaskStep) => (e: React.MouseEvent) => {
+  const handleStartWork = (step: TaskStep) => (e: any) => {
     e.stopPropagation()
     startWork(step.id)
   }
 
-  const handlePauseWork = (step: TaskStep) => (e: React.MouseEvent) => {
+  const handlePauseWork = (step: TaskStep) => (e: any) => {
     e.stopPropagation()
     pauseWork(step.id)
   }
 
-  const handleCompleteStep = (step: TaskStep) => async (e: React.MouseEvent) => {
+  const handleCompleteStep = (step: TaskStep) => async (e: any) => {
     e.stopPropagation()
     const progress = getStepProgress(step.id)
-    
+
     if (progress.elapsedMinutes > 0) {
       // If work was tracked, complete with tracked time
       await completeStep(step.id)
@@ -79,12 +79,12 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
     }
 
     return (
-      <Card 
-        key={step.id} 
-        style={{ 
+      <Card
+        key={step.id}
+        style={{
           marginBottom: 8,
           borderColor: getStepStatusColor(),
-          backgroundColor: step.status === 'completed' ? '#F6FFED' : step.status === 'in_progress' ? '#F0F9FF' : undefined
+          backgroundColor: step.status === 'completed' ? '#F6FFED' : step.status === 'in_progress' ? '#F0F9FF' : undefined,
         }}
         hoverable
         onClick={() => toggleStepExpanded(step.id)}
@@ -93,11 +93,11 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
           <Row justify="space-between" align="center">
             <Col flex="auto">
               <Space align="center">
-                <IconDown 
-                  style={{ 
+                <IconDown
+                  style={{
                     transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-                    transition: 'transform 0.2s'
-                  }} 
+                    transition: 'transform 0.2s',
+                  }}
                 />
                 <Title heading={6} style={{ margin: 0 }}>{step.name}</Title>
                 {step.status === 'completed' && (
@@ -112,7 +112,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
                   </Tag>
                 )}
               </Space>
-              
+
               <Space style={{ marginTop: 4 }}>
                 <Text type="secondary">Est: {formatDuration(step.duration)}</Text>
                 {stepStats.actualMinutes > 0 && (
@@ -134,7 +134,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
                     title="Start work"
                   />
                 )}
-                
+
                 {step.status === 'in_progress' && progress.isActive && (
                   <Button
                     type="text"
@@ -143,7 +143,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
                     title="Pause work"
                   />
                 )}
-                
+
                 {step.status === 'in_progress' && progress.isPaused && (
                   <Button
                     type="text"
@@ -152,7 +152,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
                     title="Resume work"
                   />
                 )}
-                
+
                 {step.status === 'in_progress' && (
                   <Button
                     type="primary"
@@ -162,7 +162,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
                     Complete
                   </Button>
                 )}
-                
+
                 {/* Always show log time button */}
                 <Button
                   type="text"
@@ -184,8 +184,8 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
                   <Text type="secondary">Progress</Text>
                   <Text type="secondary">{step.percentComplete}%</Text>
                 </Row>
-                <Progress 
-                  percent={step.percentComplete} 
+                <Progress
+                  percent={step.percentComplete}
                   showText={false}
                 />
               </div>
@@ -206,7 +206,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
                         <Text style={{ fontWeight: 'bold',
                           color: Math.abs(stepStats.actualMinutes - step.duration) / step.duration > 0.2
                             ? '#FF7D00'
-                            : '#00B42A'
+                            : '#00B42A',
                         }}>
                           {Math.round((stepStats.actualMinutes / step.duration) * 100)}%
                         </Text>
@@ -229,7 +229,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
                           25: '25%',
                           50: '50%',
                           75: '75%',
-                          100: '100%'
+                          100: '100%',
                         }}
                       />
                     </Col>
@@ -257,7 +257,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
       {/* Overall progress summary */}
       <Card>
         <Title heading={5} style={{ marginBottom: 24 }}>Workflow Progress</Title>
-        
+
         <Row gutter={16} style={{ marginBottom: 24 }}>
           <Col span={6}>
             <Statistic
@@ -298,8 +298,8 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
           <Alert
             style={{ marginTop: 16 }}
             type={
-              stats.accuracyRatio > 1.2 ? 'warning' : 
-              stats.accuracyRatio < 0.8 ? 'info' : 
+              stats.accuracyRatio > 1.2 ? 'warning' :
+              stats.accuracyRatio < 0.8 ? 'info' :
               'success'
             }
             content={
@@ -333,10 +333,10 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
       {showTimeModal && (() => {
         const step = workflow.steps.find(s => s.id === showTimeModal)
         if (!step) return null
-        
+
         // Allow completing any non-completed step through the modal
         const canComplete = step.status !== 'completed'
-        
+
         return (
           <TimeLoggingModal
             step={step}

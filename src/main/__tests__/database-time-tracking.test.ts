@@ -27,11 +27,11 @@ vi.mock('@prisma/client', () => {
     },
     taskStep: {
       update: vi.fn(),
-    }
+    },
   }
 
   return {
-    PrismaClient: vi.fn(() => mockPrismaClient)
+    PrismaClient: vi.fn(() => mockPrismaClient),
   }
 })
 
@@ -42,7 +42,7 @@ describe('Database - Time Tracking', () => {
   beforeEach(() => {
     db = DatabaseService.getInstance()
     mockPrisma = (db as any).client
-    
+
     // Mock active session
     mockPrisma.session.findFirst.mockResolvedValue({ id: 'session-1' })
   })
@@ -63,7 +63,7 @@ describe('Database - Time Tracking', () => {
         sessions: [
           { type: 'focused', actualMinutes: 30, plannedMinutes: 25 },
           { type: 'admin', actualMinutes: 45, plannedMinutes: 40 },
-          { type: 'focused', actualMinutes: null, plannedMinutes: 20 },        ]
+          { type: 'focused', actualMinutes: null, plannedMinutes: 20 }],
       })
       mockPrisma.stepWorkSession.findMany.mockResolvedValue([])
       mockPrisma.task.findMany.mockResolvedValue([])
@@ -72,7 +72,7 @@ describe('Database - Time Tracking', () => {
 
       expect(result).toEqual({
         focused: 50, // 30 + 20
-        admin: 45
+        admin: 45,
       })
     })
 
@@ -81,14 +81,14 @@ describe('Database - Time Tracking', () => {
       mockPrisma.stepWorkSession.findMany.mockResolvedValue([
         { duration: 25, taskStep: { type: 'focused' } },
         { duration: 35, taskStep: { type: 'admin' } },
-        { duration: 15, taskStep: { type: 'focused' } },      ])
+        { duration: 15, taskStep: { type: 'focused' } }])
       mockPrisma.task.findMany.mockResolvedValue([])
 
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
         focused: 40, // 25 + 15
-        admin: 35
+        admin: 35,
       })
     })
 
@@ -98,31 +98,31 @@ describe('Database - Time Tracking', () => {
       mockPrisma.task.findMany.mockResolvedValue([
         { type: 'focused', actualDuration: 60 },
         { type: 'admin', actualDuration: 30 },
-        { type: 'focused', actualDuration: 45 },      ])
+        { type: 'focused', actualDuration: 45 }])
 
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
         focused: 105, // 60 + 45
-        admin: 30
+        admin: 30,
       })
     })
 
     it('should combine all sources of time tracking', async () => {
       mockPrisma.workPattern.findUnique.mockResolvedValue({
         sessions: [
-          { type: 'focused', actualMinutes: 30, plannedMinutes: 25 }        ]
+          { type: 'focused', actualMinutes: 30, plannedMinutes: 25 }],
       })
       mockPrisma.stepWorkSession.findMany.mockResolvedValue([
-        { duration: 25, taskStep: { type: 'focused' } }      ])
+        { duration: 25, taskStep: { type: 'focused' } }])
       mockPrisma.task.findMany.mockResolvedValue([
-        { type: 'focused', actualDuration: 60 }      ])
+        { type: 'focused', actualDuration: 60 }])
 
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
         focused: 115, // 30 + 25 + 60
-        admin: 0
+        admin: 0,
       })
     })
 
@@ -135,7 +135,7 @@ describe('Database - Time Tracking', () => {
 
       expect(result).toEqual({
         focused: 0,
-        admin: 0
+        admin: 0,
       })
     })
 
@@ -181,18 +181,18 @@ describe('Database - Time Tracking', () => {
         taskStepId: 'step-1',
         startTime: new Date(),
         duration: 30,
-        notes: 'Test session'
+        notes: 'Test session',
       }
 
       mockPrisma.stepWorkSession.create.mockResolvedValue({
         id: 'session-1',
-        ...sessionData
+        ...sessionData,
       })
 
       await db.createStepWorkSession(sessionData)
 
       expect(mockPrisma.stepWorkSession.create).toHaveBeenCalledWith({
-        data: sessionData
+        data: sessionData,
       })
     })
 
@@ -202,14 +202,14 @@ describe('Database - Time Tracking', () => {
 
       mockPrisma.task.update.mockResolvedValue({
         id: taskId,
-        ...updates
+        ...updates,
       })
 
       await db.updateTask(taskId, updates)
 
       expect(mockPrisma.task.update).toHaveBeenCalledWith({
         where: { id: taskId },
-        data: updates
+        data: updates,
       })
     })
   })

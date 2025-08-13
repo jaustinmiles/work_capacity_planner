@@ -74,7 +74,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         [],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       // Find the scheduled items
@@ -97,15 +97,15 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
       // CRITICAL: Step 2 should NOT be scheduled until AFTER the async wait
       expect(step2).toBeDefined()
       expect(step2!.startTime.getTime()).toBeGreaterThanOrEqual(
-        step1Wait!.endTime.getTime()
+        step1Wait!.endTime.getTime(),
       )
-      
+
       // Step 2 should be on the next day after the wait completes
       expect(step2!.startTime).toEqual(new Date('2025-01-14T10:00:00'))
-      
+
       // Check for any warnings in debug info
-      const warningsAboutStep2 = debugInfo.warnings.filter(w => 
-        w.includes('Step 2') || w.includes('step-2')
+      const warningsAboutStep2 = debugInfo.warnings.filter(w =>
+        w.includes('Step 2') || w.includes('step-2'),
       )
       console.log('Scheduling warnings:', warningsAboutStep2)
     })
@@ -181,7 +181,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         [independentTask],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       const step1 = scheduledItems.find(item => item.id === 'step-1')
@@ -194,15 +194,15 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
       // Independent task should be scheduled during the async wait period
       expect(independentScheduled).toBeDefined()
       expect(independentScheduled!.startTime.getTime()).toBeGreaterThanOrEqual(
-        step1!.endTime.getTime()
+        step1!.endTime.getTime(),
       )
       expect(independentScheduled!.startTime.getTime()).toBeLessThan(
-        new Date('2025-01-14T10:00:00').getTime() // Before step 2
+        new Date('2025-01-14T10:00:00').getTime(), // Before step 2
       )
 
       // Step 2 should be after the async wait
       expect(step2!.startTime.getTime()).toBeGreaterThanOrEqual(
-        new Date('2025-01-14T10:00:00').getTime()
+        new Date('2025-01-14T10:00:00').getTime(),
       )
     })
 
@@ -268,7 +268,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         [],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       const step1 = scheduledItems.find(item => item.id === 'step-1')
@@ -279,7 +279,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
       // Step 3 should wait for the longest dependency (step-2 with 2 hour wait)
       expect(step3).toBeDefined()
       expect(step3!.startTime.getTime()).toBeGreaterThanOrEqual(
-        step2Wait!.endTime.getTime()
+        step2Wait!.endTime.getTime(),
       )
     })
   })
@@ -335,7 +335,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         [],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       // Should still schedule step 1
@@ -343,8 +343,8 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
       expect(step1).toBeDefined()
 
       // Should have a warning about the bad dependency
-      const depWarnings = debugInfo.warnings.filter(w => 
-        w.includes('non-existent-step-id')
+      const depWarnings = debugInfo.warnings.filter(w =>
+        w.includes('non-existent-step-id'),
       )
       expect(depWarnings?.length).toBeGreaterThan(0)
     })

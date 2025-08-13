@@ -25,7 +25,7 @@ export interface Task {
   actualDuration?: number // for time tracking
   notes?: string
   projectId?: string // for grouping
-  
+
   // Workflow support
   hasSteps: boolean
   currentStepId?: string

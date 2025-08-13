@@ -261,12 +261,12 @@ export function scheduleItemsWithBlocksAndDebug(
   const completedSteps = new Set<string>()
   const asyncWaitEndTimes = new Map<Date, string>()
   const workflowProgress = new Map<string, number>() // Track how many steps scheduled per workflow
-  
+
   // Debug tracking
   const debugInfo: SchedulingDebugInfo = {
     unscheduledItems: [],
     blockUtilization: [],
-    warnings: []
+    warnings: [],
   }
 
   // ASSERTION: Validate inputs
@@ -274,7 +274,7 @@ export function scheduleItemsWithBlocksAndDebug(
     debugInfo.warnings.push('No work patterns provided - cannot schedule any items')
     return { scheduledItems: [], debugInfo }
   }
-  
+
   // ASSERTION: Check for duplicate IDs
   const allIds = new Set<string>()
   tasks.forEach(t => {
@@ -283,7 +283,7 @@ export function scheduleItemsWithBlocksAndDebug(
     }
     allIds.add(t.id)
   })
-  
+
   sequencedTasks.forEach(st => {
     st.steps.forEach(step => {
       if (allIds.has(step.id)) {
@@ -409,20 +409,20 @@ export function scheduleItemsWithBlocksAndDebug(
 
     // Create block capacities
     const blockCapacities = pattern.blocks.map(block => getBlockCapacity(block, currentDate))
-    
+
     // Track initial block state for debugging
     const blockStartState = blockCapacities.map(block => {
       // Calculate effective capacity based on current time
       let effectiveFocusMinutes = block.focusMinutesTotal
       let effectiveAdminMinutes = block.adminMinutesTotal
       let timeConstraint = ''
-      
+
       if (currentTime > block.startTime && currentTime < block.endTime) {
         // We're in the middle of this block
         const remainingMinutes = Math.floor((block.endTime.getTime() - currentTime.getTime()) / 60000)
         const totalMinutes = Math.floor((block.endTime.getTime() - block.startTime.getTime()) / 60000)
         const ratio = remainingMinutes / totalMinutes
-        
+
         effectiveFocusMinutes = Math.floor(block.focusMinutesTotal * ratio)
         effectiveAdminMinutes = Math.floor(block.adminMinutesTotal * ratio)
         timeConstraint = ` (started at ${currentTime.toLocaleTimeString()})`
@@ -432,13 +432,13 @@ export function scheduleItemsWithBlocksAndDebug(
         effectiveAdminMinutes = 0
         timeConstraint = ' (in the past)'
       }
-      
+
       return {
         ...block,
         date: dateStr,
         effectiveFocusMinutes,
         effectiveAdminMinutes,
-        timeConstraint
+        timeConstraint,
       }
     })
 
@@ -515,12 +515,12 @@ export function scheduleItemsWithBlocksAndDebug(
       // the async wait completes
       if (item.dependencies && item.dependencies.length > 0) {
         let canScheduleItem = true
-        
+
         for (const dep of item.dependencies) {
           // Dependencies can be in format ["name", "id"] or just "id"
           // Extract the actual step ID (it's the last element if array, or the string itself)
           const depId = Array.isArray(dep) ? dep[dep.length - 1] : dep
-          
+
           // Check if this dependency is still in an async wait period
           let isWaitingOnAsync = false
           for (const [asyncEndTime, waitingItemId] of asyncWaitEndTimes.entries()) {
@@ -529,16 +529,16 @@ export function scheduleItemsWithBlocksAndDebug(
               canScheduleItem = false
               isWaitingOnAsync = true
               debugInfo.warnings.push(
-                `Cannot schedule "${item.name}" yet - waiting for dependency "${depId}" to complete async wait (ends ${asyncEndTime.toLocaleString()})`
+                `Cannot schedule "${item.name}" yet - waiting for dependency "${depId}" to complete async wait (ends ${asyncEndTime.toLocaleString()})`,
               )
               break
             }
           }
-          
+
           if (isWaitingOnAsync) {
             break // Already found we can't schedule
           }
-          
+
           // Also check if the dependency has been completed/scheduled at all
           if (!completedSteps.has(depId)) {
             // Check if it's been scheduled (even if not "completed" in execution terms)
@@ -550,20 +550,20 @@ export function scheduleItemsWithBlocksAndDebug(
               if (!depExists) {
                 // This dependency doesn't exist - log warning but allow scheduling
                 debugInfo.warnings.push(
-                  `Warning: Dependency "${depId}" for "${item.name}" not found - allowing schedule`
+                  `Warning: Dependency "${depId}" for "${item.name}" not found - allowing schedule`,
                 )
               } else {
                 // Dependency exists but not scheduled yet
                 canScheduleItem = false
                 debugInfo.warnings.push(
-                  `Cannot schedule "${item.name}" - dependency "${depId}" not yet scheduled`
+                  `Cannot schedule "${item.name}" - dependency "${depId}" not yet scheduled`,
                 )
                 break
               }
             }
           }
         }
-        
+
         if (!canScheduleItem) {
           // Skip this item for now, it will be retried later
           continue
@@ -655,7 +655,7 @@ export function scheduleItemsWithBlocksAndDebug(
       if (!itemScheduled && blockCapacities.length > 0) {
         // Determine why the item couldn't be scheduled
         let reason = 'Unknown reason'
-        
+
         if (blockCapacities.every(block => {
           if (item.taskType === 'focused') {
             return block.focusMinutesUsed + item.duration > block.focusMinutesTotal
@@ -672,7 +672,7 @@ export function scheduleItemsWithBlocksAndDebug(
             reason = 'Time conflicts with other scheduled items'
           }
         }
-        
+
         // Check if currentTime is past all blocks for today
         const lastBlock = blockCapacities[blockCapacities.length - 1]
         if (lastBlock && currentTime.getTime() >= lastBlock.endTime.getTime()) {
@@ -694,7 +694,7 @@ export function scheduleItemsWithBlocksAndDebug(
         const original = blockStartState[index]
         const unusedFocus = block.focusMinutesTotal - block.focusMinutesUsed
         const unusedAdmin = block.adminMinutesTotal - block.adminMinutesUsed
-        
+
         let unusedReason: string | undefined
         if (unusedFocus > 30 || unusedAdmin > 30) {
           if (unusedFocus > 30 && unusedAdmin > 30) {
@@ -705,7 +705,7 @@ export function scheduleItemsWithBlocksAndDebug(
             unusedReason = `${unusedAdmin} admin minutes unused`
           }
         }
-        
+
         const blockState = blockStartState[index]
         debugInfo.blockUtilization.push({
           date: dateStr,
@@ -716,10 +716,10 @@ export function scheduleItemsWithBlocksAndDebug(
           focusTotal: block.focusMinutesTotal,
           adminUsed: block.adminMinutesUsed,
           adminTotal: block.adminMinutesTotal,
-          unusedReason: unusedReason || blockState?.timeConstraint
+          unusedReason: unusedReason || blockState?.timeConstraint,
         })
       })
-      
+
       currentDate.setDate(currentDate.getDate() + 1)
       dayIndex++
 
@@ -788,14 +788,14 @@ export function scheduleItemsWithBlocksAndDebug(
         }
       }
     }
-    
+
     // Also track block utilization at the end of the scheduling loop
     if (blockCapacities && blockCapacities.length > 0) {
       blockCapacities.forEach((block, index) => {
         const blockState = blockStartState[index]
         // Only add if not already tracked
-        const alreadyTracked = debugInfo.blockUtilization.some(b => 
-          b.date === dateStr && b.blockId === block.blockId
+        const alreadyTracked = debugInfo.blockUtilization.some(b =>
+          b.date === dateStr && b.blockId === block.blockId,
         )
         if (!alreadyTracked) {
           debugInfo.blockUtilization.push({
@@ -807,7 +807,7 @@ export function scheduleItemsWithBlocksAndDebug(
             focusTotal: block.focusMinutesTotal,
             adminUsed: block.adminMinutesUsed,
             adminTotal: block.adminMinutesTotal,
-            unusedReason: blockState?.timeConstraint || undefined
+            unusedReason: blockState?.timeConstraint ?? null,
           })
         }
       })
@@ -820,22 +820,22 @@ export function scheduleItemsWithBlocksAndDebug(
       name: item.name,
       type: item.taskType,
       duration: item.duration,
-      reason: 'Ran out of available days or capacity'
+      reason: 'Ran out of available days or capacity',
     })
   })
-  
+
   // Add warnings if significant capacity was unused
-  const totalUnusedFocus = debugInfo.blockUtilization.reduce((sum, block) => 
+  const totalUnusedFocus = debugInfo.blockUtilization.reduce((sum, block) =>
     sum + (block.focusTotal - block.focusUsed), 0)
-  const totalUnusedAdmin = debugInfo.blockUtilization.reduce((sum, block) => 
+  const totalUnusedAdmin = debugInfo.blockUtilization.reduce((sum, block) =>
     sum + (block.adminTotal - block.adminUsed), 0)
-    
+
   if (totalUnusedFocus > 120 && workItems.some(w => w.taskType === 'focused')) {
     debugInfo.warnings.push(`${totalUnusedFocus} minutes of focus time unused while focus tasks remain unscheduled`)
   }
   if (totalUnusedAdmin > 120 && workItems.some(w => w.taskType === 'admin')) {
     debugInfo.warnings.push(`${totalUnusedAdmin} minutes of admin time unused while admin tasks remain unscheduled`)
   }
-  
+
   return { scheduledItems, debugInfo }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, Form, InputNumber, Typography, Space, Button, Message, DatePicker, Input } from '@arco-design/web-react'
+import { Modal, Form, InputNumber, Typography, Space, Message, DatePicker, Input } from '@arco-design/web-react'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
@@ -25,45 +25,45 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       const values = await form.validate()
       const timeSpent = values.timeSpent
       const workDate = values.date || new Date()
-      
+
       // Validate time is at least 1 minute
       if (!timeSpent || timeSpent < 1) {
         Message.error('Please enter at least 1 minute')
         setLoading(false)
         return
       }
-      
+
       // Create a work session record
       const startTime = new Date(workDate)
       startTime.setHours(12, 0, 0, 0) // Default to noon if not specified
-      
+
       await getDatabase().createWorkSession({
         taskId: task.id,
         type: task.type as 'focused' | 'admin',
         startTime: startTime,
         plannedMinutes: timeSpent,
         actualMinutes: timeSpent,
-        notes: values.notes || ''
+        notes: values.notes || '',
       })
-      
+
       // Update the task with the new actual duration
       const currentLoggedTime = await getDatabase().getTaskTotalLoggedTime(task.id)
-      
+
       await updateTask(task.id, {
-        actualDuration: currentLoggedTime
+        actualDuration: currentLoggedTime,
       })
-      
+
       // Emit event to update other components
       appEvents.emit(EVENTS.TIME_LOGGED)
-      
+
       // Check if we need to prompt for re-estimation
       if (currentLoggedTime >= task.duration && !task.completed) {
         Message.warning({
           content: `You've logged ${currentLoggedTime} minutes on a ${task.duration} minute task. Consider re-estimating the remaining time.`,
-          duration: 5000
+          duration: 5000,
         })
       }
-      
+
       Message.success('Time logged successfully')
       form.resetFields()
       onClose()
@@ -97,9 +97,9 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       <Form
         form={form}
         layout="vertical"
-        initialValues={{ 
+        initialValues={{
           timeSpent: 15,
-          date: dayjs().format('YYYY-MM-DD')
+          date: dayjs().format('YYYY-MM-DD'),
         }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -107,14 +107,14 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
             <Text type="secondary">Estimated duration: </Text>
             <Text style={{ fontWeight: 600 }}>{formatTime(task.duration)}</Text>
           </div>
-          
+
           {task.actualDuration && (
             <div>
               <Text type="secondary">Time already logged: </Text>
               <Text style={{ fontWeight: 600 }}>{formatTime(task.actualDuration)}</Text>
             </div>
           )}
-          
+
           <Form.Item
             field="date"
             label="When did you do this work?"
@@ -133,7 +133,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
             label="Time spent (minutes)"
             rules={[
               { required: true, message: 'Please enter time spent' },
-              { type: 'number', min: 1, message: 'Time must be at least 1 minute' }
+              { type: 'number', min: 1, message: 'Time must be at least 1 minute' },
             ]}
           >
             <InputNumber
@@ -144,7 +144,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
               suffix="minutes"
             />
           </Form.Item>
-          
+
           <Form.Item
             field="notes"
             label="Notes (optional)"
@@ -154,7 +154,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
               rows={2}
             />
           </Form.Item>
-          
+
           <Text type="secondary" style={{ fontSize: 12 }}>
             Tip: Use arrow keys or type a number. Common values: 15, 30, 45, 60, 90, 120
           </Text>

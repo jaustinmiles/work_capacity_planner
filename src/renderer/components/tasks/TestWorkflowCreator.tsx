@@ -1,4 +1,3 @@
-import React from 'react'
 import { Button } from '@arco-design/web-react'
 import { useTaskStore } from '../../store/useTaskStore'
 import { SequencedTask } from '@shared/sequencing-types'

@@ -56,7 +56,7 @@ export function createWorkflowTask(params: {
     stepIndex: index,
     status: step.status || 'pending',
     percentComplete: step.percentComplete || 0,
-    dependsOn: step.dependsOn || []
+    dependsOn: step.dependsOn || [],
   }))
 
   const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0)
@@ -78,7 +78,7 @@ export function createWorkflowTask(params: {
     overallStatus: 'not_started',
     criticalPathDuration,
     worstCaseDuration,
-    steps
+    steps,
   }
 }
 

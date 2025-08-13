@@ -64,14 +64,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               startTime: '09:00',
               endTime: '12:00',
               type: 'mixed',
-              capacity: { focused: 120, admin: 60 },
+              capacity: { focusMinutes: 120, adminMinutes: 60 },
             },
             {
               id: `default-afternoon-${dateStr}`,
               startTime: '13:00',
               endTime: '17:00',
               type: 'mixed',
-              capacity: { focused: 180, admin: 60 },
+              capacity: { focusMinutes: 180, adminMinutes: 60 },
             },
           ],
           meetings: [],
@@ -181,7 +181,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     let currentRow = 0
     const workflowRows = new Map<string, number>()
     const workflowProgress = new Map<string, { completed: number, total: number }>()
-    
+
     // Separate items by type
     const blockedItems = scheduledItems.filter((item: any) => item.isBlocked)
     const taskItems = scheduledItems.filter((item: any) => !item.isBlocked && !item.isWaitTime)
@@ -225,7 +225,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         currentRow++
       }
     })
-    
+
     // Fourth pass: assign wait times to same row as their parent
     waitItems.forEach((item: any) => {
       const parentId = item.id.replace('-wait', '')
@@ -954,7 +954,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         onClose={() => setShowMultiDayEditor(false)}
         onSave={() => loadWorkPatterns()}
       />
-      
+
       {/* Scheduling Debug Info */}
       {showDebugInfo && debugInfo && (
         <DebugInfoComponent debugInfo={debugInfo} />

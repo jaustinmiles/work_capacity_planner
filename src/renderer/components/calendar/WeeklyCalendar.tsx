@@ -85,7 +85,7 @@ export function WeeklyCalendar() {
   // Group scheduled items by date
   const itemsByDate = useMemo(() => {
     const grouped = new Map<string, ScheduledItem[]>()
-    
+
     scheduledItems.forEach(item => {
       if (!item.isWaitTime) {
         const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
@@ -94,7 +94,7 @@ export function WeeklyCalendar() {
         grouped.set(dateStr, existing)
       }
     })
-    
+
     return grouped
   }, [scheduledItems])
 
@@ -126,7 +126,7 @@ export function WeeklyCalendar() {
     const allTasks = [...tasks, ...sequencedTasks]
     const now = dayjs()
     const oneWeekFromNow = now.add(7, 'day')
-    
+
     return allTasks
       .filter(task => task.deadline && !task.completed)
       .filter(task => {
@@ -144,18 +144,18 @@ export function WeeklyCalendar() {
     const isPast = currentDate.isBefore(dayjs(), 'day')
     const dateStr = currentDate.format('YYYY-MM-DD')
     const daySchedule = itemsByDate.get(dateStr) || []
-    
+
     // Calculate time by type for this day
     const focusedMinutes = daySchedule
-      .filter(item => item.originalItem && 'type' in item.originalItem && 
+      .filter(item => item.originalItem && 'type' in item.originalItem &&
         (item.originalItem as any).type === 'focused')
       .reduce((sum, item) => sum + item.duration, 0)
-    
+
     const adminMinutes = daySchedule
-      .filter(item => item.originalItem && 'type' in item.originalItem && 
+      .filter(item => item.originalItem && 'type' in item.originalItem &&
         (item.originalItem as any).type === 'admin')
       .reduce((sum, item) => sum + item.duration, 0)
-    
+
     const hasScheduledTasks = daySchedule.length > 0
     const workPattern = workPatterns.find(p => p.date === dateStr)
     const hasWorkBlocks = workPattern && workPattern.blocks.length > 0
@@ -164,14 +164,14 @@ export function WeeklyCalendar() {
       <div style={{
         padding: '4px',
         height: '100%',
-        background: isToday ? '#E8F3FF' : 
-                   isPast ? '#F5F5F5' : 
+        background: isToday ? '#E8F3FF' :
+                   isPast ? '#F5F5F5' :
                    isWeekend ? '#FAFAFA' : 'transparent',
         borderRadius: '4px',
         opacity: isPast && !isToday ? 0.7 : 1,
       }}>
-        <div style={{ 
-          fontSize: 16, 
+        <div style={{
+          fontSize: 16,
           fontWeight: isToday ? 600 : 400,
           color: isWeekend ? '#86909C' : undefined,
         }}>
@@ -263,7 +263,7 @@ export function WeeklyCalendar() {
             {upcomingDeadlines.map(task => {
               const daysUntil = dayjs(task.deadline!).diff(dayjs(), 'day')
               const hoursUntil = dayjs(task.deadline!).diff(dayjs(), 'hour')
-              
+
               return (
                 <div
                   key={task.id}
@@ -272,8 +272,8 @@ export function WeeklyCalendar() {
                     background: daysUntil <= 1 ? '#FFF7E8' : '#F5F5F5',
                     borderRadius: 6,
                     borderLeft: `3px solid ${
-                      daysUntil <= 1 ? '#FF7D00' : 
-                      daysUntil <= 3 ? '#FAAD14' : 
+                      daysUntil <= 1 ? '#FF7D00' :
+                      daysUntil <= 3 ? '#FAAD14' :
                       '#52C41A'
                     }`,
                   }}
@@ -283,19 +283,19 @@ export function WeeklyCalendar() {
                       <Text style={{ fontWeight: 600 }}>{task.name}</Text>
                       <br />
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        {task.duration} min • 
-                        Priority: {task.importance * task.urgency} • 
-                        {'steps' in task ? `Workflow (${task.steps.length} steps)` : 'Task'}
+                        {task.duration} min •
+                        Priority: {task.importance * task.urgency} •
+                        {'steps' in task && task.steps ? `Workflow (${task.steps.length} steps)` : 'Task'}
                       </Text>
                     </div>
-                    <Tag 
+                    <Tag
                       color={daysUntil <= 1 ? 'red' : daysUntil <= 3 ? 'orange' : 'green'}
                       style={{ marginLeft: 8 }}
                     >
-                      {daysUntil === 0 
-                        ? `${hoursUntil} hours` 
-                        : daysUntil === 1 
-                        ? 'Tomorrow' 
+                      {daysUntil === 0
+                        ? `${hoursUntil} hours`
+                        : daysUntil === 1
+                        ? 'Tomorrow'
                         : `${daysUntil} days`
                       }
                     </Tag>
@@ -327,7 +327,7 @@ export function WeeklyCalendar() {
               <Space direction="vertical">
                 <Text>No scheduled items to display</Text>
                 <Text type="secondary">
-                  {workPatterns.length === 0 
+                  {workPatterns.length === 0
                     ? 'Set up your work schedule to see tasks distributed across days'
                     : 'Add some tasks to see them scheduled'
                   }
@@ -412,7 +412,7 @@ export function WeeklyCalendar() {
                 <Text type="secondary">
                   Tasks are automatically scheduled based on priority, deadlines, and available capacity.
                   {workPatterns.some(p => p.blocks.some(b => b.id.startsWith('default-'))) && (
-                    <> Using default schedule (9-12, 1-5) for days without custom patterns.</>  
+                    <> Using default schedule (9-12, 1-5) for days without custom patterns.</>
                   )}
                 </Text>
               </Space>

@@ -89,9 +89,9 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
     } catch (error) {
       console.error('Error extracting tasks from brainstorm:', error)
       if (error instanceof SyntaxError) {
-        throw new Error(`Failed to parse AI response as JSON: ${error.message}`)
+        throw new Error(`Failed to parse AI response as JSON: ${error instanceof Error ? error.message : String(error)}`)
       }
-      throw new Error(`Failed to extract tasks from brainstorm text: ${error.message}`)
+      throw new Error(`Failed to extract tasks from brainstorm text: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -224,7 +224,7 @@ Focus on understanding the async nature described in natural language. Be realis
     } catch (error) {
       console.error('Error extracting workflows from brainstorm:', error)
       if (error instanceof SyntaxError) {
-        throw new Error(`Failed to parse AI response as JSON: ${error.message}`)
+        throw new Error(`Failed to parse AI response as JSON: ${error instanceof Error ? error.message : String(error)}`)
       }
       throw new Error(`Failed to extract workflows from brainstorm text: ${error.message}`)
     }

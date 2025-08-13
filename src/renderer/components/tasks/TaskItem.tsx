@@ -140,7 +140,7 @@ export function TaskItem({ task }: TaskItemProps) {
                     >
                       Est: {formatDuration(task.duration)}
                     </Tag>
-                    
+
                     {loggedTime > 0 && (
                       <Tag
                         icon={<IconCheckCircleFill />}
@@ -218,7 +218,7 @@ export function TaskItem({ task }: TaskItemProps) {
                   onClick={() => setShowTimeModal(true)}
                 />
               </Tooltip>
-              
+
               <Tooltip content="Edit task">
                 <Button
                   type="text"
@@ -264,7 +264,7 @@ export function TaskItem({ task }: TaskItemProps) {
           onClose={() => setShowEditModal(false)}
         />
       </Modal>
-      
+
       {/* Time Logging Modal */}
       <TaskTimeLoggingModal
         task={task}

@@ -141,7 +141,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
         visible={visible}
         onCancel={onClose}
         footer={null}
-        width={800}
+        style={{ width: 800 }}
         maskClosable={false}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">

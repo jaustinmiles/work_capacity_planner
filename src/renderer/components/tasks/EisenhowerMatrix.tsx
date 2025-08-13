@@ -181,7 +181,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               <Button icon={<IconZoomOut />} onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} />
               <Slider
                 value={zoom}
-                onChange={setZoom}
+                onChange={(val) => setZoom(Array.isArray(val) ? val[0] : val)}
                 min={0.5}
                 max={2}
                 step={0.1}

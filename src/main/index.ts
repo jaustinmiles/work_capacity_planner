@@ -9,7 +9,7 @@ if (process.platform === 'win32') {
   app.setAppUserModelId(app.getName())
 }
 
-let mainWindow: BrowserWindow | null = null
+let mainWindow: InstanceType<typeof BrowserWindow> | null = null
 
 async function createWindow(): Promise<void> {
   // Create the browser window.

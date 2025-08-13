@@ -31,24 +31,24 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
       const hours = parseInt(values.hours) || 0
       const minutes = parseInt(values.minutes) || 0
       const totalMinutes = hours * 60 + minutes
-      
+
       if (totalMinutes <= 0) {
         form.setFields({
           minutes: {
             error: {
-              message: 'Please enter a valid time'
-            }
-          }
+              message: 'Please enter a valid time',
+            },
+          },
         })
         return
       }
 
       setIsSubmitting(true)
-      
+
       if (mode === 'complete' && onComplete) {
-        await onComplete(totalMinutes, values.notes || undefined)
+        await onComplete(totalMinutes, values.notes ?? null)
       } else {
-        await onLogTime(totalMinutes, values.notes || undefined)
+        await onLogTime(totalMinutes, values.notes ?? null)
       }
     } catch (error) {
       console.error('Failed to log time:', error)
@@ -68,7 +68,7 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
   const applySuggestedTime = (minutes: number) => {
     form.setFieldsValue({
       hours: Math.floor(minutes / 60),
-      minutes: minutes % 60
+      minutes: minutes % 60,
     })
   }
 
@@ -96,7 +96,7 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
           initialValues={{
             hours: 0,
             minutes: 0,
-            notes: ''
+            notes: '',
           }}
           onSubmit={handleSubmit}
         >
@@ -104,28 +104,28 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
             <Row gutter={8}>
               <Col span={8}>
                 <FormItem field="hours" noStyle>
-                  <Input 
-                    type="number" 
-                    min={0} 
-                    max={99} 
-                    suffix="h" 
+                  <Input
+                    type="number"
+                    min={0}
+                    max={99}
+                    suffix="h"
                     placeholder="0"
                   />
                 </FormItem>
               </Col>
               <Col span={8}>
                 <FormItem field="minutes" noStyle>
-                  <Input 
-                    type="number" 
-                    min={0} 
-                    max={59} 
-                    suffix="m" 
+                  <Input
+                    type="number"
+                    min={0}
+                    max={59}
+                    suffix="m"
                     placeholder="0"
                   />
                 </FormItem>
               </Col>
             </Row>
-            
+
             {/* Quick time buttons */}
             <Space wrap style={{ marginTop: 12 }}>
               {suggestedTimes.map((time) => (
@@ -141,8 +141,8 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
             </Space>
           </FormItem>
 
-          <FormItem 
-            field="notes" 
+          <FormItem
+            field="notes"
             label="Notes (optional)"
           >
             <TextArea
@@ -158,7 +158,7 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
               style={{ marginBottom: 16 }}
             />
           )}
-          
+
           {mode === 'log' && step.status === 'completed' && (
             <Alert
               type="success"
@@ -166,7 +166,7 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
               style={{ marginBottom: 16 }}
             />
           )}
-          
+
           {mode === 'log' && step.status === 'pending' && (
             <Alert
               type="warning"
@@ -180,8 +180,8 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
               <Button onClick={onClose} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 htmlType="submit"
                 loading={isSubmitting}
               >
@@ -200,7 +200,7 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
                     if (totalMinutes > 0) {
                       setIsSubmitting(true)
                       try {
-                        await onComplete(totalMinutes, values.notes || undefined)
+                        await onComplete(totalMinutes, values.notes ?? null)
                       } finally {
                         setIsSubmitting(false)
                       }

@@ -27,7 +27,7 @@ describe('Flexible Scheduler', () => {
         startTime: '09:00',
         endTime: '12:00',
         type: 'focused',
-        sessionId: 'test-session',      },
+        sessionId: 'test-session'      },
       {
         id: 'block-2',
         startTime: '13:00',

@@ -66,6 +66,8 @@ export function SequencedTaskView({
     }
   }
 
+  // Step completion handlers removed - not currently wired up to TaskStepItem
+
   if (showEditView) {
     return (
       <SequencedTaskEdit
@@ -303,7 +305,7 @@ export function SequencedTaskView({
               </Card>
             </Space>
           </Tabs.TabPane>
-          
+
           <Tabs.TabPane
             key="progress"
             title={

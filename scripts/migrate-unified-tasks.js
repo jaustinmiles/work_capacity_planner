@@ -7,40 +7,40 @@ const prisma = new PrismaClient()
 
 async function main() {
   console.log('🚀 Starting unified task migration...\n')
-  
+
   try {
     // 1. Backup database first
     console.log('📸 Creating backup before migration...')
     require('./backup-db.js')
-    
+
     // 2. Get all data we need to migrate
     console.log('\n📊 Loading data to migrate...')
-    
+
     const sessions = await prisma.session.findMany()
     const tasks = await prisma.task.findMany()
     const sequencedTasks = await prisma.sequencedTask.findMany({
-      include: { steps: true }
+      include: { steps: true },
     })
     const stepWorkSessions = await prisma.stepWorkSession.findMany()
     const workSessions = await prisma.workSession.findMany()
-    
+
     console.log(`  - ${sessions.length} sessions`)
     console.log(`  - ${tasks.length} regular tasks`)
     console.log(`  - ${sequencedTasks.length} workflows`)
     console.log(`  - ${stepWorkSessions.length} step work sessions`)
     console.log(`  - ${workSessions.length} regular work sessions`)
-    
+
     // 3. Create migration data
     console.log('\n🔄 Preparing migration data...')
-    
+
     // Map to track old sequencedTask IDs to new task IDs
     const sequencedTaskIdMap = new Map()
-    
+
     // Prepare new tasks from sequenced tasks
     const newTasksFromSequenced = sequencedTasks.map(st => {
       const newId = `migrated-${st.id}`
       sequencedTaskIdMap.set(st.id, newId)
-      
+
       return {
         id: newId,
         name: st.name,
@@ -63,10 +63,10 @@ async function main() {
         criticalPathDuration: st.criticalPathDuration,
         worstCaseDuration: st.worstCaseDuration,
         createdAt: st.createdAt,
-        updatedAt: st.updatedAt
+        updatedAt: st.updatedAt,
       }
     })
-    
+
     // Update regular tasks to new format
     const updatedTasks = tasks.map(task => ({
       ...task,
@@ -74,9 +74,9 @@ async function main() {
       currentStepId: null,
       overallStatus: task.completed ? 'completed' : 'not_started',
       criticalPathDuration: task.duration,
-      worstCaseDuration: task.duration
+      worstCaseDuration: task.duration,
     }))
-    
+
     // Prepare steps with new taskId references
     const migratedSteps = []
     sequencedTasks.forEach(st => {
@@ -85,25 +85,25 @@ async function main() {
         migratedSteps.push({
           ...step,
           taskId: newTaskId,
-          sequencedTaskId: undefined
+          sequencedTaskId: undefined,
         })
       })
     })
-    
+
     // Prepare unified work sessions
     const unifiedWorkSessions = [
       // Keep existing work sessions
       ...workSessions.map(ws => ({
         ...ws,
         stepId: null,
-        actualMinutes: ws.actualMinutes || ws.plannedMinutes
+        actualMinutes: ws.actualMinutes || ws.plannedMinutes,
       })),
       // Convert step work sessions
       ...stepWorkSessions.map(sws => {
         // Find which task this step belongs to
         const step = migratedSteps.find(s => s.id === sws.taskStepId)
         const taskId = step ? step.taskId : null
-        
+
         return {
           id: `step-${sws.id}`,
           taskId: taskId,
@@ -115,19 +115,19 @@ async function main() {
           plannedMinutes: sws.duration,
           actualMinutes: sws.duration,
           notes: sws.notes,
-          createdAt: sws.createdAt
+          createdAt: sws.createdAt,
         }
-      }).filter(ws => ws.taskId) // Only keep sessions we can link to a task
+      }).filter(ws => ws.taskId), // Only keep sessions we can link to a task
     ]
-    
+
     // 4. Write migration SQL
     console.log('\n📝 Writing migration SQL...')
-    
+
     const migrationPath = path.join(__dirname, '..', 'prisma', 'migrations', 'unified_tasks_migration')
     if (!fs.existsSync(migrationPath)) {
       fs.mkdirSync(migrationPath, { recursive: true })
     }
-    
+
     // Create migration report
     const report = {
       timestamp: new Date().toISOString(),
@@ -137,22 +137,22 @@ async function main() {
         sequencedTasksCount: sequencedTasks.length,
         totalTasksAfter: tasks.length + sequencedTasks.length,
         stepsCount: migratedSteps.length,
-        workSessionsCount: unifiedWorkSessions.length
+        workSessionsCount: unifiedWorkSessions.length,
       },
       sequencedTaskMapping: Object.fromEntries(sequencedTaskIdMap),
       migratedData: {
         newTasksFromSequenced,
         updatedTasks,
         migratedSteps,
-        unifiedWorkSessions
-      }
+        unifiedWorkSessions,
+      },
     }
-    
+
     fs.writeFileSync(
       path.join(migrationPath, 'migration-report.json'),
-      JSON.stringify(report, null, 2)
+      JSON.stringify(report, null, 2),
     )
-    
+
     console.log('✅ Migration preparation complete!')
     console.log('\n📋 Migration Summary:')
     console.log(`  - ${tasks.length} regular tasks will be updated`)
@@ -163,7 +163,7 @@ async function main() {
     console.log(`  ${path.join(migrationPath, 'migration-report.json')}`)
     console.log('\nTo apply the migration, update your schema.prisma and run:')
     console.log('  npx prisma migrate dev --name unified_tasks')
-    
+
   } catch (error) {
     console.error('❌ Migration preparation failed:', error)
     process.exit(1)

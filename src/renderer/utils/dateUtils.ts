@@ -5,10 +5,10 @@
  */
 export function formatDuration(minutes: number): string {
   if (minutes === 0) return '0m'
-  
+
   const hours = Math.floor(minutes / 60)
   const mins = minutes % 60
-  
+
   if (hours > 0) {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
   }
@@ -54,18 +54,18 @@ export function getRelativeTime(date: Date | string): string {
   const now = new Date()
   const diffMs = dateObj.getTime() - now.getTime()
   const diffMins = Math.abs(diffMs) / 60000
-  
+
   const isFuture = diffMs > 0
   const prefix = isFuture ? 'in ' : ''
   const suffix = isFuture ? '' : ' ago'
-  
+
   if (diffMins < 1) return 'just now'
   if (diffMins < 60) return `${prefix}${Math.floor(diffMins)} minute${Math.floor(diffMins) === 1 ? '' : 's'}${suffix}`
   if (diffMins < 1440) {
     const hours = Math.floor(diffMins / 60)
     return `${prefix}${hours} hour${hours === 1 ? '' : 's'}${suffix}`
   }
-  
+
   const days = Math.floor(diffMins / 1440)
   return `${prefix}${days} day${days === 1 ? '' : 's'}${suffix}`
 }

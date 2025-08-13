@@ -95,7 +95,7 @@ describe('flexible-scheduler', () => {
             startTime: '13:00',
             endTime: '17:00',
             type: 'focused',
-        sessionId: 'test-session',          },
+        sessionId: 'test-session'          },
         ],
         meetings: [
           {
@@ -104,7 +104,7 @@ describe('flexible-scheduler', () => {
             startTime: '10:00',
             endTime: '10:30',
             type: 'meeting',
-        sessionId: 'test-session',          },
+        sessionId: 'test-session'          },
         ],
         accumulated: { focused: 0, admin: 0 },
       },
@@ -214,7 +214,7 @@ describe('flexible-scheduler', () => {
       // Check that tasks are distributed across blocks
       const morningEnd = new Date('2025-08-12T12:00:00')
       const tasksInMorning = result.filter(
-        item => !item.isBlocked && item.startTime < morningEnd
+        item => !item.isBlocked && item.startTime < morningEnd,
       )
 
       // Morning block has 120 minutes focus capacity
@@ -308,7 +308,7 @@ describe('flexible-scheduler', () => {
             startTime: '22:00',
             endTime: '06:00', // Crosses midnight
             type: 'blocked',
-        sessionId: 'test-session',          },
+        sessionId: 'test-session'          },
         ],
       }
 
@@ -352,7 +352,7 @@ describe('flexible-scheduler', () => {
               startTime: '09:00',
               endTime: '12:00',
               type: 'focused',
-        sessionId: 'test-session',            },
+        sessionId: 'test-session'            },
           ],
           meetings: [],
           accumulated: { focused: 0, admin: 0 },
@@ -364,11 +364,11 @@ describe('flexible-scheduler', () => {
       // Check that tasks are scheduled across multiple days
       const day1Tasks = result.filter(item =>
         !item.isBlocked &&
-        item.startTime.toISOString().startsWith('2025-08-12')
+        item.startTime.toISOString().startsWith('2025-08-12'),
       )
       const day2Tasks = result.filter(item =>
         !item.isBlocked &&
-        item.startTime.toISOString().startsWith('2025-08-13')
+        item.startTime.toISOString().startsWith('2025-08-13'),
       )
 
       expect(day1Tasks.length).toBeGreaterThan(0)

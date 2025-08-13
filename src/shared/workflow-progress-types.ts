@@ -153,16 +153,16 @@ export interface DailyWorkSummary {
 
 // Helper type guards
 export function isCompletedStep(step: { status: string }): boolean {
-  return step.status === 'completed';
+  return step.status === 'completed'
 }
 
 export function isActiveWorkSession(session: WorkSession): boolean {
-  return !session.endTime;
+  return !session.endTime
 }
 
 export function hasTimeVariance(estimated: number, actual: number, threshold = 0.1): boolean {
-  const variance = Math.abs((actual - estimated) / estimated);
-  return variance > threshold;
+  const variance = Math.abs((actual - estimated) / estimated)
+  return variance > threshold
 }
 
 // Constants
@@ -170,10 +170,10 @@ export const TIME_ESTIMATION_THRESHOLDS = {
   ACCURATE: 0.1, // Within 10%
   MODERATE: 0.25, // Within 25%
   POOR: 0.5, // Over 50% variance
-} as const;
+} as const
 
 export const WORKFLOW_STATUS_THRESHOLDS = {
   DELAYED: 1.2, // 20% over time
   AT_RISK: 1.1, // 10% over time
   ON_TRACK: 1.0,
-} as const;
+} as const

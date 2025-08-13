@@ -1,4 +1,4 @@
-import { Space, Typography, Tag, Tooltip, Badge } from '@arco-design/web-react'
+import { Space, Typography, Tag, Tooltip, Badge, Button } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar, IconExclamationCircle, IconBranch, IconLoop, IconCheck } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
 
@@ -10,9 +10,11 @@ interface TaskStepItemProps {
   isActive?: boolean
   isCompleted?: boolean
   estimatedStartTime?: Date
+  onComplete?: (stepId: string) => void
+  onStart?: (stepId: string) => void
 }
 
-export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = false, estimatedStartTime }: TaskStepItemProps) {
+export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = false, estimatedStartTime, onComplete, onStart }: TaskStepItemProps) {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
@@ -84,6 +86,31 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
 
           {isActive && (
             <Badge status="processing" text="In Progress" style={{ marginLeft: 8 }} />
+          )}
+
+          {/* Action buttons */}
+          {!isCompleted && (
+            <Space style={{ marginLeft: 12 }}>
+              {!isActive && step.status === 'pending' && onStart && (
+                <Button
+                  size="mini"
+                  type="primary"
+                  onClick={() => onStart(step.id)}
+                >
+                  Start
+                </Button>
+              )}
+              {isActive && onComplete && (
+                <Button
+                  size="mini"
+                  status="success"
+                  icon={<IconCheck />}
+                  onClick={() => onComplete(step.id)}
+                >
+                  Complete
+                </Button>
+              )}
+            </Space>
           )}
         </div>
 
