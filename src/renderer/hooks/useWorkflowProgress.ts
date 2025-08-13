@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useTaskStore } from '../store/useTaskStore'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 

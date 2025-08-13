@@ -146,7 +146,7 @@ export interface DailyWorkSummary {
   date: string;
   totalMinutesWorked: number;
   focusedMinutes: number;
-  adminMinutes: number;
+  admin: number;
   completedSteps: number;
   workflowsProgressed: string[];
 }

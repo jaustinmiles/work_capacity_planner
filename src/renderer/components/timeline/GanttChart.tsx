@@ -1,12 +1,11 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, DatePicker, Alert } from '@arco-design/web-react'
-import { IconPlus, IconMinus, IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle } from '@arco-design/web-react/icon'
+import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { scheduleItemsWithBlocks, scheduleItemsWithBlocksAndDebug, ScheduledItem, SchedulingDebugInfo } from '../../utils/flexible-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { scheduleItemsWithBlocks, scheduleItemsWithBlocksAndDebug, SchedulingDebugInfo } from '../../utils/flexible-scheduler'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
-import { useTaskStore } from '../../store/useTaskStore'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
 import { getDatabase } from '../../services/database'
@@ -52,7 +51,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           date: dateStr,
           blocks: pattern.blocks,
           meetings: pattern.meetings,
-          accumulated: { focusMinutes: 0, adminMinutes: 0 },
+          accumulated: { focused: 0, admin: 0 },
         })
       } else if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         // If no pattern exists and it's a weekday, create a default pattern
@@ -65,18 +64,18 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               startTime: '09:00',
               endTime: '12:00',
               type: 'mixed',
-              capacity: { focusMinutes: 120, adminMinutes: 60 },
+              capacity: { focused: 120, admin: 60 },
             },
             {
               id: `default-afternoon-${dateStr}`,
               startTime: '13:00',
               endTime: '17:00',
               type: 'mixed',
-              capacity: { focusMinutes: 180, adminMinutes: 60 },
+              capacity: { focused: 180, admin: 60 },
             },
           ],
           meetings: [],
-          accumulated: { focusMinutes: 0, adminMinutes: 0 },
+          accumulated: { focused: 0, admin: 0 },
         })
       }
 
@@ -104,7 +103,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     ? new Date(Math.min(scheduledItems[0].startTime.getTime(), now.getTime()))
     : now
   const chartEndTime = scheduledItems.length > 0
-    ? new Date(Math.max(...scheduledItems.map(item => item.endTime.getTime())))
+    ? new Date(Math.max(...scheduledItems.map((item: any) => item.endTime.getTime())))
     : new Date(now.getTime() + 8 * 60 * 60 * 1000) // Default to 8 hours from now
 
   const totalDuration = chartEndTime.getTime() - chartStartTime.getTime()
@@ -184,12 +183,12 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const workflowProgress = new Map<string, { completed: number, total: number }>()
     
     // Separate items by type
-    const blockedItems = scheduledItems.filter(item => item.isBlocked)
-    const taskItems = scheduledItems.filter(item => !item.isBlocked && !item.isWaitTime)
-    const waitItems = scheduledItems.filter(item => item.isWaitTime)
+    const blockedItems = scheduledItems.filter((item: any) => item.isBlocked)
+    const taskItems = scheduledItems.filter((item: any) => !item.isBlocked && !item.isWaitTime)
+    const waitItems = scheduledItems.filter((item: any) => item.isWaitTime)
 
     // First pass: calculate workflow progress
-    scheduledItems.forEach(item => {
+    scheduledItems.forEach((item: any) => {
       if (item.workflowId && item.type === 'workflow-step' && !item.isWaitTime) {
         if (!workflowProgress.has(item.workflowId)) {
           workflowProgress.set(item.workflowId, { completed: 0, total: 0 })
@@ -205,14 +204,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     // Second pass: assign positions to blocked items first (meetings, breaks, etc.)
     // Put all blocked items on the same row (row 0) since they don't overlap with tasks
     if (blockedItems.length > 0) {
-      blockedItems.forEach(item => {
+      blockedItems.forEach((item: any) => {
         positions.set(item.id, currentRow)
       })
       currentRow++
     }
 
     // Third pass: assign positions to tasks and workflows
-    taskItems.forEach(item => {
+    taskItems.forEach((item: any) => {
       if (item.workflowId) {
         // This is a workflow step
         if (!workflowRows.has(item.workflowId)) {
@@ -228,7 +227,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     })
     
     // Fourth pass: assign wait times to same row as their parent
-    waitItems.forEach(item => {
+    waitItems.forEach((item: any) => {
       const parentId = item.id.replace('-wait', '')
       positions.set(item.id, positions.get(parentId) || currentRow)
     })
@@ -285,7 +284,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
       {/* Info about default patterns */}
-      {workPatterns.some(p => p.blocks.some(b => b.id.startsWith('default-'))) && (
+      {workPatterns.some(p => p.blocks.some((b: any) => b.id.startsWith('default-'))) && (
         <Alert
           type="info"
           content={
@@ -315,7 +314,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Total Items</Text>
-              <Title heading={4}>{scheduledItems.filter(item => !item.isWaitTime).length}</Title>
+              <Title heading={4}>{scheduledItems.filter((item: any) => !item.isWaitTime).length}</Title>
             </Space>
           </Col>
           <Col span={5}>
@@ -428,7 +427,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             }}>
               {/* Date labels */}
               <div style={{ position: 'relative', height: 30, borderBottom: '1px solid #e5e5e5' }}>
-                {dayBoundaries.map((day, index) => {
+                {dayBoundaries.map((day: any, index: number) => {
                   const nextDay = dayBoundaries[index + 1]
                   const widthPx = nextDay
                     ? getPositionPx(nextDay) - getPositionPx(day)
@@ -436,7 +435,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
                   const dateStr = dayjs(day).format('YYYY-MM-DD')
                   const pattern = workPatterns.find(p => p.date === dateStr)
-                  const hasCustomPattern = pattern && !pattern.blocks.some(b => b.id.startsWith('default-'))
+                  const hasCustomPattern = pattern && !pattern.blocks.some((b: any) => b.id.startsWith('default-'))
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6
 
                   return (

@@ -52,7 +52,7 @@ declare global {
         updateWorkSession: (id: string, data: any) => Promise<any>
         getWorkSessions: (date: string) => Promise<any[]>
         getTaskTotalLoggedTime: (taskId: string) => Promise<number>
-        getTodayAccumulated: (date: string) => Promise<{ focusMinutes: number; adminMinutes: number }>
+        getTodayAccumulated: (date: string) => Promise<{ focused: number; admin: number }>
         // Progress tracking operations
         createStepWorkSession: (data: any) => Promise<any>
         updateTaskStepProgress: (stepId: string, data: any) => Promise<any>
@@ -81,7 +81,7 @@ declare global {
             urgency: number
             type: 'focused' | 'admin'
             steps: any[]
-            totalDuration: number
+            duration: number
             earliestCompletion: string
             worstCaseCompletion: string
             notes: string
@@ -100,7 +100,7 @@ declare global {
         generateWorkflowSteps: (taskDescription: string, context?: any) => Promise<{
           workflowName: string
           steps: any[]
-          totalDuration: number
+          duration: number
           notes: string
         }>
         enhanceTaskDetails: (taskName: string, currentDetails?: any) => Promise<{
@@ -133,8 +133,8 @@ declare global {
             endTime: string
             type: 'focused' | 'admin' | 'mixed'
             capacity?: {
-              focusMinutes: number
-              adminMinutes: number
+              focused: number
+              admin: number
             }
           }>
           meetings: Array<{

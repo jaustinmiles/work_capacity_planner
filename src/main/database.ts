@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { Task } from '../shared/types'
-import { SequencedTask, TaskStep } from '../shared/sequencing-types'
+import { SequencedTask } from '../shared/sequencing-types'
 
 // Create Prisma client instance
 const prisma = new PrismaClient()
@@ -100,13 +100,18 @@ export class DatabaseService {
   }
 
   async updateSession(id: string, updates: { name?: string; description?: string }): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
+    const updateData: any = {
+      updatedAt: new Date(),
+    }
+    if (updates.name !== undefined) {
+      updateData.name = updates.name
+    }
+    if (updates.description !== undefined) {
+      updateData.description = updates.description
+    }
     return await this.client.session.update({
       where: { id },
-      data: {
-        name: updates.name,
-        description: updates.description,
-        updatedAt: new Date(),
-      },
+      data: updateData,
     })
   }
 
@@ -198,7 +203,7 @@ export class DatabaseService {
       data: {
         completed: true,
         completedAt: new Date(),
-        actualDuration: actualDuration,
+        actualDuration: actualDuration ?? null,
         overallStatus: 'completed',
       },
     })
@@ -429,14 +434,14 @@ export class DatabaseService {
       update: {
         value: entry.value,
         category: entry.category,
-        notes: entry.notes || undefined,
+        notes: entry.notes ?? null,
       },
       create: {
         id: crypto.randomUUID(),
         key: entry.key,
         value: entry.value,
         category: entry.category,
-        notes: entry.notes || undefined,
+        notes: entry.notes ?? null,
         jobContextId: entry.jobContextId,
       },
     })
@@ -468,7 +473,7 @@ export class DatabaseService {
         sessionId,
         term: jargon.term,
         definition: jargon.definition,
-        category: jargon.category || undefined,
+        category: jargon.category ?? null,
         examples: jargon.examples || '',
         relatedTerms: jargon.relatedTerms || '',
       },
@@ -547,7 +552,7 @@ export class DatabaseService {
 
   async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
     const sessionId = await this.getActiveSession()
-    const { steps, ...coreTaskData } = taskData
+    const { steps } = taskData
 
     const task = await this.client.sequencedTask.create({
       data: {
@@ -556,7 +561,7 @@ export class DatabaseService {
         importance: taskData.importance,
         urgency: taskData.urgency,
         type: taskData.type,
-        notes: taskData.notes || undefined,
+        notes: taskData.notes ?? null,
         dependencies: JSON.stringify(taskData.dependencies || []),
         completed: taskData.completed || false,
         totalDuration: taskData.duration,
@@ -574,13 +579,16 @@ export class DatabaseService {
     // Create steps
     if (steps && steps.length > 0) {
       await this.client.taskStep.createMany({
-        data: steps.map((step, index) => ({
-          id: crypto.randomUUID(),
-          ...step,
-          sequencedTaskId: task.id,
-          stepIndex: index,
-          dependsOn: JSON.stringify(step.dependsOn || []),
-        })),
+        data: steps.map((step, index) => {
+          const { id: stepId, ...stepData } = step
+          return {
+            id: crypto.randomUUID(),
+            ...stepData,
+            sequencedTaskId: task.id,
+            stepIndex: index,
+            dependsOn: JSON.stringify(step.dependsOn || []),
+          }
+        }),
       })
 
       // Fetch with steps
@@ -931,13 +939,13 @@ export class DatabaseService {
       data: {
         id: crypto.randomUUID(),
         taskId: data.taskId,
-        stepId: data.stepId || undefined,
+        stepId: data.stepId ?? null,
         type: data.type,
         startTime: data.startTime,
-        endTime: data.endTime || undefined,
+        endTime: data.endTime ?? null,
         plannedMinutes: data.plannedMinutes,
-        actualMinutes: data.actualMinutes || undefined,
-        notes: data.notes || undefined,
+        actualMinutes: data.actualMinutes ?? null,
+        notes: data.notes ?? null,
       },
     })
     console.log('DB: Created work session:', session.id)
@@ -1028,9 +1036,9 @@ export class DatabaseService {
         sessionId,
         taskType: data.taskType,
         estimatedMinutes: data.estimatedMinutes,
-        actualMinutes: data.actualMinutes,
+        actualMinutes: data.actualMinutes ?? null,
         variance,
-        workflowCategory: data.workflowCategory || undefined,
+        workflowCategory: data.workflowCategory ?? null,
       },
     })
   }

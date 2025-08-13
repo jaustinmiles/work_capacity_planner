@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { Card, Typography, Tag, Space } from '@arco-design/web-react'
-import { SequencedTask, TaskStep } from '@shared/sequencing-types'
+import { SequencedTask } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
 
 const { Title, Text } = Typography
@@ -112,9 +112,9 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
       <div style={{ width: '100%', overflowX: 'auto', overflowY: 'auto', maxHeight: 600 }}>
         <svg width={maxX} height={maxY} style={{ minWidth: '100%' }}>
           {/* Draw connections */}
-          {nodes.flatMap(node =>
-            node.dependencies.map(depId => {
-              const fromNode = nodes.find(n => n.id === depId)
+          {nodes.flatMap((node: any) =>
+            node.dependencies.map((depId: any) => {
+              const fromNode = nodes.find((n: any) => n.id === depId)
               if (fromNode) {
                 return (
                   <g key={`${depId}-${node.id}`}>
@@ -138,7 +138,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
           )}
 
           {/* Draw nodes */}
-          {nodes.map((node, index) => (
+          {nodes.map((node: any, index: number) => (
             <g key={node.id}>
               {/* Node background */}
               <rect

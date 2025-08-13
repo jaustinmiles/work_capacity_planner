@@ -435,7 +435,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                           </Tag>
                           {block.type === 'mixed' && block.capacity && (
                             <Text type="secondary">
-                              {block.capacity.focusMinutes}min focus / {block.capacity.adminMinutes}min admin
+                              {block.capacity.focused}min focus / {block.capacity.admin}min admin
                             </Text>
                           )}
                         </Space>

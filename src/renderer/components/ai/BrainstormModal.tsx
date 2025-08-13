@@ -117,7 +117,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         // Process as context audio
         setIsProcessingContextAudio(true)
         try {
-          const audioFile = new File([audioBlob], `context-recording.${mimeType.split('/')[1].split(';')[0]}`, { type: mimeType })
+          const extension = mimeType.split('/')[1]?.split(';')[0] || 'webm'
+        const audioFile = new File([audioBlob], `context-recording.${extension}`, { type: mimeType })
           await processContextAudio(audioFile)
         } finally {
           setIsProcessingContextAudio(false)
@@ -288,7 +289,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
-        await transcribeAudio(audioBlob, `recording.${mimeType.split('/')[1].split(';')[0]}`)
+        const extension = mimeType.split('/')[1]?.split(';')[0] || 'webm'
+        await transcribeAudio(audioBlob, `recording.${extension}`)
 
         // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop())
@@ -473,7 +475,14 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           brainstormText.trim(),
           enrichedContext || undefined,
         )
-        setBrainstormResult(result)
+        setBrainstormResult({
+          workflows: result.workflows.map(wf => ({
+            ...wf,
+            duration: wf.duration || 0,
+          })),
+          standaloneTasks: result.standaloneTasks,
+          summary: result.summary,
+        })
       } else {
         const result = await getDatabase().extractTasksFromBrainstorm(brainstormText.trim())
         setBrainstormResult({ summary: result.summary, tasks: result.tasks })

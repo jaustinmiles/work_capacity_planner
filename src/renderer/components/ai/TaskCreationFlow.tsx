@@ -150,6 +150,11 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
         dependencies: [],
         asyncWaitTime: 0,
         completed: false,
+        sessionId: '',  // Will be set by database
+        hasSteps: false,
+        overallStatus: 'not_started' as const,
+        criticalPathDuration: parsedData.duration,
+        worstCaseDuration: parsedData.duration,
       }
 
       await addTask(taskData)

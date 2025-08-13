@@ -126,7 +126,7 @@ class NotificationManager {
   private add(type: NotificationType, content: string, duration?: number) {
     this.ensureContainer()
     const id = `notification-${Date.now()}-${Math.random()}`
-    this.notifications.push({ id, props: { type, content, duration } })
+    this.notifications.push({ id, props: { type, content, duration: duration || 3000 } })
     this.render()
   }
 

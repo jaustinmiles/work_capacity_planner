@@ -1,5 +1,4 @@
-import React from 'react'
-import { Space, Typography, Tag, Tooltip, Badge, Progress } from '@arco-design/web-react'
+import { Space, Typography, Tag, Tooltip, Badge } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar, IconExclamationCircle, IconBranch, IconLoop, IconCheck } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
 
@@ -139,7 +138,7 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
         {/* Show conditional branches */}
         {step.conditionalBranches && step.conditionalBranches.length > 0 && (
           <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '1px dashed #E5E8EF' }}>
-            {step.conditionalBranches.map((branch, index) => (
+            {step.conditionalBranches.map((branch: any) => (
               <div key={branch.id} style={{ marginBottom: 4 }}>
                 <Space size="small">
                   <IconBranch style={{ color: '#FF7D00', fontSize: 12 }} />

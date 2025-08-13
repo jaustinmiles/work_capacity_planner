@@ -60,7 +60,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         dependsOn: step.dependsOn || [],
         asyncWaitTime: step.asyncWaitTime || 0,
         status: 'pending' as const,
-        conditionalBranches: step.conditionalBranches,
+        // conditionalBranches: step.conditionalBranches, // Not in TaskStep type
       }))
 
       const totalDuration = sequencedSteps.reduce((sum, step) => sum + step.duration, 0)

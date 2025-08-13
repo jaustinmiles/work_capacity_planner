@@ -6,9 +6,9 @@ import { SessionManager } from './SessionManager'
 // Mock the electronAPI
 const mockElectronAPI = {
   db: {
-    getSessions: vi.fn(),
-    createSession: vi.fn(),
-    switchSession: vi.fn(),
+    getSessions: vi.fn() as any,
+    createSession: vi.fn() as any,
+    switchSession: vi.fn() as any,
     updateSession: vi.fn(),
     deleteSession: vi.fn(),
   },
@@ -59,7 +59,7 @@ describe('SessionManager', () => {
       },
     ]
 
-    window.electronAPI.db.getSessions.mockResolvedValue(mockSessions)
+    ;(window.electronAPI.db.getSessions as any).mockResolvedValue(mockSessions)
 
     render(
       <SessionManager
@@ -81,8 +81,8 @@ describe('SessionManager', () => {
   it('should create a new session', async () => {
     const user = userEvent.setup()
 
-    window.electronAPI.db.getSessions.mockResolvedValue([])
-    window.electronAPI.db.createSession.mockResolvedValue({
+    ;(window.electronAPI.db.getSessions as any).mockResolvedValue([])
+    ;(window.electronAPI.db.createSession as any).mockResolvedValue({
       id: 'new-session',
       name: 'New Project',
       description: 'Test description',
@@ -143,8 +143,8 @@ describe('SessionManager', () => {
       },
     ]
 
-    window.electronAPI.db.getSessions.mockResolvedValue(mockSessions)
-    window.electronAPI.db.switchSession.mockResolvedValue({
+    ;(window.electronAPI.db.getSessions as any).mockResolvedValue(mockSessions)
+    ;(window.electronAPI.db.switchSession as any).mockResolvedValue({
       ...mockSessions[1],
       isActive: true,
     })
@@ -182,7 +182,7 @@ describe('SessionManager', () => {
       },
     ]
 
-    window.electronAPI.db.getSessions.mockResolvedValue(mockSessions)
+    ;(window.electronAPI.db.getSessions as any).mockResolvedValue(mockSessions)
 
     render(
       <SessionManager

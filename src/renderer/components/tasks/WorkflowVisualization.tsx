@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 import { Modal, Typography, Space, Button, Switch } from '@arco-design/web-react'
-import { IconClose, IconExpand, IconMindMapping, IconEdit } from '@arco-design/web-react/icon'
+import { IconMindMapping, IconEdit } from '@arco-design/web-react/icon'
 import { SequencedTask } from '@shared/sequencing-types'
 import { WorkflowGraph } from './WorkflowGraph'
 import { InteractiveWorkflowGraph } from './InteractiveWorkflowGraph'
 import { useTaskStore } from '../../store/useTaskStore'
 
-const { Title } = Typography
+// Typography components not used in this file
 
 interface WorkflowVisualizationProps {
   task: SequencedTask | null

@@ -35,8 +35,8 @@ interface WorkItem {
 }
 
 interface DailyCapacity {
-  focusMinutesUsed: number
-  adminMinutesUsed: number
+  focusedUsed: number
+  adminUsed: number
   maxFocusMinutes: number
   maxAdminMinutes: number
 }
@@ -146,11 +146,11 @@ function canScheduleItem(
 ): boolean {
   // Check capacity limits
   if (type === 'focused') {
-    if (dailyCapacity.focusMinutesUsed + duration > dailyCapacity.maxFocusMinutes) {
+    if (dailyCapacity.focusedUsed + duration > dailyCapacity.maxFocusMinutes) {
       return false
     }
   } else {
-    if (dailyCapacity.adminMinutesUsed + duration > dailyCapacity.maxAdminMinutes) {
+    if (dailyCapacity.adminUsed + duration > dailyCapacity.maxAdminMinutes) {
       return false
     }
   }
@@ -257,8 +257,8 @@ export function scheduleItems(
     if (!dailyCapacities.has(dateStr)) {
       const customCapacity = workSettings.customCapacity[dateStr] || workSettings.defaultCapacity
       dailyCapacities.set(dateStr, {
-        focusMinutesUsed: 0,
-        adminMinutesUsed: 0,
+        focusedUsed: 0,
+        adminUsed: 0,
         maxFocusMinutes: customCapacity.maxFocusHours * 60,
         maxAdminMinutes: customCapacity.maxAdminHours * 60,
       })
@@ -319,9 +319,9 @@ export function scheduleItems(
 
       // Update capacity
       if (itemType === 'focused') {
-        dailyCapacity.focusMinutesUsed += item.duration
+        dailyCapacity.focusedUsed += item.duration
       } else {
-        dailyCapacity.adminMinutesUsed += item.duration
+        dailyCapacity.adminUsed += item.duration
       }
 
       // If item has async wait time, schedule it

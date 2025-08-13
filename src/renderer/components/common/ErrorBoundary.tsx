@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo)
     this.setState({ errorInfo })
   }
@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null, errorInfo: null })
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback
@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
             {process.env.NODE_ENV === 'development' && (
               <div style={{ marginTop: 24, textAlign: 'left', maxWidth: 600 }}>
                 <Paragraph>
-                  <Text type="danger" style={{ fontWeight: 600 }}>Error:</Text> {this.state.error?.message}
+                  <Text type="error" style={{ fontWeight: 600 }}>Error:</Text> {this.state.error?.message}
                 </Paragraph>
                 {this.state.errorInfo && (
                   <details style={{ marginTop: 16 }}>

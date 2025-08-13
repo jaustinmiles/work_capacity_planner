@@ -21,9 +21,9 @@ describe('Message', () => {
   it('should be a wrapper for Arco Message', () => {
     // The Message object should exist and have the expected methods
     expect(Message).toBeDefined()
-    expect(Message.success).toBeDefined()
-    expect(Message.error).toBeDefined()
-    expect(Message.info).toBeDefined()
-    expect(Message.warning).toBeDefined()
+    expect(Message?.success).toBeDefined()
+    expect(Message?.error).toBeDefined()
+    expect(Message?.info).toBeDefined()
+    expect(Message?.warning).toBeDefined()
   })
 })

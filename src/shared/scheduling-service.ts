@@ -79,29 +79,29 @@ export class SchedulingService {
       if (config.isWorkingDay) {
         return {
           focusedMinutes: total.focusedMinutes + config.maxFocusedMinutes,
-          adminMinutes: total.adminMinutes + config.maxAdminMinutes,
+          admin: total.admin + config.maxAdminMinutes,
         }
       }
       return total
-    }, { focusedMinutes: 0, adminMinutes: 0 })
+    }, { focusedMinutes: 0, admin: 0 })
 
     // Calculate utilization
     const focusedMinutesUsed = schedulingResult.scheduledItems
       .filter(item => item.type === 'focused')
       .reduce((total, item) => total + item.duration, 0)
 
-    const adminMinutesUsed = schedulingResult.scheduledItems
+    const adminUsed = schedulingResult.scheduledItems
       .filter(item => item.type === 'admin')
       .reduce((total, item) => total + item.duration, 0)
 
     const utilization = {
       focusedMinutesUsed,
-      adminMinutesUsed,
+      adminUsed,
       focusedPercentage: totalCapacity.focusedMinutes > 0
         ? (focusedMinutesUsed / totalCapacity.focusedMinutes) * 100
         : 0,
-      adminPercentage: totalCapacity.adminMinutes > 0
-        ? (adminMinutesUsed / totalCapacity.adminMinutes) * 100
+      adminPercentage: totalCapacity.admin > 0
+        ? (adminUsed / totalCapacity.admin) * 100
         : 0,
     }
 

@@ -50,13 +50,12 @@ describe('GanttChart', () => {
         id: 'task-1',
         name: 'Test Task',
         type: 'focused',
-        duration: 60,
+        sessionId: 'test-session',        duration: 60,
         importance: 8,
         urgency: 7,
         completed: false,
         asyncWaitTime: 0,
         status: 'pending',
-        sessionId: 'test-session',
       },
     ]
 
@@ -68,14 +67,13 @@ describe('GanttChart', () => {
         importance: 9,
         urgency: 8,
         overallStatus: 'pending',
-        sessionId: 'test-session',
         steps: [
           {
             id: 'step-1',
             name: 'Step 1',
             description: 'First step',
             type: 'focused',
-            duration: 30,
+        sessionId: 'test-session',            duration: 30,
             asyncWaitTime: 0,
             status: 'pending',
             order: 0,
@@ -120,7 +118,7 @@ describe('GanttChart', () => {
             startTime: '09:00',
             endTime: '12:00',
             type: 'focused',
-          },
+        sessionId: 'test-session',          },
         ],
         meetings: [],
       })
@@ -163,7 +161,7 @@ describe('GanttChart', () => {
             startTime: '09:00',
             endTime: '17:00',
             type: 'mixed',
-            capacity: { focusMinutes: 240, adminMinutes: 240 },
+        sessionId: 'test-session',            capacity: { focused: 240, admin: 240 },
           },
         ],
         meetings: [],
@@ -198,7 +196,7 @@ describe('GanttChart', () => {
             startTime: '09:00',
             endTime: '17:00',
             type: 'mixed',
-            capacity: { focusMinutes: 240, adminMinutes: 240 },
+        sessionId: 'test-session',            capacity: { focused: 240, admin: 240 },
           },
         ],
         meetings: [
@@ -208,7 +206,7 @@ describe('GanttChart', () => {
             startTime: '10:00',
             endTime: '10:30',
             type: 'meeting',
-          },
+        sessionId: 'test-session',          },
         ],
       })
     })
@@ -274,7 +272,7 @@ describe('GanttChart', () => {
             startTime: '09:00',
             endTime: '17:00',
             type: 'mixed',
-            capacity: { focusMinutes: 240, adminMinutes: 240 },
+        sessionId: 'test-session',            capacity: { focused: 240, admin: 240 },
           },
         ],
         meetings: [
@@ -284,14 +282,14 @@ describe('GanttChart', () => {
             startTime: '10:00',
             endTime: '10:30',
             type: 'meeting',
-          },
+        sessionId: 'test-session',          },
           {
             id: 'meeting-1', // Duplicate ID to test deduplication
             name: 'Meeting 2',
             startTime: '10:00',
             endTime: '10:30',
             type: 'meeting',
-          },
+        sessionId: 'test-session',          },
         ],
       })
 
@@ -308,7 +306,7 @@ describe('GanttChart', () => {
       const duplicateKeyErrors = consoleSpy.mock.calls.filter(call =>
         call.some(arg => typeof arg === 'string' && arg.includes('duplicate key'))
       )
-      expect(duplicateKeyErrors.length).toBe(0)
+      expect(duplicateKeyErrors?.length).toBe(0)
 
       consoleSpy.mockRestore()
     })

@@ -41,7 +41,7 @@ describe('TaskTimeLoggingModal', () => {
     actualDuration: 0,
     completed: false,
     type: 'focused',
-    importance: 8,
+        sessionId: 'test-session',    importance: 8,
     urgency: 7
   })
 
@@ -84,8 +84,8 @@ describe('TaskTimeLoggingModal', () => {
       expect(mockUpdateTask).toHaveBeenCalledWith('1', {
         actualDuration: 30
       })
-      expect(appEvents.emit).toHaveBeenCalledWith(EVENTS.TIME_LOGGED)
-      expect(Message.success).toHaveBeenCalledWith('Time logged successfully')
+      expect(appEvents?.emit).toHaveBeenCalledWith(EVENTS.TIME_LOGGED)
+      expect(Message?.success).toHaveBeenCalledWith('Time logged successfully')
       expect(mockOnClose).toHaveBeenCalled()
     })
   })
@@ -124,7 +124,7 @@ describe('TaskTimeLoggingModal', () => {
     await user.click(submitButton)
     
     await waitFor(() => {
-      expect(Message.warning).toHaveBeenCalledWith({
+      expect(Message?.warning).toHaveBeenCalledWith({
         content: "You've logged 90 minutes on a 60 minute task. Consider re-estimating the remaining time.",
         duration: 5000
       })
@@ -144,7 +144,7 @@ describe('TaskTimeLoggingModal', () => {
     await user.click(submitButton)
     
     await waitFor(() => {
-      expect(Message.warning).not.toHaveBeenCalled()
+      expect(Message?.warning).not.toHaveBeenCalled()
     })
   })
 
@@ -161,7 +161,7 @@ describe('TaskTimeLoggingModal', () => {
     await user.click(submitButton)
     
     await waitFor(() => {
-      expect(Message.error).toHaveBeenCalledWith('Failed to log time')
+      expect(Message?.error).toHaveBeenCalledWith('Failed to log time')
       expect(mockOnClose).not.toHaveBeenCalled()
     })
   })

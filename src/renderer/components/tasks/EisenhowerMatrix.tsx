@@ -21,7 +21,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
     ...tasks,
     ...sequencedTasks.map(st => ({
       ...st,
-      duration: st.totalDuration, // Use totalDuration for sequenced tasks
+      duration: st.duration, // Use totalDuration for sequenced tasks
     })),
   ]
 

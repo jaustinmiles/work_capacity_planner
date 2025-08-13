@@ -195,11 +195,11 @@ export interface WeeklySchedule {
   scheduledItems: ScheduledWorkItem[]
   totalCapacity: {
     focusedMinutes: number
-    adminMinutes: number
+    admin: number
   }
   utilization: {
     focusedMinutesUsed: number
-    adminMinutesUsed: number
+    adminUsed: number
     focusedPercentage: number
     adminPercentage: number
   }

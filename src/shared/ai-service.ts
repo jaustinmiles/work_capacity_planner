@@ -106,7 +106,7 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
       urgency: number
       type: 'focused' | 'admin'
       steps: Omit<TaskStep, 'id' | 'status'>[]
-      totalDuration: number
+      duration: number
       earliestCompletion: string
       worstCaseCompletion: string
       notes: string
@@ -240,7 +240,7 @@ Focus on understanding the async nature described in natural language. Be realis
   }): Promise<{
     workflowName: string
     steps: Omit<TaskStep, 'id' | 'status'>[]
-    totalDuration: number
+    duration: number
     notes: string
   }> {
     const contextInfo = context ? `
@@ -485,8 +485,8 @@ Make questions specific to their apparent work patterns. Prioritize questions th
       endTime: string
       type: 'focused' | 'admin' | 'mixed'
       capacity?: {
-        focusMinutes: number
-        adminMinutes: number
+        focused: number
+        admin: number
       }
     }>
     meetings: Array<{
@@ -528,8 +528,8 @@ Return as JSON:
       "endTime": "12:00",
       "type": "mixed",
       "capacity": {
-        "focusMinutes": 120,
-        "adminMinutes": 60
+        "focused": 120,
+        "admin": 60
       }
     }
   ],

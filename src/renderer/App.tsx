@@ -118,6 +118,9 @@ function App() {
           dependencies: [],
           completed: false,
           duration: workflow.duration,
+          asyncWaitTime: 0,
+          sessionId: '',  // Will be set by database
+          hasSteps: true,
           criticalPathDuration: workflow.duration, // Will be calculated properly
           worstCaseDuration: workflow.duration * 1.5, // Estimate
           overallStatus: 'not_started' as const,
@@ -143,6 +146,11 @@ function App() {
           dependencies: [],
           completed: false,
           notes: task.description,
+          sessionId: '',  // Will be set by database
+          hasSteps: false,
+          overallStatus: 'not_started' as const,
+          criticalPathDuration: task.estimatedDuration,
+          worstCaseDuration: task.estimatedDuration,
         })
       }
 
@@ -221,7 +229,7 @@ function App() {
 
       await updateSequencedTask(id, {
         overallStatus: 'not_started',
-        currentStepId: undefined,
+        currentStepId: null as any,
         steps: updatedSteps,
       })
 
@@ -249,14 +257,14 @@ function App() {
         stepIndex: step.stepIndex,
         percentComplete: 0,
         status: 'pending' as const,
-        completedAt: undefined,
-        actualDuration: undefined,
-        startedAt: undefined,
+        completedAt: null as any,
+        actualDuration: null as any,
+        startedAt: null as any,
       }))
 
       await updateSequencedTask(id, {
         overallStatus: 'not_started',
-        currentStepId: undefined,
+        currentStepId: null,
         steps: resetSteps,
       })
 

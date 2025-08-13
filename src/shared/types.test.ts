@@ -13,12 +13,12 @@ describe('Type definitions', () => {
         updatedAt: new Date(),
       }
 
-      expect(session.id).toBe('test-id')
-      expect(session.name).toBe('Test Session')
-      expect(session.description).toBe('Test description')
-      expect(session.isActive).toBe(true)
-      expect(session.createdAt).toBeInstanceOf(Date)
-      expect(session.updatedAt).toBeInstanceOf(Date)
+      expect(session?.id).toBe('test-id')
+      expect(session?.name).toBe('Test Session')
+      expect(session?.description).toBe('Test description')
+      expect(session?.isActive).toBe(true)
+      expect(session?.createdAt).toBeInstanceOf(Date)
+      expect(session?.updatedAt).toBeInstanceOf(Date)
     })
 
     it('should allow optional description', () => {
@@ -30,7 +30,7 @@ describe('Type definitions', () => {
         updatedAt: new Date(),
       }
 
-      expect(session.description).toBeUndefined()
+      expect(session?.description).toBeUndefined()
     })
   })
 
@@ -43,7 +43,7 @@ describe('Type definitions', () => {
         importance: 7,
         urgency: 8,
         type: 'focused',
-        asyncWaitTime: 0,
+        sessionId: 'test-session',        asyncWaitTime: 0,
         dependencies: [],
         completed: false,
         sessionId: 'session-id',
@@ -55,10 +55,10 @@ describe('Type definitions', () => {
         worstCaseDuration: 60,
       }
 
-      expect(task.sessionId).toBe('session-id')
-      expect(task.type).toBe('focused')
-      expect(task.importance).toBe(7)
-      expect(task.urgency).toBe(8)
+      expect(task?.sessionId).toBe('session-id')
+      expect(task?.type).toBe('focused')
+      expect(task?.importance).toBe(7)
+      expect(task?.urgency).toBe(8)
     })
 
     it('should allow optional deadline', () => {
@@ -69,7 +69,7 @@ describe('Type definitions', () => {
         importance: 5,
         urgency: 5,
         type: 'admin',
-        asyncWaitTime: 0,
+        sessionId: 'test-session',        asyncWaitTime: 0,
         dependencies: [],
         completed: false,
         sessionId: 'session-id',
@@ -82,7 +82,7 @@ describe('Type definitions', () => {
         worstCaseDuration: 60,
       }
 
-      expect(task.deadline).toBeInstanceOf(Date)
+      expect(task?.deadline).toBeInstanceOf(Date)
       expect(task.deadline?.getFullYear()).toBe(2024)
     })
   })

@@ -34,7 +34,12 @@
       "Bash(fi)",
       "Bash(done)",
       "Bash(npx prisma migrate:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(/tmp/fix-unused-imports.sh:*)",
+      "Bash(/tmp/fix-all-unused.sh:*)",
+      "Bash(/tmp/fix-test-types.sh:*)",
+      "Bash(/tmp/fix-common-ts-errors.sh:*)",
+      "Bash(/tmp/cleanup-duplicates.sh:*)"
     ],
     "deny": []
   }

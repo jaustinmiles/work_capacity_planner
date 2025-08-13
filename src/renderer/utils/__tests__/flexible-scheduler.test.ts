@@ -20,25 +20,23 @@ describe('flexible-scheduler', () => {
         id: 'task-1',
         name: 'Review code',
         type: 'focused',
-        duration: 60,
+        sessionId: 'test-session',        duration: 60,
         importance: 8,
         urgency: 7,
         completed: false,
         asyncWaitTime: 0,
         status: 'pending',
-        sessionId: 'test-session',
       },
       {
         id: 'task-2',
         name: 'Team meeting',
         type: 'admin',
-        duration: 30,
+        sessionId: 'test-session',        duration: 30,
         importance: 6,
         urgency: 9,
         completed: false,
         asyncWaitTime: 0,
         status: 'pending',
-        sessionId: 'test-session',
       },
     ]
 
@@ -51,14 +49,13 @@ describe('flexible-scheduler', () => {
         importance: 9,
         urgency: 8,
         overallStatus: 'pending',
-        sessionId: 'test-session',
         steps: [
           {
             id: 'step-1',
             name: 'Write tests',
             description: 'Write unit tests',
             type: 'focused',
-            duration: 90,
+        sessionId: 'test-session',            duration: 90,
             asyncWaitTime: 0,
             status: 'pending',
             order: 0,
@@ -68,7 +65,7 @@ describe('flexible-scheduler', () => {
             name: 'Run CI/CD',
             description: 'Run automated tests',
             type: 'admin',
-            duration: 15,
+        sessionId: 'test-session',            duration: 15,
             asyncWaitTime: 30, // Has async wait time
             status: 'pending',
             order: 1,
@@ -88,9 +85,9 @@ describe('flexible-scheduler', () => {
             startTime: '09:00',
             endTime: '12:00',
             type: 'mixed',
-            capacity: {
-              focusMinutes: 120,
-              adminMinutes: 60,
+        sessionId: 'test-session',            capacity: {
+              focused: 120,
+              admin: 60,
             },
           },
           {
@@ -98,7 +95,7 @@ describe('flexible-scheduler', () => {
             startTime: '13:00',
             endTime: '17:00',
             type: 'focused',
-          },
+        sessionId: 'test-session',          },
         ],
         meetings: [
           {
@@ -107,9 +104,9 @@ describe('flexible-scheduler', () => {
             startTime: '10:00',
             endTime: '10:30',
             type: 'meeting',
-          },
+        sessionId: 'test-session',          },
         ],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focused: 0, admin: 0 },
       },
     ]
   })
@@ -122,7 +119,7 @@ describe('flexible-scheduler', () => {
     it('should schedule tasks and return scheduled items', () => {
       const result = scheduleItemsWithBlocks(mockTasks, [], mockPatterns)
 
-      expect(result.length).toBeGreaterThan(0)
+      expect(result?.length).toBeGreaterThan(0)
       expect(result[0]).toMatchObject({
         id: expect.any(String),
         name: expect.any(String),
@@ -139,7 +136,7 @@ describe('flexible-scheduler', () => {
       const result = scheduleItemsWithBlocks([], [], mockPatterns)
 
       const meetings = result.filter(item => item.isBlocked)
-      expect(meetings.length).toBeGreaterThanOrEqual(1)
+      expect(meetings?.length).toBeGreaterThanOrEqual(1)
       const standup = meetings.find(m => m.name === 'Daily Standup')
       expect(standup).toBeTruthy()
       expect(standup!.isBlocked).toBe(true)
@@ -164,7 +161,7 @@ describe('flexible-scheduler', () => {
       const result = scheduleItemsWithBlocks([], mockSequencedTasks, mockPatterns)
 
       const workflowSteps = result.filter(item => item.type === 'workflow-step' && !item.isWaitTime)
-      expect(workflowSteps.length).toBeGreaterThanOrEqual(1)
+      expect(workflowSteps?.length).toBeGreaterThanOrEqual(1)
       expect(workflowSteps[0].name).toContain('Write tests')
       // Second step might not be scheduled if capacity is exceeded
       if (workflowSteps.length > 1) {
@@ -187,7 +184,7 @@ describe('flexible-scheduler', () => {
       const result = scheduleItemsWithBlocks([], mockSequencedTasks, mockPatterns)
 
       const workflowSteps = result.filter(item => item.workflowId === 'workflow-1')
-      expect(workflowSteps.length).toBeGreaterThan(0)
+      expect(workflowSteps?.length).toBeGreaterThan(0)
       // All steps from same workflow should have same workflowId
       const workflowIds = workflowSteps.map(s => s.workflowId)
       expect(new Set(workflowIds).size).toBe(1)
@@ -203,13 +200,12 @@ describe('flexible-scheduler', () => {
           id: `task-${i}`,
           name: `Task ${i}`,
           type: 'focused',
-          duration: 60, // 1 hour each
+        sessionId: 'test-session',          duration: 60, // 1 hour each
           importance: 5,
           urgency: 5,
           completed: false,
           asyncWaitTime: 0,
           status: 'pending',
-          sessionId: 'test-session',
         })
       }
 
@@ -234,13 +230,12 @@ describe('flexible-scheduler', () => {
         id: 'admin-task',
         name: 'Admin work',
         type: 'admin',
-        duration: 45,
+        sessionId: 'test-session',        duration: 45,
         importance: 5,
         urgency: 5,
         completed: false,
         asyncWaitTime: 0,
         status: 'pending',
-        sessionId: 'test-session',
       }
 
       const result = scheduleItemsWithBlocks([adminTask], [], mockPatterns)
@@ -259,13 +254,12 @@ describe('flexible-scheduler', () => {
         id: 'urgent-task',
         name: 'Urgent task',
         type: 'focused',
-        duration: 30,
+        sessionId: 'test-session',        duration: 30,
         importance: 5,
         urgency: 5,
         completed: false,
         asyncWaitTime: 0,
         status: 'pending',
-        sessionId: 'test-session',
         deadline: new Date('2025-08-12T15:00:00'), // Due today
       }
 
@@ -273,13 +267,12 @@ describe('flexible-scheduler', () => {
         id: 'normal-task',
         name: 'Normal task',
         type: 'focused',
-        duration: 30,
+        sessionId: 'test-session',        duration: 30,
         importance: 9,
         urgency: 9,
         completed: false,
         asyncWaitTime: 0,
         status: 'pending',
-        sessionId: 'test-session',
       }
 
       const result = scheduleItemsWithBlocks([normalTask, urgentTask], [], mockPatterns)
@@ -315,7 +308,7 @@ describe('flexible-scheduler', () => {
             startTime: '22:00',
             endTime: '06:00', // Crosses midnight
             type: 'blocked',
-          },
+        sessionId: 'test-session',          },
         ],
       }
 
@@ -323,7 +316,7 @@ describe('flexible-scheduler', () => {
 
       const sleepBlocks = result.filter(item => item.name === 'Sleep' && item.isBlocked)
       // Sleep blocks that cross midnight should be handled specially
-      expect(sleepBlocks.length).toBeGreaterThanOrEqual(1)
+      expect(sleepBlocks?.length).toBeGreaterThanOrEqual(1)
       // Check if IDs contain date information
       const hasSleepBlock = sleepBlocks.some(block => block.id.includes('sleep'))
       expect(hasSleepBlock).toBe(true)
@@ -339,13 +332,12 @@ describe('flexible-scheduler', () => {
           id: `task-${i}`,
           name: `Task ${i}`,
           type: 'focused',
-          duration: 60,
+        sessionId: 'test-session',          duration: 60,
           importance: 5,
           urgency: 5,
           completed: false,
           asyncWaitTime: 0,
           status: 'pending',
-          sessionId: 'test-session',
         })
       }
 
@@ -360,10 +352,10 @@ describe('flexible-scheduler', () => {
               startTime: '09:00',
               endTime: '12:00',
               type: 'focused',
-            },
+        sessionId: 'test-session',            },
           ],
           meetings: [],
-          accumulated: { focusMinutes: 0, adminMinutes: 0 },
+          accumulated: { focused: 0, admin: 0 },
         },
       ]
 

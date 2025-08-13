@@ -56,7 +56,6 @@ describe('RendererDatabaseService', () => {
           id: '1',
           name: 'Task 1',
           completed: false,
-          sessionId: 'session-1',
         },
       ]
       window.electronAPI.db.getTasks.mockResolvedValue(mockTasks)
@@ -69,12 +68,14 @@ describe('RendererDatabaseService', () => {
 
     it('should create a new task', async () => {
       const taskData = {
+        id: 'step-' + Math.random().toString(36).substr(2, 9),
+        taskId: 'test-task',
         name: 'New Task',
         duration: 60,
         importance: 7,
         urgency: 8,
         type: 'focused' as const,
-        asyncWaitTime: 0,
+        sessionId: 'test-session',        asyncWaitTime: 0,
         dependencies: [],
         completed: false,
       }
@@ -82,7 +83,6 @@ describe('RendererDatabaseService', () => {
       const mockCreatedTask = {
         ...taskData,
         id: 'new-task-id',
-        sessionId: 'session-1',
         createdAt: new Date(),
         updatedAt: new Date(),
       }
@@ -101,7 +101,6 @@ describe('RendererDatabaseService', () => {
         id: 'task-1',
         name: 'Updated Task',
         completed: true,
-        sessionId: 'session-1',
       }
 
       window.electronAPI.db.updateTask.mockResolvedValue(mockUpdatedTask)
@@ -136,7 +135,7 @@ describe('RendererDatabaseService', () => {
     })
 
     it('should get today accumulated time', async () => {
-      const mockAccumulated = { focusMinutes: 120, adminMinutes: 60 }
+      const mockAccumulated = { focused: 120, admin: 60 }
       window.electronAPI.db.getTodayAccumulated.mockResolvedValue(mockAccumulated)
 
       const accumulated = await db.getTodayAccumulated('2024-01-15')

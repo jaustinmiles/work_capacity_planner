@@ -76,7 +76,6 @@ interface TaskStore {
 
 // Helper to generate IDs (will be replaced by database IDs later)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const generateId = () => window.crypto.randomUUID()
 
 // Create scheduling service instance
 const schedulingService = new SchedulingService()

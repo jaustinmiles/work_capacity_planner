@@ -63,8 +63,7 @@ describe('Database - Time Tracking', () => {
         sessions: [
           { type: 'focused', actualMinutes: 30, plannedMinutes: 25 },
           { type: 'admin', actualMinutes: 45, plannedMinutes: 40 },
-          { type: 'focused', actualMinutes: null, plannedMinutes: 20 },
-        ]
+          { type: 'focused', actualMinutes: null, plannedMinutes: 20 },        ]
       })
       mockPrisma.stepWorkSession.findMany.mockResolvedValue([])
       mockPrisma.task.findMany.mockResolvedValue([])
@@ -72,8 +71,8 @@ describe('Database - Time Tracking', () => {
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focusMinutes: 50, // 30 + 20
-        adminMinutes: 45
+        focused: 50, // 30 + 20
+        admin: 45
       })
     })
 
@@ -82,15 +81,14 @@ describe('Database - Time Tracking', () => {
       mockPrisma.stepWorkSession.findMany.mockResolvedValue([
         { duration: 25, taskStep: { type: 'focused' } },
         { duration: 35, taskStep: { type: 'admin' } },
-        { duration: 15, taskStep: { type: 'focused' } },
-      ])
+        { duration: 15, taskStep: { type: 'focused' } },      ])
       mockPrisma.task.findMany.mockResolvedValue([])
 
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focusMinutes: 40, // 25 + 15
-        adminMinutes: 35
+        focused: 40, // 25 + 15
+        admin: 35
       })
     })
 
@@ -100,35 +98,31 @@ describe('Database - Time Tracking', () => {
       mockPrisma.task.findMany.mockResolvedValue([
         { type: 'focused', actualDuration: 60 },
         { type: 'admin', actualDuration: 30 },
-        { type: 'focused', actualDuration: 45 },
-      ])
+        { type: 'focused', actualDuration: 45 },      ])
 
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focusMinutes: 105, // 60 + 45
-        adminMinutes: 30
+        focused: 105, // 60 + 45
+        admin: 30
       })
     })
 
     it('should combine all sources of time tracking', async () => {
       mockPrisma.workPattern.findUnique.mockResolvedValue({
         sessions: [
-          { type: 'focused', actualMinutes: 30, plannedMinutes: 25 }
-        ]
+          { type: 'focused', actualMinutes: 30, plannedMinutes: 25 }        ]
       })
       mockPrisma.stepWorkSession.findMany.mockResolvedValue([
-        { duration: 25, taskStep: { type: 'focused' } }
-      ])
+        { duration: 25, taskStep: { type: 'focused' } }      ])
       mockPrisma.task.findMany.mockResolvedValue([
-        { type: 'focused', actualDuration: 60 }
-      ])
+        { type: 'focused', actualDuration: 60 }      ])
 
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focusMinutes: 115, // 30 + 25 + 60
-        adminMinutes: 0
+        focused: 115, // 30 + 25 + 60
+        admin: 0
       })
     })
 
@@ -140,8 +134,8 @@ describe('Database - Time Tracking', () => {
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focusMinutes: 0,
-        adminMinutes: 0
+        focused: 0,
+        admin: 0
       })
     })
 
@@ -161,7 +155,6 @@ describe('Database - Time Tracking', () => {
           },
           taskStep: {
             task: {
-              sessionId: 'session-1',
             },
           },
         },
@@ -172,7 +165,6 @@ describe('Database - Time Tracking', () => {
 
       expect(mockPrisma.task.findMany).toHaveBeenCalledWith({
         where: {
-          sessionId: 'session-1',
           actualDuration: { gt: 0 },
           updatedAt: {
             gte: startOfDay,

@@ -13,7 +13,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         startTime: '09:00',
         endTime: '17:00',
         type: 'mixed',
-        capacity: { focusMinutes: 240, adminMinutes: 240 },
+        sessionId: 'test-session',        capacity: { focused: 240, admin: 240 },
       },
     ],
     meetings: [],
@@ -27,8 +27,8 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         importance: 5,
         urgency: 5,
         type: 'focused',
+        sessionId: 'test-session',        duration: 120,
         duration: 120,
-        totalDuration: 120,
         criticalPathDuration: 1560, // 60 + 1440 wait + 60
         worstCaseDuration: 1560,
         overallStatus: 'not_started',
@@ -41,7 +41,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
             name: 'Step 1 - Submit for review',
             stepIndex: 0,
             type: 'focused',
-            duration: 60,
+        sessionId: 'test-session',            duration: 60,
             asyncWaitTime: 1440, // 24 hours wait
             status: 'pending',
             dependsOn: [],
@@ -53,7 +53,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
             name: 'Step 2 - Process review feedback',
             stepIndex: 1,
             type: 'focused',
-            duration: 60,
+        sessionId: 'test-session',            duration: 60,
             asyncWaitTime: 0,
             status: 'pending',
             dependsOn: ['step-1'], // Depends on step-1
@@ -117,8 +117,8 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         importance: 5,
         urgency: 5,
         type: 'focused',
+        sessionId: 'test-session',        duration: 90,
         duration: 90,
-        totalDuration: 90,
         criticalPathDuration: 1530,
         worstCaseDuration: 1530,
         overallStatus: 'not_started',
@@ -131,7 +131,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
             name: 'Submit',
             stepIndex: 0,
             type: 'focused',
-            duration: 30,
+        sessionId: 'test-session',            duration: 30,
             asyncWaitTime: 1440, // 24 hour wait
             status: 'pending',
             dependsOn: [],
@@ -143,7 +143,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
             name: 'Review',
             stepIndex: 1,
             type: 'focused',
-            duration: 60,
+        sessionId: 'test-session',            duration: 60,
             asyncWaitTime: 0,
             status: 'pending',
             dependsOn: ['step-1'],
@@ -160,7 +160,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         importance: 4,
         urgency: 4,
         type: 'focused',
-        asyncWaitTime: 0,
+        sessionId: 'test-session',        asyncWaitTime: 0,
         dependencies: [],
         completed: false,
         hasSteps: false,
@@ -213,8 +213,8 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         importance: 5,
         urgency: 5,
         type: 'focused',
+        sessionId: 'test-session',        duration: 150,
         duration: 150,
-        totalDuration: 150,
         criticalPathDuration: 270,
         worstCaseDuration: 270,
         overallStatus: 'not_started',
@@ -227,7 +227,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
             name: 'Quick check',
             stepIndex: 0,
             type: 'focused',
-            duration: 30,
+        sessionId: 'test-session',            duration: 30,
             asyncWaitTime: 60, // 1 hour wait
             status: 'pending',
             dependsOn: [],
@@ -239,7 +239,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
             name: 'Long review',
             stepIndex: 1,
             type: 'focused',
-            duration: 30,
+        sessionId: 'test-session',            duration: 30,
             asyncWaitTime: 120, // 2 hour wait
             status: 'pending',
             dependsOn: [],
@@ -251,7 +251,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
             name: 'Final step',
             stepIndex: 2,
             type: 'focused',
-            duration: 90,
+        sessionId: 'test-session',            duration: 90,
             asyncWaitTime: 0,
             status: 'pending',
             dependsOn: ['step-1', 'step-2'], // Depends on both
@@ -292,8 +292,8 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
         importance: 5,
         urgency: 5,
         type: 'focused',
+        sessionId: 'test-session',        duration: 60,
         duration: 60,
-        totalDuration: 60,
         criticalPathDuration: 60,
         worstCaseDuration: 60,
         overallStatus: 'not_started',
@@ -306,7 +306,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
             name: 'Step 1',
             stepIndex: 0,
             type: 'focused',
-            duration: 30,
+        sessionId: 'test-session',            duration: 30,
             asyncWaitTime: 0,
             status: 'pending',
             dependsOn: [],
@@ -318,7 +318,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
             name: 'Step 2',
             stepIndex: 1,
             type: 'focused',
-            duration: 30,
+        sessionId: 'test-session',            duration: 30,
             asyncWaitTime: 0,
             status: 'pending',
             dependsOn: ['non-existent-step-id'], // Bad dependency
@@ -346,7 +346,7 @@ describe('Flexible Scheduler - Async Wait Time Handling', () => {
       const depWarnings = debugInfo.warnings.filter(w => 
         w.includes('non-existent-step-id')
       )
-      expect(depWarnings.length).toBeGreaterThan(0)
+      expect(depWarnings?.length).toBeGreaterThan(0)
     })
   })
 })

@@ -11,10 +11,9 @@ describe('Flexible Scheduler', () => {
     importance: 5,
     urgency: 5,
     type: 'focused',
-    asyncWaitTime: 0,
+        sessionId: 'test-session',    asyncWaitTime: 0,
     dependencies: [],
     completed: false,
-    sessionId: 'test-session',
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -28,19 +27,19 @@ describe('Flexible Scheduler', () => {
         startTime: '09:00',
         endTime: '12:00',
         type: 'focused',
-      },
+        sessionId: 'test-session',      },
       {
         id: 'block-2',
         startTime: '13:00',
         endTime: '17:00',
         type: 'mixed',
-        capacity: {
-          focusMinutes: 120,
-          adminMinutes: 120,
+        sessionId: 'test-session',        capacity: {
+          focused: 120,
+          admin: 120,
         },
       },
     ],
-    accumulated: { focusMinutes: 0, adminMinutes: 0 },
+    accumulated: { focused: 0, admin: 0 },
     meetings: [],
   })
 
@@ -116,19 +115,19 @@ describe('Flexible Scheduler', () => {
       const focusTask1 = createTask({
         id: 'focus-1',
         type: 'focused',
-        duration: 120, // 2 hours
+        sessionId: 'test-session',        duration: 120, // 2 hours
       })
 
       const focusTask2 = createTask({
         id: 'focus-2',
         type: 'focused',
-        duration: 120, // 2 hours
+        sessionId: 'test-session',        duration: 120, // 2 hours
       })
 
       const adminTask = createTask({
         id: 'admin-1',
         type: 'admin',
-        duration: 60,
+        sessionId: 'test-session',        duration: 60,
       })
 
       const tasks = [focusTask1, focusTask2, adminTask]
@@ -143,7 +142,7 @@ describe('Flexible Scheduler', () => {
 
       // The focused block (9-12) has 180 minutes capacity
       // So both 120-minute focus tasks should fit
-      expect(focusBlock.length).toBeGreaterThanOrEqual(1)
+      expect(focusBlock?.length).toBeGreaterThanOrEqual(1)
     })
   })
 
