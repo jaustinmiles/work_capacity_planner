@@ -86,6 +86,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         const { tempId, ...cleanStep } = step
         return {
           id: cleanStep.id,
+          taskId: task.id,
           name: cleanStep.name,
           duration: cleanStep.duration,
           type: cleanStep.type,
@@ -93,6 +94,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           asyncWaitTime: cleanStep.asyncWaitTime,
           status: cleanStep.status,
           stepIndex: index,
+          percentComplete: cleanStep.percentComplete || 0,
         }
       })
 
@@ -179,6 +181,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         const newStep: EditingStep = {
           id: `step-${editedTask.id}-${newStepIndex}`,
           tempId: `temp-${Date.now()}`,
+          taskId: editedTask.id || '',
           name: values.name,
           duration: values.duration,
           type: values.type,
@@ -186,6 +189,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           dependsOn: values.dependsOn || [],
           status: 'pending',
           stepIndex: newStepIndex,
+          percentComplete: 0,
         }
         setEditingSteps([...editingSteps, newStep])
       }

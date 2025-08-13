@@ -21,6 +21,7 @@ export function TestWorkflowCreator() {
       steps: [
         {
           id: 'step-test-1',
+          taskId: '',  // Will be set when saved
           name: 'Step 1: Initial Setup',
           duration: 30,
           type: 'focused',
@@ -28,9 +29,11 @@ export function TestWorkflowCreator() {
           asyncWaitTime: 0,
           status: 'pending',
           stepIndex: 0,
+          percentComplete: 0,
         },
         {
           id: 'step-test-2',
+          taskId: '',  // Will be set when saved
           name: 'Step 2: Main Work',
           duration: 60,
           type: 'focused',
@@ -38,9 +41,11 @@ export function TestWorkflowCreator() {
           asyncWaitTime: 0,
           status: 'pending',
           stepIndex: 1,
+          percentComplete: 0,
         },
         {
           id: 'step-test-3',
+          taskId: '',  // Will be set when saved
           name: 'Step 3: Review',
           duration: 30,
           type: 'admin',
@@ -48,9 +53,11 @@ export function TestWorkflowCreator() {
           asyncWaitTime: 30,
           status: 'pending',
           stepIndex: 2,
+          percentComplete: 0,
         },
         {
           id: 'step-test-4',
+          taskId: '',  // Will be set when saved
           name: 'Step 4: Final Steps',
           duration: 30,
           type: 'focused',
@@ -58,6 +65,7 @@ export function TestWorkflowCreator() {
           asyncWaitTime: 0,
           status: 'pending',
           stepIndex: 3,
+          percentComplete: 0,
         },
       ],
     }
