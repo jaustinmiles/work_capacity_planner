@@ -66,6 +66,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ai: {
     extractTasksFromBrainstorm: (brainstormText: string) => ipcRenderer.invoke('ai:extractTasksFromBrainstorm', brainstormText),
     extractWorkflowsFromBrainstorm: (brainstormText: string, jobContext?: string) => ipcRenderer.invoke('ai:extractWorkflowsFromBrainstorm', brainstormText, jobContext),
+    extractJargonTerms: (contextText: string) => ipcRenderer.invoke('ai:extractJargonTerms', contextText),
     generateWorkflowSteps: (taskDescription: string, context?: any) => ipcRenderer.invoke('ai:generateWorkflowSteps', taskDescription, context),
     enhanceTaskDetails: (taskName: string, currentDetails?: any) => ipcRenderer.invoke('ai:enhanceTaskDetails', taskName, currentDetails),
     getContextualQuestions: (taskName: string, taskDescription?: string) => ipcRenderer.invoke('ai:getContextualQuestions', taskName, taskDescription),

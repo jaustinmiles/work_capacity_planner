@@ -231,6 +231,44 @@ Focus on understanding the async nature described in natural language. Be realis
   }
 
   /**
+   * Extract potential jargon terms from job context
+   */
+  async extractJargonTerms(contextText: string): Promise<string> {
+    try {
+      const prompt = `Based on this job context, identify technical terms, acronyms, and industry-specific jargon that might need definition. Return ONLY a JSON array of terms (no definitions needed, just the terms themselves).
+
+Context:
+${contextText}
+
+Return format: ["term1", "term2", "term3", ...]
+Only include terms that are likely industry-specific or technical jargon, not common words.
+Include acronyms, technical terms, tools, frameworks, and domain-specific concepts.
+Limit to the 15 most important/frequently mentioned terms.`
+
+      const response = await this.anthropic.messages.create({
+        model: 'claude-opus-4-1-20250805',
+        max_tokens: 1000,
+        temperature: 0.3,
+        messages: [{
+          role: 'user',
+          content: prompt,
+        }],
+      })
+
+      const content = response.content[0]
+      if (content.type !== 'text') {
+        throw new Error('Unexpected response type from Claude')
+      }
+
+      return content.text.trim()
+    } catch (error) {
+      console.error('Error extracting jargon terms:', error)
+      // Return empty array on error
+      return '[]'
+    }
+  }
+
+  /**
    * Generate detailed workflow steps from a task description
    */
   async generateWorkflowSteps(taskDescription: string, context?: {

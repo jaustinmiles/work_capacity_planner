@@ -387,16 +387,67 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       )
 
       // Append to job context
-      setJobContext(prev => prev + (prev ? '\n\n' : '') + result.text)
+      const fullContext = jobContext + (jobContext ? '\n\n' : '') + result.text
+      setJobContext(fullContext)
       setContextAudioFile(file)
 
       // Auto-save the context
-      await saveJobContext(jobContext + '\n\n' + result.text)
+      await saveJobContext(fullContext)
+
+      // Extract potential jargon terms using AI
+      await extractJargonTerms(fullContext)
     } catch (error) {
       console.error('Error processing context audio:', error)
       setError('Failed to process context audio file.')
     } finally {
       setIsProcessingContextAudio(false)
+    }
+  }
+
+  const extractJargonTerms = async (contextText: string) => {
+    if (!contextText.trim()) return
+
+    try {
+      // Use AI to extract potential jargon terms
+      const prompt = `Based on this job context, identify technical terms, acronyms, and industry-specific jargon that might need definition. Return ONLY a JSON array of terms (no definitions needed, just the terms themselves).
+
+Context:
+${contextText}
+
+Return format: ["term1", "term2", "term3", ...]
+Only include terms that are likely industry-specific or technical jargon, not common words.`
+
+      const response = await window.electronAPI.ai.extractJargonTerms(contextText)
+
+      try {
+        const terms = JSON.parse(response)
+        if (Array.isArray(terms)) {
+          // Filter out terms that already have definitions
+          const existingTerms = Object.keys(jargonDictionary)
+          const newTerms = terms.filter(term => 
+            !existingTerms.some(existing => 
+              existing.toLowerCase() === term.toLowerCase()
+            )
+          )
+
+          // Show suggested terms to user (they can define them)
+          if (newTerms.length > 0) {
+            Message.info(`Found ${newTerms.length} potential jargon terms: ${newTerms.slice(0, 5).join(', ')}${newTerms.length > 5 ? '...' : ''}`)
+            
+            // Add empty entries for new terms so user can fill them in
+            const updatedDictionary = { ...jargonDictionary }
+            for (const term of newTerms.slice(0, 10)) { // Limit to 10 at a time
+              updatedDictionary[term] = ''
+            }
+            setJargonDictionary(updatedDictionary)
+          }
+        }
+      } catch (parseError) {
+        console.error('Failed to parse jargon terms:', parseError)
+      }
+    } catch (error) {
+      console.error('Error extracting jargon terms:', error)
+      // Non-critical error, don't show to user
     }
   }
 

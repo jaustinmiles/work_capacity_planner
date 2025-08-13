@@ -275,6 +275,11 @@ ipcMain.handle('ai:extractWorkflowsFromBrainstorm', async (_event: IpcMainInvoke
   return await aiService.extractWorkflowsFromBrainstorm(brainstormText, jobContext)
 })
 
+ipcMain.handle('ai:extractJargonTerms', async (_event: IpcMainInvokeEvent, contextText: string) => {
+  const aiService = getAIService()
+  return await aiService.extractJargonTerms(contextText)
+})
+
 ipcMain.handle('ai:generateWorkflowSteps', async (_event: IpcMainInvokeEvent, taskDescription: string, context?: any) => {
   const aiService = getAIService()
   return await aiService.generateWorkflowSteps(taskDescription, context)
