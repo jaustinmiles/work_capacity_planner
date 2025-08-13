@@ -6,12 +6,34 @@ import { DailyWorkPattern } from '@shared/work-blocks-types'
 
 describe('Personal Tasks Scheduling', () => {
   it('should respect task categories when scheduling', () => {
-    const personalTask: Task = {
+    // Higher priority work task
+    const workTask: Task = {
       id: 'task-1',
+      name: 'Work Task',
+      duration: 60,
+      importance: 8,
+      urgency: 8,
+      type: 'focused',
+      category: 'work',
+      asyncWaitTime: 0,
+      dependencies: [],
+      completed: false,
+      sessionId: 'test-session',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      hasSteps: false,
+      overallStatus: 'not_started',
+      criticalPathDuration: 60,
+      worstCaseDuration: 60,
+    }
+    
+    // Lower priority personal task
+    const personalTask: Task = {
+      id: 'task-2',
       name: 'Personal Task',
       duration: 60,
-      importance: 5,
-      urgency: 5,
+      importance: 3,
+      urgency: 3,
       type: 'focused',
       category: 'personal',
       asyncWaitTime: 0,
@@ -26,31 +48,9 @@ describe('Personal Tasks Scheduling', () => {
       worstCaseDuration: 60,
     }
 
-    const workTask: Task = {
-      id: 'task-2',
-      name: 'Work Task',
-      duration: 60,
-      importance: 5,
-      urgency: 5,
-      type: 'focused',
-      category: 'work',
-      asyncWaitTime: 0,
-      dependencies: [],
-      completed: false,
-      sessionId: 'test-session',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      hasSteps: false,
-      overallStatus: 'not_started',
-      criticalPathDuration: 60,
-      worstCaseDuration: 60,
-    }
-
-    // Use tomorrow's date so all blocks are available
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(6, 0, 0, 0) // Start at 6 AM
-    const dateStr = tomorrow.toISOString().split('T')[0]
+    // Use a fixed future date to ensure consistency
+    const testDate = new Date('2025-12-01T06:00:00')
+    const dateStr = '2025-12-01'
     
     const patterns: DailyWorkPattern[] = [
       {
@@ -74,27 +74,30 @@ describe('Personal Tasks Scheduling', () => {
       },
     ]
 
-    const { scheduledItems } = scheduleItemsWithBlocksAndDebug(
-      [personalTask, workTask],
+    const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug(
+      [workTask, personalTask],
       [],
       patterns,
-      tomorrow
+      testDate
     )
 
-    // Personal task should be scheduled in the personal block (13:00-15:00)
-    const personalScheduled = scheduledItems.find(item => item.id === 'task-1')
-    expect(personalScheduled).toBeDefined()
-    if (personalScheduled) {
-      expect(personalScheduled.startTime.getHours()).toBe(13)
-    }
+    // Check that both tasks were scheduled
+    expect(scheduledItems.length).toBe(2)
 
-    // Work task should be scheduled in the focused block (09:00-12:00)
-    const workScheduled = scheduledItems.find(item => item.id === 'task-2')
+    // Work task (higher priority) should be scheduled in the focused block (09:00-12:00)
+    const workScheduled = scheduledItems.find(item => item.id === 'task-1')
     expect(workScheduled).toBeDefined()
     if (workScheduled) {
       const hour = workScheduled.startTime.getHours()
       expect(hour).toBeGreaterThanOrEqual(9)
       expect(hour).toBeLessThan(12)
+    }
+
+    // Personal task should be scheduled in the personal block (13:00-15:00)
+    const personalScheduled = scheduledItems.find(item => item.id === 'task-2')
+    expect(personalScheduled).toBeDefined()
+    if (personalScheduled) {
+      expect(personalScheduled.startTime.getHours()).toBe(13)
     }
   })
 

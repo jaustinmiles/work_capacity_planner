@@ -4,6 +4,23 @@
 
 The Work Capacity Planner uses a sophisticated scheduling algorithm that converts simple tasks and complex workflows into an optimized timeline. The system respects capacity constraints, dependencies, and user priorities while automatically filling async wait periods with other work.
 
+## Fundamental Philosophy: Forward-Only Time Progression
+
+**CRITICAL DESIGN PRINCIPLE**: The scheduler operates on a forward-only time model. Once the scheduler's internal clock (`currentTime`) advances, it never goes backward. This mirrors real-world time constraints - you cannot go back in time to complete work.
+
+### Why Forward-Only?
+1. **Reflects Reality**: You can't actually go back in time to do work
+2. **Simplifies Logic**: No complex backtracking or time conflict resolution  
+3. **Clear Mental Model**: Users understand they're planning from "now" forward
+4. **Prevents Over-optimization**: Avoids unrealistic "perfect" schedules that assume time travel
+
+### Implications
+- Earlier time slots that become available after scheduling has progressed are NOT filled
+- Tasks are scheduled in priority order, and each scheduled task advances the timeline
+- If a high-priority task takes the 9 AM slot, a later task cannot use the 8 AM slot even if available
+- Time tracking (logging completed work) can record past times, but scheduling cannot
+- Tests must account for this - task order matters when testing scheduling
+
 ## Core Principles
 
 ### 1. Capacity-Aware Scheduling

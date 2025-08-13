@@ -688,7 +688,9 @@ export function scheduleItemsWithBlocksAndDebug(
       }
 
       // Try to fit in available blocks
+      let attemptedBlocks = 0
       for (const block of blockCapacities) {
+        attemptedBlocks++
         const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems)
 
         if (canFit) {
@@ -773,15 +775,34 @@ export function scheduleItemsWithBlocksAndDebug(
       if (!itemScheduled && blockCapacities.length > 0) {
         // Determine why the item couldn't be scheduled
         let reason = 'Unknown reason'
-
-        if (blockCapacities.every(block => {
+        
+        // Check category compatibility first
+        const isPersonalTask = item.category === 'personal'
+        const hasCompatibleBlock = blockCapacities.some(block => {
+          if (isPersonalTask) {
+            return block.blockType === 'personal'
+          } else {
+            return block.blockType !== 'personal'
+          }
+        })
+        
+        if (!hasCompatibleBlock) {
+          reason = isPersonalTask 
+            ? 'No personal blocks available for personal task' 
+            : 'No work blocks available for work task'
+        } else if (blockCapacities.every(block => {
+          // Check both category compatibility and capacity
+          const categoryMismatch = (isPersonalTask && block.blockType !== 'personal') || 
+                                  (!isPersonalTask && block.blockType === 'personal')
+          if (categoryMismatch) return true
+          
           if (item.taskType === 'focused') {
             return block.focusMinutesUsed + item.duration > block.focusMinutesTotal
           } else {
             return block.adminMinutesUsed + item.duration > block.adminMinutesTotal
           }
         })) {
-          reason = `No block has enough ${item.taskType} capacity (needs ${item.duration} minutes)`
+          reason = `No compatible block has enough ${item.taskType} capacity (needs ${item.duration} minutes)`
         } else {
           const lastBlock = blockCapacities[blockCapacities.length - 1]
           if (lastBlock && currentTime.getTime() >= lastBlock.endTime.getTime()) {

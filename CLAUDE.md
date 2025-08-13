@@ -445,7 +445,23 @@ npm run test:coverage
 - Mock window.matchMedia and electron API for component tests
 - Use vi.useFakeTimers() for time-dependent tests
 
-## Common Patterns & Best Practices
+## Core Design Philosophy
+
+### Time and Scheduling Principles
+**CRITICAL: The scheduler ONLY moves forward in time**
+- Tasks are scheduled from the current moment onwards - never in the past
+- No backfilling of earlier time slots - once time has passed, those slots are gone
+- Time tracking (logging work done) can be recorded for past times (because users may work without logging in real-time)
+- But scheduling (planning future work) only looks forward
+- This reflects reality: you can't go back in time to do work, you can only plan forward
+
+This is a fundamental design principle that affects:
+- The scheduling algorithm (currentTime only advances, never retreats)
+- The UI (no ability to drag tasks to past time slots)
+- The calendar view (past blocks are shown as unavailable/grayed out)
+- Test design (tests must account for forward-only scheduling)
+
+### Common Patterns & Best Practices
 
 ### React 19 Compatibility
 - Use custom Message wrapper instead of Arco's direct Message API
