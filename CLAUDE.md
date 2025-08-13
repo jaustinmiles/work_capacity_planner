@@ -75,7 +75,7 @@ npm run check  # Runs both typecheck and lint
    npm run build:preload  # Builds preload script
    npm run typecheck      # Must have 0 errors
    npm run lint           # Address any new errors
-   npm test              # Run unit tests (when available)
+   npm test -- --run      # Run unit tests
    
    # If any of these fail, fix the issues before proceeding
    ```
@@ -253,6 +253,27 @@ try {
 - Integration tests for IPC and database operations
 - E2E tests for critical workflows using Playwright
 - Performance tests for scheduling with large datasets
+
+### Testing Commands
+```bash
+# Run all tests once
+npm test -- --run
+
+# Run tests in watch mode
+npm test
+
+# Run tests with UI
+npm run test:ui
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Test Structure
+- Tests are co-located with source files in `__tests__` directories
+- Test setup is in `src/test/setup.ts`
+- Mock window.matchMedia and electron API for component tests
+- Use vi.useFakeTimers() for time-dependent tests
 
 ## Common Patterns & Best Practices
 

@@ -20,6 +20,27 @@ export interface ScheduledItem {
   originalItem?: Task | TaskStep | WorkMeeting
 }
 
+export interface SchedulingDebugInfo {
+  unscheduledItems: Array<{
+    name: string
+    type: string
+    duration: number
+    reason: string
+  }>
+  blockUtilization: Array<{
+    date: string
+    blockId: string
+    startTime: string
+    endTime: string
+    focusUsed: number
+    focusTotal: number
+    adminUsed: number
+    adminTotal: number
+    unusedReason?: string
+  }>
+  warnings: string[]
+}
+
 interface WorkItem {
   id: string
   name: string
@@ -225,11 +246,28 @@ export function scheduleItemsWithBlocks(
   patterns: DailyWorkPattern[],
   startDate: Date = new Date(),
 ): ScheduledItem[] {
+  const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, patterns, startDate)
+  return result.scheduledItems
+}
+
+export function scheduleItemsWithBlocksAndDebug(
+  tasks: Task[],
+  sequencedTasks: SequencedTask[],
+  patterns: DailyWorkPattern[],
+  startDate: Date = new Date(),
+): { scheduledItems: ScheduledItem[], debugInfo: SchedulingDebugInfo } {
   const scheduledItems: ScheduledItem[] = []
   const workItems: WorkItem[] = []
   const completedSteps = new Set<string>()
   const asyncWaitEndTimes = new Map<Date, string>()
   const workflowProgress = new Map<string, number>() // Track how many steps scheduled per workflow
+  
+  // Debug tracking
+  const debugInfo: SchedulingDebugInfo = {
+    unscheduledItems: [],
+    blockUtilization: [],
+    warnings: []
+  }
 
 
   // Convert tasks to work items
@@ -348,6 +386,38 @@ export function scheduleItemsWithBlocks(
 
     // Create block capacities
     const blockCapacities = pattern.blocks.map(block => getBlockCapacity(block, currentDate))
+    
+    // Track initial block state for debugging
+    const blockStartState = blockCapacities.map(block => {
+      // Calculate effective capacity based on current time
+      let effectiveFocusMinutes = block.focusMinutesTotal
+      let effectiveAdminMinutes = block.adminMinutesTotal
+      let timeConstraint = ''
+      
+      if (currentTime > block.startTime && currentTime < block.endTime) {
+        // We're in the middle of this block
+        const remainingMinutes = Math.floor((block.endTime.getTime() - currentTime.getTime()) / 60000)
+        const totalMinutes = Math.floor((block.endTime.getTime() - block.startTime.getTime()) / 60000)
+        const ratio = remainingMinutes / totalMinutes
+        
+        effectiveFocusMinutes = Math.floor(block.focusMinutesTotal * ratio)
+        effectiveAdminMinutes = Math.floor(block.adminMinutesTotal * ratio)
+        timeConstraint = ` (started at ${currentTime.toLocaleTimeString()})`
+      } else if (currentTime >= block.endTime) {
+        // This block is in the past
+        effectiveFocusMinutes = 0
+        effectiveAdminMinutes = 0
+        timeConstraint = ' (in the past)'
+      }
+      
+      return {
+        ...block,
+        date: dateStr,
+        effectiveFocusMinutes,
+        effectiveAdminMinutes,
+        timeConstraint
+      }
+    })
 
     // Check if any async waits are completing
     const finishedWaits: Date[] = []
@@ -500,8 +570,28 @@ export function scheduleItemsWithBlocks(
         }
       }
 
-      // If we couldn't schedule this item in any block today, we need to move to next day
+      // If we couldn't schedule this item in any block today, track why
       if (!itemScheduled && blockCapacities.length > 0) {
+        // Determine why the item couldn't be scheduled
+        let reason = 'Unknown reason'
+        
+        if (blockCapacities.every(block => {
+          if (item.taskType === 'focused') {
+            return block.focusMinutesUsed + item.duration > block.focusMinutesTotal
+          } else {
+            return block.adminMinutesUsed + item.duration > block.adminMinutesTotal
+          }
+        })) {
+          reason = `No block has enough ${item.taskType} capacity (needs ${item.duration} minutes)`
+        } else {
+          const lastBlock = blockCapacities[blockCapacities.length - 1]
+          if (currentTime.getTime() >= lastBlock.endTime.getTime()) {
+            reason = 'Current time is past all blocks for today'
+          } else {
+            reason = 'Time conflicts with other scheduled items'
+          }
+        }
+        
         // Check if currentTime is past all blocks for today
         const lastBlock = blockCapacities[blockCapacities.length - 1]
         if (currentTime.getTime() >= lastBlock.endTime.getTime()) {
@@ -518,6 +608,37 @@ export function scheduleItemsWithBlocks(
       : new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)
 
     if (!itemsScheduledToday || shouldMoveToNextDay || currentTime.getTime() >= lastBlockEnd.getTime()) {
+      // Track block utilization before moving to next day
+      blockCapacities.forEach((block, index) => {
+        const original = blockStartState[index]
+        const unusedFocus = block.focusMinutesTotal - block.focusMinutesUsed
+        const unusedAdmin = block.adminMinutesTotal - block.adminMinutesUsed
+        
+        let unusedReason: string | undefined
+        if (unusedFocus > 30 || unusedAdmin > 30) {
+          if (unusedFocus > 30 && unusedAdmin > 30) {
+            unusedReason = `${unusedFocus} focus and ${unusedAdmin} admin minutes unused`
+          } else if (unusedFocus > 30) {
+            unusedReason = `${unusedFocus} focus minutes unused`
+          } else {
+            unusedReason = `${unusedAdmin} admin minutes unused`
+          }
+        }
+        
+        const blockState = blockStartState[index]
+        debugInfo.blockUtilization.push({
+          date: dateStr,
+          blockId: block.blockId,
+          startTime: block.startTime.toLocaleTimeString(),
+          endTime: block.endTime.toLocaleTimeString(),
+          focusUsed: block.focusMinutesUsed,
+          focusTotal: block.focusMinutesTotal,
+          adminUsed: block.adminMinutesUsed,
+          adminTotal: block.adminMinutesTotal,
+          unusedReason: unusedReason || blockState.timeConstraint
+        })
+      })
+      
       currentDate.setDate(currentDate.getDate() + 1)
       dayIndex++
 
@@ -578,7 +699,54 @@ export function scheduleItemsWithBlocks(
         }
       }
     }
+    
+    // Also track block utilization at the end of the scheduling loop
+    if (blockCapacities && blockCapacities.length > 0) {
+      blockCapacities.forEach((block, index) => {
+        const blockState = blockStartState[index]
+        // Only add if not already tracked
+        const alreadyTracked = debugInfo.blockUtilization.some(b => 
+          b.date === dateStr && b.blockId === block.blockId
+        )
+        if (!alreadyTracked) {
+          debugInfo.blockUtilization.push({
+            date: dateStr,
+            blockId: block.blockId,
+            startTime: block.startTime.toLocaleTimeString(),
+            endTime: block.endTime.toLocaleTimeString(),
+            focusUsed: block.focusMinutesUsed,
+            focusTotal: block.focusMinutesTotal,
+            adminUsed: block.adminMinutesUsed,
+            adminTotal: block.adminMinutesTotal,
+            unusedReason: blockState.timeConstraint || undefined
+          })
+        }
+      })
+    }
   }
 
-  return scheduledItems
+  // Track any remaining unscheduled items
+  workItems.forEach(item => {
+    debugInfo.unscheduledItems.push({
+      name: item.name,
+      type: item.taskType,
+      duration: item.duration,
+      reason: 'Ran out of available days or capacity'
+    })
+  })
+  
+  // Add warnings if significant capacity was unused
+  const totalUnusedFocus = debugInfo.blockUtilization.reduce((sum, block) => 
+    sum + (block.focusTotal - block.focusUsed), 0)
+  const totalUnusedAdmin = debugInfo.blockUtilization.reduce((sum, block) => 
+    sum + (block.adminTotal - block.adminUsed), 0)
+    
+  if (totalUnusedFocus > 120 && workItems.some(w => w.taskType === 'focused')) {
+    debugInfo.warnings.push(`${totalUnusedFocus} minutes of focus time unused while focus tasks remain unscheduled`)
+  }
+  if (totalUnusedAdmin > 120 && workItems.some(w => w.taskType === 'admin')) {
+    debugInfo.warnings.push(`${totalUnusedAdmin} minutes of admin time unused while admin tasks remain unscheduled`)
+  }
+  
+  return { scheduledItems, debugInfo }
 }

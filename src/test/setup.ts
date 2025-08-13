@@ -1,19 +1,24 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
-// Mock dayjs
-vi.mock('dayjs', () => {
-  const actual = vi.importActual('dayjs')
-  const dayjs = actual.default
+// Import dayjs properly to avoid mock issues
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+dayjs.extend(relativeTime)
 
-  // Add the relativeTime plugin
-  const relativeTime = vi.importActual('dayjs/plugin/relativeTime')
-  dayjs.extend(relativeTime.default)
-
-  return {
-    default: dayjs,
-    __esModule: true,
-  }
+// Mock matchMedia for Arco components
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(), // deprecated
+    removeListener: vi.fn(), // deprecated
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
 })
 
 // Mock Electron API for tests

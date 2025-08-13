@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Badge, Modal } from '@arco-design/web-react'
-import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle } from '@arco-design/web-react/icon'
+import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskEdit } from './TaskEdit'
+import { TaskTimeLoggingModal } from './TaskTimeLoggingModal'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -20,6 +21,7 @@ export function TaskItem({ task }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState(task.name)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showTimeModal, setShowTimeModal] = useState(false)
 
   const priorityScore = task.importance * task.urgency
   const priorityColor = priorityScore >= 64 ? 'red' :
@@ -125,8 +127,18 @@ export function TaskItem({ task }: TaskItemProps) {
                       color="arcoblue"
                       size="small"
                     >
-                      {formatDuration(task.duration)}
+                      Est: {formatDuration(task.duration)}
                     </Tag>
+                    
+                    {task.actualDuration && (
+                      <Tag
+                        icon={<IconCheckCircleFill />}
+                        color={task.actualDuration > task.duration ? 'orange' : 'green'}
+                        size="small"
+                      >
+                        Actual: {formatDuration(task.actualDuration)}
+                      </Tag>
+                    )}
 
                     <Tooltip content={`Importance: ${task.importance}, Urgency: ${task.urgency}`}>
                       <Tag
@@ -186,14 +198,25 @@ export function TaskItem({ task }: TaskItemProps) {
 
         <Space>
           {!task.completed && (
-            <Tooltip content="Edit task">
-              <Button
-                type="text"
-                size="small"
-                icon={<IconEdit />}
-                onClick={() => setShowEditModal(true)}
-              />
-            </Tooltip>
+            <>
+              <Tooltip content="Log time">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<IconClockCircle />}
+                  onClick={() => setShowTimeModal(true)}
+                />
+              </Tooltip>
+              
+              <Tooltip content="Edit task">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<IconEdit />}
+                  onClick={() => setShowEditModal(true)}
+                />
+              </Tooltip>
+            </>
           )}
 
           <Popconfirm
@@ -230,6 +253,13 @@ export function TaskItem({ task }: TaskItemProps) {
           onClose={() => setShowEditModal(false)}
         />
       </Modal>
+      
+      {/* Time Logging Modal */}
+      <TaskTimeLoggingModal
+        task={task}
+        visible={showTimeModal}
+        onClose={() => setShowTimeModal(false)}
+      />
     </div>
   )
 }

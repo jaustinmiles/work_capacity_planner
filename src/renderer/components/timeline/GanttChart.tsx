@@ -1,10 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, DatePicker, Alert } from '@arco-design/web-react'
-import { IconPlus, IconMinus, IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon } from '@arco-design/web-react/icon'
+import { IconPlus, IconMinus, IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-scheduler'
+import { scheduleItemsWithBlocks, scheduleItemsWithBlocksAndDebug, ScheduledItem, SchedulingDebugInfo } from '../../utils/flexible-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
 import { useTaskStore } from '../../store/useTaskStore'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
@@ -26,6 +27,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [showMultiDayEditor, setShowMultiDayEditor] = useState(false)
   const [workPatterns, setWorkPatterns] = useState<DailyWorkPattern[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
+  const [showDebugInfo, setShowDebugInfo] = useState(false)
 
   // Load work patterns for the next 30 days
   useEffect(() => {
@@ -86,8 +89,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
     // Pass current time as start date to ensure scheduling starts from now
-    const items = scheduleItemsWithBlocks(tasks, sequencedTasks, workPatterns, new Date())
-    return items
+    const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, new Date())
+    setDebugInfo(result.debugInfo)
+    // Auto-show debug info if there are issues
+    if (result.debugInfo.unscheduledItems.length > 0 || result.debugInfo.warnings.length > 0) {
+      setShowDebugInfo(true)
+    }
+    return result.scheduledItems
   }, [tasks, sequencedTasks, workPatterns])
 
   // Calculate chart dimensions
@@ -174,6 +182,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     let currentRow = 0
     const workflowRows = new Map<string, number>()
     const workflowProgress = new Map<string, { completed: number, total: number }>()
+    
+    // Separate items by type
+    const blockedItems = scheduledItems.filter(item => item.isBlocked)
+    const taskItems = scheduledItems.filter(item => !item.isBlocked && !item.isWaitTime)
+    const waitItems = scheduledItems.filter(item => item.isWaitTime)
 
     // First pass: calculate workflow progress
     scheduledItems.forEach(item => {
@@ -189,8 +202,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       }
     })
 
-    // Second pass: assign positions
-    scheduledItems.forEach(item => {
+    // Second pass: assign positions to blocked items first (meetings, breaks, etc.)
+    // Put all blocked items on the same row (row 0) since they don't overlap with tasks
+    if (blockedItems.length > 0) {
+      blockedItems.forEach(item => {
+        positions.set(item.id, currentRow)
+      })
+      currentRow++
+    }
+
+    // Third pass: assign positions to tasks and workflows
+    taskItems.forEach(item => {
       if (item.workflowId) {
         // This is a workflow step
         if (!workflowRows.has(item.workflowId)) {
@@ -198,15 +220,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           currentRow++
         }
         positions.set(item.id, workflowRows.get(item.workflowId)!)
-      } else if (!item.isWaitTime) {
+      } else {
         // This is a standalone task
         positions.set(item.id, currentRow)
         currentRow++
-      } else {
-        // For wait times, use the same row as the parent item
-        const parentId = item.id.replace('-wait', '')
-        positions.set(item.id, positions.get(parentId) || currentRow)
       }
+    })
+    
+    // Fourth pass: assign wait times to same row as their parent
+    waitItems.forEach(item => {
+      const parentId = item.id.replace('-wait', '')
+      positions.set(item.id, positions.get(parentId) || currentRow)
     })
 
     return { positions, totalRows: currentRow, workflowProgress }
@@ -369,6 +393,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   >
                     Multi-Day Editor
                   </Button>
+                  <Button
+                    icon={<IconInfoCircle />}
+                    onClick={() => setShowDebugInfo(!showDebugInfo)}
+                    style={{ width: '100%' }}
+                    type={debugInfo && (debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0) ? 'warning' : 'default'}
+                  >
+                    Debug Info
+                  </Button>
                 </Space>
               </Space>
             </Space>
@@ -478,7 +510,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   )
                   const firstItem = rowItems[0]
                   const isWorkflowRow = firstItem?.workflowId
-                  const rowLabel = isWorkflowRow
+                  const isBlockedRow = rowIndex === 0 && rowItems.some(item => item.isBlocked)
+                  const rowLabel = isBlockedRow
+                    ? 'Meetings & Blocked Time'
+                    : isWorkflowRow
                     ? firstItem.workflowName
                     : firstItem?.name.replace(/\[.*\]\s*/, '')
 
@@ -499,11 +534,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                           style={{
                             position: 'sticky',
                             left: 0,
-                            background: isWorkflowRow ? '#f0f0ff' : '#f5f5f5',
+                            background: isBlockedRow ? '#fff0f0' : isWorkflowRow ? '#f0f0ff' : '#f5f5f5',
                             padding: '8px 12px',
                             fontSize: 12,
-                            fontWeight: isWorkflowRow ? 600 : 400,
-                            color: isWorkflowRow ? '#5865f2' : '#666',
+                            fontWeight: isBlockedRow || isWorkflowRow ? 600 : 400,
+                            color: isBlockedRow ? '#ff4d4f' : isWorkflowRow ? '#5865f2' : '#666',
                             borderRight: '1px solid #e5e5e5',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -514,7 +549,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                             alignItems: 'center',
                           }}
                         >
-                          {isWorkflowRow && (
+                          {isBlockedRow && (
+                            <>
+                              <span style={{ marginRight: 6 }}>📅</span>
+                              <span style={{ flex: 1 }}>{rowLabel}</span>
+                              <span style={{
+                                marginLeft: 8,
+                                fontSize: 11,
+                                color: '#999',
+                                backgroundColor: 'rgba(0,0,0,0.05)',
+                                padding: '2px 6px',
+                                borderRadius: 10,
+                              }}>
+                                {rowItems.length} items
+                              </span>
+                            </>
+                          )}
+                          {!isBlockedRow && isWorkflowRow && (
                             <>
                               <span style={{ marginRight: 6 }}>🔄</span>
                               <span style={{ flex: 1 }}>{rowLabel}</span>
@@ -533,7 +584,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                               )}
                             </>
                           )}
-                          {!isWorkflowRow && rowLabel}
+                          {!isBlockedRow && !isWorkflowRow && rowLabel}
                         </div>
                       )}
                     </div>
@@ -682,8 +733,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const isHovered = hoveredItem === item.id ||
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
 
-                // For blocked items, use a fixed negative position to overlay on timeline
-                const topPosition = isBlocked ? -5 : (itemRowPositions.positions.get(item.id) || 0) * rowHeight + 5
+                // Calculate proper position for all items including blocked ones
+                const topPosition = (itemRowPositions.positions.get(item.id) || 0) * rowHeight + 5
 
                 return (
                   <div
@@ -904,6 +955,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         onClose={() => setShowMultiDayEditor(false)}
         onSave={() => loadWorkPatterns()}
       />
+      
+      {/* Scheduling Debug Info */}
+      {showDebugInfo && debugInfo && (
+        <DebugInfoComponent debugInfo={debugInfo} />
+      )}
     </Space>
   )
 }
