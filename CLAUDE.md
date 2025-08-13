@@ -257,11 +257,24 @@ task-planner/
 
 ### Database Operations
 
-**CRITICAL: Database File Location**
+**CRITICAL: Database File Location - $100 LESSON LEARNED**
 - **ALWAYS use the database in the `prisma/` directory**: `prisma/dev.db`
-- **NEVER use the root directory database**: `dev.db` (this is NOT the app's database)
+- **NEVER create or use a root directory database**: `dev.db` 
+- The root `dev.db` has been DELETED to prevent confusion
 - When debugging database issues, ALWAYS check: `sqlite3 prisma/dev.db "SELECT ..."`
 - The Prisma client is configured to use `DATABASE_URL="file:./dev.db"` which resolves to `prisma/dev.db` from Prisma's perspective
+
+**Verified Complete Database Contents (as of 2025-08-13):**
+- 21 tasks (not 4!)
+- 5 workflows
+- 6 work patterns (schedule)
+- 2 job contexts
+- If you see only 4 tasks, YOU ARE USING THE WRONG DATABASE!
+
+**Backup System:**
+- Verified backups are in `backups/verified/`
+- Run `./backup-database.sh` to create timestamped backups
+- The complete data backup is: `backups/verified/complete-data-21-tasks-5-workflows.db`
 
 **IMPORTANT: Database Service Architecture**
 
