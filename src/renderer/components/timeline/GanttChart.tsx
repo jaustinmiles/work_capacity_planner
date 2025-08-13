@@ -51,7 +51,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           date: dateStr,
           blocks: pattern.blocks,
           meetings: pattern.meetings,
-          accumulated: { focused: 0, admin: 0 },
+          accumulated: { focusMinutes: 0, adminMinutes: 0 },
         })
       } else if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         // If no pattern exists and it's a weekday, create a default pattern
@@ -75,7 +75,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             },
           ],
           meetings: [],
-          accumulated: { focused: 0, admin: 0 },
+          accumulated: { focusMinutes: 0, adminMinutes: 0 },
         })
       }
 

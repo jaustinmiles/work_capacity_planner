@@ -150,6 +150,7 @@ model Task {
   Project              Project?        @relation(fields: [projectId], references: [id])
   Session              Session?        @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   WorkSession          WorkSession[]
+  TaskStep             TaskStep[]      @relation("TaskSteps")
 }
 
 model TaskStep {
@@ -160,10 +161,15 @@ model TaskStep {
   dependsOn       String        @default("[]")
   asyncWaitTime   Int           @default(0)
   status          String        @default("pending")
-  sequencedTaskId String
+  sequencedTaskId String?       // Keep for now, but make optional
   stepIndex       Int
-  taskId          String?
-  SequencedTask   SequencedTask @relation(fields: [sequencedTaskId], references: [id], onDelete: Cascade)
+  taskId          String
+  percentComplete Int           @default(0)
+  actualDuration  Int?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  Task            Task          @relation("TaskSteps", fields: [taskId], references: [id], onDelete: Cascade)
+  SequencedTask   SequencedTask? @relation(fields: [sequencedTaskId], references: [id], onDelete: Cascade)
 }
 
 model TimeEstimateAccuracy {

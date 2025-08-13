@@ -161,7 +161,7 @@ describe('GanttChart', () => {
             startTime: '09:00',
             endTime: '17:00',
             type: 'mixed',
-        sessionId: 'test-session',            capacity: { focused: 240, admin: 240 },
+        sessionId: 'test-session',            capacity: { focusMinutes: 240, adminMinutes: 240 },
           },
         ],
         meetings: [],
@@ -196,7 +196,7 @@ describe('GanttChart', () => {
             startTime: '09:00',
             endTime: '17:00',
             type: 'mixed',
-        sessionId: 'test-session',            capacity: { focused: 240, admin: 240 },
+        sessionId: 'test-session',            capacity: { focusMinutes: 240, adminMinutes: 240 },
           },
         ],
         meetings: [
@@ -272,7 +272,7 @@ describe('GanttChart', () => {
             startTime: '09:00',
             endTime: '17:00',
             type: 'mixed',
-        sessionId: 'test-session',            capacity: { focused: 240, admin: 240 },
+        sessionId: 'test-session',            capacity: { focusMinutes: 240, adminMinutes: 240 },
           },
         ],
         meetings: [
