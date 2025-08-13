@@ -6,10 +6,11 @@ export interface WorkBlock {
   id: string
   startTime: string // "09:00"
   endTime: string // "12:00"
-  type: 'focused' | 'admin' | 'mixed'
+  type: 'focused' | 'admin' | 'mixed' | 'personal'
   capacity?: {
     focusMinutes?: number
     adminMinutes?: number
+    personalMinutes?: number
   }
 }
 
@@ -102,34 +103,38 @@ export const DEFAULT_WORK_TEMPLATES: WorkTemplate[] = [
 ]
 
 // Helper functions
-export function getTotalCapacity(blocks: WorkBlock[]): { focusMinutes: number; adminMinutes: number } {
+export function getTotalCapacity(blocks: WorkBlock[]): { focusMinutes: number; adminMinutes: number; personalMinutes: number } {
   return blocks.reduce((acc, block) => {
     const durationMinutes = calculateDuration(block.startTime, block.endTime)
 
     if (block.capacity) {
       acc.focusMinutes += block.capacity.focusMinutes || 0
       acc.adminMinutes += block.capacity.adminMinutes || 0
+      acc.personalMinutes += block.capacity.personalMinutes || 0
     } else if (block.type === 'focused') {
       acc.focusMinutes += durationMinutes
     } else if (block.type === 'admin') {
       acc.adminMinutes += durationMinutes
+    } else if (block.type === 'personal') {
+      acc.personalMinutes += durationMinutes
     } else { // mixed
       acc.focusMinutes += durationMinutes / 2
       acc.adminMinutes += durationMinutes / 2
     }
 
     return acc
-  }, { focusMinutes: 0, adminMinutes: 0 })
+  }, { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 })
 }
 
 export function getRemainingCapacity(
   blocks: WorkBlock[],
-  accumulated: { focusMinutes: number; adminMinutes: number },
-): { focusMinutes: number; adminMinutes: number } {
+  accumulated: { focusMinutes: number; adminMinutes: number; personalMinutes?: number },
+): { focusMinutes: number; adminMinutes: number; personalMinutes: number } {
   const total = getTotalCapacity(blocks)
   return {
     focusMinutes: Math.max(0, total.focusMinutes - accumulated.focusMinutes),
     adminMinutes: Math.max(0, total.adminMinutes - accumulated.adminMinutes),
+    personalMinutes: Math.max(0, total.personalMinutes - (accumulated.personalMinutes || 0)),
   }
 }
 

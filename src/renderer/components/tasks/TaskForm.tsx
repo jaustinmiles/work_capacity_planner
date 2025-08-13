@@ -59,6 +59,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
           importance: 5,
           urgency: 5,
           type: 'focused',
+          category: 'work',
           asyncWaitTime: 0,
         }}
       >
@@ -71,7 +72,20 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
         </Form.Item>
 
         <Row gutter={16}>
-          <Col span={12}>
+          <Col span={8}>
+            <Form.Item
+              label="Category"
+              field="category"
+              rules={[{ required: true }]}
+            >
+              <Select>
+                <Select.Option value="work">Work</Select.Option>
+                <Select.Option value="personal">Personal</Select.Option>
+              </Select>
+            </Form.Item>
+          </Col>
+
+          <Col span={8}>
             <Form.Item
               label="Type"
               field="type"
@@ -84,7 +98,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             </Form.Item>
           </Col>
 
-          <Col span={12}>
+          <Col span={8}>
             <Form.Item
               label={
                 <Space>

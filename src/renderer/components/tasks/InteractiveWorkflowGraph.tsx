@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useEffect } from 'react'
+import React, { useCallback, useMemo, useEffect } from 'react'
 import ReactFlow, {
   Node,
   Edge,
@@ -32,8 +32,8 @@ interface InteractiveWorkflowGraphProps {
   onUpdateDependencies?: (stepId: string, dependencies: string[]) => void
 }
 
-// Custom node component
-const WorkflowNode = ({ data }: { data: any }) => {
+// Custom node component - memoized to prevent re-renders
+const WorkflowNode = React.memo(({ data }: { data: any }) => {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
@@ -110,7 +110,7 @@ const WorkflowNode = ({ data }: { data: any }) => {
       )}
     </div>
   )
-}
+})
 
 export function InteractiveWorkflowGraph({
   task,
@@ -208,12 +208,10 @@ export function InteractiveWorkflowGraph({
     setNodes(initialNodes)
   }, [initialNodes, setNodes])
 
-  // Update edges when task changes (but only if not actively editing)
+  // Update edges when task changes
   useEffect(() => {
-    if (!isEditable) {
-      setEdges(initialEdges)
-    }
-  }, [initialEdges, isEditable, setEdges])
+    setEdges(initialEdges)
+  }, [initialEdges, setEdges])
 
   // Validate connection to prevent cycles
   const isValidConnection = useCallback((connection: Connection) => {

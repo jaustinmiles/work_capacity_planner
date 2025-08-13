@@ -130,6 +130,7 @@ model Task {
   importance           Int
   urgency              Int
   type                 String
+  category             String          @default("work") // "work" or "personal"
   asyncWaitTime        Int             @default(0)
   dependencies         String          @default("[]")
   completed            Boolean         @default(false)

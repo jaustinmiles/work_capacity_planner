@@ -46,6 +46,7 @@ interface WorkItem {
   name: string
   type: 'task' | 'workflow-step'
   taskType: 'focused' | 'admin'
+  category?: 'work' | 'personal'
   priority: number
   duration: number
   asyncWaitTime: number
@@ -64,10 +65,13 @@ interface BlockCapacity {
   blockId: string
   startTime: Date
   endTime: Date
+  blockType: 'focused' | 'admin' | 'mixed' | 'personal'
   focusMinutesTotal: number
   adminMinutesTotal: number
+  personalMinutesTotal: number
   focusMinutesUsed: number
   adminMinutesUsed: number
+  personalMinutesUsed: number
 }
 
 function parseTimeOnDate(date: Date, timeStr: string): Date {
@@ -84,14 +88,18 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
 
   let focusMinutes = 0
   let adminMinutes = 0
+  let personalMinutes = 0
 
   if (block.capacity) {
     focusMinutes = block.capacity.focusMinutes || 0
     adminMinutes = block.capacity.adminMinutes || 0
+    personalMinutes = block.capacity.personalMinutes || 0
   } else if (block.type === 'focused') {
     focusMinutes = durationMinutes
   } else if (block.type === 'admin') {
     adminMinutes = durationMinutes
+  } else if (block.type === 'personal') {
+    personalMinutes = durationMinutes
   } else { // mixed
     focusMinutes = durationMinutes / 2
     adminMinutes = durationMinutes / 2
@@ -101,10 +109,13 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
     blockId: block.id,
     startTime,
     endTime,
+    blockType: block.type,
     focusMinutesTotal: focusMinutes,
     adminMinutesTotal: adminMinutes,
+    personalMinutesTotal: personalMinutes,
     focusMinutesUsed: 0,
     adminMinutesUsed: 0,
+    personalMinutesUsed: 0,
   }
 }
 
@@ -202,8 +213,27 @@ function canFitInBlock(
 ): { canFit: boolean; startTime: Date } {
   // Don't count async wait times as conflicts when checking for available slots
   const nonWaitScheduledItems = scheduledItems.filter(s => !s.isWaitTime)
-  // Check capacity
-  if (item.taskType === 'focused') {
+  
+  // Check category compatibility
+  const isPersonalTask = item.category === 'personal'
+  const isPersonalBlock = block.blockType === 'personal'
+  
+  // Personal tasks can only go in personal blocks
+  if (isPersonalTask && !isPersonalBlock) {
+    return { canFit: false, startTime: currentTime }
+  }
+  
+  // Work tasks (or tasks without category) cannot go in personal blocks
+  if (!isPersonalTask && isPersonalBlock) {
+    return { canFit: false, startTime: currentTime }
+  }
+  
+  // Check capacity based on task category
+  if (isPersonalTask) {
+    if (block.personalMinutesUsed + item.duration > block.personalMinutesTotal) {
+      return { canFit: false, startTime: currentTime }
+    }
+  } else if (item.taskType === 'focused') {
     if (block.focusMinutesUsed + item.duration > block.focusMinutesTotal) {
       return { canFit: false, startTime: currentTime }
     }
@@ -304,10 +334,11 @@ export function scheduleItemsWithBlocksAndDebug(
         name: task.name,
         type: 'task',
         taskType: task.type as 'focused' | 'admin',
+        category: task.category || 'work',
         priority: task.importance * task.urgency,
         duration: task.duration,
         asyncWaitTime: task.asyncWaitTime,
-        color: '#6B7280',
+        color: task.category === 'personal' ? '#9333EA' : '#6B7280',
         deadline: task.deadline,
         isLocked: task.isLocked,
         lockedStartTime: task.lockedStartTime,
@@ -681,7 +712,9 @@ export function scheduleItemsWithBlocksAndDebug(
           })
 
           // Update block capacity
-          if (item.taskType === 'focused') {
+          if (item.category === 'personal') {
+            block.personalMinutesUsed += item.duration
+          } else if (item.taskType === 'focused') {
             block.focusMinutesUsed += item.duration
           } else {
             block.adminMinutesUsed += item.duration

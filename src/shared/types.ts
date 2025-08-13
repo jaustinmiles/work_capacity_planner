@@ -14,6 +14,7 @@ export interface Task {
   importance: number // 1-10
   urgency: number // 1-10
   type: 'focused' | 'admin'
+  category?: 'work' | 'personal' // defaults to 'work'
   asyncWaitTime: number // minutes
   dependencies: string[] // task IDs
   completed: boolean

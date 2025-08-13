@@ -165,6 +165,12 @@ export function TaskItem({ task }: TaskItemProps) {
                       {task.type === 'focused' ? 'Focused Work' : 'Admin/Meeting'}
                     </Tag>
 
+                    {task.category === 'personal' && (
+                      <Tag size="small" color="purple">
+                        Personal
+                      </Tag>
+                    )}
+
                     {task.asyncWaitTime > 0 && (
                       <Tag
                         icon={<IconCalendar />}

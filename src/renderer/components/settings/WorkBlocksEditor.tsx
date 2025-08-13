@@ -311,19 +311,25 @@ export function WorkBlocksEditor({
       {/* Capacity Summary */}
       <Card>
         <Row gutter={16}>
-          <Col span={6}>
+          <Col span={4}>
             <Space direction="vertical">
-              <Text type="secondary">Total Focus Time</Text>
+              <Text type="secondary">Focus Time</Text>
               <Title heading={5}>{formatMinutes(totalCapacity.focusMinutes)}</Title>
             </Space>
           </Col>
-          <Col span={6}>
+          <Col span={4}>
             <Space direction="vertical">
-              <Text type="secondary">Total Admin Time</Text>
+              <Text type="secondary">Admin Time</Text>
               <Title heading={5}>{formatMinutes(totalCapacity.adminMinutes)}</Title>
             </Space>
           </Col>
-          <Col span={6}>
+          <Col span={4}>
+            <Space direction="vertical">
+              <Text type="secondary">Personal Time</Text>
+              <Title heading={5}>{formatMinutes(totalCapacity.personalMinutes)}</Title>
+            </Space>
+          </Col>
+          <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Used Today</Text>
               <Title heading={5}>
@@ -331,17 +337,20 @@ export function WorkBlocksEditor({
               </Title>
             </Space>
           </Col>
-          <Col span={6}>
+          <Col span={8}>
             <Space direction="vertical">
               <Text type="secondary">Remaining</Text>
-              <Title heading={5}>
+              <Space wrap>
                 <Tag color={remainingCapacity.focusMinutes > 0 ? 'green' : 'red'}>
                   {formatMinutes(remainingCapacity.focusMinutes)} focus
                 </Tag>
                 <Tag color={remainingCapacity.adminMinutes > 0 ? 'green' : 'red'}>
                   {formatMinutes(remainingCapacity.adminMinutes)} admin
                 </Tag>
-              </Title>
+                <Tag color={remainingCapacity.personalMinutes > 0 ? 'purple' : 'red'}>
+                  {formatMinutes(remainingCapacity.personalMinutes)} personal
+                </Tag>
+              </Space>
             </Space>
           </Col>
         </Row>
@@ -399,6 +408,7 @@ export function WorkBlocksEditor({
                       <Select.Option value="focused">Focused</Select.Option>
                       <Select.Option value="admin">Admin</Select.Option>
                       <Select.Option value="mixed">Mixed</Select.Option>
+                      <Select.Option value="personal">Personal</Select.Option>
                     </Select>
                   </Col>
                   <Col span={6}>
