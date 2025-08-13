@@ -126,27 +126,7 @@ export class DatabaseService {
       orderBy: { createdAt: 'desc' },
     })
 
-    return tasks.map(task => ({
-      ...task,
-      type: task.type as 'focused' | 'admin',
-      overallStatus: task.overallStatus as 'not_started' | 'in_progress' | 'waiting' | 'completed',
-      dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
-      completedAt: task.completedAt || undefined,
-      actualDuration: task.actualDuration || undefined,
-      notes: task.notes || undefined,
-      projectId: task.projectId || undefined,
-      deadline: task.deadline || undefined,
-      currentStepId: task.currentStepId || undefined,
-      steps: task.steps?.map(step => ({
-        ...step,
-        type: step.type as 'focused' | 'admin',
-        status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
-        dependsOn: step.dependsOn ? JSON.parse(step.dependsOn) : [],
-        actualDuration: step.actualDuration || undefined,
-        startedAt: step.startedAt || undefined,
-        completedAt: step.completedAt || undefined,
-      })),
-    }))
+    return tasks.map(task => this.formatTask(task))
   }
 
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {

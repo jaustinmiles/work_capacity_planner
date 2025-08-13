@@ -238,10 +238,19 @@ function App() {
 
       // Reset all steps to pending
       const resetSteps = workflow.steps.map(step => ({
-        ...step,
+        id: step.id,
+        taskId: step.taskId,
+        name: step.name,
+        duration: step.duration,
+        type: step.type,
+        dependsOn: step.dependsOn,
+        asyncWaitTime: step.asyncWaitTime,
+        stepIndex: step.stepIndex,
+        percentComplete: 0,
         status: 'pending' as const,
         completedAt: undefined,
         actualDuration: undefined,
+        startedAt: undefined,
       }))
 
       await updateSequencedTask(id, {

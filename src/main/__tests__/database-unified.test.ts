@@ -179,13 +179,14 @@ describe('Database - Unified Task Model', () => {
 
         const tasks = await db.getTasks()
         const task = tasks[0]
-
-        expect(task.completedAt).toBeUndefined()
-        expect(task.actualDuration).toBeUndefined()
-        expect(task.notes).toBeUndefined()
-        expect(task.projectId).toBeUndefined()
-        expect(task.deadline).toBeUndefined()
-        expect(task.currentStepId).toBeUndefined()
+        
+        expect(task).toBeDefined()
+        expect(task?.completedAt).toBeUndefined()
+        expect(task?.actualDuration).toBeUndefined()
+        expect(task?.notes).toBeUndefined()
+        expect(task?.projectId).toBeUndefined()
+        expect(task?.deadline).toBeUndefined()
+        expect(task?.currentStepId).toBeUndefined()
       })
     })
 

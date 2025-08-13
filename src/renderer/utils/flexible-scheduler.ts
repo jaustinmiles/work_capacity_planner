@@ -343,11 +343,11 @@ export function scheduleItemsWithBlocksAndDebug(
     }
 
     // Boost priority of first steps and standalone tasks
-    const aEffectivePriority = aIsWorkflowStep && a.stepIndex > 0
+    const aEffectivePriority = aIsWorkflowStep && (a.stepIndex ?? 0) > 0
       ? a.priority * 0.7 // Reduce priority of later workflow steps
       : a.priority
 
-    const bEffectivePriority = bIsWorkflowStep && b.stepIndex > 0
+    const bEffectivePriority = bIsWorkflowStep && (b.stepIndex ?? 0) > 0
       ? b.priority * 0.7 // Reduce priority of later workflow steps
       : b.priority
 
@@ -461,11 +461,11 @@ export function scheduleItemsWithBlocksAndDebug(
       const aIsWorkflowStep = a.type === 'workflow-step'
       const bIsWorkflowStep = b.type === 'workflow-step'
 
-      const aEffectivePriority = aIsWorkflowStep && a.stepIndex > 0
+      const aEffectivePriority = aIsWorkflowStep && (a.stepIndex ?? 0) > 0
         ? a.priority * (0.9 - aProgress * 0.1) // Further reduce priority based on workflow progress
         : a.priority
 
-      const bEffectivePriority = bIsWorkflowStep && b.stepIndex > 0
+      const bEffectivePriority = bIsWorkflowStep && (b.stepIndex ?? 0) > 0
         ? b.priority * (0.9 - bProgress * 0.1)
         : b.priority
 
@@ -474,6 +474,7 @@ export function scheduleItemsWithBlocksAndDebug(
 
     for (let i = 0; i < itemsToSchedule.length; i++) {
       const item = itemsToSchedule[i]
+      if (!item) continue
       const originalIndex = workItems.findIndex(w => w.id === item.id)
 
       // First check if any async waits have completed since we last checked

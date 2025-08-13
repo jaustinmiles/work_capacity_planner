@@ -144,6 +144,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
 
   const deleteStep = (index: number) => {
     const deletedStep = editingSteps[index]
+    if (!deletedStep) return
     const deletedStepId = deletedStep.id
     const newSteps = editingSteps.filter((_, i) => i !== index)
 
@@ -158,6 +159,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
   const openStepModal = (index: number | null = null) => {
     if (index !== null) {
       const step = editingSteps[index]
+      if (!step) return
       stepForm.setFieldsValue({
         name: step.name,
         duration: step.duration,

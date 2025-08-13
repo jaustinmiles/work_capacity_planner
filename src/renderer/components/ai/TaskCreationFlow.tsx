@@ -416,17 +416,17 @@ function EnhancementView({ task, onCreateTask, isCreating }: {
         <Card title="Original Task" size="small">
           <Space direction="vertical" style={{ width: '100%' }}>
             <div>
-              <Text strong>Description:</Text>
+              <Text type="secondary" style={{ fontWeight: 'bold' }}>Description:</Text>
               <Text style={{ display: 'block' }}>{task.description}</Text>
             </div>
             <div>
-              <Text strong>Duration:</Text> {task.estimatedDuration} minutes
+              <Text style={{ fontWeight: 'bold' }}>Duration:</Text> {task.estimatedDuration} minutes
             </div>
             <div>
-              <Text strong>Priority:</Text> {task.importance} × {task.urgency} = {task.importance * task.urgency}
+              <Text style={{ fontWeight: 'bold' }}>Priority:</Text> {task.importance} × {task.urgency} = {task.importance * task.urgency}
             </div>
             <div>
-              <Text strong>Type:</Text> {task.type}
+              <Text style={{ fontWeight: 'bold' }}>Type:</Text> {task.type}
             </div>
           </Space>
         </Card>
@@ -435,28 +435,28 @@ function EnhancementView({ task, onCreateTask, isCreating }: {
           <Space direction="vertical" style={{ width: '100%' }}>
             {suggestions?.description && (
               <div>
-                <Text strong>Enhanced Description:</Text>
+                <Text style={{ fontWeight: 'bold' }}>Enhanced Description:</Text>
                 <Text style={{ display: 'block' }}>{suggestions.description}</Text>
               </div>
             )}
             {suggestions?.duration && (
               <div>
-                <Text strong>Suggested Duration:</Text> {suggestions.duration} minutes
+                <Text style={{ fontWeight: 'bold' }}>Suggested Duration:</Text> {suggestions.duration} minutes
               </div>
             )}
             {suggestions?.importance && suggestions?.urgency && (
               <div>
-                <Text strong>Suggested Priority:</Text> {suggestions.importance} × {suggestions.urgency} = {suggestions.importance * suggestions.urgency}
+                <Text style={{ fontWeight: 'bold' }}>Suggested Priority:</Text> {suggestions.importance} × {suggestions.urgency} = {suggestions.importance * suggestions.urgency}
               </div>
             )}
             {suggestions?.type && (
               <div>
-                <Text strong>Suggested Type:</Text> {suggestions.type}
+                <Text style={{ fontWeight: 'bold' }}>Suggested Type:</Text> {suggestions.type}
               </div>
             )}
             {suggestions?.tips && suggestions.tips.length > 0 && (
               <div>
-                <Text strong>Tips:</Text>
+                <Text style={{ fontWeight: 'bold' }}>Tips:</Text>
                 <ul style={{ margin: '8px 0', paddingLeft: 16 }}>
                   {suggestions.tips.map((tip: string, index: number) => (
                     <li key={index}><Text style={{ fontSize: 14 }}>{tip}</Text></li>

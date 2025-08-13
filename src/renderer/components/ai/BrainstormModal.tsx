@@ -666,7 +666,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                     <Text style={{ fontSize: 14, fontWeight: 'bold' }}>Industry Jargon Dictionary</Text>
                     <Tag size="small">{Object.keys(jargonDictionary).length} terms</Tag>
                     <Button
-                      size="mini"
+                      size="small"
                       type="text"
                       onClick={() => setShowJargonInput(!showJargonInput)}
                     >
@@ -689,10 +689,10 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                         size="small"
                       />
                       <Space>
-                        <Button size="mini" type="primary" onClick={addJargonEntry}>
+                        <Button size="small" type="primary" onClick={addJargonEntry}>
                           Add
                         </Button>
-                        <Button size="mini" onClick={() => setShowJargonInput(false)}>
+                        <Button size="small" onClick={() => setShowJargonInput(false)}>
                           Cancel
                         </Button>
                       </Space>
@@ -926,11 +926,11 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
                                       {stepIndex + 1}. {step.name}
                                     </Text>
                                     <Space>
-                                      <Tag size="mini" color={step.type === 'focused' ? 'blue' : 'green'}>
+                                      <Tag size="small" color={step.type === 'focused' ? 'blue' : 'green'}>
                                         {step.duration}min
                                       </Tag>
                                       {step.asyncWaitTime > 0 && (
-                                        <Tag size="mini" color="red">
+                                        <Tag size="small" color="red">
                                           +{step.asyncWaitTime}min wait
                                         </Tag>
                                       )}
