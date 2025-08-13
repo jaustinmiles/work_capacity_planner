@@ -1,0 +1,262 @@
+// Unified Task Model Schema
+// This will replace the current schema after migration
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  isActive        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  tasks           Task[]
+  projects        Project[]
+  scheduledTasks  ScheduledTask[]
+  workPatterns    WorkPattern[]
+  jobContexts     JobContext[]
+  jargonEntries   JargonEntry[]
+  timeAccuracy    TimeEstimateAccuracy[]
+}
+
+model Task {
+  id              String   @id @default(uuid())
+  name            String
+  duration        Int      // Total duration (sum of steps if workflow)
+  importance      Int
+  urgency         Int
+  type            String   // "focused" | "admin"
+  asyncWaitTime   Int      @default(0)
+  dependencies    String   @default("[]") // JSON array of task IDs
+  completed       Boolean  @default(false)
+  completedAt     DateTime?
+  actualDuration  Int?     // Total actual duration
+  notes           String?
+  projectId       String?
+  deadline        DateTime?
+  sessionId       String
+  
+  // Workflow support
+  hasSteps        Boolean  @default(false)
+  currentStepId   String?  // Currently active step
+  overallStatus   String   @default("not_started") // not_started | in_progress | waiting | completed
+  criticalPathDuration Int @default(0)
+  worstCaseDuration    Int @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  session         Session  @relation(fields: [sessionId], references: [id])
+  project         Project? @relation(fields: [projectId], references: [id])
+  steps           TaskStep[]
+  workSessions    WorkSession[]
+  scheduledTasks  ScheduledTask[]
+}
+
+model TaskStep {
+  id              String   @id @default(uuid())
+  taskId          String   // Parent task ID
+  name            String
+  duration        Int
+  type            String   // "focused" | "admin"
+  dependsOn       String   @default("[]") // JSON array of step IDs
+  asyncWaitTime   Int      @default(0)
+  status          String   @default("pending")
+  stepIndex       Int
+  
+  // Progress tracking
+  actualDuration  Int?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  percentComplete Int      @default(0)
+  
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  @@index([taskId, stepIndex])
+}
+
+model WorkSession {
+  id              String   @id @default(uuid())
+  taskId          String
+  stepId          String?  // Optional - for step-specific tracking
+  patternId       String?  // Optional - link to work pattern
+  type            String   // "focused" | "admin"
+  startTime       DateTime
+  endTime         DateTime?
+  plannedMinutes  Int      @default(0)
+  actualMinutes   Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+  
+  task            Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  pattern         WorkPattern?  @relation(fields: [patternId], references: [id])
+  
+  @@index([taskId])
+  @@index([startTime])
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  color       String
+  sessionId   String
+  createdAt   DateTime @default(now())
+  
+  session     Session  @relation(fields: [sessionId], references: [id])
+  tasks       Task[]
+}
+
+// Legacy models - to be removed after confirming no usage
+model DailySchedule {
+  id          String   @id @default(uuid())
+  dayOfWeek   String   @unique
+  startTime   String
+  endTime     String
+  
+  meetings    Meeting[]
+}
+
+model Meeting {
+  id            String   @id @default(uuid())
+  name          String
+  startTime     String
+  endTime       String
+  recurring     Boolean  @default(false)
+  scheduleId    String
+  
+  schedule      DailySchedule @relation(fields: [scheduleId], references: [id])
+}
+
+model ScheduledTask {
+  id              String   @id @default(uuid())
+  taskId          String
+  scheduledDate   DateTime
+  scheduledMinutes Int
+  isPartial       Boolean
+  isStart         Boolean
+  isEnd           Boolean
+  sessionId       String
+  
+  session         Session  @relation(fields: [sessionId], references: [id])
+  task            Task     @relation(fields: [taskId], references: [id])
+}
+
+// Work pattern models remain the same
+model WorkPattern {
+  id            String   @id @default(uuid())
+  date          String   // "2025-08-07"
+  isTemplate    Boolean  @default(false)
+  templateName  String?
+  sessionId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  session       Session  @relation(fields: [sessionId], references: [id])
+  blocks        WorkBlock[]
+  meetings      WorkMeeting[]
+  sessions      WorkSession[]
+  
+  @@unique([sessionId, date])
+}
+
+model WorkBlock {
+  id            String   @id @default(uuid())
+  patternId     String
+  startTime     String   // "09:00"
+  endTime       String   // "12:00"
+  type          String   // "focused" | "admin" | "mixed"
+  focusCapacity Int?     // Override minutes for mixed blocks
+  adminCapacity Int?     // Override minutes for mixed blocks
+  capacity      String?  // JSON object for capacity overrides
+  
+  pattern       WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  
+  @@index([patternId])
+}
+
+model WorkMeeting {
+  id            String   @id @default(uuid())
+  patternId     String
+  name          String
+  startTime     String   // "14:00"
+  endTime       String   // "15:00"
+  type          String   // "meeting" | "break" | "personal" | "blocked"
+  recurring     String   @default("none") // "none" | "daily" | "weekly"
+  daysOfWeek    String?  // JSON array [1,3,5] for Mon,Wed,Fri
+  
+  pattern       WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  
+  @@index([patternId])
+}
+
+// Context models remain the same
+model JobContext {
+  id              String   @id @default(uuid())
+  name            String
+  description     String
+  context         String   // Long-form job context description
+  asyncPatterns   String   // JSON object with common async patterns
+  reviewCycles    String   // JSON object with typical review times
+  tools           String   // JSON array of tools/systems used
+  isActive        Boolean  @default(false)
+  sessionId       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  session         Session  @relation(fields: [sessionId], references: [id])
+  contextEntries  ContextEntry[]
+}
+
+model ContextEntry {
+  id            String   @id @default(uuid())
+  jobContextId  String
+  key           String   // e.g., "code_review_time", "ci_pipeline_duration"
+  value         String   // e.g., "4-24 hours", "30-45 minutes"
+  category      String   // e.g., "async_wait", "process", "tool"
+  notes         String?
+  createdAt     DateTime @default(now())
+  
+  jobContext    JobContext @relation(fields: [jobContextId], references: [id], onDelete: Cascade)
+  
+  @@unique([jobContextId, key])
+}
+
+model JargonEntry {
+  id            String   @id @default(uuid())
+  term          String
+  definition    String
+  category      String?  // e.g., "technical", "process", "tool", "company"
+  examples      String?  // JSON array of usage examples
+  relatedTerms  String?  // JSON array of related terms
+  sessionId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  session       Session  @relation(fields: [sessionId], references: [id])
+  
+  @@unique([sessionId, term])
+}
+
+model TimeEstimateAccuracy {
+  id                String   @id @default(uuid())
+  sessionId         String
+  taskType          String   // "focused" | "admin"
+  workflowCategory  String?
+  estimatedMinutes  Int
+  actualMinutes     Int
+  variance          Float    // percentage variance
+  createdAt         DateTime @default(now())
+  
+  session           Session  @relation(fields: [sessionId], references: [id])
+  
+  @@index([sessionId])
+  @@index([taskType])
+}

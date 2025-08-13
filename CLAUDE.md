@@ -2,6 +2,25 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL: Before Making Changes
+
+**ALWAYS consult these resources BEFORE implementing anything:**
+
+1. **Architecture Documentation**:
+   - `/docs/architecture.md` - System design and component relationships
+   - `/docs/project-spec.md` - Original requirements and design decisions
+   - `prisma/schema.prisma` - Database schema (source of truth)
+
+2. **Check Existing Patterns**:
+   - Search for similar functionality before creating new code
+   - Use `grep` or `glob` to find existing implementations
+   - Follow established patterns for consistency
+
+3. **Test Your Understanding**:
+   - Read the relevant code before modifying
+   - Run `npm run typecheck` to verify assumptions
+   - Check if tests exist for the area you're modifying
+
 ## Project Overview
 
 This is a Work Capacity Planner - an Electron-based desktop application for managing software engineer workload using capacity-based scheduling. The project is currently in the planning phase with a comprehensive technical specification.
@@ -214,10 +233,65 @@ task-planner/
 - Update local state optimistically, then sync with database
 
 ### Database Operations
-- All database methods return Promises
-- Use typed parameters and return types
-- Handle nullable fields properly in TypeScript
-- Check if methods exist before calling them
+
+**IMPORTANT: Database Service Architecture**
+
+1. **Service Structure**:
+   ```typescript
+   // Main process: src/main/database.ts
+   export class DatabaseService {
+     private static instance: DatabaseService
+     private client: PrismaClient
+     
+     static getInstance(): DatabaseService { ... }
+   }
+   export const db = DatabaseService.getInstance()
+   ```
+
+2. **Common Database Patterns**:
+   ```typescript
+   // Always get active session first
+   const sessionId = await this.getActiveSession()
+   
+   // Include relations when needed
+   const result = await this.client.model.findMany({
+     where: { sessionId },
+     include: { relatedModel: true }
+   })
+   
+   // Handle JSON fields
+   return result.map(item => ({
+     ...item,
+     jsonField: item.jsonField ? JSON.parse(item.jsonField) : null
+   }))
+   ```
+
+3. **Current Data Models** (as of last update):
+   - **Task**: Standalone tasks with duration, importance, urgency
+   - **SequencedTask**: Workflows with multiple TaskStep children
+   - **TaskStep**: Individual steps in a workflow
+   - **WorkSession**: Time tracking for regular work blocks
+   - **StepWorkSession**: Time tracking for workflow steps
+   - **WorkPattern**: Daily work schedule with blocks and meetings
+
+4. **Common Pitfalls**:
+   - Forgetting to filter by sessionId
+   - Not including related models in queries
+   - Assuming Task and SequencedTask are the same (they're not!)
+   - Not parsing JSON fields before returning
+
+### Database Migrations
+
+**ALWAYS BACKUP BEFORE MIGRATIONS:**
+
+```bash
+# Before any schema change:
+1. npm run db:backup    # Creates timestamped backup
+2. Make schema changes in prisma/schema.prisma
+3. npm run prisma:migrate dev --name descriptive_name
+4. Test thoroughly
+5. If issues arise: npm run db:restore
+```
 
 ### TypeScript Patterns
 ```typescript
@@ -245,6 +319,16 @@ try {
 5. **Don't forget IPC patterns** - Use preload script for all database calls
 - **Progress visualization** with completion rates and statistics
 - **Responsive grid layouts** for matrix views and dashboards
+
+## Testing Strategy
+
+**IMPORTANT: Always run tests after writing them!**
+
+When you write or modify tests:
+1. Run the specific test file: `npm test -- path/to/test.ts --run`
+2. Fix any failures before proceeding
+3. Run related tests to check for regressions
+4. Only mark tasks as complete after tests pass
 
 ## Testing Strategy
 
@@ -301,3 +385,20 @@ npm run test:coverage
 - Shared types in /shared directory
 - Database operations only in main process
 - State management through Zustand store
+
+## When You Get Stuck
+
+1. **Can't find a file?**
+   - Check `/docs/architecture.md` for file structure
+   - Use `glob` tool with patterns like `**/*ComponentName*`
+   - Look at imports in similar components
+
+2. **Database query not working?**
+   - Check `prisma/schema.prisma` for exact field names
+   - Verify relationships and includes
+   - Look for similar queries in `src/main/database.ts`
+
+3. **TypeScript errors?**
+   - Check if types are imported from `@shared/types`
+   - Verify nullable fields are handled
+   - Run `npm run typecheck` for detailed errors

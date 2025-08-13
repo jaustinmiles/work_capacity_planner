@@ -3,6 +3,7 @@ import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco
 import { IconSchedule, IconCheck, IconEdit, IconStop, IconCaretRight } from '@arco-design/web-react/icon'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
+import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -23,7 +24,18 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   useEffect(() => {
     loadWorkData()
     const interval = setInterval(loadWorkData, 60000) // Update every minute
-    return () => clearInterval(interval)
+    
+    // Listen for time logging events
+    const handleTimeLogged = () => {
+      loadWorkData()
+    }
+    
+    appEvents.on(EVENTS.TIME_LOGGED, handleTimeLogged)
+    
+    return () => {
+      clearInterval(interval)
+      appEvents.off(EVENTS.TIME_LOGGED, handleTimeLogged)
+    }
   }, [currentDate])
 
   useEffect(() => {

@@ -938,9 +938,11 @@ export class DatabaseService {
   }
 
   async getTodayAccumulated(date: string): Promise<{ focusMinutes: number; adminMinutes: number }> {
+    const sessionId = await this.getActiveSession()
+    
+    // Get regular work sessions
     const sessions = await this.getWorkSessions(date)
-
-    return sessions.reduce((acc, session) => {
+    const regularAccumulated = sessions.reduce((acc, session) => {
       const minutes = session.actualMinutes || session.plannedMinutes
       if (session.type === 'focused') {
         acc.focusMinutes += minutes
@@ -949,6 +951,69 @@ export class DatabaseService {
       }
       return acc
     }, { focusMinutes: 0, adminMinutes: 0 })
+
+    // Get step work sessions for today
+    const startOfDay = new Date(date)
+    startOfDay.setHours(0, 0, 0, 0)
+    const endOfDay = new Date(date)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    const stepSessions = await this.client.stepWorkSession.findMany({
+      where: {
+        startTime: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        taskStep: {
+          sequencedTask: {
+            sessionId,
+          },
+        },
+      },
+      include: {
+        taskStep: true,
+      },
+    })
+
+    // Get task time logs for today
+    const tasks = await this.client.task.findMany({
+      where: {
+        sessionId,
+        actualDuration: { gt: 0 },
+        updatedAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+    })
+
+    // Sum up step work sessions
+    const stepAccumulated = stepSessions.reduce((acc, session) => {
+      if (session.taskStep.type === 'focused') {
+        acc.focusMinutes += session.duration
+      } else {
+        acc.adminMinutes += session.duration
+      }
+      return acc
+    }, { focusMinutes: 0, adminMinutes: 0 })
+
+    // Sum up task time logs (only count time logged today)
+    const taskAccumulated = tasks.reduce((acc, task) => {
+      // Note: This is a simplification - ideally we'd track when the time was logged
+      // For now, we include all actual duration if the task was updated today
+      const minutes = task.actualDuration || 0
+      if (task.type === 'focused') {
+        acc.focusMinutes += minutes
+      } else {
+        acc.adminMinutes += minutes
+      }
+      return acc
+    }, { focusMinutes: 0, adminMinutes: 0 })
+
+    return {
+      focusMinutes: regularAccumulated.focusMinutes + stepAccumulated.focusMinutes + taskAccumulated.focusMinutes,
+      adminMinutes: regularAccumulated.adminMinutes + stepAccumulated.adminMinutes + taskAccumulated.adminMinutes,
+    }
   }
 
   // Progress tracking operations

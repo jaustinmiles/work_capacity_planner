@@ -6,6 +6,7 @@ import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { StepWorkSession } from '@shared/workflow-progress-types'
 import { getDatabase } from '../services/database'
+import { appEvents, EVENTS } from '../utils/events'
 
 interface WorkSession {
   stepId: string
@@ -397,6 +398,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           duration: totalMinutes,
           notes,
         })
+        
+        // Emit event to update other components
+        appEvents.emit(EVENTS.TIME_LOGGED)
       }
 
       // Update step progress
@@ -476,6 +480,9 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         await getDatabase().updateTaskStepProgress(stepId, {
           actualDuration: newActualDuration,
         })
+        
+        // Emit event to update other components
+        appEvents.emit(EVENTS.TIME_LOGGED)
       }
     } catch (error) {
       set({

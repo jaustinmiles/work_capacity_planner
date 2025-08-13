@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Modal, Form, InputNumber, Typography, Space, Button, Message } from '@arco-design/web-react'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
+import { appEvents, EVENTS } from '../../utils/events'
 
 const { Text } = Typography
 
@@ -22,6 +23,13 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       const values = await form.validate()
       const timeSpent = values.timeSpent
       
+      // Validate time is at least 1 minute
+      if (!timeSpent || timeSpent < 1) {
+        Message.error('Please enter at least 1 minute')
+        setLoading(false)
+        return
+      }
+      
       // Update the task with the new actual duration
       const currentActualDuration = task.actualDuration || 0
       const newActualDuration = currentActualDuration + timeSpent
@@ -29,6 +37,9 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       await updateTask(task.id, {
         actualDuration: newActualDuration
       })
+      
+      // Emit event to update other components
+      appEvents.emit(EVENTS.TIME_LOGGED)
       
       // Check if we need to prompt for re-estimation
       if (newActualDuration >= task.duration && !task.completed) {
