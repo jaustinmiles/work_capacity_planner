@@ -718,18 +718,24 @@ export class DatabaseService {
         ...patternData,
         sessionId,
         WorkBlock: {
-          create: (blocks || []).map((b: any) => ({
-            id: crypto.randomUUID(),
-            ...b,
-            capacity: b.capacity ? JSON.stringify(b.capacity) : null,
-          })),
+          create: (blocks || []).map((b: any) => {
+            const { patternId, id, ...blockData } = b
+            return {
+              id: crypto.randomUUID(),
+              ...blockData,
+              capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+            }
+          }),
         },
         WorkMeeting: {
-          create: (meetings || []).map((m: any) => ({
-            id: crypto.randomUUID(),
-            ...m,
-            daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
-          })),
+          create: (meetings || []).map((m: any) => {
+            const { patternId, id, ...meetingData } = m
+            return {
+              id: crypto.randomUUID(),
+              ...meetingData,
+              daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
+            }
+          }),
         },
       },
       include: {
@@ -837,18 +843,24 @@ export class DatabaseService {
       data: {
         updatedAt: new Date(),
         WorkBlock: {
-          create: (updates.blocks || []).map((b: any) => ({
-            id: crypto.randomUUID(),
-            ...b,
-            capacity: b.capacity ? JSON.stringify(b.capacity) : null,
-          })),
+          create: (updates.blocks || []).map((b: any) => {
+            const { patternId, id, ...blockData } = b
+            return {
+              id: crypto.randomUUID(),
+              ...blockData,
+              capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+            }
+          }),
         },
         WorkMeeting: {
-          create: (updates.meetings || []).map((m: any) => ({
-            id: crypto.randomUUID(),
-            ...m,
-            daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
-          })),
+          create: (updates.meetings || []).map((m: any) => {
+            const { patternId, id, ...meetingData } = m
+            return {
+              id: crypto.randomUUID(),
+              ...meetingData,
+              daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
+            }
+          }),
         },
       },
       include: {
