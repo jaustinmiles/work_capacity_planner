@@ -269,6 +269,29 @@ export function scheduleItemsWithBlocksAndDebug(
     warnings: []
   }
 
+  // ASSERTION: Validate inputs
+  if (!patterns || patterns.length === 0) {
+    debugInfo.warnings.push('No work patterns provided - cannot schedule any items')
+    return { scheduledItems: [], debugInfo }
+  }
+  
+  // ASSERTION: Check for duplicate IDs
+  const allIds = new Set<string>()
+  tasks.forEach(t => {
+    if (allIds.has(t.id)) {
+      debugInfo.warnings.push(`Duplicate task ID detected: ${t.id}`)
+    }
+    allIds.add(t.id)
+  })
+  
+  sequencedTasks.forEach(st => {
+    st.steps.forEach(step => {
+      if (allIds.has(step.id)) {
+        debugInfo.warnings.push(`Duplicate step ID detected: ${step.id}`)
+      }
+      allIds.add(step.id)
+    })
+  })
 
   // Convert tasks to work items
   tasks

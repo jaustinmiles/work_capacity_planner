@@ -61,9 +61,13 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   }
 
   const formatMinutes = (minutes: number) => {
+    // Handle NaN or invalid values
+    if (!minutes || isNaN(minutes)) {
+      return '0m'
+    }
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+    return hours > 0 ? `${hours}h ${mins > 0 ? `${mins}m` : ''}` : `${mins}m`
   }
 
   const getBlockDuration = (block: WorkBlock) => {
