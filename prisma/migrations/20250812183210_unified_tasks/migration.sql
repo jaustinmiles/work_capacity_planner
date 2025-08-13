@@ -101,16 +101,34 @@ WHERE "ts"."taskId" IS NOT NULL;
 -- First ensure all TaskSteps have taskId
 UPDATE "TaskStep" SET "taskId" = "taskId" WHERE "taskId" IS NOT NULL;
 
--- Drop the old column after ensuring we have the data
-PRAGMA foreign_keys=OFF;
-ALTER TABLE "TaskStep" DROP COLUMN "sequencedTaskId";
+-- Create new TaskStep table with correct schema
+CREATE TABLE "TaskStep_new" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "taskId" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "duration" INTEGER NOT NULL,
+  "type" TEXT NOT NULL,
+  "dependsOn" TEXT NOT NULL DEFAULT '[]',
+  "asyncWaitTime" INTEGER NOT NULL DEFAULT 0,
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "stepIndex" INTEGER NOT NULL,
+  "actualDuration" INTEGER,
+  "startedAt" DATETIME,
+  "completedAt" DATETIME,
+  "percentComplete" INTEGER NOT NULL DEFAULT 0,
+  CONSTRAINT "TaskStep_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Copy data to new table
+INSERT INTO "TaskStep_new" SELECT "id", "taskId", "name", "duration", "type", "dependsOn", "asyncWaitTime", "status", "stepIndex", "actualDuration", "startedAt", "completedAt", "percentComplete" FROM "TaskStep" WHERE "taskId" IS NOT NULL;
+
+-- Drop old table and rename new one
+DROP TABLE "TaskStep";
+ALTER TABLE "TaskStep_new" RENAME TO "TaskStep";
 
 -- Drop old tables
 DROP TABLE "StepWorkSession";
 DROP TABLE "SequencedTask";
-PRAGMA foreign_keys=ON;
 
 -- CreateIndex
 CREATE INDEX "TaskStep_taskId_stepIndex_idx" ON "TaskStep"("taskId", "stepIndex");
-CREATE INDEX "WorkSession_taskId_idx" ON "WorkSession"("taskId");
-CREATE INDEX "WorkSession_startTime_idx" ON "WorkSession"("startTime");

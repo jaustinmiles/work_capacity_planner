@@ -19,9 +19,7 @@ async function createWindow(): Promise<void> {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: process.env.NODE_ENV === 'development'
-        ? path.join(__dirname, '../../dist/index.js')
-        : path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -67,10 +65,12 @@ app.on('window-all-closed', () => {
 
 // Initialize database service
 const db = DatabaseService.getInstance()
+console.log('Main process initialized successfully')
 
 // IPC handlers for database operations
 // Session management handlers
 ipcMain.handle('db:getSessions', async () => {
+  console.log('Getting sessions...')
   return await db.getSessions()
 })
 
@@ -91,7 +91,15 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
 })
 
 ipcMain.handle('db:getTasks', async () => {
-  return await db.getTasks()
+  console.log('IPC: Getting tasks from database...')
+  try {
+    const tasks = await db.getTasks()
+    console.log(`IPC: Found ${tasks.length} tasks`)
+    return tasks
+  } catch (error) {
+    console.error('IPC: Error getting tasks:', error)
+    throw error
+  }
 })
 
 ipcMain.handle('db:getSequencedTasks', async () => {
@@ -225,6 +233,10 @@ ipcMain.handle('db:updateWorkSession', async (_event: IpcMainInvokeEvent, id: st
 
 ipcMain.handle('db:getWorkSessions', async (_event: IpcMainInvokeEvent, date: string) => {
   return await db.getWorkSessions(date)
+})
+
+ipcMain.handle('db:getTaskTotalLoggedTime', async (_event: IpcMainInvokeEvent, taskId: string) => {
+  return await db.getTaskTotalLoggedTime(taskId)
 })
 
 ipcMain.handle('db:getTodayAccumulated', async (_event: IpcMainInvokeEvent, date: string) => {

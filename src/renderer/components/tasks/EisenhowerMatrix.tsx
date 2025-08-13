@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip, Slider } from '@arco-design/web-react'
 import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'

@@ -17,7 +17,7 @@ import {
   Popconfirm,
 } from '@arco-design/web-react'
 import { IconPlus, IconDelete, IconEdit, IconSettings } from '@arco-design/web-react/icon'
-import { WorkSettings, WorkHours, BlockedTime, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
+import { WorkSettings, BlockedTime, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 

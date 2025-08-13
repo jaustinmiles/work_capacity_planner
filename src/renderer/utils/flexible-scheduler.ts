@@ -586,7 +586,7 @@ export function scheduleItemsWithBlocksAndDebug(
           reason = `No block has enough ${item.taskType} capacity (needs ${item.duration} minutes)`
         } else {
           const lastBlock = blockCapacities[blockCapacities.length - 1]
-          if (currentTime.getTime() >= lastBlock.endTime.getTime()) {
+          if (lastBlock && currentTime.getTime() >= lastBlock.endTime.getTime()) {
             reason = 'Current time is past all blocks for today'
           } else {
             reason = 'Time conflicts with other scheduled items'
@@ -595,7 +595,7 @@ export function scheduleItemsWithBlocksAndDebug(
         
         // Check if currentTime is past all blocks for today
         const lastBlock = blockCapacities[blockCapacities.length - 1]
-        if (currentTime.getTime() >= lastBlock.endTime.getTime()) {
+        if (lastBlock && currentTime.getTime() >= lastBlock.endTime.getTime()) {
           shouldMoveToNextDay = true
           break
         }
@@ -636,7 +636,7 @@ export function scheduleItemsWithBlocksAndDebug(
           focusTotal: block.focusMinutesTotal,
           adminUsed: block.adminMinutesUsed,
           adminTotal: block.adminMinutesTotal,
-          unusedReason: unusedReason || blockState.timeConstraint
+          unusedReason: unusedReason || blockState?.timeConstraint
         })
       })
       
@@ -651,7 +651,11 @@ export function scheduleItemsWithBlocksAndDebug(
         // Sort blocks by start time and get the earliest
         const earliestBlock = nextPattern.blocks
           .sort((a, b) => a.startTime.localeCompare(b.startTime))[0]
-        currentTime = parseTimeOnDate(currentDate, earliestBlock.startTime)
+        if (earliestBlock) {
+          currentTime = parseTimeOnDate(currentDate, earliestBlock.startTime)
+        } else {
+          currentTime = new Date(currentDate)
+        }
 
         // If this time is in the past, use current time
         if (currentTime.getTime() < now.getTime()) {
@@ -684,7 +688,11 @@ export function scheduleItemsWithBlocksAndDebug(
           // Sort blocks by start time and get the earliest
           const earliestBlock = nextPattern.blocks
             .sort((a, b) => a.startTime.localeCompare(b.startTime))[0]
-          currentTime = parseTimeOnDate(currentDate, earliestBlock.startTime)
+          if (earliestBlock) {
+            currentTime = parseTimeOnDate(currentDate, earliestBlock.startTime)
+          } else {
+            currentTime = new Date(currentDate)
+          }
 
           // If this time is in the past, use current time
           if (currentTime.getTime() < now.getTime()) {
@@ -719,7 +727,7 @@ export function scheduleItemsWithBlocksAndDebug(
             focusTotal: block.focusMinutesTotal,
             adminUsed: block.adminMinutesUsed,
             adminTotal: block.adminMinutesTotal,
-            unusedReason: blockState.timeConstraint || undefined
+            unusedReason: blockState?.timeConstraint || undefined
           })
         }
       })

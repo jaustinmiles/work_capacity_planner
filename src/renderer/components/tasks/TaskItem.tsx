@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
-import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Badge, Modal } from '@arco-design/web-react'
+import { useState, useEffect } from 'react'
+import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Modal } from '@arco-design/web-react'
 import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskEdit } from './TaskEdit'
 import { TaskTimeLoggingModal } from './TaskTimeLoggingModal'
+import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -22,6 +23,16 @@ export function TaskItem({ task }: TaskItemProps) {
   const [editedName, setEditedName] = useState(task.name)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showTimeModal, setShowTimeModal] = useState(false)
+  const [loggedTime, setLoggedTime] = useState<number>(0)
+
+  useEffect(() => {
+    // Fetch logged time for this task
+    getDatabase().getTaskTotalLoggedTime(task.id).then(time => {
+      setLoggedTime(time)
+    }).catch(err => {
+      console.error('Failed to fetch logged time:', err)
+    })
+  }, [task.id, task.actualDuration]) // Re-fetch when actualDuration changes
 
   const priorityScore = task.importance * task.urgency
   const priorityColor = priorityScore >= 64 ? 'red' :
@@ -130,13 +141,13 @@ export function TaskItem({ task }: TaskItemProps) {
                       Est: {formatDuration(task.duration)}
                     </Tag>
                     
-                    {task.actualDuration && (
+                    {loggedTime > 0 && (
                       <Tag
                         icon={<IconCheckCircleFill />}
-                        color={task.actualDuration > task.duration ? 'orange' : 'green'}
+                        color={loggedTime > task.duration ? 'orange' : 'green'}
                         size="small"
                       >
-                        Actual: {formatDuration(task.actualDuration)}
+                        Logged: {formatDuration(loggedTime)}
                       </Tag>
                     )}
 

@@ -28,7 +28,7 @@ This is a Work Capacity Planner - an Electron-based desktop application for mana
 ## Technology Stack
 
 - **Framework**: Electron 26+ with React 19
-- **Language**: TypeScript 5.0+ with strict mode
+- **Language**: TypeScript 5.0+ with strict mode enabled
 - **State Management**: Zustand with session-aware persistence
 - **Database**: SQLite with Prisma ORM (session-isolated data)
 - **UI Framework**: Arco Design (professional React component library) + Tailwind CSS
@@ -37,6 +37,15 @@ This is a Work Capacity Planner - an Electron-based desktop application for mana
 - **Testing**: Vitest + React Testing Library + Playwright
 - **AI Services**: Claude Opus 4.1 + OpenAI Whisper API
 - **Code Quality**: ESLint with enhanced TypeScript rules
+
+### ⚡ Type Safety Requirements
+
+**This project enforces strict TypeScript compliance:**
+- `strict: true` in tsconfig.json
+- `exactOptionalPropertyTypes: true` for precise null/undefined handling
+- Zero tolerance for TypeScript errors before committing
+- All database models have proper TypeScript interfaces
+- Comprehensive type definitions in `/src/shared/types.ts`
 
 ## Development Commands
 
@@ -78,8 +87,11 @@ npm run check  # Runs both typecheck and lint
 1. **Before Starting Development**
    ```bash
    # Ensure clean state
-   npm run typecheck  # Should pass with 0 errors
+   npm run typecheck  # MUST pass with 0 errors
    npm run lint       # Should have minimal warnings
+   
+   # Check current error count if non-zero
+   npm run typecheck 2>&1 | grep "error TS" | wc -l
    ```
 
 2. **During Development**
@@ -104,6 +116,10 @@ npm run check  # Runs both typecheck and lint
    - Arco Design usage: Use `@arco-design/web-react` components and icons
    - TypeScript strict mode: Handle all nullable types properly
    - React 19 compatibility: Some libraries may have warnings
+   - Unused imports: Remove immediately (TS6133)
+   - Possibly undefined: Use optional chaining (?.) or null checks (TS18048)
+   - Type mismatches: Check Prisma types match our interfaces (TS2322)
+   - exactOptionalPropertyTypes: Use null instead of undefined for Prisma (TS2375)
 
 5. **Testing New Features**
    - Start the dev server: `npm run start`
@@ -195,7 +211,14 @@ task-planner/
 - ✅ Testing infrastructure with Vitest
 - ✅ Enhanced TypeScript linting rules
 
-**Known Issues to Fix:**
+**Current Tech Debt (as of 2025-08-13):**
+- ⚠️ TypeScript errors: 237 remaining (down from 447+)
+  - 40 unused imports (TS6133)
+  - 33 type assignment errors (TS2322)
+  - 30 missing properties (TS2339)
+  - 25 argument type mismatches (TS2345)
+  - See full breakdown: `npm run typecheck 2>&1 | grep -oE "TS[0-9]+" | sort | uniq -c | sort -nr`
+- ⚠️ Unified Task model migration incomplete in UI components
 - ⚠️ Workflow dependency naming inconsistencies in edit mode
 - ⚠️ Graph view placement (should not be in edit modal)
 - ⚠️ Missing edit controls in graph visualization
@@ -233,6 +256,12 @@ task-planner/
 - Update local state optimistically, then sync with database
 
 ### Database Operations
+
+**CRITICAL: Database File Location**
+- **ALWAYS use the database in the `prisma/` directory**: `prisma/dev.db`
+- **NEVER use the root directory database**: `dev.db` (this is NOT the app's database)
+- When debugging database issues, ALWAYS check: `sqlite3 prisma/dev.db "SELECT ..."`
+- The Prisma client is configured to use `DATABASE_URL="file:./dev.db"` which resolves to `prisma/dev.db` from Prisma's perspective
 
 **IMPORTANT: Database Service Architecture**
 

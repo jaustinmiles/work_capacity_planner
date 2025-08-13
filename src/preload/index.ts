@@ -1,5 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
+console.log('Preload script loading...')
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -50,6 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     createWorkSession: (data: any) => ipcRenderer.invoke('db:createWorkSession', data),
     updateWorkSession: (id: string, data: any) => ipcRenderer.invoke('db:updateWorkSession', id, data),
     getWorkSessions: (date: string) => ipcRenderer.invoke('db:getWorkSessions', date),
+    getTaskTotalLoggedTime: (taskId: string) => ipcRenderer.invoke('db:getTaskTotalLoggedTime', taskId),
     getTodayAccumulated: (date: string) => ipcRenderer.invoke('db:getTodayAccumulated', date),
     // Progress tracking operations
     createStepWorkSession: (data: any) => ipcRenderer.invoke('db:createStepWorkSession', data),
@@ -80,3 +83,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSchedulingSettings: () => ipcRenderer.invoke('speech:getSchedulingSettings'),
   },
 })
+
+console.log('Preload script loaded successfully!')

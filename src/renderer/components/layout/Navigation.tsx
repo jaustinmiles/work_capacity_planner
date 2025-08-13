@@ -1,4 +1,3 @@
-import React from 'react'
 
 interface NavigationProps {
   activeView: 'tasks' | 'matrix' | 'calendar'

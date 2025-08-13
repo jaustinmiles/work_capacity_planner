@@ -66,6 +66,7 @@ function App() {
 
   // Initialize data when app starts
   useEffect(() => {
+    console.log('App: Starting initialization...')
     initializeData()
   }, [initializeData])
 
@@ -116,9 +117,9 @@ function App() {
           notes: combinedNotes,
           dependencies: [],
           completed: false,
-          totalDuration: workflow.totalDuration,
-          criticalPathDuration: workflow.totalDuration, // Will be calculated properly
-          worstCaseDuration: workflow.totalDuration * 1.5, // Estimate
+          duration: workflow.duration,
+          criticalPathDuration: workflow.duration, // Will be calculated properly
+          worstCaseDuration: workflow.duration * 1.5, // Estimate
           overallStatus: 'not_started' as const,
           steps: workflow.steps.map((step: any, index: number) => ({
             ...step,

@@ -279,6 +279,7 @@ export function scheduleItems(
     let scheduled = false
     for (let i = 0; i < workItems.length; i++) {
       const item = workItems[i]
+      if (!item) continue
 
       // Check if dependencies are met (for workflow steps)
       if (item.dependencies && item.dependencies.length > 0) {

@@ -1,7 +1,7 @@
 import { Task, TaskStep } from './types'
 
 // Re-export TaskStep for backward compatibility
-export { TaskStep } from './types'
+export type { TaskStep }
 
 export interface ConditionalBranch {
   id: string

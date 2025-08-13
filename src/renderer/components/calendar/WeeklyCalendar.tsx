@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Calendar, Card, Typography, Space, Statistic, Grid, Tag, Alert, Empty, Spin } from '@arco-design/web-react'
 import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -375,7 +375,7 @@ export function WeeklyCalendar() {
 
                   return (
                     <Space direction="vertical" style={{ width: '100%' }}>
-                      {daySchedule.map((item, index) => (
+                      {daySchedule.map((item) => (
                         <div
                           key={item.id}
                           style={{

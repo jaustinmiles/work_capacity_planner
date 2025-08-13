@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { Component, ErrorInfo, ReactNode } from 'react'
 import { Result, Button, Typography, Space } from '@arco-design/web-react'
 import { IconRefresh, IconBug } from '@arco-design/web-react/icon'
 
@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
             {process.env.NODE_ENV === 'development' && (
               <div style={{ marginTop: 24, textAlign: 'left', maxWidth: 600 }}>
                 <Paragraph>
-                  <Text type="danger" strong>Error:</Text> {this.state.error?.message}
+                  <Text type="danger" style={{ fontWeight: 600 }}>Error:</Text> {this.state.error?.message}
                 </Paragraph>
                 {this.state.errorInfo && (
                   <details style={{ marginTop: 16 }}>

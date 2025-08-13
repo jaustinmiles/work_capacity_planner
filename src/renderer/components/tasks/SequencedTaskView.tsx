@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Card, Space, Typography, Tag, Button, Collapse, Alert, Statistic, Grid, Progress, Tooltip, Popconfirm, Tabs } from '@arco-design/web-react'
+import { useState } from 'react'
+import { Card, Space, Typography, Tag, Button, Collapse, Alert, Statistic, Grid, Progress, Popconfirm, Tabs } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskStepItem } from './TaskStepItem'
@@ -9,7 +9,6 @@ import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
-const CollapseItem = Collapse.Item
 
 interface SequencedTaskViewProps {
   task: SequencedTask
@@ -38,7 +37,6 @@ export function SequencedTaskView({
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0
 
   const currentStep = task.steps.find(step => step.status === 'in_progress')
-  const nextStep = task.steps.find(step => step.status === 'pending')
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
@@ -97,13 +95,13 @@ export function SequencedTaskView({
               </Space>
 
               <Text type="secondary">
-                {task.steps.length} steps • {formatDuration(task.totalDuration)} total work •
+                {task.steps.length} steps • {formatDuration(task.duration)} total work •
                 up to {formatDuration(task.worstCaseDuration)} worst case
               </Text>
 
               <Progress
                 percent={progressPercent}
-                formatText={(percent) => `${completedSteps}/${totalSteps} steps complete`}
+                formatText={() => `${completedSteps}/${totalSteps} steps complete`}
                 style={{ width: 400 }}
               />
             </Space>
@@ -227,7 +225,7 @@ export function SequencedTaskView({
                   <Col span={6}>
                     <Statistic
                       title="Total Duration"
-                      value={formatDuration(task.totalDuration)}
+                      value={formatDuration(task.duration)}
                       prefix={<IconClockCircle />}
                     />
                   </Col>

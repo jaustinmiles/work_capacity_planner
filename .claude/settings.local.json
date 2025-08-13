@@ -32,7 +32,9 @@
       "Bash(then)",
       "Bash(echo \"Fixed: $file\")",
       "Bash(fi)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }

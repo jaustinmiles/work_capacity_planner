@@ -26,25 +26,32 @@ export class DatabaseService {
 
   async getActiveSession(): Promise<string> {
     if (!this.activeSessionId) {
+      console.log('DB: Looking for active session...')
       // Find the active session or create one if none exists
       let session = await this.client.session.findFirst({
         where: { isActive: true },
       })
 
       if (!session) {
+        console.log('DB: No active session found, creating default session...')
         // Create a default session if none exists
         session = await this.client.session.create({
           data: {
+            id: crypto.randomUUID(),
             name: 'Default Session',
             description: 'Initial work session',
             isActive: true,
           },
         })
+        console.log('DB: Created new session with ID:', session.id)
+      } else {
+        console.log('DB: Found existing active session:', JSON.stringify(session))
       }
 
       this.activeSessionId = session.id
     }
 
+    console.log('DB: Returning session ID:', this.activeSessionId)
     return this.activeSessionId
   }
 
@@ -64,6 +71,7 @@ export class DatabaseService {
     // Create and activate new session
     const session = await this.client.session.create({
       data: {
+        id: crypto.randomUUID(),
         name,
         description: description ?? null,
         isActive: true,
@@ -94,12 +102,15 @@ export class DatabaseService {
   async updateSession(id: string, updates: { name?: string; description?: string }): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
     return await this.client.session.update({
       where: { id },
-      data: updates,
+      data: {
+        name: updates.name,
+        description: updates.description,
+        updatedAt: new Date(),
+      },
     })
   }
 
   async deleteSession(id: string): Promise<void> {
-    // Don't delete the active session
     const session = await this.client.session.findUnique({
       where: { id },
     })
@@ -113,20 +124,22 @@ export class DatabaseService {
     })
   }
 
-  // Task operations - Unified model
+  // Tasks
   async getTasks(): Promise<Task[]> {
+    console.log('DB: Getting active session...')
     const sessionId = await this.getActiveSession()
+    console.log('DB: Active session ID:', sessionId)
+    
+    console.log('DB: Querying tasks with sessionId:', sessionId)
     const tasks = await this.client.task.findMany({
       where: { sessionId },
-      include: {
-        steps: {
-          orderBy: { stepIndex: 'asc' },
-        },
-      },
       orderBy: { createdAt: 'desc' },
     })
-
-    return tasks.map(task => this.formatTask(task))
+    
+    console.log(`DB: Found ${tasks.length} raw tasks`)
+    const formattedTasks = tasks.map(task => this.formatTask(task))
+    console.log(`DB: Returning ${formattedTasks.length} formatted tasks`)
+    return formattedTasks
   }
 
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
@@ -136,6 +149,7 @@ export class DatabaseService {
     // Create the task
     const task = await this.client.task.create({
       data: {
+        id: crypto.randomUUID(),
         ...coreTaskData,
         sessionId,
         dependencies: JSON.stringify(taskData.dependencies || []),
@@ -144,61 +158,30 @@ export class DatabaseService {
         criticalPathDuration: taskData.criticalPathDuration || taskData.duration,
         worstCaseDuration: taskData.worstCaseDuration || taskData.duration,
       },
-      include: {
-        steps: true,
-      },
     })
-
-    // If it has steps, create them
-    if (steps && steps.length > 0) {
-      await this.client.taskStep.createMany({
-        data: steps.map((step: any, index: number) => ({
-          ...step,
-          taskId: task.id,
-          stepIndex: index,
-          dependsOn: JSON.stringify(step.dependsOn || []),
-          status: step.status || 'pending',
-          percentComplete: step.percentComplete || 0,
-        })),
-      })
-
-      // Fetch the task again with steps
-      return this.getTaskById(task.id) as Promise<Task>
-    }
 
     return this.formatTask(task)
   }
 
-  async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
-    const { steps, ...updateData } = updates as any
-    const cleanUpdateData: any = { ...updateData }
+  async updateTask(id: string, updates: Partial<Omit<Task, 'id' | 'createdAt' | 'sessionId'>>): Promise<Task> {
+    const { steps, ...coreUpdates } = updates as any
 
-    // Handle JSON fields
-    if (cleanUpdateData.dependencies) {
-      cleanUpdateData.dependencies = JSON.stringify(cleanUpdateData.dependencies)
-    }
-
-    // Remove computed fields
-    delete cleanUpdateData.id
-    delete cleanUpdateData.createdAt
-    delete cleanUpdateData.updatedAt
-    delete cleanUpdateData.sessionId
+    // Clean update data - remove undefined values
+    const cleanUpdateData = Object.entries(coreUpdates).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        if (key === 'dependencies') {
+          acc[key] = JSON.stringify(value)
+        } else {
+          acc[key] = value
+        }
+      }
+      return acc
+    }, {} as any)
 
     const task = await this.client.task.update({
       where: { id },
       data: cleanUpdateData,
-      include: {
-        steps: {
-          orderBy: { stepIndex: 'asc' },
-        },
-      },
     })
-
-    // Handle steps update if provided
-    if (steps) {
-      // This would need more complex logic to handle step updates
-      // For now, we'll skip this as it's rarely needed
-    }
 
     return this.formatTask(task)
   }
@@ -209,107 +192,92 @@ export class DatabaseService {
     })
   }
 
+  async completeTask(id: string, actualDuration?: number): Promise<Task> {
+    const task = await this.client.task.update({
+      where: { id },
+      data: {
+        completed: true,
+        completedAt: new Date(),
+        actualDuration: actualDuration,
+        overallStatus: 'completed',
+      },
+    })
+
+    // Record time estimate accuracy
+    if (actualDuration !== undefined) {
+      const sessionId = await this.getActiveSession()
+      await this.recordTimeEstimateAccuracy(sessionId, {
+        taskType: task.type,
+        estimatedMinutes: task.duration,
+        actualMinutes: actualDuration,
+      })
+    }
+
+    return this.formatTask(task)
+  }
+
+  async updateTaskStep(taskId: string, stepId: string, updates: { status: string; actualDuration?: number }): Promise<void> {
+    await this.client.taskStep.update({
+      where: { id: stepId },
+      data: updates,
+    })
+
+    // Update task's current step if completed
+    if (updates.status === 'completed') {
+      const steps = await this.client.taskStep.findMany({
+        where: { taskId },
+        orderBy: { stepIndex: 'asc' },
+      })
+
+      const nextStep = steps.find((s: any) => s.status === 'pending')
+      if (nextStep) {
+        await this.client.task.update({
+          where: { id: taskId },
+          data: { currentStepId: nextStep.id },
+        })
+      } else {
+        // All steps completed
+        await this.client.task.update({
+          where: { id: taskId },
+          data: {
+            currentStepId: null,
+            overallStatus: 'completed',
+            completed: true,
+            completedAt: new Date(),
+          },
+        })
+      }
+    }
+  }
+
   // Helper to format task from DB
   private formatTask(task: any): Task {
     return {
       ...task,
-      type: task.type as 'focused' | 'admin',
-      overallStatus: task.overallStatus as 'not_started' | 'in_progress' | 'waiting' | 'completed',
       dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
       completedAt: task.completedAt || undefined,
       actualDuration: task.actualDuration || undefined,
-      notes: task.notes || undefined,
-      projectId: task.projectId || undefined,
       deadline: task.deadline || undefined,
       currentStepId: task.currentStepId || undefined,
-      steps: task.steps?.map((step: any) => ({
-        ...step,
-        type: step.type as 'focused' | 'admin',
-        status: step.status as 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped',
-        dependsOn: step.dependsOn ? JSON.parse(step.dependsOn) : [],
-        actualDuration: step.actualDuration || undefined,
-        startedAt: step.startedAt || undefined,
-        completedAt: step.completedAt || undefined,
-      })),
+      steps: undefined, // Steps are only for SequencedTask
     }
   }
 
-  // Sequenced task operations (legacy - now uses unified model)
-  async getSequencedTasks(): Promise<SequencedTask[]> {
-    const tasks = await this.getTasks()
-    return tasks.filter(task => task.hasSteps) as SequencedTask[]
-  }
-
-  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
-    // Map totalDuration to duration for unified model
-    const unifiedTaskData = {
-      ...taskData,
-      duration: (taskData as any).totalDuration || taskData.duration,
-      hasSteps: true,
-    }
-    return this.createTask(unifiedTaskData) as Promise<SequencedTask>
-  }
-
-  async updateSequencedTask(id: string, updates: Partial<SequencedTask>): Promise<SequencedTask> {
-    return this.updateTask(id, updates) as Promise<SequencedTask>
-  }
-
-  async deleteSequencedTask(id: string): Promise<void> {
-    return this.deleteTask(id)
-  }
-
-  // Update individual task step
-  async updateTaskStep(stepId: string, updates: Partial<TaskStep>): Promise<void> {
-    const updateData: any = { ...updates }
-    if (updateData.dependsOn) {
-      updateData.dependsOn = JSON.stringify(updateData.dependsOn)
-    }
-
-    // Remove fields that shouldn't be updated directly
-    delete updateData.id
-    delete updateData.taskId
-
-    await this.client.taskStep.update({
-      where: { id: stepId },
-      data: updateData,
-    })
-  }
-
-  // Utility methods
   async getTaskById(id: string): Promise<Task | null> {
     const task = await this.client.task.findUnique({
       where: { id },
-      include: {
-        steps: {
-          orderBy: { stepIndex: 'asc' },
-        },
-      },
     })
 
-    if (!task) return null
-    return this.formatTask(task)
+    return task ? this.formatTask(task) : null
   }
 
-  async getSequencedTaskById(id: string): Promise<SequencedTask | null> {
-    const task = await this.getTaskById(id)
-    if (!task || !task.hasSteps) return null
-    return task as SequencedTask
-  }
-
-  // Initialize database connection (no longer creates default tasks)
-  async initializeDefaultData(): Promise<void> {
-    // Database initialization is handled automatically by Prisma
-    // With AI brainstorming feature, sample tasks are no longer needed
-    // This method is kept for compatibility but doesn't create default data
-  }
-
-  // Job Context operations
+  // Job Context methods
   async getJobContexts(): Promise<any[]> {
     const sessionId = await this.getActiveSession()
     const contexts = await this.client.jobContext.findMany({
       where: { sessionId },
       include: {
-        contextEntries: true,
+        ContextEntry: true,
       },
       orderBy: { updatedAt: 'desc' },
     })
@@ -319,6 +287,7 @@ export class DatabaseService {
       asyncPatterns: JSON.parse(context.asyncPatterns),
       reviewCycles: JSON.parse(context.reviewCycles),
       tools: JSON.parse(context.tools),
+      contextEntries: context.ContextEntry,
     }))
   }
 
@@ -330,7 +299,7 @@ export class DatabaseService {
         isActive: true,
       },
       include: {
-        contextEntries: true,
+        ContextEntry: true,
       },
     })
 
@@ -341,6 +310,7 @@ export class DatabaseService {
       asyncPatterns: JSON.parse(context.asyncPatterns),
       reviewCycles: JSON.parse(context.reviewCycles),
       tools: JSON.parse(context.tools),
+      contextEntries: context.ContextEntry,
     }
   }
 
@@ -355,8 +325,9 @@ export class DatabaseService {
   }): Promise<any> {
     // Deactivate other contexts if this one is being set as active
     if (data.isActive) {
+      const sessionId = await this.getActiveSession()
       await this.client.jobContext.updateMany({
-        where: { isActive: true },
+        where: { sessionId, isActive: true },
         data: { isActive: false },
       })
     }
@@ -364,6 +335,7 @@ export class DatabaseService {
     const sessionId = await this.getActiveSession()
     const context = await this.client.jobContext.create({
       data: {
+        id: crypto.randomUUID(),
         ...data,
         sessionId,
         asyncPatterns: JSON.stringify(data.asyncPatterns || {}),
@@ -371,7 +343,7 @@ export class DatabaseService {
         tools: JSON.stringify(data.tools || []),
       },
       include: {
-        contextEntries: true,
+        ContextEntry: true,
       },
     })
 
@@ -380,36 +352,48 @@ export class DatabaseService {
       asyncPatterns: JSON.parse(context.asyncPatterns),
       reviewCycles: JSON.parse(context.reviewCycles),
       tools: JSON.parse(context.tools),
+      contextEntries: context.ContextEntry,
     }
   }
 
-  async updateJobContext(id: string, updates: Partial<any>): Promise<any> {
-    const updateData: any = { ...updates }
-
-    // Handle JSON fields
-    if (updateData.asyncPatterns) {
-      updateData.asyncPatterns = JSON.stringify(updateData.asyncPatterns)
-    }
-    if (updateData.reviewCycles) {
-      updateData.reviewCycles = JSON.stringify(updateData.reviewCycles)
-    }
-    if (updateData.tools) {
-      updateData.tools = JSON.stringify(updateData.tools)
-    }
-
+  async updateJobContext(id: string, data: {
+    name?: string
+    description?: string
+    context?: string
+    asyncPatterns?: any
+    reviewCycles?: any
+    tools?: string[]
+    isActive?: boolean
+  }): Promise<any> {
     // Deactivate other contexts if this one is being set as active
-    if (updateData.isActive) {
+    if (data.isActive) {
+      const sessionId = await this.getActiveSession()
       await this.client.jobContext.updateMany({
-        where: { isActive: true, NOT: { id } },
+        where: { sessionId, isActive: true },
         data: { isActive: false },
       })
+    }
+
+    const updateData: any = {
+      ...data,
+      updatedAt: new Date(),
+    }
+
+    if (data.asyncPatterns !== undefined) {
+      updateData.asyncPatterns = JSON.stringify(data.asyncPatterns)
+    }
+    if (data.reviewCycles !== undefined) {
+      updateData.reviewCycles = JSON.stringify(data.reviewCycles)
+    }
+    if (data.tools !== undefined) {
+      updateData.tools = JSON.stringify(data.tools)
     }
 
     const context = await this.client.jobContext.update({
       where: { id },
       data: updateData,
       include: {
-        contextEntries: true,
+        ContextEntry: true,
       },
     })
 
@@ -418,6 +402,7 @@ export class DatabaseService {
       asyncPatterns: JSON.parse(context.asyncPatterns),
       reviewCycles: JSON.parse(context.reviewCycles),
       tools: JSON.parse(context.tools),
+      contextEntries: context.ContextEntry,
     }
   }
 
@@ -427,7 +412,8 @@ export class DatabaseService {
     })
   }
 
-  async addContextEntry(jobContextId: string, entry: {
+  async upsertContextEntry(entry: {
+    jobContextId: string
     key: string
     value: string
     category: string
@@ -436,81 +422,94 @@ export class DatabaseService {
     return await this.client.contextEntry.upsert({
       where: {
         jobContextId_key: {
-          jobContextId,
+          jobContextId: entry.jobContextId,
           key: entry.key,
         },
       },
       update: {
         value: entry.value,
         category: entry.category,
-        notes: entry.notes ?? null,
+        notes: entry.notes || undefined,
       },
       create: {
-        jobContextId,
-        ...entry,
+        id: crypto.randomUUID(),
+        key: entry.key,
+        value: entry.value,
+        category: entry.category,
+        notes: entry.notes || undefined,
+        jobContextId: entry.jobContextId,
       },
     })
   }
 
-  // Jargon Dictionary operations
-  async getJargonEntries(): Promise<any[]> {
-    const sessionId = await this.getActiveSession()
-    const entries = await this.client.jargonEntry.findMany({
-      where: { sessionId },
-      orderBy: { term: 'asc' },
+  async deleteContextEntry(jobContextId: string, key: string): Promise<void> {
+    await this.client.contextEntry.delete({
+      where: {
+        jobContextId_key: {
+          jobContextId,
+          key,
+        },
+      },
     })
-
-    return entries.map(entry => ({
-      ...entry,
-      examples: entry.examples ? JSON.parse(entry.examples) : [],
-      relatedTerms: entry.relatedTerms ? JSON.parse(entry.relatedTerms) : [],
-    }))
   }
 
-  async createJargonEntry(data: {
+  // Jargon methods
+  async createJargonEntry(jargon: {
     term: string
     definition: string
     category?: string
-    examples?: string[]
-    relatedTerms?: string[]
+    examples?: string
+    relatedTerms?: string
   }): Promise<any> {
     const sessionId = await this.getActiveSession()
-    const entry = await this.client.jargonEntry.create({
+    return await this.client.jargonEntry.create({
       data: {
-        ...data,
+        id: crypto.randomUUID(),
         sessionId,
-        examples: data.examples ? JSON.stringify(data.examples) : null,
-        relatedTerms: data.relatedTerms ? JSON.stringify(data.relatedTerms) : null,
+        term: jargon.term,
+        definition: jargon.definition,
+        category: jargon.category || undefined,
+        examples: jargon.examples || '',
+        relatedTerms: jargon.relatedTerms || '',
       },
     })
-
-    return {
-      ...entry,
-      examples: entry.examples ? JSON.parse(entry.examples) : [],
-      relatedTerms: entry.relatedTerms ? JSON.parse(entry.relatedTerms) : [],
-    }
   }
 
-  async updateJargonEntry(id: string, updates: Partial<any>): Promise<any> {
-    const updateData: any = { ...updates }
+  async getJargonEntries(filters?: { category?: string; searchTerm?: string }): Promise<any[]> {
+    const sessionId = await this.getActiveSession()
+    const where: any = { sessionId }
 
-    if (updateData.examples) {
-      updateData.examples = JSON.stringify(updateData.examples)
-    }
-    if (updateData.relatedTerms) {
-      updateData.relatedTerms = JSON.stringify(updateData.relatedTerms)
+    if (filters?.category) {
+      where.category = filters.category
     }
 
-    const entry = await this.client.jargonEntry.update({
-      where: { id },
-      data: updateData,
+    if (filters?.searchTerm) {
+      where.OR = [
+        { term: { contains: filters.searchTerm, mode: 'insensitive' } },
+        { definition: { contains: filters.searchTerm, mode: 'insensitive' } },
+      ]
+    }
+
+    return await this.client.jargonEntry.findMany({
+      where,
+      orderBy: { term: 'asc' },
     })
+  }
 
-    return {
-      ...entry,
-      examples: entry.examples ? JSON.parse(entry.examples) : [],
-      relatedTerms: entry.relatedTerms ? JSON.parse(entry.relatedTerms) : [],
-    }
+  async updateJargonEntry(id: string, updates: Partial<{
+    term: string
+    definition: string
+    category?: string
+    examples?: string
+    relatedTerms?: string
+  }>): Promise<any> {
+    return await this.client.jargonEntry.update({
+      where: { id },
+      data: {
+        ...updates,
+        updatedAt: new Date(),
+      },
+    })
   }
 
   async deleteJargonEntry(id: string): Promise<void> {
@@ -519,56 +518,160 @@ export class DatabaseService {
     })
   }
 
-  async getJargonDictionary(): Promise<Record<string, string>> {
+  // Sequenced Tasks
+  async getSequencedTasks(): Promise<SequencedTask[]> {
     const sessionId = await this.getActiveSession()
-    const entries = await this.client.jargonEntry.findMany({
+    const tasks = await this.client.sequencedTask.findMany({
       where: { sessionId },
+      include: {
+        TaskStep: {
+          orderBy: { stepIndex: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     })
-    const dictionary: Record<string, string> = {}
 
-    entries.forEach(entry => {
-      dictionary[entry.term.toLowerCase()] = entry.definition
-    })
-
-    return dictionary
+    return tasks.map(task => this.formatSequencedTask(task))
   }
 
-  // Delete all tasks (for development)
-  async deleteAllTasks(): Promise<void> {
-    await this.client.task.deleteMany({})
-  }
-
-  async deleteAllSequencedTasks(): Promise<void> {
-    // Delete only tasks with steps
-    const sessionId = await this.getActiveSession()
-    await this.client.task.deleteMany({
-      where: {
-        sessionId,
-        hasSteps: true,
+  async getSequencedTaskById(id: string): Promise<SequencedTask | null> {
+    const task = await this.client.sequencedTask.findUnique({
+      where: { id },
+      include: {
+        TaskStep: true,
       },
     })
+
+    return task ? this.formatSequencedTask(task) : null
   }
 
-  // Delete all user data (for clean slate)
-  async deleteAllUserData(): Promise<void> {
-    // Delete in order to respect foreign key constraints
-    await this.client.workSession.deleteMany({})
-    await this.client.workMeeting.deleteMany({})
-    await this.client.workBlock.deleteMany({})
-    await this.client.workPattern.deleteMany({})
-    await this.client.contextEntry.deleteMany({})
-    await this.client.jargonEntry.deleteMany({})
-    await this.client.jobContext.deleteMany({})
-    await this.client.taskStep.deleteMany({})
-    await this.client.task.deleteMany({})
-    // Keep sessions but clear their data
-    await this.client.session.updateMany({
-      data: { updatedAt: new Date() },
+  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
+    const sessionId = await this.getActiveSession()
+    const { steps, ...coreTaskData } = taskData
+
+    const task = await this.client.sequencedTask.create({
+      data: {
+        id: crypto.randomUUID(),
+        name: taskData.name,
+        importance: taskData.importance,
+        urgency: taskData.urgency,
+        type: taskData.type,
+        notes: taskData.notes || undefined,
+        dependencies: JSON.stringify(taskData.dependencies || []),
+        completed: taskData.completed || false,
+        totalDuration: taskData.duration,
+        criticalPathDuration: taskData.criticalPathDuration,
+        worstCaseDuration: taskData.worstCaseDuration,
+        overallStatus: taskData.overallStatus || 'not_started',
+        sessionId,
+        updatedAt: new Date(),
+      },
+      include: {
+        TaskStep: true,
+      },
+    })
+
+    // Create steps
+    if (steps && steps.length > 0) {
+      await this.client.taskStep.createMany({
+        data: steps.map((step, index) => ({
+          id: crypto.randomUUID(),
+          ...step,
+          sequencedTaskId: task.id,
+          stepIndex: index,
+          dependsOn: JSON.stringify(step.dependsOn || []),
+        })),
+      })
+
+      // Fetch with steps
+      const taskWithSteps = await this.client.sequencedTask.findUnique({
+        where: { id: task.id },
+        include: {
+          TaskStep: true,
+        },
+      })
+
+      return this.formatSequencedTask(taskWithSteps!)
+    }
+
+    return this.formatSequencedTask(task)
+  }
+
+  async updateSequencedTask(id: string, updates: Partial<Omit<SequencedTask, 'id' | 'createdAt' | 'sessionId'>>): Promise<SequencedTask> {
+    const { steps, ...coreUpdates } = updates
+
+    const updateData: any = {
+      ...coreUpdates,
+      updatedAt: new Date(),
+    }
+
+    if (updates.dependencies !== undefined) {
+      updateData.dependencies = JSON.stringify(updates.dependencies)
+    }
+
+    if (updates.duration !== undefined) {
+      updateData.totalDuration = updates.duration
+    }
+
+    const task = await this.client.sequencedTask.update({
+      where: { id },
+      data: updateData,
+      include: {
+        TaskStep: true,
+      },
+    })
+
+    return this.formatSequencedTask(task)
+  }
+
+  async deleteSequencedTask(id: string): Promise<void> {
+    await this.client.sequencedTask.delete({
+      where: { id },
     })
   }
 
-  // Work Pattern operations
-  async getWorkPattern(date: string): Promise<any> {
+  private formatSequencedTask(task: any): SequencedTask {
+    return {
+      ...task,
+      duration: task.totalDuration,
+      dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
+      steps: task.TaskStep?.map((step: any) => ({
+        ...step,
+        type: step.type as 'focused' | 'admin',
+        dependsOn: step.dependsOn ? JSON.parse(step.dependsOn) : [],
+      })) || [],
+    }
+  }
+
+  // Work patterns
+  async getWorkPatterns(): Promise<any[]> {
+    const sessionId = await this.getActiveSession()
+    const patterns = await this.client.workPattern.findMany({
+      where: {
+        sessionId,
+        isTemplate: false,
+      },
+      include: {
+        WorkBlock: true,
+        WorkMeeting: true,
+      },
+      orderBy: { date: 'desc' },
+    })
+
+    return patterns.map(pattern => ({
+      ...pattern,
+      blocks: pattern.WorkBlock.map(b => ({
+        ...b,
+        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+      })),
+      meetings: pattern.WorkMeeting.map(m => ({
+        ...m,
+        daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
+      })),
+    }))
+  }
+
+  async getWorkPattern(date: string): Promise<any | null> {
     const sessionId = await this.getActiveSession()
     const pattern = await this.client.workPattern.findUnique({
       where: {
@@ -578,9 +681,9 @@ export class DatabaseService {
         },
       },
       include: {
-        blocks: true,
-        meetings: true,
-        sessions: true,
+        WorkBlock: true,
+        WorkMeeting: true,
+        WorkSession: true,
       },
     })
 
@@ -588,440 +691,464 @@ export class DatabaseService {
 
     return {
       ...pattern,
-      blocks: pattern.blocks.map(b => ({
+      blocks: pattern.WorkBlock.map(b => ({
         ...b,
         capacity: b.capacity ? JSON.parse(b.capacity) : null,
       })),
-      meetings: pattern.meetings.map(m => ({
+      meetings: pattern.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
       })),
     }
   }
 
-  async createWorkPattern(data: any): Promise<any> {
+  async createWorkPattern(data: {
+    date: string
+    blocks?: any[]
+    meetings?: any[]
+    isTemplate?: boolean
+    templateName?: string
+  }): Promise<any> {
     const sessionId = await this.getActiveSession()
     const { blocks, meetings, ...patternData } = data
 
     const pattern = await this.client.workPattern.create({
       data: {
+        id: crypto.randomUUID(),
         ...patternData,
         sessionId,
-        blocks: {
+        WorkBlock: {
           create: (blocks || []).map((b: any) => ({
+            id: crypto.randomUUID(),
             ...b,
             capacity: b.capacity ? JSON.stringify(b.capacity) : null,
           })),
         },
-        meetings: {
+        WorkMeeting: {
           create: (meetings || []).map((m: any) => ({
+            id: crypto.randomUUID(),
             ...m,
             daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
           })),
         },
       },
       include: {
-        blocks: true,
-        meetings: true,
-        sessions: true,
+        WorkBlock: true,
+        WorkMeeting: true,
+        WorkSession: true,
       },
     })
 
     return {
       ...pattern,
-      blocks: pattern.blocks.map(b => ({
+      blocks: pattern.WorkBlock.map(b => ({
         ...b,
         capacity: b.capacity ? JSON.parse(b.capacity) : null,
       })),
-      meetings: pattern.meetings.map(m => ({
+      meetings: pattern.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
       })),
     }
   }
 
-  async saveAsTemplate(date: string, templateName: string): Promise<any> {
+  async createWorkPatternFromTemplate(date: string, templateName: string): Promise<any> {
     const sessionId = await this.getActiveSession()
-
-    // Try to get the pattern for the date
-    let existingPattern = await this.getWorkPattern(date)
-
-    // If no pattern exists, check if we just created one
-    if (!existingPattern) {
-      // Wait a bit and try again (in case of race condition)
-      await new Promise(resolve => global.setTimeout(resolve, 100))
-      existingPattern = await this.getWorkPattern(date)
-
-      if (!existingPattern) {
-        throw new Error('No work schedule found for this date. Please save the schedule first.')
-      }
-    }
-
-    // Check if a template with this name already exists
-    const existingTemplate = await this.client.workPattern.findFirst({
+    const existingPattern = await this.client.workPattern.findFirst({
       where: {
         sessionId,
         isTemplate: true,
         templateName,
       },
+      include: {
+        WorkBlock: true,
+        WorkMeeting: true,
+      },
     })
 
-    if (existingTemplate) {
-      throw new Error(`A template named "${templateName}" already exists`)
+    if (!existingPattern) {
+      throw new Error(`Template "${templateName}" not found`)
     }
 
-    // Create a new template based on the existing pattern
     const template = await this.client.workPattern.create({
       data: {
-        date: `template-${Date.now()}`, // Use unique date for templates
-        isTemplate: true,
+        id: crypto.randomUUID(),
+        date,
+        isTemplate: false,
         templateName,
         sessionId,
-        blocks: {
-          create: existingPattern.blocks.map((b: any) => ({
+        WorkBlock: {
+          create: existingPattern.WorkBlock.map((b: any) => ({
+            id: crypto.randomUUID(),
             startTime: b.startTime,
             endTime: b.endTime,
             type: b.type,
-            capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+            focusCapacity: b.focusCapacity,
+            adminCapacity: b.adminCapacity,
+            capacity: b.capacity,
           })),
         },
-        meetings: {
-          create: existingPattern.meetings.map((m: any) => ({
+        WorkMeeting: {
+          create: existingPattern.WorkMeeting.map((m: any) => ({
+            id: crypto.randomUUID(),
             name: m.name,
             startTime: m.startTime,
             endTime: m.endTime,
             type: m.type,
-            recurring: m.recurring || 'none',
-            daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
+            recurring: m.recurring,
+            daysOfWeek: m.daysOfWeek,
           })),
         },
       },
       include: {
-        blocks: true,
-        meetings: true,
+        WorkBlock: true,
+        WorkMeeting: true,
       },
     })
 
     return {
       ...template,
-      blocks: template.blocks.map(b => ({
+      blocks: template.WorkBlock.map(b => ({
         ...b,
         capacity: b.capacity ? JSON.parse(b.capacity) : null,
       })),
-      meetings: template.meetings.map(m => ({
+      meetings: template.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
       })),
     }
   }
 
-  async updateWorkPattern(id: string, data: any): Promise<any> {
-    const { blocks, meetings, ...patternData } = data
-
-    // Update pattern
-    await this.client.workPattern.update({
-      where: { id },
-      data: patternData,
+  async updateWorkPattern(id: string, updates: {
+    blocks?: any[]
+    meetings?: any[]
+  }): Promise<any> {
+    // Delete existing blocks and meetings
+    await this.client.workBlock.deleteMany({
+      where: { patternId: id },
+    })
+    await this.client.workMeeting.deleteMany({
+      where: { patternId: id },
     })
 
-    // Replace blocks if provided
-    if (blocks) {
-      await this.client.workBlock.deleteMany({
-        where: { patternId: id },
-      })
+    // Update with new data
+    const pattern = await this.client.workPattern.update({
+      where: { id },
+      data: {
+        updatedAt: new Date(),
+        WorkBlock: {
+          create: (updates.blocks || []).map((b: any) => ({
+            id: crypto.randomUUID(),
+            ...b,
+            capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+          })),
+        },
+        WorkMeeting: {
+          create: (updates.meetings || []).map((m: any) => ({
+            id: crypto.randomUUID(),
+            ...m,
+            daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
+          })),
+        },
+      },
+      include: {
+        WorkBlock: true,
+        WorkMeeting: true,
+      },
+    })
 
-      await this.client.workBlock.createMany({
-        data: blocks.map((b: any) => ({
-          ...b,
-          patternId: id,
-          capacity: b.capacity ? JSON.stringify(b.capacity) : null,
-        })),
-      })
+    return {
+      ...pattern,
+      blocks: pattern.WorkBlock.map(b => ({
+        ...b,
+        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+      })),
+      meetings: pattern.WorkMeeting.map(m => ({
+        ...m,
+        daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
+      })),
     }
-
-    // Replace meetings if provided
-    if (meetings) {
-      await this.client.workMeeting.deleteMany({
-        where: { patternId: id },
-      })
-
-      await this.client.workMeeting.createMany({
-        data: meetings.map((m: any) => ({
-          ...m,
-          patternId: id,
-          daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
-        })),
-      })
-    }
-
-    return this.getWorkPattern(patternData.date || id)
   }
 
-  async getWorkTemplates(): Promise<any[]> {
+  async deleteWorkPattern(id: string): Promise<void> {
+    await this.client.workPattern.delete({
+      where: { id },
+    })
+  }
+
+  async getWorkPatternTemplates(): Promise<any[]> {
     const sessionId = await this.getActiveSession()
     const templates = await this.client.workPattern.findMany({
       where: {
-        isTemplate: true,
         sessionId,
+        isTemplate: true,
       },
       include: {
-        blocks: true,
-        meetings: true,
+        WorkBlock: true,
+        WorkMeeting: true,
       },
       orderBy: { createdAt: 'desc' },
     })
 
     return templates.map(t => ({
       ...t,
-      blocks: t.blocks.map(b => ({
+      blocks: t.WorkBlock.map(b => ({
         ...b,
         capacity: b.capacity ? JSON.parse(b.capacity) : null,
       })),
-      meetings: t.meetings.map(m => ({
+      meetings: t.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
       })),
     }))
   }
 
-  // Work Session operations (unified for both tasks and steps)
+  // Work sessions
   async createWorkSession(data: {
     taskId: string
     stepId?: string
     type: 'focused' | 'admin'
     startTime: Date
-    duration: number
+    endTime?: Date
+    plannedMinutes: number
+    actualMinutes?: number
     notes?: string
   }): Promise<any> {
-    return this.client.workSession.create({
+    console.log('DB: Creating work session:', JSON.stringify(data))
+    const session = await this.client.workSession.create({
       data: {
+        id: crypto.randomUUID(),
         taskId: data.taskId,
-        stepId: data.stepId ?? null,
+        stepId: data.stepId || undefined,
         type: data.type,
         startTime: data.startTime,
-        endTime: new Date(data.startTime.getTime() + data.duration * 60000),
-        plannedMinutes: data.duration,
-        actualMinutes: data.duration,
-        notes: data.notes ?? null,
+        endTime: data.endTime || undefined,
+        plannedMinutes: data.plannedMinutes,
+        actualMinutes: data.actualMinutes || undefined,
+        notes: data.notes || undefined,
       },
     })
+    console.log('DB: Created work session:', session.id)
+    return session
   }
 
-  async updateWorkSession(id: string, data: any): Promise<any> {
-    const { id: _id, ...updateData } = data
-    return this.client.workSession.update({
-      where: { id },
-      data: updateData,
-    })
-  }
-
-  async getWorkSessions(date: string): Promise<any[]> {
-    const sessionId = await this.getActiveSession()
+  async getWorkSessionsForPattern(patternId: string): Promise<any[]> {
     const pattern = await this.client.workPattern.findUnique({
-      where: {
-        sessionId_date: {
-          sessionId,
-          date,
-        },
-      },
-      include: { sessions: true },
+      where: { id: patternId },
+      include: { WorkSession: true },
     })
 
-    return pattern?.sessions || []
+    return pattern?.WorkSession || []
   }
 
-  async getTodayAccumulated(date: string): Promise<{ focusMinutes: number; adminMinutes: number }> {
-    const sessionId = await this.getActiveSession()
-    
-    // Get work sessions for today
-    const startOfDay = new Date(date)
-    startOfDay.setHours(0, 0, 0, 0)
-    const endOfDay = new Date(date)
-    endOfDay.setHours(23, 59, 59, 999)
+  async endWorkSession(id: string, actualMinutes: number): Promise<any> {
+    return await this.client.workSession.update({
+      where: { id },
+      data: {
+        endTime: new Date(),
+        actualMinutes,
+      },
+    })
+  }
 
+  async getTodayAccumulated(date: string): Promise<{ focused: number; admin: number; total: number }> {
+    console.log(`DB: Getting accumulated time for ${date}`)
+    const sessionId = await this.getActiveSession()
+    console.log('DB: Active session ID:', sessionId)
+    
     const workSessions = await this.client.workSession.findMany({
       where: {
-        task: {
+        Task: {
           sessionId,
         },
         startTime: {
-          gte: startOfDay,
-          lte: endOfDay,
+          gte: new Date(`${date}T00:00:00.000Z`),
+          lt: new Date(`${date}T23:59:59.999Z`),
         },
       },
+      include: {
+        Task: true,
+      },
     })
+    console.log(`Found ${workSessions.length} work sessions for ${date}`)
 
-    // Sum up by type
-    return workSessions.reduce((acc, session) => {
+    const accumulated = workSessions.reduce((acc, session) => {
       const minutes = session.actualMinutes || session.plannedMinutes || 0
       if (session.type === 'focused') {
-        acc.focusMinutes += minutes
-      } else {
-        acc.adminMinutes += minutes
+        acc.focused += minutes
+      } else if (session.type === 'admin') {
+        acc.admin += minutes
       }
+      acc.total += minutes
       return acc
-    }, { focusMinutes: 0, adminMinutes: 0 })
+    }, { focused: 0, admin: 0, total: 0 })
+
+    console.log(`DB: Accumulated time for ${date}:`, accumulated)
+    return accumulated
   }
 
-  // Progress tracking operations
-  async createStepWorkSession(data: {
-    taskStepId: string;
-    startTime: Date;
-    duration: number;
-    notes?: string;
-  }): Promise<any> {
-    // Get the step to find its task
-    const step = await this.client.taskStep.findUnique({
-      where: { id: data.taskStepId },
+  async getTaskTotalLoggedTime(taskId: string): Promise<number> {
+    console.log(`DB: Getting total logged time for task ${taskId}`)
+    const workSessions = await this.client.workSession.findMany({
+      where: { taskId },
     })
     
-    if (!step) throw new Error('Step not found')
+    const total = workSessions.reduce((total, session) => {
+      return total + (session.actualMinutes || session.plannedMinutes || 0)
+    }, 0)
     
-    // Create work session with unified model
-    return this.createWorkSession({
-      taskId: step.taskId,
-      stepId: data.taskStepId,
-      type: step.type as 'focused' | 'admin',
-      startTime: data.startTime,
-      duration: data.duration,
-      notes: data.notes,
-    })
+    console.log(`DB: Total logged time for task ${taskId}: ${total} minutes`)
+    return total
   }
 
-  async updateTaskStepProgress(stepId: string, data: {
-    actualDuration?: number;
-    percentComplete?: number;
-    status?: string;
-    completedAt?: Date;
-    startedAt?: Date;
-  }): Promise<any> {
-    return this.client.taskStep.update({
-      where: { id: stepId },
-      data,
-    })
-  }
-
-  async getStepWorkSessions(stepId: string): Promise<any[]> {
-    return this.client.workSession.findMany({
-      where: { stepId },
-      orderBy: { startTime: 'desc' },
-    })
-  }
-
-  async recordTimeEstimate(data: {
-    taskType: string;
-    estimatedMinutes: number;
-    actualMinutes: number;
-    workflowCategory?: string;
+  // Time estimate accuracy
+  async recordTimeEstimateAccuracy(sessionId: string, data: {
+    taskType: string
+    estimatedMinutes: number
+    actualMinutes: number
+    workflowCategory?: string
   }): Promise<void> {
-    const sessionId = await this.getActiveSession()
     const variance = ((data.actualMinutes - data.estimatedMinutes) / data.estimatedMinutes) * 100
 
     await this.client.timeEstimateAccuracy.create({
       data: {
+        id: crypto.randomUUID(),
         sessionId,
         taskType: data.taskType,
         estimatedMinutes: data.estimatedMinutes,
         actualMinutes: data.actualMinutes,
         variance,
-        workflowCategory: data.workflowCategory ?? null,
+        workflowCategory: data.workflowCategory || undefined,
       },
     })
   }
 
-  async getTimeAccuracyStats(filters?: {
-    taskType?: string;
-    dateRange?: { start: Date; end: Date };
-  }): Promise<{
-    averageVariance: number;
-    totalSamples: number;
-    overestimateCount: number;
-    underestimateCount: number;
-    accurateCount: number;
-    byTaskType: Record<string, { variance: number; samples: number }>;
+  async getTimeEstimateStats(taskType?: string): Promise<{
+    avgVariance: number
+    totalEstimates: number
+    overestimateCount: number
+    underestimateCount: number
   }> {
     const sessionId = await this.getActiveSession()
     const where: any = { sessionId }
 
-    if (filters?.taskType) {
-      where.taskType = filters.taskType
+    if (taskType) {
+      where.taskType = taskType
     }
 
-    if (filters?.dateRange) {
-      where.createdAt = {
-        gte: filters.dateRange.start,
-        lte: filters.dateRange.end,
-      }
-    }
+    const estimates = await this.client.timeEstimateAccuracy.findMany({
+      where,
+    })
 
-    const records = await this.client.timeEstimateAccuracy.findMany({ where })
-
-    if (records.length === 0) {
+    if (estimates.length === 0) {
       return {
-        averageVariance: 0,
-        totalSamples: 0,
+        avgVariance: 0,
+        totalEstimates: 0,
         overestimateCount: 0,
         underestimateCount: 0,
-        accurateCount: 0,
-        byTaskType: {},
       }
     }
 
-    const stats = records.reduce(
-      (acc, record) => {
-        acc.totalVariance += record.variance
-        
-        if (record.variance > 10) {
-          acc.overestimateCount++
-        } else if (record.variance < -10) {
-          acc.underestimateCount++
-        } else {
-          acc.accurateCount++
-        }
-
-        if (!acc.byTaskType[record.taskType]) {
-          acc.byTaskType[record.taskType] = { totalVariance: 0, count: 0 }
-        }
-        acc.byTaskType[record.taskType].totalVariance += record.variance
-        acc.byTaskType[record.taskType].count++
-
-        return acc
-      },
-      {
-        totalVariance: 0,
-        overestimateCount: 0,
-        underestimateCount: 0,
-        accurateCount: 0,
-        byTaskType: {} as Record<string, { totalVariance: number; count: number }>,
-      }
-    )
-
-    const byTaskType = Object.entries(stats.byTaskType).reduce(
-      (acc, [type, data]) => {
-        acc[type] = {
-          variance: data.totalVariance / data.count,
-          samples: data.count,
-        }
-        return acc
-      },
-      {} as Record<string, { variance: number; samples: number }>
-    )
+    const totalVariance = estimates.reduce((sum, e) => sum + e.variance, 0)
+    const overestimateCount = estimates.filter(e => e.variance < 0).length
+    const underestimateCount = estimates.filter(e => e.variance > 0).length
 
     return {
-      averageVariance: stats.totalVariance / records.length,
-      totalSamples: records.length,
-      overestimateCount: stats.overestimateCount,
-      underestimateCount: stats.underestimateCount,
-      accurateCount: stats.accurateCount,
-      byTaskType,
+      avgVariance: totalVariance / estimates.length,
+      totalEstimates: estimates.length,
+      overestimateCount,
+      underestimateCount,
     }
   }
 
-  // Cleanup method
+  // Cleanup
   async disconnect(): Promise<void> {
     await this.client.$disconnect()
   }
+
+  // Missing methods for compatibility
+  async initializeDefaultData(): Promise<void> {
+    // No-op - data is created on demand
+  }
+
+  async addContextEntry(jobContextId: string, entry: any): Promise<any> {
+    return this.upsertContextEntry({ ...entry, jobContextId })
+  }
+
+  async getJargonDictionary(): Promise<any[]> {
+    return this.getJargonEntries()
+  }
+
+  async deleteAllTasks(): Promise<void> {
+    const sessionId = await this.getActiveSession()
+    await this.client.task.deleteMany({ where: { sessionId } })
+  }
+
+  async deleteAllSequencedTasks(): Promise<void> {
+    const sessionId = await this.getActiveSession()
+    await this.client.sequencedTask.deleteMany({ where: { sessionId } })
+  }
+
+  async deleteAllUserData(): Promise<void> {
+    const sessionId = await this.getActiveSession()
+    await this.client.task.deleteMany({ where: { sessionId } })
+    await this.client.sequencedTask.deleteMany({ where: { sessionId } })
+    await this.client.workPattern.deleteMany({ where: { sessionId } })
+    await this.client.jobContext.deleteMany({ where: { sessionId } })
+    await this.client.jargonEntry.deleteMany({ where: { sessionId } })
+  }
+
+  async getWorkTemplates(): Promise<any[]> {
+    return this.getWorkPatternTemplates()
+  }
+
+  async saveAsTemplate(date: string, templateName: string): Promise<any> {
+    const pattern = await this.getWorkPattern(date)
+    if (!pattern) throw new Error('No pattern found for date')
+    
+    return this.createWorkPattern({
+      date: `template-${Date.now()}`,
+      isTemplate: true,
+      templateName,
+      blocks: pattern.blocks,
+      meetings: pattern.meetings,
+    })
+  }
+
+  async updateWorkSession(id: string, data: any): Promise<any> {
+    return this.endWorkSession(id, data.actualMinutes)
+  }
+
+  async getWorkSessions(date: string): Promise<any[]> {
+    const pattern = await this.getWorkPattern(date)
+    return pattern ? this.getWorkSessionsForPattern(pattern.id) : []
+  }
+
+  async createStepWorkSession(data: any): Promise<any> {
+    return this.createWorkSession(data)
+  }
+
+  async updateTaskStepProgress(stepId: string, data: any): Promise<void> {
+    // Find task ID from step
+    const step = await this.client.taskStep.findUnique({ where: { id: stepId } })
+    if (step?.taskId) {
+      await this.updateTaskStep(step.taskId, stepId, data)
+    }
+  }
+
+  async getStepWorkSessions(stepId: string): Promise<any[]> {
+    return this.client.workSession.findMany({ where: { stepId } })
+  }
+
+  async recordTimeEstimate(data: any): Promise<void> {
+    const sessionId = await this.getActiveSession()
+    return this.recordTimeEstimateAccuracy(sessionId, data)
+  }
+
+  async getTimeAccuracyStats(filters?: any): Promise<any> {
+    return this.getTimeEstimateStats(filters?.taskType)
+  }
 }
 
-// Export singleton instance
-export const db = DatabaseService.getInstance()
+// Export a singleton instance
+export const getDatabase = () => DatabaseService.getInstance()

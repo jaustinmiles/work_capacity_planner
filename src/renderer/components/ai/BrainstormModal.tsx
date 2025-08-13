@@ -30,7 +30,7 @@ interface ExtractedWorkflow {
   urgency: number
   type: 'focused' | 'admin'
   steps: any[]
-  totalDuration: number
+  duration: number
   earliestCompletion: string
   worstCaseCompletion: string
   notes: string
@@ -897,7 +897,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
                           <Space wrap>
                             <Tag size="small" color="blue">
-                              Active Work: {workflow.totalDuration}min
+                              Active Work: {workflow.duration}min
                             </Tag>
                             <Tag size="small" color="green">
                               Earliest: {workflow.earliestCompletion}

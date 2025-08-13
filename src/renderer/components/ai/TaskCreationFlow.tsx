@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Modal, Button, Typography, Card, Space, Input, Form, InputNumber, Select, Alert, Spin } from '@arco-design/web-react'
 import { IconQuestionCircle, IconCheckCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'

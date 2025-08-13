@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
-import { Modal, Form, Input, Select, InputNumber, Button, Space, Card, Typography, Divider, Tag, Alert } from '@arco-design/web-react'
-import { IconPlus, IconDelete, IconBranch } from '@arco-design/web-react/icon'
-import { TaskStep, ConditionalBranch } from '@shared/sequencing-types'
+import { useState } from 'react'
+import { Modal, Form, Input, Select, InputNumber, Button, Space, Card, Typography, Divider, Alert } from '@arco-design/web-react'
+import { IconPlus, IconDelete } from '@arco-design/web-react/icon'
+import { TaskStep } from '@shared/sequencing-types'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -70,7 +70,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
       const sequencedTask = {
         ...values,
         steps: sequencedSteps,
-        totalDuration,
+        duration: totalDuration,
         criticalPathDuration,
         worstCaseDuration,
         overallStatus: 'not_started',

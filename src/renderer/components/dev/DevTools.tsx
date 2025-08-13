@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Modal, Button, Space, Typography, Alert } from '@arco-design/web-react'
 import { IconDelete, IconTool } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'

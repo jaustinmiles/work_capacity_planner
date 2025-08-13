@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconSchedule, IconCheck, IconEdit, IconStop, IconCaretRight } from '@arco-design/web-react/icon'
+import { IconSchedule, IconEdit, IconCaretRight } from '@arco-design/web-react/icon'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface WorkStatusWidgetProps {
   onEditSchedule?: () => void
@@ -20,7 +20,6 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
   const [isTracking, setIsTracking] = useState(false)
-  const [currentSession, setCurrentSession] = useState<any>(null)
 
   useEffect(() => {
     loadWorkData()
@@ -90,32 +89,13 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
   const handleStartTracking = async () => {
     if (!currentBlock) return
-
-    const db = getDatabase()
-    const session = await db.createWorkSession({
-      patternId: pattern.id,
-      type: 'focused', // Default, user can change
-      startTime: new Date(),
-      plannedMinutes: 30, // Default pomodoro
-    })
-
-    setCurrentSession(session)
+    
+    // For now, just indicate tracking state
+    // Real work session creation happens when logging time
     setIsTracking(true)
   }
 
   const handleStopTracking = async () => {
-    if (!currentSession) return
-
-    const db = getDatabase()
-    const endTime = new Date()
-    const actualMinutes = Math.round((endTime.getTime() - new Date(currentSession.startTime).getTime()) / 60000)
-
-    await db.updateWorkSession(currentSession.id, {
-      endTime,
-      actualMinutes,
-    })
-
-    setCurrentSession(null)
     setIsTracking(false)
     loadWorkData() // Refresh accumulated time
   }
@@ -237,15 +217,15 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         </Space>
 
         {/* Active Session */}
-        {currentSession && (
+        {isTracking && (
           <Card size="small" style={{ background: '#f0f5ff' }}>
             <Space>
               <IconSchedule style={{ animation: 'pulse 2s infinite' }} />
               <Text>
-                Tracking: {currentSession.type === 'focused' ? 'Focus' : 'Admin'} work
+                Tracking work time...
               </Text>
               <Text type="secondary">
-                Started {dayjs(currentSession.startTime).format('HH:mm')}
+                Remember to log your time when finished
               </Text>
             </Space>
           </Card>

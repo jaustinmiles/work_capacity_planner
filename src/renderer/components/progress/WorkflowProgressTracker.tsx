@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { useWorkflowProgress } from '../../hooks/useWorkflowProgress'
 import { formatDuration } from '../../utils/dateUtils'
 import { IconPlayArrow, IconPause, IconCheckCircle, IconClockCircle, IconExclamationCircle, IconDown } from '@arco-design/web-react/icon'
-import { Button, Progress, Card, Space, Typography, Tag, Grid, Statistic, Slider, Alert, Modal } from '@arco-design/web-react'
+import { Button, Progress, Card, Space, Typography, Tag, Grid, Statistic, Slider, Alert } from '@arco-design/web-react'
 import { TimeLoggingModal } from './TimeLoggingModal'
 
 const { Title, Text } = Typography
@@ -334,7 +334,6 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
         const step = workflow.steps.find(s => s.id === showTimeModal)
         if (!step) return null
         
-        const progress = getStepProgress(step.id)
         // Allow completing any non-completed step through the modal
         const canComplete = step.status !== 'completed'
         

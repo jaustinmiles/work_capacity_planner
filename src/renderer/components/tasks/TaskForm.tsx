@@ -1,11 +1,10 @@
-import React, { useState } from 'react'
-import { Modal, Form, Input, Select, Slider, InputNumber, Typography, Space, Grid, Button, DatePicker } from '@arco-design/web-react'
+import { useState } from 'react'
+import { Modal, Form, Input, Select, Slider, InputNumber, Typography, Space, Grid, DatePicker } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 
 const { TextArea } = Input
 const { Row, Col } = Grid
-const { Text } = Typography
 
 interface TaskFormProps {
   visible: boolean

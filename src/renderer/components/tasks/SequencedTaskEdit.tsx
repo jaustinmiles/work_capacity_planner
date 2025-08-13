@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   Card,
   Space,
@@ -12,7 +12,6 @@ import {
   Form,
   Input,
   Grid,
-  Message,
   Popconfirm,
   Divider,
 } from '@arco-design/web-react'
@@ -58,23 +57,6 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null)
   const [stepForm] = Form.useForm()
 
-  // Helper to get step name from dependency ID
-  const getStepNameFromDependency = (depId: string): string => {
-    // Handle both old format (step-N) and step IDs
-    if (depId.startsWith('step-')) {
-      const index = parseInt(depId.replace('step-', ''))
-      const step = editingSteps[index]
-      return step ? `Step ${index + 1}: ${step.name}` : depId
-    }
-    // Handle actual step IDs
-    const step = editingSteps.find(s => s.id === depId)
-    if (step) {
-      const index = editingSteps.indexOf(step)
-      return `Step ${index + 1}: ${step.name}`
-    }
-    return depId
-  }
-
   // Helper to format dependency list for display
   const formatDependencyList = (dependsOn: string[]): string => {
     if (dependsOn.length === 0) return ''
@@ -117,7 +99,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       await updateSequencedTask(task.id, {
         ...editedTask,
         steps: cleanedSteps,
-        totalDuration,
+        duration: totalDuration,
         criticalPathDuration,
         worstCaseDuration,
       })

@@ -51,6 +51,7 @@ declare global {
         createWorkSession: (data: any) => Promise<any>
         updateWorkSession: (id: string, data: any) => Promise<any>
         getWorkSessions: (date: string) => Promise<any[]>
+        getTaskTotalLoggedTime: (taskId: string) => Promise<number>
         getTodayAccumulated: (date: string) => Promise<{ focusMinutes: number; adminMinutes: number }>
         // Progress tracking operations
         createStepWorkSession: (data: any) => Promise<any>
@@ -181,13 +182,18 @@ export class RendererDatabaseService {
   private constructor() {
     // Check if we're in an Electron environment
     if (typeof window === 'undefined') {
+      console.error('Window object not available')
       throw new Error('Window object not available')
     }
 
     // Wait for electronAPI to be available (it might load asynchronously)
     if (!window.electronAPI) {
+      console.error('Electron API not available. window.electronAPI is:', window.electronAPI)
+      console.error('Available window properties:', Object.keys(window))
       throw new Error('Electron API not available. Make sure the preload script is loaded correctly.')
     }
+    
+    console.log('RendererDatabaseService: Initialized successfully')
   }
 
   static getInstance(): RendererDatabaseService {
@@ -220,7 +226,15 @@ export class RendererDatabaseService {
 
   // Task operations
   async getTasks(): Promise<Task[]> {
-    return await window.electronAPI.db.getTasks()
+    console.log('RendererDB: Calling getTasks via IPC...')
+    try {
+      const tasks = await window.electronAPI.db.getTasks()
+      console.log(`RendererDB: Received ${tasks.length} tasks from IPC`)
+      return tasks
+    } catch (error) {
+      console.error('RendererDB: Error getting tasks:', error)
+      throw error
+    }
   }
 
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
@@ -411,6 +425,10 @@ export class RendererDatabaseService {
 
   async getWorkSessions(date: string) {
     return await window.electronAPI.db.getWorkSessions(date)
+  }
+
+  async getTaskTotalLoggedTime(taskId: string) {
+    return await window.electronAPI.db.getTaskTotalLoggedTime(taskId)
   }
 
   async getTodayAccumulated(date: string) {
