@@ -1,5 +1,6 @@
 import { Task } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
+import { parseTimeString } from './time-utils'
 import {
   SchedulableItem,
   ScheduledWorkItem,
@@ -291,9 +292,8 @@ export class SchedulingEngine {
 
       if (workDayConfig) {
         // Create time slots for this work day
-        const [startHour, startMinute] = workDayConfig.workStartTime.split(':').map(Number)
-        const [endHour, endMinute] = workDayConfig.workEndTime.split(':').map(Number)
-
+        const [startHour, startMinute] = parseTimeString(workDayConfig.workStartTime)
+        const [endHour, endMinute] = parseTimeString(workDayConfig.workEndTime)
         const dayStart = new Date(currentDate)
         dayStart.setHours(startHour, startMinute, 0, 0)
 
@@ -303,8 +303,8 @@ export class SchedulingEngine {
         // Calculate available minutes (total work time - breaks - meetings)
         const totalWorkMinutes = (dayEnd.getTime() - dayStart.getTime()) / (1000 * 60)
         const breakMinutes = workDayConfig.breaks.reduce((total, breakItem) => {
-          const [breakStartHour, breakStartMinute] = breakItem.startTime.split(':').map(Number)
-          const [breakEndHour, breakEndMinute] = breakItem.endTime.split(':').map(Number)
+          const [breakStartHour, breakStartMinute] = parseTimeString(breakItem.startTime)
+          const [breakEndHour, breakEndMinute] = parseTimeString(breakItem.endTime)
           const breakStart = new Date(currentDate)
           breakStart.setHours(breakStartHour, breakStartMinute, 0, 0)
           const breakEnd = new Date(currentDate)
@@ -314,8 +314,8 @@ export class SchedulingEngine {
 
         const meetingMinutes = workDayConfig.meetings.reduce((total, meeting) => {
           // Calculate meeting duration from start and end times
-          const [startHour, startMinute] = meeting.startTime.split(':').map(Number)
-          const [endHour, endMinute] = meeting.endTime.split(':').map(Number)
+          const [startHour, startMinute] = parseTimeString(meeting.startTime)
+          const [endHour, endMinute] = parseTimeString(meeting.endTime)
           const startMinutes = startHour * 60 + startMinute
           const endMinutes = endHour * 60 + endMinute
           const duration = endMinutes - startMinutes

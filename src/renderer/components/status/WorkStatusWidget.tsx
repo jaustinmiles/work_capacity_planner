@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
 import { IconSchedule, IconCheck, IconEdit, IconStop, IconCaretRight } from '@arco-design/web-react/icon'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
+import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
@@ -67,9 +68,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   }
 
   const getBlockDuration = (block: WorkBlock) => {
-    const [startHour, startMin] = block.startTime.split(':').map(Number)
-    const [endHour, endMin] = block.endTime.split(':').map(Number)
-    return (endHour * 60 + endMin) - (startHour * 60 + startMin)
+    return calculateDuration(block.startTime, block.endTime)
   }
 
   const getBlockCapacity = (block: WorkBlock) => {

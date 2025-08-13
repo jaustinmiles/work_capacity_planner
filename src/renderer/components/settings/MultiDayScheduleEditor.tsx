@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card,
   Space,
@@ -26,6 +26,7 @@ import {
   IconTemplate,
 } from '@arco-design/web-react/icon'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
+import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { WorkBlocksEditor } from './WorkBlocksEditor'
 import { VoiceScheduleModal } from './VoiceScheduleModal'
@@ -205,9 +206,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
     if (!pattern || pattern.blocks.length === 0) return 'empty'
 
     const totalMinutes = pattern.blocks.reduce((acc, block) => {
-      const [startHour, startMin] = block.startTime.split(':').map(Number)
-      const [endHour, endMin] = block.endTime.split(':').map(Number)
-      return acc + (endHour * 60 + endMin) - (startHour * 60 + startMin)
+      return acc + calculateDuration(block.startTime, block.endTime)
     }, 0)
 
     if (totalMinutes >= 480) return 'full' // 8+ hours
