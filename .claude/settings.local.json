@@ -24,7 +24,15 @@
       "Bash(cp:*)",
       "Bash(npx prisma generate:*)",
       "Bash(/tmp/fix-react-imports.sh:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(for:*)",
+      "Bash(do)",
+      "Bash(if grep -q \"^import React\" \"$file\")",
+      "Bash(! grep -q \"React\\.\" \"$file\")",
+      "Bash(then)",
+      "Bash(echo \"Fixed: $file\")",
+      "Bash(fi)",
+      "Bash(done)"
     ],
     "deny": []
   }

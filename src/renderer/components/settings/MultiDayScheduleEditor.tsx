@@ -8,22 +8,16 @@ import {
   DatePicker,
   Tabs,
   Badge,
-  Empty,
   Spin,
   Tag,
   Tooltip,
-  Select,
   Message,
 } from '@arco-design/web-react'
 import {
   IconCalendar,
   IconCopy,
   IconPaste,
-  IconSettings,
-  IconPlus,
   IconFileAudio,
-  IconSave,
-  IconTemplate,
 } from '@arco-design/web-react/icon'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
 import { calculateDuration } from '@shared/time-utils'

@@ -1,17 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Modal,
   Button,
   Space,
   Typography,
-  Select,
   Card,
   Form,
   Input,
   Tag,
   Popconfirm,
   Empty,
-  Divider,
   List,
 } from '@arco-design/web-react'
 import {
@@ -39,7 +37,7 @@ interface SessionManagerProps {
 export function SessionManager({ visible, onClose, onSessionChange }: SessionManagerProps) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [activeSession, setActiveSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [, setLoading] = useState(false)
   const [createModalVisible, setCreateModalVisible] = useState(false)
   const [editingSession, setEditingSession] = useState<Session | null>(null)
   const [form] = Form.useForm()

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Modal, Button, Typography, Alert, Space, Card, Input, Tag, Divider, Upload } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, IconCheckCircle, IconUpload, IconFile } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
@@ -701,7 +701,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
                   {Object.keys(jargonDictionary).length > 0 && (
                     <div style={{ maxHeight: 100, overflowY: 'auto', marginTop: 8 }}>
-                      {Object.entries(jargonDictionary).map(([term, definition]) => (
+                      {Object.entries(jargonDictionary).map(([term]) => (
                         <Tag key={term} size="small" style={{ marginRight: 8, marginBottom: 4 }}>
                           {term}
                         </Tag>

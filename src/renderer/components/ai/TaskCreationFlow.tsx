@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Modal, Button, Typography, Card, Space, Input, Form, InputNumber, Select, Alert, Spin } from '@arco-design/web-react'
-import { IconQuestionCircle, IconRobot, IconCheckCircle, IconInfoCircle } from '@arco-design/web-react/icon'
+import { IconQuestionCircle, IconCheckCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 
@@ -43,10 +43,10 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [currentStep, setCurrentStep] = useState<'review' | 'context' | 'enhance' | 'create'>('review')
-  const { addTask, addSequencedTask } = useTaskStore()
+  const { addTask } = useTaskStore()
 
   // Initialize tasks when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible && extractedTasks.length > 0) {
       const initialTasks: TaskWithContext[] = extractedTasks.map((task, index) => ({
         ...task,

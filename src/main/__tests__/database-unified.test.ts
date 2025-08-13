@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { DatabaseService } from '../database'
-import { Task, TaskStep } from '@shared/types'
+import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 
 // Mock PrismaClient

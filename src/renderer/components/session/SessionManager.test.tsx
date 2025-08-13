@@ -3,6 +3,22 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SessionManager } from './SessionManager'
 
+// Mock the electronAPI
+const mockElectronAPI = {
+  db: {
+    getSessions: vi.fn(),
+    createSession: vi.fn(),
+    switchSession: vi.fn(),
+    updateSession: vi.fn(),
+    deleteSession: vi.fn(),
+  },
+}
+
+// Add the mock to window
+;(global as any).window = {
+  electronAPI: mockElectronAPI,
+}
+
 describe('SessionManager', () => {
   const mockOnClose = vi.fn()
   const mockOnSessionChange = vi.fn()
