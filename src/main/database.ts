@@ -1008,6 +1008,20 @@ export class DatabaseService {
     actualMinutes?: number
     notes?: string
   }): Promise<any> {
+    // Validate required fields
+    if (!data.taskId) {
+      throw new Error('taskId is required for creating a work session')
+    }
+    if (!data.type) {
+      throw new Error('type is required for creating a work session')
+    }
+    if (data.plannedMinutes === undefined || data.plannedMinutes === null) {
+      throw new Error('plannedMinutes is required for creating a work session')
+    }
+    if (!data.startTime) {
+      throw new Error('startTime is required for creating a work session')
+    }
+    
     console.log('DB: Creating work session:', JSON.stringify(data))
     const session = await this.client.workSession.create({
       data: {
@@ -1252,7 +1266,36 @@ export class DatabaseService {
   }
 
   async createStepWorkSession(data: any): Promise<any> {
-    return this.createWorkSession(data)
+    // Transform the data from UI format to database format
+    // UI sends: { taskStepId, startTime, duration, notes }
+    // DB needs: { taskId, stepId, type, startTime, plannedMinutes, notes }
+    
+    // First, we need to get the task ID from the step
+    const step = await this.client.taskStep.findUnique({
+      where: { id: data.taskStepId || data.stepId },
+      include: { Task: true }
+    })
+    
+    if (!step) {
+      throw new Error(`Step not found: ${data.taskStepId || data.stepId}`)
+    }
+    
+    // Determine the type from the step or task
+    const type = step.type || step.Task.type || 'focused'
+    
+    // Transform the data
+    const workSessionData = {
+      taskId: step.taskId,
+      stepId: step.id,
+      type: type as 'focused' | 'admin',
+      startTime: data.startTime || new Date(),
+      endTime: data.endTime || null,
+      plannedMinutes: data.duration || data.plannedMinutes || 0,
+      actualMinutes: data.actualMinutes || data.duration || null,
+      notes: data.notes || null,
+    }
+    
+    return this.createWorkSession(workSessionData)
   }
 
   async updateTaskStepProgress(stepId: string, data: any): Promise<void> {
