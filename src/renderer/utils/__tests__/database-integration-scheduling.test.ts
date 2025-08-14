@@ -6,7 +6,7 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('Database Integration - Real Data Scheduling', () => {
+describe('Database Integration Scheduling', () => {
   let testDb: PrismaClient
   let allTasks: Task[]
   let sequencedTasks: SequencedTask[]

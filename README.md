@@ -1,14 +1,12 @@
-# Work Capacity Planner 🚀
+# Work Capacity Planner
 
-**A Revolutionary Task Management System Built Through Groundbreaking AI-Human Collaboration**
-
-An intelligent Electron-based productivity application that combines AI-powered task creation with smart scheduling and capacity management. Built in ~60 hours through intense collaboration between a human developer and Claude, achieving what would traditionally take months or even a year.
+An Electron-based task management application with AI-powered task extraction and capacity-based scheduling. Features voice input, intelligent workflow extraction, and priority-based scheduling with dependency resolution.
 
 ## 🚀 Features
 
-### 🤖 AI-Powered Workflow Extraction
-- **Claude Opus 4.1**: Advanced AI model specifically tuned for async workflow understanding
-- **Workflow-First Mode**: Intelligently extracts multi-step workflows with dependencies and wait times
+### AI-Powered Workflow Extraction
+- **Claude Opus 4.1**: Extracts structured tasks from natural language
+- **Workflow Detection**: Identifies multi-step processes with dependencies and wait times
 - **Voice-to-Workflow Pipeline**: Record natural speech and automatically extract complex workflows
 - **Audio File Upload**: Upload pre-recorded audio for development and testing
 - **Smart Questions**: AI asks clarifying questions instead of making assumptions
@@ -143,27 +141,32 @@ The system automatically:
 - Schedules administrative tasks during non-focused periods
 - Respects daily capacity limits (4h focused + 3h admin)
 
-## 🏆 Technical Achievements
+## Technical Implementation
 
-### Advanced Features Implemented
+### Key Features
 - **Interactive Workflow Graph**: Drag-and-drop dependency creation with React Flow
 - **Eisenhower Matrix Visualization**: Zoom, filter, and interact with priority quadrants
-- **Database Backup Integration Tests**: Novel testing approach using real production data
-- **Unified Task/Workflow Model**: Seamless handling of simple and complex tasks
-- **TypeScript Strict Mode**: Zero tolerance for type errors across ~15,000 lines
-- **Comprehensive Test Suite**: 116+ tests ensuring reliability
-- **Advanced Debugging Tools**: Toggleable debug info for scheduling analysis
+- **Database-Driven Testing**: Integration tests using actual production data backups
+- **Unified Task Model**: Single database table for both simple tasks and workflows
+- **TypeScript Strict Mode**: Full type safety with zero tolerance for errors
+- **Comprehensive Test Suite**: 100+ tests covering core functionality
+- **Debug Tools**: Toggleable debug information for schedule analysis
 
-### 🤝 AI-Human Collaboration Innovation
+### Database-Driven Development & Testing
 
-This project pioneers a new development paradigm:
-1. **UI Workflow Creation**: Human creates test scenarios in the actual app
-2. **Database Persistence**: State is captured in SQLite database
-3. **Test Case Replication**: AI generates integration tests from real data
-4. **Visual Confirmation**: Human verifies behavior matches expectations
-5. **Perfect Alignment**: Tests and UI use identical logic and data
+This project uses an effective approach for debugging and testing complex scheduling logic:
 
-This approach achieved in ~60 hours what would traditionally take months, demonstrating the power of human creativity combined with AI capabilities.
+1. **Create Real Scenarios**: Build test cases directly in the UI with actual user workflows
+2. **Database Backups**: Capture the exact state as SQLite database snapshots
+3. **Integration Tests**: Generate tests that load real data and run the same logic as the UI
+4. **Perfect Reproduction**: Debug issues with 100% fidelity to user experiences
+5. **AI-Assisted Debugging**: Use Claude to analyze database state and generate test cases
+
+This methodology proved particularly valuable for:
+- Debugging complex workflow dependency issues
+- Ensuring UI and test logic remain synchronized
+- Rapidly identifying root causes of scheduling problems
+- Creating regression tests from actual user scenarios
 
 ## 🔧 Architecture
 
@@ -226,4 +229,4 @@ This project demonstrates modern Electron development with AI integration:
 
 ---
 
-**Built with** ❤️ **using Claude Code for rapid AI-enhanced development**
+Built with Electron, React, TypeScript, and Prisma. Development accelerated using Claude Code for AI-assisted debugging and test generation.
