@@ -1257,9 +1257,23 @@ export class DatabaseService {
   }
 
   async updateWorkSession(id: string, data: any): Promise<any> {
+    // Get the session to know which task/step to update
+    const session = await this.client.workSession.findUnique({
+      where: { id }
+    })
+    
+    if (!session) throw new Error(`Work session not found: ${id}`)
+    
     // If only actualMinutes is provided, use the old method
     if (Object.keys(data).length === 1 && data.actualMinutes !== undefined) {
-      return this.endWorkSession(id, data.actualMinutes)
+      const result = await this.endWorkSession(id, data.actualMinutes)
+      // Recalculate actualDuration
+      if (session.stepId) {
+        await this.recalculateStepActualDuration(session.stepId)
+      } else if (session.taskId) {
+        await this.recalculateTaskActualDuration(session.taskId)
+      }
+      return result
     }
     
     // Otherwise, do a full update
@@ -1270,15 +1284,76 @@ export class DatabaseService {
     if (data.startTime !== undefined) updateData.startTime = data.startTime
     if (data.endTime !== undefined) updateData.endTime = data.endTime
     
-    return this.client.workSession.update({
+    const result = await this.client.workSession.update({
       where: { id },
       data: updateData
     })
+    
+    // Recalculate actualDuration after update
+    if (session.stepId) {
+      await this.recalculateStepActualDuration(session.stepId)
+    } else if (session.taskId) {
+      await this.recalculateTaskActualDuration(session.taskId)
+    }
+    
+    return result
   }
   
   async deleteWorkSession(id: string): Promise<void> {
+    // Get the work session before deleting to know which task/step to update
+    const session = await this.client.workSession.findUnique({
+      where: { id }
+    })
+    
+    if (!session) return
+    
+    // Delete the session
     await this.client.workSession.delete({
       where: { id }
+    })
+    
+    // Recalculate actualDuration for the task/step
+    if (session.stepId) {
+      await this.recalculateStepActualDuration(session.stepId)
+    } else if (session.taskId) {
+      await this.recalculateTaskActualDuration(session.taskId)
+    }
+  }
+  
+  async recalculateStepActualDuration(stepId: string): Promise<void> {
+    // Get all work sessions for this step
+    const sessions = await this.client.workSession.findMany({
+      where: { stepId }
+    })
+    
+    // Calculate total actual duration from work sessions
+    const totalActualMinutes = sessions.reduce((sum, session) => 
+      sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
+    
+    // Update the step's actualDuration
+    await this.client.taskStep.update({
+      where: { id: stepId },
+      data: { actualDuration: totalActualMinutes > 0 ? totalActualMinutes : null }
+    })
+  }
+  
+  async recalculateTaskActualDuration(taskId: string): Promise<void> {
+    // Get all work sessions for this task (not including step sessions)
+    const sessions = await this.client.workSession.findMany({
+      where: { 
+        taskId,
+        stepId: null 
+      }
+    })
+    
+    // Calculate total actual duration from work sessions
+    const totalActualMinutes = sessions.reduce((sum, session) => 
+      sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
+    
+    // Update the task's actualDuration
+    await this.client.task.update({
+      where: { id: taskId },
+      data: { actualDuration: totalActualMinutes > 0 ? totalActualMinutes : null }
     })
   }
   
@@ -1336,7 +1411,12 @@ export class DatabaseService {
     
     console.log('DB: Transformed work session data:', JSON.stringify(workSessionData))
     
-    return this.createWorkSession(workSessionData)
+    const result = await this.createWorkSession(workSessionData)
+    
+    // Recalculate actualDuration after creating session
+    await this.recalculateStepActualDuration(step.id)
+    
+    return result
   }
 
   async updateTaskStepProgress(stepId: string, data: any): Promise<void> {
