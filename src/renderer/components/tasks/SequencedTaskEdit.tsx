@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card,
   Space,
@@ -24,9 +24,12 @@ import {
   IconDelete,
   IconPlus,
   IconDragDot,
+  IconClockCircle,
 } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
+import { StepWorkSessionsModal } from './StepWorkSessionsModal'
+import { getDatabase } from '../../services/database'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -44,6 +47,9 @@ interface EditingStep extends TaskStep {
 export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
   const { updateSequencedTask } = useTaskStore()
   const [editedTask, setEditedTask] = useState<SequencedTask>({ ...task })
+  const [showWorkSessionsModal, setShowWorkSessionsModal] = useState(false)
+  const [selectedStepForSessions, setSelectedStepForSessions] = useState<{id: string, name: string} | null>(null)
+  const [stepLoggedTimes, setStepLoggedTimes] = useState<Record<string, number>>({})
   const [editingSteps, setEditingSteps] = useState<EditingStep[]>(
     task.steps.map((step, index) => ({
       ...step,
@@ -56,6 +62,27 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
   const [showStepModal, setShowStepModal] = useState(false)
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null)
   const [stepForm] = Form.useForm()
+
+  // Load logged times for all steps
+  useEffect(() => {
+    const loadLoggedTimes = async () => {
+      const times: Record<string, number> = {}
+      for (const step of editingSteps) {
+        try {
+          const sessions = await getDatabase().getStepWorkSessions(step.id)
+          const totalMinutes = sessions.reduce((sum: number, session: any) => 
+            sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
+          times[step.id] = totalMinutes
+        } catch (error) {
+          console.error(`Failed to load logged time for step ${step.id}:`, error)
+          times[step.id] = 0
+        }
+      }
+      setStepLoggedTimes(times)
+    }
+    
+    loadLoggedTimes()
+  }, [editingSteps])
 
   // Helper to format dependency list for display
   const formatDependencyList = (dependsOn: string[]): string => {
@@ -409,6 +436,19 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                                 Wait: {formatDuration(step.asyncWaitTime)}
                               </Tag>
                             )}
+                            {stepLoggedTimes[step.id] > 0 && (
+                              <Tag 
+                                size="small" 
+                                color="green"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => {
+                                  setSelectedStepForSessions({ id: step.id, name: step.name })
+                                  setShowWorkSessionsModal(true)
+                                }}
+                              >
+                                Logged: {formatDuration(stepLoggedTimes[step.id])}
+                              </Tag>
+                            )}
                             {step.dependsOn.length > 0 && (
                               <Tag size="small" color="purple">
                                 Depends on: {formatDependencyList(step.dependsOn)}
@@ -437,6 +477,14 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                               size="small"
                               icon={<IconEdit />}
                               onClick={() => openStepModal(index)}
+                            />
+                            <Button
+                              size="small"
+                              icon={<IconClockCircle />}
+                              onClick={() => {
+                                setSelectedStepForSessions({ id: step.id, name: step.name })
+                                setShowWorkSessionsModal(true)
+                              }}
                             />
                             <Popconfirm
                               title="Delete this step?"
@@ -578,6 +626,34 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           </FormItem>
         </Form>
       </Modal>
+      
+      {/* Step Work Sessions Modal */}
+      {selectedStepForSessions && (
+        <StepWorkSessionsModal
+          visible={showWorkSessionsModal}
+          onClose={() => {
+            setShowWorkSessionsModal(false)
+            setSelectedStepForSessions(null)
+          }}
+          stepId={selectedStepForSessions.id}
+          stepName={selectedStepForSessions.name}
+          taskId={task.id}
+          onSessionsUpdated={async () => {
+            // Reload logged times for this step
+            try {
+              const sessions = await getDatabase().getStepWorkSessions(selectedStepForSessions.id)
+              const totalMinutes = sessions.reduce((sum: number, session: any) => 
+                sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
+              setStepLoggedTimes(prev => ({
+                ...prev,
+                [selectedStepForSessions.id]: totalMinutes
+              }))
+            } catch (error) {
+              console.error('Failed to reload logged time:', error)
+            }
+          }}
+        />
+      )}
     </Space>
   )
 }

@@ -4,9 +4,11 @@ import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCir
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskEdit } from './TaskEdit'
+import { SequencedTaskEdit } from './SequencedTaskEdit'
 import { TaskTimeLoggingModal } from './TaskTimeLoggingModal'
 import { WorkSessionsModal } from './WorkSessionsModal'
 import { getDatabase } from '../../services/database'
+import { SequencedTask } from '@shared/sequencing-types'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -261,18 +263,32 @@ export function TaskItem({ task }: TaskItemProps) {
         </Space>
       </Space>
 
-      {/* Edit Modal */}
+      {/* Edit Modal - Use appropriate editor based on task type */}
       <Modal
-        title="Edit Task"
+        title={task.hasSteps ? "Edit Workflow" : "Edit Task"}
         visible={showEditModal}
         onCancel={() => setShowEditModal(false)}
         footer={null}
-        style={{ width: 800 }}
+        style={{ width: task.hasSteps ? 1000 : 800 }}
       >
-        <TaskEdit
-          task={task}
-          onClose={() => setShowEditModal(false)}
-        />
+        {task.hasSteps ? (
+          <SequencedTaskEdit
+            task={{
+              ...task,
+              steps: task.steps || [],
+              totalDuration: task.duration,
+              overallStatus: task.overallStatus || 'not_started',
+              criticalPathDuration: task.criticalPathDuration || task.duration,
+              worstCaseDuration: task.worstCaseDuration || task.duration,
+            } as SequencedTask}
+            onClose={() => setShowEditModal(false)}
+          />
+        ) : (
+          <TaskEdit
+            task={task}
+            onClose={() => setShowEditModal(false)}
+          />
+        )}
       </Modal>
 
       {/* Time Logging Modal */}
