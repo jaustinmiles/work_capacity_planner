@@ -401,7 +401,26 @@ export function WorkBlocksEditor({
                   <Col span={4}>
                     <Select
                       value={block.type}
-                      onChange={(value) => handleUpdateBlock(block.id, { type: value })}
+                      onChange={(value) => {
+                        // When changing to mixed, automatically split capacity 50/50
+                        if (value === 'mixed' && block.type !== 'mixed') {
+                          const startTime = dayjs(`2000-01-01 ${block.startTime}`)
+                          const endTime = dayjs(`2000-01-01 ${block.endTime}`)
+                          const totalMinutes = endTime.diff(startTime, 'minute')
+                          const halfMinutes = Math.floor(totalMinutes / 2)
+                          
+                          handleUpdateBlock(block.id, { 
+                            type: value,
+                            capacity: {
+                              focusMinutes: halfMinutes,
+                              adminMinutes: halfMinutes,
+                              personalMinutes: 0
+                            }
+                          })
+                        } else {
+                          handleUpdateBlock(block.id, { type: value })
+                        }
+                      }}
                       style={{ width: '100%' }}
                     >
                       <Select.Option value="focused">Focused</Select.Option>

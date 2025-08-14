@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Modal, Button, Space } from '@arco-design/web-react'
-import { IconFileAudio } from '@arco-design/web-react/icon'
+import { Modal, Button, Space, Tabs } from '@arco-design/web-react'
+import { IconFileAudio, IconCalendar, IconEdit } from '@arco-design/web-react/icon'
 import { WorkBlocksEditor } from './WorkBlocksEditor'
+import { MultiDayScheduleEditor } from './MultiDayScheduleEditor'
 import { VoiceScheduleModal } from './VoiceScheduleModal'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
@@ -98,33 +99,60 @@ export function WorkScheduleModal({
   return (
     <>
     <Modal
-      title={
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <span>Work Schedule - {dayjs(date).format('MMMM D, YYYY')}</span>
-          <Button
-            icon={<IconFileAudio />}
-            onClick={() => setShowVoiceModal(true)}
-            size="small"
-          >
-            Voice Input
-          </Button>
-        </Space>
-      }
+      title="Work Schedule Manager"
       visible={visible}
       onCancel={onClose}
       footer={null}
-      style={{ width: '90%', maxWidth: 1200 }}
+      style={{ width: '95%', maxWidth: 1400, top: 20 }}
       maskClosable={false}
     >
-      {!loading && (
-        <WorkBlocksEditor
-          date={date}
-          pattern={pattern}
-          accumulated={accumulated}
-          onSave={handleSave}
-          onClose={onClose}
-        />
-      )}
+      <Tabs defaultActiveTab="multi-day" style={{ height: '80vh' }}>
+        <Tabs.TabPane
+          key="multi-day"
+          title={
+            <Space>
+              <IconCalendar />
+              <span>Multi-Day Schedule</span>
+            </Space>
+          }
+        >
+          <div style={{ padding: '20px', height: 'calc(80vh - 50px)', overflow: 'auto' }}>
+            <MultiDayScheduleEditor visible={true} onClose={onClose} />
+          </div>
+        </Tabs.TabPane>
+        
+        <Tabs.TabPane
+          key="single-day"
+          title={
+            <Space>
+              <IconEdit />
+              <span>Single Day Editor (with Voice)</span>
+            </Space>
+          }
+        >
+          <div style={{ padding: '20px' }}>
+            <Space style={{ marginBottom: 16 }}>
+              <span>Editing: {dayjs(date).format('MMMM D, YYYY')}</span>
+              <Button
+                icon={<IconFileAudio />}
+                onClick={() => setShowVoiceModal(true)}
+                size="small"
+              >
+                Voice Input
+              </Button>
+            </Space>
+            {!loading && (
+              <WorkBlocksEditor
+                date={date}
+                pattern={pattern}
+                accumulated={accumulated}
+                onSave={handleSave}
+                onClose={onClose}
+              />
+            )}
+          </div>
+        </Tabs.TabPane>
+      </Tabs>
     </Modal>
 
     <VoiceScheduleModal

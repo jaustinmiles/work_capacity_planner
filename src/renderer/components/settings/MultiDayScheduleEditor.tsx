@@ -219,8 +219,8 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
 
   const generateDateTabs = () => {
     const tabs: React.ReactElement[] = []
-    const startDate = dateRange[0]
-    const endDate = dateRange[1]
+    const startDate = dayjs(dateRange[0])
+    const endDate = dayjs(dateRange[1])
     let currentDate = startDate
 
     while (currentDate.isSameOrBefore(endDate, 'day')) {

@@ -43,6 +43,7 @@
       "Bash(/tmp/selective-revert.sh:*)",
       "WebSearch"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }

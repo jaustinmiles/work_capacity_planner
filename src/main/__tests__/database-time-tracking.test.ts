@@ -194,7 +194,11 @@ describe('Database - Time Tracking', () => {
 
       expect(mockPrisma.task.update).toHaveBeenCalledWith({
         where: { id: taskId },
-        data: updates,
+        data: expect.objectContaining({
+          actualDuration: 45,
+          updatedAt: expect.any(Date),
+        }),
+        include: { TaskStep: true },
       })
     })
   })

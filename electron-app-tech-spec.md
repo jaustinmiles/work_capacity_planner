@@ -450,6 +450,14 @@ npm test
 4. **Integrations**: Jira, GitHub Issues, Linear
 5. **Voice Input**: Quick task entry via voice
 6. **Focus Mode**: Pomodoro timer integration
+7. **Visual Scheduling Algorithm Builder**: 
+   - Drag-and-drop interface for creating custom prioritization algorithms
+   - Logic blocks as nodes: topological sort, priority boosters, filters, splitters
+   - Visual flow diagram showing how tasks move through the scheduling pipeline
+   - Support for conditional branching, loops, and merge points
+   - Export/import custom algorithms as JSON for sharing
+   - Pre-built templates for common scheduling patterns
+   - Real-time preview of how tasks would be scheduled with the custom algorithm
 
 ## Success Metrics
 

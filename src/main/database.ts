@@ -197,11 +197,21 @@ export class DatabaseService {
   }
 
   async updateTask(id: string, updates: Partial<Omit<Task, 'id' | 'createdAt' | 'sessionId'>>): Promise<Task> {
-    const { steps, ...coreUpdates } = updates as any
+    const { steps, ...rawUpdates } = updates as any
 
-    // Clean update data - remove undefined values
-    const cleanUpdateData = Object.entries(coreUpdates).reduce((acc, [key, value]) => {
-      if (value !== undefined) {
+    // Define allowed fields for Task model update
+    const allowedFields = [
+      'name', 'duration', 'importance', 'urgency', 'type', 'category',
+      'asyncWaitTime', 'dependencies', 'completed', 'completedAt',
+      'actualDuration', 'notes', 'projectId', 'deadline', 'isLocked',
+      'lockedStartTime', 'hasSteps', 'currentStepId', 'overallStatus',
+      'criticalPathDuration', 'worstCaseDuration'
+    ]
+
+    // Clean update data - only include allowed fields
+    const cleanUpdateData = Object.entries(rawUpdates).reduce((acc, [key, value]) => {
+      // Only include fields that are allowed and have defined values
+      if (allowedFields.includes(key) && value !== undefined) {
         if (key === 'dependencies') {
           acc[key] = JSON.stringify(value)
         } else {
@@ -213,8 +223,37 @@ export class DatabaseService {
 
     const task = await this.client.task.update({
       where: { id },
-      data: cleanUpdateData,
+      data: {
+        ...cleanUpdateData,
+        updatedAt: new Date()
+      },
+      include: { TaskStep: true },
     })
+
+    // If steps are provided, update them
+    if (steps && Array.isArray(steps)) {
+      // Update each step's dependencies
+      for (const step of steps) {
+        await this.client.taskStep.update({
+          where: { id: step.id },
+          data: {
+            dependsOn: JSON.stringify(step.dependsOn || []),
+            name: step.name,
+            duration: step.duration,
+            type: step.type,
+            asyncWaitTime: step.asyncWaitTime || 0,
+          },
+        })
+      }
+      
+      // Return task with updated steps
+      const updatedTask = await this.client.task.findUnique({
+        where: { id },
+        include: { TaskStep: true },
+      })
+      
+      return this.formatTask(updatedTask!)
+    }
 
     return this.formatTask(task)
   }
@@ -285,6 +324,10 @@ export class DatabaseService {
 
   // Helper to format task from DB
   private formatTask(task: any): Task {
+    if (!task) {
+      throw new Error('Cannot format null or undefined task')
+    }
+    
     // Debug log to see what we're getting
     if (task.hasSteps) {
       console.log(`DB: Formatting task ${task.id}, hasSteps: ${task.hasSteps}, TaskStep exists: ${!!task.TaskStep}, TaskStep length: ${task.TaskStep?.length}`)
@@ -707,6 +750,16 @@ export class DatabaseService {
   }): Promise<any> {
     const sessionId = await this.getActiveSession()
     const { blocks, meetings, ...patternData } = data
+
+    // First, delete existing pattern if it exists (to replace it)
+    if (!data.isTemplate) {
+      await this.client.workPattern.deleteMany({
+        where: {
+          sessionId,
+          date: data.date,
+        },
+      })
+    }
 
     const pattern = await this.client.workPattern.create({
       data: {

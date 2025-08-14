@@ -61,13 +61,17 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
   const formatDependencyList = (dependsOn: string[]): string => {
     if (dependsOn.length === 0) return ''
     return dependsOn.map(dep => {
-      if (dep.startsWith('step-')) {
-        const index = parseInt(dep.replace('step-', ''))
-        const step = editingSteps[index]
-        return step ? step.name : `Step ${index + 1}`
+      // First try to find by ID
+      const stepById = editingSteps.find(s => s.id === dep)
+      if (stepById) return stepById.name
+      
+      // If dep is a name, return it directly (for backward compatibility)
+      if (!dep.startsWith('step-')) {
+        return dep
       }
-      const step = editingSteps.find(s => s.id === dep)
-      return step ? step.name : dep
+      
+      // Fallback for malformed IDs
+      return dep
     }).join(', ')
   }
 
@@ -99,7 +103,11 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       })
 
       await updateSequencedTask(task.id, {
-        ...editedTask,
+        name: editedTask.name,
+        importance: editedTask.importance,
+        urgency: editedTask.urgency,
+        type: editedTask.type,
+        notes: editedTask.notes,
         steps: cleanedSteps,
         duration: totalDuration,
         criticalPathDuration,
@@ -144,12 +152,24 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
     if (index !== null) {
       const step = editingSteps[index]
       if (!step) return
+      
+      // Convert dependency names to IDs if needed
+      const convertedDependencies = step.dependsOn.map(dep => {
+        // If it's already an ID, keep it
+        if (dep.startsWith('step-')) {
+          return dep
+        }
+        // Otherwise try to find the step by name and use its ID
+        const matchingStep = editingSteps.find(s => s.name === dep)
+        return matchingStep ? matchingStep.id : dep
+      })
+      
       stepForm.setFieldsValue({
         name: step.name,
         duration: step.duration,
         type: step.type,
         asyncWaitTime: step.asyncWaitTime,
-        dependsOn: step.dependsOn,
+        dependsOn: convertedDependencies,
       })
     } else {
       stepForm.resetFields()
@@ -540,13 +560,15 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
               mode="multiple"
               placeholder="Select steps this depends on"
               allowClear
+              value={stepForm.getFieldValue('dependsOn')}
+              onChange={(value) => stepForm.setFieldValue('dependsOn', value)}
             >
               {editingSteps.map((step, index) => {
                 // Don't allow depending on self or steps after this one
                 if (index !== editingStepIndex && (editingStepIndex === null || index < editingStepIndex)) {
                   return (
-                    <Select.Option key={step.id || index} value={step.id}>
-                      Step {index + 1}: {step.name}
+                    <Select.Option key={step.id || `index-${index}`} value={step.id}>
+                      {step.name}
                     </Select.Option>
                   )
                 }

@@ -21,11 +21,55 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    - Run `npm run typecheck` to verify assumptions
    - Check if tests exist for the area you're modifying
 
-## 🚨 CRITICAL: Workflow Protection
+## ⚠️ KNOWN ISSUES
+
+### Task Type Inconsistencies
+The database allows any string for task `type` field, but the scheduler only understands:
+- `'focused'` - Deep work requiring concentration  
+- `'admin'` - Administrative/shallow work
+
+**Problem:** AI or user input may create tasks with invalid types like:
+- `'errand'`, `'home'`, `'communication'` - These get cast to `'admin'` by scheduler
+- Any other string value - Will cause scheduler errors
+
+**TODO:** Either:
+1. Add database enum constraint to only allow 'focused' | 'admin'
+2. Add proper type mapping in the scheduler  
+3. Expand the scheduler to handle more task types
+
+## 🚨 CRITICAL: Unified Task Model & Workflow Protection
 
 **NEVER modify the unified task model without extreme caution!**
 
-The app uses a unified Task model where workflows are Tasks with `hasSteps: true` and a `steps` array. The UI still expects the old SequencedTask format with `steps` and `totalDuration` fields.
+### Data Model Overview
+The app uses a unified Task model where workflows are Tasks with `hasSteps: true` and a `steps` array.
+
+### Critical Data Flow for Scheduling
+1. **Database Storage**: 
+   - Simple tasks: `Task` with `hasSteps: false`
+   - Workflows: `Task` with `hasSteps: true` + related `TaskStep` records
+
+2. **Data Loading**:
+   - `getTasks()` returns ALL tasks (including workflows as Task objects)
+   - `getSequencedTasks()` returns ONLY workflows in SequencedTask format
+
+3. **Scheduling Components MUST**:
+   ```typescript
+   // CORRECT: Filter workflows from tasks array
+   const simpleTasksOnly = tasks.filter(t => !t.hasSteps)
+   scheduleItems(simpleTasksOnly, sequencedTasks, ...)
+   
+   // WRONG: Passing all tasks causes duplicate workflows!
+   scheduleItems(tasks, sequencedTasks, ...) // ❌ DON'T DO THIS
+   ```
+
+4. **Why This Matters**:
+   - Workflows exist in BOTH arrays if not filtered
+   - This causes duplicate rendering in Gantt chart
+   - Each workflow appears twice: once as a task bar, once as individual steps
+
+### UI Expectations
+The UI still expects the old SequencedTask format with `steps` and `totalDuration` fields.
 
 **Critical points:**
 - `getSequencedTasks()` MUST return workflows formatted as SequencedTasks
@@ -487,6 +531,54 @@ This is a fundamental design principle that affects:
 - Database operations only in main process
 - State management through Zustand store
 
+## 🎯 PREFERRED DEBUGGING APPROACH: Human-AI Co-Problem Solving
+
+### The Database Backup Integration Test Method
+
+When debugging complex scheduling or data flow issues, use this highly effective approach:
+
+1. **Human creates test scenario in UI**:
+   - Set up tasks, workflows, and schedules through the actual app
+   - Verify what you're seeing visually
+   - Document the expected vs actual behavior
+
+2. **AI queries and backs up the database**:
+   ```bash
+   # Query exact data
+   sqlite3 prisma/dev.db "SELECT * FROM Task WHERE sessionId = (SELECT id FROM Session WHERE isActive = 1);"
+   
+   # Create timestamped backup
+   cp prisma/dev.db "prisma/backup-$(date +%Y%m%d-%H%M%S)-issue-description.db"
+   ```
+
+3. **Create integration test with real data**:
+   - Copy backup to test location
+   - Load actual data from database
+   - Run the EXACT same logic as the UI component
+   - Compare results
+
+4. **Benefits of this approach**:
+   - ✅ **Perfect reproduction** - Uses actual user data, not mocked
+   - ✅ **Efficient tokens** - No need to describe complex scenarios
+   - ✅ **Fast debugging** - Can immediately see discrepancies
+   - ✅ **Permanent test** - Becomes regression test for that exact scenario
+   - ✅ **Clear communication** - Human and AI see the same data
+
+### Example Success Story
+In August 2025, we debugged a complex duplicate workflow rendering issue:
+- Human: "I see workflows appearing twice in Gantt chart"
+- AI: Created integration test with backed-up database
+- Test showed correct output, but UI had duplicates
+- Discovery: GanttChart was passing workflows in both `tasks` AND `sequencedTasks` arrays
+- Fix: Filter workflows from tasks array
+- Result: Perfect alignment between test and UI
+
+### When to Use This Method
+- Complex scheduling or timing issues
+- Data flow problems between components
+- Discrepancies between what's stored vs displayed
+- Any issue where "it works in test but not in UI" (or vice versa)
+
 ## When You Get Stuck
 
 1. **Can't find a file?**
@@ -503,3 +595,18 @@ This is a fundamental design principle that affects:
    - Check if types are imported from `@shared/types`
    - Verify nullable fields are handled
    - Run `npm run typecheck` for detailed errors
+
+4. **Complex debugging?**
+   - **USE THE DATABASE BACKUP METHOD ABOVE!** 🎯
+
+## Future Feature Ideas
+
+**Visual Scheduling Algorithm Builder**
+- Node-based interface for creating custom prioritization algorithms
+- Drag-and-drop logic blocks: topological sort, filters, boosters, splitters
+- Visual flow diagram showing task flow through scheduling pipeline
+- Support for conditional branching, loops, and merge points
+- Export/import custom algorithms as JSON for sharing
+- Pre-built templates for common scheduling patterns
+- Real-time preview of task scheduling with custom algorithm
+- Use cases: prioritize by tag, boost async tasks, split by duration, custom scoring

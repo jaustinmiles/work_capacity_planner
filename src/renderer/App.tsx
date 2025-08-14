@@ -110,6 +110,32 @@ function App() {
           ? `${workflow.description}${workflow.notes ? '\n\n' + workflow.notes : ''}`
           : workflow.notes || ''
 
+        // First create step IDs and a name-to-ID mapping
+        const stepNameToId = new Map<string, string>()
+        const stepsWithIds = workflow.steps.map((step: any, index: number) => {
+          const stepId = `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${index}`
+          stepNameToId.set(step.name, stepId)
+          return {
+            ...step,
+            id: stepId,
+            status: 'pending' as const,
+            stepIndex: index,
+          }
+        })
+        
+        // Now convert dependency names to IDs
+        const stepsWithFixedDeps = stepsWithIds.map(step => ({
+          ...step,
+          dependsOn: (step.dependsOn || []).map((depName: string) => {
+            // If it's already an ID format, keep it
+            if (depName.startsWith('step-')) {
+              return depName
+            }
+            // Otherwise convert name to ID
+            return stepNameToId.get(depName) || depName
+          }),
+        }))
+
         const sequencedTask = {
           name: workflow.name,
           importance: workflow.importance,
@@ -125,12 +151,7 @@ function App() {
           criticalPathDuration: workflow.totalDuration || 0, // Will be calculated properly
           worstCaseDuration: (workflow.totalDuration || 0) * 1.5, // Estimate
           overallStatus: 'not_started' as const,
-          steps: workflow.steps.map((step: any, index: number) => ({
-            ...step,
-            id: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${index}`,
-            status: 'pending' as const,
-            stepIndex: index,
-          })),
+          steps: stepsWithFixedDeps,
         }
         await addSequencedTask(sequencedTask)
       }

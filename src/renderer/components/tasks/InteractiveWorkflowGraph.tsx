@@ -145,7 +145,10 @@ export function InteractiveWorkflowGraph({
         nodes.push({
           id: step.id,
           type: 'workflow',
-          position: { x: level * 300, y: index * 150 },
+          position: { 
+            x: level * 400 + 50,  // Increased spacing and added offset
+            y: index * 200 + 50   // Increased vertical spacing
+          },
           data: {
             label: step.name,
             duration: step.duration,
@@ -165,16 +168,30 @@ export function InteractiveWorkflowGraph({
   const initialEdges = useMemo(() => {
     const edges: Edge[] = []
 
+    // Create a map of step names to IDs for quick lookup
+    const stepNameToId = new Map<string, string>()
+    task.steps.forEach(step => {
+      stepNameToId.set(step.name, step.id)
+    })
+
     task.steps.forEach((step) => {
-      step.dependsOn.forEach((depId) => {
+      step.dependsOn.forEach((dep) => {
+        // dep could be either a step ID or a step name
+        let sourceId = dep
+        
+        // If it's not a valid step ID, try to find it by name
+        if (!task.steps.some(s => s.id === dep)) {
+          sourceId = stepNameToId.get(dep) || dep
+        }
+        
         // Ensure both source and target steps exist
-        const sourceExists = task.steps.some(s => s.id === depId)
+        const sourceExists = task.steps.some(s => s.id === sourceId)
         const targetExists = task.steps.some(s => s.id === step.id)
 
         if (sourceExists && targetExists) {
           edges.push({
-            id: `${depId}-${step.id}`,
-            source: depId,
+            id: `${sourceId}-${step.id}`,
+            source: sourceId,
             target: step.id,
             type: 'smoothstep',
             animated: true,
@@ -262,9 +279,20 @@ export function InteractiveWorkflowGraph({
       if (onUpdateDependencies && params.target) {
         const targetStep = task.steps.find(s => s.id === params.target)
         if (targetStep && params.source) {
+          // Convert existing name-based dependencies to IDs
+          const currentDeps = targetStep.dependsOn.map(dep => {
+            // If it's already an ID, keep it
+            if (task.steps.some(s => s.id === dep)) {
+              return dep
+            }
+            // Otherwise try to find the ID by name
+            const stepByName = task.steps.find(s => s.name === dep)
+            return stepByName ? stepByName.id : dep
+          })
+          
           // Check if dependency already exists to avoid duplicates
-          if (!targetStep.dependsOn.includes(params.source)) {
-            const newDependencies = [...targetStep.dependsOn, params.source]
+          if (!currentDeps.includes(params.source)) {
+            const newDependencies = [...currentDeps, params.source]
             onUpdateDependencies(params.target, newDependencies)
           }
         }
@@ -282,7 +310,16 @@ export function InteractiveWorkflowGraph({
         edgesToDelete.forEach(edge => {
           const targetStep = task.steps.find(s => s.id === edge.target)
           if (targetStep) {
-            const newDependencies = targetStep.dependsOn.filter(dep => dep !== edge.source)
+            // Convert name-based dependencies to IDs for comparison
+            const newDependencies = targetStep.dependsOn.filter(dep => {
+              // If dep is an ID, compare directly
+              if (task.steps.some(s => s.id === dep)) {
+                return dep !== edge.source
+              }
+              // If dep is a name, convert to ID and compare
+              const stepByName = task.steps.find(s => s.name === dep)
+              return stepByName ? stepByName.id !== edge.source : true
+            })
             onUpdateDependencies(edge.target, newDependencies)
           }
         })
@@ -311,6 +348,12 @@ export function InteractiveWorkflowGraph({
           onEdgeDoubleClick={(_, edge) => isEditable && onEdgeDelete([edge])}
           nodeTypes={nodeTypes}
           fitView
+          fitViewOptions={{
+            padding: 0.2,
+            includeHiddenNodes: false,
+            minZoom: 0.5,
+            maxZoom: 1
+          }}
           nodesDraggable={isEditable}
           nodesConnectable={isEditable}
           elementsSelectable={isEditable}

@@ -311,6 +311,10 @@ export class RendererDatabaseService {
     return await window.electronAPI.ai.extractScheduleFromVoice(voiceText, targetDate)
   }
 
+  async extractJargonTerms(contextText: string) {
+    return await window.electronAPI.ai.extractJargonTerms(contextText)
+  }
+
   // Speech-to-text operations
   async transcribeAudio(audioFilePath: string, options?: any) {
     return await window.electronAPI.speech.transcribeAudio(audioFilePath, options)

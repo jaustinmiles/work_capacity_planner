@@ -765,10 +765,13 @@ Only include terms that are likely industry-specific or technical jargon, not co
                     </Tag>
                   )}
                 </div>
-
+              </>
+            )}
+            
+            {/* Jargon Dictionary - Always visible when in workflow mode */}
+            {processingMode === 'workflows' && (
+              <>
                 <Divider style={{ margin: '12px 0' }} />
-
-                {/* Jargon Dictionary */}
                 <div>
                   <Space style={{ marginBottom: 8 }}>
                     <Text style={{ fontSize: 14, fontWeight: 'bold' }}>Industry Jargon Dictionary</Text>
@@ -779,6 +782,44 @@ Only include terms that are likely industry-specific or technical jargon, not co
                       onClick={() => setShowJargonInput(!showJargonInput)}
                     >
                       Add Term
+                    </Button>
+                    <Button
+                      size="small"
+                      type="outline"
+                      onClick={async () => {
+                        // Extract jargon from job context
+                        if (jobContext.trim()) {
+                          try {
+                            const response = await getDatabase().extractJargonTerms(jobContext)
+                            const terms = JSON.parse(response)
+                            if (Array.isArray(terms)) {
+                              const existingTerms = Object.keys(jargonDictionary)
+                              const newTerms = terms.filter(term => 
+                                !existingTerms.some(existing => 
+                                  existing.toLowerCase() === term.toLowerCase()
+                                )
+                              )
+                              if (newTerms.length > 0) {
+                                Message.info(`Found ${newTerms.length} potential jargon terms`)
+                                const updatedDictionary = { ...jargonDictionary }
+                                for (const term of newTerms.slice(0, 10)) {
+                                  updatedDictionary[term] = ''
+                                }
+                                setJargonDictionary(updatedDictionary)
+                              } else {
+                                Message.info('No new jargon terms found')
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Failed to extract jargon:', error)
+                            Message.error('Failed to extract jargon terms')
+                          }
+                        } else {
+                          Message.warning('Please add job context first')
+                        }
+                      }}
+                    >
+                      Auto-Extract Terms
                     </Button>
                   </Space>
 

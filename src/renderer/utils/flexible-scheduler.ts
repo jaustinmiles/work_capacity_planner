@@ -288,8 +288,19 @@ export function scheduleItemsWithBlocksAndDebug(
   patterns: DailyWorkPattern[],
   startDate: Date = new Date(),
 ): { scheduledItems: ScheduledItem[], debugInfo: SchedulingDebugInfo } {
+  // Consistency check: Warn if workflows appear in both arrays
+  const workflowIds = new Set(sequencedTasks.map(w => w.id))
+  const duplicateWorkflows = tasks.filter(t => t.hasSteps && workflowIds.has(t.id))
+  
+  if (duplicateWorkflows.length > 0) {
+    console.warn(
+      `⚠️ Scheduler Warning: ${duplicateWorkflows.length} workflows found in both tasks and sequencedTasks arrays. ` +
+      `This will cause duplicate scheduling! Workflows should only be in sequencedTasks. ` +
+      `Duplicates: ${duplicateWorkflows.map(w => w.name).join(', ')}`
+    )
+  }
   const scheduledItems: ScheduledItem[] = []
-  const workItems: WorkItem[] = []
+  let workItems: WorkItem[] = []
   const completedSteps = new Set<string>()
   const asyncWaitEndTimes = new Map<Date, string>()
   const workflowProgress = new Map<string, number>() // Track how many steps scheduled per workflow
@@ -360,6 +371,7 @@ export function scheduleItemsWithBlocksAndDebug(
             name: `[${workflow.name}] ${step.name}`,
             type: 'workflow-step',
             taskType: step.type as 'focused' | 'admin',
+            category: workflow.category || 'work', // Add category from workflow
             priority: workflow.importance * workflow.urgency,
             duration: step.duration,
             asyncWaitTime: step.asyncWaitTime,
@@ -367,15 +379,102 @@ export function scheduleItemsWithBlocksAndDebug(
             workflowId: workflow.id,
             workflowName: workflow.name,
             stepIndex,
-            dependencies: step.dependsOn,
+            dependencies: step.dependsOn || [],
             originalItem: step,
           })
         })
     })
 
-  // Smart sorting: Prioritize locked tasks, then deadlines, then high-priority tasks
+  // Helper function to perform topological sort on work items with dependencies
+  function topologicalSort(items: WorkItem[]): WorkItem[] {
+    const sorted: WorkItem[] = []
+    const visited = new Set<string>()
+    const visiting = new Set<string>()
+    const itemMap = new Map<string, WorkItem>()
+    
+    // Build item map for quick lookup
+    items.forEach(item => itemMap.set(item.id, item))
+    
+    function visit(item: WorkItem): void {
+      if (visited.has(item.id)) return
+      if (visiting.has(item.id)) {
+        // Circular dependency detected - just skip
+        debugInfo.warnings.push(`Circular dependency detected involving ${item.name}`)
+        return
+      }
+      
+      visiting.add(item.id)
+      
+      // Visit dependencies first
+      if (item.dependencies && item.dependencies.length > 0) {
+        for (const depId of item.dependencies) {
+          const dep = itemMap.get(depId)
+          if (dep) {
+            visit(dep)
+          }
+        }
+      }
+      
+      visiting.delete(item.id)
+      visited.add(item.id)
+      sorted.push(item)
+    }
+    
+    // Visit all items
+    items.forEach(item => visit(item))
+    
+    return sorted
+  }
+
+  // Apply topological sort to ensure dependencies are respected
+  workItems = topologicalSort(workItems)
+  
+  // Build dependency levels for smarter scheduling
+  const dependencyLevels = new Map<string, number>()
+  const itemById = new Map<string, WorkItem>()
+  workItems.forEach(item => itemById.set(item.id, item))
+  
+  const calculateLevel = (itemId: string, visiting = new Set<string>()): number => {
+    if (dependencyLevels.has(itemId)) {
+      return dependencyLevels.get(itemId)!
+    }
+    if (visiting.has(itemId)) {
+      return 0 // Circular dependency
+    }
+    
+    const item = itemById.get(itemId)
+    if (!item) return 0
+    
+    visiting.add(itemId)
+    let level = 0
+    
+    if (item.dependencies && item.dependencies.length > 0) {
+      for (const depId of item.dependencies) {
+        level = Math.max(level, calculateLevel(depId, visiting) + 1)
+      }
+    }
+    
+    visiting.delete(itemId)
+    dependencyLevels.set(itemId, level)
+    return level
+  }
+  
+  // Calculate levels for all items
+  workItems.forEach(item => calculateLevel(item.id))
+  
+  // Sort by dependency level first, then by priority within each level
   workItems.sort((a, b) => {
-    // First priority: Locked tasks sorted by their locked start time
+    const aLevel = dependencyLevels.get(a.id) || 0
+    const bLevel = dependencyLevels.get(b.id) || 0
+    
+    // Different levels - items with no/fewer dependencies come first
+    if (aLevel !== bLevel) {
+      return aLevel - bLevel
+    }
+    
+    // Same dependency level - apply priority sorting
+    
+    // Locked tasks first
     if (a.isLocked && b.isLocked) {
       const aTime = a.lockedStartTime ? new Date(a.lockedStartTime).getTime() : Infinity
       const bTime = b.lockedStartTime ? new Date(b.lockedStartTime).getTime() : Infinity
@@ -383,43 +482,22 @@ export function scheduleItemsWithBlocksAndDebug(
     }
     if (a.isLocked) return -1
     if (b.isLocked) return 1
-
-    // Second priority: Check deadlines
+    
+    // Then deadlines
     const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
     const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
-
     const now = startDate.getTime()
     const oneDayMs = 24 * 60 * 60 * 1000
-
-    // If both have deadlines within 24 hours, prioritize the earlier one
-    if (aDeadline - now < oneDayMs && bDeadline - now < oneDayMs) {
-      return aDeadline - bDeadline
+    
+    if (aDeadline - now < oneDayMs || bDeadline - now < oneDayMs) {
+      if (aDeadline - now < oneDayMs && bDeadline - now < oneDayMs) {
+        return aDeadline - bDeadline
+      }
+      return aDeadline - now < oneDayMs ? -1 : 1
     }
-
-    // If only one has a deadline within 24 hours, prioritize it
-    if (aDeadline - now < oneDayMs) return -1
-    if (bDeadline - now < oneDayMs) return 1
-
-    // For workflow steps, deprioritize later steps in the workflow
-    const aIsWorkflowStep = a.type === 'workflow-step'
-    const bIsWorkflowStep = b.type === 'workflow-step'
-
-    if (aIsWorkflowStep && bIsWorkflowStep && a.workflowId === b.workflowId) {
-      // Same workflow - maintain step order
-      return (a.stepIndex || 0) - (b.stepIndex || 0)
-    }
-
-    // Boost priority of first steps and standalone tasks
-    const aEffectivePriority = aIsWorkflowStep && (a.stepIndex ?? 0) > 0
-      ? a.priority * 0.7 // Reduce priority of later workflow steps
-      : a.priority
-
-    const bEffectivePriority = bIsWorkflowStep && (b.stepIndex ?? 0) > 0
-      ? b.priority * 0.7 // Reduce priority of later workflow steps
-      : b.priority
-
-    // Sort by effective priority
-    return bEffectivePriority - aEffectivePriority
+    
+    // Finally by priority score
+    return b.priority - a.priority
   })
 
   // Process each day

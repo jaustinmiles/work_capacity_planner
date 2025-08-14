@@ -12,6 +12,11 @@ if (process.platform === 'win32') {
 let mainWindow: InstanceType<typeof BrowserWindow> | null = null
 
 async function createWindow(): Promise<void> {
+  // Prevent creating multiple windows
+  if (mainWindow) {
+    return
+  }
+  
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -45,8 +50,15 @@ async function createWindow(): Promise<void> {
   }
 }
 
+// Initialize database service (declare it here for IPC handlers)
+let db: DatabaseService
+
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
+  // Initialize database service once when app is ready
+  db = DatabaseService.getInstance()
+  console.log('Main process initialized successfully')
+  
   createWindow()
 
   app.on('activate', () => {
@@ -63,14 +75,11 @@ app.on('window-all-closed', () => {
   }
 })
 
-// Initialize database service
-const db = DatabaseService.getInstance()
-console.log('Main process initialized successfully')
-
 // IPC handlers for database operations
 // Session management handlers
 ipcMain.handle('db:getSessions', async () => {
   console.log('Getting sessions...')
+  if (!db) db = DatabaseService.getInstance()
   return await db.getSessions()
 })
 
