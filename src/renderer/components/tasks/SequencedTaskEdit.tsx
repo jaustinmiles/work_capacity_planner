@@ -25,6 +25,8 @@ import {
   IconPlus,
   IconDragDot,
   IconClockCircle,
+  IconCheckCircle,
+  IconCloseCircle,
 } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -173,6 +175,18 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
     })
 
     setEditingSteps(newSteps)
+  }
+
+  const toggleStepStatus = (index: number) => {
+    const step = editingSteps[index]
+    const newStatus = step.status === 'completed' ? 'pending' : 'completed'
+    const updatedSteps = [...editingSteps]
+    updatedSteps[index] = {
+      ...step,
+      status: newStatus,
+      percentComplete: newStatus === 'completed' ? 100 : 0,
+    }
+    setEditingSteps(updatedSteps)
   }
 
   const openStepModal = (index: number | null = null) => {
@@ -425,6 +439,11 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                             <Tag size="small" color={step.type === 'focused' ? 'blue' : 'green'}>
                               {step.type === 'focused' ? 'Focused' : 'Admin'}
                             </Tag>
+                            {step.status === 'completed' && (
+                              <Tag size="small" color="green" icon={<IconCheckCircle />}>
+                                Completed
+                              </Tag>
+                            )}
                           </Space>
 
                           <Space>
@@ -486,6 +505,14 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                                 setShowWorkSessionsModal(true)
                               }}
                             />
+                            <Button
+                              size="small"
+                              type={step.status === 'completed' ? 'outline' : 'primary'}
+                              icon={step.status === 'completed' ? <IconCloseCircle /> : <IconCheckCircle />}
+                              onClick={() => toggleStepStatus(index)}
+                            >
+                              {step.status === 'completed' ? 'Incomplete' : 'Complete'}
+                            </Button>
                             <Popconfirm
                               title="Delete this step?"
                               content="This will also remove any dependencies on this step."

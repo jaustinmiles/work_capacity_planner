@@ -125,12 +125,17 @@ export function StepWorkSessionsModal({
     try {
       const values = await form.validate()
       
+      // Handle the date properly - it might already be a Date object or a dayjs object
+      const startTime = values.startTime 
+        ? (typeof values.startTime.toDate === 'function' ? values.startTime.toDate() : new Date(values.startTime))
+        : new Date()
+      
       await getDatabase().createStepWorkSession({
         taskStepId: stepId,
         taskId: taskId,
-        startTime: values.startTime?.toDate() || new Date(),
+        startTime: startTime,
         duration: values.plannedMinutes,
-        notes: values.notes,
+        notes: values.notes || '',
       })
       
       Message.success('Work session added')
@@ -226,6 +231,11 @@ export function StepWorkSessionsModal({
               type="primary"
               onClick={() => {
                 form.resetFields()
+                form.setFieldsValue({
+                  startTime: dayjs(),
+                  plannedMinutes: 30,
+                  notes: ''
+                })
                 setEditingSession({} as WorkSession) // Signal new session
               }}
             >
