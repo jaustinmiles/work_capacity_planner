@@ -5,6 +5,7 @@ import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskEdit } from './TaskEdit'
 import { TaskTimeLoggingModal } from './TaskTimeLoggingModal'
+import { WorkSessionsModal } from './WorkSessionsModal'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -23,6 +24,7 @@ export function TaskItem({ task }: TaskItemProps) {
   const [editedName, setEditedName] = useState(task.name)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showTimeModal, setShowTimeModal] = useState(false)
+  const [showSessionsModal, setShowSessionsModal] = useState(false)
   const [loggedTime, setLoggedTime] = useState<number>(0)
 
   useEffect(() => {
@@ -146,6 +148,8 @@ export function TaskItem({ task }: TaskItemProps) {
                         icon={<IconCheckCircleFill />}
                         color={loggedTime > task.duration ? 'orange' : 'green'}
                         size="small"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setShowSessionsModal(true)}
                       >
                         Logged: {formatDuration(loggedTime)}
                       </Tag>
@@ -276,6 +280,19 @@ export function TaskItem({ task }: TaskItemProps) {
         task={task}
         visible={showTimeModal}
         onClose={() => setShowTimeModal(false)}
+      />
+      
+      <WorkSessionsModal
+        taskId={task.id}
+        taskName={task.name}
+        visible={showSessionsModal}
+        onClose={() => setShowSessionsModal(false)}
+        onSessionsUpdated={() => {
+          // Refresh logged time
+          getDatabase().getTaskTotalLoggedTime(task.id).then(time => {
+            setLoggedTime(time)
+          })
+        }}
       />
     </div>
   )

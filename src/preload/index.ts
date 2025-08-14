@@ -51,7 +51,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Work session operations
     createWorkSession: (data: any) => ipcRenderer.invoke('db:createWorkSession', data),
     updateWorkSession: (id: string, data: any) => ipcRenderer.invoke('db:updateWorkSession', id, data),
+    deleteWorkSession: (id: string) => ipcRenderer.invoke('db:deleteWorkSession', id),
     getWorkSessions: (date: string) => ipcRenderer.invoke('db:getWorkSessions', date),
+    getWorkSessionsForTask: (taskId: string) => ipcRenderer.invoke('db:getWorkSessionsForTask', taskId),
     getTaskTotalLoggedTime: (taskId: string) => ipcRenderer.invoke('db:getTaskTotalLoggedTime', taskId),
     getTodayAccumulated: (date: string) => ipcRenderer.invoke('db:getTodayAccumulated', date),
     // Progress tracking operations

@@ -51,7 +51,9 @@ declare global {
         // Work session operations
         createWorkSession: (data: any) => Promise<any>
         updateWorkSession: (id: string, data: any) => Promise<any>
+        deleteWorkSession: (id: string) => Promise<void>
         getWorkSessions: (date: string) => Promise<any[]>
+        getWorkSessionsForTask: (taskId: string) => Promise<any[]>
         getTaskTotalLoggedTime: (taskId: string) => Promise<number>
         getTodayAccumulated: (date: string) => Promise<{ focused: number; admin: number }>
         // Progress tracking operations
@@ -432,9 +434,17 @@ export class RendererDatabaseService {
   async updateWorkSession(id: string, data: any) {
     return await window.electronAPI.db.updateWorkSession(id, data)
   }
+  
+  async deleteWorkSession(id: string) {
+    return await window.electronAPI.db.deleteWorkSession(id)
+  }
 
   async getWorkSessions(date: string) {
     return await window.electronAPI.db.getWorkSessions(date)
+  }
+  
+  async getWorkSessionsForTask(taskId: string) {
+    return await window.electronAPI.db.getWorkSessionsForTask(taskId)
   }
 
   async getTaskTotalLoggedTime(taskId: string) {

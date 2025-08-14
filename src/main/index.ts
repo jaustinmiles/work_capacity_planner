@@ -244,6 +244,14 @@ ipcMain.handle('db:updateWorkSession', async (_event: IpcMainInvokeEvent, id: st
   return await db.updateWorkSession(id, data)
 })
 
+ipcMain.handle('db:deleteWorkSession', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.deleteWorkSession(id)
+})
+
+ipcMain.handle('db:getWorkSessionsForTask', async (_event: IpcMainInvokeEvent, taskId: string) => {
+  return await db.getWorkSessionsForTask(taskId)
+})
+
 ipcMain.handle('db:getWorkSessions', async (_event: IpcMainInvokeEvent, date: string) => {
   return await db.getWorkSessions(date)
 })

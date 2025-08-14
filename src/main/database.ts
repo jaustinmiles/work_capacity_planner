@@ -1257,7 +1257,36 @@ export class DatabaseService {
   }
 
   async updateWorkSession(id: string, data: any): Promise<any> {
-    return this.endWorkSession(id, data.actualMinutes)
+    // If only actualMinutes is provided, use the old method
+    if (Object.keys(data).length === 1 && data.actualMinutes !== undefined) {
+      return this.endWorkSession(id, data.actualMinutes)
+    }
+    
+    // Otherwise, do a full update
+    const updateData: any = {}
+    if (data.plannedMinutes !== undefined) updateData.plannedMinutes = data.plannedMinutes
+    if (data.actualMinutes !== undefined) updateData.actualMinutes = data.actualMinutes
+    if (data.notes !== undefined) updateData.notes = data.notes
+    if (data.startTime !== undefined) updateData.startTime = data.startTime
+    if (data.endTime !== undefined) updateData.endTime = data.endTime
+    
+    return this.client.workSession.update({
+      where: { id },
+      data: updateData
+    })
+  }
+  
+  async deleteWorkSession(id: string): Promise<void> {
+    await this.client.workSession.delete({
+      where: { id }
+    })
+  }
+  
+  async getWorkSessionsForTask(taskId: string): Promise<any[]> {
+    return this.client.workSession.findMany({
+      where: { taskId },
+      orderBy: { startTime: 'desc' }
+    })
   }
 
   async getWorkSessions(date: string): Promise<any[]> {
@@ -1266,18 +1295,28 @@ export class DatabaseService {
   }
 
   async createStepWorkSession(data: any): Promise<any> {
+    console.log('DB: createStepWorkSession called with:', JSON.stringify(data))
+    
     // Transform the data from UI format to database format
     // UI sends: { taskStepId, startTime, duration, notes }
     // DB needs: { taskId, stepId, type, startTime, plannedMinutes, notes }
     
+    // Handle both taskStepId and stepId field names
+    const stepId = data.taskStepId || data.stepId || data.taskStepld || data.stepld
+    
+    if (!stepId) {
+      console.error('No step ID found in data:', data)
+      throw new Error('Step ID is required')
+    }
+    
     // First, we need to get the task ID from the step
     const step = await this.client.taskStep.findUnique({
-      where: { id: data.taskStepId || data.stepId },
+      where: { id: stepId },
       include: { Task: true }
     })
     
     if (!step) {
-      throw new Error(`Step not found: ${data.taskStepId || data.stepId}`)
+      throw new Error(`Step not found: ${stepId}`)
     }
     
     // Determine the type from the step or task
@@ -1294,6 +1333,8 @@ export class DatabaseService {
       actualMinutes: data.actualMinutes || data.duration || null,
       notes: data.notes || null,
     }
+    
+    console.log('DB: Transformed work session data:', JSON.stringify(workSessionData))
     
     return this.createWorkSession(workSessionData)
   }
