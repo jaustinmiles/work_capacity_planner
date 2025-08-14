@@ -232,18 +232,51 @@ export class DatabaseService {
 
     // If steps are provided, update them
     if (steps && Array.isArray(steps)) {
-      // Update each step's dependencies
-      for (const step of steps) {
-        await this.client.taskStep.update({
-          where: { id: step.id },
-          data: {
-            dependsOn: JSON.stringify(step.dependsOn || []),
-            name: step.name,
-            duration: step.duration,
-            type: step.type,
-            asyncWaitTime: step.asyncWaitTime || 0,
-          },
+      // Get existing steps to determine which are new vs updates
+      const existingSteps = await this.client.taskStep.findMany({
+        where: { taskId: id }
+      })
+      const existingStepIds = new Set(existingSteps.map(s => s.id))
+      
+      // Delete steps that are no longer in the new list
+      const newStepIds = new Set(steps.map(s => s.id))
+      const stepsToDelete = existingSteps.filter(s => !newStepIds.has(s.id))
+      for (const step of stepsToDelete) {
+        await this.client.taskStep.delete({
+          where: { id: step.id }
         })
+      }
+      
+      // Update or create each step
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i]
+        const stepData = {
+          name: step.name,
+          duration: step.duration,
+          type: step.type,
+          dependsOn: JSON.stringify(step.dependsOn || []),
+          asyncWaitTime: step.asyncWaitTime || 0,
+          stepIndex: i,
+          status: step.status || 'pending',
+          percentComplete: step.percentComplete || 0,
+        }
+        
+        if (existingStepIds.has(step.id)) {
+          // Update existing step
+          await this.client.taskStep.update({
+            where: { id: step.id },
+            data: stepData,
+          })
+        } else {
+          // Create new step - need to generate a new ID
+          await this.client.taskStep.create({
+            data: {
+              id: step.id || `step_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              ...stepData,
+              taskId: id,
+            },
+          })
+        }
       }
       
       // Return task with updated steps

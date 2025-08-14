@@ -858,14 +858,15 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               size="small"
                               placeholder="Enter definition..."
                               value={definition}
-                              onChange={async (value) => {
+                              onChange={(value) => {
                                 // Update local state immediately
                                 const updated = { ...jargonDictionary, [term]: value }
                                 setJargonDictionary(updated)
-                                
-                                // Save to database (debounced in practice)
+                              }}
+                              onBlur={async () => {
+                                // Save to database when user leaves the field
                                 try {
-                                  await getDatabase().updateJargonDefinition(term, value)
+                                  await getDatabase().updateJargonDefinition(term, definition)
                                 } catch (error) {
                                   console.error('Error updating jargon definition:', error)
                                 }

@@ -11,7 +11,6 @@ import {
   Spin,
   Tag,
   Tooltip,
-  Message,
 } from '@arco-design/web-react'
 import {
   IconCalendar,
@@ -24,6 +23,7 @@ import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { WorkBlocksEditor } from './WorkBlocksEditor'
 import { VoiceScheduleModal } from './VoiceScheduleModal'
+import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 
