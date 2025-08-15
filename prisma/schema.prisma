@@ -171,6 +171,7 @@ model TaskStep {
   actualDuration  Int?
   startedAt       DateTime?
   completedAt     DateTime?
+  notes           String?
   Task            Task          @relation("TaskSteps", fields: [taskId], references: [id], onDelete: Cascade)
   SequencedTask   SequencedTask? @relation(fields: [sequencedTaskId], references: [id], onDelete: Cascade)
 }

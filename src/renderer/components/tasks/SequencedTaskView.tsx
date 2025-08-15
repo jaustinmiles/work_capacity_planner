@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Tag, Button, Alert, Statistic, Grid, Progress, Popconfirm, Tabs } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
@@ -6,6 +6,7 @@ import { TaskStepItem } from './TaskStepItem'
 import { SequencedTaskEdit } from './SequencedTaskEdit'
 import { WorkflowVisualization } from './WorkflowVisualization'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
+import { getDatabase } from '../../services/database'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -31,12 +32,39 @@ export function SequencedTaskView({
   const [showEditView, setShowEditView] = useState(false)
   const [showVisualization, setShowVisualization] = useState(false)
   const [activeTab, setActiveTab] = useState<string>('overview')
+  const [stepTimeLogs, setStepTimeLogs] = useState<Record<string, number>>({})
 
   const completedSteps = task.steps.filter(step => step.status === 'completed').length
   const totalSteps = task.steps.length
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0
 
   const currentStep = task.steps.find(step => step.status === 'in_progress')
+
+  // Fetch time logged for each step
+  useEffect(() => {
+    const fetchStepTimeLogs = async () => {
+      try {
+        const db = getDatabase()
+        const timeLogs: Record<string, number> = {}
+        
+        // Fetch work sessions for all steps
+        for (const step of task.steps) {
+          const sessions = await db.getStepWorkSessions(step.id)
+          const totalMinutes = sessions.reduce((sum, session) => {
+            const minutes = session.actualMinutes || session.plannedMinutes || 0
+            return sum + minutes
+          }, 0)
+          timeLogs[step.id] = totalMinutes
+        }
+        
+        setStepTimeLogs(timeLogs)
+      } catch (error) {
+        console.error('Failed to fetch step time logs:', error)
+      }
+    }
+
+    fetchStepTimeLogs()
+  }, [task.steps])
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
@@ -243,17 +271,19 @@ export function SequencedTaskView({
                     />
                   </Col>
                   <Col span={6}>
+                    <div style={{ color: Object.values(stepTimeLogs).reduce((sum, time) => sum + time, 0) > 0 ? '#00B42A' : undefined }}>
+                      <Statistic
+                        title="Time Logged"
+                        value={formatDuration(Object.values(stepTimeLogs).reduce((sum, time) => sum + time, 0))}
+                        prefix={<IconHistory />}
+                      />
+                    </div>
+                  </Col>
+                  <Col span={6}>
                     <Statistic
                       title="Critical Path"
                       value={formatDuration(task.criticalPathDuration)}
                       prefix={<IconCalendar />}
-                    />
-                  </Col>
-                  <Col span={6}>
-                    <Statistic
-                      title="Worst Case"
-                      value={formatDuration(task.worstCaseDuration)}
-                      prefix={<IconBranch />}
                     />
                   </Col>
                   <Col span={6}>
@@ -290,6 +320,7 @@ export function SequencedTaskView({
                       stepIndex={index}
                       isActive={step.status === 'in_progress'}
                       isCompleted={step.status === 'completed'}
+                      timeLogged={stepTimeLogs[step.id] || 0}
                       onStart={handleStepStart}
                       onComplete={handleStepComplete}
                     />

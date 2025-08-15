@@ -202,9 +202,24 @@ Voice Input → Whisper API → Claude Analysis → Task Creation → Database �
 - Comprehensive error handling and user feedback
 - Testing infrastructure with Vitest
 
+### 🎙️ Voice Amendment System ✅
+- **Voice-to-Amendment Pipeline**: Record natural speech to update tasks and workflows
+- **Claude Opus Integration**: AI-powered understanding with job context awareness
+- **Dual Input Modes**: Choose between voice recording or text input
+- **Smart Recognition**: Automatically matches task/workflow names from context
+- **Amendment Types Fully Supported**:
+  - Status updates (mark complete, in progress, waiting, not started)
+  - Time logging (record time spent on tasks)
+  - Note additions (add context to tasks/workflows)
+  - Duration changes (update time estimates)
+  - **Workflow step additions** (add new steps with proper ordering and dependencies)
+- **Preview & Confirmation**: Review proposed changes before applying
+- **IPC-Safe Architecture**: Handles enum serialization across process boundaries
+- **Auto-Refresh**: UI updates automatically after amendments are applied
+
 ### 🚧 In Development
 - **Locked Task Scheduling**: Fixed-time tasks (e.g., meetings at exact times)
-- **Voice Progress Tracking**: Update task progress via voice
+- **Enhanced Amendment Feedback**: Edit incorrect interpretations
 - **Improved Workflow Step UI**: Better controls for marking steps complete
 
 ### 🔮 Future Enhancements

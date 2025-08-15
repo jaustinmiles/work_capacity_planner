@@ -159,10 +159,17 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
+      
+      // Create subsequent dates based on the future date
+      const day2 = new Date(futureDate)
+      day2.setDate(day2.getDate() + 1)
+      const day3 = new Date(futureDate)
+      day3.setDate(day3.getDate() + 2)
+      
       const patterns = [
         createWorkPattern(startDate),
-        createWorkPattern(createTestDate('2024-01-16')),
-        createWorkPattern(createTestDate('2024-01-17')),
+        createWorkPattern(createTestDate(day2.toISOString().split('T')[0])),
+        createWorkPattern(createTestDate(day3.toISOString().split('T')[0])),
       ]
 
       const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug(
@@ -208,10 +215,17 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
+      
+      // Create subsequent dates based on the future date
+      const day2 = new Date(futureDate)
+      day2.setDate(day2.getDate() + 1)
+      const day3 = new Date(futureDate)
+      day3.setDate(day3.getDate() + 2)
+      
       const patterns = [
         createWorkPattern(startDate),
-        createWorkPattern(createTestDate('2024-01-16')),
-        createWorkPattern(createTestDate('2024-01-17')),
+        createWorkPattern(createTestDate(day2.toISOString().split('T')[0])),
+        createWorkPattern(createTestDate(day3.toISOString().split('T')[0])),
       ]
 
       const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug(
@@ -267,10 +281,17 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
+      
+      // Create subsequent dates based on the future date
+      const day2 = new Date(futureDate)
+      day2.setDate(day2.getDate() + 1)
+      const day3 = new Date(futureDate)
+      day3.setDate(day3.getDate() + 2)
+      
       const patterns = [
         createWorkPattern(startDate),
-        createWorkPattern(createTestDate('2024-01-16')),
-        createWorkPattern(createTestDate('2024-01-17')),
+        createWorkPattern(createTestDate(day2.toISOString().split('T')[0])),
+        createWorkPattern(createTestDate(day3.toISOString().split('T')[0])),
       ]
 
       const { scheduledItems } = scheduleItemsWithBlocksAndDebug(
@@ -309,10 +330,17 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
+      
+      // Create subsequent dates based on the future date
+      const day2 = new Date(futureDate)
+      day2.setDate(day2.getDate() + 1)
+      const day3 = new Date(futureDate)
+      day3.setDate(day3.getDate() + 2)
+      
       const patterns = [
         createWorkPattern(startDate),
-        createWorkPattern(createTestDate('2024-01-16')),
-        createWorkPattern(createTestDate('2024-01-17')),
+        createWorkPattern(createTestDate(day2.toISOString().split('T')[0])),
+        createWorkPattern(createTestDate(day3.toISOString().split('T')[0])),
       ]
 
       const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug(

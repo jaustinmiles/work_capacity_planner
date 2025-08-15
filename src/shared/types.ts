@@ -52,6 +52,7 @@ export interface TaskStep {
   startedAt?: Date
   completedAt?: Date
   percentComplete: number
+  notes?: string
 }
 
 export interface DailySchedule {

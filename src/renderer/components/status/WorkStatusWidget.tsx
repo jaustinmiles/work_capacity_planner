@@ -30,11 +30,18 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       loadWorkData()
     }
 
+    // Listen for workflow updates (which might change step types)
+    const handleWorkflowUpdated = () => {
+      loadWorkData()
+    }
+
     appEvents.on(EVENTS.TIME_LOGGED, handleTimeLogged)
+    appEvents.on(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
 
     return () => {
       clearInterval(interval)
       appEvents.off(EVENTS.TIME_LOGGED, handleTimeLogged)
+      appEvents.off(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
     }
   }, [currentDate])
 

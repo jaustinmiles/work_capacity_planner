@@ -211,7 +211,8 @@ export function ClockTimePicker({
     const h = hours.toString().padStart(2, '0')
     const newValue = `${h}:${m.toString().padStart(2, '0')}`
     onChange?.(newValue)
-    setVisible(false)
+    // Auto-close after selecting minutes
+    setTimeout(() => setVisible(false), 100)
   }
   
   const displayValue = value || placeholder
@@ -252,19 +253,6 @@ export function ClockTimePicker({
             onChange={handleMinuteChange}
           />
         )}
-        
-        <Space>
-          <Button size="small" onClick={() => setVisible(false)}>
-            Cancel
-          </Button>
-          <Button 
-            size="small" 
-            type="primary"
-            onClick={() => setVisible(false)}
-          >
-            OK
-          </Button>
-        </Space>
       </Space>
     </div>
   )
@@ -272,7 +260,13 @@ export function ClockTimePicker({
   return (
     <Popover
       popupVisible={visible && !disabled}
-      onVisibleChange={setVisible}
+      onVisibleChange={(v) => {
+        // When closing the popover (clicking outside), save the current value
+        if (!v && visible) {
+          // Popover is closing, already have the value set
+        }
+        setVisible(v)
+      }}
       content={content}
       trigger="click"
       position="bottom"

@@ -1,0 +1,1 @@
+export { VoiceAmendmentModal } from './VoiceAmendmentModal'

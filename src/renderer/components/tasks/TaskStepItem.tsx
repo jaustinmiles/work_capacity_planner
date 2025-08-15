@@ -1,5 +1,5 @@
-import { Space, Typography, Tag, Tooltip, Badge, Button } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconExclamationCircle, IconBranch, IconLoop, IconCheck } from '@arco-design/web-react/icon'
+import { Space, Typography, Tag, Tooltip, Badge, Button, Progress } from '@arco-design/web-react'
+import { IconClockCircle, IconCalendar, IconExclamationCircle, IconBranch, IconLoop, IconCheck, IconHistory } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
 
 const { Text } = Typography
@@ -10,11 +10,12 @@ interface TaskStepItemProps {
   isActive?: boolean
   isCompleted?: boolean
   estimatedStartTime?: Date
+  timeLogged?: number  // Total minutes logged
   onComplete?: (stepId: string) => void
   onStart?: (stepId: string) => void
 }
 
-export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = false, estimatedStartTime, onComplete, onStart }: TaskStepItemProps) {
+export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = false, estimatedStartTime, timeLogged = 0, onComplete, onStart }: TaskStepItemProps) {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
@@ -122,6 +123,27 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
           >
             {formatDuration(step.duration)}
           </Tag>
+
+          {/* Time Logged Display */}
+          {timeLogged > 0 && (
+            <Tooltip content={`${formatDuration(timeLogged)} of ${formatDuration(step.duration)} logged`}>
+              <Tag
+                icon={<IconHistory />}
+                color={timeLogged >= step.duration ? "green" : "orange"}
+                size="small"
+              >
+                Logged: {formatDuration(timeLogged)}
+                {timeLogged < step.duration && (
+                  <Progress
+                    percent={Math.round((timeLogged / step.duration) * 100)}
+                    size="mini"
+                    style={{ width: 60, marginLeft: 8, display: 'inline-block' }}
+                    showText={false}
+                  />
+                )}
+              </Tag>
+            </Tooltip>
+          )}
 
           <Tag size="small" color="gray">
             {step.type === 'focused' ? 'Focused Work' : 'Admin/Meeting'}

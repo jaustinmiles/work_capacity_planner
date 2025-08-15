@@ -259,9 +259,17 @@ export class DatabaseService {
           stepIndex: i,
           status: step.status || 'pending',
           percentComplete: step.percentComplete || 0,
+          notes: step.notes || null,
         }
         
         if (existingStepIds.has(step.id)) {
+          // Check if type changed
+          const existingStep = existingSteps.find(s => s.id === step.id)
+          if (existingStep && existingStep.type !== step.type) {
+            // Type changed, update work sessions
+            await this.updateWorkSessionTypesForStep(step.id, step.type as 'focused' | 'admin')
+          }
+          
           // Update existing step
           await this.client.taskStep.update({
             where: { id: step.id },
@@ -708,6 +716,89 @@ export class DatabaseService {
   async deleteSequencedTask(id: string): Promise<void> {
     // Redirect to deleteTask
     await this.deleteTask(id)
+  }
+
+  async addStepToWorkflow(workflowId: string, stepData: {
+    name: string
+    duration: number
+    type: 'focused' | 'admin'
+    afterStep?: string
+    beforeStep?: string
+    dependencies?: string[]
+    asyncWaitTime?: number
+  }): Promise<any> {
+    console.log('[DB] Adding step to workflow:', workflowId, stepData)
+    
+    // Get existing steps to determine order
+    const existingSteps = await this.client.taskStep.findMany({
+      where: { taskId: workflowId },
+      orderBy: { stepIndex: 'asc' }
+    })
+    
+    // Determine the index for the new step
+    let newStepIndex = existingSteps.length // Default to end
+    
+    if (stepData.afterStep) {
+      const afterIndex = existingSteps.findIndex(s => s.name === stepData.afterStep)
+      if (afterIndex !== -1) {
+        newStepIndex = afterIndex + 1
+      }
+    } else if (stepData.beforeStep) {
+      const beforeIndex = existingSteps.findIndex(s => s.name === stepData.beforeStep)
+      if (beforeIndex !== -1) {
+        newStepIndex = beforeIndex
+      }
+    }
+    
+    // Shift existing steps if inserting in the middle
+    if (newStepIndex < existingSteps.length) {
+      for (let i = newStepIndex; i < existingSteps.length; i++) {
+        await this.client.taskStep.update({
+          where: { id: existingSteps[i].id },
+          data: { stepIndex: existingSteps[i].stepIndex + 1 }
+        })
+      }
+    }
+    
+    // Create the new step
+    const newStep = await this.client.taskStep.create({
+      data: {
+        id: `step_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        taskId: workflowId,
+        name: stepData.name,
+        duration: stepData.duration,
+        type: stepData.type,
+        stepIndex: newStepIndex,
+        dependsOn: JSON.stringify(stepData.dependencies || []),
+        asyncWaitTime: stepData.asyncWaitTime || 0,
+        status: 'pending',
+        percentComplete: 0,
+      }
+    })
+    
+    // Update the workflow's total duration
+    const updatedTask = await this.client.task.findUnique({
+      where: { id: workflowId },
+      include: { TaskStep: true }
+    })
+    
+    if (updatedTask) {
+      const totalDuration = updatedTask.TaskStep.reduce((sum, step) => sum + step.duration, 0)
+      await this.client.task.update({
+        where: { id: workflowId },
+        data: { duration: totalDuration }
+      })
+    }
+    
+    console.log('[DB] Step added successfully:', newStep.id)
+    
+    // Return the updated workflow in SequencedTask format
+    const finalTask = await this.client.task.findUnique({
+      where: { id: workflowId },
+      include: { TaskStep: true }
+    })
+    
+    return this.formatTask(finalTask!)
   }
 
   private formatSequencedTask(task: any): any {
@@ -1429,6 +1520,14 @@ export class DatabaseService {
 
   async getStepWorkSessions(stepId: string): Promise<any[]> {
     return this.client.workSession.findMany({ where: { stepId } })
+  }
+
+  async updateWorkSessionTypesForStep(stepId: string, newType: 'focused' | 'admin'): Promise<void> {
+    console.log(`DB: Updating work session types for step ${stepId} to ${newType}`)
+    await this.client.workSession.updateMany({
+      where: { stepId },
+      data: { type: newType }
+    })
   }
 
   async recordTimeEstimate(data: any): Promise<void> {

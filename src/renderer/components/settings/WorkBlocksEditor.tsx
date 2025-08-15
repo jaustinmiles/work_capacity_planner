@@ -13,7 +13,6 @@ import {
   Modal,
   Form,
   Input,
-  TimePicker,
 } from '@arco-design/web-react'
 import {
   IconPlus,
@@ -32,6 +31,7 @@ import {
 } from '@shared/work-blocks-types'
 import { Message } from '../common/Message'
 import { ClockTimePicker } from '../common/ClockTimePicker'
+import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
 
@@ -109,6 +109,10 @@ export function WorkBlocksEditor({
 
   const handleUpdateBlock = (id: string, updates: Partial<WorkBlock>) => {
     setBlocks(blocks.map(b => b.id === id ? { ...b, ...updates } : b))
+  }
+
+  const handleUpdateMeeting = (id: string, updates: Partial<WorkMeeting>) => {
+    setMeetings(meetings.map(m => m.id === id ? { ...m, ...updates } : m))
   }
 
   const handleDeleteBlock = (id: string) => {
@@ -231,9 +235,9 @@ export function WorkBlocksEditor({
   }
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
+    <div style={{ height: '100%' }}>
       {/* Header */}
-      <Card>
+      <Card style={{ marginBottom: 16 }}>
         <Row justify="space-between" align="center">
           <Col>
             <Space direction="vertical" size="small">
@@ -309,8 +313,11 @@ export function WorkBlocksEditor({
         </Row>
       </Card>
 
-      {/* Capacity Summary */}
-      <Card>
+      <Row gutter={16}>
+        <Col span={14}>
+          <Space direction="vertical" style={{ width: '100%' }} size="large">
+            {/* Capacity Summary */}
+            <Card>
         <Row gutter={16}>
           <Col span={4}>
             <Space direction="vertical">
@@ -593,7 +600,7 @@ export function WorkBlocksEditor({
                 field="startTime"
                 rules={[{ required: true }]}
               >
-                <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                <ClockTimePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -602,7 +609,7 @@ export function WorkBlocksEditor({
                 field="endTime"
                 rules={[{ required: true }]}
               >
-                <TimePicker format="HH:mm" style={{ width: '100%' }} />
+                <ClockTimePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>
@@ -656,6 +663,22 @@ export function WorkBlocksEditor({
           </Text>
         </Form>
       </Modal>
-    </Space>
+          </Space>
+        </Col>
+        <Col span={10}>
+          <Card title="Visual Timeline" style={{ height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+            <TimelineVisualizer
+              blocks={blocks}
+              meetings={meetings}
+              onBlockUpdate={(id, updates) => handleUpdateBlock(id, updates)}
+              onMeetingUpdate={(id, updates) => handleUpdateMeeting(id, updates)}
+              startHour={6}
+              endHour={22}
+              height={600}
+            />
+          </Card>
+        </Col>
+      </Row>
+    </div>
   )
 }

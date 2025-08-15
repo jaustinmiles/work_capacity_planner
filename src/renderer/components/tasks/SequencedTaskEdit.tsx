@@ -32,6 +32,7 @@ import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { StepWorkSessionsModal } from './StepWorkSessionsModal'
 import { getDatabase } from '../../services/database'
+import { appEvents, EVENTS } from '../../utils/events'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -128,6 +129,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           status: cleanStep.status,
           stepIndex: index,
           percentComplete: cleanStep.percentComplete || 0,
+          notes: cleanStep.notes || '',
         }
       })
 
@@ -142,6 +144,9 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         criticalPathDuration,
         worstCaseDuration,
       })
+
+      // Emit event to update sidebar
+      appEvents.emit(EVENTS.WORKFLOW_UPDATED)
 
       setIsEditing(false)
       if (onClose) onClose()
@@ -211,6 +216,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         type: step.type,
         asyncWaitTime: step.asyncWaitTime,
         dependsOn: convertedDependencies,
+        notes: step.notes || '',
       })
     } else {
       stepForm.resetFields()
@@ -234,6 +240,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           type: values.type,
           asyncWaitTime: values.asyncWaitTime || 0,
           dependsOn: values.dependsOn || [],
+          notes: values.notes || '',
         }
         setEditingSteps(newSteps)
       } else {
@@ -251,6 +258,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           status: 'pending',
           stepIndex: newStepIndex,
           percentComplete: 0,
+          notes: values.notes || '',
         }
         setEditingSteps([...editingSteps, newStep])
       }
@@ -474,6 +482,12 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                               </Tag>
                             )}
                           </Space>
+                          
+                          {step.notes && (
+                            <Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
+                              Note: {step.notes}
+                            </Text>
+                          )}
                         </Space>
                       </Col>
 
@@ -650,6 +664,19 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                 return null
               })}
             </Select>
+          </FormItem>
+
+          <FormItem
+            label="Notes"
+            field="notes"
+            help="Add any notes or context for this step (e.g., 'Started build process', 'Waiting for review')"
+          >
+            <Input.TextArea
+              placeholder="Add notes about this step..."
+              rows={3}
+              showWordLimit
+              maxLength={500}
+            />
           </FormItem>
         </Form>
       </Modal>

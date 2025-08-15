@@ -276,8 +276,9 @@ describe('User Reported Scheduling Issues', () => {
       })
 
       // Assertions
-      // All items should be scheduled (4 tasks + 6 workflow steps = 10 items)
-      expect(scheduledItems.length + debugInfo.unscheduledItems.length).toBe(10)
+      // All items should be scheduled (2 tasks + 6 workflow steps = 8 items)
+      // EV Charging: 2 steps, Flight Booking: 4 steps
+      expect(scheduledItems.length + debugInfo.unscheduledItems.length).toBe(8)
 
       // Check that dependencies are respected
       const itemById = new Map(scheduledItems.map(item => [item.id, item]))

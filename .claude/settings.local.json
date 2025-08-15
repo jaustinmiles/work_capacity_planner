@@ -41,7 +41,9 @@
       "Bash(/tmp/fix-common-ts-errors.sh:*)",
       "Bash(/tmp/cleanup-duplicates.sh:*)",
       "Bash(/tmp/selective-revert.sh:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm audit:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

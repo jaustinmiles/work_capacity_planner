@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   Modal,
   Form,
-  TimePicker,
   InputNumber,
   Button,
   Space,
@@ -20,6 +19,7 @@ import { IconPlus, IconDelete, IconEdit, IconSettings } from '@arco-design/web-r
 import { WorkSettings, BlockedTime, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
+import { ClockTimePicker } from '../common/ClockTimePicker'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -141,8 +141,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
               field="startTime"
               rules={[{ required: true, message: 'Please select start time' }]}
             >
-              <TimePicker
-                format="HH:mm"
+              <ClockTimePicker
                 style={{ width: '100%' }}
               />
             </FormItem>
@@ -153,8 +152,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
               field="endTime"
               rules={[{ required: true, message: 'Please select end time' }]}
             >
-              <TimePicker
-                format="HH:mm"
+              <ClockTimePicker
                 style={{ width: '100%' }}
               />
             </FormItem>
@@ -167,8 +165,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
               label="Lunch Start"
               field="lunchStart"
             >
-              <TimePicker
-                format="HH:mm"
+              <ClockTimePicker
                 style={{ width: '100%' }}
               />
             </FormItem>
@@ -323,14 +320,13 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
           <Row gutter={16}>
             <Col span={12}>
               <FormItem label="Start Time" required>
-                <TimePicker
-                  format="HH:mm"
+                <ClockTimePicker
                   value={editingBlockedTime?.startTime}
                   onChange={(value) => {
                     if (editingBlockedTime && value) {
                       setEditingBlockedTime({
                         ...editingBlockedTime,
-                        startTime: typeof value === 'string' ? value : (value as any).format('HH:mm'),
+                        startTime: value,
                       })
                     }
                   }}
@@ -340,14 +336,13 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
             </Col>
             <Col span={12}>
               <FormItem label="End Time" required>
-                <TimePicker
-                  format="HH:mm"
+                <ClockTimePicker
                   value={editingBlockedTime?.endTime}
                   onChange={(value) => {
                     if (editingBlockedTime && value) {
                       setEditingBlockedTime({
                         ...editingBlockedTime,
-                        endTime: typeof value === 'string' ? value : (value as any).format('HH:mm'),
+                        endTime: value,
                       })
                     }
                   }}

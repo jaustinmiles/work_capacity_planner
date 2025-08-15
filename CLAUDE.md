@@ -190,6 +190,15 @@ npm run check  # Runs both typecheck and lint
    - All tests pass (`npm test -- --run`)
    - The app builds successfully
    - You've manually tested the feature works
+   
+   **🚨 TEST FAILURE POLICY:**
+   - NEVER move on from failing tests without understanding why they fail
+   - The ONLY acceptable reason for test failures is if a feature is actively in development
+   - If tests fail, you MUST either:
+     1. Fix the failing tests
+     2. Understand exactly why they're failing and document it
+     3. Mark tests as `.skip` with a comment explaining why (only for in-development features)
+   - Complex bugs often arise from ignoring "unrelated" test failures
 
 4. **Common Issues to Watch For**
    - Import errors: Always check existing imports before adding new libraries
@@ -445,9 +454,8 @@ try {
 6. **Don't disable TypeScript strict checks** - Fix the root cause, not the symptom
 7. **Don't create TaskStep without required fields** - Always include `taskId` and `percentComplete`
 8. **Don't mix property names** - Use `focusMinutes/adminMinutes` not `focused/admin`
-9. **Don't use hardcoded strings** - Use enums or constants for repeated string values (e.g., 'blocked-time', 'Sleep', 'pending', task types, status values)
-- **Progress visualization** with completion rates and statistics
-- **Responsive grid layouts** for matrix views and dashboards
+9. **Don't use hardcoded strings** - Use enums or constants for repeated string values
+10. **IPC Serialization** - Enums become strings when passed through IPC. Handle both enum values AND string literals in switch statements
 
 ## Testing Strategy
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -9,18 +9,20 @@ import { TaskForm } from './components/tasks/TaskForm'
 import { SequencedTaskForm } from './components/tasks/SequencedTaskForm'
 import { SequencedTaskView } from './components/tasks/SequencedTaskView'
 import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
-import { TestWorkflowCreator } from './components/tasks/TestWorkflowCreator'
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
 import { GanttChart } from './components/timeline/GanttChart'
 import { BrainstormModal } from './components/ai/BrainstormModal'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
+import { VoiceAmendmentModal } from './components/voice'
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { SessionManager } from './components/session/SessionManager'
 import { DevTools } from './components/dev/DevTools'
 import { useTaskStore } from './store/useTaskStore'
 import { exampleSequencedTask } from '@shared/sequencing-types'
+import type { TaskStep } from '@shared/types'
 import { getDatabase } from './services/database'
+import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
@@ -46,6 +48,7 @@ function App() {
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
+  const [voiceAmendmentVisible, setVoiceAmendmentVisible] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
   const {
     tasks,
@@ -110,30 +113,56 @@ function App() {
           ? `${workflow.description}${workflow.notes ? '\n\n' + workflow.notes : ''}`
           : workflow.notes || ''
 
-        // First create step IDs and a name-to-ID mapping
-        const stepNameToId = new Map<string, string>()
-        const stepsWithIds = workflow.steps.map((step: any, index: number) => {
-          const stepId = `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${index}`
-          stepNameToId.set(step.name, stepId)
-          return {
-            ...step,
-            id: stepId,
-            status: 'pending' as const,
-            stepIndex: index,
-          }
-        })
+        // Check if a workflow with this name already exists
+        const existingWorkflow = sequencedTasks.find(wf => wf.name === workflow.name)
         
-        // Now convert dependency names to IDs
-        const stepsWithFixedDeps = stepsWithIds.map(step => ({
-          ...step,
-          dependsOn: (step.dependsOn || []).map((depName: string) => {
-            // If it's already an ID format, keep it
-            if (depName.startsWith('step-')) {
-              return depName
+        // Create step IDs - preserve existing ones if updating
+        let stepsWithIds: any[]
+        if (existingWorkflow && existingWorkflow.steps) {
+          // Build map of existing step names to IDs
+          const existingStepMap = new Map<string, string>()
+          existingWorkflow.steps.forEach((step: any) => {
+            existingStepMap.set(step.name, step.id)
+          })
+          
+          // Assign IDs to steps, preserving existing ones
+          stepsWithIds = workflow.steps.map((step: any, index: number) => {
+            const existingId = existingStepMap.get(step.name)
+            return {
+              ...step,
+              id: existingId || generateRandomStepId(),
+              status: 'pending' as const,
+              stepIndex: index,
             }
-            // Otherwise convert name to ID
-            return stepNameToId.get(depName) || depName
-          }),
+          })
+        } else {
+          // New workflow - generate fresh IDs
+          stepsWithIds = workflow.steps.map((step: any, index: number) => {
+            return {
+              ...step,
+              id: generateRandomStepId(),
+              status: 'pending' as const,
+              stepIndex: index,
+            }
+          })
+        }
+        
+        // Map dependencies from names to IDs first (preserves all fields)
+        const stepsWithFixedDeps = mapDependenciesToIds(stepsWithIds)
+        
+        // Ensure all required TaskStep fields are present
+        const completeSteps: TaskStep[] = stepsWithFixedDeps.map((step: any) => ({
+          id: step.id,
+          taskId: '', // Will be set by database
+          name: step.name,
+          duration: step.duration || 60,
+          type: (step.type || 'focused') as 'focused' | 'admin',
+          dependsOn: step.dependsOn || [],
+          asyncWaitTime: step.asyncWaitTime || 0,
+          status: step.status || ('pending' as const),
+          stepIndex: step.stepIndex ?? 0,
+          percentComplete: step.percentComplete ?? 0,
+          notes: step.notes || undefined,
         }))
 
         const sequencedTask = {
@@ -151,7 +180,7 @@ function App() {
           criticalPathDuration: workflow.totalDuration || 0, // Will be calculated properly
           worstCaseDuration: (workflow.totalDuration || 0) * 1.5, // Estimate
           overallStatus: 'not_started' as const,
-          steps: stepsWithFixedDeps,
+          steps: completeSteps,
         }
         await addSequencedTask(sequencedTask)
       }
@@ -541,7 +570,6 @@ function App() {
                             </Button>
                           </Popconfirm>
                         )}
-                        {process.env.NODE_ENV === 'development' && <TestWorkflowCreator />}
                       </div>
 
                       {sequencedTasks
@@ -620,6 +648,23 @@ function App() {
           onWorkflowsExtracted={handleWorkflowsExtracted}
         />
 
+        <VoiceAmendmentModal
+          visible={voiceAmendmentVisible}
+          onClose={() => setVoiceAmendmentVisible(false)}
+          onAmendmentsApplied={async (amendments) => {
+            console.log('Amendments to apply:', amendments)
+            try {
+              const { applyAmendments } = await import('./utils/amendment-applicator')
+              await applyAmendments(amendments)
+              // Refresh data to show changes
+              await initializeData()
+            } catch (error) {
+              console.error('Failed to apply amendments:', error)
+              Message.error('Failed to apply amendments')
+            }
+          }}
+        />
+
         <TaskCreationFlow
           visible={taskCreationFlowVisible}
           onClose={handleTaskCreationComplete}
@@ -646,6 +691,24 @@ function App() {
         <DevTools
           visible={showDevTools}
           onClose={() => setShowDevTools(false)}
+        />
+
+        {/* Floating Action Button for Voice Amendments */}
+        <Button
+          type="primary"
+          shape="circle"
+          size="large"
+          icon={<IconSoundFill />}
+          onClick={() => setVoiceAmendmentVisible(true)}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            width: 56,
+            height: 56,
+            boxShadow: '0 4px 12px rgba(22, 93, 255, 0.3)',
+            zIndex: 1000,
+          }}
         />
       </Layout>
     </ConfigProvider>

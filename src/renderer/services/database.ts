@@ -21,6 +21,7 @@ declare global {
         updateSequencedTask: (id: string, updates: Partial<SequencedTask>) => Promise<SequencedTask>
         deleteTask: (id: string) => Promise<void>
         deleteSequencedTask: (id: string) => Promise<void>
+        addStepToWorkflow: (workflowId: string, stepData: any) => Promise<SequencedTask>
         initializeDefaultData: () => Promise<void>
         getTaskById: (id: string) => Promise<Task | null>
         getSequencedTaskById: (id: string) => Promise<SequencedTask | null>
@@ -150,6 +151,7 @@ declare global {
           }>
           summary: string
         }>
+        parseAmendment: (transcription: string, context: any) => Promise<any>
       }
       speech: {
         transcribeAudio: (audioFilePath: string, options?: any) => Promise<{
@@ -268,6 +270,18 @@ export class RendererDatabaseService {
 
   async deleteSequencedTask(id: string): Promise<void> {
     return await window.electronAPI.db.deleteSequencedTask(id)
+  }
+
+  async addStepToWorkflow(workflowId: string, stepData: {
+    name: string
+    duration: number
+    type: 'focused' | 'admin'
+    afterStep?: string
+    beforeStep?: string
+    dependencies?: string[]
+    asyncWaitTime?: number
+  }): Promise<SequencedTask> {
+    return await window.electronAPI.db.addStepToWorkflow(workflowId, stepData)
   }
 
   // Utility methods

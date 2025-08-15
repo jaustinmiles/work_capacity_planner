@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, DatePicker, Alert } from '@arco-design/web-react'
-import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle } from '@arco-design/web-react/icon'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, DatePicker, Alert, Dropdown, Menu } from '@arco-design/web-react'
+import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
@@ -19,6 +19,15 @@ interface GanttChartProps {
   sequencedTasks: SequencedTask[]
 }
 
+// Zoom presets
+const ZOOM_PRESETS = [
+  { label: 'Week View', value: 30, description: 'See entire week' },
+  { label: 'Day View', value: 60, description: 'See full days' },
+  { label: 'Half Day', value: 120, description: 'Standard view' },
+  { label: 'Detailed', value: 180, description: 'See task details' },
+  { label: 'Hourly', value: 240, description: 'Hour by hour' },
+]
+
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
@@ -28,6 +37,157 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
   const [showDebugInfo, setShowDebugInfo] = useState(false)
+  const [isPinching, setIsPinching] = useState(false)
+
+  // Zoom controls
+  const handleZoomIn = useCallback(() => {
+    setPixelsPerHour(prev => Math.min(prev + 30, 300))
+  }, [])
+
+  const handleZoomOut = useCallback(() => {
+    setPixelsPerHour(prev => Math.max(prev - 30, 15))
+  }, [])
+
+  const handleZoomReset = useCallback(() => {
+    setPixelsPerHour(120)
+  }, [])
+
+  // Keyboard shortcuts for zoom
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if Gantt chart is in view (you might want to add a more specific check)
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault()
+          handleZoomIn()
+        } else if (e.key === '-') {
+          e.preventDefault()
+          handleZoomOut()
+        } else if (e.key === '0') {
+          e.preventDefault()
+          handleZoomReset()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleZoomIn, handleZoomOut, handleZoomReset])
+
+  // Mouse wheel zoom and pinch-to-zoom support
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const initialPinchDistance = useRef<number>(0)
+  const initialZoom = useRef<number>(120)
+  
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      // On Mac, pinch-to-zoom triggers wheel event with ctrlKey=true
+      // Regular Ctrl+scroll also has ctrlKey=true
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        
+        // For pinch gestures, deltaY represents the zoom factor
+        // For mouse wheel, it's the scroll amount
+        // Pinch gestures typically have smaller deltaY values
+        const isPinch = Math.abs(e.deltaY) < 10
+        const delta = isPinch 
+          ? -e.deltaY * 3  // Amplify pinch gesture
+          : (e.deltaY > 0 ? -15 : 15)  // Regular scroll
+        
+        setPixelsPerHour(prev => Math.max(15, Math.min(300, prev + delta)))
+      }
+    }
+    
+    // Safari-specific gesture events for better pinch support
+    const handleGestureStart = (e: any) => {
+      e.preventDefault()
+      initialPinchDistance.current = e.scale
+      initialZoom.current = pixelsPerHour
+      setIsPinching(true)
+    }
+    
+    const handleGestureChange = (e: any) => {
+      e.preventDefault()
+      const scale = e.scale / initialPinchDistance.current
+      const newZoom = Math.round(initialZoom.current * scale)
+      setPixelsPerHour(Math.max(15, Math.min(300, newZoom)))
+    }
+    
+    const handleGestureEnd = (e: any) => {
+      e.preventDefault()
+      setIsPinching(false)
+    }
+    
+    // Touch events for pinch-to-zoom on devices without gesture events
+    let touches: Touch[] = []
+    let lastDistance = 0
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        touches = Array.from(e.touches)
+        const dx = touches[0].clientX - touches[1].clientX
+        const dy = touches[0].clientY - touches[1].clientY
+        lastDistance = Math.sqrt(dx * dx + dy * dy)
+        setIsPinching(true)
+      }
+    }
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && touches.length === 2) {
+        e.preventDefault()
+        const newTouches = Array.from(e.touches)
+        const dx = newTouches[0].clientX - newTouches[1].clientX
+        const dy = newTouches[0].clientY - newTouches[1].clientY
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        
+        if (lastDistance > 0) {
+          const scale = distance / lastDistance
+          const delta = (scale - 1) * 100
+          setPixelsPerHour(prev => Math.max(15, Math.min(300, prev + delta)))
+        }
+        
+        lastDistance = distance
+      }
+    }
+    
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        touches = []
+        lastDistance = 0
+        setIsPinching(false)
+      }
+    }
+    
+    const container = chartContainerRef.current
+    if (container) {
+      // Add wheel event for pinch-to-zoom via trackpad
+      container.addEventListener('wheel', handleWheel, { passive: false })
+      
+      // Add Safari gesture events
+      container.addEventListener('gesturestart', handleGestureStart, { passive: false })
+      container.addEventListener('gesturechange', handleGestureChange, { passive: false })
+      container.addEventListener('gestureend', handleGestureEnd, { passive: false })
+      
+      // Add touch events for other devices
+      container.addEventListener('touchstart', handleTouchStart, { passive: false })
+      container.addEventListener('touchmove', handleTouchMove, { passive: false })
+      container.addEventListener('touchend', handleTouchEnd, { passive: false })
+      
+      return () => {
+        container.removeEventListener('wheel', handleWheel)
+        container.removeEventListener('gesturestart', handleGestureStart)
+        container.removeEventListener('gesturechange', handleGestureChange)
+        container.removeEventListener('gestureend', handleGestureEnd)
+        container.removeEventListener('touchstart', handleTouchStart)
+        container.removeEventListener('touchmove', handleTouchMove)
+        container.removeEventListener('touchend', handleTouchEnd)
+      }
+    }
+  }, [pixelsPerHour, setIsPinching])
 
   // Load work patterns for the next 30 days
   useEffect(() => {
@@ -345,26 +505,78 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           </Col>
           <Col span={7}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">View Controls</Text>
+              <Text type="secondary">Zoom Controls</Text>
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                {/* Zoom buttons and slider */}
+                <Space style={{ width: '100%' }}>
+                  <Button.Group>
+                    <Button
+                      icon={<IconZoomOut />}
+                      onClick={handleZoomOut}
+                      disabled={pixelsPerHour <= 15}
+                    />
+                    <Button
+                      onClick={handleZoomReset}
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      icon={<IconZoomIn />}
+                      onClick={handleZoomIn}
+                      disabled={pixelsPerHour >= 300}
+                    />
+                  </Button.Group>
+                  <Dropdown
+                    droplist={
+                      <Menu onClickMenuItem={(key) => setPixelsPerHour(Number(key))}>
+                        {ZOOM_PRESETS.map(preset => (
+                          <Menu.Item 
+                            key={String(preset.value)}
+                            style={{
+                              backgroundColor: pixelsPerHour === preset.value ? '#e6f7ff' : undefined
+                            }}
+                          >
+                            <Space>
+                              <span style={{ fontWeight: pixelsPerHour === preset.value ? 600 : 400 }}>
+                                {preset.label}
+                              </span>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {preset.description}
+                              </Text>
+                            </Space>
+                          </Menu.Item>
+                        ))}
+                      </Menu>
+                    }
+                    trigger="click"
+                  >
+                    <Button icon={<IconExpand />}>
+                      Presets
+                    </Button>
+                  </Dropdown>
+                </Space>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <IconZoomOut />
                   <Slider
-                    min={30}
-                    max={240}
-                    step={10}
+                    min={15}
+                    max={300}
+                    step={15}
                     value={pixelsPerHour}
                     onChange={(value) => setPixelsPerHour(value as number)}
                     style={{ flex: 1 }}
-                    formatTooltip={(value) => {
-                      if (value < 60) return 'Compact'
-                      if (value < 120) return 'Normal'
-                      if (value < 180) return 'Detailed'
-                      return 'Extra Detailed'
+                    marks={{
+                      15: '15',
+                      30: '1w',
+                      60: '1d',
+                      120: '½d',
+                      180: 'Detail',
+                      240: '1h',
+                      300: 'Max'
                     }}
                   />
-                  <IconZoomIn />
                 </div>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  Tip: Use Ctrl/Cmd + (+/-/0) for zoom
+                </Text>
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <DatePicker
                     value={selectedDate ? dayjs(selectedDate) : undefined}
@@ -416,7 +628,85 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
       {/* Gantt Chart */}
       <Card title="Scheduled Tasks (Priority Order)">
-        <div style={{ overflowX: 'auto', overflowY: 'hidden', position: 'relative' }}>
+        {/* Pinch indicator */}
+        {isPinching && (
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '12px 24px',
+            borderRadius: 8,
+            zIndex: 1000,
+            fontSize: 18,
+            fontWeight: 600,
+            pointerEvents: 'none',
+          }}>
+            {Math.round((pixelsPerHour / 120) * 100)}%
+          </div>
+        )}
+        {/* Floating zoom controls */}
+        <div style={{ 
+          position: 'sticky',
+          top: 10,
+          right: 10,
+          float: 'right',
+          zIndex: 100,
+          backgroundColor: 'white',
+          padding: 8,
+          borderRadius: 8,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          marginBottom: -40
+        }}>
+          <Space>
+            <Button.Group>
+              <Tooltip content="Zoom Out (Ctrl/Cmd + -)">
+                <Button
+                  size="small"
+                  icon={<IconZoomOut />}
+                  onClick={handleZoomOut}
+                  disabled={pixelsPerHour <= 15}
+                />
+              </Tooltip>
+              <Tooltip content="Reset Zoom (Ctrl/Cmd + 0)">
+                <Button size="small" onClick={handleZoomReset}>
+                  {Math.round((pixelsPerHour / 120) * 100)}%
+                </Button>
+              </Tooltip>
+              <Tooltip content="Zoom In (Ctrl/Cmd + +)">
+                <Button
+                  size="small"
+                  icon={<IconZoomIn />}
+                  onClick={handleZoomIn}
+                  disabled={pixelsPerHour >= 300}
+                />
+              </Tooltip>
+            </Button.Group>
+            <Dropdown
+              droplist={
+                <Menu onClickMenuItem={(key) => setPixelsPerHour(Number(key))}>
+                  {ZOOM_PRESETS.map(preset => (
+                    <Menu.Item key={String(preset.value)}>
+                      <Space>
+                        <span>{preset.label}</span>
+                        {pixelsPerHour === preset.value && <span>✓</span>}
+                      </Space>
+                    </Menu.Item>
+                  ))}
+                </Menu>
+              }
+              trigger="click"
+            >
+              <Button size="small" icon={<IconExpand />} />
+            </Dropdown>
+          </Space>
+        </div>
+        <div 
+          ref={chartContainerRef}
+          style={{ overflowX: 'auto', overflowY: 'hidden', position: 'relative' }}
+        >
           <div style={{
             position: 'relative',
             minHeight: itemRowPositions.totalRows * rowHeight + 100,

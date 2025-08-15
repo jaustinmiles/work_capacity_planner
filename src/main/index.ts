@@ -130,6 +130,9 @@ ipcMain.handle('db:updateTask', async (_event: IpcMainInvokeEvent, id: string, u
 ipcMain.handle('db:updateSequencedTask', async (_event: IpcMainInvokeEvent, id: string, updates: any) => {
   return await db.updateSequencedTask(id, updates)
 })
+ipcMain.handle('db:addStepToWorkflow', async (_event: IpcMainInvokeEvent, workflowId: string, stepData: any) => {
+  return await db.addStepToWorkflow(workflowId, stepData)
+})
 
 ipcMain.handle('db:deleteTask', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteTask(id)
@@ -324,6 +327,24 @@ ipcMain.handle('ai:getJobContextualQuestions', async (_event: IpcMainInvokeEvent
 ipcMain.handle('ai:extractScheduleFromVoice', async (_event: IpcMainInvokeEvent, voiceText: string, targetDate: string) => {
   const aiService = getAIService()
   return await aiService.extractScheduleFromVoice(voiceText, targetDate)
+})
+
+ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcription: string, context: any) => {
+  const { AmendmentParser } = await import('../shared/amendment-parser')
+  
+  // Fetch job contexts to provide domain knowledge to the AI
+  try {
+    const jobContexts = await db.getJobContexts()
+    if (jobContexts && jobContexts.length > 0) {
+      context.jobContexts = jobContexts
+      console.log('[IPC] Including job contexts in amendment parsing:', jobContexts.length, 'contexts')
+    }
+  } catch (error) {
+    console.error('[IPC] Failed to fetch job contexts:', error)
+  }
+  
+  const parser = new AmendmentParser({ useAI: true })
+  return await parser.parseTranscription(transcription, context)
 })
 
 // Speech operation handlers
