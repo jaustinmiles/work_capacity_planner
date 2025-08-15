@@ -45,12 +45,12 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
   steps: T[],
 ): Array<T & { dependsOn: string[] }> {
   const nameToId = new Map<string, string>()
-  
+
   // Build name to ID mapping
   steps.forEach(step => {
     nameToId.set(step.name, step.id)
   })
-  
+
   // Map dependencies
   return steps.map(step => ({
     ...step,
@@ -65,17 +65,17 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
         // If not, try to find by name
         console.warn(`Dependency ID "${dep}" not found, attempting to resolve by name`)
       }
-      
+
       // Try to resolve by name
       const id = nameToId.get(dep)
       if (id) {
         return id
       }
-      
+
       console.warn(`Could not resolve dependency "${dep}" to an ID`)
       // Return the original value as fallback
       return dep
-    })
+    }),
   }))
 }
 
@@ -85,31 +85,31 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
  */
 export function preserveStepIds(
   existingSteps: Array<{ id: string; name: string }>,
-  newSteps: Array<{ name: string; [key: string]: any }>
+  newSteps: Array<{ name: string; [key: string]: any }>,
 ): Array<{ id: string; name: string; [key: string]: any }> {
   const existingIdMap = new Map<string, string>()
-  
+
   // Build map of existing step names to IDs
   existingSteps.forEach(step => {
     existingIdMap.set(step.name, step.id)
   })
-  
+
   // Assign IDs to new steps
   return newSteps.map((step, index) => {
     // Try to find existing ID by name match
     const existingId = existingIdMap.get(step.name)
-    
+
     if (existingId) {
       // Preserve existing ID
       return {
         ...step,
-        id: existingId
+        id: existingId,
       }
     } else {
       // Generate new ID for truly new step
       return {
         ...step,
-        id: generateRandomStepId()
+        id: generateRandomStepId(),
       }
     }
   })
@@ -119,11 +119,11 @@ export function preserveStepIds(
  * Validate that all dependencies reference valid step IDs
  */
 export function validateDependencies(
-  steps: Array<{ id: string; name: string; dependsOn: string[] }>
+  steps: Array<{ id: string; name: string; dependsOn: string[] }>,
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = []
   const validIds = new Set(steps.map(s => s.id))
-  
+
   steps.forEach(step => {
     step.dependsOn.forEach(depId => {
       if (!validIds.has(depId)) {
@@ -131,10 +131,10 @@ export function validateDependencies(
       }
     })
   })
-  
+
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   }
 }
 
@@ -142,10 +142,10 @@ export function validateDependencies(
  * Fix broken dependencies by removing invalid references
  */
 export function fixBrokenDependencies(
-  steps: Array<{ id: string; name: string; dependsOn: string[] }>
+  steps: Array<{ id: string; name: string; dependsOn: string[] }>,
 ): Array<{ id: string; name: string; dependsOn: string[] }> {
   const validIds = new Set(steps.map(s => s.id))
-  
+
   return steps.map(step => ({
     ...step,
     dependsOn: step.dependsOn.filter(depId => {
@@ -154,6 +154,6 @@ export function fixBrokenDependencies(
         console.warn(`Removing invalid dependency "${depId}" from step "${step.name}"`)
       }
       return isValid
-    })
+    }),
   }))
 }

@@ -21,9 +21,9 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockCreate.mockClear()
-    
+
     aiParser = new AmendmentParser({ useAI: true })
-    
+
     context = {
       recentTasks: [
         { id: 'task-1', name: 'API Implementation' },
@@ -49,23 +49,23 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                 type: 'workflow',
                 id: 'wf-1',
                 name: 'Safety Documentation Sprint',
-                confidence: 0.95
+                confidence: 0.95,
               },
               stepName: 'Adjust timestamps',
               duration: 60,
               stepType: 'focused', // CORRECT: stepType not type
-              afterStep: 'Previous Step'
+              afterStep: 'Previous Step',
             }],
             confidence: 0.9,
             warnings: [],
-            needsClarification: []
-          })
-        }]
+            needsClarification: [],
+          }),
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'Add a step to adjust timestamps after the previous step',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -96,13 +96,13 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
             "confidence": 0.9,
             "warnings": [],
             "needsClarification": []
-          }`
-        }]
+          }`,
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'Add a code review step',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -121,11 +121,11 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                   type: 'workflow',
                   id: 'wf-1',
                   name: 'Safety Documentation Sprint',
-                  confidence: 0.95
+                  confidence: 0.95,
                 },
                 stepName: 'Adjust timestamps for remaining chunks',
                 duration: 60,
-                stepType: 'focused'
+                stepType: 'focused',
               },
               {
                 type: 'step_addition',
@@ -133,12 +133,12 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                   type: 'workflow',
                   id: 'wf-1',
                   name: 'Safety Documentation Sprint',
-                  confidence: 0.95
+                  confidence: 0.95,
                 },
                 stepName: 'Submit full workflow',
                 duration: 30,
                 stepType: 'admin',
-                afterStep: 'Adjust timestamps for remaining chunks'
+                afterStep: 'Adjust timestamps for remaining chunks',
               },
               {
                 type: 'step_addition',
@@ -146,29 +146,29 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                   type: 'workflow',
                   id: 'wf-1',
                   name: 'Safety Documentation Sprint',
-                  confidence: 0.95
+                  confidence: 0.95,
                 },
                 stepName: 'Wait for workflow processing',
                 duration: 1440,
                 stepType: 'admin',
-                afterStep: 'Submit full workflow'
-              }
+                afterStep: 'Submit full workflow',
+              },
             ],
             confidence: 0.9,
             warnings: [],
-            needsClarification: []
-          })
-        }]
+            needsClarification: [],
+          }),
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'After adjusting timestamps, I need to submit the workflow which takes 24 hours',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(3)
       expect(result.amendments.every(a => a.type === AmendmentType.StepAddition)).toBe(true)
-      
+
       const stepNames = result.amendments.map((a: any) => a.stepName)
       expect(stepNames).toContain('Adjust timestamps for remaining chunks')
       expect(stepNames).toContain('Submit full workflow')
@@ -188,18 +188,18 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                 type: 'task',
                 id: 'task-1',
                 name: 'API Implementation',
-                confidence: 0.9
+                confidence: 0.9,
               },
-              newStatus: 'completed'
+              newStatus: 'completed',
             }],
-            confidence: 0.9
-          }) + '\n```'
-        }]
+            confidence: 0.9,
+          }) + '\n```',
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'Mark API Implementation as complete',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -217,18 +217,18 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                 type: 'task',
                 id: 'task-1',
                 name: 'API Implementation',
-                confidence: 0.9
+                confidence: 0.9,
               },
-              duration: 120
+              duration: 120,
             }],
-            confidence: 0.9
-          }) + '\n```\nThis represents 2 hours of work.'
-        }]
+            confidence: 0.9,
+          }) + '\n```\nThis represents 2 hours of work.',
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'I spent 2 hours on API Implementation',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -247,35 +247,35 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
               {
                 type: 'status_update',
                 target: { type: 'task', id: 'task-1', name: 'Task', confidence: 0.9 },
-                newStatus: 'completed'
+                newStatus: 'completed',
               },
               {
                 type: 'time_log',
                 target: { type: 'task', id: 'task-1', name: 'Task', confidence: 0.9 },
-                duration: 60
+                duration: 60,
               },
               {
                 type: 'note_addition',
                 target: { type: 'task', id: 'task-1', name: 'Task', confidence: 0.9 },
                 note: 'Test note',
-                append: true
+                append: true,
               },
               {
                 type: 'duration_change',
                 target: { type: 'task', id: 'task-1', name: 'Task', confidence: 0.9 },
-                newDuration: 180
+                newDuration: 180,
               },
               {
                 type: 'step_addition',
                 workflowTarget: { type: 'workflow', id: 'wf-1', name: 'Workflow', confidence: 0.9 },
                 stepName: 'New Step',
                 duration: 30,
-                stepType: 'focused'
-              }
+                stepType: 'focused',
+              },
             ],
-            confidence: 0.9
-          })
-        }]
+            confidence: 0.9,
+          }),
+        }],
       })
 
       const result = await aiParser.parseTranscription('Multiple amendments', context)
@@ -298,18 +298,18 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                 type: 'workflow',
                 id: 'wf-1',
                 name: 'Deployment Workflow',
-                confidence: 0.9
+                confidence: 0.9,
               },
-              newStatus: 'in_progress'
+              newStatus: 'in_progress',
             }],
-            confidence: 0.9
-          })
-        }]
+            confidence: 0.9,
+          }),
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'Start the deployment workflow',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -319,7 +319,7 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
 
     it('should use correct enum values for task status', async () => {
       const statuses = ['not_started', 'in_progress', 'waiting', 'completed']
-      
+
       for (const status of statuses) {
         mockCreate.mockResolvedValue({
           content: [{
@@ -331,18 +331,18 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                   type: 'task',
                   id: 'task-1',
                   name: 'Test Task',
-                  confidence: 0.9
+                  confidence: 0.9,
                 },
-                newStatus: status
+                newStatus: status,
               }],
-              confidence: 0.9
-            })
-          }]
+              confidence: 0.9,
+            }),
+          }],
         })
 
         const result = await aiParser.parseTranscription(
           `Set status to ${status}`,
-          context
+          context,
         )
 
         const amendment = result.amendments[0] as any
@@ -356,13 +356,13 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
       mockCreate.mockResolvedValue({
         content: [{
           type: 'text',
-          text: '```json\n{invalid json}\n```'
-        }]
+          text: '```json\n{invalid json}\n```',
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'This should fail to parse',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(0)
@@ -375,13 +375,13 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
       mockCreate.mockResolvedValue({
         content: [{
           type: 'text',
-          text: ''
-        }]
+          text: '',
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'Empty response test',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(0)
@@ -394,7 +394,7 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
 
       const result = await aiParser.parseTranscription(
         'This should trigger an error',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(0)
@@ -419,11 +419,11 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                   type: 'workflow',
                   id: 'wf-1',
                   name: 'Safety Documentation Sprint',
-                  confidence: 0.95
+                  confidence: 0.95,
                 },
                 stepName: 'Adjust timestamps for remaining chunks',
                 duration: 60,
-                stepType: 'focused'
+                stepType: 'focused',
               },
               {
                 type: 'step_addition',
@@ -431,12 +431,12 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                   type: 'workflow',
                   id: 'wf-1',
                   name: 'Safety Documentation Sprint',
-                  confidence: 0.95
+                  confidence: 0.95,
                 },
                 stepName: 'Submit full workflow',
                 duration: 30,
                 stepType: 'admin',
-                afterStep: 'Adjust timestamps for remaining chunks'
+                afterStep: 'Adjust timestamps for remaining chunks',
               },
               {
                 type: 'step_addition',
@@ -444,12 +444,12 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                   type: 'workflow',
                   id: 'wf-1',
                   name: 'Safety Documentation Sprint',
-                  confidence: 0.95
+                  confidence: 0.95,
                 },
                 stepName: 'Wait for workflow processing (24 hours)',
                 duration: 1440,
                 stepType: 'admin',
-                afterStep: 'Submit full workflow'
+                afterStep: 'Submit full workflow',
               },
               {
                 type: 'step_addition',
@@ -457,29 +457,29 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
                   type: 'workflow',
                   id: 'wf-1',
                   name: 'Safety Documentation Sprint',
-                  confidence: 0.95
+                  confidence: 0.95,
                 },
                 stepName: 'Close full workflow',
                 duration: 15,
                 stepType: 'admin',
-                afterStep: 'Wait for workflow processing (24 hours)'
-              }
+                afterStep: 'Wait for workflow processing (24 hours)',
+              },
             ],
             confidence: 0.9,
             warnings: [],
-            needsClarification: []
-          }) + '\n```'
-        }]
+            needsClarification: [],
+          }) + '\n```',
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'Okay, so on the safety workflow, after I adjust all of the timestamps for the remaining chunks, I need to submit a full workflow, which will take 24 hours before I can close that full workflow.',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(4)
       expect(result.amendments.every(a => a.type === AmendmentType.StepAddition)).toBe(true)
-      
+
       // Verify the steps are in the correct order with dependencies
       const steps = result.amendments as any[]
       expect(steps[0].stepName).toBe('Adjust timestamps for remaining chunks')
@@ -487,7 +487,7 @@ describe('AmendmentParser - Edge Cases and Regressions', () => {
       expect(steps[1].afterStep).toBe('Adjust timestamps for remaining chunks')
       expect(steps[2].stepName).toContain('24 hours')
       expect(steps[3].stepName).toBe('Close full workflow')
-      
+
       // Verify all have stepType, not type overwriting the amendment type
       steps.forEach(step => {
         expect(step.type).toBe(AmendmentType.StepAddition)

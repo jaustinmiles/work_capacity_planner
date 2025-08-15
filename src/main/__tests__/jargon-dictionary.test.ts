@@ -32,11 +32,11 @@ describe('Jargon Dictionary', () => {
         { id: '2', term: 'PR', definition: 'Pull Request' },
         { id: '3', term: 'K8s', definition: '' },
       ]
-      
+
       mockPrismaClient.jargonEntry.findMany.mockResolvedValue(mockEntries)
-      
+
       const result = await db.getJargonDictionary()
-      
+
       expect(result).toEqual({
         'CI/CD': 'Continuous Integration/Continuous Deployment',
         'PR': 'Pull Request',
@@ -46,49 +46,49 @@ describe('Jargon Dictionary', () => {
 
     it('should handle empty jargon entries', async () => {
       mockPrismaClient.jargonEntry.findMany.mockResolvedValue([])
-      
+
       const result = await db.getJargonDictionary()
-      
+
       expect(result).toEqual({})
     })
   })
 
   describe('updateJargonDefinition', () => {
     it('should update existing jargon entry', async () => {
-      const existingEntry = { 
-        id: 'entry-1', 
-        term: 'API', 
+      const existingEntry = {
+        id: 'entry-1',
+        term: 'API',
         definition: 'Old definition',
-        sessionId: 'test-session'
+        sessionId: 'test-session',
       }
-      
+
       mockPrismaClient.jargonEntry.findFirst.mockResolvedValue(existingEntry)
       mockPrismaClient.jargonEntry.update.mockResolvedValue({
         ...existingEntry,
-        definition: 'Application Programming Interface'
+        definition: 'Application Programming Interface',
       })
-      
+
       await db.updateJargonDefinition('API', 'Application Programming Interface')
-      
+
       expect(mockPrismaClient.jargonEntry.update).toHaveBeenCalledWith({
         where: { id: 'entry-1' },
         data: expect.objectContaining({
           definition: 'Application Programming Interface',
-        })
+        }),
       })
     })
 
     it('should create new entry if term does not exist', async () => {
       mockPrismaClient.jargonEntry.findFirst.mockResolvedValue(null)
-      
+
       await db.updateJargonDefinition('REST', 'Representational State Transfer')
-      
+
       expect(mockPrismaClient.jargonEntry.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           term: 'REST',
           definition: 'Representational State Transfer',
           category: 'custom',
-        })
+        }),
       })
     })
   })

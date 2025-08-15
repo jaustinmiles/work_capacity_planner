@@ -100,14 +100,14 @@ export function WorkSessionsModal({
   const handleSaveEdit = async () => {
     try {
       const values = await form.validate()
-      
+
       await getDatabase().updateWorkSession(editingSession!.id, {
         plannedMinutes: values.plannedMinutes,
         actualMinutes: values.actualMinutes,
         notes: values.notes,
         startTime: values.startTime?.toDate(),
       })
-      
+
       Message.success('Work session updated')
       setEditingSession(null)
       form.resetFields()

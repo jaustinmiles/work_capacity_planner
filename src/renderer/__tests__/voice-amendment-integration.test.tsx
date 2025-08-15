@@ -36,14 +36,14 @@ vi.mock('../store/useTaskStore', () => ({
       { id: 'task-2', name: 'Database Migration' },
     ],
     sequencedTasks: [
-      { 
-        id: 'wf-1', 
+      {
+        id: 'wf-1',
         name: 'Feature Deployment',
         steps: [
           { id: 'step-1', name: 'Implementation', duration: 120 },
           { id: 'step-2', name: 'Testing', duration: 60 },
           { id: 'step-3', name: 'Deployment', duration: 30 },
-        ]
+        ],
       },
     ],
   }),
@@ -95,13 +95,13 @@ describe.skip('Voice Amendment Integration', () => {
       })
 
       const onAmendmentsApplied = vi.fn()
-      
+
       render(
         <VoiceAmendmentModal
           visible={true}
           onClose={() => {}}
           onAmendmentsApplied={onAmendmentsApplied}
-        />
+        />,
       )
 
       // Switch to text input
@@ -122,7 +122,7 @@ describe.skip('Voice Amendment Integration', () => {
           expect.objectContaining({
             recentTasks: expect.any(Array),
             recentWorkflows: expect.any(Array),
-          })
+          }),
         )
       })
 
@@ -141,7 +141,7 @@ describe.skip('Voice Amendment Integration', () => {
           expect.objectContaining({
             type: 'status_update',
             newStatus: 'in_progress',
-          })
+          }),
         ])
       })
     })
@@ -168,13 +168,13 @@ describe.skip('Voice Amendment Integration', () => {
       })
 
       const onAmendmentsApplied = vi.fn()
-      
+
       render(
         <VoiceAmendmentModal
           visible={true}
           onClose={() => {}}
           onAmendmentsApplied={onAmendmentsApplied}
-        />
+        />,
       )
 
       // Switch to text input
@@ -183,8 +183,8 @@ describe.skip('Voice Amendment Integration', () => {
 
       // Enter text
       const textArea = screen.getByPlaceholderText(/Type your amendment here/)
-      fireEvent.change(textArea, { 
-        target: { value: 'add a code review step after implementation' } 
+      fireEvent.change(textArea, {
+        target: { value: 'add a code review step after implementation' },
       })
 
       // Process the amendment
@@ -209,7 +209,7 @@ describe.skip('Voice Amendment Integration', () => {
           expect.objectContaining({
             type: 'step_addition',
             stepName: 'Code Review',
-          })
+          }),
         ])
       })
     })
@@ -247,13 +247,13 @@ describe.skip('Voice Amendment Integration', () => {
       })
 
       const onAmendmentsApplied = vi.fn()
-      
+
       render(
         <VoiceAmendmentModal
           visible={true}
           onClose={() => {}}
           onAmendmentsApplied={onAmendmentsApplied}
-        />
+        />,
       )
 
       // Switch to text input
@@ -262,8 +262,8 @@ describe.skip('Voice Amendment Integration', () => {
 
       // Enter text
       const textArea = screen.getByPlaceholderText(/Type your amendment here/)
-      fireEvent.change(textArea, { 
-        target: { value: 'finished testing step, took an hour and a half' } 
+      fireEvent.change(textArea, {
+        target: { value: 'finished testing step, took an hour and a half' },
       })
 
       // Process the amendment
@@ -295,7 +295,7 @@ describe.skip('Voice Amendment Integration', () => {
               type: 'time_log',
               duration: 90,
             }),
-          ])
+          ]),
         )
       })
     })
@@ -332,13 +332,13 @@ describe.skip('Voice Amendment Integration', () => {
       })
 
       const onAmendmentsApplied = vi.fn()
-      
+
       render(
         <VoiceAmendmentModal
           visible={true}
           onClose={() => {}}
           onAmendmentsApplied={onAmendmentsApplied}
-        />
+        />,
       )
 
       // Process text input
@@ -346,8 +346,8 @@ describe.skip('Voice Amendment Integration', () => {
       fireEvent.click(textInputButton)
 
       const textArea = screen.getByPlaceholderText(/Type your amendment here/)
-      fireEvent.change(textArea, { 
-        target: { value: 'finished api and database needs work' } 
+      fireEvent.change(textArea, {
+        target: { value: 'finished api and database needs work' },
       })
 
       const processButton = screen.getByText('Process Amendment')
@@ -377,15 +377,15 @@ describe.skip('Voice Amendment Integration', () => {
           expect.objectContaining({
             type: 'status_update',
             newStatus: 'completed',
-          })
+          }),
         ])
         // Should NOT include the note addition
         expect(onAmendmentsApplied).not.toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({
               type: 'note_addition',
-            })
-          ])
+            }),
+          ]),
         )
       })
     })
@@ -403,7 +403,7 @@ describe.skip('Voice Amendment Integration', () => {
         <VoiceAmendmentModal
           visible={true}
           onClose={() => {}}
-        />
+        />,
       )
 
       // Process unclear input
@@ -411,8 +411,8 @@ describe.skip('Voice Amendment Integration', () => {
       fireEvent.click(textInputButton)
 
       const textArea = screen.getByPlaceholderText(/Type your amendment here/)
-      fireEvent.change(textArea, { 
-        target: { value: 'do the thing with the stuff' } 
+      fireEvent.change(textArea, {
+        target: { value: 'do the thing with the stuff' },
       })
 
       const processButton = screen.getByText('Process Amendment')
@@ -439,7 +439,7 @@ describe.skip('Voice Amendment Integration', () => {
         <VoiceAmendmentModal
           visible={true}
           onClose={() => {}}
-        />
+        />,
       )
 
       // Try to process input
@@ -447,8 +447,8 @@ describe.skip('Voice Amendment Integration', () => {
       fireEvent.click(textInputButton)
 
       const textArea = screen.getByPlaceholderText(/Type your amendment here/)
-      fireEvent.change(textArea, { 
-        target: { value: 'complete the api implementation' } 
+      fireEvent.change(textArea, {
+        target: { value: 'complete the api implementation' },
       })
 
       const processButton = screen.getByText('Process Amendment')
@@ -489,7 +489,7 @@ describe.skip('Voice Amendment Integration', () => {
           visible={true}
           onClose={() => {}}
           activeTaskId="task-1"
-        />
+        />,
       )
 
       // Process with active context
@@ -497,8 +497,8 @@ describe.skip('Voice Amendment Integration', () => {
       fireEvent.click(textInputButton)
 
       const textArea = screen.getByPlaceholderText(/Type your amendment here/)
-      fireEvent.change(textArea, { 
-        target: { value: 'mark this as complete' } 
+      fireEvent.change(textArea, {
+        target: { value: 'mark this as complete' },
       })
 
       const processButton = screen.getByText('Process Amendment')
@@ -509,7 +509,7 @@ describe.skip('Voice Amendment Integration', () => {
           'mark this as complete',
           expect.objectContaining({
             activeTaskId: 'task-1',
-          })
+          }),
         )
       })
 
@@ -542,7 +542,7 @@ describe.skip('Voice Amendment Integration', () => {
           visible={true}
           onClose={() => {}}
           activeWorkflowId="wf-1"
-        />
+        />,
       )
 
       // Process with active context
@@ -550,8 +550,8 @@ describe.skip('Voice Amendment Integration', () => {
       fireEvent.click(textInputButton)
 
       const textArea = screen.getByPlaceholderText(/Type your amendment here/)
-      fireEvent.change(textArea, { 
-        target: { value: 'start this' } 
+      fireEvent.change(textArea, {
+        target: { value: 'start this' },
       })
 
       const processButton = screen.getByText('Process Amendment')
@@ -562,7 +562,7 @@ describe.skip('Voice Amendment Integration', () => {
           'start this',
           expect.objectContaining({
             activeWorkflowId: 'wf-1',
-          })
+          }),
         )
       })
     })

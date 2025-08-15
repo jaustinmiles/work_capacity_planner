@@ -112,7 +112,7 @@ describe('Flexible Scheduler', () => {
       // Check that both tasks were scheduled
       expect(scheduled).toBeDefined()
       expect(scheduled.length).toBe(2)
-      
+
       // Task due in 2 hours should be scheduled before task due in 5 hours
       expect(scheduled[0].id).toBe('task-2h')
       expect(scheduled[1].id).toBe('task-5h')
@@ -149,11 +149,11 @@ describe('Flexible Scheduler', () => {
       // Simply verify that at least one task gets scheduled
       // (Scheduling might be limited by time constraints)
       expect(scheduled.length).toBeGreaterThanOrEqual(1) // At least 1 task should be scheduled
-      
+
       // Verify the types of scheduled tasks
       const focusTasks = scheduled.filter(item => item.id.includes('focus'))
       const adminTasks = scheduled.filter(item => item.id.includes('admin'))
-      
+
       // At least one task of either type should be scheduled
       expect(focusTasks.length + adminTasks.length).toBeGreaterThanOrEqual(1)
     })

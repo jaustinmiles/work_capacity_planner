@@ -45,7 +45,7 @@ export function WorkScheduleModal({
       setPattern(patternData)
       setAccumulated({
         focusMinutes: (accumulatedData as any).focusMinutes || (accumulatedData as any).focused || 0,
-        adminMinutes: (accumulatedData as any).adminMinutes || (accumulatedData as any).admin || 0
+        adminMinutes: (accumulatedData as any).adminMinutes || (accumulatedData as any).admin || 0,
       })
     } catch (error) {
       console.error('Failed to load work pattern:', error)
@@ -120,7 +120,7 @@ export function WorkScheduleModal({
             <MultiDayScheduleEditor visible={true} onClose={onClose} />
           </div>
         </Tabs.TabPane>
-        
+
         <Tabs.TabPane
           key="single-day"
           title={

@@ -44,7 +44,7 @@ describe('AmendmentParser', () => {
     it('should parse "mark X as complete" format', async () => {
       const result = await parser.parseTranscription(
         'Mark API Implementation as complete',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -60,7 +60,7 @@ describe('AmendmentParser', () => {
     it('should parse "I finished X" format', async () => {
       const result = await parser.parseTranscription(
         'I just finished the code review',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -75,7 +75,7 @@ describe('AmendmentParser', () => {
     it('should parse "X is done" format', async () => {
       const result = await parser.parseTranscription(
         'Database migration is done',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -90,7 +90,7 @@ describe('AmendmentParser', () => {
     it('should parse in-progress status', async () => {
       const result = await parser.parseTranscription(
         'Started working on bug fixes',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -104,7 +104,7 @@ describe('AmendmentParser', () => {
     it('should parse waiting status', async () => {
       const result = await parser.parseTranscription(
         'Paused the deployment workflow',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -119,7 +119,7 @@ describe('AmendmentParser', () => {
     it('should handle "this" to refer to active context', async () => {
       const result = await parser.parseTranscription(
         'Mark this as complete',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -136,7 +136,7 @@ describe('AmendmentParser', () => {
     it('should parse "spent X on Y" format', async () => {
       const result = await parser.parseTranscription(
         'I spent 2 hours on the API implementation',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -151,7 +151,7 @@ describe('AmendmentParser', () => {
     it('should parse "worked on X for Y" format', async () => {
       const result = await parser.parseTranscription(
         'Worked on bug fixes for 30 minutes',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -166,7 +166,7 @@ describe('AmendmentParser', () => {
     it.skip('should parse "X took Y" format - NLP pattern matching not used with Claude', async () => {
       const result = await parser.parseTranscription(
         'The code review took 1.5 hours',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -180,7 +180,7 @@ describe('AmendmentParser', () => {
     it.skip('should parse time ranges - NLP pattern matching not used with Claude', async () => {
       const result = await parser.parseTranscription(
         'Worked on database migration from 2pm to 4pm',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -210,7 +210,7 @@ describe('AmendmentParser', () => {
     it('should parse "add note to X" format', async () => {
       const result = await parser.parseTranscription(
         'Add note to deployment workflow: waiting for approval from security team',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -226,7 +226,7 @@ describe('AmendmentParser', () => {
     it('should parse simple "X: note" format', async () => {
       const result = await parser.parseTranscription(
         'API Implementation: need to add error handling',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -240,7 +240,7 @@ describe('AmendmentParser', () => {
     it('should use active context when no entity specified', async () => {
       const result = await parser.parseTranscription(
         'Note: check performance metrics',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -257,7 +257,7 @@ describe('AmendmentParser', () => {
     it.skip('should parse "change duration of X to Y" format - NLP pattern matching not used with Claude', async () => {
       const result = await parser.parseTranscription(
         'Change duration of code review to 3 hours',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -272,7 +272,7 @@ describe('AmendmentParser', () => {
     it.skip('should parse "X will take Y not Z" format - NLP pattern matching not used with Claude', async () => {
       const result = await parser.parseTranscription(
         'Database migration will take 4 hours not 2 hours',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -287,7 +287,7 @@ describe('AmendmentParser', () => {
     it.skip('should parse "X needs Y instead of Z" format - NLP pattern matching not used with Claude', async () => {
       const result = await parser.parseTranscription(
         'Bug fixes needs 90 minutes instead of 30 minutes',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -304,7 +304,7 @@ describe('AmendmentParser', () => {
     it.skip('should match partial task names - NLP pattern matching not used with Claude', async () => {
       const result = await parser.parseTranscription(
         'Finished the API work',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -318,7 +318,7 @@ describe('AmendmentParser', () => {
     it.skip('should match with typos - NLP pattern matching not used with Claude', async () => {
       const result = await parser.parseTranscription(
         'Completed databse migration', // typo: databse
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -330,10 +330,10 @@ describe('AmendmentParser', () => {
 
     it.skip('should provide alternatives for ambiguous matches - NLP pattern matching not used with Claude', async () => {
       context.recentTasks.push({ id: 'task-5', name: 'API Documentation' })
-      
+
       const result = await parser.parseTranscription(
         'Working on API',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -349,11 +349,11 @@ describe('AmendmentParser', () => {
     it('should parse multiple amendments from one transcription', async () => {
       const result = await parser.parseTranscription(
         'Finished the API implementation spent 3 hours on it',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(2)
-      
+
       const statusUpdate = result.amendments.find(a => a.type === 'status_update')
       expect(statusUpdate).toBeDefined()
       if (statusUpdate?.type === 'status_update') {
@@ -372,7 +372,7 @@ describe('AmendmentParser', () => {
     it('should handle unrecognized text', async () => {
       const result = await parser.parseTranscription(
         'The weather is nice today',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(0)
@@ -383,7 +383,7 @@ describe('AmendmentParser', () => {
     it('should handle partial understanding', async () => {
       const result = await parser.parseTranscription(
         'Update something about the thing',
-        context
+        context,
       )
 
       expect(result.amendments.length).toBeLessThanOrEqual(1)
@@ -394,7 +394,7 @@ describe('AmendmentParser', () => {
 
     it('should handle empty input', async () => {
       const result = await parser.parseTranscription('', context)
-      
+
       expect(result.amendments).toHaveLength(0)
       expect(result.confidence).toBe(0)
     })
@@ -404,10 +404,10 @@ describe('AmendmentParser', () => {
     it('should use workflow context for workflow-related amendments', async () => {
       context.activeWorkflowId = 'wf-1'
       context.activeTaskId = undefined
-      
+
       const result = await parser.parseTranscription(
         'This is complete',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -421,7 +421,7 @@ describe('AmendmentParser', () => {
     it('should identify workflow steps', async () => {
       const result = await parser.parseTranscription(
         'Finished the data mining step',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -440,7 +440,7 @@ describe('AmendmentParser', () => {
       // Reset mocks
       vi.clearAllMocks()
       mockCreate.mockClear()
-      
+
       // Create parser with AI enabled
       aiParser = new AmendmentParser({ useAI: true })
     })
@@ -457,35 +457,35 @@ describe('AmendmentParser', () => {
                 type: 'task',
                 id: 'task-1',
                 name: 'API Implementation',
-                confidence: 0.95
+                confidence: 0.95,
               },
-              newStatus: 'completed'
+              newStatus: 'completed',
             }, {
               type: 'time_log',
               target: {
                 type: 'task',
                 id: 'task-1',
                 name: 'API Implementation',
-                confidence: 0.95
+                confidence: 0.95,
               },
-              duration: 180
+              duration: 180,
             }],
             confidence: 0.9,
             warnings: [],
-            needsClarification: []
-          })
-        }]
+            needsClarification: [],
+          }),
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'So I wrapped up that API thing we were working on, took me about 3 hours give or take',
-        context
+        context,
       )
 
       expect(mockCreate).toHaveBeenCalled()
       expect(result.amendments).toHaveLength(2)
       expect(result.confidence).toBe(0.9)
-      
+
       const statusUpdate = result.amendments.find(a => a.type === 'status_update')
       expect(statusUpdate).toBeDefined()
       if (statusUpdate?.type === 'status_update') {
@@ -505,7 +505,7 @@ describe('AmendmentParser', () => {
 
       const result = await aiParser.parseTranscription(
         'Mark API Implementation as complete',
-        context
+        context,
       )
 
       expect(mockCreate).toHaveBeenCalled()
@@ -524,14 +524,14 @@ describe('AmendmentParser', () => {
           text: JSON.stringify({
             amendments: [],
             confidence: 0.3,
-            needsClarification: ['Unable to understand the request clearly']
-          })
-        }]
+            needsClarification: ['Unable to understand the request clearly'],
+          }),
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         'I finished the code review',
-        context
+        context,
       )
 
       expect(mockCreate).toHaveBeenCalled()
@@ -553,37 +553,37 @@ describe('AmendmentParser', () => {
                 type: 'workflow',
                 id: 'wf-2',
                 name: 'Feature Development',
-                confidence: 0.85
+                confidence: 0.85,
               },
-              newStatus: 'waiting'
+              newStatus: 'waiting',
             }, {
               type: 'note_addition',
               target: {
                 type: 'workflow',
                 id: 'wf-2',
                 name: 'Feature Development',
-                confidence: 0.85
+                confidence: 0.85,
               },
               note: 'Waiting for design review from the UX team',
-              append: true
+              append: true,
             }],
             confidence: 0.88,
-            warnings: []
-          })
-        }]
+            warnings: [],
+          }),
+        }],
       })
 
       const result = await aiParser.parseTranscription(
         "Let's pause the feature development for now, we're waiting on the UX team to review the designs",
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(2)
       expect(result.confidence).toBe(0.88)
-      
+
       const pause = result.amendments.find(a => a.type === 'status_update')
       const note = result.amendments.find(a => a.type === 'note_addition')
-      
+
       expect(pause).toBeDefined()
       expect(note).toBeDefined()
       if (note?.type === 'note_addition') {

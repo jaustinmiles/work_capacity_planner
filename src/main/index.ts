@@ -16,7 +16,7 @@ async function createWindow(): Promise<void> {
   if (mainWindow) {
     return
   }
-  
+
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -58,7 +58,7 @@ app.whenReady().then(() => {
   // Initialize database service once when app is ready
   db = DatabaseService.getInstance()
   console.log('Main process initialized successfully')
-  
+
   createWindow()
 
   app.on('activate', () => {
@@ -331,7 +331,7 @@ ipcMain.handle('ai:extractScheduleFromVoice', async (_event: IpcMainInvokeEvent,
 
 ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcription: string, context: any) => {
   const { AmendmentParser } = await import('../shared/amendment-parser')
-  
+
   // Fetch job contexts to provide domain knowledge to the AI
   try {
     const jobContexts = await db.getJobContexts()
@@ -342,7 +342,7 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
   } catch (error) {
     console.error('[IPC] Failed to fetch job contexts:', error)
   }
-  
+
   const parser = new AmendmentParser({ useAI: true })
   return await parser.parseTranscription(transcription, context)
 })

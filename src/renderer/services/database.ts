@@ -448,7 +448,7 @@ export class RendererDatabaseService {
   async updateWorkSession(id: string, data: any) {
     return await window.electronAPI.db.updateWorkSession(id, data)
   }
-  
+
   async deleteWorkSession(id: string) {
     return await window.electronAPI.db.deleteWorkSession(id)
   }
@@ -456,7 +456,7 @@ export class RendererDatabaseService {
   async getWorkSessions(date: string) {
     return await window.electronAPI.db.getWorkSessions(date)
   }
-  
+
   async getWorkSessionsForTask(taskId: string) {
     return await window.electronAPI.db.getWorkSessionsForTask(taskId)
   }

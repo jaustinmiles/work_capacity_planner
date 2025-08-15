@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { applyAmendments } from '../amendment-applicator'
-import { 
-  Amendment, 
-  StatusUpdate, 
-  TimeLog, 
-  NoteAddition, 
+import {
+  Amendment,
+  StatusUpdate,
+  TimeLog,
+  NoteAddition,
   DurationChange,
-  StepAddition 
+  StepAddition,
 } from '../../../shared/amendment-types'
 import { Message } from '../../components/common/Message'
 
@@ -405,7 +405,7 @@ describe('Amendment Applicator', () => {
         dependencies: undefined,
         asyncWaitTime: 0,
       })
-      
+
       expect(Message.success).toHaveBeenCalledWith('Applied 1 amendment')
     })
 
@@ -424,7 +424,7 @@ describe('Amendment Applicator', () => {
       await applyAmendments([amendment])
 
       expect(Message.warning).toHaveBeenCalledWith(
-        'Cannot add step to Unknown Workflow - workflow not found'
+        'Cannot add step to Unknown Workflow - workflow not found',
       )
     })
   })

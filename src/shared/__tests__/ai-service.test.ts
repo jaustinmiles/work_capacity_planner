@@ -15,7 +15,7 @@ describe('AIService', () => {
         create: vi.fn(),
       },
     }
-    
+
     vi.mocked(Anthropic).mockImplementation(() => mockAnthropicClient as any)
     aiService = new AIService('test-api-key')
   })
@@ -23,7 +23,7 @@ describe('AIService', () => {
   describe('extractJargonTerms', () => {
     it('should extract jargon terms from context text', async () => {
       const contextText = 'We need to deploy the service using CI/CD pipeline and ensure the SLO metrics are met.'
-      
+
       mockAnthropicClient.messages.create.mockResolvedValue({
         content: [{
           type: 'text',
@@ -32,7 +32,7 @@ describe('AIService', () => {
       })
 
       const result = await aiService.extractJargonTerms(contextText)
-      
+
       expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith({
         model: 'claude-opus-4-1-20250805',
         max_tokens: 1000,
@@ -42,15 +42,15 @@ describe('AIService', () => {
           content: expect.stringContaining('identify technical terms'),
         }],
       })
-      
+
       expect(result).toBe('["CI/CD", "SLO", "pipeline", "deploy", "metrics"]')
     })
 
     it('should return empty array on error', async () => {
       mockAnthropicClient.messages.create.mockRejectedValue(new Error('API error'))
-      
+
       const result = await aiService.extractJargonTerms('some context')
-      
+
       expect(result).toBe('[]')
     })
 
@@ -61,15 +61,15 @@ describe('AIService', () => {
           source: { type: 'base64', media_type: 'image/png', data: '' },
         }],
       })
-      
+
       const result = await aiService.extractJargonTerms('some context')
-      
+
       expect(result).toBe('[]')
     })
 
     it('should limit to 15 terms in the prompt', async () => {
       const contextText = 'Technical context with many terms'
-      
+
       mockAnthropicClient.messages.create.mockResolvedValue({
         content: [{
           type: 'text',
@@ -78,7 +78,7 @@ describe('AIService', () => {
       })
 
       await aiService.extractJargonTerms(contextText)
-      
+
       const call = mockAnthropicClient.messages.create.mock.calls[0][0]
       expect(call.messages[0].content).toContain('Limit to the 15 most important')
     })
@@ -88,7 +88,7 @@ describe('AIService', () => {
     it('should extract workflows from brainstorm text', async () => {
       const brainstormText = 'I need to complete the main safety task and deploy it'
       const jobContext = 'Working on safety systems'
-      
+
       const expectedResponse = {
         workflows: [{
           name: 'Complete Main Safety Task',
@@ -97,7 +97,7 @@ describe('AIService', () => {
         }],
         standaloneTasks: [],
       }
-      
+
       mockAnthropicClient.messages.create.mockResolvedValue({
         content: [{
           type: 'text',
@@ -106,7 +106,7 @@ describe('AIService', () => {
       })
 
       const result = await aiService.extractWorkflowsFromBrainstorm(brainstormText, jobContext)
-      
+
       expect(result).toEqual(expectedResponse)
     })
 
@@ -119,7 +119,7 @@ describe('AIService', () => {
       })
 
       const result = await aiService.extractWorkflowsFromBrainstorm('test', 'context')
-      
+
       expect(result).toEqual({ workflows: [], standaloneTasks: [] })
     })
   })

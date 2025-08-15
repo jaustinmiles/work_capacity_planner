@@ -73,7 +73,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       for (const step of editingSteps) {
         try {
           const sessions = await getDatabase().getStepWorkSessions(step.id)
-          const totalMinutes = sessions.reduce((sum: number, session: any) => 
+          const totalMinutes = sessions.reduce((sum: number, session: any) =>
             sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
           times[step.id] = totalMinutes
         } catch (error) {
@@ -83,7 +83,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       }
       setStepLoggedTimes(times)
     }
-    
+
     loadLoggedTimes()
   }, [editingSteps])
 
@@ -94,12 +94,12 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       // First try to find by ID
       const stepById = editingSteps.find(s => s.id === dep)
       if (stepById) return stepById.name
-      
+
       // If dep is a name, return it directly (for backward compatibility)
       if (!dep.startsWith('step-')) {
         return dep
       }
-      
+
       // Fallback for malformed IDs
       return dep
     }).join(', ')
@@ -198,7 +198,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
     if (index !== null) {
       const step = editingSteps[index]
       if (!step) return
-      
+
       // Convert dependency names to IDs if needed
       const convertedDependencies = step.dependsOn.map(dep => {
         // If it's already an ID, keep it
@@ -209,7 +209,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         const matchingStep = editingSteps.find(s => s.name === dep)
         return matchingStep ? matchingStep.id : dep
       })
-      
+
       stepForm.setFieldsValue({
         name: step.name,
         duration: step.duration,
@@ -464,8 +464,8 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                               </Tag>
                             )}
                             {stepLoggedTimes[step.id] > 0 && (
-                              <Tag 
-                                size="small" 
+                              <Tag
+                                size="small"
                                 color="green"
                                 style={{ cursor: 'pointer' }}
                                 onClick={() => {
@@ -482,7 +482,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                               </Tag>
                             )}
                           </Space>
-                          
+
                           {step.notes && (
                             <Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
                               Note: {step.notes}
@@ -680,7 +680,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           </FormItem>
         </Form>
       </Modal>
-      
+
       {/* Step Work Sessions Modal */}
       {selectedStepForSessions && (
         <StepWorkSessionsModal
@@ -696,11 +696,11 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
             // Reload logged times for this step
             try {
               const sessions = await getDatabase().getStepWorkSessions(selectedStepForSessions.id)
-              const totalMinutes = sessions.reduce((sum: number, session: any) => 
+              const totalMinutes = sessions.reduce((sum: number, session: any) =>
                 sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
               setStepLoggedTimes(prev => ({
                 ...prev,
-                [selectedStepForSessions.id]: totalMinutes
+                [selectedStepForSessions.id]: totalMinutes,
               }))
             } catch (error) {
               console.error('Failed to reload logged time:', error)

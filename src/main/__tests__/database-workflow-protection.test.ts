@@ -38,7 +38,7 @@ describe('Database - Workflow Protection Tests', () => {
   beforeEach(() => {
     db = DatabaseService.getInstance()
     mockPrisma = (db as any).client
-    
+
     // Setup default active session
     mockPrisma.session.findFirst.mockResolvedValue({
       id: 'test-session',

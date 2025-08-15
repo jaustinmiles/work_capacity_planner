@@ -109,7 +109,7 @@ export interface WorkflowCreation {
   urgency?: number
 }
 
-export type Amendment = 
+export type Amendment =
   | StatusUpdate
   | TimeLog
   | NoteAddition

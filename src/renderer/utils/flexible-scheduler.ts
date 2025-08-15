@@ -213,21 +213,21 @@ function canFitInBlock(
 ): { canFit: boolean; startTime: Date } {
   // Don't count async wait times as conflicts when checking for available slots
   const nonWaitScheduledItems = scheduledItems.filter(s => !s.isWaitTime)
-  
+
   // Check category compatibility
   const isPersonalTask = item.category === 'personal'
   const isPersonalBlock = block.blockType === 'personal'
-  
+
   // Personal tasks can only go in personal blocks
   if (isPersonalTask && !isPersonalBlock) {
     return { canFit: false, startTime: currentTime }
   }
-  
+
   // Work tasks (or tasks without category) cannot go in personal blocks
   if (!isPersonalTask && isPersonalBlock) {
     return { canFit: false, startTime: currentTime }
   }
-  
+
   // Check capacity based on task category
   if (isPersonalTask) {
     if (block.personalMinutesUsed + item.duration > block.personalMinutesTotal) {
@@ -291,12 +291,12 @@ export function scheduleItemsWithBlocksAndDebug(
   // Consistency check: Warn if workflows appear in both arrays
   const workflowIds = new Set(sequencedTasks.map(w => w.id))
   const duplicateWorkflows = tasks.filter(t => t.hasSteps && workflowIds.has(t.id))
-  
+
   if (duplicateWorkflows.length > 0) {
     console.warn(
       `⚠️ Scheduler Warning: ${duplicateWorkflows.length} workflows found in both tasks and sequencedTasks arrays. ` +
-      `This will cause duplicate scheduling! Workflows should only be in sequencedTasks. ` +
-      `Duplicates: ${duplicateWorkflows.map(w => w.name).join(', ')}`
+      'This will cause duplicate scheduling! Workflows should only be in sequencedTasks. ' +
+      `Duplicates: ${duplicateWorkflows.map(w => w.name).join(', ')}`,
     )
   }
   const scheduledItems: ScheduledItem[] = []
@@ -391,10 +391,10 @@ export function scheduleItemsWithBlocksAndDebug(
     const visited = new Set<string>()
     const visiting = new Set<string>()
     const itemMap = new Map<string, WorkItem>()
-    
+
     // Build item map for quick lookup
     items.forEach(item => itemMap.set(item.id, item))
-    
+
     function visit(item: WorkItem): void {
       if (visited.has(item.id)) return
       if (visiting.has(item.id)) {
@@ -402,9 +402,9 @@ export function scheduleItemsWithBlocksAndDebug(
         debugInfo.warnings.push(`Circular dependency detected involving ${item.name}`)
         return
       }
-      
+
       visiting.add(item.id)
-      
+
       // Visit dependencies first
       if (item.dependencies && item.dependencies.length > 0) {
         for (const depId of item.dependencies) {
@@ -414,26 +414,26 @@ export function scheduleItemsWithBlocksAndDebug(
           }
         }
       }
-      
+
       visiting.delete(item.id)
       visited.add(item.id)
       sorted.push(item)
     }
-    
+
     // Visit all items
     items.forEach(item => visit(item))
-    
+
     return sorted
   }
 
   // Apply topological sort to ensure dependencies are respected
   workItems = topologicalSort(workItems)
-  
+
   // Build dependency levels for smarter scheduling
   const dependencyLevels = new Map<string, number>()
   const itemById = new Map<string, WorkItem>()
   workItems.forEach(item => itemById.set(item.id, item))
-  
+
   const calculateLevel = (itemId: string, visiting = new Set<string>()): number => {
     if (dependencyLevels.has(itemId)) {
       return dependencyLevels.get(itemId)!
@@ -441,39 +441,39 @@ export function scheduleItemsWithBlocksAndDebug(
     if (visiting.has(itemId)) {
       return 0 // Circular dependency
     }
-    
+
     const item = itemById.get(itemId)
     if (!item) return 0
-    
+
     visiting.add(itemId)
     let level = 0
-    
+
     if (item.dependencies && item.dependencies.length > 0) {
       for (const depId of item.dependencies) {
         level = Math.max(level, calculateLevel(depId, visiting) + 1)
       }
     }
-    
+
     visiting.delete(itemId)
     dependencyLevels.set(itemId, level)
     return level
   }
-  
+
   // Calculate levels for all items
   workItems.forEach(item => calculateLevel(item.id))
-  
+
   // Sort by dependency level first, then by priority within each level
   workItems.sort((a, b) => {
     const aLevel = dependencyLevels.get(a.id) || 0
     const bLevel = dependencyLevels.get(b.id) || 0
-    
+
     // Different levels - items with no/fewer dependencies come first
     if (aLevel !== bLevel) {
       return aLevel - bLevel
     }
-    
+
     // Same dependency level - apply priority sorting
-    
+
     // Locked tasks first
     if (a.isLocked && b.isLocked) {
       const aTime = a.lockedStartTime ? new Date(a.lockedStartTime).getTime() : Infinity
@@ -482,20 +482,20 @@ export function scheduleItemsWithBlocksAndDebug(
     }
     if (a.isLocked) return -1
     if (b.isLocked) return 1
-    
+
     // Then deadlines
     const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
     const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
     const now = startDate.getTime()
     const oneDayMs = 24 * 60 * 60 * 1000
-    
+
     if (aDeadline - now < oneDayMs || bDeadline - now < oneDayMs) {
       if (aDeadline - now < oneDayMs && bDeadline - now < oneDayMs) {
         return aDeadline - bDeadline
       }
       return aDeadline - now < oneDayMs ? -1 : 1
     }
-    
+
     // Finally by priority score
     return b.priority - a.priority
   })
@@ -630,7 +630,7 @@ export function scheduleItemsWithBlocksAndDebug(
       const item = itemsToSchedule[i]
       if (!item) continue
       const originalIndex = workItems.findIndex(w => w.id === item.id)
-      
+
       // Initialize itemScheduled flag
       let itemScheduled = false
 
@@ -648,20 +648,20 @@ export function scheduleItemsWithBlocksAndDebug(
       if (item.isLocked && item.lockedStartTime) {
         const lockedTime = new Date(item.lockedStartTime)
         const lockedEndTime = new Date(lockedTime.getTime() + item.duration * 60000)
-        
+
         // Check if the locked time is on the current day
         const lockedDateStr = lockedTime.toISOString().split('T')[0]
         const currentDateStr = currentDate.toISOString().split('T')[0]
-        
+
         if (lockedDateStr === currentDateStr) {
           // Check for conflicts with already scheduled items
           const hasConflict = scheduledItems.some(scheduled => {
             return !(lockedEndTime <= scheduled.startTime || lockedTime >= scheduled.endTime)
           })
-          
+
           if (hasConflict) {
             debugInfo.warnings.push(
-              `Cannot schedule locked task "${item.name}" at ${lockedTime.toLocaleString()} - conflicts with existing scheduled items`
+              `Cannot schedule locked task "${item.name}" at ${lockedTime.toLocaleString()} - conflicts with existing scheduled items`,
             )
           } else {
             // Schedule the locked task at its exact time
@@ -680,12 +680,12 @@ export function scheduleItemsWithBlocksAndDebug(
               deadline: item.deadline,
               originalItem: item.originalItem,
             })
-            
+
             // Update current time if needed
             if (lockedEndTime > currentTime) {
               currentTime = new Date(lockedEndTime)
             }
-            
+
             // Mark as completed and remove from work items
             completedSteps.add(item.id)
             workItems.splice(originalIndex, 1)
@@ -695,12 +695,12 @@ export function scheduleItemsWithBlocksAndDebug(
         } else if (lockedDateStr < currentDateStr) {
           // Locked time is in the past - warn and skip
           debugInfo.warnings.push(
-            `Locked task "${item.name}" has a start time in the past (${lockedTime.toLocaleString()}) - skipping`
+            `Locked task "${item.name}" has a start time in the past (${lockedTime.toLocaleString()}) - skipping`,
           )
           workItems.splice(originalIndex, 1)
           itemScheduled = true
         }
-        
+
         // Skip the normal scheduling logic for locked tasks
         if (itemScheduled) continue
       }
@@ -853,7 +853,7 @@ export function scheduleItemsWithBlocksAndDebug(
       if (!itemScheduled && blockCapacities.length > 0) {
         // Determine why the item couldn't be scheduled
         let reason = 'Unknown reason'
-        
+
         // Check category compatibility first
         const isPersonalTask = item.category === 'personal'
         const hasCompatibleBlock = blockCapacities.some(block => {
@@ -863,17 +863,17 @@ export function scheduleItemsWithBlocksAndDebug(
             return block.blockType !== 'personal'
           }
         })
-        
+
         if (!hasCompatibleBlock) {
-          reason = isPersonalTask 
-            ? 'No personal blocks available for personal task' 
+          reason = isPersonalTask
+            ? 'No personal blocks available for personal task'
             : 'No work blocks available for work task'
         } else if (blockCapacities.every(block => {
           // Check both category compatibility and capacity
-          const categoryMismatch = (isPersonalTask && block.blockType !== 'personal') || 
+          const categoryMismatch = (isPersonalTask && block.blockType !== 'personal') ||
                                   (!isPersonalTask && block.blockType === 'personal')
           if (categoryMismatch) return true
-          
+
           if (item.taskType === 'focused') {
             return block.focusMinutesUsed + item.duration > block.focusMinutesTotal
           } else {

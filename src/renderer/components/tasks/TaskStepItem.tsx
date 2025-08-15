@@ -129,7 +129,7 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
             <Tooltip content={`${formatDuration(timeLogged)} of ${formatDuration(step.duration)} logged`}>
               <Tag
                 icon={<IconHistory />}
-                color={timeLogged >= step.duration ? "green" : "orange"}
+                color={timeLogged >= step.duration ? 'green' : 'orange'}
                 size="small"
               >
                 Logged: {formatDuration(timeLogged)}

@@ -51,7 +51,7 @@ export class SpeechService {
       const audioBuffer = fs.readFileSync(audioFilePath)
       const fileName = path.basename(audioFilePath)
       const audioFile = await toFile(audioBuffer, fileName, {
-        type: this.getMimeType(fileName)
+        type: this.getMimeType(fileName),
       })
 
       const transcription = await this.openai.audio.transcriptions.create({
@@ -67,7 +67,7 @@ export class SpeechService {
       }
     } catch (error) {
       console.error('Error transcribing audio:', error)
-      
+
       // Provide more specific error messages for common issues
       if (error instanceof Error) {
         // Check for format-related errors
@@ -76,12 +76,12 @@ export class SpeechService {
           const ext = path.extname(fileName).toLowerCase()
           throw new Error(`Audio format issue with ${ext} file: ${error.message}. Try converting to MP3 or WAV.`)
         }
-        
+
         // Check for file size issues
         if (error.message.includes('size') || error.message.includes('limit')) {
           throw new Error(`Audio file too large: ${error.message}`)
         }
-        
+
         throw new Error(`Failed to transcribe audio: ${error.message}`)
       }
       throw new Error('Failed to transcribe audio: Unknown error')

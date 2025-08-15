@@ -46,7 +46,7 @@ export function SequencedTaskView({
       try {
         const db = getDatabase()
         const timeLogs: Record<string, number> = {}
-        
+
         // Fetch work sessions for all steps
         for (const step of task.steps) {
           const sessions = await db.getStepWorkSessions(step.id)
@@ -56,7 +56,7 @@ export function SequencedTaskView({
           }, 0)
           timeLogs[step.id] = totalMinutes
         }
-        
+
         setStepTimeLogs(timeLogs)
       } catch (error) {
         console.error('Failed to fetch step time logs:', error)

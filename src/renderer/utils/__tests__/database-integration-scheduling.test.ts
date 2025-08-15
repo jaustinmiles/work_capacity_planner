@@ -16,26 +16,26 @@ describe('Database Integration Scheduling', () => {
     // Copy the backup database to a test location
     const testDbPath = 'prisma/test-integration.db'
     execSync(`cp prisma/backup-*-aligned-test-data.db ${testDbPath}`)
-    
+
     // Connect to the test database
     testDb = new PrismaClient({
       datasources: {
         db: {
-          url: `file:./test-integration.db`
-        }
-      }
+          url: 'file:./test-integration.db',
+        },
+      },
     })
 
     // Get the active session
     const session = await testDb.session.findFirst({
-      where: { isActive: true }
+      where: { isActive: true },
     })
     const sessionId = session?.id
 
     // Load all tasks
     const dbTasks = await testDb.task.findMany({
       where: { sessionId },
-      include: { TaskStep: true }
+      include: { TaskStep: true },
     })
 
     // Format tasks - split into simple tasks and workflows
@@ -68,7 +68,7 @@ describe('Database Integration Scheduling', () => {
         status: step.status,
         stepIndex: step.stepIndex,
         percentComplete: step.percentComplete,
-      }))
+      })),
     }))
 
     // Separate workflows for sequencedTasks
@@ -82,11 +82,11 @@ describe('Database Integration Scheduling', () => {
 
     // Load work patterns
     const patterns = await testDb.workPattern.findMany({
-      where: { 
+      where: {
         sessionId,
-        date: { in: ['2025-08-14', '2025-08-15'] }
+        date: { in: ['2025-08-14', '2025-08-15'] },
       },
-      include: { WorkBlock: true }
+      include: { WorkBlock: true },
     })
 
     workPatterns = patterns.map(p => ({
@@ -97,46 +97,46 @@ describe('Database Integration Scheduling', () => {
         startTime: b.startTime,
         endTime: b.endTime,
         type: b.type as 'focused' | 'admin' | 'mixed' | 'personal',
-        capacity: b.capacity ? JSON.parse(b.capacity) : undefined
+        capacity: b.capacity ? JSON.parse(b.capacity) : undefined,
       })),
       meetings: [],
-      accumulated: { focusMinutes: 0, adminMinutes: 0 }
+      accumulated: { focusMinutes: 0, adminMinutes: 0 },
     }))
   })
 
   it('should schedule real database data consistently with GanttChart', () => {
     // Filter out workflows from tasks (as GanttChart now does)
     const simpleTasksOnly = allTasks.filter(t => !t.hasSteps)
-    
+
     console.log('\n=== Database Integration Test ===')
     console.log(`Simple tasks: ${simpleTasksOnly.length}`)
     console.log('Simple task names:', simpleTasksOnly.map(t => t.name))
     console.log(`Workflows: ${sequencedTasks.length}`)
     console.log('Workflow names:', sequencedTasks.map(t => t.name))
     console.log(`Work patterns: ${workPatterns.length} days`)
-    
+
     // Schedule exactly as GanttChart does
     const startDate = new Date('2025-08-14T06:00:00')
     const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug(
       simpleTasksOnly,
       sequencedTasks,
       workPatterns,
-      startDate
+      startDate,
     )
 
     console.log(`\nScheduled: ${scheduledItems.length} items`)
     console.log(`Unscheduled: ${debugInfo.unscheduledItems.length} items`)
-    
+
     // Log the schedule
     console.log('\nSchedule:')
     scheduledItems.forEach(item => {
-      const start = item.startTime.toLocaleString('en-US', { 
+      const start = item.startTime.toLocaleString('en-US', {
         timeZone: 'America/Los_Angeles',
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
         day: 'numeric',
-        month: 'short'
+        month: 'short',
       })
       const duration = item.duration
       console.log(`  ${start} (${duration}m): ${item.name}`)
@@ -144,17 +144,17 @@ describe('Database Integration Scheduling', () => {
 
     // Assertions
     expect(scheduledItems.length).toBeGreaterThan(0)
-    
+
     // Should schedule all simple tasks
     const scheduledTaskIds = new Set(scheduledItems.map(i => i.id))
     simpleTasksOnly.forEach(task => {
       expect(scheduledTaskIds.has(task.id)).toBe(true)
     })
-    
+
     // Should schedule all workflow steps
     sequencedTasks.forEach(workflow => {
       workflow.steps.forEach(step => {
-        const isScheduled = scheduledTaskIds.has(step.id) || 
+        const isScheduled = scheduledTaskIds.has(step.id) ||
                            debugInfo.warnings.some(w => w.includes(step.name))
         expect(isScheduled).toBe(true)
       })
@@ -176,12 +176,12 @@ describe('Database Integration Scheduling', () => {
   it('should not have workflows in both tasks and sequencedTasks', () => {
     const workflowIds = new Set(sequencedTasks.map(w => w.id))
     const tasksWithSteps = allTasks.filter(t => t.hasSteps)
-    
+
     // All workflows should be in sequencedTasks
     tasksWithSteps.forEach(task => {
       expect(workflowIds.has(task.id)).toBe(true)
     })
-    
+
     // When filtered, simple tasks should have no workflows
     const simpleTasksOnly = allTasks.filter(t => !t.hasSteps)
     simpleTasksOnly.forEach(task => {

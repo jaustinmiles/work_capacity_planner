@@ -58,7 +58,7 @@ describe('Work Session Management', () => {
     vi.clearAllMocks()
     db = DatabaseService.getInstance()
     mockPrisma = (db as any).client
-    
+
     // Setup default active session
     mockPrisma.session.findFirst.mockResolvedValue({
       id: 'test-session',
@@ -127,12 +127,12 @@ describe('Work Session Management', () => {
         taskId: 'task-123',
         stepId: null,
       })
-      
+
       // Mock for recalculation
       mockPrisma.workSession.findMany.mockResolvedValue([
         { actualMinutes: 75, plannedMinutes: 60 },
       ])
-      
+
       mockPrisma.workSession.update.mockResolvedValue({
         id: 'ws-123',
         actualMinutes: 75,
@@ -256,7 +256,7 @@ describe('Work Session Management', () => {
   describe('getTodayAccumulated', () => {
     it('should calculate accumulated time by type', async () => {
       const testDate = '2024-01-15'
-      
+
       mockPrisma.workSession.findMany.mockResolvedValue([
         { type: 'focused', actualMinutes: 120, plannedMinutes: 100 },
         { type: 'admin', actualMinutes: null, plannedMinutes: 60 },
@@ -357,7 +357,7 @@ describe('Work Session Management', () => {
 
       mockPrisma.taskStep.findMany.mockResolvedValue(existingSteps)
       mockPrisma.task.update.mockResolvedValue({ id: 'task-123' })
-      mockPrisma.task.findUnique.mockResolvedValue({ 
+      mockPrisma.task.findUnique.mockResolvedValue({
         id: 'task-123',
         TaskStep: updatedSteps,
       })

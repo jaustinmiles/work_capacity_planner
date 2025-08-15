@@ -415,14 +415,14 @@ export function WorkBlocksEditor({
                           const endTime = dayjs(`2000-01-01 ${block.endTime}`)
                           const totalMinutes = endTime.diff(startTime, 'minute')
                           const halfMinutes = Math.floor(totalMinutes / 2)
-                          
-                          handleUpdateBlock(block.id, { 
+
+                          handleUpdateBlock(block.id, {
                             type: value,
                             capacity: {
                               focusMinutes: halfMinutes,
                               adminMinutes: halfMinutes,
-                              personalMinutes: 0
-                            }
+                              personalMinutes: 0,
+                            },
                           })
                         } else {
                           handleUpdateBlock(block.id, { type: value })

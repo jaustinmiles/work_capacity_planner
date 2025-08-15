@@ -115,7 +115,7 @@ function App() {
 
         // Check if a workflow with this name already exists
         const existingWorkflow = sequencedTasks.find(wf => wf.name === workflow.name)
-        
+
         // Create step IDs - preserve existing ones if updating
         let stepsWithIds: any[]
         if (existingWorkflow && existingWorkflow.steps) {
@@ -124,7 +124,7 @@ function App() {
           existingWorkflow.steps.forEach((step: any) => {
             existingStepMap.set(step.name, step.id)
           })
-          
+
           // Assign IDs to steps, preserving existing ones
           stepsWithIds = workflow.steps.map((step: any, index: number) => {
             const existingId = existingStepMap.get(step.name)
@@ -146,10 +146,10 @@ function App() {
             }
           })
         }
-        
+
         // Map dependencies from names to IDs first (preserves all fields)
         const stepsWithFixedDeps = mapDependenciesToIds(stepsWithIds)
-        
+
         // Ensure all required TaskStep fields are present
         const completeSteps: TaskStep[] = stepsWithFixedDeps.map((step: any) => ({
           id: step.id,

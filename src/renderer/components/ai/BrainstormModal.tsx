@@ -339,9 +339,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         filename,
         size: audioBlob.size,
         type: audioBlob.type,
-        sizeInMB: (audioBlob.size / (1024 * 1024)).toFixed(2) + 'MB'
+        sizeInMB: (audioBlob.size / (1024 * 1024)).toFixed(2) + 'MB',
       })
-      
+
       const arrayBuffer = await audioBlob.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
 
@@ -371,7 +371,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       // Validate file type
       const supportedFormats = ['mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm']
       const extension = file.name.split('.').pop()?.toLowerCase()
-      
+
       if (!extension || !supportedFormats.includes(extension)) {
         throw new Error(`Unsupported audio format: ${extension}. Supported formats: ${supportedFormats.join(', ')}`)
       }
@@ -407,7 +407,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       // Validate file type
       const supportedFormats = ['mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm']
       const extension = file.name.split('.').pop()?.toLowerCase()
-      
+
       if (!extension || !supportedFormats.includes(extension)) {
         throw new Error(`Unsupported audio format: ${extension}. Supported formats: ${supportedFormats.join(', ')}`)
       }
@@ -439,7 +439,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       // Extract potential jargon terms using AI
       await extractJargonTerms(fullContext)
-      
+
       Message.success(`Successfully processed context from ${file.name}`)
     } catch (error) {
       console.error('Error processing context audio:', error)
@@ -471,16 +471,16 @@ Only include terms that are likely industry-specific or technical jargon, not co
         if (Array.isArray(terms)) {
           // Filter out terms that already have definitions
           const existingTerms = Object.keys(jargonDictionary)
-          const newTerms = terms.filter(term => 
-            !existingTerms.some(existing => 
-              existing.toLowerCase() === term.toLowerCase()
-            )
+          const newTerms = terms.filter(term =>
+            !existingTerms.some(existing =>
+              existing.toLowerCase() === term.toLowerCase(),
+            ),
           )
 
           // Show suggested terms to user (they can define them)
           if (newTerms.length > 0) {
             Message.info(`Found ${newTerms.length} potential jargon terms: ${newTerms.slice(0, 5).join(', ')}${newTerms.length > 5 ? '...' : ''}`)
-            
+
             // Add empty entries for new terms so user can fill them in
             const updatedDictionary = { ...jargonDictionary }
             for (const term of newTerms.slice(0, 10)) { // Limit to 10 at a time
@@ -767,7 +767,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                 </div>
               </>
             )}
-            
+
             {/* Jargon Dictionary - Always visible when in workflow mode */}
             {processingMode === 'workflows' && (
               <>
@@ -794,10 +794,10 @@ Only include terms that are likely industry-specific or technical jargon, not co
                             const terms = JSON.parse(response)
                             if (Array.isArray(terms)) {
                               const existingTerms = Object.keys(jargonDictionary)
-                              const newTerms = terms.filter(term => 
-                                !existingTerms.some(existing => 
-                                  existing.toLowerCase() === term.toLowerCase()
-                                )
+                              const newTerms = terms.filter(term =>
+                                !existingTerms.some(existing =>
+                                  existing.toLowerCase() === term.toLowerCase(),
+                                ),
                               )
                               if (newTerms.length > 0) {
                                 Message.info(`Found ${newTerms.length} potential jargon terms`)

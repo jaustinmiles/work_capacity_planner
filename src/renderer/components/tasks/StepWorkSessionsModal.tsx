@@ -102,14 +102,14 @@ export function StepWorkSessionsModal({
   const handleSaveEdit = async () => {
     try {
       const values = await form.validate()
-      
+
       await getDatabase().updateWorkSession(editingSession!.id, {
         plannedMinutes: values.plannedMinutes,
         actualMinutes: values.actualMinutes,
         notes: values.notes,
         startTime: values.startTime?.toDate(),
       })
-      
+
       Message.success('Work session updated')
       setEditingSession(null)
       form.resetFields()
@@ -124,12 +124,12 @@ export function StepWorkSessionsModal({
   const handleAddSession = async () => {
     try {
       const values = await form.validate()
-      
+
       // Handle the date properly - it might already be a Date object or a dayjs object
-      const startTime = values.startTime 
+      const startTime = values.startTime
         ? (typeof values.startTime.toDate === 'function' ? values.startTime.toDate() : new Date(values.startTime))
         : new Date()
-      
+
       await getDatabase().createStepWorkSession({
         taskStepId: stepId,
         taskId: taskId,
@@ -137,7 +137,7 @@ export function StepWorkSessionsModal({
         duration: values.plannedMinutes,
         notes: values.notes || '',
       })
-      
+
       Message.success('Work session added')
       setEditingSession(null)
       form.resetFields()
@@ -234,7 +234,7 @@ export function StepWorkSessionsModal({
                 form.setFieldsValue({
                   startTime: dayjs(),
                   plannedMinutes: 30,
-                  notes: ''
+                  notes: '',
                 })
                 setEditingSession({} as WorkSession) // Signal new session
               }}
@@ -264,7 +264,7 @@ export function StepWorkSessionsModal({
       </Modal>
 
       <Modal
-        title={editingSession?.id ? "Edit Work Session" : "Add Work Session"}
+        title={editingSession?.id ? 'Edit Work Session' : 'Add Work Session'}
         visible={!!editingSession}
         onOk={editingSession?.id ? handleSaveEdit : handleAddSession}
         onCancel={() => {

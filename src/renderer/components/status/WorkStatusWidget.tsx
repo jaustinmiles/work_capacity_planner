@@ -63,7 +63,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       setPattern(patternData)
       setAccumulated({
         focused: accumulatedData.focused || 0,
-        admin: accumulatedData.admin || 0
+        admin: accumulatedData.admin || 0,
       })
     } catch (error) {
       console.error('Failed to load work data:', error)

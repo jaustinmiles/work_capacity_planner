@@ -72,7 +72,7 @@ export class AmendmentParser {
    */
   async parseTranscription(
     transcription: string,
-    context: AmendmentContext
+    context: AmendmentContext,
   ): Promise<AmendmentResult> {
     // Only use Claude AI - no fallback to pattern matching
     // Pattern matching is too limited for complex workflow modifications
@@ -90,7 +90,7 @@ export class AmendmentParser {
         transcription,
         confidence: 0,
         warnings: [`Failed to parse: ${error instanceof Error ? error.message : 'Unknown error'}`],
-        needsClarification: ['Please try rephrasing your request more clearly']
+        needsClarification: ['Please try rephrasing your request more clearly'],
       }
     }
   }
@@ -100,10 +100,10 @@ export class AmendmentParser {
    */
   private async parseWithAI(
     transcription: string,
-    context: AmendmentContext
+    context: AmendmentContext,
   ): Promise<AmendmentResult> {
     const aiService = getAIService()
-    
+
     // Build context information
     const taskList = context.recentTasks.map(t => `- ${t.name} (ID: ${t.id})`).join('\n')
     const workflowList = context.recentWorkflows.map(w => `- ${w.name} (ID: ${w.id})`).join('\n')
@@ -116,7 +116,7 @@ export class AmendmentParser {
       const activeWorkflow = context.recentWorkflows.find(w => w.id === context.activeWorkflowId)
       if (activeWorkflow) activeInfo.push(`Active Workflow: ${activeWorkflow.name}`)
     }
-    
+
     // Build job context information for better understanding
     let jobContextInfo = ''
     if (context.jobContexts && context.jobContexts.length > 0) {
@@ -143,7 +143,7 @@ export class AmendmentParser {
       tasksCount: context.recentTasks.length,
       workflowsCount: context.recentWorkflows.length,
       activeTaskId: context.activeTaskId,
-      activeWorkflowId: context.activeWorkflowId
+      activeWorkflowId: context.activeWorkflowId,
     })
 
     const prompt = `You are parsing voice amendments for a task management system. Extract structured amendments from the transcription.
@@ -255,24 +255,24 @@ IMPORTANT:
 
       // Extract JSON from response (may be wrapped in ```json...```)
       let jsonText = content.text.trim()
-      
+
       // Remove markdown code block if present
       if (jsonText.startsWith('```json')) {
         jsonText = jsonText.substring(7) // Remove ```json
       } else if (jsonText.startsWith('```')) {
         jsonText = jsonText.substring(3) // Remove ```
       }
-      
+
       if (jsonText.endsWith('```')) {
         jsonText = jsonText.substring(0, jsonText.length - 3) // Remove trailing ```
       }
-      
+
       jsonText = jsonText.trim()
-      
+
       // Now extract the JSON object
       const jsonStart = jsonText.indexOf('{')
       const jsonEnd = jsonText.lastIndexOf('}')
-      
+
       if (jsonStart !== -1 && jsonEnd !== -1) {
         jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
       }
@@ -281,11 +281,11 @@ IMPORTANT:
 
       const result = JSON.parse(jsonText) as AmendmentResult
       result.transcription = transcription
-      
+
       // Validate and enhance the result
       if (!result.amendments) result.amendments = []
       if (typeof result.confidence !== 'number') result.confidence = 0.5
-      
+
       console.log('Parsed amendment result:', result)
       return result
     } catch (error) {
@@ -296,7 +296,7 @@ IMPORTANT:
         transcription,
         confidence: 0,
         warnings: [`Failed to parse: ${error instanceof Error ? error.message : 'Unknown error'}`],
-        needsClarification: ['Please try rephrasing your request more clearly']
+        needsClarification: ['Please try rephrasing your request more clearly'],
       }
     }
   }
@@ -306,7 +306,7 @@ IMPORTANT:
    */
   private parseWithPatterns(
     transcription: string,
-    context: AmendmentContext
+    context: AmendmentContext,
   ): AmendmentResult {
     const amendments: Amendment[] = []
     const warnings: string[] = []
@@ -314,7 +314,7 @@ IMPORTANT:
 
     // Clean and normalize the transcription
     const normalized = this.normalizeText(transcription)
-    
+
     // Try to parse different amendment types
     const statusUpdate = this.parseStatusUpdate(normalized, context)
     if (statusUpdate) {
@@ -427,7 +427,7 @@ IMPORTANT:
       if (match) {
         const entityName = match[1]?.trim()
         const statusText = match[2]?.trim() || match[1]?.trim()
-        
+
         if (!entityName) continue
 
         const target = this.findTarget(entityName, context)
@@ -451,7 +451,7 @@ IMPORTANT:
    */
   private parseTimeLog(text: string, context: AmendmentContext): TimeLog | null {
     // Try specific patterns first
-    
+
     // Pattern: "worked on X for Y"
     let match = text.match(/(?:worked\s+on)\s+(.+?)\s+(?:for|from)\s+(.+)/i)
     if (match) {
@@ -527,11 +527,11 @@ IMPORTANT:
       if (match) {
         const entityName = match[1]?.trim()
         const noteContent = match[2]?.trim()
-        
+
         if (!noteContent) continue
 
         // If no entity specified, use active context
-        const target = entityName 
+        const target = entityName
           ? this.findTarget(entityName, context)
           : this.getActiveTarget(context)
 
@@ -558,7 +558,7 @@ IMPORTANT:
         const entityName = match[1]?.trim()
         const newDurationText = match[2]?.trim()
         const oldDurationText = match[3]?.trim()
-        
+
         if (!entityName || !newDurationText) continue
 
         const target = this.findTarget(entityName, context)
@@ -583,7 +583,7 @@ IMPORTANT:
    */
   private findTarget(name: string, context: AmendmentContext): AmendmentTarget | null {
     const normalizedName = name.toLowerCase()
-    
+
     // Check if it's referring to a step
     const stepMatch = normalizedName.match(/(?:step\s+)?(.+?)\s+step/i)
     if (stepMatch) {
@@ -617,7 +617,7 @@ IMPORTANT:
 
     // Sort by score and return best match
     candidates.sort((a, b) => b.score - a.score)
-    
+
     if (candidates.length > 0) {
       const best = candidates[0]
       return {
@@ -701,13 +701,13 @@ IMPORTANT:
    */
   private parseTimePhrase(phrase: string): ParsedTimePhrase {
     const result: ParsedTimePhrase = { raw: phrase }
-    
+
     // Parse duration (e.g., "2 hours", "30 minutes")
     const durationMatch = phrase.match(/(\d+(?:\.\d+)?)\s*(\w+)/i)
     if (durationMatch) {
       const value = parseFloat(durationMatch[1])
       const unit = durationMatch[2].toLowerCase()
-      
+
       for (const [key, multiplier] of Object.entries(this.TIME_UNITS)) {
         if (unit.startsWith(key.substring(0, 3))) {
           result.duration = Math.round(value * multiplier)
@@ -743,20 +743,20 @@ IMPORTANT:
   private parseTime(timeStr: string): Date | undefined {
     const now = new Date()
     const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*([ap]m)?/i)
-    
+
     if (match) {
       let hours = parseInt(match[1])
       const minutes = parseInt(match[2] || '0')
       const meridiem = match[3]?.toLowerCase()
-      
+
       if (meridiem === 'pm' && hours < 12) hours += 12
       if (meridiem === 'am' && hours === 12) hours = 0
-      
+
       const date = new Date()
       date.setHours(hours, minutes, 0, 0)
       return date
     }
-    
+
     return undefined
   }
 
@@ -765,7 +765,7 @@ IMPORTANT:
    */
   private parseStatus(text: string): TaskStatus | null {
     const normalized = text.toLowerCase()
-    
+
     if (normalized.includes('complet') || normalized.includes('done') || normalized.includes('finish')) {
       return TaskStatus.Completed
     }
@@ -778,7 +778,7 @@ IMPORTANT:
     if (normalized.includes('not') || normalized.includes('reset') || normalized.includes('todo')) {
       return TaskStatus.NotStarted
     }
-    
+
     return null
   }
 
@@ -796,10 +796,10 @@ IMPORTANT:
   private parseIntent(text: string): ParsedIntent {
     const verbs = ['mark', 'set', 'update', 'change', 'add', 'remove', 'delete', 'finish', 'complete', 'start', 'pause', 'log', 'track', 'note']
     const words = text.toLowerCase().split(/\s+/)
-    
+
     let action = ''
     let confidence = 0
-    
+
     for (const verb of verbs) {
       if (words.includes(verb)) {
         action = verb
@@ -807,12 +807,12 @@ IMPORTANT:
         break
       }
     }
-    
+
     if (!action && words.length > 0) {
       action = words[0]
       confidence = 0.3
     }
-    
+
     return {
       action,
       entity: words.slice(1).join(' '),
@@ -828,7 +828,7 @@ IMPORTANT:
     // Simple fuzzy matching - can be improved with Levenshtein distance
     const words1 = str1.toLowerCase().split(/\s+/)
     const words2 = str2.toLowerCase().split(/\s+/)
-    
+
     let matches = 0
     for (const word1 of words1) {
       for (const word2 of words2) {
@@ -837,7 +837,7 @@ IMPORTANT:
         }
       }
     }
-    
+
     const maxWords = Math.max(words1.length, words2.length)
     return maxWords > 0 ? matches / maxWords : 0
   }

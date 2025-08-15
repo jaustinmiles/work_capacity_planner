@@ -3,16 +3,16 @@ import { Modal, Button, Typography, Alert, Space, Card, Tag, Divider, Spin, List
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { 
-  Amendment, 
-  AmendmentResult, 
+import {
+  Amendment,
+  AmendmentResult,
   AmendmentContext,
   AmendmentType,
   StatusUpdate,
   TimeLog,
   NoteAddition,
   DurationChange,
-  StepAddition 
+  StepAddition,
 } from '../../../shared/amendment-types'
 import { useTaskStore } from '../../store/useTaskStore'
 
@@ -28,12 +28,12 @@ interface VoiceAmendmentModalProps {
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped'
 
-export function VoiceAmendmentModal({ 
-  visible, 
-  onClose, 
+export function VoiceAmendmentModal({
+  visible,
+  onClose,
   onAmendmentsApplied,
   activeTaskId,
-  activeWorkflowId 
+  activeWorkflowId,
 }: VoiceAmendmentModalProps) {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
   const [isTranscribing, setIsTranscribing] = useState(false)
@@ -45,11 +45,11 @@ export function VoiceAmendmentModal({
   const [recordingDuration, setRecordingDuration] = useState(0)
   const [textInput, setTextInput] = useState('')
   const [useTextInput, setUseTextInput] = useState(false)
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
-  
+
   const { tasks, sequencedTasks } = useTaskStore()
 
   // Stop recording when component unmounts or modal closes
@@ -67,7 +67,7 @@ export function VoiceAmendmentModal({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      
+
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/mp4')
@@ -75,19 +75,19 @@ export function VoiceAmendmentModal({
         : 'audio/webm'
 
       const mediaRecorder = new MediaRecorder(stream, { mimeType })
-      
+
       audioChunksRef.current = []
-      
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data)
         }
       }
-      
+
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
         await processAudioBlob(audioBlob)
-        
+
         // Clean up
         stream.getTracks().forEach(track => track.stop())
         if (recordingTimerRef.current) {
@@ -96,18 +96,18 @@ export function VoiceAmendmentModal({
         }
         setRecordingDuration(0)
       }
-      
+
       mediaRecorderRef.current = mediaRecorder
       mediaRecorder.start(100) // Collect data every 100ms
       setRecordingState('recording')
       setError(null)
-      
+
       // Start duration timer
       const startTime = Date.now()
       recordingTimerRef.current = setInterval(() => {
         setRecordingDuration(Math.floor((Date.now() - startTime) / 1000))
       }, 1000)
-      
+
     } catch (err) {
       setError('Failed to start recording. Please check your microphone permissions.')
       console.error('Error starting recording:', err)
@@ -124,26 +124,26 @@ export function VoiceAmendmentModal({
   const processAudioBlob = async (audioBlob: Blob) => {
     setIsTranscribing(true)
     setError(null)
-    
+
     try {
       // Convert blob to array buffer first
       const arrayBuffer = await audioBlob.arrayBuffer()
       // Convert ArrayBuffer to Uint8Array (works in browser)
       const uint8Array = new Uint8Array(arrayBuffer)
       const filename = `amendment-${Date.now()}.${audioBlob.type.includes('mp4') ? 'mp4' : 'webm'}`
-      
+
       // Transcribe directly with the audio data
       const transcriptionResult = await getDatabase().transcribeAudioBuffer(
         uint8Array as any, // The IPC will handle the conversion
         filename,
-        { prompt: 'Task amendment: status update, time logging, or notes' }
+        { prompt: 'Task amendment: status update, time logging, or notes' },
       )
-      
+
       setTranscription(transcriptionResult.text)
-      
+
       // Parse the transcription
       await parseTranscription(transcriptionResult.text)
-      
+
     } catch (err) {
       setError('Failed to process audio. Please try again.')
       console.error('Error processing audio:', err)
@@ -155,7 +155,7 @@ export function VoiceAmendmentModal({
   const parseTranscription = async (text: string) => {
     setIsParsing(true)
     setError(null)
-    
+
     try {
       // Build context for parser
       const context: AmendmentContext = {
@@ -163,21 +163,21 @@ export function VoiceAmendmentModal({
         activeWorkflowId: activeWorkflowId,
         recentTasks: tasks.slice(0, 10).map(t => ({
           id: t.id,
-          name: t.name
+          name: t.name,
         })),
         recentWorkflows: sequencedTasks.slice(0, 10).map(w => ({
           id: w.id,
-          name: w.name
+          name: w.name,
         })),
-        currentView: 'tasks'
+        currentView: 'tasks',
       }
-      
+
       // Parse with AI via IPC
       // console.log('[VoiceAmendmentModal] Sending to parse:', text, 'Context:', context)
       const result = await window.electronAPI.ai.parseAmendment(text, context)
       // console.log('[VoiceAmendmentModal] Received parse result:', result)
       setAmendmentResult(result)
-      
+
       // Auto-select all amendments with high confidence
       const highConfidenceIndices = new Set<number>()
       result.amendments.forEach((amendment, index) => {
@@ -188,7 +188,7 @@ export function VoiceAmendmentModal({
         }
       })
       setSelectedAmendments(highConfidenceIndices)
-      
+
     } catch (err) {
       setError('Failed to parse amendments. Please try rephrasing.')
       console.error('Error parsing transcription:', err)
@@ -209,11 +209,11 @@ export function VoiceAmendmentModal({
 
   const applySelectedAmendments = async () => {
     if (!amendmentResult || selectedAmendments.size === 0) return
-    
-    const amendmentsToApply = amendmentResult.amendments.filter((_, index) => 
-      selectedAmendments.has(index)
+
+    const amendmentsToApply = amendmentResult.amendments.filter((_, index) =>
+      selectedAmendments.has(index),
     )
-    
+
     try {
       // TODO: Actually apply the amendments to tasks/workflows
       // For now, just notify parent
@@ -380,7 +380,7 @@ export function VoiceAmendmentModal({
         <Card>
           <Space direction="vertical" style={{ width: '100%' }} size="medium">
             <Title heading={6}>Record Your Amendment</Title>
-            
+
             <Paragraph type="secondary">
               Speak naturally about what you want to update. For example:
               <ul style={{ marginTop: 8 }}>
@@ -424,7 +424,7 @@ export function VoiceAmendmentModal({
                       Start Recording
                     </Button>
                   )}
-              
+
               {recordingState === 'recording' && (
                 <>
                   <Button
@@ -441,7 +441,7 @@ export function VoiceAmendmentModal({
                   </Badge>
                 </>
               )}
-              
+
               {recordingState === 'stopped' && !isTranscribing && !amendmentResult && (
                 <Button
                   icon={<IconRefresh />}
@@ -520,18 +520,18 @@ export function VoiceAmendmentModal({
                   Confidence: {Math.round(amendmentResult.confidence * 100)}%
                 </Text>
               </Space>
-              
+
               <List
                 dataSource={amendmentResult.amendments}
                 render={(amendment, index) => (
                   <List.Item
                     key={index}
-                    style={{ 
+                    style={{
                       padding: '12px',
                       cursor: 'pointer',
                       backgroundColor: selectedAmendments.has(index) ? 'rgb(var(--primary-1))' : 'transparent',
                       borderRadius: 4,
-                      marginBottom: 8
+                      marginBottom: 8,
                     }}
                     onClick={() => toggleAmendmentSelection(index)}
                   >
@@ -554,11 +554,11 @@ export function VoiceAmendmentModal({
                   </List.Item>
                 )}
               />
-              
+
               {amendmentResult.warnings && amendmentResult.warnings.length > 0 && (
                 <Alert type="warning" content={amendmentResult.warnings.join('. ')} />
               )}
-              
+
               {amendmentResult.needsClarification && amendmentResult.needsClarification.length > 0 && (
                 <Alert type="info" content={amendmentResult.needsClarification.join('. ')} />
               )}

@@ -100,7 +100,7 @@ export function assertNever(value: never): never {
  */
 export function isValidEnumValue<T extends Record<string, string>>(
   enumObj: T,
-  value: string
+  value: string,
 ): value is T[keyof T] {
   return Object.values(enumObj).includes(value as T[keyof T])
 }
@@ -111,7 +111,7 @@ export function isValidEnumValue<T extends Record<string, string>>(
 export function parseEnum<T extends Record<string, string>>(
   enumObj: T,
   value: string,
-  fallback: T[keyof T]
+  fallback: T[keyof T],
 ): T[keyof T] {
   if (isValidEnumValue(enumObj, value)) {
     return value as T[keyof T]

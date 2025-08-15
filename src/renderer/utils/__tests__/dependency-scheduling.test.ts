@@ -11,7 +11,7 @@ describe('Dependency-based Scheduling', () => {
     date.setHours(hour, 0, 0, 0)
     return date
   }
-  
+
   // Helper to get date string the same way the scheduler does
   const getDateString = (date: Date): string => {
     const d = new Date(date)
@@ -43,7 +43,7 @@ describe('Dependency-based Scheduling', () => {
   const createWorkflow = (
     id: string,
     name: string,
-    steps: Array<{ id: string; name: string; duration: number; dependsOn: string[] }>
+    steps: Array<{ id: string; name: string; duration: number; dependsOn: string[] }>,
   ): SequencedTask => ({
     id,
     name,
@@ -123,7 +123,7 @@ describe('Dependency-based Scheduling', () => {
         [],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       // Debug output
@@ -159,13 +159,13 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
-      
+
       // Create subsequent dates based on the future date
       const day2 = new Date(futureDate)
       day2.setDate(day2.getDate() + 1)
       const day3 = new Date(futureDate)
       day3.setDate(day3.getDate() + 2)
-      
+
       const patterns = [
         createWorkPattern(startDate),
         createWorkPattern(createTestDate(day2.toISOString().split('T')[0])),
@@ -176,7 +176,7 @@ describe('Dependency-based Scheduling', () => {
         [],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       expect(scheduledItems).toHaveLength(4)
@@ -184,7 +184,7 @@ describe('Dependency-based Scheduling', () => {
 
       // Find scheduled items by ID
       const itemById = new Map(scheduledItems.map(item => [item.id, item]))
-      
+
       // Setup should be first
       expect(itemById.get('step-a')!.startTime.getTime()).toBe(startDate.getTime())
 
@@ -215,13 +215,13 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
-      
+
       // Create subsequent dates based on the future date
       const day2 = new Date(futureDate)
       day2.setDate(day2.getDate() + 1)
       const day3 = new Date(futureDate)
       day3.setDate(day3.getDate() + 2)
-      
+
       const patterns = [
         createWorkPattern(startDate),
         createWorkPattern(createTestDate(day2.toISOString().split('T')[0])),
@@ -232,7 +232,7 @@ describe('Dependency-based Scheduling', () => {
         [],
         [workflow1, workflow2],
         patterns,
-        startDate
+        startDate,
       )
 
       expect(scheduledItems).toHaveLength(4)
@@ -240,25 +240,25 @@ describe('Dependency-based Scheduling', () => {
 
       // Verify each workflow maintains its internal dependencies
       const itemById = new Map(scheduledItems.map(item => [item.id, item]))
-      
+
       // Workflow 1 dependencies
       expect(itemById.get('a-2')!.startTime.getTime()).toBeGreaterThanOrEqual(
-        itemById.get('a-1')!.endTime.getTime()
+        itemById.get('a-1')!.endTime.getTime(),
       )
-      
+
       // Workflow 2 dependencies
       expect(itemById.get('b-2')!.startTime.getTime()).toBeGreaterThanOrEqual(
-        itemById.get('b-1')!.endTime.getTime()
+        itemById.get('b-1')!.endTime.getTime(),
       )
 
       // The two workflows can interleave - we should see both starting early
-      const firstSteps = scheduledItems.filter(item => 
-        item.id === 'a-1' || item.id === 'b-1'
+      const firstSteps = scheduledItems.filter(item =>
+        item.id === 'a-1' || item.id === 'b-1',
       )
       // Both first steps should be scheduled within the first 2 hours
       firstSteps.forEach(step => {
         expect(step.startTime.getTime()).toBeLessThan(
-          startDate.getTime() + 2 * 60 * 60 * 1000
+          startDate.getTime() + 2 * 60 * 60 * 1000,
         )
       })
     })
@@ -281,13 +281,13 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
-      
+
       // Create subsequent dates based on the future date
       const day2 = new Date(futureDate)
       day2.setDate(day2.getDate() + 1)
       const day3 = new Date(futureDate)
       day3.setDate(day3.getDate() + 2)
-      
+
       const patterns = [
         createWorkPattern(startDate),
         createWorkPattern(createTestDate(day2.toISOString().split('T')[0])),
@@ -298,14 +298,14 @@ describe('Dependency-based Scheduling', () => {
         [task1, task2],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       expect(scheduledItems).toHaveLength(4)
 
       // High priority task should be scheduled first
       expect(scheduledItems[0].id).toBe('task-1')
-      
+
       // Workflow steps should maintain their dependency order
       const step1Index = scheduledItems.findIndex(item => item.id === 'step-1')
       const step2Index = scheduledItems.findIndex(item => item.id === 'step-2')
@@ -314,7 +314,7 @@ describe('Dependency-based Scheduling', () => {
       // Verify step 2 starts after step 1 ends
       const itemById = new Map(scheduledItems.map(item => [item.id, item]))
       expect(itemById.get('step-2')!.startTime.getTime()).toBeGreaterThanOrEqual(
-        itemById.get('step-1')!.endTime.getTime()
+        itemById.get('step-1')!.endTime.getTime(),
       )
     })
 
@@ -330,13 +330,13 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1) // Tomorrow
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
-      
+
       // Create subsequent dates based on the future date
       const day2 = new Date(futureDate)
       day2.setDate(day2.getDate() + 1)
       const day3 = new Date(futureDate)
       day3.setDate(day3.getDate() + 2)
-      
+
       const patterns = [
         createWorkPattern(startDate),
         createWorkPattern(createTestDate(day2.toISOString().split('T')[0])),
@@ -347,12 +347,12 @@ describe('Dependency-based Scheduling', () => {
         [],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       // Circular dependencies should be detected
-      expect(debugInfo.warnings.some(w => 
-        w.includes('Circular dependency')
+      expect(debugInfo.warnings.some(w =>
+        w.includes('Circular dependency'),
       )).toBe(true)
     })
 
@@ -368,7 +368,7 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1)
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
-      
+
       // Create patterns with only 8 hours of capacity
       const patterns = [
         createWorkPattern(startDate, 8, 0),
@@ -380,7 +380,7 @@ describe('Dependency-based Scheduling', () => {
         [],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       // With 3 days of patterns, all 3 steps (12 hours total) should be scheduled
@@ -388,10 +388,10 @@ describe('Dependency-based Scheduling', () => {
       // Day 2: Step 2 continues if needed, Step 3 (4h)
       // Day 3: Any remaining work
       expect(scheduledItems.length).toBe(3)
-      
+
       // Verify they span multiple days
-      const dates = new Set(scheduledItems.map(item => 
-        item.startTime.toISOString().split('T')[0]
+      const dates = new Set(scheduledItems.map(item =>
+        item.startTime.toISOString().split('T')[0],
       ))
       expect(dates.size).toBeGreaterThanOrEqual(2) // Should span at least 2 days
     })
@@ -411,8 +411,8 @@ describe('Dependency-based Scheduling', () => {
         { id: 'step-1755137991882-fgefs9xf0-7', name: 'Prepare CL', duration: 45, dependsOn: [
           'step-1755137991882-d5fgwnhyj-2',
           'step-1755137991882-689sx62hu-4',
-          'step-1755137991882-taim1osp4-6'
-        ]},
+          'step-1755137991882-taim1osp4-6',
+        ] },
         { id: 'step-1755137991882-9blw61m79-8', name: 'Wait for review', duration: 30, dependsOn: ['step-1755137991882-fgefs9xf0-7'] },
       ])
 
@@ -420,7 +420,7 @@ describe('Dependency-based Scheduling', () => {
       const futureDate = new Date()
       futureDate.setDate(futureDate.getDate() + 1)
       const startDate = createTestDate(futureDate.toISOString().split('T')[0])
-      
+
       // Create patterns for multiple days
       const patterns = [
         createWorkPattern(startDate, 8, 2),
@@ -432,35 +432,35 @@ describe('Dependency-based Scheduling', () => {
         [],
         [workflow],
         patterns,
-        startDate
+        startDate,
       )
 
       // All steps should be schedulable
-      expect(debugInfo.warnings.filter(w => 
-        w.includes('not yet scheduled')
+      expect(debugInfo.warnings.filter(w =>
+        w.includes('not yet scheduled'),
       )).toHaveLength(0)
 
       // Verify the three parallel chains are handled correctly
       const itemById = new Map(scheduledItems.map(item => [item.id, item]))
-      
+
       // Chain 1: Extended -> Run ego -> Update timestamps
       if (itemById.has('step-1755137991882-u4mfuko73-1')) {
         expect(itemById.get('step-1755137991882-u4mfuko73-1')!.startTime.getTime())
           .toBeGreaterThanOrEqual(itemById.get('step-1755137991882-w0akh73r4-0')!.endTime.getTime())
       }
-      
+
       // Chain 2: Implement fallback -> Data mine
       if (itemById.has('step-1755137991882-689sx62hu-4')) {
         expect(itemById.get('step-1755137991882-689sx62hu-4')!.startTime.getTime())
           .toBeGreaterThanOrEqual(itemById.get('step-1755137991882-1ik2ndtsq-3')!.endTime.getTime())
       }
-      
+
       // Chain 3: Clean up -> Add unit test
       if (itemById.has('step-1755137991882-taim1osp4-6')) {
         expect(itemById.get('step-1755137991882-taim1osp4-6')!.startTime.getTime())
           .toBeGreaterThanOrEqual(itemById.get('step-1755137991882-um3tkupsm-5')!.endTime.getTime())
       }
-      
+
       // Final merge: Prepare CL should wait for all three chains
       if (itemById.has('step-1755137991882-fgefs9xf0-7')) {
         const clStart = itemById.get('step-1755137991882-fgefs9xf0-7')!.startTime.getTime()

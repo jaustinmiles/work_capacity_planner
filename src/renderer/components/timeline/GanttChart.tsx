@@ -82,26 +82,26 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const initialPinchDistance = useRef<number>(0)
   const initialZoom = useRef<number>(120)
-  
+
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       // On Mac, pinch-to-zoom triggers wheel event with ctrlKey=true
       // Regular Ctrl+scroll also has ctrlKey=true
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault()
-        
+
         // For pinch gestures, deltaY represents the zoom factor
         // For mouse wheel, it's the scroll amount
         // Pinch gestures typically have smaller deltaY values
         const isPinch = Math.abs(e.deltaY) < 10
-        const delta = isPinch 
+        const delta = isPinch
           ? -e.deltaY * 3  // Amplify pinch gesture
           : (e.deltaY > 0 ? -15 : 15)  // Regular scroll
-        
+
         setPixelsPerHour(prev => Math.max(15, Math.min(300, prev + delta)))
       }
     }
-    
+
     // Safari-specific gesture events for better pinch support
     const handleGestureStart = (e: any) => {
       e.preventDefault()
@@ -109,23 +109,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       initialZoom.current = pixelsPerHour
       setIsPinching(true)
     }
-    
+
     const handleGestureChange = (e: any) => {
       e.preventDefault()
       const scale = e.scale / initialPinchDistance.current
       const newZoom = Math.round(initialZoom.current * scale)
       setPixelsPerHour(Math.max(15, Math.min(300, newZoom)))
     }
-    
+
     const handleGestureEnd = (e: any) => {
       e.preventDefault()
       setIsPinching(false)
     }
-    
+
     // Touch events for pinch-to-zoom on devices without gesture events
     let touches: Touch[] = []
     let lastDistance = 0
-    
+
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         touches = Array.from(e.touches)
@@ -135,7 +135,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         setIsPinching(true)
       }
     }
-    
+
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2 && touches.length === 2) {
         e.preventDefault()
@@ -143,17 +143,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         const dx = newTouches[0].clientX - newTouches[1].clientX
         const dy = newTouches[0].clientY - newTouches[1].clientY
         const distance = Math.sqrt(dx * dx + dy * dy)
-        
+
         if (lastDistance > 0) {
           const scale = distance / lastDistance
           const delta = (scale - 1) * 100
           setPixelsPerHour(prev => Math.max(15, Math.min(300, prev + delta)))
         }
-        
+
         lastDistance = distance
       }
     }
-    
+
     const handleTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
         touches = []
@@ -161,22 +161,22 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         setIsPinching(false)
       }
     }
-    
+
     const container = chartContainerRef.current
     if (container) {
       // Add wheel event for pinch-to-zoom via trackpad
       container.addEventListener('wheel', handleWheel, { passive: false })
-      
+
       // Add Safari gesture events
       container.addEventListener('gesturestart', handleGestureStart, { passive: false })
       container.addEventListener('gesturechange', handleGestureChange, { passive: false })
       container.addEventListener('gestureend', handleGestureEnd, { passive: false })
-      
+
       // Add touch events for other devices
       container.addEventListener('touchstart', handleTouchStart, { passive: false })
       container.addEventListener('touchmove', handleTouchMove, { passive: false })
       container.addEventListener('touchend', handleTouchEnd, { passive: false })
-      
+
       return () => {
         container.removeEventListener('wheel', handleWheel)
         container.removeEventListener('gesturestart', handleGestureStart)
@@ -247,13 +247,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Use the scheduler to get properly ordered items
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
-    
+
     // IMPORTANT: Filter out workflows from tasks to avoid duplicates
     // Workflows (tasks with hasSteps=true) are already in sequencedTasks
     const simpleTasksOnly = tasks.filter(t => !t.hasSteps)
-    
+
     console.log(`GanttChart: Scheduling with ${simpleTasksOnly.length} simple tasks and ${sequencedTasks.length} workflows`)
-    
+
     // Pass current time as start date to ensure scheduling starts from now
     const result = scheduleItemsWithBlocksAndDebug(simpleTasksOnly, sequencedTasks, workPatterns, new Date())
     setDebugInfo(result.debugInfo)
@@ -530,10 +530,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     droplist={
                       <Menu onClickMenuItem={(key) => setPixelsPerHour(Number(key))}>
                         {ZOOM_PRESETS.map(preset => (
-                          <Menu.Item 
+                          <Menu.Item
                             key={String(preset.value)}
                             style={{
-                              backgroundColor: pixelsPerHour === preset.value ? '#e6f7ff' : undefined
+                              backgroundColor: pixelsPerHour === preset.value ? '#e6f7ff' : undefined,
                             }}
                           >
                             <Space>
@@ -570,7 +570,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       120: '½d',
                       180: 'Detail',
                       240: '1h',
-                      300: 'Max'
+                      300: 'Max',
                     }}
                   />
                 </div>
@@ -648,7 +648,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           </div>
         )}
         {/* Floating zoom controls */}
-        <div style={{ 
+        <div style={{
           position: 'sticky',
           top: 10,
           right: 10,
@@ -658,7 +658,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           padding: 8,
           borderRadius: 8,
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          marginBottom: -40
+          marginBottom: -40,
         }}>
           <Space>
             <Button.Group>
@@ -703,7 +703,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             </Dropdown>
           </Space>
         </div>
-        <div 
+        <div
           ref={chartContainerRef}
           style={{ overflowX: 'auto', overflowY: 'hidden', position: 'relative' }}
         >

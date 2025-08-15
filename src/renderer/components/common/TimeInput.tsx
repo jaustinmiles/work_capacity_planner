@@ -10,12 +10,12 @@ interface TimeInputProps {
   disabled?: boolean
 }
 
-export function TimeInput({ 
-  value = '', 
-  onChange, 
+export function TimeInput({
+  value = '',
+  onChange,
   placeholder = 'HH:MM',
   style,
-  disabled = false 
+  disabled = false,
 }: TimeInputProps) {
   const [inputValue, setInputValue] = useState(value)
   const [isValid, setIsValid] = useState(true)
@@ -27,12 +27,12 @@ export function TimeInput({
   const parseTimeInput = (input: string): string | null => {
     // Remove all non-digit characters
     const digits = input.replace(/\D/g, '')
-    
+
     if (digits.length === 0) return null
-    
+
     let hours = ''
     let minutes = ''
-    
+
     if (digits.length <= 2) {
       // Just hour(s)
       hours = digits.padStart(2, '0')
@@ -55,14 +55,14 @@ export function TimeInput({
       hours = digits.substring(0, 2)
       minutes = digits.substring(2, 4)
     }
-    
+
     // Validate ranges
     const h = parseInt(hours)
     const m = parseInt(minutes)
-    
+
     if (h > 23) hours = '23'
     if (m > 59) minutes = '59'
-    
+
     return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`
   }
 
@@ -70,30 +70,30 @@ export function TimeInput({
     if (!val) return ''
     // If already in HH:MM format, return as is
     if (/^\d{2}:\d{2}$/.test(val)) return val
-    
+
     const parsed = parseTimeInput(val)
     return parsed || val
   }
 
   const handleInputChange = (val: string) => {
     setInputValue(val)
-    
+
     // Allow common formats like "9am", "2:30pm", "1430"
     let processedValue = val.toLowerCase()
-    
+
     // Handle am/pm notation
     const amPmMatch = processedValue.match(/^(\d{1,2}):?(\d{0,2})\s*(am|pm)$/)
     if (amPmMatch) {
       let hours = parseInt(amPmMatch[1])
       const minutes = amPmMatch[2] || '00'
       const period = amPmMatch[3]
-      
+
       if (period === 'pm' && hours < 12) hours += 12
       if (period === 'am' && hours === 12) hours = 0
-      
+
       processedValue = `${hours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')}`
     }
-    
+
     const parsed = parseTimeInput(processedValue)
     if (parsed) {
       setIsValid(true)

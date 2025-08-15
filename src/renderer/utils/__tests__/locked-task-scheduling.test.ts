@@ -120,10 +120,10 @@ describe('Locked Task Scheduling', () => {
 
     expect(scheduledLocked).toBeDefined()
     expect(scheduledHigh).toBeDefined()
-    
+
     // Locked task should be at its exact time
     expect(scheduledLocked?.startTime.getTime()).toBe(lockedStartTime.getTime())
-    
+
     // High priority task should be scheduled around the locked task
     if (scheduledHigh && scheduledLocked) {
       const highEndsBeforeLocked = scheduledHigh.endTime <= scheduledLocked.startTime
@@ -170,8 +170,8 @@ describe('Locked Task Scheduling', () => {
     expect(scheduled2).toBeUndefined()
 
     // Should have a warning about the conflict
-    const conflictWarning = debugInfo.warnings.find(w => 
-      w.includes('Second Meeting') && w.includes('conflicts')
+    const conflictWarning = debugInfo.warnings.find(w =>
+      w.includes('Second Meeting') && w.includes('conflicts'),
     )
     expect(conflictWarning).toBeDefined()
   })
@@ -200,8 +200,8 @@ describe('Locked Task Scheduling', () => {
     expect(scheduledPast).toBeUndefined()
 
     // Should have a warning about past time
-    const pastWarning = debugInfo.warnings.find(w => 
-      w.includes('Past Meeting') && w.includes('past')
+    const pastWarning = debugInfo.warnings.find(w =>
+      w.includes('Past Meeting') && w.includes('past'),
     )
     expect(pastWarning).toBeDefined()
   })
@@ -211,10 +211,10 @@ describe('Locked Task Scheduling', () => {
     const year = tomorrow.getFullYear()
     const month = tomorrow.getMonth()
     const day = tomorrow.getDate()
-    
+
     const day1 = new Date(year, month, day, 0, 0, 0, 0)
     const day2 = new Date(year, month, day + 1, 0, 0, 0, 0)
-    
+
     const day1Str = day1.toISOString().split('T')[0]
     const day2Str = day2.toISOString().split('T')[0]
 
@@ -255,14 +255,14 @@ describe('Locked Task Scheduling', () => {
 
     expect(scheduled1).toBeDefined()
     expect(scheduled2).toBeDefined()
-    
+
     // Debug output if test fails
     if (scheduled2 && scheduled2.startTime.getTime() !== locked2Time.getTime()) {
       console.log('Expected time:', locked2Time.toISOString())
       console.log('Actual time:', scheduled2.startTime.toISOString())
       console.log('Warnings:', debugInfo.warnings)
     }
-    
+
     expect(scheduled1?.startTime.getTime()).toBe(locked1Time.getTime())
     expect(scheduled2?.startTime.getTime()).toBe(locked2Time.getTime())
   })

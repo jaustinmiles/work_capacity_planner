@@ -145,9 +145,9 @@ export function InteractiveWorkflowGraph({
         nodes.push({
           id: step.id,
           type: 'workflow',
-          position: { 
+          position: {
             x: level * 400 + 50,  // Increased spacing and added offset
-            y: index * 200 + 50   // Increased vertical spacing
+            y: index * 200 + 50,   // Increased vertical spacing
           },
           data: {
             label: step.name,
@@ -178,12 +178,12 @@ export function InteractiveWorkflowGraph({
       step.dependsOn.forEach((dep) => {
         // dep could be either a step ID or a step name
         let sourceId = dep
-        
+
         // If it's not a valid step ID, try to find it by name
         if (!task.steps.some(s => s.id === dep)) {
           sourceId = stepNameToId.get(dep) || dep
         }
-        
+
         // Ensure both source and target steps exist
         const sourceExists = task.steps.some(s => s.id === sourceId)
         const targetExists = task.steps.some(s => s.id === step.id)
@@ -289,7 +289,7 @@ export function InteractiveWorkflowGraph({
             const stepByName = task.steps.find(s => s.name === dep)
             return stepByName ? stepByName.id : dep
           })
-          
+
           // Check if dependency already exists to avoid duplicates
           if (!currentDeps.includes(params.source)) {
             const newDependencies = [...currentDeps, params.source]
@@ -337,7 +337,7 @@ export function InteractiveWorkflowGraph({
           </Tag>
         </div>
       )}
-      
+
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <ReactFlow
           nodes={nodes}
@@ -352,7 +352,7 @@ export function InteractiveWorkflowGraph({
             padding: 0.2,
             includeHiddenNodes: false,
             minZoom: 0.5,
-            maxZoom: 1
+            maxZoom: 1,
           }}
           nodesDraggable={isEditable}
           nodesConnectable={isEditable}

@@ -40,9 +40,9 @@ describe('Flexible Scheduler - Simple Tests', () => {
   it('should schedule a simple task', () => {
     const task = createTask()
     const pattern = createPattern('2025-08-15')
-    
+
     const result = scheduleItemsWithBlocks([task], [], [pattern])
-    
+
     expect(result.length).toBeGreaterThan(0)
     expect(result[0].name).toBe('Test Task')
   })
@@ -65,19 +65,19 @@ describe('Flexible Scheduler - Simple Tests', () => {
         },
       ],
     }
-    
+
     // Just verify it doesn't crash with meetings
     const result = scheduleItemsWithBlocks([], [], [pattern])
     expect(Array.isArray(result)).toBe(true)
   })
 
   it('should handle admin tasks', () => {
-    const adminTask = createTask({ 
+    const adminTask = createTask({
       id: 'admin-1',
       name: 'Admin Work',
-      type: 'admin' 
+      type: 'admin',
     })
-    
+
     const pattern: DailyWorkPattern = {
       date: '2025-08-15',
       blocks: [
@@ -94,9 +94,9 @@ describe('Flexible Scheduler - Simple Tests', () => {
       ],
       meetings: [],
     }
-    
+
     const result = scheduleItemsWithBlocks([adminTask], [], [pattern])
-    
+
     const adminItems = result.filter(item => item.type === 'task' && item.name === 'Admin Work')
     expect(adminItems.length).toBe(1)
   })

@@ -38,7 +38,7 @@ export function TimelineVisualizer({
 }: TimelineVisualizerProps) {
   const [dragState, setDragState] = useState<DragState | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  
+
   const totalHours = endHour - startHour
   const totalHeight = totalHours * HOUR_HEIGHT
 
@@ -54,11 +54,11 @@ export function TimelineVisualizer({
     const totalMinutes = Math.round((pixels / HOUR_HEIGHT) * 60)
     const hours = Math.floor(totalMinutes / 60) + startHour
     const minutes = totalMinutes % 60
-    
+
     // Clamp to valid range
     const clampedHours = Math.max(startHour, Math.min(endHour - 1, hours))
     const clampedMinutes = hours >= endHour ? 59 : minutes
-    
+
     return `${clampedHours.toString().padStart(2, '0')}:${clampedMinutes.toString().padStart(2, '0')}`
   }
 
@@ -73,11 +73,11 @@ export function TimelineVisualizer({
 
   const handleMouseDown = (e: React.MouseEvent, type: 'block' | 'meeting', id: string, edge: 'start' | 'end') => {
     e.preventDefault()
-    
-    const item = type === 'block' 
+
+    const item = type === 'block'
       ? blocks.find(b => b.id === id)
       : meetings.find(m => m.id === id)
-    
+
     if (!item) return
 
     setDragState({
@@ -136,7 +136,7 @@ export function TimelineVisualizer({
     if (dragState) {
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
-      
+
       return () => {
         document.removeEventListener('mousemove', handleMouseMove)
         document.removeEventListener('mouseup', handleMouseUp)
@@ -192,7 +192,7 @@ export function TimelineVisualizer({
           }}
         >
           {hour.toString().padStart(2, '0')}:00
-        </div>
+        </div>,
       )
     }
     return labels
@@ -203,7 +203,7 @@ export function TimelineVisualizer({
     const lines: React.ReactElement[] = []
     for (let hour = startHour; hour <= endHour; hour++) {
       const y = (hour - startHour) * HOUR_HEIGHT
-      
+
       // Hour line
       lines.push(
         <div
@@ -216,9 +216,9 @@ export function TimelineVisualizer({
             height: 1,
             backgroundColor: '#E5E8EF',
           }}
-        />
+        />,
       )
-      
+
       // Half-hour line
       if (hour < endHour) {
         lines.push(
@@ -233,7 +233,7 @@ export function TimelineVisualizer({
               backgroundColor: '#F2F3F5',
               borderStyle: 'dashed',
             }}
-          />
+          />,
         )
       }
     }
@@ -244,15 +244,15 @@ export function TimelineVisualizer({
   const renderItem = (
     item: WorkBlock | WorkMeeting,
     type: 'block' | 'meeting',
-    color: string
+    color: string,
   ) => {
     const top = timeToPixels(item.startTime)
     const bottom = timeToPixels(item.endTime)
     const itemHeight = bottom - top
-    
+
     // Determine if it's a block or meeting for different rendering
     const isBlock = 'capacity' in item || 'focusCapacity' in item
-    
+
     return (
       <div
         key={item.id}
@@ -289,7 +289,7 @@ export function TimelineVisualizer({
           }}
           onMouseDown={(e) => handleMouseDown(e, type, item.id, 'start')}
         />
-        
+
         {/* Content */}
         <div>
           <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
@@ -297,7 +297,7 @@ export function TimelineVisualizer({
           </div>
           <div>
             {isBlock ? (
-              `${(item as WorkBlock).type === 'focused' ? '🎯 Focused' : 
+              `${(item as WorkBlock).type === 'focused' ? '🎯 Focused' :
                 (item as WorkBlock).type === 'admin' ? '📋 Admin' : '🔄 Mixed'} Work`
             ) : (
               `${(item as WorkMeeting).name || (item as WorkMeeting).type}`
@@ -305,12 +305,12 @@ export function TimelineVisualizer({
           </div>
           {isBlock && (item as WorkBlock).capacity && (
             <div style={{ fontSize: 10, marginTop: 4, opacity: 0.9 }}>
-              Focus: {(item as WorkBlock).capacity?.focusMinutes || 0}m, 
+              Focus: {(item as WorkBlock).capacity?.focusMinutes || 0}m,
               Admin: {(item as WorkBlock).capacity?.adminMinutes || 0}m
             </div>
           )}
         </div>
-        
+
         {/* Drag handle for end time */}
         <div
           style={{
@@ -342,31 +342,31 @@ export function TimelineVisualizer({
       >
         {/* Time labels */}
         {renderTimeLabels()}
-        
+
         {/* Grid lines */}
         {renderGridLines()}
-        
+
         {/* Work blocks */}
-        {blocks.map(block => 
-          renderItem(block, 'block', getBlockColor(block.type))
+        {blocks.map(block =>
+          renderItem(block, 'block', getBlockColor(block.type)),
         )}
-        
+
         {/* Meetings */}
-        {meetings.map(meeting => 
-          renderItem(meeting, 'meeting', getMeetingColor(meeting.type))
+        {meetings.map(meeting =>
+          renderItem(meeting, 'meeting', getMeetingColor(meeting.type)),
         )}
-        
+
         {/* Current time indicator */}
         {(() => {
           const now = dayjs()
           const currentHour = now.hour()
           const currentMinute = now.minute()
-          
+
           if (currentHour >= startHour && currentHour < endHour) {
             const currentTimePixels = timeToPixels(
-              `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`
+              `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`,
             )
-            
+
             return (
               <div
                 style={{

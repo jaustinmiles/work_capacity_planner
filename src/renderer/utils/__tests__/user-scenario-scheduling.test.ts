@@ -11,7 +11,7 @@ describe('User Reported Scheduling Issues', () => {
     date.setHours(hour, 0, 0, 0)
     return date
   }
-  
+
   // Helper to get date string the same way the scheduler does
   const getDateString = (date: Date): string => {
     const d = new Date(date)
@@ -63,7 +63,7 @@ describe('User Reported Scheduling Issues', () => {
         sessionId: 'test-session',
       }
 
-      // Flight Booking with Payment Request workflow  
+      // Flight Booking with Payment Request workflow
       const flightBooking: SequencedTask = {
         id: '473f3f62-1717-4465-949a-8ac05e867274',
         name: 'Flight Booking with Payment Request',
@@ -116,7 +116,7 @@ describe('User Reported Scheduling Issues', () => {
             dependsOn: [
               'step-1755140515974-o17eyxzmp-0',
               'step-1755140515974-d50n0n3pq-1',
-              'step-1755140515974-vownii77a-2'
+              'step-1755140515974-vownii77a-2',
             ],
             asyncWaitTime: 0,
             status: 'pending',
@@ -133,7 +133,7 @@ describe('User Reported Scheduling Issues', () => {
         sessionId: 'test-session',
       }
 
-      // Simple tasks  
+      // Simple tasks
       const groceryTask: Task = {
         id: '322ccf74-1374-4dab-adeb-c105a3374fe5',
         name: 'Go to grocery store',
@@ -253,7 +253,7 @@ describe('User Reported Scheduling Issues', () => {
         [groceryTask, laundryTask],
         [evCharging, flightBooking],
         patterns,
-        startDate
+        startDate,
       )
 
       // Debug output
@@ -262,13 +262,13 @@ describe('User Reported Scheduling Issues', () => {
       console.log('Unscheduled items:', debugInfo.unscheduledItems.length)
       if (debugInfo.unscheduledItems.length > 0) {
         console.log('Unscheduled:', debugInfo.unscheduledItems.map(u => u.name))
-        console.log('Unscheduled reasons:', debugInfo.unscheduledItems.map(u => 
-          `${u.name}: ${u.reason || 'unknown'}`
+        console.log('Unscheduled reasons:', debugInfo.unscheduledItems.map(u =>
+          `${u.name}: ${u.reason || 'unknown'}`,
         ))
       }
       console.log('Warnings:', debugInfo.warnings)
-      console.log('Available capacity:', patterns[0].blocks.map(b => 
-        `${b.startTime}-${b.endTime}: focus=${b.capacity.focusMinutes}, admin=${b.capacity.adminMinutes}`
+      console.log('Available capacity:', patterns[0].blocks.map(b =>
+        `${b.startTime}-${b.endTime}: focus=${b.capacity.focusMinutes}, admin=${b.capacity.adminMinutes}`,
       ))
       console.log('\nSchedule:')
       scheduledItems.forEach(item => {
@@ -296,7 +296,7 @@ describe('User Reported Scheduling Issues', () => {
         const deps = [
           'step-1755140515974-o17eyxzmp-0',
           'step-1755140515974-d50n0n3pq-1',
-          'step-1755140515974-vownii77a-2'
+          'step-1755140515974-vownii77a-2',
         ]
         deps.forEach(depId => {
           if (itemById.has(depId)) {
@@ -367,7 +367,7 @@ describe('User Reported Scheduling Issues', () => {
       // Create multiple days of patterns
       const today = new Date()
       today.setDate(today.getDate() + 1) // Start tomorrow to avoid past scheduling issues
-      
+
       const patterns: DailyWorkPattern[] = []
       for (let i = 0; i < 5; i++) {
         const date = new Date(today)
@@ -411,7 +411,7 @@ describe('User Reported Scheduling Issues', () => {
         [],
         [complexWorkflow],
         patterns,
-        startDate
+        startDate,
       )
 
       console.log('\n=== Multi-Day Scheduling Test ===')
@@ -422,14 +422,14 @@ describe('User Reported Scheduling Issues', () => {
         console.log('Unscheduled:', debugInfo.unscheduledItems.map(u => `${u.name} (${u.duration}m)`))
         console.log('Warnings:', debugInfo.warnings)
       }
-      
+
       // All 3 steps should be scheduled
       expect(scheduledItems).toHaveLength(3)
       expect(debugInfo.unscheduledItems).toHaveLength(0)
 
       // Verify items span multiple days
-      const dates = new Set(scheduledItems.map(item => 
-        getDateString(item.startTime)
+      const dates = new Set(scheduledItems.map(item =>
+        getDateString(item.startTime),
       ))
       console.log('Dates used:', Array.from(dates))
       expect(dates.size).toBeGreaterThanOrEqual(2) // Should use at least 2 days
@@ -487,7 +487,7 @@ describe('User Reported Scheduling Issues', () => {
 
       const tomorrow = new Date()
       tomorrow.setDate(tomorrow.getDate() + 1)
-      
+
       const patterns: DailyWorkPattern[] = [
         {
           date: getDateString(tomorrow),
@@ -516,7 +516,7 @@ describe('User Reported Scheduling Issues', () => {
         [adminTask, focusTask],
         [],
         patterns,
-        startDate
+        startDate,
       )
 
       console.log('\n=== Mixed Block Capacity Test ===')

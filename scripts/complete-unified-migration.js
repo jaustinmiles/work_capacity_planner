@@ -11,15 +11,15 @@ async function main() {
   try {
     // 1. Check current state
     console.log('📊 Checking current database state...')
-    
+
     const taskCount = await prisma.task.count()
     const sequencedTaskCount = await prisma.sequencedTask.count()
     const taskStepCount = await prisma.taskStep.count()
-    
+
     console.log(`  - Regular tasks: ${taskCount}`)
     console.log(`  - Sequenced tasks to migrate: ${sequencedTaskCount}`)
     console.log(`  - Task steps: ${taskStepCount}`)
-    
+
     if (sequencedTaskCount === 0) {
       console.log('\n✅ No sequenced tasks to migrate!')
       return
@@ -28,15 +28,15 @@ async function main() {
     // 2. Load sequenced tasks with their steps
     console.log('\n📦 Loading sequenced tasks with steps...')
     const sequencedTasks = await prisma.sequencedTask.findMany({
-      include: { TaskStep: true }
+      include: { TaskStep: true },
     })
 
     // 3. Migrate each sequenced task to Task table
     console.log('\n🔄 Migrating sequenced tasks to Task table...')
-    
+
     for (const st of sequencedTasks) {
       console.log(`  - Migrating: ${st.name}`)
-      
+
       // Create the task in Task table with the SAME ID
       const newTask = await prisma.task.create({
         data: {
@@ -62,9 +62,9 @@ async function main() {
           worstCaseDuration: st.worstCaseDuration,
           createdAt: st.createdAt,
           updatedAt: st.updatedAt,
-        }
+        },
       })
-      
+
       console.log(`    ✓ Created task: ${newTask.id}`)
     }
 
@@ -79,13 +79,13 @@ async function main() {
       // Try to access StepWorkSession through raw query since model might not exist
       const stepWorkSessions = await prisma.$queryRaw`SELECT * FROM StepWorkSession`
       console.log(`  - Found ${stepWorkSessions.length} step work sessions to migrate`)
-      
+
       for (const sws of stepWorkSessions) {
         // Find the step
         const step = await prisma.taskStep.findUnique({
-          where: { id: sws.taskStepId }
+          where: { id: sws.taskStepId },
         })
-        
+
         if (step && step.taskId) {
           const workSession = await prisma.workSession.create({
             data: {
@@ -100,9 +100,9 @@ async function main() {
               actualMinutes: sws.duration,
               notes: sws.notes,
               createdAt: sws.createdAt,
-            }
+            },
           })
-          console.log(`  ✓ Migrated work session for step`)
+          console.log('  ✓ Migrated work session for step')
         }
       }
     } catch (error) {
@@ -111,22 +111,22 @@ async function main() {
 
     // 6. Clean up old tables
     console.log('\n🧹 Cleaning up old tables...')
-    
+
     // Delete all SequencedTasks
     await prisma.sequencedTask.deleteMany({})
     console.log('  ✓ Deleted SequencedTask records')
 
     // 7. Final verification
     console.log('\n✅ Migration Complete! Final state:')
-    
+
     const finalTaskCount = await prisma.task.count()
     const finalWorkflowCount = await prisma.task.count({ where: { hasSteps: true } })
     const finalSequencedCount = await prisma.sequencedTask.count()
-    
+
     console.log(`  - Total tasks: ${finalTaskCount}`)
     console.log(`  - Workflows (hasSteps=true): ${finalWorkflowCount}`)
     console.log(`  - Remaining SequencedTasks: ${finalSequencedCount} (should be 0)`)
-    
+
     if (finalSequencedCount === 0) {
       console.log('\n🎉 SUCCESS! All sequenced tasks have been migrated.')
       console.log('Next steps:')

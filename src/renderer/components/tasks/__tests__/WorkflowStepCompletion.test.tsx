@@ -32,7 +32,7 @@ describe('Workflow Step Completion UI', () => {
           stepIndex={0}
           isActive={false}
           isCompleted={false}
-        />
+        />,
       )
 
       expect(screen.getByText('Test Step')).toBeTruthy()
@@ -48,7 +48,7 @@ describe('Workflow Step Completion UI', () => {
           isActive={false}
           isCompleted={false}
           onStart={mockOnStart}
-        />
+        />,
       )
 
       const startButton = screen.getByText('Start')
@@ -63,12 +63,12 @@ describe('Workflow Step Completion UI', () => {
           isActive={false}
           isCompleted={false}
           onStart={mockOnStart}
-        />
+        />,
       )
 
       const startButton = screen.getByText('Start')
       fireEvent.click(startButton)
-      
+
       expect(mockOnStart).toHaveBeenCalledWith('step-1')
     })
 
@@ -80,7 +80,7 @@ describe('Workflow Step Completion UI', () => {
           isActive={true}
           isCompleted={false}
           onComplete={mockOnComplete}
-        />
+        />,
       )
 
       const completeButton = screen.getByText('Complete')
@@ -95,12 +95,12 @@ describe('Workflow Step Completion UI', () => {
           isActive={true}
           isCompleted={false}
           onComplete={mockOnComplete}
-        />
+        />,
       )
 
       const completeButton = screen.getByText('Complete')
       fireEvent.click(completeButton)
-      
+
       expect(mockOnComplete).toHaveBeenCalledWith('step-1')
     })
 
@@ -111,7 +111,7 @@ describe('Workflow Step Completion UI', () => {
           stepIndex={0}
           isActive={false}
           isCompleted={true}
-        />
+        />,
       )
 
       const stepName = screen.getByText('Test Step')
@@ -131,7 +131,7 @@ describe('Workflow Step Completion UI', () => {
           isCompleted={true}
           onStart={mockOnStart}
           onComplete={mockOnComplete}
-        />
+        />,
       )
 
       expect(screen.queryByText('Start')).toBeFalsy()
@@ -145,7 +145,7 @@ describe('Workflow Step Completion UI', () => {
           stepIndex={0}
           isActive={false}
           isCompleted={false}
-        />
+        />,
       )
 
       expect(screen.getByText('Wait: 2h')).toBeTruthy()
@@ -158,7 +158,7 @@ describe('Workflow Step Completion UI', () => {
           stepIndex={0}
           isActive={true}
           isCompleted={false}
-        />
+        />,
       )
 
       expect(screen.getByText('In Progress')).toBeTruthy()

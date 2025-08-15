@@ -205,7 +205,7 @@ export class DatabaseService {
       'asyncWaitTime', 'dependencies', 'completed', 'completedAt',
       'actualDuration', 'notes', 'projectId', 'deadline', 'isLocked',
       'lockedStartTime', 'hasSteps', 'currentStepId', 'overallStatus',
-      'criticalPathDuration', 'worstCaseDuration'
+      'criticalPathDuration', 'worstCaseDuration',
     ]
 
     // Clean update data - only include allowed fields
@@ -225,7 +225,7 @@ export class DatabaseService {
       where: { id },
       data: {
         ...cleanUpdateData,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
       include: { TaskStep: true },
     })
@@ -234,19 +234,19 @@ export class DatabaseService {
     if (steps && Array.isArray(steps)) {
       // Get existing steps to determine which are new vs updates
       const existingSteps = await this.client.taskStep.findMany({
-        where: { taskId: id }
+        where: { taskId: id },
       })
       const existingStepIds = new Set(existingSteps.map(s => s.id))
-      
+
       // Delete steps that are no longer in the new list
       const newStepIds = new Set(steps.map(s => s.id))
       const stepsToDelete = existingSteps.filter(s => !newStepIds.has(s.id))
       for (const step of stepsToDelete) {
         await this.client.taskStep.delete({
-          where: { id: step.id }
+          where: { id: step.id },
         })
       }
-      
+
       // Update or create each step
       for (let i = 0; i < steps.length; i++) {
         const step = steps[i]
@@ -261,7 +261,7 @@ export class DatabaseService {
           percentComplete: step.percentComplete || 0,
           notes: step.notes || null,
         }
-        
+
         if (existingStepIds.has(step.id)) {
           // Check if type changed
           const existingStep = existingSteps.find(s => s.id === step.id)
@@ -269,7 +269,7 @@ export class DatabaseService {
             // Type changed, update work sessions
             await this.updateWorkSessionTypesForStep(step.id, step.type as 'focused' | 'admin')
           }
-          
+
           // Update existing step
           await this.client.taskStep.update({
             where: { id: step.id },
@@ -286,13 +286,13 @@ export class DatabaseService {
           })
         }
       }
-      
+
       // Return task with updated steps
       const updatedTask = await this.client.task.findUnique({
         where: { id },
         include: { TaskStep: true },
       })
-      
+
       return this.formatTask(updatedTask!)
     }
 
@@ -368,12 +368,12 @@ export class DatabaseService {
     if (!task) {
       throw new Error('Cannot format null or undefined task')
     }
-    
+
     // Debug log to see what we're getting
     if (task.hasSteps) {
       console.log(`DB: Formatting task ${task.id}, hasSteps: ${task.hasSteps}, TaskStep exists: ${!!task.TaskStep}, TaskStep length: ${task.TaskStep?.length}`)
     }
-    
+
     return {
       ...task,
       dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
@@ -651,7 +651,7 @@ export class DatabaseService {
     // Get all workflows (tasks with steps) and format them as SequencedTasks for backward compatibility
     const allTasks = await this.getTasks()
     const workflows = allTasks.filter(task => task.hasSteps && task.steps)
-    
+
     // Format as SequencedTask for UI compatibility
     return workflows.map(task => ({
       ...task,
@@ -668,7 +668,7 @@ export class DatabaseService {
     // Get task and format as SequencedTask for UI compatibility
     const task = await this.getTaskById(id)
     if (!task || !task.hasSteps) return null
-    
+
     return {
       ...task,
       totalDuration: task.duration,
@@ -686,7 +686,7 @@ export class DatabaseService {
       hasSteps: true,
       steps: taskData.steps,
     })
-    
+
     // Return in SequencedTask format for UI compatibility
     return {
       ...task,
@@ -701,7 +701,7 @@ export class DatabaseService {
   async updateSequencedTask(id: string, updates: any): Promise<any> {
     // Update task and format as SequencedTask
     const task = await this.updateTask(id, updates)
-    
+
     // Return in SequencedTask format for UI compatibility
     return {
       ...task,
@@ -728,16 +728,16 @@ export class DatabaseService {
     asyncWaitTime?: number
   }): Promise<any> {
     console.log('[DB] Adding step to workflow:', workflowId, stepData)
-    
+
     // Get existing steps to determine order
     const existingSteps = await this.client.taskStep.findMany({
       where: { taskId: workflowId },
-      orderBy: { stepIndex: 'asc' }
+      orderBy: { stepIndex: 'asc' },
     })
-    
+
     // Determine the index for the new step
     let newStepIndex = existingSteps.length // Default to end
-    
+
     if (stepData.afterStep) {
       const afterIndex = existingSteps.findIndex(s => s.name === stepData.afterStep)
       if (afterIndex !== -1) {
@@ -749,17 +749,17 @@ export class DatabaseService {
         newStepIndex = beforeIndex
       }
     }
-    
+
     // Shift existing steps if inserting in the middle
     if (newStepIndex < existingSteps.length) {
       for (let i = newStepIndex; i < existingSteps.length; i++) {
         await this.client.taskStep.update({
           where: { id: existingSteps[i].id },
-          data: { stepIndex: existingSteps[i].stepIndex + 1 }
+          data: { stepIndex: existingSteps[i].stepIndex + 1 },
         })
       }
     }
-    
+
     // Create the new step
     const newStep = await this.client.taskStep.create({
       data: {
@@ -773,31 +773,31 @@ export class DatabaseService {
         asyncWaitTime: stepData.asyncWaitTime || 0,
         status: 'pending',
         percentComplete: 0,
-      }
+      },
     })
-    
+
     // Update the workflow's total duration
     const updatedTask = await this.client.task.findUnique({
       where: { id: workflowId },
-      include: { TaskStep: true }
+      include: { TaskStep: true },
     })
-    
+
     if (updatedTask) {
       const totalDuration = updatedTask.TaskStep.reduce((sum, step) => sum + step.duration, 0)
       await this.client.task.update({
         where: { id: workflowId },
-        data: { duration: totalDuration }
+        data: { duration: totalDuration },
       })
     }
-    
+
     console.log('[DB] Step added successfully:', newStep.id)
-    
+
     // Return the updated workflow in SequencedTask format
     const finalTask = await this.client.task.findUnique({
       where: { id: workflowId },
-      include: { TaskStep: true }
+      include: { TaskStep: true },
     })
-    
+
     return this.formatTask(finalTask!)
   }
 
@@ -1112,7 +1112,7 @@ export class DatabaseService {
     if (!data.startTime) {
       throw new Error('startTime is required for creating a work session')
     }
-    
+
     console.log('DB: Creating work session:', JSON.stringify(data))
     const session = await this.client.workSession.create({
       data: {
@@ -1282,17 +1282,17 @@ export class DatabaseService {
     }
     return dictionary
   }
-  
+
   async updateJargonDefinition(term: string, definition: string): Promise<void> {
     const sessionId = await this.getActiveSession()
     const existing = await this.client.jargonEntry.findFirst({
-      where: { sessionId, term }
+      where: { sessionId, term },
     })
-    
+
     if (existing) {
       await this.client.jargonEntry.update({
         where: { id: existing.id },
-        data: { definition, updatedAt: new Date() }
+        data: { definition, updatedAt: new Date() },
       })
     } else {
       // Create new entry if it doesn't exist
@@ -1304,8 +1304,8 @@ export class DatabaseService {
           sessionId,
           category: 'custom',
           createdAt: new Date(),
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       })
     }
   }
@@ -1350,11 +1350,11 @@ export class DatabaseService {
   async updateWorkSession(id: string, data: any): Promise<any> {
     // Get the session to know which task/step to update
     const session = await this.client.workSession.findUnique({
-      where: { id }
+      where: { id },
     })
-    
+
     if (!session) throw new Error(`Work session not found: ${id}`)
-    
+
     // If only actualMinutes is provided, use the old method
     if (Object.keys(data).length === 1 && data.actualMinutes !== undefined) {
       const result = await this.endWorkSession(id, data.actualMinutes)
@@ -1366,7 +1366,7 @@ export class DatabaseService {
       }
       return result
     }
-    
+
     // Otherwise, do a full update
     const updateData: any = {}
     if (data.plannedMinutes !== undefined) updateData.plannedMinutes = data.plannedMinutes
@@ -1374,35 +1374,35 @@ export class DatabaseService {
     if (data.notes !== undefined) updateData.notes = data.notes
     if (data.startTime !== undefined) updateData.startTime = data.startTime
     if (data.endTime !== undefined) updateData.endTime = data.endTime
-    
+
     const result = await this.client.workSession.update({
       where: { id },
-      data: updateData
+      data: updateData,
     })
-    
+
     // Recalculate actualDuration after update
     if (session.stepId) {
       await this.recalculateStepActualDuration(session.stepId)
     } else if (session.taskId) {
       await this.recalculateTaskActualDuration(session.taskId)
     }
-    
+
     return result
   }
-  
+
   async deleteWorkSession(id: string): Promise<void> {
     // Get the work session before deleting to know which task/step to update
     const session = await this.client.workSession.findUnique({
-      where: { id }
+      where: { id },
     })
-    
+
     if (!session) return
-    
+
     // Delete the session
     await this.client.workSession.delete({
-      where: { id }
+      where: { id },
     })
-    
+
     // Recalculate actualDuration for the task/step
     if (session.stepId) {
       await this.recalculateStepActualDuration(session.stepId)
@@ -1410,48 +1410,48 @@ export class DatabaseService {
       await this.recalculateTaskActualDuration(session.taskId)
     }
   }
-  
+
   async recalculateStepActualDuration(stepId: string): Promise<void> {
     // Get all work sessions for this step
     const sessions = await this.client.workSession.findMany({
-      where: { stepId }
+      where: { stepId },
     })
-    
+
     // Calculate total actual duration from work sessions
-    const totalActualMinutes = sessions.reduce((sum, session) => 
+    const totalActualMinutes = sessions.reduce((sum, session) =>
       sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
-    
+
     // Update the step's actualDuration
     await this.client.taskStep.update({
       where: { id: stepId },
-      data: { actualDuration: totalActualMinutes > 0 ? totalActualMinutes : null }
+      data: { actualDuration: totalActualMinutes > 0 ? totalActualMinutes : null },
     })
   }
-  
+
   async recalculateTaskActualDuration(taskId: string): Promise<void> {
     // Get all work sessions for this task (not including step sessions)
     const sessions = await this.client.workSession.findMany({
-      where: { 
+      where: {
         taskId,
-        stepId: null 
-      }
+        stepId: null,
+      },
     })
-    
+
     // Calculate total actual duration from work sessions
-    const totalActualMinutes = sessions.reduce((sum, session) => 
+    const totalActualMinutes = sessions.reduce((sum, session) =>
       sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
-    
+
     // Update the task's actualDuration
     await this.client.task.update({
       where: { id: taskId },
-      data: { actualDuration: totalActualMinutes > 0 ? totalActualMinutes : null }
+      data: { actualDuration: totalActualMinutes > 0 ? totalActualMinutes : null },
     })
   }
-  
+
   async getWorkSessionsForTask(taskId: string): Promise<any[]> {
     return this.client.workSession.findMany({
       where: { taskId },
-      orderBy: { startTime: 'desc' }
+      orderBy: { startTime: 'desc' },
     })
   }
 
@@ -1462,32 +1462,32 @@ export class DatabaseService {
 
   async createStepWorkSession(data: any): Promise<any> {
     console.log('DB: createStepWorkSession called with:', JSON.stringify(data))
-    
+
     // Transform the data from UI format to database format
     // UI sends: { taskStepId, startTime, duration, notes }
     // DB needs: { taskId, stepId, type, startTime, plannedMinutes, notes }
-    
+
     // Handle both taskStepId and stepId field names
     const stepId = data.taskStepId || data.stepId || data.taskStepld || data.stepld
-    
+
     if (!stepId) {
       console.error('No step ID found in data:', data)
       throw new Error('Step ID is required')
     }
-    
+
     // First, we need to get the task ID from the step
     const step = await this.client.taskStep.findUnique({
       where: { id: stepId },
-      include: { Task: true }
+      include: { Task: true },
     })
-    
+
     if (!step) {
       throw new Error(`Step not found: ${stepId}`)
     }
-    
+
     // Determine the type from the step or task
     const type = step.type || step.Task.type || 'focused'
-    
+
     // Transform the data
     const workSessionData = {
       taskId: step.taskId,
@@ -1499,14 +1499,14 @@ export class DatabaseService {
       actualMinutes: data.actualMinutes || data.duration || null,
       notes: data.notes || null,
     }
-    
+
     console.log('DB: Transformed work session data:', JSON.stringify(workSessionData))
-    
+
     const result = await this.createWorkSession(workSessionData)
-    
+
     // Recalculate actualDuration after creating session
     await this.recalculateStepActualDuration(step.id)
-    
+
     return result
   }
 
@@ -1526,7 +1526,7 @@ export class DatabaseService {
     console.log(`DB: Updating work session types for step ${stepId} to ${newType}`)
     await this.client.workSession.updateMany({
       where: { stepId },
-      data: { type: newType }
+      data: { type: newType },
     })
   }
 

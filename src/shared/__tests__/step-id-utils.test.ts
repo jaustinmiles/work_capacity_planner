@@ -21,7 +21,7 @@ describe('Step ID Utilities', () => {
       const id2 = generateStableStepId('Workflow B', 'Step 1', 0)
       const id3 = generateStableStepId('Workflow A', 'Step 2', 0)
       const id4 = generateStableStepId('Workflow A', 'Step 1', 1)
-      
+
       expect(id1).not.toBe(id2)
       expect(id1).not.toBe(id3)
       expect(id1).not.toBe(id4)
@@ -58,7 +58,7 @@ describe('Step ID Utilities', () => {
       ]
 
       const mapped = mapDependenciesToIds(steps)
-      
+
       expect(mapped[1].dependsOn).toEqual(['step-1'])
       expect(mapped[2].dependsOn).toEqual(['step-2'])
       expect(mapped[3].dependsOn).toEqual(['step-2', 'step-3'])
@@ -72,7 +72,7 @@ describe('Step ID Utilities', () => {
       ]
 
       const mapped = mapDependenciesToIds(steps)
-      
+
       expect(mapped[1].dependsOn).toEqual(['step-1'])
       expect(mapped[2].dependsOn).toEqual(['step-2'])
     })
@@ -84,23 +84,23 @@ describe('Step ID Utilities', () => {
       ]
 
       const mapped = mapDependenciesToIds(steps)
-      
+
       expect(mapped[1].dependsOn).toEqual(['step-1', 'step-1'])
     })
 
     it('should warn about unresolvable dependencies', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      
+
       const steps = [
         { id: 'step-1', name: 'Setup', dependsOn: [] },
         { id: 'step-2', name: 'Build', dependsOn: ['NonExistent'] },
       ]
 
       const mapped = mapDependenciesToIds(steps)
-      
+
       expect(consoleWarnSpy).toHaveBeenCalled()
       expect(mapped[1].dependsOn).toEqual(['NonExistent']) // Preserves unresolvable
-      
+
       consoleWarnSpy.mockRestore()
     })
   })
@@ -120,7 +120,7 @@ describe('Step ID Utilities', () => {
       ]
 
       const result = preserveStepIds(existingSteps, newSteps)
-      
+
       expect(result[0].id).toBe('step-abc')
       expect(result[1].id).toBe('step-def')
       expect(result[2].id).toMatch(/^step-/) // New ID generated
@@ -135,7 +135,7 @@ describe('Step ID Utilities', () => {
       ]
 
       const result = preserveStepIds([], newSteps)
-      
+
       expect(result[0].id).toMatch(/^step-/)
       expect(result[1].id).toMatch(/^step-/)
       expect(result[0].id).not.toBe(result[1].id)
@@ -151,7 +151,7 @@ describe('Step ID Utilities', () => {
       ]
 
       const result = preserveStepIds(existingSteps, newSteps)
-      
+
       expect(result[0]).toEqual({
         id: 'step-abc',
         name: 'Setup',
@@ -170,7 +170,7 @@ describe('Step ID Utilities', () => {
       ]
 
       const result = validateDependencies(steps)
-      
+
       expect(result.valid).toBe(true)
       expect(result.errors).toHaveLength(0)
     })
@@ -183,7 +183,7 @@ describe('Step ID Utilities', () => {
       ]
 
       const result = validateDependencies(steps)
-      
+
       expect(result.valid).toBe(false)
       expect(result.errors).toHaveLength(2)
       expect(result.errors[0]).toContain('step-99')
@@ -194,7 +194,7 @@ describe('Step ID Utilities', () => {
   describe('fixBrokenDependencies', () => {
     it('should remove invalid dependencies', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      
+
       const steps = [
         { id: 'step-1', name: 'Setup', dependsOn: [] },
         { id: 'step-2', name: 'Build', dependsOn: ['step-1', 'step-invalid'] },
@@ -202,11 +202,11 @@ describe('Step ID Utilities', () => {
       ]
 
       const fixed = fixBrokenDependencies(steps)
-      
+
       expect(fixed[1].dependsOn).toEqual(['step-1'])
       expect(fixed[2].dependsOn).toEqual(['step-2'])
       expect(consoleWarnSpy).toHaveBeenCalledTimes(2)
-      
+
       consoleWarnSpy.mockRestore()
     })
 
@@ -218,7 +218,7 @@ describe('Step ID Utilities', () => {
       ]
 
       const fixed = fixBrokenDependencies(steps)
-      
+
       expect(fixed).toEqual(steps)
     })
 
@@ -229,7 +229,7 @@ describe('Step ID Utilities', () => {
       ]
 
       const fixed = fixBrokenDependencies(steps)
-      
+
       expect(fixed).toEqual(steps)
     })
   })

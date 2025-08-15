@@ -265,7 +265,7 @@ export function TaskItem({ task }: TaskItemProps) {
 
       {/* Edit Modal - Use appropriate editor based on task type */}
       <Modal
-        title={task.hasSteps ? "Edit Workflow" : "Edit Task"}
+        title={task.hasSteps ? 'Edit Workflow' : 'Edit Task'}
         visible={showEditModal}
         onCancel={() => setShowEditModal(false)}
         footer={null}
@@ -297,7 +297,7 @@ export function TaskItem({ task }: TaskItemProps) {
         visible={showTimeModal}
         onClose={() => setShowTimeModal(false)}
       />
-      
+
       <WorkSessionsModal
         taskId={task.id}
         taskName={task.name}

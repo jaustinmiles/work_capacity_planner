@@ -26,7 +26,7 @@ describe('Personal Tasks Scheduling', () => {
       criticalPathDuration: 60,
       worstCaseDuration: 60,
     }
-    
+
     // Lower priority personal task
     const personalTask: Task = {
       id: 'task-2',
@@ -51,7 +51,7 @@ describe('Personal Tasks Scheduling', () => {
     // Use a fixed future date to ensure consistency
     const testDate = new Date('2025-12-01T06:00:00')
     const dateStr = '2025-12-01'
-    
+
     const patterns: DailyWorkPattern[] = [
       {
         date: dateStr,
@@ -78,7 +78,7 @@ describe('Personal Tasks Scheduling', () => {
       [workTask, personalTask],
       [],
       patterns,
-      testDate
+      testDate,
     )
 
     // Check that both tasks were scheduled
@@ -143,7 +143,7 @@ describe('Personal Tasks Scheduling', () => {
       [personalTask],
       [],
       patterns,
-      startDate
+      startDate,
     )
 
     // Personal task should NOT be scheduled
@@ -194,7 +194,7 @@ describe('Personal Tasks Scheduling', () => {
       [workTask],
       [],
       patterns,
-      startDate
+      startDate,
     )
 
     // Work task should NOT be scheduled
