@@ -104,6 +104,8 @@ model SequencedTask {
   createdAt            DateTime   @default(now())
   updatedAt            DateTime
   sessionId            String?
+  deadline             DateTime?
+  deadlineType         String?    // 'hard' | 'soft'
   Session              Session?   @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   TaskStep             TaskStep[]
 }
@@ -121,6 +123,8 @@ model Session {
   Task                 Task[]
   TimeEstimateAccuracy TimeEstimateAccuracy[]
   WorkPattern          WorkPattern[]
+  ProductivityPattern  ProductivityPattern[]
+  SchedulingPreferences SchedulingPreferences?
 }
 
 model Task {
@@ -142,6 +146,8 @@ model Task {
   updatedAt            DateTime
   sessionId            String?
   deadline             DateTime?
+  deadlineType         String?         // 'hard' | 'soft'
+  cognitiveComplexity  Int?            // 1-5 scale
   isLocked             Boolean         @default(false)
   lockedStartTime      DateTime?
   hasSteps             Boolean         @default(false)
@@ -157,23 +163,26 @@ model Task {
 }
 
 model TaskStep {
-  id              String        @id
-  name            String
-  duration        Int
-  type            String
-  dependsOn       String        @default("[]")
-  asyncWaitTime   Int           @default(0)
-  status          String        @default("pending")
-  sequencedTaskId String?       // Keep for now, but make optional
-  stepIndex       Int
-  taskId          String
-  percentComplete Int           @default(0)
-  actualDuration  Int?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  notes           String?
-  Task            Task          @relation("TaskSteps", fields: [taskId], references: [id], onDelete: Cascade)
-  SequencedTask   SequencedTask? @relation(fields: [sequencedTaskId], references: [id], onDelete: Cascade)
+  id                   String        @id
+  name                 String
+  duration             Int
+  type                 String
+  dependsOn            String        @default("[]")
+  asyncWaitTime        Int           @default(0)
+  status               String        @default("pending")
+  sequencedTaskId      String?       // Keep for now, but make optional
+  stepIndex            Int
+  taskId               String
+  percentComplete      Int           @default(0)
+  actualDuration       Int?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  notes                String?
+  cognitiveComplexity  Int?          // 1-5 scale
+  isAsyncTrigger       Boolean       @default(false)
+  expectedResponseTime Int?          // in minutes
+  Task                 Task          @relation("TaskSteps", fields: [taskId], references: [id], onDelete: Cascade)
+  SequencedTask        SequencedTask? @relation(fields: [sequencedTaskId], references: [id], onDelete: Cascade)
 }
 
 model TimeEstimateAccuracy {
@@ -252,4 +261,30 @@ model WorkSession {
 
   @@index([startTime])
   @@index([taskId])
+}
+
+model ProductivityPattern {
+  id                  String   @id
+  sessionId           String
+  timeRangeStart      String   // "09:00"
+  timeRangeEnd        String   // "12:00"
+  cognitiveCapacity   String   // 'peak' | 'high' | 'moderate' | 'low'
+  preferredComplexity String   @default("[]") // JSON array of preferred complexity levels
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now())
+  Session             Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model SchedulingPreferences {
+  id                        String   @id
+  sessionId                 String   @unique
+  allowWeekendWork          Boolean  @default(false)
+  weekendPenalty            Float    @default(0.5)
+  contextSwitchPenalty      Int      @default(15)
+  asyncParallelizationBonus Int      @default(20)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @default(now())
+  Session                   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }

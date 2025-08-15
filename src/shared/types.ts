@@ -19,7 +19,9 @@ export interface Task {
   dependencies: string[] // task IDs
   completed: boolean
   completedAt?: Date
-  deadline?: Date // hard deadline for task
+  deadline?: Date // deadline for task
+  deadlineType?: 'hard' | 'soft' // type of deadline
+  cognitiveComplexity?: 1 | 2 | 3 | 4 | 5 // cognitive load rating
   isLocked?: boolean // whether task is locked to specific time
   lockedStartTime?: Date // specific time task must start
   sessionId: string
@@ -36,6 +38,9 @@ export interface Task {
   criticalPathDuration: number
   worstCaseDuration: number
   steps?: TaskStep[] // Optional - populated when needed
+  
+  // For async optimization (computed, not stored)
+  isAsyncTrigger?: boolean
 }
 
 export interface TaskStep {
@@ -53,6 +58,9 @@ export interface TaskStep {
   completedAt?: Date
   percentComplete: number
   notes?: string
+  cognitiveComplexity?: 1 | 2 | 3 | 4 | 5 // cognitive load rating
+  isAsyncTrigger?: boolean // marks steps that kick off async work
+  expectedResponseTime?: number // expected wait time in minutes
 }
 
 export interface DailySchedule {
@@ -92,4 +100,26 @@ export interface TaskFilters {
   type?: 'focused' | 'admin'
   projectId?: string
   search?: string
+}
+
+export interface ProductivityPattern {
+  id: string
+  sessionId: string
+  timeRangeStart: string // "09:00"
+  timeRangeEnd: string // "12:00"
+  cognitiveCapacity: 'peak' | 'high' | 'moderate' | 'low'
+  preferredComplexity: number[] // [4, 5] for complex tasks during peak
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface SchedulingPreferences {
+  id: string
+  sessionId: string
+  allowWeekendWork: boolean
+  weekendPenalty: number // 0-1, how much to avoid weekends
+  contextSwitchPenalty: number // minutes lost per context switch
+  asyncParallelizationBonus: number // priority bonus for async work
+  createdAt: Date
+  updatedAt: Date
 }
