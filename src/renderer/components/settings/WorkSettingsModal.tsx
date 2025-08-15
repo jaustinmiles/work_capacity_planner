@@ -14,6 +14,7 @@ import {
   Input,
   List,
   Popconfirm,
+  Checkbox,
 } from '@arco-design/web-react'
 import { IconPlus, IconDelete, IconEdit, IconSettings } from '@arco-design/web-react/icon'
 import { WorkSettings, BlockedTime, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
@@ -38,11 +39,42 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
   )
   const [editingBlockedTime, setEditingBlockedTime] = useState<BlockedTime | null>(null)
   const [showBlockedTimeForm, setShowBlockedTimeForm] = useState(false)
+  const [enableSaturday, setEnableSaturday] = useState(
+    workSettings?.customWorkHours?.[6] !== undefined,
+  )
+  const [enableSunday, setEnableSunday] = useState(
+    workSettings?.customWorkHours?.[0] !== undefined,
+  )
 
   const handleSave = async () => {
     try {
       await form.validate()
       const values = form.getFields()
+
+      // Build custom work hours for weekends if enabled
+      const customWorkHours = { ...(workSettings?.customWorkHours || {}) }
+      
+      if (enableSaturday) {
+        customWorkHours[6] = {
+          startTime: values.saturdayStartTime?.format('HH:mm') || values.startTime.format('HH:mm'),
+          endTime: values.saturdayEndTime?.format('HH:mm') || values.endTime.format('HH:mm'),
+          lunchStart: values.saturdayLunchStart?.format('HH:mm'),
+          lunchDuration: values.saturdayLunchDuration || 60,
+        }
+      } else {
+        delete customWorkHours[6]
+      }
+      
+      if (enableSunday) {
+        customWorkHours[0] = {
+          startTime: values.sundayStartTime?.format('HH:mm') || values.startTime.format('HH:mm'),
+          endTime: values.sundayEndTime?.format('HH:mm') || values.endTime.format('HH:mm'),
+          lunchStart: values.sundayLunchStart?.format('HH:mm'),
+          lunchDuration: values.sundayLunchDuration || 60,
+        }
+      } else {
+        delete customWorkHours[0]
+      }
 
       const newSettings: WorkSettings = {
         defaultWorkHours: {
@@ -51,7 +83,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
           lunchStart: values.lunchStart?.format('HH:mm'),
           lunchDuration: values.lunchDuration || 60,
         },
-        customWorkHours: workSettings?.customWorkHours || {},
+        customWorkHours,
         defaultCapacity: {
           maxFocusHours: values.maxFocusHours || 4,
           maxAdminHours: values.maxAdminHours || 3,
@@ -219,6 +251,76 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
             </FormItem>
           </Col>
         </Row>
+
+        <Divider />
+
+        <Title heading={6}>Weekend Work Hours</Title>
+        
+        <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
+          <Checkbox
+            checked={enableSaturday}
+            onChange={setEnableSaturday}
+          >
+            Enable Saturday Work
+          </Checkbox>
+          
+          {enableSaturday && (
+            <Row gutter={16} style={{ marginLeft: 24 }}>
+              <Col span={12}>
+                <FormItem
+                  label="Saturday Start Time"
+                  field="saturdayStartTime"
+                >
+                  <ClockTimePicker
+                    style={{ width: '100%' }}
+                  />
+                </FormItem>
+              </Col>
+              <Col span={12}>
+                <FormItem
+                  label="Saturday End Time"
+                  field="saturdayEndTime"
+                >
+                  <ClockTimePicker
+                    style={{ width: '100%' }}
+                  />
+                </FormItem>
+              </Col>
+            </Row>
+          )}
+          
+          <Checkbox
+            checked={enableSunday}
+            onChange={setEnableSunday}
+          >
+            Enable Sunday Work
+          </Checkbox>
+          
+          {enableSunday && (
+            <Row gutter={16} style={{ marginLeft: 24 }}>
+              <Col span={12}>
+                <FormItem
+                  label="Sunday Start Time"
+                  field="sundayStartTime"
+                >
+                  <ClockTimePicker
+                    style={{ width: '100%' }}
+                  />
+                </FormItem>
+              </Col>
+              <Col span={12}>
+                <FormItem
+                  label="Sunday End Time"
+                  field="sundayEndTime"
+                >
+                  <ClockTimePicker
+                    style={{ width: '100%' }}
+                  />
+                </FormItem>
+              </Col>
+            </Row>
+          )}
+        </Space>
 
         <Divider />
 

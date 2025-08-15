@@ -9,6 +9,7 @@ import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
 import { getDatabase } from '../../services/database'
+import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -38,6 +39,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
   const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [isPinching, setIsPinching] = useState(false)
+  
+  const { workSettings } = useTaskStore()
 
   // Zoom controls
   const handleZoomIn = useCallback(() => {
@@ -733,7 +736,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   const dateStr = dayjs(day).format('YYYY-MM-DD')
                   const pattern = workPatterns.find(p => p.date === dateStr)
                   const hasCustomPattern = pattern && !pattern.blocks.some((b: any) => b.id.startsWith('default-'))
-                  const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                  const dayOfWeek = day.getDay()
+                  // Check if weekend days have work hours configured
+                  const hasWeekendWork = workSettings?.customWorkHours?.[dayOfWeek] !== undefined
+                  const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6) && !hasWeekendWork
 
                   return (
                     <div

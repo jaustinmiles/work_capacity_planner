@@ -69,9 +69,16 @@ function getNextWorkTime(currentTime: Date, workSettings: WorkSettings): Date {
     nextTime.setDate(nextTime.getDate() + 1)
     nextTime.setHours(0, 0, 0, 0)
 
-    // Skip weekends
-    while (nextTime.getDay() === 0 || nextTime.getDay() === 6) {
+    // Skip non-working days (check if work hours are defined for the day)
+    let attempts = 0
+    while (attempts < 7) { // Prevent infinite loop
+      const dayWorkHours = workSettings.customWorkHours[nextTime.getDay()] || workSettings.defaultWorkHours
+      // Consider it a working day if it has valid work hours
+      if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
+        break
+      }
       nextTime.setDate(nextTime.getDate() + 1)
+      attempts++
     }
 
     const nextWorkHours = workSettings.customWorkHours[nextTime.getDay()] || workSettings.defaultWorkHours
