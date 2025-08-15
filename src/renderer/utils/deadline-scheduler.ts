@@ -19,7 +19,7 @@ export interface SchedulingContext {
   schedulingPreferences: SchedulingPreferences
   workSettings: WorkSettings
   currentTime: Date
-  lastScheduledItem?: ScheduledItem | null
+  lastScheduledItem: ScheduledItem | null | undefined
 }
 
 export interface SchedulingWarning {
@@ -200,8 +200,22 @@ export function calculatePriority(
   item: Task | TaskStep,
   context: SchedulingContext
 ): number {
-  // Base Eisenhower score
-  const baseScore = item.importance * item.urgency
+  // Base Eisenhower score - TaskStep doesn't have importance/urgency, use parent's
+  let importance: number
+  let urgency: number
+  
+  if ('importance' in item) {
+    // It's a Task
+    importance = item.importance
+    urgency = item.urgency
+  } else {
+    // It's a TaskStep - find parent workflow
+    const parentWorkflow = context.workflows.find(w => w.id === item.taskId)
+    importance = parentWorkflow?.importance || 5
+    urgency = parentWorkflow?.urgency || 5
+  }
+  
+  const baseScore = importance * urgency
   
   // Deadline pressure multiplier
   const deadlinePressure = calculateDeadlinePressure(item, context)
@@ -279,8 +293,11 @@ function calculateCriticalPathRemaining(
       }
     }
   } else if ('duration' in item) {
-    // Single task or step
-    if (!item.completed && item.status !== 'completed') {
+    // Check completion status
+    const isCompleted = 'completed' in item ? item.completed : 
+                       'status' in item ? item.status === 'completed' : false
+    
+    if (!isCompleted) {
       totalHours = item.duration / 60
     }
   }
@@ -520,15 +537,18 @@ function optimizeAsyncTriggers(
 ): void {
   // Identify async triggers and suggest optimal timing
   for (const item of schedule) {
-    if (item.originalItem && 
-        (item.originalItem.isAsyncTrigger || item.originalItem.asyncWaitTime > 0)) {
-      const urgency = calculateAsyncUrgency(item.originalItem, context)
-      if (urgency > 50) {
-        result.suggestions.push({
-          type: 'async_optimization',
-          message: `Consider starting "${item.name}" earlier`,
-          recommendation: `This async task has high urgency (${urgency.toFixed(0)}). Starting it earlier would provide more flexibility for dependent work.`
-        })
+    if (item.originalItem && 'asyncWaitTime' in item.originalItem) {
+      // Check if it's an async trigger (not a Meeting)
+      const originalItem = item.originalItem as Task | TaskStep
+      if (originalItem.isAsyncTrigger || originalItem.asyncWaitTime > 0) {
+        const urgency = calculateAsyncUrgency(originalItem, context)
+        if (urgency > 50) {
+          result.suggestions.push({
+            type: 'async_optimization',
+            message: `Consider starting "${item.name}" earlier`,
+            recommendation: `This async task has high urgency (${urgency.toFixed(0)}). Starting it earlier would provide more flexibility for dependent work.`
+          })
+        }
       }
     }
   }
@@ -544,15 +564,17 @@ function generateSuggestions(
   let lowComplexityInMorning = 0
   
   for (const item of schedule) {
-    if (item.originalItem?.cognitiveComplexity) {
+    if (item.originalItem && 'cognitiveComplexity' in item.originalItem) {
       const hour = item.startTime.getHours()
-      const complexity = item.originalItem.cognitiveComplexity
+      const complexity = (item.originalItem as Task | TaskStep).cognitiveComplexity
       
-      if (hour >= 13 && hour < 17 && complexity >= 4) {
-        highComplexityInAfternoon++
-      }
-      if (hour >= 9 && hour < 12 && complexity <= 2) {
-        lowComplexityInMorning++
+      if (complexity) {
+        if (hour >= 13 && hour < 17 && complexity >= 4) {
+          highComplexityInAfternoon++
+        }
+        if (hour >= 9 && hour < 12 && complexity <= 2) {
+          lowComplexityInMorning++
+        }
       }
     }
   }

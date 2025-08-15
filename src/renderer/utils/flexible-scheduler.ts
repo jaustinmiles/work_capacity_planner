@@ -1,6 +1,8 @@
-import { Task } from '@shared/types'
+import { Task, ProductivityPattern, SchedulingPreferences } from '@shared/types'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
+import { WorkSettings } from '@shared/work-settings-types'
+import { calculatePriority, calculateDeadlinePressure, calculateAsyncUrgency, SchedulingContext } from './deadline-scheduler'
 
 export interface ScheduledItem {
   id: string
@@ -272,13 +274,20 @@ function canFitInBlock(
   return { canFit: false, startTime: tryTime }
 }
 
+export interface SchedulingOptions {
+  productivityPatterns?: ProductivityPattern[]
+  schedulingPreferences?: SchedulingPreferences
+  workSettings?: WorkSettings
+}
+
 export function scheduleItemsWithBlocks(
   tasks: Task[],
   sequencedTasks: SequencedTask[],
   patterns: DailyWorkPattern[],
   startDate: Date = new Date(),
+  options: SchedulingOptions = {},
 ): ScheduledItem[] {
-  const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, patterns, startDate)
+  const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, patterns, startDate, options)
   return result.scheduledItems
 }
 
@@ -287,6 +296,7 @@ export function scheduleItemsWithBlocksAndDebug(
   sequencedTasks: SequencedTask[],
   patterns: DailyWorkPattern[],
   startDate: Date = new Date(),
+  options: SchedulingOptions = {},
 ): { scheduledItems: ScheduledItem[], debugInfo: SchedulingDebugInfo } {
   // Consistency check: Warn if workflows appear in both arrays
   const workflowIds = new Set(sequencedTasks.map(w => w.id))
@@ -336,17 +346,34 @@ export function scheduleItemsWithBlocksAndDebug(
     })
   })
 
+  // Create scheduling context for enhanced priority if options provided
+  const schedulingContext: SchedulingContext | null = options.schedulingPreferences && options.workSettings ? {
+    tasks,
+    workflows: sequencedTasks,
+    workPatterns: patterns,
+    productivityPatterns: options.productivityPatterns || [],
+    schedulingPreferences: options.schedulingPreferences,
+    workSettings: options.workSettings,
+    currentTime: startDate,
+    lastScheduledItem: undefined,
+  } : null
+
   // Convert tasks to work items
   tasks
     .filter(task => !task.completed)
     .forEach(task => {
+      // Calculate priority using enhanced function if context available
+      const priority = schedulingContext 
+        ? calculatePriority(task, schedulingContext)
+        : task.importance * task.urgency
+
       workItems.push({
         id: task.id,
         name: task.name,
         type: 'task',
         taskType: task.type as 'focused' | 'admin',
         category: task.category || 'work',
-        priority: task.importance * task.urgency,
+        priority,
         duration: task.duration,
         asyncWaitTime: task.asyncWaitTime,
         color: task.category === 'personal' ? '#9333EA' : '#6B7280',
@@ -366,13 +393,33 @@ export function scheduleItemsWithBlocksAndDebug(
       workflow.steps
         .filter(step => step.status !== 'completed')
         .forEach((step, stepIndex) => {
+          // Calculate priority using enhanced function if context available
+          // For steps, we use the workflow's importance/urgency as base
+          const basePriority = workflow.importance * workflow.urgency
+          const priority = schedulingContext 
+            ? calculatePriority({
+                ...step,
+                importance: workflow.importance,
+                urgency: workflow.urgency,
+                sessionId: workflow.sessionId || 'default',
+                createdAt: workflow.createdAt,
+                updatedAt: workflow.updatedAt,
+                completed: false,
+                dependencies: step.dependsOn,
+                hasSteps: false,
+                overallStatus: 'not_started',
+                criticalPathDuration: 0,
+                worstCaseDuration: 0,
+              } as Task, schedulingContext)
+            : basePriority
+
           workItems.push({
             id: step.id,
             name: `[${workflow.name}] ${step.name}`,
             type: 'workflow-step',
             taskType: step.type as 'focused' | 'admin',
             category: workflow.category || 'work', // Add category from workflow
-            priority: workflow.importance * workflow.urgency,
+            priority,
             duration: step.duration,
             asyncWaitTime: step.asyncWaitTime,
             color: workflowColor,
@@ -581,6 +628,32 @@ export function scheduleItemsWithBlocksAndDebug(
     // Re-sort items based on current workflow progress to ensure good interleaving
     const itemsToSchedule = [...workItems]
     itemsToSchedule.sort((a, b) => {
+      // If we have scheduling context, recalculate priorities with current time
+      if (schedulingContext) {
+        // Update context with current time and last scheduled item
+        schedulingContext.currentTime = currentTime
+        schedulingContext.lastScheduledItem = scheduledItems.length > 0 
+          ? scheduledItems[scheduledItems.length - 1] as ScheduledItem
+          : undefined
+        
+        // Recalculate priorities with deadline pressure
+        const aPriority = calculatePriority(a.originalItem as Task, schedulingContext)
+        const bPriority = calculatePriority(b.originalItem as Task, schedulingContext)
+        
+        // Always respect locked tasks first
+        if (a.isLocked && b.isLocked) {
+          const aTime = a.lockedStartTime ? new Date(a.lockedStartTime).getTime() : Infinity
+          const bTime = b.lockedStartTime ? new Date(b.lockedStartTime).getTime() : Infinity
+          return aTime - bTime
+        }
+        if (a.isLocked) return -1
+        if (b.isLocked) return 1
+        
+        // Use enhanced priority calculation
+        return bPriority - aPriority
+      }
+      
+      // Fallback to original sorting logic if no context
       // Always respect locked tasks first
       if (a.isLocked && b.isLocked) {
         const aTime = a.lockedStartTime ? new Date(a.lockedStartTime).getTime() : Infinity

@@ -1,6 +1,6 @@
 import React from 'react'
-import { Modal, Form, Input, Select, Slider, InputNumber, Space, Grid, DatePicker, Checkbox } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconLock } from '@arco-design/web-react/icon'
+import { Modal, Form, Input, Select, Slider, InputNumber, Space, Grid, DatePicker, Checkbox, Radio, Typography } from '@arco-design/web-react'
+import { IconClockCircle, IconCalendar, IconLock, IconBulb } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 
 const { TextArea } = Input
@@ -15,6 +15,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
   const { addTask } = useTaskStore()
   const [form] = Form.useForm()
   const [isLocked, setIsLocked] = React.useState(false)
+  const [hasDeadline, setHasDeadline] = React.useState(false)
 
   const handleSubmit = async () => {
     try {
@@ -24,8 +25,10 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
       const taskData = {
         ...values,
         deadline: values.deadline ? values.deadline.toISOString() : undefined,
+        deadlineType: values.deadline ? (values.deadlineType || 'soft') : undefined,
         lockedStartTime: values.lockedStartTime ? values.lockedStartTime.toISOString() : undefined,
         isLocked: values.isLocked || false,
+        cognitiveComplexity: values.cognitiveComplexity || undefined,
         dependencies: [],
         completed: false,
       }
@@ -187,17 +190,51 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             </Space>
           }
           field="deadline"
-          extra="Hard deadline for task completion"
+          extra="Set a target completion date for this task"
         >
           <DatePicker
             showTime
             placeholder="Select deadline"
             style={{ width: '100%' }}
+            onChange={(value) => setHasDeadline(!!value)}
             disabledDate={(current) => {
               // Disable dates before today
               return current.isBefore(new Date(), 'day')
             }}
           />
+        </Form.Item>
+
+        {hasDeadline && (
+          <Form.Item
+            label="Deadline Type"
+            field="deadlineType"
+            initialValue="soft"
+            extra="Hard deadlines must be met, soft deadlines are targets"
+          >
+            <Radio.Group>
+              <Radio value="soft">Soft (Target)</Radio>
+              <Radio value="hard">Hard (Must Meet)</Radio>
+            </Radio.Group>
+          </Form.Item>
+        )}
+
+        <Form.Item
+          label={
+            <Space>
+              <IconBulb />
+              <span>Cognitive Complexity</span>
+            </Space>
+          }
+          field="cognitiveComplexity"
+          extra="How mentally demanding is this task?"
+        >
+          <Select placeholder="Select complexity level">
+            <Select.Option value={1}>1 - Trivial (routine, automatic)</Select.Option>
+            <Select.Option value={2}>2 - Simple (straightforward, clear)</Select.Option>
+            <Select.Option value={3}>3 - Moderate (requires focus)</Select.Option>
+            <Select.Option value={4}>4 - Complex (challenging, requires deep thought)</Select.Option>
+            <Select.Option value={5}>5 - Very Complex (highly challenging, novel)</Select.Option>
+          </Select>
         </Form.Item>
 
         <Form.Item
