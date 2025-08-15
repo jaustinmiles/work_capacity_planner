@@ -6,6 +6,27 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 
+// Mock window functions BEFORE any other setup
+Object.defineProperty(window, 'addEventListener', {
+  writable: true,
+  value: vi.fn(),
+})
+Object.defineProperty(window, 'removeEventListener', {
+  writable: true,
+  value: vi.fn(),
+})
+Object.defineProperty(window, 'getComputedStyle', {
+  writable: true,
+  value: vi.fn().mockReturnValue({
+    getPropertyValue: vi.fn().mockReturnValue(''),
+    padding: '0',
+    borderTopWidth: '0',
+    borderBottomWidth: '0',
+    fontSize: '14px',
+    lineHeight: '1.5',
+  }),
+})
+
 // Mock matchMedia for Arco components
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -20,6 +41,15 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 })
+
+// Window event listeners are already mocked above
+
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
 
 // Mock Electron API for tests
 global.window = Object.assign(global.window, {
@@ -65,6 +95,7 @@ global.window = Object.assign(global.window, {
       enhanceTaskDetails: vi.fn(),
       getContextualQuestions: vi.fn(),
       getJobContextualQuestions: vi.fn(),
+      parseAmendment: vi.fn(),
     },
     speech: {
       transcribeAudio: vi.fn(),

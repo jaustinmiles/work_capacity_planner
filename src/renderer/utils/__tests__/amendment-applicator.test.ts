@@ -347,7 +347,7 @@ describe('Amendment Applicator', () => {
       await applyAmendments([amendment])
 
       expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('wf-1', {
-        totalDuration: 480,
+        duration: 480,
       })
     })
 
@@ -388,7 +388,7 @@ describe('Amendment Applicator', () => {
       }
 
       // Mock the database method
-      mockDb.addStepToWorkflow = vi.fn().mockResolvedValue({
+      mockDatabase.addStepToWorkflow.mockResolvedValue({
         id: 'wf-1',
         name: 'Test Workflow',
         steps: [],
@@ -396,7 +396,7 @@ describe('Amendment Applicator', () => {
 
       await applyAmendments([amendment])
 
-      expect(mockDb.addStepToWorkflow).toHaveBeenCalledWith('wf-1', {
+      expect(mockDatabase.addStepToWorkflow).toHaveBeenCalledWith('wf-1', {
         name: 'Code Review',
         duration: 60,
         type: 'focused',
