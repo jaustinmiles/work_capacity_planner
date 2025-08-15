@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scheduleItemsWithBlocks } from '../flexible-scheduler'
+import { scheduleItemsWithBlocks, scheduleItemsWithBlocksAndDebug } from '../flexible-scheduler'
 import { Task } from '@shared/types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
@@ -36,15 +36,31 @@ describe('Flexible Scheduler - Simple Tests', () => {
     ],
     meetings: [],
   })
+  
+  // Helper to get a future date for testing
+  const getFutureDate = (daysAhead: number = 1): string => {
+    const date = new Date()
+    date.setDate(date.getDate() + daysAhead)
+    return date.toISOString().split('T')[0]
+  }
 
   it('should schedule a simple task', () => {
     const task = createTask()
-    const pattern = createPattern('2025-08-15')
+    const futureDate = getFutureDate()
+    const pattern = createPattern(futureDate)
 
-    const result = scheduleItemsWithBlocks([task], [], [pattern])
+    // Use the debug version to understand what's happening
+    const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug([task], [], [pattern])
 
-    expect(result.length).toBeGreaterThan(0)
-    expect(result[0].name).toBe('Test Task')
+    // Log debug info if test fails
+    if (scheduledItems.length === 0) {
+      console.log('Unscheduled items:', debugInfo.unscheduledItems)
+      console.log('Block utilization:', debugInfo.blockUtilization)
+      console.log('Warnings:', debugInfo.warnings)
+    }
+
+    expect(scheduledItems.length).toBeGreaterThan(0)
+    expect(scheduledItems[0].name).toBe('Test Task')
   })
 
   it('should handle empty inputs', () => {
@@ -53,8 +69,9 @@ describe('Flexible Scheduler - Simple Tests', () => {
   })
 
   it('should handle patterns with meetings', () => {
+    const futureDate = getFutureDate()
     const pattern: DailyWorkPattern = {
-      date: '2025-08-15',
+      date: futureDate,
       blocks: [],
       meetings: [
         {
@@ -78,8 +95,9 @@ describe('Flexible Scheduler - Simple Tests', () => {
       type: 'admin',
     })
 
+    const futureDate = getFutureDate()
     const pattern: DailyWorkPattern = {
-      date: '2025-08-15',
+      date: futureDate,
       blocks: [
         {
           id: 'block-1',

@@ -248,7 +248,11 @@ export function scheduleItems(
   for (let i = 0; i < 7; i++) {
     const checkDate = new Date(currentTime)
     checkDate.setDate(checkDate.getDate() + i)
-    if (checkDate.getDay() !== 0 && checkDate.getDay() !== 6) { // Skip weekends
+    const dayOfWeek = checkDate.getDay()
+    const dayWorkHours = workSettings.customWorkHours[dayOfWeek] || workSettings.defaultWorkHours
+    
+    // Only add blocked times for working days (days with configured work hours)
+    if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
       const dateStr = checkDate.toISOString().split('T')[0]
       if (!blockedDaysAdded.has(dateStr)) {
         blockedDaysAdded.add(dateStr)
