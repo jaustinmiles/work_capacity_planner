@@ -70,7 +70,7 @@ function App() {
 
   // Initialize data when app starts
   useEffect(() => {
-    console.log('App: Starting initialization...')
+    // App initialization started
     initializeData()
   }, [initializeData])
 
@@ -652,7 +652,7 @@ function App() {
           visible={voiceAmendmentVisible}
           onClose={() => setVoiceAmendmentVisible(false)}
           onAmendmentsApplied={async (amendments) => {
-            console.log('Amendments to apply:', amendments)
+            // Apply amendments from voice input
             try {
               const { applyAmendments } = await import('./utils/amendment-applicator')
               await applyAmendments(amendments)

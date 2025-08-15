@@ -108,10 +108,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   // Data loading actions
   loadTasks: async () => {
     try {
-      console.log('Store: Starting to load tasks...')
+      // Loading tasks from database
       set({ isLoading: true, error: null })
       const tasks = await getDatabase().getTasks()
-      console.log(`Store: Loaded ${tasks.length} tasks`)
+      // Tasks loaded successfully
       set({ tasks, isLoading: false })
     } catch (error) {
       console.error('Store: Error loading tasks:', error)
@@ -126,7 +126,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null })
       const sequencedTasks = await getDatabase().getSequencedTasks()
-      console.log(`Store: Loaded ${sequencedTasks.length} sequenced tasks:`, sequencedTasks)
+      // Sequenced tasks loaded successfully
       set({ sequencedTasks, isLoading: false })
     } catch (error) {
       console.error('Store: Error loading sequenced tasks:', error)
@@ -139,15 +139,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   initializeData: async () => {
     try {
-      console.log('Store: Initializing data...')
+      // Initializing store data
       set({ isLoading: true, error: null })
       await getDatabase().initializeDefaultData()
-      console.log('Store: Loading tasks and sequenced tasks...')
+      // Loading all data from database
       const [tasks, sequencedTasks] = await Promise.all([
         getDatabase().getTasks(),
         getDatabase().getSequencedTasks(),
       ])
-      console.log(`Store: Initialized with ${tasks.length} tasks and ${sequencedTasks.length} sequenced tasks`)
+      // Store initialized successfully
       set({ tasks, sequencedTasks, isLoading: false })
     } catch (error) {
       console.error('Store: Failed to initialize data:', error)
