@@ -1,7 +1,7 @@
 # Work Capacity Planner - Architecture Documentation
 
-**Last Updated:** August 13, 2025  
-**Version:** 1.0.0-beta
+**Last Updated:** August 15, 2025  
+**Version:** 2.0.0
 
 ## Overview
 
@@ -12,13 +12,14 @@ Work Capacity Planner is an Electron-based desktop application for managing soft
 ### Technology Stack
 
 - **Desktop Framework:** Electron 26+
-- **Frontend:** React 19 with TypeScript 5.0+
+- **Frontend:** React 19 with TypeScript 5.0+ (strict mode)
 - **UI Components:** Arco Design + Tailwind CSS
-- **State Management:** Zustand with persistence
+- **State Management:** Zustand with session-aware persistence
 - **Database:** SQLite with Prisma ORM
 - **Build System:** Vite
 - **Testing:** Vitest + React Testing Library
-- **AI Services:** Claude Opus 4.1 + OpenAI Whisper
+- **AI Services:** Claude Opus 4.1 + OpenAI Whisper API
+- **Type Safety:** Comprehensive enum system with exhaustive checking
 
 ### Process Architecture
 
@@ -26,33 +27,47 @@ Work Capacity Planner is an Electron-based desktop application for managing soft
 ┌─────────────────────────────────────────────────────────┐
 │                    Electron Main Process                 │
 │  - Database operations (Prisma)                          │
-│  - IPC handlers                                          │
+│  - IPC handlers with enum serialization handling         │
 │  - Window management                                     │
-│  - AI service integration                                │
+│  - AI service integration (Claude + Whisper)             │
+│  - Amendment parsing with job context                    │
 └───────────────┬─────────────────────────────────────────┘
                 │
-                │ IPC via Preload Script
+                │ IPC via Preload Script (contextBridge)
+                │ ⚠️ Enums serialize to strings
                 │
 ┌───────────────▼─────────────────────────────────────────┐
 │                  Electron Renderer Process               │
 │  - React application                                     │
-│  - Zustand store                                         │
+│  - Zustand store with task/workflow state                │
 │  - UI components (Arco Design)                           │
 │  - Scheduling algorithms                                 │
+│  - Voice amendment UI                                    │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Data Flow
+### Data Flow Patterns
 
-1. **User Input** → React Components → Zustand Store → IPC Call → Main Process
-2. **Main Process** → Database Operation → IPC Response → Zustand Store → React Re-render
-3. **AI Features** → Voice Recording → Whisper API → Claude API → Structured Data → Database
+#### 1. Standard CRUD Operations
+```
+User Action → React Component → Zustand Store → IPC Call → Main Process → Database → IPC Response → Store Update → UI Re-render
+```
+
+#### 2. Voice Amendment Flow
+```
+Voice Recording → Whisper Transcription → Claude Parsing (with Job Context) → Amendment Objects → Apply to Database → Auto-refresh UI
+```
+
+#### 3. AI Task Extraction
+```
+Voice/Text Input → Whisper API → Claude Analysis → Structured Tasks/Workflows → Database → UI Update
+```
 
 ## Database Design
 
-### Unified Task Model (CRITICAL)
+### Unified Task Model ✅
 
-**⚠️ IMPORTANT:** The application uses a unified Task model where workflows are Tasks with `hasSteps: true`. The UI still expects SequencedTask format for backwards compatibility.
+**Current State:** Successfully migrated to unified model where workflows are Tasks with `hasSteps: true`.
 
 ```prisma
 model Task {
@@ -61,235 +76,365 @@ model Task {
   duration              Int       // Total duration in minutes
   hasSteps              Boolean   @default(false)
   
-  // Workflow-specific fields
-  criticalPathDuration  Int?      // Critical path through dependencies
-  worstCaseDuration     Int?      // Worst case with all branches
-  currentStepId         String?   // Currently active step
+  // Workflow-specific fields (when hasSteps = true)
+  criticalPathDuration  Int?      
+  worstCaseDuration     Int?      
+  currentStepId         String?   
   overallStatus         String    @default("not_started")
   
-  // Task fields
+  // Core task fields
   importance            Int
   urgency               Int
   type                  String    // "focused" | "admin"
   asyncWaitTime         Int       @default(0)
   dependencies          String    // JSON array of task IDs
   
-  // Completion tracking
+  // Tracking
   completed             Boolean   @default(false)
   completedAt           DateTime?
   actualDuration        Int?
+  notes                 String?
   
   // Relations
   TaskStep              TaskStep[] @relation("TaskSteps")
+  WorkSession           WorkSession[]
   sessionId             String
   Session               Session    @relation(fields: [sessionId])
 }
 
 model TaskStep {
   id               String    @id
-  taskId           String
+  taskId           String    // Parent task/workflow
   name             String
   duration         Int
-  type             String
+  type             String    // "focused" | "admin"
   dependsOn        String    // JSON array of step IDs
   asyncWaitTime    Int       @default(0)
   status           String    @default("pending")
-  stepIndex        Int
+  stepIndex        Int       // Order in workflow
   percentComplete  Int       @default(0)
+  notes            String?   // Step-specific notes
+  
+  // Tracking
+  actualDuration   Int?
+  startedAt        DateTime?
+  completedAt      DateTime?
   
   Task             Task      @relation("TaskSteps", fields: [taskId])
+  StepWorkSession  StepWorkSession[]
+}
+
+model Session {
+  id          String    @id
+  name        String
+  createdAt   DateTime  @default(now())
+  isActive    Boolean   @default(false)
+  
+  Task        Task[]
+  WorkPattern WorkPattern[]
+  JobContext  JobContext[]
+}
+
+model JobContext {
+  id                String    @id
+  sessionId         String
+  role              String?
+  context           String?   // General work context
+  jargonDictionary  String?   // JSON: domain-specific terms
+  
+  Session           Session   @relation(fields: [sessionId])
 }
 ```
 
-### Key Database Services
-
-- `DatabaseService` (singleton) - Main database interface
-- `getSequencedTasks()` - Returns workflows formatted as SequencedTasks for UI
-- `getTasks()` - Returns all tasks including workflows with steps
-- `formatTask()` - Ensures proper formatting with steps array
-
 ## Component Architecture
 
-### Main Components
+### Main Process Services
+
+```
+src/main/
+├── index.ts              # IPC handlers, app lifecycle
+├── database.ts           # DatabaseService singleton
+│   ├── Task CRUD operations
+│   ├── Workflow step management
+│   ├── Work session tracking
+│   ├── Job context management
+│   └── Session isolation
+└── services/
+    ├── ai-service.ts     # Claude Opus integration
+    └── speech-service.ts # Whisper API integration
+```
+
+### Renderer Process Structure
 
 ```
 src/renderer/
 ├── components/
+│   ├── ai/
+│   │   └── BrainstormModal.tsx    # Voice-to-task extraction
+│   ├── voice/
+│   │   └── VoiceAmendmentModal.tsx # Voice amendments UI
 │   ├── tasks/
-│   │   ├── TaskList.tsx          // Main task list view
-│   │   ├── TaskItem.tsx          // Individual task display
-│   │   ├── TaskForm.tsx          // Task creation/editing
-│   │   ├── SequencedTaskView.tsx // Workflow display
-│   │   └── EisenhowerMatrix.tsx  // Priority matrix view
-│   ├── timeline/
-│   │   └── GanttChart.tsx        // Timeline visualization
-│   ├── calendar/
-│   │   └── WeeklyCalendar.tsx    // Weekly schedule view
-│   ├── progress/
-│   │   ├── WorkflowProgressTracker.tsx // Step-by-step progress
-│   │   └── TimeLoggingModal.tsx  // Manual time entry
-│   └── ai/
-│       ├── BrainstormModal.tsx   // AI task extraction
-│       └── TaskCreationFlow.tsx  // AI-assisted creation
+│   │   ├── TaskList.tsx
+│   │   ├── TaskEdit.tsx
+│   │   ├── SequencedTaskEdit.tsx  # Workflow editing
+│   │   └── TaskStepItem.tsx
+│   ├── schedule/
+│   │   ├── WorkScheduleModal.tsx
+│   │   └── TimelineVisualizer.tsx
+│   └── timeline/
+│       └── GanttChart.tsx         # Gantt visualization
 ├── store/
-│   └── useTaskStore.ts           // Zustand state management
-├── utils/
-│   └── flexible-scheduler.ts     // Core scheduling algorithm
-└── services/
-    └── database.ts               // IPC wrapper for database
+│   └── useTaskStore.ts             # Zustand state management
+├── services/
+│   └── database.ts                 # IPC wrapper for DB calls
+└── utils/
+    ├── scheduling.ts               # Scheduling algorithms
+    └── amendment-applicator.ts    # Apply voice amendments
 ```
 
-### State Management
-
-Zustand store manages:
-- Tasks and workflows
-- Active sessions
-- Scheduling results
-- Work settings
-- Progress tracking
-
-## Core Algorithms
-
-### Flexible Scheduler
-
-The scheduling algorithm handles:
-1. **Priority-based scheduling** - Importance × Urgency scoring
-2. **Async wait time management** - Blocks dependent steps during waits
-3. **Capacity constraints** - Respects daily focus/admin limits
-4. **Dependency resolution** - Ensures proper step ordering
-5. **Deadline awareness** - Prioritizes tasks approaching deadlines
-6. **Workflow interleaving** - Prevents single workflow monopolization
-
-### Critical Path Calculation
-
-For workflows:
-- Analyzes dependency chains
-- Calculates minimum completion time
-- Considers async wait periods
-- Identifies bottlenecks
-
-## AI Integration
-
-### Voice Workflow Creation
+### Shared Types and Utilities
 
 ```
-User Speech → Whisper API → Transcript → Claude Opus → Structured Workflow → Database
+src/shared/
+├── types.ts                # Core type definitions
+├── enums.ts                # Centralized enums
+├── amendment-types.ts      # Voice amendment types
+├── amendment-parser.ts     # Claude parsing logic
+└── step-id-utils.ts        # Step ID generation
 ```
 
-### Brainstorming Pipeline
+## Key Architectural Patterns
+
+### 1. IPC Communication Pattern
+
+**Critical:** Enums become strings when serialized through IPC.
+
+```typescript
+// Main process sends enum
+{ type: AmendmentType.StepAddition } // Enum value
+
+// Renderer receives string
+{ type: 'step_addition' } // String literal
+
+// Solution: Handle both in UI
+switch (amendment.type) {
+  case 'step_addition':
+  case AmendmentType.StepAddition:
+    // Handle step addition
+}
+```
+
+### 2. Database Service Singleton
+
+```typescript
+class DatabaseService {
+  private static instance: DatabaseService
+  private client: PrismaClient
+  
+  static getInstance(): DatabaseService {
+    if (!this.instance) {
+      this.instance = new DatabaseService()
+    }
+    return this.instance
+  }
+  
+  // All DB operations go through this service
+}
+```
+
+### 3. Session Isolation
+
+All database queries filter by active session:
+
+```typescript
+async getTasks(): Promise<Task[]> {
+  const sessionId = await this.getActiveSession()
+  return this.client.task.findMany({
+    where: { sessionId },
+    include: { TaskStep: true }
+  })
+}
+```
+
+### 4. Unified Task Formatting
+
+The `formatTask` method ensures UI compatibility:
+
+```typescript
+private formatTask(task: any): any {
+  if (task.hasSteps) {
+    // Format as SequencedTask for UI
+    return {
+      ...task,
+      steps: task.TaskStep || [],
+      totalDuration: task.duration,
+      overallStatus: task.overallStatus || 'not_started'
+    }
+  }
+  return task
+}
+```
+
+## Voice Amendment System
+
+### Architecture Flow
 
 ```
-Free-form Text → Claude Analysis → Task/Workflow Extraction → User Review → Database
+1. Voice Recording (MediaRecorder API)
+   ↓
+2. Audio Processing (Blob → ArrayBuffer)
+   ↓
+3. Transcription (Whisper API via IPC)
+   ↓
+4. Amendment Parsing (Claude Opus with Job Context)
+   ↓
+5. Amendment Display (Handle enum serialization)
+   ↓
+6. Amendment Application (Database modifications)
+   ↓
+7. UI Auto-refresh (Zustand store update)
 ```
+
+### Supported Amendment Types
+
+- **StatusUpdate**: Change task/workflow status
+- **TimeLog**: Record time spent
+- **NoteAddition**: Add notes to items
+- **DurationChange**: Update time estimates
+- **StepAddition**: Add steps to workflows ✅
+- **StepRemoval**: Remove workflow steps (TODO)
+- **DependencyChange**: Modify dependencies (TODO)
+- **TaskCreation**: Create new tasks (TODO)
+- **WorkflowCreation**: Create workflows (TODO)
+
+## Scheduling Engine
+
+### Core Algorithm
+
+1. **Topological Sort**: Resolve dependencies
+2. **Priority Calculation**: importance × urgency
+3. **Capacity Allocation**: Respect daily limits
+4. **Smart Interleaving**: Prevent workflow monopolization
+5. **Async Gap Filling**: Utilize wait times
+6. **Deadline Boosting**: Prioritize near deadlines
+
+### Capacity Model
+
+```typescript
+interface DailyCapacity {
+  focusMinutes: number    // Deep work capacity
+  adminMinutes: number    // Admin work capacity
+  meetingMinutes: number  // Fixed meetings
+  breakMinutes: number    // Required breaks
+}
+```
+
+## Security Considerations
+
+### Process Isolation
+- Database operations restricted to main process
+- Renderer can only access DB via IPC
+- Preload script uses contextBridge for security
+
+### Data Protection
+- Local SQLite database (no network exposure)
+- Session isolation for multi-project support
+- No sensitive data in renderer process
+
+## Performance Optimizations
+
+### Current Optimizations
+- Lazy loading of workflow steps
+- Debounced UI updates
+- Efficient task formatting
+- Cached session lookups
+
+### Future Optimizations
+- Virtual scrolling for large task lists
+- Worker threads for complex scheduling
+- Database query optimization
+- Voice recording compression
 
 ## Testing Strategy
 
 ### Test Coverage
+- **Unit Tests**: Core algorithms, utilities
+- **Integration Tests**: Database operations
+- **Component Tests**: React components
+- **E2E Tests**: Critical user flows (planned)
 
-- **Unit Tests:** Business logic, algorithms, utilities
-- **Component Tests:** React components with React Testing Library
-- **Integration Tests:** IPC communication, database operations
-- **E2E Tests:** Critical user workflows (planned)
+### Key Test Files
+```
+src/main/__tests__/
+  ├── database-unified.test.ts
+  ├── database-workflow-protection.test.ts
+  └── work-sessions.test.ts
 
-### Critical Test Suites
+src/renderer/__tests__/
+  └── voice-amendment-integration.test.tsx
 
-- `database-workflow-protection.test.ts` - Protects workflow functionality
-- `flexible-scheduler.test.ts` - Validates scheduling logic
-- `database-unified.test.ts` - Tests unified task model
+src/shared/__tests__/
+  ├── amendment-parser.test.ts
+  └── amendment-parser-edge-cases.test.ts
+```
 
-## Security Considerations
+## Deployment Architecture
 
-1. **IPC Security:** All database operations go through preload script
-2. **Input Validation:** Zod schemas for AI responses
-3. **API Keys:** Stored in environment variables
-4. **Local Data:** SQLite database is local-only
+### Build Process
+1. TypeScript compilation (strict mode)
+2. Vite bundling for renderer
+3. Electron Builder packaging
+4. Code signing (planned)
+5. Auto-update integration (planned)
 
-## Performance Optimizations
+### Distribution
+- **macOS**: DMG installer
+- **Windows**: NSIS installer (planned)
+- **Linux**: AppImage (planned)
 
-1. **Database Queries:** Includes relations to minimize round trips
-2. **Memoization:** React.memo for expensive components
-3. **Virtual Scrolling:** For large task lists (planned)
-4. **Debouncing:** Search and filter operations
-5. **Background Processing:** AI operations don't block UI
+## Known Architectural Decisions
 
-## Technical Health
+### 1. Unified Task Model
+**Decision**: Merge Task and SequencedTask into single model  
+**Rationale**: Simpler data model, fewer synchronization issues  
+**Trade-off**: UI compatibility layer needed  
 
-### Current Status (2025-08-13)
-- **TypeScript:** ✅ 0 errors (strict mode fully enforced)
-- **Tests:** ✅ 78 passing, 0 failing (runtime: 2s)
-- **Build:** ✅ Successful production builds
-- **Database:** ✅ Unified task model migration complete
+### 2. IPC for All DB Operations
+**Decision**: Renderer never directly accesses database  
+**Rationale**: Security, process isolation  
+**Trade-off**: Additional complexity in IPC handlers  
 
-### Remaining Technical Debt
+### 3. Enum System
+**Decision**: Comprehensive enums despite IPC serialization  
+**Rationale**: Type safety, exhaustive checking  
+**Trade-off**: Must handle both enums and strings in UI  
 
-1. **Test Coverage:** ~60% coverage, needs improvement for UI components
-2. **Error Handling:** Some async operations lack proper error boundaries
-3. **Performance:** Large workflow scheduling needs optimization (500+ tasks)
-4. **Documentation:** Some modules lack inline documentation
-5. **Code Cleanup:** Some `any` types remain in older code
+### 4. Local-First Design
+**Decision**: SQLite with no cloud sync  
+**Rationale**: Privacy, offline capability, simplicity  
+**Trade-off**: No multi-device sync  
 
 ## Future Architecture Considerations
 
-1. **Plugin System:** For custom scheduling algorithms
-2. **Multi-window Support:** Separate windows for different views
-3. **Cloud Sync:** Optional cloud backup and sync
-4. **Team Features:** Shared workflows and dependencies
-5. **Mobile Companion:** View-only mobile app
+### Planned Enhancements
+1. **Cloud Sync**: Optional encrypted backup
+2. **Plugin System**: Custom scheduling algorithms
+3. **Team Features**: Shared workflows
+4. **Mobile Companion**: View-only mobile app
+5. **API Integration**: JIRA, GitHub, etc.
 
-## Development Guidelines
+### Technical Debt (Resolved)
+- ✅ Unified task model migration
+- ✅ TypeScript strict mode compliance
+- ✅ Voice amendment implementation
+- ✅ IPC serialization handling
 
-### Code Style
+### Remaining Technical Debt
+- Complete all amendment types
+- Remove debug logging
+- Optimize large workflow performance
+- Add E2E test coverage
 
-- TypeScript strict mode enabled
-- ESLint with enhanced rules
-- Prettier for formatting
-- No unused imports/variables
-- Comprehensive type definitions
+---
 
-### Git Workflow
-
-- Main branch for stable code
-- Feature branches for development
-- Squash merge for clean history
-- Comprehensive commit messages
-
-### Testing Requirements
-
-Before marking any task complete:
-1. Run `npm run typecheck` - Must have 0 errors
-2. Run `npm test -- --run` - All tests must pass
-3. Run `npm run build` - Must build successfully
-4. Manual testing of the feature
-
-## Deployment
-
-### Build Process
-
-```bash
-npm run build        # Build for current platform
-npm run build:mac    # macOS build
-npm run build:win    # Windows build
-npm run build:linux  # Linux build
-```
-
-### Distribution
-
-- macOS: DMG with code signing (planned)
-- Windows: NSIS installer (planned)
-- Linux: AppImage and DEB packages (planned)
-
-## Monitoring and Analytics
-
-Currently no telemetry. Future considerations:
-- Error reporting (opt-in)
-- Usage analytics (opt-in)
-- Performance metrics
-- Crash reporting
-
-## Support and Maintenance
-
-- GitHub Issues for bug reports
-- Documentation in `/docs` directory
-- CLAUDE.md for AI assistant guidance
-- Regular dependency updates
-- Security patch schedule
+*This architecture represents the current state after the successful implementation of the voice amendment system and unified task model migration.*
