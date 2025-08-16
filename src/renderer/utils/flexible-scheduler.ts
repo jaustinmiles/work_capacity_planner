@@ -363,7 +363,7 @@ export function scheduleItemsWithBlocksAndDebug(
     .filter(task => !task.completed)
     .forEach(task => {
       // Calculate priority using enhanced function if context available
-      const priority = schedulingContext 
+      const priority = schedulingContext
         ? calculatePriority(task, schedulingContext)
         : task.importance * task.urgency
 
@@ -396,7 +396,7 @@ export function scheduleItemsWithBlocksAndDebug(
           // Calculate priority using enhanced function if context available
           // For steps, we use the workflow's importance/urgency as base
           const basePriority = workflow.importance * workflow.urgency
-          const priority = schedulingContext 
+          const priority = schedulingContext
             ? calculatePriority({
                 ...step,
                 importance: workflow.importance,
@@ -632,14 +632,14 @@ export function scheduleItemsWithBlocksAndDebug(
       if (schedulingContext) {
         // Update context with current time and last scheduled item
         schedulingContext.currentTime = currentTime
-        schedulingContext.lastScheduledItem = scheduledItems.length > 0 
+        schedulingContext.lastScheduledItem = scheduledItems.length > 0
           ? scheduledItems[scheduledItems.length - 1] as ScheduledItem
           : undefined
-        
+
         // Recalculate priorities with deadline pressure
         const aPriority = calculatePriority(a.originalItem as Task, schedulingContext)
         const bPriority = calculatePriority(b.originalItem as Task, schedulingContext)
-        
+
         // Always respect locked tasks first
         if (a.isLocked && b.isLocked) {
           const aTime = a.lockedStartTime ? new Date(a.lockedStartTime).getTime() : Infinity
@@ -648,11 +648,11 @@ export function scheduleItemsWithBlocksAndDebug(
         }
         if (a.isLocked) return -1
         if (b.isLocked) return 1
-        
+
         // Use enhanced priority calculation
         return bPriority - aPriority
       }
-      
+
       // Fallback to original sorting logic if no context
       // Always respect locked tasks first
       if (a.isLocked && b.isLocked) {

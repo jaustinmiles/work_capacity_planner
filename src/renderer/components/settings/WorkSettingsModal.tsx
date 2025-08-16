@@ -53,7 +53,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
 
       // Build custom work hours for weekends if enabled
       const customWorkHours = { ...(workSettings?.customWorkHours || {}) }
-      
+
       if (enableSaturday) {
         customWorkHours[6] = {
           startTime: values.saturdayStartTime?.format('HH:mm') || values.startTime.format('HH:mm'),
@@ -64,7 +64,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
       } else {
         delete customWorkHours[6]
       }
-      
+
       if (enableSunday) {
         customWorkHours[0] = {
           startTime: values.sundayStartTime?.format('HH:mm') || values.startTime.format('HH:mm'),
@@ -255,7 +255,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
         <Divider />
 
         <Title heading={6}>Weekend Work Hours</Title>
-        
+
         <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
           <Checkbox
             checked={enableSaturday}
@@ -263,7 +263,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
           >
             Enable Saturday Work
           </Checkbox>
-          
+
           {enableSaturday && (
             <Row gutter={16} style={{ marginLeft: 24 }}>
               <Col span={12}>
@@ -288,14 +288,14 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
               </Col>
             </Row>
           )}
-          
+
           <Checkbox
             checked={enableSunday}
             onChange={setEnableSunday}
           >
             Enable Sunday Work
           </Checkbox>
-          
+
           {enableSunday && (
             <Row gutter={16} style={{ marginLeft: 24 }}>
               <Col span={12}>

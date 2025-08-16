@@ -38,7 +38,7 @@ export interface Task {
   criticalPathDuration: number
   worstCaseDuration: number
   steps?: TaskStep[] // Optional - populated when needed
-  
+
   // For async optimization (computed, not stored)
   isAsyncTrigger?: boolean
 }

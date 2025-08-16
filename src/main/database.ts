@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { Task } from '../shared/types'
+import * as crypto from 'crypto'
 
 // Create Prisma client instance
 const prisma = new PrismaClient()
@@ -25,14 +26,12 @@ export class DatabaseService {
 
   async getActiveSession(): Promise<string> {
     if (!this.activeSessionId) {
-      console.log('DB: Looking for active session...')
       // Find the active session or create one if none exists
       let session = await this.client.session.findFirst({
         where: { isActive: true },
       })
 
       if (!session) {
-        console.log('DB: No active session found, creating default session...')
         // Create a default session if none exists
         session = await this.client.session.create({
           data: {
@@ -42,15 +41,12 @@ export class DatabaseService {
             isActive: true,
           },
         })
-        console.log('DB: Created new session with ID:', session.id)
       } else {
-        console.log('DB: Found existing active session:', JSON.stringify(session))
       }
 
       this.activeSessionId = session.id
     }
 
-    console.log('DB: Returning session ID:', this.activeSessionId)
     return this.activeSessionId
   }
 
@@ -130,11 +126,8 @@ export class DatabaseService {
 
   // Tasks
   async getTasks(): Promise<Task[]> {
-    console.log('DB: Getting active session...')
     const sessionId = await this.getActiveSession()
-    console.log('DB: Active session ID:', sessionId)
 
-    console.log('DB: Querying tasks with sessionId:', sessionId)
     const tasks = await this.client.task.findMany({
       where: { sessionId },
       include: {
@@ -143,9 +136,7 @@ export class DatabaseService {
       orderBy: { createdAt: 'desc' },
     })
 
-    console.log(`DB: Found ${tasks.length} raw tasks`)
     const formattedTasks = tasks.map(task => this.formatTask(task))
-    console.log(`DB: Returning ${formattedTasks.length} formatted tasks`)
     return formattedTasks
   }
 
@@ -371,7 +362,6 @@ export class DatabaseService {
 
     // Debug log to see what we're getting
     if (task.hasSteps) {
-      console.log(`DB: Formatting task ${task.id}, hasSteps: ${task.hasSteps}, TaskStep exists: ${!!task.TaskStep}, TaskStep length: ${task.TaskStep?.length}`)
     }
 
     return {
@@ -727,7 +717,6 @@ export class DatabaseService {
     dependencies?: string[]
     asyncWaitTime?: number
   }): Promise<any> {
-    console.log('[DB] Adding step to workflow:', workflowId, stepData)
 
     // Get existing steps to determine order
     const existingSteps = await this.client.taskStep.findMany({
@@ -790,7 +779,6 @@ export class DatabaseService {
       })
     }
 
-    console.log('[DB] Step added successfully:', newStep.id)
 
     // Return the updated workflow in SequencedTask format
     const finalTask = await this.client.task.findUnique({
@@ -1113,7 +1101,6 @@ export class DatabaseService {
       throw new Error('startTime is required for creating a work session')
     }
 
-    console.log('DB: Creating work session:', JSON.stringify(data))
     const session = await this.client.workSession.create({
       data: {
         id: crypto.randomUUID(),
@@ -1127,7 +1114,6 @@ export class DatabaseService {
         notes: data.notes ?? null,
       },
     })
-    console.log('DB: Created work session:', session.id)
     return session
   }
 
@@ -1151,9 +1137,7 @@ export class DatabaseService {
   }
 
   async getTodayAccumulated(date: string): Promise<{ focused: number; admin: number; total: number }> {
-    console.log(`DB: Getting accumulated time for ${date}`)
     const sessionId = await this.getActiveSession()
-    console.log('DB: Active session ID:', sessionId)
 
     const workSessions = await this.client.workSession.findMany({
       where: {
@@ -1169,7 +1153,6 @@ export class DatabaseService {
         Task: true,
       },
     })
-    console.log(`Found ${workSessions.length} work sessions for ${date}`)
 
     const accumulated = workSessions.reduce((acc, session) => {
       const minutes = session.actualMinutes || session.plannedMinutes || 0
@@ -1182,12 +1165,10 @@ export class DatabaseService {
       return acc
     }, { focused: 0, admin: 0, total: 0 })
 
-    console.log(`DB: Accumulated time for ${date}:`, accumulated)
     return accumulated
   }
 
   async getTaskTotalLoggedTime(taskId: string): Promise<number> {
-    console.log(`DB: Getting total logged time for task ${taskId}`)
     const workSessions = await this.client.workSession.findMany({
       where: { taskId },
     })
@@ -1196,7 +1177,6 @@ export class DatabaseService {
       return total + (session.actualMinutes || session.plannedMinutes || 0)
     }, 0)
 
-    console.log(`DB: Total logged time for task ${taskId}: ${total} minutes`)
     return total
   }
 
@@ -1461,7 +1441,6 @@ export class DatabaseService {
   }
 
   async createStepWorkSession(data: any): Promise<any> {
-    console.log('DB: createStepWorkSession called with:', JSON.stringify(data))
 
     // Transform the data from UI format to database format
     // UI sends: { taskStepId, startTime, duration, notes }
@@ -1471,7 +1450,6 @@ export class DatabaseService {
     const stepId = data.taskStepId || data.stepId || data.taskStepld || data.stepld
 
     if (!stepId) {
-      console.error('No step ID found in data:', data)
       throw new Error('Step ID is required')
     }
 
@@ -1500,7 +1478,6 @@ export class DatabaseService {
       notes: data.notes || null,
     }
 
-    console.log('DB: Transformed work session data:', JSON.stringify(workSessionData))
 
     const result = await this.createWorkSession(workSessionData)
 
@@ -1523,7 +1500,6 @@ export class DatabaseService {
   }
 
   async updateWorkSessionTypesForStep(stepId: string, newType: 'focused' | 'admin'): Promise<void> {
-    console.log(`DB: Updating work session types for step ${stepId} to ${newType}`)
     await this.client.workSession.updateMany({
       where: { stepId },
       data: { type: newType },

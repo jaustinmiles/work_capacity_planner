@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Task } from '@shared/types'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
-import { 
+import {
   calculateDeadlinePressure,
   calculateAsyncUrgency,
   calculatePriority,
   scheduleWithDeadlines,
-  SchedulingContext
+  SchedulingContext,
 } from '../deadline-scheduler'
 
 describe('Deadline-Driven Scheduling', () => {
@@ -20,10 +20,23 @@ describe('Deadline-Driven Scheduling', () => {
         defaultCapacity: {
           maxFocusHours: 4,
           maxAdminHours: 3,
-        }
-      },
+        },
+        defaultWorkHours: {
+          startTime: '09:00',
+          endTime: '18:00',
+        },
+        customWorkHours: {},
+      } as any,
       tasks: [],
       workflows: [],
+      workPatterns: [],
+      productivityPatterns: [],
+      schedulingPreferences: {
+        allowWeekendWork: false,
+        weekendPenalty: 0.5,
+        contextSwitchPenalty: 15,
+        asyncParallelizationBonus: 10,
+      } as any,
       lastScheduledItem: null,
     }
   })
@@ -39,7 +52,17 @@ describe('Deadline-Driven Scheduling', () => {
         deadline: new Date('2024-01-20T17:00:00'), // 5 days away
         deadlineType: 'hard',
         completed: false,
-      }
+        type: 'focused',
+        asyncWaitTime: 0,
+        dependencies: [],
+        sessionId: 'test-session',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        hasSteps: false,
+        overallStatus: 'not_started',
+        criticalPathDuration: 120,
+        worstCaseDuration: 120,
+      } as Task
 
       // 5 days slack (approximately)
       const pressure5Days = calculateDeadlinePressure(task, context)
@@ -74,7 +97,17 @@ describe('Deadline-Driven Scheduling', () => {
         deadline: new Date('2024-01-17T17:00:00'), // 2 days
         deadlineType: 'hard',
         completed: false,
-      }
+        type: 'focused',
+        asyncWaitTime: 0,
+        dependencies: [],
+        sessionId: 'test-session',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        hasSteps: false,
+        overallStatus: 'not_started',
+        criticalPathDuration: 120,
+        worstCaseDuration: 120,
+      } as Task
 
       const softTask: Task = {
         ...hardTask,
@@ -243,7 +276,7 @@ describe('Deadline-Driven Scheduling', () => {
         id: 'wf-1',
         steps: [
           { ...asyncTask, id: 'step-1' },
-          { id: 'step-2', duration: 480, dependsOn: ['step-1'] }
+          { id: 'step-2', duration: 480, dependsOn: ['step-1'] },
         ],
         deadline: new Date('2024-01-17T17:00:00'),
       }]
@@ -270,7 +303,7 @@ describe('Deadline-Driven Scheduling', () => {
       }
 
       const result = scheduleWithDeadlines({ ...context, tasks: [task] })
-      
+
       expect(result.failures).toHaveLength(1)
       expect(result.failures[0].type).toBe('impossible_deadline')
       expect(result.failures[0].suggestions.minimumDeadlineExtension).toBeGreaterThan(7)
@@ -297,17 +330,17 @@ describe('Deadline-Driven Scheduling', () => {
         completed: false,
       }
 
-      const result = scheduleWithDeadlines({ 
-        ...context, 
-        tasks: [task, higherPriorityTask] 
+      const result = scheduleWithDeadlines({
+        ...context,
+        tasks: [task, higherPriorityTask],
       })
-      
+
       // Higher priority task should be scheduled first
       expect(result.schedule[0].id).toBe('high-1')
-      
+
       // Should warn about soft deadline risk
-      expect(result.warnings.some(w => 
-        w.type === 'soft_deadline_risk' && w.item.id === 'soft-1'
+      expect(result.warnings.some(w =>
+        w.type === 'soft_deadline_risk' && w.item.id === 'soft-1',
       )).toBe(true)
     })
 
@@ -325,18 +358,18 @@ describe('Deadline-Driven Scheduling', () => {
         deadlineType: 'hard',
       }
 
-      const result = scheduleWithDeadlines({ 
-        ...context, 
-        workflows: [workflow] 
+      const result = scheduleWithDeadlines({
+        ...context,
+        workflows: [workflow],
       })
 
       // Should schedule async trigger early to maximize flexibility
       const submitStep = result.schedule.find(s => s.id === 'submit')
       const addressStep = result.schedule.find(s => s.id === 'address')
-      
+
       expect(submitStep).toBeDefined()
       expect(addressStep).toBeDefined()
-      
+
       // Address should be at least 24 hours after submit
       const timeDiff = addressStep!.startTime.getTime() - submitStep!.endTime.getTime()
       expect(timeDiff).toBeGreaterThanOrEqual(24 * 60 * 60 * 1000)
@@ -368,9 +401,9 @@ describe('Deadline-Driven Scheduling', () => {
         { timeRange: { start: '13:00', end: '15:00' }, cognitiveCapacity: 'low' },
       ]
 
-      const result = scheduleWithDeadlines({ 
-        ...context, 
-        tasks: [complexTask, simpleTask] 
+      const result = scheduleWithDeadlines({
+        ...context,
+        tasks: [complexTask, simpleTask],
       })
 
       const complexScheduled = result.schedule.find(s => s.id === 'complex-1')
@@ -404,15 +437,15 @@ describe('Deadline-Driven Scheduling', () => {
         { id: 'low-3', name: 'Nice to have 3', importance: 4, urgency: 3, duration: 240 },
       ]
 
-      const result = scheduleWithDeadlines({ 
-        ...context, 
+      const result = scheduleWithDeadlines({
+        ...context,
         tasks: [criticalTask, ...lowPriorityTasks],
         workSettings: {
           defaultCapacity: {
             maxFocusHours: 4, // Only 4 hours per day
             maxAdminHours: 0,
-          }
-        }
+          },
+        },
       })
 
       // Should suggest dropping low priority tasks
@@ -438,7 +471,7 @@ describe('Deadline-Driven Scheduling', () => {
       }
 
       const result = scheduleWithDeadlines({ ...context, tasks: [task] })
-      
+
       // Needs 10 hours, have 4 hours today, 4 tomorrow = 8 total
       // Need at least 2 more hours = half a day more
       expect(result.failures[0].suggestions.minimumDeadlineExtension).toBeGreaterThanOrEqual(12)

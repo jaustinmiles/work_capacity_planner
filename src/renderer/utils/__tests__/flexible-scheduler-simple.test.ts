@@ -36,7 +36,7 @@ describe('Flexible Scheduler - Simple Tests', () => {
     ],
     meetings: [],
   })
-  
+
   // Helper to get a future date for testing
   const getFutureDate = (daysAhead: number = 1): string => {
     const date = new Date()

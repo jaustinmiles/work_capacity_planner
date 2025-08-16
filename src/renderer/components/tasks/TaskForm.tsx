@@ -198,7 +198,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             style={{ width: '100%' }}
             onChange={(value) => setHasDeadline(!!value)}
             disabledDate={(current) => {
-              // Disable dates before today
+              // Only disable dates before today, allow weekends
               return current.isBefore(new Date(), 'day')
             }}
           />

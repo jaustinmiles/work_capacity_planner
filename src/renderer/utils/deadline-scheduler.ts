@@ -1,6 +1,6 @@
 /**
  * Unified Deadline-Aware Scheduler
- * 
+ *
  * Combines Eisenhower matrix prioritization with deadline pressure,
  * async optimization, and cognitive load matching.
  */
@@ -61,12 +61,12 @@ export interface SchedulingResult {
  */
 export function calculateDeadlinePressure(
   item: Task | TaskStep | SequencedTask,
-  context: SchedulingContext
+  context: SchedulingContext,
 ): number {
   // Check if item has deadline (Task/SequencedTask) or if parent has deadline (TaskStep)
   let deadline: Date | undefined
   let deadlineType: 'hard' | 'soft' | undefined
-  
+
   if ('deadline' in item) {
     deadline = item.deadline
     deadlineType = item.deadlineType
@@ -80,32 +80,32 @@ export function calculateDeadlinePressure(
       deadlineType = parent.deadlineType
     }
   }
-  
+
   if (!deadline) return 1.0
-  
+
   // Calculate critical path remaining
   const criticalPathHours = calculateCriticalPathRemaining(item, context)
-  const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours + 
+  const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours +
                           context.workSettings.defaultCapacity.maxAdminHours
   const workDaysNeeded = criticalPathHours / workHoursPerDay
-  
+
   // Calculate actual days until deadline
   const hoursUntilDeadline = (deadline.getTime() - context.currentTime.getTime()) / (1000 * 60 * 60)
   const daysUntilDeadline = hoursUntilDeadline / 24
-  
+
   // Slack time in days
   const slackDays = daysUntilDeadline - workDaysNeeded
-  
+
   if (slackDays <= 0) {
     // Impossible or on critical path
     return 1000
   }
-  
+
   // Apply inverse power function
   const k = deadlineType === 'hard' ? 10 : 5
   const p = 1.5
   const pressure = k / Math.pow(slackDays + 0.5, p)
-  
+
   return Math.max(1.0, Math.min(pressure, 100))
 }
 
@@ -115,14 +115,14 @@ export function calculateDeadlinePressure(
  */
 export function calculateAsyncUrgency(
   item: Task | TaskStep,
-  context: SchedulingContext
+  context: SchedulingContext,
 ): number {
   // Check if this is an async trigger
-  const isAsyncTrigger = item.isAsyncTrigger || 
+  const isAsyncTrigger = item.isAsyncTrigger ||
     (item.asyncWaitTime > 0 && item.duration > 0)
-  
+
   if (!isAsyncTrigger || !item.asyncWaitTime) return 0
-  
+
   // Find dependent tasks
   const dependentTasks = findDependentTasks(item, context)
   const dependentWorkHours = dependentTasks.reduce((sum, task) => {
@@ -131,36 +131,36 @@ export function calculateAsyncUrgency(
     }
     return sum
   }, 0)
-  
+
   // Find earliest deadline in chain
   const chainDeadline = findEarliestDeadlineInChain(item, dependentTasks, context)
   if (!chainDeadline) return 0
-  
+
   // Calculate time dynamics
   const hoursUntilDeadline = (chainDeadline.getTime() - context.currentTime.getTime()) / (1000 * 60 * 60)
   const asyncWaitHours = item.asyncWaitTime / 60
-  
+
   // Time available for dependent work after async completes
   const availableTimeAfterAsync = hoursUntilDeadline - asyncWaitHours
-  
+
   // Compression ratio
-  const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours + 
+  const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours +
                           context.workSettings.defaultCapacity.maxAdminHours
   const compressionRatio = dependentWorkHours / (availableTimeAfterAsync * (workHoursPerDay / 24))
-  
+
   if (compressionRatio >= 1) {
     return 500 // Extreme urgency
   }
-  
+
   // Exponential growth function
   const a = 10
   const b = 5
   const asyncUrgency = a * Math.exp(b * compressionRatio)
-  
+
   // Time pressure factor
   const daysUntilDeadline = hoursUntilDeadline / 24
   const timePressure = 5 / (daysUntilDeadline + 1)
-  
+
   return asyncUrgency + timePressure
 }
 
@@ -170,26 +170,26 @@ export function calculateAsyncUrgency(
 export function calculateCognitiveMatch(
   item: Task | TaskStep,
   timeSlot: Date,
-  context: SchedulingContext
+  context: SchedulingContext,
 ): number {
   const itemComplexity = item.cognitiveComplexity || 3
   const slotCapacity = getProductivityLevel(timeSlot, context.productivityPatterns)
-  
+
   const optimalMatches: Record<string, number[]> = {
     'peak': [4, 5],
     'high': [3, 4],
     'moderate': [2, 3],
-    'low': [1, 2]
+    'low': [1, 2],
   }
-  
+
   const isOptimal = optimalMatches[slotCapacity]?.includes(itemComplexity) || false
-  
+
   if (isOptimal) return 1.2 // 20% bonus
-  
+
   // Calculate mismatch penalty
   const capacityLevel = { 'peak': 4, 'high': 3, 'moderate': 2, 'low': 1 }[slotCapacity] || 2
   const mismatch = Math.abs(capacityLevel - itemComplexity)
-  
+
   return Math.max(0.7, 1 - (mismatch * 0.15))
 }
 
@@ -198,12 +198,12 @@ export function calculateCognitiveMatch(
  */
 export function calculatePriority(
   item: Task | TaskStep,
-  context: SchedulingContext
+  context: SchedulingContext,
 ): number {
   // Base Eisenhower score - TaskStep doesn't have importance/urgency, use parent's
   let importance: number
   let urgency: number
-  
+
   if ('importance' in item) {
     // It's a Task
     importance = item.importance
@@ -214,32 +214,32 @@ export function calculatePriority(
     importance = parentWorkflow?.importance || 5
     urgency = parentWorkflow?.urgency || 5
   }
-  
+
   const baseScore = importance * urgency
-  
+
   // Deadline pressure multiplier
   const deadlinePressure = calculateDeadlinePressure(item, context)
-  
+
   // Async urgency bonus
   const asyncUrgency = calculateAsyncUrgency(item, context)
-  
+
   // Cognitive match multiplier
   const cognitiveMatch = calculateCognitiveMatch(item, context.currentTime, context)
-  
+
   // Context switch penalty
   let contextSwitchPenalty = 0
   if (context.lastScheduledItem?.originalItem) {
     const lastItem = context.lastScheduledItem.originalItem
-    const differentWorkflow = 'taskId' in item && 'taskId' in lastItem && 
+    const differentWorkflow = 'taskId' in item && 'taskId' in lastItem &&
                              item.taskId !== lastItem.taskId
-    const differentProject = 'projectId' in item && 'projectId' in lastItem && 
+    const differentProject = 'projectId' in item && 'projectId' in lastItem &&
                             item.projectId !== lastItem.projectId
-    
+
     if (differentWorkflow || differentProject) {
       contextSwitchPenalty = -context.schedulingPreferences.contextSwitchPenalty
     }
   }
-  
+
   // Combine all factors
   return (baseScore * deadlinePressure + asyncUrgency) * cognitiveMatch + contextSwitchPenalty
 }
@@ -252,28 +252,28 @@ export function scheduleWithDeadlines(context: SchedulingContext): SchedulingRes
     schedule: [],
     warnings: [],
     failures: [],
-    suggestions: []
+    suggestions: [],
   }
-  
+
   // Phase 1: Analyze constraints and detect impossibilities
   const constraints = analyzeConstraints(context)
   for (const failure of constraints.failures) {
     result.failures.push(failure)
   }
-  
+
   // Phase 2: Prepare work items with calculated priorities
   const workItems = prepareWorkItems(context)
-  
+
   // Phase 3: Schedule items using enhanced priority
   const scheduledItems = scheduleItems(workItems, context, result)
   result.schedule = scheduledItems
-  
+
   // Phase 4: Optimize async triggers
   optimizeAsyncTriggers(result.schedule, context, result)
-  
+
   // Phase 5: Generate suggestions
   generateSuggestions(result.schedule, context, result)
-  
+
   return result
 }
 
@@ -281,10 +281,10 @@ export function scheduleWithDeadlines(context: SchedulingContext): SchedulingRes
 
 function calculateCriticalPathRemaining(
   item: Task | TaskStep | SequencedTask,
-  context: SchedulingContext
+  context: SchedulingContext,
 ): number {
   let totalHours = 0
-  
+
   if ('hasSteps' in item && item.hasSteps && item.steps) {
     // Workflow - sum uncompleted steps
     for (const step of item.steps) {
@@ -294,31 +294,31 @@ function calculateCriticalPathRemaining(
     }
   } else if ('duration' in item) {
     // Check completion status
-    const isCompleted = 'completed' in item ? item.completed : 
+    const isCompleted = 'completed' in item ? item.completed :
                        'status' in item ? item.status === 'completed' : false
-    
+
     if (!isCompleted) {
       totalHours = item.duration / 60
     }
   }
-  
+
   return totalHours
 }
 
 function findDependentTasks(
   item: Task | TaskStep,
-  context: SchedulingContext
+  context: SchedulingContext,
 ): Array<Task | TaskStep> {
   const dependents: Array<Task | TaskStep> = []
   const itemId = item.id
-  
+
   // Check tasks
   for (const task of context.tasks) {
     if (task.dependencies.includes(itemId)) {
       dependents.push(task)
     }
   }
-  
+
   // Check workflow steps
   for (const workflow of context.workflows) {
     if (workflow.steps) {
@@ -329,22 +329,22 @@ function findDependentTasks(
       }
     }
   }
-  
+
   return dependents
 }
 
 function findEarliestDeadlineInChain(
   item: Task | TaskStep,
   dependents: Array<Task | TaskStep>,
-  context: SchedulingContext
+  context: SchedulingContext,
 ): Date | null {
   let earliestDeadline: Date | null = null
-  
+
   // Check item's own deadline
   if ('deadline' in item && item.deadline) {
     earliestDeadline = item.deadline
   }
-  
+
   // Check dependents' deadlines
   for (const dep of dependents) {
     if ('deadline' in dep && dep.deadline) {
@@ -353,22 +353,22 @@ function findEarliestDeadlineInChain(
       }
     }
   }
-  
+
   return earliestDeadline
 }
 
 function getProductivityLevel(
   time: Date,
-  patterns: ProductivityPattern[]
+  patterns: ProductivityPattern[],
 ): 'peak' | 'high' | 'moderate' | 'low' {
   const timeStr = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`
-  
+
   for (const pattern of patterns) {
     if (timeStr >= pattern.timeRangeStart && timeStr < pattern.timeRangeEnd) {
       return pattern.cognitiveCapacity
     }
   }
-  
+
   // Default pattern if no custom patterns defined
   const hour = time.getHours()
   if (hour >= 9 && hour < 12) return 'peak'
@@ -382,7 +382,7 @@ function analyzeConstraints(context: SchedulingContext): {
   failures: SchedulingFailure[]
 } {
   const failures: SchedulingFailure[] = []
-  
+
   // Check for impossible deadlines
   for (const task of context.tasks) {
     if (task.deadline && task.deadlineType === 'hard' && !task.completed) {
@@ -396,13 +396,13 @@ function analyzeConstraints(context: SchedulingContext): {
           suggestions: {
             tasksToDropOrDefer: findLowPriorityTasks(context),
             minimumDeadlineExtension: calculateMinimumExtension(task, context),
-            capacityNeeded: calculateCapacityNeeded(task, context)
-          }
+            capacityNeeded: calculateCapacityNeeded(task, context),
+          },
         })
       }
     }
   }
-  
+
   // Check workflows
   for (const workflow of context.workflows) {
     if (workflow.deadline && workflow.deadlineType === 'hard' && !workflow.completed) {
@@ -416,13 +416,13 @@ function analyzeConstraints(context: SchedulingContext): {
           suggestions: {
             tasksToDropOrDefer: findLowPriorityTasks(context),
             minimumDeadlineExtension: calculateMinimumExtension(workflow, context),
-            capacityNeeded: calculateCapacityNeeded(workflow, context)
-          }
+            capacityNeeded: calculateCapacityNeeded(workflow, context),
+          },
         })
       }
     }
   }
-  
+
   return { failures }
 }
 
@@ -436,18 +436,18 @@ function prepareWorkItems(context: SchedulingContext): Array<{
     priority: number
     type: 'task' | 'workflow-step'
   }> = []
-  
+
   // Add tasks
   for (const task of context.tasks) {
     if (!task.completed && !task.hasSteps) {
       workItems.push({
         item: task,
         priority: calculatePriority(task, context),
-        type: 'task'
+        type: 'task',
       })
     }
   }
-  
+
   // Add workflow steps
   for (const workflow of context.workflows) {
     if (!workflow.completed && workflow.steps) {
@@ -456,44 +456,44 @@ function prepareWorkItems(context: SchedulingContext): Array<{
           workItems.push({
             item: step,
             priority: calculatePriority(step, context),
-            type: 'workflow-step'
+            type: 'workflow-step',
           })
         }
       }
     }
   }
-  
+
   // Sort by priority
   workItems.sort((a, b) => b.priority - a.priority)
-  
+
   return workItems
 }
 
 function scheduleItems(
   workItems: Array<{ item: Task | TaskStep; priority: number; type: string }>,
   context: SchedulingContext,
-  result: SchedulingResult
+  result: SchedulingResult,
 ): ScheduledItem[] {
   // This is a simplified version - the real implementation would use
   // the existing flexible-scheduler logic with our enhanced priorities
-  
+
   const scheduledItems: ScheduledItem[] = []
   let currentTime = new Date(context.currentTime)
   const completedSteps = new Set<string>()
-  
+
   for (const workItem of workItems) {
     const { item } = workItem
-    
+
     // Check dependencies
     if ('dependsOn' in item && item.dependsOn.length > 0) {
       const allDependenciesMet = item.dependsOn.every(dep => completedSteps.has(dep))
       if (!allDependenciesMet) continue
     }
-    
+
     // Create scheduled item
     const duration = item.duration
     const endTime = new Date(currentTime.getTime() + duration * 60000)
-    
+
     scheduledItems.push({
       id: item.id,
       name: item.name,
@@ -503,9 +503,9 @@ function scheduleItems(
       startTime: new Date(currentTime),
       endTime,
       color: '#6B7280',
-      originalItem: item
+      originalItem: item,
     })
-    
+
     // Check deadline
     if ('deadline' in item && item.deadline && endTime > item.deadline) {
       if (item.deadlineType === 'hard') {
@@ -515,25 +515,25 @@ function scheduleItems(
           type: 'soft_deadline_risk',
           message: `Task "${item.name}" may miss its soft deadline`,
           item,
-          expectedDelay: endTime.getTime() - item.deadline.getTime()
+          expectedDelay: endTime.getTime() - item.deadline.getTime(),
         })
       }
     }
-    
+
     // Mark as completed for dependency tracking
     completedSteps.add(item.id)
-    
+
     // Advance time
     currentTime = endTime
   }
-  
+
   return scheduledItems
 }
 
 function optimizeAsyncTriggers(
   schedule: ScheduledItem[],
   context: SchedulingContext,
-  result: SchedulingResult
+  result: SchedulingResult,
 ): void {
   // Identify async triggers and suggest optimal timing
   for (const item of schedule) {
@@ -546,7 +546,7 @@ function optimizeAsyncTriggers(
           result.suggestions.push({
             type: 'async_optimization',
             message: `Consider starting "${item.name}" earlier`,
-            recommendation: `This async task has high urgency (${urgency.toFixed(0)}). Starting it earlier would provide more flexibility for dependent work.`
+            recommendation: `This async task has high urgency (${urgency.toFixed(0)}). Starting it earlier would provide more flexibility for dependent work.`,
           })
         }
       }
@@ -557,17 +557,17 @@ function optimizeAsyncTriggers(
 function generateSuggestions(
   schedule: ScheduledItem[],
   context: SchedulingContext,
-  result: SchedulingResult
+  result: SchedulingResult,
 ): void {
   // Cognitive load suggestions
   let highComplexityInAfternoon = 0
   let lowComplexityInMorning = 0
-  
+
   for (const item of schedule) {
     if (item.originalItem && 'cognitiveComplexity' in item.originalItem) {
       const hour = item.startTime.getHours()
       const complexity = (item.originalItem as Task | TaskStep).cognitiveComplexity
-      
+
       if (complexity) {
         if (hour >= 13 && hour < 17 && complexity >= 4) {
           highComplexityInAfternoon++
@@ -578,20 +578,20 @@ function generateSuggestions(
       }
     }
   }
-  
+
   if (highComplexityInAfternoon > 2) {
     result.suggestions.push({
       type: 'cognitive_load',
       message: 'Several complex tasks scheduled for afternoon',
-      recommendation: 'Consider moving complex tasks to morning peak hours for better performance'
+      recommendation: 'Consider moving complex tasks to morning peak hours for better performance',
     })
   }
-  
+
   if (lowComplexityInMorning > 2) {
     result.suggestions.push({
       type: 'cognitive_load',
       message: 'Simple tasks occupying prime morning hours',
-      recommendation: 'Consider moving simple tasks to afternoon to reserve morning for complex work'
+      recommendation: 'Consider moving simple tasks to afternoon to reserve morning for complex work',
     })
   }
 }
@@ -604,38 +604,38 @@ function findLowPriorityTasks(context: SchedulingContext): string[] {
     .sort((a, b) => (a.importance * a.urgency) - (b.importance * b.urgency))
     .slice(0, 3)
     .map(t => t.id)
-  
+
   return tasks
 }
 
 function calculateMinimumExtension(
   item: Task | SequencedTask,
-  context: SchedulingContext
+  context: SchedulingContext,
 ): number {
   const criticalPath = calculateCriticalPathRemaining(item, context)
-  const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours + 
+  const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours +
                           context.workSettings.defaultCapacity.maxAdminHours
-  
+
   if (item.deadline) {
     const hoursUntilDeadline = (item.deadline.getTime() - context.currentTime.getTime()) / (1000 * 60 * 60)
     const hoursNeeded = criticalPath
     const shortfall = hoursNeeded - hoursUntilDeadline
-    
+
     if (shortfall > 0) {
       return Math.ceil(shortfall)
     }
   }
-  
+
   return 0
 }
 
 function calculateCapacityNeeded(
   item: Task | SequencedTask,
-  context: SchedulingContext
+  context: SchedulingContext,
 ): { focused: number; admin: number } {
   let focusedHours = 0
   let adminHours = 0
-  
+
   if ('hasSteps' in item && item.hasSteps && item.steps) {
     for (const step of item.steps) {
       if (step.status !== 'completed') {
@@ -653,7 +653,7 @@ function calculateCapacityNeeded(
       adminHours = item.duration / 60
     }
   }
-  
+
   return { focused: focusedHours, admin: adminHours }
 }
 
@@ -662,5 +662,5 @@ export const testHelpers = {
   calculateCriticalPathRemaining,
   findDependentTasks,
   findEarliestDeadlineInChain,
-  getProductivityLevel
+  getProductivityLevel,
 }

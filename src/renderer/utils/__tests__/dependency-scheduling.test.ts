@@ -439,10 +439,10 @@ describe('Dependency-based Scheduling', () => {
 
       // All 9 steps should be scheduled
       expect(scheduledItems.length).toBe(9)
-      
+
       // No items should remain unscheduled
       expect(debugInfo.unscheduledItems).toHaveLength(0)
-      
+
       // The scheduler may produce warnings during its multiple passes
       // as it retries items whose dependencies aren't yet scheduled,
       // but as long as everything gets scheduled eventually, that's fine

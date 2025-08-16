@@ -250,7 +250,7 @@ export function scheduleItems(
     checkDate.setDate(checkDate.getDate() + i)
     const dayOfWeek = checkDate.getDay()
     const dayWorkHours = workSettings.customWorkHours[dayOfWeek] || workSettings.defaultWorkHours
-    
+
     // Only add blocked times for working days (days with configured work hours)
     if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
       const dateStr = checkDate.toISOString().split('T')[0]

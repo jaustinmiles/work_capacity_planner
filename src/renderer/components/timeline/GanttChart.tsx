@@ -39,7 +39,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
   const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [isPinching, setIsPinching] = useState(false)
-  
+
   const { workSettings } = useTaskStore()
 
   // Zoom controls
