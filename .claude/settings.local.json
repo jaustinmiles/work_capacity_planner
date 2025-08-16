@@ -43,7 +43,8 @@
       "Bash(/tmp/selective-revert.sh:*)",
       "WebSearch",
       "Bash(npm audit:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
