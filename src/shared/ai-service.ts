@@ -24,6 +24,9 @@ export class AIService {
       importance: number
       urgency: number
       type: 'focused' | 'admin'
+      deadline?: string // ISO date string
+      deadlineType?: 'hard' | 'soft'
+      cognitiveComplexity?: 1 | 2 | 3 | 4 | 5
       needsMoreInfo?: boolean
     }>
     summary: string
@@ -32,6 +35,7 @@ export class AIService {
 You are a productivity expert helping someone organize their work. Analyze the following brainstorm text and extract discrete, actionable tasks.
 
 Brainstorm text: "${brainstormText}"
+Today's date: ${new Date().toISOString().split('T')[0]}
 
 For each task you identify:
 1. Give it a clear, actionable name (verb + object format)
@@ -40,7 +44,16 @@ For each task you identify:
 4. Rate importance (1-10): How critical is this to goals?
 5. Rate urgency (1-10): How time-sensitive is this?
 6. Classify type: "focused" (deep work, coding, writing) or "admin" (meetings, emails, simple tasks)
-7. Flag if you need more information to properly scope the task
+7. Extract deadlines if mentioned (e.g., "by Friday", "end of month", "tomorrow")
+8. Determine if deadline is "hard" (must meet) or "soft" (target)
+9. Rate cognitive complexity (1-5): 1=trivial, 2=simple, 3=moderate, 4=complex, 5=very complex
+10. Flag if you need more information to properly scope the task
+
+Listen for deadline indicators like:
+- "by [date/time]", "before [date]", "due [date]"
+- "end of [day/week/month]", "tomorrow", "today"
+- "deadline is...", "must be done by...", "need to finish by..."
+- "Friday deadline", "due Monday"
 
 Return your response as a JSON object with this structure:
 {
@@ -53,12 +66,15 @@ Return your response as a JSON object with this structure:
       "importance": 7,
       "urgency": 5,
       "type": "focused",
+      "deadline": "2024-01-20T17:00:00Z",
+      "deadlineType": "hard",
+      "cognitiveComplexity": 3,
       "needsMoreInfo": false
     }
   ]
 }
 
-Be thorough but realistic. Break down complex items into manageable tasks. If something seems vague, flag it for more information.
+Be thorough but realistic. Break down complex items into manageable tasks. If something seems vague, flag it for more information. Always include deadline if mentioned.
 `
 
     try {
