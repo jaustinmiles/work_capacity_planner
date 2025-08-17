@@ -4,7 +4,7 @@ import { SequencedTask } from '@shared/sequencing-types'
 // Type for the Electron API exposed by preload script
 declare global {
   interface Window {
-    /* eslint-disable no-unused-vars */
+
     electronAPI: {
       db: {
         // Session management
@@ -178,7 +178,7 @@ declare global {
         }>
       }
     }
-    /* eslint-enable no-unused-vars */
+
   }
 }
 

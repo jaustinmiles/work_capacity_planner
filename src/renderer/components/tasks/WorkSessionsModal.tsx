@@ -22,7 +22,7 @@ import { Message } from '../common/Message'
 import { formatDuration } from '../../utils/dateUtils'
 import dayjs from 'dayjs'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface WorkSessionsModalProps {
   visible: boolean

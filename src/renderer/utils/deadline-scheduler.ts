@@ -706,7 +706,7 @@ function calculateMinimumExtension(
 
 function calculateCapacityNeeded(
   item: Task | SequencedTask,
-  context: SchedulingContext,
+  _context: SchedulingContext,
 ): { focused: number; admin: number } {
   let focusedHours = 0
   let adminHours = 0

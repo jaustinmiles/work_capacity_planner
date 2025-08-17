@@ -4,7 +4,7 @@ import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfo
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
-import { scheduleItemsWithBlocks, scheduleItemsWithBlocksAndDebug, SchedulingDebugInfo } from '../../utils/flexible-scheduler'
+import { scheduleItemsWithBlocksAndDebug, SchedulingDebugInfo } from '../../utils/flexible-scheduler'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'

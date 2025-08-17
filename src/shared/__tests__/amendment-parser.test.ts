@@ -16,13 +16,11 @@ vi.mock('../ai-service', () => ({
 
 describe('AmendmentParser', () => {
   let parser: AmendmentParser
-  let parserWithoutAI: AmendmentParser
   let context: AmendmentContext
 
   beforeEach(() => {
     // Create two parsers - one with AI (mocked) and one without
     parser = new AmendmentParser({ useAI: false }) // Use pattern matching for predictable tests
-    parserWithoutAI = new AmendmentParser({ useAI: false })
     context = {
       recentTasks: [
         { id: 'task-1', name: 'API Implementation' },

@@ -95,7 +95,7 @@ export function preserveStepIds(
   })
 
   // Assign IDs to new steps
-  return newSteps.map((step, __index) => {
+  return newSteps.map((step) => {
     // Try to find existing ID by name match
     const existingId = existingIdMap.get(step.name)
 

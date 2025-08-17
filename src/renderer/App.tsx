@@ -38,7 +38,7 @@ interface ExtractedTask {
   needsMoreInfo?: boolean
 }
 
-function App() {
+function App(): void {
   const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
@@ -76,7 +76,7 @@ function App() {
 
   // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
       // Cmd/Ctrl + Shift + D for DevTools
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
         e.preventDefault()
@@ -98,13 +98,13 @@ function App() {
     }
   }, [activeView, currentWeeklySchedule, isScheduling, generateWeeklySchedule])
 
-  const handleTasksExtracted = (tasks: ExtractedTask[]) => {
+  const handleTasksExtracted = (tasks: ExtractedTask[]): void => {
     setExtractedTasks(tasks)
     setBrainstormModalVisible(false)
     setTaskCreationFlowVisible(true)
   }
 
-  const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]) => {
+  const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]): void => {
     try {
       // Create workflows
       for (const workflow of workflows) {
@@ -221,12 +221,12 @@ function App() {
     }
   }
 
-  const handleTaskCreationComplete = () => {
+  const handleTaskCreationComplete = (): void => {
     setTaskCreationFlowVisible(false)
     setExtractedTasks([])
   }
 
-  const handleDeleteSequencedTask = async (taskId: string) => {
+  const handleDeleteSequencedTask = async (taskId: string): void => {
     try {
       await deleteSequencedTask(taskId)
       Message.success('Workflow deleted successfully')
@@ -236,7 +236,7 @@ function App() {
     }
   }
 
-  const handleStartWorkflow = async (id: string) => {
+  const handleStartWorkflow = async (id: string): void => {
     try {
       // Find the workflow
       const workflow = sequencedTasks.find(st => st.id === id)
@@ -266,7 +266,7 @@ function App() {
     }
   }
 
-  const handlePauseWorkflow = async (id: string) => {
+  const handlePauseWorkflow = async (id: string): void => {
     try {
       const workflow = sequencedTasks.find(st => st.id === id)
       if (!workflow) return
@@ -291,7 +291,7 @@ function App() {
     }
   }
 
-  const handleUpdateStep = async (stepId: string, updates: any) => {
+  const handleUpdateStep = async (stepId: string, updates: any): void => {
     try {
       await getDatabase().updateTaskStepProgress(stepId, updates)
       // Refresh the sequenced tasks to show updated status
@@ -303,7 +303,7 @@ function App() {
     }
   }
 
-  const handleResetWorkflow = async (id: string) => {
+  const handleResetWorkflow = async (id: string): void => {
     try {
       const workflow = sequencedTasks.find(st => st.id === id)
       if (!workflow) return
@@ -338,7 +338,7 @@ function App() {
     }
   }
 
-  const handleDeleteAllSequencedTasks = async () => {
+  const handleDeleteAllSequencedTasks = async (): void => {
     try {
       await getDatabase().deleteAllSequencedTasks()
       await initializeData() // Reload all data
@@ -674,7 +674,7 @@ function App() {
         <WorkScheduleModal
           visible={showWorkSchedule}
           onClose={() => setShowWorkSchedule(false)}
-          onSave={() => {
+          onSave={(): void => {
             // Refresh any data if needed
             setShowWorkSchedule(false)
           }}
@@ -683,7 +683,7 @@ function App() {
         <SessionManager
           visible={showSessionManager}
           onClose={() => setShowSessionManager(false)}
-          onSessionChange={() => {
+          onSessionChange={(): void => {
             // Reload data when session changes
             initializeData()
           }}

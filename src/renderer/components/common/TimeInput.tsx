@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Input, Space } from '@arco-design/web-react'
+import { Input } from '@arco-design/web-react'
 import { IconClockCircle } from '@arco-design/web-react/icon'
 
 interface TimeInputProps {

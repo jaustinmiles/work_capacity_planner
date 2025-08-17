@@ -62,10 +62,12 @@ module.exports = [
     },
     rules: {
       // TypeScript rules
+      'no-unused-vars': 'off', // Must be off for TypeScript files to use @typescript-eslint/no-unused-vars
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
+        ignoreRestSiblings: true,
       }],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-empty-function': 'warn',
@@ -105,7 +107,7 @@ module.exports = [
       'react-hooks/exhaustive-deps': 'warn',
 
       // General code quality (simplified)
-      'no-console': 'warn',
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-debugger': 'error',
       'no-var': 'error',
       'prefer-const': 'error',

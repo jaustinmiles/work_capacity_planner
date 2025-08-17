@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { scheduleItemsWithBlocksAndDebug } from '../flexible-scheduler'
 import { Task } from '@shared/types'
-import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
 describe('Personal Tasks Scheduling', () => {
@@ -74,7 +73,7 @@ describe('Personal Tasks Scheduling', () => {
       },
     ]
 
-    const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug(
+    const { scheduledItems } = scheduleItemsWithBlocksAndDebug(
       [workTask, personalTask],
       [],
       patterns,

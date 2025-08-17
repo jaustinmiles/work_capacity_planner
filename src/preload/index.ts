@@ -87,6 +87,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getWorkflowSettings: () => ipcRenderer.invoke('speech:getWorkflowSettings'),
     getSchedulingSettings: () => ipcRenderer.invoke('speech:getSchedulingSettings'),
   },
+
+  // Logging operations
+  log: (level: string, scope: string, message: string, data?: any) =>
+    ipcRenderer.send('log:message', { level, scope, message, data }),
 })
 
 console.log('Preload script loaded successfully!')

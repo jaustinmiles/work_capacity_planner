@@ -71,7 +71,7 @@ export function createMockSequencedTask(overrides?: Partial<SequencedTask>): Seq
 }
 
 // For Prisma mocks - these return database format, not application format
-export function createMockPrismaTask(overrides?: any) {
+export function createMockPrismaTask(overrides?: any): void {
   return {
     id: overrides?.id || 'task-1',
     name: overrides?.name || 'Test Task',
@@ -98,7 +98,7 @@ export function createMockPrismaTask(overrides?: any) {
   }
 }
 
-export function createMockPrismaSequencedTask(overrides?: any) {
+export function createMockPrismaSequencedTask(overrides?: any): void {
   return {
     ...createMockPrismaTask({
       hasSteps: true,
@@ -109,7 +109,7 @@ export function createMockPrismaSequencedTask(overrides?: any) {
   }
 }
 
-export function createMockWorkSession(overrides?: any) {
+export function createMockWorkSession(overrides?: any): void {
   return {
     id: 'session-' + Math.random().toString(36).substr(2, 9),
     taskId: 'task-1',

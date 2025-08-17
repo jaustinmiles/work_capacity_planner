@@ -105,13 +105,12 @@ describe('Workflow Step Completion UI', () => {
     })
 
     it('should show completed state with strikethrough', () => {
-      const { container } = render(
+      render(
         <TaskStepItem
           step={{ ...mockStep, status: 'completed' }}
           stepIndex={0}
           isActive={false}
-          isCompleted={true}
-        />,
+          isCompleted={true} />
       )
 
       const stepName = screen.getByText('Test Step')

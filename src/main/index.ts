@@ -3,6 +3,7 @@ import path from 'node:path'
 import { DatabaseService } from './database'
 import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
+import { logger, logInfo, logError } from '../shared/logger'
 import type { Task } from '@shared/types'
 import type { TaskStep } from '@shared/sequencing-types'
 
@@ -59,7 +60,7 @@ let db: DatabaseService
 app.whenReady().then(() => {
   // Initialize database service once when app is ready
   db = DatabaseService.getInstance()
-  console.log('Main process initialized successfully')
+  logInfo('main', 'Main process initialized successfully')
 
   createWindow()
 
@@ -80,7 +81,7 @@ app.on('window-all-closed', () => {
 // IPC handlers for database operations
 // Session management handlers
 ipcMain.handle('db:getSessions', async () => {
-  console.log('Getting sessions...')
+  logInfo('ipc', 'Getting sessions...')
   if (!db) db = DatabaseService.getInstance()
   return await db.getSessions()
 })
@@ -102,13 +103,13 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
 })
 
 ipcMain.handle('db:getTasks', async () => {
-  console.log('IPC: Getting tasks from database...')
+  logInfo('ipc', 'Getting tasks from database...')
   try {
     const tasks = await db.getTasks()
-    console.log(`IPC: Found ${tasks.length} tasks`)
+    logInfo('ipc', `Found ${tasks.length} tasks`)
     return tasks
   } catch (error) {
-    console.error('IPC: Error getting tasks:', error)
+    logError('ipc', 'Error getting tasks', error)
     throw error
   }
 })
@@ -378,4 +379,25 @@ ipcMain.handle('speech:getWorkflowSettings', async () => {
 ipcMain.handle('speech:getSchedulingSettings', async () => {
   const speechService = getSpeechService()
   return speechService.getSchedulingSettings()
+})
+
+// Logging handler
+ipcMain.on('log:message', (_event, { level, scope, message, data }) => {
+  // Use the appropriate logger based on level
+  switch (level) {
+    case 'debug':
+      logger[scope as keyof typeof logger]?.debug(message, data)
+      break
+    case 'info':
+      logger[scope as keyof typeof logger]?.info(message, data)
+      break
+    case 'warn':
+      logger[scope as keyof typeof logger]?.warn(message, data)
+      break
+    case 'error':
+      logger[scope as keyof typeof logger]?.error(message, data)
+      break
+    default:
+      logger.main.info(message, data)
+  }
 })

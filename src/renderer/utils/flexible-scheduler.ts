@@ -854,9 +854,7 @@ export function scheduleItemsWithBlocksAndDebug(
       }
 
       // Try to fit in available blocks
-      let attemptedBlocks = 0
       for (const block of blockCapacities) {
-        attemptedBlocks++
         const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems)
 
         if (canFit) {
@@ -977,6 +975,7 @@ export function scheduleItemsWithBlocksAndDebug(
             reason = 'Time conflicts with other scheduled items'
           }
         }
+        console.log('reason', reason)
 
         // Check if currentTime is past all blocks for today
         const lastBlock = blockCapacities[blockCapacities.length - 1]
@@ -996,7 +995,6 @@ export function scheduleItemsWithBlocksAndDebug(
     if (!itemsScheduledToday || shouldMoveToNextDay || currentTime.getTime() >= lastBlockEnd.getTime()) {
       // Track block utilization before moving to next day
       blockCapacities.forEach((block, index) => {
-        const __original = blockStartState[index]
         const unusedFocus = block.focusMinutesTotal - block.focusMinutesUsed
         const unusedAdmin = block.adminMinutesTotal - block.adminMinutesUsed
 

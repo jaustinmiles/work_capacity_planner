@@ -1,9 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Card, Typography, Space } from '@arco-design/web-react'
+import { Card } from '@arco-design/web-react'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import dayjs from 'dayjs'
-
-const { Text } = Typography
 
 interface TimelineVisualizerProps {
   blocks: WorkBlock[]

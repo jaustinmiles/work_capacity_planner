@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { scheduleItemsWithBlocksAndDebug } from '../flexible-scheduler'
 import { Task } from '@shared/types'
-import { SequencedTask, TaskStep } from '@shared/sequencing-types'
+import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
 describe('Dependency-based Scheduling', () => {
@@ -345,7 +345,7 @@ describe('Dependency-based Scheduling', () => {
         createWorkPattern(createTestDate(day3.toISOString().split('T')[0])),
       ]
 
-      const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug(
+      const { debugInfo } = scheduleItemsWithBlocksAndDebug(
         [],
         [workflow],
         patterns,
@@ -378,7 +378,7 @@ describe('Dependency-based Scheduling', () => {
         createWorkPattern(new Date(startDate.getTime() + 48*60*60*1000), 8, 0),
       ]
 
-      const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug(
+      const { scheduledItems } = scheduleItemsWithBlocksAndDebug(
         [],
         [workflow],
         patterns,

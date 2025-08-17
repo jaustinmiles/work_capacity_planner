@@ -15,7 +15,7 @@ interface LocalWorkSession {
   duration: number // accumulated minutes
 }
 
-/* eslint-disable no-unused-vars */
+
 interface TaskStore {
   tasks: Task[]
   sequencedTasks: SequencedTask[]
@@ -74,7 +74,7 @@ interface TaskStore {
   getCompletedSequencedTasks: () => SequencedTask[]
   getActiveWorkSession: (stepId: string) => LocalWorkSession | undefined
 }
-/* eslint-enable no-unused-vars */
+
 
 // Helper to generate IDs (will be replaced by database IDs later)
 

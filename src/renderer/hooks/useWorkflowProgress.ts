@@ -1,6 +1,5 @@
 import { useCallback, useEffect } from 'react'
 import { useTaskStore } from '../store/useTaskStore'
-import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 
 export interface WorkflowProgressStats {
   totalSteps: number

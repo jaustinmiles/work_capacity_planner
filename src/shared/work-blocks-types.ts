@@ -1,6 +1,6 @@
 // Types for flexible work blocks system
 
-import { parseTimeString, calculateDuration } from './time-utils'
+import { calculateDuration } from './time-utils'
 
 export interface WorkBlock {
   id: string

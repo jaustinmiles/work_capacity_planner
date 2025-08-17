@@ -1,5 +1,5 @@
 import { Space, Typography, Tag, Tooltip, Badge, Button, Progress } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconExclamationCircle, IconBranch, IconLoop, IconCheck, IconHistory } from '@arco-design/web-react/icon'
+import { IconClockCircle, IconCalendar, IconExclamationCircle, IconCheck, IconHistory } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
 
 const { Text } = Typography

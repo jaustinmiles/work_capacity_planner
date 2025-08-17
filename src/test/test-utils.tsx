@@ -8,7 +8,7 @@ function customRender(
   ui: ReactElement,
   options?: Omit<RenderOptions, 'wrapper'>,
 ) {
-  function Wrapper({ children }: { children: React.ReactNode }) {
+  function Wrapper({ children }: { children: React.ReactNode }): void {
     return (
       <ConfigProvider locale={enUS}>
         {children}

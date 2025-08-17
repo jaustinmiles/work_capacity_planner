@@ -1,16 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { VoiceAmendmentModal } from '../components/voice/VoiceAmendmentModal'
-import { Amendment } from '../../shared/amendment-types'
-import { Message } from '../components/common/Message'
 
 // Mock Arco Modal to avoid focus-lock issues in tests
 vi.mock('@arco-design/web-react', async () => {
   const actual = await vi.importActual('@arco-design/web-react')
   return {
     ...actual,
-    Modal: ({ children, visible, onCancel }: any) => {
+    Modal: ({ children, visible }: any) => {
       return visible ? <div data-testid="modal">{children}</div> : null
     },
   }
