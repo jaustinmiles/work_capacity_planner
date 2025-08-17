@@ -30,7 +30,7 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
       // Reload the page to refresh everything
       setTimeout(() => window.location.reload(), 1000)
     } catch (error) {
-      logger.error('Failed to clear data:', error)
+      logger.ui.error('Failed to clear data:', error)
       Message.error('Failed to clear user data')
     } finally {
       setIsClearing(false)

@@ -44,7 +44,7 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
         steps: updatedSteps,
       })
     } catch (error) {
-      logger.error('Failed to update dependencies:', error)
+      logger.ui.error('Failed to update dependencies:', error)
     }
   }
 

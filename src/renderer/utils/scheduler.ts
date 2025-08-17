@@ -1,5 +1,6 @@
 import { Task } from '@shared/types'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
+import { TaskType } from '@shared/enums'
 import { WorkSettings } from '@shared/work-settings-types'
 
 export interface ScheduledItem {
@@ -146,13 +147,13 @@ function getBlockedTimesForDay(date: Date, workSettings: WorkSettings): Schedule
 function canScheduleItem(
   startTime: Date,
   duration: number,
-  type: 'focused' | 'admin',
+  type: TaskType,
   dailyCapacity: DailyCapacity,
   workSettings: WorkSettings,
   scheduledItems: ScheduledItem[],
 ): boolean {
   // Check capacity limits
-  if (type === 'focused') {
+  if (type === TaskType.Focused) {
     if (dailyCapacity.focusMinutesUsed + duration > dailyCapacity.maxFocusMinutes) {
       return false
     }
@@ -329,7 +330,7 @@ export function scheduleItems(
       })
 
       // Update capacity
-      if (itemType === 'focused') {
+      if (itemType === TaskType.Focused) {
         dailyCapacity.focusMinutesUsed += item.duration
       } else {
         dailyCapacity.adminMinutesUsed += item.duration

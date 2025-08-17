@@ -1,3 +1,5 @@
+import { TaskType, TaskCategory } from './enums'
+
 export interface Session {
   id: string
   name: string
@@ -13,8 +15,8 @@ export interface Task {
   duration: number // minutes
   importance: number // 1-10
   urgency: number // 1-10
-  type: 'focused' | 'admin'
-  category?: 'work' | 'personal' // defaults to 'work'
+  type: TaskType
+  category?: TaskCategory // defaults to 'work'
   asyncWaitTime: number // minutes
   dependencies: string[] // task IDs
   completed: boolean
@@ -48,7 +50,7 @@ export interface TaskStep {
   taskId: string
   name: string
   duration: number
-  type: 'focused' | 'admin'
+  type: TaskType
   dependsOn: string[] // step IDs
   asyncWaitTime: number
   status: 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped'
@@ -97,7 +99,7 @@ export interface Project {
 
 export interface TaskFilters {
   completed?: boolean
-  type?: 'focused' | 'admin'
+  type?: TaskType
   projectId?: string
   search?: string
 }

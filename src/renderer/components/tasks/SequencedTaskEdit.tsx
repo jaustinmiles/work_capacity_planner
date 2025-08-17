@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { TaskType } from '@shared/enums'
 import {
   Card,
   Space,
@@ -79,7 +80,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
             sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
           times[step.id] = totalMinutes
         } catch (error) {
-          logger.error(`Failed to load logged time for step ${step.id}:`, error)
+          logger.ui.error(`Failed to load logged time for step ${step.id}:`, error)
           times[step.id] = 0
         }
       }
@@ -154,7 +155,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       setIsEditing(false)
       if (onClose) onClose()
     } catch (error) {
-      logger.error('Failed to update workflow:', error)
+      logger.ui.error('Failed to update workflow:', error)
     } finally {
       setIsSaving(false)
     }
@@ -312,7 +313,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
               )}
               <Space>
                 <Tag color="blue">
-                  {editedTask.type === 'focused' ? 'Focused Work' : 'Admin Task'}
+                  {editedTask.type === TaskType.Focused ? 'Focused Work' : 'Admin Task'}
                 </Tag>
                 <Tag color="orange">
                   {getPriorityLabel(editedTask.importance, editedTask.urgency)} Priority
@@ -401,8 +402,8 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                   onChange={(value) => setEditedTask({ ...editedTask, type: value })}
                   style={{ width: '100%' }}
                 >
-                  <Select.Option value="focused">Focused Work</Select.Option>
-                  <Select.Option value="admin">Admin Task</Select.Option>
+                  <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
+                  <Select.Option value={TaskType.Admin}>Admin Task</Select.Option>
                 </Select>
               </Space>
             </Col>
@@ -459,8 +460,8 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                         <Space direction="vertical" size="small" style={{ width: '100%' }}>
                           <Space>
                             <Text style={{ fontWeight: 'bold' }}>{index + 1}. {step.name}</Text>
-                            <Tag size="small" color={step.type === 'focused' ? 'blue' : 'green'}>
-                              {step.type === 'focused' ? 'Focused' : 'Admin'}
+                            <Tag size="small" color={step.type === TaskType.Focused ? 'blue' : 'green'}>
+                              {step.type === TaskType.Focused ? 'Focused' : 'Admin'}
                             </Tag>
                             {step.status === 'completed' && (
                               <Tag size="small" color="green" icon={<IconCheckCircle />}>
@@ -646,11 +647,11 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           <FormItem
             label="Type"
             field="type"
-            initialValue="focused"
+            initialValue={TaskType.Focused}
           >
             <Select>
-              <Select.Option value="focused">Focused Work</Select.Option>
-              <Select.Option value="admin">Admin Task</Select.Option>
+              <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
+              <Select.Option value={TaskType.Admin}>Admin Task</Select.Option>
             </Select>
           </FormItem>
 
@@ -732,7 +733,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                 [selectedStepForSessions.id]: totalMinutes,
               }))
             } catch (error) {
-              logger.error('Failed to reload logged time:', error)
+              logger.ui.error('Failed to reload logged time:', error)
             }
           }}
         />

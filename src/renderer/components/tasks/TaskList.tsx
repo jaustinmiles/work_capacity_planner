@@ -28,7 +28,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
       await loadTasks() // Reload tasks to update UI
       Message.success('All tasks deleted successfully')
     } catch (error) {
-      logger.error('Error deleting all tasks:', error)
+      logger.ui.error('Error deleting all tasks:', error)
       Message.error('Failed to delete all tasks')
     }
   }

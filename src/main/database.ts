@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { Task } from '../shared/types'
+import { TaskType } from '../shared/enums'
 import * as crypto from 'crypto'
 
 // Create Prisma client instance
@@ -259,7 +260,7 @@ export class DatabaseService {
           const existingStep = existingSteps.find(s => s.id === step.id)
           if (existingStep && existingStep.type !== step.type) {
             // Type changed, update work sessions
-            await this.updateWorkSessionTypesForStep(step.id, step.type as 'focused' | 'admin')
+            await this.updateWorkSessionTypesForStep(step.id, step.type)
           }
 
           // Update existing step
@@ -713,7 +714,7 @@ export class DatabaseService {
   async addStepToWorkflow(workflowId: string, stepData: {
     name: string
     duration: number
-    type: 'focused' | 'admin'
+    type: TaskType.Focused | 'admin'
     afterStep?: string
     beforeStep?: string
     dependencies?: string[]
@@ -1082,7 +1083,7 @@ export class DatabaseService {
   async createWorkSession(data: {
     taskId: string
     stepId?: string
-    type: 'focused' | 'admin'
+    type: TaskType.Focused | 'admin'
     startTime: Date
     endTime?: Date
     plannedMinutes: number
@@ -1158,9 +1159,9 @@ export class DatabaseService {
 
     const accumulated = workSessions.reduce((acc, session) => {
       const minutes = session.actualMinutes || session.plannedMinutes || 0
-      if (session.type === 'focused') {
+      if (session.type === TaskType.Focused) {
         acc.focused += minutes
-      } else if (session.type === 'admin') {
+      } else if (session.type === TaskType.Admin) {
         acc.admin += minutes
       }
       acc.total += minutes
@@ -1466,13 +1467,13 @@ export class DatabaseService {
     }
 
     // Determine the type from the step or task
-    const type = step.type || step.Task.type || 'focused'
+    const type = step.type || step.Task.type || TaskType.Focused
 
     // Transform the data
     const workSessionData = {
       taskId: step.taskId,
       stepId: step.id,
-      type: type as 'focused' | 'admin',
+      type: type,
       startTime: data.startTime || new Date(),
       endTime: data.endTime || null,
       plannedMinutes: data.duration || data.plannedMinutes || 0,
@@ -1501,7 +1502,7 @@ export class DatabaseService {
     return this.client.workSession.findMany({ where: { stepId } })
   }
 
-  async updateWorkSessionTypesForStep(stepId: string, newType: 'focused' | 'admin'): Promise<void> {
+  async updateWorkSessionTypesForStep(stepId: string, newType: TaskType.Focused | 'admin'): Promise<void> {
     await this.client.workSession.updateMany({
       where: { stepId },
       data: { type: newType },

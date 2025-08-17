@@ -68,7 +68,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         admin: accumulatedData.admin || 0,
       })
     } catch (error) {
-      logger.error('Failed to load work data:', error)
+      logger.ui.error('Failed to load work data:', error)
     }
   }
 

@@ -200,6 +200,13 @@ npm run check  # Runs both typecheck and lint
    - Make incremental changes
    - Run `npm run typecheck` after significant changes
    - Test components in isolation when possible
+   
+   **🚨 CRITICAL: When Writing Fix Scripts**
+   - NEVER run a script on the entire codebase without testing first!
+   - ALWAYS test on 1-2 files first and verify the output
+   - Check for side effects like duplicate imports or broken syntax
+   - Only after verifying correctness should you apply to more files
+   - Example of what NOT to do: Running a global find/replace that adds imports without checking if they already exist
 
 3. **Before Declaring "Task Complete"**
    ```bash

@@ -1,4 +1,5 @@
 import { Task, TaskStep } from './types'
+import { TaskType } from './enums'
 
 // Re-export TaskStep for backward compatibility
 export type { TaskStep }
@@ -44,7 +45,7 @@ export function createWorkflowTask(params: {
   name: string
   importance: number
   urgency: number
-  type: 'focused' | 'admin'
+  type: TaskType
   steps: Omit<TaskStep, 'id' | 'taskId'>[]
   notes?: string
   sessionId: string
@@ -101,7 +102,7 @@ export const exampleSequencedTask: SequencedTask = {
   duration: 365,
   importance: 8,
   urgency: 7,
-  type: 'focused',
+  type: TaskType.Focused,
   asyncWaitTime: 0,
   dependencies: [],
   completed: false,
@@ -124,7 +125,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'Data Mining',
       duration: 120,
-      type: 'focused',
+      type: TaskType.Focused,
       dependsOn: [],
       asyncWaitTime: 0,
       status: 'pending',
@@ -136,7 +137,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'Code Authoring',
       duration: 180,
-      type: 'focused',
+      type: TaskType.Focused,
       dependsOn: ['step-1'],
       asyncWaitTime: 0,
       status: 'pending',
@@ -148,7 +149,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'Workflow Running',
       duration: 15,
-      type: 'admin',
+      type: TaskType.Admin,
       dependsOn: ['step-2'],
       asyncWaitTime: 60,
       status: 'pending',
@@ -160,7 +161,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'Verification',
       duration: 30,
-      type: 'focused',
+      type: TaskType.Focused,
       dependsOn: ['step-3'],
       asyncWaitTime: 0,
       status: 'pending',
@@ -172,7 +173,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'CL Process (Submit for Review)',
       duration: 20,
-      type: 'admin',
+      type: TaskType.Admin,
       dependsOn: ['step-4'],
       asyncWaitTime: 480,
       status: 'pending',

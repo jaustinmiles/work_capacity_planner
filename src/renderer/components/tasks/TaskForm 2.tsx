@@ -1,4 +1,5 @@
 import { Modal, Form, Input, Select, Slider, InputNumber, Space, Grid, DatePicker } from '@arco-design/web-react'
+import { TaskType } from '@shared/enums'
 import { IconClockCircle, IconCalendar } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 
@@ -49,7 +50,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
           duration: 60,
           importance: 5,
           urgency: 5,
-          type: 'focused',
+          type: TaskType.Focused,
           asyncWaitTime: 0,
         }}
       >
@@ -69,8 +70,8 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
               rules={[{ required: true }]}
             >
               <Select>
-                <Select.Option value="focused">Focused Work</Select.Option>
-                <Select.Option value="admin">Admin/Meetings</Select.Option>
+                <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
+                <Select.Option value={TaskType.Admin}>Admin/Meetings</Select.Option>
               </Select>
             </Form.Item>
           </Col>

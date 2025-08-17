@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TaskType } from '@shared/enums'
 import { Modal, Form, InputNumber, Typography, Space, Message, DatePicker, Input } from '@arco-design/web-react'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -41,7 +42,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
 
       await getDatabase().createWorkSession({
         taskId: task.id,
-        type: task.type as 'focused' | 'admin',
+        type: task.type as TaskType,
         startTime: startTime,
         plannedMinutes: timeSpent,
         actualMinutes: timeSpent,
@@ -70,7 +71,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       form.resetFields()
       onClose()
     } catch (error) {
-      logger.error('Error logging time:', error)
+      logger.ui.error('Error logging time:', error)
       Message.error('Failed to log time')
     } finally {
       setLoading(false)

@@ -61,7 +61,7 @@ export function SequencedTaskView({
 
         setStepTimeLogs(timeLogs)
       } catch (error) {
-        logger.error('Failed to fetch step time logs:', error)
+        logger.ui.error('Failed to fetch step time logs:', error)
       }
     }
 

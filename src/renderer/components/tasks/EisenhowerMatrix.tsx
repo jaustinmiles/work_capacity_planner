@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TaskType } from '@shared/enums'
 import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip, Slider } from '@arco-design/web-react'
 import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -100,8 +101,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 Workflow
               </Tag>
             )}
-            <Tag size="small" color={task.type === 'focused' ? 'blue' : 'green'}>
-              {task.type === 'focused' ? 'Focused' : 'Admin'}
+            <Tag size="small" color={task.type === TaskType.Focused ? 'blue' : 'green'}>
+              {task.type === TaskType.Focused ? 'Focused' : 'Admin'}
             </Tag>
             <Tag size="small">
               {Math.floor(task.duration / 60)}h {task.duration % 60}m

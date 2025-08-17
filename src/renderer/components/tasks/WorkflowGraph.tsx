@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { TaskType } from '@shared/enums'
 import { Card, Typography, Tag, Space } from '@arco-design/web-react'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -14,7 +15,7 @@ interface GraphNode {
   label: string
   duration: number
   asyncWaitTime: number
-  type: 'focused' | 'admin'
+  type: TaskType
   x: number
   y: number
   dependencies: string[]
@@ -147,8 +148,8 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 width="200"
                 height="80"
                 rx="8"
-                fill={node.type === 'focused' ? '#E6F7FF' : '#E8F5E9'}
-                stroke={node.type === 'focused' ? '#165DFF' : '#00B42A'}
+                fill={node.type === TaskType.Focused ? '#E6F7FF' : '#E8F5E9'}
+                stroke={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
                 strokeWidth="2"
               />
 
@@ -157,7 +158,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 cx={node.x + 20}
                 cy={node.y + 20}
                 r="15"
-                fill={node.type === 'focused' ? '#165DFF' : '#00B42A'}
+                fill={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
               />
               <text
                 x={node.x + 20}
@@ -200,7 +201,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 width="40"
                 height="20"
                 rx="10"
-                fill={node.type === 'focused' ? '#165DFF' : '#00B42A'}
+                fill={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
               />
               <text
                 x={node.x + 170}
@@ -209,7 +210,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 fill="white"
                 fontSize="10"
               >
-                {node.type === 'focused' ? 'Focus' : 'Admin'}
+                {node.type === TaskType.Focused ? 'Focus' : 'Admin'}
               </text>
             </g>
           ))}

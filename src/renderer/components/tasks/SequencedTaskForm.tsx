@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Modal, Form, Input, Select, InputNumber, Button, Space, Card, Typography, Divider, Alert } from '@arco-design/web-react'
 import { IconPlus, IconDelete } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
+import { TaskType } from '@shared/enums'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -15,14 +16,14 @@ interface SequencedTaskFormProps {
 export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskFormProps) {
   const [form] = Form.useForm()
   const [steps, setSteps] = useState<Partial<TaskStep>[]>([
-    { name: '', duration: 60, type: 'focused', dependsOn: [], asyncWaitTime: 0 },
+    { name: '', duration: 60, type: TaskType.Focused, dependsOn: [], asyncWaitTime: 0 },
   ])
 
   const addStep = () => {
     setSteps([...steps, {
       name: '',
       duration: 60,
-      type: 'focused',
+      type: TaskType.Focused,
       dependsOn: [],
       asyncWaitTime: 0,
     }])
@@ -57,7 +58,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         taskId: '',  // Will be set when saved
         name: step.name || `Step ${index + 1}`,
         duration: step.duration || 60,
-        type: step.type || 'focused',
+        type: step.type || TaskType.Focused,
         dependsOn: step.dependsOn || [],
         asyncWaitTime: step.asyncWaitTime || 0,
         status: 'pending' as const,
@@ -83,7 +84,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
 
       onSubmit(sequencedTask)
       form.resetFields()
-      setSteps([{ name: '', duration: 60, type: 'focused', dependsOn: [], asyncWaitTime: 0 }])
+      setSteps([{ name: '', duration: 60, type: TaskType.Focused, dependsOn: [], asyncWaitTime: 0 }])
       onClose()
     } catch (__error) {
       // Form validation failed
@@ -107,7 +108,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         initialValues={{
           importance: 5,
           urgency: 5,
-          type: 'focused',
+          type: TaskType.Focused,
         }}
       >
         <Form.Item

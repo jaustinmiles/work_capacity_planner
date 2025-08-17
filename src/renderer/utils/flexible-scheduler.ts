@@ -1,5 +1,6 @@
 import { Task, ProductivityPattern, SchedulingPreferences } from '@shared/types'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
+import { TaskType, TaskCategory } from '@shared/enums'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
 import { WorkSettings } from '@shared/work-settings-types'
 import { calculatePriority, SchedulingContext } from './deadline-scheduler'
@@ -52,8 +53,8 @@ interface WorkItem {
   id: string
   name: string
   type: 'task' | 'workflow-step'
-  taskType: 'focused' | 'admin'
-  category?: 'work' | 'personal'
+  taskType: TaskType
+  category?: TaskCategory
   priority: number
   duration: number
   asyncWaitTime: number
@@ -72,7 +73,7 @@ interface BlockCapacity {
   blockId: string
   startTime: Date
   endTime: Date
-  blockType: 'focused' | 'admin' | 'mixed' | 'personal'
+  blockType: TaskType | 'mixed' | 'personal'
   focusMinutesTotal: number
   adminMinutesTotal: number
   personalMinutesTotal: number
@@ -101,9 +102,9 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
     focusMinutes = block.capacity.focusMinutes || 0
     adminMinutes = block.capacity.adminMinutes || 0
     personalMinutes = block.capacity.personalMinutes || 0
-  } else if (block.type === 'focused') {
+  } else if (block.type === TaskType.Focused) {
     focusMinutes = durationMinutes
-  } else if (block.type === 'admin') {
+  } else if (block.type === TaskType.Admin) {
     adminMinutes = durationMinutes
   } else if (block.type === 'personal') {
     personalMinutes = durationMinutes
@@ -240,7 +241,7 @@ function canFitInBlock(
     if (block.personalMinutesUsed + item.duration > block.personalMinutesTotal) {
       return { canFit: false, startTime: currentTime }
     }
-  } else if (item.taskType === 'focused') {
+  } else if (item.taskType === TaskType.Focused) {
     if (block.focusMinutesUsed + item.duration > block.focusMinutesTotal) {
       return { canFit: false, startTime: currentTime }
     }
@@ -376,8 +377,8 @@ export function scheduleItemsWithBlocksAndDebug(
         id: task.id,
         name: task.name,
         type: 'task',
-        taskType: task.type as 'focused' | 'admin',
-        category: task.category || 'work',
+        taskType: task.type,
+        category: task.category || TaskCategory.Work,
         priority,
         duration: task.duration,
         asyncWaitTime: task.asyncWaitTime,
@@ -422,8 +423,8 @@ export function scheduleItemsWithBlocksAndDebug(
             id: step.id,
             name: `[${workflow.name}] ${step.name}`,
             type: 'workflow-step',
-            taskType: step.type as 'focused' | 'admin',
-            category: workflow.category || 'work', // Add category from workflow
+            taskType: step.type,
+            category: workflow.category || TaskCategory.Work,
             priority,
             duration: step.duration,
             asyncWaitTime: step.asyncWaitTime,
@@ -882,7 +883,7 @@ export function scheduleItemsWithBlocksAndDebug(
           // Update block capacity
           if (item.category === 'personal') {
             block.personalMinutesUsed += item.duration
-          } else if (item.taskType === 'focused') {
+          } else if (item.taskType === TaskType.Focused) {
             block.focusMinutesUsed += item.duration
           } else {
             block.adminMinutesUsed += item.duration
@@ -962,7 +963,7 @@ export function scheduleItemsWithBlocksAndDebug(
                                   (!isPersonalTask && block.blockType === 'personal')
           if (categoryMismatch) return true
 
-          if (item.taskType === 'focused') {
+          if (item.taskType === TaskType.Focused) {
             return block.focusMinutesUsed + item.duration > block.focusMinutesTotal
           } else {
             return block.adminMinutesUsed + item.duration > block.adminMinutesTotal
@@ -1135,10 +1136,10 @@ export function scheduleItemsWithBlocksAndDebug(
   const totalUnusedAdmin = debugInfo.blockUtilization.reduce((sum, block) =>
     sum + (block.adminTotal - block.adminUsed), 0)
 
-  if (totalUnusedFocus > 120 && workItems.some(w => w.taskType === 'focused')) {
+  if (totalUnusedFocus > 120 && workItems.some(w => w.taskType === TaskType.Focused)) {
     debugInfo.warnings.push(`${totalUnusedFocus} minutes of focus time unused while focus tasks remain unscheduled`)
   }
-  if (totalUnusedAdmin > 120 && workItems.some(w => w.taskType === 'admin')) {
+  if (totalUnusedAdmin > 120 && workItems.some(w => w.taskType === TaskType.Admin)) {
     debugInfo.warnings.push(`${totalUnusedAdmin} minutes of admin time unused while admin tasks remain unscheduled`)
   }
 

@@ -6,6 +6,7 @@
  */
 
 import { Task, TaskStep, ProductivityPattern, SchedulingPreferences } from '@shared/types'
+import { TaskType } from '@shared/enums'
 import { SequencedTask } from '@shared/sequencing-types'
 import { WorkSettings } from '@shared/work-settings-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
@@ -714,7 +715,7 @@ function calculateCapacityNeeded(
   if ('hasSteps' in item && item.hasSteps && item.steps) {
     for (const step of item.steps) {
       if (step.status !== 'completed') {
-        if (step.type === 'focused') {
+        if (step.type === TaskType.Focused) {
           focusedHours += step.duration / 60
         } else {
           adminHours += step.duration / 60
@@ -722,7 +723,7 @@ function calculateCapacityNeeded(
       }
     }
   } else if ('duration' in item) {
-    if (item.type === 'focused') {
+    if (item.type === TaskType.Focused) {
       focusedHours = item.duration / 60
     } else {
       adminHours = item.duration / 60

@@ -15,11 +15,21 @@ export enum TaskStatus {
 }
 
 // Task types
-import { logger } from './logger'
+import { logWarn } from './logger'
 
 export enum TaskType {
   Focused = 'focused',
   Admin = 'admin',
+  Mixed = 'mixed',
+}
+
+// Task categories
+export enum TaskCategory {
+  Work = 'work',
+  Personal = 'personal',
+  Learning = 'learning',
+  Health = 'health',
+  Administrative = 'administrative',
 }
 
 // Amendment types for voice amendments
@@ -121,6 +131,6 @@ export function parseEnum<T extends Record<string, string>>(
   if (isValidEnumValue(enumObj, value)) {
     return value as T[keyof T]
   }
-  logger.warn(`Invalid enum value "${value}", using fallback "${fallback}"`)
+  logWarn('main', `Invalid enum value "${value}", using fallback "${fallback}"`)
   return fallback
 }

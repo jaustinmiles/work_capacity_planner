@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { TaskType } from '@shared/enums'
 import {
   Modal,
   Table,
@@ -64,7 +65,7 @@ export function WorkSessionsModal({
       const data = await getDatabase().getWorkSessionsForTask(taskId)
       setSessions(data)
     } catch (error) {
-      logger.error('Failed to load work sessions:', error)
+      logger.ui.error('Failed to load work sessions:', error)
       Message.error('Failed to load work sessions')
     } finally {
       setLoading(false)
@@ -84,7 +85,7 @@ export function WorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      logger.error('Failed to delete work session:', error)
+      logger.ui.error('Failed to delete work session:', error)
       Message.error('Failed to delete work session')
     }
   }
@@ -116,7 +117,7 @@ export function WorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      logger.error('Failed to update work session:', error)
+      logger.ui.error('Failed to update work session:', error)
       Message.error('Failed to update work session')
     }
   }
@@ -132,7 +133,7 @@ export function WorkSessionsModal({
       title: 'Type',
       dataIndex: 'type',
       render: (type: string) => (
-        <Tag color={type === 'focused' ? 'blue' : 'green'}>
+        <Tag color={type === TaskType.Focused ? 'blue' : 'green'}>
           {type}
         </Tag>
       ),

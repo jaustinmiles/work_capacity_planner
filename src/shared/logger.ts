@@ -1,15 +1,34 @@
-import log from 'electron-log'
-import { app } from 'electron'
-import path from 'path'
+// Check if we're in main process or renderer
+const isMainProcess = typeof process !== 'undefined' && process.type === 'browser'
+const isRenderer = typeof window !== 'undefined' && !isMainProcess
 
-// Configure log levels
-log.transports.file.level = 'info'
-log.transports.console.level = 'debug'
+let log: any
 
-// Set log file location
-if (app) {
-  const logPath = path.join(app.getPath('userData'), 'logs')
+if (isMainProcess) {
+  // Main process - use electron-log
+  log = require('electron-log')
+  const path = require('path')
+
+  // Configure log levels
+  log.transports.file.level = 'info'
+  log.transports.console.level = 'debug'
+
+  // Set log file location
+  const electron = require('electron')
+  const logPath = path.join(electron.app.getPath('userData'), 'logs')
   log.transports.file.resolvePathFn = () => path.join(logPath, 'main.log')
+} else {
+  // Renderer process or shared context - create a simple console logger
+  const createScope = (scopeName: string) => ({
+    info: (...args: any[]) => console.info(`[${scopeName}]`, ...args),
+    debug: (...args: any[]) => console.debug(`[${scopeName}]`, ...args),
+    warn: (...args: any[]) => console.warn(`[${scopeName}]`, ...args),
+    error: (...args: any[]) => console.error(`[${scopeName}]`, ...args),
+  })
+
+  log = {
+    scope: (name: string) => createScope(name),
+  }
 }
 
 // Create scoped loggers

@@ -1,6 +1,7 @@
 import { SchedulingEngine } from './scheduling-engine'
 import { Task } from './types'
 import { SequencedTask } from './sequencing-types'
+import { TaskType } from './enums'
 import {
   WorkDayConfiguration,
   SchedulingConstraints,
@@ -87,11 +88,11 @@ export class SchedulingService {
 
     // Calculate utilization
     const focusedMinutesUsed = schedulingResult.scheduledItems
-      .filter(item => item.type === 'focused')
+      .filter(item => item.type === TaskType.Focused)
       .reduce((total, item) => total + item.duration, 0)
 
     const adminMinutesUsed = schedulingResult.scheduledItems
-      .filter(item => item.type === 'admin')
+      .filter(item => item.type === TaskType.Admin)
       .reduce((total, item) => total + item.duration, 0)
 
     const utilization = {
@@ -331,7 +332,7 @@ export class SchedulingService {
 
     // Check capacity constraints
     const totalFocusedMinutes = allItems
-      .filter(item => item.type === 'focused')
+      .filter(item => item.type === TaskType.Focused)
       .reduce((total, item) => total + item.duration, 0)
 
     if (totalFocusedMinutes > 240 * 30) { // More than 30 days of focused work

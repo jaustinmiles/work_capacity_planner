@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { TaskType } from '@shared/enums'
 import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Modal } from '@arco-design/web-react'
 import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -36,7 +37,7 @@ export function TaskItem({ task }: TaskItemProps) {
     getDatabase().getTaskTotalLoggedTime(task.id).then(time => {
       setLoggedTime(time)
     }).catch(err => {
-      logger.error('Failed to fetch logged time:', err)
+      logger.ui.error('Failed to fetch logged time:', err)
     })
   }, [task.id, task.actualDuration]) // Re-fetch when actualDuration changes
 
@@ -184,7 +185,7 @@ export function TaskItem({ task }: TaskItemProps) {
                     )}
 
                     <Tag size="small" color="gray">
-                      {task.type === 'focused' ? 'Focused Work' : 'Admin/Meeting'}
+                      {task.type === TaskType.Focused ? 'Focused Work' : 'Admin/Meeting'}
                     </Tag>
 
                     {task.category === 'personal' && (

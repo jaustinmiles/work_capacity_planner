@@ -4,8 +4,8 @@ import { DatabaseService } from './database'
 import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
 import { logger, logInfo, logError } from '../shared/logger'
-import type { Task } from '@shared/types'
-import type { TaskStep } from '@shared/sequencing-types'
+import type { Task } from '../shared/types'
+import type { TaskStep } from '../shared/sequencing-types'
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -120,7 +120,7 @@ ipcMain.handle('db:getSequencedTasks', async () => {
 })
 
 ipcMain.handle('db:createTask', async (_event: IpcMainInvokeEvent, taskData: Partial<Task>) => {
-  return await db.createTask(taskData)
+  return await db.createTask(taskData as Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>)
 })
 
 ipcMain.handle('db:createSequencedTask', async (_event: IpcMainInvokeEvent, taskData: unknown) => {
@@ -135,7 +135,7 @@ ipcMain.handle('db:updateSequencedTask', async (_event: IpcMainInvokeEvent, id: 
   return await db.updateSequencedTask(id, updates)
 })
 ipcMain.handle('db:addStepToWorkflow', async (_event: IpcMainInvokeEvent, workflowId: string, stepData: Partial<TaskStep>) => {
-  return await db.addStepToWorkflow(workflowId, stepData)
+  return await db.addStepToWorkflow(workflowId, stepData as any)
 })
 
 ipcMain.handle('db:deleteTask', async (_event: IpcMainInvokeEvent, id: string) => {
@@ -168,11 +168,11 @@ ipcMain.handle('db:getActiveJobContext', async () => {
 })
 
 ipcMain.handle('db:createJobContext', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.createJobContext(data)
+  return await db.createJobContext(data as any)
 })
 
 ipcMain.handle('db:updateJobContext', async (_event: IpcMainInvokeEvent, id: string, updates: unknown) => {
-  return await db.updateJobContext(id, updates)
+  return await db.updateJobContext(id, updates as any)
 })
 
 ipcMain.handle('db:deleteJobContext', async (_event: IpcMainInvokeEvent, id: string) => {
@@ -189,11 +189,11 @@ ipcMain.handle('db:getJargonEntries', async () => {
 })
 
 ipcMain.handle('db:createJargonEntry', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.createJargonEntry(data)
+  return await db.createJargonEntry(data as any)
 })
 
 ipcMain.handle('db:updateJargonEntry', async (_event: IpcMainInvokeEvent, id: string, updates: unknown) => {
-  return await db.updateJargonEntry(id, updates)
+  return await db.updateJargonEntry(id, updates as any)
 })
 
 ipcMain.handle('db:updateJargonDefinition', async (_event: IpcMainInvokeEvent, term: string, definition: string) => {
@@ -227,11 +227,11 @@ ipcMain.handle('db:getWorkPattern', async (_event: IpcMainInvokeEvent, date: str
 })
 
 ipcMain.handle('db:createWorkPattern', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.createWorkPattern(data)
+  return await db.createWorkPattern(data as any)
 })
 
 ipcMain.handle('db:updateWorkPattern', async (_event: IpcMainInvokeEvent, id: string, data: unknown) => {
-  return await db.updateWorkPattern(id, data)
+  return await db.updateWorkPattern(id, data as any)
 })
 
 ipcMain.handle('db:getWorkTemplates', async () => {
@@ -244,7 +244,7 @@ ipcMain.handle('db:saveAsTemplate', async (_event: IpcMainInvokeEvent, date: str
 
 // Work session handlers
 ipcMain.handle('db:createWorkSession', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.createWorkSession(data)
+  return await db.createWorkSession(data as any)
 })
 
 ipcMain.handle('db:updateWorkSession', async (_event: IpcMainInvokeEvent, id: string, data: unknown) => {
@@ -310,12 +310,12 @@ ipcMain.handle('ai:extractJargonTerms', async (_event: IpcMainInvokeEvent, conte
 
 ipcMain.handle('ai:generateWorkflowSteps', async (_event: IpcMainInvokeEvent, taskDescription: string, context?: unknown) => {
   const aiService = getAIService()
-  return await aiService.generateWorkflowSteps(taskDescription, context)
+  return await aiService.generateWorkflowSteps(taskDescription, context as any)
 })
 
 ipcMain.handle('ai:enhanceTaskDetails', async (_event: IpcMainInvokeEvent, taskName: string, currentDetails?: unknown) => {
   const aiService = getAIService()
-  return await aiService.enhanceTaskDetails(taskName, currentDetails)
+  return await aiService.enhanceTaskDetails(taskName, currentDetails as any)
 })
 
 ipcMain.handle('ai:getContextualQuestions', async (_event: IpcMainInvokeEvent, taskName: string, taskDescription?: string) => {
@@ -340,26 +340,26 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
   try {
     const jobContexts = await db.getJobContexts()
     if (jobContexts && jobContexts.length > 0) {
-      context.jobContexts = jobContexts
-      logger.debug('[IPC] Including job contexts in amendment parsing:', jobContexts.length, 'contexts')
+      (context as any).jobContexts = jobContexts
+      logger.ipc.debug('[IPC] Including job contexts in amendment parsing:', jobContexts.length, 'contexts')
     }
   } catch (error) {
-    logger.error('[IPC] Failed to fetch job contexts:', error)
+    logError('ipc', 'Failed to fetch job contexts:', error)
   }
 
   const parser = new AmendmentParser({ useAI: true })
-  return await parser.parseTranscription(transcription, context)
+  return await parser.parseTranscription(transcription, context as any)
 })
 
 // Speech operation handlers
 ipcMain.handle('speech:transcribeAudio', async (_event: IpcMainInvokeEvent, audioFilePath: string, options?: unknown) => {
   const speechService = getSpeechService()
-  return await speechService.transcribeAudio(audioFilePath, options)
+  return await speechService.transcribeAudio(audioFilePath, options as any)
 })
 
 ipcMain.handle('speech:transcribeAudioBuffer', async (_event: IpcMainInvokeEvent, audioBuffer: Buffer, filename: string, options?: unknown) => {
   const speechService = getSpeechService()
-  return await speechService.transcribeAudioBuffer(audioBuffer, filename, options)
+  return await speechService.transcribeAudioBuffer(audioBuffer, filename, options as any)
 })
 
 ipcMain.handle('speech:getSupportedFormats', async () => {

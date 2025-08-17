@@ -105,12 +105,40 @@ class RendererLogger {
   }
 }
 
-export const logger = new RendererLogger()
+const rendererLogger = new RendererLogger()
+
+// Create scoped loggers to match the main process API
+export const logger = {
+  ui: {
+    info: (message: string, data?: any) => rendererLogger.info('ui', message, data),
+    debug: (message: string, data?: any) => rendererLogger.debug('ui', message, data),
+    warn: (message: string, data?: any) => rendererLogger.warn('ui', message, data),
+    error: (message: string, error?: Error | unknown, data?: any) => rendererLogger.error('ui', message, error, data),
+  },
+  ai: {
+    info: (message: string, data?: any) => rendererLogger.info('ai', message, data),
+    debug: (message: string, data?: any) => rendererLogger.debug('ai', message, data),
+    warn: (message: string, data?: any) => rendererLogger.warn('ai', message, data),
+    error: (message: string, error?: Error | unknown, data?: any) => rendererLogger.error('ai', message, error, data),
+  },
+  store: {
+    info: (message: string, data?: any) => rendererLogger.info('store', message, data),
+    debug: (message: string, data?: any) => rendererLogger.debug('store', message, data),
+    warn: (message: string, data?: any) => rendererLogger.warn('store', message, data),
+    error: (message: string, error?: Error | unknown, data?: any) => rendererLogger.error('store', message, error, data),
+  },
+  scheduler: {
+    info: (message: string, data?: any) => rendererLogger.info('scheduler', message, data),
+    debug: (message: string, data?: any) => rendererLogger.debug('scheduler', message, data),
+    warn: (message: string, data?: any) => rendererLogger.warn('scheduler', message, data),
+    error: (message: string, error?: Error | unknown, data?: any) => rendererLogger.error('scheduler', message, error, data),
+  },
+}
 
 // Convenience exports
-export const logDebug = (scope: LogScope, message: string, data?: any) => logger.debug(scope, message, data)
-export const logInfo = (scope: LogScope, message: string, data?: any) => logger.info(scope, message, data)
-export const logWarn = (scope: LogScope, message: string, data?: any) => logger.warn(scope, message, data)
-export const logError = (scope: LogScope, message: string, error?: Error | unknown, data?: any) => logger.error(scope, message, error, data)
-export const logPerformance = (operation: string, duration: number, metadata?: Record<string, any>) => logger.performance(operation, duration, metadata)
-export const logEvent = (event: string, data?: Record<string, any>) => logger.event(event, data)
+export const logDebug = (scope: LogScope, message: string, data?: any) => rendererLogger.debug(scope, message, data)
+export const logInfo = (scope: LogScope, message: string, data?: any) => rendererLogger.info(scope, message, data)
+export const logWarn = (scope: LogScope, message: string, data?: any) => rendererLogger.warn(scope, message, data)
+export const logError = (scope: LogScope, message: string, error?: Error | unknown, data?: any) => rendererLogger.error(scope, message, error, data)
+export const logPerformance = (operation: string, duration: number, metadata?: Record<string, any>) => rendererLogger.performance(operation, duration, metadata)
+export const logEvent = (event: string, data?: Record<string, any>) => rendererLogger.event(event, data)

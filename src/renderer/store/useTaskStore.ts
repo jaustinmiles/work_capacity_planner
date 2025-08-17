@@ -118,7 +118,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       // Tasks loaded successfully
       set({ tasks, isLoading: false })
     } catch (error) {
-      logger.error('Store: Error loading tasks:', error)
+      logger.ui.error('Store: Error loading tasks:', error)
       set({
         error: error instanceof Error ? error.message : 'Failed to load tasks',
         isLoading: false,
@@ -133,7 +133,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       // Sequenced tasks loaded successfully
       set({ sequencedTasks, isLoading: false })
     } catch (error) {
-      logger.error('Store: Error loading sequenced tasks:', error)
+      logger.ui.error('Store: Error loading sequenced tasks:', error)
       set({
         error: error instanceof Error ? error.message : 'Failed to load sequenced tasks',
         isLoading: false,
@@ -154,7 +154,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       // Store initialized successfully
       set({ tasks, sequencedTasks, isLoading: false })
     } catch (error) {
-      logger.error('Store: Failed to initialize data:', error)
+      logger.ui.error('Store: Failed to initialize data:', error)
       set({
         error: error instanceof Error ? error.message : 'Failed to initialize data',
         isLoading: false,
@@ -339,7 +339,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const activeSession = state.activeWorkSessions.get(stepId)
 
     if (activeSession && !activeSession.isPaused) {
-      logger.warn(`Work session for step ${stepId} is already active`)
+      logger.ui.warn(`Work session for step ${stepId} is already active`)
       return
     }
 
@@ -360,7 +360,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       status: 'in_progress',
       startedAt: activeSession ? undefined : new Date(),
     }).catch(error => {
-      logger.error('Failed to update step progress:', error)
+      logger.ui.error('Failed to update step progress:', error)
     })
   },
 
@@ -369,7 +369,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const session = state.activeWorkSessions.get(stepId)
 
     if (!session || session.isPaused) {
-      logger.warn(`No active work session for step ${stepId}`)
+      logger.ui.warn(`No active work session for step ${stepId}`)
       return
     }
 

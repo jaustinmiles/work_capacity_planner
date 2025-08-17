@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useEffect } from 'react'
+import { TaskType } from '@shared/enums'
 import ReactFlow, {
   Node,
   Edge,
@@ -41,8 +42,8 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
   return (
     <div
       style={{
-        background: data.type === 'focused' ? '#E6F7FF' : '#E8F5E9',
-        border: `2px solid ${data.type === 'focused' ? '#165DFF' : '#00B42A'}`,
+        background: data.type === TaskType.Focused ? '#E6F7FF' : '#E8F5E9',
+        border: `2px solid ${data.type === TaskType.Focused ? '#165DFF' : '#00B42A'}`,
         borderRadius: 8,
         padding: 16,
         minWidth: 200,
@@ -64,7 +65,7 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <div
           style={{
-            background: data.type === 'focused' ? '#165DFF' : '#00B42A',
+            background: data.type === TaskType.Focused ? '#165DFF' : '#00B42A',
             color: 'white',
             borderRadius: '50%',
             width: 30,
@@ -87,8 +88,8 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
           {formatDuration(data.duration)}
           {data.asyncWaitTime > 0 && ` + ${formatDuration(data.asyncWaitTime)} wait`}
         </Text>
-        <Tag size="small" color={data.type === 'focused' ? 'blue' : 'green'}>
-          {data.type === 'focused' ? 'Focused' : 'Admin'}
+        <Tag size="small" color={data.type === TaskType.Focused ? 'blue' : 'green'}>
+          {data.type === TaskType.Focused ? 'Focused' : 'Admin'}
         </Tag>
       </Space>
 
@@ -260,7 +261,7 @@ export function InteractiveWorkflowGraph({
   const onConnect = useCallback(
     (params: Connection) => {
       if (!isValidConnection(params)) {
-        logger.error('Invalid connection: Would create a circular dependency')
+        logger.ui.error('Invalid connection: Would create a circular dependency')
         return
       }
 

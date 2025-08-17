@@ -44,9 +44,13 @@
       "WebSearch",
       "Bash(npm audit:*)",
       "Bash(git check-ignore:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(/tmp/replace-task-types.sh:*)"
     ],
     "deny": [],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "/tmp"
+    ]
   }
 }

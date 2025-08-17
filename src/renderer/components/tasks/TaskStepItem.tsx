@@ -1,4 +1,5 @@
 import { Space, Typography, Tag, Tooltip, Badge, Button, Progress } from '@arco-design/web-react'
+import { TaskType } from '@shared/enums'
 import { IconClockCircle, IconCalendar, IconExclamationCircle, IconCheck, IconHistory } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
 
@@ -146,7 +147,7 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
           )}
 
           <Tag size="small" color="gray">
-            {step.type === 'focused' ? 'Focused Work' : 'Admin/Meeting'}
+            {step.type === TaskType.Focused ? 'Focused Work' : 'Admin/Meeting'}
           </Tag>
 
           {step.asyncWaitTime > 0 && (

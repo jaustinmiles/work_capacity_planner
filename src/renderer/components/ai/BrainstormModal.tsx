@@ -133,7 +133,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       }
 
       mediaRecorder.onerror = (event) => {
-        logger.error('Context MediaRecorder error:', event)
+        logger.ai.error('Context MediaRecorder error:', event)
         setError('Context recording error occurred')
         setContextRecordingState('idle')
       }
@@ -143,7 +143,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setError(null)
       setContextRecordingState('recording')
     } catch (error) {
-      logger.error('Error starting context recording:', error)
+      logger.ai.error('Error starting context recording:', error)
       setError('Failed to access microphone. Please check your permissions.')
       setContextRecordingState('idle')
     }
@@ -165,7 +165,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           setJobContext(activeContext.context)
         }
       } catch (error) {
-        logger.error('Error loading job context:', error)
+        logger.ai.error('Error loading job context:', error)
       }
     }
 
@@ -174,7 +174,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         const dictionary = await getDatabase().getJargonDictionary()
         setJargonDictionary(dictionary)
       } catch (error) {
-        logger.error('Error loading jargon dictionary:', error)
+        logger.ai.error('Error loading jargon dictionary:', error)
       }
     }
 
@@ -249,7 +249,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           mediaRecorderRef.current.stop()
           mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
         } catch (error) {
-          logger.error('Error cleaning up recording:', error)
+          logger.ai.error('Error cleaning up recording:', error)
         }
       }
     }
@@ -301,7 +301,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       }
 
       mediaRecorder.onerror = (event) => {
-        logger.error('MediaRecorder error:', event)
+        logger.ai.error('MediaRecorder error:', event)
         setError('Recording error occurred')
         setRecordingState('idle')
       }
@@ -313,7 +313,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setError(null)
       setRecordingState('recording')
     } catch (error) {
-      logger.error('Error starting recording:', error)
+      logger.ai.error('Error starting recording:', error)
       setError('Failed to access microphone. Please check your permissions.')
       setRecordingState('idle')
     }
@@ -337,7 +337,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
     setIsTranscribing(true)
     try {
       // Log audio blob details for debugging
-      logger.debug('Transcribing audio:', {
+      logger.ai.debug('Transcribing audio:', {
         filename,
         size: audioBlob.size,
         type: audioBlob.type,
@@ -356,9 +356,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       setBrainstormText(prev => prev + (prev ? ' ' : '') + result.text)
       setError(null)
-      logger.debug('Transcription successful, text length:', result.text.length)
+      logger.ai.debug('Transcription successful, text length:', result.text.length)
     } catch (error) {
-      logger.error('Error transcribing audio:', error)
+      logger.ai.error('Error transcribing audio:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setError(`Failed to transcribe audio: ${errorMessage}`)
     } finally {
@@ -393,7 +393,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setUploadedAudioFile(file)
       Message.success(`Successfully processed ${file.name}`)
     } catch (error) {
-      logger.error('Error processing uploaded audio:', error)
+      logger.ai.error('Error processing uploaded audio:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to process uploaded audio file.'
       setError(errorMessage)
       Message.error(errorMessage)
@@ -444,7 +444,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       Message.success(`Successfully processed context from ${file.name}`)
     } catch (error) {
-      logger.error('Error processing context audio:', error)
+      logger.ai.error('Error processing context audio:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to process context audio file.'
       setError(errorMessage)
       Message.error(errorMessage)
@@ -492,10 +492,10 @@ Only include terms that are likely industry-specific or technical jargon, not co
           }
         }
       } catch (parseError) {
-        logger.error('Failed to parse jargon terms:', parseError)
+        logger.ai.error('Failed to parse jargon terms:', parseError)
       }
     } catch (error) {
-      logger.error('Error extracting jargon terms:', error)
+      logger.ai.error('Error extracting jargon terms:', error)
       // Non-critical error, don't show to user
     }
   }
@@ -523,7 +523,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
         })
       }
     } catch (error) {
-      logger.error('Error saving job context:', error)
+      logger.ai.error('Error saving job context:', error)
     }
   }
 
@@ -546,7 +546,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
       setNewJargonDefinition('')
       setShowJargonInput(false)
     } catch (error) {
-      logger.error('Error adding jargon entry:', error)
+      logger.ai.error('Error adding jargon entry:', error)
       setError('Failed to add jargon entry. Term might already exist.')
     }
   }
@@ -589,7 +589,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
         setBrainstormResult({ summary: result.summary, tasks: result.tasks })
       }
     } catch (error) {
-      logger.error('Error processing brainstorm:', error)
+      logger.ai.error('Error processing brainstorm:', error)
       setError('Failed to process brainstorm with AI. Please try again.')
     } finally {
       setIsProcessing(false)
@@ -813,7 +813,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               }
                             }
                           } catch (error) {
-                            logger.error('Failed to extract jargon:', error)
+                            logger.ai.error('Failed to extract jargon:', error)
                             Message.error('Failed to extract jargon terms')
                           }
                         } else {
@@ -870,7 +870,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                 try {
                                   await getDatabase().updateJargonDefinition(term, definition)
                                 } catch (error) {
-                                  logger.error('Error updating jargon definition:', error)
+                                  logger.ai.error('Error updating jargon definition:', error)
                                 }
                               }}
                               style={{ flex: 1 }}

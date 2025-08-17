@@ -53,7 +53,7 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
         await onLogTime(totalMinutes, values.notes ?? null)
       }
     } catch (error) {
-      logger.error('Failed to log time:', error)
+      logger.ui.error('Failed to log time:', error)
     } finally {
       setIsSubmitting(false)
     }

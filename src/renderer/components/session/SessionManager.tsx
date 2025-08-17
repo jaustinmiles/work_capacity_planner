@@ -58,7 +58,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       setSessions(sessionList)
       setActiveSession(sessionList.find(s => s.isActive) || null)
     } catch (error) {
-      logger.error('Failed to load sessions:', error)
+      logger.ui.error('Failed to load sessions:', error)
       Message.error('Failed to load sessions')
     } finally {
       setLoading(false)
@@ -77,7 +77,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       await loadSessions()
       onSessionChange?.()
     } catch (error) {
-      logger.error('Failed to create session:', error)
+      logger.ui.error('Failed to create session:', error)
       Message.error('Failed to create session')
     }
   }
@@ -91,7 +91,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       await loadSessions()
       onSessionChange?.()
     } catch (error) {
-      logger.error('Failed to switch session:', error)
+      logger.ui.error('Failed to switch session:', error)
       Message.error('Failed to switch session')
     }
   }
@@ -109,7 +109,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       setEditingSession(null)
       await loadSessions()
     } catch (error) {
-      logger.error('Failed to update session:', error)
+      logger.ui.error('Failed to update session:', error)
       Message.error('Failed to update session')
     }
   }
@@ -122,7 +122,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       Message.success('Session deleted')
       await loadSessions()
     } catch (error) {
-      logger.error('Failed to delete session:', error)
+      logger.ui.error('Failed to delete session:', error)
       if (error instanceof Error && error.message.includes('active')) {
         Message.error('Cannot delete the active session')
       } else {

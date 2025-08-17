@@ -1,5 +1,6 @@
 import { Task, Session } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
+import { TaskType } from '@shared/enums'
 import { logger } from '../utils/logger'
 
 
@@ -77,7 +78,7 @@ declare global {
             estimatedDuration: number
             importance: number
             urgency: number
-            type: 'focused' | 'admin'
+            type: TaskType.Focused | 'admin'
             needsMoreInfo?: boolean
           }>
           summary: string
@@ -89,7 +90,7 @@ declare global {
             description: string
             importance: number
             urgency: number
-            type: 'focused' | 'admin'
+            type: TaskType.Focused | 'admin'
             steps: any[]
             totalDuration: number
             earliestCompletion: string
@@ -102,7 +103,7 @@ declare global {
             estimatedDuration: number
             importance: number
             urgency: number
-            type: 'focused' | 'admin'
+            type: TaskType.Focused | 'admin'
             needsMoreInfo?: boolean
           }>
           summary: string
@@ -141,7 +142,7 @@ declare global {
             id: string
             startTime: string
             endTime: string
-            type: 'focused' | 'admin' | 'mixed'
+            type: TaskType.Focused | 'admin' | 'mixed'
             capacity?: {
               focused: number
               admin: number
@@ -194,18 +195,18 @@ export class RendererDatabaseService {
   private constructor() {
     // Check if we're in an Electron environment
     if (typeof window === 'undefined') {
-      logger.error('Window object not available')
+      logger.ui.error('Window object not available')
       throw new Error('Window object not available')
     }
 
     // Wait for electronAPI to be available (it might load asynchronously)
     if (!window.electronAPI) {
-      logger.error('Electron API not available. window.electronAPI is:', window.electronAPI)
-      logger.error('Available window properties:', Object.keys(window))
+      logger.ui.error('Electron API not available. window.electronAPI is:', window.electronAPI)
+      logger.ui.error('Available window properties:', Object.keys(window))
       throw new Error('Electron API not available. Make sure the preload script is loaded correctly.')
     }
 
-    logger.debug('RendererDatabaseService: Initialized successfully')
+    logger.ui.debug('RendererDatabaseService: Initialized successfully')
   }
 
   static getInstance(): RendererDatabaseService {
@@ -238,13 +239,13 @@ export class RendererDatabaseService {
 
   // Task operations
   async getTasks(): Promise<Task[]> {
-    logger.debug('RendererDB: Calling getTasks via IPC...')
+    logger.ui.debug('RendererDB: Calling getTasks via IPC...')
     try {
       const tasks = await window.electronAPI.db.getTasks()
-      logger.debug(`RendererDB: Received ${tasks.length} tasks from IPC`)
+      logger.ui.debug(`RendererDB: Received ${tasks.length} tasks from IPC`)
       return tasks
     } catch (error) {
-      logger.error('RendererDB: Error getting tasks:', error)
+      logger.ui.error('RendererDB: Error getting tasks:', error)
       throw error
     }
   }
@@ -281,7 +282,7 @@ export class RendererDatabaseService {
   async addStepToWorkflow(workflowId: string, stepData: {
     name: string
     duration: number
-    type: 'focused' | 'admin'
+    type: TaskType.Focused | 'admin'
     afterStep?: string
     beforeStep?: string
     dependencies?: string[]

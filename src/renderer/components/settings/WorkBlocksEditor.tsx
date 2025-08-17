@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { TaskType } from '@shared/enums'
 import {
   Card,
   Space,
@@ -91,7 +92,7 @@ export function WorkBlocksEditor({
       const templates = await getDatabase().getWorkTemplates()
       setUserTemplates(templates)
     } catch (error) {
-      logger.error('Failed to load user templates:', error)
+      logger.ui.error('Failed to load user templates:', error)
     }
   }
 
@@ -225,7 +226,7 @@ export function WorkBlocksEditor({
       // Reload templates
       loadUserTemplates()
     } catch (error) {
-      logger.error('Failed to save template:', error)
+      logger.ui.error('Failed to save template:', error)
       Message.error('Failed to save template. Please save the schedule first.')
     }
   }
@@ -432,8 +433,8 @@ export function WorkBlocksEditor({
                       }}
                       style={{ width: '100%' }}
                     >
-                      <Select.Option value="focused">Focused</Select.Option>
-                      <Select.Option value="admin">Admin</Select.Option>
+                      <Select.Option value={TaskType.Focused}>Focused</Select.Option>
+                      <Select.Option value={TaskType.Admin}>Admin</Select.Option>
                       <Select.Option value="mixed">Mixed</Select.Option>
                       <Select.Option value="personal">Personal</Select.Option>
                     </Select>
@@ -503,7 +504,7 @@ export function WorkBlocksEditor({
                       </Space>
                     ) : (
                       <Text type="secondary">
-                        {block.type === 'focused' ? 'All focus time' : 'All admin time'}
+                        {block.type === TaskType.Focused ? 'All focus time' : 'All admin time'}
                       </Text>
                     )}
                   </Col>

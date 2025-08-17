@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { TaskType } from '@shared/enums'
 import { Modal, Button, Typography, Alert, Space, Card, Tag, Divider, Upload, Input } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconUpload, IconFile, IconCheckCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
@@ -127,7 +128,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       }
 
       mediaRecorder.onerror = (event) => {
-        logger.error('MediaRecorder error:', event)
+        logger.ui.error('MediaRecorder error:', event)
         setError('Recording error occurred')
         setRecordingState('idle')
       }
@@ -137,7 +138,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       setError(null)
       setRecordingState('recording')
     } catch (error) {
-      logger.error('Error starting recording:', error)
+      logger.ui.error('Error starting recording:', error)
       setError('Failed to access microphone. Please check your permissions.')
       setRecordingState('idle')
     }
@@ -173,7 +174,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       setScheduleText(prev => prev + (prev ? ' ' : '') + result.text)
       setError(null)
     } catch (error) {
-      logger.error('Error transcribing audio:', error)
+      logger.ui.error('Error transcribing audio:', error)
       setError('Failed to transcribe audio. Please try again.')
     } finally {
       setIsTranscribing(false)
@@ -189,7 +190,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       await transcribeAudio(blob, file.name)
       setUploadedAudioFile(file)
     } catch (error) {
-      logger.error('Error processing uploaded audio:', error)
+      logger.ui.error('Error processing uploaded audio:', error)
       setError('Failed to process uploaded audio file.')
     } finally {
       setIsProcessingAudioFile(false)
@@ -223,7 +224,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       }
       setScheduleResult(convertedResult)
     } catch (error) {
-      logger.error('Error processing schedule:', error)
+      logger.ui.error('Error processing schedule:', error)
       setError('Failed to process schedule with AI. Please try again.')
     } finally {
       setIsProcessing(false)
@@ -441,8 +442,8 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                         <Space>
                           <Text>{block.startTime} - {block.endTime}</Text>
                           <Tag color={
-                            block.type === 'focused' ? 'blue' :
-                            block.type === 'admin' ? 'green' : 'purple'
+                            block.type === TaskType.Focused ? 'blue' :
+                            block.type === TaskType.Admin ? 'green' : 'purple'
                           }>
                             {block.type}
                           </Tag>

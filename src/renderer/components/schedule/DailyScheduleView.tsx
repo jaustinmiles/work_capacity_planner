@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { TaskType } from '@shared/enums'
 import { Card, Space, Typography, Tag, Empty, Timeline, Badge } from '@arco-design/web-react'
 import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar, IconMoon } from '@arco-design/web-react/icon'
 import { ScheduledItem } from '../../utils/flexible-scheduler'
@@ -40,7 +41,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
         setMeetings(pattern.meetings || [])
       }
     } catch (error) {
-      logger.error('Failed to load work pattern:', error)
+      logger.ui.error('Failed to load work pattern:', error)
     }
   }
 
@@ -105,12 +106,12 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
         {/* Summary Stats */}
         <Space>
           <Badge
-            count={`${formatDuration(getTotalMinutes(sortedItems.filter(i => i.type === 'task' && (i.originalItem as any).type === 'focused')))}`}
+            count={`${formatDuration(getTotalMinutes(sortedItems.filter(i => i.type === 'task' && (i.originalItem as any).type === TaskType.Focused)))}`}
             style={{ backgroundColor: '#165DFF' }}
           />
           <Text type="secondary">Focused</Text>
           <Badge
-            count={`${formatDuration(getTotalMinutes(sortedItems.filter(i => i.type === 'task' && (i.originalItem as any).type === 'admin')))}`}
+            count={`${formatDuration(getTotalMinutes(sortedItems.filter(i => i.type === 'task' && (i.originalItem as any).type === TaskType.Admin)))}`}
             style={{ backgroundColor: '#00B42A' }}
           />
           <Text type="secondary">Admin</Text>
@@ -120,8 +121,8 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
         <Timeline>
           {timeBlocks.map((block, __index) => {
             const hasItems = block.items.length > 0
-            const blockIcon = block.type === 'focused' ? <IconDesktop /> :
-                            block.type === 'admin' ? <IconUserGroup /> :
+            const blockIcon = block.type === TaskType.Focused ? <IconDesktop /> :
+                            block.type === TaskType.Admin ? <IconUserGroup /> :
                             <IconClockCircle />
 
             return (
@@ -135,8 +136,8 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
                     {blockIcon}
                     <Text style={{ fontWeight: 500 }}>
                       {block.type === 'mixed' ? 'Mixed Work Block' :
-                       block.type === 'focused' ? 'Focus Block' :
-                       block.type === 'admin' ? 'Admin Block' :
+                       block.type === TaskType.Focused ? 'Focus Block' :
+                       block.type === TaskType.Admin ? 'Admin Block' :
                        'Personal Time'}
                     </Text>
                     {!hasItems && (

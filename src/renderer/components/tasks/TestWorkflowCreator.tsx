@@ -1,4 +1,5 @@
 import { Button } from '@arco-design/web-react'
+import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { SequencedTask } from '@shared/sequencing-types'
 
@@ -10,7 +11,7 @@ export function TestWorkflowCreator() {
       name: 'Test Workflow with Dependencies',
       importance: 7,
       urgency: 7,
-      type: 'focused',
+      type: TaskType.Focused,
       dependencies: [],
       completed: false,
       notes: 'Test workflow to verify dependency rendering',
@@ -27,7 +28,7 @@ export function TestWorkflowCreator() {
           taskId: '',  // Will be set when saved
           name: 'Step 1: Initial Setup',
           duration: 30,
-          type: 'focused',
+          type: TaskType.Focused,
           dependsOn: [],
           asyncWaitTime: 0,
           status: 'pending',
@@ -39,7 +40,7 @@ export function TestWorkflowCreator() {
           taskId: '',  // Will be set when saved
           name: 'Step 2: Main Work',
           duration: 60,
-          type: 'focused',
+          type: TaskType.Focused,
           dependsOn: ['step-test-1'],
           asyncWaitTime: 0,
           status: 'pending',
@@ -51,7 +52,7 @@ export function TestWorkflowCreator() {
           taskId: '',  // Will be set when saved
           name: 'Step 3: Review',
           duration: 30,
-          type: 'admin',
+          type: TaskType.Admin,
           dependsOn: ['step-test-2'],
           asyncWaitTime: 30,
           status: 'pending',
@@ -63,7 +64,7 @@ export function TestWorkflowCreator() {
           taskId: '',  // Will be set when saved
           name: 'Step 4: Final Steps',
           duration: 30,
-          type: 'focused',
+          type: TaskType.Focused,
           dependsOn: ['step-test-2', 'step-test-3'],
           asyncWaitTime: 0,
           status: 'pending',

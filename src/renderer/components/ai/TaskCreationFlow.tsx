@@ -89,7 +89,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
           : t,
       ))
     } catch (error) {
-      logger.error('Error getting contextual questions:', error)
+      logger.ui.error('Error getting contextual questions:', error)
     } finally {
       setIsProcessing(false)
     }
@@ -113,7 +113,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
           : t,
       ))
     } catch (error) {
-      logger.error('Error enhancing task:', error)
+      logger.ui.error('Error enhancing task:', error)
     } finally {
       setIsProcessing(false)
     }
@@ -169,7 +169,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
         t.id === task.id ? { ...t, status: 'created' } : t,
       ))
     } catch (error) {
-      logger.error('Error creating task:', error)
+      logger.ui.error('Error creating task:', error)
     } finally {
       setIsProcessing(false)
     }
@@ -186,7 +186,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
 
       onClose()
     } catch (error) {
-      logger.error('Error creating tasks:', error)
+      logger.ui.error('Error creating tasks:', error)
     } finally {
       setIsProcessing(false)
     }

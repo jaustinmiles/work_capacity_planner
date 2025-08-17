@@ -1,7 +1,7 @@
 /**
  * Utilities for managing stable step IDs across workflow updates
  */
-import { logger } from './logger'
+import { logWarn } from './logger'
 
 /**
  * Generate a stable step ID that won't change between updates
@@ -64,7 +64,7 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
           return dep
         }
         // If not, try to find by name
-        logger.warn(`Dependency ID "${dep}" not found, attempting to resolve by name`)
+        logWarn('scheduler', `Dependency ID "${dep}" not found, attempting to resolve by name`)
       }
 
       // Try to resolve by name
@@ -73,7 +73,7 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
         return id
       }
 
-      logger.warn(`Could not resolve dependency "${dep}" to an ID`)
+      logWarn('scheduler', `Could not resolve dependency "${dep}" to an ID`)
       // Return the original value as fallback
       return dep
     }),
@@ -152,7 +152,7 @@ export function fixBrokenDependencies(
     dependsOn: step.dependsOn.filter(depId => {
       const isValid = validIds.has(depId)
       if (!isValid) {
-        logger.warn(`Removing invalid dependency "${depId}" from step "${step.name}"`)
+        logWarn('scheduler', `Removing invalid dependency "${depId}" from step "${step.name}"`)
       }
       return isValid
     }),

@@ -85,7 +85,7 @@ export class AmendmentParser {
     try {
       return await this.parseWithAI(transcription, context)
     } catch (error) {
-      logger.error('AI parsing failed:', error)
+      logger.ai.error('AI parsing failed:', error)
       return {
         amendments: [],
         transcription,
@@ -139,7 +139,7 @@ export class AmendmentParser {
     }
 
     // Log the context for debugging
-    logger.debug('Amendment Parser Context:', {
+    logger.ai.debug('Amendment Parser Context:', {
       transcription,
       tasksCount: context.recentTasks.length,
       workflowsCount: context.recentWorkflows.length,
@@ -252,7 +252,7 @@ IMPORTANT:
         throw new Error('Unexpected response type from Claude')
       }
 
-      logger.debug('Claude raw response:', content.text)
+      logger.ai.debug('Claude raw response:', content.text)
 
       // Extract JSON from response (may be wrapped in ```json...```)
       let jsonText = content.text.trim()
@@ -278,7 +278,7 @@ IMPORTANT:
         jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
       }
 
-      logger.debug('Extracted JSON:', jsonText)
+      logger.ai.debug('Extracted JSON:', jsonText)
 
       const result = JSON.parse(jsonText) as AmendmentResult
       result.transcription = transcription
@@ -287,10 +287,10 @@ IMPORTANT:
       if (!result.amendments) result.amendments = []
       if (typeof result.confidence !== 'number') result.confidence = 0.5
 
-      logger.debug('Parsed amendment result:', result)
+      logger.ai.debug('Parsed amendment result:', result)
       return result
     } catch (error) {
-      logger.error('Error parsing with AI:', error)
+      logger.ai.error('Error parsing with AI:', error)
       // Return a more informative error result instead of throwing
       return {
         amendments: [],

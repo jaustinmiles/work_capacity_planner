@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TaskType } from '@shared/enums'
 import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, Tabs } from '@arco-design/web-react'
 import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -200,7 +201,7 @@ export function ScheduleGenerator({
         setSelectedOption(options[0].id)
       }
     } catch (error) {
-      logger.error('Error generating schedules:', error)
+      logger.ui.error('Error generating schedules:', error)
       Message.error('Failed to generate schedule options')
     } finally {
       setGenerating(false)
@@ -324,7 +325,7 @@ export function ScheduleGenerator({
           // Update capacity
           if (item.type === 'task' || item.type === 'workflow-step') {
             const task = item.originalItem as Task
-            if (task.type === 'focused') {
+            if (task.type === TaskType.Focused) {
               currentBlock.capacity.focusMinutes += item.duration
             } else {
               currentBlock.capacity.adminMinutes += item.duration
@@ -353,7 +354,7 @@ export function ScheduleGenerator({
       onScheduleAccepted()
       onClose()
     } catch (error) {
-      logger.error('Error saving schedule:', error)
+      logger.ui.error('Error saving schedule:', error)
       Message.error('Failed to save schedule')
     } finally {
       setSaving(false)

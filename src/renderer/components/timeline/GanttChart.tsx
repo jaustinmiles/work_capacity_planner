@@ -261,7 +261,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     // Workflows (tasks with hasSteps=true) are already in sequencedTasks
     const simpleTasksOnly = tasks.filter(t => !t.hasSteps)
 
-    logger.debug(`GanttChart: Scheduling with ${simpleTasksOnly.length} simple tasks and ${sequencedTasks.length} workflows`)
+    logger.ui.debug(`GanttChart: Scheduling with ${simpleTasksOnly.length} simple tasks and ${sequencedTasks.length} workflows`)
 
     // Pass current time as start date to ensure scheduling starts from now
     const result = scheduleItemsWithBlocksAndDebug(simpleTasksOnly, sequencedTasks, workPatterns, new Date())
@@ -864,7 +864,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   await generateSchedule()
                   Message.info('Schedule updated to respect the new deadline')
                 } catch (error) {
-                  logger.error('Failed to set deadline:', error)
+                  logger.ui.error('Failed to set deadline:', error)
                   Message.error('Failed to set deadline')
                 } finally {
                   setDraggedItem(null)

@@ -1,5 +1,6 @@
 import { Task } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
+import { TaskType } from '../shared/enums'
 import { parseTimeString } from './time-utils'
 import {
   SchedulableItem,
@@ -501,7 +502,7 @@ export class SchedulingEngine {
       return false
     }
 
-    if (item.type === 'focused') {
+    if (item.type === TaskType.Focused) {
       return slot.availableForFocused && slot.remainingFocusedMinutes >= item.duration
     } else {
       return slot.availableForAdmin && slot.remainingAdminMinutes >= item.duration
@@ -513,7 +514,7 @@ export class SchedulingEngine {
    */
   private scheduleItemInSlot(item: SchedulableItem, slot: TimeSlot): ScheduledWorkItem {
     const startTime = new Date(slot.startTime.getTime() +
-      (slot.durationMinutes - (item.type === 'focused' ? slot.remainingFocusedMinutes : slot.remainingAdminMinutes)) * 60000)
+      (slot.durationMinutes - (item.type === TaskType.Focused ? slot.remainingFocusedMinutes : slot.remainingAdminMinutes)) * 60000)
     const endTime = new Date(startTime.getTime() + item.duration * 60000)
 
     return {
@@ -522,8 +523,8 @@ export class SchedulingEngine {
       scheduledStartTime: startTime,
       scheduledEndTime: endTime,
       timeSlotId: slot.id,
-      consumesFocusedTime: item.type === 'focused',
-      consumesAdminTime: item.type === 'admin',
+      consumesFocusedTime: item.type === TaskType.Focused,
+      consumesAdminTime: item.type === TaskType.Admin,
       isOptimallyPlaced: true, // Could be enhanced with more sophisticated logic
       wasRescheduled: false,
       status: 'scheduled',
@@ -536,7 +537,7 @@ export class SchedulingEngine {
   private updateSlotCapacity(slot: TimeSlot, scheduledItem: ScheduledWorkItem): void {
     slot.allocatedItems.push(scheduledItem)
 
-    if (scheduledItem.type === 'focused') {
+    if (scheduledItem.type === TaskType.Focused) {
       slot.remainingFocusedMinutes -= scheduledItem.duration
     } else {
       slot.remainingAdminMinutes -= scheduledItem.duration
@@ -566,11 +567,11 @@ export class SchedulingEngine {
 
     // Calculate totals
     const totalFocusedHours = scheduledItems
-      .filter(item => item.type === 'focused')
+      .filter(item => item.type === TaskType.Focused)
       .reduce((total, item) => total + item.duration, 0) / 60
 
     const totalAdminHours = scheduledItems
-      .filter(item => item.type === 'admin')
+      .filter(item => item.type === TaskType.Admin)
       .reduce((total, item) => total + item.duration, 0) / 60
 
     const projectedCompletionDate = scheduledItems.length > 0

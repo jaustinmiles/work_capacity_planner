@@ -50,7 +50,7 @@ export function WorkScheduleModal({
         adminMinutes: (accumulatedData as any).adminMinutes || (accumulatedData as any).admin || 0,
       })
     } catch (error) {
-      logger.error('Failed to load work pattern:', error)
+      logger.ui.error('Failed to load work pattern:', error)
     } finally {
       setLoading(false)
     }
@@ -82,7 +82,7 @@ export function WorkScheduleModal({
       // Reload pattern to ensure we have the latest data
       await loadPattern()
     } catch (error) {
-      logger.error('Failed to save work pattern:', error)
+      logger.ui.error('Failed to save work pattern:', error)
       Message.error('Failed to save work schedule')
     }
   }

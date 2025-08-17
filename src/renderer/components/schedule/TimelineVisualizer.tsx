@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { TaskType } from '@shared/enums'
 import { Card } from '@arco-design/web-react'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import dayjs from 'dayjs'
@@ -173,9 +174,9 @@ export function TimelineVisualizer({
 
   const getBlockColor = (type: string) => {
     switch (type) {
-      case 'focused':
+      case TaskType.Focused:
         return '#165DFF'
-      case 'admin':
+      case TaskType.Admin:
         return '#FF7D00'
       case 'mixed':
         return '#722ED1'
@@ -332,8 +333,8 @@ export function TimelineVisualizer({
           </div>
           <div>
             {isBlock ? (
-              `${(item as WorkBlock).type === 'focused' ? '🎯 Focused' :
-                (item as WorkBlock).type === 'admin' ? '📋 Admin' : '🔄 Mixed'} Work`
+              `${(item as WorkBlock).type === TaskType.Focused ? '🎯 Focused' :
+                (item as WorkBlock).type === TaskType.Admin ? '📋 Admin' : '🔄 Mixed'} Work`
             ) : (
               `${(item as WorkMeeting).name || (item as WorkMeeting).type}`
             )}

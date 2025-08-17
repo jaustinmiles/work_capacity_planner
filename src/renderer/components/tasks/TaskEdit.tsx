@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { TaskType } from '@shared/enums'
 import {
   Card,
   Space,
@@ -47,7 +48,7 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
       if (onClose) onClose()
     } catch (error) {
       Message.error('Failed to update task')
-      logger.error('Error updating task:', error)
+      logger.ui.error('Error updating task:', error)
     } finally {
       setIsSaving(false)
     }
@@ -80,7 +81,7 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
               <Title heading={4}>{editedTask.name}</Title>
               <Space>
                 <Tag color="blue">
-                  {editedTask.type === 'focused' ? 'Focused Work' : 'Admin Task'}
+                  {editedTask.type === TaskType.Focused ? 'Focused Work' : 'Admin Task'}
                 </Tag>
                 <Tag color="orange">
                   {getPriorityLabel(editedTask.importance, editedTask.urgency)} Priority
@@ -232,8 +233,8 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
                     onChange={(value) => setEditedTask({ ...editedTask, type: value })}
                     style={{ width: '100%' }}
                   >
-                    <Select.Option value="focused">Focused Work</Select.Option>
-                    <Select.Option value="admin">Admin Task</Select.Option>
+                    <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
+                    <Select.Option value={TaskType.Admin}>Admin Task</Select.Option>
                   </Select>
                 </Space>
               </Col>
@@ -329,7 +330,7 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
               <Col span={6}>
                 <Space direction="vertical">
                   <Text type="secondary">Type</Text>
-                  <Text style={{ fontWeight: 'bold' }}>{editedTask.type === 'focused' ? 'Focused Work' : 'Admin Task'}</Text>
+                  <Text style={{ fontWeight: 'bold' }}>{editedTask.type === TaskType.Focused ? 'Focused Work' : 'Admin Task'}</Text>
                 </Space>
               </Col>
             </Row>

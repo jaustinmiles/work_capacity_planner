@@ -30,17 +30,19 @@ const { Header, Sider, Content } = Layout
 const { Title } = Typography
 const MenuItem = Menu.Item
 
+import { TaskType } from '@shared/enums'
+
 interface ExtractedTask {
   name: string
   description: string
   estimatedDuration: number
   importance: number
   urgency: number
-  type: 'focused' | 'admin'
+  type: TaskType
   needsMoreInfo?: boolean
 }
 
-function App(): void {
+function App() {
   const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
@@ -106,7 +108,7 @@ function App(): void {
     setTaskCreationFlowVisible(true)
   }
 
-  const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]): void => {
+  const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]): Promise<void> => {
     try {
       // Create workflows
       for (const workflow of workflows) {
@@ -158,7 +160,7 @@ function App(): void {
           taskId: '', // Will be set by database
           name: step.name,
           duration: step.duration || 60,
-          type: (step.type || 'focused') as 'focused' | 'admin',
+          type: step.type || TaskType.Focused,
           dependsOn: step.dependsOn || [],
           asyncWaitTime: step.asyncWaitTime || 0,
           status: step.status || ('pending' as const),
@@ -218,7 +220,7 @@ function App(): void {
         setActiveView('workflows')
       }
     } catch (error) {
-      logger.error('Error creating workflows:', error)
+      logger.ui.error('Error creating workflows:', error)
       Message.error('Failed to create workflows and tasks')
     }
   }
@@ -228,17 +230,17 @@ function App(): void {
     setExtractedTasks([])
   }
 
-  const handleDeleteSequencedTask = async (taskId: string): void => {
+  const handleDeleteSequencedTask = async (taskId: string): Promise<void> => {
     try {
       await deleteSequencedTask(taskId)
       Message.success('Workflow deleted successfully')
     } catch (error) {
-      logger.error('Error deleting workflow:', error)
+      logger.ui.error('Error deleting workflow:', error)
       Message.error('Failed to delete workflow')
     }
   }
 
-  const handleStartWorkflow = async (id: string): void => {
+  const handleStartWorkflow = async (id: string): Promise<void> => {
     try {
       // Find the workflow
       const workflow = sequencedTasks.find(st => st.id === id)
@@ -263,12 +265,12 @@ function App(): void {
 
       Message.success('Workflow started successfully')
     } catch (error) {
-      logger.error('Failed to start workflow:', error)
+      logger.ui.error('Failed to start workflow:', error)
       Message.error('Failed to start workflow')
     }
   }
 
-  const handlePauseWorkflow = async (id: string): void => {
+  const handlePauseWorkflow = async (id: string): Promise<void> => {
     try {
       const workflow = sequencedTasks.find(st => st.id === id)
       if (!workflow) return
@@ -288,24 +290,24 @@ function App(): void {
 
       Message.success('Workflow paused')
     } catch (error) {
-      logger.error('Failed to pause workflow:', error)
+      logger.ui.error('Failed to pause workflow:', error)
       Message.error('Failed to pause workflow')
     }
   }
 
-  const handleUpdateStep = async (stepId: string, updates: any): void => {
+  const handleUpdateStep = async (stepId: string, updates: any): Promise<void> => {
     try {
       await getDatabase().updateTaskStepProgress(stepId, updates)
       // Refresh the sequenced tasks to show updated status
       await loadSequencedTasks()
       Message.success('Step updated successfully')
     } catch (error) {
-      logger.error('Failed to update step:', error)
+      logger.ui.error('Failed to update step:', error)
       Message.error('Failed to update step')
     }
   }
 
-  const handleResetWorkflow = async (id: string): void => {
+  const handleResetWorkflow = async (id: string): Promise<void> => {
     try {
       const workflow = sequencedTasks.find(st => st.id === id)
       if (!workflow) return
@@ -335,18 +337,18 @@ function App(): void {
 
       Message.success('Workflow reset to initial state')
     } catch (error) {
-      logger.error('Failed to reset workflow:', error)
+      logger.ui.error('Failed to reset workflow:', error)
       Message.error('Failed to reset workflow')
     }
   }
 
-  const handleDeleteAllSequencedTasks = async (): void => {
+  const handleDeleteAllSequencedTasks = async (): Promise<void> => {
     try {
       await getDatabase().deleteAllSequencedTasks()
       await initializeData() // Reload all data
       Message.success('All workflows deleted successfully')
     } catch (error) {
-      logger.error('Error deleting all workflows:', error)
+      logger.ui.error('Error deleting all workflows:', error)
       Message.error('Failed to delete all workflows')
     }
   }
@@ -661,7 +663,7 @@ function App(): void {
               // Refresh data to show changes
               await initializeData()
             } catch (error) {
-              logger.error('Failed to apply amendments:', error)
+              logger.ui.error('Failed to apply amendments:', error)
               Message.error('Failed to apply amendments')
             }
           }}
