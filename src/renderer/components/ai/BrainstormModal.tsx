@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Modal, Button, Typography, Alert, Space, Card, Input, Tag, Divider, Upload } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, IconCheckCircle, IconUpload, IconFile } from '@arco-design/web-react/icon'
+import { TaskType } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { logger } from '../../utils/logger'
@@ -22,7 +23,7 @@ interface ExtractedTask {
   estimatedDuration: number
   importance: number
   urgency: number
-  type: 'focused' | 'admin'
+  type: TaskType
   needsMoreInfo?: boolean
 }
 
@@ -31,7 +32,7 @@ interface ExtractedWorkflow {
   description: string
   importance: number
   urgency: number
-  type: 'focused' | 'admin'
+  type: TaskType
   steps: any[]
   duration?: number
   totalDuration: number

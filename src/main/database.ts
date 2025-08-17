@@ -714,7 +714,7 @@ export class DatabaseService {
   async addStepToWorkflow(workflowId: string, stepData: {
     name: string
     duration: number
-    type: TaskType.Focused | 'admin'
+    type: TaskType
     afterStep?: string
     beforeStep?: string
     dependencies?: string[]
@@ -1083,7 +1083,7 @@ export class DatabaseService {
   async createWorkSession(data: {
     taskId: string
     stepId?: string
-    type: TaskType.Focused | 'admin'
+    type: TaskType
     startTime: Date
     endTime?: Date
     plannedMinutes: number
@@ -1467,7 +1467,7 @@ export class DatabaseService {
     }
 
     // Determine the type from the step or task
-    const type = step.type || step.Task.type || TaskType.Focused
+    const type = (step.type || step.Task.type || TaskType.Focused) as TaskType
 
     // Transform the data
     const workSessionData = {
