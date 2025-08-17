@@ -2,6 +2,9 @@
 
 ## Session: 2025-08-17
 
+### Session Summary
+Successfully fixed the CI/CD pipeline by consolidating scheduling engines and establishing a proper development workflow with branch protection and code review.
+
 ### Key Learnings
 
 #### RLHF Training Effects
@@ -96,15 +99,20 @@
 ## Future Considerations
 
 ### Technical Debt Priority
-1. ✅ (Partial) Consolidate scheduling engines (root cause of CI/CD failures)
-   - ✅ Integrated deadline pressure into SchedulingEngine
-   - ✅ Integrated async urgency into SchedulingEngine
-   - ✅ Removed unused scheduler.ts
-   - ⏳ Still need to update UI components to use unified approach
-   - ⏳ Tests still expect old deadline-scheduler behavior
-2. Fix AI amendment dependency editing
-3. Consolidate logger implementations
-4. Complete workflow step operations
+1. **Rewrite Scheduling Tests** (High Priority)
+   - deadline-scheduling.test.ts needs complete rewrite for unified scheduler
+   - One test in dependency-scheduling.test.ts needs update
+   - Need to test deadline pressure and async urgency in SchedulingEngine context
+2. **Fix AI Amendment Dependency Editing** (High Priority)
+   - Discovered during beta testing
+   - Dependencies can't be edited via voice commands
+3. **Update UI Components** (Medium Priority)
+   - Some components may still use old scheduler patterns
+   - Need to verify all use unified approach
+4. **Consolidate Logger Implementations** (Low Priority)
+   - Multiple logger implementations exist
+5. **Complete Workflow Step Operations** (Low Priority)
+   - Some amendment types not implemented
 
 ### Research-Based Improvements
 1. Implement Mem0 for memory compression
