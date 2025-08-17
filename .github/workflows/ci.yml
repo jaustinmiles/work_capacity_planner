@@ -29,6 +29,11 @@ jobs:
     - name: Generate Prisma Client
       run: npm run prisma:generate
     
+    - name: Setup test database
+      env:
+        DATABASE_URL: "file:./test.db"
+      run: npx prisma db push --skip-generate
+    
     - name: Run TypeScript type checking
       run: npm run typecheck
     
