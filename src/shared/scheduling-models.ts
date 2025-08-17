@@ -1,12 +1,13 @@
 import { Task, Meeting } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
+import { TaskType } from './enums'
 
 // Unified model for anything that can be scheduled on the timeline
 export interface SchedulableItem {
   id: string
   name: string
   duration: number // minutes
-  type: 'focused' | 'admin'
+  type: TaskType
   importance: number // 1-10
   urgency: number // 1-10
 
