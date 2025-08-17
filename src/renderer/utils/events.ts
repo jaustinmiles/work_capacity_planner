@@ -1,5 +1,5 @@
 // Simple event emitter for cross-component communication
-type EventCallback = (...args: any[]) => void
+type EventCallback = (...__args: any[]) => void
 
 class EventEmitter {
   private events: Map<string, EventCallback[]> = new Map()

@@ -33,7 +33,7 @@ async function validateDependencies() {
         let deps = []
         try {
           deps = JSON.parse(step.dependsOn || '[]')
-        } catch (e) {
+        } catch (__e) {
           issues.push(`  ❌ Step "${step.name}" has invalid JSON in dependsOn: ${step.dependsOn}`)
           invalidDeps++
           continue

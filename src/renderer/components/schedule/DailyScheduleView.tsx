@@ -66,7 +66,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
   })
 
   // Find meetings that overlap with this day
-  const dayMeetings = meetings.filter(meeting => {
+  const dayMeetings = meetings.filter(__meeting => {
     // For now, assume all meetings are on the same day
     // In future, handle cross-day meetings (like sleep blocks)
     return true
@@ -116,7 +116,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
 
         {/* Timeline View */}
         <Timeline>
-          {timeBlocks.map((block, index) => {
+          {timeBlocks.map((block, __index) => {
             const hasItems = block.items.length > 0
             const blockIcon = block.type === 'focused' ? <IconDesktop /> :
                             block.type === 'admin' ? <IconUserGroup /> :

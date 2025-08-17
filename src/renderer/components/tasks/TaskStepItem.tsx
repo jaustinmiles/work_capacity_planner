@@ -11,7 +11,7 @@ interface TaskStepItemProps {
   isCompleted?: boolean
   estimatedStartTime?: Date
   timeLogged?: number  // Total minutes logged
-  onComplete?: (stepId: string) => void
+  onComplete?: (__stepId: string) => void
   onStart?: (stepId: string) => void
 }
 

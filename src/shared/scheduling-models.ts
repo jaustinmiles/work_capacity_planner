@@ -166,9 +166,9 @@ export interface PriorityScore {
 
 // For converting existing data to schedulable items
 export interface SchedulingConverter {
-  convertSimpleTask: (task: Task) => SchedulableItem
+  convertSimpleTask: (__task: Task) => SchedulableItem
   convertSequencedTask: (sequencedTask: SequencedTask) => SchedulableItem[]
-  convertTaskStep: (step: TaskStep, workflowId: string, stepIndex: number) => SchedulableItem
+  convertTaskStep: (__step: TaskStep, workflowId: string, __stepIndex: number) => SchedulableItem
 }
 
 // Async wait period that can be filled with other tasks

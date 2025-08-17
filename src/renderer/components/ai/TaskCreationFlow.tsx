@@ -348,7 +348,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
 // Context Form Component
 function ContextForm({ questions, onSubmit }: {
   questions: ContextualQuestion[]
-  onSubmit: (answers: Record<string, any>) => void
+  onSubmit: (__answers: Record<string, any>) => void
 }) {
   const [form] = Form.useForm()
 
@@ -356,7 +356,7 @@ function ContextForm({ questions, onSubmit }: {
     try {
       const values = await form.validate()
       onSubmit(values)
-    } catch (error) {
+    } catch (__error) {
       // Form validation failed
     }
   }
@@ -407,7 +407,7 @@ function ContextForm({ questions, onSubmit }: {
 // Enhancement View Component
 function EnhancementView({ task, onCreateTask, isCreating }: {
   task: TaskWithContext
-  onCreateTask: (useEnhancements: boolean) => void
+  onCreateTask: (__useEnhancements: boolean) => void
   isCreating: boolean
 }) {
   const suggestions = task.enhancedSuggestions?.suggestions

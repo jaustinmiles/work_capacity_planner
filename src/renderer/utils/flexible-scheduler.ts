@@ -2,7 +2,7 @@ import { Task, ProductivityPattern, SchedulingPreferences } from '@shared/types'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
 import { WorkSettings } from '@shared/work-settings-types'
-import { calculatePriority, calculateDeadlinePressure, calculateAsyncUrgency, SchedulingContext } from './deadline-scheduler'
+import { calculatePriority, SchedulingContext } from './deadline-scheduler'
 
 export interface ScheduledItem {
   id: string
@@ -128,7 +128,7 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
   const items: ScheduledItem[] = []
   const meetingMap = new Map<string, number>()
 
-  meetings.forEach((meeting, index) => {
+  meetings.forEach((meeting, __index) => {
     const startTime = parseTimeOnDate(date, meeting.startTime)
     const endTime = parseTimeOnDate(date, meeting.endTime)
 
@@ -996,7 +996,7 @@ export function scheduleItemsWithBlocksAndDebug(
     if (!itemsScheduledToday || shouldMoveToNextDay || currentTime.getTime() >= lastBlockEnd.getTime()) {
       // Track block utilization before moving to next day
       blockCapacities.forEach((block, index) => {
-        const original = blockStartState[index]
+        const __original = blockStartState[index]
         const unusedFocus = block.focusMinutesTotal - block.focusMinutesUsed
         const unusedAdmin = block.adminMinutesTotal - block.adminMinutesUsed
 

@@ -1,7 +1,7 @@
 
 interface NavigationProps {
   activeView: 'tasks' | 'matrix' | 'calendar'
-  onViewChange: (view: 'tasks' | 'matrix' | 'calendar') => void
+  onViewChange: (__view: 'tasks' | 'matrix' | 'calendar') => void
 }
 
 export function Navigation({ activeView, onViewChange }: NavigationProps) {

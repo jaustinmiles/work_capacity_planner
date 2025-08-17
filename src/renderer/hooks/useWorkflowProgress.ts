@@ -19,21 +19,21 @@ export interface UseWorkflowProgressReturn {
   workSessionHistory: any[]
 
   // Actions
-  startWork: (stepId: string) => void
+  startWork: (__stepId: string) => void
   pauseWork: (stepId: string) => void
-  completeStep: (stepId: string, actualMinutes?: number, notes?: string) => Promise<void>
-  updateProgress: (stepId: string, percentComplete: number) => Promise<void>
-  logTime: (stepId: string, minutes: number, notes?: string) => Promise<void>
+  completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
+  updateProgress: (stepId: string, __percentComplete: number) => Promise<void>
+  logTime: (stepId: string, __minutes: number, notes?: string) => Promise<void>
 
   // Computed
-  getStepProgress: (stepId: string) => {
+  getStepProgress: (__stepId: string) => {
     isActive: boolean
     isPaused: boolean
     elapsedMinutes: number
     percentComplete: number
   }
   getWorkflowStats: (workflowId: string) => WorkflowProgressStats
-  getStepStats: (stepId: string) => {
+  getStepStats: (__stepId: string) => {
     estimatedMinutes: number
     actualMinutes: number
     percentComplete: number

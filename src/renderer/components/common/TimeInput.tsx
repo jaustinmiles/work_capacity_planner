@@ -4,7 +4,7 @@ import { IconClockCircle } from '@arco-design/web-react/icon'
 
 interface TimeInputProps {
   value?: string
-  onChange?: (value: string) => void
+  onChange?: (__value: string) => void
   placeholder?: string
   style?: React.CSSProperties
   disabled?: boolean

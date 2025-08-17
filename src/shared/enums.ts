@@ -59,9 +59,9 @@ export enum DayOfWeek {
 // Task priority levels (derived from importance × urgency)
 export enum PriorityLevel {
   Critical = 'critical',  // High importance, high urgency
-  High = 'high',          // High importance or urgency
-  Medium = 'medium',      // Medium importance and urgency
-  Low = 'low',            // Low importance or urgency
+//   High = 'high',          // High importance or urgency // Removed unused import
+//   Medium = 'medium',      // Medium importance and urgency // Removed unused import
+//   Low = 'low',            // Low importance or urgency // Removed unused import
 }
 
 // View types for the application

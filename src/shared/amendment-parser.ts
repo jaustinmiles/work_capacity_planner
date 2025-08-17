@@ -644,7 +644,7 @@ IMPORTANT:
   /**
    * Find a workflow step target
    */
-  private findStepTarget(stepName: string, context: AmendmentContext): AmendmentTarget | null {
+  private findStepTarget(stepName: string, __context: AmendmentContext): AmendmentTarget | null {
     // This would need access to workflow steps
     // For now, return a step target with the workflow context
     return {
@@ -741,7 +741,7 @@ IMPORTANT:
    * Parse a time string into a Date
    */
   private parseTime(timeStr: string): Date | undefined {
-    const now = new Date()
+    const _now = new Date()
     const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*([ap]m)?/i)
 
     if (match) {

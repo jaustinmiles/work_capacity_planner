@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, Tabs } from '@arco-design/web-react'
-import { IconCalendarClock, IconCheckCircle, IconEdit, IconSave, IconEye } from '@arco-design/web-react/icon'
+import { IconCalendarClock, IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { scheduleWithDeadlines, SchedulingContext, SchedulingResult } from '../../utils/deadline-scheduler'

@@ -11,7 +11,7 @@ const { Title, Text } = Typography
 interface VoiceScheduleModalProps {
   visible: boolean
   onClose: () => void
-  onScheduleExtracted: (schedule: ExtractedSchedule) => void
+  onScheduleExtracted: (__schedule: ExtractedSchedule) => void
   targetDate?: string
 }
 

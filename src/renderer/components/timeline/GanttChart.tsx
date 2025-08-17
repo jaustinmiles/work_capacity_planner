@@ -587,7 +587,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <DatePicker
                     value={selectedDate ? dayjs(selectedDate) : undefined}
-                    onChange={(dateString, date) => {
+                    onChange={(dateString, __date) => {
                       if (dateString) {
                         setSelectedDate(dateString)
                         setShowSettings(true)
@@ -595,7 +595,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     }}
                     placeholder="Select day to edit"
                     style={{ width: '100%' }}
-                    disabledDate={(current) => {
+                    disabledDate={(_current) => {
                       // Don't disable any dates - allow editing past and future
                       return false
                     }}

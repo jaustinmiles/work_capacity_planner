@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Popover, Button, Space, Typography } from '@arco-design/web-react'
 import { IconClockCircle } from '@arco-design/web-react/icon'
 
@@ -6,7 +6,7 @@ const { Text } = Typography
 
 interface ClockTimePickerProps {
   value?: string
-  onChange?: (value: string) => void
+  onChange?: (__value: string) => void
   placeholder?: string
   style?: React.CSSProperties
   disabled?: boolean
@@ -19,7 +19,7 @@ function ClockFace({
 }: {
   type: 'hours' | 'minutes'
   value: number
-  onChange: (val: number) => void
+  onChange: (__val: number) => void
 }) {
   const isHours = type === 'hours'
   const items = isHours

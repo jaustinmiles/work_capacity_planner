@@ -8,8 +8,8 @@ const { Text } = Typography
 interface TimelineVisualizerProps {
   blocks: WorkBlock[]
   meetings: WorkMeeting[]
-  onBlockUpdate?: (blockId: string, updates: Partial<WorkBlock>) => void
-  onMeetingUpdate?: (meetingId: string, updates: Partial<WorkMeeting>) => void
+  onBlockUpdate?: (__blockId: string, updates: Partial<WorkBlock>) => void
+  onMeetingUpdate?: (__meetingId: string, updates: Partial<WorkMeeting>) => void
   startHour?: number
   endHour?: number
   height?: number
@@ -41,7 +41,7 @@ export function TimelineVisualizer({
   const containerRef = useRef<HTMLDivElement>(null)
 
   const totalHours = endHour - startHour
-  const totalHeight = totalHours * HOUR_HEIGHT
+  const __totalHeight = totalHours * HOUR_HEIGHT
 
   // Convert time string (HH:mm) to pixels from top
   const timeToPixels = (timeStr: string): number => {

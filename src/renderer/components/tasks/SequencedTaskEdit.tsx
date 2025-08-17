@@ -269,7 +269,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
 
       setShowStepModal(false)
       stepForm.resetFields()
-    } catch (error) {
+    } catch (__error) {
       // Form validation failed
     }
   }

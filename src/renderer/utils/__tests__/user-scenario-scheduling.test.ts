@@ -178,8 +178,8 @@ describe('User Reported Scheduling Issues', () => {
       // Day 1: 2025-08-14 (today)
       const today = new Date('2025-08-14')
       const tomorrow = new Date('2025-08-15')
-      const day3 = new Date('2025-08-18')
-      const day4 = new Date('2025-08-19')
+      const __day3 = new Date('2025-08-18')
+      const _day4 = new Date('2025-08-19')
 
       const patterns: DailyWorkPattern[] = [
         {

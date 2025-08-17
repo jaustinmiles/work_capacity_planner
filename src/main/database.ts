@@ -882,8 +882,7 @@ export class DatabaseService {
         sessionId,
         WorkBlock: {
           create: (blocks || []).map((b: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { patternId, id, ...blockData } = b
+            const { patternId: _patternId, id: _id, ...blockData } = b
             return {
               id: crypto.randomUUID(),
               ...blockData,
@@ -893,8 +892,7 @@ export class DatabaseService {
         },
         WorkMeeting: {
           create: (meetings || []).map((m: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { patternId, id, ...meetingData } = m
+            const { patternId: _patternId, id: _id, ...meetingData } = m
             return {
               id: crypto.randomUUID(),
               ...meetingData,
@@ -1009,8 +1007,7 @@ export class DatabaseService {
         updatedAt: new Date(),
         WorkBlock: {
           create: (updates.blocks || []).map((b: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { patternId, id, ...blockData } = b
+            const { patternId: _patternId, id: _id, ...blockData } = b
             return {
               id: crypto.randomUUID(),
               ...blockData,
@@ -1020,8 +1017,7 @@ export class DatabaseService {
         },
         WorkMeeting: {
           create: (updates.meetings || []).map((m: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { patternId, id, ...meetingData } = m
+            const { patternId: _patternId, id: _id, ...meetingData } = m
             return {
               id: crypto.randomUUID(),
               ...meetingData,

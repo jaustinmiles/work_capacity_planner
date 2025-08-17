@@ -39,34 +39,34 @@ interface TaskStore {
   initializeData: () => Promise<void>
 
   // Actions
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
+  addTask: (__task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   addSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
-  updateTask: (id: string, updates: Partial<Task>) => Promise<void>
-  updateSequencedTask: (id: string, updates: Partial<SequencedTask>) => Promise<void>
-  deleteTask: (id: string) => Promise<void>
+  updateTask: (__id: string, updates: Partial<Task>) => Promise<void>
+  updateSequencedTask: (__id: string, updates: Partial<SequencedTask>) => Promise<void>
+  deleteTask: (__id: string) => Promise<void>
   deleteSequencedTask: (id: string) => Promise<void>
-  toggleTaskComplete: (id: string) => Promise<void>
+  toggleTaskComplete: (__id: string) => Promise<void>
   selectTask: (id: string | null) => void
 
   // Scheduling actions
-  generateSchedule: (options?: { startDate?: Date; tieBreaking?: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical' }) => Promise<void>
+  generateSchedule: (__options?: { startDate?: Date; tieBreaking?: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical' }) => Promise<void>
   generateWeeklySchedule: (weekStartDate: Date) => Promise<void>
   clearSchedule: () => void
 
   // Settings actions
-  updateWorkSettings: (settings: WorkSettings) => Promise<void>
+  updateWorkSettings: (__settings: WorkSettings) => Promise<void>
 
   // Progress tracking actions
-  startWorkOnStep: (stepId: string, workflowId: string) => void
+  startWorkOnStep: (stepId: string, __workflowId: string) => void
   pauseWorkOnStep: (stepId: string) => void
-  completeStep: (stepId: string, actualMinutes?: number, notes?: string) => Promise<void>
-  updateStepProgress: (stepId: string, percentComplete: number) => Promise<void>
-  logWorkSession: (stepId: string, minutes: number, notes?: string) => Promise<void>
-  loadWorkSessionHistory: (stepId: string) => Promise<void>
+  completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
+  updateStepProgress: (stepId: string, __percentComplete: number) => Promise<void>
+  logWorkSession: (stepId: string, __minutes: number, notes?: string) => Promise<void>
+  loadWorkSessionHistory: (__stepId: string) => Promise<void>
 
   // Computed
   getTaskById: (id: string) => Task | undefined
-  getSequencedTaskById: (id: string) => SequencedTask | undefined
+  getSequencedTaskById: (__id: string) => SequencedTask | undefined
   getIncompleteTasks: () => Task[]
   getCompletedTasks: () => Task[]
   getActiveSequencedTasks: () => SequencedTask[]
@@ -330,7 +330,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   getCompletedSequencedTasks: () => get().sequencedTasks.filter(task => task.completed),
 
   // Progress tracking actions
-  startWorkOnStep: (stepId: string, workflowId: string) => {
+  startWorkOnStep: (stepId: string, __workflowId: string) => {
     const state = get()
     const activeSession = state.activeWorkSessions.get(stepId)
 

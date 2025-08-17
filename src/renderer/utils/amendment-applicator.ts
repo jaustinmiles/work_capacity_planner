@@ -149,7 +149,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           if (addition.workflowTarget.id) {
             try {
               // console.log('[AmendmentApplicator] Adding step to workflow:', addition)
-              const updatedWorkflow = await db.addStepToWorkflow(addition.workflowTarget.id, {
+              const __updatedWorkflow = await db.addStepToWorkflow(addition.workflowTarget.id, {
                 name: addition.stepName,
                 duration: addition.duration,
                 type: addition.stepType as 'focused' | 'admin',

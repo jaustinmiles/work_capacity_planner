@@ -9,7 +9,7 @@ const { Title, Text } = Typography
 interface SequencedTaskFormProps {
   visible: boolean
   onClose: () => void
-  onSubmit: (taskData: any) => void
+  onSubmit: (__taskData: any) => void
 }
 
 export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskFormProps) {
@@ -85,7 +85,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
       form.resetFields()
       setSteps([{ name: '', duration: 60, type: 'focused', dependsOn: [], asyncWaitTime: 0 }])
       onClose()
-    } catch (error) {
+    } catch (__error) {
       // Form validation failed
     }
   }

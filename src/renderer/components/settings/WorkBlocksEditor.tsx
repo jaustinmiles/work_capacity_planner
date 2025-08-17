@@ -50,7 +50,7 @@ interface WorkBlocksEditorProps {
     focusMinutes: number
     adminMinutes: number
   }
-  onSave: (blocks: WorkBlock[], meetings: WorkMeeting[]) => void | Promise<void>
+  onSave: (__blocks: WorkBlock[], meetings: WorkMeeting[]) => void | Promise<void>
   onClose?: () => void
 }
 
@@ -188,7 +188,7 @@ export function WorkBlocksEditor({
       setShowMeetingModal(false)
       form.resetFields()
       Message.success('Meeting saved')
-    } catch (error) {
+    } catch (__error) {
       Message.error('Please fill in all required fields')
     }
   }

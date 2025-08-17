@@ -8,35 +8,35 @@ declare global {
       db: {
         // Session management
         getSessions: () => Promise<Session[]>
-        createSession: (name: string, description?: string) => Promise<Session>
-        switchSession: (sessionId: string) => Promise<Session>
-        updateSession: (id: string, updates: { name?: string; description?: string }) => Promise<Session>
+        createSession: (__name: string, description?: string) => Promise<Session>
+        switchSession: (__sessionId: string) => Promise<Session>
+        updateSession: (id: string, __updates: { name?: string; description?: string }) => Promise<Session>
         deleteSession: (id: string) => Promise<void>
         // Task operations
         getTasks: () => Promise<Task[]>
         getSequencedTasks: () => Promise<SequencedTask[]>
-        createTask: (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<Task>
+        createTask: (__taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<Task>
         createSequencedTask: (taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<SequencedTask>
-        updateTask: (id: string, updates: Partial<Task>) => Promise<Task>
-        updateSequencedTask: (id: string, updates: Partial<SequencedTask>) => Promise<SequencedTask>
-        deleteTask: (id: string) => Promise<void>
+        updateTask: (__id: string, updates: Partial<Task>) => Promise<Task>
+        updateSequencedTask: (__id: string, updates: Partial<SequencedTask>) => Promise<SequencedTask>
+        deleteTask: (__id: string) => Promise<void>
         deleteSequencedTask: (id: string) => Promise<void>
-        addStepToWorkflow: (workflowId: string, stepData: any) => Promise<SequencedTask>
+        addStepToWorkflow: (__workflowId: string, stepData: any) => Promise<SequencedTask>
         initializeDefaultData: () => Promise<void>
-        getTaskById: (id: string) => Promise<Task | null>
+        getTaskById: (__id: string) => Promise<Task | null>
         getSequencedTaskById: (id: string) => Promise<SequencedTask | null>
         // Job context operations
         getJobContexts: () => Promise<any[]>
         getActiveJobContext: () => Promise<any | null>
-        createJobContext: (data: any) => Promise<any>
-        updateJobContext: (id: string, updates: any) => Promise<any>
+        createJobContext: (__data: any) => Promise<any>
+        updateJobContext: (id: string, __updates: any) => Promise<any>
         deleteJobContext: (id: string) => Promise<void>
-        addContextEntry: (jobContextId: string, entry: any) => Promise<any>
+        addContextEntry: (__jobContextId: string, entry: any) => Promise<any>
         // Jargon dictionary
         getJargonEntries: () => Promise<any[]>
-        createJargonEntry: (data: any) => Promise<any>
-        updateJargonEntry: (id: string, updates: any) => Promise<any>
-        updateJargonDefinition: (term: string, definition: string) => Promise<void>
+        createJargonEntry: (__data: any) => Promise<any>
+        updateJargonEntry: (id: string, __updates: any) => Promise<any>
+        updateJargonDefinition: (term: string, __definition: string) => Promise<void>
         deleteJargonEntry: (id: string) => Promise<void>
         getJargonDictionary: () => Promise<Record<string, string>>
         // Development helpers
@@ -44,27 +44,27 @@ declare global {
         deleteAllSequencedTasks: () => Promise<void>
         deleteAllUserData: () => Promise<void>
         // Work pattern operations
-        getWorkPattern: (date: string) => Promise<any>
+        getWorkPattern: (__date: string) => Promise<any>
         getWorkPatterns: () => Promise<any[]>
         deleteWorkPattern: (id: string) => Promise<void>
-        createWorkPattern: (data: any) => Promise<any>
-        updateWorkPattern: (id: string, data: any) => Promise<any>
+        createWorkPattern: (__data: any) => Promise<any>
+        updateWorkPattern: (id: string, __data: any) => Promise<any>
         getWorkTemplates: () => Promise<any[]>
-        saveAsTemplate: (date: string, templateName: string) => Promise<any>
+        saveAsTemplate: (date: string, __templateName: string) => Promise<any>
         // Work session operations
         createWorkSession: (data: any) => Promise<any>
-        updateWorkSession: (id: string, data: any) => Promise<any>
-        deleteWorkSession: (id: string) => Promise<void>
+        updateWorkSession: (__id: string, data: any) => Promise<any>
+        deleteWorkSession: (__id: string) => Promise<void>
         getWorkSessions: (date: string) => Promise<any[]>
-        getWorkSessionsForTask: (taskId: string) => Promise<any[]>
+        getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
         getTaskTotalLoggedTime: (taskId: string) => Promise<number>
-        getTodayAccumulated: (date: string) => Promise<{ focused: number; admin: number }>
+        getTodayAccumulated: (__date: string) => Promise<{ focused: number; admin: number }>
         // Progress tracking operations
         createStepWorkSession: (data: any) => Promise<any>
-        updateTaskStepProgress: (stepId: string, data: any) => Promise<any>
-        getStepWorkSessions: (stepId: string) => Promise<any[]>
+        updateTaskStepProgress: (__stepId: string, data: any) => Promise<any>
+        getStepWorkSessions: (__stepId: string) => Promise<any[]>
         recordTimeEstimate: (data: any) => Promise<any>
-        getTimeAccuracyStats: (filters?: any) => Promise<any>
+        getTimeAccuracyStats: (__filters?: any) => Promise<any>
       }
       ai: {
         extractTasksFromBrainstorm: (brainstormText: string) => Promise<{
@@ -79,8 +79,8 @@ declare global {
           }>
           summary: string
         }>
-        extractJargonTerms: (contextText: string) => Promise<string>
-        extractWorkflowsFromBrainstorm: (brainstormText: string, jobContext?: string) => Promise<{
+        extractJargonTerms: (__contextText: string) => Promise<string>
+        extractWorkflowsFromBrainstorm: (brainstormText: string, __jobContext?: string) => Promise<{
           workflows: Array<{
             name: string
             description: string
@@ -104,17 +104,17 @@ declare global {
           }>
           summary: string
         }>
-        generateWorkflowSteps: (taskDescription: string, context?: any) => Promise<{
+        generateWorkflowSteps: (taskDescription: string, __context?: any) => Promise<{
           workflowName: string
           steps: any[]
           duration: number
           notes: string
         }>
-        enhanceTaskDetails: (taskName: string, currentDetails?: any) => Promise<{
+        enhanceTaskDetails: (taskName: string, __currentDetails?: any) => Promise<{
           suggestions: any
           confidence: number
         }>
-        getContextualQuestions: (taskName: string, taskDescription?: string) => Promise<{
+        getContextualQuestions: (taskName: string, __taskDescription?: string) => Promise<{
           questions: Array<{
             question: string
             type: 'text' | 'number' | 'choice'
@@ -122,7 +122,7 @@ declare global {
             purpose: string
           }>
         }>
-        getJobContextualQuestions: (brainstormText: string, jobContext?: string) => Promise<{
+        getJobContextualQuestions: (brainstormText: string, __jobContext?: string) => Promise<{
           questions: Array<{
             question: string
             type: 'text' | 'number' | 'choice'
@@ -132,7 +132,7 @@ declare global {
           }>
           suggestedJobContext?: string
         }>
-        extractScheduleFromVoice: (voiceText: string, targetDate: string) => Promise<{
+        extractScheduleFromVoice: (voiceText: string, __targetDate: string) => Promise<{
           date: string
           blocks: Array<{
             id: string
@@ -153,13 +153,13 @@ declare global {
           }>
           summary: string
         }>
-        parseAmendment: (transcription: string, context: any) => Promise<any>
+        parseAmendment: (transcription: string, __context: any) => Promise<any>
       }
       speech: {
-        transcribeAudio: (audioFilePath: string, options?: any) => Promise<{
+        transcribeAudio: (audioFilePath: string, __options?: any) => Promise<{
           text: string
         }>
-        transcribeAudioBuffer: (audioBuffer: Buffer, filename: string, options?: any) => Promise<{
+        transcribeAudioBuffer: (audioBuffer: Buffer, __filename: string, options?: any) => Promise<{
           text: string
         }>
         getSupportedFormats: () => Promise<string[]>

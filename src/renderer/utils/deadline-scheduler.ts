@@ -688,7 +688,7 @@ function calculateMinimumExtension(
   context: SchedulingContext,
 ): number {
   const criticalPath = calculateCriticalPathRemaining(item, context)
-  const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours +
+  const __workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours +
                           context.workSettings.defaultCapacity.maxAdminHours
 
   if (item.deadline) {

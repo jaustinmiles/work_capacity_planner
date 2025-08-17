@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Tag, Button, Alert, Statistic, Grid, Progress, Popconfirm, Tabs } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconBranch, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory } from '@arco-design/web-react/icon'
+import { IconClockCircle, IconCalendar, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskStepItem } from './TaskStepItem'
 import { SequencedTaskEdit } from './SequencedTaskEdit'
@@ -13,7 +13,7 @@ const { Row, Col } = Grid
 
 interface SequencedTaskViewProps {
   task: SequencedTask
-  onUpdateStep?: (stepId: string, updates: Partial<TaskStep>) => void
+  onUpdateStep?: (__stepId: string, updates: Partial<TaskStep>) => void
   onStartWorkflow?: () => void
   onPauseWorkflow?: () => void
   onResetWorkflow?: () => void

@@ -10,8 +10,8 @@ const { Row, Col } = Grid
 interface TimeLoggingModalProps {
   step: TaskStep
   onClose: () => void
-  onLogTime: (minutes: number, notes?: string) => Promise<void>
-  onComplete?: (minutes: number, notes?: string) => Promise<void>
+  onLogTime: (__minutes: number, notes?: string) => Promise<void>
+  onComplete?: (__minutes: number, notes?: string) => Promise<void>
   mode?: 'log' | 'complete'
 }
 

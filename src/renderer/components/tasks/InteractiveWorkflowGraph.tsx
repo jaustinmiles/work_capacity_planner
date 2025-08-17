@@ -22,7 +22,7 @@ const { Text } = Typography
 interface InteractiveWorkflowGraphProps {
   task: SequencedTask
   isEditable?: boolean
-  onUpdateDependencies?: (stepId: string, dependencies: string[]) => void
+  onUpdateDependencies?: (__stepId: string, dependencies: string[]) => void
 }
 
 // Custom node component - memoized to prevent re-renders

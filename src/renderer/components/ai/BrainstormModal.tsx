@@ -10,8 +10,8 @@ const { Title, Text } = Typography
 interface BrainstormModalProps {
   visible: boolean
   onClose: () => void
-  onTasksExtracted: (tasks: ExtractedTask[]) => void
-  onWorkflowsExtracted?: (workflows: ExtractedWorkflow[], standaloneTasks: ExtractedTask[]) => void
+  onTasksExtracted: (__tasks: ExtractedTask[]) => void
+  onWorkflowsExtracted?: (workflows: ExtractedWorkflow[], __standaloneTasks: ExtractedTask[]) => void
 }
 
 interface ExtractedTask {
@@ -456,7 +456,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
     try {
       // Use AI to extract potential jargon terms
-      const prompt = `Based on this job context, identify technical terms, acronyms, and industry-specific jargon that might need definition. Return ONLY a JSON array of terms (no definitions needed, just the terms themselves).
+      const __prompt = `Based on this job context, identify technical terms, acronyms, and industry-specific jargon that might need definition. Return ONLY a JSON array of terms (no definitions needed, just the terms themselves).
 
 Context:
 ${contextText}

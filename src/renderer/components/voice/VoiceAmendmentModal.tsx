@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Modal, Button, Typography, Alert, Space, Card, Tag, Divider, Spin, List, Badge, Input } from '@arco-design/web-react'
-import { IconSoundFill, IconPause, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage } from '@arco-design/web-react/icon'
+import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input } from '@arco-design/web-react'
+import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import {
@@ -21,7 +21,7 @@ const { Title, Text, Paragraph } = Typography
 interface VoiceAmendmentModalProps {
   visible: boolean
   onClose: () => void
-  onAmendmentsApplied?: (amendments: Amendment[]) => void
+  onAmendmentsApplied?: (__amendments: Amendment[]) => void
   activeTaskId?: string
   activeWorkflowId?: string
 }

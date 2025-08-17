@@ -37,7 +37,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
 
       form.resetFields()
       onClose()
-    } catch (error) {
+    } catch (__error) {
       // Form validation failed or database error
       // Error already handled by store
     }

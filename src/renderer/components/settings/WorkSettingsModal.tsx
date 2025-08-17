@@ -96,7 +96,7 @@ export function WorkSettingsModal({ visible, onClose }: WorkSettingsModalProps) 
       await updateWorkSettings(newSettings)
       Message.success('Work settings updated successfully')
       onClose()
-    } catch (error) {
+    } catch (__error) {
       Message.error('Please fill in all required fields')
     }
   }

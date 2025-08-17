@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Modal, Typography, Space, Button, Switch } from '@arco-design/web-react'
+import { Modal, Space, Button, Switch } from '@arco-design/web-react'
 import { IconMindMapping, IconEdit } from '@arco-design/web-react/icon'
 import { SequencedTask } from '@shared/sequencing-types'
 import { WorkflowGraph } from './WorkflowGraph'
