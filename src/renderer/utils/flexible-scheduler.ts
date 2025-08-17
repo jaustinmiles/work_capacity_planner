@@ -309,7 +309,7 @@ export function scheduleItemsWithBlocksAndDebug(
   const duplicateWorkflows = tasks.filter(t => t.hasSteps && workflowIds.has(t.id))
 
   if (duplicateWorkflows.length > 0) {
-    logger.warn(
+    logger.scheduler.warn(
       `⚠️ Scheduler Warning: ${duplicateWorkflows.length} workflows found in both tasks and sequencedTasks arrays. ` +
       'This will cause duplicate scheduling! Workflows should only be in sequencedTasks. ' +
       `Duplicates: ${duplicateWorkflows.map(w => w.name).join(', ')}`,
@@ -978,7 +978,7 @@ export function scheduleItemsWithBlocksAndDebug(
             reason = 'Time conflicts with other scheduled items'
           }
         }
-        logger.debug('reason', reason)
+        logger.scheduler.debug('reason: ' + reason)
 
         // Check if currentTime is past all blocks for today
         const lastBlock = blockCapacities[blockCapacities.length - 1]
