@@ -110,7 +110,7 @@ describe('Workflow Step Completion UI', () => {
           step={{ ...mockStep, status: 'completed' }}
           stepIndex={0}
           isActive={false}
-          isCompleted={true} />
+          isCompleted={true} />,
       )
 
       const stepName = screen.getByText('Test Step')

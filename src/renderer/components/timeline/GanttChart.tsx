@@ -474,7 +474,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   setShowSettings(true)
                 }}
               >
-                Customize Tomorrow's Schedule
+                {"Customize Tomorrow's Schedule"}
               </Button>
             </Space>
           }
@@ -608,7 +608,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     }}
                     style={{ width: '100%' }}
                   >
-                    Edit Today's Schedule
+                    {"Edit Today's Schedule"}
                   </Button>
                   <Button
                     type="primary"
@@ -822,7 +822,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               }}
               onDragLeave={(e) => {
                 // Only clear if leaving the entire chart area
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                if (!e.currentTarget.contains(e.relatedTarget as Element)) {
                   setDropTarget(null)
                 }
               }}

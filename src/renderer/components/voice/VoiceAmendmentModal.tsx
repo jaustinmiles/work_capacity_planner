@@ -308,7 +308,7 @@ export function VoiceAmendmentModal({
               <Text bold>{noteAddition.target.name}</Text>
             </Space>
             <Text type="secondary" style={{ fontStyle: 'italic' }}>
-              "{noteAddition.note}"
+              {`"${noteAddition.note}"`}
             </Text>
           </Space>
         )
@@ -384,11 +384,11 @@ export function VoiceAmendmentModal({
             <Paragraph type="secondary">
               Speak naturally about what you want to update. For example:
               <ul style={{ marginTop: 8 }}>
-                <li>"Mark the API implementation as complete"</li>
-                <li>"I spent 2 hours on code review"</li>
-                <li>"Add note: waiting for design approval"</li>
-                <li>"The database migration will take 4 hours not 2"</li>
-                <li>"Add a code review step after implementation"</li>
+                <li>{'Mark the API implementation as complete'}</li>
+                <li>{'I spent 2 hours on code review'}</li>
+                <li>{'Add note: waiting for design approval'}</li>
+                <li>{'The database migration will take 4 hours not 2'}</li>
+                <li>{'Add a code review step after implementation'}</li>
               </ul>
             </Paragraph>
 
@@ -461,7 +461,7 @@ export function VoiceAmendmentModal({
               {useTextInput && (
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <Input.TextArea
-                    placeholder="Type your amendment here... (e.g., 'Mark API implementation as complete')"
+                    placeholder={"Type your amendment here... (e.g., 'Mark API implementation as complete')"}
                     value={textInput}
                     onChange={setTextInput}
                     autoSize={{ minRows: 2, maxRows: 4 }}

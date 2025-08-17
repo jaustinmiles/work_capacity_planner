@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { scheduleItemsWithBlocksAndDebug } from '../flexible-scheduler'
 import { Task } from '@shared/types'
-import { SequencedTask, TaskStep } from '@shared/sequencing-types'
+import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
 describe('User Reported Scheduling Issues', () => {

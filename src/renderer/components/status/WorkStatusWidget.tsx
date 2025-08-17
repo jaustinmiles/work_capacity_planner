@@ -152,7 +152,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         {/* Planned Capacity */}
         <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text style={{ fontWeight: 600 }}>Today's Planned Capacity</Text>
+            <Text style={{ fontWeight: 600 }}>{"Today's Planned Capacity"}</Text>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
               <Text>🎯 Focus Time:</Text>
               <Tag color="blue">{formatMinutes(totalCapacity.focusMinutes)}</Tag>
