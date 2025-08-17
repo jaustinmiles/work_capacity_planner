@@ -26,7 +26,28 @@
 
 ## Remaining High Priority Issues
 
-### 1. Workflow Step Operations
+### 1. CI/CD Pipeline Failures (2025-08-17)
+**Severity**: 🔴 Critical  
+**Impact**: Blocking deployments
+
+**Failures:**
+- DATABASE_URL environment variable not set in CI
+- 10 test failures in deadline-scheduling.test.ts
+- Tests expecting different priority calculations after enum changes
+
+**Fix needed:**
+- Add DATABASE_URL to GitHub Actions workflow
+- Update deadline scheduling tests for new TaskType enum behavior
+
+### 2. AI Amendment Dependency Editing (2025-08-17) 
+**Severity**: 🟠 High
+**Impact**: Voice amendments for dependencies not working
+
+**Issue discovered during beta test**
+- Dependency changes via voice commands fail
+- Need to debug amendment-applicator.ts dependency logic
+
+### 3. Workflow Step Operations
 **Severity**: 🟠 High  
 **Impact**: Limited workflow editing capabilities
 

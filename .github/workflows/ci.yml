@@ -36,6 +36,8 @@ jobs:
       run: npm run lint
     
     - name: Run tests
+      env:
+        DATABASE_URL: "file:./test.db"
       run: npm test -- --run
     
     - name: Build application
