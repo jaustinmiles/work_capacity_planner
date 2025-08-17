@@ -3,6 +3,8 @@ import { Modal, Button, Space, Typography, Alert } from '@arco-design/web-react'
 import { IconDelete, IconTool } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text } = Typography
 
@@ -28,7 +30,7 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
       // Reload the page to refresh everything
       setTimeout(() => window.location.reload(), 1000)
     } catch (error) {
-      console.error('Failed to clear data:', error)
+      logger.error('Failed to clear data:', error)
       Message.error('Failed to clear user data')
     } finally {
       setIsClearing(false)

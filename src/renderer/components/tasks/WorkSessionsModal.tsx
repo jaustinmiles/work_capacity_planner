@@ -21,6 +21,8 @@ import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { formatDuration } from '../../utils/dateUtils'
 import dayjs from 'dayjs'
+import { logger } from '../../utils/logger'
+
 
 const { Text } = Typography
 
@@ -62,7 +64,7 @@ export function WorkSessionsModal({
       const data = await getDatabase().getWorkSessionsForTask(taskId)
       setSessions(data)
     } catch (error) {
-      console.error('Failed to load work sessions:', error)
+      logger.error('Failed to load work sessions:', error)
       Message.error('Failed to load work sessions')
     } finally {
       setLoading(false)
@@ -82,7 +84,7 @@ export function WorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      console.error('Failed to delete work session:', error)
+      logger.error('Failed to delete work session:', error)
       Message.error('Failed to delete work session')
     }
   }
@@ -114,7 +116,7 @@ export function WorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      console.error('Failed to update work session:', error)
+      logger.error('Failed to update work session:', error)
       Message.error('Failed to update work session')
     }
   }

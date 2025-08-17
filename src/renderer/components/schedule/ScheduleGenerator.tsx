@@ -10,6 +10,8 @@ import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -198,7 +200,7 @@ export function ScheduleGenerator({
         setSelectedOption(options[0].id)
       }
     } catch (error) {
-      console.error('Error generating schedules:', error)
+      logger.error('Error generating schedules:', error)
       Message.error('Failed to generate schedule options')
     } finally {
       setGenerating(false)
@@ -351,7 +353,7 @@ export function ScheduleGenerator({
       onScheduleAccepted()
       onClose()
     } catch (error) {
-      console.error('Error saving schedule:', error)
+      logger.error('Error saving schedule:', error)
       Message.error('Failed to save schedule')
     } finally {
       setSaving(false)

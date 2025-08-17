@@ -21,6 +21,8 @@ import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { formatDuration } from '../../utils/dateUtils'
 import dayjs from 'dayjs'
+import { logger } from '../../utils/logger'
+
 
 const { Text } = Typography
 
@@ -64,7 +66,7 @@ export function StepWorkSessionsModal({
       const data = await getDatabase().getStepWorkSessions(stepId)
       setSessions(data)
     } catch (error) {
-      console.error('Failed to load work sessions:', error)
+      logger.error('Failed to load work sessions:', error)
       Message.error('Failed to load work sessions')
     } finally {
       setLoading(false)
@@ -84,7 +86,7 @@ export function StepWorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      console.error('Failed to delete work session:', error)
+      logger.error('Failed to delete work session:', error)
       Message.error('Failed to delete work session')
     }
   }
@@ -116,7 +118,7 @@ export function StepWorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      console.error('Failed to update work session:', error)
+      logger.error('Failed to update work session:', error)
       Message.error('Failed to update work session')
     }
   }
@@ -144,7 +146,7 @@ export function StepWorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      console.error('Failed to add work session:', error)
+      logger.error('Failed to add work session:', error)
       Message.error('Failed to add work session')
     }
   }

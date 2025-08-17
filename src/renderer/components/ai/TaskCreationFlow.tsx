@@ -3,6 +3,8 @@ import { Modal, Button, Typography, Card, Space, Input, Form, InputNumber, Selec
 import { IconQuestionCircle, IconCheckCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
+import { logger } from '../../utils/logger'
+
 
 const { TextArea } = Input
 const { Text, Title } = Typography
@@ -87,7 +89,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
           : t,
       ))
     } catch (error) {
-      console.error('Error getting contextual questions:', error)
+      logger.error('Error getting contextual questions:', error)
     } finally {
       setIsProcessing(false)
     }
@@ -111,7 +113,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
           : t,
       ))
     } catch (error) {
-      console.error('Error enhancing task:', error)
+      logger.error('Error enhancing task:', error)
     } finally {
       setIsProcessing(false)
     }
@@ -167,7 +169,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
         t.id === task.id ? { ...t, status: 'created' } : t,
       ))
     } catch (error) {
-      console.error('Error creating task:', error)
+      logger.error('Error creating task:', error)
     } finally {
       setIsProcessing(false)
     }
@@ -184,7 +186,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
 
       onClose()
     } catch (error) {
-      console.error('Error creating tasks:', error)
+      logger.error('Error creating tasks:', error)
     } finally {
       setIsProcessing(false)
     }

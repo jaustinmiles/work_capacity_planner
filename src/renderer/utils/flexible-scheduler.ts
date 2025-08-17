@@ -3,6 +3,8 @@ import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
 import { WorkSettings } from '@shared/work-settings-types'
 import { calculatePriority, SchedulingContext } from './deadline-scheduler'
+import { logger } from './logger'
+
 
 export interface ScheduledItem {
   id: string
@@ -306,7 +308,7 @@ export function scheduleItemsWithBlocksAndDebug(
   const duplicateWorkflows = tasks.filter(t => t.hasSteps && workflowIds.has(t.id))
 
   if (duplicateWorkflows.length > 0) {
-    console.warn(
+    logger.warn(
       `⚠️ Scheduler Warning: ${duplicateWorkflows.length} workflows found in both tasks and sequencedTasks arrays. ` +
       'This will cause duplicate scheduling! Workflows should only be in sequencedTasks. ' +
       `Duplicates: ${duplicateWorkflows.map(w => w.name).join(', ')}`,
@@ -975,7 +977,7 @@ export function scheduleItemsWithBlocksAndDebug(
             reason = 'Time conflicts with other scheduled items'
           }
         }
-        console.log('reason', reason)
+        logger.debug('reason', reason)
 
         // Check if currentTime is past all blocks for today
         const lastBlock = blockCapacities[blockCapacities.length - 1]

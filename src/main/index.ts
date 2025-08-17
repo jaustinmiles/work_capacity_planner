@@ -7,6 +7,7 @@ import { logger, logInfo, logError } from '../shared/logger'
 import type { Task } from '@shared/types'
 import type { TaskStep } from '@shared/sequencing-types'
 
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (process.platform === 'win32') {
   app.setAppUserModelId(app.getName())
@@ -340,10 +341,10 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
     const jobContexts = await db.getJobContexts()
     if (jobContexts && jobContexts.length > 0) {
       context.jobContexts = jobContexts
-      console.log('[IPC] Including job contexts in amendment parsing:', jobContexts.length, 'contexts')
+      logger.debug('[IPC] Including job contexts in amendment parsing:', jobContexts.length, 'contexts')
     }
   } catch (error) {
-    console.error('[IPC] Failed to fetch job contexts:', error)
+    logger.error('[IPC] Failed to fetch job contexts:', error)
   }
 
   const parser = new AmendmentParser({ useAI: true })

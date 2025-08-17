@@ -15,6 +15,8 @@ import ReactFlow, {
 } from 'reactflow'
 import { Tag, Space, Typography } from '@arco-design/web-react'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
+import { logger } from '../../utils/logger'
+
 import 'reactflow/dist/style.css'
 
 const { Text } = Typography
@@ -258,7 +260,7 @@ export function InteractiveWorkflowGraph({
   const onConnect = useCallback(
     (params: Connection) => {
       if (!isValidConnection(params)) {
-        console.error('Invalid connection: Would create a circular dependency')
+        logger.error('Invalid connection: Would create a circular dependency')
         return
       }
 

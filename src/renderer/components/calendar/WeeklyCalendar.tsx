@@ -7,6 +7,8 @@ import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -71,7 +73,7 @@ export function WeeklyCalendar() {
 
       setWorkPatterns(patterns)
     } catch (error) {
-      console.error('Failed to load work patterns:', error)
+      logger.error('Failed to load work patterns:', error)
     } finally {
       setLoading(false)
     }

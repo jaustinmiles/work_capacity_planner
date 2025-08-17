@@ -15,6 +15,8 @@ export enum TaskStatus {
 }
 
 // Task types
+import { logger } from './logger'
+
 export enum TaskType {
   Focused = 'focused',
   Admin = 'admin',
@@ -119,6 +121,6 @@ export function parseEnum<T extends Record<string, string>>(
   if (isValidEnumValue(enumObj, value)) {
     return value as T[keyof T]
   }
-  console.warn(`Invalid enum value "${value}", using fallback "${fallback}"`)
+  logger.warn(`Invalid enum value "${value}", using fallback "${fallback}"`)
   return fallback
 }

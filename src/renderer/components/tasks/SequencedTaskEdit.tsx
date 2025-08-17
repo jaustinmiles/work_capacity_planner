@@ -33,6 +33,8 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { StepWorkSessionsModal } from './StepWorkSessionsModal'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -77,7 +79,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
             sum + (session.actualMinutes || session.plannedMinutes || 0), 0)
           times[step.id] = totalMinutes
         } catch (error) {
-          console.error(`Failed to load logged time for step ${step.id}:`, error)
+          logger.error(`Failed to load logged time for step ${step.id}:`, error)
           times[step.id] = 0
         }
       }
@@ -152,7 +154,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       setIsEditing(false)
       if (onClose) onClose()
     } catch (error) {
-      console.error('Failed to update workflow:', error)
+      logger.error('Failed to update workflow:', error)
     } finally {
       setIsSaving(false)
     }
@@ -730,7 +732,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                 [selectedStepForSessions.id]: totalMinutes,
               }))
             } catch (error) {
-              console.error('Failed to reload logged time:', error)
+              logger.error('Failed to reload logged time:', error)
             }
           }}
         />

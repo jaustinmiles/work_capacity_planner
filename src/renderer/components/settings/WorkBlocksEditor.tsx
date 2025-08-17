@@ -34,6 +34,8 @@ import { ClockTimePicker } from '../common/ClockTimePicker'
 import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -89,7 +91,7 @@ export function WorkBlocksEditor({
       const templates = await getDatabase().getWorkTemplates()
       setUserTemplates(templates)
     } catch (error) {
-      console.error('Failed to load user templates:', error)
+      logger.error('Failed to load user templates:', error)
     }
   }
 
@@ -223,7 +225,7 @@ export function WorkBlocksEditor({
       // Reload templates
       loadUserTemplates()
     } catch (error) {
-      console.error('Failed to save template:', error)
+      logger.error('Failed to save template:', error)
       Message.error('Failed to save template. Please save the schedule first.')
     }
   }

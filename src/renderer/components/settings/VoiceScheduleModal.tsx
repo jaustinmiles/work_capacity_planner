@@ -4,6 +4,8 @@ import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconUpload,
 import { getDatabase } from '../../services/database'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import dayjs from 'dayjs'
+import { logger } from '../../utils/logger'
+
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -125,7 +127,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       }
 
       mediaRecorder.onerror = (event) => {
-        console.error('MediaRecorder error:', event)
+        logger.error('MediaRecorder error:', event)
         setError('Recording error occurred')
         setRecordingState('idle')
       }
@@ -135,7 +137,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       setError(null)
       setRecordingState('recording')
     } catch (error) {
-      console.error('Error starting recording:', error)
+      logger.error('Error starting recording:', error)
       setError('Failed to access microphone. Please check your permissions.')
       setRecordingState('idle')
     }
@@ -171,7 +173,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       setScheduleText(prev => prev + (prev ? ' ' : '') + result.text)
       setError(null)
     } catch (error) {
-      console.error('Error transcribing audio:', error)
+      logger.error('Error transcribing audio:', error)
       setError('Failed to transcribe audio. Please try again.')
     } finally {
       setIsTranscribing(false)
@@ -187,7 +189,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       await transcribeAudio(blob, file.name)
       setUploadedAudioFile(file)
     } catch (error) {
-      console.error('Error processing uploaded audio:', error)
+      logger.error('Error processing uploaded audio:', error)
       setError('Failed to process uploaded audio file.')
     } finally {
       setIsProcessingAudioFile(false)
@@ -221,7 +223,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       }
       setScheduleResult(convertedResult)
     } catch (error) {
-      console.error('Error processing schedule:', error)
+      logger.error('Error processing schedule:', error)
       setError('Failed to process schedule with AI. Please try again.')
     } finally {
       setIsProcessing(false)

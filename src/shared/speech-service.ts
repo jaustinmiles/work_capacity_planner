@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import { toFile } from 'openai/uploads'
 import fs from 'fs'
 import path from 'path'
+import { logger } from './logger'
 
 /**
  * Service for speech-to-text conversion using OpenAI Whisper
@@ -44,7 +45,7 @@ export class SpeechService {
         const filename = path.basename(audioFilePath)
         const archivePath = path.join(tempDir, `audio_${timestamp}_${filename}`)
         fs.copyFileSync(audioFilePath, archivePath)
-        console.log(`Audio file archived to: ${archivePath}`)
+        logger.debug(`Audio file archived to: ${archivePath}`)
       }
 
       // Create a proper file object for OpenAI API
@@ -66,7 +67,7 @@ export class SpeechService {
         text: transcription.text,
       }
     } catch (error) {
-      console.error('Error transcribing audio:', error)
+      logger.error('Error transcribing audio:', error)
 
       // Provide more specific error messages for common issues
       if (error instanceof Error) {
@@ -118,7 +119,7 @@ export class SpeechService {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const tempFilePath = path.join(tempDir, `audio_${timestamp}_${filename}`)
       fs.writeFileSync(tempFilePath, audioBuffer)
-      console.log(`Audio file saved to: ${tempFilePath}`)
+      logger.debug(`Audio file saved to: ${tempFilePath}`)
 
       try {
         const result = await this.transcribeAudio(tempFilePath, options)
@@ -128,11 +129,11 @@ export class SpeechService {
         }
       } catch (error) {
         // Keep the file even if transcription fails
-        console.error('Transcription failed, but audio file preserved at:', tempFilePath)
+        logger.error('Transcription failed, but audio file preserved at:', tempFilePath)
         throw error
       }
     } catch (error) {
-      console.error('Error transcribing audio buffer:', error)
+      logger.error('Error transcribing audio buffer:', error)
       if (error instanceof Error) {
         throw new Error(`Failed to transcribe audio buffer: ${error.message}`)
       }

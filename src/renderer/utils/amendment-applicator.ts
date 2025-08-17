@@ -16,6 +16,8 @@ import {
 import { assertNever } from '@shared/enums'
 import { getDatabase } from '../services/database'
 import { Message } from '../components/common/Message'
+import { logger } from './logger'
+
 
 export async function applyAmendments(amendments: Amendment[]): Promise<void> {
   const db = getDatabase()
@@ -31,7 +33,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
             if (update.stepName) {
               // Update workflow step status
               // This would need to be implemented in the database service
-              console.log('TODO: Update workflow step status', update)
+              logger.debug('TODO: Update workflow step status', update)
               Message.info('Step status updates not yet implemented')
             } else if (update.target.type === EntityType.Workflow) {
               // Update workflow status
@@ -60,7 +62,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
             if (log.stepName) {
               // Log time for workflow step
               // This would need StepWorkSession creation
-              console.log('TODO: Log time for workflow step', log)
+              logger.debug('TODO: Log time for workflow step', log)
               Message.info('Step time logging not yet implemented')
             } else {
               // Log time for task
@@ -85,7 +87,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           if (note.target.id) {
             if (note.stepName) {
               // Add note to workflow step
-              console.log('TODO: Add note to workflow step', note)
+              logger.debug('TODO: Add note to workflow step', note)
               Message.info('Step notes not yet implemented')
             } else if (note.target.type === EntityType.Workflow) {
               // Add note to workflow
@@ -122,7 +124,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           if (change.target.id) {
             if (change.stepName) {
               // Update workflow step duration
-              console.log('TODO: Update workflow step duration', change)
+              logger.debug('TODO: Update workflow step duration', change)
               Message.info('Step duration updates not yet implemented')
             } else if (change.target.type === EntityType.Workflow) {
               // Update workflow duration
@@ -148,7 +150,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           const addition = amendment as StepAddition
           if (addition.workflowTarget.id) {
             try {
-              // console.log('[AmendmentApplicator] Adding step to workflow:', addition)
+              // logger.debug('[AmendmentApplicator] Adding step to workflow:', addition)
               const __updatedWorkflow = await db.addStepToWorkflow(addition.workflowTarget.id, {
                 name: addition.stepName,
                 duration: addition.duration,
@@ -158,7 +160,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 dependencies: addition.dependencies,
                 asyncWaitTime: addition.asyncWaitTime || 0,
               })
-              // console.log('[AmendmentApplicator] Step added successfully, updated workflow:', updatedWorkflow)
+              // logger.debug('[AmendmentApplicator] Step added successfully, updated workflow:', updatedWorkflow)
               successCount++
 
               // Trigger UI refresh by updating the store
@@ -167,7 +169,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
               await store.loadTasks()
               await store.loadSequencedTasks()
             } catch (error) {
-              console.error('Failed to add step to workflow:', error)
+              logger.error('Failed to add step to workflow:', error)
               Message.error(`Failed to add step "${addition.stepName}" to workflow`)
               errorCount++
             }
@@ -180,25 +182,25 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
         case AmendmentType.StepRemoval:
           // TODO: Implement step removal
-          console.log('TODO: Step removal not yet implemented', amendment)
+          logger.debug('TODO: Step removal not yet implemented', amendment)
           Message.info('Step removal not yet implemented')
           break
 
         case AmendmentType.DependencyChange:
           // TODO: Implement dependency changes
-          console.log('TODO: Dependency changes not yet implemented', amendment)
+          logger.debug('TODO: Dependency changes not yet implemented', amendment)
           Message.info('Dependency changes not yet implemented')
           break
 
         case AmendmentType.TaskCreation:
           // TODO: Implement task creation
-          console.log('TODO: Task creation not yet implemented', amendment)
+          logger.debug('TODO: Task creation not yet implemented', amendment)
           Message.info('Task creation not yet implemented')
           break
 
         case AmendmentType.WorkflowCreation:
           // TODO: Implement workflow creation
-          console.log('TODO: Workflow creation not yet implemented', amendment)
+          logger.debug('TODO: Workflow creation not yet implemented', amendment)
           Message.info('Workflow creation not yet implemented')
           break
 
@@ -209,7 +211,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
         }
       }
     } catch (error) {
-      console.error('Error applying amendment:', error)
+      logger.error('Error applying amendment:', error)
       errorCount++
     }
   }

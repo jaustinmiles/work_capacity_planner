@@ -11,6 +11,8 @@ import { getDatabase } from '../../services/database'
 import { SequencedTask } from '@shared/sequencing-types'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import { logger } from '../../utils/logger'
+
 
 dayjs.extend(relativeTime)
 
@@ -34,7 +36,7 @@ export function TaskItem({ task }: TaskItemProps) {
     getDatabase().getTaskTotalLoggedTime(task.id).then(time => {
       setLoggedTime(time)
     }).catch(err => {
-      console.error('Failed to fetch logged time:', err)
+      logger.error('Failed to fetch logged time:', err)
     })
   }, [task.id, task.actualDuration]) // Re-fetch when actualDuration changes
 

@@ -1,6 +1,8 @@
+import { logger } from 'shared/logger'
+
 const { contextBridge, ipcRenderer } = require('electron')
 
-console.log('Preload script loading...')
+logger.debug('Preload script loading...')
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -93,4 +95,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send('log:message', { level, scope, message, data }),
 })
 
-console.log('Preload script loaded successfully!')
+logger.debug('Preload script loaded successfully!')

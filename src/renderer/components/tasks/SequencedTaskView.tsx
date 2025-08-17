@@ -7,6 +7,8 @@ import { SequencedTaskEdit } from './SequencedTaskEdit'
 import { WorkflowVisualization } from './WorkflowVisualization'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { getDatabase } from '../../services/database'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -59,7 +61,7 @@ export function SequencedTaskView({
 
         setStepTimeLogs(timeLogs)
       } catch (error) {
-        console.error('Failed to fetch step time logs:', error)
+        logger.error('Failed to fetch step time logs:', error)
       }
     }
 

@@ -5,6 +5,8 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
+import { logger } from '../../utils/logger'
+
 
 const { Text } = Typography
 
@@ -68,7 +70,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       form.resetFields()
       onClose()
     } catch (error) {
-      console.error('Error logging time:', error)
+      logger.error('Error logging time:', error)
       Message.error('Failed to log time')
     } finally {
       setLoading(false)

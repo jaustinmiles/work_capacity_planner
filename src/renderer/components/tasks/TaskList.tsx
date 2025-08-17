@@ -6,6 +6,8 @@ import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { useState } from 'react'
 import { ScheduleGenerator } from '../schedule/ScheduleGenerator'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text } = Typography
 
@@ -26,7 +28,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
       await loadTasks() // Reload tasks to update UI
       Message.success('All tasks deleted successfully')
     } catch (error) {
-      console.error('Error deleting all tasks:', error)
+      logger.error('Error deleting all tasks:', error)
       Message.error('Failed to delete all tasks')
     }
   }

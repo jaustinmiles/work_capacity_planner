@@ -5,6 +5,8 @@ import { ScheduledItem } from '../../utils/flexible-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text } = Typography
 
@@ -38,7 +40,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
         setMeetings(pattern.meetings || [])
       }
     } catch (error) {
-      console.error('Failed to load work pattern:', error)
+      logger.error('Failed to load work pattern:', error)
     }
   }
 

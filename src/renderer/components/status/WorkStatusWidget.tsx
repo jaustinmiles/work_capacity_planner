@@ -6,6 +6,8 @@ import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
+import { logger } from '../../utils/logger'
+
 
 const { Text } = Typography
 
@@ -66,7 +68,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         admin: accumulatedData.admin || 0,
       })
     } catch (error) {
-      console.error('Failed to load work data:', error)
+      logger.error('Failed to load work data:', error)
     }
   }
 

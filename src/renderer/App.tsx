@@ -23,6 +23,8 @@ import { exampleSequencedTask } from '@shared/sequencing-types'
 import type { TaskStep } from '@shared/types'
 import { getDatabase } from './services/database'
 import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
+import { logger } from './utils/logger'
+
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
@@ -216,7 +218,7 @@ function App(): void {
         setActiveView('workflows')
       }
     } catch (error) {
-      console.error('Error creating workflows:', error)
+      logger.error('Error creating workflows:', error)
       Message.error('Failed to create workflows and tasks')
     }
   }
@@ -231,7 +233,7 @@ function App(): void {
       await deleteSequencedTask(taskId)
       Message.success('Workflow deleted successfully')
     } catch (error) {
-      console.error('Error deleting workflow:', error)
+      logger.error('Error deleting workflow:', error)
       Message.error('Failed to delete workflow')
     }
   }
@@ -261,7 +263,7 @@ function App(): void {
 
       Message.success('Workflow started successfully')
     } catch (error) {
-      console.error('Failed to start workflow:', error)
+      logger.error('Failed to start workflow:', error)
       Message.error('Failed to start workflow')
     }
   }
@@ -286,7 +288,7 @@ function App(): void {
 
       Message.success('Workflow paused')
     } catch (error) {
-      console.error('Failed to pause workflow:', error)
+      logger.error('Failed to pause workflow:', error)
       Message.error('Failed to pause workflow')
     }
   }
@@ -298,7 +300,7 @@ function App(): void {
       await loadSequencedTasks()
       Message.success('Step updated successfully')
     } catch (error) {
-      console.error('Failed to update step:', error)
+      logger.error('Failed to update step:', error)
       Message.error('Failed to update step')
     }
   }
@@ -333,7 +335,7 @@ function App(): void {
 
       Message.success('Workflow reset to initial state')
     } catch (error) {
-      console.error('Failed to reset workflow:', error)
+      logger.error('Failed to reset workflow:', error)
       Message.error('Failed to reset workflow')
     }
   }
@@ -344,7 +346,7 @@ function App(): void {
       await initializeData() // Reload all data
       Message.success('All workflows deleted successfully')
     } catch (error) {
-      console.error('Error deleting all workflows:', error)
+      logger.error('Error deleting all workflows:', error)
       Message.error('Failed to delete all workflows')
     }
   }
@@ -659,7 +661,7 @@ function App(): void {
               // Refresh data to show changes
               await initializeData()
             } catch (error) {
-              console.error('Failed to apply amendments:', error)
+              logger.error('Failed to apply amendments:', error)
               Message.error('Failed to apply amendments')
             }
           }}

@@ -15,6 +15,8 @@ import {
   StepAddition,
 } from '../../../shared/amendment-types'
 import { useTaskStore } from '../../store/useTaskStore'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text, Paragraph } = Typography
 
@@ -110,7 +112,7 @@ export function VoiceAmendmentModal({
 
     } catch (err) {
       setError('Failed to start recording. Please check your microphone permissions.')
-      console.error('Error starting recording:', err)
+      logger.error('Error starting recording:', err)
     }
   }
 
@@ -146,7 +148,7 @@ export function VoiceAmendmentModal({
 
     } catch (err) {
       setError('Failed to process audio. Please try again.')
-      console.error('Error processing audio:', err)
+      logger.error('Error processing audio:', err)
     } finally {
       setIsTranscribing(false)
     }
@@ -173,9 +175,9 @@ export function VoiceAmendmentModal({
       }
 
       // Parse with AI via IPC
-      // console.log('[VoiceAmendmentModal] Sending to parse:', text, 'Context:', context)
+      // logger.debug('[VoiceAmendmentModal] Sending to parse:', text, 'Context:', context)
       const result = await window.electronAPI.ai.parseAmendment(text, context)
-      // console.log('[VoiceAmendmentModal] Received parse result:', result)
+      // logger.debug('[VoiceAmendmentModal] Received parse result:', result)
       setAmendmentResult(result)
 
       // Auto-select all amendments with high confidence
@@ -191,7 +193,7 @@ export function VoiceAmendmentModal({
 
     } catch (err) {
       setError('Failed to parse amendments. Please try rephrasing.')
-      console.error('Error parsing transcription:', err)
+      logger.error('Error parsing transcription:', err)
     } finally {
       setIsParsing(false)
     }
@@ -222,7 +224,7 @@ export function VoiceAmendmentModal({
       handleClose()
     } catch (err) {
       setError('Failed to apply amendments')
-      console.error('Error applying amendments:', err)
+      logger.error('Error applying amendments:', err)
     }
   }
 
@@ -244,7 +246,7 @@ export function VoiceAmendmentModal({
   }
 
   const renderAmendmentIcon = (type: Amendment['type']) => {
-    // console.log('[VoiceAmendmentModal] renderAmendmentIcon - type:', type, 'typeof:', typeof type)
+    // logger.debug('[VoiceAmendmentModal] renderAmendmentIcon - type:', type, 'typeof:', typeof type)
     // Handle both string literals and enum values since IPC serialization converts enums to strings
     switch (type) {
       case 'status_update':
@@ -263,13 +265,13 @@ export function VoiceAmendmentModal({
       case AmendmentType.StepAddition:
         return <IconEdit />
       default:
-        console.warn('[VoiceAmendmentModal] Unknown amendment type in icon:', type)
+        logger.warn('[VoiceAmendmentModal] Unknown amendment type in icon:', type)
         return <IconEdit />
     }
   }
 
   const renderAmendmentDescription = (amendment: Amendment) => {
-    // console.log('[VoiceAmendmentModal] renderAmendmentDescription - type:', amendment.type, 'full amendment:', amendment)
+    // logger.debug('[VoiceAmendmentModal] renderAmendmentDescription - type:', amendment.type, 'full amendment:', amendment)
     // Handle both string literals and enum values since IPC serialization converts enums to strings
     switch (amendment.type) {
       case 'status_update':
@@ -346,7 +348,7 @@ export function VoiceAmendmentModal({
         )
       }
       default:
-        console.error('[VoiceAmendmentModal] Unknown amendment type:', amendment.type, 'Full amendment:', amendment)
+        logger.error('[VoiceAmendmentModal] Unknown amendment type:', amendment.type, 'Full amendment:', amendment)
         return <Text>Unknown amendment type: {String(amendment.type)}</Text>
     }
   }

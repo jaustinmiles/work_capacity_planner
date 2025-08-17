@@ -20,6 +20,8 @@ import {
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
+import { logger } from '../../utils/logger'
+
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -45,7 +47,7 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
       if (onClose) onClose()
     } catch (error) {
       Message.error('Failed to update task')
-      console.error('Error updating task:', error)
+      logger.error('Error updating task:', error)
     } finally {
       setIsSaving(false)
     }

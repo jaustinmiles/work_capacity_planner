@@ -5,6 +5,8 @@ import { SequencedTask } from '@shared/sequencing-types'
 import { WorkflowGraph } from './WorkflowGraph'
 import { InteractiveWorkflowGraph } from './InteractiveWorkflowGraph'
 import { useTaskStore } from '../../store/useTaskStore'
+import { logger } from '../../utils/logger'
+
 
 // Typography components
 
@@ -42,7 +44,7 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
         steps: updatedSteps,
       })
     } catch (error) {
-      console.error('Failed to update dependencies:', error)
+      logger.error('Failed to update dependencies:', error)
     }
   }
 

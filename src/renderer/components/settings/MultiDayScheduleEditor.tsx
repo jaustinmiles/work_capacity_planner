@@ -29,6 +29,8 @@ import { VoiceScheduleModal } from './VoiceScheduleModal'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
+import { logger } from '../../utils/logger'
+
 
 dayjs.extend(isSameOrBefore)
 
@@ -91,7 +93,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
 
       setPatterns(patternsMap)
     } catch (error) {
-      console.error('Failed to load patterns:', error)
+      logger.error('Failed to load patterns:', error)
       Message.error('Failed to load schedules')
     } finally {
       setLoading(false)
@@ -122,7 +124,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       await loadPatterns()
       onSave?.()
     } catch (error) {
-      console.error('Failed to save pattern:', error)
+      logger.error('Failed to save pattern:', error)
       Message.error('Failed to save schedule')
     }
   }
@@ -225,7 +227,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
           await loadPatterns()
           onSave?.()
         } catch (error) {
-          console.error('Failed to clear schedules:', error)
+          logger.error('Failed to clear schedules:', error)
           Message.error('Failed to clear schedules')
         } finally {
           setLoading(false)
