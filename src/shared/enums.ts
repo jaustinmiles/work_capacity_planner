@@ -1,7 +1,11 @@
 /**
  * Centralized enums for the application
  * Using enums provides type safety and enables exhaustive checking
+ * Note: Not all enum values may be currently used, but they are defined
+ * for completeness and future use.
  */
+
+/* eslint-disable no-unused-vars */
 
 // Task and workflow status
 export enum TaskStatus {
