@@ -50,7 +50,10 @@ class RendererLogger {
 
     // Send to main process for file logging
     if (window.electron?.log) {
-      window.electron.log(level, scope, message, data)
+      const logMethod = window.electron.log[level as keyof typeof window.electron.log]
+      if (logMethod) {
+        logMethod(scope, message, data)
+      }
     }
   }
 

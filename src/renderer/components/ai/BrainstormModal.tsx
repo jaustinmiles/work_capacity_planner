@@ -50,6 +50,15 @@ interface BrainstormResult {
 
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped'
 
+// Helper function to convert string literals to TaskType enum
+function toTaskType(type: string): TaskType {
+  if (type === 'focused' || type === TaskType.Focused) return TaskType.Focused
+  if (type === 'admin' || type === TaskType.Admin) return TaskType.Admin
+  if (type === 'mixed' || type === TaskType.Mixed) return TaskType.Mixed
+  // Default to focused if unknown
+  return TaskType.Focused
+}
+
 export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflowsExtracted }: BrainstormModalProps) {
   const [brainstormText, setBrainstormText] = useState('')
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
@@ -579,15 +588,25 @@ Only include terms that are likely industry-specific or technical jargon, not co
         setBrainstormResult({
           workflows: result.workflows.map(wf => ({
             ...wf,
+            type: toTaskType(wf.type),
             duration: wf.totalDuration || 0,
             totalDuration: wf.totalDuration || 0,
           })),
-          standaloneTasks: result.standaloneTasks,
+          standaloneTasks: result.standaloneTasks.map(task => ({
+            ...task,
+            type: toTaskType(task.type),
+          })),
           summary: result.summary,
         })
       } else {
         const result = await getDatabase().extractTasksFromBrainstorm(brainstormText.trim())
-        setBrainstormResult({ summary: result.summary, tasks: result.tasks })
+        setBrainstormResult({
+          summary: result.summary,
+          tasks: result.tasks.map(task => ({
+            ...task,
+            type: toTaskType(task.type),
+          })),
+        })
       }
     } catch (error) {
       logger.ai.error('Error processing brainstorm:', error)

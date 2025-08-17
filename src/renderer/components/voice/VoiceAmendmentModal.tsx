@@ -348,7 +348,7 @@ export function VoiceAmendmentModal({
         )
       }
       default:
-        logger.ui.error('[VoiceAmendmentModal] Unknown amendment type:', amendment.type, 'Full amendment:', amendment)
+        logger.ui.error(`[VoiceAmendmentModal] Unknown amendment type: ${amendment.type}`, undefined, { fullAmendment: amendment })
         return <Text>Unknown amendment type: {String(amendment.type)}</Text>
     }
   }

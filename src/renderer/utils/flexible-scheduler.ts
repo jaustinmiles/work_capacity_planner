@@ -117,7 +117,7 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
     blockId: block.id,
     startTime,
     endTime,
-    blockType: block.type,
+    blockType: block.type as 'mixed' | 'personal' | TaskType,
     focusMinutesTotal: focusMinutes,
     adminMinutesTotal: adminMinutes,
     personalMinutesTotal: personalMinutes,

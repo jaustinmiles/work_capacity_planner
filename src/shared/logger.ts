@@ -1,6 +1,5 @@
 // Check if we're in main process or renderer
 const isMainProcess = typeof process !== 'undefined' && (process as any).type === 'browser'
-const isRenderer = typeof window !== 'undefined' && !isMainProcess
 
 let log: any
 
