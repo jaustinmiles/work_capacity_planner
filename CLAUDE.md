@@ -482,8 +482,13 @@ try {
 6. **Don't disable TypeScript strict checks** - Fix the root cause, not the symptom
 7. **Don't create TaskStep without required fields** - Always include `taskId` and `percentComplete`
 8. **Don't mix property names** - Use `focusMinutes/adminMinutes` not `focused/admin`
-9. **Don't use hardcoded strings** - Use enums or constants for repeated string values
+9. **🚨 CRITICAL: ALWAYS use enums instead of hardcoded strings!** 
+   - Import TaskType, TaskStatus, etc. from @shared/enums or @shared/constants
+   - NEVER use hardcoded 'focused', 'admin', 'pending', etc.
+   - If ESLint says an enum is unused, FIX THE CODE to use the enum!
+   - Current violation: 238+ hardcoded string instances that should be enums
 10. **IPC Serialization** - Enums become strings when passed through IPC. Handle both enum values AND string literals in switch statements
+11. **🚨 NEVER disable linter rules or tests without explicit user approval** - If a linter rule or test is failing, FIX THE CODE, don't hide the problem!
 
 ## Testing Strategy
 

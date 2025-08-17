@@ -1,10 +1,10 @@
 /**
  * Shared constants and enums used throughout the application
- * Note: Not all enum values may be currently used, but they are defined
- * for completeness and future use.
+ * 
+ * CRITICAL: These enums and constants MUST be used instead of hardcoded strings!
+ * If ESLint reports these as unused, we have a serious architectural problem.
+ * DO NOT disable the lint rule - fix the usage!
  */
-
-/* eslint-disable no-unused-vars */
 
 export enum TaskType {
   FOCUSED = 'focused',
