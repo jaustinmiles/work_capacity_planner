@@ -127,6 +127,14 @@ module.exports = [
     },
   },
 
+  // Allow console in test files
+  {
+    files: ['**/__tests__/**/*.ts', '**/__tests__/**/*.tsx', '**/*.test.ts', '**/*.test.tsx'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+
   {
     files: ['**/*.js'],
     languageOptions: {
