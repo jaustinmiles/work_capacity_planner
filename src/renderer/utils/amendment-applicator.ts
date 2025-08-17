@@ -154,7 +154,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
               const __updatedWorkflow = await db.addStepToWorkflow(addition.workflowTarget.id, {
                 name: addition.stepName,
                 duration: addition.duration,
-                type: addition.stepType,
+                type: addition.stepType as any, // TODO: Fix mixed pattern in addStepToWorkflow type definition
                 afterStep: addition.afterStep,
                 beforeStep: addition.beforeStep,
                 dependencies: addition.dependencies,
