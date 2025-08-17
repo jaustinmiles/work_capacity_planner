@@ -1,7 +1,7 @@
 /**
  * Centralized enums for the application
  * Using enums provides type safety and enables exhaustive checking
- * 
+ *
  * CRITICAL: These enums SHOULD be used throughout the codebase instead of hardcoded strings!
  * If ESLint reports these as unused, it means we have architectural issues to fix.
  */

@@ -296,10 +296,10 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
             <div>
               <Text style={{ fontWeight: 'bold' }}>How to describe your schedule:</Text>
               <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
-                <li>Mention your available time blocks (e.g., "I'm available from 9am to 5pm")</li>
-                <li>Specify focus vs admin time needs (e.g., "I need 4 hours of focus time and 2 hours for admin")</li>
-                <li>Include any meetings or breaks (e.g., "I have a standup at 10am for 30 minutes")</li>
-                <li>You can describe multiple days (e.g., "Tomorrow I have..., On Friday...")</li>
+                <li>Mention your available time blocks (e.g., {'"'}I{'\''}m available from 9am to 5pm{'"'})</li>
+                <li>Specify focus vs admin time needs (e.g., {'"'}I need 4 hours of focus time and 2 hours for admin{'"'})</li>
+                <li>Include any meetings or breaks (e.g., {'"'}I have a standup at 10am for 30 minutes{'"'})</li>
+                <li>You can describe multiple days (e.g., {'"'}Tomorrow I have..., On Friday...{'"'})</li>
               </ul>
             </div>
           }

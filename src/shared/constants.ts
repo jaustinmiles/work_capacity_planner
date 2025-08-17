@@ -1,6 +1,6 @@
 /**
  * Shared constants and enums used throughout the application
- * 
+ *
  * CRITICAL: These enums and constants MUST be used instead of hardcoded strings!
  * If ESLint reports these as unused, we have a serious architectural problem.
  * DO NOT disable the lint rule - fix the usage!

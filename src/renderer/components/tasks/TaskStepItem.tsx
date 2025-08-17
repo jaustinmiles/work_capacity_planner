@@ -159,17 +159,7 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
             </Tag>
           )}
 
-          {false && (step as any).conditionalBranches && (step as any).conditionalBranches.length > 0 && (
-            <Tooltip content={`${(step as any).conditionalBranches.length} conditional branch(es)`}>
-              <Tag
-                icon={<IconBranch />}
-                color="purple"
-                size="small"
-              >
-                Branches
-              </Tag>
-            </Tooltip>
-          )}
+          {/* Conditional branches feature - not yet implemented */}
 
           {step.dependsOn.length > 0 && (
             <Tooltip content={`Depends on ${step.dependsOn.length} step(s)`}>
@@ -184,26 +174,7 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
           )}
         </Space>
 
-        {/* Show conditional branches */}
-        {false && (step as any).conditionalBranches && (step as any).conditionalBranches.length > 0 && (
-          <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '1px dashed #E5E8EF' }}>
-            {(step as any).conditionalBranches.map((branch: any) => (
-              <div key={branch.id} style={{ marginBottom: 4 }}>
-                <Space size="small">
-                  <IconBranch style={{ color: '#FF7D00', fontSize: 12 }} />
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {branch.condition} ({Math.round(branch.probability * 100)}% chance)
-                  </Text>
-                  {branch.repeatFromStepId && (
-                    <Tag icon={<IconLoop />} size="small" color="orange">
-                      Repeats workflow
-                    </Tag>
-                  )}
-                </Space>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Show conditional branches - feature not yet implemented */}
 
         {/* Show estimated start time */}
         {estimatedStartTime && (

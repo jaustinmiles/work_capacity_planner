@@ -18,17 +18,17 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
   const [isEditMode, setIsEditMode] = useState(false)
   const { updateSequencedTask, sequencedTasks } = useTaskStore()
 
-  if (!task) return null
-
-  // Use the latest task data from store
-  const currentTask = sequencedTasks.find(t => t.id === task.id) || task
-
   // Reset edit mode when modal closes
   React.useEffect(() => {
     if (!visible) {
       setIsEditMode(false)
     }
   }, [visible])
+
+  if (!task) return null
+
+  // Use the latest task data from store
+  const currentTask = sequencedTasks.find(t => t.id === task.id) || task
 
   const handleUpdateDependencies = async (stepId: string, dependencies: string[]) => {
     try {

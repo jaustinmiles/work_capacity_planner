@@ -204,6 +204,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
                         </Button>
                       ),
                       <Button
+                        key="edit"
                         type="text"
                         icon={<IconEdit />}
                         onClick={() => {
@@ -216,6 +217,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
                       />,
                       !session.isActive && (
                         <Popconfirm
+                          key="delete"
                           title="Delete Session"
                           content="Are you sure? All tasks and data in this session will be permanently deleted."
                           onOk={() => handleDeleteSession(session.id)}
