@@ -154,6 +154,34 @@ npm run check  # Runs both typecheck and lint
   ```
 - If you modify database.ts, ALWAYS verify workflows still appear in the UI
 
+## 🚨 CRITICAL: Git-Based Development Workflow
+
+**MANDATORY: All development MUST follow this process:**
+
+### Branch-Based Development
+1. **NEVER work directly on main branch**
+2. **Create feature/fix branches for ALL changes**:
+   ```bash
+   git checkout -b feature/description  # For new features
+   git checkout -b fix/description      # For bug fixes
+   ```
+
+3. **Push to origin and monitor CI**:
+   ```bash
+   git push -u origin branch-name
+   ```
+
+4. **GitHub Actions MUST pass** before merging:
+   - ESLint: 0 errors allowed
+   - TypeScript: 0 errors allowed
+   - All tests must pass
+   - If CI fails, fix immediately - DO NOT proceed
+
+5. **Keep user informed**:
+   - Tell user when pushing branches
+   - Report CI status
+   - Get approval before merging if CI needs exceptions
+
 ## IMPORTANT: Development Workflow
 
 **ALWAYS follow this workflow when making changes:**
@@ -586,6 +614,71 @@ In August 2025, we debugged a complex duplicate workflow rendering issue:
 - Data flow problems between components
 - Discrepancies between what's stored vs displayed
 - Any issue where "it works in test but not in UI" (or vice versa)
+
+## 📋 Known Issues & Pending Work
+
+### 🚨 CRITICAL ARCHITECTURAL ISSUES
+
+1. **FRAGMENTED SCHEDULING LOGIC**:
+   The scheduling system is split across multiple files with inconsistent usage:
+   - `src/shared/scheduling-engine.ts` - Has placeholder for deadline pressure (= 0)
+   - `src/renderer/utils/flexible-scheduler.ts` - Actually used by GanttChart, imports from deadline-scheduler
+   - `src/renderer/utils/deadline-scheduler.ts` - HAS the exponential functions implemented!
+   
+   **The Problem**: 
+   - GanttChart uses flexible-scheduler which uses deadline-scheduler functions
+   - But scheduling-engine (used elsewhere?) doesn't use any of this
+   - Exponential pressure is implemented but NOT uniformly applied
+   
+   **Required Fix**:
+   - Unify all scheduling into one consistent system
+   - Ensure exponential pressure applies EVERYWHERE, not just certain paths
+   - Remove duplicate/conflicting implementations
+
+### Critical Missing Features
+1. **Exponential Pressure Functions PARTIALLY IMPLEMENTED**:
+   ```typescript
+   // Deadline pressure - should use exponential curve
+   const hoursUntilDeadline = (task.deadline - currentTime) / (1000 * 60 * 60)
+   const deadlinePressure = task.deadline 
+     ? 100 * Math.exp(-hoursUntilDeadline / 24)
+     : 0
+   
+   // Async wait pressure - should consider blocked time
+   const totalBlockedTime = dependentItems.reduce((sum, item) => sum + item.asyncWaitTime, 0)
+   const asyncPressure = totalBlockedTime > 0
+     ? 50 * (1 - Math.exp(-totalBlockedTime / 120))
+     : 0
+   ```
+
+### UI/UX Issues
+1. **Workflow Editing Problems**:
+   - Takes 2 button clicks to edit (confusing UX)
+   - Too many "Edit Workflow" buttons everywhere
+   - No collapse/expand for workflows in main view
+   - Workflow name editing is awkward
+
+2. **Time Logging Confusion**:
+   - Two different time logging systems need unification
+   - "Complete Step" dialog incorrectly marks steps as completed
+   - Should use work sessions modal (with specific times) as primary
+   - Steps shouldn't auto-complete from time logging
+
+3. **Missing Features**:
+   - No reverse dependency selection (select what depends on current task)
+   - Can't drag to resize time blocks (only move)
+   - Weekend selection was broken multiple times
+
+### Testing & CI
+1. **Current Lint Status**: ~700+ errors remaining
+   - Many `any` types in renderer components
+   - Unused variables in destructuring
+   - Missing type definitions
+
+2. **Test Coverage Gaps**:
+   - Workflow editing functionality
+   - Time logging systems
+   - Drag and drop operations
 
 ## When You Get Stuck
 

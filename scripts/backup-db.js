@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const fs = require('fs')
 const path = require('path')
-const { execSync } = require('child_process')
+// Removed unused execSync import
 
 // Get database path
 const dbPath = path.join(__dirname, '..', 'prisma', 'dev.db')

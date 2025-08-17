@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { DatabaseService } from '../database'
-import { PrismaClient } from '@prisma/client'
+// import { PrismaClient } from '@prisma/client' // Not needed for mocked tests
 
 // Mock Prisma Client
 vi.mock('@prisma/client', () => {
@@ -302,7 +302,7 @@ describe('Work Session Management', () => {
         type: 'admin',
       })
 
-      const result = await db.createStepWorkSession({
+      await db.createStepWorkSession({
         stepId: 'step-123',
         startTime: new Date(),
         duration: 45,

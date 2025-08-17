@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 const { PrismaClient } = require('@prisma/client')
-const fs = require('fs')
-const path = require('path')
+// Removed unused fs and path imports
 
 const prisma = new PrismaClient()
 
@@ -87,7 +86,8 @@ async function main() {
         })
 
         if (step && step.taskId) {
-          const workSession = await prisma.workSession.create({
+          // Create work session
+          await prisma.workSession.create({
             data: {
               id: `migrated-sws-${sws.id}`,
               taskId: step.taskId,
@@ -105,7 +105,7 @@ async function main() {
           console.log('  ✓ Migrated work session for step')
         }
       }
-    } catch (error) {
+    } catch {
       console.log('  - No StepWorkSession table found or no records to migrate')
     }
 

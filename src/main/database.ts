@@ -42,6 +42,7 @@ export class DatabaseService {
           },
         })
       } else {
+        // Session already exists
       }
 
       this.activeSessionId = session.id
@@ -362,6 +363,7 @@ export class DatabaseService {
 
     // Debug log to see what we're getting
     if (task.hasSteps) {
+      // Task has steps - will be processed below
     }
 
     return {
@@ -750,7 +752,7 @@ export class DatabaseService {
     }
 
     // Create the new step
-    const newStep = await this.client.taskStep.create({
+    await this.client.taskStep.create({
       data: {
         id: `step_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         taskId: workflowId,
@@ -880,6 +882,7 @@ export class DatabaseService {
         sessionId,
         WorkBlock: {
           create: (blocks || []).map((b: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { patternId, id, ...blockData } = b
             return {
               id: crypto.randomUUID(),
@@ -890,6 +893,7 @@ export class DatabaseService {
         },
         WorkMeeting: {
           create: (meetings || []).map((m: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { patternId, id, ...meetingData } = m
             return {
               id: crypto.randomUUID(),
@@ -1005,6 +1009,7 @@ export class DatabaseService {
         updatedAt: new Date(),
         WorkBlock: {
           create: (updates.blocks || []).map((b: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { patternId, id, ...blockData } = b
             return {
               id: crypto.randomUUID(),
@@ -1015,6 +1020,7 @@ export class DatabaseService {
         },
         WorkMeeting: {
           create: (updates.meetings || []).map((m: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { patternId, id, ...meetingData } = m
             return {
               id: crypto.randomUUID(),
@@ -1517,4 +1523,4 @@ export class DatabaseService {
 }
 
 // Export a singleton instance
-export const getDatabase = () => DatabaseService.getInstance()
+export const getDatabase = (): DatabaseService => DatabaseService.getInstance()

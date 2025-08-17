@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { PrismaClient } from '@prisma/client'
+// import { PrismaClient } from '@prisma/client' // Not needed in mocked tests
 import { DatabaseService } from '../database'
 
 // Mock PrismaClient

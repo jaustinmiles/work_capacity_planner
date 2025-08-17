@@ -38,11 +38,11 @@ vi.mock('@prisma/client', () => {
 
 describe('Database - Time Tracking', () => {
   let db: DatabaseService
-  let mockPrisma: any
+  let mockPrisma: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     db = DatabaseService.getInstance()
-    mockPrisma = (db as any).client
+    mockPrisma = (db as unknown as { client: ReturnType<typeof vi.fn> }).client
 
     // Mock active session
     mockPrisma.session.findFirst.mockResolvedValue({ id: 'session-1' })
