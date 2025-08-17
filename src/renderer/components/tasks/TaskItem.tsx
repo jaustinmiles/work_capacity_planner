@@ -171,8 +171,8 @@ export function TaskItem({ task }: TaskItemProps) {
                       <Tooltip content="Cognitive Complexity (1=Low, 5=High)">
                         <Tag
                           icon={<IconMindMapping />}
-                          color={task.cognitiveComplexity >= 4 ? 'red' : 
-                                task.cognitiveComplexity >= 3 ? 'orange' : 
+                          color={task.cognitiveComplexity >= 4 ? 'red' :
+                                task.cognitiveComplexity >= 3 ? 'orange' :
                                 'green'}
                           size="small"
                         >

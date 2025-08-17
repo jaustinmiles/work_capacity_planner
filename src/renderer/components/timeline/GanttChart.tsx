@@ -800,24 +800,24 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             </div>
 
             {/* Chart body */}
-            <div 
+            <div
               style={{ position: 'relative', paddingTop: 10 }}
               onDragOver={(e) => {
                 if (!draggedItem) return
                 e.preventDefault()
                 e.dataTransfer.dropEffect = 'move'
-                
+
                 // Calculate drop position
                 const rect = e.currentTarget.getBoundingClientRect()
                 const relativeX = e.clientX - rect.left - dragOffset.x
                 const relativeY = e.clientY - rect.top - dragOffset.y
-                
+
                 // Convert X position to time
                 const dropTime = new Date(chartStartTime.getTime() + (relativeX / pixelsPerHour) * 3600000)
-                
+
                 // Convert Y position to row
                 const dropRow = Math.floor(relativeY / rowHeight)
-                
+
                 setDropTarget({ time: dropTime, row: dropRow })
               }}
               onDragLeave={(e) => {
@@ -828,21 +828,21 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               }}
               onDrop={async (e) => {
                 e.preventDefault()
-                
+
                 if (!draggedItem || !dropTarget) return
-                
+
                 const { Message } = await import('../common/Message')
-                
+
                 try {
                   // Extract the task/workflow ID from the dragged item
                   const itemId = draggedItem.originalItem?.id || draggedItem.id
-                  
+
                   // Set a hard deadline at the dropped time
                   // Add the item's duration to get the deadline time
                   const deadlineTime = new Date(dropTarget.time)
                   const durationMinutes = draggedItem.duration || 60
                   deadlineTime.setMinutes(deadlineTime.getMinutes() + durationMinutes)
-                  
+
                   // Update the task or workflow with the new deadline
                   if (draggedItem.type === 'task') {
                     await updateTask(itemId, {
@@ -857,7 +857,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     })
                     Message.success(`Workflow deadline set to ${dayjs(deadlineTime).format('MMM D, h:mm A')}`)
                   }
-                  
+
                   // Trigger a reschedule to respect the new deadline
                   await generateSchedule()
                   Message.info('Schedule updated to respect the new deadline')
@@ -994,7 +994,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   </div>
                 </div>
               )}
-              
+
               {/* Grid lines */}
               {timeMarkers
                 .filter(time => time.getHours() % 2 === 0)
@@ -1157,17 +1157,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     onMouseLeave={() => setHoveredItem(null)}
                     onDragStart={(e) => {
                       if (isWaitTime || isBlocked) return
-                      
+
                       // Calculate offset from mouse to item start
                       const rect = e.currentTarget.getBoundingClientRect()
                       setDragOffset({
                         x: e.clientX - rect.left,
                         y: e.clientY - rect.top,
                       })
-                      
+
                       setDraggedItem(item)
                       e.dataTransfer.effectAllowed = 'move'
-                      
+
                       // Store item data for drop handling
                       e.dataTransfer.setData('text/plain', JSON.stringify({
                         id: item.id,

@@ -455,14 +455,14 @@ export function WorkBlocksEditor({
                               const startTime = dayjs(`2000-01-01 ${block.startTime}`)
                               const endTime = dayjs(`2000-01-01 ${block.endTime}`)
                               const totalMinutes = endTime.diff(startTime, 'minute')
-                            
+
                             // Automatically adjust admin time to fill the rest
                             const focusMinutes = Math.min(value || 0, totalMinutes)
                             const adminMinutes = Math.max(0, totalMinutes - focusMinutes)
-                            
+
                             handleUpdateBlock(block.id, {
-                              capacity: { 
-                                ...block.capacity, 
+                              capacity: {
+                                ...block.capacity,
                                 focusMinutes: focusMinutes,
                                 adminMinutes: adminMinutes,
                                 personalMinutes: 0,
@@ -480,13 +480,13 @@ export function WorkBlocksEditor({
                             const startTime = dayjs(`2000-01-01 ${block.startTime}`)
                             const endTime = dayjs(`2000-01-01 ${block.endTime}`)
                             const totalMinutes = endTime.diff(startTime, 'minute')
-                            
+
                             // Automatically adjust focus time to fill the rest
                             const adminMinutes = Math.min(value || 0, totalMinutes)
                             const focusMinutes = Math.max(0, totalMinutes - adminMinutes)
-                            
+
                             handleUpdateBlock(block.id, {
-                              capacity: { 
+                              capacity: {
                                 ...block.capacity,
                                 focusMinutes: focusMinutes,
                                 adminMinutes: adminMinutes,

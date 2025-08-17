@@ -97,24 +97,24 @@ export function TimelineVisualizer({
 
     const rect = containerRef.current.getBoundingClientRect()
     const relativeY = e.clientY - rect.top + containerRef.current.scrollTop
-    
+
     if (dragState.edge === 'move') {
       // Moving the entire block
       const deltaY = e.clientY - dragState.initialY
       const deltaMinutes = Math.round((deltaY / HOUR_HEIGHT) * 60)
-      
+
       // Calculate new start and end times
       const [startHours, startMinutes] = dragState.initialTime.split(':').map(Number)
       const [endHours, endMinutes] = (dragState.initialEndTime || '').split(':').map(Number)
-      
+
       const newStartTotalMinutes = (startHours - startHour) * 60 + startMinutes + deltaMinutes
       const newEndTotalMinutes = (endHours - startHour) * 60 + endMinutes + deltaMinutes
-      
+
       // Check bounds
       if (newStartTotalMinutes >= 0 && newEndTotalMinutes <= (endHour - startHour) * 60) {
         const newStartTime = roundToQuarter(pixelsToTime((newStartTotalMinutes / 60) * HOUR_HEIGHT))
         const newEndTime = roundToQuarter(pixelsToTime((newEndTotalMinutes / 60) * HOUR_HEIGHT))
-        
+
         if (dragState.type === 'block' && onBlockUpdate) {
           onBlockUpdate(dragState.id, { startTime: newStartTime, endTime: newEndTime })
         } else if (dragState.type === 'meeting' && onMeetingUpdate) {
@@ -124,7 +124,7 @@ export function TimelineVisualizer({
     } else {
       // Resizing edges (existing code)
       const newTime = roundToQuarter(pixelsToTime(relativeY))
-      
+
       if (dragState.type === 'block' && onBlockUpdate) {
         const block = blocks.find(b => b.id === dragState.id)
         if (!block) return

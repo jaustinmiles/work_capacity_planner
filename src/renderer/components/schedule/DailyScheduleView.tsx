@@ -43,25 +43,25 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
   }
 
   // Sort items by start time
-  const sortedItems = [...scheduledItems].sort((a, b) => 
-    a.startTime.getTime() - b.startTime.getTime()
+  const sortedItems = [...scheduledItems].sort((a, b) =>
+    a.startTime.getTime() - b.startTime.getTime(),
   )
 
   // Group items by time blocks
   const timeBlocks = blocks.map(block => {
     const blockStart = dayjs(`${date} ${block.startTime}`)
     const blockEnd = dayjs(`${date} ${block.endTime}`)
-    
+
     const itemsInBlock = sortedItems.filter(item => {
       const itemStart = dayjs(item.startTime)
-      return itemStart.isSame(blockStart, 'day') && 
+      return itemStart.isSame(blockStart, 'day') &&
              itemStart.isAfter(blockStart.subtract(1, 'minute')) &&
              itemStart.isBefore(blockEnd)
     })
 
     return {
       ...block,
-      items: itemsInBlock
+      items: itemsInBlock,
     }
   })
 
@@ -102,12 +102,12 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
 
         {/* Summary Stats */}
         <Space>
-          <Badge 
+          <Badge
             count={`${formatDuration(getTotalMinutes(sortedItems.filter(i => i.type === 'task' && (i.originalItem as any).type === 'focused')))}`}
             style={{ backgroundColor: '#165DFF' }}
           />
           <Text type="secondary">Focused</Text>
-          <Badge 
+          <Badge
             count={`${formatDuration(getTotalMinutes(sortedItems.filter(i => i.type === 'task' && (i.originalItem as any).type === 'admin')))}`}
             style={{ backgroundColor: '#00B42A' }}
           />
@@ -118,13 +118,13 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
         <Timeline>
           {timeBlocks.map((block, index) => {
             const hasItems = block.items.length > 0
-            const blockIcon = block.type === 'focused' ? <IconDesktop /> : 
-                            block.type === 'admin' ? <IconUserGroup /> : 
+            const blockIcon = block.type === 'focused' ? <IconDesktop /> :
+                            block.type === 'admin' ? <IconUserGroup /> :
                             <IconClockCircle />
 
             return (
-              <Timeline.Item 
-                key={block.id} 
+              <Timeline.Item
+                key={block.id}
                 label={`${block.startTime} - ${block.endTime}`}
                 dotColor={hasItems ? 'blue' : 'gray'}
               >
@@ -132,9 +132,9 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
                   <Space>
                     {blockIcon}
                     <Text style={{ fontWeight: 500 }}>
-                      {block.type === 'mixed' ? 'Mixed Work Block' : 
-                       block.type === 'focused' ? 'Focus Block' : 
-                       block.type === 'admin' ? 'Admin Block' : 
+                      {block.type === 'mixed' ? 'Mixed Work Block' :
+                       block.type === 'focused' ? 'Focus Block' :
+                       block.type === 'admin' ? 'Admin Block' :
                        'Personal Time'}
                     </Text>
                     {!hasItems && (
@@ -145,14 +145,14 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
                   {block.items.length > 0 && (
                     <div style={{ marginLeft: 24 }}>
                       {block.items.map(item => (
-                        <div 
+                        <div
                           key={item.id}
                           style={{
                             padding: '8px 12px',
                             marginBottom: 8,
                             background: '#f5f5f5',
                             borderRadius: 4,
-                            borderLeft: `3px solid ${item.color}`
+                            borderLeft: `3px solid ${item.color}`,
                           }}
                         >
                           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
@@ -207,14 +207,14 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
             {sortedItems
               .filter(item => !timeBlocks.some(block => block.items.includes(item)))
               .map(item => (
-                <div 
+                <div
                   key={item.id}
                   style={{
                     padding: '8px 12px',
                     marginBottom: 8,
                     background: '#fff7e8',
                     borderRadius: 4,
-                    borderLeft: `3px solid ${item.color}`
+                    borderLeft: `3px solid ${item.color}`,
                   }}
                 >
                   <Space style={{ width: '100%', justifyContent: 'space-between' }}>

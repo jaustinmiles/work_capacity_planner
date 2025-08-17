@@ -16,7 +16,7 @@ describe.skip('Database Integration Scheduling - SKIPPED: Requires updated test 
     // Skip this test if no test database is available
     // This test requires a database with the proper schema and test data
     const testDbPath = 'prisma/test-integration.db'
-    
+
     // Try to use the backup database if it exists
     try {
       execSync(`cp prisma/backup-*-aligned-test-data.db ${testDbPath} 2>/dev/null`)

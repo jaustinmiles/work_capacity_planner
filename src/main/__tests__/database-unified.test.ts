@@ -46,13 +46,13 @@ vi.mock('@prisma/client', () => {
 
 describe('Database - Unified Task Model', () => {
   let db: DatabaseService
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let mockPrisma: any
 
   beforeEach(() => {
     vi.clearAllMocks()
     db = DatabaseService.getInstance()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     mockPrisma = (db as any).client
 
     // Mock active session
@@ -151,7 +151,7 @@ describe('Database - Unified Task Model', () => {
         expect(tasks).toHaveLength(2)
         expect(tasks[0]?.hasSteps).toBe(false)
         expect(tasks[1]?.hasSteps).toBe(true)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         expect((tasks[1] as any)?.steps).toHaveLength(2)
       })
 

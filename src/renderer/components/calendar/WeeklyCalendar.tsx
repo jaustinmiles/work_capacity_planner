@@ -383,7 +383,7 @@ export function WeeklyCalendar() {
             />
           ) : (
             <Card style={{ height: '100%' }}>
-              <Empty 
+              <Empty
                 description="Select a day from the calendar to view the detailed schedule"
                 style={{ marginTop: 100 }}
               />

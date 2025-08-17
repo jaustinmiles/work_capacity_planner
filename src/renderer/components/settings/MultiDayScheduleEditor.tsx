@@ -212,7 +212,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
           // Get all future dates
           const today = dayjs().format('YYYY-MM-DD')
           const patterns = await db.getWorkPatterns()
-          
+
           let clearedCount = 0
           for (const pattern of patterns) {
             if (pattern.date >= today) {
@@ -220,7 +220,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
               clearedCount++
             }
           }
-          
+
           Message.success(`Cleared ${clearedCount} schedules`)
           await loadPatterns()
           onSave?.()
@@ -354,10 +354,10 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
               />
             </Col>
           </Row>
-          
+
           {/* Button Groups - Better organized */}
           <Divider style={{ margin: '16px 0' }} />
-          
+
           <Row gutter={16}>
             <Col span={8}>
               <Space direction="vertical" style={{ width: '100%' }}>
@@ -384,7 +384,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
                 </Space>
               </Space>
             </Col>
-            
+
             <Col span={8}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text type="secondary">Apply to Multiple Days</Text>
@@ -403,34 +403,34 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
                         Message.warning('No schedule to apply')
                         return
                       }
-                      
+
                       const startDate = dateRange[0]
                       const endDate = dateRange[1]
                       let currentDate = startDate
                       let appliedCount = 0
-                      
+
                       while (currentDate.isSameOrBefore(endDate, 'day')) {
                         const dateStr = currentDate.format('YYYY-MM-DD')
-                        
+
                         // Skip only the current date
                         if (dateStr !== selectedDate) {
                           const newBlocks = currentPattern.blocks.map((b, index) => ({
                             ...b,
                             id: `block-${Date.now()}-${dateStr}-${index}`,
                           }))
-                          
+
                           const newMeetings = currentPattern.meetings.map((m, index) => ({
                             ...m,
                             id: `meeting-${Date.now()}-${dateStr}-${index}-${Math.random().toString(36).substr(2, 9)}`,
                           }))
-                          
+
                           await handleSavePattern(dateStr, newBlocks, newMeetings)
                           appliedCount++
                         }
-                        
+
                         currentDate = currentDate.add(1, 'day')
                       }
-                      
+
                       if (appliedCount > 0) {
                         Message.success(`Applied schedule to ${appliedCount} days`)
                       }
@@ -442,7 +442,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
                 </Space>
               </Space>
             </Col>
-            
+
             <Col span={8}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text type="secondary">Clear Schedules</Text>
