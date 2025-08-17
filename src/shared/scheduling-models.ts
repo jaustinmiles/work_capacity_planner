@@ -14,6 +14,11 @@ export interface SchedulableItem {
   // Dependency tracking
   dependsOn: string[] // IDs of other schedulable items
   asyncWaitTime: number // minutes to wait after completion
+  isAsyncTrigger?: boolean // Indicates this task triggers async work
+
+  // Deadline tracking
+  deadline?: Date
+  deadlineType?: 'hard' | 'soft'
 
   // Metadata for tracking
   sourceType: 'simple_task' | 'workflow_step'
@@ -167,9 +172,9 @@ export interface PriorityScore {
 
 // For converting existing data to schedulable items
 export interface SchedulingConverter {
-  convertSimpleTask: (__task: Task) => SchedulableItem
+  convertSimpleTask: (task: Task) => SchedulableItem
   convertSequencedTask: (sequencedTask: SequencedTask) => SchedulableItem[]
-  convertTaskStep: (__step: TaskStep, workflowId: string, __stepIndex: number) => SchedulableItem
+  convertTaskStep: (step: TaskStep, workflow: SequencedTask, stepIndex: number) => SchedulableItem
 }
 
 // Async wait period that can be filled with other tasks

@@ -117,6 +117,9 @@ export class SchedulingEngine {
         urgency: task.urgency,
         dependsOn: task.dependencies.map(dep => `task_${dep}`),
         asyncWaitTime: task.asyncWaitTime,
+        isAsyncTrigger: task.isAsyncTrigger,
+        deadline: task.deadline,
+        deadlineType: task.deadlineType,
         sourceType: 'simple_task',
         sourceId: task.id,
         status: task.completed ? 'completed' : 'pending',
@@ -124,21 +127,24 @@ export class SchedulingEngine {
 
       convertSequencedTask: (sequencedTask: SequencedTask): SchedulableItem[] => {
         return sequencedTask.steps.map((step, index) =>
-          converter.convertTaskStep(step, sequencedTask.id, index),
+          converter.convertTaskStep(step, sequencedTask, index),
         )
       },
 
-      convertTaskStep: (step: TaskStep, workflowId: string, stepIndex: number): SchedulableItem => ({
-        id: `workflow_${workflowId}_step_${step.id}`,
+      convertTaskStep: (step: TaskStep, workflow: SequencedTask, stepIndex: number): SchedulableItem => ({
+        id: `workflow_${workflow.id}_step_${step.id}`,
         name: `${step.name}`,
         duration: step.duration,
         type: step.type,
-        importance: 8, // Inherit from parent workflow, could be made configurable
-        urgency: 8,
-        dependsOn: step.dependsOn.map(dep => `workflow_${workflowId}_step_${dep}`),
+        importance: workflow.importance || 8, // Inherit from parent workflow
+        urgency: workflow.urgency || 8,
+        dependsOn: step.dependsOn.map(dep => `workflow_${workflow.id}_step_${dep}`),
         asyncWaitTime: step.asyncWaitTime,
+        isAsyncTrigger: step.isAsyncTrigger,
+        deadline: workflow.deadline, // Inherit deadline from parent workflow
+        deadlineType: workflow.deadlineType,
         sourceType: 'workflow_step',
-        sourceId: workflowId,
+        sourceId: workflow.id,
         workflowStepIndex: stepIndex,
         status: step.status === 'completed' ? 'completed' : 'pending',
       }),
@@ -164,6 +170,7 @@ export class SchedulingEngine {
    */
   private calculatePriorityScores(items: SchedulableItem[], constraints: SchedulingConstraints): PriorityScore[] {
     return items.map(item => {
+      // Base Eisenhower score
       const rawScore = item.importance * item.urgency
 
       // Calculate dependency weighting (items with more dependents get slight boost)
@@ -172,10 +179,13 @@ export class SchedulingEngine {
       ).length
       const dependencyWeight = Math.log(dependentCount + 1) * 2
 
-      // Deadline pressure (could be extended to use actual deadlines)
-      const deadlinePressure = 0 // Placeholder for future deadline feature
+      // Calculate deadline pressure
+      const deadlinePressure = this.calculateDeadlinePressure(item, constraints)
 
-      const adjustedScore = rawScore + dependencyWeight + deadlinePressure
+      // Calculate async urgency for async triggers
+      const asyncUrgency = this.calculateAsyncUrgency(item, items)
+
+      const adjustedScore = rawScore * deadlinePressure + dependencyWeight + asyncUrgency
 
       // Tie-breaking value
       let tieBreakingValue: number | string = 0
@@ -595,6 +605,96 @@ export class SchedulingEngine {
       conflicts: [], // Would include capacity conflicts, impossible deadlines, etc.
       warnings: unscheduledItems.length > 0 ? [`${unscheduledItems.length} items could not be scheduled`] : [],
       suggestions: [], // Would include optimization suggestions
+    }
+  }
+
+  /**
+   * Calculate deadline pressure for an item
+   * Returns a multiplier from 1.0 to 1000 based on deadline urgency
+   */
+  private calculateDeadlinePressure(item: SchedulableItem, constraints: SchedulingConstraints): number {
+    // If no deadline, return base pressure
+    if (!item.deadline) return 1.0
+
+    // Calculate work days needed
+    const workHoursPerDay = 7 // Default assumption: 4 focus + 3 admin
+    const workDaysNeeded = item.duration / 60 / workHoursPerDay
+
+    // Calculate days until deadline
+    const currentTime = constraints.earliestStartDate || new Date()
+    const hoursUntilDeadline = (item.deadline.getTime() - currentTime.getTime()) / (1000 * 60 * 60)
+    const daysUntilDeadline = hoursUntilDeadline / 24
+
+    // Slack time in days
+    const slackDays = daysUntilDeadline - workDaysNeeded
+
+    if (slackDays <= 0) {
+      // Impossible or on critical path
+      return 1000
+    }
+
+    // Apply inverse power function
+    const k = item.deadlineType === 'hard' ? 10 : 5
+    const p = 1.1  // Slightly superlinear for good curve
+    const pressure = k / Math.pow(slackDays + 0.4, p)
+
+    // For large slack (>5 days), add a small base pressure
+    const basePressure = slackDays > 5 ? 1.1 : 1.0
+
+    return Math.max(basePressure, Math.min(pressure, 100))
+  }
+
+  /**
+   * Calculate async urgency for tasks that trigger async work
+   * Returns additional priority points for async triggers
+   */
+  private calculateAsyncUrgency(item: SchedulableItem, allItems: SchedulableItem[]): number {
+    // Check if this is an async trigger
+    const isAsyncTrigger = item.isAsyncTrigger || (item.asyncWaitTime > 0 && item.duration > 0)
+
+    if (!isAsyncTrigger || !item.asyncWaitTime) return 0
+
+    // Find dependent tasks
+    const dependentItems = allItems.filter(other => other.dependsOn.includes(item.id))
+    const dependentWorkHours = dependentItems.reduce((sum, dep) => sum + dep.duration / 60, 0)
+
+    if (dependentWorkHours === 0) return 0
+
+    // Find earliest deadline in dependency chain
+    let earliestDeadline: Date | undefined
+    const checkDeadlines = (items: SchedulableItem[]) => {
+      for (const dep of items) {
+        if (dep.deadline && (!earliestDeadline || dep.deadline < earliestDeadline)) {
+          earliestDeadline = dep.deadline
+        }
+        // Check transitively dependent items
+        const transitiveDeps = allItems.filter(other => other.dependsOn.includes(dep.id))
+        if (transitiveDeps.length > 0) {
+          checkDeadlines(transitiveDeps)
+        }
+      }
+    }
+    checkDeadlines(dependentItems)
+
+    if (!earliestDeadline) return 0
+
+    // Calculate urgency based on time compression
+    const currentTime = new Date()
+    const totalTimeNeeded = item.duration + item.asyncWaitTime + (dependentWorkHours * 60)
+    const timeAvailable = (earliestDeadline.getTime() - currentTime.getTime()) / (1000 * 60)
+
+    if (timeAvailable <= 0) return 50 // Critical urgency
+
+    const compressionRatio = totalTimeNeeded / timeAvailable
+
+    if (compressionRatio >= 1) {
+      return 30 // Very high urgency
+    } else if (compressionRatio >= 0.8) {
+      return 20 // High urgency
+    } else if (compressionRatio >= 0.6) {
+      return 10 // Moderate urgency
+    } else {
+      return 5 // Low urgency
     }
   }
 }

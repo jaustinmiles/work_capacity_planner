@@ -1,207 +1,237 @@
-# CLAUDE.md - STOP BEING A BAD ENGINEER
+# CLAUDE.md - Engineering Excellence Guidelines
 
-This file is your PRIMARY GUIDE to not being a terrible AI assistant. READ IT. FOLLOW IT. STOP MAKING THE SAME MISTAKES.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It follows Constitutional AI principles and research-based strategies for optimal AI-assisted development.
 
-## 🚨 CRITICAL: STOP DOING THESE THINGS IMMEDIATELY
+## 🔴 CRITICAL: CONTEXT PRESERVATION PROTOCOL
 
-### 1. STOP CREATING NEW FILES
-**BEFORE creating ANY new file, CHECK if it already exists:**
-- `/docs/` - All documentation lives here
-- `/TECH_DEBT.md` - Track ALL issues and TODOs here, NOT in new files
-- `/docs/archive/CLEANUP_RECOMMENDATIONS.md` - Code quality issues
-- Check existing files with: `find . -name "*issue*" -o -name "*todo*" -o -name "*plan*"`
+**THE `/context/` FOLDER IS YOUR MEMORY ACROSS SESSIONS - UPDATE IT OR LOSE CRITICAL INFORMATION**
 
-### 2. STOP RUNNING SCRIPTS WITHOUT TESTING
-**The $100 Lesson:** NEVER run a script on the entire codebase without testing first!
-1. Test on 1-2 files first: `script.sh test-file.ts`
-2. Verify the output is correct
-3. Check for side effects (duplicate imports, broken syntax)
-4. ONLY then apply to more files
-5. COMMIT before running risky scripts
+### MANDATORY Context Updates
 
-### 3. STOP IGNORING EXISTING PATTERNS
-**Before implementing ANYTHING:**
-1. Search for similar functionality: `grep -r "pattern" src/`
-2. Check how it's already done in the codebase
-3. Follow the existing pattern, don't create a new one
-4. We already have 3 scheduling engines - DON'T CREATE A 4TH!
+**After EVERY significant task or finding:**
+1. Update `/context/state.md` with current progress and blockers
+2. Update `/context/insights.md` with new learnings or patterns discovered
+3. Update `/context/decisions.md` if any technical decisions were made
+4. Update `/context/schema.md` if data structures changed
 
-## 📁 CRITICAL FILE LOCATIONS - MEMORIZE THESE
+**Before starting ANY new session:**
+1. Read ALL files in `/context/` directory
+2. Continue from where the last session ended
+3. Check state.md for incomplete tasks and blockers
 
-### Documentation & Issues
-- **Issues/TODOs**: `/TECH_DEBT.md` - ALL issues go here
-- **Architecture**: `/docs/architecture.md` - System design
-- **Known Issues**: Already in TECH_DEBT.md - DON'T CREATE known-issues.md!
-- **Cleanup Tasks**: `/docs/archive/CLEANUP_RECOMMENDATIONS.md`
-- **Project Spec**: `/docs/archive/electron-app-tech-spec.md`
+**The context folder implements LCMP (Long-term Context Management Protocol):**
+- `state.md` - Current tasks, blockers, session progress
+- `schema.md` - Data structures, key definitions  
+- `decisions.md` - Technical choices with rationale
+- `insights.md` - Cumulative findings from each session
 
-### Code TODOs (already in the code!)
-- Amendment TODOs: `src/renderer/utils/amendment-applicator.ts` (13 TODOs)
-- Search for all: `grep -r "TODO\|FIXME" src/`
+**Failure to maintain context files results in:**
+- Repeated mistakes across sessions
+- Lost progress on complex tasks
+- Duplicate implementations
+- Conflicting technical decisions
 
-### Key Implementation Files
-- **Database**: `/src/main/database.ts` - Single source of truth
-- **Types**: `/src/shared/types.ts` - Core type definitions
-- **Enums**: `/src/shared/enums.ts` - TaskType, TaskStatus, etc.
-- **IPC Handlers**: `/src/main/index.ts` - All electron IPC
-- **Amendments**: `/src/renderer/utils/amendment-applicator.ts`
+## 🏗️ Project Constitution & AI Guidelines
 
-## 🛑 DO NOT TOUCH WITHOUT PERMISSION
-- `.eslintrc.js` - NEVER change linter config, fix the code instead
-- `jest.config.js` - NEVER change test config, fix the tests instead
-- `tsconfig.json` - NEVER weaken TypeScript settings
-- Any migration scripts - They're done, leave them alone
-- `/config/` directory - Configuration is FROZEN
+### 🚨 CRITICAL CODING WORKFLOW
+**MANDATORY ORDER FOR EVERY CHANGE:**
+1. **Search First**: Find existing implementations before creating new code
+2. **Document Findings**: Explain what was found and justify any new code
+3. **Test First**: Write tests that FAIL initially
+4. **Implement Minimally**: Write just enough code to pass tests
+5. **Verify Quality**: Run format → lint → typecheck → test
+6. **Commit Atomically**: One logical change per commit with clear messages
 
-## ✅ CORRECT WORKFLOW - FOLLOW EXACTLY
+### 📍 Single Source of Truth Rules
 
-### 1. Before ANY Change
+**Authoritative Sources:**
+- **Database Schema**: `/prisma/schema.prisma` - The definitive data model
+- **Type Definitions**: `/src/shared/types.ts` - Core TypeScript interfaces
+- **Enums/Constants**: `/src/shared/enums.ts` - All enum definitions
+- **Architecture**: `/docs/architecture.md` - System design decisions
+- **Known Issues**: `/TECH_DEBT.md` - All TODOs and technical debt
+
+**Principle**: All other files REFERENCE these sources, never duplicate them.
+
+### 🛑 Configuration Files - DO NOT MODIFY
+
+These configurations are FROZEN. Fix code to meet their requirements:
+- `.eslintrc.js` - ESLint rules are non-negotiable
+- `tsconfig.json` - TypeScript strict mode must be maintained
+- `jest.config.js` - Test configuration is immutable
+- `/config/*` - All config files are locked
+
+### ✅ Before ANY Implementation
+
+**Required Research Phase:**
 ```bash
-# Check current state
-npm run typecheck  # MUST be 0 errors to start
-npm run lint       # MUST be 0 errors to start
-git status         # MUST be clean or committed
-```
-
-### 2. Research Phase (DO THIS FIRST!)
-```bash
-# Find existing implementations
+# Search for similar features
 grep -r "feature_name" src/
 find . -name "*related*" -type f
 
 # Check documentation
-cat /TECH_DEBT.md | grep -A10 "issue_name"
+cat TECH_DEBT.md | grep -A5 "feature"
 ls -la docs/ | grep -i "feature"
 
-# Check for TODOs
+# Look for existing TODOs
 grep -r "TODO.*feature" src/
 ```
 
-### 3. Implementation Phase
-```bash
-# Make changes incrementally
-# After EACH file change:
-npm run typecheck  # Fix immediately if broken
-npm run lint       # Fix immediately if broken
+**Documentation Requirements:**
+1. List all similar implementations found
+2. Identify reusable components
+3. Provide written justification for any new code
+4. Reference existing patterns to follow
 
-# Test scripts on ONE file first
-./script.sh single-test-file.ts
-# Verify output
-# THEN apply to more files
+### 🧪 Test-Driven Development - NO EXCEPTIONS
+
+**The TDD Workflow:**
+1. Write comprehensive tests for the feature
+2. Run tests - they MUST fail initially (red phase)
+3. Commit the failing tests separately
+4. Implement minimal code to pass tests (green phase)
+5. Refactor while keeping tests green
+6. **NEVER modify tests to make code pass**
+7. **Any test that passes immediately is invalid**
+
+### 🎯 Decision Tree for Common Scenarios
+
+**Q: Should I create a new file?**
+→ First check if similar files exist. Update TECH_DEBT.md if truly needed.
+
+**Q: Should I modify ESLint/TypeScript config?**
+→ NO. Fix the code to satisfy existing rules.
+
+**Q: Should I run a script on all files?**
+→ Test on 1-2 files first. Verify output. Commit before broad application.
+
+**Q: Should I implement a new pattern?**
+→ Find and follow existing patterns. Consolidate before creating new ones.
+
+**Q: Where do I document a bug?**
+→ Add to TECH_DEBT.md under "High Priority Issues"
+
+**Q: Where do TODOs belong?**
+→ In code as `// TODO:` comments, summarized in TECH_DEBT.md
+
+### 📊 Quality Metrics to Maintain
+
+| Metric | Required | Check Command |
+|--------|----------|---------------|
+| TypeScript Errors | 0 | `npm run typecheck` |
+| ESLint Errors | 0 | `npm run lint` |
+| Test Pass Rate | 100% | `npm test -- --run` |
+| Build Success | ✅ | `npm run build` |
+
+### 🔄 Development Workflow
+
+**1. Starting Work:**
+```bash
+npm run typecheck  # Must be 0 errors
+npm run lint       # Must be 0 errors
+git status         # Must be clean or committed
 ```
 
-### 4. Before Marking Complete
+**2. During Development:**
 ```bash
-# ALL of these MUST pass:
+# After each significant change
+npm run typecheck
+npm run lint
+
+# Before running scripts
+./script.sh test-file.ts  # Test on one file
+# Verify output is correct
+# Then apply to more files
+```
+
+**3. Before Marking Complete:**
+```bash
 npm run typecheck      # 0 errors required
 npm run lint           # 0 errors required
 npm test -- --run      # All tests must pass
 npm run build          # Must build successfully
 ```
 
-## 🏗️ CURRENT PROJECT STATE
+### 🏛️ Architecture Principles
 
-### What's Working
-- ✅ TypeScript: 0 errors
-- ✅ ESLint: 0 errors  
-- ✅ Unified task model (Tasks + Workflows in same table)
-- ✅ Voice amendments (partial - see issues)
-- ✅ CI/CD Pipeline configured
+**Domain-Driven Design:**
+- Respect bounded contexts
+- Use the shared kernel for common logic
+- Follow factory patterns for object creation
+- Maintain separation of concerns
 
-### Known Issues (from TECH_DEBT.md)
-1. **AI Amendment Dependency Editing** - Not working (just discovered)
-2. **Workflow Step Operations** - Partially implemented:
-   - ✅ Step addition via voice
-   - ❌ Step status updates
-   - ❌ Step time logging
-   - ❌ Step removal
-   - ❌ Dependency changes
-3. **Multiple Scheduling Engines** - 3 different implementations exist
-4. **Duplicate Logger Implementations** - Need consolidation
-5. **WorkBlock Type Inconsistency** - Still uses string literals
+**Code Organization:**
+- Components in feature-based folders
+- Shared types in `/shared` directory
+- Database operations only in main process
+- State management through Zustand store
 
-### Active TODOs in Code
-- 13 TODOs in `amendment-applicator.ts`
-- 3 TODOs in `amendment-parser.ts`
-- 1 TODO in `VoiceAmendmentModal.tsx`
+**Atomic Commits:**
+- One logical change per commit
+- Tests and implementation in separate commits
+- Clear, descriptive commit messages
+- Reference issues when applicable
 
-## 🎯 DECISION TREE - USE THIS!
-
-**Q: Should I create a new file?**
-→ NO! Search for existing files first. Check TECH_DEBT.md.
-
-**Q: Should I change ESLint/TypeScript config?**
-→ NO! Fix the code to pass the existing rules.
-
-**Q: Should I run a script on all files?**
-→ NO! Test on 1-2 files first. Always.
-
-**Q: Should I implement a new pattern?**
-→ NO! Find and follow the existing pattern.
-
-**Q: The user found a bug, where do I document it?**
-→ Add to TECH_DEBT.md under "Remaining High Priority Issues"
-
-**Q: Where do TODOs go?**
-→ In the code as `// TODO:` comments, summarized in TECH_DEBT.md
-
-## 🔍 COMMON SEARCHES - COPY & PASTE THESE
+### 🔍 Common Search Patterns
 
 ```bash
 # Find all documentation
 find docs -name "*.md" -type f
 
 # Find all TODOs
-grep -r "TODO\|FIXME\|HACK\|XXX" src/
+grep -r "TODO\|FIXME\|HACK" src/
 
 # Find type definitions
 grep -r "interface.*Task\|type.*Task" src/shared/
 
-# Find existing implementations
-grep -r "functionName\|feature" src/ --include="*.ts" --include="*.tsx"
-
-# Check what changed recently
+# Check recent changes
 git log --oneline -20
 git diff HEAD~5 --stat
 ```
 
-## 📊 METRICS TO MAINTAIN
+### 📈 Current Project Status
 
-| Metric | Current | Required | Command |
-|--------|---------|----------|---------|
-| TypeScript Errors | 0 | 0 | `npm run typecheck` |
-| ESLint Errors | 0 | 0 | `npm run lint` |
-| Test Pass Rate | 100% | 100% | `npm test -- --run` |
-| Build Success | ✅ | ✅ | `npm run build` |
+**Working Features:**
+- ✅ Unified task model (Tasks + Workflows)
+- ✅ Voice amendments (partial implementation)
+- ✅ Work capacity scheduling
+- ✅ Session management
+- ✅ TypeScript strict mode compliance
 
-## 🚫 YOUR REPEATED MISTAKES - STOP DOING THESE
+**Known Technical Debt:**
+See `/TECH_DEBT.md` for complete list including:
+- AI amendment dependency editing issues
+- Workflow step operations (partially complete)
+- Multiple scheduling engine implementations
+- Duplicate logger implementations
 
-1. **Creating duplicate files** - You just created known-issues.md when TECH_DEBT.md exists
-2. **Not testing scripts** - You ran enum replacement on entire codebase without testing
-3. **Not reading existing docs** - You don't know where things are documented
-4. **Changing configs instead of code** - You try to weaken TypeScript/ESLint instead of fixing issues
-5. **Not committing before risky operations** - You make massive changes without safety net
-6. **Creating new patterns** - You make 3rd/4th implementations instead of unifying
-7. **Not following explicit user requests** - User says don't create files, you create files
+### 🚀 Performance Considerations
 
-## 💡 WHEN STUCK
+**For Large Codebases:**
+- Use ripgrep (`rg`) instead of grep when available
+- Batch database operations when possible
+- Implement memoization for expensive calculations
+- Consider lazy loading for heavy components
+
+### 💡 When Stuck
 
 1. **First**: Check TECH_DEBT.md for known issues
-2. **Second**: Search existing code for similar patterns
-3. **Third**: Check `/docs/archive/` for historical context
-4. **Fourth**: Look for TODOs in the specific file
-5. **Last resort**: Ask user for clarification
+2. **Second**: Search existing code for patterns
+3. **Third**: Review architecture documentation
+4. **Fourth**: Check for TODOs in relevant files
+5. **Last**: Ask for clarification with specific questions
 
-## 🎖️ SUCCESS CRITERIA
+### 🎖️ Success Criteria
 
 You are successful when:
 - Zero TypeScript errors after changes
-- Zero ESLint errors after changes  
-- No new files created unnecessarily
-- Following existing patterns
-- Testing before applying changes broadly
-- User doesn't have to correct your approach
+- Zero ESLint errors after changes
+- All tests pass
+- No unnecessary files created
+- Existing patterns followed
+- Changes tested incrementally
+- Documentation kept up-to-date
 
 ---
 
-**REMEMBER**: The user is tired of fighting you. Read this file EVERY time before making decisions. The codebase already has structure - FOLLOW IT.
+**Remember**: Good engineering is about thoughtful, systematic approaches—not speed. Take time to understand existing patterns, write comprehensive tests, and maintain code quality. This codebase values correctness and maintainability over quick fixes.
