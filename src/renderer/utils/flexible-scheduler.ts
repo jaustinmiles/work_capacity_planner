@@ -41,6 +41,9 @@ export interface SchedulingDebugInfo {
     unusedReason?: string
   }>
   warnings: string[]
+  asyncDependencies?: string[]
+  missingDependencies?: string[]
+  pendingDependencies?: string[]
 }
 
 interface WorkItem {
