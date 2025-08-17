@@ -30,6 +30,7 @@ const ZOOM_PRESETS = [
 ]
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
+  const { updateTask, updateSequencedTask, generateSchedule } = useTaskStore()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -830,21 +831,43 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 
                 if (!draggedItem || !dropTarget) return
                 
-                // TODO: Implement actual rescheduling logic here
-                // For now, just show where the item would be dropped
-                console.log('Drop item:', draggedItem.name, 'at time:', dropTarget.time, 'row:', dropTarget.row)
-                
-                // You would need to:
-                // 1. Update the task's scheduled time in the database
-                // 2. Recalculate the schedule
-                // 3. Refresh the display
-                
-                setDraggedItem(null)
-                setDropTarget(null)
-                
-                // Show message for now
                 const { Message } = await import('../common/Message')
-                Message.info(`Would reschedule "${draggedItem.name}" to ${dayjs(dropTarget.time).format('MMM D h:mm A')}`)
+                
+                try {
+                  // Extract the task/workflow ID from the dragged item
+                  const itemId = draggedItem.originalItem?.id || draggedItem.id
+                  
+                  // Set a hard deadline at the dropped time
+                  // Add the item's duration to get the deadline time
+                  const deadlineTime = new Date(dropTarget.time)
+                  const durationMinutes = draggedItem.duration || 60
+                  deadlineTime.setMinutes(deadlineTime.getMinutes() + durationMinutes)
+                  
+                  // Update the task or workflow with the new deadline
+                  if (draggedItem.type === 'task') {
+                    await updateTask(itemId, {
+                      deadline: deadlineTime,
+                    })
+                    Message.success(`Task deadline set to ${dayjs(deadlineTime).format('MMM D, h:mm A')}`)
+                  } else if (draggedItem.type === 'workflow' || draggedItem.type === 'workflow-step' || draggedItem.workflowId) {
+                    // For workflow steps, update the parent workflow
+                    const workflowId = draggedItem.workflowId || itemId
+                    await updateSequencedTask(workflowId, {
+                      deadline: deadlineTime,
+                    })
+                    Message.success(`Workflow deadline set to ${dayjs(deadlineTime).format('MMM D, h:mm A')}`)
+                  }
+                  
+                  // Trigger a reschedule to respect the new deadline
+                  await generateSchedule()
+                  Message.info('Schedule updated to respect the new deadline')
+                } catch (error) {
+                  console.error('Failed to set deadline:', error)
+                  Message.error('Failed to set deadline')
+                } finally {
+                  setDraggedItem(null)
+                  setDropTarget(null)
+                }
               }}
             >
               {/* Row labels and backgrounds */}
@@ -967,7 +990,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       fontWeight: 600,
                     }}
                   >
-                    Drop here: {dayjs(dropTarget.time).format('h:mm A')}
+                    Set deadline: {dayjs(dropTarget.time).format('MMM D, h:mm A')}
                   </div>
                 </div>
               )}

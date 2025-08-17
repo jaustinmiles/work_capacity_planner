@@ -18,9 +18,10 @@ interface TimelineVisualizerProps {
 interface DragState {
   type: 'block' | 'meeting'
   id: string
-  edge: 'start' | 'end'
+  edge: 'start' | 'end' | 'move'
   initialY: number
   initialTime: string
+  initialEndTime?: string
 }
 
 const HOUR_HEIGHT = 60 // pixels per hour
@@ -71,8 +72,9 @@ export function TimelineVisualizer({
     return `${adjustedHours.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`
   }
 
-  const handleMouseDown = (e: React.MouseEvent, type: 'block' | 'meeting', id: string, edge: 'start' | 'end') => {
+  const handleMouseDown = (e: React.MouseEvent, type: 'block' | 'meeting', id: string, edge: 'start' | 'end' | 'move') => {
     e.preventDefault()
+    e.stopPropagation()
 
     const item = type === 'block'
       ? blocks.find(b => b.id === id)
@@ -85,7 +87,8 @@ export function TimelineVisualizer({
       id,
       edge,
       initialY: e.clientY,
-      initialTime: edge === 'start' ? item.startTime : item.endTime,
+      initialTime: edge === 'move' ? item.startTime : (edge === 'start' ? item.startTime : item.endTime),
+      initialEndTime: edge === 'move' ? item.endTime : undefined,
     })
   }
 
@@ -94,35 +97,61 @@ export function TimelineVisualizer({
 
     const rect = containerRef.current.getBoundingClientRect()
     const relativeY = e.clientY - rect.top + containerRef.current.scrollTop
-    const newTime = roundToQuarter(pixelsToTime(relativeY))
-
-    // Update the item temporarily (preview)
-    if (dragState.type === 'block' && onBlockUpdate) {
-      const block = blocks.find(b => b.id === dragState.id)
-      if (!block) return
-
-      if (dragState.edge === 'start') {
-        // Don't allow start to go past end
-        if (newTime < block.endTime) {
-          onBlockUpdate(dragState.id, { startTime: newTime })
-        }
-      } else {
-        // Don't allow end to go before start
-        if (newTime > block.startTime) {
-          onBlockUpdate(dragState.id, { endTime: newTime })
+    
+    if (dragState.edge === 'move') {
+      // Moving the entire block
+      const deltaY = e.clientY - dragState.initialY
+      const deltaMinutes = Math.round((deltaY / HOUR_HEIGHT) * 60)
+      
+      // Calculate new start and end times
+      const [startHours, startMinutes] = dragState.initialTime.split(':').map(Number)
+      const [endHours, endMinutes] = (dragState.initialEndTime || '').split(':').map(Number)
+      
+      const newStartTotalMinutes = (startHours - startHour) * 60 + startMinutes + deltaMinutes
+      const newEndTotalMinutes = (endHours - startHour) * 60 + endMinutes + deltaMinutes
+      
+      // Check bounds
+      if (newStartTotalMinutes >= 0 && newEndTotalMinutes <= (endHour - startHour) * 60) {
+        const newStartTime = roundToQuarter(pixelsToTime((newStartTotalMinutes / 60) * HOUR_HEIGHT))
+        const newEndTime = roundToQuarter(pixelsToTime((newEndTotalMinutes / 60) * HOUR_HEIGHT))
+        
+        if (dragState.type === 'block' && onBlockUpdate) {
+          onBlockUpdate(dragState.id, { startTime: newStartTime, endTime: newEndTime })
+        } else if (dragState.type === 'meeting' && onMeetingUpdate) {
+          onMeetingUpdate(dragState.id, { startTime: newStartTime, endTime: newEndTime })
         }
       }
-    } else if (dragState.type === 'meeting' && onMeetingUpdate) {
-      const meeting = meetings.find(m => m.id === dragState.id)
-      if (!meeting) return
+    } else {
+      // Resizing edges (existing code)
+      const newTime = roundToQuarter(pixelsToTime(relativeY))
+      
+      if (dragState.type === 'block' && onBlockUpdate) {
+        const block = blocks.find(b => b.id === dragState.id)
+        if (!block) return
 
-      if (dragState.edge === 'start') {
-        if (newTime < meeting.endTime) {
-          onMeetingUpdate(dragState.id, { startTime: newTime })
+        if (dragState.edge === 'start') {
+          // Don't allow start to go past end
+          if (newTime < block.endTime) {
+            onBlockUpdate(dragState.id, { startTime: newTime })
+          }
+        } else if (dragState.edge === 'end') {
+          // Don't allow end to go before start
+          if (newTime > block.startTime) {
+            onBlockUpdate(dragState.id, { endTime: newTime })
+          }
         }
-      } else {
-        if (newTime > meeting.startTime) {
-          onMeetingUpdate(dragState.id, { endTime: newTime })
+      } else if (dragState.type === 'meeting' && onMeetingUpdate) {
+        const meeting = meetings.find(m => m.id === dragState.id)
+        if (!meeting) return
+
+        if (dragState.edge === 'start') {
+          if (newTime < meeting.endTime) {
+            onMeetingUpdate(dragState.id, { startTime: newTime })
+          }
+        } else if (dragState.edge === 'end') {
+          if (newTime > meeting.startTime) {
+            onMeetingUpdate(dragState.id, { endTime: newTime })
+          }
         }
       }
     }
@@ -274,6 +303,14 @@ export function TimelineVisualizer({
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
+        }}
+        onMouseDown={(e) => {
+          // Only trigger move if not clicking on resize handles
+          const rect = e.currentTarget.getBoundingClientRect()
+          const relativeY = e.clientY - rect.top
+          if (relativeY > 8 && relativeY < rect.height - 8) {
+            handleMouseDown(e, type, item.id, 'move')
+          }
         }}
       >
         {/* Drag handle for start time */}
