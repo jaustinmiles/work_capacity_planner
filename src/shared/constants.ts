@@ -1,6 +1,10 @@
 /**
  * Shared constants and enums used throughout the application
+ * Note: Not all enum values may be currently used, but they are defined
+ * for completeness and future use.
  */
+
+/* eslint-disable no-unused-vars */
 
 export enum TaskType {
   FOCUSED = 'focused',
