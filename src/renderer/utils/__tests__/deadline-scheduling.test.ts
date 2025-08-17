@@ -128,13 +128,27 @@ describe('Deadline-Driven Scheduling', () => {
         id: 'wf-1',
         name: 'Complex Workflow',
         steps: [
-          { id: 'step-1', duration: 60, status: 'completed' },
-          { id: 'step-2', duration: 120, status: 'pending' },
-          { id: 'step-3', duration: 180, status: 'pending', dependsOn: ['step-2'] },
+          { id: 'step-1', taskId: 'wf-1', name: 'Step 1', duration: 60, status: 'completed', type: 'focused', asyncWaitTime: 0, dependsOn: [], stepIndex: 0, percentComplete: 100 },
+          { id: 'step-2', taskId: 'wf-1', name: 'Step 2', duration: 120, status: 'pending', type: 'focused', asyncWaitTime: 0, dependsOn: [], stepIndex: 1, percentComplete: 0 },
+          { id: 'step-3', taskId: 'wf-1', name: 'Step 3', duration: 180, status: 'pending', type: 'focused', asyncWaitTime: 0, dependsOn: ['step-2'], stepIndex: 2, percentComplete: 0 },
         ],
         deadline: new Date('2024-01-17T17:00:00'), // 2 days
         deadlineType: 'hard',
-      }
+        importance: 5,
+        urgency: 5,
+        totalDuration: 360,
+        overallStatus: 'in_progress',
+        criticalPathDuration: 360,
+        worstCaseDuration: 540,
+        completed: false,
+        type: 'focused',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sessionId: 'test-session',
+      } as SequencedTask
+
+      // Add workflow to context so steps can find their parent
+      context.workflows = [workflow]
 
       // Should only count uncompleted steps (120 + 180 = 300 min = 5 hours)
       const pressure = calculateDeadlinePressure(workflow.steps[1], context)
@@ -146,24 +160,49 @@ describe('Deadline-Driven Scheduling', () => {
     it('should prioritize async tasks with tight dependent work', () => {
       const asyncStep: TaskStep = {
         id: 'async-1',
+        taskId: 'wf-1',
         name: 'Request Review',
         duration: 30,
         asyncWaitTime: 1440, // 24 hours
         isAsyncTrigger: true,
+        type: 'focused',
+        status: 'pending',
+        dependsOn: [],
+        stepIndex: 0,
+        percentComplete: 0,
       }
 
       const dependentStep: TaskStep = {
         id: 'dep-1',
+        taskId: 'wf-1',
         name: 'Address Feedback',
         duration: 600, // 10 hours of work
         dependsOn: ['async-1'],
+        type: 'focused',
+        status: 'pending',
+        asyncWaitTime: 0,
+        stepIndex: 1,
+        percentComplete: 0,
       }
 
       context.workflows = [{
         id: 'wf-1',
+        name: 'Review Process',
         steps: [asyncStep, dependentStep],
         deadline: new Date('2024-01-17T17:00:00'), // 48 hours away
-      }]
+        deadlineType: 'hard',
+        importance: 5,
+        urgency: 5,
+        totalDuration: 630,
+        overallStatus: 'not_started',
+        criticalPathDuration: 630,
+        worstCaseDuration: 945,
+        completed: false,
+        type: 'focused',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sessionId: 'test-session',
+      } as SequencedTask]
 
       // Starting now: 24hr wait + 10hr work fits in 48hr
       const urgencyNow = calculateAsyncUrgency(asyncStep, context)
@@ -179,10 +218,16 @@ describe('Deadline-Driven Scheduling', () => {
     it('should give minimal urgency to async tasks without deadlines', () => {
       const asyncStep: TaskStep = {
         id: 'async-2',
+        taskId: 'wf-2',
         name: 'Request Review',
         duration: 30,
         asyncWaitTime: 1440,
         isAsyncTrigger: true,
+        type: 'focused',
+        status: 'pending',
+        dependsOn: [],
+        stepIndex: 0,
+        percentComplete: 0,
       }
 
       const urgency = calculateAsyncUrgency(asyncStep, context)
@@ -194,12 +239,24 @@ describe('Deadline-Driven Scheduling', () => {
         id: 'wf-2',
         name: 'Multi-Stage Review',
         steps: [
-          { id: 'submit-1', duration: 30, asyncWaitTime: 720, isAsyncTrigger: true },
-          { id: 'submit-2', duration: 30, asyncWaitTime: 720, isAsyncTrigger: true, dependsOn: ['submit-1'] },
-          { id: 'finalize', duration: 120, dependsOn: ['submit-2'] },
+          { id: 'submit-1', taskId: 'wf-2', name: 'Submit 1', duration: 30, asyncWaitTime: 720, isAsyncTrigger: true, type: 'focused', status: 'pending', dependsOn: [], stepIndex: 0, percentComplete: 0 },
+          { id: 'submit-2', taskId: 'wf-2', name: 'Submit 2', duration: 30, asyncWaitTime: 720, isAsyncTrigger: true, type: 'focused', status: 'pending', dependsOn: ['submit-1'], stepIndex: 1, percentComplete: 0 },
+          { id: 'finalize', taskId: 'wf-2', name: 'Finalize', duration: 120, asyncWaitTime: 0, type: 'focused', status: 'pending', dependsOn: ['submit-2'], stepIndex: 2, percentComplete: 0 },
         ],
         deadline: new Date('2024-01-17T17:00:00'), // 48 hours
-      }
+        deadlineType: 'hard',
+        importance: 5,
+        urgency: 5,
+        totalDuration: 180,
+        overallStatus: 'not_started',
+        criticalPathDuration: 1620,
+        worstCaseDuration: 2430,
+        completed: false,
+        type: 'focused',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sessionId: 'test-session',
+      } as SequencedTask
 
       context.workflows = [workflow]
 
@@ -218,7 +275,17 @@ describe('Deadline-Driven Scheduling', () => {
         urgency: 8,
         duration: 120,
         completed: false,
-      }
+        type: 'focused',
+        asyncWaitTime: 0,
+        dependencies: [],
+        sessionId: 'test-session',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        hasSteps: false,
+        overallStatus: 'not_started',
+        criticalPathDuration: 120,
+        worstCaseDuration: 120,
+      } as Task
 
       const deadlineTask: Task = {
         id: 'deadline-1',
@@ -229,7 +296,17 @@ describe('Deadline-Driven Scheduling', () => {
         deadline: new Date('2024-01-16T12:00:00'), // Tomorrow noon
         deadlineType: 'hard',
         completed: false,
-      }
+        type: 'focused',
+        asyncWaitTime: 0,
+        dependencies: [],
+        sessionId: 'test-session',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        hasSteps: false,
+        overallStatus: 'not_started',
+        criticalPathDuration: 60,
+        worstCaseDuration: 60,
+      } as Task
 
       const importantPriority = calculatePriority(importantTask, context)
       const deadlinePriority = calculatePriority(deadlineTask, context)
@@ -258,7 +335,17 @@ describe('Deadline-Driven Scheduling', () => {
         urgency: 6,
         duration: 120,
         completed: false,
-      }
+        type: 'focused',
+        asyncWaitTime: 0,
+        dependencies: [],
+        sessionId: 'test-session',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        hasSteps: false,
+        overallStatus: 'not_started',
+        criticalPathDuration: 120,
+        worstCaseDuration: 120,
+      } as Task
 
       const asyncTask: Task = {
         id: 'async-1',
@@ -269,7 +356,16 @@ describe('Deadline-Driven Scheduling', () => {
         asyncWaitTime: 1440,
         isAsyncTrigger: true,
         completed: false,
-      }
+        type: 'focused',
+        dependencies: [],
+        sessionId: 'test-session',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        hasSteps: false,
+        overallStatus: 'not_started',
+        criticalPathDuration: 30,
+        worstCaseDuration: 30,
+      } as Task
 
       // With dependent work and deadline
       context.workflows = [{

@@ -45,6 +45,8 @@ declare global {
         deleteAllUserData: () => Promise<void>
         // Work pattern operations
         getWorkPattern: (date: string) => Promise<any>
+        getWorkPatterns: () => Promise<any[]>
+        deleteWorkPattern: (id: string) => Promise<void>
         createWorkPattern: (data: any) => Promise<any>
         updateWorkPattern: (id: string, data: any) => Promise<any>
         getWorkTemplates: () => Promise<any[]>
@@ -430,6 +432,14 @@ export class RendererDatabaseService {
 
   async updateWorkPattern(id: string, data: any) {
     return await window.electronAPI.db.updateWorkPattern(id, data)
+  }
+
+  async getWorkPatterns() {
+    return await window.electronAPI.db.getWorkPatterns()
+  }
+
+  async deleteWorkPattern(id: string) {
+    return await window.electronAPI.db.deleteWorkPattern(id)
   }
 
   async getWorkTemplates() {

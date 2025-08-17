@@ -130,6 +130,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           stepIndex: index,
           percentComplete: cleanStep.percentComplete || 0,
           notes: cleanStep.notes || '',
+          cognitiveComplexity: cleanStep.cognitiveComplexity || 3,
         }
       })
 
@@ -217,6 +218,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         asyncWaitTime: step.asyncWaitTime,
         dependsOn: convertedDependencies,
         notes: step.notes || '',
+        cognitiveComplexity: step.cognitiveComplexity || 3,
       })
     } else {
       stepForm.resetFields()
@@ -241,6 +243,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           asyncWaitTime: values.asyncWaitTime || 0,
           dependsOn: values.dependsOn || [],
           notes: values.notes || '',
+          cognitiveComplexity: values.cognitiveComplexity || 3,
         }
         setEditingSteps(newSteps)
       } else {
@@ -259,6 +262,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
           stepIndex: newStepIndex,
           percentComplete: 0,
           notes: values.notes || '',
+          cognitiveComplexity: values.cognitiveComplexity || 3,
         }
         setEditingSteps([...editingSteps, newStep])
       }
@@ -663,6 +667,20 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
                 }
                 return null
               })}
+            </Select>
+          </FormItem>
+
+          <FormItem
+            label="Cognitive Complexity (1-5)"
+            field="cognitiveComplexity"
+            help="1=Simple/Routine, 5=Highly Complex. Complex steps are scheduled during peak hours."
+          >
+            <Select placeholder="Select complexity">
+              <Select.Option value={1}>1 - Simple/Routine</Select.Option>
+              <Select.Option value={2}>2 - Straightforward</Select.Option>
+              <Select.Option value={3}>3 - Moderate</Select.Option>
+              <Select.Option value={4}>4 - Complex</Select.Option>
+              <Select.Option value={5}>5 - Highly Complex</Select.Option>
             </Select>
           </FormItem>
 

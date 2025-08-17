@@ -11,12 +11,15 @@ import {
   Spin,
   Tag,
   Tooltip,
+  Modal,
+  Divider,
 } from '@arco-design/web-react'
 import {
   IconCalendar,
   IconCopy,
   IconPaste,
   IconFileAudio,
+  IconDelete,
 } from '@arco-design/web-react/icon'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
 import { calculateDuration } from '@shared/time-utils'
@@ -171,8 +174,9 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       const dateStr = currentDate.format('YYYY-MM-DD')
       const dayOfWeek = currentDate.day()
 
-      // Skip weekends and the current date
-      if (dayOfWeek !== 0 && dayOfWeek !== 6 && dateStr !== selectedDate) {
+      // Skip only the current date and weekends (unless you want to apply to weekends too)
+      // For now, skip weekends (0 = Sunday, 6 = Saturday)
+      if (dateStr !== selectedDate && dayOfWeek !== 0 && dayOfWeek !== 6) {
         const newBlocks = currentPattern.blocks.map((b, index) => ({
           ...b,
           id: `block-${Date.now()}-${dateStr}-${index}`,
@@ -193,6 +197,41 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
     if (appliedCount > 0) {
       Message.success(`Applied schedule to ${appliedCount} weekdays`)
     }
+  }
+
+  const handleClearAllSchedules = async () => {
+    Modal.confirm({
+      title: 'Clear All Schedules',
+      content: 'This will delete ALL schedules for all future days. This cannot be undone. Are you sure?',
+      okText: 'Clear All',
+      okButtonProps: { status: 'danger' },
+      onOk: async () => {
+        setLoading(true)
+        try {
+          const db = getDatabase()
+          // Get all future dates
+          const today = dayjs().format('YYYY-MM-DD')
+          const patterns = await db.getWorkPatterns()
+          
+          let clearedCount = 0
+          for (const pattern of patterns) {
+            if (pattern.date >= today) {
+              await db.deleteWorkPattern(pattern.id)
+              clearedCount++
+            }
+          }
+          
+          Message.success(`Cleared ${clearedCount} schedules`)
+          await loadPatterns()
+          onSave?.()
+        } catch (error) {
+          console.error('Failed to clear schedules:', error)
+          Message.error('Failed to clear schedules')
+        } finally {
+          setLoading(false)
+        }
+      },
+    })
   }
 
   const getDayStatus = (date: string) => {
@@ -245,7 +284,6 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
               />
             </div>
           }
-          disabled={isWeekend}
         />,
       )
 
@@ -315,33 +353,108 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
                 style={{ width: '100%' }}
               />
             </Col>
-            <Col span={12}>
-              <Space>
-                <Tooltip content="Copy current day's schedule">
+          </Row>
+          
+          {/* Button Groups - Better organized */}
+          <Divider style={{ margin: '16px 0' }} />
+          
+          <Row gutter={16}>
+            <Col span={8}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text type="secondary">Copy/Paste</Text>
+                <Space>
+                  <Tooltip content="Copy current day's schedule">
+                    <Button
+                      icon={<IconCopy />}
+                      onClick={() => handleCopyPattern(selectedDate)}
+                      disabled={!patterns.get(selectedDate)?.blocks.length}
+                    >
+                      Copy Day
+                    </Button>
+                  </Tooltip>
+                  <Tooltip content="Paste schedule to current day">
+                    <Button
+                      icon={<IconPaste />}
+                      onClick={() => handlePastePattern(selectedDate)}
+                      disabled={!copiedPattern}
+                    >
+                      Paste
+                    </Button>
+                  </Tooltip>
+                </Space>
+              </Space>
+            </Col>
+            
+            <Col span={8}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text type="secondary">Apply to Multiple Days</Text>
+                <Space>
                   <Button
-                    icon={<IconCopy />}
-                    onClick={() => handleCopyPattern(selectedDate)}
+                    type="primary"
+                    onClick={handleApplyToWeekdays}
                     disabled={!patterns.get(selectedDate)?.blocks.length}
                   >
-                    Copy
+                    Apply to Weekdays
                   </Button>
-                </Tooltip>
-                <Tooltip content="Paste schedule to current day">
                   <Button
-                    icon={<IconPaste />}
-                    onClick={() => handlePastePattern(selectedDate)}
-                    disabled={!copiedPattern}
+                    onClick={async () => {
+                      const currentPattern = patterns.get(selectedDate)
+                      if (!currentPattern) {
+                        Message.warning('No schedule to apply')
+                        return
+                      }
+                      
+                      const startDate = dateRange[0]
+                      const endDate = dateRange[1]
+                      let currentDate = startDate
+                      let appliedCount = 0
+                      
+                      while (currentDate.isSameOrBefore(endDate, 'day')) {
+                        const dateStr = currentDate.format('YYYY-MM-DD')
+                        
+                        // Skip only the current date
+                        if (dateStr !== selectedDate) {
+                          const newBlocks = currentPattern.blocks.map((b, index) => ({
+                            ...b,
+                            id: `block-${Date.now()}-${dateStr}-${index}`,
+                          }))
+                          
+                          const newMeetings = currentPattern.meetings.map((m, index) => ({
+                            ...m,
+                            id: `meeting-${Date.now()}-${dateStr}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+                          }))
+                          
+                          await handleSavePattern(dateStr, newBlocks, newMeetings)
+                          appliedCount++
+                        }
+                        
+                        currentDate = currentDate.add(1, 'day')
+                      }
+                      
+                      if (appliedCount > 0) {
+                        Message.success(`Applied schedule to ${appliedCount} days`)
+                      }
+                    }}
+                    disabled={!patterns.get(selectedDate)?.blocks.length}
                   >
-                    Paste
+                    Apply to ALL
+                  </Button>
+                </Space>
+              </Space>
+            </Col>
+            
+            <Col span={8}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text type="secondary">Clear Schedules</Text>
+                <Tooltip content="Delete ALL schedules for all future days">
+                  <Button
+                    status="danger"
+                    icon={<IconDelete />}
+                    onClick={handleClearAllSchedules}
+                  >
+                    Clear All Future Schedules
                   </Button>
                 </Tooltip>
-                <Button
-                  type="primary"
-                  onClick={handleApplyToWeekdays}
-                  disabled={!patterns.get(selectedDate)?.blocks.length}
-                >
-                  Apply to All Weekdays
-                </Button>
               </Space>
             </Col>
           </Row>

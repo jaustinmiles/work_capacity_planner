@@ -39,6 +39,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
   const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [isPinching, setIsPinching] = useState(false)
+  const [draggedItem, setDraggedItem] = useState<any>(null)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [dropTarget, setDropTarget] = useState<{ time: Date, row: number } | null>(null)
 
   const { workSettings } = useTaskStore()
 
@@ -796,7 +799,54 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             </div>
 
             {/* Chart body */}
-            <div style={{ position: 'relative', paddingTop: 10 }}>
+            <div 
+              style={{ position: 'relative', paddingTop: 10 }}
+              onDragOver={(e) => {
+                if (!draggedItem) return
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+                
+                // Calculate drop position
+                const rect = e.currentTarget.getBoundingClientRect()
+                const relativeX = e.clientX - rect.left - dragOffset.x
+                const relativeY = e.clientY - rect.top - dragOffset.y
+                
+                // Convert X position to time
+                const dropTime = new Date(chartStartTime.getTime() + (relativeX / pixelsPerHour) * 3600000)
+                
+                // Convert Y position to row
+                const dropRow = Math.floor(relativeY / rowHeight)
+                
+                setDropTarget({ time: dropTime, row: dropRow })
+              }}
+              onDragLeave={(e) => {
+                // Only clear if leaving the entire chart area
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setDropTarget(null)
+                }
+              }}
+              onDrop={async (e) => {
+                e.preventDefault()
+                
+                if (!draggedItem || !dropTarget) return
+                
+                // TODO: Implement actual rescheduling logic here
+                // For now, just show where the item would be dropped
+                console.log('Drop item:', draggedItem.name, 'at time:', dropTarget.time, 'row:', dropTarget.row)
+                
+                // You would need to:
+                // 1. Update the task's scheduled time in the database
+                // 2. Recalculate the schedule
+                // 3. Refresh the display
+                
+                setDraggedItem(null)
+                setDropTarget(null)
+                
+                // Show message for now
+                const { Message } = await import('../common/Message')
+                Message.info(`Would reschedule "${draggedItem.name}" to ${dayjs(dropTarget.time).format('MMM D h:mm A')}`)
+              }}
+            >
               {/* Row labels and backgrounds */}
               <div style={{
                 position: 'absolute',
@@ -893,6 +943,35 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   )
                 })}
               </div>
+              {/* Drop target indicator */}
+              {dropTarget && draggedItem && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${getPositionPx(dropTarget.time)}px`,
+                    top: dropTarget.row * rowHeight + 5,
+                    width: `${getDurationPx(draggedItem.duration)}px`,
+                    height: rowHeight - 10,
+                    background: 'rgba(51, 112, 255, 0.2)',
+                    border: '2px dashed #3370ff',
+                    borderRadius: 4,
+                    pointerEvents: 'none',
+                    zIndex: 100,
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: 11,
+                      color: '#3370ff',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Drop here: {dayjs(dropTarget.time).format('h:mm A')}
+                  </div>
+                </div>
+              )}
+              
               {/* Grid lines */}
               {timeMarkers
                 .filter(time => time.getHours() % 2 === 0)
@@ -1041,15 +1120,42 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 return (
                   <div
                     key={`${item.id}-${index}`}
+                    draggable={!isWaitTime && !isBlocked}
                     style={{
                       position: 'absolute',
                       top: topPosition,
                       height: rowHeight - 10,
                       left: `${leftPx}px`,
                       width: `${widthPx}px`,
+                      cursor: (!isWaitTime && !isBlocked) ? 'move' : 'pointer',
+                      opacity: draggedItem?.id === item.id ? 0.5 : 1,
                     }}
                     onMouseEnter={() => setHoveredItem(item.id)}
                     onMouseLeave={() => setHoveredItem(null)}
+                    onDragStart={(e) => {
+                      if (isWaitTime || isBlocked) return
+                      
+                      // Calculate offset from mouse to item start
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setDragOffset({
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top,
+                      })
+                      
+                      setDraggedItem(item)
+                      e.dataTransfer.effectAllowed = 'move'
+                      
+                      // Store item data for drop handling
+                      e.dataTransfer.setData('text/plain', JSON.stringify({
+                        id: item.id,
+                        duration: item.duration,
+                        type: item.type,
+                      }))
+                    }}
+                    onDragEnd={() => {
+                      setDraggedItem(null)
+                      setDropTarget(null)
+                    }}
                   >
                     <Tooltip
                       content={(() => {

@@ -195,6 +195,32 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
               </Col>
             </Row>
 
+            <Row gutter={16} style={{ marginTop: 16 }}>
+              <Col span={6}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Text>Cognitive Complexity</Text>
+                  <Select
+                    value={editedTask.cognitiveComplexity || 3}
+                    onChange={(value) => setEditedTask({ ...editedTask, cognitiveComplexity: value })}
+                    style={{ width: '100%' }}
+                  >
+                    <Select.Option value={1}>1 - Simple/Routine</Select.Option>
+                    <Select.Option value={2}>2 - Straightforward</Select.Option>
+                    <Select.Option value={3}>3 - Moderate</Select.Option>
+                    <Select.Option value={4}>4 - Complex</Select.Option>
+                    <Select.Option value={5}>5 - Highly Complex</Select.Option>
+                  </Select>
+                </Space>
+              </Col>
+              <Col span={18}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Complexity helps schedule demanding tasks during peak productivity hours (mornings)
+                  </Text>
+                </Space>
+              </Col>
+            </Row>
+
             <Row gutter={16}>
               <Col span={8}>
                 <Space direction="vertical" style={{ width: '100%' }}>

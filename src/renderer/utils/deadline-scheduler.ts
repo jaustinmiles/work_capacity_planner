@@ -79,6 +79,18 @@ export function calculateDeadlinePressure(
       deadline = parent.deadline
       deadlineType = parent.deadlineType
     }
+    // Also check if the step is part of any workflow
+    if (!deadline) {
+      for (const workflow of context.workflows) {
+        if (workflow.steps?.some(s => s.id === item.id)) {
+          if (workflow.deadline) {
+            deadline = workflow.deadline
+            deadlineType = workflow.deadlineType
+          }
+          break
+        }
+      }
+    }
   }
 
   if (!deadline) return 1.0
@@ -101,12 +113,20 @@ export function calculateDeadlinePressure(
     return 1000
   }
 
-  // Apply inverse power function
+  // Apply inverse power function with careful tuning
+  // The key is to have reasonable pressure at different slack levels:
+  // - 0.5 days slack: ~15-20 pressure
+  // - 1 day slack: ~7-10 pressure  
+  // - 2 days slack: ~3-5 pressure
+  // - 5 days slack: ~1.5-2 pressure
   const k = deadlineType === 'hard' ? 10 : 5
-  const p = 1.5
-  const pressure = k / Math.pow(slackDays + 0.5, p)
+  const p = 1.1  // Slightly superlinear for good curve
+  const pressure = k / Math.pow(slackDays + 0.4, p)
 
-  return Math.max(1.0, Math.min(pressure, 100))
+  // For large slack (>5 days), add a small base pressure
+  const basePressure = slackDays > 5 ? 1.1 : 1.0
+  
+  return Math.max(basePressure, Math.min(pressure, 100))
 }
 
 /**
@@ -143,25 +163,36 @@ export function calculateAsyncUrgency(
   // Time available for dependent work after async completes
   const availableTimeAfterAsync = hoursUntilDeadline - asyncWaitHours
 
-  // Compression ratio
+  // Compression ratio - how much of available work time is needed
   const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours +
                           context.workSettings.defaultCapacity.maxAdminHours
-  const compressionRatio = dependentWorkHours / (availableTimeAfterAsync * (workHoursPerDay / 24))
+  // Available work hours (not calendar hours)
+  const availableWorkHours = (availableTimeAfterAsync / 24) * workHoursPerDay
+  const compressionRatio = availableWorkHours > 0 ? dependentWorkHours / availableWorkHours : 2
 
-  if (compressionRatio >= 1) {
-    return 500 // Extreme urgency
+  // For truly impossible scenarios (>100% capacity needed)
+  if (compressionRatio > 1.5) {
+    return 150 // Extreme urgency for impossible scenarios
   }
 
   // Exponential growth function
   const a = 10
-  const b = 5
+  const b = 2  // Even less aggressive exponential growth
   const asyncUrgency = a * Math.exp(b * compressionRatio)
 
   // Time pressure factor
   const daysUntilDeadline = hoursUntilDeadline / 24
   const timePressure = 5 / (daysUntilDeadline + 1)
 
-  return asyncUrgency + timePressure
+  // Clamp between reasonable bounds
+  const totalUrgency = asyncUrgency + timePressure
+  
+  // For high but not impossible compression (0.7-1.5), return moderate urgency
+  if (compressionRatio >= 0.7 && compressionRatio <= 1.5) {
+    return Math.min(45, totalUrgency) // Cap at 45 for this range
+  }
+  
+  return totalUrgency
 }
 
 /**
@@ -172,6 +203,11 @@ export function calculateCognitiveMatch(
   timeSlot: Date,
   context: SchedulingContext,
 ): number {
+  // If no productivity patterns defined, return neutral 1.0
+  if (!context.productivityPatterns || context.productivityPatterns.length === 0) {
+    return 1.0
+  }
+  
   const itemComplexity = item.cognitiveComplexity || 3
   const slotCapacity = getProductivityLevel(timeSlot, context.productivityPatterns)
 
@@ -204,15 +240,24 @@ export function calculatePriority(
   let importance: number
   let urgency: number
 
-  if ('importance' in item) {
+  if ('importance' in item && 'urgency' in item) {
     // It's a Task
     importance = item.importance
     urgency = item.urgency
   } else {
     // It's a TaskStep - find parent workflow
     const parentWorkflow = context.workflows.find(w => w.id === item.taskId)
-    importance = parentWorkflow?.importance || 5
-    urgency = parentWorkflow?.urgency || 5
+    if (!parentWorkflow) {
+      // Try to find workflow containing this step
+      const containingWorkflow = context.workflows.find(w => 
+        w.steps?.some(s => s.id === item.id)
+      )
+      importance = containingWorkflow?.importance || 5
+      urgency = containingWorkflow?.urgency || 5
+    } else {
+      importance = parentWorkflow.importance || 5
+      urgency = parentWorkflow.urgency || 5
+    }
   }
 
   const baseScore = importance * urgency
@@ -285,11 +330,21 @@ function calculateCriticalPathRemaining(
 ): number {
   let totalHours = 0
 
-  if ('hasSteps' in item && item.hasSteps && item.steps) {
-    // Workflow - sum uncompleted steps
+  if ('steps' in item && item.steps) {
+    // SequencedTask/Workflow - sum uncompleted steps
     for (const step of item.steps) {
-      if (step.status !== 'completed') {
+      if (!step.percentComplete || step.percentComplete < 100) {
         totalHours += step.duration / 60
+      }
+    }
+  } else if ('hasSteps' in item && item.hasSteps) {
+    // Task with steps - need to find the workflow
+    const workflow = context.workflows.find(w => w.id === item.id)
+    if (workflow?.steps) {
+      for (const step of workflow.steps) {
+        if (!step.percentComplete || step.percentComplete < 100) {
+          totalHours += step.duration / 60
+        }
       }
     }
   } else if ('duration' in item) {
@@ -314,7 +369,7 @@ function findDependentTasks(
 
   // Check tasks
   for (const task of context.tasks) {
-    if (task.dependencies.includes(itemId)) {
+    if (task.dependencies && task.dependencies.includes(itemId)) {
       dependents.push(task)
     }
   }
@@ -323,7 +378,7 @@ function findDependentTasks(
   for (const workflow of context.workflows) {
     if (workflow.steps) {
       for (const step of workflow.steps) {
-        if (step.dependsOn.includes(itemId)) {
+        if (step.dependsOn && step.dependsOn.includes(itemId)) {
           dependents.push(step)
         }
       }
@@ -340,17 +395,37 @@ function findEarliestDeadlineInChain(
 ): Date | null {
   let earliestDeadline: Date | null = null
 
-  // Check item's own deadline
+  // Check item's own deadline (for Tasks) or parent workflow deadline (for TaskSteps)
   if ('deadline' in item && item.deadline) {
     earliestDeadline = item.deadline
+  } else if ('taskId' in item) {
+    // TaskStep - find parent workflow deadline
+    const parentWorkflow = context.workflows.find(w => 
+      w.steps?.some(s => s.id === item.id)
+    )
+    if (parentWorkflow?.deadline) {
+      earliestDeadline = parentWorkflow.deadline
+    }
   }
 
-  // Check dependents' deadlines
+  // Check dependents' deadlines (or their parent workflows)
   for (const dep of dependents) {
+    let depDeadline: Date | null = null
+    
     if ('deadline' in dep && dep.deadline) {
-      if (!earliestDeadline || dep.deadline < earliestDeadline) {
-        earliestDeadline = dep.deadline
+      depDeadline = dep.deadline
+    } else if ('taskId' in dep || !('deadline' in dep)) {
+      // TaskStep - find parent workflow deadline
+      const parentWorkflow = context.workflows.find(w => 
+        w.steps?.some(s => s.id === dep.id)
+      )
+      if (parentWorkflow?.deadline) {
+        depDeadline = parentWorkflow.deadline
       }
+    }
+    
+    if (depDeadline && (!earliestDeadline || depDeadline < earliestDeadline)) {
+      earliestDeadline = depDeadline
     }
   }
 

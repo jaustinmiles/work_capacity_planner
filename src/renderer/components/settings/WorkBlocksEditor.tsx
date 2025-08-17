@@ -438,29 +438,66 @@ export function WorkBlocksEditor({
                   </Col>
                   <Col span={6}>
                     {block.type === 'mixed' ? (
-                      <Space>
-                        <InputNumber
-                          placeholder="Focus mins"
-                          value={block.capacity?.focusMinutes}
-                          onChange={(value) =>
+                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          Total: {(() => {
+                            const startTime = dayjs(`2000-01-01 ${block.startTime}`)
+                            const endTime = dayjs(`2000-01-01 ${block.endTime}`)
+                            return endTime.diff(startTime, 'minute')
+                          })()} mins
+                        </Text>
+                        <Space>
+                          <InputNumber
+                            placeholder="Focus mins"
+                            value={block.capacity?.focusMinutes}
+                            onChange={(value) => {
+                              // Calculate total block duration
+                              const startTime = dayjs(`2000-01-01 ${block.startTime}`)
+                              const endTime = dayjs(`2000-01-01 ${block.endTime}`)
+                              const totalMinutes = endTime.diff(startTime, 'minute')
+                            
+                            // Automatically adjust admin time to fill the rest
+                            const focusMinutes = Math.min(value || 0, totalMinutes)
+                            const adminMinutes = Math.max(0, totalMinutes - focusMinutes)
+                            
                             handleUpdateBlock(block.id, {
-                              capacity: { ...block.capacity, focusMinutes: value || 0 },
+                              capacity: { 
+                                ...block.capacity, 
+                                focusMinutes: focusMinutes,
+                                adminMinutes: adminMinutes,
+                                personalMinutes: 0,
+                              },
                             })
-                          }
+                          }}
                           min={0}
                           style={{ width: 100 }}
                         />
                         <InputNumber
                           placeholder="Admin mins"
                           value={block.capacity?.adminMinutes}
-                          onChange={(value) =>
+                          onChange={(value) => {
+                            // Calculate total block duration
+                            const startTime = dayjs(`2000-01-01 ${block.startTime}`)
+                            const endTime = dayjs(`2000-01-01 ${block.endTime}`)
+                            const totalMinutes = endTime.diff(startTime, 'minute')
+                            
+                            // Automatically adjust focus time to fill the rest
+                            const adminMinutes = Math.min(value || 0, totalMinutes)
+                            const focusMinutes = Math.max(0, totalMinutes - adminMinutes)
+                            
                             handleUpdateBlock(block.id, {
-                              capacity: { ...block.capacity, adminMinutes: value || 0 },
+                              capacity: { 
+                                ...block.capacity,
+                                focusMinutes: focusMinutes,
+                                adminMinutes: adminMinutes,
+                                personalMinutes: 0,
+                              },
                             })
-                          }
+                          }}
                           min={0}
                           style={{ width: 100 }}
                         />
+                        </Space>
                       </Space>
                     ) : (
                       <Text type="secondary">

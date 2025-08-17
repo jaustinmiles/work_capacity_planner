@@ -5,6 +5,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
+import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -12,7 +13,7 @@ const { Row, Col } = Grid
 
 export function WeeklyCalendar() {
   const { tasks, sequencedTasks } = useTaskStore()
-  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(null)
+  const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(dayjs())
   const [workPatterns, setWorkPatterns] = useState<DailyWorkPattern[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -307,119 +308,89 @@ export function WeeklyCalendar() {
         </Card>
       )}
 
-      {/* Calendar View */}
-      <Card>
-        <Title heading={5} style={{ marginBottom: 16 }}>
-          <Space>
-            <IconCalendar />
-            Schedule View
-          </Space>
-        </Title>
-
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 40 }}>
-            <Spin size={40} />
-            <div style={{ marginTop: 16 }}>Loading schedule...</div>
-          </div>
-        ) : scheduledItems.length === 0 ? (
-          <Empty
-            description={
-              <Space direction="vertical">
-                <Text>No scheduled items to display</Text>
-                <Text type="secondary">
-                  {workPatterns.length === 0
-                    ? 'Set up your work schedule to see tasks distributed across days'
-                    : 'Add some tasks to see them scheduled'
-                  }
-                </Text>
+      {/* Calendar and Schedule View */}
+      <Row gutter={16}>
+        <Col span={14}>
+          <Card>
+            <Title heading={5} style={{ marginBottom: 16 }}>
+              <Space>
+                <IconCalendar />
+                Calendar View
               </Space>
-            }
-          />
-        ) : (
-          <>
-            <Calendar
-              dateRender={dateRender}
-              onChange={(date: dayjs.Dayjs) => setSelectedDate(date)}
-              panel
-              panelWidth={300}
-              style={{
-                background: '#fff',
-                borderRadius: '8px',
-                fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-              }}
-            />
+            </Title>
 
-            {/* Selected Date Details */}
-            {selectedDate && (
-              <Card style={{ marginTop: 16 }} size="small">
-                <Title heading={6}>
-                  {selectedDate.format('MMMM D, YYYY')} - {selectedDate.format('dddd')}
-                </Title>
-                {(() => {
-                  const dateStr = selectedDate.format('YYYY-MM-DD')
-                  const daySchedule = itemsByDate.get(dateStr) || []
-                  const workPattern = workPatterns.find(p => p.date === dateStr)
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 40 }}>
+                <Spin size={40} />
+                <div style={{ marginTop: 16 }}>Loading schedule...</div>
+              </div>
+            ) : scheduledItems.length === 0 ? (
+              <Empty
+                description={
+                  <Space direction="vertical">
+                    <Text>No scheduled items to display</Text>
+                    <Text type="secondary">
+                      {workPatterns.length === 0
+                        ? 'Set up your work schedule to see tasks distributed across days'
+                        : 'Add some tasks to see them scheduled'
+                      }
+                    </Text>
+                  </Space>
+                }
+              />
+            ) : (
+              <>
+                <Calendar
+                  dateRender={dateRender}
+                  onChange={(date: dayjs.Dayjs) => setSelectedDate(date)}
+                  panel
+                  panelWidth={300}
+                  style={{
+                    background: '#fff',
+                    borderRadius: '8px',
+                    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  }}
+                />
 
-                  if (daySchedule.length === 0) {
-                    return (
-                      <Text type="secondary">
-                        {selectedDate.day() === 0 || selectedDate.day() === 6
-                          ? 'Weekend - no work scheduled'
-                          : workPattern
-                          ? 'No tasks scheduled for this day'
-                          : 'No work pattern defined for this day'
-                        }
-                      </Text>
-                    )
-                  }
-
-                  return (
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      {daySchedule.map((item) => (
-                        <div
-                          key={item.id}
-                          style={{
-                            padding: '8px 12px',
-                            background: '#f5f5f5',
-                            borderRadius: 4,
-                            borderLeft: `3px solid ${item.color}`,
-                          }}
-                        >
-                          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                            <Text style={{ fontWeight: 600 }}>{item.name}</Text>
-                            <Text type="secondary">
-                              {dayjs(item.startTime).format('h:mm A')} - {dayjs(item.endTime).format('h:mm A')}
-                            </Text>
-                          </Space>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {item.duration} minutes • Priority: {item.priority}
-                          </Text>
-                        </div>
-                      ))}
+                <div style={{ marginTop: 16, padding: 16, background: '#F7F8FA', borderRadius: 8 }}>
+                  <Space direction="vertical" size="small">
+                    <Space>
+                      <Tag color="blue">Focused Work</Tag>
+                      <Tag color="green">Admin/Meetings</Tag>
+                      <Tag color="gray">Available Day</Tag>
                     </Space>
-                  )
-                })()}
-              </Card>
+                    <Text type="secondary">
+                      Tasks are automatically scheduled based on priority, deadlines, and available capacity.
+                      {workPatterns.some(p => p.blocks.some(b => b.id.startsWith('default-'))) && (
+                        <> Using default schedule (9-12, 1-5) for days without custom patterns.</>
+                      )}
+                    </Text>
+                  </Space>
+                </div>
+              </>
             )}
+          </Card>
+        </Col>
 
-            <div style={{ marginTop: 16, padding: 16, background: '#F7F8FA', borderRadius: 8 }}>
-              <Space direction="vertical" size="small">
-                <Space>
-                  <Tag color="blue">Focused Work</Tag>
-                  <Tag color="green">Admin/Meetings</Tag>
-                  <Tag color="gray">Available Day</Tag>
-                </Space>
-                <Text type="secondary">
-                  Tasks are automatically scheduled based on priority, deadlines, and available capacity.
-                  {workPatterns.some(p => p.blocks.some(b => b.id.startsWith('default-'))) && (
-                    <> Using default schedule (9-12, 1-5) for days without custom patterns.</>
-                  )}
-                </Text>
-              </Space>
-            </div>
-          </>
-        )}
-      </Card>
+        {/* Daily Schedule View */}
+        <Col span={10}>
+          {selectedDate ? (
+            <DailyScheduleView
+              date={selectedDate.format('YYYY-MM-DD')}
+              scheduledItems={itemsByDate.get(selectedDate.format('YYYY-MM-DD')) || []}
+              workPattern={workPatterns.find(p => p.date === selectedDate.format('YYYY-MM-DD'))}
+              style={{ height: '100%' }}
+            />
+          ) : (
+            <Card style={{ height: '100%' }}>
+              <Empty 
+                description="Select a day from the calendar to view the detailed schedule"
+                style={{ marginTop: 100 }}
+              />
+            </Card>
+          )}
+        </Col>
+      </Row>
     </Space>
   )
 }

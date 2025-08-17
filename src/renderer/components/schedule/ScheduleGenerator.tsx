@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid } from '@arco-design/web-react'
-import { IconCalendarClock, IconCheckCircle, IconEdit, IconSave } from '@arco-design/web-react/icon'
+import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, Tabs } from '@arco-design/web-react'
+import { IconCalendarClock, IconCheckCircle, IconEdit, IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { scheduleWithDeadlines, SchedulingContext, SchedulingResult } from '../../utils/deadline-scheduler'
 import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
+import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 
@@ -46,6 +47,8 @@ export function ScheduleGenerator({
   const [scheduleOptions, setScheduleOptions] = useState<ScheduleOption[]>([])
   const [selectedOption, setSelectedOption] = useState<string>('')
   const [saving, setSaving] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const { workSettings } = useTaskStore()
 
   const generateScheduleOptions = async () => {
     setGenerating(true)
@@ -53,17 +56,52 @@ export function ScheduleGenerator({
     try {
       const options: ScheduleOption[] = []
       
+      // Create base work patterns for the next 30 days with proper work hours
+      const baseWorkPatterns: DailyWorkPattern[] = []
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today)
+        date.setDate(date.getDate() + i)
+        const dayOfWeek = date.getDay()
+        const dateStr = date.toISOString().split('T')[0]
+        
+        // Check if this day has work hours configured
+        const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] || 
+                            (dayOfWeek !== 0 && dayOfWeek !== 6 ? workSettings?.defaultWorkHours : null)
+        
+        if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
+          baseWorkPatterns.push({
+            date: dateStr,
+            blocks: [{
+              id: `block-${dateStr}`,
+              startTime: dayWorkHours.startTime,
+              endTime: dayWorkHours.endTime,
+              type: 'mixed',
+              capacity: {
+                focusMinutes: 240, // 4 hours
+                adminMinutes: 180, // 3 hours
+              }
+            }],
+            meetings: [],
+            accumulated: { focusMinutes: 0, adminMinutes: 0 }
+          })
+        }
+      }
+      
       // Option 1: Deadline-First (Prioritize meeting all deadlines)
       const deadlineContext: SchedulingContext = {
         currentTime: new Date(),
         tasks: tasks.filter(t => !t.completed),
         workflows: sequencedTasks.filter(w => !w.completed),
-        workPatterns: [],
+        workPatterns: baseWorkPatterns,
         productivityPatterns: [],
         schedulingPreferences: {
           id: 'deadline-first',
           sessionId: 'default',
-          allowWeekendWork: false,
+          allowWeekendWork: workSettings?.customWorkHours?.[6] !== undefined || 
+                           workSettings?.customWorkHours?.[0] !== undefined,
           weekendPenalty: 0.8,
           contextSwitchPenalty: 15,
           asyncParallelizationBonus: 5,
@@ -75,11 +113,11 @@ export function ScheduleGenerator({
             maxFocusHours: 4,
             maxAdminHours: 3,
           },
-          defaultWorkHours: {
+          defaultWorkHours: workSettings?.defaultWorkHours || {
             startTime: '09:00',
             endTime: '18:00',
           },
-          customWorkHours: {},
+          customWorkHours: workSettings?.customWorkHours || {},
         } as any,
         lastScheduledItem: null,
       }
@@ -102,6 +140,7 @@ export function ScheduleGenerator({
       // Option 2: Balanced (Balance deadlines with work-life balance)
       const balancedContext: SchedulingContext = {
         ...deadlineContext,
+        workPatterns: [...baseWorkPatterns], // Fresh copy
         schedulingPreferences: {
           ...deadlineContext.schedulingPreferences,
           id: 'balanced',
@@ -129,6 +168,7 @@ export function ScheduleGenerator({
       // Option 3: Async-Optimized (Maximize parallel work)
       const asyncContext: SchedulingContext = {
         ...deadlineContext,
+        workPatterns: [...baseWorkPatterns], // Fresh copy
         schedulingPreferences: {
           ...deadlineContext.schedulingPreferences,
           id: 'async-optimized',
@@ -163,6 +203,68 @@ export function ScheduleGenerator({
     } finally {
       setGenerating(false)
     }
+  }
+
+  const renderSchedulePreview = (option: ScheduleOption) => {
+    // Group schedule items by date
+    const itemsByDate = new Map<string, ScheduledItem[]>()
+    
+    for (const item of option.schedule) {
+      const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
+      const existing = itemsByDate.get(dateStr) || []
+      existing.push(item)
+      itemsByDate.set(dateStr, existing)
+    }
+
+    // Get first 7 days for preview
+    const sortedDates = Array.from(itemsByDate.keys()).sort().slice(0, 7)
+    
+    return (
+      <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+        <Tabs type="card-gutter">
+          {sortedDates.map(dateStr => {
+            const items = itemsByDate.get(dateStr) || []
+            const dayName = dayjs(dateStr).format('ddd MMM D')
+            
+            return (
+              <Tabs.TabPane key={dateStr} title={dayName}>
+                <Space direction="vertical" style={{ width: '100%', padding: 12 }}>
+                  {items.length === 0 ? (
+                    <Text type="secondary">No tasks scheduled</Text>
+                  ) : (
+                    items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime()).map(item => (
+                      <div
+                        key={item.id}
+                        style={{
+                          padding: '8px 12px',
+                          background: '#f5f5f5',
+                          borderRadius: 4,
+                          borderLeft: `3px solid ${item.color}`,
+                        }}
+                      >
+                        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                          <div>
+                            <Text style={{ fontWeight: 500 }}>{item.name}</Text>
+                            {item.type === 'workflow-step' && item.stepIndex !== undefined && (
+                              <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                                (Step {item.stepIndex + 1})
+                              </Text>
+                            )}
+                          </div>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {dayjs(item.startTime).format('h:mm A')} - {item.duration}m
+                          </Text>
+                        </Space>
+                      </div>
+                    ))
+                  )}
+                </Space>
+              </Tabs.TabPane>
+            )
+          })}
+        </Tabs>
+      </div>
+    )
   }
 
   const saveSelectedSchedule = async () => {
@@ -383,6 +485,19 @@ export function ScheduleGenerator({
                           </Text>
                         </div>
                       )}
+
+                      <Button
+                        type="text"
+                        icon={<IconEye />}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedOption(option.id)
+                          setShowPreview(true)
+                        }}
+                        style={{ marginTop: 8 }}
+                      >
+                        Preview Schedule
+                      </Button>
                     </Space>
                   </Radio>
                 </Card>
@@ -398,6 +513,40 @@ export function ScheduleGenerator({
           )}
         </Space>
       )}
+
+      {/* Schedule Preview Modal */}
+      <Modal
+        title="Schedule Preview"
+        visible={showPreview}
+        onCancel={() => setShowPreview(false)}
+        style={{ width: 800 }}
+        footer={
+          <Space>
+            <Button onClick={() => setShowPreview(false)}>Close</Button>
+            <Button 
+              type="primary" 
+              onClick={() => {
+                setShowPreview(false)
+                saveSelectedSchedule()
+              }}
+              icon={<IconSave />}
+            >
+              Accept & Save This Schedule
+            </Button>
+          </Space>
+        }
+      >
+        {selectedOption && scheduleOptions.find(opt => opt.id === selectedOption) && (
+          <>
+            <Alert
+              type="info"
+              content={`Preview of "${scheduleOptions.find(opt => opt.id === selectedOption)?.name}" schedule for the next 7 days`}
+              style={{ marginBottom: 16 }}
+            />
+            {renderSchedulePreview(scheduleOptions.find(opt => opt.id === selectedOption)!)}
+          </>
+        )}
+      </Modal>
     </Modal>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Modal } from '@arco-design/web-react'
-import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill } from '@arco-design/web-react/icon'
+import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskEdit } from './TaskEdit'
@@ -166,6 +166,20 @@ export function TaskItem({ task }: TaskItemProps) {
                         {priorityStatus} ({priorityScore})
                       </Tag>
                     </Tooltip>
+
+                    {task.cognitiveComplexity && (
+                      <Tooltip content="Cognitive Complexity (1=Low, 5=High)">
+                        <Tag
+                          icon={<IconMindMapping />}
+                          color={task.cognitiveComplexity >= 4 ? 'red' : 
+                                task.cognitiveComplexity >= 3 ? 'orange' : 
+                                'green'}
+                          size="small"
+                        >
+                          Complexity: {task.cognitiveComplexity}/5
+                        </Tag>
+                      </Tooltip>
+                    )}
 
                     <Tag size="small" color="gray">
                       {task.type === 'focused' ? 'Focused Work' : 'Admin/Meeting'}
