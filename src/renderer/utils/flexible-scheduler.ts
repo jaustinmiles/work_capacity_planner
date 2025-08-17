@@ -796,8 +796,12 @@ export function scheduleItemsWithBlocksAndDebug(
               // This dependency is still waiting, cannot schedule yet
               canScheduleItem = false
               isWaitingOnAsync = true
-              debugInfo.warnings.push(
-                `Cannot schedule "${item.name}" yet - waiting for dependency "${depId}" to complete async wait (ends ${asyncEndTime.toLocaleString()})`,
+              // This is expected behavior for async dependencies - don't clutter warnings
+              if (!debugInfo.asyncDependencies) {
+                debugInfo.asyncDependencies = []
+              }
+              debugInfo.asyncDependencies.push(
+                `"${item.name}" waiting for "${depId}" (async until ${asyncEndTime.toLocaleString()})`,
               )
               break
             }
@@ -817,14 +821,22 @@ export function scheduleItemsWithBlocksAndDebug(
               const depExists = workItems.some(w => w.id === depId)
               if (!depExists) {
                 // This dependency doesn't exist - log warning but allow scheduling
-                debugInfo.warnings.push(
-                  `Warning: Dependency "${depId}" for "${item.name}" not found - allowing schedule`,
+                // This can happen with complex workflows - log to separate category
+                if (!debugInfo.missingDependencies) {
+                  debugInfo.missingDependencies = []
+                }
+                debugInfo.missingDependencies.push(
+                  `"${item.name}" has unknown dependency "${depId}"`,
                 )
               } else {
                 // Dependency exists but not scheduled yet
                 canScheduleItem = false
-                debugInfo.warnings.push(
-                  `Cannot schedule "${item.name}" - dependency "${depId}" not yet scheduled`,
+                // This is normal scheduling order - not a warning
+                if (!debugInfo.pendingDependencies) {
+                  debugInfo.pendingDependencies = []
+                }
+                debugInfo.pendingDependencies.push(
+                  `"${item.name}" waiting for "${depId}"`,
                 )
                 break
               }

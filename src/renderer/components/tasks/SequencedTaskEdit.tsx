@@ -298,7 +298,16 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
         <Row gutter={16} align="center">
           <Col flex="auto">
             <Space direction="vertical" size="small">
-              <Title heading={4}>{editedTask.name}</Title>
+              {isEditing ? (
+                <Input
+                  value={editedTask.name}
+                  onChange={(value) => setEditedTask({ ...editedTask, name: value })}
+                  style={{ fontSize: 20, fontWeight: 600, maxWidth: 400 }}
+                  placeholder="Workflow name"
+                />
+              ) : (
+                <Title heading={4}>{editedTask.name}</Title>
+              )}
               <Space>
                 <Tag color="blue">
                   {editedTask.type === 'focused' ? 'Focused Work' : 'Admin Task'}
