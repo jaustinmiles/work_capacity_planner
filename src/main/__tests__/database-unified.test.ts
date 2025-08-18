@@ -339,7 +339,11 @@ describe('Database - Unified Task Model', () => {
             duration: 90,
             completed: true,
           }),
-          include: { TaskStep: true },
+          include: { 
+          TaskStep: {
+            orderBy: { stepIndex: 'asc' }
+          }
+        },
         })
         expect(updated?.name).toBe('Updated Task')
       })
@@ -361,7 +365,11 @@ describe('Database - Unified Task Model', () => {
             data: expect.objectContaining({
               dependencies: '["task-2","task-3"]',
             }),
-            include: { TaskStep: true },
+            include: { 
+          TaskStep: {
+            orderBy: { stepIndex: 'asc' }
+          }
+        },
           }),
         )
       })

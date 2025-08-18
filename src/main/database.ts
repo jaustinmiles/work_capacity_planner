@@ -181,7 +181,11 @@ export class DatabaseService {
       // Return task with steps
       const taskWithSteps = await this.client.task.findUnique({
         where: { id: task.id },
-        include: { TaskStep: true },
+        include: { 
+          TaskStep: {
+            orderBy: { stepIndex: 'asc' }
+          }
+        },
       })
       return this.formatTask(taskWithSteps!)
     }
@@ -220,7 +224,11 @@ export class DatabaseService {
         ...cleanUpdateData,
         updatedAt: new Date(),
       },
-      include: { TaskStep: true },
+      include: { 
+        TaskStep: {
+          orderBy: { stepIndex: 'asc' }
+        }
+      },
     })
 
     // If steps are provided, update them
@@ -283,7 +291,11 @@ export class DatabaseService {
       // Return task with updated steps
       const updatedTask = await this.client.task.findUnique({
         where: { id },
-        include: { TaskStep: true },
+        include: { 
+          TaskStep: {
+            orderBy: { stepIndex: 'asc' }
+          }
+        },
       })
 
       return this.formatTask(updatedTask!)
@@ -374,10 +386,12 @@ export class DatabaseService {
       actualDuration: task.actualDuration ?? null,
       deadline: task.deadline ?? null,
       currentStepId: task.currentStepId ?? null,
-      steps: task.hasSteps && task.TaskStep ? task.TaskStep.map((step: any) => ({
-        ...step,
-        dependsOn: step.dependsOn ? JSON.parse(step.dependsOn) : [],
-      })) : undefined,
+      steps: task.hasSteps && task.TaskStep ? task.TaskStep
+        .sort((a: any, b: any) => a.stepIndex - b.stepIndex)
+        .map((step: any) => ({
+          ...step,
+          dependsOn: step.dependsOn ? JSON.parse(step.dependsOn) : [],
+        })) : undefined,
     }
   }
 
@@ -771,7 +785,11 @@ export class DatabaseService {
     // Update the workflow's total duration
     const updatedTask = await this.client.task.findUnique({
       where: { id: workflowId },
-      include: { TaskStep: true },
+      include: { 
+        TaskStep: {
+          orderBy: { stepIndex: 'asc' }
+        }
+      },
     })
 
     if (updatedTask) {
@@ -786,7 +804,11 @@ export class DatabaseService {
     // Return the updated workflow in SequencedTask format
     const finalTask = await this.client.task.findUnique({
       where: { id: workflowId },
-      include: { TaskStep: true },
+      include: { 
+        TaskStep: {
+          orderBy: { stepIndex: 'asc' }
+        }
+      },
     })
 
     return this.formatTask(finalTask!)

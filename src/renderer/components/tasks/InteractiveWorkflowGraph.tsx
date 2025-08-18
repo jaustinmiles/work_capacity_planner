@@ -134,32 +134,83 @@ export function InteractiveWorkflowGraph({
   // Convert task steps to React Flow nodes
   const initialNodes = useMemo(() => {
     const nodes: Node[] = []
-    const levelMap = new Map<string, number>()
-
+    
     // Filter steps based on hideCompleted setting
     const visibleSteps = hideCompleted
       ? task.steps.filter(step => step.status !== 'completed')
       : task.steps
 
-    // Calculate levels based on dependencies
-    visibleSteps.forEach((step) => {
-      let level = 0
-      step.dependsOn.forEach((depId) => {
-        const depLevel = levelMap.get(depId) || 0
-        level = Math.max(level, depLevel + 1)
+    // Perform topological sort with level calculation
+    const levelMap = new Map<string, number>()
+    const visited = new Set<string>()
+    const visiting = new Set<string>()
+    
+    // Build adjacency map for easier traversal
+    const stepMap = new Map<string, TaskStep>()
+    visibleSteps.forEach(step => stepMap.set(step.id, step))
+    
+    // DFS to calculate levels
+    const calculateLevel = (stepId: string): number => {
+      if (levelMap.has(stepId)) {
+        return levelMap.get(stepId)!
+      }
+      
+      if (visiting.has(stepId)) {
+        // Circular dependency detected, break it
+        return 0
+      }
+      
+      visiting.add(stepId)
+      
+      const step = stepMap.get(stepId)
+      if (!step) {
+        visiting.delete(stepId)
+        return 0
+      }
+      
+      let maxDepLevel = -1
+      step.dependsOn.forEach(depId => {
+        const depStep = stepMap.get(depId)
+        if (depStep) {
+          const depLevel = calculateLevel(depId)
+          maxDepLevel = Math.max(maxDepLevel, depLevel)
+        }
       })
-      levelMap.set(step.id, level)
+      
+      const level = maxDepLevel + 1
+      levelMap.set(stepId, level)
+      visiting.delete(stepId)
+      visited.add(stepId)
+      
+      return level
+    }
+    
+    // Calculate levels for all steps
+    visibleSteps.forEach(step => {
+      if (!visited.has(step.id)) {
+        calculateLevel(step.id)
+      }
     })
 
-    // Create nodes with positions
+    // Group steps by level
     const levelGroups = new Map<number, TaskStep[]>()
-    visibleSteps.forEach((step) => {
+    visibleSteps.forEach(step => {
       const level = levelMap.get(step.id) || 0
       const group = levelGroups.get(level) || []
       group.push(step)
       levelGroups.set(level, group)
     })
+    
+    // Sort steps within each level by their original order for stability
+    levelGroups.forEach((steps, level) => {
+      steps.sort((a, b) => {
+        const aIndex = task.steps.findIndex(s => s.id === a.id)
+        const bIndex = task.steps.findIndex(s => s.id === b.id)
+        return aIndex - bIndex
+      })
+    })
 
+    // Create nodes with positions
     levelGroups.forEach((steps, level) => {
       steps.forEach((step, index) => {
         const stepIndex = task.steps.findIndex(s => s.id === step.id)
