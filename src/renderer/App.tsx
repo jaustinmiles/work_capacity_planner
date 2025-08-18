@@ -706,6 +706,10 @@ function App() {
         <SequencedTaskForm
           visible={sequencedTaskFormVisible}
           onClose={() => setSequencedTaskFormVisible(false)}
+          onSubmit={() => {
+            // Task submission is handled internally by the form
+            // This prop is required by the interface but not used
+          }}
         />
 
         {/* Floating Action Button for Voice Amendments */}
