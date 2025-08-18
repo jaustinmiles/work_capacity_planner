@@ -1172,7 +1172,7 @@ export class DatabaseService {
   }
 
   async getTodayAccumulated(date: string): Promise<{ focused: number; admin: number; total: number }> {
-    const sessionId = await this.getActiveSession()
+    const _sessionId = await this.getActiveSession()
 
     // APPROACH 1: Get work sessions for the date
     const { startOfDay, endOfDay } = this.getLocalDateRange(date)
@@ -1205,7 +1205,7 @@ export class DatabaseService {
     // APPROACH 3: Check tasks with actualDuration that were updated today (unused for now)
     // const tasksWithTime = await this.client.task.findMany({
     //   where: {
-    //     sessionId,
+    //     sessionId: _sessionId,
     //     actualDuration: {
     //       gt: 0,
     //     },
