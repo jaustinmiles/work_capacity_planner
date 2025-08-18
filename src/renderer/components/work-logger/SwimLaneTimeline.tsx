@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { Typography, Tooltip, Button } from '@arco-design/web-react'
-import { IconDown, IconRight } from '@arco-design/web-react/icon'
+import { Typography, Tooltip, Button, Slider } from '@arco-design/web-react'
+import { IconDown, IconRight, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import {
@@ -21,12 +21,14 @@ interface SwimLaneTimelineProps {
   onSessionSelect: (id: string | null) => void
 }
 
-const LANE_HEIGHT = 40
-const TIME_LABEL_WIDTH = 60
-const HOUR_WIDTH = 120 // Pixels per hour
+const TIME_LABEL_WIDTH = 80
 const START_HOUR = 6
 const END_HOUR = 22
 const TOTAL_HOURS = END_HOUR - START_HOUR
+const MIN_LANE_HEIGHT = 20
+const MAX_LANE_HEIGHT = 60
+const MIN_HOUR_WIDTH = 40
+const MAX_HOUR_WIDTH = 200
 
 interface DragState {
   sessionId: string
@@ -55,16 +57,18 @@ export function SwimLaneTimeline({
   } | null>(null)
   const [hoveredSession, setHoveredSession] = useState<string | null>(null)
   const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set())
+  const [laneHeight, setLaneHeight] = useState(30)
+  const [hourWidth, setHourWidth] = useState(80)
 
   // Convert minutes to pixels
   const minutesToPixels = (minutes: number): number => {
     const hours = minutes / 60 - START_HOUR
-    return hours * HOUR_WIDTH + TIME_LABEL_WIDTH
+    return hours * hourWidth + TIME_LABEL_WIDTH
   }
 
   // Convert pixels to minutes
   const pixelsToMinutes = (pixels: number): number => {
-    const hours = (pixels - TIME_LABEL_WIDTH) / HOUR_WIDTH + START_HOUR
+    const hours = (pixels - TIME_LABEL_WIDTH) / hourWidth + START_HOUR
     return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, hours * 60))
   }
 
@@ -189,7 +193,7 @@ export function SwimLaneTimeline({
     const handleMouseMove = (e: MouseEvent) => {
       if (dragState) {
         const deltaX = e.clientX - dragState.initialX
-        const deltaMinutes = (deltaX / HOUR_WIDTH) * 60
+        const deltaMinutes = (deltaX / hourWidth) * 60
 
         if (dragState.edge === 'move') {
           const newStart = roundToQuarter(dragState.initialStartMinutes + deltaMinutes)
@@ -244,19 +248,76 @@ export function SwimLaneTimeline({
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
-  }, [dragState, creatingSession, onSessionUpdate, onSessionCreate])
+  }, [dragState, creatingSession, onSessionUpdate, onSessionCreate, hourWidth])
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'relative',
-        overflow: 'auto',
-        background: '#fafbfc',
-        borderRadius: 8,
-        height: '100%',
-      }}
-    >
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Zoom Controls */}
+      <div style={{ 
+        padding: '8px 16px', 
+        background: 'white', 
+        borderBottom: '1px solid #e5e6eb',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 12, color: '#86909c' }}>Horizontal:</Text>
+          <Button
+            size="mini"
+            icon={<IconZoomOut />}
+            onClick={() => setHourWidth(Math.max(MIN_HOUR_WIDTH, hourWidth - 20))}
+            disabled={hourWidth <= MIN_HOUR_WIDTH}
+          />
+          <Slider
+            value={hourWidth}
+            min={MIN_HOUR_WIDTH}
+            max={MAX_HOUR_WIDTH}
+            onChange={(val) => setHourWidth(val as number)}
+            style={{ width: 100 }}
+          />
+          <Button
+            size="mini"
+            icon={<IconZoomIn />}
+            onClick={() => setHourWidth(Math.min(MAX_HOUR_WIDTH, hourWidth + 20))}
+            disabled={hourWidth >= MAX_HOUR_WIDTH}
+          />
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontSize: 12, color: '#86909c' }}>Vertical:</Text>
+          <Button
+            size="mini"
+            icon={<IconZoomOut />}
+            onClick={() => setLaneHeight(Math.max(MIN_LANE_HEIGHT, laneHeight - 5))}
+            disabled={laneHeight <= MIN_LANE_HEIGHT}
+          />
+          <Slider
+            value={laneHeight}
+            min={MIN_LANE_HEIGHT}
+            max={MAX_LANE_HEIGHT}
+            onChange={(val) => setLaneHeight(val as number)}
+            style={{ width: 100 }}
+          />
+          <Button
+            size="mini"
+            icon={<IconZoomIn />}
+            onClick={() => setLaneHeight(Math.min(MAX_LANE_HEIGHT, laneHeight + 5))}
+            disabled={laneHeight >= MAX_LANE_HEIGHT}
+          />
+        </div>
+      </div>
+      
+      <div
+        ref={containerRef}
+        style={{
+          position: 'relative',
+          overflow: 'auto',
+          background: '#fafbfc',
+          borderRadius: 8,
+          flex: 1,
+        }}
+      >
       {/* Time axis header */}
       <div
         style={{
@@ -286,7 +347,7 @@ export function SwimLaneTimeline({
               key={i}
               style={{
                 position: 'absolute',
-                left: i * HOUR_WIDTH,
+                left: i * hourWidth,
                 top: 0,
                 height: '100%',
                 borderLeft: '1px solid #e5e6eb',
@@ -309,7 +370,7 @@ export function SwimLaneTimeline({
           <div
             key={lane.id}
             style={{
-              height: LANE_HEIGHT,
+              height: laneHeight,
               borderBottom: '1px solid #e5e6eb',
               display: 'flex',
               position: 'relative',
@@ -383,7 +444,7 @@ export function SwimLaneTimeline({
                   key={i}
                   style={{
                     position: 'absolute',
-                    left: i * HOUR_WIDTH,
+                    left: i * hourWidth,
                     top: 0,
                     bottom: 0,
                     borderLeft: '1px solid #f0f0f0',
@@ -394,7 +455,7 @@ export function SwimLaneTimeline({
               {/* Sessions */}
               {lane.sessions.map(session => {
                 const left = minutesToPixels(session.startMinutes)
-                const width = (session.endMinutes - session.startMinutes) / 60 * HOUR_WIDTH
+                const width = (session.endMinutes - session.startMinutes) / 60 * hourWidth
                 const isSelected = session.id === selectedSessionId
                 const isHovered = session.id === hoveredSession
 
@@ -499,6 +560,7 @@ export function SwimLaneTimeline({
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   )
