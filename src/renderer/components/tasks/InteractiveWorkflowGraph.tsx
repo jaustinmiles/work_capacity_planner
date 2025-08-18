@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useEffect } from 'react'
+import React, { useCallback, useMemo, useEffect, useState } from 'react'
 import { TaskType } from '@shared/enums'
 import ReactFlow, {
   Node,
@@ -14,7 +14,7 @@ import ReactFlow, {
   Position,
   MarkerType,
 } from 'reactflow'
-import { Tag, Space, Typography } from '@arco-design/web-react'
+import { Tag, Space, Typography, Switch } from '@arco-design/web-react'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { logger } from '../../utils/logger'
 
@@ -39,11 +39,21 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
     return `${mins}m`
   }
 
+  // Completed steps have a more muted appearance
+  const isCompleted = data.status === 'completed'
+  const bgColor = isCompleted 
+    ? '#F5F5F5' 
+    : data.type === TaskType.Focused ? '#E6F7FF' : '#E8F5E9'
+  const borderColor = isCompleted
+    ? '#BFBFBF'
+    : data.type === TaskType.Focused ? '#165DFF' : '#00B42A'
+
   return (
     <div
       style={{
-        background: data.type === TaskType.Focused ? '#E6F7FF' : '#E8F5E9',
-        border: `2px solid ${data.type === TaskType.Focused ? '#165DFF' : '#00B42A'}`,
+        background: bgColor,
+        border: `2px solid ${borderColor}`,
+        opacity: isCompleted ? 0.7 : 1,
         borderRadius: 8,
         padding: 16,
         minWidth: 200,
@@ -65,7 +75,7 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <div
           style={{
-            background: data.type === TaskType.Focused ? '#165DFF' : '#00B42A',
+            background: isCompleted ? '#8C8C8C' : data.type === TaskType.Focused ? '#165DFF' : '#00B42A',
             color: 'white',
             borderRadius: '50%',
             width: 30,
@@ -113,6 +123,7 @@ export function InteractiveWorkflowGraph({
   isEditable = false,
   onUpdateDependencies,
 }: InteractiveWorkflowGraphProps) {
+  const [hideCompleted, setHideCompleted] = useState(false)
   // Define node types outside component to prevent re-renders
   const nodeTypes = useMemo(() => ({
     workflow: WorkflowNode,
@@ -123,8 +134,13 @@ export function InteractiveWorkflowGraph({
     const nodes: Node[] = []
     const levelMap = new Map<string, number>()
 
+    // Filter steps based on hideCompleted setting
+    const visibleSteps = hideCompleted 
+      ? task.steps.filter(step => step.status !== 'completed')
+      : task.steps
+
     // Calculate levels based on dependencies
-    task.steps.forEach((step) => {
+    visibleSteps.forEach((step) => {
       let level = 0
       step.dependsOn.forEach((depId) => {
         const depLevel = levelMap.get(depId) || 0
@@ -135,7 +151,7 @@ export function InteractiveWorkflowGraph({
 
     // Create nodes with positions
     const levelGroups = new Map<number, TaskStep[]>()
-    task.steps.forEach((step) => {
+    visibleSteps.forEach((step) => {
       const level = levelMap.get(step.id) || 0
       const group = levelGroups.get(level) || []
       group.push(step)
@@ -158,6 +174,7 @@ export function InteractiveWorkflowGraph({
             asyncWaitTime: step.asyncWaitTime,
             type: step.type,
             stepNumber: stepIndex + 1,
+            status: step.status,
             isEditable,
           },
         })
@@ -165,11 +182,16 @@ export function InteractiveWorkflowGraph({
     })
 
     return nodes
-  }, [task, isEditable])
+  }, [task, isEditable, hideCompleted])
 
   // Convert dependencies to React Flow edges
   const initialEdges = useMemo(() => {
     const edges: Edge[] = []
+
+    // Filter steps based on hideCompleted setting
+    const visibleSteps = hideCompleted 
+      ? task.steps.filter(step => step.status !== 'completed')
+      : task.steps
 
     // Create a map of step names to IDs for quick lookup
     const stepNameToId = new Map<string, string>()
@@ -177,7 +199,7 @@ export function InteractiveWorkflowGraph({
       stepNameToId.set(step.name, step.id)
     })
 
-    task.steps.forEach((step) => {
+    visibleSteps.forEach((step) => {
       step.dependsOn.forEach((dep) => {
         // dep could be either a step ID or a step name
         let sourceId = dep
@@ -187,9 +209,9 @@ export function InteractiveWorkflowGraph({
           sourceId = stepNameToId.get(dep) || dep
         }
 
-        // Ensure both source and target steps exist
-        const sourceExists = task.steps.some(s => s.id === sourceId)
-        const targetExists = task.steps.some(s => s.id === step.id)
+        // Ensure both source and target steps exist and are visible
+        const sourceExists = visibleSteps.some(s => s.id === sourceId)
+        const targetExists = visibleSteps.some(s => s.id === step.id)
 
         if (sourceExists && targetExists) {
           edges.push({
@@ -211,7 +233,7 @@ export function InteractiveWorkflowGraph({
     })
 
     return edges
-  }, [task])
+  }, [task, hideCompleted])
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
@@ -333,13 +355,30 @@ export function InteractiveWorkflowGraph({
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {isEditable && (
-        <div style={{ padding: '8px 16px', background: '#fff', borderBottom: '1px solid #e5e6eb' }}>
-          <Tag color="orange">
-            Drag from right handle to left handle to create dependencies
-          </Tag>
+      <div style={{ 
+        padding: '8px 16px', 
+        background: '#fff', 
+        borderBottom: '1px solid #e5e6eb',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          {isEditable && (
+            <Tag color="orange">
+              Drag from right handle to left handle to create dependencies
+            </Tag>
+          )}
         </div>
-      )}
+        <Space>
+          <Text type="secondary">Hide Completed</Text>
+          <Switch 
+            checked={hideCompleted}
+            onChange={setHideCompleted}
+            size="small"
+          />
+        </Space>
+      </div>
 
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <ReactFlow
