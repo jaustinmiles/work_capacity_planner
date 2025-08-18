@@ -173,6 +173,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       set({
         error: error instanceof Error ? error.message : 'Failed to create task',
       })
+      throw error // Re-throw so TaskForm can catch it
     }
   },
 
