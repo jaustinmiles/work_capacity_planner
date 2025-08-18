@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -17,6 +17,7 @@ import { VoiceAmendmentModal } from './components/voice'
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { SessionManager } from './components/session/SessionManager'
+import { WorkLoggerCalendar } from './components/work-logger/WorkLoggerCalendar'
 import { DevTools } from './components/dev/DevTools'
 import { useTaskStore } from './store/useTaskStore'
 import { exampleSequencedTask } from '@shared/sequencing-types'
@@ -52,6 +53,7 @@ function App() {
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
+  const [showWorkLogger, setShowWorkLogger] = useState(false)
   const [voiceAmendmentVisible, setVoiceAmendmentVisible] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
   const {
@@ -496,6 +498,13 @@ function App() {
             <Space>
               <Button
                 type="text"
+                icon={<IconClockCircle />}
+                onClick={() => setShowWorkLogger(true)}
+              >
+                Log Work
+              </Button>
+              <Button
+                type="text"
                 icon={<IconUserGroup />}
                 onClick={() => setShowSessionManager(true)}
               >
@@ -682,6 +691,11 @@ function App() {
             // Refresh any data if needed
             setShowWorkSchedule(false)
           }}
+        />
+
+        <WorkLoggerCalendar
+          visible={showWorkLogger}
+          onClose={() => setShowWorkLogger(false)}
         />
 
         <SessionManager
