@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { Typography, Tooltip } from '@arco-design/web-react'
+import { Typography, Tooltip, Button } from '@arco-design/web-react'
+import { IconDown, IconRight } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import {
@@ -53,6 +54,7 @@ export function SwimLaneTimeline({
     currentX: number
   } | null>(null)
   const [hoveredSession, setHoveredSession] = useState<string | null>(null)
+  const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set())
 
   // Convert minutes to pixels
   const minutesToPixels = (minutes: number): number => {
@@ -66,36 +68,75 @@ export function SwimLaneTimeline({
     return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, hours * 60))
   }
 
-  // Get unique tasks that have sessions or all tasks
-  const swimLanes = tasks.map(task => {
-    const taskSessions = sessions.filter(s => s.taskId === task.id && !s.stepId)
-    const lanes: Array<{ id: string; name: string; sessions: WorkSessionData[] }> = []
+  // Toggle workflow expansion
+  const toggleWorkflow = (taskId: string) => {
+    setExpandedWorkflows(prev => {
+      const next = new Set(prev)
+      if (next.has(taskId)) {
+        next.delete(taskId)
+      } else {
+        next.add(taskId)
+      }
+      return next
+    })
+  }
 
-    // Add main task lane if it has direct sessions
-    if (taskSessions.length > 0) {
-      lanes.push({
+  // Build swim lanes with collapsible workflows
+  const swimLanes: Array<{ 
+    id: string
+    name: string
+    sessions: WorkSessionData[]
+    isWorkflow?: boolean
+    isExpanded?: boolean
+    taskId?: string
+    indent?: boolean
+  }> = []
+
+  tasks.forEach(task => {
+    const isWorkflow = task.hasSteps && task.steps && task.steps.length > 0
+    const isExpanded = expandedWorkflows.has(task.id)
+    
+    if (isWorkflow) {
+      // Get all sessions for this workflow (including steps)
+      const allWorkflowSessions = sessions.filter(s => 
+        s.taskId === task.id || 
+        (task.steps && task.steps.some(step => step.id === s.stepId))
+      )
+      
+      // Add workflow header lane
+      swimLanes.push({
         id: task.id,
         name: task.name,
-        sessions: taskSessions,
+        sessions: isExpanded ? [] : allWorkflowSessions, // Show all sessions when collapsed
+        isWorkflow: true,
+        isExpanded,
+        taskId: task.id,
       })
-    }
-
-    // Add step lanes if task has steps
-    if (task.hasSteps && task.steps) {
-      task.steps.forEach(step => {
-        const stepSessions = sessions.filter(s => s.stepId === step.id)
-        if (stepSessions.length > 0 || task.hasSteps) {
-          lanes.push({
+      
+      // Add step lanes if expanded
+      if (isExpanded && task.steps) {
+        task.steps.forEach(step => {
+          const stepSessions = sessions.filter(s => s.stepId === step.id)
+          swimLanes.push({
             id: `${task.id}-${step.id}`,
-            name: `${task.name} > ${step.name}`,
+            name: step.name,
             sessions: stepSessions,
+            indent: true,
           })
-        }
-      })
+        })
+      }
+    } else {
+      // Regular task
+      const taskSessions = sessions.filter(s => s.taskId === task.id && !s.stepId)
+      if (taskSessions.length > 0 || !isWorkflow) {
+        swimLanes.push({
+          id: task.id,
+          name: task.name,
+          sessions: taskSessions,
+        })
+      }
     }
-
-    return lanes
-  }).flat()
+  })
 
   // Handle drag start
   const handleMouseDown = (
@@ -279,22 +320,39 @@ export function SwimLaneTimeline({
               style={{
                 width: TIME_LABEL_WIDTH,
                 borderRight: '1px solid #e5e6eb',
-                padding: '8px',
+                padding: '4px',
                 display: 'flex',
                 alignItems: 'center',
-                background: 'white',
+                background: lane.isWorkflow ? '#f5f7fa' : 'white',
                 position: 'sticky',
                 left: 0,
                 zIndex: 5,
+                paddingLeft: lane.indent ? 24 : 4,
               }}
             >
+              {lane.isWorkflow && (
+                <Button
+                  size="mini"
+                  type="text"
+                  icon={lane.isExpanded ? <IconDown /> : <IconRight />}
+                  onClick={() => toggleWorkflow(lane.taskId!)}
+                  style={{ 
+                    minWidth: 20, 
+                    width: 20, 
+                    height: 20,
+                    padding: 0,
+                    marginRight: 4,
+                  }}
+                />
+              )}
               <Tooltip content={lane.name}>
                 <Text
                   style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
+                    fontWeight: lane.isWorkflow ? 'bold' : 'normal',
                   }}
                 >
                   {lane.name}
@@ -311,6 +369,10 @@ export function SwimLaneTimeline({
                 cursor: 'crosshair',
               }}
               onMouseDown={(e) => {
+                // Don't allow creating on collapsed workflow lanes - user should expand first
+                if (lane.isWorkflow && !lane.isExpanded) {
+                  return
+                }
                 const [taskId, stepId] = lane.id.split('-')
                 handleLaneMouseDown(e, taskId, stepId)
               }}
