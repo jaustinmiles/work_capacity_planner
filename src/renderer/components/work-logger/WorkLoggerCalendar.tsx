@@ -9,7 +9,6 @@ import {
   Select, 
   Input,
   DatePicker,
-  Message as ArcoMessage,
   Popconfirm,
 } from '@arco-design/web-react'
 import { 
@@ -22,6 +21,7 @@ import {
   IconSave,
 } from '@arco-design/web-react/icon'
 import { TaskType } from '@shared/enums'
+import { TaskStep } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '../../utils/logger'
@@ -84,37 +84,62 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
   const loadWorkSessions = async () => {
     try {
+      logger.ui.info('Loading work sessions for date:', selectedDate)
       const db = getDatabase()
+      // Load pattern if it exists (for display purposes), but don't require it
       const pattern = await db.getWorkPattern(selectedDate)
-      if (!pattern) return
-
+      logger.ui.debug('Work pattern:', pattern)
+      
+      // Always load work sessions, even if no pattern exists
       const dbSessions = await db.getWorkSessions(selectedDate)
+      logger.ui.info('Loaded work sessions from DB:', { count: dbSessions.length, sessions: dbSessions })
       
       // Convert database sessions to our format
       const formattedSessions: WorkSession[] = dbSessions.map(session => {
         const startTime = dayjs(session.startTime)
-        const endTime = session.endTime ? dayjs(session.endTime) : startTime.add(session.plannedMinutes, 'minute')
+        const endTime = session.endTime ? dayjs(session.endTime) : startTime.add(session.plannedMinutes || session.actualMinutes || 60, 'minute')
         
         // Find task/step names
-        const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId)
-        const step = task?.steps?.find(s => s.id === session.stepId)
+        const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
         
-        return {
+        // For steps, we need to search across all tasks' steps
+        let step: TaskStep | undefined = undefined
+        let parentTask = task
+        if (session.stepId) {
+          // Search in all sequenced tasks for the step
+          for (const seqTask of sequencedTasks) {
+            const foundStep = seqTask.steps?.find(s => s.id === session.stepId)
+            if (foundStep) {
+              step = foundStep
+              parentTask = seqTask
+              break
+            }
+          }
+          // Also check if the task itself has steps
+          if (!step && task?.steps) {
+            step = task.steps.find(s => s.id === session.stepId)
+          }
+        }
+        
+        const formatted = {
           id: session.id,
           taskId: session.taskId,
           stepId: session.stepId,
-          taskName: task?.name,
+          taskName: parentTask?.name || task?.name || 'Unknown Task',
           stepName: step?.name,
           type: session.type as TaskType,
           startTime: startTime.format('HH:mm'),
           endTime: endTime.format('HH:mm'),
-          duration: session.actualMinutes || session.plannedMinutes,
+          duration: session.actualMinutes || session.plannedMinutes || 60,
           notes: session.notes,
           isNew: false,
           isDirty: false,
         }
+        
+        return formatted
       })
       
+      logger.ui.info('Setting formatted sessions:', formattedSessions.length)
       setSessions(formattedSessions)
     } catch (error) {
       logger.ui.error('Failed to load work sessions:', error)
@@ -125,10 +150,12 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
   const timeToPixels = (timeStr: string): number => {
     const [hours, minutes] = timeStr.split(':').map(Number)
     const totalMinutes = (hours - START_HOUR) * 60 + minutes
-    return (totalMinutes / 60) * HOUR_HEIGHT
+    const pixels = (totalMinutes / 60) * HOUR_HEIGHT
+    return pixels
   }
 
   // Convert pixels from top to time string (HH:mm)
+  // Note: pixels should be relative to the timeline container top (0 = 6 AM)
   const pixelsToTime = (pixels: number): string => {
     const totalMinutes = Math.round((pixels / HOUR_HEIGHT) * 60)
     const hours = Math.floor(totalMinutes / 60) + START_HOUR
@@ -138,7 +165,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     const clampedHours = Math.max(START_HOUR, Math.min(END_HOUR - 1, hours))
     const clampedMinutes = hours >= END_HOUR ? 59 : minutes
 
-    return `${clampedHours.toString().padStart(2, '0')}:${clampedMinutes.toString().padStart(2, '0')}`
+    const result = `${clampedHours.toString().padStart(2, '0')}:${clampedMinutes.toString().padStart(2, '0')}`
+    return result
   }
 
   // Round time to nearest 15 minutes
@@ -204,7 +232,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     }
     
     if (checkOverlap(newSession)) {
-      ArcoMessage.warning('This time slot overlaps with an existing session')
+      logger.ui.warn('This time slot overlaps with an existing session')
+      // Still show visual feedback - could use a notification or state-based warning
       return
     }
     
@@ -218,8 +247,20 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     e.preventDefault()
     e.stopPropagation()
     
+    logger.ui.debug('MouseDown on session:', { sessionId, edge, clientY: e.clientY })
+    
     const session = sessions.find(s => s.id === sessionId)
-    if (!session) return
+    if (!session) {
+      logger.ui.error('Session not found for drag:', sessionId)
+      return
+    }
+    
+    logger.ui.debug('Starting drag for session:', { 
+      sessionId, 
+      edge, 
+      startTime: session.startTime,
+      endTime: session.endTime 
+    })
     
     setDragState({
       sessionId,
@@ -235,39 +276,92 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragState || !containerRef.current) return
       
-      const rect = containerRef.current.getBoundingClientRect()
-      const relativeY = e.clientY - rect.top + containerRef.current.scrollTop
-      
       const session = sessions.find(s => s.id === dragState.sessionId)
-      if (!session) return
+      if (!session) {
+        logger.ui.error('Session lost during drag:', dragState.sessionId)
+        return
+      }
+      
+      // Add minimum movement threshold to prevent accidental moves
+      const deltaY = e.clientY - dragState.initialY
+      if (Math.abs(deltaY) < 5) {
+        return // Ignore tiny movements
+      }
+      
+      logger.ui.debug('Dragging session:', { 
+        sessionId: dragState.sessionId,
+        deltaY,
+        edge: dragState.edge,
+        clientY: e.clientY,
+        initialY: dragState.initialY
+      })
       
       if (dragState.edge === 'move') {
         // Moving the entire block
-        const deltaY = e.clientY - dragState.initialY
         const deltaMinutes = Math.round((deltaY / HOUR_HEIGHT) * 60)
         
         const startMinutes = timeToMinutes(dragState.initialStartTime) + deltaMinutes
         const endMinutes = timeToMinutes(dragState.initialEndTime) + deltaMinutes
         
-        // Check bounds
-        if (startMinutes >= START_HOUR * 60 && endMinutes <= END_HOUR * 60) {
-          const newStartTime = roundToQuarter(pixelsToTime((startMinutes / 60) * HOUR_HEIGHT))
-          const newEndTime = roundToQuarter(pixelsToTime((endMinutes / 60) * HOUR_HEIGHT))
-          
-          const updatedSession = {
-            ...session,
-            startTime: newStartTime,
-            endTime: newEndTime,
-            duration: calculateDuration(newStartTime, newEndTime),
-            isDirty: true,
-          }
-          
-          if (!checkOverlap(updatedSession, session.id)) {
-            setSessions(sessions.map(s => s.id === session.id ? updatedSession : s))
-          }
+        // Check bounds - allow some flexibility
+        const minStartMinutes = START_HOUR * 60
+        const maxEndMinutes = END_HOUR * 60
+        
+        // Clamp to valid range instead of rejecting
+        const clampedStartMinutes = Math.max(minStartMinutes, Math.min(startMinutes, maxEndMinutes - 15))
+        const clampedEndMinutes = Math.min(maxEndMinutes, Math.max(endMinutes, minStartMinutes + 15))
+        
+        // Convert minutes directly to time without going through pixels
+        const startHours = Math.floor(clampedStartMinutes / 60)
+        const startMins = clampedStartMinutes % 60
+        const endHours = Math.floor(clampedEndMinutes / 60)
+        const endMins = clampedEndMinutes % 60
+        
+        const newStartTime = roundToQuarter(`${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`)
+        const newEndTime = roundToQuarter(`${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`)
+        
+        const updatedSession = {
+          ...session,
+          startTime: newStartTime,
+          endTime: newEndTime,
+          duration: calculateDuration(newStartTime, newEndTime),
+          isDirty: true,
+        }
+        
+        logger.ui.debug('Updating session position:', { 
+          oldStart: session.startTime,
+          newStart: newStartTime,
+          oldEnd: session.endTime,
+          newEnd: newEndTime,
+          startMinutes,
+          endMinutes,
+          clampedStartMinutes,
+          clampedEndMinutes
+        })
+        
+        if (!checkOverlap(updatedSession, session.id)) {
+          setSessions(sessions.map(s => s.id === session.id ? updatedSession : s))
+        } else {
+          logger.ui.warn('Overlap detected, not updating position')
         }
       } else {
-        // Resizing edges
+        // Resizing edges - calculate position relative to timeline container
+        const rect = containerRef.current.getBoundingClientRect()
+        const scrollTop = containerRef.current.scrollTop
+        const relativeY = e.clientY - rect.top + scrollTop
+        
+        // Debug the calculation
+        const debugInfo = {
+          edge: dragState.edge,
+          clientY: e.clientY,
+          rectTop: rect.top,
+          scrollTop,
+          relativeY,
+          calculatedHours: Math.floor((relativeY / HOUR_HEIGHT)) + START_HOUR,
+          expectedHours: Math.floor(e.clientY / HOUR_HEIGHT)
+        }
+        logger.ui.debug('Edge resize calculation:', debugInfo)
+        
         const newTime = roundToQuarter(pixelsToTime(relativeY))
         
         if (dragState.edge === 'start' && newTime < session.endTime) {
@@ -314,12 +408,15 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
   // Save sessions to database
   const saveSessions = async () => {
     setIsSaving(true)
+    logger.ui.info('Starting save of sessions:', sessions.filter(s => s.isDirty))
+    
     try {
       const db = getDatabase()
       
       // Get or create work pattern for this date
       let pattern = await db.getWorkPattern(selectedDate)
       if (!pattern) {
+        logger.ui.debug('Creating new work pattern for date:', selectedDate)
         pattern = await db.createWorkPattern({
           date: selectedDate,
           blocks: [],
@@ -328,44 +425,71 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       }
       
       // Save dirty sessions
-      for (const session of sessions.filter(s => s.isDirty)) {
-        if (!session.taskId) continue // Skip unassigned sessions
+      const dirtySessionsToSave = sessions.filter(s => s.isDirty && s.taskId)
+      const unassignedSessions = sessions.filter(s => s.isDirty && !s.taskId)
+      
+      if (unassignedSessions.length > 0) {
+        logger.ui.warn('Skipping unassigned sessions:', unassignedSessions)
+      }
+      
+      logger.ui.info('Saving dirty sessions:', dirtySessionsToSave.length)
+      
+      for (const session of dirtySessionsToSave) {
         
-        const startDateTime = dayjs(`${selectedDate} ${session.startTime}`)
-        const endDateTime = dayjs(`${selectedDate} ${session.endTime}`)
+        // Parse the date properly to avoid timezone issues
+        // Use the date string directly to create Date objects in local time
+        const [year, month, day] = selectedDate.split('-').map(Number)
+        const [startHour, startMin] = session.startTime.split(':').map(Number)
+        const [endHour, endMin] = session.endTime.split(':').map(Number)
+        
+        const startDateTime = new Date(year, month - 1, day, startHour, startMin, 0, 0)
+        const endDateTime = new Date(year, month - 1, day, endHour, endMin, 0, 0)
+        
+        logger.ui.debug('Saving session:', {
+          id: session.id,
+          taskId: session.taskId,
+          stepId: session.stepId,
+          type: session.type,
+          startTime: startDateTime.toISOString(),
+          endTime: endDateTime.toISOString(),
+          duration: session.duration,
+          isNew: session.isNew
+        })
         
         if (session.isNew) {
           // Create new session
-          await db.createWorkSession({
+          const createData = {
             taskId: session.taskId,
             stepId: session.stepId,
             type: session.type,
-            startTime: startDateTime.toDate(),
-            endTime: endDateTime.toDate(),
+            startTime: startDateTime,
+            endTime: endDateTime,
             plannedMinutes: session.duration,
             actualMinutes: session.duration,
             notes: session.notes,
-          })
+          }
+          logger.ui.debug('Creating new work session:', createData)
+          await db.createWorkSession(createData)
         } else {
           // Update existing session
           await db.updateWorkSession(session.id, {
             taskId: session.taskId,
             stepId: session.stepId,
             type: session.type,
-            startTime: startDateTime.toDate(),
-            endTime: endDateTime.toDate(),
+            startTime: startDateTime,
+            endTime: endDateTime,
             actualMinutes: session.duration,
             notes: session.notes,
           })
         }
       }
       
-      ArcoMessage.success('Work sessions saved successfully')
+      logger.ui.info('Work sessions saved successfully')
       await loadWorkSessions() // Reload to get proper IDs
       await loadTasks() // Reload tasks to update cumulative time
     } catch (error) {
       logger.ui.error('Failed to save work sessions:', error)
-      ArcoMessage.error('Failed to save work sessions')
+      console.error('Failed to save work sessions:', error)
     } finally {
       setIsSaving(false)
     }
@@ -383,11 +507,13 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       }
       
       setSessions(sessions.filter(s => s.id !== sessionId))
-      ArcoMessage.success('Session deleted')
+      // Use logger instead of ArcoMessage to avoid React 19 compatibility issue
+      logger.ui.info('Session deleted successfully')
       await loadTasks() // Reload tasks to update cumulative time
     } catch (error) {
       logger.ui.error('Failed to delete session:', error)
-      ArcoMessage.error('Failed to delete session')
+      // Use console.error as fallback
+      console.error('Failed to delete session:', error)
     }
   }
 
@@ -494,8 +620,9 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         {/* Work sessions */}
         {sessions.map(session => {
           const top = timeToPixels(session.startTime)
-          const height = (session.duration / 60) * HOUR_HEIGHT
+          const height = Math.max((session.duration / 60) * HOUR_HEIGHT, 30) // Minimum height for visibility
           const color = session.type === TaskType.Focused ? '#165DFF' : '#00B42A'
+          
           
           return (
             <div
@@ -508,14 +635,28 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
                 height,
                 background: session.isDirty ? `${color}22` : `${color}11`,
                 border: `2px solid ${color}`,
-                borderRadius: 8,
-                padding: 8,
+                borderRadius: 6,
+                padding: '4px 8px',
                 cursor: 'move',
                 userSelect: 'none',
                 display: 'flex',
                 flexDirection: 'column',
+                fontSize: 11,
+                overflow: 'hidden',
               }}
               onMouseDown={(e) => handleMouseDown(e, session.id, 'move')}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                // Show delete confirmation on right-click
+                Modal.confirm({
+                  title: 'Delete this work session?',
+                  content: `${session.taskName} ${session.stepName ? '- ' + session.stepName : ''} (${session.duration} min)`,
+                  onOk: () => deleteSession(session.id),
+                  okText: 'Delete',
+                  okButtonProps: { status: 'danger' },
+                })
+              }}
             >
               {/* Resize handles */}
               <div
@@ -542,38 +683,47 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
               />
               
               {/* Content */}
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                <Text style={{ fontSize: 12, fontWeight: 'bold' }}>
+              <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {session.taskName || 'Unassigned'}
-                </Text>
+                </div>
                 {session.stepName && (
-                  <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                  <div style={{ fontSize: 10, color: '#86909c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {session.stepName}
-                  </Text>
+                  </div>
                 )}
-                <Text type="secondary" style={{ fontSize: 10, display: 'block', marginTop: 4 }}>
-                  {session.startTime} - {session.endTime} ({session.duration} min)
-                </Text>
+                {height > 50 && ( // Only show time if there's space
+                  <div style={{ fontSize: 9, color: '#86909c', marginTop: 2 }}>
+                    {session.startTime} - {session.endTime} ({session.duration}m)
+                  </div>
+                )}
               </div>
               
-              {/* Actions */}
-              <Space size={4} style={{ marginTop: 4 }}>
-                <Button
-                  size="mini"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setSelectedSession(session)
-                    setShowAssignModal(true)
-                  }}
-                >
-                  Assign
-                </Button>
+              {/* Actions - always show delete, but make it compact for small sessions */}
+              <Space size={2} style={{ marginTop: 2 }}>
+                {height > 40 && (
+                  <Button
+                    size="mini"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedSession(session)
+                      setShowAssignModal(true)
+                    }}
+                  >
+                    Assign
+                  </Button>
+                )}
                 <Popconfirm
                   title="Delete this session?"
                   onOk={() => deleteSession(session.id)}
                 >
-                  <Button size="mini" status="danger">
-                    <IconDelete />
+                  <Button 
+                    size="mini" 
+                    status="danger"
+                    icon={<IconDelete />}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {height > 40 && 'Delete'}
                   </Button>
                 </Popconfirm>
               </Space>
