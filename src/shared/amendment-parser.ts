@@ -165,24 +165,36 @@ IMPORTANT: Focus on understanding the user's intent and creating actionable amen
 
 Parse the transcription into one or more amendments. Common patterns:
 
-1. STATUS UPDATE: Marking tasks/workflows as complete, in progress, waiting, or not started
+1. DEPENDENCY CHANGE: Creating or modifying task dependencies
+   - "X is blocked by Y", "X depends on Y" → add Y as dependency of X
+   - "X is waiting on Y", "can't do X until Y" → add Y as dependency of X
+   - "need to do Y before X", "Y must be done first" → add Y as dependency of X
+   - "X no longer depends on Y" → remove Y from X's dependencies
+   - "I realized X needs Y to be done" → add dependency
+   - IMPORTANT: Prefer creating dependencies over just marking status as "waiting"
+
+2. TASK CREATION + DEPENDENCY: Creating new blocker tasks
+   - "I need to fix Y before I can do X" → create task Y, add as dependency of X
+   - "discovered we need Y approval first" → create approval task, add as dependency
+   - "I realized there's a Y issue blocking X" → create issue task, add as dependency
+
+3. STATUS UPDATE: Marking tasks/workflows as complete, in progress, etc
    - "kick off X", "start X", "begin X" → status: "in_progress" 
    - "finish X", "complete X", "done with X" → status: "completed"
-   - "pause X", "stop X", "waiting on X" → status: "waiting"
-   - For workflows: "kick off the deployment workflow" → mark workflow as in_progress
+   - "pause X", "stop X" → status: "waiting" (but consider if dependency is better)
    
-2. TIME LOG: Recording time spent
+4. TIME LOG: Recording time spent
    - "spent 2 hours on X", "worked on X for 30 minutes"
    - "the testing step took 45 minutes" → log time to specific step
    
-3. NOTE ADDITION: Adding notes or comments
-   - "add note: X", "X is blocked by Y"
-   - "waiting for approval" → add as note to active item
+5. NOTE ADDITION: Adding notes or comments
+   - "add note: X", "note that X"
+   - Use for context that doesn't imply blocking relationships
    
-4. DURATION CHANGE: Updating estimated duration
+6. DURATION CHANGE: Updating estimated duration
    - "X will take 3 hours not 2", "X needs more time"
    
-5. STEP ADDITION: Adding new steps to workflows (advanced)
+7. STEP ADDITION: Adding new steps to workflows
    - "add a code review step after implementation"
    - Break into 15-60 minute granular steps
    - Wire dependencies logically
@@ -214,21 +226,28 @@ Return ONLY a JSON object with this exact structure:
 }
 
 Amendment types and their required fields:
-- status_update: type, target, newStatus ("in_progress", "completed", "waiting", "not_started"), stepName (optional for workflow steps)
-- time_log: type, target, duration (in minutes), stepName (optional for logging time to specific workflow step)
+- dependency_change: type, target, addDependencies (array of IDs to add), removeDependencies (array of IDs to remove), stepName (optional for workflow steps)
+- task_creation: type, name, duration (in minutes), description (optional), importance (1-10), urgency (1-10), taskType ("focused"/"admin")
+- workflow_creation: type, name, steps (array of step objects), importance, urgency
+- status_update: type, target, newStatus ("in_progress", "completed", "waiting", "not_started"), stepName (optional)
+- time_log: type, target, duration (in minutes), stepName (optional)
 - note_addition: type, target, note, append (boolean, default true), stepName (optional)
-- duration_change: type, target, newDuration (in minutes), stepName (optional for changing step duration)
+- duration_change: type, target, newDuration (in minutes), stepName (optional)
 - step_addition: type, workflowTarget, stepName, duration, stepType ("focused"/"admin"), afterStep/beforeStep (optional)
+- step_removal: type, workflowTarget, stepName, reason (optional)
 
 CRITICAL: For step_addition, use "stepType" NOT "type" for the task type. The "type" field must always be "step_addition".
 
 Examples:
+- "Deploy is blocked by Safety Certification" → dependency_change with target: Deploy, addDependencies: ["workflow-1"] 
+- "I need to fix timestamps before running the workflow" → task_creation (fix timestamps task) + dependency_change
+- "Deploy no longer depends on testing" → dependency_change with removeDependencies: ["task-id"]
+- "I can't do X until Y is done" → dependency_change to add Y as dependency of X
 - "kick off the deployment workflow" → status_update to mark workflow in_progress
 - "the database migration step took 3 hours" → time_log with duration: 180 and stepName: "database migration"
 - "add a code review step after implementation" → step_addition with stepType: "focused", afterStep: "implementation"
 - "the testing step will take longer, maybe 2 hours" → duration_change with stepName: "testing", newDuration: 120
 - "finished the API design step" → status_update with stepName: "API design", newStatus: "completed"
-- "spent 45 minutes on the deployment step" → time_log with stepName: "deployment", duration: 45
 
 IMPORTANT: 
 - For workflow modifications, always include the stepName field when referring to specific steps
