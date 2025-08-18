@@ -25,7 +25,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
 
       // Convert deadline and lockedStartTime to ISO string if present
       // Arco DatePicker returns a Dayjs object or string
-      const convertDateValue = (value: any) => {
+      const convertDateValue = (value: any): string | undefined => {
         if (!value) return undefined
         // If it's already a string, assume it's in the right format
         if (typeof value === 'string') return value
@@ -55,7 +55,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
 
       form.resetFields()
       onClose()
-    } catch (error) {
+    } catch (_error) {
       // Form validation failed or database error
       // Error already handled by store
     }
