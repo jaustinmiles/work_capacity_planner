@@ -14,7 +14,8 @@ import ReactFlow, {
   Position,
   MarkerType,
 } from 'reactflow'
-import { Tag, Space, Typography, Switch } from '@arco-design/web-react'
+import { Tag, Space, Typography, Switch, Button } from '@arco-design/web-react'
+import { IconFullscreen, IconFullscreenExit } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { logger } from '../../utils/logger'
 
@@ -124,6 +125,7 @@ export function InteractiveWorkflowGraph({
   onUpdateDependencies,
 }: InteractiveWorkflowGraphProps) {
   const [hideCompleted, setHideCompleted] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   // Define node types outside component to prevent re-renders
   const nodeTypes = useMemo(() => ({
     workflow: WorkflowNode,
@@ -353,8 +355,45 @@ export function InteractiveWorkflowGraph({
     [setEdges, onUpdateDependencies, task.steps],
   )
 
+  // Handle fullscreen toggle
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      const graphContainer = document.getElementById('workflow-graph-container')
+      if (graphContainer) {
+        graphContainer.requestFullscreen().then(() => {
+          setIsFullscreen(true)
+        }).catch((err) => {
+          console.error('Error entering fullscreen:', err)
+        })
+      }
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false)
+      }).catch((err) => {
+        console.error('Error exiting fullscreen:', err)
+      })
+    }
+  }
+
+  // Listen for fullscreen changes (e.g., ESC key)
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div 
+      id="workflow-graph-container"
+      style={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        background: isFullscreen ? '#fff' : 'transparent'
+      }}
+    >
       <div style={{ 
         padding: '8px 16px', 
         background: '#fff', 
@@ -364,10 +403,12 @@ export function InteractiveWorkflowGraph({
         alignItems: 'center'
       }}>
         <div>
-          {isEditable && (
+          {isEditable ? (
             <Tag color="orange">
               Drag from right handle to left handle to create dependencies
             </Tag>
+          ) : (
+            <Text style={{ fontWeight: 'bold' }}>{task.name}</Text>
           )}
         </div>
         <Space>
@@ -376,6 +417,12 @@ export function InteractiveWorkflowGraph({
             checked={hideCompleted}
             onChange={setHideCompleted}
             size="small"
+          />
+          <Button
+            type="text"
+            icon={isFullscreen ? <IconFullscreenExit /> : <IconFullscreen />}
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           />
         </Space>
       </div>
