@@ -134,7 +134,7 @@ export function InteractiveWorkflowGraph({
   // Convert task steps to React Flow nodes
   const initialNodes = useMemo(() => {
     const nodes: Node[] = []
-    
+
     // Filter steps based on hideCompleted setting
     const visibleSteps = hideCompleted
       ? task.steps.filter(step => step.status !== 'completed')
@@ -144,30 +144,30 @@ export function InteractiveWorkflowGraph({
     const levelMap = new Map<string, number>()
     const visited = new Set<string>()
     const visiting = new Set<string>()
-    
+
     // Build adjacency map for easier traversal
     const stepMap = new Map<string, TaskStep>()
     visibleSteps.forEach(step => stepMap.set(step.id, step))
-    
+
     // DFS to calculate levels
     const calculateLevel = (stepId: string): number => {
       if (levelMap.has(stepId)) {
         return levelMap.get(stepId)!
       }
-      
+
       if (visiting.has(stepId)) {
         // Circular dependency detected, break it
         return 0
       }
-      
+
       visiting.add(stepId)
-      
+
       const step = stepMap.get(stepId)
       if (!step) {
         visiting.delete(stepId)
         return 0
       }
-      
+
       let maxDepLevel = -1
       step.dependsOn.forEach(depId => {
         const depStep = stepMap.get(depId)
@@ -176,15 +176,15 @@ export function InteractiveWorkflowGraph({
           maxDepLevel = Math.max(maxDepLevel, depLevel)
         }
       })
-      
+
       const level = maxDepLevel + 1
       levelMap.set(stepId, level)
       visiting.delete(stepId)
       visited.add(stepId)
-      
+
       return level
     }
-    
+
     // Calculate levels for all steps
     visibleSteps.forEach(step => {
       if (!visited.has(step.id)) {
@@ -200,9 +200,9 @@ export function InteractiveWorkflowGraph({
       group.push(step)
       levelGroups.set(level, group)
     })
-    
+
     // Sort steps within each level by their original order for stability
-    levelGroups.forEach((steps, level) => {
+    levelGroups.forEach((steps) => {
       steps.sort((a, b) => {
         const aIndex = task.steps.findIndex(s => s.id === a.id)
         const bIndex = task.steps.findIndex(s => s.id === b.id)

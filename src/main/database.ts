@@ -181,10 +181,10 @@ export class DatabaseService {
       // Return task with steps
       const taskWithSteps = await this.client.task.findUnique({
         where: { id: task.id },
-        include: { 
+        include: {
           TaskStep: {
-            orderBy: { stepIndex: 'asc' }
-          }
+            orderBy: { stepIndex: 'asc' },
+          },
         },
       })
       return this.formatTask(taskWithSteps!)
@@ -224,10 +224,10 @@ export class DatabaseService {
         ...cleanUpdateData,
         updatedAt: new Date(),
       },
-      include: { 
+      include: {
         TaskStep: {
-          orderBy: { stepIndex: 'asc' }
-        }
+          orderBy: { stepIndex: 'asc' },
+        },
       },
     })
 
@@ -291,10 +291,10 @@ export class DatabaseService {
       // Return task with updated steps
       const updatedTask = await this.client.task.findUnique({
         where: { id },
-        include: { 
+        include: {
           TaskStep: {
-            orderBy: { stepIndex: 'asc' }
-          }
+            orderBy: { stepIndex: 'asc' },
+          },
         },
       })
 
@@ -785,10 +785,10 @@ export class DatabaseService {
     // Update the workflow's total duration
     const updatedTask = await this.client.task.findUnique({
       where: { id: workflowId },
-      include: { 
+      include: {
         TaskStep: {
-          orderBy: { stepIndex: 'asc' }
-        }
+          orderBy: { stepIndex: 'asc' },
+        },
       },
     })
 
@@ -804,10 +804,10 @@ export class DatabaseService {
     // Return the updated workflow in SequencedTask format
     const finalTask = await this.client.task.findUnique({
       where: { id: workflowId },
-      include: { 
+      include: {
         TaskStep: {
-          orderBy: { stepIndex: 'asc' }
-        }
+          orderBy: { stepIndex: 'asc' },
+        },
       },
     })
 
