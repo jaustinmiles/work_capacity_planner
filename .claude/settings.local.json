@@ -45,7 +45,8 @@
       "Bash(npm audit:*)",
       "Bash(git check-ignore:*)",
       "Bash(mv:*)",
-      "Bash(/tmp/replace-task-types.sh:*)"
+      "Bash(/tmp/replace-task-types.sh:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

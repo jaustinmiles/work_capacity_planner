@@ -80,7 +80,7 @@ describe('WorkLoggerCalendar', () => {
     vi.clearAllMocks()
     ;(getDatabase as any).mockReturnValue(mockDatabase)
     ;(useTaskStore as any).mockReturnValue(mockTaskStore)
-    
+
     // Default mock implementations
     mockDatabase.getWorkPattern.mockResolvedValue({ id: 'pattern-1' })
     mockDatabase.getWorkSessions.mockResolvedValue([])
@@ -96,25 +96,25 @@ describe('WorkLoggerCalendar', () => {
 
   describe('Component Rendering', () => {
     it('should render the modal when visible', async () => {
-      const { container } = render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+      render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
+
       await waitFor(() => {
         expect(screen.getByText('Work Logger')).toBeInTheDocument()
       })
-      
+
       expect(screen.getByText('Add Session')).toBeInTheDocument()
       expect(screen.getByText('Save Changes')).toBeInTheDocument()
     })
 
     it('should not render when not visible', () => {
       render(<WorkLoggerCalendar visible={false} onClose={vi.fn()} />)
-      
+
       expect(screen.queryByText('Work Logger')).not.toBeInTheDocument()
     })
 
     it('should display hour markers', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('06:00')).toBeInTheDocument()
         expect(screen.getByText('12:00')).toBeInTheDocument()
@@ -137,11 +137,11 @@ describe('WorkLoggerCalendar', () => {
           actualMinutes: 60,
         },
       ]
-      
+
       mockDatabase.getWorkSessions.mockResolvedValue(mockSessions)
-      
+
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(mockDatabase.getWorkPattern).toHaveBeenCalled()
         expect(mockDatabase.getWorkSessions).toHaveBeenCalled()
@@ -160,15 +160,15 @@ describe('WorkLoggerCalendar', () => {
           actualMinutes: 60,
         },
       ]
-      
+
       mockDatabase.getWorkSessions.mockResolvedValue(mockSessions)
-      
+
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Write Documentation')).toBeInTheDocument()
       })
-      
+
       // Check for time display
       expect(screen.getByText(/09:00.*10:00.*60 min/)).toBeInTheDocument()
     })
@@ -177,14 +177,14 @@ describe('WorkLoggerCalendar', () => {
   describe('Creating Sessions', () => {
     it('should create a new session when Add Session is clicked', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Add Session')).toBeInTheDocument()
       })
-      
+
       const addButton = screen.getByText('Add Session')
       fireEvent.click(addButton)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Unassigned')).toBeInTheDocument()
       })
@@ -192,20 +192,20 @@ describe('WorkLoggerCalendar', () => {
 
     it('should open assignment modal', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Add Session')).toBeInTheDocument()
       })
-      
+
       const addButton = screen.getByText('Add Session')
       fireEvent.click(addButton)
-      
+
       await waitFor(() => {
         const assignButtons = screen.getAllByText('Assign')
         expect(assignButtons.length).toBeGreaterThan(0)
         fireEvent.click(assignButtons[0])
       })
-      
+
       await waitFor(() => {
         expect(screen.getByText('Assign Task')).toBeInTheDocument()
       })
@@ -215,7 +215,7 @@ describe('WorkLoggerCalendar', () => {
   describe('Date Navigation', () => {
     it('should navigate to previous day', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         // Find the button with the left icon (first button in the navigation area)
         const buttons = screen.getAllByRole('button')
@@ -225,18 +225,18 @@ describe('WorkLoggerCalendar', () => {
         })
         expect(leftButton).toBeInTheDocument()
       })
-      
+
       const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD')
       const buttons = screen.getAllByRole('button')
       const leftButton = buttons.find(btn => {
         const svg = btn.querySelector('svg.arco-icon-left')
         return svg !== null
       })
-      
+
       if (leftButton) {
         fireEvent.click(leftButton)
       }
-      
+
       await waitFor(() => {
         expect(mockDatabase.getWorkSessions).toHaveBeenCalledWith(yesterday)
       })
@@ -244,7 +244,7 @@ describe('WorkLoggerCalendar', () => {
 
     it('should navigate to next day', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         // Find the button with the right icon
         const buttons = screen.getAllByRole('button')
@@ -254,18 +254,18 @@ describe('WorkLoggerCalendar', () => {
         })
         expect(rightButton).toBeInTheDocument()
       })
-      
+
       const tomorrow = dayjs().add(1, 'day').format('YYYY-MM-DD')
       const buttons = screen.getAllByRole('button')
       const rightButton = buttons.find(btn => {
         const svg = btn.querySelector('svg.arco-icon-right')
         return svg !== null
       })
-      
+
       if (rightButton) {
         fireEvent.click(rightButton)
       }
-      
+
       await waitFor(() => {
         expect(mockDatabase.getWorkSessions).toHaveBeenCalledWith(tomorrow)
       })
@@ -273,7 +273,7 @@ describe('WorkLoggerCalendar', () => {
 
     it('should show Today button when navigated away', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         // Find the button with the left icon
         const buttons = screen.getAllByRole('button')
@@ -283,17 +283,17 @@ describe('WorkLoggerCalendar', () => {
         })
         expect(leftButton).toBeInTheDocument()
       })
-      
+
       const buttons = screen.getAllByRole('button')
       const leftButton = buttons.find(btn => {
         const svg = btn.querySelector('svg.arco-icon-left')
         return svg !== null
       })
-      
+
       if (leftButton) {
         fireEvent.click(leftButton)
       }
-      
+
       await waitFor(() => {
         expect(screen.getByText('Today')).toBeInTheDocument()
       })
@@ -302,26 +302,26 @@ describe('WorkLoggerCalendar', () => {
 
   describe('Saving and Deleting', () => {
     it('should save sessions to database', async () => {
-      const { Message } = await import('@arco-design/web-react')
-      
+      await import('@arco-design/web-react')
+
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Add Session')).toBeInTheDocument()
       })
-      
+
       // Create a session
       const addButton = screen.getByText('Add Session')
       fireEvent.click(addButton)
-      
+
       await waitFor(() => {
         const saveButton = screen.getByRole('button', { name: /save changes/i })
         expect(saveButton).toBeEnabled()
       })
-      
+
       const saveButton = screen.getByRole('button', { name: /save changes/i })
       fireEvent.click(saveButton)
-      
+
       // Note: actual save requires task assignment, so this will show a warning
       // but we're testing that the save flow is triggered
       expect(saveButton).toBeInTheDocument()
@@ -339,15 +339,15 @@ describe('WorkLoggerCalendar', () => {
           actualMinutes: 60,
         },
       ]
-      
+
       mockDatabase.getWorkSessions.mockResolvedValue(mockSessions)
-      
+
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Write Documentation')).toBeInTheDocument()
       })
-      
+
       // The delete functionality is in a popconfirm which requires specific interaction
       // For now we verify the session is displayed and can be interacted with
       expect(mockDatabase.deleteWorkSession).toBeDefined()
@@ -376,11 +376,11 @@ describe('WorkLoggerCalendar', () => {
           actualMinutes: 30,
         },
       ]
-      
+
       mockDatabase.getWorkSessions.mockResolvedValue(mockSessions)
-      
+
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText(/Focused: 60 min/)).toBeInTheDocument()
         expect(screen.getByText(/Admin: 30 min/)).toBeInTheDocument()
@@ -389,7 +389,7 @@ describe('WorkLoggerCalendar', () => {
 
     it('should show zero initially', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText(/Focused: 0 min/)).toBeInTheDocument()
         expect(screen.getByText(/Admin: 0 min/)).toBeInTheDocument()
@@ -400,23 +400,23 @@ describe('WorkLoggerCalendar', () => {
   describe('Task Assignment', () => {
     it('should show available tasks and steps', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Add Session')).toBeInTheDocument()
       })
-      
+
       const addButton = screen.getByText('Add Session')
       fireEvent.click(addButton)
-      
+
       await waitFor(() => {
         const assignButtons = screen.getAllByText('Assign')
         fireEvent.click(assignButtons[0])
       })
-      
+
       await waitFor(() => {
         expect(screen.getByText('Assign Task')).toBeInTheDocument()
       })
-      
+
       // Check for task options in the modal
       expect(screen.getByPlaceholderText('Select task or workflow step')).toBeInTheDocument()
     })
@@ -425,24 +425,24 @@ describe('WorkLoggerCalendar', () => {
   describe('Edge Cases', () => {
     it('should handle no work pattern gracefully', async () => {
       mockDatabase.getWorkPattern.mockResolvedValue(null)
-      
+
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Add Session')).toBeInTheDocument()
       })
-      
+
       // Should still be able to add sessions
       expect(screen.getByText('Add Session')).toBeEnabled()
     })
 
     it('should disable save when no changes', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Save Changes')).toBeInTheDocument()
       })
-      
+
       // The button with text "Save Changes" is wrapped, so we need to find the actual button element
       const saveButton = screen.getByRole('button', { name: /save changes/i })
       expect(saveButton).toBeDisabled()
@@ -450,14 +450,14 @@ describe('WorkLoggerCalendar', () => {
 
     it('should enable save when sessions are added', async () => {
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Add Session')).toBeInTheDocument()
       })
-      
+
       const addButton = screen.getByText('Add Session')
       fireEvent.click(addButton)
-      
+
       await waitFor(() => {
         const saveButton = screen.getByRole('button', { name: /save changes/i })
         expect(saveButton).toBeEnabled()
@@ -466,25 +466,25 @@ describe('WorkLoggerCalendar', () => {
 
     it('should handle errors gracefully', async () => {
       const { Message } = await import('@arco-design/web-react')
-      
+
       mockDatabase.createWorkSession.mockRejectedValue(new Error('Database error'))
-      
+
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Add Session')).toBeInTheDocument()
       })
-      
+
       const addButton = screen.getByText('Add Session')
       fireEvent.click(addButton)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Save Changes')).toBeEnabled()
       })
-      
+
       const saveButton = screen.getByText('Save Changes')
       fireEvent.click(saveButton)
-      
+
       // The error will be caught and logged
       expect(Message.error).toBeDefined()
     })
@@ -493,7 +493,7 @@ describe('WorkLoggerCalendar', () => {
   describe('Overlap Detection', () => {
     it('should warn about overlapping sessions', async () => {
       const { Message } = await import('@arco-design/web-react')
-      
+
       // Set up an existing session
       const mockSessions = [
         {
@@ -506,15 +506,15 @@ describe('WorkLoggerCalendar', () => {
           actualMinutes: 60,
         },
       ]
-      
+
       mockDatabase.getWorkSessions.mockResolvedValue(mockSessions)
-      
+
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText('Write Documentation')).toBeInTheDocument()
       })
-      
+
       // The overlap detection happens when creating or moving sessions
       // We verify the warning function is available
       expect(Message.warning).toBeDefined()
@@ -534,11 +534,11 @@ describe('WorkLoggerCalendar', () => {
           actualMinutes: 90,
         },
       ]
-      
+
       mockDatabase.getWorkSessions.mockResolvedValue(mockSessions)
-      
+
       render(<WorkLoggerCalendar visible={true} onClose={vi.fn()} />)
-      
+
       await waitFor(() => {
         expect(screen.getByText(/09:15.*10:45.*90 min/)).toBeInTheDocument()
       })
