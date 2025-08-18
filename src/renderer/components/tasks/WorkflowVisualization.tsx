@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { Modal, Space, Button, Switch } from '@arco-design/web-react'
 import { IconMindMapping, IconEdit } from '@arco-design/web-react/icon'
 import { SequencedTask } from '@shared/sequencing-types'
-import { WorkflowGraph } from './WorkflowGraph'
 import { InteractiveWorkflowGraph } from './InteractiveWorkflowGraph'
 import { useTaskStore } from '../../store/useTaskStore'
 import { logger } from '../../utils/logger'
@@ -79,16 +78,12 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
             />
           </Space>
         </div>
-        <div style={{ flex: 1, minHeight: 0, overflow: isEditMode ? 'hidden' : 'auto' }}>
-          {isEditMode ? (
-            <InteractiveWorkflowGraph
-              task={currentTask}
-              isEditable={true}
-              onUpdateDependencies={handleUpdateDependencies}
-            />
-          ) : (
-            <WorkflowGraph task={currentTask} />
-          )}
+        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <InteractiveWorkflowGraph
+            task={currentTask}
+            isEditable={isEditMode}
+            onUpdateDependencies={handleUpdateDependencies}
+          />
         </div>
       </div>
     </Modal>
