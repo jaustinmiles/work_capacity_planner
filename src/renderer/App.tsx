@@ -697,6 +697,17 @@ function App() {
           onClose={() => setShowDevTools(false)}
         />
 
+        {/* Task Creation Forms */}
+        <TaskForm
+          visible={taskFormVisible}
+          onClose={() => setTaskFormVisible(false)}
+        />
+
+        <SequencedTaskForm
+          visible={sequencedTaskFormVisible}
+          onClose={() => setSequencedTaskFormVisible(false)}
+        />
+
         {/* Floating Action Button for Voice Amendments */}
         <Button
           type="primary"
