@@ -108,22 +108,25 @@ export class SchedulingEngine {
    */
   private convertToSchedulableItems(tasks: Task[], sequencedTasks: SequencedTask[]): SchedulableItem[] {
     const converter: SchedulingConverter = {
-      convertSimpleTask: (task: Task): SchedulableItem => ({
-        id: `task_${task.id}`,
-        name: task.name,
-        duration: task.duration,
-        type: task.type,
-        importance: task.importance,
-        urgency: task.urgency,
-        dependsOn: task.dependencies.map(dep => `task_${dep}`),
-        asyncWaitTime: task.asyncWaitTime,
-        isAsyncTrigger: task.isAsyncTrigger,
-        deadline: task.deadline,
-        deadlineType: task.deadlineType,
-        sourceType: 'simple_task',
-        sourceId: task.id,
-        status: task.completed ? 'completed' : 'pending',
-      }),
+      convertSimpleTask: (task: Task): SchedulableItem => {
+        const converted = {
+          id: `task_${task.id}`,
+          name: task.name,
+          duration: task.duration,
+          type: task.type,
+          importance: task.importance,
+          urgency: task.urgency,
+          dependsOn: task.dependencies.map(dep => `task_${dep}`),
+          asyncWaitTime: task.asyncWaitTime,
+          isAsyncTrigger: task.isAsyncTrigger,
+          deadline: task.deadline,
+          deadlineType: task.deadlineType,
+          sourceType: 'simple_task' as const,
+          sourceId: task.id,
+          status: (task.completed ? 'completed' : 'pending') as 'completed' | 'pending',
+        }
+        return converted
+      },
 
       convertSequencedTask: (sequencedTask: SequencedTask): SchedulableItem[] => {
         return sequencedTask.steps.map((step, index) =>
@@ -441,9 +444,8 @@ export class SchedulingEngine {
 
     // Calculate in-degrees
     items.forEach(item => {
-      item.dependsOn.forEach(dep => {
-        inDegree.set(dep, (inDegree.get(dep) || 0) + 1)
-      })
+      // Set the in-degree for this item based on its dependencies
+      inDegree.set(item.id, item.dependsOn.length)
     })
 
     // Priority queue (items with no dependencies, sorted by priority)
@@ -461,7 +463,7 @@ export class SchedulingEngine {
       const current = queue.shift()!
       result.push(current)
 
-      // Update dependencies
+      // Update dependencies - find items that depend on the current item
       items.forEach(item => {
         if (item.dependsOn.includes(current.id)) {
           const newInDegree = (inDegree.get(item.id) || 0) - 1
