@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input } from '@arco-design/web-react'
-import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage } from '@arco-design/web-react/icon'
+import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import {
@@ -13,6 +13,9 @@ import {
   NoteAddition,
   DurationChange,
   StepAddition,
+  TaskCreation,
+  DependencyChange,
+  TaskType,
 } from '../../../shared/amendment-types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { logger } from '../../utils/logger'
@@ -264,6 +267,12 @@ export function VoiceAmendmentModal({
       case 'step_addition':
       case AmendmentType.StepAddition:
         return <IconEdit />
+      case 'task_creation':
+      case AmendmentType.TaskCreation:
+        return <IconPlus />
+      case 'dependency_change':
+      case AmendmentType.DependencyChange:
+        return <IconLink />
       default:
         logger.ui.warn('[VoiceAmendmentModal] Unknown amendment type in icon:', type)
         return <IconEdit />
@@ -343,6 +352,62 @@ export function VoiceAmendmentModal({
             </Space>
             {stepAddition.afterStep && (
               <Text type="secondary">After: {stepAddition.afterStep}</Text>
+            )}
+          </Space>
+        )
+      }
+      case 'task_creation':
+      case AmendmentType.TaskCreation: {
+        const taskCreation = amendment as TaskCreation
+        return (
+          <Space direction="vertical" size={4}>
+            <Space>
+              <Text>Create new task:</Text>
+              <Text bold>{taskCreation.name}</Text>
+            </Space>
+            <Space>
+              <Text>Duration:</Text>
+              <Text bold>{taskCreation.duration} minutes</Text>
+              {taskCreation.taskType && (
+                <>
+                  <Text>Type:</Text>
+                  <Tag color={taskCreation.taskType === TaskType.Focused ? 'blue' : 'green'}>
+                    {taskCreation.taskType === TaskType.Focused ? 'Focused' : 'Admin'}
+                  </Tag>
+                </>
+              )}
+            </Space>
+            {taskCreation.description && (
+              <Text type="secondary" style={{ fontStyle: 'italic' }}>
+                {taskCreation.description}
+              </Text>
+            )}
+          </Space>
+        )
+      }
+      case 'dependency_change':
+      case AmendmentType.DependencyChange: {
+        const depChange = amendment as DependencyChange
+        return (
+          <Space direction="vertical" size={4}>
+            <Space>
+              <Text>Update dependencies for</Text>
+              <Text bold>{depChange.target.name}</Text>
+            </Space>
+            {depChange.addDependencies && depChange.addDependencies.length > 0 && (
+              <Space>
+                <Text>Add dependencies:</Text>
+                <Text bold>{depChange.addDependencies.join(', ')}</Text>
+              </Space>
+            )}
+            {depChange.removeDependencies && depChange.removeDependencies.length > 0 && (
+              <Space>
+                <Text>Remove dependencies:</Text>
+                <Text bold>{depChange.removeDependencies.join(', ')}</Text>
+              </Space>
+            )}
+            {depChange.stepName && (
+              <Text type="secondary">Step: {depChange.stepName}</Text>
             )}
           </Space>
         )
