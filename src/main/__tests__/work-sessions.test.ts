@@ -263,6 +263,7 @@ describe('Work Session Management', () => {
         { type: 'focused', actualMinutes: 90, plannedMinutes: 90 },
         { type: 'admin', actualMinutes: 30, plannedMinutes: 45 },
       ])
+      mockPrisma.taskStep.findMany.mockResolvedValue([])
 
       const result = await db.getTodayAccumulated(testDate)
 
@@ -275,6 +276,7 @@ describe('Work Session Management', () => {
 
     it('should return zeros for no work sessions', async () => {
       mockPrisma.workSession.findMany.mockResolvedValue([])
+      mockPrisma.taskStep.findMany.mockResolvedValue([])
 
       const result = await db.getTodayAccumulated('2024-01-15')
 

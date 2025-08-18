@@ -426,6 +426,7 @@ describe('Database - Unified Task Model', () => {
           { type: 'admin', actualMinutes: 45, plannedMinutes: 40, Task: { sessionId: 'session-1' } },
           { type: 'focused', actualMinutes: null, plannedMinutes: 20, Task: { sessionId: 'session-1' } },
           { type: 'admin', actualMinutes: 15, plannedMinutes: 15, Task: { sessionId: 'session-1' } }])
+        mockPrisma.taskStep.findMany.mockResolvedValue([])
 
         const result = await db.getTodayAccumulated(testDate)
 
@@ -438,6 +439,7 @@ describe('Database - Unified Task Model', () => {
 
       it('should handle empty results', async () => {
         mockPrisma.workSession.findMany.mockResolvedValue([])
+        mockPrisma.taskStep.findMany.mockResolvedValue([])
 
         const result = await db.getTodayAccumulated(testDate)
 
@@ -452,6 +454,7 @@ describe('Database - Unified Task Model', () => {
         mockPrisma.workSession.findMany.mockResolvedValue([
           { type: 'focused', actualMinutes: 45, plannedMinutes: 30, Task: { sessionId: 'session-1' } },
           { type: 'focused', actualMinutes: null, plannedMinutes: 30, Task: { sessionId: 'session-1' } }])
+        mockPrisma.taskStep.findMany.mockResolvedValue([])
 
         const result = await db.getTodayAccumulated(testDate)
 
