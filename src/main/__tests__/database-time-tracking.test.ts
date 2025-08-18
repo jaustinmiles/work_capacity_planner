@@ -198,10 +198,10 @@ describe('Database - Time Tracking', () => {
           actualDuration: 45,
           updatedAt: expect.any(Date),
         }),
-        include: { 
+        include: {
           TaskStep: {
-            orderBy: { stepIndex: 'asc' }
-          }
+            orderBy: { stepIndex: 'asc' },
+          },
         },
       })
     })
