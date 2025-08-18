@@ -3,6 +3,7 @@ import { TaskType } from '@shared/enums'
 import { Modal, Form, Input, Select, Slider, InputNumber, Space, Grid, DatePicker, Checkbox, Radio } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar, IconLock, IconBulb } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
+import dayjs from 'dayjs'
 
 const { TextArea } = Input
 const { Row, Col } = Grid
@@ -23,11 +24,27 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
       const values = await form.validate()
 
       // Convert deadline and lockedStartTime to ISO string if present
+      // Arco DatePicker returns a Dayjs object or string
+      const convertDateValue = (value: any) => {
+        if (!value) return undefined
+        // If it's already a string, assume it's in the right format
+        if (typeof value === 'string') return value
+        // If it's a dayjs object
+        if (dayjs.isDayjs(value)) return value.toISOString()
+        // If it has toDate method (dayjs or moment)
+        if (value.toDate) return value.toDate().toISOString()
+        // If it's a Date object
+        if (value instanceof Date) return value.toISOString()
+        // If it has toISOString
+        if (value.toISOString) return value.toISOString()
+        return undefined
+      }
+
       const taskData = {
         ...values,
-        deadline: values.deadline ? values.deadline.toISOString() : undefined,
+        deadline: convertDateValue(values.deadline),
         deadlineType: values.deadline ? (values.deadlineType || 'soft') : undefined,
-        lockedStartTime: values.lockedStartTime ? values.lockedStartTime.toISOString() : undefined,
+        lockedStartTime: convertDateValue(values.lockedStartTime),
         isLocked: values.isLocked || false,
         cognitiveComplexity: values.cognitiveComplexity || undefined,
         dependencies: [],
@@ -38,7 +55,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
 
       form.resetFields()
       onClose()
-    } catch (__error) {
+    } catch (error) {
       // Form validation failed or database error
       // Error already handled by store
     }
