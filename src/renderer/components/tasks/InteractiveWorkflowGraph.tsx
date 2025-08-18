@@ -42,8 +42,8 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
 
   // Completed steps have a more muted appearance
   const isCompleted = data.status === 'completed'
-  const bgColor = isCompleted 
-    ? '#F5F5F5' 
+  const bgColor = isCompleted
+    ? '#F5F5F5'
     : data.type === TaskType.Focused ? '#E6F7FF' : '#E8F5E9'
   const borderColor = isCompleted
     ? '#BFBFBF'
@@ -61,17 +61,17 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
         position: 'relative',
       }}
     >
-      {data.isEditable && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          style={{
-            background: '#86909c',
-            width: 10,
-            height: 10,
-          }}
-        />
-      )}
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{
+          background: '#86909c',
+          width: 10,
+          height: 10,
+          visibility: data.isEditable ? 'visible' : 'hidden',
+          pointerEvents: data.isEditable ? 'auto' : 'none',
+        }}
+      />
 
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <div
@@ -104,17 +104,17 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
         </Tag>
       </Space>
 
-      {data.isEditable && (
-        <Handle
-          type="source"
-          position={Position.Right}
-          style={{
-            background: '#86909c',
-            width: 10,
-            height: 10,
-          }}
-        />
-      )}
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{
+          background: '#86909c',
+          width: 10,
+          height: 10,
+          visibility: data.isEditable ? 'visible' : 'hidden',
+          pointerEvents: data.isEditable ? 'auto' : 'none',
+        }}
+      />
     </div>
   )
 })
@@ -137,7 +137,7 @@ export function InteractiveWorkflowGraph({
     const levelMap = new Map<string, number>()
 
     // Filter steps based on hideCompleted setting
-    const visibleSteps = hideCompleted 
+    const visibleSteps = hideCompleted
       ? task.steps.filter(step => step.status !== 'completed')
       : task.steps
 
@@ -191,7 +191,7 @@ export function InteractiveWorkflowGraph({
     const edges: Edge[] = []
 
     // Filter steps based on hideCompleted setting
-    const visibleSteps = hideCompleted 
+    const visibleSteps = hideCompleted
       ? task.steps.filter(step => step.status !== 'completed')
       : task.steps
 
@@ -385,22 +385,22 @@ export function InteractiveWorkflowGraph({
   }, [])
 
   return (
-    <div 
+    <div
       id="workflow-graph-container"
-      style={{ 
-        height: '100%', 
-        display: 'flex', 
+      style={{
+        height: '100%',
+        display: 'flex',
         flexDirection: 'column',
-        background: isFullscreen ? '#fff' : 'transparent'
+        background: isFullscreen ? '#fff' : 'transparent',
       }}
     >
-      <div style={{ 
-        padding: '8px 16px', 
-        background: '#fff', 
+      <div style={{
+        padding: '8px 16px',
+        background: '#fff',
         borderBottom: '1px solid #e5e6eb',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
       }}>
         <div>
           {isEditable ? (
@@ -413,7 +413,7 @@ export function InteractiveWorkflowGraph({
         </div>
         <Space>
           <Text type="secondary">Hide Completed</Text>
-          <Switch 
+          <Switch
             checked={hideCompleted}
             onChange={setHideCompleted}
             size="small"
@@ -422,7 +422,7 @@ export function InteractiveWorkflowGraph({
             type="text"
             icon={isFullscreen ? <IconFullscreenExit /> : <IconFullscreen />}
             onClick={toggleFullscreen}
-            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
           />
         </Space>
       </div>
