@@ -22,6 +22,16 @@ export class DatabaseService {
     return DatabaseService.instance
   }
 
+  // Utility function to parse date string and create local date range
+  private getLocalDateRange(dateString: string): { startOfDay: Date; endOfDay: Date } {
+    const [year, month, day] = dateString.split('-').map(Number)
+
+    const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0)
+    const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
+
+    return { startOfDay, endOfDay }
+  }
+
   // Session management
   private activeSessionId: string | null = null
 
@@ -1164,14 +1174,14 @@ export class DatabaseService {
   async getTodayAccumulated(date: string): Promise<{ focused: number; admin: number; total: number }> {
     const sessionId = await this.getActiveSession()
 
+    // APPROACH 1: Get work sessions for the date
+    const { startOfDay, endOfDay } = this.getLocalDateRange(date)
+
     const workSessions = await this.client.workSession.findMany({
       where: {
-        Task: {
-          sessionId,
-        },
         startTime: {
-          gte: new Date(`${date}T00:00:00.000Z`),
-          lt: new Date(`${date}T23:59:59.999Z`),
+          gte: startOfDay,
+          lte: endOfDay,
         },
       },
       include: {
@@ -1179,6 +1189,30 @@ export class DatabaseService {
       },
     })
 
+    // APPROACH 2: Also check task steps that were completed today with actualDuration
+    const completedSteps = await this.client.taskStep.findMany({
+      where: {
+        completedAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+        actualDuration: {
+          gt: 0,
+        },
+      },
+    })
+
+    // APPROACH 3: Check tasks with actualDuration that were updated today (unused for now)
+    // const tasksWithTime = await this.client.task.findMany({
+    //   where: {
+    //     sessionId,
+    //     actualDuration: {
+    //       gt: 0,
+    //     },
+    //   },
+    // })
+
+    // Accumulate from work sessions
     const accumulated = workSessions.reduce((acc, session) => {
       const minutes = session.actualMinutes || session.plannedMinutes || 0
       if (session.type === TaskType.Focused) {
@@ -1189,6 +1223,23 @@ export class DatabaseService {
       acc.total += minutes
       return acc
     }, { focused: 0, admin: 0, total: 0 })
+
+    // Add time from completed steps (if not already in work sessions)
+    completedSteps.forEach(step => {
+      if (step.actualDuration) {
+        // Check if this step already has a work session
+        const hasWorkSession = workSessions.some(ws => ws.stepId === step.id)
+        if (!hasWorkSession) {
+          const stepType = step.type as TaskType
+          if (stepType === TaskType.Focused) {
+            accumulated.focused += step.actualDuration
+          } else if (stepType === TaskType.Admin) {
+            accumulated.admin += step.actualDuration
+          }
+          accumulated.total += step.actualDuration
+        }
+      }
+    })
 
     return accumulated
   }
@@ -1461,8 +1512,24 @@ export class DatabaseService {
   }
 
   async getWorkSessions(date: string): Promise<any[]> {
-    const pattern = await this.getWorkPattern(date)
-    return pattern ? this.getWorkSessionsForPattern(pattern.id) : []
+    // Get all work sessions for the given date
+    // This includes both pattern-based sessions and standalone sessions
+    const { startOfDay, endOfDay } = this.getLocalDateRange(date)
+
+    const sessions = await this.client.workSession.findMany({
+      where: {
+        startTime: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      include: {
+        Task: true,
+      },
+      orderBy: { startTime: 'asc' },
+    })
+
+    return sessions
   }
 
   async createStepWorkSession(data: any): Promise<any> {
