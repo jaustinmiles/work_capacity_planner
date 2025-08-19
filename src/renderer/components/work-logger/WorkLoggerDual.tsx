@@ -55,6 +55,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [pendingSession, setPendingSession] = useState<Partial<WorkSessionData> | null>(null)
   const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set())
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [meetings, setMeetings] = useState<any[]>([])
 
   const { tasks, sequencedTasks, loadTasks } = useTaskStore()
 
@@ -71,6 +72,14 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     try {
       const db = getDatabase()
       const dbSessions = await db.getWorkSessions(selectedDate)
+
+      // Load meetings for the selected date
+      const workPattern = await db.getWorkPattern(selectedDate)
+      if (workPattern && workPattern.meetings) {
+        setMeetings(workPattern.meetings)
+      } else {
+        setMeetings([])
+      }
 
       const formattedSessions: WorkSessionData[] = dbSessions.map(session => {
         const startTime = dayjs(session.startTime)
@@ -427,6 +436,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 <SwimLaneTimeline
                   sessions={sessions}
                   tasks={[...tasks, ...sequencedTasks]}
+                  meetings={meetings}
                   onSessionUpdate={handleSessionUpdate}
                   onSessionCreate={handleTimelineSessionCreate}
                   onSessionDelete={handleSessionDelete}
@@ -451,7 +461,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 selectedSessionId={selectedSessionId || undefined}
                 onSessionSelect={(id) => setSelectedSessionId(id || null)}
                 currentTime={new Date()}
-                meetings={[]} // TODO: Load meetings from database
+                meetings={meetings}
                 sleepBlocks={[]} // TODO: Load sleep blocks
               />
             </Card>
