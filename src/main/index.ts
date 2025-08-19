@@ -386,13 +386,29 @@ ipcMain.handle('speech:getSchedulingSettings', async () => {
 ipcMain.handle('feedback:save', async (_event, feedback) => {
   try {
     const fs = await import('fs/promises')
-    const feedbackPath = path.join(app.getPath('userData'), '..', '..', 'code', 'claude_code', 'task_planner', 'context', 'feedback.json')
+    // Use __dirname to get the project root, then navigate to context folder
+    const feedbackPath = path.join(__dirname, '..', '..', 'context', 'feedback.json')
 
     // Ensure directory exists
     await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
 
-    // Save feedback directly (overwriting for simplicity in dev context)
-    await fs.writeFile(feedbackPath, JSON.stringify(feedback, null, 2))
+    // Read existing feedback or create empty array
+    let allFeedback = []
+    try {
+      const existingData = await fs.readFile(feedbackPath, 'utf-8')
+      allFeedback = JSON.parse(existingData)
+      if (!Array.isArray(allFeedback)) {
+        allFeedback = [allFeedback] // Convert single object to array if needed
+      }
+    } catch {
+      // File doesn't exist yet
+    }
+
+    // Append new feedback
+    allFeedback.push(feedback)
+
+    // Save all feedback
+    await fs.writeFile(feedbackPath, JSON.stringify(allFeedback, null, 2))
 
     logger.main.info('Feedback saved to context folder')
     return true
@@ -405,7 +421,7 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
 ipcMain.handle('feedback:read', async () => {
   try {
     const fs = await import('fs/promises')
-    const feedbackPath = path.join(app.getPath('userData'), '..', '..', 'code', 'claude_code', 'task_planner', 'context', 'feedback.json')
+    const feedbackPath = path.join(__dirname, '..', '..', 'context', 'feedback.json')
 
     const data = await fs.readFile(feedbackPath, 'utf-8')
     return JSON.parse(data)
