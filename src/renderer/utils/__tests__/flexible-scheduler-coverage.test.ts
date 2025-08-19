@@ -44,6 +44,10 @@ describe('Flexible Scheduler - Additional Coverage', () => {
         new Date('2025-08-20T08:00:00'),
       )
 
+      // Debug output
+      console.log('Block utilization:', result.debugInfo.blockUtilization)
+      console.log('Warnings:', result.debugInfo.warnings)
+
       // Should detect empty blocks
       expect(result.debugInfo.warnings).toContain('2 empty time block(s) detected in schedule')
       expect(result.debugInfo.blockUtilization[0].unusedReason).toContain('Empty block')

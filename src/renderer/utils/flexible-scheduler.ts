@@ -528,6 +528,12 @@ export function scheduleItemsWithBlocksAndDebug(
 
     if (item.dependencies && item.dependencies.length > 0) {
       for (const depId of item.dependencies) {
+        // Check if dependency exists
+        if (!itemById.has(depId)) {
+          // Missing dependency - mark this item as unschedulable
+          level = Number.MAX_SAFE_INTEGER
+          break
+        }
         level = Math.max(level, calculateLevel(depId, visiting) + 1)
       }
     }
@@ -542,8 +548,21 @@ export function scheduleItemsWithBlocksAndDebug(
 
   // Group items by dependency level while preserving topological order
   const levelGroups = new Map<number, WorkItem[]>()
+  const itemsWithMissingDeps: WorkItem[] = []
+
   workItems.forEach(item => {
     const level = dependencyLevels.get(item.id) || 0
+
+    // Filter out items with missing dependencies
+    if (level === Number.MAX_SAFE_INTEGER) {
+      itemsWithMissingDeps.push(item)
+      debugInfo.unscheduledItems.push({
+        ...item,
+        reason: 'Missing dependency - one or more dependencies do not exist',
+      })
+      return
+    }
+
     if (!levelGroups.has(level)) {
       levelGroups.set(level, [])
     }
@@ -553,10 +572,10 @@ export function scheduleItemsWithBlocksAndDebug(
   // Sort within each level by priority, but maintain level ordering
   const sortedWorkItems: WorkItem[] = []
   const sortedLevels = Array.from(levelGroups.keys()).sort((a, b) => a - b)
-  
+
   for (const level of sortedLevels) {
     const itemsAtLevel = levelGroups.get(level)!
-    
+
     // Sort items within this dependency level by priority
     itemsAtLevel.sort((a, b) => {
       // Locked tasks first
@@ -584,10 +603,10 @@ export function scheduleItemsWithBlocksAndDebug(
       // Finally by priority score
       return b.priority - a.priority
     })
-    
+
     sortedWorkItems.push(...itemsAtLevel)
   }
-  
+
   workItems = sortedWorkItems
 
   // Process each day
@@ -602,7 +621,10 @@ export function scheduleItemsWithBlocksAndDebug(
   // Single source of truth for block utilization tracking
   const blockUtilizationMap = new Map<string, any>()
 
-  while (workItems.length > 0 && dayIndex < maxDays) {
+  // Process patterns even if there are no work items (for empty block detection)
+  const shouldProcessPatterns = workItems.length > 0 || patterns.length > 0
+
+  while ((workItems.length > 0 || (shouldProcessPatterns && dayIndex === 0)) && dayIndex < maxDays) {
     let dateStr = currentDate.toISOString().split('T')[0]
     const pattern = patterns.find(p => p.date === dateStr)
 
@@ -704,7 +726,7 @@ export function scheduleItemsWithBlocksAndDebug(
       if (aLevel !== bLevel) {
         return aLevel - bLevel // Lower levels (fewer dependencies) come first
       }
-      
+
       // Within the same dependency level, sort by priority
       // If we have scheduling context, recalculate priorities with current time
       if (schedulingContext) {
@@ -780,11 +802,11 @@ export function scheduleItemsWithBlocksAndDebug(
     // Keep trying to schedule items until we can't make progress (for dependency resolution)
     let schedulingProgress = true
     let maxRetries = itemsToSchedule.length * 2 // Prevent infinite loops
-    
+
     while (schedulingProgress && itemsToSchedule.length > 0 && maxRetries > 0) {
       schedulingProgress = false
       maxRetries--
-      
+
       for (let i = 0; i < itemsToSchedule.length; i++) {
         const item = itemsToSchedule[i]
         if (!item) continue
@@ -820,8 +842,17 @@ export function scheduleItemsWithBlocksAndDebug(
 
           if (hasConflict) {
             debugInfo.warnings.push(
-              `Cannot schedule locked task "${item.name}" at ${lockedTime.toLocaleString()} - conflicts with existing scheduled items`,
+              `Locked task "${item.name}" at ${lockedTime.toLocaleTimeString()} conflicts with already scheduled tasks`,
             )
+            debugInfo.unscheduledItems.push({
+              ...item,
+              reason: `Conflicts with existing scheduled items at ${lockedTime.toLocaleTimeString()}`,
+            })
+            // Remove from work items but don't schedule
+            workItems.splice(originalIndex, 1)
+            itemsToSchedule.splice(i, 1)
+            i--
+            continue
           } else {
             // Schedule the locked task at its exact time
             scheduledItems.push({
