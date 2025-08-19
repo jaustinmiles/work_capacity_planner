@@ -220,6 +220,7 @@ function canFitInBlock(
   block: BlockCapacity,
   currentTime: Date,
   scheduledItems: ScheduledItem[],
+  now?: Date,
 ): { canFit: boolean; startTime: Date } {
   // Don't count async wait times as conflicts when checking for available slots
   const nonWaitScheduledItems = scheduledItems.filter(s => !s.isWaitTime)
@@ -256,15 +257,19 @@ function canFitInBlock(
   // Find next available time in block
   // For backfilling: try from block start, but respect current time for today's blocks
   // Only backfill within the same day, not into the past
+  const actualNow = now || currentTime
   const blockDate = new Date(block.startTime)
-  const isToday = blockDate.toDateString() === currentTime.toDateString()
+  const isToday = blockDate.toDateString() === actualNow.toDateString()
 
   let tryTime: Date
-  if (isToday && currentTime > block.startTime) {
-    // For today's blocks that have already started, start from current time
-    tryTime = new Date(Math.max(currentTime.getTime(), block.startTime.getTime()))
+  if (isToday && actualNow > block.startTime) {
+    // For today's blocks that have already started, start from actual current time
+    tryTime = new Date(Math.max(actualNow.getTime(), block.startTime.getTime()))
+  } else if (isToday && actualNow <= block.startTime) {
+    // Today's block that hasn't started yet - can start from block beginning
+    tryTime = new Date(block.startTime.getTime())
   } else {
-    // For future blocks or today's blocks that haven't started, can backfill from start
+    // Future blocks - can backfill from start
     tryTime = new Date(block.startTime.getTime())
   }
 
@@ -573,10 +578,10 @@ export function scheduleItemsWithBlocksAndDebug(
   })
 
   // Process each day
-  const now = new Date()
+  const now = startDate // Use the startDate parameter as "now" for consistency
   const currentDate = new Date(startDate)
   currentDate.setHours(0, 0, 0, 0)
-  let currentTime = new Date(Math.max(startDate.getTime(), now.getTime())) // Don't schedule in the past
+  let currentTime = new Date(startDate) // Start from the provided start time
   let dayIndex = 0
   const maxDays = 30 // Limit to 30 days
 
@@ -902,7 +907,7 @@ export function scheduleItemsWithBlocksAndDebug(
 
       // Try to fit in available blocks
       for (const block of blockCapacities) {
-        const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems)
+        const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems, now)
 
         if (canFit) {
           const endTime = new Date(startTime.getTime() + item.duration * 60000)
