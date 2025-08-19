@@ -399,18 +399,43 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
     let allFeedback: any[] = []
     try {
       const existingData = await fs.readFile(feedbackPath, 'utf-8')
-      allFeedback = JSON.parse(existingData)
-      if (!Array.isArray(allFeedback)) {
-        allFeedback = [allFeedback] // Convert single object to array if needed
+      const parsed = JSON.parse(existingData)
+      
+      // Flatten the structure if needed
+      const flattenItems = (items: any): any[] => {
+        const result: any[] = []
+        if (Array.isArray(items)) {
+          items.forEach(item => {
+            if (Array.isArray(item)) {
+              result.push(...flattenItems(item))
+            } else if (item && typeof item === 'object' && 'type' in item) {
+              result.push(item)
+            }
+          })
+        } else if (items && typeof items === 'object' && 'type' in items) {
+          result.push(items)
+        }
+        return result
       }
+      
+      allFeedback = flattenItems(parsed)
     } catch {
       // File doesn't exist yet
     }
 
-    // Append new feedback
-    allFeedback.push(feedback)
+    // Append new feedback (ensure it's not an array being appended)
+    if (Array.isArray(feedback)) {
+      // If somehow an array is being saved, flatten it
+      feedback.forEach(item => {
+        if (item && typeof item === 'object' && 'type' in item) {
+          allFeedback.push(item)
+        }
+      })
+    } else if (feedback && typeof feedback === 'object' && 'type' in feedback) {
+      allFeedback.push(feedback)
+    }
 
-    // Save all feedback
+    // Save all feedback (flat array only)
     await fs.writeFile(feedbackPath, JSON.stringify(allFeedback, null, 2))
 
     logger.main.info('Feedback saved to context folder')
@@ -432,6 +457,61 @@ ipcMain.handle('feedback:read', async () => {
   } catch {
     // File doesn't exist yet
     return []
+  }
+})
+
+ipcMain.handle('feedback:load', async () => {
+  try {
+    const fs = await import('fs/promises')
+    const projectRoot = process.cwd()
+    const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
+
+    const data = await fs.readFile(feedbackPath, 'utf-8')
+    return JSON.parse(data)
+  } catch {
+    // File doesn't exist yet
+    return []
+  }
+})
+
+ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
+  try {
+    const fs = await import('fs/promises')
+    const projectRoot = process.cwd()
+    const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
+
+    logger.main.info('Updating feedback in:', feedbackPath)
+
+    // Ensure directory exists
+    await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
+
+    // Flatten the structure if needed before saving
+    const flattenItems = (items: any): any[] => {
+      const result: any[] = []
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          if (Array.isArray(item)) {
+            result.push(...flattenItems(item))
+          } else if (item && typeof item === 'object' && 'type' in item) {
+            result.push(item)
+          }
+        })
+      } else if (items && typeof items === 'object' && 'type' in items) {
+        result.push(items)
+      }
+      return result
+    }
+    
+    const flatFeedback = flattenItems(updatedFeedback)
+
+    // Save updated feedback (ensure it's a flat array)
+    await fs.writeFile(feedbackPath, JSON.stringify(flatFeedback, null, 2))
+
+    logger.main.info('Feedback updated in context folder')
+    return true
+  } catch (error) {
+    logger.main.error('Failed to update feedback:', error)
+    throw error
   }
 })
 

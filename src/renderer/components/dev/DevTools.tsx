@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Modal, Button, Space, Typography, Alert, Tabs } from '@arco-design/web-react'
-import { IconDelete, IconTool, IconMessage } from '@arco-design/web-react/icon'
+import { IconDelete, IconTool, IconMessage, IconList } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { logger } from '../../utils/logger'
 import { FeedbackForm } from './FeedbackForm'
+import { FeedbackViewer } from './FeedbackViewer'
 
 const { Title, Text } = Typography
 const TabPane = Tabs.TabPane
@@ -57,11 +58,23 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
           title={
             <Space>
               <IconMessage />
-              <span>Feedback</span>
+              <span>Submit Feedback</span>
             </Space>
           }
         >
           <FeedbackForm onClose={onClose} />
+        </TabPane>
+
+        <TabPane
+          key="viewer"
+          title={
+            <Space>
+              <IconList />
+              <span>View Feedback</span>
+            </Space>
+          }
+        >
+          <FeedbackViewer onClose={onClose} />
         </TabPane>
 
         <TabPane

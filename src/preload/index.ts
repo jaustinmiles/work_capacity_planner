@@ -96,6 +96,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Feedback operations
   saveFeedback: (feedback: any) => ipcRenderer.invoke('feedback:save', feedback),
   readFeedback: () => ipcRenderer.invoke('feedback:read'),
+  loadFeedback: () => ipcRenderer.invoke('feedback:load'),
+  updateFeedback: (updatedFeedback: any) => ipcRenderer.invoke('feedback:update', updatedFeedback),
   getSessionId: () => ipcRenderer.invoke('app:getSessionId'),
 })
 

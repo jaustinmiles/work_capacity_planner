@@ -13,6 +13,7 @@
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "start": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"wait-on http://localhost:5174 && npm run electron:dev\"",
     "start:logged": "./scripts/dev-with-logging.sh",
+    "start:stable": "./scripts/dev-no-watch.sh",
     "restart": "pkill -f electron && chmod 666 dev.db 2>/dev/null || true && npm run start",
     "test": "vitest",
     "test:ui": "vitest --ui",
