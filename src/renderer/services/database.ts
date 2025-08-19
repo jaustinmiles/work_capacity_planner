@@ -180,6 +180,10 @@ declare global {
           prompt: string
         }>
       }
+      // Feedback operations
+      saveFeedback?: (feedback: any) => Promise<boolean>
+      readFeedback?: () => Promise<any[]>
+      getSessionId?: () => Promise<string>
     }
 
   }

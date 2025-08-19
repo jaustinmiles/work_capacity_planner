@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Modal, Button, Space, Typography, Alert } from '@arco-design/web-react'
-import { IconDelete, IconTool } from '@arco-design/web-react/icon'
+import { Modal, Button, Space, Typography, Alert, Tabs } from '@arco-design/web-react'
+import { IconDelete, IconTool, IconMessage } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { logger } from '../../utils/logger'
-
+import { FeedbackForm } from './FeedbackForm'
 
 const { Title, Text } = Typography
+const TabPane = Tabs.TabPane
 
 interface DevToolsProps {
   visible: boolean
@@ -48,34 +49,58 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
       visible={visible}
       onCancel={onClose}
       footer={null}
-      style={{ width: 600 }}
+      style={{ width: 700 }}
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
-        <Alert
-          type="warning"
-          title="Warning"
-          content="These tools are for development purposes only. Use with caution."
-        />
+      <Tabs defaultActiveTab="feedback">
+        <TabPane
+          key="feedback"
+          title={
+            <Space>
+              <IconMessage />
+              <span>Feedback</span>
+            </Space>
+          }
+        >
+          <FeedbackForm onClose={onClose} />
+        </TabPane>
 
-        <div>
-          <Title heading={6}>Database Management</Title>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Button
-              type="primary"
-              status="danger"
-              icon={<IconDelete />}
-              onClick={handleClearAllData}
-              loading={isClearing}
-              long
-            >
-              Clear All User Data
-            </Button>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Removes all tasks, workflows, schedules, and settings. Sessions are preserved but cleared.
-            </Text>
+        <TabPane
+          key="database"
+          title={
+            <Space>
+              <IconDelete />
+              <span>Database</span>
+            </Space>
+          }
+        >
+          <Space direction="vertical" style={{ width: '100%', marginTop: 20 }} size="large">
+            <Alert
+              type="warning"
+              title="Warning"
+              content="These tools are for development purposes only. Use with caution."
+            />
+
+            <div>
+              <Title heading={6}>Database Management</Title>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button
+                  type="primary"
+                  status="danger"
+                  icon={<IconDelete />}
+                  onClick={handleClearAllData}
+                  loading={isClearing}
+                  long
+                >
+                  Clear All User Data
+                </Button>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Removes all tasks, workflows, schedules, and settings. Sessions are preserved but cleared.
+                </Text>
+              </Space>
+            </div>
           </Space>
-        </div>
-      </Space>
+        </TabPane>
+      </Tabs>
 
       {/* Custom Confirmation Modal */}
       <Modal

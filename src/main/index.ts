@@ -382,6 +382,44 @@ ipcMain.handle('speech:getSchedulingSettings', async () => {
   return speechService.getSchedulingSettings()
 })
 
+// Feedback handlers
+ipcMain.handle('feedback:save', async (_event, feedback) => {
+  try {
+    const fs = await import('fs/promises')
+    const feedbackPath = path.join(app.getPath('userData'), '..', '..', 'code', 'claude_code', 'task_planner', 'context', 'feedback.json')
+
+    // Ensure directory exists
+    await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
+
+    // Save feedback directly (overwriting for simplicity in dev context)
+    await fs.writeFile(feedbackPath, JSON.stringify(feedback, null, 2))
+
+    logger.main.info('Feedback saved to context folder')
+    return true
+  } catch (error) {
+    logger.main.error('Failed to save feedback:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('feedback:read', async () => {
+  try {
+    const fs = await import('fs/promises')
+    const feedbackPath = path.join(app.getPath('userData'), '..', '..', 'code', 'claude_code', 'task_planner', 'context', 'feedback.json')
+
+    const data = await fs.readFile(feedbackPath, 'utf-8')
+    return JSON.parse(data)
+  } catch {
+    // File doesn't exist yet
+    return []
+  }
+})
+
+ipcMain.handle('app:getSessionId', () => {
+  // Generate a session ID for feedback tracking
+  return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+})
+
 // Logging handler
 ipcMain.on('log:message', (_event, { level, scope, message, data }) => {
   // Use the appropriate logger based on level
