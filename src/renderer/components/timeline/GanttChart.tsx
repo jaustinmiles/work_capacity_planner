@@ -350,19 +350,20 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Row height based on zoom
   const rowHeight = 40
 
-  // Calculate row positions for items (group workflow steps together)
+  // Calculate row positions for items (group workflow steps together) and meeting time
   const itemRowPositions = useMemo(() => {
     const positions = new Map<string, number>()
     let currentRow = 0
     const workflowRows = new Map<string, number>()
     const workflowProgress = new Map<string, { completed: number, total: number }>()
+    let totalMeetingMinutes = 0
 
     // Separate items by type
     const blockedItems = scheduledItems.filter((item: any) => item.isBlocked)
     const taskItems = scheduledItems.filter((item: any) => !item.isBlocked && !item.isWaitTime)
     const waitItems = scheduledItems.filter((item: any) => item.isWaitTime)
 
-    // First pass: calculate workflow progress
+    // First pass: calculate workflow progress and meeting time
     scheduledItems.forEach((item: any) => {
       if (item.workflowId && item.type === 'workflow-step' && !item.isWaitTime) {
         if (!workflowProgress.has(item.workflowId)) {
@@ -373,6 +374,12 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         if (item.originalItem && 'status' in item.originalItem && item.originalItem.status === 'completed') {
           progress.completed++
         }
+      }
+
+      // Calculate meeting time
+      if (item.isBlocked && item.type === 'meeting' && item.startTime && item.endTime) {
+        const duration = (item.endTime.getTime() - item.startTime.getTime()) / (1000 * 60)
+        totalMeetingMinutes += duration
       }
     })
 
@@ -407,7 +414,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       positions.set(item.id, positions.get(parentId) || currentRow)
     })
 
-    return { positions, totalRows: currentRow, workflowProgress }
+    return { positions, totalRows: currentRow, workflowProgress, totalMeetingMinutes }
   }, [scheduledItems])
 
   // Early return for empty state - AFTER all hooks
@@ -492,23 +499,33 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               <Title heading={4}>{scheduledItems.filter((item: any) => !item.isWaitTime).length}</Title>
             </Space>
           </Col>
-          <Col span={5}>
+          <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Completion</Text>
               <Title heading={4}>{formatDate(chartEndTime)}</Title>
               <Text type="secondary">{formatTime(chartEndTime)}</Text>
             </Space>
           </Col>
-          <Col span={4}>
+          <Col span={3}>
             <Space direction="vertical">
               <Text type="secondary">Work Days</Text>
               <Title heading={4}>{totalDays} days</Title>
             </Space>
           </Col>
-          <Col span={4}>
+          <Col span={3}>
             <Space direction="vertical">
               <Text type="secondary">Workflows</Text>
               <Title heading={4}>{sequencedTasks.filter(w => w.overallStatus !== 'completed').length}</Title>
+            </Space>
+          </Col>
+          <Col span={3}>
+            <Space direction="vertical">
+              <Text type="secondary">Meeting Time</Text>
+              <Title heading={4}>
+                {itemRowPositions.totalMeetingMinutes > 0
+                  ? `${Math.floor(itemRowPositions.totalMeetingMinutes / 60)}h ${itemRowPositions.totalMeetingMinutes % 60}m`
+                  : '0h'}
+              </Title>
             </Space>
           </Col>
           <Col span={7}>
