@@ -1012,7 +1012,7 @@ export function scheduleItemsWithBlocksAndDebug(
             unusedReason = `Empty block: ${block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal} minutes available but unused`
           }
         } else if (unusedFocus > 30 || unusedAdmin > 30 || unusedPersonal > 30) {
-          const parts = []
+          const parts: string[] = []
           if (unusedFocus > 30) parts.push(`${unusedFocus} focus`)
           if (unusedAdmin > 30) parts.push(`${unusedAdmin} admin`)
           if (unusedPersonal > 30) parts.push(`${unusedPersonal} personal`)
