@@ -541,8 +541,14 @@ export function SwimLaneTimeline({
                 if (lane.isWorkflow && !lane.isExpanded) {
                   return
                 }
-                const [taskId, stepId] = lane.id.split('-')
-                handleLaneMouseDown(e, taskId, stepId)
+                // For workflow steps, lane.id is "taskId-stepId"
+                // For regular tasks, lane.id is just "taskId"
+                if (lane.id.includes('-')) {
+                  const [taskId, stepId] = lane.id.split('-')
+                  handleLaneMouseDown(e, taskId, stepId)
+                } else {
+                  handleLaneMouseDown(e, lane.id, undefined)
+                }
               }}
             >
               {/* Hour grid lines */}
