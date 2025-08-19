@@ -254,7 +254,8 @@ function canFitInBlock(
   }
 
   // Find next available time in block
-  let tryTime = new Date(Math.max(currentTime.getTime(), block.startTime.getTime()))
+  // For backfilling: always try from block start, not current time
+  let tryTime = new Date(block.startTime.getTime())
   const itemEndTime = new Date(tryTime.getTime() + item.duration * 60000)
 
   // Check if it fits before block ends
@@ -562,6 +563,9 @@ export function scheduleItemsWithBlocksAndDebug(
   let currentTime = new Date(Math.max(startDate.getTime(), now.getTime())) // Don't schedule in the past
   let dayIndex = 0
   const maxDays = 30 // Limit to 30 days
+  
+  // Single source of truth for block utilization tracking
+  const blockUtilizationMap = new Map<string, any>()
 
   while (workItems.length > 0 && dayIndex < maxDays) {
     let dateStr = currentDate.toISOString().split('T')[0]
@@ -587,6 +591,27 @@ export function scheduleItemsWithBlocksAndDebug(
 
     // Create block capacities
     const blockCapacities = pattern.blocks.map(block => getBlockCapacity(block, currentDate))
+    
+    // Register blocks in the utilization map (single source of truth)
+    blockCapacities.forEach(block => {
+      const key = `${dateStr}-${block.blockId}`
+      if (!blockUtilizationMap.has(key)) {
+        blockUtilizationMap.set(key, {
+          date: dateStr,
+          blockId: block.blockId,
+          startTime: block.startTime.toLocaleTimeString(),
+          endTime: block.endTime.toLocaleTimeString(),
+          focusUsed: 0,
+          focusTotal: block.focusMinutesTotal,
+          adminUsed: 0,
+          adminTotal: block.adminMinutesTotal,
+          personalUsed: 0,
+          personalTotal: block.personalMinutesTotal,
+          unusedReason: null,
+          block: block, // Keep reference for updates
+        })
+      }
+    })
 
     // Track initial block state for debugging
     const blockStartState = blockCapacities.map(block => {
@@ -891,6 +916,15 @@ export function scheduleItemsWithBlocksAndDebug(
           } else {
             block.adminMinutesUsed += item.duration
           }
+          
+          // Update the utilization map
+          const utilizationKey = `${dateStr}-${block.blockId}`
+          const utilization = blockUtilizationMap.get(utilizationKey)
+          if (utilization) {
+            utilization.focusUsed = block.focusMinutesUsed
+            utilization.adminUsed = block.adminMinutesUsed
+            utilization.personalUsed = block.personalMinutesUsed
+          }
 
           // Track workflow progress
           if (item.workflowId) {
@@ -999,44 +1033,7 @@ export function scheduleItemsWithBlocksAndDebug(
       : new Date(currentDate.getTime() + 24 * 60 * 60 * 1000)
 
     if (!itemsScheduledToday || shouldMoveToNextDay || currentTime.getTime() >= lastBlockEnd.getTime()) {
-      // Track block utilization before moving to next day
-      blockCapacities.forEach((block, index) => {
-        const unusedFocus = block.focusMinutesTotal - block.focusMinutesUsed
-        const unusedAdmin = block.adminMinutesTotal - block.adminMinutesUsed
-        const unusedPersonal = block.personalMinutesTotal - block.personalMinutesUsed
-
-        let unusedReason: string | undefined
-
-        // Check for completely empty blocks
-        const totalCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal
-        const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed + block.personalMinutesUsed
-
-        if (totalUsed === 0 && totalCapacity > 0) {
-          unusedReason = `Empty block: ${totalCapacity} minutes available but unused`
-        } else if (unusedFocus > 30 || unusedAdmin > 30 || unusedPersonal > 30) {
-          const parts: string[] = []
-          if (unusedFocus > 30) parts.push(`${unusedFocus} focus`)
-          if (unusedAdmin > 30) parts.push(`${unusedAdmin} admin`)
-          if (unusedPersonal > 30) parts.push(`${unusedPersonal} personal`)
-          unusedReason = `${parts.join(', ')} minutes unused`
-        }
-
-        const blockState = blockStartState[index]
-        debugInfo.blockUtilization.push({
-          date: dateStr,
-          blockId: block.blockId,
-          startTime: block.startTime.toLocaleTimeString(),
-          endTime: block.endTime.toLocaleTimeString(),
-          focusUsed: block.focusMinutesUsed,
-          focusTotal: block.focusMinutesTotal,
-          adminUsed: block.adminMinutesUsed,
-          adminTotal: block.adminMinutesTotal,
-          personalUsed: block.personalMinutesUsed,
-          personalTotal: block.personalMinutesTotal,
-          unusedReason: unusedReason || blockState?.timeConstraint,
-        })
-      })
-
+      // Moving to next day
       currentDate.setDate(currentDate.getDate() + 1)
       dayIndex++
       dateStr = currentDate.toISOString().split('T')[0]  // Update dateStr for the new day
@@ -1108,52 +1105,44 @@ export function scheduleItemsWithBlocksAndDebug(
       }
     }
 
-    // Also track block utilization at the end of the scheduling loop
-    if (blockCapacities && blockCapacities.length > 0) {
-      blockCapacities.forEach((block, index) => {
-        const blockState = blockStartState[index]
-        // Only add if not already tracked
-        const alreadyTracked = debugInfo.blockUtilization.some(b =>
-          b.date === dateStr && b.blockId === block.blockId,
-        )
-        if (!alreadyTracked) {
-          const unusedFocus = block.focusMinutesTotal - block.focusMinutesUsed
-          const unusedAdmin = block.adminMinutesTotal - block.adminMinutesUsed
-          const unusedPersonal = block.personalMinutesTotal - block.personalMinutesUsed
-          
-          let unusedReason: string | undefined
-          
-          // Check for completely empty blocks
-          const totalCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal
-          const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed + block.personalMinutesUsed
-          
-          if (totalUsed === 0 && totalCapacity > 0) {
-            unusedReason = `Empty block: ${totalCapacity} minutes available but unused`
-          } else if (unusedFocus > 30 || unusedAdmin > 30 || unusedPersonal > 30) {
-            const parts: string[] = []
-            if (unusedFocus > 30) parts.push(`${unusedFocus} focus`)
-            if (unusedAdmin > 30) parts.push(`${unusedAdmin} admin`)
-            if (unusedPersonal > 30) parts.push(`${unusedPersonal} personal`)
-            unusedReason = `${parts.join(', ')} minutes unused`
-          }
-          
-          debugInfo.blockUtilization.push({
-            date: dateStr,
-            blockId: block.blockId,
-            startTime: block.startTime.toLocaleTimeString(),
-            endTime: block.endTime.toLocaleTimeString(),
-            focusUsed: block.focusMinutesUsed,
-            focusTotal: block.focusMinutesTotal,
-            adminUsed: block.adminMinutesUsed,
-            adminTotal: block.adminMinutesTotal,
-            personalUsed: block.personalMinutesUsed,
-            personalTotal: block.personalMinutesTotal,
-            unusedReason: unusedReason || blockState?.timeConstraint,
-          })
-        }
-      })
-    }
   }
+  
+  // Convert the utilization map to array for debug info (single source of truth)
+  blockUtilizationMap.forEach(utilization => {
+    const unusedFocus = utilization.focusTotal - utilization.focusUsed
+    const unusedAdmin = utilization.adminTotal - utilization.adminUsed
+    const unusedPersonal = utilization.personalTotal - utilization.personalUsed
+    
+    let unusedReason: string | undefined
+    
+    // Check for completely empty blocks
+    const totalCapacity = utilization.focusTotal + utilization.adminTotal + utilization.personalTotal
+    const totalUsed = utilization.focusUsed + utilization.adminUsed + utilization.personalUsed
+    
+    if (totalUsed === 0 && totalCapacity > 0) {
+      unusedReason = `Empty block: ${totalCapacity} minutes available but unused`
+    } else if (unusedFocus > 30 || unusedAdmin > 30 || unusedPersonal > 30) {
+      const parts: string[] = []
+      if (unusedFocus > 30) parts.push(`${unusedFocus} focus`)
+      if (unusedAdmin > 30) parts.push(`${unusedAdmin} admin`)
+      if (unusedPersonal > 30) parts.push(`${unusedPersonal} personal`)
+      unusedReason = `${parts.join(', ')} minutes unused`
+    }
+    
+    debugInfo.blockUtilization.push({
+      date: utilization.date,
+      blockId: utilization.blockId,
+      startTime: utilization.startTime,
+      endTime: utilization.endTime,
+      focusUsed: utilization.focusUsed,
+      focusTotal: utilization.focusTotal,
+      adminUsed: utilization.adminUsed,
+      adminTotal: utilization.adminTotal,
+      personalUsed: utilization.personalUsed,
+      personalTotal: utilization.personalTotal,
+      unusedReason: unusedReason,
+    })
+  })
 
   // Track any remaining unscheduled items
   workItems.forEach(item => {
