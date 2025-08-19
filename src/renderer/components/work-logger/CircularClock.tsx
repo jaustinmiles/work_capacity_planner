@@ -56,55 +56,31 @@ export function CircularClock({
   // Get current time in minutes
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
 
-  // Process sessions to combine collapsed workflows
+  // Process sessions to handle collapsed workflows
   const displaySessions = React.useMemo(() => {
     if (collapsedWorkflows.size === 0) {
       return sessions
     }
 
     const processedSessions: WorkSessionData[] = []
-    const workflowSessions = new Map<string, WorkSessionData[]>()
 
-    // Group sessions by workflow
+    // Process each session
     sessions.forEach(session => {
       if (session.taskId && collapsedWorkflows.has(session.taskId)) {
         // This session belongs to a collapsed workflow
-        if (!workflowSessions.has(session.taskId)) {
-          workflowSessions.set(session.taskId, [])
-        }
-        workflowSessions.get(session.taskId)!.push(session)
+        // Keep the session but mark it as part of a collapsed workflow
+        // We'll use a modified ID to group them visually
+        processedSessions.push({
+          ...session,
+          id: `${session.id}-collapsed`,
+          // Use a consistent color for all sessions in the same workflow
+          color: session.color,
+          // Add a note to indicate it's part of a collapsed workflow
+          notes: `${session.taskName}${session.stepName ? ' - ' + session.stepName : ''}`,
+        })
       } else {
         // Regular session or expanded workflow step
         processedSessions.push(session)
-      }
-    })
-
-    // Create combined sessions for collapsed workflows
-    workflowSessions.forEach((wfSessions, workflowId) => {
-      if (wfSessions.length > 0) {
-        // Find the earliest start and latest end
-        let minStart = wfSessions[0].startMinutes
-        let maxEnd = wfSessions[0].endMinutes
-        let totalDuration = 0
-        const firstSession = wfSessions[0]
-
-        wfSessions.forEach(s => {
-          minStart = Math.min(minStart, s.startMinutes)
-          maxEnd = Math.max(maxEnd, s.endMinutes)
-          totalDuration += (s.endMinutes - s.startMinutes)
-        })
-
-        // Create a combined session for the collapsed workflow
-        processedSessions.push({
-          id: `workflow-combined-${workflowId}`,
-          taskId: workflowId,
-          taskName: firstSession.taskName,
-          startMinutes: minStart,
-          endMinutes: maxEnd,
-          type: firstSession.type,
-          color: firstSession.color,
-          notes: `Combined ${wfSessions.length} sessions (${totalDuration} min total)`,
-        })
       }
     })
 
@@ -372,8 +348,9 @@ export function CircularClock({
 
         {/* Work sessions as arcs */}
         {displaySessions.map(session => {
-          const isSelected = session.id === selectedSessionId
+          const isSelected = session.id === selectedSessionId || session.id === `${selectedSessionId}-collapsed`
           const isHovered = session.id === hoveredSession
+          const isCollapsed = session.id.endsWith('-collapsed')
 
           // Calculate arc radii based on AM/PM
           const isAM = session.startMinutes < 720
@@ -397,6 +374,7 @@ export function CircularClock({
                   <div>
                     <div>{session.taskName}</div>
                     {session.stepName && <div>{session.stepName}</div>}
+                    {isCollapsed && session.notes && <div style={{ fontSize: '0.9em', opacity: 0.8 }}>{session.notes}</div>}
                     <div>
                       {minutesToTime(session.startMinutes)} - {minutesToTime(session.endMinutes)}
                     </div>
@@ -409,6 +387,7 @@ export function CircularClock({
                   fill={session.color + (isSelected ? '44' : '33')}
                   stroke={session.color}
                   strokeWidth={isSelected ? 3 : 2}
+                  strokeDasharray={isCollapsed ? '4 2' : undefined}
                   style={{
                     cursor: 'move',
                     filter: isHovered ? 'brightness(1.1)' : undefined,
