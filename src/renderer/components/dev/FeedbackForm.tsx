@@ -33,6 +33,7 @@ const COMPONENT_OPTIONS = [
   { label: 'Task List', value: 'tasks/TaskList' },
   { label: 'Task Edit Form', value: 'tasks/TaskEdit' },
   { label: 'Gantt Chart', value: 'timeline/GanttChart' },
+  { label: 'Gantt Chart Sidebar', value: 'timeline/GanttChartSidebar' },
   { label: 'Work Logger (Dual View)', value: 'work-logger/WorkLoggerDualView' },
   { label: 'Work Logger Calendar', value: 'work-logger/WorkLoggerCalendar' },
   { label: 'Weekly Calendar', value: 'calendar/WeeklyCalendar' },
@@ -43,6 +44,7 @@ const COMPONENT_OPTIONS = [
   { label: 'Task Creation Flow', value: 'ai/TaskCreationFlow' },
   { label: 'Schedule Generator', value: 'schedule/ScheduleGenerator' },
   { label: 'Daily Schedule View', value: 'schedule/DailyScheduleView' },
+  { label: 'Timeline Visualizer', value: 'schedule/TimelineVisualizer' },
   { label: 'Work Blocks Editor', value: 'settings/WorkBlocksEditor' },
   { label: 'Multi-Day Schedule Editor', value: 'settings/MultiDayScheduleEditor' },
   { label: 'Session Manager', value: 'session/SessionManager' },
@@ -64,10 +66,12 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
       const values = await form.validate()
       setLoading(true)
 
+      const sessionId = await window.electronAPI?.getSessionId?.() || 'unknown'
+      
       const feedback: FeedbackData = {
         ...values,
         timestamp: new Date().toISOString(),
-        sessionId: window.electronAPI?.getSessionId?.() || 'unknown',
+        sessionId,
       }
 
       // Save feedback to a JSON file in the context folder for Claude to see

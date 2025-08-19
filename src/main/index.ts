@@ -386,8 +386,11 @@ ipcMain.handle('speech:getSchedulingSettings', async () => {
 ipcMain.handle('feedback:save', async (_event, feedback) => {
   try {
     const fs = await import('fs/promises')
-    // Use __dirname to get the project root, then navigate to context folder
-    const feedbackPath = path.join(__dirname, '..', '..', 'context', 'feedback.json')
+    // Use process.cwd() for development, which should be the project root
+    const projectRoot = process.cwd()
+    const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
+    
+    logger.main.info('Saving feedback to:', feedbackPath)
 
     // Ensure directory exists
     await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
@@ -421,7 +424,8 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
 ipcMain.handle('feedback:read', async () => {
   try {
     const fs = await import('fs/promises')
-    const feedbackPath = path.join(__dirname, '..', '..', 'context', 'feedback.json')
+    const projectRoot = process.cwd()
+    const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
 
     const data = await fs.readFile(feedbackPath, 'utf-8')
     return JSON.parse(data)
