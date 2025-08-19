@@ -406,6 +406,7 @@ export function scheduleItemsWithBlocksAndDebug(
         priority,
         duration: task.duration,
         asyncWaitTime: task.asyncWaitTime,
+        dependencies: task.dependencies || [],
         color: task.category === 'personal' ? '#9333EA' : '#6B7280',
         deadline: task.deadline,
         isLocked: task.isLocked,
@@ -539,43 +540,55 @@ export function scheduleItemsWithBlocksAndDebug(
   // Calculate levels for all items
   workItems.forEach(item => calculateLevel(item.id))
 
-  // Sort by dependency level first, then by priority within each level
-  workItems.sort((a, b) => {
-    const aLevel = dependencyLevels.get(a.id) || 0
-    const bLevel = dependencyLevels.get(b.id) || 0
-
-    // Different levels - items with no/fewer dependencies come first
-    if (aLevel !== bLevel) {
-      return aLevel - bLevel
+  // Group items by dependency level while preserving topological order
+  const levelGroups = new Map<number, WorkItem[]>()
+  workItems.forEach(item => {
+    const level = dependencyLevels.get(item.id) || 0
+    if (!levelGroups.has(level)) {
+      levelGroups.set(level, [])
     }
-
-    // Same dependency level - apply priority sorting
-
-    // Locked tasks first
-    if (a.isLocked && b.isLocked) {
-      const aTime = a.lockedStartTime ? new Date(a.lockedStartTime).getTime() : Infinity
-      const bTime = b.lockedStartTime ? new Date(b.lockedStartTime).getTime() : Infinity
-      return aTime - bTime
-    }
-    if (a.isLocked) return -1
-    if (b.isLocked) return 1
-
-    // Then deadlines
-    const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
-    const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
-    const now = startDate.getTime()
-    const oneDayMs = 24 * 60 * 60 * 1000
-
-    if (aDeadline - now < oneDayMs || bDeadline - now < oneDayMs) {
-      if (aDeadline - now < oneDayMs && bDeadline - now < oneDayMs) {
-        return aDeadline - bDeadline
-      }
-      return aDeadline - now < oneDayMs ? -1 : 1
-    }
-
-    // Finally by priority score
-    return b.priority - a.priority
+    levelGroups.get(level)!.push(item)
   })
+
+  // Sort within each level by priority, but maintain level ordering
+  const sortedWorkItems: WorkItem[] = []
+  const sortedLevels = Array.from(levelGroups.keys()).sort((a, b) => a - b)
+  
+  for (const level of sortedLevels) {
+    const itemsAtLevel = levelGroups.get(level)!
+    
+    // Sort items within this dependency level by priority
+    itemsAtLevel.sort((a, b) => {
+      // Locked tasks first
+      if (a.isLocked && b.isLocked) {
+        const aTime = a.lockedStartTime ? new Date(a.lockedStartTime).getTime() : Infinity
+        const bTime = b.lockedStartTime ? new Date(b.lockedStartTime).getTime() : Infinity
+        return aTime - bTime
+      }
+      if (a.isLocked) return -1
+      if (b.isLocked) return 1
+
+      // Then deadlines
+      const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
+      const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
+      const now = startDate.getTime()
+      const oneDayMs = 24 * 60 * 60 * 1000
+
+      if (aDeadline - now < oneDayMs || bDeadline - now < oneDayMs) {
+        if (aDeadline - now < oneDayMs && bDeadline - now < oneDayMs) {
+          return aDeadline - bDeadline
+        }
+        return aDeadline - now < oneDayMs ? -1 : 1
+      }
+
+      // Finally by priority score
+      return b.priority - a.priority
+    })
+    
+    sortedWorkItems.push(...itemsAtLevel)
+  }
+  
+  workItems = sortedWorkItems
 
   // Process each day
   const actualNow = new Date() // The real current time
@@ -682,8 +695,17 @@ export function scheduleItemsWithBlocksAndDebug(
     let shouldMoveToNextDay = false
 
     // Re-sort items based on current workflow progress to ensure good interleaving
+    // BUT preserve dependency ordering!
     const itemsToSchedule = [...workItems]
     itemsToSchedule.sort((a, b) => {
+      // CRITICAL: Always respect dependency levels first
+      const aLevel = dependencyLevels.get(a.id) || 0
+      const bLevel = dependencyLevels.get(b.id) || 0
+      if (aLevel !== bLevel) {
+        return aLevel - bLevel // Lower levels (fewer dependencies) come first
+      }
+      
+      // Within the same dependency level, sort by priority
       // If we have scheduling context, recalculate priorities with current time
       if (schedulingContext) {
         // Update context with current time and last scheduled item
@@ -755,10 +777,18 @@ export function scheduleItemsWithBlocksAndDebug(
       return bEffectivePriority - aEffectivePriority
     })
 
-    for (let i = 0; i < itemsToSchedule.length; i++) {
-      const item = itemsToSchedule[i]
-      if (!item) continue
-      const originalIndex = workItems.findIndex(w => w.id === item.id)
+    // Keep trying to schedule items until we can't make progress (for dependency resolution)
+    let schedulingProgress = true
+    let maxRetries = itemsToSchedule.length * 2 // Prevent infinite loops
+    
+    while (schedulingProgress && itemsToSchedule.length > 0 && maxRetries > 0) {
+      schedulingProgress = false
+      maxRetries--
+      
+      for (let i = 0; i < itemsToSchedule.length; i++) {
+        const item = itemsToSchedule[i]
+        if (!item) continue
+        const originalIndex = workItems.findIndex(w => w.id === item.id)
 
       // Initialize itemScheduled flag
       let itemScheduled = false
@@ -818,8 +848,12 @@ export function scheduleItemsWithBlocksAndDebug(
             // Mark as completed and remove from work items
             completedSteps.add(item.id)
             workItems.splice(originalIndex, 1)
+            // Also remove from itemsToSchedule
+            itemsToSchedule.splice(i, 1)
+            i-- // Adjust index since we removed an item
             itemsScheduledToday = true
             itemScheduled = true
+            schedulingProgress = true // Mark that we made progress
           }
         } else if (lockedDateStr < currentDateStr) {
           // Locked time is in the past - warn and skip
@@ -827,7 +861,11 @@ export function scheduleItemsWithBlocksAndDebug(
             `Locked task "${item.name}" has a start time in the past (${lockedTime.toLocaleString()}) - skipping`,
           )
           workItems.splice(originalIndex, 1)
+          // Also remove from itemsToSchedule
+          itemsToSchedule.splice(i, 1)
+          i-- // Adjust index since we removed an item
           itemScheduled = true
+          schedulingProgress = true // Mark that we made progress
         }
 
         // Skip the normal scheduling logic for locked tasks
@@ -991,8 +1029,12 @@ export function scheduleItemsWithBlocksAndDebug(
 
           // Remove from work items using the original index
           workItems.splice(originalIndex, 1)
+          // Also remove from itemsToSchedule
+          itemsToSchedule.splice(i, 1)
+          i-- // Adjust index since we removed an item
           itemsScheduledToday = true
           itemScheduled = true
+          schedulingProgress = true // Mark that we made progress
           break
         }
       }
@@ -1047,6 +1089,7 @@ export function scheduleItemsWithBlocksAndDebug(
         }
       }
     }
+    } // End of while loop for dependency resolution
 
     // Check if we should move to the next day
     // Move if: no items scheduled, should move flag is set, or current time is past all blocks
