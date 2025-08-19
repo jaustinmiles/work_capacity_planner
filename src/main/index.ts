@@ -400,7 +400,7 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
     try {
       const existingData = await fs.readFile(feedbackPath, 'utf-8')
       const parsed = JSON.parse(existingData)
-      
+
       // Flatten the structure if needed
       const flattenItems = (items: any): any[] => {
         const result: any[] = []
@@ -417,7 +417,7 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
         }
         return result
       }
-      
+
       allFeedback = flattenItems(parsed)
     } catch {
       // File doesn't exist yet
@@ -501,7 +501,7 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
       }
       return result
     }
-    
+
     const flatFeedback = flattenItems(updatedFeedback)
 
     // Save updated feedback (ensure it's a flat array)
