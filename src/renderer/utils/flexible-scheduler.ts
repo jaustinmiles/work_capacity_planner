@@ -41,6 +41,8 @@ export interface SchedulingDebugInfo {
     focusTotal: number
     adminUsed: number
     adminTotal: number
+    personalUsed?: number
+    personalTotal?: number
     unusedReason?: string
   }>
   warnings: string[]
@@ -1000,16 +1002,21 @@ export function scheduleItemsWithBlocksAndDebug(
       blockCapacities.forEach((block, index) => {
         const unusedFocus = block.focusMinutesTotal - block.focusMinutesUsed
         const unusedAdmin = block.adminMinutesTotal - block.adminMinutesUsed
+        const unusedPersonal = block.personalMinutesTotal - block.personalMinutesUsed
 
         let unusedReason: string | undefined
-        if (unusedFocus > 30 || unusedAdmin > 30) {
-          if (unusedFocus > 30 && unusedAdmin > 30) {
-            unusedReason = `${unusedFocus} focus and ${unusedAdmin} admin minutes unused`
-          } else if (unusedFocus > 30) {
-            unusedReason = `${unusedFocus} focus minutes unused`
-          } else {
-            unusedReason = `${unusedAdmin} admin minutes unused`
+
+        // Check for completely empty blocks
+        if (block.focusMinutesUsed === 0 && block.adminMinutesUsed === 0 && block.personalMinutesUsed === 0) {
+          if (block.focusMinutesTotal > 0 || block.adminMinutesTotal > 0 || block.personalMinutesTotal > 0) {
+            unusedReason = `Empty block: ${block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal} minutes available but unused`
           }
+        } else if (unusedFocus > 30 || unusedAdmin > 30 || unusedPersonal > 30) {
+          const parts = []
+          if (unusedFocus > 30) parts.push(`${unusedFocus} focus`)
+          if (unusedAdmin > 30) parts.push(`${unusedAdmin} admin`)
+          if (unusedPersonal > 30) parts.push(`${unusedPersonal} personal`)
+          unusedReason = `${parts.join(', ')} minutes unused`
         }
 
         const blockState = blockStartState[index]
@@ -1022,6 +1029,8 @@ export function scheduleItemsWithBlocksAndDebug(
           focusTotal: block.focusMinutesTotal,
           adminUsed: block.adminMinutesUsed,
           adminTotal: block.adminMinutesTotal,
+          personalUsed: block.personalMinutesUsed,
+          personalTotal: block.personalMinutesTotal,
           unusedReason: unusedReason || blockState?.timeConstraint,
         })
       })

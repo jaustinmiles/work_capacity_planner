@@ -27,16 +27,24 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
       // Arco DatePicker returns a Dayjs object or string
       const convertDateValue = (value: any): string | undefined => {
         if (!value) return undefined
-        // If it's already a string, assume it's in the right format
-        if (typeof value === 'string') return value
+        // If it's already a string in ISO format
+        if (typeof value === 'string') {
+          // Parse with dayjs to ensure proper format
+          const parsed = dayjs(value)
+          return parsed.isValid() ? parsed.toISOString() : undefined
+        }
         // If it's a dayjs object
         if (dayjs.isDayjs(value)) return value.toISOString()
         // If it has toDate method (dayjs or moment)
-        if (value.toDate) return value.toDate().toISOString()
+        if (value.toDate && typeof value.toDate === 'function') {
+          return value.toDate().toISOString()
+        }
         // If it's a Date object
         if (value instanceof Date) return value.toISOString()
         // If it has toISOString
-        if (value.toISOString) return value.toISOString()
+        if (value.toISOString && typeof value.toISOString === 'function') {
+          return value.toISOString()
+        }
         return undefined
       }
 
@@ -151,6 +159,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
                 <Slider
                   min={1}
                   max={10}
+                  defaultValue={5}
                   marks={{
                     1: '1',
                     5: '5',
@@ -171,6 +180,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
                 <Slider
                   min={1}
                   max={10}
+                  defaultValue={5}
                   marks={{
                     1: '1',
                     5: '5',
@@ -217,7 +227,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             onChange={(value) => setHasDeadline(!!value)}
             disabledDate={(current) => {
               // Only disable dates before today, allow weekends
-              return current.isBefore(new Date(), 'day')
+              return dayjs(current).isBefore(dayjs(), 'day')
             }}
           />
         </Form.Item>

@@ -83,11 +83,11 @@ export function generateArcPath(
   // Convert minutes to hours
   const startHour = startMinutes / 60
   const endHour = endMinutes / 60
-  
+
   // Map to 12-hour workday clock (8 AM at top)
   let startAngle: number
   let endAngle: number
-  
+
   if (startHour >= workdayStart && startHour <= workdayStart + workdayHours) {
     // Map workday hours to full circle
     const startProgress = (startHour - workdayStart) / workdayHours
@@ -96,7 +96,7 @@ export function generateArcPath(
     // Outside workday - don't render
     return ''
   }
-  
+
   if (endHour >= workdayStart && endHour <= workdayStart + workdayHours) {
     const endProgress = (endHour - workdayStart) / workdayHours
     endAngle = (endProgress * 360 - 90) * (Math.PI / 180)
@@ -138,7 +138,7 @@ export function angleToMinutes(
   const angle = Math.atan2(mouseY - centerY, mouseX - centerX)
   const degrees = angle * (180 / Math.PI)
   const adjustedDegrees = (degrees + 90 + 360) % 360
-  
+
   // Map from 360 degrees to 12-hour workday
   const workdayProgress = adjustedDegrees / 360
   const workdayHour = workdayStart + (workdayProgress * workdayHours)

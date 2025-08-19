@@ -116,6 +116,21 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                     },
                   },
                   {
+                    title: 'Personal',
+                    render: (_, record) => {
+                      if (!record.personalTotal || record.personalTotal === 0) return '-'
+                      const isFullyUsed = record.personalUsed === record.personalTotal
+                      const color = isFullyUsed ? 'green' : record.personalUsed > 0 ? 'purple' : 'gray'
+                      return (
+                        <Space>
+                          <Tag color={color} size="small">
+                            {record.personalUsed}/{record.personalTotal}
+                          </Tag>
+                        </Space>
+                      )
+                    },
+                  },
+                  {
                     title: 'Status',
                     dataIndex: 'unusedReason',
                     render: (val) => {

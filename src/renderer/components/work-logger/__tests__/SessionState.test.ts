@@ -142,47 +142,56 @@ describe('SessionState utilities', () => {
   })
 
   describe('generateArcPath', () => {
-    it('generates valid SVG path for arc segment', () => {
-      const path = generateArcPath(0, 180, 40, 60, 100, 100)
+    it('generates valid SVG path for arc segment within workday', () => {
+      // 9am to 11am (within 8am-8pm workday)
+      const path = generateArcPath(540, 660, 40, 60, 100, 100, 8, 12)
       expect(path).toContain('M ')
       expect(path).toContain('A ')
       expect(path).toContain('L ')
       expect(path).toContain('Z')
     })
 
-    it('uses large arc flag for sessions over 12 hours', () => {
-      const path = generateArcPath(0, 800, 40, 60, 100, 100)
-      // Large arc flag should be 1
-      expect(path).toMatch(/A \d+ \d+ 0 1 1/)
+    it('returns empty string for times outside workday', () => {
+      // 6am to 7am (before 8am workday start)
+      const path = generateArcPath(360, 420, 40, 60, 100, 100, 8, 12)
+      expect(path).toBe('')
     })
 
-    it('uses small arc flag for sessions under 12 hours', () => {
-      const path = generateArcPath(0, 360, 40, 60, 100, 100)
+    it('uses small arc flag for sessions under 6 hours', () => {
+      // 9am to 2pm (5 hours, within workday)
+      const path = generateArcPath(540, 840, 40, 60, 100, 100, 8, 12)
       // Large arc flag should be 0
       expect(path).toMatch(/A \d+ \d+ 0 0 1/)
+    })
+
+    it('uses large arc flag for sessions over 6 hours', () => {
+      // 8am to 3pm (7 hours, within workday)
+      const path = generateArcPath(480, 900, 40, 60, 100, 100, 8, 12)
+      // Large arc flag should be 1
+      expect(path).toMatch(/A \d+ \d+ 0 1 1/)
     })
   })
 
   describe('angleToMinutes', () => {
-    it('converts mouse position to minutes', () => {
-      // 12 o'clock position
-      expect(angleToMinutes(100, 50, 100, 100)).toBe(0)
+    it('converts mouse position to minutes for 12-hour workday', () => {
+      // Top position (8am start of workday)
+      expect(angleToMinutes(100, 50, 100, 100, 8, 12)).toBe(480) // 8am = 480 minutes
 
-      // 3 o'clock position (approximately)
-      const threeOclock = angleToMinutes(150, 100, 100, 100)
-      expect(threeOclock).toBeGreaterThan(170)
-      expect(threeOclock).toBeLessThan(190)
+      // Right position (approximately 11am)
+      const elevenAm = angleToMinutes(150, 100, 100, 100, 8, 12)
+      expect(elevenAm).toBeGreaterThan(650) // 10:50am
+      expect(elevenAm).toBeLessThan(690) // 11:30am
 
-      // 6 o'clock position (approximately)
-      const sixOclock = angleToMinutes(100, 150, 100, 100)
-      expect(sixOclock).toBeGreaterThan(350)
-      expect(sixOclock).toBeLessThan(370)
+      // Bottom position (approximately 2pm)
+      const twoPm = angleToMinutes(100, 150, 100, 100, 8, 12)
+      expect(twoPm).toBeGreaterThan(830) // 1:50pm
+      expect(twoPm).toBeLessThan(870) // 2:30pm
     })
 
-    it('wraps around at 24 hours', () => {
-      const minutes = angleToMinutes(100, 50, 100, 100)
-      expect(minutes).toBeGreaterThanOrEqual(0)
-      expect(minutes).toBeLessThan(1440)
+    it('constrains to workday hours', () => {
+      const minutes = angleToMinutes(100, 50, 100, 100, 8, 12)
+      expect(minutes).toBeGreaterThanOrEqual(480) // 8am
+      expect(minutes).toBeLessThanOrEqual(1200) // 8pm
     })
   })
 
