@@ -47,7 +47,9 @@
       "Bash(mv:*)",
       "Bash(/tmp/replace-task-types.sh:*)",
       "Bash(git checkout:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git commit:*)",
+      "Bash(gh auth:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
