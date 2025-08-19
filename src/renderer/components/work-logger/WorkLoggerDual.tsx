@@ -11,6 +11,7 @@ import {
   Grid,
   Spin,
   Notification,
+  Checkbox,
 } from '@arco-design/web-react'
 import {
   IconClockCircle,
@@ -56,6 +57,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set())
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [meetings, setMeetings] = useState<any[]>([])
+  const [hideCompleted, setHideCompleted] = useState(false)
 
   const { tasks, sequencedTasks, loadTasks } = useTaskStore()
 
@@ -347,6 +349,19 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId)
 
+  // Filter tasks based on hideCompleted setting
+  const filteredTasks = useMemo(() => {
+    if (!hideCompleted) {
+      return [...tasks, ...sequencedTasks]
+    }
+
+    // Filter out completed tasks
+    const activeTasks = tasks.filter(t => !t.completed)
+    const activeSequencedTasks = sequencedTasks.filter(t => t.overallStatus !== 'completed')
+
+    return [...activeTasks, ...activeSequencedTasks]
+  }, [tasks, sequencedTasks, hideCompleted])
+
   // Callback to handle workflow expansion changes from SwimLaneTimeline
   const handleWorkflowExpansionChange = useCallback((expanded: Set<string>) => {
     setExpandedWorkflows(expanded)
@@ -431,11 +446,23 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         ) : (
           <>
             {/* Swim lane timeline */}
-            <Card title="Timeline View" style={{ marginBottom: 16 }}>
+            <Card
+              title={
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <span>Timeline View</span>
+                  <Checkbox
+                    checked={hideCompleted}
+                    onChange={setHideCompleted}
+                  >
+                    Hide Completed Tasks
+                  </Checkbox>
+                </Space>
+              }
+              style={{ marginBottom: 16 }}>
               <div style={{ height: 400, overflow: 'hidden' }}>
                 <SwimLaneTimeline
                   sessions={sessions}
-                  tasks={[...tasks, ...sequencedTasks]}
+                  tasks={filteredTasks}
                   meetings={meetings}
                   onSessionUpdate={handleSessionUpdate}
                   onSessionCreate={handleTimelineSessionCreate}
@@ -452,7 +479,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             <Card title="Clock View - 12-Hour Workday Focus (8am-8pm)">
               <CircularClock
                 sessions={sessions}
-                collapsedWorkflows={new Set([...tasks, ...sequencedTasks]
+                collapsedWorkflows={new Set(filteredTasks
                   .filter(t => t.hasSteps && !expandedWorkflows.has(t.id))
                   .map(t => t.id))}
                 onSessionUpdate={handleSessionUpdate}
