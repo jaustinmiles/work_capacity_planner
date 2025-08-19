@@ -226,7 +226,7 @@ function canFitInBlock(
   const nonWaitScheduledItems = scheduledItems.filter(s => !s.isWaitTime)
 
   // Check category compatibility
-  const isPersonalTask = item.category === 'personal'
+  const isPersonalTask = item.category === TaskCategory.Personal
   const isPersonalBlock = block.blockType === 'personal'
 
   // Personal tasks can only go in personal blocks
@@ -407,7 +407,7 @@ export function scheduleItemsWithBlocksAndDebug(
         duration: task.duration,
         asyncWaitTime: task.asyncWaitTime,
         dependencies: task.dependencies || [],
-        color: task.category === 'personal' ? '#9333EA' : '#6B7280',
+        color: task.category === TaskCategory.Personal ? '#9333EA' : '#6B7280',
         deadline: task.deadline,
         isLocked: task.isLocked,
         lockedStartTime: task.lockedStartTime,
@@ -1000,7 +1000,7 @@ export function scheduleItemsWithBlocksAndDebug(
           })
 
           // Update block capacity
-          if (item.category === 'personal') {
+          if (item.category === TaskCategory.Personal) {
             block.personalMinutesUsed += item.duration
           } else if (item.taskType === TaskType.Focused) {
             block.focusMinutesUsed += item.duration
@@ -1076,7 +1076,7 @@ export function scheduleItemsWithBlocksAndDebug(
         let reason = 'Unknown reason'
 
         // Check category compatibility first
-        const isPersonalTask = item.category === 'personal'
+        const isPersonalTask = item.category === TaskCategory.Personal
         const hasCompatibleBlock = blockCapacities.some(block => {
           if (isPersonalTask) {
             return block.blockType === 'personal'
