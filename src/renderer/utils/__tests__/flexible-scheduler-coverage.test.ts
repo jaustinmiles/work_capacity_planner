@@ -87,8 +87,8 @@ describe('Flexible Scheduler - Additional Coverage', () => {
       )
 
       // Should warn about unused focus time
-      expect(result.debugInfo.warnings.some(w => 
-        w.includes('180 minutes of focus time unused while focus tasks remain unscheduled')
+      expect(result.debugInfo.warnings.some(w =>
+        w.includes('180 minutes of focus time unused while focus tasks remain unscheduled'),
       )).toBe(true)
     })
 
@@ -130,8 +130,8 @@ describe('Flexible Scheduler - Additional Coverage', () => {
       )
 
       // Should warn about unused admin time
-      expect(result.debugInfo.warnings.some(w => 
-        w.includes('admin time unused while admin tasks remain')
+      expect(result.debugInfo.warnings.some(w =>
+        w.includes('admin time unused while admin tasks remain'),
       )).toBe(true)
     })
   })
@@ -308,17 +308,17 @@ describe('Flexible Scheduler - Additional Coverage', () => {
       )
 
       // Both steps should be scheduled
-      expect(result.scheduledItems.filter(item => 
-        item.id?.includes('step-')
+      expect(result.scheduledItems.filter(item =>
+        item.id?.includes('step-'),
       ).length).toBe(2)
 
       // Step 1 should come before Step 2
       const step1 = result.scheduledItems.find(item => item.id === 'workflow-1-step-1')
       const step2 = result.scheduledItems.find(item => item.id === 'workflow-1-step-2')
-      
+
       if (step1 && step2) {
         expect(new Date(step1.startTime).getTime()).toBeLessThan(
-          new Date(step2.startTime).getTime()
+          new Date(step2.startTime).getTime(),
         )
       }
     })
@@ -645,7 +645,7 @@ describe('Flexible Scheduler - Additional Coverage', () => {
       // First task should be scheduled, second should not fit
       expect(result.scheduledItems.length).toBe(1)
       expect(result.scheduledItems[0].name).toBe('First Task')
-      
+
       expect(result.debugInfo.unscheduledItems.length).toBe(1)
       expect(result.debugInfo.unscheduledItems[0].name).toBe('Second Task')
       expect(result.debugInfo.unscheduledItems[0].reason).toContain('capacity')
