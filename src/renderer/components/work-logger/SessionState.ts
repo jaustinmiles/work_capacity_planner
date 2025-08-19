@@ -13,6 +13,7 @@ export interface WorkSessionData {
   isDirty?: boolean
   isNew?: boolean
   notes?: string
+  isCollapsed?: boolean
 }
 
 // Convert time string (HH:mm) to minutes since midnight

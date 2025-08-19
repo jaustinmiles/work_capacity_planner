@@ -10,6 +10,7 @@ import {
   Select,
   Grid,
   Spin,
+  Message,
 } from '@arco-design/web-react'
 import {
   IconClockCircle,
@@ -205,6 +206,15 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     setIsSaving(true)
     try {
       const db = getDatabase()
+      
+      // Validate all sessions have a taskId
+      const sessionsWithoutTask = sessions.filter(s => s.isDirty && !s.taskId)
+      if (sessionsWithoutTask.length > 0) {
+        Message.error('Some sessions do not have a task assigned. Please assign tasks to all sessions before saving.')
+        setIsSaving(false)
+        return
+      }
+      
       const dirtySessionsToSave = sessions.filter(s => s.isDirty && s.taskId)
 
       for (const session of dirtySessionsToSave) {
@@ -466,14 +476,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       <Modal
         title="Assign Task to Session"
         visible={showAssignModal}
-        onOk={() => {
-          if (pendingSession) {
-            // Create session with assignment
-            // This would need to be implemented based on selection
-            setPendingSession(null)
-          }
-          setShowAssignModal(false)
-        }}
+        footer={null}
         onCancel={() => {
           setPendingSession(null)
           setShowAssignModal(false)
