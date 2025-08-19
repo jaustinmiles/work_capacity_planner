@@ -53,7 +53,7 @@ describe('Personal Task Gantt Chart Display', () => {
           endTime: '12:00',
           type: 'focus',
           capacity: { focusMinutes: 120, adminMinutes: 0 },
-        }
+        },
       ],
       meetings: [],
       accumulated: { focusMinutes: 0, adminMinutes: 0 },
