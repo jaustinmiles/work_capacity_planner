@@ -2,12 +2,24 @@
 
 ## Session In Progress (2025-08-19 - Low Hanging Fruit Fixes)
 
-### Working on Fix Branch
+### PR #11 Created - Personal Tasks & Feedback Improvements
 - Branch: fix/feedback-and-personal-tasks
-- Tasks in progress:
-  - Fix Personal Task not displayed in Gantt Chart (category field issue)
-  - Add feedback edit capability for partial fixes
-  - Add database path logging at startup
+- ✅ Fixed Personal Task not displaying in Gantt Chart
+  - Issue: TaskCategory enum comparison was failing
+  - Solution: Properly handle TaskCategory.Personal enum in scheduler
+  - Added test coverage for personal task scheduling
+- ✅ Added feedback edit capability
+  - Edit button on each feedback item
+  - Modal with all fields editable
+  - Can update descriptions for partial fixes
+- ✅ Added database path logging at startup
+  - Logs DATABASE_URL and working directory
+  - Helps debug database location issues
+- All 300 tests passing, TypeScript clean, ready for review
+
+### Remaining High Priority Tasks
+- Add option to hide completed tasks in timeline view
+- Display meetings on Gantt chart view (already done in earlier PR)
 
 ## Session Completed (2025-08-19 - PR #10 Feedback Viewer Improvements)
 

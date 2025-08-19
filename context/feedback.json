@@ -43,7 +43,8 @@
     "title": "Feedback View Feature Duplicates",
     "description": "Each feedback item has 3 entries instead of 1, when I try to select one of them, all 3 are selected. Also, we should add the ability to update the feedback text for incomplete tasks. I.e. a feedback item complains about 2 bugs: bug 1 and bug 2, i should be able to change the text so that it only references bug 2 if bug 1 has been fixed. This is easier than completing and making a new one. Also, the prioirty field on the feedback form, even though it is autofilled by default with medium, doesn't recognize that priority has been filled out until you click a priority radio button. ",
     "timestamp": "2025-08-19T22:39:01.841Z",
-    "sessionId": "session-1755643141834-t0y45odbl"
+    "sessionId": "session-1755643141834-t0y45odbl",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -63,7 +64,7 @@
       "timeline/GanttChart"
     ],
     "title": "Duplicated Row in Gantt Chart from Dual View Feature Work",
-    "description": "When we fixed the bug in the dual view, I think we introduced weird behavior in the Gantt Chart. Now there's a row for meetings, and a row for 'blocked time.' I actually kinda like this though, but the blocked time row should show everything from all rows merged into a single timeline. We still need the row for meetings. But I stored personal time slots like 'sleep' and 'breakfast' and 'exercise' as meetings so that might be why it's just a copy. ",
+    "description": "When we fixed the bug in the dual view, I think we introduced weird behavior in the Gantt Chart. Now there's a row for meetings, and a row for 'blocked time.' I actually kinda like this though, but the blocked time row should show everything from all rows merged into a single timeline. We still need the row for meetings. But I stored personal time slots like 'sleep' and 'breakfast' and 'exercise' as meetings so that might be why it's just a copy. \n\nThis has been fixed-ish, but I said I wanted a row that showed everything. The implementation for this feedback just deleted the row entirely. ",
     "timestamp": "2025-08-19T22:19:25.681Z",
     "sessionId": "session-1755641965656-t4sbx5sfw"
   },
@@ -78,7 +79,8 @@
     "steps": "1. make meetings\n2. click on work logger dual view icon\n3. look at row called \"meetings\"",
     "expected": "Tooltip, not truncated to 1 hour intervals (show actual duration), and no overlap. ",
     "timestamp": "2025-08-19T22:16:57.141Z",
-    "sessionId": "session-1755641817124-rfyz5oeo0"
+    "sessionId": "session-1755641817124-rfyz5oeo0",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -89,13 +91,14 @@
     "title": "Time blocks overlap in the chart but not clock",
     "description": "In the clock, the arcs i see are aligned, but in the gantt chart style timeline view, they overlap",
     "timestamp": "2025-08-19T20:56:41.954Z",
-    "sessionId": "session-1755637001929-nipnnn0ox"
+    "sessionId": "session-1755637001929-nipnnn0ox",
+    "resolved": true
   },
   {
     "type": "feature",
     "priority": "high",
     "title": "Need to see meetings on gantt chart view",
-    "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.",
+    "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.\n\nMostly fixed, but we need to display total meeting time on the sidebar, like where I see the \"Today's Planned Capacity\" currently. ",
     "components": [
       "work-logger/WorkLoggerDualView",
       "other"
