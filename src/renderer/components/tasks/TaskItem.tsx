@@ -299,6 +299,7 @@ export function TaskItem({ task }: TaskItemProps) {
               worstCaseDuration: task.worstCaseDuration || task.duration,
             } as SequencedTask}
             onClose={() => setShowEditModal(false)}
+            startInEditMode={true}
           />
         ) : (
           <TaskEdit

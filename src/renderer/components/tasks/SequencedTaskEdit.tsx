@@ -44,13 +44,14 @@ const FormItem = Form.Item
 interface SequencedTaskEditProps {
   task: SequencedTask
   onClose?: () => void
+  startInEditMode?: boolean
 }
 
 interface EditingStep extends TaskStep {
   tempId?: string
 }
 
-export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
+export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: SequencedTaskEditProps) {
   const { updateSequencedTask } = useTaskStore()
   const [editedTask, setEditedTask] = useState<SequencedTask>({ ...task })
   const [showWorkSessionsModal, setShowWorkSessionsModal] = useState(false)
@@ -63,7 +64,7 @@ export function SequencedTaskEdit({ task, onClose }: SequencedTaskEditProps) {
       id: step.id || `step-${task.id}-${index}`,
     })),
   )
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(startInEditMode)
   const [isSaving, setIsSaving] = useState(false)
   const [showStepModal, setShowStepModal] = useState(false)
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null)

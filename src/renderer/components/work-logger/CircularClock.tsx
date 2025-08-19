@@ -35,7 +35,7 @@ const CLOCK_SIZE = 240
 const CENTER = CLOCK_SIZE / 2
 const OUTER_RADIUS = 100
 const INNER_RADIUS = 70
-const MIDDLE_RADIUS = 85
+const _MIDDLE_RADIUS = 85 // Unused for now, keeping for future use
 const HOUR_LABEL_RADIUS = 110
 
 // Workday configuration - 12 hour focus from 8 AM to 8 PM
@@ -68,7 +68,7 @@ export function CircularClock({
 
   // Get current time in minutes
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
-  
+
   // Convert minutes to angle for 12-hour workday clock (8 AM = top)
   const minutesToAngle = (minutes: number): number => {
     const hours = minutes / 60

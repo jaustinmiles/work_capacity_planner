@@ -590,7 +590,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                       top: 4,
                       bottom: 4,
                       width,
-                      background: session.completed 
+                      background: session.completed
                         ? `repeating-linear-gradient(45deg, ${session.color}33, ${session.color}33 10px, ${session.color}55 10px, ${session.color}55 20px)`
                         : session.color + (isSelected ? '33' : '22'),
                       border: `2px solid ${session.color}`,

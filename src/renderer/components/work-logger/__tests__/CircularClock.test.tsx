@@ -65,17 +65,14 @@ describe('CircularClock', () => {
     const svg = container.querySelector('svg')
     expect(svg).toBeInTheDocument()
 
-    // Check for hour labels (12-hour format)
-    // Note: '12' appears twice (midnight and noon)
-    const twelveLabels = screen.getAllByText('12')
-    expect(twelveLabels).toHaveLength(2)
-    // Note: '6' also appears twice (6 AM and 6 PM)
-    const sixLabels = screen.getAllByText('6')
-    expect(sixLabels).toHaveLength(2)
+    // Check for hour labels in 12-hour workday format
+    // Should show 8am, 11am, 2pm, 5pm, 8pm
+    expect(screen.getByText('8am')).toBeInTheDocument()
+    expect(screen.getByText('2pm')).toBeInTheDocument()
 
-    // Check for AM/PM indicators
-    expect(screen.getByText('AM')).toBeInTheDocument()
-    expect(screen.getByText('PM')).toBeInTheDocument()
+    // Check for circadian rhythm indicators
+    expect(screen.getByText('Peak Focus')).toBeInTheDocument()
+    expect(screen.getByText('Low Energy')).toBeInTheDocument()
   })
 
   it('displays current time', () => {
