@@ -183,6 +183,8 @@ declare global {
       // Feedback operations
       saveFeedback?: (feedback: any) => Promise<boolean>
       readFeedback?: () => Promise<any[]>
+      loadFeedback?: () => Promise<any[]>
+      updateFeedback?: (updatedFeedback: any) => Promise<boolean>
       getSessionId?: () => Promise<string>
     }
 
