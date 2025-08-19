@@ -82,7 +82,7 @@ describe('SessionState utilities', () => {
         type: TaskType.Focused,
         color: '#165DFF',
       }
-      
+
       expect(checkOverlap(overlappingSession, sessions)).toBe(true)
     })
 
@@ -96,7 +96,7 @@ describe('SessionState utilities', () => {
         type: TaskType.Focused,
         color: '#165DFF',
       }
-      
+
       expect(checkOverlap(nonOverlappingSession, sessions)).toBe(false)
     })
 
@@ -110,7 +110,7 @@ describe('SessionState utilities', () => {
         type: TaskType.Focused,
         color: '#165DFF',
       }
-      
+
       expect(checkOverlap(sessionToCheck, sessions, 'session-1')).toBe(false)
     })
   })
@@ -167,12 +167,12 @@ describe('SessionState utilities', () => {
     it('converts mouse position to minutes', () => {
       // 12 o'clock position
       expect(angleToMinutes(100, 50, 100, 100)).toBe(0)
-      
+
       // 3 o'clock position (approximately)
       const threeOclock = angleToMinutes(150, 100, 100, 100)
       expect(threeOclock).toBeGreaterThan(170)
       expect(threeOclock).toBeLessThan(190)
-      
+
       // 6 o'clock position (approximately)
       const sixOclock = angleToMinutes(100, 150, 100, 100)
       expect(sixOclock).toBeGreaterThan(350)
@@ -233,7 +233,7 @@ describe('SessionState utilities', () => {
       // 31 minutes away from session-1 start
       const result = findClosestEdge(509, sessions)
       expect(result).toBeNull()
-      
+
       // 29 minutes away from session-1 start
       const result2 = findClosestEdge(511, sessions)
       expect(result2).toEqual({

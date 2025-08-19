@@ -206,7 +206,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     setIsSaving(true)
     try {
       const db = getDatabase()
-      
+
       // Validate all sessions have a taskId
       const sessionsWithoutTask = sessions.filter(s => s.isDirty && !s.taskId)
       if (sessionsWithoutTask.length > 0) {
@@ -217,30 +217,30 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         setIsSaving(false)
         return
       }
-      
+
       // Get all valid task IDs from the database
       const allTasks = [...tasks, ...sequencedTasks]
       const validTaskIds = new Set(allTasks.map(t => t.id))
-      
+
       // Check if all sessions have valid task IDs
-      const sessionsWithInvalidTask = sessions.filter(s => 
-        s.isDirty && s.taskId && !validTaskIds.has(s.taskId)
+      const sessionsWithInvalidTask = sessions.filter(s =>
+        s.isDirty && s.taskId && !validTaskIds.has(s.taskId),
       )
-      
+
       if (sessionsWithInvalidTask.length > 0) {
         logger.ui.error('Invalid task IDs found:', sessionsWithInvalidTask.map(s => ({
           sessionId: s.id,
           taskId: s.taskId,
-          taskName: s.taskName
+          taskName: s.taskName,
         })))
         Notification.error({
-          title: 'Validation Error', 
+          title: 'Validation Error',
           content: 'Some sessions have invalid task references. Please reassign tasks.',
         })
         setIsSaving(false)
         return
       }
-      
+
       const dirtySessionsToSave = sessions.filter(s => s.isDirty && s.taskId && validTaskIds.has(s.taskId))
 
       for (const session of dirtySessionsToSave) {
@@ -263,7 +263,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             startTime: startDateTime.toISOString(),
             endTime: endDateTime.toISOString(),
           })
-          
+
           await db.createWorkSession({
             taskId: session.taskId,
             stepId: session.stepId,
@@ -361,8 +361,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       visible={visible}
       onCancel={onClose}
       footer={null}
-      style={{ 
-        width: isFullscreen ? '100vw' : '95vw', 
+      style={{
+        width: isFullscreen ? '100vw' : '95vw',
         maxWidth: isFullscreen ? '100vw' : 1400,
         height: isFullscreen ? '100vh' : undefined,
         margin: isFullscreen ? 0 : undefined,
@@ -530,11 +530,11 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               style={{ width: '100%' }}
               onChange={(value) => {
                 logger.ui.debug('Task assignment selected:', value)
-                
+
                 if (value.startsWith('step:')) {
                   const [, stepId, taskId] = value.split(':')
                   logger.ui.debug('Creating session for workflow step:', { stepId, taskId })
-                  
+
                   // Verify the taskId exists
                   const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
                   if (!taskExists) {
@@ -545,7 +545,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                     })
                     return
                   }
-                  
+
                   handleTimelineSessionCreate(
                     taskId,
                     pendingSession.startMinutes!,
@@ -555,7 +555,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 } else if (value.startsWith('task:')) {
                   const taskId = value.substring(5)
                   logger.ui.debug('Creating session for task:', { taskId })
-                  
+
                   // Verify the taskId exists
                   const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
                   if (!taskExists) {
@@ -566,7 +566,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                     })
                     return
                   }
-                  
+
                   handleTimelineSessionCreate(
                     taskId,
                     pendingSession.startMinutes!,

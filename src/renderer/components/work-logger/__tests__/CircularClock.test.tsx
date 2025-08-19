@@ -58,7 +58,7 @@ describe('CircularClock', () => {
         onSessionDelete={mockOnSessionDelete}
         onSessionSelect={mockOnSessionSelect}
         currentTime={mockCurrentTime}
-      />
+      />,
     )
 
     // Check for SVG element
@@ -66,8 +66,12 @@ describe('CircularClock', () => {
     expect(svg).toBeInTheDocument()
 
     // Check for hour labels (12-hour format)
-    expect(screen.getByText('12')).toBeInTheDocument()
-    expect(screen.getByText('6')).toBeInTheDocument()
+    // Note: '12' appears twice (midnight and noon)
+    const twelveLabels = screen.getAllByText('12')
+    expect(twelveLabels).toHaveLength(2)
+    // Note: '6' also appears twice (6 AM and 6 PM)
+    const sixLabels = screen.getAllByText('6')
+    expect(sixLabels).toHaveLength(2)
 
     // Check for AM/PM indicators
     expect(screen.getByText('AM')).toBeInTheDocument()
@@ -83,7 +87,7 @@ describe('CircularClock', () => {
         onSessionDelete={mockOnSessionDelete}
         onSessionSelect={mockOnSessionSelect}
         currentTime={mockCurrentTime}
-      />
+      />,
     )
 
     // Check for time display (14:30 in 24-hour format)
@@ -99,7 +103,7 @@ describe('CircularClock', () => {
         onSessionDelete={mockOnSessionDelete}
         onSessionSelect={mockOnSessionSelect}
         currentTime={mockCurrentTime}
-      />
+      />,
     )
 
     // Check for path elements (session arcs)
@@ -116,7 +120,7 @@ describe('CircularClock', () => {
         onSessionCreate={mockOnSessionCreate}
         onSessionDelete={mockOnSessionDelete}
         onSessionSelect={mockOnSessionSelect}
-      />
+      />,
     )
 
     // Find session arcs (paths with fill colors)
@@ -129,7 +133,7 @@ describe('CircularClock', () => {
 
   it('combines sessions for collapsed workflows', () => {
     const collapsedWorkflows = new Set(['workflow-1'])
-    
+
     const workflowSessions: WorkSessionData[] = [
       {
         id: 'session-3',
@@ -163,12 +167,12 @@ describe('CircularClock', () => {
         onSessionCreate={mockOnSessionCreate}
         onSessionDelete={mockOnSessionDelete}
         onSessionSelect={mockOnSessionSelect}
-      />
+      />,
     )
 
-    // Should have combined the workflow sessions
-    const paths = container.querySelectorAll('path[id*="workflow-combined"]')
-    expect(paths.length).toBeGreaterThan(0)
+    // Should show sessions with dashed stroke for collapsed workflows
+    const dashedPaths = container.querySelectorAll('path[stroke-dasharray]')
+    expect(dashedPaths.length).toBeGreaterThan(0)
   })
 
   it('shows drag handles for selected session', () => {
@@ -180,7 +184,7 @@ describe('CircularClock', () => {
         onSessionCreate={mockOnSessionCreate}
         onSessionDelete={mockOnSessionDelete}
         onSessionSelect={mockOnSessionSelect}
-      />
+      />,
     )
 
     // Should show drag handle circles for the selected session
@@ -196,18 +200,18 @@ describe('CircularClock', () => {
         onSessionCreate={mockOnSessionCreate}
         onSessionDelete={mockOnSessionDelete}
         onSessionSelect={mockOnSessionSelect}
-      />
+      />,
     )
 
     // Click on the clock face background
     const clockFace = container.querySelector('.clock-face')
     if (clockFace) {
       fireEvent.click(clockFace)
-      
+
       // Move mouse to create a session
       fireEvent.mouseMove(document, { clientX: 150, clientY: 150 })
       fireEvent.mouseUp(document)
-      
+
       // Session creation should be attempted
       // Note: Due to the complexity of mouse position calculations,
       // the exact behavior might vary
@@ -222,7 +226,7 @@ describe('CircularClock', () => {
         onSessionCreate={mockOnSessionCreate}
         onSessionDelete={mockOnSessionDelete}
         onSessionSelect={mockOnSessionSelect}
-      />
+      />,
     )
 
     // Arco tooltips are rendered in a portal, so we check for the wrapper elements

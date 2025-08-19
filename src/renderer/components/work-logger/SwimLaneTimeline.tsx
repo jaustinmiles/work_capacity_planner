@@ -103,6 +103,7 @@ export function SwimLaneTimeline({
     isWorkflow?: boolean
     isExpanded?: boolean
     taskId?: string
+    stepId?: string  // Add stepId to track workflow steps
     indent?: boolean
   }> = []
 
@@ -125,6 +126,7 @@ export function SwimLaneTimeline({
         id: task.id,
         name: task.name,
         sessions: taskSessions,
+        taskId: task.id,  // Add taskId for regular tasks too
         isWorkflow: false,
       })
       return
@@ -169,6 +171,8 @@ export function SwimLaneTimeline({
             id: `${task.id}-${step.id}`,
             name: step.name,
             sessions: stepSessions,
+            taskId: task.id,  // Add the parent task ID
+            stepId: step.id,  // Add the step ID
             indent: true,
             isWorkflow: false,
           })
@@ -208,17 +212,23 @@ export function SwimLaneTimeline({
   ) => {
     // Only create if clicking on empty space
     const target = e.target as HTMLElement
-    if (!target.classList.contains('swim-lane')) return
+    if (!target.classList.contains('swim-lane')) {
+      return
+    }
 
     e.preventDefault()
     const rect = containerRef.current?.getBoundingClientRect()
-    if (!rect) return
+    if (!rect) {
+      return
+    }
 
     // Get the timeline area element to account for scroll
     const timelineArea = target.closest('.swim-lane') as HTMLElement
-    if (!timelineArea) return
+    if (!timelineArea) {
+      return
+    }
     const timelineRect = timelineArea.getBoundingClientRect()
-    
+
     const x = e.clientX - timelineRect.left + TIME_LABEL_WIDTH
     setCreatingSession({
       taskId,
@@ -250,7 +260,7 @@ export function SwimLaneTimeline({
               type: TaskType.Focused,
               color: '',
             }
-            
+
             if (!checkOverlap(movedSession, sessions, dragState.sessionId)) {
               onSessionUpdate(dragState.sessionId, newStart, newEnd)
             }
@@ -267,7 +277,7 @@ export function SwimLaneTimeline({
               type: TaskType.Focused,
               color: '',
             }
-            
+
             if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
               onSessionUpdate(dragState.sessionId, newStart, dragState.initialEndMinutes)
             }
@@ -284,7 +294,7 @@ export function SwimLaneTimeline({
               type: TaskType.Focused,
               color: '',
             }
-            
+
             if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
               onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, newEnd)
             }
@@ -293,10 +303,10 @@ export function SwimLaneTimeline({
       } else if (creatingSession) {
         const container = containerRef.current
         if (!container) return
-        
+
         // Find the specific swim lane being dragged on
         const lanes = Array.from(container.querySelectorAll('.swim-lane'))
-        
+
         for (const lane of lanes) {
           const htmlLane = lane as HTMLElement
           const rect = htmlLane.getBoundingClientRect()
@@ -314,7 +324,7 @@ export function SwimLaneTimeline({
         const startMinutes = roundToQuarter(pixelsToMinutes(Math.min(creatingSession.startX, creatingSession.currentX)))
         const endMinutes = roundToQuarter(pixelsToMinutes(Math.max(creatingSession.startX, creatingSession.currentX)))
 
-        if (endMinutes - startMinutes >= 15) {
+if (endMinutes - startMinutes >= 15) {
           // Check for overlaps with existing sessions
           const newSession: WorkSessionData = {
             id: 'temp-new',
@@ -326,21 +336,23 @@ export function SwimLaneTimeline({
             type: TaskType.Focused, // Will be set by parent
             color: '',
           }
-          
+
           // Only check overlaps for sessions on the same lane
-          const laneSessions = sessions.filter(s => 
+          const laneSessions = sessions.filter(s =>
             (creatingSession.stepId && s.stepId === creatingSession.stepId) ||
-            (!creatingSession.stepId && s.taskId === creatingSession.taskId && !s.stepId)
+            (!creatingSession.stepId && s.taskId === creatingSession.taskId && !s.stepId),
           )
-          
-          if (!checkOverlap(newSession, laneSessions)) {
+
+if (!checkOverlap(newSession, laneSessions)) {
             onSessionCreate(
               creatingSession.taskId,
               startMinutes,
               endMinutes,
               creatingSession.stepId,
             )
+          } else {
           }
+        } else {
         }
         setCreatingSession(null)
       }
@@ -541,13 +553,10 @@ export function SwimLaneTimeline({
                 if (lane.isWorkflow && !lane.isExpanded) {
                   return
                 }
-                // For workflow steps, lane.id is "taskId-stepId"
-                // For regular tasks, lane.id is just "taskId"
-                if (lane.id.includes('-')) {
-                  const [taskId, stepId] = lane.id.split('-')
-                  handleLaneMouseDown(e, taskId, stepId)
-                } else {
-                  handleLaneMouseDown(e, lane.id, undefined)
+
+                // Use the taskId and stepId directly from the lane object
+                if (lane.taskId) {
+                  handleLaneMouseDown(e, lane.taskId, lane.stepId)
                 }
               }}
             >
