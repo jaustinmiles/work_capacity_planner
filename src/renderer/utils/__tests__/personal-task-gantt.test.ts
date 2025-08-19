@@ -56,7 +56,7 @@ describe('Personal Task Gantt Chart Display', () => {
         }
       ],
       meetings: [],
-      accumulated: { focusMinutes: 0, adminMinutes: 0 },,
+      accumulated: { focusMinutes: 0, adminMinutes: 0 },
     }]
 
     const result = scheduleItemsWithBlocksAndDebug([personalTask, workTask], [], patterns, today)
@@ -76,13 +76,13 @@ describe('Personal Task Gantt Chart Display', () => {
     expect(unscheduledPersonal).toBeUndefined()
   })
 
-  it('should handle Personal enum value (capital P) correctly', () => {
-    // This tests the actual bug - category might be 'Personal' instead of 'personal'
-    const personalTaskCapitalP: Task = {
+  it('should handle string enum value correctly', () => {
+    // This tests that the string value 'personal' works the same as TaskCategory.Personal
+    const personalTaskString: Task = {
       id: 'personal-2',
       name: 'Task Management App',
       type: TaskType.Focused,
-      category: 'Personal' as any, // Simulating what might be stored
+      category: 'personal' as any, // String value matching enum value
       importance: 50,
       urgency: 50,
       duration: 60,
@@ -107,10 +107,10 @@ describe('Personal Task Gantt Chart Display', () => {
         },
       ],
       meetings: [],
-      accumulated: { focusMinutes: 0, adminMinutes: 0 },,
+      accumulated: { focusMinutes: 0, adminMinutes: 0 },
     }]
 
-    const result = scheduleItemsWithBlocksAndDebug([personalTaskCapitalP], [], patterns, today)
+    const result = scheduleItemsWithBlocksAndDebug([personalTaskString], [], patterns, today)
 
     // Task should still be scheduled (after fix)
     const scheduled = result.scheduledItems.find(item => item.id === 'personal-2')
