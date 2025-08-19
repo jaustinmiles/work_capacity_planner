@@ -254,8 +254,20 @@ function canFitInBlock(
   }
 
   // Find next available time in block
-  // For backfilling: always try from block start, not current time
-  let tryTime = new Date(block.startTime.getTime())
+  // For backfilling: try from block start, but respect current time for today's blocks
+  // Only backfill within the same day, not into the past
+  const blockDate = new Date(block.startTime)
+  const isToday = blockDate.toDateString() === currentTime.toDateString()
+
+  let tryTime: Date
+  if (isToday && currentTime > block.startTime) {
+    // For today's blocks that have already started, start from current time
+    tryTime = new Date(Math.max(currentTime.getTime(), block.startTime.getTime()))
+  } else {
+    // For future blocks or today's blocks that haven't started, can backfill from start
+    tryTime = new Date(block.startTime.getTime())
+  }
+
   const itemEndTime = new Date(tryTime.getTime() + item.duration * 60000)
 
   // Check if it fits before block ends
@@ -307,14 +319,17 @@ export function scheduleItemsWithBlocksAndDebug(
   startDate: Date = new Date(),
   options: SchedulingOptions = {},
 ): { scheduledItems: ScheduledItem[], debugInfo: SchedulingDebugInfo } {
-  // Consistency check: Warn if workflows appear in both arrays
+  // Consistency check: Remove any workflows from tasks array that are in sequencedTasks
   const workflowIds = new Set(sequencedTasks.map(w => w.id))
-  const duplicateWorkflows = tasks.filter(t => t.hasSteps && workflowIds.has(t.id))
+  const duplicateWorkflows = tasks.filter(t => workflowIds.has(t.id))
+
+  // Filter out duplicates to prevent double scheduling
+  const dedupedTasks = tasks.filter(t => !workflowIds.has(t.id))
 
   if (duplicateWorkflows.length > 0) {
     logger.scheduler.warn(
       `⚠️ Scheduler Warning: ${duplicateWorkflows.length} workflows found in both tasks and sequencedTasks arrays. ` +
-      'This will cause duplicate scheduling! Workflows should only be in sequencedTasks. ' +
+      'Removing from tasks array to prevent duplicate scheduling. ' +
       `Duplicates: ${duplicateWorkflows.map(w => w.name).join(', ')}`,
     )
   }
@@ -367,9 +382,10 @@ export function scheduleItemsWithBlocksAndDebug(
     lastScheduledItem: undefined,
   } : null
 
-  // Convert tasks to work items
-  tasks
-    .filter(task => !task.completed)
+  // Convert tasks to work items (using deduped tasks)
+  const incompleteTasks = dedupedTasks.filter(task => !task.completed)
+
+  incompleteTasks
     .forEach(task => {
       // Calculate priority using enhanced function if context available
       const priority = schedulingContext
@@ -563,7 +579,7 @@ export function scheduleItemsWithBlocksAndDebug(
   let currentTime = new Date(Math.max(startDate.getTime(), now.getTime())) // Don't schedule in the past
   let dayIndex = 0
   const maxDays = 30 // Limit to 30 days
-  
+
   // Single source of truth for block utilization tracking
   const blockUtilizationMap = new Map<string, any>()
 
@@ -591,7 +607,7 @@ export function scheduleItemsWithBlocksAndDebug(
 
     // Create block capacities
     const blockCapacities = pattern.blocks.map(block => getBlockCapacity(block, currentDate))
-    
+
     // Register blocks in the utilization map (single source of truth)
     blockCapacities.forEach(block => {
       const key = `${dateStr}-${block.blockId}`
@@ -614,7 +630,7 @@ export function scheduleItemsWithBlocksAndDebug(
     })
 
     // Track initial block state for debugging
-    const blockStartState = blockCapacities.map(block => {
+    const _blockStartState = blockCapacities.map(block => {
       // Calculate effective capacity based on current time
       let effectiveFocusMinutes = block.focusMinutesTotal
       let effectiveAdminMinutes = block.adminMinutesTotal
@@ -916,7 +932,7 @@ export function scheduleItemsWithBlocksAndDebug(
           } else {
             block.adminMinutesUsed += item.duration
           }
-          
+
           // Update the utilization map
           const utilizationKey = `${dateStr}-${block.blockId}`
           const utilization = blockUtilizationMap.get(utilizationKey)
@@ -1106,19 +1122,19 @@ export function scheduleItemsWithBlocksAndDebug(
     }
 
   }
-  
+
   // Convert the utilization map to array for debug info (single source of truth)
   blockUtilizationMap.forEach(utilization => {
     const unusedFocus = utilization.focusTotal - utilization.focusUsed
     const unusedAdmin = utilization.adminTotal - utilization.adminUsed
     const unusedPersonal = utilization.personalTotal - utilization.personalUsed
-    
+
     let unusedReason: string | undefined
-    
+
     // Check for completely empty blocks
     const totalCapacity = utilization.focusTotal + utilization.adminTotal + utilization.personalTotal
     const totalUsed = utilization.focusUsed + utilization.adminUsed + utilization.personalUsed
-    
+
     if (totalUsed === 0 && totalCapacity > 0) {
       unusedReason = `Empty block: ${totalCapacity} minutes available but unused`
     } else if (unusedFocus > 30 || unusedAdmin > 30 || unusedPersonal > 30) {
@@ -1128,7 +1144,7 @@ export function scheduleItemsWithBlocksAndDebug(
       if (unusedPersonal > 30) parts.push(`${unusedPersonal} personal`)
       unusedReason = `${parts.join(', ')} minutes unused`
     }
-    
+
     debugInfo.blockUtilization.push({
       date: utilization.date,
       blockId: utilization.blockId,
