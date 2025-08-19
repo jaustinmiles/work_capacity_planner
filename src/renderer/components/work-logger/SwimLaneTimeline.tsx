@@ -590,7 +590,9 @@ if (!checkOverlap(newSession, laneSessions)) {
                       top: 4,
                       bottom: 4,
                       width,
-                      background: session.color + (isSelected ? '33' : '22'),
+                      background: session.completed 
+                        ? `repeating-linear-gradient(45deg, ${session.color}33, ${session.color}33 10px, ${session.color}55 10px, ${session.color}55 20px)`
+                        : session.color + (isSelected ? '33' : '22'),
                       border: `2px solid ${session.color}`,
                       borderRadius: 4,
                       cursor: 'move',
@@ -600,6 +602,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                       overflow: 'hidden',
                       boxShadow: isHovered ? '0 2px 8px rgba(0,0,0,0.15)' : undefined,
                       transition: 'box-shadow 0.2s',
+                      opacity: session.completed ? 0.8 : 1,
                     }}
                     onMouseDown={(e) => handleMouseDown(e, session.id, 'move')}
                     onMouseEnter={() => setHoveredSession(session.id)}
@@ -609,29 +612,39 @@ if (!checkOverlap(newSession, laneSessions)) {
                       onSessionSelect(session.id)
                     }}
                   >
-                    {/* Resize handles */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: 8,
-                        cursor: 'ew-resize',
-                      }}
-                      onMouseDown={(e) => handleMouseDown(e, session.id, 'start')}
-                    />
-                    <div
-                      style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: 8,
-                        cursor: 'ew-resize',
-                      }}
-                      onMouseDown={(e) => handleMouseDown(e, session.id, 'end')}
-                    />
+                    {/* Resize handles - only show when selected */}
+                    {isSelected && (
+                      <>
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: 8,
+                            cursor: 'ew-resize',
+                            background: 'rgba(255,255,255,0.5)',
+                            borderLeft: `2px solid ${session.color}`,
+                            zIndex: 10,
+                          }}
+                          onMouseDown={(e) => handleMouseDown(e, session.id, 'start')}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: 0,
+                            top: 0,
+                            bottom: 0,
+                            width: 8,
+                            cursor: 'ew-resize',
+                            background: 'rgba(255,255,255,0.5)',
+                            borderRight: `2px solid ${session.color}`,
+                            zIndex: 10,
+                          }}
+                          onMouseDown={(e) => handleMouseDown(e, session.id, 'end')}
+                        />
+                      </>
+                    )}
 
                     {/* Session content */}
                     <Tooltip

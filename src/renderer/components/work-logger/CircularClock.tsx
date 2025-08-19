@@ -19,6 +19,8 @@ interface CircularClockProps {
   selectedSessionId?: string
   onSessionSelect: (id: string | null) => void
   currentTime?: Date
+  meetings?: Array<{ startMinutes: number; endMinutes: number; name: string }>
+  sleepBlocks?: Array<{ startMinutes: number; endMinutes: number }>
 }
 
 interface DragState {
@@ -33,7 +35,18 @@ const CLOCK_SIZE = 240
 const CENTER = CLOCK_SIZE / 2
 const OUTER_RADIUS = 100
 const INNER_RADIUS = 70
-const HOUR_LABEL_RADIUS = 85
+const MIDDLE_RADIUS = 85
+const HOUR_LABEL_RADIUS = 110
+
+// Workday configuration - 12 hour focus from 8 AM to 8 PM
+const WORKDAY_START = 8 // 8 AM
+const WORKDAY_END = 20 // 8 PM
+const WORKDAY_HOURS = WORKDAY_END - WORKDAY_START // 12 hours
+
+// Circadian rhythm peaks and dips
+const MORNING_PEAK = 10 // 10 AM - Morning alertness peak
+const AFTERNOON_DIP = 14 // 2 PM - Post-lunch dip
+const EVENING_PEAK = 18 // 6 PM - Evening alertness peak
 
 export function CircularClock({
   sessions,
@@ -55,6 +68,19 @@ export function CircularClock({
 
   // Get current time in minutes
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
+  
+  // Convert minutes to angle for 12-hour workday clock (8 AM = top)
+  const minutesToAngle = (minutes: number): number => {
+    const hours = minutes / 60
+    // Map hours to 0-360 degrees where 8 AM is at top (270 degrees)
+    if (hours >= WORKDAY_START && hours <= WORKDAY_END) {
+      // During workday: map to full circle
+      const workdayProgress = (hours - WORKDAY_START) / WORKDAY_HOURS
+      return (workdayProgress * 360 - 90) % 360
+    }
+    // Outside workday: compress into inner ring
+    return -1 // Signal to use inner ring
+  }
 
   // Process sessions to handle collapsed workflows
   const displaySessions = React.useMemo(() => {
@@ -92,7 +118,7 @@ export function CircularClock({
     const x = e.clientX - rect.left - CENTER
     const y = e.clientY - rect.top - CENTER
 
-    return angleToMinutes(x + CENTER, y + CENTER, CENTER, CENTER)
+    return angleToMinutes(x + CENTER, y + CENTER, CENTER, CENTER, WORKDAY_START, WORKDAY_HOURS)
   }
 
   // Handle arc click/drag start
@@ -281,10 +307,11 @@ export function CircularClock({
           strokeWidth={1}
         />
 
-        {/* Hour markers and labels */}
-        {Array.from({ length: 24 }, (_, hour) => {
-          const angle = (hour * 15 - 90) * (Math.PI / 180)
-          const isMainHour = hour % 6 === 0
+        {/* Hour markers and labels for 12-hour workday */}
+        {Array.from({ length: WORKDAY_HOURS + 1 }, (_, i) => {
+          const hour = WORKDAY_START + i
+          const angle = (i * 30 - 90) * (Math.PI / 180) // 30 degrees per hour
+          const isMainHour = i % 3 === 0 // Show every 3 hours
           const markerRadius = isMainHour ? OUTER_RADIUS : OUTER_RADIUS - 5
           const x1 = CENTER + (OUTER_RADIUS - 10) * Math.cos(angle)
           const y1 = CENTER + (OUTER_RADIUS - 10) * Math.sin(angle)
@@ -294,6 +321,9 @@ export function CircularClock({
           const labelX = CENTER + HOUR_LABEL_RADIUS * Math.cos(angle)
           const labelY = CENTER + HOUR_LABEL_RADIUS * Math.sin(angle)
 
+          // Check if this is a circadian peak or dip
+          const isCircadianPoint = hour === MORNING_PEAK || hour === AFTERNOON_DIP || hour === EVENING_PEAK
+
           return (
             <g key={hour}>
               {/* Hour marker */}
@@ -302,45 +332,46 @@ export function CircularClock({
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke="#86909c"
+                stroke={isCircadianPoint ? '#165DFF' : '#86909c'}
                 strokeWidth={isMainHour ? 2 : 1}
               />
 
-              {/* Hour label for main hours */}
+              {/* Hour label */}
               {isMainHour && (
                 <text
                   x={labelX}
                   y={labelY + 4}
                   textAnchor="middle"
                   fontSize={12}
-                  fill="#4e5969"
+                  fill={isCircadianPoint ? '#165DFF' : '#4e5969'}
                   fontWeight="bold"
                 >
-                  {hour === 0 ? '12' : hour > 12 ? hour - 12 : hour}
+                  {hour > 12 ? hour - 12 : hour}
+                  {hour >= 12 ? 'pm' : 'am'}
                 </text>
               )}
             </g>
           )
         })}
 
-        {/* AM/PM indicators */}
+        {/* Circadian rhythm indicators */}
         <text
           x={CENTER}
           y={CENTER - 30}
           textAnchor="middle"
           fontSize={10}
-          fill="#86909c"
+          fill="#165DFF"
         >
-          AM
+          Peak Focus
         </text>
         <text
           x={CENTER}
           y={CENTER + 35}
           textAnchor="middle"
           fontSize={10}
-          fill="#86909c"
+          fill="#FF7D00"
         >
-          PM
+          Low Energy
         </text>
 
         {/* Work sessions as arcs */}
@@ -349,10 +380,9 @@ export function CircularClock({
           const isHovered = session.id === hoveredSession
           const isCollapsed = session.isCollapsed || false
 
-          // Calculate arc radii based on AM/PM
-          const isAM = session.startMinutes < 720
-          const arcInnerRadius = isAM ? INNER_RADIUS : INNER_RADIUS - 15
-          const arcOuterRadius = isAM ? OUTER_RADIUS - 15 : INNER_RADIUS - 5
+          // Use consistent arc radii for all sessions
+          const arcInnerRadius = INNER_RADIUS
+          const arcOuterRadius = OUTER_RADIUS
 
           const path = generateArcPath(
             session.startMinutes,
@@ -361,6 +391,8 @@ export function CircularClock({
             arcOuterRadius,
             CENTER,
             CENTER,
+            WORKDAY_START,
+            WORKDAY_HOURS,
           )
 
           return (
@@ -439,9 +471,11 @@ export function CircularClock({
               Math.min(creatingSession.startMinutes, creatingSession.currentMinutes),
               Math.max(creatingSession.startMinutes, creatingSession.currentMinutes),
               INNER_RADIUS,
-              OUTER_RADIUS - 15,
+              OUTER_RADIUS,
               CENTER,
               CENTER,
+              WORKDAY_START,
+              WORKDAY_HOURS,
             )}
             fill="#165DFF22"
             stroke="#165DFF"
@@ -451,16 +485,18 @@ export function CircularClock({
           />
         )}
 
-        {/* Current time indicator */}
-        <line
-          x1={CENTER}
-          y1={CENTER}
-          x2={CENTER + (OUTER_RADIUS - 20) * Math.cos((currentMinutes / 60 * 30 - 90) * Math.PI / 180)}
-          y2={CENTER + (OUTER_RADIUS - 20) * Math.sin((currentMinutes / 60 * 30 - 90) * Math.PI / 180)}
-          stroke="#f53f3f"
-          strokeWidth={2}
-          strokeLinecap="round"
-        />
+        {/* Current time indicator - only show during workday */}
+        {currentMinutes >= WORKDAY_START * 60 && currentMinutes <= WORKDAY_END * 60 && (
+          <line
+            x1={CENTER}
+            y1={CENTER}
+            x2={CENTER + (OUTER_RADIUS - 20) * Math.cos(minutesToAngle(currentMinutes) * Math.PI / 180)}
+            y2={CENTER + (OUTER_RADIUS - 20) * Math.sin(minutesToAngle(currentMinutes) * Math.PI / 180)}
+            stroke="#f53f3f"
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        )}
 
         {/* Center dot */}
         <circle

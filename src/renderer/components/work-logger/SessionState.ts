@@ -14,6 +14,7 @@ export interface WorkSessionData {
   isNew?: boolean
   notes?: string
   isCollapsed?: boolean
+  completed?: boolean // Track if the task was completed in this session
 }
 
 // Convert time string (HH:mm) to minutes since midnight
@@ -76,9 +77,33 @@ export function generateArcPath(
   outerRadius: number,
   centerX: number = 100,
   centerY: number = 100,
+  workdayStart: number = 8,
+  workdayHours: number = 12,
 ): string {
-  const startAngle = (startMinutes / 60 * 30 - 90) * (Math.PI / 180)
-  const endAngle = (endMinutes / 60 * 30 - 90) * (Math.PI / 180)
+  // Convert minutes to hours
+  const startHour = startMinutes / 60
+  const endHour = endMinutes / 60
+  
+  // Map to 12-hour workday clock (8 AM at top)
+  let startAngle: number
+  let endAngle: number
+  
+  if (startHour >= workdayStart && startHour <= workdayStart + workdayHours) {
+    // Map workday hours to full circle
+    const startProgress = (startHour - workdayStart) / workdayHours
+    startAngle = (startProgress * 360 - 90) * (Math.PI / 180)
+  } else {
+    // Outside workday - don't render
+    return ''
+  }
+  
+  if (endHour >= workdayStart && endHour <= workdayStart + workdayHours) {
+    const endProgress = (endHour - workdayStart) / workdayHours
+    endAngle = (endProgress * 360 - 90) * (Math.PI / 180)
+  } else {
+    // Clip to workday end
+    endAngle = (270) * (Math.PI / 180)
+  }
 
   const startOuterX = centerX + outerRadius * Math.cos(startAngle)
   const startOuterY = centerY + outerRadius * Math.sin(startAngle)
@@ -90,7 +115,7 @@ export function generateArcPath(
   const endInnerX = centerX + innerRadius * Math.cos(endAngle)
   const endInnerY = centerY + innerRadius * Math.sin(endAngle)
 
-  const largeArcFlag = endMinutes - startMinutes > 720 ? 1 : 0
+  const largeArcFlag = (endAngle - startAngle) > Math.PI ? 1 : 0
 
   return `
     M ${startOuterX} ${startOuterY}
@@ -107,14 +132,19 @@ export function angleToMinutes(
   mouseY: number,
   centerX: number = 100,
   centerY: number = 100,
+  workdayStart: number = 8,
+  workdayHours: number = 12,
 ): number {
   const angle = Math.atan2(mouseY - centerY, mouseX - centerX)
   const degrees = angle * (180 / Math.PI)
   const adjustedDegrees = (degrees + 90 + 360) % 360
-  const hours = adjustedDegrees / 30
-  const minutes = Math.round(hours * 60)
+  
+  // Map from 360 degrees to 12-hour workday
+  const workdayProgress = adjustedDegrees / 360
+  const workdayHour = workdayStart + (workdayProgress * workdayHours)
+  const minutes = Math.round(workdayHour * 60)
 
-  return minutes % 1440 // Ensure within 24-hour range
+  return Math.max(workdayStart * 60, Math.min((workdayStart + workdayHours) * 60, minutes))
 }
 
 // Find closest session edge for dragging
