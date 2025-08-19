@@ -65,3 +65,24 @@ input, textarea {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* Fullscreen modal styling */
+.fullscreen-modal .arco-modal {
+  max-width: 100vw !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  top: 0 !important;
+}
+
+.fullscreen-modal .arco-modal-content {
+  height: 100vh !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.fullscreen-modal .arco-modal-body {
+  flex: 1;
+  overflow: auto;
+}
