@@ -16,6 +16,13 @@ const { Text } = Typography
 interface SwimLaneTimelineProps {
   sessions: WorkSessionData[]
   tasks: (Task | SequencedTask)[]
+  meetings?: Array<{
+    id: string
+    name: string
+    startTime: string
+    endTime: string
+    type: 'meeting' | 'break' | 'personal' | 'blocked'
+  }>
   onSessionUpdate: (id: string, startMinutes: number, endMinutes: number) => void
   onSessionCreate: (taskId: string, startMinutes: number, endMinutes: number, stepId?: string) => void
   onSessionDelete: (id: string) => void
@@ -45,6 +52,7 @@ interface DragState {
 export function SwimLaneTimeline({
   sessions,
   tasks,
+  meetings = [],
   onSessionUpdate,
   onSessionCreate,
   onSessionDelete: _onSessionDelete,
@@ -105,6 +113,10 @@ export function SwimLaneTimeline({
     taskId?: string
     stepId?: string  // Add stepId to track workflow steps
     indent?: boolean
+    isMeeting?: boolean
+    meetingType?: string
+    meetingStartMinutes?: number
+    meetingEndMinutes?: number
   }> = []
 
   // Build swim lanes - ensure stable ordering
@@ -180,6 +192,37 @@ export function SwimLaneTimeline({
       }
     }
   })
+
+  // Add meetings lane at the beginning if there are meetings
+  if (meetings.length > 0) {
+    // Convert meeting sessions to match WorkSessionData format for rendering
+    const meetingSessions: WorkSessionData[] = meetings.map(meeting => {
+      const [startHour, startMin] = meeting.startTime.split(':').map(Number)
+      const [endHour, endMin] = meeting.endTime.split(':').map(Number)
+      const startMinutes = startHour * 60 + startMin
+      const endMinutes = endHour * 60 + endMin
+
+      return {
+        id: `meeting-${meeting.id}`,
+        taskId: '',
+        taskName: meeting.name,
+        startMinutes,
+        endMinutes,
+        type: TaskType.Admin, // Use Admin type for meetings
+        isDragging: false,
+        color: meeting.type === 'meeting' ? '#722ed1' :
+               meeting.type === 'break' ? '#13c2c2' :
+               meeting.type === 'personal' ? '#52c41a' : '#8c8c8c',
+      }
+    })
+
+    swimLanes.unshift({
+      id: 'meetings-lane',
+      name: '📅 Meetings & Events',
+      sessions: meetingSessions,
+      isMeeting: true,
+    })
+  }
 
   // Handle drag start
   const handleMouseDown = (
@@ -547,6 +590,11 @@ if (!checkOverlap(newSession, laneSessions)) {
                 cursor: 'crosshair',
               }}
               onMouseDown={(e) => {
+                // Don't allow creating on meetings lane
+                if (lane.isMeeting) {
+                  return
+                }
+
                 // Don't allow creating on collapsed workflow lanes - user should expand first
                 if (lane.isWorkflow && !lane.isExpanded) {
                   return
@@ -578,6 +626,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                 const width = (session.endMinutes - session.startMinutes) / 60 * hourWidth
                 const isSelected = session.id === selectedSessionId
                 const isHovered = session.id === hoveredSession
+                const isMeetingSession = session.id.startsWith('meeting-')
 
                 const sessionKey = `${lane.id}-${session.id}-${sessionIndex}`
 
@@ -590,12 +639,14 @@ if (!checkOverlap(newSession, laneSessions)) {
                       top: 4,
                       bottom: 4,
                       width,
-                      background: session.completed
+                      background: isMeetingSession
+                        ? '#722ed1aa'
+                        : session.completed
                         ? `repeating-linear-gradient(45deg, ${session.color}33, ${session.color}33 10px, ${session.color}55 10px, ${session.color}55 20px)`
                         : session.color + (isSelected ? '33' : '22'),
-                      border: `2px solid ${session.color}`,
-                      borderRadius: 4,
-                      cursor: 'move',
+                      border: `2px solid ${isMeetingSession ? '#722ed1' : session.color}`,
+                      borderRadius: isMeetingSession ? 8 : 4,
+                      cursor: isMeetingSession ? 'default' : 'move',
                       display: 'flex',
                       alignItems: 'center',
                       padding: '0 4px',
@@ -604,7 +655,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                       transition: 'box-shadow 0.2s',
                       opacity: session.completed ? 0.8 : 1,
                     }}
-                    onMouseDown={(e) => handleMouseDown(e, session.id, 'move')}
+                    onMouseDown={isMeetingSession ? undefined : (e) => handleMouseDown(e, session.id, 'move')}
                     onMouseEnter={() => setHoveredSession(session.id)}
                     onMouseLeave={() => setHoveredSession(null)}
                     onClick={(e) => {
@@ -612,8 +663,8 @@ if (!checkOverlap(newSession, laneSessions)) {
                       onSessionSelect(session.id)
                     }}
                   >
-                    {/* Resize handles - only show when selected */}
-                    {isSelected && (
+                    {/* Resize handles - only show when selected and not a meeting */}
+                    {isSelected && !isMeetingSession && (
                       <>
                         <div
                           style={{
