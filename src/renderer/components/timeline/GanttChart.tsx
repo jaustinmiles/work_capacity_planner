@@ -269,48 +269,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       setShowDebugInfo(true)
     }
 
-    // Add meetings to the scheduled items
-    const itemsWithMeetings = [...result.scheduledItems]
-
-    // Add meetings from work patterns
-    workPatterns.forEach(pattern => {
-      if (pattern.meetings && pattern.meetings.length > 0) {
-        const patternDate = dayjs(pattern.date)
-        pattern.meetings.forEach(meeting => {
-          // Parse meeting times
-          const [startHour, startMin] = meeting.startTime.split(':').map(Number)
-          const [endHour, endMin] = meeting.endTime.split(':').map(Number)
-
-          const meetingStart = patternDate.hour(startHour).minute(startMin).second(0).toDate()
-          const meetingEnd = patternDate.hour(endHour).minute(endMin).second(0).toDate()
-
-          // Calculate duration in minutes
-          const durationMinutes = (meetingEnd.getTime() - meetingStart.getTime()) / 60000
-
-          // Add meeting as a scheduled item
-          itemsWithMeetings.push({
-            id: `meeting-${meeting.id}-${pattern.date}`,
-            name: meeting.name,
-            type: 'meeting',
-            isMeeting: true,
-            meetingType: meeting.type,
-            startTime: meetingStart,
-            endTime: meetingEnd,
-            duration: durationMinutes,
-            priority: 0, // Meetings don't have priority
-            color: meeting.type === 'meeting' ? '#722ed1' :
-                   meeting.type === 'break' ? '#13c2c2' :
-                   meeting.type === 'personal' ? '#52c41a' : '#8c8c8c',
-            originalItem: meeting,
-          })
-        })
-      }
-    })
-
-    // Sort all items by start time
-    itemsWithMeetings.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
-
-    return itemsWithMeetings
+    return result.scheduledItems
   }, [tasks, sequencedTasks, workPatterns])
 
   // Calculate chart dimensions
@@ -399,9 +358,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const workflowProgress = new Map<string, { completed: number, total: number }>()
 
     // Separate items by type
-    const meetingItems = scheduledItems.filter((item: any) => item.isMeeting)
-    const blockedItems = scheduledItems.filter((item: any) => item.isBlocked && !item.isMeeting)
-    const taskItems = scheduledItems.filter((item: any) => !item.isBlocked && !item.isWaitTime && !item.isMeeting)
+    const blockedItems = scheduledItems.filter((item: any) => item.isBlocked)
+    const taskItems = scheduledItems.filter((item: any) => !item.isBlocked && !item.isWaitTime)
     const waitItems = scheduledItems.filter((item: any) => item.isWaitTime)
 
     // First pass: calculate workflow progress
@@ -418,15 +376,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       }
     })
 
-    // Second pass: assign positions to meetings first (on their own row)
-    if (meetingItems.length > 0) {
-      meetingItems.forEach((item: any) => {
-        positions.set(item.id, currentRow)
-      })
-      currentRow++
-    }
-
-    // Third pass: assign positions to blocked items
+    // Second pass: assign positions to blocked items first (meetings, breaks, etc.)
+    // Put all blocked items on the same row (row 0) since they don't overlap with tasks
     if (blockedItems.length > 0) {
       blockedItems.forEach((item: any) => {
         positions.set(item.id, currentRow)
@@ -434,7 +385,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       currentRow++
     }
 
-    // Fourth pass: assign positions to tasks and workflows
+    // Third pass: assign positions to tasks and workflows
     taskItems.forEach((item: any) => {
       if (item.workflowId) {
         // This is a workflow step
@@ -450,7 +401,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       }
     })
 
-    // Fifth pass: assign wait times to same row as their parent
+    // Fourth pass: assign wait times to same row as their parent
     waitItems.forEach((item: any) => {
       const parentId = item.id.replace('-wait', '')
       positions.set(item.id, positions.get(parentId) || currentRow)
@@ -535,42 +486,26 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       {/* Summary */}
       <Card>
         <Row gutter={16} align="center">
-          <Col span={3}>
+          <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Total Items</Text>
-              <Title heading={4}>{scheduledItems.filter((item: any) => !item.isWaitTime && !item.isMeeting).length}</Title>
+              <Title heading={4}>{scheduledItems.filter((item: any) => !item.isWaitTime).length}</Title>
             </Space>
           </Col>
-          <Col span={4}>
-            <Space direction="vertical">
-              <Text type="secondary">Meetings</Text>
-              <Title heading={4}>{scheduledItems.filter((item: any) => item.isMeeting).length}</Title>
-              <Text type="secondary">
-                {(() => {
-                  const totalMeetingMinutes = scheduledItems
-                    .filter((item: any) => item.isMeeting)
-                    .reduce((acc, item) => acc + item.duration, 0)
-                  const hours = Math.floor(totalMeetingMinutes / 60)
-                  const minutes = totalMeetingMinutes % 60
-                  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-                })()}
-              </Text>
-            </Space>
-          </Col>
-          <Col span={4}>
+          <Col span={5}>
             <Space direction="vertical">
               <Text type="secondary">Completion</Text>
               <Title heading={4}>{formatDate(chartEndTime)}</Title>
               <Text type="secondary">{formatTime(chartEndTime)}</Text>
             </Space>
           </Col>
-          <Col span={3}>
+          <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Work Days</Text>
               <Title heading={4}>{totalDays} days</Title>
             </Space>
           </Col>
-          <Col span={3}>
+          <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Workflows</Text>
               <Title heading={4}>{sequencedTasks.filter(w => w.overallStatus !== 'completed').length}</Title>
@@ -951,12 +886,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   )
                   const firstItem = rowItems[0]
                   const isWorkflowRow = firstItem?.workflowId
-                  const isMeetingRow = rowItems.some(item => item.isMeeting)
-                  const isBlockedRow = !isMeetingRow && rowItems.some(item => item.isBlocked)
-                  const rowLabel = isMeetingRow
-                    ? 'Meetings & Events'
-                    : isBlockedRow
-                    ? 'Blocked Time'
+                  const isBlockedRow = rowIndex === 0 && rowItems.some(item => item.isBlocked)
+                  const rowLabel = isBlockedRow
+                    ? 'Meetings & Blocked Time'
                     : isWorkflowRow
                     ? firstItem.workflowName
                     : firstItem?.name.replace(/\[.*\]\s*/, '')
@@ -978,11 +910,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                           style={{
                             position: 'sticky',
                             left: 0,
-                            background: isMeetingRow ? '#f6f0ff' : isBlockedRow ? '#fff0f0' : isWorkflowRow ? '#f0f0ff' : '#f5f5f5',
+                            background: isBlockedRow ? '#fff0f0' : isWorkflowRow ? '#f0f0ff' : '#f5f5f5',
                             padding: '8px 12px',
                             fontSize: 12,
-                            fontWeight: isMeetingRow || isBlockedRow || isWorkflowRow ? 600 : 400,
-                            color: isMeetingRow ? '#722ed1' : isBlockedRow ? '#ff4d4f' : isWorkflowRow ? '#5865f2' : '#666',
+                            fontWeight: isBlockedRow || isWorkflowRow ? 600 : 400,
+                            color: isBlockedRow ? '#ff4d4f' : isWorkflowRow ? '#5865f2' : '#666',
                             borderRight: '1px solid #e5e5e5',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -993,22 +925,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                             alignItems: 'center',
                           }}
                         >
-                          {isMeetingRow && (
-                            <>
-                              <span style={{ marginRight: 6 }}>📅</span>
-                              <span style={{ flex: 1 }}>{rowLabel}</span>
-                              <span style={{
-                                marginLeft: 8,
-                                fontSize: 11,
-                                color: '#999',
-                                backgroundColor: 'rgba(0,0,0,0.05)',
-                                padding: '2px 6px',
-                                borderRadius: 10,
-                              }}>
-                                {rowItems.length} items
-                              </span>
-                            </>
-                          )}
                           {isBlockedRow && (
                             <>
                               <span style={{ marginRight: 6 }}>📅</span>
@@ -1217,7 +1133,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const widthPx = getDurationPx(item.duration)
                 const isWaitTime = item.isWaitTime
                 const isBlocked = item.isBlocked
-                const isMeeting = item.isMeeting
                 const isSleep = item.type === 'blocked-time' && item.originalItem &&
                   'name' in item.originalItem && item.originalItem.name === 'Sleep'
                 const isHovered = hoveredItem === item.id ||
@@ -1229,20 +1144,20 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 return (
                   <div
                     key={`${item.id}-${index}`}
-                    draggable={!isWaitTime && !isBlocked && !isMeeting}
+                    draggable={!isWaitTime && !isBlocked}
                     style={{
                       position: 'absolute',
                       top: topPosition,
                       height: rowHeight - 10,
                       left: `${leftPx}px`,
                       width: `${widthPx}px`,
-                      cursor: (!isWaitTime && !isBlocked && !isMeeting) ? 'move' : 'pointer',
+                      cursor: (!isWaitTime && !isBlocked) ? 'move' : 'pointer',
                       opacity: draggedItem?.id === item.id ? 0.5 : 1,
                     }}
                     onMouseEnter={() => setHoveredItem(item.id)}
                     onMouseLeave={() => setHoveredItem(null)}
                     onDragStart={(e) => {
-                      if (isWaitTime || isBlocked || isMeeting) return
+                      if (isWaitTime || isBlocked) return
 
                       // Calculate offset from mouse to item start
                       const rect = e.currentTarget.getBoundingClientRect()
@@ -1270,9 +1185,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       content={(() => {
                         const lines = [`${item.name}`]
 
-                        if (item.isMeeting) {
-                          lines.push(`Type: ${item.meetingType === 'meeting' ? 'Meeting' : item.meetingType === 'break' ? 'Break' : item.meetingType === 'personal' ? 'Personal' : 'Blocked'}`)
-                        } else if (!item.isWaitTime && !item.isBlocked) {
+                        if (!item.isWaitTime && !item.isBlocked) {
                           lines.push(`Priority: ${getPriorityLabel(item.priority)} (${item.priority})`)
                           lines.push(`Type: ${item.type === 'task' ? 'Task' : 'Workflow Step'}`)
                         }
@@ -1308,19 +1221,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       <div
                         style={{
                           height: '100%',
-                          background: isMeeting
-                            ? item.color
-                            : isSleep
+                          background: isSleep
                             ? 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%)'
                             : isBlocked
                             ? `repeating-linear-gradient(45deg, ${item.color}, ${item.color} 10px, ${item.color}88 10px, ${item.color}88 20px)`
                             : isWaitTime
                             ? `repeating-linear-gradient(45deg, ${item.color}44, ${item.color}44 5px, transparent 5px, transparent 10px)`
                             : item.color,
-                          opacity: isMeeting ? 0.9 : isBlocked ? 0.7 : isWaitTime ? 0.5 : (isHovered ? 1 : 0.85),
-                          borderRadius: isMeeting ? 8 : 4,
-                          border: `2px solid ${item.color}`,
-                          borderStyle: isMeeting ? 'solid' : isBlocked ? 'solid' : isWaitTime ? 'dashed' : 'solid',
+                          opacity: isBlocked ? 0.7 : isWaitTime ? 0.5 : (isHovered ? 1 : 0.85),
+                          borderRadius: 4,
+                          border: `1px solid ${item.color}`,
+                          borderStyle: isBlocked ? 'solid' : isWaitTime ? 'dashed' : 'solid',
                           display: 'flex',
                           alignItems: 'center',
                           padding: '0 8px',
@@ -1330,11 +1241,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                           overflow: 'hidden',
                           transform: isHovered ? 'scaleY(1.1)' : 'scaleY(1)',
                           zIndex: isHovered ? 10 : 2,
-                          boxShadow: isMeeting ? '0 2px 12px rgba(114, 46, 209, 0.3)' : isHovered ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+                          boxShadow: isHovered ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
                         }}
                       >
                         {/* Priority indicator */}
-                        {!isWaitTime && !isMeeting && (
+                        {!isWaitTime && (
                           <div
                             style={{
                               position: 'absolute',
@@ -1345,15 +1256,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                               background: getPriorityColor(item.priority),
                             }}
                           />
-                        )}
-
-                        {/* Meeting icon */}
-                        {isMeeting && widthPx > 20 && (
-                          <span style={{ marginRight: 4, fontSize: 16 }}>
-                            {item.meetingType === 'meeting' ? '📅' :
-                             item.meetingType === 'break' ? '☕' :
-                             item.meetingType === 'personal' ? '🏠' : '🔒'}
-                          </span>
                         )}
 
                         {/* Deadline indicator */}

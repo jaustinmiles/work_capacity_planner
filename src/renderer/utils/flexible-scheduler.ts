@@ -21,8 +21,6 @@ export interface ScheduledItem {
   stepIndex?: number
   isWaitTime?: boolean
   isBlocked?: boolean
-  isMeeting?: boolean
-  meetingType?: 'meeting' | 'break' | 'personal' | 'blocked'
   deadline?: Date
   originalItem?: Task | TaskStep | WorkMeeting
 }
