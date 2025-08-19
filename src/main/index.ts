@@ -61,6 +61,11 @@ let db: DatabaseService
 app.whenReady().then(() => {
   // Initialize database service once when app is ready
   db = DatabaseService.getInstance()
+
+  // Log database path for debugging
+  const dbPath = process.env.DATABASE_URL || 'file:./dev.db'
+  logInfo('main', `Database path: ${dbPath}`)
+  logInfo('main', `Working directory: ${process.cwd()}`)
   logInfo('main', 'Main process initialized successfully')
 
   createWindow()

@@ -11,6 +11,9 @@ import {
   Empty,
   Spin,
   Notification,
+  Modal,
+  Input,
+  Select,
 } from '@arco-design/web-react'
 import {
   IconCheck,
@@ -19,9 +22,11 @@ import {
   IconBulb,
   IconPlus,
   IconQuestionCircleFill,
+  IconEdit,
 } from '@arco-design/web-react/icon'
 
 const { Text, Paragraph } = Typography
+const { TextArea } = Input
 
 interface FeedbackItem {
   type: 'bug' | 'feature' | 'improvement' | 'other'
@@ -48,6 +53,8 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
   const [typeFilter, setTypeFilter] = useState<string[]>([])
   const [priorityFilter, setPriorityFilter] = useState<string[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [editingItem, setEditingItem] = useState<FeedbackItem | null>(null)
+  const [editForm, setEditForm] = useState<Partial<FeedbackItem>>({})
 
   useEffect(() => {
     loadFeedback()
@@ -208,6 +215,46 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
     setSelectedIds(newSelected)
   }
 
+  const handleEditItem = (item: FeedbackItem) => {
+    setEditingItem(item)
+    setEditForm({ ...item })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingItem || !editForm) return
+
+    try {
+      const updatedFeedback = feedback.map(item => {
+        const itemId = `${item.timestamp}-${item.sessionId}`
+        const editingId = `${editingItem.timestamp}-${editingItem.sessionId}`
+        if (itemId === editingId) {
+          return { ...item, ...editForm }
+        }
+        return item
+      })
+
+      if (window.electronAPI?.updateFeedback) {
+        await window.electronAPI.updateFeedback(updatedFeedback)
+      } else if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('task-planner-feedback', JSON.stringify(updatedFeedback))
+      }
+
+      setFeedback(updatedFeedback)
+      setEditingItem(null)
+      setEditForm({})
+      Notification.success({
+        title: 'Feedback updated',
+        content: 'The feedback item has been updated successfully',
+      })
+    } catch (error) {
+      console.error('Failed to update feedback:', error)
+      Notification.error({
+        title: 'Failed to update feedback',
+        content: String(error),
+      })
+    }
+  }
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: 60 }}>
@@ -325,6 +372,14 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
                             <IconCheck /> Resolved
                           </Tag>
                         )}
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<IconEdit />}
+                          onClick={() => handleEditItem(item)}
+                        >
+                          Edit
+                        </Button>
                       </Space>
 
                       <Paragraph style={{ marginBottom: 8 }}>{item.description}</Paragraph>
@@ -372,6 +427,109 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
           />
         )}
       </Space>
+
+      {/* Edit Modal */}
+      <Modal
+        title="Edit Feedback"
+        visible={!!editingItem}
+        onOk={handleSaveEdit}
+        onCancel={() => {
+          setEditingItem(null)
+          setEditForm({})
+        }}
+        style={{ width: 600 }}
+      >
+        {editingItem && (
+          <Space direction="vertical" style={{ width: '100%' }} size="large">
+            <div>
+              <Text style={{ marginBottom: 8, display: 'block' }}>Title</Text>
+              <Input
+                value={editForm.title}
+                onChange={(value) => setEditForm({ ...editForm, title: value })}
+              />
+            </div>
+
+            <div>
+              <Text style={{ marginBottom: 8, display: 'block' }}>Description</Text>
+              <TextArea
+                value={editForm.description}
+                onChange={(value) => setEditForm({ ...editForm, description: value })}
+                rows={4}
+              />
+            </div>
+
+            <div>
+              <Text style={{ marginBottom: 8, display: 'block' }}>Type</Text>
+              <Select
+                value={editForm.type}
+                onChange={(value) => setEditForm({ ...editForm, type: value })}
+                style={{ width: '100%' }}
+              >
+                <Select.Option value="bug">Bug</Select.Option>
+                <Select.Option value="feature">Feature</Select.Option>
+                <Select.Option value="improvement">Improvement</Select.Option>
+                <Select.Option value="other">Other</Select.Option>
+              </Select>
+            </div>
+
+            <div>
+              <Text style={{ marginBottom: 8, display: 'block' }}>Priority</Text>
+              <Select
+                value={editForm.priority}
+                onChange={(value) => setEditForm({ ...editForm, priority: value })}
+                style={{ width: '100%' }}
+              >
+                <Select.Option value="critical">Critical</Select.Option>
+                <Select.Option value="high">High</Select.Option>
+                <Select.Option value="medium">Medium</Select.Option>
+                <Select.Option value="low">Low</Select.Option>
+              </Select>
+            </div>
+
+            {editForm.steps && (
+              <div>
+                <Text style={{ marginBottom: 8, display: 'block' }}>Steps to Reproduce</Text>
+                <TextArea
+                  value={editForm.steps}
+                  onChange={(value) => setEditForm({ ...editForm, steps: value })}
+                  rows={3}
+                />
+              </div>
+            )}
+
+            {editForm.expected && (
+              <div>
+                <Text style={{ marginBottom: 8, display: 'block' }}>Expected Behavior</Text>
+                <TextArea
+                  value={editForm.expected}
+                  onChange={(value) => setEditForm({ ...editForm, expected: value })}
+                  rows={2}
+                />
+              </div>
+            )}
+
+            {editForm.actual && (
+              <div>
+                <Text style={{ marginBottom: 8, display: 'block' }}>Actual Behavior</Text>
+                <TextArea
+                  value={editForm.actual}
+                  onChange={(value) => setEditForm({ ...editForm, actual: value })}
+                  rows={2}
+                />
+              </div>
+            )}
+
+            <div>
+              <Checkbox
+                checked={editForm.resolved}
+                onChange={(checked) => setEditForm({ ...editForm, resolved: checked })}
+              >
+                Mark as Resolved
+              </Checkbox>
+            </div>
+          </Space>
+        )}
+      </Modal>
     </div>
   )
 }
