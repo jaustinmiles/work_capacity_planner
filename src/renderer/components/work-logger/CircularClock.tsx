@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Tooltip } from '@arco-design/web-react'
+import { TaskType } from '@shared/enums'
 import {
   WorkSessionData,
   generateArcPath,
   angleToMinutes,
   minutesToTime,
   roundToQuarter,
+  checkOverlap,
 } from './SessionState'
 
 interface CircularClockProps {
@@ -179,20 +181,57 @@ export function CircularClock({
             newEnd -= 1440
           }
 
-          onSessionUpdate(
-            dragState.sessionId,
-            roundToQuarter(newStart % 1440),
-            roundToQuarter(newEnd % 1440),
-          )
+          // Check for overlaps
+          const movedSession: WorkSessionData = {
+            id: dragState.sessionId,
+            taskId: '',
+            taskName: '',
+            startMinutes: roundToQuarter(newStart % 1440),
+            endMinutes: roundToQuarter(newEnd % 1440),
+            type: TaskType.Focused,
+            color: '',
+          }
+          
+          if (!checkOverlap(movedSession, displaySessions, dragState.sessionId)) {
+            onSessionUpdate(
+              dragState.sessionId,
+              roundToQuarter(newStart % 1440),
+              roundToQuarter(newEnd % 1440),
+            )
+          }
         } else if (dragState.edge === 'start') {
           const newStart = roundToQuarter(minutes)
           if (newStart !== dragState.initialEndMinutes) {
-            onSessionUpdate(dragState.sessionId, newStart, dragState.initialEndMinutes)
+            const resizedSession: WorkSessionData = {
+              id: dragState.sessionId,
+              taskId: '',
+              taskName: '',
+              startMinutes: newStart,
+              endMinutes: dragState.initialEndMinutes,
+              type: TaskType.Focused,
+              color: '',
+            }
+            
+            if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
+              onSessionUpdate(dragState.sessionId, newStart, dragState.initialEndMinutes)
+            }
           }
         } else if (dragState.edge === 'end') {
           const newEnd = roundToQuarter(minutes)
           if (newEnd !== dragState.initialStartMinutes) {
-            onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, newEnd)
+            const resizedSession: WorkSessionData = {
+              id: dragState.sessionId,
+              taskId: '',
+              taskName: '',
+              startMinutes: dragState.initialStartMinutes,
+              endMinutes: newEnd,
+              type: TaskType.Focused,
+              color: '',
+            }
+            
+            if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
+              onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, newEnd)
+            }
           }
         }
       } else if (creatingSession) {
@@ -209,7 +248,20 @@ export function CircularClock({
         const end = Math.max(creatingSession.startMinutes, creatingSession.currentMinutes)
 
         if (end - start >= 15) {
-          onSessionCreate(start, end)
+          // Check for overlaps with existing sessions
+          const newSession: WorkSessionData = {
+            id: 'temp-new',
+            taskId: '',
+            taskName: '',
+            startMinutes: start,
+            endMinutes: end,
+            type: TaskType.Focused,
+            color: '',
+          }
+          
+          if (!checkOverlap(newSession, displaySessions)) {
+            onSessionCreate(start, end)
+          }
         }
         setCreatingSession(null)
       }

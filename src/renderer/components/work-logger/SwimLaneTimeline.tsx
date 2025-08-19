@@ -3,10 +3,12 @@ import { Typography, Tooltip, Button, Slider } from '@arco-design/web-react'
 import { IconDown, IconRight, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
+import { TaskType } from '@shared/enums'
 import {
   WorkSessionData,
   minutesToTime,
   roundToQuarter,
+  checkOverlap,
 } from './SessionState'
 
 const { Text } = Typography
@@ -212,7 +214,12 @@ export function SwimLaneTimeline({
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
 
-    const x = e.clientX - rect.left
+    // Get the timeline area element to account for scroll
+    const timelineArea = target.closest('.swim-lane') as HTMLElement
+    if (!timelineArea) return
+    const timelineRect = timelineArea.getBoundingClientRect()
+    
+    const x = e.clientX - timelineRect.left + TIME_LABEL_WIDTH
     setCreatingSession({
       taskId,
       stepId,
@@ -233,25 +240,72 @@ export function SwimLaneTimeline({
           const newEnd = roundToQuarter(dragState.initialEndMinutes + deltaMinutes)
 
           if (newStart >= START_HOUR * 60 && newEnd <= END_HOUR * 60) {
-            onSessionUpdate(dragState.sessionId, newStart, newEnd)
+            // Check for overlaps
+            const movedSession: WorkSessionData = {
+              id: dragState.sessionId,
+              taskId: '',
+              taskName: '',
+              startMinutes: newStart,
+              endMinutes: newEnd,
+              type: TaskType.Focused,
+              color: '',
+            }
+            
+            if (!checkOverlap(movedSession, sessions, dragState.sessionId)) {
+              onSessionUpdate(dragState.sessionId, newStart, newEnd)
+            }
           }
         } else if (dragState.edge === 'start') {
           const newStart = roundToQuarter(dragState.initialStartMinutes + deltaMinutes)
           if (newStart >= START_HOUR * 60 && newStart < dragState.initialEndMinutes) {
-            onSessionUpdate(dragState.sessionId, newStart, dragState.initialEndMinutes)
+            const resizedSession: WorkSessionData = {
+              id: dragState.sessionId,
+              taskId: '',
+              taskName: '',
+              startMinutes: newStart,
+              endMinutes: dragState.initialEndMinutes,
+              type: TaskType.Focused,
+              color: '',
+            }
+            
+            if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
+              onSessionUpdate(dragState.sessionId, newStart, dragState.initialEndMinutes)
+            }
           }
         } else if (dragState.edge === 'end') {
           const newEnd = roundToQuarter(dragState.initialEndMinutes + deltaMinutes)
           if (newEnd <= END_HOUR * 60 && newEnd > dragState.initialStartMinutes) {
-            onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, newEnd)
+            const resizedSession: WorkSessionData = {
+              id: dragState.sessionId,
+              taskId: '',
+              taskName: '',
+              startMinutes: dragState.initialStartMinutes,
+              endMinutes: newEnd,
+              type: TaskType.Focused,
+              color: '',
+            }
+            
+            if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
+              onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, newEnd)
+            }
           }
         }
       } else if (creatingSession) {
-        const rect = containerRef.current?.getBoundingClientRect()
-        if (!rect) return
-
-        const x = e.clientX - rect.left
-        setCreatingSession({ ...creatingSession, currentX: x })
+        const container = containerRef.current
+        if (!container) return
+        
+        // Find the specific swim lane being dragged on
+        const lanes = Array.from(container.querySelectorAll('.swim-lane'))
+        
+        for (const lane of lanes) {
+          const htmlLane = lane as HTMLElement
+          const rect = htmlLane.getBoundingClientRect()
+          if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+            const x = e.clientX - rect.left + TIME_LABEL_WIDTH
+            setCreatingSession({ ...creatingSession, currentX: x })
+            break
+          }
+        }
       }
     }
 
@@ -261,12 +315,32 @@ export function SwimLaneTimeline({
         const endMinutes = roundToQuarter(pixelsToMinutes(Math.max(creatingSession.startX, creatingSession.currentX)))
 
         if (endMinutes - startMinutes >= 15) {
-          onSessionCreate(
-            creatingSession.taskId,
+          // Check for overlaps with existing sessions
+          const newSession: WorkSessionData = {
+            id: 'temp-new',
+            taskId: creatingSession.taskId,
+            taskName: '',
+            stepId: creatingSession.stepId,
             startMinutes,
             endMinutes,
-            creatingSession.stepId,
+            type: TaskType.Focused, // Will be set by parent
+            color: '',
+          }
+          
+          // Only check overlaps for sessions on the same lane
+          const laneSessions = sessions.filter(s => 
+            (creatingSession.stepId && s.stepId === creatingSession.stepId) ||
+            (!creatingSession.stepId && s.taskId === creatingSession.taskId && !s.stepId)
           )
+          
+          if (!checkOverlap(newSession, laneSessions)) {
+            onSessionCreate(
+              creatingSession.taskId,
+              startMinutes,
+              endMinutes,
+              creatingSession.stepId,
+            )
+          }
         }
         setCreatingSession(null)
       }
