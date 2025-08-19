@@ -378,7 +378,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               <div style={{ height: 400, overflow: 'hidden' }}>
                 <SwimLaneTimeline
                   sessions={sessions}
-                  tasks={sequencedTasks.length > 0 ? sequencedTasks : tasks}
+                  tasks={[...tasks, ...sequencedTasks]}
                   onSessionUpdate={handleSessionUpdate}
                   onSessionCreate={handleTimelineSessionCreate}
                   onSessionDelete={handleSessionDelete}
@@ -394,7 +394,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             <Card title="Clock View - Drag arcs to adjust time!">
               <CircularClock
                 sessions={sessions}
-                collapsedWorkflows={new Set([...sequencedTasks, ...tasks]
+                collapsedWorkflows={new Set([...tasks, ...sequencedTasks]
                   .filter(t => t.hasSteps && !expandedWorkflows.has(t.id))
                   .map(t => t.id))}
                 onSessionUpdate={handleSessionUpdate}

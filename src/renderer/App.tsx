@@ -17,7 +17,6 @@ import { VoiceAmendmentModal } from './components/voice'
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { SessionManager } from './components/session/SessionManager'
-import { WorkLoggerCalendar } from './components/work-logger/WorkLoggerCalendar'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
 import { DevTools } from './components/dev/DevTools'
 import { useTaskStore } from './store/useTaskStore'
@@ -54,7 +53,6 @@ function App() {
   const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
-  const [showWorkLogger, setShowWorkLogger] = useState(false)
   const [showWorkLoggerDual, setShowWorkLoggerDual] = useState(false)
   const [voiceAmendmentVisible, setVoiceAmendmentVisible] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
@@ -499,18 +497,11 @@ function App() {
 
             <Space>
               <Button
-                type="text"
-                icon={<IconClockCircle />}
-                onClick={() => setShowWorkLogger(true)}
-              >
-                Log Work
-              </Button>
-              <Button
                 type="primary"
                 icon={<IconClockCircle />}
                 onClick={() => setShowWorkLoggerDual(true)}
               >
-                Log Work (New)
+                Log Work
               </Button>
               <Button
                 type="text"
@@ -700,11 +691,6 @@ function App() {
             // Refresh any data if needed
             setShowWorkSchedule(false)
           }}
-        />
-
-        <WorkLoggerCalendar
-          visible={showWorkLogger}
-          onClose={() => setShowWorkLogger(false)}
         />
 
         <WorkLoggerDual
