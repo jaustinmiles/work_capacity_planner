@@ -54,7 +54,8 @@
       "Bash(npx vitest run:*)",
       "Bash(DEBUG_SCHEDULER=1 npx tsx test-schedule-gap-debug.ts)",
       "Bash(gh pr:*)",
-      "Bash(DEBUG_DEPS=1 npx tsx test-dependency-debug.ts)"
+      "Bash(DEBUG_DEPS=1 npx tsx test-dependency-debug.ts)",
+      "Bash(gh repo view:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
