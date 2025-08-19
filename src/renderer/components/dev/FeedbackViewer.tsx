@@ -18,11 +18,10 @@ import {
   IconBug,
   IconBulb,
   IconPlus,
-  IconExclamation,
   IconQuestionCircleFill,
 } from '@arco-design/web-react/icon'
 
-const { Text, Title, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 
 interface FeedbackItem {
   type: 'bug' | 'feature' | 'improvement' | 'other'
@@ -42,7 +41,7 @@ interface FeedbackViewerProps {
   onClose?: () => void
 }
 
-export function FeedbackViewer({ onClose }: FeedbackViewerProps) {
+export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
   const [feedback, setFeedback] = useState<FeedbackItem[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('pending')
@@ -61,8 +60,8 @@ export function FeedbackViewer({ onClose }: FeedbackViewerProps) {
         const data = await window.electronAPI.loadFeedback()
         const flattenedData = flattenFeedback(data)
         setFeedback(flattenedData)
-      } else {
-        const stored = localStorage.getItem('task-planner-feedback')
+      } else if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = window.localStorage.getItem('task-planner-feedback')
         if (stored) {
           const data = JSON.parse(stored)
           const flattenedData = flattenFeedback(data)
@@ -106,8 +105,8 @@ export function FeedbackViewer({ onClose }: FeedbackViewerProps) {
 
       if (window.electronAPI?.updateFeedback) {
         await window.electronAPI.updateFeedback(updatedFeedback)
-      } else {
-        localStorage.setItem('task-planner-feedback', JSON.stringify(updatedFeedback))
+      } else if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('task-planner-feedback', JSON.stringify(updatedFeedback))
       }
 
       setFeedback(updatedFeedback)
@@ -136,8 +135,8 @@ export function FeedbackViewer({ onClose }: FeedbackViewerProps) {
 
       if (window.electronAPI?.updateFeedback) {
         await window.electronAPI.updateFeedback(updatedFeedback)
-      } else {
-        localStorage.setItem('task-planner-feedback', JSON.stringify(updatedFeedback))
+      } else if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('task-planner-feedback', JSON.stringify(updatedFeedback))
       }
 
       setFeedback(updatedFeedback)
@@ -290,7 +289,7 @@ export function FeedbackViewer({ onClose }: FeedbackViewerProps) {
         ) : (
           <List
             dataSource={filteredFeedback}
-            render={(item, index) => {
+            render={(item, _index) => {
               const itemId = `${item.timestamp}-${item.sessionId}`
               const isSelected = selectedIds.has(itemId)
 

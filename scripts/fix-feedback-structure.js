@@ -9,7 +9,6 @@ const rawData = fs.readFileSync(feedbackPath, 'utf-8')
 const data = JSON.parse(rawData)
 
 // Flatten and deduplicate
-const allItems = []
 const seen = new Map() // Use map to track and keep the newest version
 
 function extractItems(item) {
