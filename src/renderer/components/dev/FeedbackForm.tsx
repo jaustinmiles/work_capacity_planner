@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Form, Input, Button, Radio, Typography, Space, Alert } from '@arco-design/web-react'
+import { Form, Input, Button, Radio, Typography, Space, Alert, Checkbox } from '@arco-design/web-react'
 import { IconMessage, IconSave } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
 import { logger } from '../../utils/logger'
@@ -8,6 +8,7 @@ const FormItem = Form.Item
 const TextArea = Input.TextArea
 const { Title, Text } = Typography
 const RadioGroup = Radio.Group
+const CheckboxGroup = Checkbox.Group
 
 interface FeedbackFormProps {
   onClose?: () => void
@@ -18,6 +19,7 @@ interface FeedbackData {
   priority: 'low' | 'medium' | 'high' | 'critical'
   title: string
   description: string
+  components?: string[]
   steps?: string
   expected?: string
   actual?: string
@@ -25,6 +27,32 @@ interface FeedbackData {
   timestamp: string
   sessionId: string
 }
+
+// Component options that map to actual files
+const COMPONENT_OPTIONS = [
+  { label: 'Task List', value: 'tasks/TaskList' },
+  { label: 'Task Edit Form', value: 'tasks/TaskEdit' },
+  { label: 'Gantt Chart', value: 'timeline/GanttChart' },
+  { label: 'Work Logger (Dual View)', value: 'work-logger/WorkLoggerDualView' },
+  { label: 'Work Logger Calendar', value: 'work-logger/WorkLoggerCalendar' },
+  { label: 'Weekly Calendar', value: 'calendar/WeeklyCalendar' },
+  { label: 'Workflow Editor', value: 'tasks/SequencedTaskEdit' },
+  { label: 'Workflow Progress Tracker', value: 'progress/WorkflowProgressTracker' },
+  { label: 'Voice Amendment', value: 'voice/VoiceAmendmentModal' },
+  { label: 'AI Brainstorm', value: 'ai/BrainstormModal' },
+  { label: 'Task Creation Flow', value: 'ai/TaskCreationFlow' },
+  { label: 'Schedule Generator', value: 'schedule/ScheduleGenerator' },
+  { label: 'Daily Schedule View', value: 'schedule/DailyScheduleView' },
+  { label: 'Work Blocks Editor', value: 'settings/WorkBlocksEditor' },
+  { label: 'Multi-Day Schedule Editor', value: 'settings/MultiDayScheduleEditor' },
+  { label: 'Session Manager', value: 'session/SessionManager' },
+  { label: 'Dev Tools', value: 'dev/DevTools' },
+  { label: 'Navigation', value: 'layout/Navigation' },
+  { label: 'Scheduler (flexible-scheduler.ts)', value: 'utils/flexible-scheduler' },
+  { label: 'Amendment Applicator', value: 'utils/amendment-applicator' },
+  { label: 'Database Service', value: 'services/database' },
+  { label: 'Other/Not Listed', value: 'other' },
+]
 
 export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement {
   const [form] = Form.useForm()
@@ -123,6 +151,23 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
             <Radio value="high">High</Radio>
             <Radio value="critical">Critical</Radio>
           </RadioGroup>
+        </FormItem>
+
+        <FormItem 
+          label="Affected Components" 
+          field="components"
+          tooltip="Select all components where you encountered this issue"
+        >
+          <CheckboxGroup 
+            direction="vertical"
+            style={{ maxHeight: 200, overflowY: 'auto' }}
+          >
+            {COMPONENT_OPTIONS.map(option => (
+              <Checkbox key={option.value} value={option.value}>
+                {option.label}
+              </Checkbox>
+            ))}
+          </CheckboxGroup>
         </FormItem>
 
         <FormItem
