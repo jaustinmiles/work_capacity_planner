@@ -164,7 +164,7 @@ export function CircularClock({
             type: TaskType.Focused,
             color: '',
           }
-          
+
           if (!checkOverlap(movedSession, displaySessions, dragState.sessionId)) {
             onSessionUpdate(
               dragState.sessionId,
@@ -184,7 +184,7 @@ export function CircularClock({
               type: TaskType.Focused,
               color: '',
             }
-            
+
             if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
               onSessionUpdate(dragState.sessionId, newStart, dragState.initialEndMinutes)
             }
@@ -201,7 +201,7 @@ export function CircularClock({
               type: TaskType.Focused,
               color: '',
             }
-            
+
             if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
               onSessionUpdate(dragState.sessionId, dragState.initialStartMinutes, newEnd)
             }
@@ -231,7 +231,7 @@ export function CircularClock({
             type: TaskType.Focused,
             color: '',
           }
-          
+
           if (!checkOverlap(newSession, displaySessions)) {
             onSessionCreate(start, end)
           }
