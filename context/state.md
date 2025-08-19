@@ -24,17 +24,25 @@
 - CI pipeline: In progress
 - Ready for merge after CI passes
 
-### ✅ In-App Feedback Form Feature Complete
+### ✅ In-App Feedback Form Feature Complete (PR #8)
 - Created FeedbackForm component with multiple modes (bug, feature, improvement, other)
 - Integrated into DevTools with tabbed interface (Feedback and Database tabs)
 - Saves feedback to context/feedback.json for Claude to review in future sessions
 - Features:
   - Bug report mode with reproduction steps, expected/actual behavior
   - Priority levels (low, medium, high, critical)
+  - Component checklist (24 options) mapping to actual file paths
   - Form validation for required fields
   - Timestamped with session ID
   - Falls back to localStorage if Electron API unavailable
+  - Append-only database pattern (like Jira)
+- User feedback captured:
+  - Feature: Need meetings on Gantt chart (high priority)
+  - Bug: Time blocks overlap in chart but not clock (medium priority)
 - PR #8 created and ready for review
+- Branch: feature/feedback-form
+- TypeScript: 0 errors
+- ESLint: 0 errors (warnings only)
 - Purpose: Streamline feedback collection for development improvements
 
 ## Session Completed (2025-08-19 - Scheduler Optimization)
