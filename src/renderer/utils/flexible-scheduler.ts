@@ -578,10 +578,11 @@ export function scheduleItemsWithBlocksAndDebug(
   })
 
   // Process each day
-  const now = startDate // Use the startDate parameter as "now" for consistency
+  const actualNow = new Date() // The real current time
+  const now = startDate // The provided start time for scheduling
   const currentDate = new Date(startDate)
   currentDate.setHours(0, 0, 0, 0)
-  let currentTime = new Date(startDate) // Start from the provided start time
+  let currentTime = new Date(Math.max(startDate.getTime(), actualNow.getTime())) // Don't schedule in the past
   let dayIndex = 0
   const maxDays = 30 // Limit to 30 days
 
