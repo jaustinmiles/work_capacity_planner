@@ -69,12 +69,9 @@ export function CircularClock({
       if (session.taskId && collapsedWorkflows.has(session.taskId)) {
         // This session belongs to a collapsed workflow
         // Keep the session but mark it as part of a collapsed workflow
-        // We'll use a modified ID to group them visually
         processedSessions.push({
           ...session,
-          id: `${session.id}-collapsed`,
-          // Use a consistent color for all sessions in the same workflow
-          color: session.color,
+          isCollapsed: true,
           // Add a note to indicate it's part of a collapsed workflow
           notes: `${session.taskName}${session.stepName ? ' - ' + session.stepName : ''}`,
         })
@@ -348,9 +345,9 @@ export function CircularClock({
 
         {/* Work sessions as arcs */}
         {displaySessions.map(session => {
-          const isSelected = session.id === selectedSessionId || session.id === `${selectedSessionId}-collapsed`
+          const isSelected = session.id === selectedSessionId
           const isHovered = session.id === hoveredSession
-          const isCollapsed = session.id.endsWith('-collapsed')
+          const isCollapsed = session.isCollapsed || false
 
           // Calculate arc radii based on AM/PM
           const isAM = session.startMinutes < 720
