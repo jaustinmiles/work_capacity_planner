@@ -1007,10 +1007,11 @@ export function scheduleItemsWithBlocksAndDebug(
         let unusedReason: string | undefined
 
         // Check for completely empty blocks
-        if (block.focusMinutesUsed === 0 && block.adminMinutesUsed === 0 && block.personalMinutesUsed === 0) {
-          if (block.focusMinutesTotal > 0 || block.adminMinutesTotal > 0 || block.personalMinutesTotal > 0) {
-            unusedReason = `Empty block: ${block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal} minutes available but unused`
-          }
+        const totalCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal
+        const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed + block.personalMinutesUsed
+
+        if (totalUsed === 0 && totalCapacity > 0) {
+          unusedReason = `Empty block: ${totalCapacity} minutes available but unused`
         } else if (unusedFocus > 30 || unusedAdmin > 30 || unusedPersonal > 30) {
           const parts: string[] = []
           if (unusedFocus > 30) parts.push(`${unusedFocus} focus`)
@@ -1144,6 +1145,16 @@ export function scheduleItemsWithBlocksAndDebug(
     sum + (block.focusTotal - block.focusUsed), 0)
   const totalUnusedAdmin = debugInfo.blockUtilization.reduce((sum, block) =>
     sum + (block.adminTotal - block.adminUsed), 0)
+
+  // Count completely empty blocks
+  const emptyBlocks = debugInfo.blockUtilization.filter(block =>
+    block.focusUsed === 0 && block.adminUsed === 0 && (block.personalUsed || 0) === 0 &&
+    (block.focusTotal > 0 || block.adminTotal > 0 || (block.personalTotal || 0) > 0),
+  )
+
+  if (emptyBlocks.length > 0) {
+    debugInfo.warnings.push(`${emptyBlocks.length} empty time block(s) detected in schedule`)
+  }
 
   if (totalUnusedFocus > 120 && workItems.some(w => w.taskType === TaskType.Focused)) {
     debugInfo.warnings.push(`${totalUnusedFocus} minutes of focus time unused while focus tasks remain unscheduled`)
