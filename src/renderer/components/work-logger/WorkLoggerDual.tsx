@@ -439,7 +439,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             </Card>
 
             {/* Circular clock */}
-            <Card title="Clock View - Drag arcs to adjust time!">
+            <Card title="Clock View - 12-Hour Workday Focus (8am-8pm)">
               <CircularClock
                 sessions={sessions}
                 collapsedWorkflows={new Set([...tasks, ...sequencedTasks]
@@ -451,6 +451,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 selectedSessionId={selectedSessionId || undefined}
                 onSessionSelect={(id) => setSelectedSessionId(id || null)}
                 currentTime={new Date()}
+                meetings={[]} // TODO: Load meetings from database
+                sleepBlocks={[]} // TODO: Load sleep blocks
               />
             </Card>
 
