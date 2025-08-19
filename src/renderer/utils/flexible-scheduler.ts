@@ -1114,6 +1114,26 @@ export function scheduleItemsWithBlocksAndDebug(
           b.date === dateStr && b.blockId === block.blockId,
         )
         if (!alreadyTracked) {
+          const unusedFocus = block.focusMinutesTotal - block.focusMinutesUsed
+          const unusedAdmin = block.adminMinutesTotal - block.adminMinutesUsed
+          const unusedPersonal = block.personalMinutesTotal - block.personalMinutesUsed
+          
+          let unusedReason: string | undefined
+          
+          // Check for completely empty blocks
+          const totalCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal
+          const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed + block.personalMinutesUsed
+          
+          if (totalUsed === 0 && totalCapacity > 0) {
+            unusedReason = `Empty block: ${totalCapacity} minutes available but unused`
+          } else if (unusedFocus > 30 || unusedAdmin > 30 || unusedPersonal > 30) {
+            const parts: string[] = []
+            if (unusedFocus > 30) parts.push(`${unusedFocus} focus`)
+            if (unusedAdmin > 30) parts.push(`${unusedAdmin} admin`)
+            if (unusedPersonal > 30) parts.push(`${unusedPersonal} personal`)
+            unusedReason = `${parts.join(', ')} minutes unused`
+          }
+          
           debugInfo.blockUtilization.push({
             date: dateStr,
             blockId: block.blockId,
@@ -1123,7 +1143,9 @@ export function scheduleItemsWithBlocksAndDebug(
             focusTotal: block.focusMinutesTotal,
             adminUsed: block.adminMinutesUsed,
             adminTotal: block.adminMinutesTotal,
-            unusedReason: blockState?.timeConstraint ?? null,
+            personalUsed: block.personalMinutesUsed,
+            personalTotal: block.personalMinutesTotal,
+            unusedReason: unusedReason || blockState?.timeConstraint,
           })
         }
       })
