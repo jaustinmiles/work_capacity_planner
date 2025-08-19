@@ -564,12 +564,13 @@ export function scheduleItemsWithBlocksAndDebug(
   const maxDays = 30 // Limit to 30 days
 
   while (workItems.length > 0 && dayIndex < maxDays) {
-    const dateStr = currentDate.toISOString().split('T')[0]
+    let dateStr = currentDate.toISOString().split('T')[0]
     const pattern = patterns.find(p => p.date === dateStr)
 
     if (!pattern || pattern.blocks.length === 0) {
       // No pattern for this day, skip to next day
       currentDate.setDate(currentDate.getDate() + 1)
+      dateStr = currentDate.toISOString().split('T')[0]  // Update dateStr for the new day
       currentTime = new Date(currentDate)
       currentTime.setHours(0, 0, 0, 0)
       // If we've moved to tomorrow, ensure currentTime is not in the past
@@ -1038,6 +1039,7 @@ export function scheduleItemsWithBlocksAndDebug(
 
       currentDate.setDate(currentDate.getDate() + 1)
       dayIndex++
+      dateStr = currentDate.toISOString().split('T')[0]  // Update dateStr for the new day
 
       // Find the next day's pattern and set currentTime to the start of the first block
       const nextDateStr = currentDate.toISOString().split('T')[0]
@@ -1075,6 +1077,7 @@ export function scheduleItemsWithBlocksAndDebug(
       if (currentTime.getTime() >= lastBlockEnd.getTime()) {
         currentDate.setDate(currentDate.getDate() + 1)
         dayIndex++
+        dateStr = currentDate.toISOString().split('T')[0]  // Update dateStr for the new day
 
         // Find the next day's pattern and set currentTime to the start of the first block
         const nextDateStr = currentDate.toISOString().split('T')[0]
