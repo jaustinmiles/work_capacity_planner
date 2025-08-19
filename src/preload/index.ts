@@ -92,6 +92,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Logging operations
   log: (level: string, scope: string, message: string, data?: any) =>
     ipcRenderer.send('log:message', { level, scope, message, data }),
+
+  // Feedback operations
+  saveFeedback: (feedback: any) => ipcRenderer.invoke('feedback:save', feedback),
+  readFeedback: () => ipcRenderer.invoke('feedback:read'),
+  getSessionId: () => ipcRenderer.invoke('app:getSessionId'),
 })
 
 // logger.debug('Preload script loaded successfully!')
