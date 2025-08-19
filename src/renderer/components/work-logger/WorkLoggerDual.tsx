@@ -215,7 +215,27 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         return
       }
       
-      const dirtySessionsToSave = sessions.filter(s => s.isDirty && s.taskId)
+      // Get all valid task IDs from the database
+      const allTasks = [...tasks, ...sequencedTasks]
+      const validTaskIds = new Set(allTasks.map(t => t.id))
+      
+      // Check if all sessions have valid task IDs
+      const sessionsWithInvalidTask = sessions.filter(s => 
+        s.isDirty && s.taskId && !validTaskIds.has(s.taskId)
+      )
+      
+      if (sessionsWithInvalidTask.length > 0) {
+        logger.ui.error('Invalid task IDs found:', sessionsWithInvalidTask.map(s => ({
+          sessionId: s.id,
+          taskId: s.taskId,
+          taskName: s.taskName
+        })))
+        Message.error('Some sessions have invalid task references. Please reassign tasks.')
+        setIsSaving(false)
+        return
+      }
+      
+      const dirtySessionsToSave = sessions.filter(s => s.isDirty && s.taskId && validTaskIds.has(s.taskId))
 
       for (const session of dirtySessionsToSave) {
         const [year, month, day] = selectedDate.split('-').map(Number)
@@ -228,6 +248,16 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         const endDateTime = new Date(year, month - 1, day, endHour, endMin, 0, 0)
 
         if (session.isNew) {
+          logger.ui.debug('Creating work session:', {
+            taskId: session.taskId,
+            stepId: session.stepId,
+            taskName: session.taskName,
+            stepName: session.stepName,
+            type: session.type,
+            startTime: startDateTime.toISOString(),
+            endTime: endDateTime.toISOString(),
+          })
+          
           await db.createWorkSession({
             taskId: session.taskId,
             stepId: session.stepId,
@@ -273,6 +303,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           type: task.type as TaskType,
         })
       } else if (task.steps) {
+        // For workflows, we add each step as an option
+        // Important: The parent task.id is the workflow ID that exists in the database
         task.steps.forEach(step => {
           options.push({
             value: `step:${step.id}:${task.id}`,
@@ -491,8 +523,20 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               placeholder="Select task or workflow step"
               style={{ width: '100%' }}
               onChange={(value) => {
+                logger.ui.debug('Task assignment selected:', value)
+                
                 if (value.startsWith('step:')) {
                   const [, stepId, taskId] = value.split(':')
+                  logger.ui.debug('Creating session for workflow step:', { stepId, taskId })
+                  
+                  // Verify the taskId exists
+                  const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
+                  if (!taskExists) {
+                    logger.ui.error('Task not found in database:', taskId)
+                    Message.error('Invalid task selected. Please try again.')
+                    return
+                  }
+                  
                   handleTimelineSessionCreate(
                     taskId,
                     pendingSession.startMinutes!,
@@ -501,6 +545,16 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                   )
                 } else if (value.startsWith('task:')) {
                   const taskId = value.substring(5)
+                  logger.ui.debug('Creating session for task:', { taskId })
+                  
+                  // Verify the taskId exists
+                  const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
+                  if (!taskExists) {
+                    logger.ui.error('Task not found in database:', taskId)
+                    Message.error('Invalid task selected. Please try again.')
+                    return
+                  }
+                  
                   handleTimelineSessionCreate(
                     taskId,
                     pendingSession.startMinutes!,
