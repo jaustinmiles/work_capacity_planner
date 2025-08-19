@@ -56,7 +56,14 @@
 }
 
 /* Electron window styling */
+/* Allow text selection for better testing and copying */
 body {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Keep buttons and controls non-selectable for better UX */
+button, .arco-btn, .arco-menu-item {
   user-select: none;
   -webkit-user-select: none;
 }
