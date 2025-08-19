@@ -433,11 +433,25 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
       // If somehow an array is being saved, flatten it
       feedback.forEach(item => {
         if (item && typeof item === 'object' && 'type' in item) {
-          allFeedback.push(item)
+          // Check for duplicates before adding
+          const isDuplicate = allFeedback.some(existing => 
+            existing.timestamp === item.timestamp && 
+            existing.sessionId === item.sessionId
+          )
+          if (!isDuplicate) {
+            allFeedback.push(item)
+          }
         }
       })
     } else if (feedback && typeof feedback === 'object' && 'type' in feedback) {
-      allFeedback.push(feedback)
+      // Check for duplicates before adding
+      const isDuplicate = allFeedback.some(existing => 
+        existing.timestamp === feedback.timestamp && 
+        existing.sessionId === feedback.sessionId
+      )
+      if (!isDuplicate) {
+        allFeedback.push(feedback)
+      }
     }
 
     // Save all feedback (flat array only)
@@ -509,8 +523,16 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
 
     const flatFeedback = flattenItems(updatedFeedback)
 
-    // Save updated feedback (ensure it's a flat array)
-    await fs.writeFile(feedbackPath, JSON.stringify(flatFeedback, null, 2))
+    // Deduplicate feedback items based on timestamp and sessionId
+    const uniqueFeedback = flatFeedback.filter((item, index, self) =>
+      index === self.findIndex(f => 
+        f.timestamp === item.timestamp && 
+        f.sessionId === item.sessionId
+      )
+    )
+
+    // Save updated feedback (ensure it's a flat, deduplicated array)
+    await fs.writeFile(feedbackPath, JSON.stringify(uniqueFeedback, null, 2))
 
     logger.main.info('Feedback updated in context folder')
     return true
