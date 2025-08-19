@@ -1,5 +1,36 @@
 # Cumulative Insights
 
+## Session: 2025-08-19 (Latest)
+
+### Critical Development Process Violations
+- **NEVER push directly to main branch** - This is a fundamental violation of professional practices
+- **Always create new feature branches** - Don't reuse old branches for new work
+- **Follow proper PR workflow**: Feature branch → Push → PR → Review → Merge
+- **Don't cherry-pick commits between branches** - This is poor practice
+
+### Date/Time Handling Pattern Recognition
+Multiple issues have emerged related to date/timestamp handling:
+1. **Timeline View**: Sessions showing for wrong day
+2. **Scheduling Debug Info**: Blocks showing as empty due to date mismatch
+3. **Root Cause Pattern**: Variables tracking dates not being updated when context changes
+4. **Solution Pattern**: Ensure date-related variables are updated whenever the date context changes
+
+This suggests a systemic issue with date handling that needs architectural review.
+
+### Scheduling Algorithm Insights
+- **Critical Bug**: Scheduler wasn't backfilling earlier time slots
+  - Always moved forward in time, never looked back at unused capacity
+  - Fixed by changing `canFitInBlock` to always try from block start
+  - Improved utilization from 25% to 68.8% (theoretical max without splitting)
+- **Test Data Structure**: Must match exact interface expectations
+  - Task uses `type: TaskType`, not `taskType: TaskType`
+  - WorkBlock uses `id`, not `blockId`
+  - Block capacity goes in `capacity` object, not directly on block
+- **Remaining Optimization**: Task splitting needed for >70% utilization
+  - Current algorithm treats tasks as atomic units
+  - Need to implement splitting into 15-30 minute chunks
+  - Would allow filling small gaps and achieving 90%+ utilization
+
 ## Session: 2025-08-18
 
 ### Session Summary
