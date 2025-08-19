@@ -350,9 +350,7 @@ if (!checkOverlap(newSession, laneSessions)) {
               endMinutes,
               creatingSession.stepId,
             )
-          } else {
           }
-        } else {
         }
         setCreatingSession(null)
       }
