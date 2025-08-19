@@ -96,49 +96,88 @@ export function SwimLaneTimeline({
     indent?: boolean
   }> = []
 
+  // Track which sessions have been displayed to avoid duplicates
+  const displayedSessionIds = new Set<string>()
+
   tasks.forEach(task => {
     const isWorkflow = task.hasSteps && task.steps && task.steps.length > 0
     const isExpanded = expandedWorkflows.has(task.id)
     
     if (isWorkflow) {
-      // Get all sessions for this workflow (including steps)
-      const allWorkflowSessions = sessions.filter(s => 
-        s.taskId === task.id || 
-        (task.steps && task.steps.some(step => step.id === s.stepId))
+      // Get all sessions for this workflow (task direct + all steps)
+      const directTaskSessions = sessions.filter(s => 
+        s.taskId === task.id && !s.stepId && !displayedSessionIds.has(s.id)
       )
       
-      // Add workflow header lane
-      swimLanes.push({
-        id: task.id,
-        name: task.name,
-        sessions: isExpanded ? [] : allWorkflowSessions, // Show all sessions when collapsed
-        isWorkflow: true,
-        isExpanded,
-        taskId: task.id,
-      })
-      
-      // Add step lanes if expanded
-      if (isExpanded && task.steps) {
-        task.steps.forEach(step => {
-          const stepSessions = sessions.filter(s => s.stepId === step.id)
+      if (isExpanded) {
+        // When expanded, only show direct task sessions on the header
+        if (directTaskSessions.length > 0) {
+          directTaskSessions.forEach(s => displayedSessionIds.add(s.id))
           swimLanes.push({
-            id: `${task.id}-${step.id}`,
-            name: step.name,
-            sessions: stepSessions,
-            indent: true,
+            id: task.id,
+            name: task.name,
+            sessions: directTaskSessions,
+            isWorkflow: true,
+            isExpanded,
+            taskId: task.id,
           })
-        })
-      }
-    } else {
-      // Regular task
-      const taskSessions = sessions.filter(s => s.taskId === task.id && !s.stepId)
-      if (taskSessions.length > 0 || !isWorkflow) {
+        } else {
+          // Show header even without sessions for expand/collapse
+          swimLanes.push({
+            id: task.id,
+            name: task.name,
+            sessions: [],
+            isWorkflow: true,
+            isExpanded,
+            taskId: task.id,
+          })
+        }
+        
+        // Add step lanes
+        if (task.steps) {
+          task.steps.forEach(step => {
+            const stepSessions = sessions.filter(s => 
+              s.stepId === step.id && !displayedSessionIds.has(s.id)
+            )
+            stepSessions.forEach(s => displayedSessionIds.add(s.id))
+            swimLanes.push({
+              id: `${task.id}-${step.id}`,
+              name: step.name,
+              sessions: stepSessions,
+              indent: true,
+            })
+          })
+        }
+      } else {
+        // When collapsed, show ALL workflow sessions on single lane
+        const allWorkflowSessions = sessions.filter(s => 
+          (s.taskId === task.id || 
+           (task.steps && task.steps.some(step => step.id === s.stepId))) &&
+          !displayedSessionIds.has(s.id)
+        )
+        allWorkflowSessions.forEach(s => displayedSessionIds.add(s.id))
+        
         swimLanes.push({
           id: task.id,
           name: task.name,
-          sessions: taskSessions,
+          sessions: allWorkflowSessions,
+          isWorkflow: true,
+          isExpanded,
+          taskId: task.id,
         })
       }
+    } else {
+      // Regular task (non-workflow)
+      const taskSessions = sessions.filter(s => 
+        s.taskId === task.id && !s.stepId && !displayedSessionIds.has(s.id)
+      )
+      taskSessions.forEach(s => displayedSessionIds.add(s.id))
+      
+      swimLanes.push({
+        id: task.id,
+        name: task.name,
+        sessions: taskSessions,
+      })
     }
   })
 
