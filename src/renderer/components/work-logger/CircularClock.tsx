@@ -10,6 +10,7 @@ import {
 
 interface CircularClockProps {
   sessions: WorkSessionData[]
+  collapsedWorkflows?: Set<string>
   onSessionUpdate: (id: string, startMinutes: number, endMinutes: number) => void
   onSessionCreate: (startMinutes: number, endMinutes: number) => void
   onSessionDelete: (id: string) => void
@@ -34,6 +35,7 @@ const HOUR_LABEL_RADIUS = 85
 
 export function CircularClock({
   sessions,
+  collapsedWorkflows = new Set(),
   onSessionUpdate,
   onSessionCreate,
   onSessionDelete: _onSessionDelete,
@@ -51,6 +53,61 @@ export function CircularClock({
 
   // Get current time in minutes
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
+
+  // Process sessions to combine collapsed workflows
+  const displaySessions = React.useMemo(() => {
+    if (collapsedWorkflows.size === 0) {
+      return sessions
+    }
+
+    const processedSessions: WorkSessionData[] = []
+    const workflowSessions = new Map<string, WorkSessionData[]>()
+
+    // Group sessions by workflow
+    sessions.forEach(session => {
+      if (session.taskId && collapsedWorkflows.has(session.taskId)) {
+        // This session belongs to a collapsed workflow
+        if (!workflowSessions.has(session.taskId)) {
+          workflowSessions.set(session.taskId, [])
+        }
+        workflowSessions.get(session.taskId)!.push(session)
+      } else {
+        // Regular session or expanded workflow step
+        processedSessions.push(session)
+      }
+    })
+
+    // Create combined sessions for collapsed workflows
+    workflowSessions.forEach((wfSessions, workflowId) => {
+      if (wfSessions.length > 0) {
+        // Find the earliest start and latest end
+        let minStart = wfSessions[0].startMinutes
+        let maxEnd = wfSessions[0].endMinutes
+        let totalDuration = 0
+        const firstSession = wfSessions[0]
+
+        wfSessions.forEach(s => {
+          minStart = Math.min(minStart, s.startMinutes)
+          maxEnd = Math.max(maxEnd, s.endMinutes)
+          totalDuration += (s.endMinutes - s.startMinutes)
+        })
+
+        // Create a combined session for the collapsed workflow
+        processedSessions.push({
+          id: `workflow-combined-${workflowId}`,
+          taskId: workflowId,
+          taskName: firstSession.taskName,
+          startMinutes: minStart,
+          endMinutes: maxEnd,
+          type: firstSession.type,
+          color: firstSession.color,
+          notes: `Combined ${wfSessions.length} sessions (${totalDuration} min total)`,
+        })
+      }
+    })
+
+    return processedSessions
+  }, [sessions, collapsedWorkflows])
 
   // Handle mouse position to minutes conversion
   const getMinutesFromMouse = (e: React.MouseEvent | MouseEvent): number => {
@@ -72,7 +129,7 @@ export function CircularClock({
     e.preventDefault()
     e.stopPropagation()
 
-    const session = sessions.find(s => s.id === sessionId)
+    const session = displaySessions.find(s => s.id === sessionId)
     if (!session) return
 
     const minutes = getMinutesFromMouse(e)
@@ -262,7 +319,7 @@ export function CircularClock({
         </text>
 
         {/* Work sessions as arcs */}
-        {sessions.map(session => {
+        {displaySessions.map(session => {
           const isSelected = session.id === selectedSessionId
           const isHovered = session.id === hoveredSession
 
