@@ -17,6 +17,8 @@ import {
   IconRight,
   IconSave,
   IconDelete,
+  IconFullscreen,
+  IconFullscreenExit,
 } from '@arco-design/web-react/icon'
 import dayjs from 'dayjs'
 import { TaskType } from '@shared/enums'
@@ -51,6 +53,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [pendingSession, setPendingSession] = useState<Partial<WorkSessionData> | null>(null)
   const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set())
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const { tasks, sequencedTasks, loadTasks } = useTaskStore()
 
@@ -295,16 +298,30 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   return (
     <Modal
       title={
-        <Space>
-          <IconClockCircle />
-          <span>Work Logger - Dual View</span>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <IconClockCircle />
+            <span>Work Logger - Dual View</span>
+          </Space>
+          <Button
+            type="text"
+            icon={isFullscreen ? <IconFullscreenExit /> : <IconFullscreen />}
+            onClick={() => setIsFullscreen(!isFullscreen)}
+          />
         </Space>
       }
       visible={visible}
       onCancel={onClose}
       footer={null}
-      style={{ width: '95vw', maxWidth: 1400 }}
+      style={{ 
+        width: isFullscreen ? '100vw' : '95vw', 
+        maxWidth: isFullscreen ? '100vw' : 1400,
+        height: isFullscreen ? '100vh' : undefined,
+        margin: isFullscreen ? 0 : undefined,
+        top: isFullscreen ? 0 : undefined,
+      }}
       maskClosable={false}
+      wrapClassName={isFullscreen ? 'fullscreen-modal' : undefined}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         {/* Header controls */}
