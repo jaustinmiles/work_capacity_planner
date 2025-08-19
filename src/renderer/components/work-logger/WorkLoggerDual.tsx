@@ -355,7 +355,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               <div style={{ height: 400, overflow: 'hidden' }}>
                 <SwimLaneTimeline
                   sessions={sessions}
-                  tasks={[...tasks, ...sequencedTasks]}
+                  tasks={sequencedTasks.length > 0 ? sequencedTasks : tasks}
                   onSessionUpdate={handleSessionUpdate}
                   onSessionCreate={handleTimelineSessionCreate}
                   onSessionDelete={handleSessionDelete}
