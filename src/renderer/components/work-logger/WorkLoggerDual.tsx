@@ -10,7 +10,7 @@ import {
   Select,
   Grid,
   Spin,
-  Message,
+  Notification,
 } from '@arco-design/web-react'
 import {
   IconClockCircle,
@@ -210,7 +210,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       // Validate all sessions have a taskId
       const sessionsWithoutTask = sessions.filter(s => s.isDirty && !s.taskId)
       if (sessionsWithoutTask.length > 0) {
-        Message.error('Some sessions do not have a task assigned. Please assign tasks to all sessions before saving.')
+        Notification.error({
+          title: 'Validation Error',
+          content: 'Some sessions do not have a task assigned. Please assign tasks to all sessions before saving.',
+        })
         setIsSaving(false)
         return
       }
@@ -230,7 +233,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           taskId: s.taskId,
           taskName: s.taskName
         })))
-        Message.error('Some sessions have invalid task references. Please reassign tasks.')
+        Notification.error({
+          title: 'Validation Error', 
+          content: 'Some sessions have invalid task references. Please reassign tasks.',
+        })
         setIsSaving(false)
         return
       }
@@ -533,7 +539,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                   const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
                   if (!taskExists) {
                     logger.ui.error('Task not found in database:', taskId)
-                    Message.error('Invalid task selected. Please try again.')
+                    Notification.error({
+                      title: 'Invalid Task',
+                      content: 'Selected task not found. Please try again.',
+                    })
                     return
                   }
                   
@@ -551,7 +560,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                   const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
                   if (!taskExists) {
                     logger.ui.error('Task not found in database:', taskId)
-                    Message.error('Invalid task selected. Please try again.')
+                    Notification.error({
+                      title: 'Invalid Task',
+                      content: 'Selected task not found. Please try again.',
+                    })
                     return
                   }
                   
