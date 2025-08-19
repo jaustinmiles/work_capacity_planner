@@ -1,6 +1,25 @@
 # Current State
 
-## Current Session (2025-08-19 - Final Continuation)
+## Session Completed (2025-08-19 - Scheduler Optimization)
+
+### Critical Scheduler Optimization and Bug Fixes
+- ✅ **Fixed Duplicate Workflow Scheduling**
+  - Issue: Workflows appearing in both tasks and sequencedTasks arrays were scheduled twice
+  - Impact: Double capacity consumption, Peter Tuesday task not being scheduled
+  - Solution: Added deduplication logic to remove workflows from tasks array if in sequencedTasks
+  - Result: All high-priority tasks now schedule correctly
+
+- ✅ **Fixed Scheduling Gap Regression**
+  - Issue: Tasks scheduled at block start (8 AM) when current time was later (9 PM)
+  - Root cause: Backfilling logic not respecting actual current time for today's blocks
+  - Solution: Pass actual 'now' time to canFitInBlock and use for today's block calculations
+  - Result: Tasks now schedule immediately from current time, no large gaps
+
+- ✅ **Comprehensive Test Suite Added**
+  - Created 27 new tests covering all scheduler functionality
+  - Coverage: 56.64% statements, 65.82% branches, 100% functions
+  - Tests cover: deduplication, backfilling, task type matching, priority ordering, capacity management
+  - Created PR #7 with full documentation
 
 ### Major Scheduling Algorithm Fix
 - ✅ **Fixed Critical Scheduler Bugs**
