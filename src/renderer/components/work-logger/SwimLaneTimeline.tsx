@@ -86,7 +86,7 @@ export function SwimLaneTimeline({
   }
 
   // Build swim lanes with collapsible workflows
-  const swimLanes: Array<{ 
+  const swimLanes: Array<{
     id: string
     name: string
     sessions: WorkSessionData[]
@@ -97,9 +97,17 @@ export function SwimLaneTimeline({
   }> = []
 
   // Build swim lanes - ensure stable ordering
+  // First, deduplicate tasks by ID to avoid duplicate lanes
+  const uniqueTasks = new Map<string, typeof tasks[0]>()
   tasks.forEach(task => {
+    if (!uniqueTasks.has(task.id)) {
+      uniqueTasks.set(task.id, task)
+    }
+  })
+
+  Array.from(uniqueTasks.values()).forEach(task => {
     const hasSteps = task.hasSteps && task.steps && task.steps.length > 0
-    
+
     if (!hasSteps) {
       // Regular task (not a workflow)
       const taskSessions = sessions.filter(s => s.taskId === task.id && !s.stepId)
@@ -111,17 +119,17 @@ export function SwimLaneTimeline({
       })
       return
     }
-    
+
     // It's a workflow
     const isExpanded = expandedWorkflows.has(task.id)
-    
+
     if (!isExpanded) {
       // Collapsed: show all workflow sessions on single lane
-      const allWorkflowSessions = sessions.filter(s => 
-        s.taskId === task.id || 
-        (task.steps?.some(step => step.id === s.stepId) || false)
+      const allWorkflowSessions = sessions.filter(s =>
+        s.taskId === task.id ||
+        (task.steps?.some(step => step.id === s.stepId) || false),
       )
-      
+
       swimLanes.push({
         id: task.id,
         name: task.name,
@@ -132,7 +140,7 @@ export function SwimLaneTimeline({
       })
     } else {
       // Expanded: show header + individual step lanes
-      
+
       // Workflow header (for expand/collapse button)
       swimLanes.push({
         id: task.id,
@@ -142,7 +150,7 @@ export function SwimLaneTimeline({
         isExpanded: true,
         taskId: task.id,
       })
-      
+
       // Step lanes
       if (task.steps) {
         task.steps.forEach(step => {
@@ -270,9 +278,9 @@ export function SwimLaneTimeline({
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Zoom Controls */}
-      <div style={{ 
-        padding: '8px 16px', 
-        background: 'white', 
+      <div style={{
+        padding: '8px 16px',
+        background: 'white',
         borderBottom: '1px solid #e5e6eb',
         display: 'flex',
         alignItems: 'center',
@@ -300,7 +308,7 @@ export function SwimLaneTimeline({
             disabled={hourWidth >= MAX_HOUR_WIDTH}
           />
         </div>
-        
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Text style={{ fontSize: 12, color: '#86909c' }}>Vertical:</Text>
           <Button
@@ -324,7 +332,7 @@ export function SwimLaneTimeline({
           />
         </div>
       </div>
-      
+
       <div
         ref={containerRef}
         style={{
@@ -414,9 +422,9 @@ export function SwimLaneTimeline({
                   type="text"
                   icon={lane.isExpanded ? <IconDown /> : <IconRight />}
                   onClick={() => toggleWorkflow(lane.taskId!)}
-                  style={{ 
-                    minWidth: 20, 
-                    width: 20, 
+                  style={{
+                    minWidth: 20,
+                    width: 20,
                     height: 20,
                     padding: 0,
                     marginRight: 4,
@@ -476,9 +484,11 @@ export function SwimLaneTimeline({
                 const isSelected = session.id === selectedSessionId
                 const isHovered = session.id === hoveredSession
 
+                const sessionKey = `${lane.id}-${session.id}-${sessionIndex}`
+
                 return (
                   <div
-                    key={`${lane.id}-${session.id}-${sessionIndex}`}
+                    key={sessionKey}
                     style={{
                       position: 'absolute',
                       left: left - TIME_LABEL_WIDTH,
