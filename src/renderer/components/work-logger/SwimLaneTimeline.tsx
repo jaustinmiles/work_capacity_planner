@@ -96,60 +96,66 @@ export function SwimLaneTimeline({
     indent?: boolean
   }> = []
 
+  // Build swim lanes - ensure stable ordering
   tasks.forEach(task => {
-    const isWorkflow = task.hasSteps && task.steps && task.steps.length > 0
-    const isExpanded = expandedWorkflows.has(task.id)
+    const hasSteps = task.hasSteps && task.steps && task.steps.length > 0
     
-    if (isWorkflow) {
-      if (isExpanded) {
-        // When expanded: show workflow header, then individual step lanes
-        
-        // Add workflow header (always, for the expand/collapse button)
-        swimLanes.push({
-          id: task.id,
-          name: task.name,
-          sessions: [], // No sessions on header when expanded - they go on step lanes
-          isWorkflow: true,
-          isExpanded: true,
-          taskId: task.id,
-        })
-        
-        // Add step lanes with their sessions
-        if (task.steps) {
-          task.steps.forEach(step => {
-            const stepSessions = sessions.filter(s => s.stepId === step.id)
-            swimLanes.push({
-              id: `${task.id}-${step.id}`,
-              name: step.name,
-              sessions: stepSessions,
-              indent: true,
-            })
-          })
-        }
-      } else {
-        // When collapsed: show all workflow sessions on the header lane
-        const allWorkflowSessions = sessions.filter(s => 
-          s.taskId === task.id || 
-          (task.steps && task.steps.some(step => step.id === s.stepId))
-        )
-        
-        swimLanes.push({
-          id: task.id,
-          name: task.name,
-          sessions: allWorkflowSessions,
-          isWorkflow: true,
-          isExpanded: false,
-          taskId: task.id,
-        })
-      }
-    } else {
+    if (!hasSteps) {
       // Regular task (not a workflow)
       const taskSessions = sessions.filter(s => s.taskId === task.id && !s.stepId)
       swimLanes.push({
         id: task.id,
         name: task.name,
         sessions: taskSessions,
+        isWorkflow: false,
       })
+      return
+    }
+    
+    // It's a workflow
+    const isExpanded = expandedWorkflows.has(task.id)
+    
+    if (!isExpanded) {
+      // Collapsed: show all workflow sessions on single lane
+      const allWorkflowSessions = sessions.filter(s => 
+        s.taskId === task.id || 
+        (task.steps?.some(step => step.id === s.stepId) || false)
+      )
+      
+      swimLanes.push({
+        id: task.id,
+        name: task.name,
+        sessions: allWorkflowSessions,
+        isWorkflow: true,
+        isExpanded: false,
+        taskId: task.id,
+      })
+    } else {
+      // Expanded: show header + individual step lanes
+      
+      // Workflow header (for expand/collapse button)
+      swimLanes.push({
+        id: task.id,
+        name: task.name,
+        sessions: [], // No sessions on header when expanded
+        isWorkflow: true,
+        isExpanded: true,
+        taskId: task.id,
+      })
+      
+      // Step lanes
+      if (task.steps) {
+        task.steps.forEach(step => {
+          const stepSessions = sessions.filter(s => s.stepId === step.id)
+          swimLanes.push({
+            id: `${task.id}-${step.id}`,
+            name: step.name,
+            sessions: stepSessions,
+            indent: true,
+            isWorkflow: false,
+          })
+        })
+      }
     }
   })
 
@@ -464,7 +470,7 @@ export function SwimLaneTimeline({
               ))}
 
               {/* Sessions */}
-              {lane.sessions.map(session => {
+              {lane.sessions.map((session, sessionIndex) => {
                 const left = minutesToPixels(session.startMinutes)
                 const width = (session.endMinutes - session.startMinutes) / 60 * hourWidth
                 const isSelected = session.id === selectedSessionId
@@ -472,7 +478,7 @@ export function SwimLaneTimeline({
 
                 return (
                   <div
-                    key={session.id}
+                    key={`${lane.id}-${session.id}-${sessionIndex}`}
                     style={{
                       position: 'absolute',
                       left: left - TIME_LABEL_WIDTH,
