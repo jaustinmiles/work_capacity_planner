@@ -50,6 +50,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [pendingSession, setPendingSession] = useState<Partial<WorkSessionData> | null>(null)
+  const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set())
 
   const { tasks, sequencedTasks, loadTasks } = useTaskStore()
 
@@ -286,6 +287,11 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId)
 
+  // Callback to handle workflow expansion changes from SwimLaneTimeline
+  const handleWorkflowExpansionChange = useCallback((expanded: Set<string>) => {
+    setExpandedWorkflows(expanded)
+  }, [])
+
   return (
     <Modal
       title={
@@ -361,6 +367,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                   onSessionDelete={handleSessionDelete}
                   selectedSessionId={selectedSessionId || undefined}
                   onSessionSelect={(id) => setSelectedSessionId(id || null)}
+                  expandedWorkflows={expandedWorkflows}
+                  onExpandedWorkflowsChange={handleWorkflowExpansionChange}
                 />
               </div>
             </Card>
@@ -369,6 +377,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             <Card title="Clock View - Drag arcs to adjust time!">
               <CircularClock
                 sessions={sessions}
+                collapsedWorkflows={new Set([...sequencedTasks, ...tasks]
+                  .filter(t => t.hasSteps && !expandedWorkflows.has(t.id))
+                  .map(t => t.id))}
                 onSessionUpdate={handleSessionUpdate}
                 onSessionCreate={handleClockSessionCreate}
                 onSessionDelete={handleSessionDelete}

@@ -19,6 +19,8 @@ interface SwimLaneTimelineProps {
   onSessionDelete: (id: string) => void
   selectedSessionId?: string
   onSessionSelect: (id: string | null) => void
+  expandedWorkflows?: Set<string>
+  onExpandedWorkflowsChange?: (expanded: Set<string>) => void
 }
 
 const TIME_LABEL_WIDTH = 80
@@ -46,6 +48,8 @@ export function SwimLaneTimeline({
   onSessionDelete: _onSessionDelete,
   selectedSessionId,
   onSessionSelect,
+  expandedWorkflows: externalExpandedWorkflows,
+  onExpandedWorkflowsChange,
 }: SwimLaneTimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [dragState, setDragState] = useState<DragState | null>(null)
@@ -56,9 +60,13 @@ export function SwimLaneTimeline({
     currentX: number
   } | null>(null)
   const [hoveredSession, setHoveredSession] = useState<string | null>(null)
-  const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set())
+  const [internalExpandedWorkflows, setInternalExpandedWorkflows] = useState<Set<string>>(new Set())
   const [laneHeight, setLaneHeight] = useState(30)
   const [hourWidth, setHourWidth] = useState(80)
+
+  // Use external state if provided, otherwise use internal
+  const expandedWorkflows = externalExpandedWorkflows ?? internalExpandedWorkflows
+  const setExpandedWorkflows = onExpandedWorkflowsChange ?? setInternalExpandedWorkflows
 
   // Convert minutes to pixels
   const minutesToPixels = (minutes: number): number => {
