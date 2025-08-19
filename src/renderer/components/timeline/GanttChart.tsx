@@ -257,19 +257,18 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
 
-    // IMPORTANT: Filter out workflows from tasks to avoid duplicates
-    // Workflows (tasks with hasSteps=true) are already in sequencedTasks
-    const simpleTasksOnly = tasks.filter(t => !t.hasSteps)
-
-    logger.ui.debug(`GanttChart: Scheduling with ${simpleTasksOnly.length} simple tasks and ${sequencedTasks.length} workflows`)
+    // IMPORTANT: Pass all tasks to scheduler - it will deduplicate
+    // The scheduler handles removing any tasks that are also in sequencedTasks
+    logger.ui.debug(`GanttChart: Scheduling with ${tasks.length} tasks and ${sequencedTasks.length} workflows`)
 
     // Pass current time as start date to ensure scheduling starts from now
-    const result = scheduleItemsWithBlocksAndDebug(simpleTasksOnly, sequencedTasks, workPatterns, new Date())
+    const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, new Date())
     setDebugInfo(result.debugInfo)
     // Auto-show debug info if there are issues
     if (result.debugInfo.unscheduledItems.length > 0 || result.debugInfo.warnings.length > 0) {
       setShowDebugInfo(true)
     }
+
     return result.scheduledItems
   }, [tasks, sequencedTasks, workPatterns])
 
