@@ -67,7 +67,7 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
       setLoading(true)
 
       const sessionId = await window.electronAPI?.getSessionId?.() || 'unknown'
-      
+
       const feedback: FeedbackData = {
         ...values,
         timestamp: new Date().toISOString(),
@@ -100,12 +100,12 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
 
       // Save to file
       await window.electronAPI?.saveFeedback?.(updatedFeedback)
-    } catch (error) {
+    } catch (_error) {
       // If the API doesn't exist yet, save to localStorage as fallback
-      const storedFeedback = localStorage.getItem('app_feedback')
+      const storedFeedback = window.localStorage.getItem('app_feedback')
       const existing = storedFeedback ? JSON.parse(storedFeedback) : []
       existing.push(feedback)
-      localStorage.setItem('app_feedback', JSON.stringify(existing))
+      window.localStorage.setItem('app_feedback', JSON.stringify(existing))
 
       // Also write to context folder if possible
       logger.ui.info('Feedback saved to localStorage:', feedback)
@@ -157,12 +157,12 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
           </RadioGroup>
         </FormItem>
 
-        <FormItem 
-          label="Affected Components" 
+        <FormItem
+          label="Affected Components"
           field="components"
           tooltip="Select all components where you encountered this issue"
         >
-          <CheckboxGroup 
+          <CheckboxGroup
             direction="vertical"
             style={{ maxHeight: 200, overflowY: 'auto' }}
           >

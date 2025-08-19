@@ -389,14 +389,14 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
     // Use process.cwd() for development, which should be the project root
     const projectRoot = process.cwd()
     const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
-    
+
     logger.main.info('Saving feedback to:', feedbackPath)
 
     // Ensure directory exists
     await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
 
     // Read existing feedback or create empty array
-    let allFeedback = []
+    let allFeedback: any[] = []
     try {
       const existingData = await fs.readFile(feedbackPath, 'utf-8')
       allFeedback = JSON.parse(existingData)
