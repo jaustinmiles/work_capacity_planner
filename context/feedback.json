@@ -4,8 +4,36 @@
     "priority": "high",
     "title": "Need to see meetings on gantt chart view",
     "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.",
-    "components": ["work-logger/WorkLoggerDualView", "other"],
+    "components": [
+      "work-logger/WorkLoggerDualView",
+      "other"
+    ],
     "timestamp": "2025-08-19T20:29:16.104Z",
     "sessionId": "session-1755635356105-lehziv12g"
-  }
+  },
+  [
+    {
+      "type": "feature",
+      "priority": "high",
+      "title": "Need to see meetings on gantt chart view",
+      "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.",
+      "components": [
+        "work-logger/WorkLoggerDualView",
+        "other"
+      ],
+      "timestamp": "2025-08-19T20:29:16.104Z",
+      "sessionId": "session-1755635356105-lehziv12g"
+    },
+    {
+      "type": "bug",
+      "priority": "medium",
+      "components": [
+        "work-logger/WorkLoggerDualView"
+      ],
+      "title": "Time blocks overlap in the chart but not clock",
+      "description": "In the clock, the arcs i see are aligned, but in the gantt chart style timeline view, they overlap",
+      "timestamp": "2025-08-19T20:56:41.954Z",
+      "sessionId": "session-1755637001929-nipnnn0ox"
+    }
+  ]
 ]
