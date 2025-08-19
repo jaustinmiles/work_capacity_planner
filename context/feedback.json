@@ -35,5 +35,159 @@
       "timestamp": "2025-08-19T20:56:41.954Z",
       "sessionId": "session-1755637001929-nipnnn0ox"
     }
+  ],
+  [
+    {
+      "type": "feature",
+      "priority": "high",
+      "title": "Need to see meetings on gantt chart view",
+      "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.",
+      "components": [
+        "work-logger/WorkLoggerDualView",
+        "other"
+      ],
+      "timestamp": "2025-08-19T20:29:16.104Z",
+      "sessionId": "session-1755635356105-lehziv12g"
+    },
+    [
+      {
+        "type": "feature",
+        "priority": "high",
+        "title": "Need to see meetings on gantt chart view",
+        "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.",
+        "components": [
+          "work-logger/WorkLoggerDualView",
+          "other"
+        ],
+        "timestamp": "2025-08-19T20:29:16.104Z",
+        "sessionId": "session-1755635356105-lehziv12g"
+      },
+      {
+        "type": "bug",
+        "priority": "medium",
+        "components": [
+          "work-logger/WorkLoggerDualView"
+        ],
+        "title": "Time blocks overlap in the chart but not clock",
+        "description": "In the clock, the arcs i see are aligned, but in the gantt chart style timeline view, they overlap",
+        "timestamp": "2025-08-19T20:56:41.954Z",
+        "sessionId": "session-1755637001929-nipnnn0ox"
+      }
+    ],
+    {
+      "type": "bug",
+      "priority": "low",
+      "components": [
+        "work-logger/WorkLoggerDualView"
+      ],
+      "title": "The intervals in the Gantt chart dual view overlap and truncate to an hour",
+      "description": "The intervals in the Gantt chart dual view overlap and truncate to an hour. We also need to display some text for the meetings, and/or provide a tooltip. It's hard to verify it's correct because I can't see what meetings are taking up timeslots. ",
+      "steps": "1. make meetings\n2. click on work logger dual view icon\n3. look at row called \"meetings\"",
+      "expected": "Tooltip, not truncated to 1 hour intervals (show actual duration), and no overlap. ",
+      "timestamp": "2025-08-19T22:16:57.141Z",
+      "sessionId": "session-1755641817124-rfyz5oeo0"
+    }
+  ],
+  [
+    {
+      "type": "feature",
+      "priority": "high",
+      "title": "Need to see meetings on gantt chart view",
+      "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.",
+      "components": [
+        "work-logger/WorkLoggerDualView",
+        "other"
+      ],
+      "timestamp": "2025-08-19T20:29:16.104Z",
+      "sessionId": "session-1755635356105-lehziv12g"
+    },
+    [
+      {
+        "type": "feature",
+        "priority": "high",
+        "title": "Need to see meetings on gantt chart view",
+        "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.",
+        "components": [
+          "work-logger/WorkLoggerDualView",
+          "other"
+        ],
+        "timestamp": "2025-08-19T20:29:16.104Z",
+        "sessionId": "session-1755635356105-lehziv12g"
+      },
+      {
+        "type": "bug",
+        "priority": "medium",
+        "components": [
+          "work-logger/WorkLoggerDualView"
+        ],
+        "title": "Time blocks overlap in the chart but not clock",
+        "description": "In the clock, the arcs i see are aligned, but in the gantt chart style timeline view, they overlap",
+        "timestamp": "2025-08-19T20:56:41.954Z",
+        "sessionId": "session-1755637001929-nipnnn0ox"
+      }
+    ],
+    [
+      {
+        "type": "feature",
+        "priority": "high",
+        "title": "Need to see meetings on gantt chart view",
+        "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.",
+        "components": [
+          "work-logger/WorkLoggerDualView",
+          "other"
+        ],
+        "timestamp": "2025-08-19T20:29:16.104Z",
+        "sessionId": "session-1755635356105-lehziv12g"
+      },
+      [
+        {
+          "type": "feature",
+          "priority": "high",
+          "title": "Need to see meetings on gantt chart view",
+          "description": "Must have meetings visually to fill out logged time. Should also probably display total meeting time on sidebar, which should probably be listed as a component on the feedback form as well, unless that's what daily schedule view is.",
+          "components": [
+            "work-logger/WorkLoggerDualView",
+            "other"
+          ],
+          "timestamp": "2025-08-19T20:29:16.104Z",
+          "sessionId": "session-1755635356105-lehziv12g"
+        },
+        {
+          "type": "bug",
+          "priority": "medium",
+          "components": [
+            "work-logger/WorkLoggerDualView"
+          ],
+          "title": "Time blocks overlap in the chart but not clock",
+          "description": "In the clock, the arcs i see are aligned, but in the gantt chart style timeline view, they overlap",
+          "timestamp": "2025-08-19T20:56:41.954Z",
+          "sessionId": "session-1755637001929-nipnnn0ox"
+        }
+      ],
+      {
+        "type": "bug",
+        "priority": "low",
+        "components": [
+          "work-logger/WorkLoggerDualView"
+        ],
+        "title": "The intervals in the Gantt chart dual view overlap and truncate to an hour",
+        "description": "The intervals in the Gantt chart dual view overlap and truncate to an hour. We also need to display some text for the meetings, and/or provide a tooltip. It's hard to verify it's correct because I can't see what meetings are taking up timeslots. ",
+        "steps": "1. make meetings\n2. click on work logger dual view icon\n3. look at row called \"meetings\"",
+        "expected": "Tooltip, not truncated to 1 hour intervals (show actual duration), and no overlap. ",
+        "timestamp": "2025-08-19T22:16:57.141Z",
+        "sessionId": "session-1755641817124-rfyz5oeo0"
+      }
+    ],
+    {
+      "type": "improvement",
+      "priority": "medium",
+      "components": [
+        "timeline/GanttChart"
+      ],
+      "title": "Duplicated Row in Gantt Chart from Dual View Feature Work",
+      "description": "When we fixed the bug in the dual view, I think we introduced weird behavior in the Gantt Chart. Now there's a row for meetings, and a row for 'blocked time.' I actually kinda like this though, but the blocked time row should show everything from all rows merged into a single timeline. We still need the row for meetings. But I stored personal time slots like 'sleep' and 'breakfast' and 'exercise' as meetings so that might be why it's just a copy. ",
+      "timestamp": "2025-08-19T22:19:25.681Z",
+      "sessionId": "session-1755641965656-t4sbx5sfw"
+    }
   ]
 ]

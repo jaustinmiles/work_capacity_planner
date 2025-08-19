@@ -701,26 +701,38 @@ if (!checkOverlap(newSession, laneSessions)) {
                     <Tooltip
                       content={
                         <div>
-                          <div>{session.taskName}</div>
+                          <div style={{ fontWeight: 'bold' }}>{session.taskName}</div>
                           {session.stepName && <div>{session.stepName}</div>}
                           <div>
                             {minutesToTime(session.startMinutes)} - {minutesToTime(session.endMinutes)}
                           </div>
                           <div>{session.endMinutes - session.startMinutes} minutes</div>
+                          {isMeetingSession && <div style={{ marginTop: 4, fontStyle: 'italic' }}>Meeting/Event</div>}
                         </div>
                       }
                     >
                       <Text
                         style={{
                           fontSize: 11,
-                          color: 'white',
-                          fontWeight: 500,
+                          color: isMeetingSession ? 'white' : 'white',
+                          fontWeight: isMeetingSession ? 600 : 500,
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
                         }}
                       >
-                        {width > 60 && `${Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10}h`}
+                        {isMeetingSession && width > 30 ? (
+                          <>
+                            {width > 80 && session.taskName}
+                            {width > 50 && width <= 80 && `${session.taskName.substring(0, 8)}...`}
+                            {width <= 50 && `${Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10}h`}
+                          </>
+                        ) : (
+                          width > 60 && `${Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10}h`
+                        )}
                       </Text>
                     </Tooltip>
                   </div>
