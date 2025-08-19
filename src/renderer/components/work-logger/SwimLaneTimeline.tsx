@@ -651,7 +651,10 @@ export function SwimLaneTimeline({
               })}
 
               {/* Creating session preview */}
-              {creatingSession && lane.id === `${creatingSession.taskId}${creatingSession.stepId ? '-' + creatingSession.stepId : ''}` && (
+              {creatingSession && (
+                (creatingSession.stepId && lane.id === `${creatingSession.taskId}-${creatingSession.stepId}`) ||
+                (!creatingSession.stepId && lane.id === creatingSession.taskId)
+              ) && (
                 <div
                   style={{
                     position: 'absolute',
