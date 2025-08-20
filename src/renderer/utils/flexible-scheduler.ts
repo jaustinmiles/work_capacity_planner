@@ -27,6 +27,7 @@ export interface ScheduledItem {
 
 export interface SchedulingDebugInfo {
   unscheduledItems: Array<{
+    id?: string
     name: string
     type: string
     duration: number
@@ -571,7 +572,6 @@ export function scheduleItemsWithBlocksAndDebug(
     if (level === Number.MAX_SAFE_INTEGER) {
       itemsWithMissingDeps.push(item)
       debugInfo.unscheduledItems.push({
-        id: item.id,
         ...item,
         reason: 'Missing dependency - one or more dependencies do not exist',
       })
@@ -860,7 +860,6 @@ export function scheduleItemsWithBlocksAndDebug(
               `Locked task "${item.name}" at ${lockedTime.toLocaleTimeString()} conflicts with already scheduled tasks`,
             )
             debugInfo.unscheduledItems.push({
-              id: item.id,
               ...item,
               reason: `Conflicts with existing scheduled items at ${lockedTime.toLocaleTimeString()}`,
             })
