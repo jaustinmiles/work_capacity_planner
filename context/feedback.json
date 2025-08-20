@@ -1,13 +1,13 @@
 [
   {
     "type": "bug",
-    "priority": "low",
+    "priority": "medium",
     "components": [
       "timeline/GanttChartSidebar",
       "schedule/DailyScheduleView"
     ],
     "title": "The sidebar doesn't update after logging work",
-    "description": "It requires a window reload in order to update. ",
+    "description": "It requires a window reload in order to update. By side bar, I mean the WorkStatusWidget. It requires manual reload. I would change the component, but that's lacking in the edit capabilities of feedback right now",
     "timestamp": "2025-08-19T22:44:32.477Z",
     "sessionId": "session-1755643472468-w6o7rucnp"
   },
@@ -31,7 +31,7 @@
       "timeline/GanttChart"
     ],
     "title": "Personal Task not displayed",
-    "description": "I made a personal task called 'Task Management app' or something similar, and it is not displayed on the chart (it doesn't have a row)",
+    "description": "I made a personal task called 'Task Management app' or something similar, and it is not displayed on the chart (it doesn't have a row)\n\nUPDATE: I can't get this task to show up on the timeline or be scheduled no matter what. Even if I open up a 6hr personal block tomorrow, nothing. If I open a 6hr focus block tomorrow, nothing either. There's something very wrong here. We should limit our tasktype enums to only those that the scheduler can handle. I actually think we turned off a lint check for unused enum values, we should turn it back on. ",
     "timestamp": "2025-08-19T22:39:52.093Z",
     "sessionId": "session-1755643192084-t2lth9jne"
   },
@@ -56,7 +56,8 @@
     "title": "\"Now\" Marker on Timeline View",
     "description": "it would be helpful to have a marker for the current time on the dual view timeline view, similar to how we have it for the Gantt chart",
     "timestamp": "2025-08-19T22:28:17.517Z",
-    "sessionId": "session-1755642497501-69xszpmlm"
+    "sessionId": "session-1755642497501-69xszpmlm",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -131,7 +132,8 @@
     "expected": "All tasks should be scheduled, even if it's weeks in advance. ",
     "actual": "Tasks are not being scheduled, and dependency resolutions are not achieved. ",
     "timestamp": "2025-08-19T23:45:42.119Z",
-    "sessionId": "session-1755647142109-djuqis9w9"
+    "sessionId": "session-1755647142109-djuqis9w9",
+    "resolved": true
   },
   {
     "type": "improvement",

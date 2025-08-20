@@ -1,25 +1,34 @@
 # Current State
 
-## Session In Progress (2025-08-19 - Low Hanging Fruit Fixes)
+## Session In Progress (2025-08-20 - Workflow Dependency Fix & UI Improvements)
 
-### PR #11 Created - Personal Tasks & Feedback Improvements
-- Branch: fix/feedback-and-personal-tasks
-- ✅ Fixed Personal Task not displaying in Gantt Chart
-  - Issue: TaskCategory enum comparison was failing
-  - Solution: Properly handle TaskCategory.Personal enum in scheduler
-  - Added test coverage for personal task scheduling
-- ✅ Added feedback edit capability
-  - Edit button on each feedback item
-  - Modal with all fields editable
-  - Can update descriptions for partial fixes
-- ✅ Added database path logging at startup
-  - Logs DATABASE_URL and working directory
-  - Helps debug database location issues
-- All 300 tests passing, TypeScript clean, ready for review
+### PR #12 Working - Timeline Improvements & Critical Scheduler Fix
+- Branch: feat/timeline-completed-filter
+- ✅ Fixed critical workflow dependency resolution bug
+  - Issue: Completed workflow steps filtered out entirely, causing "Missing dependency" errors
+  - Solution: Track completed steps separately for dependency validation
+  - Impact: Unblocked scheduling of dependent workflow steps
+- ✅ Added option to hide completed tasks in timeline view
+  - Checkbox control in WorkLoggerDual header
+  - Filters both regular tasks and sequenced tasks
+- ✅ Added meeting time display to WorkStatusWidget
+  - Shows Focus, Admin, and Meeting time separately
+  - Added total time calculation (all three combined)
+- ✅ Added "Now" marker to timeline view
+  - Red vertical line with dot indicator
+  - Updates every minute
+- ✅ Enabled text selection throughout app
+  - Changed CSS from user-select: none to user-select: text
+  - Allows copy/paste during testing
+- ✅ Fixed feedback system duplicates
+  - Cleaned feedback.json (39→11 items)
+  - Added duplicate prevention in save handler
+- All 300 tests passing, TypeScript clean
 
-### Remaining High Priority Tasks
-- Add option to hide completed tasks in timeline view
-- Display meetings on Gantt chart view (already done in earlier PR)
+### Previous PR #11 Merged
+- Fixed Personal Task display issue (category handling)
+- Added feedback edit capability
+- Added database path logging
 
 ## Session Completed (2025-08-19 - PR #10 Feedback Viewer Improvements)
 

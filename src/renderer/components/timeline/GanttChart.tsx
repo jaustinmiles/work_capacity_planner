@@ -357,6 +357,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const workflowRows = new Map<string, number>()
     const workflowProgress = new Map<string, { completed: number, total: number }>()
     let totalMeetingMinutes = 0
+    const unscheduledTasks: Array<{ id: string, name: string, category?: string }> = []
 
     // Separate items by type
     const blockedItems = scheduledItems.filter((item: any) => item.isBlocked)
@@ -414,7 +415,38 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       positions.set(item.id, positions.get(parentId) || currentRow)
     })
 
-    return { positions, totalRows: currentRow, workflowProgress, totalMeetingMinutes }
+    // Fifth pass: add unscheduled tasks to display (they don't have scheduled times but need rows)
+    // Check which tasks were not scheduled
+    const scheduledTaskIds = new Set(scheduledItems.map((item: any) => item.id))
+    tasks.forEach(task => {
+      if (!scheduledTaskIds.has(task.id) && !task.completed) {
+        unscheduledTasks.push({ id: task.id, name: task.name, category: task.category })
+        positions.set(task.id, currentRow)
+        currentRow++
+      }
+    })
+
+    // Also check unscheduled workflow steps
+    sequencedTasks.forEach(workflow => {
+      if (workflow.overallStatus !== 'completed') {
+        workflow.steps?.forEach(step => {
+          if (step.status !== 'completed' && !scheduledTaskIds.has(step.id)) {
+            unscheduledTasks.push({
+              id: step.id,
+              name: `[${workflow.name}] ${step.name}`,
+              category: workflow.category,
+            })
+            if (!workflowRows.has(workflow.id)) {
+              workflowRows.set(workflow.id, currentRow)
+              currentRow++
+            }
+            positions.set(step.id, workflowRows.get(workflow.id)!)
+          }
+        })
+      }
+    })
+
+    return { positions, totalRows: currentRow, workflowProgress, totalMeetingMinutes, unscheduledTasks }
   }, [scheduledItems])
 
   // Early return for empty state - AFTER all hooks
@@ -901,13 +933,19 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   const rowItems = scheduledItems.filter(item =>
                     itemRowPositions.positions.get(item.id) === rowIndex,
                   )
+                  const unscheduledInRow = itemRowPositions.unscheduledTasks.find(t =>
+                    itemRowPositions.positions.get(t.id) === rowIndex,
+                  )
                   const firstItem = rowItems[0]
                   const isWorkflowRow = firstItem?.workflowId
                   const isBlockedRow = rowIndex === 0 && rowItems.some(item => item.isBlocked)
+                  const isUnscheduledRow = !firstItem && unscheduledInRow
                   const rowLabel = isBlockedRow
                     ? 'Meetings & Blocked Time'
                     : isWorkflowRow
                     ? firstItem.workflowName
+                    : isUnscheduledRow
+                    ? `${unscheduledInRow.name} (Unscheduled${unscheduledInRow.category === 'personal' ? ' - Personal' : ''})`
                     : firstItem?.name.replace(/\[.*\]\s*/, '')
 
                   return (

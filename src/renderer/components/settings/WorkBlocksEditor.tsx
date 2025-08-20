@@ -427,8 +427,42 @@ export function WorkBlocksEditor({
                               personalMinutes: 0,
                             },
                           })
-                        } else {
-                          handleUpdateBlock(block.id, { type: value })
+                        } else if (value === 'personal') {
+                          const startTime = dayjs(`2000-01-01 ${block.startTime}`)
+                          const endTime = dayjs(`2000-01-01 ${block.endTime}`)
+                          const totalMinutes = endTime.diff(startTime, 'minute')
+                          handleUpdateBlock(block.id, {
+                            type: value,
+                            capacity: {
+                              focusMinutes: 0,
+                              adminMinutes: 0,
+                              personalMinutes: totalMinutes,
+                            },
+                          })
+                        } else if (value === TaskType.Focused) {
+                          const startTime = dayjs(`2000-01-01 ${block.startTime}`)
+                          const endTime = dayjs(`2000-01-01 ${block.endTime}`)
+                          const totalMinutes = endTime.diff(startTime, 'minute')
+                          handleUpdateBlock(block.id, {
+                            type: value,
+                            capacity: {
+                              focusMinutes: totalMinutes,
+                              adminMinutes: 0,
+                              personalMinutes: 0,
+                            },
+                          })
+                        } else if (value === TaskType.Admin) {
+                          const startTime = dayjs(`2000-01-01 ${block.startTime}`)
+                          const endTime = dayjs(`2000-01-01 ${block.endTime}`)
+                          const totalMinutes = endTime.diff(startTime, 'minute')
+                          handleUpdateBlock(block.id, {
+                            type: value,
+                            capacity: {
+                              focusMinutes: 0,
+                              adminMinutes: totalMinutes,
+                              personalMinutes: 0,
+                            },
+                          })
                         }
                       }}
                       style={{ width: '100%' }}
@@ -502,6 +536,10 @@ export function WorkBlocksEditor({
                         />
                         </Space>
                       </Space>
+                    ) : block.type === 'personal' ? (
+                      <Text type="secondary">
+                        All personal time
+                      </Text>
                     ) : (
                       <Text type="secondary">
                         {block.type === TaskType.Focused ? 'All focus time' : 'All admin time'}

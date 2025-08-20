@@ -34,6 +34,12 @@
 - Proper handling of nullable types
 - Array type annotations fixed
 
+## ✅ Recently Fixed - Workflow Dependency Resolution (2025-08-20)
+**Status**: ✅ Fixed
+- Issue: Completed workflow steps were filtered out, causing dependent steps to fail with "Missing dependency"
+- Solution: Track completed steps separately for dependency resolution
+- Impact: All workflow steps with completed dependencies can now be scheduled
+
 ## Remaining High Priority Issues
 
 ### 1. Scheduling Test Suite Rewrite Needed (2025-08-17)
