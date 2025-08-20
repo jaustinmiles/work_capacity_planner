@@ -1,5 +1,52 @@
 # Current State
 
+## Session In Progress (2025-08-20 - PR #15 Major Feature Improvements)
+
+### Branch: fix/feedback-notification-error
+Despite the branch name, this PR contains multiple significant improvements:
+
+#### ✅ Fixed FeedbackViewer Notification Error
+- Replaced Arco's Message component with custom Notification for React 19 compatibility
+- Fixed "id.render is not a function" error when resolving feedback items
+- Converted all notification calls from object format to string format
+
+#### ✅ Better AI Brainstorm Editing and Feedback
+- Added interactive clarification inputs when AI needs more info
+- Users can now edit duration, importance, and urgency directly in the modal
+- Added ability to regenerate individual items with clarifications
+- Added "Provide Clarifications" button when items need more info
+- Quick edit fields appear in clarification mode
+
+#### ✅ Fixed Dependency Rewiring and Task Finding Issues
+- Enhanced amendment parser to include workflow steps in context
+- Fixed issue where "Review baby workflow results" step wasn't being found
+- Improved matching of workflow step references in voice amendments
+- Workflow steps now included in amendment context for better AI understanding
+
+#### ✅ Fixed Personal Time Not Showing in WorkStatusWidget
+- Updated getTodayAccumulated to track personal time separately
+- Added personal time display with purple progress bar in sidebar
+- Included personal time in total logged calculation
+- Fixed database return type to include personal field
+
+#### ✅ Fixed Amendment Applicator Schema Issues
+- Fixed TaskCreation using non-existent 'description' field
+- Changed to use 'notes' field instead (aligns with Prisma schema)
+- Fixed both task and workflow creation cases
+
+#### ✅ Added File Upload to Voice Amendment Modal
+- Added upload button for audio files (consistent with other AI features)
+- Supports all audio formats
+- Shows processing status for uploaded files
+- Maintains feature parity with BrainstormModal
+
+### Status
+- All tests pass (some pre-existing unrelated failures)
+- TypeScript: 0 errors
+- ESLint: 0 errors (warnings only)
+- Build successful
+- PR #15 ready for review: https://github.com/jaustinmiles/work_capacity_planner/pull/15
+
 ## Session Completed (2025-08-20 - Task Splitting & Multiple Fixes)
 
 ### PR #14 Created - Task Splitting and High-Priority Fixes
@@ -25,7 +72,7 @@
 - Build successful
 - Ready for review and merge
 
-## Session In Progress (2025-08-20 - Amendment Fixes & Voice Recording)
+## Session Completed (2025-08-20 - Amendment Fixes & Voice Recording)
 
 ### Major UI Improvements & Amendment Fixes
 - ✅ Collapsible workflow steps in UI
