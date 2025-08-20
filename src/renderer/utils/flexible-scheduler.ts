@@ -1,6 +1,6 @@
 import { Task, ProductivityPattern, SchedulingPreferences } from '@shared/types'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
-import { TaskType, TaskCategory } from '@shared/enums'
+import { TaskType } from '@shared/enums'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
 import { WorkSettings } from '@shared/work-settings-types'
 import { calculatePriority, SchedulingContext } from './deadline-scheduler'
@@ -56,7 +56,6 @@ interface WorkItem {
   name: string
   type: 'task' | 'workflow-step'
   taskType: TaskType
-  category?: TaskCategory
   priority: number
   duration: number
   asyncWaitTime: number
@@ -225,8 +224,8 @@ function canFitInBlock(
   // Don't count async wait times as conflicts when checking for available slots
   const nonWaitScheduledItems = scheduledItems.filter(s => !s.isWaitTime)
 
-  // Check category compatibility
-  const isPersonalTask = item.category === TaskCategory.Personal
+  // Check type compatibility
+  const isPersonalTask = item.taskType === TaskType.Personal
   const isPersonalBlock = block.blockType === 'personal'
 
   // Personal tasks can only go in personal blocks
@@ -234,13 +233,13 @@ function canFitInBlock(
     return { canFit: false, startTime: currentTime }
   }
 
-  // Work tasks (or tasks without category) cannot go in personal blocks
+  // Non-personal tasks cannot go in personal blocks
   if (!isPersonalTask && isPersonalBlock) {
     return { canFit: false, startTime: currentTime }
   }
 
-  // Check capacity based on task category
-  if (isPersonalTask) {
+  // Check capacity based on task type
+  if (item.taskType === TaskType.Personal) {
     if (block.personalMinutesUsed + item.duration > block.personalMinutesTotal) {
       return { canFit: false, startTime: currentTime }
     }
@@ -402,12 +401,11 @@ export function scheduleItemsWithBlocksAndDebug(
         name: task.name,
         type: 'task',
         taskType: task.type,
-        category: task.category || TaskCategory.Work,
         priority,
         duration: task.duration,
         asyncWaitTime: task.asyncWaitTime,
         dependencies: task.dependencies || [],
-        color: task.category === TaskCategory.Personal ? '#9333EA' : '#6B7280',
+        color: task.type === TaskType.Personal ? '#9333EA' : '#6B7280',
         deadline: task.deadline,
         isLocked: task.isLocked,
         lockedStartTime: task.lockedStartTime,
@@ -454,7 +452,6 @@ export function scheduleItemsWithBlocksAndDebug(
             name: `[${workflow.name}] ${step.name}`,
             type: 'workflow-step',
             taskType: step.type,
-            category: workflow.category || TaskCategory.Work,
             priority,
             duration: step.duration,
             asyncWaitTime: step.asyncWaitTime,
@@ -1017,7 +1014,7 @@ export function scheduleItemsWithBlocksAndDebug(
           })
 
           // Update block capacity
-          if (item.category === TaskCategory.Personal) {
+          if (item.taskType === TaskType.Personal) {
             block.personalMinutesUsed += item.duration
           } else if (item.taskType === TaskType.Focused) {
             block.focusMinutesUsed += item.duration
@@ -1092,8 +1089,8 @@ export function scheduleItemsWithBlocksAndDebug(
         // Determine why the item couldn't be scheduled
         let reason = 'Unknown reason'
 
-        // Check category compatibility first
-        const isPersonalTask = item.category === TaskCategory.Personal
+        // Check type compatibility first
+        const isPersonalTask = item.taskType === TaskType.Personal
         const hasCompatibleBlock = blockCapacities.some(block => {
           if (isPersonalTask) {
             return block.blockType === 'personal'
@@ -1107,10 +1104,10 @@ export function scheduleItemsWithBlocksAndDebug(
             ? 'No personal blocks available for personal task'
             : 'No work blocks available for work task'
         } else if (blockCapacities.every(block => {
-          // Check both category compatibility and capacity
-          const categoryMismatch = (isPersonalTask && block.blockType !== 'personal') ||
+          // Check both type compatibility and capacity
+          const typeMismatch = (isPersonalTask && block.blockType !== 'personal') ||
                                   (!isPersonalTask && block.blockType === 'personal')
-          if (categoryMismatch) return true
+          if (typeMismatch) return true
 
           if (item.taskType === TaskType.Focused) {
             return block.focusMinutesUsed + item.duration > block.focusMinutesTotal

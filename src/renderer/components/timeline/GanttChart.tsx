@@ -3,6 +3,7 @@ import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, Dat
 import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
+import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { scheduleItemsWithBlocksAndDebug, SchedulingDebugInfo } from '../../utils/flexible-scheduler'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
@@ -357,7 +358,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const workflowRows = new Map<string, number>()
     const workflowProgress = new Map<string, { completed: number, total: number }>()
     let totalMeetingMinutes = 0
-    const unscheduledTasks: Array<{ id: string, name: string, category?: string }> = []
+    const unscheduledTasks: Array<{ id: string, name: string, type?: string }> = []
 
     // Separate items by type
     const blockedItems = scheduledItems.filter((item: any) => item.isBlocked)
@@ -420,7 +421,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const scheduledTaskIds = new Set(scheduledItems.map((item: any) => item.id))
     tasks.forEach(task => {
       if (!scheduledTaskIds.has(task.id) && !task.completed) {
-        unscheduledTasks.push({ id: task.id, name: task.name, category: task.category })
+        unscheduledTasks.push({ id: task.id, name: task.name, type: task.type })
         positions.set(task.id, currentRow)
         currentRow++
       }
@@ -434,7 +435,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             unscheduledTasks.push({
               id: step.id,
               name: `[${workflow.name}] ${step.name}`,
-              category: workflow.category,
+              type: workflow.type,
             })
             if (!workflowRows.has(workflow.id)) {
               workflowRows.set(workflow.id, currentRow)
@@ -945,7 +946,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     : isWorkflowRow
                     ? firstItem.workflowName
                     : isUnscheduledRow
-                    ? `${unscheduledInRow.name} (Unscheduled${unscheduledInRow.category === 'personal' ? ' - Personal' : ''})`
+                    ? `${unscheduledInRow.name} (Unscheduled${unscheduledInRow.type === TaskType.Personal ? ' - Personal' : ''})`
                     : firstItem?.name.replace(/\[.*\]\s*/, '')
 
                   return (
