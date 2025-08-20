@@ -372,14 +372,6 @@ export function SequencedTaskView({
         visible={showVisualization}
         onClose={() => setShowVisualization(false)}
       />
-
-      {/* Edit Modal */}
-      {showEditView && (
-        <SequencedTaskEdit
-          task={task}
-          onClose={() => setShowEditView(false)}
-        />
-      )}
     </Space>
   )
 }

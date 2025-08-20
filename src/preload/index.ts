@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateJargonEntry: (id: string, updates: any) => ipcRenderer.invoke('db:updateJargonEntry', id, updates),
     deleteJargonEntry: (id: string) => ipcRenderer.invoke('db:deleteJargonEntry', id),
     getJargonDictionary: () => ipcRenderer.invoke('db:getJargonDictionary'),
+    updateJargonDefinition: (term: string, definition: string) => ipcRenderer.invoke('db:updateJargonDefinition', term, definition),
     // Development helpers
     deleteAllTasks: () => ipcRenderer.invoke('db:deleteAllTasks'),
     deleteAllSequencedTasks: () => ipcRenderer.invoke('db:deleteAllSequencedTasks'),
