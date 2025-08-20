@@ -134,7 +134,11 @@ export interface AmendmentContext {
   activeWorkflowId?: string
   activeStepId?: string
   recentTasks: Array<{ id: string; name: string }>
-  recentWorkflows: Array<{ id: string; name: string }>
+  recentWorkflows: Array<{ 
+    id: string
+    name: string
+    steps?: Array<{ id: string; name: string }>
+  }>
   currentView?: 'tasks' | 'workflows' | 'calendar' | 'matrix'
   jobContexts?: Array<{
     role?: string

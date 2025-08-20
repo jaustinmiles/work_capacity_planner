@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Modal, Button, Typography, Alert, Space, Card, Input, Tag, Divider, Upload } from '@arco-design/web-react'
+import { Modal, Button, Typography, Alert, Space, Card, Input, Tag, Divider, Upload, Select } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, IconCheckCircle, IconUpload, IconFile } from '@arco-design/web-react/icon'
 import { TaskType } from '@shared/enums'
 import { getDatabase } from '../../services/database'
@@ -25,6 +25,8 @@ interface ExtractedTask {
   urgency: number
   type: TaskType
   needsMoreInfo?: boolean
+  clarificationRequest?: string
+  userClarification?: string
 }
 
 interface ExtractedWorkflow {
@@ -39,6 +41,8 @@ interface ExtractedWorkflow {
   earliestCompletion: string
   worstCaseCompletion: string
   notes: string
+  clarificationRequest?: string
+  userClarification?: string
 }
 
 interface BrainstormResult {
@@ -80,6 +84,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
   const [newJargonDefinition, setNewJargonDefinition] = useState('')
   const [contextRecordingState, setContextRecordingState] = useState<RecordingState>('idle')
   const [contextRecordingDuration, setContextRecordingDuration] = useState(0)
+  const [showClarificationMode, setShowClarificationMode] = useState(false)
+  const [editableResult, setEditableResult] = useState<BrainstormResult | null>(null)
+  const [clarifications, setClarifications] = useState<Record<string, string>>({})
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -617,21 +624,75 @@ Only include terms that are likely industry-specific or technical jargon, not co
   }
 
   const handleUseResults = () => {
-    if (brainstormResult) {
-      if (brainstormResult.workflows && brainstormResult.workflows.length > 0) {
+    const resultsToUse = editableResult || brainstormResult
+    if (resultsToUse) {
+      if (resultsToUse.workflows && resultsToUse.workflows.length > 0) {
         // Handle workflow-first results
         if (onWorkflowsExtracted) {
           onWorkflowsExtracted(
-            brainstormResult.workflows,
-            brainstormResult.standaloneTasks || [],
+            resultsToUse.workflows,
+            resultsToUse.standaloneTasks || [],
           )
         }
-      } else if (brainstormResult.tasks && brainstormResult.tasks.length > 0) {
+      } else if (resultsToUse.tasks && resultsToUse.tasks.length > 0) {
         // Handle task-only results
-        onTasksExtracted(brainstormResult.tasks)
+        onTasksExtracted(resultsToUse.tasks)
       }
       onClose()
     }
+  }
+
+  const handleProvideClarifications = () => {
+    setShowClarificationMode(true)
+    setEditableResult(JSON.parse(JSON.stringify(brainstormResult))) // Deep copy
+  }
+
+  const handleRegenerateSingle = async (itemType: 'workflow' | 'task', index: number) => {
+    if (!editableResult) return
+    setIsProcessing(true)
+    try {
+      const item = itemType === 'workflow' ? editableResult.workflows![index] : editableResult.tasks![index]
+      const clarification = clarifications[`${itemType}-${index}`] || ''
+      
+      // Build prompt with clarification
+      const prompt = `Regenerate this ${itemType} with the following clarification:\n\nOriginal: ${JSON.stringify(item)}\n\nClarification: ${clarification}\n\nProvide an improved version addressing the clarification.`
+      
+      // Call AI to regenerate just this item
+      const db = getDatabase()
+      const response = await db.extractWorkflowsFromBrainstorm(prompt)
+      
+      if (response) {
+        if (itemType === 'workflow' && response && response.workflows && response.workflows[0]) {
+          editableResult.workflows![index] = {
+            ...response.workflows[0],
+            type: toTaskType(response.workflows[0].type as any)
+          }
+        } else if (itemType === 'task' && response && response.standaloneTasks && response.standaloneTasks[0]) {
+          editableResult.tasks![index] = {
+            ...response.standaloneTasks[0],
+            type: toTaskType(response.standaloneTasks[0].type as any)
+          }
+        }
+        setEditableResult({ ...editableResult })
+      }
+    } catch (error) {
+      logger.ai.error(`Error regenerating ${itemType}:`, error)
+      setError(`Failed to regenerate ${itemType}. Please try again.`)
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleEditField = (itemType: 'workflow' | 'task', index: number, field: string, value: any) => {
+    if (!editableResult) return
+    
+    const newResult = { ...editableResult }
+    if (itemType === 'workflow' && newResult.workflows) {
+      (newResult.workflows[index] as any)[field] = value
+    } else if (itemType === 'task' && newResult.tasks) {
+      (newResult.tasks[index] as any)[field] = value
+    }
+    setEditableResult(newResult)
   }
 
   const formatDuration = (seconds: number) => {
@@ -1143,6 +1204,66 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               <Text style={{ fontSize: 13 }}>
                                 <span style={{ fontWeight: 'bold' }}>Notes:</span> {workflow.notes}
                               </Text>
+                              {showClarificationMode && workflow.notes.includes('clarification') && (
+                                <div style={{ marginTop: 8 }}>
+                                  <Input.TextArea
+                                    placeholder="Provide clarification..."
+                                    value={clarifications[`workflow-${index}`] || ''}
+                                    onChange={(value) => setClarifications({
+                                      ...clarifications,
+                                      [`workflow-${index}`]: value
+                                    })}
+                                    style={{ marginTop: 4 }}
+                                    rows={2}
+                                  />
+                                  <Button 
+                                    size="small" 
+                                    type="primary"
+                                    onClick={() => handleRegenerateSingle('workflow', index)}
+                                    loading={isProcessing}
+                                    style={{ marginTop: 4 }}
+                                  >
+                                    Regenerate with Clarification
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {showClarificationMode && (
+                            <div style={{ marginTop: 12, padding: 8, backgroundColor: '#f9f9f9', borderRadius: 4 }}>
+                              <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Quick Edits:</Text>
+                              <Space direction="vertical" style={{ width: '100%', marginTop: 8 }}>
+                                <Input
+                                  size="small"
+                                  addBefore="Duration"
+                                  value={String(editableResult?.workflows?.[index]?.duration || workflow.duration)}
+                                  onChange={(value) => {
+                                    const num = parseInt(value)
+                                    if (!isNaN(num)) handleEditField('workflow', index, 'duration', num)
+                                  }}
+                                  suffix="min"
+                                />
+                                <Select
+                                  size="small"
+                                  value={editableResult?.workflows?.[index]?.importance || workflow.importance}
+                                  onChange={(value) => handleEditField('workflow', index, 'importance', value)}
+                                  style={{ width: '100%' }}
+                                >
+                                  {[1,2,3,4,5].map(i => (
+                                    <Select.Option key={i} value={i}>Importance: {i}</Select.Option>
+                                  ))}
+                                </Select>
+                                <Select
+                                  size="small"
+                                  value={editableResult?.workflows?.[index]?.urgency || workflow.urgency}
+                                  onChange={(value) => handleEditField('workflow', index, 'urgency', value)}
+                                  style={{ width: '100%' }}
+                                >
+                                  {[1,2,3,4,5].map(i => (
+                                    <Select.Option key={i} value={i}>Urgency: {i}</Select.Option>
+                                  ))}
+                                </Select>
+                              </Space>
                             </div>
                           )}
                         </Space>
@@ -1263,8 +1384,27 @@ Only include terms that are likely industry-specific or technical jargon, not co
                   <Button onClick={onClose}>
                     Cancel
                   </Button>
+                  {(brainstormResult.workflows?.some(w => w.notes?.includes('clarification')) || 
+                    brainstormResult.tasks?.some(t => t.needsMoreInfo) ||
+                    brainstormResult.standaloneTasks?.some(t => t.needsMoreInfo)) && 
+                   !showClarificationMode && (
+                    <Button onClick={handleProvideClarifications}>
+                      Provide Clarifications
+                    </Button>
+                  )}
+                  <Button 
+                    onClick={() => {
+                      setBrainstormResult(null)
+                      setEditableResult(null)
+                      setShowClarificationMode(false)
+                      setClarifications({})
+                    }}
+                  >
+                    Try Again
+                  </Button>
                   <Button type="primary" onClick={handleUseResults}>
-                    {brainstormResult.workflows && brainstormResult.workflows.length > 0
+                    {showClarificationMode ? 'Use Edited Results' :
+                     brainstormResult.workflows && brainstormResult.workflows.length > 0
                       ? 'Create Workflows & Tasks'
                       : 'Use These Tasks'
                     }

@@ -105,9 +105,16 @@ export class AmendmentParser {
   ): Promise<AmendmentResult> {
     const aiService = getAIService()
 
-    // Build context information
+    // Build context information with workflow steps
     const taskList = context.recentTasks.map(t => `- ${t.name} (ID: ${t.id})`).join('\n')
-    const workflowList = context.recentWorkflows.map(w => `- ${w.name} (ID: ${w.id})`).join('\n')
+    const workflowList = context.recentWorkflows.map(w => {
+      let result = `- ${w.name} (ID: ${w.id})`
+      if (w.steps && w.steps.length > 0) {
+        const stepsList = w.steps.map(s => `    • ${s.name}`).join('\n')
+        result += '\n' + stepsList
+      }
+      return result
+    }).join('\n')
     const activeInfo: string[] = []
     if (context.activeTaskId) {
       const activeTask = context.recentTasks.find(t => t.id === context.activeTaskId)
@@ -155,8 +162,10 @@ Context:
 Recent Tasks:
 ${taskList || 'No recent tasks'}
 
-Recent Workflows:
+Recent Workflows (with steps):
 ${workflowList || 'No recent workflows'}
+
+IMPORTANT: When the user mentions a workflow step by name, it likely exists in one of the workflows above. Look for exact or partial matches in the step names listed under each workflow.
 
 ${activeInfo.join('\n')}
 ${jobContextInfo}
