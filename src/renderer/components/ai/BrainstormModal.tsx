@@ -653,24 +653,24 @@ Only include terms that are likely industry-specific or technical jargon, not co
     try {
       const item = itemType === 'workflow' ? editableResult.workflows![index] : editableResult.tasks![index]
       const clarification = clarifications[`${itemType}-${index}`] || ''
-      
+
       // Build prompt with clarification
       const prompt = `Regenerate this ${itemType} with the following clarification:\n\nOriginal: ${JSON.stringify(item)}\n\nClarification: ${clarification}\n\nProvide an improved version addressing the clarification.`
-      
+
       // Call AI to regenerate just this item
       const db = getDatabase()
       const response = await db.extractWorkflowsFromBrainstorm(prompt)
-      
+
       if (response) {
         if (itemType === 'workflow' && response && response.workflows && response.workflows[0]) {
           editableResult.workflows![index] = {
             ...response.workflows[0],
-            type: toTaskType(response.workflows[0].type as any)
+            type: toTaskType(response.workflows[0].type as any),
           }
         } else if (itemType === 'task' && response && response.standaloneTasks && response.standaloneTasks[0]) {
           editableResult.tasks![index] = {
             ...response.standaloneTasks[0],
-            type: toTaskType(response.standaloneTasks[0].type as any)
+            type: toTaskType(response.standaloneTasks[0].type as any),
           }
         }
         setEditableResult({ ...editableResult })
@@ -685,7 +685,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
 
   const handleEditField = (itemType: 'workflow' | 'task', index: number, field: string, value: any) => {
     if (!editableResult) return
-    
+
     const newResult = { ...editableResult }
     if (itemType === 'workflow' && newResult.workflows) {
       (newResult.workflows[index] as any)[field] = value
@@ -1211,13 +1211,13 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                     value={clarifications[`workflow-${index}`] || ''}
                                     onChange={(value) => setClarifications({
                                       ...clarifications,
-                                      [`workflow-${index}`]: value
+                                      [`workflow-${index}`]: value,
                                     })}
                                     style={{ marginTop: 4 }}
                                     rows={2}
                                   />
-                                  <Button 
-                                    size="small" 
+                                  <Button
+                                    size="small"
                                     type="primary"
                                     onClick={() => handleRegenerateSingle('workflow', index)}
                                     loading={isProcessing}
@@ -1384,15 +1384,15 @@ Only include terms that are likely industry-specific or technical jargon, not co
                   <Button onClick={onClose}>
                     Cancel
                   </Button>
-                  {(brainstormResult.workflows?.some(w => w.notes?.includes('clarification')) || 
+                  {(brainstormResult.workflows?.some(w => w.notes?.includes('clarification')) ||
                     brainstormResult.tasks?.some(t => t.needsMoreInfo) ||
-                    brainstormResult.standaloneTasks?.some(t => t.needsMoreInfo)) && 
+                    brainstormResult.standaloneTasks?.some(t => t.needsMoreInfo)) &&
                    !showClarificationMode && (
                     <Button onClick={handleProvideClarifications}>
                       Provide Clarifications
                     </Button>
                   )}
-                  <Button 
+                  <Button
                     onClick={() => {
                       setBrainstormResult(null)
                       setEditableResult(null)

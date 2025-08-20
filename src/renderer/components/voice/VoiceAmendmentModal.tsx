@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload } from '@arco-design/web-react'
-import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload } from '@arco-design/web-react/icon'
+import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select } from '@arco-design/web-react'
+import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload, IconInfoCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import {
@@ -52,6 +52,9 @@ export function VoiceAmendmentModal({
   const [useTextInput, setUseTextInput] = useState(false)
   const [uploadedAudioFile, setUploadedAudioFile] = useState<File | null>(null)
   const [isProcessingAudioFile, setIsProcessingAudioFile] = useState(false)
+  const [contextText, setContextText] = useState('')
+  const [showEditMode, setShowEditMode] = useState(false)
+  const [editedAmendments, setEditedAmendments] = useState<Map<number, any>>(new Map())
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -180,9 +183,10 @@ export function VoiceAmendmentModal({
         currentView: 'tasks',
       }
 
-      // Parse with AI via IPC
-      // logger.ui.debug('[VoiceAmendmentModal] Sending to parse:', text, 'Context:', context)
-      const result = await window.electronAPI.ai.parseAmendment(text, context)
+      // Parse with AI via IPC, including any additional context
+      const fullText = contextText ? `${text}\n\nAdditional context: ${contextText}` : text
+      // logger.ui.debug('[VoiceAmendmentModal] Sending to parse:', fullText, 'Context:', context)
+      const result = await window.electronAPI.ai.parseAmendment(fullText, context)
       // logger.ui.debug('[VoiceAmendmentModal] Received parse result:', result)
       setAmendmentResult(result)
 
@@ -220,7 +224,33 @@ export function VoiceAmendmentModal({
 
     const amendmentsToApply = amendmentResult.amendments.filter((_, index) =>
       selectedAmendments.has(index),
-    )
+    ).map((amendment, originalIndex) => {
+      // Find the actual index in the full array
+      const actualIndex = amendmentResult.amendments.indexOf(amendment)
+      const edits = editedAmendments.get(actualIndex)
+      if (!edits) return amendment
+
+      // Apply edits based on amendment type
+      const edited = { ...amendment }
+      if (amendment.type === AmendmentType.TimeLog && edits.duration !== undefined) {
+        (edited as TimeLog).duration = edits.duration
+      }
+      if (amendment.type === AmendmentType.DurationChange && edits.duration !== undefined) {
+        (edited as DurationChange).newDuration = edits.duration
+      }
+      if (amendment.type === AmendmentType.TaskCreation) {
+        const taskCreation = edited as TaskCreation
+        if (edits.duration !== undefined) taskCreation.duration = edits.duration
+        if (edits.importance !== undefined) taskCreation.importance = edits.importance
+        if (edits.urgency !== undefined) taskCreation.urgency = edits.urgency
+        if (edits.taskType !== undefined) taskCreation.taskType = edits.taskType
+        if (edits.description !== undefined) taskCreation.description = edits.description
+      }
+      if (amendment.type === AmendmentType.NoteAddition && edits.note !== undefined) {
+        (edited as NoteAddition).note = edits.note
+      }
+      return edited
+    })
 
     try {
       // TODO: Actually apply the amendments to tasks/workflows
@@ -244,6 +274,9 @@ export function VoiceAmendmentModal({
     setRecordingDuration(0)
     setUploadedAudioFile(null)
     setIsProcessingAudioFile(false)
+    setContextText('')
+    setShowEditMode(false)
+    setEditedAmendments(new Map())
     onClose()
   }
 
@@ -462,6 +495,27 @@ export function VoiceAmendmentModal({
     return 0.5
   }
 
+  const getAmendmentTitle = (amendment: Amendment) => {
+    switch (amendment.type) {
+      case AmendmentType.StatusUpdate:
+        return 'Status Update'
+      case AmendmentType.TimeLog:
+        return 'Time Log'
+      case AmendmentType.NoteAddition:
+        return 'Note Addition'
+      case AmendmentType.DurationChange:
+        return 'Duration Change'
+      case AmendmentType.StepAddition:
+        return 'Step Addition'
+      case AmendmentType.TaskCreation:
+        return 'Task Creation'
+      case AmendmentType.DependencyChange:
+        return 'Dependency Change'
+      default:
+        return 'Amendment'
+    }
+  }
+
   return (
     <Modal
       title={
@@ -492,6 +546,26 @@ export function VoiceAmendmentModal({
                 <li>{'Add a code review step after implementation'}</li>
               </ul>
             </Paragraph>
+
+            {/* Context Input Section */}
+            <Card style={{ backgroundColor: 'rgb(var(--gray-1))' }}>
+              <Space direction="vertical" style={{ width: '100%' }} size="small">
+                <Space>
+                  <IconInfoCircle />
+                  <Text bold>Additional Context (Optional)</Text>
+                </Space>
+                <Input.TextArea
+                  placeholder="Provide any additional context that might help the AI understand your amendments better..."
+                  value={contextText}
+                  onChange={setContextText}
+                  autoSize={{ minRows: 2, maxRows: 4 }}
+                  style={{ width: '100%' }}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Add context about your work environment, project specifics, or clarify terminology
+                </Text>
+              </Space>
+            </Card>
 
             {/* Input Method Toggle */}
             <Space direction="vertical" style={{ width: '100%' }} size="medium">
@@ -574,7 +648,7 @@ export function VoiceAmendmentModal({
                 </Button>
               )}
                   </Space>
-                  
+
                   {/* Show uploaded file info */}
                   {uploadedAudioFile && (
                     <Alert
@@ -690,6 +764,148 @@ export function VoiceAmendmentModal({
 
               {amendmentResult.needsClarification && amendmentResult.needsClarification.length > 0 && (
                 <Alert type="info" content={amendmentResult.needsClarification.join('. ')} />
+              )}
+
+              {/* Edit Mode Toggle */}
+              <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+                <Button
+                  type={showEditMode ? 'primary' : 'default'}
+                  icon={<IconEdit />}
+                  onClick={() => setShowEditMode(!showEditMode)}
+                >
+                  {showEditMode ? 'Hide Edit Options' : 'Edit Amendments'}
+                </Button>
+              </Space>
+
+              {/* Edit Mode - Show editable fields for selected amendments */}
+              {showEditMode && selectedAmendments.size > 0 && (
+                <Space direction="vertical" style={{ width: '100%' }} size="medium">
+                  {Array.from(selectedAmendments).map(index => {
+                    const amendment = amendmentResult.amendments[index]
+                    const edited = editedAmendments.get(index) || {}
+
+                    return (
+                      <Card key={index} style={{ backgroundColor: 'rgb(var(--gray-1))' }}>
+                        <Space direction="vertical" style={{ width: '100%' }} size="small">
+                          <Text bold>{getAmendmentTitle(amendment)}</Text>
+
+                          {/* Duration editing for time logs and duration changes */}
+                          {(amendment.type === AmendmentType.TimeLog ||
+                            amendment.type === AmendmentType.DurationChange ||
+                            amendment.type === AmendmentType.TaskCreation) && (
+                            <Space>
+                              <Text>Duration (minutes):</Text>
+                              <InputNumber
+                                value={edited.duration || (amendment as any).duration || (amendment as any).newDuration || 60}
+                                min={5}
+                                max={480}
+                                step={15}
+                                onChange={(value) => {
+                                  const newEdited = new Map(editedAmendments)
+                                  newEdited.set(index, { ...edited, duration: value })
+                                  setEditedAmendments(newEdited)
+                                }}
+                                style={{ width: 100 }}
+                              />
+                            </Space>
+                          )}
+
+                          {/* Priority editing for task creation */}
+                          {amendment.type === AmendmentType.TaskCreation && (
+                            <>
+                              <Space style={{ width: '100%' }}>
+                                <Text>Importance:</Text>
+                                <Slider
+                                  value={edited.importance || (amendment as TaskCreation).importance || 5}
+                                  min={1}
+                                  max={10}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, importance: value as number })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ flex: 1 }}
+                                />
+                                <InputNumber
+                                  value={edited.importance || (amendment as TaskCreation).importance || 5}
+                                  min={1}
+                                  max={10}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, importance: value })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 60 }}
+                                />
+                              </Space>
+                              <Space style={{ width: '100%' }}>
+                                <Text>Urgency:</Text>
+                                <Slider
+                                  value={edited.urgency || (amendment as TaskCreation).urgency || 5}
+                                  min={1}
+                                  max={10}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, urgency: value as number })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ flex: 1 }}
+                                />
+                                <InputNumber
+                                  value={edited.urgency || (amendment as TaskCreation).urgency || 5}
+                                  min={1}
+                                  max={10}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, urgency: value })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 60 }}
+                                />
+                              </Space>
+                              <Space>
+                                <Text>Type:</Text>
+                                <Select
+                                  value={edited.taskType || (amendment as TaskCreation).taskType || TaskType.Focused}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, taskType: value })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 120 }}
+                                >
+                                  <Select.Option value={TaskType.Focused}>Focused</Select.Option>
+                                  <Select.Option value={TaskType.Admin}>Admin</Select.Option>
+                                  <Select.Option value={TaskType.Personal}>Personal</Select.Option>
+                                </Select>
+                              </Space>
+                            </>
+                          )}
+
+                          {/* Note editing */}
+                          {(amendment.type === AmendmentType.NoteAddition ||
+                            amendment.type === AmendmentType.TaskCreation) && (
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                              <Text>{amendment.type === AmendmentType.NoteAddition ? 'Note:' : 'Description:'}</Text>
+                              <Input.TextArea
+                                value={edited.note || edited.description ||
+                                       (amendment as any).note || (amendment as any).description || ''}
+                                onChange={(value) => {
+                                  const newEdited = new Map(editedAmendments)
+                                  const field = amendment.type === AmendmentType.NoteAddition ? 'note' : 'description'
+                                  newEdited.set(index, { ...edited, [field]: value })
+                                  setEditedAmendments(newEdited)
+                                }}
+                                autoSize={{ minRows: 2, maxRows: 4 }}
+                                style={{ width: '100%' }}
+                              />
+                            </Space>
+                          )}
+                        </Space>
+                      </Card>
+                    )
+                  })}
+                </Space>
               )}
             </Space>
           </Card>

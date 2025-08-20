@@ -134,7 +134,7 @@ export interface AmendmentContext {
   activeWorkflowId?: string
   activeStepId?: string
   recentTasks: Array<{ id: string; name: string }>
-  recentWorkflows: Array<{ 
+  recentWorkflows: Array<{
     id: string
     name: string
     steps?: Array<{ id: string; name: string }>
