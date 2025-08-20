@@ -213,5 +213,18 @@
     "description": "I have to click two edit buttons to actually get to a page to edit the workflows. ",
     "timestamp": "2025-08-20T14:53:19.542Z",
     "sessionId": "session-1755701599536-zu8umszf4"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "work-logger/WorkLoggerDualView",
+      "progress/WorkflowProgressTracker",
+      "tasks/SequencedTaskEdit"
+    ],
+    "title": "Time logged in the dual view work logger component not shown in workflow progress tracker",
+    "description": "I logged time in the dual view on a task, and then when I went to the workflow progress tracker and workflow editor pages, I saw there was no time logged on the task I logged it for. ",
+    "timestamp": "2025-08-20T15:48:25.110Z",
+    "sessionId": "session-1755704905099-o0cnx1czi"
   }
 ]

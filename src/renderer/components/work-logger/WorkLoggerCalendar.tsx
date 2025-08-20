@@ -487,7 +487,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       logger.ui.info('Work sessions saved successfully')
       await loadWorkSessions() // Reload to get proper IDs
       await loadTasks() // Reload tasks to update cumulative time
-      
+
       // Emit event to update WorkStatusWidget and other components
       appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {

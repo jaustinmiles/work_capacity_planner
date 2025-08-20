@@ -80,6 +80,7 @@ interface WorkItem {
     part: number
     total: number
     originalId: string
+    splitDate?: string // Track when the split was created
   }
 }
 
@@ -266,11 +267,11 @@ function canFitInBlock(
     if (block.personalMinutesUsed + item.duration > block.personalMinutesTotal) {
       if (allowSplitting && availableCapacity > 0) {
         // Can partially fit
-        return { 
-          canFit: false, 
+        return {
+          canFit: false,
           startTime: currentTime,
           canPartiallyFit: true,
-          availableMinutes: availableCapacity
+          availableMinutes: availableCapacity,
         }
       }
       return { canFit: false, startTime: currentTime }
@@ -280,11 +281,11 @@ function canFitInBlock(
     if (block.focusMinutesUsed + item.duration > block.focusMinutesTotal) {
       if (allowSplitting && availableCapacity > 0) {
         // Can partially fit
-        return { 
-          canFit: false, 
+        return {
+          canFit: false,
           startTime: currentTime,
           canPartiallyFit: true,
-          availableMinutes: availableCapacity
+          availableMinutes: availableCapacity,
         }
       }
       return { canFit: false, startTime: currentTime }
@@ -294,11 +295,11 @@ function canFitInBlock(
     if (block.adminMinutesUsed + item.duration > block.adminMinutesTotal) {
       if (allowSplitting && availableCapacity > 0) {
         // Can partially fit
-        return { 
-          canFit: false, 
+        return {
+          canFit: false,
           startTime: currentTime,
           canPartiallyFit: true,
-          availableMinutes: availableCapacity
+          availableMinutes: availableCapacity,
         }
       }
       return { canFit: false, startTime: currentTime }
@@ -332,11 +333,11 @@ function canFitInBlock(
     if (allowSplitting) {
       const minutesUntilBlockEnd = Math.floor((block.endTime.getTime() - tryTime.getTime()) / 60000)
       if (minutesUntilBlockEnd > 0 && minutesUntilBlockEnd < availableCapacity) {
-        return { 
-          canFit: false, 
+        return {
+          canFit: false,
           startTime: tryTime,
           canPartiallyFit: true,
-          availableMinutes: Math.min(minutesUntilBlockEnd, availableCapacity)
+          availableMinutes: Math.min(minutesUntilBlockEnd, availableCapacity),
         }
       }
     }
@@ -1063,16 +1064,29 @@ export function scheduleItemsWithBlocksAndDebug(
         if (fitResult.canFit || (fitResult.canPartiallyFit && options.allowTaskSplitting)) {
           const { startTime } = fitResult
           const minimumSplit = options.minimumSplitDuration || 30
-          
+
+          // Check if this is a small remainder that shouldn't be scheduled on the same day it was split
+          // Small remainders should wait for the next day to avoid fragmentation
+          if (item.splitInfo && item.duration < minimumSplit && item.splitInfo.splitDate) {
+            // This is a small remainder from a previous split
+            // Check if we're still on the same day as when the split was created
+            const blockDateStr = block.startTime.toDateString()
+            const splitDateStr = item.splitInfo.splitDate
+            if (blockDateStr === splitDateStr) {
+              // Skip blocks on the same day as the split - schedule on next day
+              continue
+            }
+          }
+
           // Determine actual duration to schedule in this block
           let durationToSchedule = item.duration
           let isPartialSchedule = false
-          
-          
+
+
           if (fitResult.canPartiallyFit && !fitResult.canFit) {
             // This is a partial fit - check if the available minutes meet minimum
             const availableMinutes = fitResult.availableMinutes || 0
-            
+
             // Check both the piece we'd schedule AND the remainder
             // But only enforce minimum for non-remainder items
             if (!item.splitInfo) {
@@ -1081,7 +1095,7 @@ export function scheduleItemsWithBlocksAndDebug(
                 // The piece we'd schedule is too small
                 continue
               }
-              
+
               // Check if remainder would be too small
               const remainderAfterSplit = item.duration - availableMinutes
               if (remainderAfterSplit > 0 && remainderAfterSplit < minimumSplit) {
@@ -1091,11 +1105,11 @@ export function scheduleItemsWithBlocksAndDebug(
                 // For now, allow the split - remainder will go to next day
               }
             }
-            
+
             durationToSchedule = availableMinutes
             isPartialSchedule = true
           }
-          
+
           const endTime = new Date(startTime.getTime() + durationToSchedule * 60000)
 
           // Track split information
@@ -1109,14 +1123,14 @@ export function scheduleItemsWithBlocksAndDebug(
               splitInfo.total = Math.ceil(originalDuration / durationToSchedule)
             }
           }
-          
+
           // Schedule the item (full or partial)
           // Add split label if this is a split task (either being split now or was previously split)
           const isSplitTask = isPartialSchedule || (item.splitInfo && splitInfo.total > 1)
-          const scheduledName = isSplitTask 
+          const scheduledName = isSplitTask
             ? `${item.name} (${splitInfo.part}/${splitInfo.total})`
             : item.name
-            
+
           scheduledItems.push({
             id: isPartialSchedule ? `${item.id}-part${splitInfo.part}` : item.id,
             name: scheduledName,
@@ -1204,7 +1218,7 @@ export function scheduleItemsWithBlocksAndDebug(
             if (remainingDuration > 0) {
               // Get the original task name (without split suffix)
               const originalName = item.name.replace(/ \(\d+\/\d+\)$/, '')
-              
+
               // Create a new work item for the remaining duration
               const remainderItem: WorkItem = {
                 ...item,
@@ -1215,6 +1229,7 @@ export function scheduleItemsWithBlocksAndDebug(
                   part: splitInfo.part + 1,
                   total: splitInfo.total,
                   originalId: splitInfo.originalId,
+                  splitDate: currentDate.toDateString(), // Track when this split was created
                 },
               }
               // Replace the original item with the remainder in workItems
