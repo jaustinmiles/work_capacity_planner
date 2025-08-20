@@ -19,6 +19,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const [currentDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0 })
+  const [meetingMinutes, setMeetingMinutes] = useState(0)
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
   // Tracking state removed - handled through time logging modal
@@ -57,9 +58,10 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const loadWorkData = async () => {
     try {
       const db = getDatabase()
-      const [patternData, accumulatedData] = await Promise.all([
+      const [patternData, accumulatedData, workSessions] = await Promise.all([
         db.getWorkPattern(currentDate),
         db.getTodayAccumulated(currentDate),
+        db.getWorkSessions(currentDate),
       ])
 
       setPattern(patternData)
@@ -67,6 +69,22 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         focused: accumulatedData.focused || 0,
         admin: accumulatedData.admin || 0,
       })
+      
+      // Calculate meeting time from work sessions
+      let totalMeetingMinutes = 0
+      if (patternData && patternData.meetings) {
+        patternData.meetings.forEach((meeting: any) => {
+          if (meeting.type === 'meeting') {
+            const [startHour, startMin] = meeting.startTime.split(':').map(Number)
+            const [endHour, endMin] = meeting.endTime.split(':').map(Number)
+            const startMinutes = startHour * 60 + startMin
+            const endMinutes = endHour * 60 + endMin
+            const duration = endMinutes - startMinutes
+            totalMeetingMinutes += duration > 0 ? duration : 0
+          }
+        })
+      }
+      setMeetingMinutes(totalMeetingMinutes)
     } catch (error) {
       logger.ui.error('Failed to load work data:', error)
     }
@@ -163,6 +181,16 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               <Text>📋 Admin Time:</Text>
               <Tag color="orange">{formatMinutes(totalCapacity.adminMinutes)}</Tag>
             </Space>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Text>🤝 Meeting Time:</Text>
+              <Tag color="purple">{formatMinutes(meetingMinutes)}</Tag>
+            </Space>
+            <div style={{ borderTop: '1px solid #e5e5e5', marginTop: 8, paddingTop: 8 }}>
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text style={{ fontWeight: 600 }}>📊 Total Time:</Text>
+                <Tag color="green">{formatMinutes(totalCapacity.focusMinutes + totalCapacity.adminMinutes + meetingMinutes)}</Tag>
+              </Space>
+            </div>
           </Space>
         </div>
 
@@ -226,6 +254,15 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                 <Text>{formatMinutes(accumulated.admin)} / {formatMinutes(totalCapacity.adminMinutes)}</Text>
               </Space>
               <Progress percent={adminProgress} color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'} />
+            </div>
+            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text style={{ fontWeight: 600 }}>Total Logged</Text>
+                <Text style={{ fontWeight: 600 }}>
+                  {formatMinutes(accumulated.focused + accumulated.admin)} 
+                  {meetingMinutes > 0 && ` (+ ${formatMinutes(meetingMinutes)} meetings)`}
+                </Text>
+              </Space>
             </div>
           </Space>
         </div>

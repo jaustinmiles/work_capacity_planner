@@ -434,9 +434,9 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
       feedback.forEach(item => {
         if (item && typeof item === 'object' && 'type' in item) {
           // Check for duplicates before adding
-          const isDuplicate = allFeedback.some(existing => 
-            existing.timestamp === item.timestamp && 
-            existing.sessionId === item.sessionId
+          const isDuplicate = allFeedback.some(existing =>
+            existing.timestamp === item.timestamp &&
+            existing.sessionId === item.sessionId,
           )
           if (!isDuplicate) {
             allFeedback.push(item)
@@ -445,9 +445,9 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
       })
     } else if (feedback && typeof feedback === 'object' && 'type' in feedback) {
       // Check for duplicates before adding
-      const isDuplicate = allFeedback.some(existing => 
-        existing.timestamp === feedback.timestamp && 
-        existing.sessionId === feedback.sessionId
+      const isDuplicate = allFeedback.some(existing =>
+        existing.timestamp === feedback.timestamp &&
+        existing.sessionId === feedback.sessionId,
       )
       if (!isDuplicate) {
         allFeedback.push(feedback)
@@ -525,10 +525,10 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
 
     // Deduplicate feedback items based on timestamp and sessionId
     const uniqueFeedback = flatFeedback.filter((item, index, self) =>
-      index === self.findIndex(f => 
-        f.timestamp === item.timestamp && 
-        f.sessionId === item.sessionId
-      )
+      index === self.findIndex(f =>
+        f.timestamp === item.timestamp &&
+        f.sessionId === item.sessionId,
+      ),
     )
 
     // Save updated feedback (ensure it's a flat, deduplicated array)

@@ -34,6 +34,7 @@ const COMPONENT_OPTIONS = [
   { label: 'Task Edit Form', value: 'tasks/TaskEdit' },
   { label: 'Gantt Chart', value: 'timeline/GanttChart' },
   { label: 'Gantt Chart Sidebar', value: 'timeline/GanttChartSidebar' },
+  { label: 'Work Status Widget', value: 'status/WorkStatusWidget' },
   { label: 'Work Logger (Dual View)', value: 'work-logger/WorkLoggerDualView' },
   { label: 'Work Logger Calendar', value: 'work-logger/WorkLoggerCalendar' },
   { label: 'Weekly Calendar', value: 'calendar/WeeklyCalendar' },
