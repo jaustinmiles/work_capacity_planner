@@ -1068,13 +1068,30 @@ export function scheduleItemsWithBlocksAndDebug(
           let durationToSchedule = item.duration
           let isPartialSchedule = false
           
+          
           if (fitResult.canPartiallyFit && !fitResult.canFit) {
             // This is a partial fit - check if the available minutes meet minimum
             const availableMinutes = fitResult.availableMinutes || 0
-            if (availableMinutes < minimumSplit) {
-              // Skip this block if we can't meet minimum split duration
-              continue
+            
+            // Check both the piece we'd schedule AND the remainder
+            // But only enforce minimum for non-remainder items
+            if (!item.splitInfo) {
+              // This is an original item being split for the first time
+              if (availableMinutes < minimumSplit) {
+                // The piece we'd schedule is too small
+                continue
+              }
+              
+              // Check if remainder would be too small
+              const remainderAfterSplit = item.duration - availableMinutes
+              if (remainderAfterSplit > 0 && remainderAfterSplit < minimumSplit) {
+                // The remainder would be too small - but this is OK!
+                // We'll schedule it on the next day
+                // Only skip if both pieces are on the same day
+                // For now, allow the split - remainder will go to next day
+              }
             }
+            
             durationToSchedule = availableMinutes
             isPartialSchedule = true
           }
@@ -1094,7 +1111,9 @@ export function scheduleItemsWithBlocksAndDebug(
           }
           
           // Schedule the item (full or partial)
-          const scheduledName = isPartialSchedule 
+          // Add split label if this is a split task (either being split now or was previously split)
+          const isSplitTask = isPartialSchedule || (item.splitInfo && splitInfo.total > 1)
+          const scheduledName = isSplitTask 
             ? `${item.name} (${splitInfo.part}/${splitInfo.total})`
             : item.name
             
@@ -1113,7 +1132,7 @@ export function scheduleItemsWithBlocksAndDebug(
             deadline: item.deadline,
             originalItem: item.originalItem,
             // Add split information
-            isSplit: isPartialSchedule,
+            isSplit: isSplitTask,
             splitPart: splitInfo.part,
             splitTotal: splitInfo.total,
             originalTaskId: splitInfo.originalId,
@@ -1198,9 +1217,11 @@ export function scheduleItemsWithBlocksAndDebug(
                   originalId: splitInfo.originalId,
                 },
               }
-              // Insert the remainder at the same priority position (right after current)
+              // Replace the original item with the remainder in workItems
               workItems.splice(originalIndex, 1, remainderItem)
-              // Don't remove from itemsToSchedule - we replaced it with remainder
+              // Also remove the current item from itemsToSchedule since it's been partially scheduled
+              itemsToSchedule.splice(i, 1)
+              i-- // Adjust index since we removed an item
               itemsScheduledToday = true
               itemScheduled = true
               schedulingProgress = true
