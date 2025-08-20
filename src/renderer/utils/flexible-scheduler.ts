@@ -1259,21 +1259,21 @@ export function scheduleItemsWithBlocksAndDebug(
   workItems.forEach(item => {
     // Check if this is a personal task with no personal blocks available
     const isPersonalTask = item.taskType === TaskType.Personal
-    const hasAnyPersonalBlocks = patterns.some(pattern => 
-      pattern.blocks.some(block => block.type === 'personal' && (block.capacity?.personalMinutes || 0) > 0)
+    const hasAnyPersonalBlocks = patterns.some(pattern =>
+      pattern.blocks.some(block => block.type === 'personal' && (block.capacity?.personalMinutes || 0) > 0),
     )
     const hasAnyWorkBlocks = patterns.some(pattern =>
-      pattern.blocks.some(block => block.type !== 'personal' && 
-        ((block.capacity?.focusMinutes || 0) > 0 || (block.capacity?.adminMinutes || 0) > 0))
+      pattern.blocks.some(block => block.type !== 'personal' &&
+        ((block.capacity?.focusMinutes || 0) > 0 || (block.capacity?.adminMinutes || 0) > 0)),
     )
-    
+
     let reason = 'Ran out of available days or capacity'
     if (isPersonalTask && !hasAnyPersonalBlocks) {
       reason = 'No personal blocks available for personal task'
     } else if (!isPersonalTask && !hasAnyWorkBlocks) {
       reason = 'No work blocks available for work task'
     }
-    
+
     debugInfo.unscheduledItems.push({
       id: item.id,
       name: item.name,
