@@ -73,10 +73,20 @@ export function SwimLaneTimeline({
   const [internalExpandedWorkflows, setInternalExpandedWorkflows] = useState<Set<string>>(new Set())
   const [laneHeight, setLaneHeight] = useState(30)
   const [hourWidth, setHourWidth] = useState(80)
+  const [currentTime, setCurrentTime] = useState(new Date())
 
   // Use external state if provided, otherwise use internal
   const expandedWorkflows = externalExpandedWorkflows ?? internalExpandedWorkflows
   const setExpandedWorkflows = onExpandedWorkflowsChange ?? setInternalExpandedWorkflows
+
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000) // Update every minute
+    
+    return () => clearInterval(interval)
+  }, [])
 
   // Convert minutes to pixels
   const minutesToPixels = (minutes: number): number => {
@@ -619,6 +629,42 @@ if (!checkOverlap(newSession, laneSessions)) {
                   }}
                 />
               ))}
+
+              {/* Now marker - only show if current time is within the timeline range */}
+              {(() => {
+                const nowHours = currentTime.getHours() + currentTime.getMinutes() / 60
+                if (nowHours >= START_HOUR && nowHours <= END_HOUR) {
+                  const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
+                  const nowLeft = minutesToPixels(nowMinutes) - TIME_LABEL_WIDTH
+                  return (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: nowLeft,
+                        top: 0,
+                        bottom: 0,
+                        width: 2,
+                        backgroundColor: '#ff4d4f',
+                        zIndex: 15,
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: -8,
+                          left: -4,
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          backgroundColor: '#ff4d4f',
+                        }}
+                      />
+                    </div>
+                  )
+                }
+                return null
+              })()}
 
               {/* Sessions */}
               {lane.sessions.map((session, sessionIndex) => {
