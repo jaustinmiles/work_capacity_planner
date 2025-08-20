@@ -131,5 +131,16 @@
     "actual": "Tasks are not being scheduled, and dependency resolutions are not achieved. ",
     "timestamp": "2025-08-19T23:45:42.119Z",
     "sessionId": "session-1755647142109-djuqis9w9"
+  },
+  {
+    "type": "improvement",
+    "priority": "medium",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Circadian rhythm should be user specified",
+    "description": "I go to sleep at like 9 pm, so my circadian second peak is actually at 5 pm ish, where it says I will be at low energy right now! So we need to be able to specify the bedtime or at least read it from the sleep blocks or something. ",
+    "timestamp": "2025-08-20T00:00:16.036Z",
+    "sessionId": "session-1755648016025-m43qdwamm"
   }
 ]
