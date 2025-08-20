@@ -10,11 +10,11 @@ import {
   Checkbox,
   Empty,
   Spin,
-  Notification,
   Modal,
   Input,
   Select,
 } from '@arco-design/web-react'
+import { Notification } from '../common/Notification'
 import {
   IconCheck,
   IconRefresh,
@@ -77,10 +77,7 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
       }
     } catch (error) {
       console.error('Failed to load feedback:', error)
-      Notification.error({
-        title: 'Failed to load feedback',
-        content: String(error),
-      })
+      Notification.error(`Failed to load feedback: ${String(error)}`)
     } finally {
       setLoading(false)
     }
@@ -118,16 +115,10 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
 
       setFeedback(updatedFeedback)
       setSelectedIds(new Set())
-      Notification.success({
-        title: 'Feedback marked as resolved',
-        content: `${itemIds.length} item(s) marked as resolved`,
-      })
+      Notification.success(`${itemIds.length} item(s) marked as resolved`)
     } catch (error) {
       console.error('Failed to update feedback:', error)
-      Notification.error({
-        title: 'Failed to update feedback',
-        content: String(error),
-      })
+      Notification.error(`Failed to update feedback: ${String(error)}`)
     }
   }
 
@@ -148,16 +139,10 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
 
       setFeedback(updatedFeedback)
       setSelectedIds(new Set())
-      Notification.success({
-        title: 'Feedback marked as pending',
-        content: `${itemIds.length} item(s) marked as pending`,
-      })
+      Notification.success(`${itemIds.length} item(s) marked as pending`)
     } catch (error) {
       console.error('Failed to update feedback:', error)
-      Notification.error({
-        title: 'Failed to update feedback',
-        content: String(error),
-      })
+      Notification.error(`Failed to update feedback: ${String(error)}`)
     }
   }
 
@@ -242,16 +227,10 @@ export function FeedbackViewer({ onClose: _onClose }: FeedbackViewerProps) {
       setFeedback(updatedFeedback)
       setEditingItem(null)
       setEditForm({})
-      Notification.success({
-        title: 'Feedback updated',
-        content: 'The feedback item has been updated successfully',
-      })
+      Notification.success('Feedback item updated successfully')
     } catch (error) {
       console.error('Failed to update feedback:', error)
-      Notification.error({
-        title: 'Failed to update feedback',
-        content: String(error),
-      })
+      Notification.error(`Failed to update feedback: ${String(error)}`)
     }
   }
 
