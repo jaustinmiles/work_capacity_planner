@@ -198,10 +198,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           const creation = amendment as TaskCreation
           logger.ui.info('Creating task from amendment:', creation)
 
-          // Create the task
+          // Create the task - use notes field since description doesn't exist in schema
           const taskData = {
             name: creation.name,
-            description: creation.description || '',
+            notes: creation.description || '',
             importance: creation.importance || 5,
             urgency: creation.urgency || 5,
             duration: creation.duration,
@@ -225,11 +225,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           const creation = amendment as WorkflowCreation
           logger.ui.info('Creating workflow from amendment:', creation)
 
-          // Create the workflow with steps
+          // Create the workflow with steps - use notes field since description doesn't exist
           const totalDuration = creation.steps.reduce((sum, step) => sum + step.duration, 0)
           const workflowData = {
             name: creation.name,
-            description: creation.description || '',
+            notes: creation.description || '',
             importance: creation.importance || 5,
             urgency: creation.urgency || 5,
             duration: totalDuration,
