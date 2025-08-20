@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { scheduleItemsWithBlocksAndDebug } from '../flexible-scheduler'
 import { Task } from '@shared/types'
-import { TaskType, TaskCategory } from '@shared/enums'
+import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
 describe('Personal Task Gantt Chart Display', () => {
@@ -9,12 +9,13 @@ describe('Personal Task Gantt Chart Display', () => {
     const personalTask: Task = {
       id: 'personal-1',
       name: 'Task Management App',
-      type: TaskType.Focused,
-      category: TaskCategory.Personal, // Using enum value 'personal'
+      type: TaskType.Personal,
       importance: 50,
       urgency: 50,
       duration: 60,
+      asyncWaitTime: 0,
       dependencies: [],
+      completed: false,
       sessionId: 'test-session',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -24,11 +25,12 @@ describe('Personal Task Gantt Chart Display', () => {
       id: 'work-1',
       name: 'Work Project',
       type: TaskType.Focused,
-      category: TaskCategory.Work,
       importance: 50,
       urgency: 50,
       duration: 60,
+      asyncWaitTime: 0,
       dependencies: [],
+      completed: false,
       sessionId: 'test-session',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -52,11 +54,11 @@ describe('Personal Task Gantt Chart Display', () => {
           startTime: '10:00',
           endTime: '12:00',
           type: 'focus',
-          capacity: { focusMinutes: 120, adminMinutes: 0 },
+          capacity: { focusMinutes: 120, adminMinutes: 0, personalMinutes: 0 },
         },
       ],
       meetings: [],
-      accumulated: { focusMinutes: 0, adminMinutes: 0 },
+      accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
     }]
 
     const result = scheduleItemsWithBlocksAndDebug([personalTask, workTask], [], patterns, today)
@@ -76,17 +78,17 @@ describe('Personal Task Gantt Chart Display', () => {
     expect(unscheduledPersonal).toBeUndefined()
   })
 
-  it('should handle string enum value correctly', () => {
-    // This tests that the string value 'personal' works the same as TaskCategory.Personal
-    const personalTaskString: Task = {
+  it('should not schedule personal tasks in non-personal blocks', () => {
+    const personalTask: Task = {
       id: 'personal-2',
-      name: 'Task Management App',
-      type: TaskType.Focused,
-      category: 'personal' as any, // String value matching enum value
+      name: 'Personal Task',
+      type: TaskType.Personal,
       importance: 50,
       urgency: 50,
       duration: 60,
+      asyncWaitTime: 0,
       dependencies: [],
+      completed: false,
       sessionId: 'test-session',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -99,21 +101,25 @@ describe('Personal Task Gantt Chart Display', () => {
       date: today.toISOString().split('T')[0],
       blocks: [
         {
-          id: 'personal-block',
+          id: 'work-block',
           startTime: '09:00',
-          endTime: '10:00',
-          type: 'personal',
-          capacity: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 60 },
+          endTime: '11:00',
+          type: 'focus',
+          capacity: { focusMinutes: 120, adminMinutes: 0, personalMinutes: 0 },
         },
       ],
       meetings: [],
-      accumulated: { focusMinutes: 0, adminMinutes: 0 },
+      accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
     }]
 
-    const result = scheduleItemsWithBlocksAndDebug([personalTaskString], [], patterns, today)
+    const result = scheduleItemsWithBlocksAndDebug([personalTask], [], patterns, today)
 
-    // Task should still be scheduled (after fix)
+    // Personal task should NOT be scheduled in work block
     const scheduled = result.scheduledItems.find(item => item.id === 'personal-2')
-    expect(scheduled).toBeDefined()
+    expect(scheduled).toBeUndefined()
+
+    // Personal task should be in unscheduled items
+    const unscheduled = result.debugInfo.unscheduledItems.find(item => item.id === 'personal-2')
+    expect(unscheduled).toBeDefined()
   })
 })

@@ -24,15 +24,6 @@ export enum TaskType {
   Mixed = 'mixed',
 }
 
-// Task categories
-export enum TaskCategory {
-  Work = 'work',
-  Personal = 'personal',
-  Learning = 'learning',
-  Health = 'health',
-  Administrative = 'administrative',
-}
-
 // Amendment types for voice amendments
 export enum AmendmentType {
   StatusUpdate = 'status_update',

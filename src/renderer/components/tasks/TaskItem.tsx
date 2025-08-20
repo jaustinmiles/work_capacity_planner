@@ -185,14 +185,9 @@ export function TaskItem({ task }: TaskItemProps) {
                     )}
 
                     <Tag size="small" color="gray">
-                      {task.type === TaskType.Focused ? 'Focused Work' : 'Admin/Meeting'}
+                      {task.type === TaskType.Focused ? 'Focused Work' :
+                       task.type === TaskType.Personal ? 'Personal' : 'Admin/Meeting'}
                     </Tag>
-
-                    {task.category === 'personal' && (
-                      <Tag size="small" color="purple">
-                        Personal
-                      </Tag>
-                    )}
 
                     {task.asyncWaitTime > 0 && (
                       <Tag
