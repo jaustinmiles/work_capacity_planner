@@ -1,4 +1,4 @@
-import { TaskType, TaskCategory } from './enums'
+import { TaskType } from './enums'
 
 export interface Session {
   id: string
@@ -16,7 +16,6 @@ export interface Task {
   importance: number // 1-10
   urgency: number // 1-10
   type: TaskType
-  category?: TaskCategory // defaults to 'work'
   asyncWaitTime: number // minutes
   dependencies: string[] // task IDs
   completed: boolean

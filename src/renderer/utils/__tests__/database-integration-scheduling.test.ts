@@ -55,7 +55,6 @@ describe.skip('Database Integration Scheduling - SKIPPED: Requires updated test 
       importance: task.importance,
       urgency: task.urgency,
       type: task.type as 'focused' | 'admin',
-      category: task.category || 'work',
       asyncWaitTime: task.asyncWaitTime,
       dependencies: task.dependencies ? JSON.parse(task.dependencies) : [],
       completed: task.completed,
