@@ -571,6 +571,7 @@ export function scheduleItemsWithBlocksAndDebug(
     if (level === Number.MAX_SAFE_INTEGER) {
       itemsWithMissingDeps.push(item)
       debugInfo.unscheduledItems.push({
+        id: item.id,
         ...item,
         reason: 'Missing dependency - one or more dependencies do not exist',
       })
@@ -859,6 +860,7 @@ export function scheduleItemsWithBlocksAndDebug(
               `Locked task "${item.name}" at ${lockedTime.toLocaleTimeString()} conflicts with already scheduled tasks`,
             )
             debugInfo.unscheduledItems.push({
+              id: item.id,
               ...item,
               reason: `Conflicts with existing scheduled items at ${lockedTime.toLocaleTimeString()}`,
             })
@@ -1256,11 +1258,29 @@ export function scheduleItemsWithBlocksAndDebug(
 
   // Track any remaining unscheduled items
   workItems.forEach(item => {
+    // Check if this is a personal task with no personal blocks available
+    const isPersonalTask = item.taskType === TaskType.Personal
+    const hasAnyPersonalBlocks = patterns.some(pattern => 
+      pattern.blocks.some(block => block.type === 'personal' && (block.capacity?.personalMinutes || 0) > 0)
+    )
+    const hasAnyWorkBlocks = patterns.some(pattern =>
+      pattern.blocks.some(block => block.type !== 'personal' && 
+        ((block.capacity?.focusMinutes || 0) > 0 || (block.capacity?.adminMinutes || 0) > 0))
+    )
+    
+    let reason = 'Ran out of available days or capacity'
+    if (isPersonalTask && !hasAnyPersonalBlocks) {
+      reason = 'No personal blocks available for personal task'
+    } else if (!isPersonalTask && !hasAnyWorkBlocks) {
+      reason = 'No work blocks available for work task'
+    }
+    
     debugInfo.unscheduledItems.push({
+      id: item.id,
       name: item.name,
       type: item.taskType,
       duration: item.duration,
-      reason: 'Ran out of available days or capacity',
+      reason: reason,
     })
   })
 

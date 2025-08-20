@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { scheduleItemsWithBlocksAndDebug } from '../flexible-scheduler'
 import { Task } from '@shared/types'
+import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
 describe('Personal Tasks Scheduling', () => {
-  it('should respect task categories when scheduling', () => {
+  it('should respect task types when scheduling', () => {
     // Higher priority work task
     const workTask: Task = {
       id: 'task-1',
@@ -12,18 +13,13 @@ describe('Personal Tasks Scheduling', () => {
       duration: 60,
       importance: 8,
       urgency: 8,
-      type: 'focused',
-      category: 'work',
+      type: TaskType.Focused,
       asyncWaitTime: 0,
       dependencies: [],
       completed: false,
       sessionId: 'test-session',
       createdAt: new Date(),
       updatedAt: new Date(),
-      hasSteps: false,
-      overallStatus: 'not_started',
-      criticalPathDuration: 60,
-      worstCaseDuration: 60,
     }
 
     // Lower priority personal task
@@ -33,18 +29,13 @@ describe('Personal Tasks Scheduling', () => {
       duration: 60,
       importance: 3,
       urgency: 3,
-      type: 'focused',
-      category: 'personal',
+      type: TaskType.Personal,
       asyncWaitTime: 0,
       dependencies: [],
       completed: false,
       sessionId: 'test-session',
       createdAt: new Date(),
       updatedAt: new Date(),
-      hasSteps: false,
-      overallStatus: 'not_started',
-      criticalPathDuration: 60,
-      worstCaseDuration: 60,
     }
 
     // Use a fixed future date to ensure consistency
@@ -59,17 +50,19 @@ describe('Personal Tasks Scheduling', () => {
             id: 'block-1',
             startTime: '09:00',
             endTime: '12:00',
-            type: 'focused',
+            type: 'focus',
+            capacity: { focusMinutes: 180, adminMinutes: 0, personalMinutes: 0 },
           },
           {
             id: 'block-2',
             startTime: '13:00',
             endTime: '15:00',
             type: 'personal',
+            capacity: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 120 },
           },
         ],
         meetings: [],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
       },
     ]
 
@@ -107,18 +100,13 @@ describe('Personal Tasks Scheduling', () => {
       duration: 60,
       importance: 5,
       urgency: 5,
-      type: 'focused',
-      category: 'personal',
+      type: TaskType.Personal,
       asyncWaitTime: 0,
       dependencies: [],
       completed: false,
       sessionId: 'test-session',
       createdAt: new Date(),
       updatedAt: new Date(),
-      hasSteps: false,
-      overallStatus: 'not_started',
-      criticalPathDuration: 60,
-      worstCaseDuration: 60,
     }
 
     const startDate = new Date('2025-08-20T08:00:00') // Use future date to avoid current time issues
@@ -130,11 +118,12 @@ describe('Personal Tasks Scheduling', () => {
             id: 'block-1',
             startTime: '09:00',
             endTime: '17:00',
-            type: 'focused', // Only work block
+            type: 'focus', // Only work block
+            capacity: { focusMinutes: 480, adminMinutes: 0, personalMinutes: 0 },
           },
         ],
         meetings: [],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
       },
     ]
 
@@ -158,18 +147,13 @@ describe('Personal Tasks Scheduling', () => {
       duration: 60,
       importance: 5,
       urgency: 5,
-      type: 'focused',
-      category: 'work',
+      type: TaskType.Focused,
       asyncWaitTime: 0,
       dependencies: [],
       completed: false,
       sessionId: 'test-session',
       createdAt: new Date(),
       updatedAt: new Date(),
-      hasSteps: false,
-      overallStatus: 'not_started',
-      criticalPathDuration: 60,
-      worstCaseDuration: 60,
     }
 
     const startDate = new Date('2025-08-20T08:00:00') // Use future date to avoid current time issues
@@ -182,10 +166,11 @@ describe('Personal Tasks Scheduling', () => {
             startTime: '09:00',
             endTime: '17:00',
             type: 'personal', // Only personal block
+            capacity: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 480 },
           },
         ],
         meetings: [],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
       },
     ]
 

@@ -1,8 +1,26 @@
 # Current State
 
-## Session In Progress (2025-08-20 - Workflow Dependency Fix & UI Improvements)
+## Session In Progress (2025-08-20 - Personal Tasks Fix & Development Practices)
 
-### PR #12 Working - Timeline Improvements & Critical Scheduler Fix
+### PR #13 Created - Personal Task Scheduling Fix
+- Branch: fix/personal-tasks-category-cleanup
+- ✅ Fixed critical personal task scheduling bug
+  - Issue: Personal tasks couldn't be scheduled or displayed properly
+  - Root cause: Confusing category/type hierarchy where Personal was a category but tasks could only be Focus/Admin type
+  - Solution: Removed TaskCategory enum entirely, added Personal as a proper TaskType
+- ✅ Simplified task model architecture
+  - Removed redundant category field from Task interface
+  - Updated all UI components to show Personal as Type option
+  - Updated scheduler to use TaskType for compatibility checks
+- ✅ Development practices corrected
+  - Created proper feature branch instead of committing to main
+  - Reset main to match origin/main
+  - Created PR #13 for review
+- TypeScript: 0 errors
+- ESLint: 0 errors (warnings only)
+- Tests: 296/339 passing (some pre-existing failures)
+
+### PR #12 Merged - Timeline Improvements & Critical Scheduler Fix
 - Branch: feat/timeline-completed-filter
 - ✅ Fixed critical workflow dependency resolution bug
   - Issue: Completed workflow steps filtered out entirely, causing "Missing dependency" errors

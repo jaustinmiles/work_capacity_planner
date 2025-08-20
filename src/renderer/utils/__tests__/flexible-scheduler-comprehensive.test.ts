@@ -290,7 +290,7 @@ describe('Flexible Scheduler - Comprehensive Tests', () => {
             },
           ],
           meetings: [],
-          accumulated: { focusMinutes: 0, adminMinutes: 0 },
+          accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
         },
       ]
 
@@ -349,7 +349,7 @@ describe('Flexible Scheduler - Comprehensive Tests', () => {
             },
           ],
           meetings: [],
-          accumulated: { focusMinutes: 0, adminMinutes: 0 },
+          accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
         },
       ]
 
@@ -372,8 +372,7 @@ describe('Flexible Scheduler - Comprehensive Tests', () => {
         id: 'personal-1',
         name: 'Personal Task',
         duration: 30,
-        type: TaskType.Admin,
-        category: 'personal',
+        type: TaskType.Personal,
         importance: 5,
         urgency: 5,
         completed: false,
@@ -409,7 +408,7 @@ describe('Flexible Scheduler - Comprehensive Tests', () => {
             },
           ],
           meetings: [],
-          accumulated: { focusMinutes: 0, adminMinutes: 0 },
+          accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
         },
       ]
 
