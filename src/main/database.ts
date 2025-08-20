@@ -1171,7 +1171,7 @@ export class DatabaseService {
     })
   }
 
-  async getTodayAccumulated(date: string): Promise<{ focused: number; admin: number; total: number }> {
+  async getTodayAccumulated(date: string): Promise<{ focused: number; admin: number; personal: number; total: number }> {
     const _sessionId = await this.getActiveSession()
 
     // APPROACH 1: Get work sessions for the date
@@ -1219,10 +1219,12 @@ export class DatabaseService {
         acc.focused += minutes
       } else if (session.type === TaskType.Admin) {
         acc.admin += minutes
+      } else if (session.type === TaskType.Personal) {
+        acc.personal += minutes
       }
       acc.total += minutes
       return acc
-    }, { focused: 0, admin: 0, total: 0 })
+    }, { focused: 0, admin: 0, personal: 0, total: 0 })
 
     // Add time from completed steps (if not already in work sessions)
     completedSteps.forEach(step => {
@@ -1235,6 +1237,8 @@ export class DatabaseService {
             accumulated.focused += step.actualDuration
           } else if (stepType === TaskType.Admin) {
             accumulated.admin += step.actualDuration
+          } else if (stepType === TaskType.Personal) {
+            accumulated.personal += step.actualDuration
           }
           accumulated.total += step.actualDuration
         }

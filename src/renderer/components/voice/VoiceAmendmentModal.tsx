@@ -162,7 +162,7 @@ export function VoiceAmendmentModal({
     setError(null)
 
     try {
-      // Build context for parser
+      // Build context for parser with enhanced workflow details
       const context: AmendmentContext = {
         activeTaskId: activeTaskId,
         activeWorkflowId: activeWorkflowId,
@@ -173,6 +173,7 @@ export function VoiceAmendmentModal({
         recentWorkflows: sequencedTasks.slice(0, 10).map(w => ({
           id: w.id,
           name: w.name,
+          steps: w.steps?.map(s => ({ name: s.name, id: s.id })) || [],
         })),
         currentView: 'tasks',
       }

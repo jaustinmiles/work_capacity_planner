@@ -9,7 +9,8 @@
     "title": "The sidebar doesn't update after logging work",
     "description": "It requires a window reload in order to update. By side bar, I mean the WorkStatusWidget. It requires manual reload. I would change the component, but that's lacking in the edit capabilities of feedback right now",
     "timestamp": "2025-08-19T22:44:32.477Z",
-    "sessionId": "session-1755643472468-w6o7rucnp"
+    "sessionId": "session-1755643472468-w6o7rucnp",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -33,7 +34,8 @@
     "title": "Personal Task not displayed",
     "description": "I made a personal task called 'Task Management app' or something similar, and it is not displayed on the chart (it doesn't have a row)\n\nUPDATE: I can't get this task to show up on the timeline or be scheduled no matter what. Even if I open up a 6hr personal block tomorrow, nothing. If I open a 6hr focus block tomorrow, nothing either. There's something very wrong here. We should limit our tasktype enums to only those that the scheduler can handle. I actually think we turned off a lint check for unused enum values, we should turn it back on. ",
     "timestamp": "2025-08-19T22:39:52.093Z",
-    "sessionId": "session-1755643192084-t2lth9jne"
+    "sessionId": "session-1755643192084-t2lth9jne",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -68,7 +70,8 @@
     "title": "Duplicated Row in Gantt Chart from Dual View Feature Work",
     "description": "When we fixed the bug in the dual view, I think we introduced weird behavior in the Gantt Chart. Now there's a row for meetings, and a row for 'blocked time.' I actually kinda like this though, but the blocked time row should show everything from all rows merged into a single timeline. We still need the row for meetings. But I stored personal time slots like 'sleep' and 'breakfast' and 'exercise' as meetings so that might be why it's just a copy. \n\nThis has been fixed-ish, but I said I wanted a row that showed everything. The implementation for this feedback just deleted the row entirely. ",
     "timestamp": "2025-08-19T22:19:25.681Z",
-    "sessionId": "session-1755641965656-t4sbx5sfw"
+    "sessionId": "session-1755641965656-t4sbx5sfw",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -190,7 +193,8 @@
     "description": "I'm not convinced the Jargon dictionary works well or is persistent/editable across different brainstorming sessions. I also notice an error in the console about saving jargon: [2025-08-20T14:39:54.022Z] [AI] Error updating jargon definition: Objecterror: \"window.electronAPI.db.updateJargonDefinition is not a function\"stack: \"TypeError: window.electronAPI.db.updateJargonDefinition is not a function\\n    at td.updateJargonDefinition (http://localhost:5174/assets/index-Dsx14iLZ.js:69:672922)\\n    at Object.onBlur (http://localhost:5174/assets/index-Dsx14iLZ.js:99:5517)\\n    at Object.onBlur (http://localhost:5174/assets/index-Dsx14iLZ.js:68:18552)\\n    at onBlur (http://localhost:5174/assets/index-Dsx14iLZ.js:68:13494)\\n    at S3 (http://localhost:5174/assets/index-Dsx14iLZ.js:48:118615)\\n    at http://localhost:5174/assets/index-Dsx14iLZ.js:48:123927\\n    at Ms (http://localhost:5174/assets/index-Dsx14iLZ.js:48:9049)\\n    at _1 (http://localhost:5174/assets/index-Dsx14iLZ.js:48:119866)\\n    at F1 (http://localhost:5174/assets/index-Dsx14iLZ.js:49:26920)\\n    at u$ (http://localhost:5174/assets/index-Dsx14iLZ.js:49:26742)\"[[Prototype]]: Object",
     "steps": "open brainstorm, add context, try to fill in jargon terms",
     "timestamp": "2025-08-20T14:48:20.865Z",
-    "sessionId": "session-1755701300855-7fq3y411o"
+    "sessionId": "session-1755701300855-7fq3y411o",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -212,7 +216,8 @@
     "title": "Should not have 2 edit buttons to edit a workflow",
     "description": "I have to click two edit buttons to actually get to a page to edit the workflows. ",
     "timestamp": "2025-08-20T14:53:19.542Z",
-    "sessionId": "session-1755701599536-zu8umszf4"
+    "sessionId": "session-1755701599536-zu8umszf4",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -225,7 +230,8 @@
     "title": "Time logged in the dual view work logger component not shown in workflow progress tracker",
     "description": "I logged time in the dual view on a task, and then when I went to the workflow progress tracker and workflow editor pages, I saw there was no time logged on the task I logged it for. ",
     "timestamp": "2025-08-20T15:48:25.110Z",
-    "sessionId": "session-1755704905099-o0cnx1czi"
+    "sessionId": "session-1755704905099-o0cnx1czi",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -237,5 +243,46 @@
     "description": "I always end up hitting full screen instead of X because they are so close together",
     "timestamp": "2025-08-20T16:11:51.630Z",
     "sessionId": "session-1755706311622-tb4wq3tfy"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "status/WorkStatusWidget"
+    ],
+    "title": "Personal time should show on status in sidebar",
+    "description": "Under 'Completed Today,' Personal time is not shown and is also not included in the total. ",
+    "steps": "log personal time, observe lack of info in sidebar widget",
+    "expected": "All types of logged time should be displayed",
+    "timestamp": "2025-08-20T18:25:44.543Z",
+    "sessionId": "session-1755714344534-ohjcor81d"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "utils/amendment-applicator"
+    ],
+    "title": "Dependency rewiring and task finding issues",
+    "description": "Here's my amendment and the results: on ROI implementation, i forgot to actually run the baby workflow, so we should add a new task to run the workflow with async time of 30 min, before we can review the baby workflow results\nDetected Changes\nConfidence: 90%\nAdd step to\nROI Implementation\nStep:\nRun baby workflow\n(30 min, focused)\n95%\nThe 'Review baby workflow results' step was mentioned but may not exist yet in the workflow. You may need to add that step as well.\n\nThe problem here is that the review baby workflow results step definitely exists, but it was unable to find it and the dependency wiring didn't work, probably because of this. ",
+    "steps": "Run this exact prompt as text input, observe lack of task finding and dependency creation. ",
+    "expected": "The AI should be able to understand references to existing tasks, and it should display changes to dependencies. Ideally, we should also allow user input to iterate on the amendments, rather than just going straight to 'accept' or 'try again'",
+    "timestamp": "2025-08-20T18:31:03.722Z",
+    "sessionId": "session-1755714663712-f9o69miur"
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "components": [
+      "calendar/WeeklyCalendar",
+      "other"
+    ],
+    "title": "On the calendar view, tasks are not sorted by time",
+    "description": "So I'm actually not sure if this component that I selected in the feedback form is correct but on the navigation panel, there's an item for calendar and in the calendar view it's like a two column thing where one column is the calendar and then the second column to the right of it is like a printout of all of the work blocks and all the tasks for the day, but what I know is that sometimes when we make work blocks like in our schedule editor when we drag them around and stuff on the chart, it doesn't actually drag the ordering of them in the way that they're listed and this leads me to believe that when it's stored, it's stored as like an array of work blocks or something but it's not in chronological order. It's in creation order. So basically this propagates through to the calendar and then we display them in creation order rather than chronological order and it needs to be fixed.",
+    "steps": "Create a work schedule with at least two blocks and then move the block you created second so that it comes before the first block even though it's timing comes afterward, then save the schedule and then go to the calendar view and then you should see the work block out of order printed in the second column of the calendar, layout",
+    "expected": "In all places where we have work or tasks in general, they should buy a default be displayed in chronological order",
+    "actual": "Currently, the tasks are not displayed in chronological order if work blocks were moved around after creation",
+    "timestamp": "2025-08-20T19:02:26.535Z",
+    "sessionId": "session-1755716546524-jgqpp154s"
   }
 ]
