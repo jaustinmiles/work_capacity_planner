@@ -301,7 +301,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
       await loadWorkSessions()
       await loadTasks()
-      
+
       // Emit event to update WorkStatusWidget and other components
       appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {
