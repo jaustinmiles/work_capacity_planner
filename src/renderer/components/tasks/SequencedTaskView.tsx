@@ -6,6 +6,7 @@ import { TaskStepItem } from './TaskStepItem'
 import { SequencedTaskEdit } from './SequencedTaskEdit'
 import { WorkflowVisualization } from './WorkflowVisualization'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
+import { WorkflowMinimap } from './WorkflowMinimap'
 import { getDatabase } from '../../services/database'
 import { logger } from '../../utils/logger'
 
@@ -35,6 +36,7 @@ export function SequencedTaskView({
   const [showVisualization, setShowVisualization] = useState(false)
   const [activeTab, setActiveTab] = useState<string>('overview')
   const [stepTimeLogs, setStepTimeLogs] = useState<Record<string, number>>({})
+  const [stepsCollapsed, setStepsCollapsed] = useState(true) // Start collapsed for better UX with many workflows
 
   const completedSteps = task.steps.filter(step => step.status === 'completed').length
   const totalSteps = task.steps.length
@@ -114,14 +116,15 @@ export function SequencedTaskView({
       <SequencedTaskEdit
         task={task}
         onClose={() => setShowEditView(false)}
+        startInEditMode={true}
       />
     )
   }
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="large">
-      {/* Main Task Header */}
-      <Card>
+    <Space direction="vertical" style={{ width: '100%' }} size="small">
+      {/* Combined Card - Header and Content in one card to remove gap */}
+      <Card style={{ marginBottom: 0 }}>
         <Row gutter={24} align="center">
           <Col flex="auto">
             <Space direction="vertical" size="small">
@@ -217,36 +220,36 @@ export function SequencedTaskView({
             </Space>
           </Col>
         </Row>
-      </Card>
 
-      {/* Current Status Alert */}
-      {currentStep && (
-        <Alert
-          type="info"
-          content={
-            <Space>
-              <Text>Currently working on:</Text>
-              <Text style={{ fontWeight: 500 }}>{currentStep.name}</Text>
-              <Text type="secondary">({formatDuration(currentStep.duration)})</Text>
-            </Space>
-          }
-        />
-      )}
+        {/* Current Status Alert - inside the same card */}
+        {currentStep && (
+          <Alert
+            type="info"
+            style={{ marginTop: 16, marginBottom: 16 }}
+            content={
+              <Space>
+                <Text>Currently working on:</Text>
+                <Text style={{ fontWeight: 500 }}>{currentStep.name}</Text>
+                <Text type="secondary">({formatDuration(currentStep.duration)})</Text>
+              </Space>
+            }
+          />
+        )}
 
-      {task.overallStatus === 'waiting' && (
-        <Alert
-          type="warning"
-          content={
-            <Space>
-              <Text>Waiting for async process to complete...</Text>
-              <Text type="secondary">Next step will be available automatically</Text>
-            </Space>
-          }
-        />
-      )}
+        {task.overallStatus === 'waiting' && (
+          <Alert
+            type="warning"
+            style={{ marginTop: 16, marginBottom: 16 }}
+            content={
+              <Space>
+                <Text>Waiting for async process to complete...</Text>
+                <Text type="secondary">Next step will be available automatically</Text>
+              </Space>
+            }
+          />
+        )}
 
-      {/* Tabbed View */}
-      <Card>
+        {/* Tabbed View - now inside the same card */}
         <Tabs
           activeTab={activeTab}
           onChange={setActiveTab}
@@ -302,34 +305,46 @@ export function SequencedTaskView({
               <Card
                 title={
                   <Space>
-                    <Title heading={6} style={{ margin: 0 }}>Workflow Steps</Title>
+                    <Title heading={6} style={{ margin: 0 }}>Workflow Steps ({task.steps.length})</Title>
                     <Button
                       type="text"
                       size="small"
-                      icon={<IconDown style={{ transform: showDetails ? 'rotate(180deg)' : 'none' }} />}
-                      onClick={() => setShowDetails(!showDetails)}
+                      icon={<IconDown style={{ transform: !stepsCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />}
+                      onClick={() => setStepsCollapsed(!stepsCollapsed)}
                     >
-                      {showDetails ? 'Hide Details' : 'Show Details'}
+                      {stepsCollapsed ? 'Show Steps' : 'Hide Steps'}
                     </Button>
+                    {!stepsCollapsed && (
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<IconDown style={{ transform: showDetails ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />}
+                        onClick={() => setShowDetails(!showDetails)}
+                      >
+                        {showDetails ? 'Hide Details' : 'Show Details'}
+                      </Button>
+                    )}
                   </Space>
                 }
               >
-                <div style={{ position: 'relative' }}>
-                  {task.steps.map((step, index) => (
-                    <TaskStepItem
-                      key={step.id}
-                      step={step}
-                      stepIndex={index}
-                      isActive={step.status === 'in_progress'}
-                      isCompleted={step.status === 'completed'}
-                      timeLogged={stepTimeLogs[step.id] || 0}
-                      onStart={handleStepStart}
-                      onComplete={handleStepComplete}
-                    />
-                  ))}
-                </div>
+                {!stepsCollapsed ? (
+                  <>
+                    <div style={{ position: 'relative' }}>
+                      {task.steps.map((step, index) => (
+                        <TaskStepItem
+                          key={step.id}
+                          step={step}
+                          stepIndex={index}
+                          isActive={step.status === 'in_progress'}
+                          isCompleted={step.status === 'completed'}
+                          timeLogged={stepTimeLogs[step.id] || 0}
+                          onStart={handleStepStart}
+                          onComplete={handleStepComplete}
+                        />
+                      ))}
+                    </div>
 
-                {showDetails && (
+                    {showDetails && (
                   <div style={{ marginTop: 24, padding: 16, background: '#F7F8FA', borderRadius: 8 }}>
                     <Title heading={6}>Workflow Analysis</Title>
                     <Space direction="vertical" size="small">
@@ -348,7 +363,35 @@ export function SequencedTaskView({
                     </Space>
                   </div>
                 )}
-              </Card>
+              </>
+            ) : (
+              <div style={{ padding: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                  {/* Minimap on the left */}
+                  <div style={{ flex: '0 0 auto' }}>
+                    <WorkflowMinimap task={task} width={280} height={80} />
+                  </div>
+
+                  {/* Progress info on the right */}
+                  <div style={{ flex: 1 }}>
+                    <Progress
+                      percent={Math.round(progressPercent)}
+                      style={{ marginBottom: 8 }}
+                      strokeWidth={8}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text type="secondary">
+                        {completedSteps} of {totalSteps} steps completed
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {Math.round(progressPercent)}% complete
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
             </Space>
           </Tabs.TabPane>
 
@@ -366,7 +409,7 @@ export function SequencedTaskView({
         </Tabs>
       </Card>
 
-      {/* Workflow Visualization Modal */}
+      {/* Workflow Visualization Modal - outside of cards */}
       <WorkflowVisualization
         task={task}
         visible={showVisualization}

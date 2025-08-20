@@ -25,7 +25,29 @@
 - Build successful
 - Ready for review and merge
 
-## Session In Progress (2025-08-20 - Personal Tasks Fix & Development Practices)
+## Session In Progress (2025-08-20 - Amendment Fixes & Voice Recording)
+
+### Major UI Improvements & Amendment Fixes
+- ✅ Collapsible workflow steps in UI
+  - Added collapse/expand button with smooth animations
+  - Shows minimap graph of incomplete steps when collapsed
+  - Progress bar with rounded percentages
+  - Starts collapsed by default for better UX with many workflows
+- ✅ Removed gap between workflow name and panels
+  - Combined header and content into single card
+  - Moved alerts inside the card
+  - Seamless single-card design
+- ✅ Fixed double edit button issue
+  - Added startInEditMode=true when opening edit view
+  - Fixed save/cancel to return directly to main view (no intermediate page)
+- ✅ Implemented WorkflowCreation in amendment-applicator
+  - Creates new workflows from voice amendments
+- ✅ Implemented TaskCreation in amendment-applicator  
+  - Creates new tasks from voice amendments
+- ✅ Confirmed voice recordings are persisted
+  - Saved to /tmp/work-planner-audio with timestamps
+
+## Session Completed (2025-08-20 - Personal Tasks Fix & Development Practices)
 
 ### PR #13 Created - Personal Task Scheduling Fix
 - Branch: fix/personal-tasks-category-cleanup

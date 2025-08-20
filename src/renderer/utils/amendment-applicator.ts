@@ -12,6 +12,8 @@ import {
   NoteAddition,
   DurationChange,
   StepAddition,
+  TaskCreation,
+  WorkflowCreation,
 } from '@shared/amendment-types'
 import { assertNever, TaskType } from '@shared/enums'
 import { getDatabase } from '../services/database'
@@ -192,17 +194,75 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           Message.info('Dependency changes not yet implemented')
           break
 
-        case AmendmentType.TaskCreation:
-          // TODO: Implement task creation
-          logger.ui.debug('TODO: Task creation not yet implemented', amendment)
-          Message.info('Task creation not yet implemented')
-          break
+        case AmendmentType.TaskCreation: {
+          const creation = amendment as TaskCreation
+          logger.ui.info('Creating task from amendment:', creation)
 
-        case AmendmentType.WorkflowCreation:
-          // TODO: Implement workflow creation
-          logger.ui.debug('TODO: Workflow creation not yet implemented', amendment)
-          Message.info('Workflow creation not yet implemented')
+          // Create the task
+          const taskData = {
+            name: creation.name,
+            description: creation.description || '',
+            importance: creation.importance || 5,
+            urgency: creation.urgency || 5,
+            duration: creation.duration,
+            type: creation.taskType || TaskType.Focused,
+            asyncWaitTime: 0,
+            completed: false,
+            dependencies: [],
+            hasSteps: false as const,
+            overallStatus: TaskStatus.NotStarted,
+            criticalPathDuration: creation.duration,
+            worstCaseDuration: creation.duration,
+          }
+
+          await db.createTask(taskData)
+          successCount++
+          logger.ui.info('Task created successfully:', creation.name)
           break
+        }
+
+        case AmendmentType.WorkflowCreation: {
+          const creation = amendment as WorkflowCreation
+          logger.ui.info('Creating workflow from amendment:', creation)
+
+          // Create the workflow with steps
+          const totalDuration = creation.steps.reduce((sum, step) => sum + step.duration, 0)
+          const workflowData = {
+            name: creation.name,
+            description: creation.description || '',
+            importance: creation.importance || 5,
+            urgency: creation.urgency || 5,
+            duration: totalDuration,
+            type: creation.steps[0]?.type || TaskType.Focused,
+            asyncWaitTime: 0,
+            completed: false,
+            completedCumulativeMinutes: 0,
+            dependencies: [],
+            criticalPathDuration: totalDuration,
+            worstCaseDuration: totalDuration,
+            steps: creation.steps.map((step, index) => ({
+              id: `step-${Date.now()}-${index}`,
+              taskId: '', // Will be set when saved
+              name: step.name,
+              duration: step.duration,
+              type: step.type,
+              dependsOn: step.dependsOn || [],
+              asyncWaitTime: step.asyncWaitTime || 0,
+              completed: false,
+              completedCumulativeMinutes: 0,
+              status: 'pending' as const,
+              stepIndex: index,
+              percentComplete: 0,
+            })),
+            hasSteps: true as const,
+            overallStatus: TaskStatus.NotStarted,
+          }
+
+          await db.createSequencedTask(workflowData)
+          successCount++
+          logger.ui.info('Workflow created successfully:', creation.name)
+          break
+        }
 
         default: {
           // This will cause a compile-time error if we miss any enum values

@@ -153,8 +153,12 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
       // Emit event to update sidebar
       appEvents.emit(EVENTS.WORKFLOW_UPDATED)
 
-      setIsEditing(false)
-      if (onClose) onClose()
+      // Close directly without going to read-only mode
+      if (onClose) {
+        onClose()
+      } else {
+        setIsEditing(false)
+      }
     } catch (error) {
       logger.ui.error('Failed to update workflow:', error)
     } finally {
@@ -348,9 +352,14 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                   <Button
                     icon={<IconClose />}
                     onClick={() => {
-                      setEditingSteps(task.steps.map(step => ({ ...step })))
-                      setEditedTask({ ...task })
-                      setIsEditing(false)
+                      // Close directly without going to read-only mode
+                      if (onClose) {
+                        onClose()
+                      } else {
+                        setEditingSteps(task.steps.map(step => ({ ...step })))
+                        setEditedTask({ ...task })
+                        setIsEditing(false)
+                      }
                     }}
                   >
                     Cancel
