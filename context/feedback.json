@@ -226,5 +226,16 @@
     "description": "I logged time in the dual view on a task, and then when I went to the workflow progress tracker and workflow editor pages, I saw there was no time logged on the task I logged it for. ",
     "timestamp": "2025-08-20T15:48:25.110Z",
     "sessionId": "session-1755704905099-o0cnx1czi"
+  },
+  {
+    "type": "improvement",
+    "priority": "low",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "X button too close to full screen button",
+    "description": "I always end up hitting full screen instead of X because they are so close together",
+    "timestamp": "2025-08-20T16:11:51.630Z",
+    "sessionId": "session-1755706311622-tb4wq3tfy"
   }
 ]
