@@ -422,8 +422,13 @@ export function scheduleItemsWithBlocksAndDebug(
       const workflowColor = `hsl(${wIndex * 60}, 70%, 50%)`
 
       workflow.steps
-        .filter(step => step.status !== 'completed')
         .forEach((step, stepIndex) => {
+          // Skip adding completed steps to the scheduling queue, but they still exist for dependency resolution
+          if (step.status === 'completed') {
+            // We'll add completed steps to a separate tracking structure below
+            return
+          }
+
           // Calculate priority using enhanced function if context available
           // For steps, we use the workflow's importance/urgency as base
           const basePriority = workflow.importance * workflow.urgency
@@ -462,6 +467,14 @@ export function scheduleItemsWithBlocksAndDebug(
           })
         })
     })
+
+  // Track completed workflow steps for dependency resolution
+  const completedStepIds = new Set<string>()
+  sequencedTasks.forEach(workflow => {
+    workflow.steps
+      .filter(step => step.status === 'completed')
+      .forEach(step => completedStepIds.add(step.id))
+  })
 
   // Helper function to perform topological sort on work items with dependencies
   function topologicalSort(items: WorkItem[]): WorkItem[] {
@@ -528,13 +541,17 @@ export function scheduleItemsWithBlocksAndDebug(
 
     if (item.dependencies && item.dependencies.length > 0) {
       for (const depId of item.dependencies) {
-        // Check if dependency exists
-        if (!itemById.has(depId)) {
+        // Check if dependency exists in work items or is a completed step
+        if (!itemById.has(depId) && !completedStepIds.has(depId)) {
           // Missing dependency - mark this item as unschedulable
           level = Number.MAX_SAFE_INTEGER
           break
         }
-        level = Math.max(level, calculateLevel(depId, visiting) + 1)
+        // If dependency is completed, don't increment level
+        // If dependency is in work items, calculate its level
+        if (itemById.has(depId)) {
+          level = Math.max(level, calculateLevel(depId, visiting) + 1)
+        }
       }
     }
 

@@ -143,5 +143,16 @@
     "description": "I go to sleep at like 9 pm, so my circadian second peak is actually at 5 pm ish, where it says I will be at low energy right now! So we need to be able to specify the bedtime or at least read it from the sleep blocks or something. ",
     "timestamp": "2025-08-20T00:00:16.036Z",
     "sessionId": "session-1755648016025-m43qdwamm"
+  },
+  {
+    "type": "bug",
+    "priority": "low",
+    "components": [
+      "other"
+    ],
+    "title": "Y axis of eisenhower matrix interferes with rendered text",
+    "description": "It's too far to the right, overlapping the first two blocks (column). Is this component even in the feedback affected components list?",
+    "timestamp": "2025-08-20T00:12:00.160Z",
+    "sessionId": "session-1755648720152-smzzn95hp"
   }
 ]

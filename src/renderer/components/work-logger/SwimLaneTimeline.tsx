@@ -84,7 +84,7 @@ export function SwimLaneTimeline({
     const interval = setInterval(() => {
       setCurrentTime(new Date())
     }, 60000) // Update every minute
-    
+
     return () => clearInterval(interval)
   }, [])
 
