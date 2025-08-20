@@ -27,6 +27,7 @@ import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '../../utils/logger'
+import { appEvents, EVENTS } from '../../utils/events'
 import { SwimLaneTimeline } from './SwimLaneTimeline'
 import { CircularClock } from './CircularClock'
 import { ClockTimePicker } from '../common/ClockTimePicker'
@@ -300,6 +301,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
       await loadWorkSessions()
       await loadTasks()
+      
+      // Emit event to update WorkStatusWidget and other components
+      appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {
       logger.ui.error('Failed to save work sessions:', error)
     } finally {

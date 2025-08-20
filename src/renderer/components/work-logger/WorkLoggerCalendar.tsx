@@ -24,6 +24,7 @@ import { TaskStep } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '../../utils/logger'
+import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
 
 const { Text } = Typography
@@ -486,6 +487,9 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       logger.ui.info('Work sessions saved successfully')
       await loadWorkSessions() // Reload to get proper IDs
       await loadTasks() // Reload tasks to update cumulative time
+      
+      // Emit event to update WorkStatusWidget and other components
+      appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {
       logger.ui.error('Failed to save work sessions:', error)
       console.error('Failed to save work sessions:', error)
