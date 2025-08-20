@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input } from '@arco-design/web-react'
-import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink } from '@arco-design/web-react/icon'
+import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload } from '@arco-design/web-react'
+import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import {
@@ -50,6 +50,8 @@ export function VoiceAmendmentModal({
   const [recordingDuration, setRecordingDuration] = useState(0)
   const [textInput, setTextInput] = useState('')
   const [useTextInput, setUseTextInput] = useState(false)
+  const [uploadedAudioFile, setUploadedAudioFile] = useState<File | null>(null)
+  const [isProcessingAudioFile, setIsProcessingAudioFile] = useState(false)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -240,7 +242,38 @@ export function VoiceAmendmentModal({
     setSelectedAmendments(new Set())
     setError(null)
     setRecordingDuration(0)
+    setUploadedAudioFile(null)
+    setIsProcessingAudioFile(false)
     onClose()
+  }
+
+  const handleAudioFileUpload = async (file: File) => {
+    setUploadedAudioFile(file)
+    setIsProcessingAudioFile(true)
+    setError(null)
+
+    try {
+      // Convert file to array buffer
+      const arrayBuffer = await file.arrayBuffer()
+      const uint8Array = new Uint8Array(arrayBuffer)
+
+      // Transcribe the audio file
+      const transcriptionResult = await getDatabase().transcribeAudioBuffer(
+        uint8Array as any,
+        file.name,
+        { prompt: 'Task amendment: status update, time logging, notes, or task modifications' },
+      )
+
+      setTranscription(transcriptionResult.text)
+
+      // Parse the transcription
+      await parseTranscription(transcriptionResult.text)
+    } catch (err) {
+      setError('Failed to process audio file. Please try again.')
+      logger.ui.error('Error processing uploaded audio file:', err)
+    } finally {
+      setIsProcessingAudioFile(false)
+    }
   }
 
   const formatDuration = (seconds: number) => {
@@ -481,17 +514,35 @@ export function VoiceAmendmentModal({
 
               {/* Voice Recording Controls */}
               {!useTextInput && (
-                <Space size="medium">
-                  {recordingState === 'idle' && (
-                    <Button
-                      type="primary"
-                      icon={<IconSoundFill />}
-                      onClick={startRecording}
-                      size="large"
-                    >
-                      Start Recording
-                    </Button>
-                  )}
+                <Space direction="vertical" style={{ width: '100%' }} size="medium">
+                  <Space size="medium">
+                    {recordingState === 'idle' && (
+                      <>
+                        <Button
+                          type="primary"
+                          icon={<IconSoundFill />}
+                          onClick={startRecording}
+                          size="large"
+                        >
+                          Start Recording
+                        </Button>
+                        <Upload
+                          accept="audio/*"
+                          showUploadList={false}
+                          beforeUpload={(file) => {
+                            handleAudioFileUpload(file)
+                            return false // Prevent default upload behavior
+                          }}
+                        >
+                          <Button
+                            icon={<IconUpload />}
+                            size="large"
+                          >
+                            Upload Audio File
+                          </Button>
+                        </Upload>
+                      </>
+                    )}
 
               {recordingState === 'recording' && (
                 <>
@@ -522,6 +573,16 @@ export function VoiceAmendmentModal({
                   Record Again
                 </Button>
               )}
+                  </Space>
+                  
+                  {/* Show uploaded file info */}
+                  {uploadedAudioFile && (
+                    <Alert
+                      type="info"
+                      content={`Processing: ${uploadedAudioFile.name}`}
+                      closable={false}
+                    />
+                  )}
                 </Space>
               )}
 
@@ -552,10 +613,10 @@ export function VoiceAmendmentModal({
               )}
             </Space>
 
-            {isTranscribing && (
+            {(isTranscribing || isProcessingAudioFile) && (
               <Space>
                 <Spin />
-                <Text>Transcribing audio...</Text>
+                <Text>{isProcessingAudioFile ? 'Processing audio file...' : 'Transcribing audio...'}</Text>
               </Space>
             )}
 
