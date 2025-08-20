@@ -156,5 +156,62 @@
     "description": "It's too far to the right, overlapping the first two blocks (column). Is this component even in the feedback affected components list?",
     "timestamp": "2025-08-20T00:12:00.160Z",
     "sessionId": "session-1755648720152-smzzn95hp"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "components": [
+      "utils/flexible-scheduler",
+      "tasks/SequencedTaskEdit"
+    ],
+    "title": "Allow priority rankings on individual workflow steps",
+    "description": "Sometimes, it's important to get one step of a workflow done, even if the entire thing is lower priority. It would be nice to be able to specify priorities for workflow steps as an optional parameter",
+    "timestamp": "2025-08-20T14:31:52.487Z",
+    "sessionId": "session-1755700312479-b1lostq8e"
+  },
+  {
+    "type": "improvement",
+    "priority": "low",
+    "components": [
+      "tasks/SequencedTaskEdit"
+    ],
+    "title": "Nodes in graph view are not spaced out enough",
+    "description": "Nodes in graph view seem to touch sometimes, and this makes it hard to see the actual dependencies. ",
+    "timestamp": "2025-08-20T14:36:10.752Z",
+    "sessionId": "session-1755700570743-xmdghxk49"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "Jargon dictionary error",
+    "description": "I'm not convinced the Jargon dictionary works well or is persistent/editable across different brainstorming sessions. I also notice an error in the console about saving jargon: [2025-08-20T14:39:54.022Z] [AI] Error updating jargon definition: Objecterror: \"window.electronAPI.db.updateJargonDefinition is not a function\"stack: \"TypeError: window.electronAPI.db.updateJargonDefinition is not a function\\n    at td.updateJargonDefinition (http://localhost:5174/assets/index-Dsx14iLZ.js:69:672922)\\n    at Object.onBlur (http://localhost:5174/assets/index-Dsx14iLZ.js:99:5517)\\n    at Object.onBlur (http://localhost:5174/assets/index-Dsx14iLZ.js:68:18552)\\n    at onBlur (http://localhost:5174/assets/index-Dsx14iLZ.js:68:13494)\\n    at S3 (http://localhost:5174/assets/index-Dsx14iLZ.js:48:118615)\\n    at http://localhost:5174/assets/index-Dsx14iLZ.js:48:123927\\n    at Ms (http://localhost:5174/assets/index-Dsx14iLZ.js:48:9049)\\n    at _1 (http://localhost:5174/assets/index-Dsx14iLZ.js:48:119866)\\n    at F1 (http://localhost:5174/assets/index-Dsx14iLZ.js:49:26920)\\n    at u$ (http://localhost:5174/assets/index-Dsx14iLZ.js:49:26742)\"[[Prototype]]: Object",
+    "steps": "open brainstorm, add context, try to fill in jargon terms",
+    "timestamp": "2025-08-20T14:48:20.865Z",
+    "sessionId": "session-1755701300855-7fq3y411o"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "Better AI Brainstorm Editing and Feedback",
+    "description": "Basically, I want the AI brainstorm to be more interactive like I noticed that the AI puts notes out where it says need more clarification on X. But from what I understand there's no way to actually give it more clarification except for canceling the entire brainstorming session and then restarting with the same prompt. I think there's like an option for like try again or something I have some of the same issues with the amendment applicator I think that the ideal workflow would be to see what the AI suggest and then have like a text box underneath it's \"\" notes so that a user can input notes immediately to answer the questions and then have Claude redo the workflow generation just for that one item and then another thing I noticed was I would really like to be able to edit priorities and durations on that same AI brainstorm menu before I click accept. And for the amendment applicator I think few things first is that I need to be able to like use the application and scroll through it in order to like check on the current state and scroll through current workflow so I can say OK this one needs to be changed. But the issue is that it tries to apply to like all of the workflow and then if it gets it wrong, it just says do you wanna try again and you have to like restart from scratch and it doesn't even really save your voice memo or allow you to text edit it basically this is supposed to be unease of use feature to make things easier and I feel like it actually makes things take a little bit longer would be more tedious sometimes. Additionally, I was thinking it would be nice if I could like open up an AI chat window and actually talk to Claude but kind of with the same framework where it has to output like workflows and and stuff and maybe we could integrate like a chat into like what is already existin and that way whatever Claude responds with it's like displayed as a workflow.",
+    "timestamp": "2025-08-20T14:52:27.379Z",
+    "sessionId": "session-1755701547369-y5cktp5zo"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "tasks/SequencedTaskEdit"
+    ],
+    "title": "Should not have 2 edit buttons to edit a workflow",
+    "description": "I have to click two edit buttons to actually get to a page to edit the workflows. ",
+    "timestamp": "2025-08-20T14:53:19.542Z",
+    "sessionId": "session-1755701599536-zu8umszf4"
   }
 ]

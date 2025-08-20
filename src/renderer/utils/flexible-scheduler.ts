@@ -23,6 +23,12 @@ export interface ScheduledItem {
   isBlocked?: boolean
   deadline?: Date
   originalItem?: Task | TaskStep | WorkMeeting
+  // Task splitting support
+  isSplit?: boolean
+  splitPart?: number // e.g., 1 for "Part 1 of 3"
+  splitTotal?: number // e.g., 3 for "Part 1 of 3"
+  originalTaskId?: string // Links split parts together
+  remainingDuration?: number // Duration left to schedule
 }
 
 export interface SchedulingDebugInfo {
@@ -69,6 +75,12 @@ interface WorkItem {
   isLocked?: boolean
   lockedStartTime?: Date
   originalItem: Task | TaskStep
+  originalDuration?: number // Track original duration for split tasks
+  splitInfo?: {
+    part: number
+    total: number
+    originalId: string
+  }
 }
 
 interface BlockCapacity {
@@ -215,13 +227,21 @@ function getMeetingScheduledItems(meetings: WorkMeeting[], date: Date): Schedule
   return items
 }
 
+interface FitResult {
+  canFit: boolean
+  startTime: Date
+  availableMinutes?: number // How many minutes can fit if partial
+  canPartiallyFit?: boolean // True if some portion can fit
+}
+
 function canFitInBlock(
   item: WorkItem,
   block: BlockCapacity,
   currentTime: Date,
   scheduledItems: ScheduledItem[],
   now?: Date,
-): { canFit: boolean; startTime: Date } {
+  allowSplitting?: boolean,
+): FitResult {
   // Don't count async wait times as conflicts when checking for available slots
   const nonWaitScheduledItems = scheduledItems.filter(s => !s.isWaitTime)
 
@@ -239,17 +259,48 @@ function canFitInBlock(
     return { canFit: false, startTime: currentTime }
   }
 
-  // Check capacity based on task type
+  // Check capacity based on task type and calculate available minutes
+  let availableCapacity = 0
   if (item.taskType === TaskType.Personal) {
+    availableCapacity = block.personalMinutesTotal - block.personalMinutesUsed
     if (block.personalMinutesUsed + item.duration > block.personalMinutesTotal) {
+      if (allowSplitting && availableCapacity > 0) {
+        // Can partially fit
+        return { 
+          canFit: false, 
+          startTime: currentTime,
+          canPartiallyFit: true,
+          availableMinutes: availableCapacity
+        }
+      }
       return { canFit: false, startTime: currentTime }
     }
   } else if (item.taskType === TaskType.Focused) {
+    availableCapacity = block.focusMinutesTotal - block.focusMinutesUsed
     if (block.focusMinutesUsed + item.duration > block.focusMinutesTotal) {
+      if (allowSplitting && availableCapacity > 0) {
+        // Can partially fit
+        return { 
+          canFit: false, 
+          startTime: currentTime,
+          canPartiallyFit: true,
+          availableMinutes: availableCapacity
+        }
+      }
       return { canFit: false, startTime: currentTime }
     }
   } else {
+    availableCapacity = block.adminMinutesTotal - block.adminMinutesUsed
     if (block.adminMinutesUsed + item.duration > block.adminMinutesTotal) {
+      if (allowSplitting && availableCapacity > 0) {
+        // Can partially fit
+        return { 
+          canFit: false, 
+          startTime: currentTime,
+          canPartiallyFit: true,
+          availableMinutes: availableCapacity
+        }
+      }
       return { canFit: false, startTime: currentTime }
     }
   }
@@ -277,6 +328,18 @@ function canFitInBlock(
 
   // Check if it fits before block ends
   if (itemEndTime > block.endTime) {
+    // Calculate how many minutes could fit before block ends
+    if (allowSplitting) {
+      const minutesUntilBlockEnd = Math.floor((block.endTime.getTime() - tryTime.getTime()) / 60000)
+      if (minutesUntilBlockEnd > 0 && minutesUntilBlockEnd < availableCapacity) {
+        return { 
+          canFit: false, 
+          startTime: tryTime,
+          canPartiallyFit: true,
+          availableMinutes: Math.min(minutesUntilBlockEnd, availableCapacity)
+        }
+      }
+    }
     return { canFit: false, startTime: tryTime }
   }
 
@@ -304,6 +367,8 @@ export interface SchedulingOptions {
   productivityPatterns?: ProductivityPattern[]
   schedulingPreferences?: SchedulingPreferences
   workSettings?: WorkSettings
+  allowTaskSplitting?: boolean // Enable splitting long tasks across blocks
+  minimumSplitDuration?: number // Minimum minutes for a split (default 30)
 }
 
 export function scheduleItemsWithBlocks(
@@ -404,6 +469,7 @@ export function scheduleItemsWithBlocksAndDebug(
         taskType: task.type,
         priority,
         duration: task.duration,
+        originalDuration: task.duration, // Store original for split tracking
         asyncWaitTime: task.asyncWaitTime,
         dependencies: task.dependencies || [],
         color: task.type === TaskType.Personal ? '#9333EA' : '#6B7280',
@@ -992,18 +1058,52 @@ export function scheduleItemsWithBlocksAndDebug(
 
       // Try to fit in available blocks
       for (const block of blockCapacities) {
-        const { canFit, startTime } = canFitInBlock(item, block, currentTime, scheduledItems, now)
+        const fitResult = canFitInBlock(item, block, currentTime, scheduledItems, now, options.allowTaskSplitting)
 
-        if (canFit) {
-          const endTime = new Date(startTime.getTime() + item.duration * 60000)
+        if (fitResult.canFit || (fitResult.canPartiallyFit && options.allowTaskSplitting)) {
+          const { startTime } = fitResult
+          const minimumSplit = options.minimumSplitDuration || 30
+          
+          // Determine actual duration to schedule in this block
+          let durationToSchedule = item.duration
+          let isPartialSchedule = false
+          
+          if (fitResult.canPartiallyFit && !fitResult.canFit) {
+            // This is a partial fit - check if the available minutes meet minimum
+            const availableMinutes = fitResult.availableMinutes || 0
+            if (availableMinutes < minimumSplit) {
+              // Skip this block if we can't meet minimum split duration
+              continue
+            }
+            durationToSchedule = availableMinutes
+            isPartialSchedule = true
+          }
+          
+          const endTime = new Date(startTime.getTime() + durationToSchedule * 60000)
 
-          // Schedule the item
+          // Track split information
+          const splitInfo = item.splitInfo || { part: 1, total: 1, originalId: item.id }
+          if (isPartialSchedule) {
+            // Calculate total parts if this is the first split
+            if (splitInfo.total === 1) {
+              // Get the original full duration
+              const originalDuration = item.originalDuration || item.originalItem?.duration || item.duration
+              // Calculate how many parts we'll need based on this first split
+              splitInfo.total = Math.ceil(originalDuration / durationToSchedule)
+            }
+          }
+          
+          // Schedule the item (full or partial)
+          const scheduledName = isPartialSchedule 
+            ? `${item.name} (${splitInfo.part}/${splitInfo.total})`
+            : item.name
+            
           scheduledItems.push({
-            id: item.id,
-            name: item.name,
+            id: isPartialSchedule ? `${item.id}-part${splitInfo.part}` : item.id,
+            name: scheduledName,
             type: item.type,
             priority: item.priority,
-            duration: item.duration,
+            duration: durationToSchedule,
             startTime,
             endTime,
             color: item.color,
@@ -1012,15 +1112,21 @@ export function scheduleItemsWithBlocksAndDebug(
             stepIndex: item.stepIndex,
             deadline: item.deadline,
             originalItem: item.originalItem,
+            // Add split information
+            isSplit: isPartialSchedule,
+            splitPart: splitInfo.part,
+            splitTotal: splitInfo.total,
+            originalTaskId: splitInfo.originalId,
+            remainingDuration: isPartialSchedule ? item.duration - durationToSchedule : 0,
           })
 
-          // Update block capacity
+          // Update block capacity (use actual scheduled duration, not full duration)
           if (item.taskType === TaskType.Personal) {
-            block.personalMinutesUsed += item.duration
+            block.personalMinutesUsed += durationToSchedule
           } else if (item.taskType === TaskType.Focused) {
-            block.focusMinutesUsed += item.duration
+            block.focusMinutesUsed += durationToSchedule
           } else {
-            block.adminMinutesUsed += item.duration
+            block.adminMinutesUsed += durationToSchedule
           }
 
           // Update the utilization map
@@ -1073,15 +1179,44 @@ export function scheduleItemsWithBlocksAndDebug(
             currentDate.setHours(0, 0, 0, 0)
           }
 
-          // Remove from work items using the original index
-          workItems.splice(originalIndex, 1)
-          // Also remove from itemsToSchedule
-          itemsToSchedule.splice(i, 1)
-          i-- // Adjust index since we removed an item
-          itemsScheduledToday = true
-          itemScheduled = true
-          schedulingProgress = true // Mark that we made progress
-          break
+          // Handle split tasks - create remainder item if needed
+          if (isPartialSchedule) {
+            const remainingDuration = item.duration - durationToSchedule
+            if (remainingDuration > 0) {
+              // Get the original task name (without split suffix)
+              const originalName = item.name.replace(/ \(\d+\/\d+\)$/, '')
+              
+              // Create a new work item for the remaining duration
+              const remainderItem: WorkItem = {
+                ...item,
+                name: originalName, // Use clean name, will be suffixed when scheduled
+                duration: remainingDuration,
+                originalDuration: item.originalDuration || item.originalItem?.duration || (item.duration + durationToSchedule),
+                splitInfo: {
+                  part: splitInfo.part + 1,
+                  total: splitInfo.total,
+                  originalId: splitInfo.originalId,
+                },
+              }
+              // Insert the remainder at the same priority position (right after current)
+              workItems.splice(originalIndex, 1, remainderItem)
+              // Don't remove from itemsToSchedule - we replaced it with remainder
+              itemsScheduledToday = true
+              itemScheduled = true
+              schedulingProgress = true
+              break
+            }
+          } else {
+            // Full task was scheduled - remove from work items
+            workItems.splice(originalIndex, 1)
+            // Also remove from itemsToSchedule
+            itemsToSchedule.splice(i, 1)
+            i-- // Adjust index since we removed an item
+            itemsScheduledToday = true
+            itemScheduled = true
+            schedulingProgress = true // Mark that we made progress
+            break
+          }
         }
       }
 
