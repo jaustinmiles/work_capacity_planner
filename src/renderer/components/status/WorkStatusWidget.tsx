@@ -58,10 +58,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const loadWorkData = async () => {
     try {
       const db = getDatabase()
-      const [patternData, accumulatedData, workSessions] = await Promise.all([
+      const [patternData, accumulatedData] = await Promise.all([
         db.getWorkPattern(currentDate),
         db.getTodayAccumulated(currentDate),
-        db.getWorkSessions(currentDate),
       ])
 
       setPattern(patternData)
@@ -69,7 +68,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         focused: accumulatedData.focused || 0,
         admin: accumulatedData.admin || 0,
       })
-      
+
       // Calculate meeting time from work sessions
       let totalMeetingMinutes = 0
       if (patternData && patternData.meetings) {
@@ -259,7 +258,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text style={{ fontWeight: 600 }}>Total Logged</Text>
                 <Text style={{ fontWeight: 600 }}>
-                  {formatMinutes(accumulated.focused + accumulated.admin)} 
+                  {formatMinutes(accumulated.focused + accumulated.admin)}
                   {meetingMinutes > 0 && ` (+ ${formatMinutes(meetingMinutes)} meetings)`}
                 </Text>
               </Space>
