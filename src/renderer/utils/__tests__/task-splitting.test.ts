@@ -217,6 +217,15 @@ describe('Task Splitting', () => {
       { allowTaskSplitting: true, minimumSplitDuration: 30 }
     )
 
+    // Debug output
+    console.log('Scheduled items:', result.scheduledItems.map(item => ({
+      name: item.name,
+      duration: item.duration,
+      start: item.startTime.toISOString(),
+      date: item.startTime.getDate(),
+    })))
+    console.log('Unscheduled:', result.debugInfo.unscheduledItems)
+    
     // Should schedule in block 1 (2 hours) and skip block 2 (too small), use block 3 next day
     expect(result.scheduledItems.length).toBe(2)
     
