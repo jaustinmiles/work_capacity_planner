@@ -103,19 +103,6 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
         <Row gutter={16}>
           <Col span={8}>
             <Form.Item
-              label="Category"
-              field="category"
-              rules={[{ required: true }]}
-            >
-              <Select>
-                <Select.Option value="work">Work</Select.Option>
-                <Select.Option value="personal">Personal</Select.Option>
-              </Select>
-            </Form.Item>
-          </Col>
-
-          <Col span={8}>
-            <Form.Item
               label="Type"
               field="type"
               rules={[{ required: true }]}
@@ -123,6 +110,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
               <Select>
                 <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
                 <Select.Option value={TaskType.Admin}>Admin/Meetings</Select.Option>
+                <Select.Option value={TaskType.Personal}>Personal</Select.Option>
               </Select>
             </Form.Item>
           </Col>

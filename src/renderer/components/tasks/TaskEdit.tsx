@@ -235,6 +235,7 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
                   >
                     <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
                     <Select.Option value={TaskType.Admin}>Admin Task</Select.Option>
+                    <Select.Option value={TaskType.Personal}>Personal Task</Select.Option>
                   </Select>
                 </Space>
               </Col>

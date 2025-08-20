@@ -20,6 +20,7 @@ import { logWarn } from './logger'
 export enum TaskType {
   Focused = 'focused',
   Admin = 'admin',
+  Personal = 'personal',
   Mixed = 'mixed',
 }
 

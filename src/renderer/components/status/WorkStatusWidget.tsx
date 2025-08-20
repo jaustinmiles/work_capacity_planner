@@ -204,7 +204,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                 </Tag>
                 <Tag>
                   {currentBlock.type === 'focused' ? '🎯 Focused' :
-                   currentBlock.type === 'admin' ? '📋 Admin' : '🔄 Mixed'}
+                   currentBlock.type === 'admin' ? '📋 Admin' :
+                   currentBlock.type === 'personal' ? '👤 Personal' : '🔄 Mixed'}
                 </Tag>
               </Space>
             </Space>
@@ -219,7 +220,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                     </Tag>
                     <Tag>
                       {nextBlock.type === 'focused' ? '🎯 Focus' :
-                       nextBlock.type === 'admin' ? '📋 Admin' : '🔄 Mixed'}
+                       nextBlock.type === 'admin' ? '📋 Admin' :
+                       nextBlock.type === 'personal' ? '👤 Personal' : '🔄 Mixed'}
                     </Tag>
                   </Space>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
