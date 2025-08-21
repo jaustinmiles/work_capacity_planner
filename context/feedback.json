@@ -284,5 +284,38 @@
     "actual": "Currently, the tasks are not displayed in chronological order if work blocks were moved around after creation",
     "timestamp": "2025-08-20T19:02:26.535Z",
     "sessionId": "session-1755716546524-jgqpp154s"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "utils/amendment-applicator"
+    ],
+    "title": "Weird templating issue in task creation",
+    "description": "This is what I see: Okay, on the ROI implementation workflow, I was able to verify this baby workflow result and now I'm ready to launch the big one but I can't do that until I reparent the CL and resolve all the merge conflicts and then also send it out for review initially, even before I launch the big workflow\nDetected Changes\nConfidence: 90%\nMark\nROI Implementation\nas\ncompleted\n95%\nCreate new task:\nReparent CL and resolve merge conflicts\nDuration:\n45 minutes\nType:\nFocused\nReparent the CL and resolve all merge conflicts before launching big workflow\n50%\nUpdate dependencies for\nROI Implementation\nAdd dependencies:\n{{task_creation_0}}\nStep: Run big workflow\n95%\nAdd note to\nROI Implementation\n\"Need to send CL out for review before launching big workflow. Must reparent CL and resolve merge conflicts first.\"",
+    "timestamp": "2025-08-21T16:08:59.465Z",
+    "sessionId": "session-1755792539457-7bbmwpdii"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "utils/amendment-applicator"
+    ],
+    "title": "Edit options are blank",
+    "description": "When trying to change the AI output for the amendment applicator, this is all I see: Detected Changes\nConfidence: 90%\nMark\nROI Implementation\nas\ncompleted\n95%\nAdd step to\nROI Implementation\nStep:\nReparent CL and resolve merge conflicts\n(30 min, focused)\n95%\nAdd step to\nROI Implementation\nStep:\nSend CL out for initial review\n(15 min, admin)\nAfter: Reparent CL and resolve merge conflicts\n95%\nStatus Update\nStep Addition\nStep Addition\n\nThe status update and step addition fields are blank.",
+    "timestamp": "2025-08-21T16:11:05.217Z",
+    "sessionId": "session-1755792665204-kykzm1bk0"
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "components": [
+      "dev/DevTools"
+    ],
+    "title": "Console error on feedback sucmit",
+    "description": "[2025-08-21T16:11:01.574Z] [UI] Failed to submit feedback: {error: 'form validate error, get errors by error.errors', stack: 'Error: form validate error, get errors by error.er…localhost:5174/assets/index-5m2vGVDv.js:69:260943'}",
+    "timestamp": "2025-08-21T16:13:13.196Z",
+    "sessionId": "session-1755792793185-8i07535jd"
   }
 ]

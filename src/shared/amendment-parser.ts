@@ -110,7 +110,7 @@ export class AmendmentParser {
     const workflowList = context.recentWorkflows.map(w => {
       let result = `- ${w.name} (ID: ${w.id})`
       if (w.steps && w.steps.length > 0) {
-        const stepsList = w.steps.map(s => `    • ${s.name}`).join('\n')
+        const stepsList = w.steps.map(s => `    • ${s.name} (Step ID: ${s.id})`).join('\n')
         result += '\n' + stepsList
       }
       return result
@@ -248,10 +248,10 @@ Amendment types and their required fields:
 CRITICAL: For step_addition, use "stepType" NOT "type" for the task type. The "type" field must always be "step_addition".
 
 Examples:
-- "Deploy is blocked by Safety Certification" → dependency_change with target: Deploy, addDependencies: ["workflow-1"] 
-- "I need to fix timestamps before running the workflow" → task_creation (fix timestamps task) + dependency_change
-- "Deploy no longer depends on testing" → dependency_change with removeDependencies: ["task-id"]
-- "I can't do X until Y is done" → dependency_change to add Y as dependency of X
+- "Deploy is blocked by Safety Certification" → dependency_change with target: Deploy, addDependencies: ["actual-workflow-id"] 
+- "I need to fix timestamps before running the workflow" → task_creation (fix timestamps task) + dependency_change with actual task IDs
+- "Deploy no longer depends on testing" → dependency_change with removeDependencies: ["actual-task-id"]
+- "I can't do X until Y is done" → dependency_change to add Y as dependency of X using actual IDs
 - "kick off the deployment workflow" → status_update to mark workflow in_progress
 - "the database migration step took 3 hours" → time_log with duration: 180 and stepName: "database migration"
 - "add a code review step after implementation" → step_addition with stepType: "focused", afterStep: "implementation"
@@ -262,7 +262,10 @@ IMPORTANT:
 - For workflow modifications, always include the stepName field when referring to specific steps
 - When adding steps, break them down into granular tasks (15-60 minutes each)
 - Always return at least one amendment if you can understand the intent
-- If the user mentions a workflow step, parse it as an operation on that specific step`
+- If the user mentions a workflow step, parse it as an operation on that specific step
+- When creating dependencies, ALWAYS use actual task/workflow IDs from the context, never use placeholder values like {{task_creation_0}}
+- If a newly created task needs to be referenced, create it first and then reference it by its name in the dependency description
+- When users mention existing workflow steps like "Review baby workflow results", search for it in the workflow steps list provided in context`
 
     try {
       const response = await (aiService as any).anthropic.messages.create({
