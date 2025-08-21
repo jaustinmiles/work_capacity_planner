@@ -249,6 +249,12 @@ export function VoiceAmendmentModal({
       if (amendment.type === AmendmentType.NoteAddition && edits.note !== undefined) {
         (edited as NoteAddition).note = edits.note
       }
+      if (amendment.type === AmendmentType.StepAddition) {
+        const stepAddition = edited as StepAddition
+        if (edits.stepName !== undefined) stepAddition.stepName = edits.stepName
+        if (edits.duration !== undefined) stepAddition.duration = edits.duration
+        if (edits.stepType !== undefined) stepAddition.stepType = edits.stepType
+      }
       return edited
     })
 
@@ -495,22 +501,38 @@ export function VoiceAmendmentModal({
     return 0.5
   }
 
+  // Helper to check amendment types accounting for string literals
+  const isAmendmentType = (amendment: Amendment, ...types: (string | AmendmentType)[]): boolean => {
+    return types.some(t => amendment.type === t)
+  }
+
   const getAmendmentTitle = (amendment: Amendment) => {
+    // Handle both string literals and enum values
     switch (amendment.type) {
+      case 'status_update':
       case AmendmentType.StatusUpdate:
         return 'Status Update'
+      case 'time_log':
       case AmendmentType.TimeLog:
         return 'Time Log'
+      case 'note_addition':
       case AmendmentType.NoteAddition:
         return 'Note Addition'
+      case 'duration_change':
       case AmendmentType.DurationChange:
         return 'Duration Change'
+      case 'step_addition':
       case AmendmentType.StepAddition:
         return 'Step Addition'
+      case 'task_creation':
       case AmendmentType.TaskCreation:
         return 'Task Creation'
+      case 'dependency_change':
       case AmendmentType.DependencyChange:
         return 'Dependency Change'
+      case 'workflow_creation':
+      case AmendmentType.WorkflowCreation:
+        return 'Workflow Creation'
       default:
         return 'Amendment'
     }
@@ -790,9 +812,9 @@ export function VoiceAmendmentModal({
                           <Text bold>{getAmendmentTitle(amendment)}</Text>
 
                           {/* Duration editing for time logs and duration changes */}
-                          {(amendment.type === AmendmentType.TimeLog ||
-                            amendment.type === AmendmentType.DurationChange ||
-                            amendment.type === AmendmentType.TaskCreation) && (
+                          {isAmendmentType(amendment, 'time_log', AmendmentType.TimeLog,
+                            'duration_change', AmendmentType.DurationChange,
+                            'task_creation', AmendmentType.TaskCreation) && (
                             <Space>
                               <Text>Duration (minutes):</Text>
                               <InputNumber
@@ -811,7 +833,7 @@ export function VoiceAmendmentModal({
                           )}
 
                           {/* Priority editing for task creation */}
-                          {amendment.type === AmendmentType.TaskCreation && (
+                          {isAmendmentType(amendment, 'task_creation', AmendmentType.TaskCreation) && (
                             <>
                               <Space style={{ width: '100%' }}>
                                 <Text>Importance:</Text>
@@ -882,17 +904,65 @@ export function VoiceAmendmentModal({
                             </>
                           )}
 
+                          {/* Step Addition editing */}
+                          {isAmendmentType(amendment, 'step_addition', AmendmentType.StepAddition) && (
+                            <>
+                              <Space>
+                                <Text>Step Name:</Text>
+                                <Input
+                                  value={edited.stepName || (amendment as StepAddition).stepName || ''}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, stepName: value })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 200 }}
+                                />
+                              </Space>
+                              <Space>
+                                <Text>Duration (minutes):</Text>
+                                <InputNumber
+                                  value={edited.duration || (amendment as StepAddition).duration || 30}
+                                  min={5}
+                                  max={480}
+                                  step={15}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, duration: value })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 100 }}
+                                />
+                              </Space>
+                              <Space>
+                                <Text>Type:</Text>
+                                <Select
+                                  value={edited.stepType || (amendment as StepAddition).stepType || TaskType.Focused}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, stepType: value })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 120 }}
+                                >
+                                  <Select.Option value={TaskType.Focused}>Focused</Select.Option>
+                                  <Select.Option value={TaskType.Admin}>Admin</Select.Option>
+                                </Select>
+                              </Space>
+                            </>
+                          )}
+
                           {/* Note editing */}
-                          {(amendment.type === AmendmentType.NoteAddition ||
-                            amendment.type === AmendmentType.TaskCreation) && (
+                          {isAmendmentType(amendment, 'note_addition', AmendmentType.NoteAddition,
+                            'task_creation', AmendmentType.TaskCreation) && (
                             <Space direction="vertical" style={{ width: '100%' }}>
-                              <Text>{amendment.type === AmendmentType.NoteAddition ? 'Note:' : 'Description:'}</Text>
+                              <Text>{isAmendmentType(amendment, 'note_addition', AmendmentType.NoteAddition) ? 'Note:' : 'Description:'}</Text>
                               <Input.TextArea
                                 value={edited.note || edited.description ||
                                        (amendment as any).note || (amendment as any).description || ''}
                                 onChange={(value) => {
                                   const newEdited = new Map(editedAmendments)
-                                  const field = amendment.type === AmendmentType.NoteAddition ? 'note' : 'description'
+                                  const field = isAmendmentType(amendment, 'note_addition', AmendmentType.NoteAddition) ? 'note' : 'description'
                                   newEdited.set(index, { ...edited, [field]: value })
                                   setEditedAmendments(newEdited)
                                 }}
