@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select } from '@arco-design/web-react'
 import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload, IconInfoCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
-import { Message } from '../common/Message'
 import {
   Amendment,
   AmendmentResult,
@@ -224,7 +223,7 @@ export function VoiceAmendmentModal({
 
     const amendmentsToApply = amendmentResult.amendments.filter((_, index) =>
       selectedAmendments.has(index),
-    ).map((amendment, originalIndex) => {
+    ).map((amendment) => {
       // Find the actual index in the full array
       const actualIndex = amendmentResult.amendments.indexOf(amendment)
       const edits = editedAmendments.get(actualIndex)
@@ -259,10 +258,18 @@ export function VoiceAmendmentModal({
     })
 
     try {
-      // TODO: Actually apply the amendments to tasks/workflows
-      // For now, just notify parent
+      // Apply the amendments using the amendment applicator
+      const { applyAmendments } = await import('../../utils/amendment-applicator')
+      await applyAmendments(amendmentsToApply)
+
+      // Notify parent if needed
       onAmendmentsApplied?.(amendmentsToApply)
-      Message.success(`Applied ${amendmentsToApply.length} amendment(s)`)
+
+      // Refresh the task store to show updates
+      const store = useTaskStore.getState()
+      await store.loadTasks()
+      await store.loadSequencedTasks()
+
       handleClose()
     } catch (err) {
       setError('Failed to apply amendments')

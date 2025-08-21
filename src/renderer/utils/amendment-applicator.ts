@@ -14,6 +14,7 @@ import {
   StepAddition,
   TaskCreation,
   WorkflowCreation,
+  DependencyChange,
 } from '@shared/amendment-types'
 import { assertNever, TaskType } from '@shared/enums'
 import { getDatabase } from '../services/database'
@@ -188,11 +189,115 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           Message.info('Step removal not yet implemented')
           break
 
-        case AmendmentType.DependencyChange:
-          // TODO: Implement dependency changes
-          logger.ui.debug('TODO: Dependency changes not yet implemented', amendment)
-          Message.info('Dependency changes not yet implemented')
+        case AmendmentType.DependencyChange: {
+          const change = amendment as DependencyChange
+          logger.ui.info('Processing dependency change:', change)
+
+          if (change.target.id) {
+            try {
+              if (change.stepName) {
+                // This is a workflow step dependency change
+                logger.ui.info(`Updating dependencies for workflow step: ${change.stepName}`)
+
+                // Get the workflow
+                const workflow = await db.getSequencedTaskById(change.target.id)
+                if (workflow && workflow.steps) {
+                  // Find the step
+                  const stepIndex = workflow.steps.findIndex(s =>
+                    s.name.toLowerCase() === change.stepName.toLowerCase(),
+                  )
+
+                  if (stepIndex !== -1) {
+                    const step = workflow.steps[stepIndex]
+                    let currentDeps = step.dependsOn || []
+
+                    // Add new dependencies
+                    if (change.addDependencies && change.addDependencies.length > 0) {
+                      // Filter out any that are already there
+                      const toAdd = change.addDependencies.filter(d => !currentDeps.includes(d))
+                      currentDeps = [...currentDeps, ...toAdd]
+                      logger.ui.info(`Adding dependencies to step ${step.name}:`, toAdd)
+                    }
+
+                    // Remove dependencies
+                    if (change.removeDependencies && change.removeDependencies.length > 0) {
+                      currentDeps = currentDeps.filter(d => !change.removeDependencies!.includes(d))
+                      logger.ui.info(`Removing dependencies from step ${step.name}:`, change.removeDependencies)
+                    }
+
+                    // Update the step
+                    workflow.steps[stepIndex] = {
+                      ...step,
+                      dependsOn: currentDeps,
+                    }
+
+                    // Save the workflow
+                    await db.updateSequencedTask(change.target.id, { steps: workflow.steps })
+                    successCount++
+                    logger.ui.info(`Successfully updated dependencies for step ${step.name}`)
+                  } else {
+                    Message.warning(`Step "${change.stepName}" not found in workflow`)
+                    errorCount++
+                  }
+                } else {
+                  Message.warning(`Workflow ${change.target.name} not found or has no steps`)
+                  errorCount++
+                }
+              } else {
+                // This is a task/workflow level dependency change
+                if (change.target.type === EntityType.Workflow) {
+                  // Update workflow dependencies
+                  const workflow = await db.getSequencedTaskById(change.target.id)
+                  if (workflow) {
+                    let currentDeps = workflow.dependencies || []
+
+                    if (change.addDependencies && change.addDependencies.length > 0) {
+                      const toAdd = change.addDependencies.filter(d => !currentDeps.includes(d))
+                      currentDeps = [...currentDeps, ...toAdd]
+                      logger.ui.info('Adding dependencies to workflow:', toAdd)
+                    }
+
+                    if (change.removeDependencies && change.removeDependencies.length > 0) {
+                      currentDeps = currentDeps.filter(d => !change.removeDependencies!.includes(d))
+                      logger.ui.info('Removing dependencies from workflow:', change.removeDependencies)
+                    }
+
+                    await db.updateSequencedTask(change.target.id, { dependencies: currentDeps })
+                    successCount++
+                  }
+                } else {
+                  // Update task dependencies
+                  const task = await db.getTaskById(change.target.id)
+                  if (task) {
+                    let currentDeps = task.dependencies || []
+
+                    if (change.addDependencies && change.addDependencies.length > 0) {
+                      const toAdd = change.addDependencies.filter(d => !currentDeps.includes(d))
+                      currentDeps = [...currentDeps, ...toAdd]
+                      logger.ui.info('Adding dependencies to task:', toAdd)
+                    }
+
+                    if (change.removeDependencies && change.removeDependencies.length > 0) {
+                      currentDeps = currentDeps.filter(d => !change.removeDependencies!.includes(d))
+                      logger.ui.info('Removing dependencies from task:', change.removeDependencies)
+                    }
+
+                    await db.updateTask(change.target.id, { dependencies: currentDeps })
+                    successCount++
+                  }
+                }
+              }
+            } catch (error) {
+              logger.ui.error('Failed to update dependencies:', error)
+              Message.error(`Failed to update dependencies for ${change.target.name}`)
+              errorCount++
+            }
+          } else {
+            Message.warning(`Cannot update dependencies for ${change.target.name} - not found`)
+            errorCount++
+          }
           break
+        }
 
         case AmendmentType.TaskCreation: {
           const creation = amendment as TaskCreation
