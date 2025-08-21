@@ -18,7 +18,7 @@ interface WorkStatusWidgetProps {
 export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const [currentDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [pattern, setPattern] = useState<any>(null)
-  const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0 })
+  const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
   const [meetingMinutes, setMeetingMinutes] = useState(0)
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
@@ -67,6 +67,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       setAccumulated({
         focused: accumulatedData.focused || 0,
         admin: accumulatedData.admin || 0,
+        personal: accumulatedData.personal || 0,
       })
 
       // Calculate meeting time from work sessions
@@ -256,11 +257,20 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               </Space>
               <Progress percent={adminProgress} color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'} />
             </div>
+            {accumulated.personal > 0 && (
+              <div>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Text>Personal</Text>
+                  <Text>{formatMinutes(accumulated.personal)}</Text>
+                </Space>
+                <Progress percent={100} color='#722ed1' />
+              </div>
+            )}
             <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text style={{ fontWeight: 600 }}>Total Logged</Text>
                 <Text style={{ fontWeight: 600 }}>
-                  {formatMinutes(accumulated.focused + accumulated.admin)}
+                  {formatMinutes(accumulated.focused + accumulated.admin + accumulated.personal)}
                   {meetingMinutes > 0 && ` (+ ${formatMinutes(meetingMinutes)} meetings)`}
                 </Text>
               </Space>

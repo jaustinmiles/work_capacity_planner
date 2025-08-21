@@ -57,7 +57,8 @@
       "Bash(DEBUG_DEPS=1 npx tsx test-dependency-debug.ts)",
       "Bash(gh repo view:*)",
       "Bash(cat:*)",
-      "Bash(gh run view:*)"
+      "Bash(gh run view:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

@@ -62,7 +62,7 @@ declare global {
         getWorkSessions: (date: string) => Promise<any[]>
         getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
         getTaskTotalLoggedTime: (taskId: string) => Promise<number>
-        getTodayAccumulated: (__date: string) => Promise<{ focused: number; admin: number }>
+        getTodayAccumulated: (__date: string) => Promise<{ focused: number; admin: number; personal?: number; total?: number }>
         // Progress tracking operations
         createStepWorkSession: (data: any) => Promise<any>
         updateTaskStepProgress: (__stepId: string, data: any) => Promise<any>
