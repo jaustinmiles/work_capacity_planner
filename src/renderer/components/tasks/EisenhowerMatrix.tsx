@@ -227,7 +227,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
           <div style={{
             position: 'absolute',
-            left: -100,
+            left: -140,
             top: '50%',
             transform: 'translateY(-50%) rotate(-90deg)',
             zIndex: 1,

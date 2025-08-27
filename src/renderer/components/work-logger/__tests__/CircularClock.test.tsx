@@ -65,10 +65,21 @@ describe('CircularClock', () => {
     const svg = container.querySelector('svg')
     expect(svg).toBeInTheDocument()
 
-    // Check for hour labels in 12-hour workday format
-    // Should show 8am, 11am, 2pm, 5pm, 8pm
-    expect(screen.getByText('8am')).toBeInTheDocument()
-    expect(screen.getByText('2pm')).toBeInTheDocument()
+    // Check for hour labels - now showing full 24-hour day
+    // The clock shows labels every 3 hours
+    // Hour numbers and am/pm are rendered as separate child nodes in the same text element
+    // So we need to check the text content of the parent elements
+    const textElements = container.querySelectorAll('text')
+    const hourTexts = Array.from(textElements).map(el => el.textContent).filter(text => text && text.match(/^\d+\s*(am|pm)$/))
+
+    // Should have 8 hour markers (every 3 hours)
+    expect(hourTexts.length).toBe(8)
+
+    // Check that we have both AM and PM times
+    const hasAM = hourTexts.some(text => text?.includes('am'))
+    const hasPM = hourTexts.some(text => text?.includes('pm'))
+    expect(hasAM).toBe(true)
+    expect(hasPM).toBe(true)
 
     // Check for circadian rhythm indicators
     expect(screen.getByText('Peak Focus')).toBeInTheDocument()

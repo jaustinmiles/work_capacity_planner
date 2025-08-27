@@ -180,6 +180,10 @@ export function TimelineVisualizer({
         return '#FF7D00'
       case 'mixed':
         return '#722ED1'
+      case 'personal':
+        return '#52C41A'  // Green for personal time
+      case 'flexible':
+        return '#F5A623'  // Orange for flexible
       default:
         return '#86909C'
     }
@@ -334,7 +338,9 @@ export function TimelineVisualizer({
           <div>
             {isBlock ? (
               `${(item as WorkBlock).type === TaskType.Focused ? '🎯 Focused' :
-                (item as WorkBlock).type === TaskType.Admin ? '📋 Admin' : '🔄 Mixed'} Work`
+                (item as WorkBlock).type === TaskType.Admin ? '📋 Admin' :
+                (item as WorkBlock).type === 'personal' ? '👤 Personal' :
+                (item as WorkBlock).type === 'flexible' ? '🔀 Flexible' : '🔄 Mixed'} Work`
             ) : (
               `${(item as WorkMeeting).name || (item as WorkMeeting).type}`
             )}

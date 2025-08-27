@@ -38,10 +38,10 @@ const INNER_RADIUS = 70
 const _MIDDLE_RADIUS = 85 // Unused for now, keeping for future use
 const HOUR_LABEL_RADIUS = 110
 
-// Workday configuration - 12 hour focus from 8 AM to 8 PM
-const WORKDAY_START = 8 // 8 AM
-const WORKDAY_END = 20 // 8 PM
-const WORKDAY_HOURS = WORKDAY_END - WORKDAY_START // 12 hours
+// Clock configuration - Show full 24 hours
+const WORKDAY_START = 0 // 12 AM (midnight)
+const WORKDAY_END = 24 // 12 AM next day (full day)
+const WORKDAY_HOURS = WORKDAY_END - WORKDAY_START // 24 hours
 
 // Circadian rhythm peaks and dips
 const MORNING_PEAK = 10 // 10 AM - Morning alertness peak

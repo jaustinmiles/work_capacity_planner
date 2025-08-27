@@ -383,6 +383,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             type="text"
             icon={isFullscreen ? <IconFullscreenExit /> : <IconFullscreen />}
             onClick={() => setIsFullscreen(!isFullscreen)}
+            style={{ marginRight: 24 }}  // Add space between fullscreen and X button
           />
         </Space>
       }
