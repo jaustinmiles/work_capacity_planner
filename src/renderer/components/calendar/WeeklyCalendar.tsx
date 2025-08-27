@@ -82,7 +82,10 @@ export function WeeklyCalendar() {
   // Use the scheduler to get properly scheduled items
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
-    return scheduleItemsWithBlocks(tasks, sequencedTasks, workPatterns, new Date())
+    return scheduleItemsWithBlocks(tasks, sequencedTasks, workPatterns, new Date(), {
+      allowTaskSplitting: true,
+      minimumSplitDuration: 10
+    })
   }, [tasks, sequencedTasks, workPatterns])
 
   // Group scheduled items by date
