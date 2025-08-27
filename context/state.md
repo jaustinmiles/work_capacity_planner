@@ -31,10 +31,19 @@
 - Emphasizes single source of truth for UI components
 - Prevents duplicate logic across creation/edit/AI features
 
-#### 🔧 In Progress: Amendment Applicator Templating Issues
+#### ✅ Fixed Amendment Applicator Templating Issues (High Priority #2 & #3)
 - Issue #2: {{task_creation_0}} placeholders appearing in UI
-- Issue #3: Blank edit options in amendment applicator
-- Need to investigate amendment-applicator component rendering
+- Issue #3: Blank edit options in amendment applicator  
+- Root cause: Task creation placeholders (task-new-N) not being resolved
+- Solution: Track created task IDs and replace placeholders with actual IDs
+- Display task names instead of IDs in dependency UI
+- Fixed template rendering issues in voice amendment modal
+
+#### 🚀 Performance & Stability Improvements
+- All TypeScript compilation passes with zero errors
+- ESLint has zero errors (warnings remain acceptable)
+- Improved amendment processing with proper placeholder resolution
+- Better UI feedback for dependency operations
 
 ### Previous PR: fix/quality-of-life-improvements (PR #20 - Merged)
 
