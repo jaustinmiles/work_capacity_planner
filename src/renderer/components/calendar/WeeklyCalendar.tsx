@@ -84,7 +84,7 @@ export function WeeklyCalendar() {
     if (workPatterns.length === 0) return []
     return scheduleItemsWithBlocks(tasks, sequencedTasks, workPatterns, new Date(), {
       allowTaskSplitting: true,
-      minimumSplitDuration: 10
+      minimumSplitDuration: 10,
     })
   }, [tasks, sequencedTasks, workPatterns])
 

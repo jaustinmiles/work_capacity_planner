@@ -277,7 +277,7 @@ function canFitInBlock(
 
   // Check if this is a flexible block (accepts any non-personal work)
   const isFlexibleBlock = block.blockType === 'flexible'
-  
+
   // Check capacity based on task type and calculate available minutes
   let availableCapacity = 0
   if (isFlexibleBlock && item.taskType !== TaskType.Personal) {
@@ -285,7 +285,7 @@ function canFitInBlock(
     const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed
     const totalCapacity = Math.min(block.focusMinutesTotal, block.adminMinutesTotal) // Use the smaller to be safe
     availableCapacity = totalCapacity - totalUsed
-    
+
     if (totalUsed + item.duration > totalCapacity) {
       if (allowSplitting && availableCapacity > 0) {
         return {
