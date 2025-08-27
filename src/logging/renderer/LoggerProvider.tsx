@@ -91,7 +91,6 @@ export function LoggerProvider({
     logger,
     dumpBuffer: () => {
       const entries = logger.dumpBuffer()
-      console.log('Buffer dump:', entries)
       return entries
     },
     showDevTools: () => setDevToolsVisible(true),

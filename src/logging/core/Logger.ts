@@ -127,6 +127,10 @@ export abstract class Logger implements ILogger {
     const childLogger = new ChildLoggerClass(this.config, this.structuredLogger['processType'])
     childLogger.context = { ...this.context, ...context }
     childLogger.transports = this.transports
+    // CRITICAL: Share the same ring buffer, sampler, and structured logger
+    childLogger.ringBuffer = this.ringBuffer
+    childLogger.sampler = this.sampler
+    childLogger.structuredLogger = this.structuredLogger
     return childLogger
   }
 
