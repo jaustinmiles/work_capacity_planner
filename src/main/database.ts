@@ -185,6 +185,10 @@ export class DatabaseService {
           status: step.status || 'pending',
           stepIndex: step.stepIndex ?? index,
           percentComplete: step.percentComplete ?? 0,
+          notes: step.notes || null,
+          cognitiveComplexity: step.cognitiveComplexity || null,
+          importance: step.importance || null,
+          urgency: step.urgency || null,
         })),
       })
 

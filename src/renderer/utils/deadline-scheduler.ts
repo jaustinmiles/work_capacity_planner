@@ -305,7 +305,7 @@ export function calculatePriorityWithBreakdown(
   } else {
     // It's a TaskStep - check for overrides first, then use parent workflow
     const step = item as TaskStep
-    
+
     // Find parent workflow
     const parentWorkflow = context.workflows.find(w => w.id === step.taskId)
     if (!parentWorkflow) {
@@ -319,7 +319,7 @@ export function calculatePriorityWithBreakdown(
       importance = parentWorkflow.importance || 5
       urgency = parentWorkflow.urgency || 5
     }
-    
+
     // Override with step-specific priority if provided
     if (step.importance !== undefined && step.importance !== null) {
       importance = step.importance

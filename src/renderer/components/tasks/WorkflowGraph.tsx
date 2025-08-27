@@ -142,7 +142,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
           {nodes.map((node: any, index: number) => {
             const truncatedLabel = node.label.length > 18 ? node.label.substring(0, 18) + '...' : node.label
             const durationText = `${formatDuration(node.duration)}${node.asyncWaitTime > 0 ? ` + ${formatDuration(node.asyncWaitTime)} wait` : ''}`
-            
+
             return (
               <Tooltip
                 key={node.id}

@@ -137,6 +137,8 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           percentComplete: cleanStep.percentComplete || 0,
           notes: cleanStep.notes || '',
           cognitiveComplexity: cleanStep.cognitiveComplexity || 3,
+          importance: cleanStep.importance || undefined,
+          urgency: cleanStep.urgency || undefined,
         }
       })
 
