@@ -79,6 +79,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                               {p.asyncBoost > 0 && ` A:+${Math.round(p.asyncBoost)}`}
                               {p.cognitiveMatch !== 0 && ` C:${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
                               {p.contextSwitchPenalty < 0 && ` S:${Math.round(p.contextSwitchPenalty)}`}
+                              {p.workflowDepthBonus && p.workflowDepthBonus > 0 && ` W:+${Math.round(p.workflowDepthBonus)}`}
                             </div>
                           </div>
                         )
@@ -117,6 +118,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                               {p.asyncBoost > 0 && ` | Async: +${Math.round(p.asyncBoost)}`}
                               {p.cognitiveMatch !== 0 && ` | Cognitive: ${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
                               {p.contextSwitchPenalty < 0 && ` | Switch: ${Math.round(p.contextSwitchPenalty)}`}
+                              {p.workflowDepthBonus && p.workflowDepthBonus > 0 && ` | Depth: +${Math.round(p.workflowDepthBonus)}`}
                             </Text>
                           </Space>
                         )
