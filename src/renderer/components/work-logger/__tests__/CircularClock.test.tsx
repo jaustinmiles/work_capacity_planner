@@ -72,8 +72,9 @@ describe('CircularClock', () => {
     const textElements = container.querySelectorAll('text')
     const hourTexts = Array.from(textElements).map(el => el.textContent).filter(text => text && text.match(/^\d+\s*(am|pm)$/))
 
-    // Should have 8 hour markers (every 3 hours)
-    expect(hourTexts.length).toBe(8)
+    // Should have 9 hour markers (every 3 hours: 0am, 3am, 6am, 9am, 12pm, 3pm, 6pm, 9pm, 12am)
+    // The 24-hour clock shows 0-24, so hour 24 (displayed as 12am) is included
+    expect(hourTexts.length).toBe(9)
 
     // Check that we have both AM and PM times
     const hasAM = hourTexts.some(text => text?.includes('am'))

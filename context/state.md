@@ -1,9 +1,35 @@
 # Current State
 
-## Session In Progress (2025-08-27 - Async Scheduling and Debug Info Improvements)
+## Session In Progress (2025-08-27 - Low-Priority UI Fixes)
 
-### Branch: fix/high-priority-scheduling-improvements (PR #17 Created)
-This branch includes async task scheduling improvements and enhanced debug info:
+### Branch: fix/low-hanging-fruit-batch-1 (PR #18 Created)
+This branch includes multiple low-priority UI fixes and improvements:
+
+#### ✅ Fixed Y-axis Label Overlap in Eisenhower Matrix
+- Adjusted left positioning from -100 to -140 in EisenhowerMatrix.tsx
+- Prevents Y-axis labels from overlapping with content
+
+#### ✅ Fixed Personal Blocks Appearing as 'Mixed' 
+- Added proper color and label handling for 'personal' and 'flexible' work block types
+- Updated TimelineVisualizer.tsx with proper switch cases
+- Personal blocks now show green color and '👤 Personal' label
+
+#### ✅ Fixed X Button Too Close to Fullscreen Button
+- Added 24px margin to fullscreen button in WorkLoggerDual.tsx
+- Prevents accidental clicks between buttons
+
+#### ✅ Fixed Cognitive Complexity Display
+- TaskItem.tsx now always shows cognitive complexity
+- Defaults to 3 if not set, preventing missing indicator
+- Color coding: green (1-2), orange (3), red (4-5)
+
+#### ✅ Changed CircularClock to 24-Hour Display
+- Shows full day (0am-11pm) instead of just workday hours (8am-8pm)
+- Updated constants from 12-hour workday to 24-hour display
+- Fixed tests to match new hour marker expectations
+
+### Previous Branch: fix/high-priority-scheduling-improvements (PR #17 Merged)
+This branch included async task scheduling improvements and enhanced debug info:
 
 #### ✅ Expanded Scheduling Debug Info with Priority Breakdown
 - Shows Eisenhower score, deadline boost, async boost, cognitive match, context switch penalty
