@@ -159,7 +159,8 @@
     "title": "Y axis of eisenhower matrix interferes with rendered text",
     "description": "It's too far to the right, overlapping the first two blocks (column). Is this component even in the feedback affected components list?",
     "timestamp": "2025-08-20T00:12:00.160Z",
-    "sessionId": "session-1755648720152-smzzn95hp"
+    "sessionId": "session-1755648720152-smzzn95hp",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -244,7 +245,8 @@
     "title": "X button too close to full screen button",
     "description": "I always end up hitting full screen instead of X because they are so close together",
     "timestamp": "2025-08-20T16:11:51.630Z",
-    "sessionId": "session-1755706311622-tb4wq3tfy"
+    "sessionId": "session-1755706311622-tb4wq3tfy",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -434,5 +436,38 @@
     "description": "All time selectors throughout the app should use the same clock widget.",
     "timestamp": "2025-08-27T16:37:55.578Z",
     "sessionId": "session-1756312675569-e0uj48nmn"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "tasks/TaskEdit"
+    ],
+    "title": "No way to remove a deadline",
+    "description": "If a delete the deadline and resave, nothing happens. I can reload or click off the screen and come back and the deadline is still there",
+    "timestamp": "2025-08-27T16:54:42.801Z",
+    "sessionId": "session-1756313682791-7364unfpn"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "tasks/TaskEdit"
+    ],
+    "title": "Changing the cognitive complexity doesn't persist",
+    "description": "If I edit a task to have a different cognitive complexity and save, and then I try to click on another page and go back, it resets to the previous complexity value",
+    "timestamp": "2025-08-27T16:58:08.905Z",
+    "sessionId": "session-1756313888897-fy6qcsli0"
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "components": [
+      "other"
+    ],
+    "title": "Eisenhower matrix duplicates",
+    "description": "see this in terminal: EisenhowerMatrix.tsx:158 Encountered two children with the same key, `bee6c880-c5ea-4856-a591-7ed07c1f2ff4`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. and duplicates on the UI. Also, we should add the eisenhower matrix as an affected component on the feedback form",
+    "timestamp": "2025-08-27T17:01:49.743Z",
+    "sessionId": "session-1756314109697-cc9zshlmn"
   }
 ]

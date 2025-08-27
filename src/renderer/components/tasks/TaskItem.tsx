@@ -170,19 +170,17 @@ export function TaskItem({ task }: TaskItemProps) {
                       </Tag>
                     </Tooltip>
 
-                    {task.cognitiveComplexity && (
-                      <Tooltip content="Cognitive Complexity (1=Low, 5=High)">
-                        <Tag
-                          icon={<IconMindMapping />}
-                          color={task.cognitiveComplexity >= 4 ? 'red' :
-                                task.cognitiveComplexity >= 3 ? 'orange' :
-                                'green'}
-                          size="small"
-                        >
-                          Complexity: {task.cognitiveComplexity}/5
-                        </Tag>
-                      </Tooltip>
-                    )}
+                    <Tooltip content="Cognitive Complexity (1=Low, 5=High)">
+                      <Tag
+                        icon={<IconMindMapping />}
+                        color={(task.cognitiveComplexity || 3) >= 4 ? 'red' :
+                              (task.cognitiveComplexity || 3) >= 3 ? 'orange' :
+                              'green'}
+                        size="small"
+                      >
+                        Complexity: {task.cognitiveComplexity || 3}/5
+                      </Tag>
+                    </Tooltip>
 
                     <Tag size="small" color="gray">
                       {task.type === TaskType.Focused ? 'Focused Work' :
