@@ -92,13 +92,13 @@ function App() {
 
   // Initialize data when app starts
   useEffect(() => {
-    logger.info('App initialization started', { 
+    logger.info('App initialization started', {
       tasksCount: tasks.length,
-      sequencedTasksCount: sequencedTasks.length 
+      sequencedTasksCount: sequencedTasks.length,
     })
     initializeData()
   }, [initializeData])
-  
+
   // Log view changes
   useEffect(() => {
     logger.debug('View changed', { view: activeView })
@@ -138,9 +138,9 @@ function App() {
 
   const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]): Promise<void> => {
     try {
-      logger.info('Workflows extracted from brainstorm', { 
+      logger.info('Workflows extracted from brainstorm', {
         workflowCount: workflows.length,
-        standaloneTaskCount: standaloneTasks.length 
+        standaloneTaskCount: standaloneTasks.length,
       })
       // Create workflows
       for (const workflow of workflows) {

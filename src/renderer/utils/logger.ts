@@ -29,11 +29,11 @@ class RendererLogger {
   private log(level: LogLevel, scope: LogScope, message: string, data?: any): void {
     // Format message with scope for new logger
     const formattedMessage = `[${scope.toUpperCase()}] ${message}`
-    
+
     // Create context with scope
-    const context = { 
+    const context = {
       scope,
-      ...data 
+      ...data,
     }
 
     // Forward to new logger based on level
@@ -76,13 +76,13 @@ class RendererLogger {
   error(scope: LogScope, message: string, error?: Error | unknown, data?: any): void {
     // Format message with scope for new logger
     const formattedMessage = `[${scope.toUpperCase()}] ${message}`
-    
+
     // Build context with scope and data
-    const context = { 
+    const context = {
       scope,
-      ...data 
+      ...data,
     }
-    
+
     // Handle error parameter
     if (error instanceof Error) {
       // Use the new logger's error method with proper signature
@@ -101,8 +101,8 @@ class RendererLogger {
       // No error object
       newLogger.error(formattedMessage, context)
     }
-    
-    // Still send to main process for backward compatibility  
+
+    // Still send to main process for backward compatibility
     if (window.electron?.log) {
       const logMethod = window.electron.log.error
       if (logMethod) {

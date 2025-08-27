@@ -90,10 +90,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
   const handleSwitchSession = async (sessionId: string) => {
     try {
       const session = sessions.find(s => s.id === sessionId)
-      logger.ui.info('Switching session', { 
+      logger.ui.info('Switching session', {
         from: activeSession?.name || 'none',
         to: session?.name || 'unknown',
-        sessionId 
+        sessionId,
       })
       const db = getDatabase()
       await db.switchSession(sessionId)
@@ -117,10 +117,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
 
     try {
       const values = await form.validate()
-      logger.ui.info('Updating session', { 
+      logger.ui.info('Updating session', {
         sessionId: editingSession.id,
         oldName: editingSession.name,
-        newName: values.name 
+        newName: values.name,
       })
       const db = getDatabase()
       await db.updateSession(editingSession.id, values)

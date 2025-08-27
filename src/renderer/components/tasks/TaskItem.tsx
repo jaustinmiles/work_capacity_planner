@@ -53,10 +53,10 @@ export function TaskItem({ task }: TaskItemProps) {
   const handleSave = async () => {
     if (editedName.trim()) {
       try {
-        logger.ui.info('Task name updated', { 
-          taskId: task.id, 
-          oldName: task.name, 
-          newName: editedName.trim() 
+        logger.ui.info('Task name updated', {
+          taskId: task.id,
+          oldName: task.name,
+          newName: editedName.trim(),
         })
         await updateTask(task.id, { name: editedName.trim() })
         setIsEditing(false)
@@ -106,10 +106,10 @@ export function TaskItem({ task }: TaskItemProps) {
           <Checkbox
             checked={task.completed}
             onChange={() => {
-              logger.ui.info('Task completion toggled', { 
-                taskId: task.id, 
+              logger.ui.info('Task completion toggled', {
+                taskId: task.id,
                 taskName: task.name,
-                completed: !task.completed 
+                completed: !task.completed,
               })
               toggleTaskComplete(task.id).catch(console.error)
             }}
@@ -266,10 +266,10 @@ export function TaskItem({ task }: TaskItemProps) {
                   size="small"
                   icon={<IconEdit />}
                   onClick={() => {
-                    logger.ui.info('Task edit modal opened', { 
-                      taskId: task.id, 
+                    logger.ui.info('Task edit modal opened', {
+                      taskId: task.id,
                       taskName: task.name,
-                      hasSteps: task.hasSteps 
+                      hasSteps: task.hasSteps,
                     })
                     setShowEditModal(true)
                   }}
