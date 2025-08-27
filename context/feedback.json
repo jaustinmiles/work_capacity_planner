@@ -501,5 +501,32 @@
     "timestamp": "2025-08-27T17:34:15.558Z",
     "sessionId": "session-1756316055552-k0150fwve",
     "resolved": true
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "other"
+    ],
+    "title": "Need better UI refresh",
+    "description": "In many cases, like starting a new session, logging work, or other uses, the user changes the data of the application and the UI needs a manual refresh in order for the User to see it.",
+    "steps": "Make a schedule in one session, then start a new session. You should see the sidebar on the left still show you the scheduled time for the old sessoin. ",
+    "expected": "All UI should refresh if necessary whenever any data it uses changes. ",
+    "timestamp": "2025-08-27T18:03:28.972Z",
+    "sessionId": "session-1756317808964-qxjpi9cc0"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "settings/MultiDayScheduleEditor"
+    ],
+    "title": "Schedule doesn't support multi day generation",
+    "description": "Used this from User test script: I work 9 to 5 on weekdays with a lunch break from 12 to 1. I have focus time in the morning from 9 to 12 and admin time in the afternoon from 1 to 5. On weekends I want personal time from 10am to 2pm. And weekend days were not generated. In fact, only one day is generated",
+    "steps": "use the voice script from the user test or description, note that only one day (and no weekend days) are generated. ",
+    "expected": "Users should be able to specify multiple days and have the AI assistant build a schedule that spans multiple days. ",
+    "actual": "Only one day is generated, weekends are discarded. Additionally, there is no way to copy a schedule from a weekend day to another weekend day. ",
+    "timestamp": "2025-08-27T18:07:58.535Z",
+    "sessionId": "session-1756318078525-fuh38b8pr"
   }
 ]
