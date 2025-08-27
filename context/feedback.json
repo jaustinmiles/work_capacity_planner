@@ -259,7 +259,8 @@
     "steps": "log personal time, observe lack of info in sidebar widget",
     "expected": "All types of logged time should be displayed",
     "timestamp": "2025-08-20T18:25:44.543Z",
-    "sessionId": "session-1755714344534-ohjcor81d"
+    "sessionId": "session-1755714344534-ohjcor81d",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -322,7 +323,8 @@
     "title": "Console error on feedback sucmit",
     "description": "[2025-08-21T16:11:01.574Z] [UI] Failed to submit feedback: {error: 'form validate error, get errors by error.errors', stack: 'Error: form validate error, get errors by error.er…localhost:5174/assets/index-5m2vGVDv.js:69:260943'}",
     "timestamp": "2025-08-21T16:13:13.196Z",
-    "sessionId": "session-1755792793185-8i07535jd"
+    "sessionId": "session-1755792793185-8i07535jd",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -415,7 +417,8 @@
     "title": "Editing Cognitive Complexity shows nothing on task view",
     "description": "after changing a task's cognitive complexity, I would imagine the task list view should update to show the new complexity, but it doesn't. In fact, complexity is missing entirely from some tasks' display card, but exists on others. ",
     "timestamp": "2025-08-27T16:21:34.977Z",
-    "sessionId": "session-1756311694968-lo640d0de"
+    "sessionId": "session-1756311694968-lo640d0de",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -449,7 +452,8 @@
     "title": "No way to remove a deadline",
     "description": "If a delete the deadline and resave, nothing happens. I can reload or click off the screen and come back and the deadline is still there",
     "timestamp": "2025-08-27T16:54:42.801Z",
-    "sessionId": "session-1756313682791-7364unfpn"
+    "sessionId": "session-1756313682791-7364unfpn",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -472,5 +476,17 @@
     "description": "see this in terminal: EisenhowerMatrix.tsx:158 Encountered two children with the same key, `bee6c880-c5ea-4856-a591-7ed07c1f2ff4`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. and duplicates on the UI. Also, we should add the eisenhower matrix as an affected component on the feedback form",
     "timestamp": "2025-08-27T17:01:49.743Z",
     "sessionId": "session-1756314109697-cc9zshlmn"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "tasks/TaskEdit",
+      "tasks/TaskList"
+    ],
+    "title": "Two edit buttons to access task edit page",
+    "description": "in order to edit a task, one must first select the little pencil icon, and THEN click edit. We should automatically be brought to the edit page when we click the icon.",
+    "timestamp": "2025-08-27T17:14:57.942Z",
+    "sessionId": "session-1756314897936-jk57kzbal"
   }
 ]

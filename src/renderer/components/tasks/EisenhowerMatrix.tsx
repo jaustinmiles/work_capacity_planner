@@ -17,9 +17,12 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const [zoom, setZoom] = useState(1)
 
   // Combine regular tasks and sequenced tasks (workflows)
-  // For sequenced tasks, use totalDuration instead of duration
+  // Deduplicate by ID - sequenced tasks take precedence
+  const sequencedTaskIds = new Set(sequencedTasks.map(st => st.id))
+  const dedupedTasks = tasks.filter(t => !sequencedTaskIds.has(t.id))
+
   const allTasks = [
-    ...tasks,
+    ...dedupedTasks,
     ...sequencedTasks.map(st => ({
       ...st,
       duration: st.duration, // Use totalDuration for sequenced tasks
