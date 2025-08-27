@@ -87,7 +87,7 @@ describe('Sampler', () => {
         warnRate: 0.8,
         infoRate: 0.5,
       })
-      
+
       // Sample with different levels - this triggers internal tracking
       adaptiveSampler.shouldSample(LogLevel.INFO)
       adaptiveSampler.shouldSample(LogLevel.ERROR)
@@ -125,7 +125,7 @@ describe('Sampler', () => {
       const adaptiveSampler = new Sampler({
         adaptiveSampling: true,
       })
-      
+
       // Sample some errors
       adaptiveSampler.shouldSample(LogLevel.ERROR)
       adaptiveSampler.shouldSample(LogLevel.ERROR)

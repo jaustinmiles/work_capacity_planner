@@ -46,14 +46,14 @@ export abstract class Logger implements ILogger {
   error = (message: string, errorOrData?: Error | Record<string, any> | LazyLogData, additionalData?: Record<string, any>): void => {
     let error: Error | undefined
     let data: Record<string, any> | LazyLogData | undefined
-    
+
     if (errorOrData instanceof Error) {
       error = errorOrData
       data = additionalData
     } else {
       data = errorOrData
     }
-    
+
     this.log(LogLevel.ERROR, message, data, error)
   }
 
