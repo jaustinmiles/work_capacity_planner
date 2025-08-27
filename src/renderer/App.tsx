@@ -45,16 +45,16 @@ interface ExtractedTask {
 
 function App() {
   const logger = useLogger({ component: 'App' })
-  
+
   // Expose logger to DevTools for debugging
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
       (window as any).__logger = logger;
-      (window as any).__dumpLogs = () => logger.dumpBuffer();
-      console.info('📝 Logger exposed to DevTools. Use __dumpLogs() to see ring buffer contents.');
+      (window as any).__dumpLogs = () => logger.dumpBuffer()
+      console.info('📝 Logger exposed to DevTools. Use __dumpLogs() to see ring buffer contents.')
     }
   }, [logger])
-  
+
   const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
