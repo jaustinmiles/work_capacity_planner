@@ -50,8 +50,15 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
     a.startTime.getTime() - b.startTime.getTime(),
   )
 
+  // Sort blocks by start time to ensure chronological order
+  const sortedBlocks = [...blocks].sort((a, b) => {
+    const timeA = dayjs(`2000-01-01 ${a.startTime}`).valueOf()
+    const timeB = dayjs(`2000-01-01 ${b.startTime}`).valueOf()
+    return timeA - timeB
+  })
+
   // Group items by time blocks
-  const timeBlocks = blocks.map(block => {
+  const timeBlocks = sortedBlocks.map(block => {
     const blockStart = dayjs(`${date} ${block.startTime}`)
     const blockEnd = dayjs(`${date} ${block.endTime}`)
 
@@ -68,11 +75,15 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
     }
   })
 
-  // Find meetings that overlap with this day
+  // Find meetings that overlap with this day and sort by start time
   const dayMeetings = meetings.filter(__meeting => {
     // For now, assume all meetings are on the same day
     // In future, handle cross-day meetings (like sleep blocks)
     return true
+  }).sort((a, b) => {
+    const timeA = dayjs(`2000-01-01 ${a.startTime}`).valueOf()
+    const timeB = dayjs(`2000-01-01 ${b.startTime}`).valueOf()
+    return timeA - timeB
   })
 
   const getTotalMinutes = (items: ScheduledItem[]) => {
@@ -117,17 +128,41 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
           <Text type="secondary">Admin</Text>
         </Space>
 
-        {/* Timeline View */}
+        {/* Timeline View - Combine blocks and meetings in chronological order */}
         <Timeline>
-          {timeBlocks.map((block, __index) => {
-            const hasItems = block.items.length > 0
-            const blockIcon = block.type === TaskType.Focused ? <IconDesktop /> :
-                            block.type === TaskType.Admin ? <IconUserGroup /> :
-                            <IconClockCircle />
+          {(() => {
+            // Combine blocks and meetings into a single timeline
+            const timelineItems: Array<{ type: 'block' | 'meeting', data: any, startTime: string }> = [
+              ...timeBlocks.map(block => ({
+                type: 'block' as const,
+                data: block,
+                startTime: block.startTime,
+              })),
+              ...dayMeetings.map(meeting => ({
+                type: 'meeting' as const,
+                data: meeting,
+                startTime: meeting.startTime,
+              })),
+            ]
 
-            return (
-              <Timeline.Item
-                key={block.id}
+            // Sort all items chronologically
+            timelineItems.sort((a, b) => {
+              const timeA = dayjs(`2000-01-01 ${a.startTime}`).valueOf()
+              const timeB = dayjs(`2000-01-01 ${b.startTime}`).valueOf()
+              return timeA - timeB
+            })
+
+            return timelineItems.map((item, index) => {
+              if (item.type === 'block') {
+                const block = item.data
+                const hasItems = block.items.length > 0
+                const blockIcon = block.type === TaskType.Focused ? <IconDesktop /> :
+                                block.type === TaskType.Admin ? <IconUserGroup /> :
+                                <IconClockCircle />
+
+                return (
+                  <Timeline.Item
+                    key={block.id}
                 label={`${block.startTime} - ${block.endTime}`}
                 dotColor={hasItems ? 'blue' : 'gray'}
               >
@@ -176,10 +211,9 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
                 </Space>
               </Timeline.Item>
             )
-          })}
-
-          {/* Show meetings/blocked time */}
-          {dayMeetings.map(meeting => {
+          } else {
+            // Render meeting
+            const meeting = item.data
             const isSleep = meeting.name.toLowerCase() === 'sleep'
             return (
               <Timeline.Item
@@ -200,7 +234,9 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
                 </Space>
               </Timeline.Item>
             )
-          })}
+          }
+        })
+      })()}
         </Timeline>
 
         {/* Unscheduled items (if any) */}
