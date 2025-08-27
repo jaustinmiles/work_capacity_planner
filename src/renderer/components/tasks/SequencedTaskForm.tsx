@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Modal, Form, Input, Select, InputNumber, Button, Space, Card, Typography, Divider, Alert } from '@arco-design/web-react'
+import { Modal, Form, Input, Select, InputNumber, Button, Space, Card, Typography, Divider, Alert, DatePicker } from '@arco-design/web-react'
 import { IconPlus, IconDelete } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
+import dayjs from 'dayjs'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -80,6 +81,10 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         overallStatus: 'not_started',
         dependencies: [],
         completed: false,
+        cognitiveComplexity: values.cognitiveComplexity || 3,
+        deadline: values.deadline ? dayjs(values.deadline).toISOString() : null,
+        hasSteps: true,
+        type: TaskType.Focused, // Default type for workflows
       }
 
       onSubmit(sequencedTask)
@@ -136,6 +141,27 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
             style={{ width: 120 }}
           >
             <InputNumber min={1} max={10} />
+          </Form.Item>
+
+          <Form.Item
+            label="Cognitive Complexity"
+            field="cognitiveComplexity"
+            style={{ width: 150 }}
+          >
+            <InputNumber min={1} max={5} defaultValue={3} />
+          </Form.Item>
+
+          <Form.Item
+            label="Deadline"
+            field="deadline"
+            style={{ width: 200 }}
+          >
+            <DatePicker
+              showTime
+              format="YYYY-MM-DD HH:mm"
+              placeholder="Optional deadline"
+              disabledDate={(date) => dayjs(date).isBefore(dayjs(), 'day')}
+            />
           </Form.Item>
         </Space>
 

@@ -14,6 +14,7 @@ UI Component → Zustand Store → IPC Bridge → Main Process → Database Serv
 - **Database Schema**: `/prisma/schema.prisma` - Authoritative data model
 - **Type Definitions**: `/src/shared/types.ts` - TypeScript interfaces
 - **Store**: Zustand stores in `/src/renderer/store/` - Client state
+- **UI Components**: Core reusable components prevent feature drift
 
 ### 2. Data Persistence Flow
 
@@ -119,6 +120,47 @@ private formatTask(task: any): Task {
   }
 }
 ```
+
+## Component Unification Principle
+
+### CRITICAL: Prevent Feature Drift Through Component Reuse
+
+**Problem**: Duplicated logic for workflows in multiple places:
+- Manual creation (SequencedTaskForm)
+- Editing (SequencedTaskEdit)
+- AI Brainstorm (BrainstormModal)
+- Voice amendments (VoiceAmendmentModal)
+
+**Solution**: Unified Component Architecture
+```typescript
+// BAD - Each feature has its own workflow logic
+<SequencedTaskForm />     // Has fields A, B, C
+<SequencedTaskEdit />      // Has fields A, B, C, D, E
+<BrainstormModal />        // Has fields B, C, D, F
+<VoiceAmendmentModal />    // Has fields A, C, E, F
+
+// GOOD - All features use same core component
+<WorkflowCore />           // Single source of truth for all fields
+  └── <SequencedTaskForm />     // Wrapper with creation logic
+  └── <SequencedTaskEdit />     // Wrapper with edit logic
+  └── <BrainstormModal />       // Wrapper with AI logic
+  └── <VoiceAmendmentModal />   // Wrapper with voice logic
+```
+
+### Core Component Rules
+
+1. **Single Core Component**: One component defines ALL fields and validation
+2. **Feature Wrappers**: Different UIs wrap the core component
+3. **Prop-Based Customization**: Use props to show/hide features
+4. **Shared Validation**: Validation logic in one place
+5. **Consistent Data Shape**: Same data structure everywhere
+
+### Benefits
+- No feature drift between creation/edit modes
+- Single place to add new fields
+- Consistent user experience
+- Easier testing and maintenance
+- Automatic propagation of changes
 
 ## Anti-Patterns to Avoid
 
