@@ -542,5 +542,74 @@
     "actual": "Only a few edit options are shown, and there is no place to supply clarifications to AI questions. ",
     "timestamp": "2025-08-27T18:18:29.163Z",
     "sessionId": "session-1756318709152-2zojohpro"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "tasks/SequencedTaskEdit"
+    ],
+    "title": "When trying to manually add a workflow by typing (not AI brainstorm), the workflow gets duped",
+    "description": "After trying to fill out a workflow by hand, I clicked save. I used a workflow with 2 tasks (btw maybe need to update all user test plan items with specific strings like \"create workflow ith 2 tasks with values blank and blank\" or something so it's easier for you to debug) and when I clicked save, I now see 2 workflows, each with the same name and each with one task. Also, I had to refresh in order to get to it. Also, the other fields like deadline and complexity are not available in this menu. We probably need a workflow editing/creation UI unification - things are getting out of sync",
+    "steps": "Manually make a workflow with 2 tasks and hit save. Observe two workflows pop up",
+    "expected": "Users should be able to sequence tasks and create a workflow with multiple steps, without duplication. ",
+    "actual": "Workflow is broken into two workflows, each with one of the steps. Dependencies are broken. Editing UI is bad. ",
+    "timestamp": "2025-08-27T18:25:06.998Z",
+    "sessionId": "session-1756319106985-su0ie4qe9"
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "components": [
+      "utils/flexible-scheduler"
+    ],
+    "title": "Workflow step scheduled during meeting",
+    "description": "Added a meeting called test meeting, and noticed a workflow step is scheduled at that time. This is in the User Test session, and should be in the database",
+    "timestamp": "2025-08-27T18:28:17.136Z",
+    "sessionId": "session-1756319297129-mdw7usl08"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "settings/MultiDayScheduleEditor"
+    ],
+    "title": "Clear future schedules button doesn't work",
+    "description": "Uncaught (in promise) TypeError: od.render is not a function\n    at RS (index-DB6pfsEO.js:57:17325)\n    at HE (index-DB6pfsEO.js:57:17970)\n    at i (index-DB6pfsEO.js:69:318554)\n    at mR (index-DB6pfsEO.js:69:318809)\n    at pn.confirm (index-DB6pfsEO.js:69:327771)\n    at k (index-DB6pfsEO.js:86:103016)\n    at B (index-DB6pfsEO.js:57:80435)\n    at _3 (index-DB6pfsEO.js:48:118614)\n    at index-DB6pfsEO.js:48:123926\n    at Ns (index-DB6pfsEO.js:48:9049)\n\nclicking the button results in this error in the console",
+    "timestamp": "2025-08-27T18:29:35.221Z",
+    "sessionId": "session-1756319375213-etwo9vfnx"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "utils/flexible-scheduler"
+    ],
+    "title": "Scheduling engine appears to prioritize task switching for no reason",
+    "description": "My highest priority task has several components (but the first step doesn't have any async wait, while the next one does) but the steps are not scheduled in sequence, and instead are broken up by another, lower priority task. But we should definitely prioritize getting to that workflow step that has async time, since that should be the goal of the scheduler. ",
+    "timestamp": "2025-08-27T18:31:18.290Z",
+    "sessionId": "session-1756319478280-l4ammc3jy"
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "components": [
+      "calendar/WeeklyCalendar"
+    ],
+    "title": "Duplicate meetings outside work",
+    "description": "See this in the UI: Outside Work Hours\ntest meeting10:30 AM - 30m\ntest meeting10:30 AM - 30m\ntest meeting10:30 AM - 30m\ntest meeting10:30 AM - 30m\ntest m 212:30 PM - 1h\ntest m 212:30 PM - 1h\ntest m 212:30 PM - 1h\ntest m 212:30 PM - 1h",
+    "timestamp": "2025-08-27T18:32:47.021Z",
+    "sessionId": "session-1756319567010-219vw960k"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Clock labels are buggy and control nodes are rendered in bad position",
+    "description": "control nodes for the time segment of the logged work render away from the actual arc around the clock, and the labels for the hours are weird. Prefer a clock with 2 rings or 2 separate clocks, since the unified 24 hour one seems buggy",
+    "timestamp": "2025-08-27T18:35:12.770Z",
+    "sessionId": "session-1756319712760-u1nxczn59"
   }
 ]

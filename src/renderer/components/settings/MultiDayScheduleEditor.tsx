@@ -13,6 +13,7 @@ import {
   Tooltip,
   Modal,
   Divider,
+  Popconfirm,
 } from '@arco-design/web-react'
 import {
   IconCalendar,
@@ -202,38 +203,30 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
   }
 
   const handleClearAllSchedules = async () => {
-    Modal.confirm({
-      title: 'Clear All Schedules',
-      content: 'This will delete ALL schedules for all future days. This cannot be undone. Are you sure?',
-      okText: 'Clear All',
-      okButtonProps: { status: 'danger' },
-      onOk: async () => {
-        setLoading(true)
-        try {
-          const db = getDatabase()
-          // Get all future dates
-          const today = dayjs().format('YYYY-MM-DD')
-          const patterns = await db.getWorkPatterns()
+    setLoading(true)
+    try {
+      const db = getDatabase()
+      // Get all future dates
+      const today = dayjs().format('YYYY-MM-DD')
+      const patterns = await db.getWorkPatterns()
 
-          let clearedCount = 0
-          for (const pattern of patterns) {
-            if (pattern.date >= today) {
-              await db.deleteWorkPattern(pattern.id)
-              clearedCount++
-            }
-          }
-
-          Message.success(`Cleared ${clearedCount} schedules`)
-          await loadPatterns()
-          onSave?.()
-        } catch (error) {
-          logger.ui.error('Failed to clear schedules:', error)
-          Message.error('Failed to clear schedules')
-        } finally {
-          setLoading(false)
+      let clearedCount = 0
+      for (const pattern of patterns) {
+        if (pattern.date >= today) {
+          await db.deleteWorkPattern(pattern.id)
+          clearedCount++
         }
-      },
-    })
+      }
+
+      Message.success(`Cleared ${clearedCount} schedules`)
+      await loadPatterns()
+      onSave?.()
+    } catch (error) {
+      logger.ui.error('Failed to clear schedules:', error)
+      Message.error('Failed to clear schedules')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getDayStatus = (date: string) => {
@@ -448,15 +441,23 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
             <Col span={8}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text type="secondary">Clear Schedules</Text>
-                <Tooltip content="Delete ALL schedules for all future days">
-                  <Button
-                    status="danger"
-                    icon={<IconDelete />}
-                    onClick={handleClearAllSchedules}
-                  >
-                    Clear All Future Schedules
-                  </Button>
-                </Tooltip>
+                <Popconfirm
+                  title="Clear All Future Schedules?"
+                  content="This will delete ALL schedules for all future days. This cannot be undone."
+                  okText="Clear All"
+                  cancelText="Cancel"
+                  okButtonProps={{ status: 'danger' }}
+                  onOk={handleClearAllSchedules}
+                >
+                  <Tooltip content="Delete ALL schedules for all future days">
+                    <Button
+                      status="danger"
+                      icon={<IconDelete />}
+                    >
+                      Clear All Future Schedules
+                    </Button>
+                  </Tooltip>
+                </Popconfirm>
               </Space>
             </Col>
           </Row>
