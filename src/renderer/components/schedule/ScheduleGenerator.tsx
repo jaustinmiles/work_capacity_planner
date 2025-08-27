@@ -69,28 +69,47 @@ export function ScheduleGenerator({
         date.setDate(date.getDate() + i)
         const dayOfWeek = date.getDay()
         const dateStr = date.toISOString().split('T')[0]
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
 
         // Check if this day has work hours configured
         const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] ||
-                            (dayOfWeek !== 0 && dayOfWeek !== 6 ? workSettings?.defaultWorkHours : null)
+                            (!isWeekend ? workSettings?.defaultWorkHours : null)
+
+        // Create work pattern for each day (even if empty, so weekends are included)
+        const blocks: any[] = []
 
         if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
-          baseWorkPatterns.push({
-            date: dateStr,
-            blocks: [{
-              id: `block-${dateStr}`,
-              startTime: dayWorkHours.startTime,
-              endTime: dayWorkHours.endTime,
-              type: 'mixed',
-              capacity: {
-                focusMinutes: 240, // 4 hours
-                adminMinutes: 180, // 3 hours
-              },
-            }],
-            meetings: [],
-            accumulated: { focusMinutes: 0, adminMinutes: 0 },
+          // Regular work day
+          blocks.push({
+            id: `block-${dateStr}-work`,
+            startTime: dayWorkHours.startTime,
+            endTime: dayWorkHours.endTime,
+            type: 'mixed',
+            capacity: {
+              focusMinutes: 240, // 4 hours
+              adminMinutes: 180, // 3 hours
+            },
+          })
+        } else if (isWeekend) {
+          // Weekend personal time block (10am-2pm as user requested)
+          blocks.push({
+            id: `block-${dateStr}-personal`,
+            startTime: '10:00',
+            endTime: '14:00',
+            type: 'personal',
+            capacity: {
+              personalMinutes: 240, // 4 hours
+            },
           })
         }
+
+        // Always add the pattern, even if blocks are empty (for proper multi-day display)
+        baseWorkPatterns.push({
+          date: dateStr,
+          blocks,
+          meetings: [],
+          accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
+        })
       }
 
       // Option 1: Deadline-First (Prioritize meeting all deadlines)
@@ -289,8 +308,29 @@ export function ScheduleGenerator({
         itemsByDate.set(dateStr, existing)
       }
 
-      // Create work patterns for each day
-      for (const [dateStr, items] of itemsByDate) {
+      // Get existing patterns for all dates in range
+      const allDates = new Set<string>()
+      const firstDate = selected.schedule.length > 0
+        ? dayjs(selected.schedule[0].startTime).format('YYYY-MM-DD')
+        : dayjs().format('YYYY-MM-DD')
+
+      // Generate all dates for the next 7 days (or more based on schedule)
+      for (let i = 0; i < 7; i++) {
+        const date = dayjs(firstDate).add(i, 'day')
+        allDates.add(date.format('YYYY-MM-DD'))
+      }
+
+      // Also add any dates that have scheduled items
+      for (const item of selected.schedule) {
+        allDates.add(dayjs(item.startTime).format('YYYY-MM-DD'))
+      }
+
+      // Create work patterns for each day (including empty days)
+      for (const dateStr of Array.from(allDates).sort()) {
+        const items = itemsByDate.get(dateStr) || []
+        const date = new Date(dateStr)
+        const dayOfWeek = date.getDay()
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
         const blocks: any[] = []
 
         // Group items into work blocks
@@ -335,6 +375,32 @@ export function ScheduleGenerator({
 
         if (currentBlock) {
           blocks.push(currentBlock)
+        }
+
+        // If no blocks created but it's a weekend, add personal time block
+        if (blocks.length === 0 && isWeekend) {
+          blocks.push({
+            startTime: '10:00',
+            endTime: '14:00',
+            type: 'personal',
+            capacity: {
+              personalMinutes: 240, // 4 hours
+            },
+          })
+        } else if (blocks.length === 0 && !isWeekend) {
+          // For weekdays without scheduled items, create default work blocks
+          const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] || workSettings?.defaultWorkHours
+          if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
+            blocks.push({
+              startTime: dayWorkHours.startTime,
+              endTime: dayWorkHours.endTime,
+              type: 'mixed',
+              capacity: {
+                focusMinutes: 240, // 4 hours default
+                adminMinutes: 180, // 3 hours default
+              },
+            })
+          }
         }
 
         // Save work pattern
