@@ -15,6 +15,7 @@ import {
   Grid,
   Popconfirm,
   Divider,
+  DatePicker,
 } from '@arco-design/web-react'
 import {
   IconEdit,
@@ -28,6 +29,7 @@ import {
   IconClockCircle,
   IconCheckCircle,
   IconCloseCircle,
+  IconCalendar,
 } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -144,6 +146,7 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
         urgency: editedTask.urgency,
         type: editedTask.type,
         notes: editedTask.notes,
+        deadline: editedTask.deadline,
         steps: cleanedSteps,
         duration: totalDuration,
         criticalPathDuration,
@@ -326,6 +329,11 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                 <Tag>
                   {editingSteps.length} steps
                 </Tag>
+                {editedTask.deadline && (
+                  <Tag color="red" icon={<IconCalendar />}>
+                    Deadline: {new Date(editedTask.deadline).toLocaleDateString()}
+                  </Tag>
+                )}
               </Space>
             </Space>
           </Col>
@@ -424,6 +432,35 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                 <Tag color="orange" style={{ fontSize: 16, padding: '4px 12px' }}>
                   {editedTask.importance * editedTask.urgency} - {getPriorityLabel(editedTask.importance, editedTask.urgency)}
                 </Tag>
+              </Space>
+            </Col>
+          </Row>
+
+          {/* Deadline and Notes Row */}
+          <Divider />
+          <Row gutter={16}>
+            <Col span={12}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text>Deadline (Optional)</Text>
+                <DatePicker
+                  value={editedTask.deadline}
+                  onChange={(dateString) => setEditedTask({ ...editedTask, deadline: dateString ? new Date(dateString) : null as any })}
+                  showTime
+                  format='YYYY-MM-DD HH:mm'
+                  style={{ width: '100%' }}
+                  placeholder="Select deadline"
+                />
+              </Space>
+            </Col>
+            <Col span={12}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text>Notes</Text>
+                <Input.TextArea
+                  value={editedTask.notes || ''}
+                  onChange={(value) => setEditedTask({ ...editedTask, notes: value })}
+                  placeholder="Additional notes about this workflow"
+                  autoSize={{ minRows: 2, maxRows: 4 }}
+                />
               </Space>
             </Col>
           </Row>
