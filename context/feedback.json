@@ -384,5 +384,17 @@
     "description": "I want to be able to start my day and 'freeze' the schedule, so that throughout the day we can see how we are spending our time compared to the plan. Ideally this would be two timeline views, one showing the planned day originally when the freeze happened, and the other showing the actual work logging. Then it could show me empty time, gaps, breaks that went too long, or bad estimates. ",
     "timestamp": "2025-08-27T14:21:22.294Z",
     "sessionId": "session-1756304482285-nurr7t2bt"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "components": [
+      "tasks/TaskList",
+      "tasks/SequencedTaskEdit"
+    ],
+    "title": "Add split button to split task into two parallel or sequential task with same dependencies",
+    "description": "Sometimes, a user may encounter a task that actually needs to be split into several steps. Rather than marking complete the old step and creating two new ones, we should introduce a 'split' functionality that allows a task to split into two subtasks while preserving the dependency relation. We should have options for splitting in sequence (one subtask depends on the other) and splitting in parallel (subtasks can be done in any order)",
+    "timestamp": "2025-08-27T14:33:05.921Z",
+    "sessionId": "session-1756305185910-n5v9ik3yo"
   }
 ]

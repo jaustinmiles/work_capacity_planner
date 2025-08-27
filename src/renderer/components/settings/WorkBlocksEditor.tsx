@@ -427,6 +427,12 @@ export function WorkBlocksEditor({
                               personalMinutes: 0,
                             },
                           })
+                        } else if (value === 'flexible') {
+                          // Flexible blocks don't have predetermined capacity split
+                          handleUpdateBlock(block.id, {
+                            type: value,
+                            capacity: undefined, // No preset capacity for flexible blocks
+                          })
                         } else if (value === 'personal') {
                           const startTime = dayjs(`2000-01-01 ${block.startTime}`)
                           const endTime = dayjs(`2000-01-01 ${block.endTime}`)
@@ -470,6 +476,7 @@ export function WorkBlocksEditor({
                       <Select.Option value={TaskType.Focused}>Focused</Select.Option>
                       <Select.Option value={TaskType.Admin}>Admin</Select.Option>
                       <Select.Option value="mixed">Mixed</Select.Option>
+                      <Select.Option value="flexible">Flexible</Select.Option>
                       <Select.Option value="personal">Personal</Select.Option>
                     </Select>
                   </Col>
@@ -539,6 +546,10 @@ export function WorkBlocksEditor({
                     ) : block.type === 'personal' ? (
                       <Text type="secondary">
                         All personal time
+                      </Text>
+                    ) : block.type === 'flexible' ? (
+                      <Text type="secondary">
+                        Flexible (any work type)
                       </Text>
                     ) : (
                       <Text type="secondary">
