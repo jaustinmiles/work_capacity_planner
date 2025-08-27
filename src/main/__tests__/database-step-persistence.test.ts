@@ -10,6 +10,12 @@ describe('Database Step Field Persistence', () => {
   beforeEach(async () => {
     db = DatabaseService.getInstance()
 
+    // First, deactivate any existing active sessions
+    await db.client.session.updateMany({
+      where: { isActive: true },
+      data: { isActive: false },
+    })
+
     // Create a test session
     testSessionId = `test-session-${Date.now()}`
     await db.client.session.create({
@@ -22,23 +28,28 @@ describe('Database Step Field Persistence', () => {
       },
     })
 
-    // Create a test workflow/task with steps
+    // Create a test workflow/task with steps directly using Prisma
     testTaskId = `test-task-${Date.now()}`
-    await db.createTask({
-      id: testTaskId,
-      name: 'Test Workflow',
-      duration: 180,
-      importance: 8,
-      urgency: 7,
-      type: TaskType.Focused,
-      asyncWaitTime: 0,
-      dependencies: [],
-      completed: false,
-      sessionId: testSessionId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      hasSteps: true,
-      steps: [
+    await db.client.task.create({
+      data: {
+        id: testTaskId,
+        name: 'Test Workflow',
+        duration: 180,
+        importance: 8,
+        urgency: 7,
+        type: TaskType.Focused,
+        asyncWaitTime: 0,
+        dependencies: '[]',
+        completed: false,
+        sessionId: testSessionId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        hasSteps: true,
+      },
+    })
+    
+    // Create steps
+    const steps = [
         {
           id: `step-1-${Date.now()}`,
           name: 'Step 1',
@@ -68,8 +79,15 @@ describe('Database Step Field Persistence', () => {
           cognitiveComplexity: 2,
           // No custom priority - should inherit from workflow
         },
-      ],
-    } as any)
+      ]
+      
+    await db.client.taskStep.createMany({
+      data: steps.map((step, index) => ({
+        ...step,
+        taskId: testTaskId,
+        dependsOn: JSON.stringify(step.dependsOn || []),
+      })),
+    })
   })
 
   afterEach(async () => {
