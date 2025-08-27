@@ -38,13 +38,26 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       loadWorkData()
     }
 
+    // Listen for session changes and general refresh events
+    const handleSessionChanged = () => {
+      loadWorkData()
+    }
+
+    const handleDataRefresh = () => {
+      loadWorkData()
+    }
+
     appEvents.on(EVENTS.TIME_LOGGED, handleTimeLogged)
     appEvents.on(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
+    appEvents.on(EVENTS.SESSION_CHANGED, handleSessionChanged)
+    appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
 
     return () => {
       clearInterval(interval)
       appEvents.off(EVENTS.TIME_LOGGED, handleTimeLogged)
       appEvents.off(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
+      appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
+      appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
     }
   }, [currentDate])
 

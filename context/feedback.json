@@ -172,7 +172,8 @@
     "title": "Allow priority rankings on individual workflow steps",
     "description": "Sometimes, it's important to get one step of a workflow done, even if the entire thing is lower priority. It would be nice to be able to specify priorities for workflow steps as an optional parameter",
     "timestamp": "2025-08-20T14:31:52.487Z",
-    "sessionId": "session-1755700312479-b1lostq8e"
+    "sessionId": "session-1755700312479-b1lostq8e",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -310,7 +311,7 @@
       "utils/amendment-applicator"
     ],
     "title": "Edit options are blank",
-    "description": "When trying to change the AI output for the amendment applicator, this is all I see: Detected Changes\nConfidence: 90%\nMark\nROI Implementation\nas\ncompleted\n95%\nAdd step to\nROI Implementation\nStep:\nReparent CL and resolve merge conflicts\n(30 min, focused)\n95%\nAdd step to\nROI Implementation\nStep:\nSend CL out for initial review\n(15 min, admin)\nAfter: Reparent CL and resolve merge conflicts\n95%\nStatus Update\nStep Addition\nStep Addition\n\nThe status update and step addition fields are blank.",
+    "description": "When trying to change the AI output for the amendment applicator, this is all I see: Detected Changes\nConfidence: 90%\nMark\nROI Implementation\nas\ncompleted\n95%\nAdd step to\nROI Implementation\nStep:\nReparent CL and resolve merge conflicts\n(30 min, focused)\n95%\nAdd step to\nROI Implementation\nStep:\nSend CL out for initial review\n(15 min, admin)\nAfter: Reparent CL and resolve merge conflicts\n95%\nStatus Update\nStep Addition\nStep Addition\n\nThe status update and step addition fields are blank.\n\nUPDATE: Wed 8/27 12:36 PM PDT: this is still buggy. I clearly asked for an amendment to this workflow I have, and in the edit amendments screen everything looked fine - one status update, one dependency rewiring, one new task. But then when I accepted it, it seemed to have not modified the workflow at all, but instead, created two tasks that appear to be duplicates. Here's a printout of what I see: Refactoring for Supercomputer Simulation\nEst: 2h\nMedium Priority (56)\nComplexity: 3/5\nAdmin/Meeting\nOpen a new CL to refactor code needed for the supercomputer simulation\n\nRefactoring for Supercomputer Simulation\nEst: 2h\nMedium Priority (56)\nComplexity: 3/5\nAdmin/Meeting\nOpen a new CL to refactor code needed for the supercomputer simulation\n\nBug Fixes with Supercomputer Simulation\nEst: 2h 15m\nLogged: 45m\nMedium Priority (56)\nComplexity: 3/5\nFocused Work\nDue in 27 minutes\nFix 3 bugs and run required supercomputer simulation workflow for verification Bug fixes require supercomputer simulation verification. Assumed 2.5 hours for simulation (middle of 2-3 hour range). Questions: 1) Can all 3 bugs be fixed before triggering one simulation, or does each bug fix need its own simulation run? 2) What's the typical success rate of the simulation? 3) Are there specific submission windows for the supercomputer?",
     "timestamp": "2025-08-21T16:11:05.217Z",
     "sessionId": "session-1755792665204-kykzm1bk0"
   },
@@ -536,7 +537,7 @@
       "ai/BrainstormModal"
     ],
     "title": "Clarifications still buggy",
-    "description": "If the AI is confused, it should ask questions the user can answer, and then we should be able to regenerate, based on the clarifications provided for each workflow task or step. But right now, all I see is quick edits to change priority or duration. The quick edits don't even have all the other edit options, like cognitive complexity or deadlines, and i cant change values for individual workflow tasks",
+    "description": "If the AI is confused, it should ask questions the user can answer, and then we should be able to regenerate, based on the clarifications provided for each workflow task or step. But right now, all I see is quick edits to change priority or duration. The quick edits don't even have all the other edit options, like cognitive complexity or deadlines, and i cant change values for individual workflow tasks\n\nUPDATE: 8/27 12:32 PM PDT: Still not seeing a way to provide clarifications. In fact, it seems worse now than before. Only an option to accept or try again. Here's what I see: Summary:\nCode submission workflow involving unit tests, a long-running supercomputer simulation (2-3 hours), code review with a day-long wait, and finalization. The 30-minute wait mentioned conflicts with the 2-3 hour workflow duration from context, requiring clarification.\nAsync Workflows (1):\nCode Submission and Review Workflow\nFocused\n4 steps\nComplete workflow from writing unit tests through final code approval, including running supercomputer simulation and review process\nActive Work: 1715min\nEarliest: 2.1 hours active work + 26.5 hours wait = 28.6 hours total\nWorst Case: Including potential simulation retries and review iterations: 72-96 hours\nWorkflow Steps:\n1. Write unit tests\n60min\n2. Run supercomputer simulation workflow\n15min\n+150min wait\nDepends on: Write unit tests\n3. Submit code for review\n20min\n+1440min wait\nDepends on: Run supercomputer simulation workflow\n4. Finalize code\n30min\nDepends on: Submit code for review\nNotes: CLARIFICATION NEEDED: The brainstorm mentions 'wait like 30 minutes' after running the workflow, but job context states workflows take '2-3 hours'. Which is correct? Assumed 2.5 hours for simulation based on job context. Review wait time of 'like a day' interpreted as ~24 hours. Need to clarify: 1) Exact simulation duration, 2) Whether unit tests must pass before running workflow, 3) What 'finalize' entails - merge to main? deployment? 4) Typical review turnaround time more precisely",
     "steps": "Use this prompt from user test: I need to complete a code review that will take 2 hours, write documentation for 90 minutes, attend a team meeting for 1 hour, and fix three bugs which should take 30 minutes each and observe lack of good clarification or quick edit options after AI is done generating",
     "expected": "User should be able to answer the questions with voice or text directly, and the quick edit options should contain all editable fields, per workflow step (obviously, they should inherit if left blank)",
     "actual": "Only a few edit options are shown, and there is no place to supply clarifications to AI questions. ",
@@ -555,7 +556,8 @@
     "expected": "Users should be able to sequence tasks and create a workflow with multiple steps, without duplication. ",
     "actual": "Workflow is broken into two workflows, each with one of the steps. Dependencies are broken. Editing UI is bad. ",
     "timestamp": "2025-08-27T18:25:06.998Z",
-    "sessionId": "session-1756319106985-su0ie4qe9"
+    "sessionId": "session-1756319106985-su0ie4qe9",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -566,7 +568,8 @@
     "title": "Workflow step scheduled during meeting",
     "description": "Added a meeting called test meeting, and noticed a workflow step is scheduled at that time. This is in the User Test session, and should be in the database",
     "timestamp": "2025-08-27T18:28:17.136Z",
-    "sessionId": "session-1756319297129-mdw7usl08"
+    "sessionId": "session-1756319297129-mdw7usl08",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -575,7 +578,7 @@
       "settings/MultiDayScheduleEditor"
     ],
     "title": "Clear future schedules button doesn't work",
-    "description": "Uncaught (in promise) TypeError: od.render is not a function\n    at RS (index-DB6pfsEO.js:57:17325)\n    at HE (index-DB6pfsEO.js:57:17970)\n    at i (index-DB6pfsEO.js:69:318554)\n    at mR (index-DB6pfsEO.js:69:318809)\n    at pn.confirm (index-DB6pfsEO.js:69:327771)\n    at k (index-DB6pfsEO.js:86:103016)\n    at B (index-DB6pfsEO.js:57:80435)\n    at _3 (index-DB6pfsEO.js:48:118614)\n    at index-DB6pfsEO.js:48:123926\n    at Ns (index-DB6pfsEO.js:48:9049)\n\nclicking the button results in this error in the console",
+    "description": "Uncaught (in promise) TypeError: od.render is not a function\n    at RS (index-DB6pfsEO.js:57:17325)\n    at HE (index-DB6pfsEO.js:57:17970)\n    at i (index-DB6pfsEO.js:69:318554)\n    at mR (index-DB6pfsEO.js:69:318809)\n    at pn.confirm (index-DB6pfsEO.js:69:327771)\n    at k (index-DB6pfsEO.js:86:103016)\n    at B (index-DB6pfsEO.js:57:80435)\n    at _3 (index-DB6pfsEO.js:48:118614)\n    at index-DB6pfsEO.js:48:123926\n    at Ns (index-DB6pfsEO.js:48:9049)\n\nclicking the button results in this error in the console\n\nupdate 8/27 noon PDT: [2025-08-27T19:24:55.276Z] [UI] Failed to clear schedules: {error: 'window.electronAPI.db.getWorkPatterns is not a function', stack: 'TypeError: window.electronAPI.db.getWorkPatterns i…localhost:5174/assets/index-CsrGpN0I.js:49:26743)'}. This is still not resolved. ",
     "timestamp": "2025-08-27T18:29:35.221Z",
     "sessionId": "session-1756319375213-etwo9vfnx"
   },
@@ -588,7 +591,8 @@
     "title": "Scheduling engine appears to prioritize task switching for no reason",
     "description": "My highest priority task has several components (but the first step doesn't have any async wait, while the next one does) but the steps are not scheduled in sequence, and instead are broken up by another, lower priority task. But we should definitely prioritize getting to that workflow step that has async time, since that should be the goal of the scheduler. ",
     "timestamp": "2025-08-27T18:31:18.290Z",
-    "sessionId": "session-1756319478280-l4ammc3jy"
+    "sessionId": "session-1756319478280-l4ammc3jy",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -599,7 +603,8 @@
     "title": "Duplicate meetings outside work",
     "description": "See this in the UI: Outside Work Hours\ntest meeting10:30 AM - 30m\ntest meeting10:30 AM - 30m\ntest meeting10:30 AM - 30m\ntest meeting10:30 AM - 30m\ntest m 212:30 PM - 1h\ntest m 212:30 PM - 1h\ntest m 212:30 PM - 1h\ntest m 212:30 PM - 1h",
     "timestamp": "2025-08-27T18:32:47.021Z",
-    "sessionId": "session-1756319567010-219vw960k"
+    "sessionId": "session-1756319567010-219vw960k",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -610,7 +615,8 @@
     "title": "Clock labels are buggy and control nodes are rendered in bad position",
     "description": "control nodes for the time segment of the logged work render away from the actual arc around the clock, and the labels for the hours are weird. Prefer a clock with 2 rings or 2 separate clocks, since the unified 24 hour one seems buggy",
     "timestamp": "2025-08-27T18:35:12.770Z",
-    "sessionId": "session-1756319712760-u1nxczn59"
+    "sessionId": "session-1756319712760-u1nxczn59",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -621,6 +627,7 @@
     "title": "Task splitting appears to try to schedule multiple chunks of the same task concurrently",
     "description": "Multiple tasks with the same name (test task 1 (1/3), test task 1 (2/3), ...) I think this is from task splitting, but we are scheduling them overlapping and also at the same time. We should probably have a validation that runs at the end of the timeline generation that catches these easy things and alerts the user or errors. ",
     "timestamp": "2025-08-27T19:07:52.193Z",
-    "sessionId": "session-1756321672183-9g1flgajs"
+    "sessionId": "session-1756321672183-9g1flgajs",
+    "resolved": true
   }
 ]
