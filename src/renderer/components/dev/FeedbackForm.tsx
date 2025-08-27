@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Form, Input, Button, Radio, Typography, Space, Alert, Checkbox } from '@arco-design/web-react'
 import { IconMessage, IconSave } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
@@ -61,6 +61,14 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [feedbackType, setFeedbackType] = useState<FeedbackData['type']>('improvement')
+
+  // Set default values when component mounts
+  React.useEffect(() => {
+    form.setFieldsValue({
+      priority: 'medium',
+      type: 'improvement',
+    })
+  }, [form])
 
   const handleSubmit = async (): Promise<void> => {
     try {
@@ -150,7 +158,7 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
         </FormItem>
 
         <FormItem label="Priority" field="priority" rules={[{ required: true }]}>
-          <RadioGroup defaultValue="medium">
+          <RadioGroup>
             <Radio value="low">Low</Radio>
             <Radio value="medium">Medium</Radio>
             <Radio value="high">High</Radio>

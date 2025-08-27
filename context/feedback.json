@@ -464,7 +464,8 @@
     "title": "Changing the cognitive complexity doesn't persist",
     "description": "If I edit a task to have a different cognitive complexity and save, and then I try to click on another page and go back, it resets to the previous complexity value",
     "timestamp": "2025-08-27T16:58:08.905Z",
-    "sessionId": "session-1756313888897-fy6qcsli0"
+    "sessionId": "session-1756313888897-fy6qcsli0",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -487,6 +488,16 @@
     "title": "Two edit buttons to access task edit page",
     "description": "in order to edit a task, one must first select the little pencil icon, and THEN click edit. We should automatically be brought to the edit page when we click the icon.",
     "timestamp": "2025-08-27T17:14:57.942Z",
-    "sessionId": "session-1756314897936-jk57kzbal"
+    "sessionId": "session-1756314897936-jk57kzbal",
+    "resolved": true
+  },
+  {
+    "type": "improvement",
+    "priority": "medium",
+    "title": "test",
+    "description": "test test ",
+    "timestamp": "2025-08-27T17:34:15.558Z",
+    "sessionId": "session-1756316055552-k0150fwve",
+    "resolved": true
   }
 ]

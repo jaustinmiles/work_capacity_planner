@@ -1,8 +1,46 @@
 # Current State
 
-## Session In Progress (2025-08-27 - Low-Priority UI Fixes)
+## Session In Progress (2025-08-27 - Quality of Life Improvements)
 
-### Branch: fix/low-hanging-fruit-batch-1 (PR #18 Created)
+### Branch: fix/quality-of-life-improvements
+This branch includes critical fixes for user test blockers:
+
+#### ✅ Fixed No Way to Remove a Deadline (Critical)
+- Modified database updateTask to accept null values for deadline field
+- Changed TaskEdit to pass null instead of undefined when deadline is cleared
+- Ensures deadline removal persists across page reloads
+
+#### ✅ Fixed Cognitive Complexity Not Persisting (Critical)
+- Added `cognitiveComplexity` to allowedFields in database updateTask
+- Field was being filtered out during updates, now properly saved
+
+#### ✅ Fixed Personal Time Not Showing in Sidebar (High)
+- WorkStatusWidget now always displays personal time row
+- Removed conditional rendering that hid row when value was 0
+- Shows 0m when no personal time is logged
+
+#### ✅ Fixed Eisenhower Matrix Duplicate Keys (Medium)
+- Deduplicated tasks by filtering out regular tasks that exist as sequenced tasks
+- Prevents React key warnings in console
+- Ensures each task appears only once in the matrix
+
+#### ✅ Fixed Two Edit Buttons Required (High)
+- Added `startInEditMode` prop to TaskEdit component
+- TaskItem now passes startInEditMode=true when opening edit modal
+- Users go directly to edit mode with single button click
+
+#### ✅ Fixed FeedbackForm Default Priority Not Saving
+- Issue: Radio button showed 'medium' selected but form validation failed
+- Solution: Added useEffect to set initial form values on mount
+- Priority now properly defaults to 'medium' and saves correctly
+
+#### ✅ Added Workflow Deadline Setting UI
+- Added DatePicker field to SequencedTaskEdit component
+- Deadline now displays in view mode as a red tag
+- Deadline field saves to database with workflow updates
+- Addresses high-priority user feedback about missing workflow deadline capability
+
+### Previous Branch: fix/low-hanging-fruit-batch-1 (PR #18 Created)
 This branch includes multiple low-priority UI fixes and improvements:
 
 #### ✅ Fixed Y-axis Label Overlap in Eisenhower Matrix
