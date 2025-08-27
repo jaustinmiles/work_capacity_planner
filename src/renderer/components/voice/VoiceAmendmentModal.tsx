@@ -359,7 +359,7 @@ export function VoiceAmendmentModal({
     }
   }
 
-  const renderAmendmentDescription = (amendment: Amendment) => {
+  const renderAmendmentDescription = (amendment: Amendment, allAmendments?: Amendment[]) => {
     // logger.ui.debug('[VoiceAmendmentModal] renderAmendmentDescription - type:', amendment.type, 'full amendment:', amendment)
     // Handle both string literals and enum values since IPC serialization converts enums to strings
     switch (amendment.type) {
@@ -477,7 +477,22 @@ export function VoiceAmendmentModal({
             {depChange.addDependencies && depChange.addDependencies.length > 0 && (
               <Space>
                 <Text>Add dependencies:</Text>
-                <Text bold>{depChange.addDependencies.join(', ')}</Text>
+                <Text bold>
+                  {depChange.addDependencies.map(dep => {
+                    // If it's a placeholder like task-new-1, show it more clearly
+                    if (dep.startsWith('task-new-') && allAmendments) {
+                      // Find the corresponding task creation amendment
+                      const taskIndex = parseInt(dep.replace('task-new-', '')) - 1
+                      const taskCreations = allAmendments.filter(a => 
+                        a.type === AmendmentType.TaskCreation || (a.type as string) === 'task_creation'
+                      )
+                      const taskCreation = taskCreations[taskIndex] as TaskCreation
+                      return taskCreation ? taskCreation.name : dep
+                    }
+                    // For existing tasks, could resolve the name here if we had the task list
+                    return dep
+                  }).join(', ')}
+                </Text>
               </Space>
             )}
             {depChange.removeDependencies && depChange.removeDependencies.length > 0 && (
@@ -770,7 +785,7 @@ export function VoiceAmendmentModal({
                     <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                       <Space>
                         {renderAmendmentIcon(amendment.type)}
-                        {renderAmendmentDescription(amendment)}
+                        {renderAmendmentDescription(amendment, amendmentResult.amendments)}
                       </Space>
                       <Space>
                         <Text type="secondary" style={{ fontSize: 12 }}>

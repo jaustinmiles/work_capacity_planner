@@ -26,6 +26,9 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
   const db = getDatabase()
   let successCount = 0
   let errorCount = 0
+  
+  // Track newly created task IDs to resolve placeholders
+  const createdTaskMap = new Map<string, string>() // placeholder -> actual ID
 
   for (const amendment of amendments) {
     try {
@@ -213,8 +216,12 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
                     // Add new dependencies
                     if (change.addDependencies && change.addDependencies.length > 0) {
+                      // Resolve any placeholder task IDs
+                      const resolvedDeps = change.addDependencies.map(dep => 
+                        createdTaskMap.get(dep) || dep
+                      )
                       // Filter out any that are already there
-                      const toAdd = change.addDependencies.filter(d => !currentDeps.includes(d))
+                      const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
                       currentDeps = [...currentDeps, ...toAdd]
                       logger.ui.info(`Adding dependencies to step ${step.name}:`, toAdd)
                     }
@@ -252,7 +259,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                     let currentDeps = workflow.dependencies || []
 
                     if (change.addDependencies && change.addDependencies.length > 0) {
-                      const toAdd = change.addDependencies.filter(d => !currentDeps.includes(d))
+                      // Resolve any placeholder task IDs
+                      const resolvedDeps = change.addDependencies.map(dep => 
+                        createdTaskMap.get(dep) || dep
+                      )
+                      const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
                       currentDeps = [...currentDeps, ...toAdd]
                       logger.ui.info('Adding dependencies to workflow:', toAdd)
                     }
@@ -272,7 +283,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                     let currentDeps = task.dependencies || []
 
                     if (change.addDependencies && change.addDependencies.length > 0) {
-                      const toAdd = change.addDependencies.filter(d => !currentDeps.includes(d))
+                      // Resolve any placeholder task IDs
+                      const resolvedDeps = change.addDependencies.map(dep => 
+                        createdTaskMap.get(dep) || dep
+                      )
+                      const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
                       currentDeps = [...currentDeps, ...toAdd]
                       logger.ui.info('Adding dependencies to task:', toAdd)
                     }
@@ -320,9 +335,17 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
             worstCaseDuration: creation.duration,
           }
 
-          await db.createTask(taskData)
+          const newTask = await db.createTask(taskData)
           successCount++
           logger.ui.info('Task created successfully:', creation.name)
+          
+          // Track the created task ID for resolving placeholders
+          // Look for task-new-N pattern in amendments
+          const placeholderIndex = amendments.findIndex(a => 
+            a.type === AmendmentType.TaskCreation && a === amendment
+          )
+          createdTaskMap.set(`task-new-${placeholderIndex + 1}`, newTask.id)
+          
           break
         }
 

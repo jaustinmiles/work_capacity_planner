@@ -4,21 +4,37 @@
 
 ### Current Branch: fix/critical-user-test-blockers
 
-#### ✅ Fixed Workflow Duplication Bug (Critical)
+#### ✅ Fixed Workflow Duplication Bug (High Priority #10)
 - Issue: Creating workflow manually resulted in duplicate workflows
 - Root cause: SequencedTaskForm was rendered twice in App.tsx
 - Solution: Removed duplicate form component
 - Added missing fields (deadline, cognitive complexity) to SequencedTaskForm
 
-#### ✅ Fixed Clear Future Schedules Button Crash (High)
+#### ✅ Fixed Clear Future Schedules Button Crash (High Priority #11)
 - Issue: TypeError: od.render is not a function when clicking button
 - Root cause: Modal.confirm incompatible with React 19
 - Solution: Replaced with Popconfirm component for confirmation
+
+#### ✅ Fixed Scheduling Engine Workflow Prioritization (High Priority #12)
+- Issue: Workflow steps interrupted by lower priority tasks
+- Root cause: Scheduler not keeping workflow steps together
+- Solution: Keep workflow steps together when priority ratio > 0.8
+- Added async wait time detection to improve scheduling
+
+#### ✅ Fixed Clock UI Control Node Positioning (High Priority #13)
+- Issue: Control nodes rendered away from actual arc, buggy hour labels
+- Root cause: Inconsistent angle calculations for drag handles
+- Solution: Used consistent angle calculation with arc radius midpoint
 
 #### 📝 Documented Component Unification Principle
 - Added architectural pattern to prevent feature drift
 - Emphasizes single source of truth for UI components
 - Prevents duplicate logic across creation/edit/AI features
+
+#### 🔧 In Progress: Amendment Applicator Templating Issues
+- Issue #2: {{task_creation_0}} placeholders appearing in UI
+- Issue #3: Blank edit options in amendment applicator
+- Need to investigate amendment-applicator component rendering
 
 ### Previous PR: fix/quality-of-life-improvements (PR #20 - Merged)
 
