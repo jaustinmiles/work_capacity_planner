@@ -47,7 +47,7 @@ describe('Database Step Field Persistence', () => {
         hasSteps: true,
       },
     })
-    
+
     // Create steps
     const steps = [
         {
@@ -80,9 +80,9 @@ describe('Database Step Field Persistence', () => {
           // No custom priority - should inherit from workflow
         },
       ]
-      
+
     await db.client.taskStep.createMany({
-      data: steps.map((step, index) => ({
+      data: steps.map((step) => ({
         ...step,
         taskId: testTaskId,
         dependsOn: JSON.stringify(step.dependsOn || []),

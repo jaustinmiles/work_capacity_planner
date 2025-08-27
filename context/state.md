@@ -2,6 +2,15 @@
 
 ## Session In Progress (2025-08-27 - Quality of Life Improvements)
 
+### Branch: fix/quality-of-life-improvements (PR #20)
+
+#### ✅ Fixed Workflow Step Priority Field Persistence (Critical)
+- Issue: Importance/urgency fields showed in UI but didn't save to database
+- Root cause: Fields were omitted in SequencedTaskEdit cleanedSteps and createTask
+- Solution: Added missing fields to both create and update operations
+- Created comprehensive integration tests for field persistence
+- Created ADDING_DATABASE_FIELDS.md documentation guide
+
 ### Branch: fix/quality-of-life-improvements
 This branch includes critical fixes for user test blockers:
 
@@ -59,6 +68,12 @@ This branch includes critical fixes for user test blockers:
 - Covers all features systematically with checkboxes
 - Provides repeatable testing workflow
 - Includes edge cases and stress testing
+
+#### ✅ Created Developer Documentation
+- ADDING_DATABASE_FIELDS.md: Complete guide for adding new database fields
+- context/patterns.md: State management and architecture patterns
+- Documented common pitfalls and anti-patterns
+- Provided debugging workflows and testing strategies
 
 ### Previous Branch: fix/low-hanging-fruit-batch-1 (PR #18 Created)
 This branch includes multiple low-priority UI fixes and improvements:
