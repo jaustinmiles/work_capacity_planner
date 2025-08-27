@@ -75,11 +75,11 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                             <div>Total: {Math.round(p.total)}</div>
                             <div style={{ color: '#666' }}>
                               E:{Math.round(p.eisenhower)}
-                              {p.deadlineBoost > 0 && ` D:+${Math.round(p.deadlineBoost)}`}
-                              {p.asyncBoost > 0 && ` A:+${Math.round(p.asyncBoost)}`}
-                              {p.cognitiveMatch !== 0 && ` C:${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
-                              {p.contextSwitchPenalty < 0 && ` S:${Math.round(p.contextSwitchPenalty)}`}
-                              {p.workflowDepthBonus && p.workflowDepthBonus > 0 && ` W:+${Math.round(p.workflowDepthBonus)}`}
+                              {p.deadlineBoost !== undefined && p.deadlineBoost > 0 && ` D:+${Math.round(p.deadlineBoost)}`}
+                              {p.asyncBoost !== undefined && p.asyncBoost > 0 && ` A:+${Math.round(p.asyncBoost)}`}
+                              {p.cognitiveMatch !== undefined && p.cognitiveMatch !== 0 && ` C:${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
+                              {p.contextSwitchPenalty !== undefined && p.contextSwitchPenalty < 0 && ` S:${Math.round(p.contextSwitchPenalty)}`}
+                              {p.workflowDepthBonus !== undefined && p.workflowDepthBonus > 0 && ` W:+${Math.round(p.workflowDepthBonus)}`}
                             </div>
                           </div>
                         )
@@ -87,7 +87,11 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                     },
                     { title: 'Reason', dataIndex: 'reason' },
                   ]}
-                  data={debugInfo.unscheduledItems}
+                  data={[...debugInfo.unscheduledItems].sort((a, b) => {
+                    const aPriority = a.priorityBreakdown?.total ?? 0
+                    const bPriority = b.priorityBreakdown?.total ?? 0
+                    return bPriority - aPriority
+                  })}
                   pagination={false}
                   size="small"
                 />
@@ -98,7 +102,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
             {debugInfo.scheduledItemsPriority && debugInfo.scheduledItemsPriority.length > 0 && (
               <div>
                 <Title heading={6} style={{ marginBottom: 8 }}>
-                  Scheduled Items Priority Analysis
+                  Scheduled Items Priority Analysis (Sorted by Priority)
                 </Title>
                 <Table
                   columns={[
@@ -114,18 +118,20 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                             <Tag>Total: {Math.round(p.total)}</Tag>
                             <Text type="secondary" style={{ fontSize: 12 }}>
                               Eisenhower: {Math.round(p.eisenhower)}
-                              {p.deadlineBoost > 0 && ` | Deadline: +${Math.round(p.deadlineBoost)}`}
-                              {p.asyncBoost > 0 && ` | Async: +${Math.round(p.asyncBoost)}`}
-                              {p.cognitiveMatch !== 0 && ` | Cognitive: ${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
-                              {p.contextSwitchPenalty < 0 && ` | Switch: ${Math.round(p.contextSwitchPenalty)}`}
-                              {p.workflowDepthBonus && p.workflowDepthBonus > 0 && ` | Depth: +${Math.round(p.workflowDepthBonus)}`}
+                              {p.deadlineBoost !== undefined && p.deadlineBoost > 0 && ` | Deadline: +${Math.round(p.deadlineBoost)}`}
+                              {p.asyncBoost !== undefined && p.asyncBoost > 0 && ` | Async: +${Math.round(p.asyncBoost)}`}
+                              {p.cognitiveMatch !== undefined && p.cognitiveMatch !== 0 && ` | Cognitive: ${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
+                              {p.contextSwitchPenalty !== undefined && p.contextSwitchPenalty !== 0 && ` | Switch: ${Math.round(p.contextSwitchPenalty)}`}
+                              {p.workflowDepthBonus !== undefined && p.workflowDepthBonus > 0 && ` | Depth: +${Math.round(p.workflowDepthBonus)}`}
                             </Text>
                           </Space>
                         )
                       },
                     },
                   ]}
-                  data={debugInfo.scheduledItemsPriority}
+                  data={[...debugInfo.scheduledItemsPriority].sort((a, b) => {
+                    return b.priorityBreakdown.total - a.priorityBreakdown.total
+                  })}
                   pagination={false}
                   size="small"
                   scroll={{ y: 200 }}
