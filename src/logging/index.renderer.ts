@@ -12,7 +12,7 @@ export * from './types'
 export { RendererLogger, getRendererLogger } from './renderer/RendererLogger'
 
 // Renderer-specific React components
-export { LoggerProvider, useLogger, LoggerErrorBoundary } from './renderer/LoggerProvider'
+export { LoggerProvider, useLogger, useLoggerContext, LoggerErrorBoundary } from './renderer/LoggerProvider'
 
 // Transports (renderer-safe only)
 export { ConsoleTransport } from './transports/ConsoleTransport'

@@ -24,7 +24,7 @@ import { exampleSequencedTask } from '@shared/sequencing-types'
 import type { TaskStep } from '@shared/types'
 import { getDatabase } from './services/database'
 import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
-import { useLogger } from '../logging/index.renderer'
+import { useLogger, useLoggerContext } from '../logging/index.renderer'
 
 
 const { Header, Sider, Content } = Layout
@@ -45,15 +45,20 @@ interface ExtractedTask {
 
 function App() {
   const logger = useLogger({ component: 'App' })
+  const loggerContext = useLoggerContext()
 
   // Expose logger to DevTools for debugging
   useEffect(() => {
     if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
       (window as any).__logger = logger;
-      (window as any).__dumpLogs = () => logger.dumpBuffer()
+      (window as any).__dumpLogs = () => {
+        const entries = loggerContext.dumpBuffer()
+        console.log('📝 Ring Buffer Contents:', entries)
+        return entries
+      }
       console.info('📝 Logger exposed to DevTools. Use __dumpLogs() to see ring buffer contents.')
     }
-  }, [logger])
+  }, [logger, loggerContext])
 
   const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
