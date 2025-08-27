@@ -362,5 +362,27 @@
     "description": "cognitive complexity should be showed alongside the other task attributes. ",
     "timestamp": "2025-08-27T13:49:49.680Z",
     "sessionId": "session-1756302589670-c4h8nuibo"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Clock should show hours before 6 am",
+    "description": "I know we made the clock originally not show anything except 8-8, but I've been working starting earlier than that, and I think I want to see the full 24 hours on the clock",
+    "timestamp": "2025-08-27T14:19:49.934Z",
+    "sessionId": "session-1756304389932-d7dfzwqz1"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "components": [
+      "other"
+    ],
+    "title": "Real time vs Optimal time comparison view",
+    "description": "I want to be able to start my day and 'freeze' the schedule, so that throughout the day we can see how we are spending our time compared to the plan. Ideally this would be two timeline views, one showing the planned day originally when the freeze happened, and the other showing the actual work logging. Then it could show me empty time, gaps, breaks that went too long, or bad estimates. ",
+    "timestamp": "2025-08-27T14:21:22.294Z",
+    "sessionId": "session-1756304482285-nurr7t2bt"
   }
 ]

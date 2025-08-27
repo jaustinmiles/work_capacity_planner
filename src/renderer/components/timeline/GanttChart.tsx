@@ -263,7 +263,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     logger.ui.debug(`GanttChart: Scheduling with ${tasks.length} tasks and ${sequencedTasks.length} workflows`)
 
     // Pass current time as start date to ensure scheduling starts from now
-    const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, new Date())
+    const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, new Date(), {
+      allowTaskSplitting: true,
+      minimumSplitDuration: 10
+    })
     setDebugInfo(result.debugInfo)
     // Auto-show debug info if there are issues
     if (result.debugInfo.unscheduledItems.length > 0 || result.debugInfo.warnings.length > 0) {
