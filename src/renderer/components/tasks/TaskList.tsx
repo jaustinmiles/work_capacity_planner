@@ -7,6 +7,8 @@ import { Message } from '../common/Message'
 import { useState } from 'react'
 import { ScheduleGenerator } from '../schedule/ScheduleGenerator'
 import { logger } from '../../utils/logger'
+import { useLoggerContext } from '../../../logging/index.renderer'
+import { RendererLogger } from '../../../logging/renderer/RendererLogger'
 
 
 const { Title, Text } = Typography
@@ -18,17 +20,25 @@ interface TaskListProps {
 export function TaskList({ onAddTask }: TaskListProps) {
   const { tasks, loadTasks, sequencedTasks } = useTaskStore()
   const [scheduleGeneratorVisible, setScheduleGeneratorVisible] = useState(false)
+  const { logger: newLogger } = useLoggerContext()
+  const rendererLogger = newLogger as RendererLogger
 
   const incompleteTasks = tasks.filter(task => !task.completed)
   const completedTasks = tasks.filter(task => task.completed)
 
   const handleDeleteAllTasks = async () => {
+    rendererLogger.interaction('Delete All Tasks Confirmed', {
+      component: 'TaskList',
+      taskCount: tasks.length,
+    })
     try {
       await getDatabase().deleteAllTasks()
       await loadTasks() // Reload tasks to update UI
       Message.success('All tasks deleted successfully')
+      newLogger.info('[TaskList] All tasks deleted', { previousCount: tasks.length })
     } catch (error) {
       logger.ui.error('Error deleting all tasks:', error)
+      newLogger.error('[TaskList] Failed to delete all tasks', error as Error)
       Message.error('Failed to delete all tasks')
     }
   }
@@ -83,7 +93,13 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 type="primary"
                 size="small"
                 icon={<IconCalendarClock />}
-                onClick={() => setScheduleGeneratorVisible(true)}
+                onClick={() => {
+                  rendererLogger.interaction('Generate Schedule clicked', {
+                    component: 'TaskList',
+                    incompleteTaskCount: incompleteTasks.length,
+                  })
+                  setScheduleGeneratorVisible(true)
+                }}
                 disabled={incompleteTasks.length === 0}
               >
                 Generate Schedule
@@ -92,7 +108,13 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 type="text"
                 size="small"
                 icon={<IconPlus />}
-                onClick={onAddTask}
+                onClick={() => {
+                  rendererLogger.interaction('Add Task clicked', {
+                    component: 'TaskList',
+                    currentTaskCount: tasks.length,
+                  })
+                  onAddTask()
+                }}
               >
                 Add Task
               </Button>
@@ -127,7 +149,13 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 <Button
                   type="primary"
                   icon={<IconPlus />}
-                  onClick={onAddTask}
+                  onClick={() => {
+                    rendererLogger.interaction('Create First Task clicked', {
+                      component: 'TaskList',
+                      isEmpty: true,
+                    })
+                    onAddTask()
+                  }}
                 >
                   Create Your First Task
                 </Button>

@@ -81,11 +81,11 @@ export function LogViewer(_props: LogViewerProps) {
   // Initial load
   useEffect(() => {
     loadLogs()
-    
+
     // Test log to verify logging is working
     const logger = loggerContext.logger
     logger.info('[LogViewer] Log viewer initialized')
-    
+
     // Load logs again after a short delay to catch the initial logs
     setTimeout(() => {
       loadLogs()

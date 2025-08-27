@@ -8,6 +8,7 @@ import { WorkSession as ImportedWorkSession } from '@shared/workflow-progress-ty
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
 import { logger } from '../utils/logger'
+import { getRendererLogger } from '../../logging/index.renderer'
 
 
 interface LocalWorkSession {
@@ -84,6 +85,9 @@ interface TaskStore {
 // Create scheduling service instance
 const schedulingService = new SchedulingService()
 
+// Get logger instance for state change logging
+const rendererLogger = getRendererLogger()
+
 export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
   sequencedTasks: [],
@@ -112,13 +116,19 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   // Data loading actions
   loadTasks: async () => {
     try {
+      rendererLogger.info('[TaskStore] Loading tasks from database')
       // Loading tasks from database
       set({ isLoading: true, error: null })
       const tasks = await getDatabase().getTasks()
       // Tasks loaded successfully
+      rendererLogger.info('[TaskStore] Tasks loaded successfully', {
+        taskCount: tasks.length,
+        incompleteCount: tasks.filter(t => !t.completed).length,
+      })
       set({ tasks, isLoading: false })
     } catch (error) {
       logger.ui.error('Store: Error loading tasks:', error)
+      rendererLogger.error('[TaskStore] Failed to load tasks', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to load tasks',
         isLoading: false,
@@ -128,12 +138,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   loadSequencedTasks: async () => {
     try {
+      rendererLogger.info('[TaskStore] Loading sequenced tasks from database')
       set({ isLoading: true, error: null })
       const sequencedTasks = await getDatabase().getSequencedTasks()
       // Sequenced tasks loaded successfully
+      rendererLogger.info('[TaskStore] Sequenced tasks loaded successfully', {
+        workflowCount: sequencedTasks.length,
+        totalSteps: sequencedTasks.reduce((sum, st) => sum + st.steps.length, 0),
+      })
       set({ sequencedTasks, isLoading: false })
     } catch (error) {
       logger.ui.error('Store: Error loading sequenced tasks:', error)
+      rendererLogger.error('[TaskStore] Failed to load sequenced tasks', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to load sequenced tasks',
         isLoading: false,
@@ -164,12 +180,24 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   addTask: async (taskData) => {
     try {
+      rendererLogger.info('[TaskStore] Creating new task', {
+        taskName: taskData.name,
+        type: taskData.type,
+        duration: taskData.duration,
+        importance: taskData.importance,
+        urgency: taskData.urgency,
+      })
       const task = await getDatabase().createTask(taskData)
       set((state) => ({
         tasks: [...state.tasks, task],
         error: null,
       }))
+      rendererLogger.info('[TaskStore] Task created successfully', {
+        taskId: task.id,
+        taskName: task.name,
+      })
     } catch (error) {
+      rendererLogger.error('[TaskStore] Failed to create task', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to create task',
       })
@@ -225,13 +253,20 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   deleteTask: async (id) => {
     try {
+      const task = get().tasks.find(t => t.id === id)
+      rendererLogger.info('[TaskStore] Deleting task', {
+        taskId: id,
+        taskName: task?.name,
+      })
       await getDatabase().deleteTask(id)
       set((state) => ({
         tasks: state.tasks.filter(task => task.id !== id),
         selectedTaskId: state.selectedTaskId === id ? null : state.selectedTaskId,
         error: null,
       }))
+      rendererLogger.info('[TaskStore] Task deleted successfully', { taskId: id })
     } catch (error) {
+      rendererLogger.error('[TaskStore] Failed to delete task', error as Error, { taskId: id })
       set({
         error: error instanceof Error ? error.message : 'Failed to delete task',
       })
@@ -258,6 +293,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const task = get().tasks.find(t => t.id === id)
       if (!task) return
 
+      rendererLogger.info('[TaskStore] Toggling task completion', {
+        taskId: id,
+        taskName: task.name,
+        currentStatus: task.completed,
+        newStatus: !task.completed,
+      })
+
       logger.store.info('Toggling task completion', {
         taskId: id,
         taskName: task.name,
@@ -271,8 +313,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
 
       await get().updateTask(id, updates)
+      rendererLogger.info('[TaskStore] Task completion toggled successfully', {
+        taskId: id,
+        isNowCompleted: !task.completed,
+      })
       logger.store.debug('Task completion toggled successfully', { taskId: id })
     } catch (error) {
+      rendererLogger.error('[TaskStore] Failed to toggle task completion', error as Error, { taskId: id })
       logger.store.error('Failed to toggle task completion', error, { taskId: id })
       set({
         error: error instanceof Error ? error.message : 'Failed to toggle task completion',
@@ -281,6 +328,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   selectTask: (id) => {
+    const task = id ? get().tasks.find(t => t.id === id) : null
+    rendererLogger.debug('[TaskStore] Task selection changed', {
+      taskId: id,
+      taskName: task?.name,
+    })
     logger.store.debug('Task selection changed', { taskId: id })
     set({ selectedTaskId: id })
   },
@@ -290,13 +342,23 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     set({ isScheduling: true, schedulingError: null })
     try {
       const state = get()
+      rendererLogger.info('[TaskStore] Generating schedule', {
+        taskCount: state.tasks.filter(t => !t.completed).length,
+        workflowCount: state.sequencedTasks.filter(st => st.overallStatus !== 'completed').length,
+        options,
+      })
       const schedule = await schedulingService.createSchedule(
         state.tasks,
         state.sequencedTasks,
         options,
       )
+      rendererLogger.info('[TaskStore] Schedule generated successfully', {
+        scheduledItemCount: schedule.scheduledItems.length,
+        hasConflicts: schedule.conflicts.length > 0,
+      })
       set({ currentSchedule: schedule, isScheduling: false })
     } catch (error) {
+      rendererLogger.error('[TaskStore] Failed to generate schedule', error as Error)
       set({
         schedulingError: error instanceof Error ? error.message : 'Unknown scheduling error',
         isScheduling: false,

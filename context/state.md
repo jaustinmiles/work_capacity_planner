@@ -1,8 +1,29 @@
 # Current State
 
-## Session In Progress (2025-08-27 - Comprehensive Logging System)
+## Session In Progress (2025-08-27 - Critical Bug Fixes & UI Improvements)
 
-### Current Branch: feat/log-viewer-and-tests (PR #24)
+### Current Branch: fix/devtools-logging-visibility
+
+#### ✅ Fixed Logging Display Issue
+- Fixed critical issue where dumpBuffer() was calling non-existent dump() method
+- Changed to use ringBuffer.getAll() which is the actual method name
+- Logging now properly appears in the DevTools panel
+
+### High Priority Issues to Address (from feedback.json):
+
+#### 🔴 Critical Bugs (High Priority)
+1. **#3 - Need better UI refresh** - UI doesn't update after data changes (sessions, work logs, etc.)
+2. **#5 - Clear future schedules button doesn't work** - Missing getWorkPatterns IPC endpoint
+3. **#4 - Schedule doesn't support multi day generation** - Only generates one day instead of full week
+4. **#1 & #2 - Amendment applicator issues** - Blank fields and duplicate task creation
+
+#### 🟡 Important Features (High Priority)
+5. **#6 - Allow periodic events in scheduler** - Support recurring tasks (hourly, daily, weekly)
+6. **#7 - Universal task field quick edit UI** - Need bulk task editing interface
+7. **#8 - Real time vs Optimal time comparison** - Compare planned vs actual time usage
+8. **#9 - Split task functionality** - Split tasks into parallel/sequential subtasks
+
+### Previous Branch: feat/log-viewer-and-tests (PR #24 - Merged)
 
 #### ✅ Comprehensive Logging System Complete
 - Created production-ready logging infrastructure with structured JSON logging
