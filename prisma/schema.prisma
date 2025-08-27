@@ -290,3 +290,31 @@ model SchedulingPreferences {
   updatedAt                 DateTime @default(now())
   Session                   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
+
+model ErrorLog {
+  id        String   @id @default(uuid())
+  level     String   // 'ERROR' | 'WARN' | 'INFO'
+  message   String
+  context   String   // JSON string
+  error     String?  // Stack trace or error details
+  sessionId String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([level])
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+model LogMetric {
+  id          String   @id @default(uuid())
+  processType String   // 'main' | 'renderer'
+  memoryUsage String   // JSON string
+  cpuUsage    Float
+  logCount    Int
+  errorCount  Int
+  createdAt   DateTime @default(now())
+
+  @@index([processType])
+  @@index([createdAt])
+}

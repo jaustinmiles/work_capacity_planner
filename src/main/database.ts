@@ -1,15 +1,21 @@
 import { PrismaClient } from '@prisma/client'
 import { Task } from '../shared/types'
 import { TaskType } from '../shared/enums'
+import { getMainLogger } from '../logging/index.main'
 import * as crypto from 'crypto'
 
 // Create Prisma client instance
 const prisma = new PrismaClient()
 
+// Initialize main logger with Prisma
+const mainLogger = getMainLogger()
+mainLogger.setPrisma(prisma)
+
 // Database service for managing tasks (including workflows)
 export class DatabaseService {
   private static instance: DatabaseService
   private client: PrismaClient
+  private logger = mainLogger.child({ component: 'database' })
 
   private constructor() {
     this.client = prisma

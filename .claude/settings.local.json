@@ -58,7 +58,8 @@
       "Bash(gh repo view:*)",
       "Bash(cat:*)",
       "Bash(gh run view:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
