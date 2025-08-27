@@ -448,6 +448,14 @@ export function scheduleItemsWithBlocksAndDebug(
   startDate: Date = new Date(),
   options: SchedulingOptions = {},
 ): { scheduledItems: ScheduledItem[], debugInfo: SchedulingDebugInfo } {
+  logger.scheduler.info('[Scheduler] Starting scheduling process', {
+    taskCount: tasks.length,
+    workflowCount: sequencedTasks.length,
+    patternCount: patterns.length,
+    startDate: startDate.toISOString(),
+    hasOptions: !!options.schedulingPreferences,
+  })
+
   // Consistency check: Remove any workflows from tasks array that are in sequencedTasks
   const workflowIds = new Set(sequencedTasks.map(w => w.id))
   const duplicateWorkflows = tasks.filter(t => workflowIds.has(t.id))
@@ -514,6 +522,11 @@ export function scheduleItemsWithBlocksAndDebug(
 
   // Convert tasks to work items (using deduped tasks)
   const incompleteTasks = dedupedTasks.filter(task => !task.completed)
+  logger.scheduler.info('[Scheduler] Processing tasks', {
+    totalTasks: dedupedTasks.length,
+    incompleteTasks: incompleteTasks.length,
+    completedTasks: dedupedTasks.length - incompleteTasks.length,
+  })
 
   incompleteTasks
     .forEach(task => {
@@ -521,6 +534,16 @@ export function scheduleItemsWithBlocksAndDebug(
       const priority = schedulingContext
         ? calculatePriority(task, schedulingContext)
         : task.importance * task.urgency
+
+      logger.scheduler.debug('[Scheduler] Converting task to work item', {
+        taskId: task.id,
+        taskName: task.name,
+        taskType: task.type,
+        priority,
+        duration: task.duration,
+        hasDeadline: !!task.deadline,
+        isLocked: task.isLocked,
+      })
 
       workItems.push({
         id: task.id,
@@ -541,15 +564,34 @@ export function scheduleItemsWithBlocksAndDebug(
     })
 
   // Convert workflow steps to work items
-  sequencedTasks
-    .filter(workflow => workflow.overallStatus !== 'completed')
+  const incompleteWorkflows = sequencedTasks.filter(workflow => workflow.overallStatus !== 'completed')
+  logger.scheduler.info('[Scheduler] Processing workflows', {
+    totalWorkflows: sequencedTasks.length,
+    incompleteWorkflows: incompleteWorkflows.length,
+    completedWorkflows: sequencedTasks.length - incompleteWorkflows.length,
+  })
+
+  incompleteWorkflows
     .forEach((workflow, wIndex) => {
       const workflowColor = `hsl(${wIndex * 60}, 70%, 50%)`
+
+      logger.scheduler.debug('[Scheduler] Processing workflow steps', {
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        totalSteps: workflow.steps.length,
+        importance: workflow.importance,
+        urgency: workflow.urgency,
+      })
 
       workflow.steps
         .forEach((step, stepIndex) => {
           // Skip adding completed steps to the scheduling queue, but they still exist for dependency resolution
           if (step.status === 'completed') {
+            logger.scheduler.debug('[Scheduler] Skipping completed step', {
+              stepId: step.id,
+              stepName: step.name,
+              workflowName: workflow.name,
+            })
             // We'll add completed steps to a separate tracking structure below
             return
           }
@@ -642,7 +684,14 @@ export function scheduleItemsWithBlocksAndDebug(
   }
 
   // Apply topological sort to ensure dependencies are respected
+  logger.scheduler.info('[Scheduler] Performing topological sort for dependencies', {
+    itemCount: workItems.length,
+    itemsWithDependencies: workItems.filter(item => item.dependencies && item.dependencies.length > 0).length,
+  })
   workItems = topologicalSort(workItems)
+  logger.scheduler.debug('[Scheduler] Topological sort complete', {
+    sortedOrder: workItems.slice(0, 5).map(item => ({ id: item.id, name: item.name })),
+  })
 
   // Build dependency levels for smarter scheduling
   const dependencyLevels = new Map<string, number>()
@@ -948,16 +997,36 @@ export function scheduleItemsWithBlocksAndDebug(
 
     // Keep trying to schedule items until we can't make progress (for dependency resolution)
     let schedulingProgress = true
+    let schedulingIterations = 0
     let maxRetries = itemsToSchedule.length * 2 // Prevent infinite loops
 
     while (schedulingProgress && itemsToSchedule.length > 0 && maxRetries > 0) {
       schedulingProgress = false
       maxRetries--
+      schedulingIterations++
+
+      logger.scheduler.debug('[Scheduler] Starting scheduling iteration', {
+        date: dateStr,
+        iteration: schedulingIterations,
+        remainingItems: itemsToSchedule.length,
+        retiesLeft: maxRetries,
+      })
 
       for (let i = 0; i < itemsToSchedule.length; i++) {
         const item = itemsToSchedule[i]
         if (!item) continue
         const originalIndex = workItems.findIndex(w => w.id === item.id)
+
+        logger.scheduler.debug('[Scheduler] Attempting to schedule item', {
+          itemId: item.id,
+          itemName: item.name,
+          itemType: item.type,
+          priority: item.priority,
+          duration: item.duration,
+          hasAsyncWait: item.asyncWaitTime > 0,
+          hasDependencies: item.dependencies && item.dependencies.length > 0,
+          isLocked: item.isLocked,
+        })
 
       // Initialize itemScheduled flag
       let itemScheduled = false
@@ -981,6 +1050,14 @@ export function scheduleItemsWithBlocksAndDebug(
         const lockedDateStr = lockedTime.toISOString().split('T')[0]
         const currentDateStr = currentDate.toISOString().split('T')[0]
 
+        logger.scheduler.debug('[Scheduler] Processing locked task', {
+          itemName: item.name,
+          lockedTime: lockedTime.toISOString(),
+          lockedDateStr,
+          currentDateStr,
+          isToday: lockedDateStr === currentDateStr,
+        })
+
         if (lockedDateStr === currentDateStr) {
           // Check for conflicts with already scheduled items
           const hasConflict = scheduledItems.some(scheduled => {
@@ -1002,6 +1079,12 @@ export function scheduleItemsWithBlocksAndDebug(
             continue
           } else {
             // Schedule the locked task at its exact time
+            logger.scheduler.info('[Scheduler] Scheduling locked task', {
+              itemName: item.name,
+              lockedTime: lockedTime.toISOString(),
+              duration: item.duration,
+            })
+
             scheduledItems.push({
               id: item.id,
               name: `🔒 ${item.name}`,
@@ -1066,6 +1149,12 @@ export function scheduleItemsWithBlocksAndDebug(
           for (const [asyncEndTime, waitingItemId] of asyncWaitEndTimes.entries()) {
             if (waitingItemId === depId && asyncEndTime > currentTime) {
               // This dependency is still waiting, cannot schedule yet
+              logger.scheduler.debug('[Scheduler] Item waiting on async dependency', {
+                itemName: item.name,
+                dependencyId: depId,
+                asyncEndTime: asyncEndTime.toISOString(),
+                currentTime: currentTime.toISOString(),
+              })
               canScheduleItem = false
               isWaitingOnAsync = true
               // This is expected behavior for async dependencies - don't clutter warnings
@@ -1118,6 +1207,10 @@ export function scheduleItemsWithBlocksAndDebug(
 
         if (!canScheduleItem) {
           // Skip this item for now, it will be retried later
+          logger.scheduler.debug('[Scheduler] Skipping item due to dependencies', {
+            itemName: item.name,
+            pendingDependencies: item.dependencies,
+          })
           continue
         }
       }
@@ -1125,6 +1218,15 @@ export function scheduleItemsWithBlocksAndDebug(
       // Try to fit in available blocks
       for (const block of blockCapacities) {
         const fitResult = canFitInBlock(item, block, currentTime, scheduledItems, now, options.allowTaskSplitting)
+
+        logger.scheduler.debug('[Scheduler] Checking fit in block', {
+          itemName: item.name,
+          blockId: block.blockId,
+          blockType: block.blockType,
+          canFit: fitResult.canFit,
+          canPartiallyFit: fitResult.canPartiallyFit,
+          availableMinutes: fitResult.availableMinutes,
+        })
 
         if (fitResult.canFit || (fitResult.canPartiallyFit && options.allowTaskSplitting)) {
           const { startTime } = fitResult
@@ -1199,6 +1301,19 @@ export function scheduleItemsWithBlocksAndDebug(
             ? `${item.name} (${splitInfo.part}/${splitInfo.total})`
             : item.name
 
+          logger.scheduler.info('[Scheduler] Scheduling item into block', {
+            itemId: item.id,
+            itemName: item.name,
+            blockId: block.blockId,
+            blockType: block.blockType,
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            duration: durationToSchedule,
+            isPartialSchedule,
+            isSplitTask,
+            splitInfo: isSplitTask ? splitInfo : undefined,
+          })
+
           const scheduledItem = {
             id: isPartialSchedule ? `${item.id}-part${splitInfo.part}` : item.id,
             name: scheduledName,
@@ -1221,6 +1336,12 @@ export function scheduleItemsWithBlocksAndDebug(
             remainingDuration: isPartialSchedule ? item.duration - durationToSchedule : 0,
           }
           scheduledItems.push(scheduledItem)
+
+          logger.scheduler.debug('[Scheduler] Item successfully scheduled', {
+            itemId: scheduledItem.id,
+            itemName: scheduledItem.name,
+            totalScheduledSoFar: scheduledItems.length,
+          })
 
           // Add priority breakdown to debug info if we have scheduling context
           if (schedulingContext && item.originalItem) {

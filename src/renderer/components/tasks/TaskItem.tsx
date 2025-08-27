@@ -13,6 +13,8 @@ import { SequencedTask } from '@shared/sequencing-types'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { logger } from '../../utils/logger'
+import { useLoggerContext } from '../../../logging/index.renderer'
+import { RendererLogger } from '../../../logging/renderer/RendererLogger'
 
 
 dayjs.extend(relativeTime)
@@ -25,6 +27,8 @@ interface TaskItemProps {
 
 export function TaskItem({ task }: TaskItemProps) {
   const { toggleTaskComplete, deleteTask, selectTask, updateTask } = useTaskStore()
+  const { logger: newLogger } = useLoggerContext()
+  const rendererLogger = newLogger as RendererLogger
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState(task.name)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -106,6 +110,12 @@ export function TaskItem({ task }: TaskItemProps) {
           <Checkbox
             checked={task.completed}
             onChange={() => {
+              rendererLogger.interaction('Task checkbox clicked', {
+                component: 'TaskItem',
+                taskId: task.id,
+                taskName: task.name,
+                newCompletedState: !task.completed,
+              })
               logger.ui.info('Task completion toggled', {
                 taskId: task.id,
                 taskName: task.name,
@@ -143,6 +153,11 @@ export function TaskItem({ task }: TaskItemProps) {
                     textDecoration: task.completed ? 'line-through' : 'none',
                   }}
                   onClick={() => {
+                    rendererLogger.interaction('Task name clicked', {
+                      component: 'TaskItem',
+                      taskId: task.id,
+                      taskName: task.name,
+                    })
                     logger.ui.debug('Task selected', { taskId: task.id, taskName: task.name })
                     selectTask(task.id)
                   }}
@@ -254,6 +269,11 @@ export function TaskItem({ task }: TaskItemProps) {
                   size="small"
                   icon={<IconClockCircle />}
                   onClick={() => {
+                    rendererLogger.interaction('Time logging button clicked', {
+                      component: 'TaskItem',
+                      taskId: task.id,
+                      taskName: task.name,
+                    })
                     logger.ui.info('Time logging modal opened', { taskId: task.id, taskName: task.name })
                     setShowTimeModal(true)
                   }}
@@ -266,6 +286,12 @@ export function TaskItem({ task }: TaskItemProps) {
                   size="small"
                   icon={<IconEdit />}
                   onClick={() => {
+                    rendererLogger.interaction('Edit task button clicked', {
+                      component: 'TaskItem',
+                      taskId: task.id,
+                      taskName: task.name,
+                      hasSteps: task.hasSteps,
+                    })
                     logger.ui.info('Task edit modal opened', {
                       taskId: task.id,
                       taskName: task.name,
@@ -282,6 +308,11 @@ export function TaskItem({ task }: TaskItemProps) {
             title="Delete Task"
             content="Are you sure you want to delete this task?"
             onOk={() => {
+              rendererLogger.interaction('Delete task confirmed', {
+                component: 'TaskItem',
+                taskId: task.id,
+                taskName: task.name,
+              })
               logger.ui.warn('Task deleted', { taskId: task.id, taskName: task.name })
               deleteTask(task.id).catch(console.error)
             }}

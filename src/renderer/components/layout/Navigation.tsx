@@ -1,3 +1,5 @@
+import { useLoggerContext } from '../../../logging/index.renderer'
+import { RendererLogger } from '../../../logging/renderer/RendererLogger'
 
 interface NavigationProps {
   activeView: 'tasks' | 'matrix' | 'calendar'
@@ -5,6 +7,9 @@ interface NavigationProps {
 }
 
 export function Navigation({ activeView, onViewChange }: NavigationProps) {
+  const { logger } = useLoggerContext()
+  const rendererLogger = logger as RendererLogger
+
   const navItems = [
     {
       id: 'tasks' as const,
@@ -42,7 +47,14 @@ export function Navigation({ activeView, onViewChange }: NavigationProps) {
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => onViewChange(item.id)}
+              onClick={() => {
+                rendererLogger.interaction(`Navigation: Clicked ${item.label}`, {
+                  from: activeView,
+                  to: item.id,
+                  component: 'Navigation',
+                })
+                onViewChange(item.id)
+              }}
               className={`
                 flex items-center gap-2 px-3 py-4 text-sm font-medium border-b-2 transition-colors
                 ${activeView === item.id

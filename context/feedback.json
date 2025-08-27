@@ -580,7 +580,8 @@
     "title": "Clear future schedules button doesn't work",
     "description": "Uncaught (in promise) TypeError: od.render is not a function\n    at RS (index-DB6pfsEO.js:57:17325)\n    at HE (index-DB6pfsEO.js:57:17970)\n    at i (index-DB6pfsEO.js:69:318554)\n    at mR (index-DB6pfsEO.js:69:318809)\n    at pn.confirm (index-DB6pfsEO.js:69:327771)\n    at k (index-DB6pfsEO.js:86:103016)\n    at B (index-DB6pfsEO.js:57:80435)\n    at _3 (index-DB6pfsEO.js:48:118614)\n    at index-DB6pfsEO.js:48:123926\n    at Ns (index-DB6pfsEO.js:48:9049)\n\nclicking the button results in this error in the console\n\nupdate 8/27 noon PDT: [2025-08-27T19:24:55.276Z] [UI] Failed to clear schedules: {error: 'window.electronAPI.db.getWorkPatterns is not a function', stack: 'TypeError: window.electronAPI.db.getWorkPatterns i…localhost:5174/assets/index-CsrGpN0I.js:49:26743)'}. This is still not resolved. ",
     "timestamp": "2025-08-27T18:29:35.221Z",
-    "sessionId": "session-1756319375213-etwo9vfnx"
+    "sessionId": "session-1756319375213-etwo9vfnx",
+    "resolved": true
   },
   {
     "type": "bug",
