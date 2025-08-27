@@ -317,5 +317,50 @@
     "description": "[2025-08-21T16:11:01.574Z] [UI] Failed to submit feedback: {error: 'form validate error, get errors by error.errors', stack: 'Error: form validate error, get errors by error.er…localhost:5174/assets/index-5m2vGVDv.js:69:260943'}",
     "timestamp": "2025-08-21T16:13:13.196Z",
     "sessionId": "session-1755792793185-8i07535jd"
+  },
+  {
+    "type": "bug",
+    "priority": "low",
+    "components": [
+      "schedule/DailyScheduleView",
+      "settings/MultiDayScheduleEditor"
+    ],
+    "title": "Personal blocks appear in the UI as 'mixed'",
+    "description": "When creating a personal block on the schedule UI, the block shows us as 'mixed time' as if it is a combination of focus and admin instead of personal. I don't think this affects actual scheduling logic, just a UI bug. ",
+    "timestamp": "2025-08-27T13:42:42.671Z",
+    "sessionId": "session-1756302162659-waxjxccox"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "components": [
+      "utils/flexible-scheduler"
+    ],
+    "title": "Allow periodic events in the scheduler",
+    "description": "We should allow periodic events, like, \"check slack\" that are prioritized in the scheduler to occur multiple times throughout the day. I shouldn't have to make 2-3 tasks that are all the same. Instead, I want one task that i can specify 'pop up every 2 hours.' This should work for hours and days (like check something daily, hourly, weekly, etc. should all work). The total estimated duration for the task should be the number of repetitions times the estimated time of each repetition. ",
+    "timestamp": "2025-08-27T13:46:09.984Z",
+    "sessionId": "session-1756302369974-rnuephhia"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "components": [
+      "ai/TaskCreationFlow"
+    ],
+    "title": "Universal task field quick edit UI",
+    "description": "We need a UI that allows me to cycle through tasks very quickly and correct them (adjust duration, priority, deadline, etc.) Basically I want it to be a single page with a tile, where the tile is the task, and then there are quick edit dropdowns or sliders, etc., that allow me to change all the fields easily without typing or anything like that. It's too time consuming to go through them all right now. ",
+    "timestamp": "2025-08-27T13:48:43.707Z",
+    "sessionId": "session-1756302523703-obse9y1sg"
+  },
+  {
+    "type": "improvement",
+    "priority": "medium",
+    "components": [
+      "tasks/TaskList"
+    ],
+    "title": "Show cognitive complexity in task list",
+    "description": "cognitive complexity should be showed alongside the other task attributes. ",
+    "timestamp": "2025-08-27T13:49:49.680Z",
+    "sessionId": "session-1756302589670-c4h8nuibo"
   }
 ]

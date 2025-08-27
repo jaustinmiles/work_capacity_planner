@@ -270,6 +270,7 @@ describe('Work Session Management', () => {
       expect(result).toEqual({
         focused: 210, // 120 + 90
         admin: 90,    // 60 + 30
+        personal: 0,  // no personal time
         total: 300,   // 210 + 90
       })
     })
@@ -283,6 +284,7 @@ describe('Work Session Management', () => {
       expect(result).toEqual({
         focused: 0,
         admin: 0,
+        personal: 0,
         total: 0,
       })
     })

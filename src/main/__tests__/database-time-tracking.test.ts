@@ -73,6 +73,7 @@ describe('Database - Time Tracking', () => {
       expect(result).toEqual({
         focused: 50, // 30 + 20
         admin: 45,
+        personal: 0,
         total: 95, // 50 + 45
       })
     })
@@ -86,6 +87,7 @@ describe('Database - Time Tracking', () => {
       expect(result).toEqual({
         focused: 0,
         admin: 0,
+        personal: 0,
         total: 0,
       })
     })
@@ -100,6 +102,7 @@ describe('Database - Time Tracking', () => {
       expect(result).toEqual({
         focused: 0,
         admin: 0,
+        personal: 0,
         total: 0,
       })
     })
@@ -117,6 +120,7 @@ describe('Database - Time Tracking', () => {
       expect(result).toEqual({
         focused: 55, // 30 + 25
         admin: 60,
+        personal: 0,
         total: 115, // 55 + 60
       })
     })
@@ -130,6 +134,7 @@ describe('Database - Time Tracking', () => {
       expect(result).toEqual({
         focused: 0,
         admin: 0,
+        personal: 0,
         total: 0,
       })
     })
