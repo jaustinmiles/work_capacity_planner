@@ -171,6 +171,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
                     {blockIcon}
                     <Text style={{ fontWeight: 500 }}>
                       {block.type === 'mixed' ? 'Mixed Work Block' :
+                       block.type === 'flexible' ? 'Flexible Work Block' :
                        block.type === TaskType.Focused ? 'Focus Block' :
                        block.type === TaskType.Admin ? 'Admin Block' :
                        'Personal Time'}

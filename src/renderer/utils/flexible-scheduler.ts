@@ -88,7 +88,7 @@ interface BlockCapacity {
   blockId: string
   startTime: Date
   endTime: Date
-  blockType: TaskType | 'mixed' | 'personal'
+  blockType: TaskType | 'mixed' | 'personal' | 'flexible'
   focusMinutesTotal: number
   adminMinutesTotal: number
   personalMinutesTotal: number
@@ -123,6 +123,11 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
     adminMinutes = durationMinutes
   } else if (block.type === 'personal') {
     personalMinutes = durationMinutes
+  } else if (block.type === 'flexible') {
+    // Flexible block - can be used for either focus or admin without predetermined split
+    // We'll track this as combined capacity
+    focusMinutes = durationMinutes
+    adminMinutes = durationMinutes
   } else { // mixed
     focusMinutes = durationMinutes / 2
     adminMinutes = durationMinutes / 2
@@ -132,7 +137,7 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
     blockId: block.id,
     startTime,
     endTime,
-    blockType: block.type as 'mixed' | 'personal' | TaskType,
+    blockType: block.type as 'mixed' | 'personal' | 'flexible' | TaskType,
     focusMinutesTotal: focusMinutes,
     adminMinutesTotal: adminMinutes,
     personalMinutesTotal: personalMinutes,
@@ -260,9 +265,29 @@ function canFitInBlock(
     return { canFit: false, startTime: currentTime }
   }
 
+  // Check if this is a flexible block (accepts any non-personal work)
+  const isFlexibleBlock = block.blockType === 'flexible'
+  
   // Check capacity based on task type and calculate available minutes
   let availableCapacity = 0
-  if (item.taskType === TaskType.Personal) {
+  if (isFlexibleBlock && item.taskType !== TaskType.Personal) {
+    // Flexible block - use combined capacity for focus/admin work
+    const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed
+    const totalCapacity = Math.min(block.focusMinutesTotal, block.adminMinutesTotal) // Use the smaller to be safe
+    availableCapacity = totalCapacity - totalUsed
+    
+    if (totalUsed + item.duration > totalCapacity) {
+      if (allowSplitting && availableCapacity > 0) {
+        return {
+          canFit: false,
+          startTime: currentTime,
+          canPartiallyFit: true,
+          availableMinutes: availableCapacity,
+        }
+      }
+      return { canFit: false, startTime: currentTime }
+    }
+  } else if (item.taskType === TaskType.Personal) {
     availableCapacity = block.personalMinutesTotal - block.personalMinutesUsed
     if (block.personalMinutesUsed + item.duration > block.personalMinutesTotal) {
       if (allowSplitting && availableCapacity > 0) {

@@ -6,7 +6,7 @@ export interface WorkBlock {
   id: string
   startTime: string // "09:00"
   endTime: string // "12:00"
-  type: 'focused' | 'admin' | 'mixed' | 'personal'
+  type: 'focused' | 'admin' | 'mixed' | 'personal' | 'flexible'
   capacity?: {
     focusMinutes?: number
     adminMinutes?: number
