@@ -430,7 +430,8 @@
     "title": "No way to make deadline for workflow",
     "description": "I don't see an option in the UI to set the deadline for a workflow",
     "timestamp": "2025-08-27T16:36:32.743Z",
-    "sessionId": "session-1756312592735-frgwgy6z8"
+    "sessionId": "session-1756312592735-frgwgy6z8",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -476,7 +477,8 @@
     "title": "Eisenhower matrix duplicates",
     "description": "see this in terminal: EisenhowerMatrix.tsx:158 Encountered two children with the same key, `bee6c880-c5ea-4856-a591-7ed07c1f2ff4`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. and duplicates on the UI. Also, we should add the eisenhower matrix as an affected component on the feedback form",
     "timestamp": "2025-08-27T17:01:49.743Z",
-    "sessionId": "session-1756314109697-cc9zshlmn"
+    "sessionId": "session-1756314109697-cc9zshlmn",
+    "resolved": true
   },
   {
     "type": "improvement",

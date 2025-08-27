@@ -294,27 +294,38 @@ export function calculatePriorityWithBreakdown(
   item: Task | TaskStep,
   context: SchedulingContext,
 ): PriorityBreakdown {
-  // Base Eisenhower score - TaskStep doesn't have importance/urgency, use parent's
-  let importance: number
-  let urgency: number
+  // Base Eisenhower score - TaskStep might have importance/urgency, or use parent's
+  let importance: number = 5
+  let urgency: number = 5
 
-  if ('importance' in item && 'urgency' in item) {
-    // It's a Task
+  if ('importance' in item && 'urgency' in item && typeof item.importance === 'number' && typeof item.urgency === 'number') {
+    // It's a Task with required fields
     importance = item.importance
     urgency = item.urgency
   } else {
-    // It's a TaskStep - find parent workflow
-    const parentWorkflow = context.workflows.find(w => w.id === item.taskId)
+    // It's a TaskStep - check for overrides first, then use parent workflow
+    const step = item as TaskStep
+    
+    // Find parent workflow
+    const parentWorkflow = context.workflows.find(w => w.id === step.taskId)
     if (!parentWorkflow) {
       // Try to find workflow containing this step
       const containingWorkflow = context.workflows.find(w =>
-        w.steps?.some(s => s.id === item.id),
+        w.steps?.some(s => s.id === step.id),
       )
       importance = containingWorkflow?.importance || 5
       urgency = containingWorkflow?.urgency || 5
     } else {
       importance = parentWorkflow.importance || 5
       urgency = parentWorkflow.urgency || 5
+    }
+    
+    // Override with step-specific priority if provided
+    if (step.importance !== undefined && step.importance !== null) {
+      importance = step.importance
+    }
+    if (step.urgency !== undefined && step.urgency !== null) {
+      urgency = step.urgency
     }
   }
 

@@ -63,11 +63,11 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
       levelGroups.set(level, group)
     })
 
-    // Position nodes
+    // Position nodes with better spacing
     const nodeWidth = 200
     const nodeHeight = 80
-    const horizontalGap = 50
-    const verticalGap = 100
+    const horizontalGap = 80
+    const verticalGap = 120
 
     let maxX = 0
     let maxY = 0

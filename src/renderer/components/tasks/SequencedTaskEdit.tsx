@@ -230,6 +230,8 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
         dependsOn: convertedDependencies,
         notes: step.notes || '',
         cognitiveComplexity: step.cognitiveComplexity || 3,
+        importance: step.importance,
+        urgency: step.urgency,
       })
     } else {
       stepForm.resetFields()
@@ -255,6 +257,8 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           dependsOn: values.dependsOn || [],
           notes: values.notes || '',
           cognitiveComplexity: values.cognitiveComplexity || 3,
+          importance: values.importance,
+          urgency: values.urgency,
         }
         setEditingSteps(newSteps)
       } else {
@@ -274,6 +278,8 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           percentComplete: 0,
           notes: values.notes || '',
           cognitiveComplexity: values.cognitiveComplexity || 3,
+          importance: values.importance,
+          urgency: values.urgency,
         }
         setEditingSteps([...editingSteps, newStep])
       }
@@ -545,6 +551,11 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                                 Depends on: {formatDependencyList(step.dependsOn)}
                               </Tag>
                             )}
+                            {(step.importance || step.urgency) && (
+                              <Tag size="small" color="orange">
+                                Priority: {step.importance || 'inherit'}×{step.urgency || 'inherit'}
+                              </Tag>
+                            )}
                           </Space>
 
                           {step.notes && (
@@ -743,6 +754,37 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
               <Select.Option value={5}>5 - Highly Complex</Select.Option>
             </Select>
           </FormItem>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <FormItem
+                label="Step Priority - Importance (1-10)"
+                field="importance"
+                help="Override workflow importance for this step"
+              >
+                <InputNumber
+                  min={1}
+                  max={10}
+                  placeholder="Inherit from workflow"
+                  style={{ width: '100%' }}
+                />
+              </FormItem>
+            </Col>
+            <Col span={12}>
+              <FormItem
+                label="Step Priority - Urgency (1-10)"
+                field="urgency"
+                help="Override workflow urgency for this step"
+              >
+                <InputNumber
+                  min={1}
+                  max={10}
+                  placeholder="Inherit from workflow"
+                  style={{ width: '100%' }}
+                />
+              </FormItem>
+            </Col>
+          </Row>
 
           <FormItem
             label="Notes"

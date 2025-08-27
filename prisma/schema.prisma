@@ -181,6 +181,8 @@ model TaskStep {
   cognitiveComplexity  Int?          // 1-5 scale
   isAsyncTrigger       Boolean       @default(false)
   expectedResponseTime Int?          // in minutes
+  importance           Int?          // 1-10, optional override for individual step priority
+  urgency              Int?          // 1-10, optional override for individual step priority
   Task                 Task          @relation("TaskSteps", fields: [taskId], references: [id], onDelete: Cascade)
   SequencedTask        SequencedTask? @relation(fields: [sequencedTaskId], references: [id], onDelete: Cascade)
 }

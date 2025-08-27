@@ -32,6 +32,7 @@ interface FeedbackData {
 const COMPONENT_OPTIONS = [
   { label: 'Task List', value: 'tasks/TaskList' },
   { label: 'Task Edit Form', value: 'tasks/TaskEdit' },
+  { label: 'Eisenhower Matrix', value: 'tasks/EisenhowerMatrix' },
   { label: 'Gantt Chart', value: 'timeline/GanttChart' },
   { label: 'Gantt Chart Sidebar', value: 'timeline/GanttChartSidebar' },
   { label: 'Work Status Widget', value: 'status/WorkStatusWidget' },

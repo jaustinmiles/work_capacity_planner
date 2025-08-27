@@ -62,6 +62,8 @@ export interface TaskStep {
   cognitiveComplexity?: 1 | 2 | 3 | 4 | 5 // cognitive load rating
   isAsyncTrigger?: boolean // marks steps that kick off async work
   expectedResponseTime?: number // expected wait time in minutes
+  importance?: number // 1-10, optional override for individual step priority
+  urgency?: number // 1-10, optional override for individual step priority
 }
 
 export interface DailySchedule {
