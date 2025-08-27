@@ -15,7 +15,7 @@ if (typeof window === 'undefined') {
   try {
     const electron = require('electron')
     ipcMain = electron.ipcMain
-  } catch (e) {
+  } catch (_e) {
     // Electron not available (e.g., in tests)
     ipcMain = null
   }
@@ -24,7 +24,7 @@ if (typeof window === 'undefined') {
   try {
     const electron = (window as any).require('electron')
     ipcRenderer = electron.ipcRenderer
-  } catch (e) {
+  } catch (_e) {
     // Electron not available
     ipcRenderer = null
   }
