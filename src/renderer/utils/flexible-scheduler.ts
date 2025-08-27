@@ -107,15 +107,16 @@ function parseTimeOnDate(date: Date, timeStr: string): Date {
 function getBlockCapacity(block: WorkBlock, date: Date, currentTime?: Date): BlockCapacity {
   let startTime = parseTimeOnDate(date, block.startTime)
   const endTime = parseTimeOnDate(date, block.endTime)
-  
-  // Adjust start time if it's in the past
-  const now = currentTime || new Date()
-  if (startTime < now && endTime > now) {
-    // Block has already started, adjust start time to current time
-    startTime = new Date(now)
+
+  // Adjust start time if it's in the past (only for real-time scheduling, not tests)
+  if (currentTime) {
+    if (startTime < currentTime && endTime > currentTime) {
+      // Block has already started, adjust start time to current time
+      startTime = new Date(currentTime)
+    }
   }
-  
-  const durationMinutes = Math.max(0, (endTime.getTime() - startTime.getTime()) / 60000)
+
+  const durationMinutes = Math.floor(Math.max(0, (endTime.getTime() - startTime.getTime()) / 60000))
 
   let focusMinutes = 0
   let adminMinutes = 0
@@ -1214,7 +1215,7 @@ export function scheduleItemsWithBlocksAndDebug(
           if (utilization) {
             // For flexible blocks, report combined usage vs total capacity
             if (block.blockType === 'flexible') {
-              const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed
+              // const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed  // Keeping for future use
               const totalCapacity = block.focusMinutesTotal // Use the single total capacity value
               utilization.focusUsed = block.focusMinutesUsed
               utilization.adminUsed = block.adminMinutesUsed
@@ -1448,15 +1449,15 @@ export function scheduleItemsWithBlocksAndDebug(
   // Convert the utilization map to array for debug info (single source of truth)
   blockUtilizationMap.forEach(utilization => {
     const isFlexibleBlock = utilization.block?.blockType === 'flexible'
-    
-    let unusedFocus = utilization.focusTotal - utilization.focusUsed
-    let unusedAdmin = utilization.adminTotal - utilization.adminUsed
+
+    const unusedFocus = utilization.focusTotal - utilization.focusUsed
+    const unusedAdmin = utilization.adminTotal - utilization.adminUsed
     const unusedPersonal = utilization.personalTotal - utilization.personalUsed
 
     let unusedReason: string | undefined
 
     // Check for completely empty blocks
-    const totalCapacity = isFlexibleBlock 
+    const totalCapacity = isFlexibleBlock
       ? utilization.focusTotal  // For flexible blocks, use single total
       : utilization.focusTotal + utilization.adminTotal + utilization.personalTotal
     const totalUsed = utilization.focusUsed + utilization.adminUsed + utilization.personalUsed

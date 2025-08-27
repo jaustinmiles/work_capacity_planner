@@ -206,7 +206,8 @@
     "title": "Better AI Brainstorm Editing and Feedback",
     "description": "Basically, I want the AI brainstorm to be more interactive like I noticed that the AI puts notes out where it says need more clarification on X. But from what I understand there's no way to actually give it more clarification except for canceling the entire brainstorming session and then restarting with the same prompt. I think there's like an option for like try again or something I have some of the same issues with the amendment applicator I think that the ideal workflow would be to see what the AI suggest and then have like a text box underneath it's \"\" notes so that a user can input notes immediately to answer the questions and then have Claude redo the workflow generation just for that one item and then another thing I noticed was I would really like to be able to edit priorities and durations on that same AI brainstorm menu before I click accept. And for the amendment applicator I think few things first is that I need to be able to like use the application and scroll through it in order to like check on the current state and scroll through current workflow so I can say OK this one needs to be changed. But the issue is that it tries to apply to like all of the workflow and then if it gets it wrong, it just says do you wanna try again and you have to like restart from scratch and it doesn't even really save your voice memo or allow you to text edit it basically this is supposed to be unease of use feature to make things easier and I feel like it actually makes things take a little bit longer would be more tedious sometimes. Additionally, I was thinking it would be nice if I could like open up an AI chat window and actually talk to Claude but kind of with the same framework where it has to output like workflows and and stuff and maybe we could integrate like a chat into like what is already existin and that way whatever Claude responds with it's like displayed as a workflow.",
     "timestamp": "2025-08-20T14:52:27.379Z",
-    "sessionId": "session-1755701547369-y5cktp5zo"
+    "sessionId": "session-1755701547369-y5cktp5zo",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -269,7 +270,8 @@
     "steps": "Run this exact prompt as text input, observe lack of task finding and dependency creation. ",
     "expected": "The AI should be able to understand references to existing tasks, and it should display changes to dependencies. Ideally, we should also allow user input to iterate on the amendments, rather than just going straight to 'accept' or 'try again'",
     "timestamp": "2025-08-20T18:31:03.722Z",
-    "sessionId": "session-1755714663712-f9o69miur"
+    "sessionId": "session-1755714663712-f9o69miur",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -284,7 +286,8 @@
     "expected": "In all places where we have work or tasks in general, they should buy a default be displayed in chronological order",
     "actual": "Currently, the tasks are not displayed in chronological order if work blocks were moved around after creation",
     "timestamp": "2025-08-20T19:02:26.535Z",
-    "sessionId": "session-1755716546524-jgqpp154s"
+    "sessionId": "session-1755716546524-jgqpp154s",
+    "resolved": true
   },
   {
     "type": "bug",
