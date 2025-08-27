@@ -2,19 +2,22 @@
 
 ## Session In Progress (2025-08-27 - Critical Bug Fixes & UI Improvements)
 
-### Current Branch: fix/devtools-logging-visibility
+### Current Branch: fix/multi-day-schedule-generation
 
-#### ✅ Fixed Logging Display Issue
-- Fixed critical issue where dumpBuffer() was calling non-existent dump() method
-- Changed to use ringBuffer.getAll() which is the actual method name
-- Logging now properly appears in the DevTools panel
+#### ✅ Fixed Multi-Day Schedule Generation (#4)
+- Modified ScheduleGenerator to create patterns for all 30 days including weekends
+- Added personal time blocks (10am-2pm) for weekends as requested by user
+- Updated DailyWorkPattern type to support personalMinutes tracking
+- Ensured all 7 days are saved even when empty to support proper multi-day display
+- Fixed issue where only days with scheduled items were being saved
+- Committed changes: d8357a0
 
 ### High Priority Issues to Address (from feedback.json):
 
 #### 🔴 Critical Bugs (High Priority)
-1. **#3 - Need better UI refresh** - UI doesn't update after data changes (sessions, work logs, etc.)
+1. **#3 - Need better UI refresh** - UI doesn't update after data changes (sessions, work logs, etc.) - IN PROGRESS
 2. **#5 - Clear future schedules button doesn't work** - Missing getWorkPatterns IPC endpoint
-3. **#4 - Schedule doesn't support multi day generation** - Only generates one day instead of full week
+3. ~~**#4 - Schedule doesn't support multi day generation**~~ - ✅ FIXED
 4. **#1 & #2 - Amendment applicator issues** - Blank fields and duplicate task creation
 
 #### 🟡 Important Features (High Priority)
