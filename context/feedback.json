@@ -121,7 +121,8 @@
     "title": "Allow splitting of tasks to schedule tasks with long durations",
     "description": "If a task has like a 6 hour duration, but there are no 6 hour work blocks, I think it will never get scheduled. ",
     "timestamp": "2025-08-19T23:42:29.727Z",
-    "sessionId": "session-1755646949723-ucei39mub"
+    "sessionId": "session-1755646949723-ucei39mub",
+    "resolved": true
   },
   {
     "type": "bug",

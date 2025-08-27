@@ -104,10 +104,18 @@ function parseTimeOnDate(date: Date, timeStr: string): Date {
   return result
 }
 
-function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
-  const startTime = parseTimeOnDate(date, block.startTime)
+function getBlockCapacity(block: WorkBlock, date: Date, currentTime?: Date): BlockCapacity {
+  let startTime = parseTimeOnDate(date, block.startTime)
   const endTime = parseTimeOnDate(date, block.endTime)
-  const durationMinutes = (endTime.getTime() - startTime.getTime()) / 60000
+  
+  // Adjust start time if it's in the past
+  const now = currentTime || new Date()
+  if (startTime < now && endTime > now) {
+    // Block has already started, adjust start time to current time
+    startTime = new Date(now)
+  }
+  
+  const durationMinutes = Math.max(0, (endTime.getTime() - startTime.getTime()) / 60000)
 
   let focusMinutes = 0
   let adminMinutes = 0
@@ -124,10 +132,11 @@ function getBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
   } else if (block.type === 'personal') {
     personalMinutes = durationMinutes
   } else if (block.type === 'flexible') {
-    // Flexible block - can be used for either focus or admin without predetermined split
-    // We'll track this as combined capacity
+    // Flexible block - store the total duration that can be used for either focus OR admin
+    // Not both - this is the total available time that can be allocated to either type
     focusMinutes = durationMinutes
     adminMinutes = durationMinutes
+    // Note: We'll handle this specially in canFitInBlock to track combined usage
   } else { // mixed
     focusMinutes = durationMinutes / 2
     adminMinutes = durationMinutes / 2
@@ -754,21 +763,23 @@ export function scheduleItemsWithBlocksAndDebug(
     scheduledItems.push(...dayMeetings)
 
     // Create block capacities
-    const blockCapacities = pattern.blocks.map(block => getBlockCapacity(block, currentDate))
+    const blockCapacities = pattern.blocks.map(block => getBlockCapacity(block, currentDate, currentTime))
 
     // Register blocks in the utilization map (single source of truth)
     blockCapacities.forEach(block => {
       const key = `${dateStr}-${block.blockId}`
       if (!blockUtilizationMap.has(key)) {
+        // For flexible blocks, show total capacity only once (not doubled)
+        const isFlexible = block.blockType === 'flexible'
         blockUtilizationMap.set(key, {
           date: dateStr,
           blockId: block.blockId,
           startTime: block.startTime.toLocaleTimeString(),
           endTime: block.endTime.toLocaleTimeString(),
           focusUsed: 0,
-          focusTotal: block.focusMinutesTotal,
+          focusTotal: isFlexible ? block.focusMinutesTotal : block.focusMinutesTotal,
           adminUsed: 0,
-          adminTotal: block.adminMinutesTotal,
+          adminTotal: isFlexible ? 0 : block.adminMinutesTotal, // Don't double-count for flexible
           personalUsed: 0,
           personalTotal: block.personalMinutesTotal,
           unusedReason: null,
@@ -1184,6 +1195,13 @@ export function scheduleItemsWithBlocksAndDebug(
           // Update block capacity (use actual scheduled duration, not full duration)
           if (item.taskType === TaskType.Personal) {
             block.personalMinutesUsed += durationToSchedule
+          } else if (block.blockType === 'flexible') {
+            // For flexible blocks, track combined usage
+            if (item.taskType === TaskType.Focused) {
+              block.focusMinutesUsed += durationToSchedule
+            } else {
+              block.adminMinutesUsed += durationToSchedule
+            }
           } else if (item.taskType === TaskType.Focused) {
             block.focusMinutesUsed += durationToSchedule
           } else {
@@ -1194,9 +1212,19 @@ export function scheduleItemsWithBlocksAndDebug(
           const utilizationKey = `${dateStr}-${block.blockId}`
           const utilization = blockUtilizationMap.get(utilizationKey)
           if (utilization) {
-            utilization.focusUsed = block.focusMinutesUsed
-            utilization.adminUsed = block.adminMinutesUsed
-            utilization.personalUsed = block.personalMinutesUsed
+            // For flexible blocks, report combined usage vs total capacity
+            if (block.blockType === 'flexible') {
+              const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed
+              const totalCapacity = block.focusMinutesTotal // Use the single total capacity value
+              utilization.focusUsed = block.focusMinutesUsed
+              utilization.adminUsed = block.adminMinutesUsed
+              utilization.focusTotal = totalCapacity
+              utilization.adminTotal = 0 // Don't double-count capacity for flexible blocks
+            } else {
+              utilization.focusUsed = block.focusMinutesUsed
+              utilization.adminUsed = block.adminMinutesUsed
+              utilization.personalUsed = block.personalMinutesUsed
+            }
           }
 
           // Track workflow progress
@@ -1419,18 +1447,28 @@ export function scheduleItemsWithBlocksAndDebug(
 
   // Convert the utilization map to array for debug info (single source of truth)
   blockUtilizationMap.forEach(utilization => {
-    const unusedFocus = utilization.focusTotal - utilization.focusUsed
-    const unusedAdmin = utilization.adminTotal - utilization.adminUsed
+    const isFlexibleBlock = utilization.block?.blockType === 'flexible'
+    
+    let unusedFocus = utilization.focusTotal - utilization.focusUsed
+    let unusedAdmin = utilization.adminTotal - utilization.adminUsed
     const unusedPersonal = utilization.personalTotal - utilization.personalUsed
 
     let unusedReason: string | undefined
 
     // Check for completely empty blocks
-    const totalCapacity = utilization.focusTotal + utilization.adminTotal + utilization.personalTotal
+    const totalCapacity = isFlexibleBlock 
+      ? utilization.focusTotal  // For flexible blocks, use single total
+      : utilization.focusTotal + utilization.adminTotal + utilization.personalTotal
     const totalUsed = utilization.focusUsed + utilization.adminUsed + utilization.personalUsed
 
     if (totalUsed === 0 && totalCapacity > 0) {
       unusedReason = `Empty block: ${totalCapacity} minutes available but unused`
+    } else if (isFlexibleBlock) {
+      // For flexible blocks, report combined unused time
+      const totalUnused = totalCapacity - totalUsed
+      if (totalUnused > 30) {
+        unusedReason = `${totalUnused} minutes unused (flexible block)`
+      }
     } else if (unusedFocus > 30 || unusedAdmin > 30 || unusedPersonal > 30) {
       const parts: string[] = []
       if (unusedFocus > 30) parts.push(`${unusedFocus} focus`)
