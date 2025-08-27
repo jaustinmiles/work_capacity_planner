@@ -528,5 +528,19 @@
     "actual": "Only one day is generated, weekends are discarded. Additionally, there is no way to copy a schedule from a weekend day to another weekend day. ",
     "timestamp": "2025-08-27T18:07:58.535Z",
     "sessionId": "session-1756318078525-fuh38b8pr"
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "Clarifications still buggy",
+    "description": "If the AI is confused, it should ask questions the user can answer, and then we should be able to regenerate, based on the clarifications provided for each workflow task or step. But right now, all I see is quick edits to change priority or duration. The quick edits don't even have all the other edit options, like cognitive complexity or deadlines, and i cant change values for individual workflow tasks",
+    "steps": "Use this prompt from user test: I need to complete a code review that will take 2 hours, write documentation for 90 minutes, attend a team meeting for 1 hour, and fix three bugs which should take 30 minutes each and observe lack of good clarification or quick edit options after AI is done generating",
+    "expected": "User should be able to answer the questions with voice or text directly, and the quick edit options should contain all editable fields, per workflow step (obviously, they should inherit if left blank)",
+    "actual": "Only a few edit options are shown, and there is no place to supply clarifications to AI questions. ",
+    "timestamp": "2025-08-27T18:18:29.163Z",
+    "sessionId": "session-1756318709152-2zojohpro"
   }
 ]
