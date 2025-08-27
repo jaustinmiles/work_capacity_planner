@@ -44,6 +44,7 @@ export interface SchedulingDebugInfo {
       asyncBoost: number
       cognitiveMatch: number
       contextSwitchPenalty: number
+      workflowDepthBonus?: number
       total: number
     }
   }>
@@ -74,6 +75,7 @@ export interface SchedulingDebugInfo {
       asyncBoost: number
       cognitiveMatch: number
       contextSwitchPenalty: number
+      workflowDepthBonus?: number
       total: number
     }
   }>

@@ -423,5 +423,16 @@
     "description": "I don't see an option in the UI to set the deadline for a workflow",
     "timestamp": "2025-08-27T16:36:32.743Z",
     "sessionId": "session-1756312592735-frgwgy6z8"
+  },
+  {
+    "type": "improvement",
+    "priority": "medium",
+    "components": [
+      "tasks/TaskEdit"
+    ],
+    "title": "Time picker in task edit form should use clock widget",
+    "description": "All time selectors throughout the app should use the same clock widget.",
+    "timestamp": "2025-08-27T16:37:55.578Z",
+    "sessionId": "session-1756312675569-e0uj48nmn"
   }
 ]
