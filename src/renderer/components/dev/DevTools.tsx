@@ -20,7 +20,7 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
   const [isClearing, setIsClearing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [activeTab, setActiveTab] = useState('feedback')
-  
+
   useEffect(() => {
     if (visible) {
       logger.ui.info('DevTools opened', { activeTab })
@@ -49,7 +49,7 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
       setIsClearing(false)
     }
   }
-  
+
   const handleTabChange = (key: string) => {
     logger.ui.debug('DevTools tab changed', { from: activeTab, to: key })
     setActiveTab(key)

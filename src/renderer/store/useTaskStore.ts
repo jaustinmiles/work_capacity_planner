@@ -258,11 +258,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const task = get().tasks.find(t => t.id === id)
       if (!task) return
 
-      logger.store.info('Toggling task completion', { 
-        taskId: id, 
+      logger.store.info('Toggling task completion', {
+        taskId: id,
         taskName: task.name,
         currentStatus: task.completed,
-        newStatus: !task.completed 
+        newStatus: !task.completed,
       })
 
       const updates = {
