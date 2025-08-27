@@ -231,12 +231,20 @@ ipcMain.handle('db:getWorkPattern', async (_event: IpcMainInvokeEvent, date: str
   return await db.getWorkPattern(date)
 })
 
+ipcMain.handle('db:getWorkPatterns', async () => {
+  return await db.getWorkPatterns()
+})
+
 ipcMain.handle('db:createWorkPattern', async (_event: IpcMainInvokeEvent, data: unknown) => {
   return await db.createWorkPattern(data as any)
 })
 
 ipcMain.handle('db:updateWorkPattern', async (_event: IpcMainInvokeEvent, id: string, data: unknown) => {
   return await db.updateWorkPattern(id, data as any)
+})
+
+ipcMain.handle('db:deleteWorkPattern', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.deleteWorkPattern(id)
 })
 
 ipcMain.handle('db:getWorkTemplates', async () => {

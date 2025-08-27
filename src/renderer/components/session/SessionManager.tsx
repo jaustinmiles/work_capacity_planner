@@ -25,6 +25,7 @@ import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
+import { appEvents, EVENTS } from '../../utils/events'
 
 
 const { Title, Text } = Typography
@@ -76,6 +77,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       setCreateModalVisible(false)
       await loadSessions()
       onSessionChange?.()
+
+      // Emit event to refresh UI components
+      appEvents.emit(EVENTS.SESSION_CHANGED)
+      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
       logger.ui.error('Failed to create session:', error)
       Message.error('Failed to create session')
@@ -90,6 +95,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       Message.success('Switched to session')
       await loadSessions()
       onSessionChange?.()
+
+      // Emit event to refresh UI components
+      appEvents.emit(EVENTS.SESSION_CHANGED)
+      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
       logger.ui.error('Failed to switch session:', error)
       Message.error('Failed to switch session')

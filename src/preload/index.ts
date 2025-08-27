@@ -47,8 +47,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteAllUserData: () => ipcRenderer.invoke('db:deleteAllUserData'),
     // Work pattern operations
     getWorkPattern: (date: string) => ipcRenderer.invoke('db:getWorkPattern', date),
+    getWorkPatterns: () => ipcRenderer.invoke('db:getWorkPatterns'),
     createWorkPattern: (data: any) => ipcRenderer.invoke('db:createWorkPattern', data),
     updateWorkPattern: (id: string, data: any) => ipcRenderer.invoke('db:updateWorkPattern', id, data),
+    deleteWorkPattern: (id: string) => ipcRenderer.invoke('db:deleteWorkPattern', id),
     getWorkTemplates: () => ipcRenderer.invoke('db:getWorkTemplates'),
     saveAsTemplate: (date: string, templateName: string) => ipcRenderer.invoke('db:saveAsTemplate', date, templateName),
     // Work session operations

@@ -1204,7 +1204,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               <Text style={{ fontSize: 13 }}>
                                 <span style={{ fontWeight: 'bold' }}>Notes:</span> {workflow.notes}
                               </Text>
-                              {showClarificationMode && workflow.notes.includes('clarification') && (
+                              {showClarificationMode && (workflow.notes.toLowerCase().includes('clarification') ||
+                                                         workflow.notes.toLowerCase().includes('question') ||
+                                                         workflow.notes.includes('?')) && (
                                 <div style={{ marginTop: 8 }}>
                                   <Input.TextArea
                                     placeholder="Provide clarification..."
@@ -1384,12 +1386,16 @@ Only include terms that are likely industry-specific or technical jargon, not co
                   <Button onClick={onClose}>
                     Cancel
                   </Button>
-                  {(brainstormResult.workflows?.some(w => w.notes?.includes('clarification')) ||
+                  {(brainstormResult.workflows?.some(w =>
+                      w.notes?.toLowerCase().includes('clarification') ||
+                      w.notes?.toLowerCase().includes('question') ||
+                      w.notes?.toLowerCase().includes('need to clarify') ||
+                      w.notes?.includes('?')) ||
                     brainstormResult.tasks?.some(t => t.needsMoreInfo) ||
                     brainstormResult.standaloneTasks?.some(t => t.needsMoreInfo)) &&
                    !showClarificationMode && (
                     <Button onClick={handleProvideClarifications}>
-                      Provide Clarifications
+                      Answer Questions / Provide Clarifications
                     </Button>
                   )}
                   <Button

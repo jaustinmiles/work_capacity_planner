@@ -36,4 +36,6 @@ export const EVENTS = {
   TIME_LOGGED: 'time-logged',
   TASK_UPDATED: 'task-updated',
   WORKFLOW_UPDATED: 'workflow-updated',
+  SESSION_CHANGED: 'session-changed',
+  DATA_REFRESH_NEEDED: 'data-refresh-needed',
 } as const

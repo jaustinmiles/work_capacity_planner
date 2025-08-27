@@ -318,6 +318,35 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           const creation = amendment as TaskCreation
           logger.ui.info('Creating task from amendment:', creation)
 
+          // Check if this might be a workflow step that was misidentified
+          // Look for patterns that suggest this should be a workflow step
+          const isLikelyWorkflowStep = creation.name.toLowerCase().includes('step') ||
+                                       creation.name.toLowerCase().includes('phase') ||
+                                       (creation.description && creation.description.toLowerCase().includes('workflow'))
+
+          if (isLikelyWorkflowStep) {
+            logger.ui.warn('Task creation might be a workflow step - consider using step_addition instead')
+          }
+
+          // Check for duplicate task names to prevent creating duplicates
+          const existingTasks = await db.getTasks()
+          const duplicateTask = existingTasks.find(t =>
+            t.name === creation.name &&
+            !t.completed &&
+            Math.abs(t.duration - creation.duration) < 30, // Similar duration
+          )
+
+          if (duplicateTask) {
+            logger.ui.warn(`Task "${creation.name}" already exists - skipping duplicate creation`)
+            Message.warning(`Task "${creation.name}" already exists`)
+            // Track the existing task ID for dependency resolution
+            const placeholderIndex = amendments.findIndex(a =>
+              a.type === AmendmentType.TaskCreation && a === amendment,
+            )
+            createdTaskMap.set(`task-new-${placeholderIndex + 1}`, duplicateTask.id)
+            break
+          }
+
           // Create the task - use notes field since description doesn't exist in schema
           const taskData = {
             name: creation.name,
