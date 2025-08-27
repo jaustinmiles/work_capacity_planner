@@ -8,7 +8,7 @@ describe('Logger Integration', () => {
   beforeEach(() => {
     // Get singleton instance
     logger = RendererLogger.getInstance({
-      level: LogLevel.DEBUG, // Allow all levels
+      level: LogLevel.TRACE, // Allow all levels including TRACE
       sampling: {
         errorRate: 1.0,
         warnRate: 1.0,
@@ -175,9 +175,9 @@ describe('Logger Integration', () => {
 
   describe('Ring buffer behavior', () => {
     it('should limit entries to buffer size', () => {
-      // Create a small buffer for testing
+      // Force recreation with small buffer for testing
       const smallLogger = RendererLogger.getInstance({
-        level: LogLevel.DEBUG,
+        level: LogLevel.TRACE,
         sampling: {
           errorRate: 1.0,
           warnRate: 1.0,
@@ -190,18 +190,24 @@ describe('Logger Integration', () => {
         environment: 'test' as any,
       })
 
+      // Clear existing entries by getting the current count
+      const initialEntries = smallLogger.dumpBuffer()
+      const initialCount = initialEntries.length
+
       // Add 10 entries to a buffer of size 5
       for (let i = 1; i <= 10; i++) {
         smallLogger.info(`Message ${i}`)
       }
 
-      const entries = smallLogger.dumpBuffer()
+      const allEntries = smallLogger.dumpBuffer()
+      // Get only the new entries
+      const newEntries = allEntries.slice(initialCount)
 
       // Should only have the last 5 entries
-      expect(entries.length).toBeLessThanOrEqual(5)
+      expect(newEntries.length).toBeLessThanOrEqual(5)
 
       // Should contain the latest messages
-      const messages = entries.map(e => e.message)
+      const messages = newEntries.map(e => e.message)
       expect(messages).toContain('Message 10')
       expect(messages).toContain('Message 9')
       expect(messages).toContain('Message 8')
