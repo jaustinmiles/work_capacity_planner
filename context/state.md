@@ -1,14 +1,41 @@
 # Current State
 
-## Session In Progress (2025-08-21 - PR #15 Amendment Applicator Complete)
+## Session In Progress (2025-08-27 - Multiple Scheduling Improvements Ready for PR)
 
-### Branch: fix/feedback-notification-error
-This PR now includes full amendment applicator functionality:
+### Branch: fix/calendar-sorting-and-ui-issues
+This branch includes multiple scheduling improvements and bug fixes:
 
-#### ✅ Fixed FeedbackViewer Notification Error
-- Replaced Arco's Message component with custom Notification for React 19 compatibility
-- Fixed "id.render is not a function" error when resolving feedback items
-- Converted all notification calls from object format to string format
+#### ✅ Fixed Calendar View Task Sorting (Feedback #281)
+- Fixed blocks not being sorted chronologically in DailyScheduleView
+- Fixed meetings not being sorted by time
+- Combined blocks and meetings into single chronological timeline
+- Tasks now display in proper time order in calendar view
+
+#### ✅ Improved Task Splitting to 10-Minute Minimum
+- Reduced minimum split duration from 30 to 10 minutes
+- Enabled task splitting by default in WeeklyCalendar and GanttChart
+- Tasks now fully utilize blocks with minimal unused time
+- Updated tests to handle more aggressive splitting
+
+#### ✅ Added Flexible Work Block Type
+- New 'flexible' block type that accepts any work (focus or admin)
+- No predetermined capacity split - total time available for either type
+- Added to WorkBlocksEditor dropdown menu
+- Addresses user need for "just fill the time" scheduling
+
+#### ✅ Fixed Flexible Block Capacity Calculation
+- Corrected double-counting issue (was showing 345+345 instead of 345 total)
+- Fixed fractional minutes display with proper rounding
+- Special handling for combined capacity in utilization tracking
+- Debug info now shows single total for flexible blocks
+
+#### ✅ Fixed Scheduler to Ignore Past Time
+- Blocks that have already started now only consider remaining time
+- Prevents scheduling in time that has already passed
+- Adjusts block start time to current time when appropriate
+- Only applies to real-time scheduling, not test scenarios
+
+### Previous Session (2025-08-21 - PR #15 Amendment Applicator Complete)
 
 #### ✅ Better AI Brainstorm Editing and Feedback
 - Added interactive clarification inputs when AI needs more info
