@@ -40,6 +40,42 @@
 - Solution: Track completed steps separately for dependency resolution
 - Impact: All workflow steps with completed dependencies can now be scheduled
 
+## Architectural Issues (NEW - 2025-08-27)
+
+### 1. Workflow/Task Model Confusion
+**Severity**: 🔴 Critical  
+**Impact**: Constant type confusion, bugs, and workarounds
+
+**Problems:**
+- Workflows stored as Tasks with `hasSteps=true` causing type confusion
+- Priority calculation creates fake Task objects from TaskSteps  
+- Duplicate logic for handling tasks vs workflow steps
+- Constant type casting throughout codebase
+
+**Proposed Fix:** See context/architecture-improvements.md
+
+### 2. Configuration Propagation Complexity
+**Severity**: 🟠 High  
+**Impact**: Difficult to maintain, excessive prop drilling
+
+**Problems:**
+- Multiple config objects (SchedulingPreferences, WorkSettings, etc.)
+- Each component needs to thread configs through
+- Hard to add new configuration options
+
+**Proposed Fix:** Unified scheduling context/store
+
+### 3. Duplicate Scheduler Implementations
+**Severity**: 🟡 Medium  
+**Impact**: Maintenance burden, potential inconsistencies
+
+**Problems:**
+- deadline-scheduler.ts and flexible-scheduler.ts have overlapping logic
+- Priority calculation exists in multiple places
+- Dead code from old implementations
+
+**Proposed Fix:** Single scheduler with strategy pattern
+
 ## Remaining High Priority Issues
 
 ### 1. Scheduling Test Suite Rewrite Needed (2025-08-17)

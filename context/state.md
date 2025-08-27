@@ -1,8 +1,29 @@
 # Current State
 
-## Session In Progress (2025-08-27 - Multiple Scheduling Improvements Ready for PR)
+## Session In Progress (2025-08-27 - Async Scheduling and Debug Info Improvements)
 
-### Branch: fix/calendar-sorting-and-ui-issues
+### Branch: fix/high-priority-scheduling-improvements (PR #17 Created)
+This branch includes async task scheduling improvements and enhanced debug info:
+
+#### ✅ Expanded Scheduling Debug Info with Priority Breakdown
+- Shows Eisenhower score, deadline boost, async boost, cognitive match, context switch penalty
+- Available for both scheduled and unscheduled items  
+- Provides full transparency into scheduling decisions
+- Added scheduling preferences/settings to enable enhanced priority calculation
+
+#### ✅ Fixed Async Task Priority Without Deadlines
+- Removed requirement for deadlines when calculating async urgency
+- Async tasks now get exponential priority boost based solely on wait time
+- Deadlines provide additional urgency but are optional
+- Ensures async tasks are started early regardless of deadlines
+
+#### Key Findings from Investigation
+- Workflow steps DO have asyncWaitTime set (e.g., "Launch small workflow" = 120 min)
+- Priority calculation was working but debug display only showed Eisenhower score
+- Async boost previously required deadlines (now fixed)
+- Reduced deadline urgency override from 24 to 4 hours
+
+### Previous Branch: fix/calendar-sorting-and-ui-issues
 This branch includes multiple scheduling improvements and bug fixes:
 
 #### ✅ Fixed Calendar View Task Sorting (Feedback #281)
