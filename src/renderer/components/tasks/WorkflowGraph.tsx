@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { TaskType } from '@shared/enums'
-import { Card, Typography, Tag, Space } from '@arco-design/web-react'
+import { Card, Typography, Tag, Space, Tooltip } from '@arco-design/web-react'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
 
@@ -139,61 +139,83 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
           )}
 
           {/* Draw nodes */}
-          {nodes.map((node: any, index: number) => (
-            <g key={node.id}>
-              {/* Node background */}
-              <rect
-                x={node.x}
-                y={node.y}
-                width="200"
-                height="80"
-                rx="8"
-                fill={node.type === TaskType.Focused ? '#E6F7FF' : '#E8F5E9'}
-                stroke={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
-                strokeWidth="2"
-              />
-
-              {/* Step number */}
-              <circle
-                cx={node.x + 20}
-                cy={node.y + 20}
-                r="15"
-                fill={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
-              />
-              <text
-                x={node.x + 20}
-                y={node.y + 25}
-                textAnchor="middle"
-                fill="white"
-                fontSize="12"
-                fontWeight="bold"
+          {nodes.map((node: any, index: number) => {
+            const truncatedLabel = node.label.length > 18 ? node.label.substring(0, 18) + '...' : node.label
+            const durationText = `${formatDuration(node.duration)}${node.asyncWaitTime > 0 ? ` + ${formatDuration(node.asyncWaitTime)} wait` : ''}`
+            
+            return (
+              <Tooltip
+                key={node.id}
+                content={
+                  <div>
+                    <div style={{ fontWeight: 'bold', marginBottom: 4 }}>{node.label}</div>
+                    <div>Duration: {formatDuration(node.duration)}</div>
+                    {node.asyncWaitTime > 0 && <div>Wait time: {formatDuration(node.asyncWaitTime)}</div>}
+                    <div>Type: {node.type === TaskType.Focused ? 'Focused' : 'Admin'}</div>
+                  </div>
+                }
               >
-                {index + 1}
-              </text>
+                <g>
+                  {/* Node background */}
+                  <rect
+                    x={node.x}
+                    y={node.y}
+                    width="200"
+                    height="80"
+                    rx="8"
+                    fill={node.type === TaskType.Focused ? '#E6F7FF' : '#E8F5E9'}
+                    stroke={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
+                    strokeWidth="2"
+                    style={{ cursor: 'pointer' }}
+                  />
 
-              {/* Node label */}
-              <text
-                x={node.x + 100}
-                y={node.y + 25}
-                textAnchor="middle"
-                fontSize="14"
-                fontWeight="500"
-              >
-                {node.label.length > 20 ? node.label.substring(0, 20) + '...' : node.label}
-              </text>
+                  {/* Step number */}
+                  <circle
+                    cx={node.x + 20}
+                    cy={node.y + 20}
+                    r="15"
+                    fill={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
+                  />
+                  <text
+                    x={node.x + 20}
+                    y={node.y + 25}
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize="12"
+                    fontWeight="bold"
+                  >
+                    {index + 1}
+                  </text>
 
-              {/* Duration */}
-              <text
-                x={node.x + 100}
-                y={node.y + 50}
-                textAnchor="middle"
-                fontSize="12"
-                fill="#86909C"
-              >
-                {formatDuration(node.duration)}
-                {node.asyncWaitTime > 0 && ` + ${formatDuration(node.asyncWaitTime)} wait`}
-              </text>
+                  {/* Node label - truncated to fit */}
+                  <text
+                    x={node.x + 100}
+                    y={node.y + 25}
+                    textAnchor="middle"
+                    fontSize="13"
+                    fontWeight="500"
+                  >
+                    {truncatedLabel}
+                  </text>
 
+                  {/* Duration */}
+                  <text
+                    x={node.x + 100}
+                    y={node.y + 50}
+                    textAnchor="middle"
+                    fontSize="11"
+                    fill="#86909C"
+                  >
+                    {durationText.length > 24 ? durationText.substring(0, 24) + '...' : durationText}
+                  </text>
+                </g>
+              </Tooltip>
+            )
+          })}
+
+          {/* Type tags - rendered after nodes to appear on top */}
+          {nodes.map((node: any) => (
+            <g key={`type-${node.id}`}>
               {/* Type tag */}
               <rect
                 x={node.x + 150}
