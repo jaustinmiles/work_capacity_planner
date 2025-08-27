@@ -1,6 +1,26 @@
 # Current State
 
-## Session In Progress (2025-08-27 - Quality of Life Improvements)
+## Session In Progress (2025-08-27 - Critical User Test Blockers)
+
+### Current Branch: fix/critical-user-test-blockers
+
+#### ✅ Fixed Workflow Duplication Bug (Critical)
+- Issue: Creating workflow manually resulted in duplicate workflows
+- Root cause: SequencedTaskForm was rendered twice in App.tsx
+- Solution: Removed duplicate form component
+- Added missing fields (deadline, cognitive complexity) to SequencedTaskForm
+
+#### ✅ Fixed Clear Future Schedules Button Crash (High)
+- Issue: TypeError: od.render is not a function when clicking button
+- Root cause: Modal.confirm incompatible with React 19
+- Solution: Replaced with Popconfirm component for confirmation
+
+#### 📝 Documented Component Unification Principle
+- Added architectural pattern to prevent feature drift
+- Emphasizes single source of truth for UI components
+- Prevents duplicate logic across creation/edit/AI features
+
+### Previous PR: fix/quality-of-life-improvements (PR #20 - Merged)
 
 ### Branch: fix/quality-of-life-improvements (PR #20)
 
@@ -11,8 +31,7 @@
 - Created comprehensive integration tests for field persistence
 - Created ADDING_DATABASE_FIELDS.md documentation guide
 
-### Branch: fix/quality-of-life-improvements
-This branch includes critical fixes for user test blockers:
+### Completed fixes from PR #20:
 
 #### ✅ Fixed No Way to Remove a Deadline (Critical)
 - Modified database updateTask to accept null values for deadline field
