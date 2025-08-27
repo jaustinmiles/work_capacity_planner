@@ -1,9 +1,9 @@
 # Current State
 
-## Session In Progress (2025-08-20 - PR #15 Major Feature Improvements)
+## Session In Progress (2025-08-21 - PR #15 Amendment Applicator Complete)
 
 ### Branch: fix/feedback-notification-error
-Despite the branch name, this PR contains multiple significant improvements:
+This PR now includes full amendment applicator functionality:
 
 #### ✅ Fixed FeedbackViewer Notification Error
 - Replaced Arco's Message component with custom Notification for React 19 compatibility
@@ -40,12 +40,32 @@ Despite the branch name, this PR contains multiple significant improvements:
 - Shows processing status for uploaded files
 - Maintains feature parity with BrainstormModal
 
+#### ✅ Enhanced Amendment Applicator with Context and Editing
+- Added optional context input field for providing additional context
+- Added edit mode to adjust amendment details (duration, importance, urgency, task type)
+- Apply edited values when processing amendments
+- Context text included with transcription for better AI understanding
+
+#### ✅ Fixed Critical Amendment Applicator Issues
+- Fixed template placeholder {{task_creation_0}} appearing instead of actual IDs
+- Fixed blank edit fields in edit mode - now shows proper values
+- Fixed workflow step finding - includes step IDs in context
+- Added isAmendmentType helper to handle both string literals and enum values
+
+#### ✅ Implemented Dependency Wiring
+- Full implementation of DependencyChange handling
+- Support for task, workflow, and workflow step dependencies
+- Add/remove dependencies with proper validation
+- Comprehensive logging for debugging
+- Amendments now apply directly instead of just notifying parent
+- Task store refreshes after applying amendments
+
 ### Status
 - All tests pass (some pre-existing unrelated failures)
 - TypeScript: 0 errors
 - ESLint: 0 errors (warnings only)
 - Build successful
-- PR #15 ready for review: https://github.com/jaustinmiles/work_capacity_planner/pull/15
+- PR #15 feature-complete and ready for user testing: https://github.com/jaustinmiles/work_capacity_planner/pull/15
 
 ## Session Completed (2025-08-20 - Task Splitting & Multiple Fixes)
 

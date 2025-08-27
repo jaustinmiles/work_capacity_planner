@@ -433,6 +433,7 @@ describe('Database - Unified Task Model', () => {
         expect(result).toEqual({
           focused: 50, // 30 + 20
           admin: 60,  // 45 + 15
+          personal: 0,
           total: 110, // 50 + 60
         })
       })
@@ -446,6 +447,7 @@ describe('Database - Unified Task Model', () => {
         expect(result).toEqual({
           focused: 0,
           admin: 0,
+          personal: 0,
           total: 0,
         })
       })
