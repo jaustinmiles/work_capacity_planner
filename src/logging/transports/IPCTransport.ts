@@ -12,12 +12,22 @@ type IpcMainEvent = any
 // Only import electron in Node.js environment
 if (typeof window === 'undefined') {
   // Main process
-  const electron = require('electron')
-  ipcMain = electron.ipcMain
+  try {
+    const electron = require('electron')
+    ipcMain = electron.ipcMain
+  } catch (e) {
+    // Electron not available (e.g., in tests)
+    ipcMain = null
+  }
 } else if (typeof window !== 'undefined' && (window as any).require) {
   // Renderer process with nodeIntegration (shouldn't happen in our case)
-  const electron = (window as any).require('electron')
-  ipcRenderer = electron.ipcRenderer
+  try {
+    const electron = (window as any).require('electron')
+    ipcRenderer = electron.ipcRenderer
+  } catch (e) {
+    // Electron not available
+    ipcRenderer = null
+  }
 }
 
 export class IPCTransport {
@@ -65,6 +75,10 @@ export class IPCTransport {
    * Setup handler in main process to receive logs
    */
   private setupMainHandler(): void {
+    if (!ipcMain) {
+      // In test environment, ipcMain may not be available
+      return
+    }
     ipcMain.on(this.channel, (event: IpcMainEvent, payload: IPCLogPayload) => {
       // This will be handled by the main logger
       // Just emit an event that the main logger can listen to
@@ -73,7 +87,7 @@ export class IPCTransport {
   }
 
   close(): void {
-    if (!this.isRenderer) {
+    if (!this.isRenderer && ipcMain) {
       ipcMain.removeAllListeners(this.channel)
     }
   }
