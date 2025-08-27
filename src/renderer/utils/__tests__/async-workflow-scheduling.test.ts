@@ -203,14 +203,14 @@ describe('Async Workflow Scheduling Priority', () => {
           customCapacity: {},
           timeZone: 'UTC',
         },
-      }
+      },
     )
 
     // Find the async workflow steps
     const asyncStep1 = scheduledItems.find(item => item.name.includes('Launch overnight analysis'))
     const asyncStep2 = scheduledItems.find(item => item.name.includes('Submit for CI pipeline'))
     const lowPriorityScheduled = scheduledItems.find(item => item.name === 'Low Priority Task')
-    const mediumPriorityScheduled = scheduledItems.find(item => item.name === 'Medium Priority Task')
+    const _mediumPriorityScheduled = scheduledItems.find(item => item.name === 'Medium Priority Task')
 
     // Debug output
     console.log('\n=== Scheduling Results ===')
@@ -234,28 +234,28 @@ describe('Async Workflow Scheduling Priority', () => {
     // 2. The workflow should start early to account for async wait times
     const firstWorkflowStep = scheduledItems.find(item => item.name.includes('Initial setup'))
     expect(firstWorkflowStep).toBeDefined()
-    
+
     // 3. The workflow should start before or at same time as low priority tasks
     // (async steps may be later due to dependencies)
     if (firstWorkflowStep && lowPriorityScheduled) {
       // Workflow should start early to accommodate async wait times
       expect(firstWorkflowStep.startTime.getTime()).toBeLessThanOrEqual(
-        lowPriorityScheduled.startTime.getTime()
+        lowPriorityScheduled.startTime.getTime(),
       )
     }
 
     // 4. Check priority values - async steps should have higher total priority
     if (debugInfo.scheduledItemsPriority) {
       const asyncStepPriority = debugInfo.scheduledItemsPriority.find(
-        item => item.name.includes('Launch overnight analysis')
+        item => item.name.includes('Launch overnight analysis'),
       )
       const lowTaskPriority = debugInfo.scheduledItemsPriority.find(
-        item => item.name === 'Low Priority Task'
+        item => item.name === 'Low Priority Task',
       )
 
       if (asyncStepPriority && lowTaskPriority) {
         expect(asyncStepPriority.priorityBreakdown.total).toBeGreaterThan(
-          lowTaskPriority.priorityBreakdown.total
+          lowTaskPriority.priorityBreakdown.total,
         )
         // Async boost should be significant (8 hours = 360 boost with current formula)
         expect(asyncStepPriority.priorityBreakdown.asyncBoost).toBeGreaterThan(300)
@@ -325,8 +325,8 @@ describe('Async Workflow Scheduling Priority', () => {
     }
 
     const startDate = new Date('2025-01-15T09:00:00')
-    const patterns = Array.from({ length: 5 }, (_, i) => 
-      createWorkPattern(new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000))
+    const patterns = Array.from({ length: 5 }, (_, i) =>
+      createWorkPattern(new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)),
     )
 
     const { scheduledItems } = scheduleItemsWithBlocksAndDebug(
@@ -361,7 +361,7 @@ describe('Async Workflow Scheduling Priority', () => {
           customCapacity: {},
           timeZone: 'UTC',
         },
-      }
+      },
     )
 
     // The long workflow with async step should start first
@@ -380,7 +380,7 @@ describe('Async Workflow Scheduling Priority', () => {
 
   it('should handle mixed tasks and workflows correctly', () => {
     const asyncWorkflow = createWorkflowWithAsyncSteps()
-    
+
     // Create various priority tasks
     const urgentTask = createTask({
       name: 'Urgent Task',
@@ -405,8 +405,8 @@ describe('Async Workflow Scheduling Priority', () => {
     })
 
     const startDate = new Date('2025-01-15T09:00:00')
-    const patterns = Array.from({ length: 3 }, (_, i) => 
-      createWorkPattern(new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000))
+    const patterns = Array.from({ length: 3 }, (_, i) =>
+      createWorkPattern(new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)),
     )
 
     const { scheduledItems, debugInfo } = scheduleItemsWithBlocksAndDebug(
@@ -441,7 +441,7 @@ describe('Async Workflow Scheduling Priority', () => {
           customCapacity: {},
           timeZone: 'UTC',
         },
-      }
+      },
     )
 
     // Expected order (by total priority):
@@ -464,16 +464,16 @@ describe('Async Workflow Scheduling Priority', () => {
     // Find specific items
     const asyncTaskScheduled = scheduledItems.find(item => item.name === 'Task with Async Wait')
     const asyncWorkflowStep = scheduledItems.find(item => item.name.includes('Launch overnight analysis'))
-    const urgentTaskScheduled = scheduledItems.find(item => item.name === 'Urgent Task')
+    const _urgentTaskScheduled = scheduledItems.find(item => item.name === 'Urgent Task')
 
     // Async items should be scheduled early
     expect(asyncTaskScheduled).toBeDefined()
     expect(asyncWorkflowStep).toBeDefined()
-    
+
     // Check that async boost is working
     if (debugInfo.scheduledItemsPriority) {
       const asyncTaskPriority = debugInfo.scheduledItemsPriority.find(
-        item => item.name === 'Task with Async Wait'
+        item => item.name === 'Task with Async Wait',
       )
       if (asyncTaskPriority) {
         // 6 hours should give 40 + (6 * 40) = 280 boost
@@ -482,7 +482,7 @@ describe('Async Workflow Scheduling Priority', () => {
       }
 
       const asyncStepPriority = debugInfo.scheduledItemsPriority.find(
-        item => item.name.includes('Launch overnight analysis')
+        item => item.name.includes('Launch overnight analysis'),
       )
       if (asyncStepPriority) {
         // 8 hours should give 40 + (8 * 40) = 360 boost

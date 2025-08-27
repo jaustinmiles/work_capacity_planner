@@ -155,18 +155,18 @@ export function calculateAsyncUrgency(
 
   // Calculate async wait hours first
   const asyncWaitHours = item.asyncWaitTime / 60
-  
+
   // Always give async tasks a boost based on their wait time
   // Much more aggressive scaling to ensure async tasks start early:
   // Base boost of 40 + additional boost based on wait time
   // - 30 min (0.5h) wait = 40 + 20 = +60 priority boost
   // - 1 hour wait = 40 + 40 = +80 priority boost
-  // - 2 hours wait = 40 + 80 = +120 priority boost  
+  // - 2 hours wait = 40 + 80 = +120 priority boost
   // - 6 hours wait = 40 + 240 = +280 priority boost
   // - 12 hours wait = 40 + 480 = +520 priority boost (capped at 500)
   // This ensures async tasks almost always get scheduled first
   const baseAsyncBoost = Math.min(500, 40 + (asyncWaitHours * 40))
-  
+
   // Find earliest deadline in chain (optional - not required for async boost)
   const chainDeadline = findEarliestDeadlineInChain(item, dependentTasks, context)
   if (!chainDeadline) {
@@ -349,7 +349,7 @@ export function calculatePriorityWithBreakdown(
   let workflowDepthBonus = 0
   if ('taskId' in item) {
     // It's a workflow step - find the workflow
-    const workflow = context.workflows.find(w => w.id === item.taskId || 
+    const workflow = context.workflows.find(w => w.id === item.taskId ||
       w.steps?.some(s => s.id === item.id))
     if (workflow) {
       // Give bonus based on critical path length
@@ -360,7 +360,7 @@ export function calculatePriorityWithBreakdown(
   }
 
   // Calculate total using same formula as before, plus workflow bonus
-  const total = (eisenhower * deadlinePressure + asyncBoost) * cognitiveMatchFactor + 
+  const total = (eisenhower * deadlinePressure + asyncBoost) * cognitiveMatchFactor +
     contextSwitchPenalty + workflowDepthBonus
 
   return {

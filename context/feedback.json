@@ -411,5 +411,17 @@
     "description": "after changing a task's cognitive complexity, I would imagine the task list view should update to show the new complexity, but it doesn't. In fact, complexity is missing entirely from some tasks' display card, but exists on others. ",
     "timestamp": "2025-08-27T16:21:34.977Z",
     "sessionId": "session-1756311694968-lo640d0de"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "tasks/SequencedTaskEdit",
+      "progress/WorkflowProgressTracker"
+    ],
+    "title": "No way to make deadline for workflow",
+    "description": "I don't see an option in the UI to set the deadline for a workflow",
+    "timestamp": "2025-08-27T16:36:32.743Z",
+    "sessionId": "session-1756312592735-frgwgy6z8"
   }
 ]
