@@ -153,13 +153,28 @@ export function calculateAsyncUrgency(
     return sum
   }, 0)
 
-  // Find earliest deadline in chain
+  // Calculate async wait hours first
+  const asyncWaitHours = item.asyncWaitTime / 60
+  
+  // Always give async tasks a boost based on their wait time
+  // The longer the wait, the more urgent to start them early
+  // This uses exponential growth: 
+  // - 1 hour wait = ~15 priority boost
+  // - 6 hours wait = ~25 priority boost  
+  // - 12 hours wait = ~35 priority boost
+  // - 24 hours wait = ~50 priority boost
+  // - 48 hours wait = ~80 priority boost
+  const baseAsyncBoost = 10 * Math.exp(asyncWaitHours / 12)
+  
+  // Find earliest deadline in chain (optional - not required for async boost)
   const chainDeadline = findEarliestDeadlineInChain(item, dependentTasks, context)
-  if (!chainDeadline) return 0
+  if (!chainDeadline) {
+    // No deadline, just return the base async boost
+    return Math.min(100, baseAsyncBoost)
+  }
 
   // Calculate time dynamics
   const hoursUntilDeadline = (chainDeadline.getTime() - context.currentTime.getTime()) / (1000 * 60 * 60)
-  const asyncWaitHours = item.asyncWaitTime / 60
 
   // Time available for dependent work after async completes
   const availableTimeAfterAsync = hoursUntilDeadline - asyncWaitHours
