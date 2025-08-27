@@ -267,12 +267,21 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, new Date(), {
       allowTaskSplitting: true,
       minimumSplitDuration: 10,
+      productivityPatterns: [
+        // Default productivity pattern - peak in morning, dip after lunch
+        { startTime: '09:00', endTime: '11:00', level: 'peak' },
+        { startTime: '11:00', endTime: '12:00', level: 'high' },
+        { startTime: '12:00', endTime: '13:00', level: 'low' },
+        { startTime: '13:00', endTime: '14:30', level: 'moderate' },
+        { startTime: '14:30', endTime: '16:00', level: 'high' },
+        { startTime: '16:00', endTime: '18:00', level: 'moderate' },
+      ],
       schedulingPreferences: {
         id: 'default',
         sessionId: 'default',
         allowWeekendWork: false,
         weekendPenalty: 0.5,
-        contextSwitchPenalty: 10, // Minutes penalty for context switching
+        contextSwitchPenalty: 10, // Priority penalty for context switching
         asyncParallelizationBonus: 20, // Priority bonus for async work
         createdAt: new Date(),
         updatedAt: new Date(),
