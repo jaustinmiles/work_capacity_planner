@@ -298,6 +298,7 @@ export function TaskItem({ task }: TaskItemProps) {
           <TaskEdit
             task={task}
             onClose={() => setShowEditModal(false)}
+            startInEditMode={true}
           />
         )}
       </Modal>

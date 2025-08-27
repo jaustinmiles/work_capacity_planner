@@ -212,13 +212,14 @@ export class DatabaseService {
       'asyncWaitTime', 'dependencies', 'completed', 'completedAt',
       'actualDuration', 'notes', 'projectId', 'deadline', 'isLocked',
       'lockedStartTime', 'hasSteps', 'currentStepId', 'overallStatus',
-      'criticalPathDuration', 'worstCaseDuration',
+      'criticalPathDuration', 'worstCaseDuration', 'cognitiveComplexity',
     ]
 
     // Clean update data - only include allowed fields
     const cleanUpdateData = Object.entries(rawUpdates).reduce((acc, [key, value]) => {
-      // Only include fields that are allowed and have defined values
-      if (allowedFields.includes(key) && value !== undefined) {
+      // Only include fields that are allowed
+      // Include defined values, or null for nullable fields like deadline
+      if (allowedFields.includes(key) && (value !== undefined || (key === 'deadline' && value === null))) {
         if (key === 'dependencies') {
           acc[key] = JSON.stringify(value)
         } else {

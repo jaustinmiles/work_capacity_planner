@@ -257,15 +257,16 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               </Space>
               <Progress percent={adminProgress} color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'} />
             </div>
-            {accumulated.personal > 0 && (
-              <div>
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Text>Personal</Text>
-                  <Text>{formatMinutes(accumulated.personal)}</Text>
-                </Space>
-                <Progress percent={100} color='#722ed1' />
-              </div>
-            )}
+            <div>
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text>Personal</Text>
+                <Text>{formatMinutes(accumulated.personal)}</Text>
+              </Space>
+              <Progress
+                percent={accumulated.personal > 0 ? 100 : 0}
+                color='#722ed1'
+              />
+            </div>
             <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text style={{ fontWeight: 600 }}>Total Logged</Text>

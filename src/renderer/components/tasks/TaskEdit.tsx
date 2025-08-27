@@ -31,12 +31,13 @@ const { Row, Col } = Grid
 interface TaskEditProps {
   task: Task
   onClose?: () => void
+  startInEditMode?: boolean
 }
 
-export function TaskEdit({ task, onClose }: TaskEditProps) {
+export function TaskEdit({ task, onClose, startInEditMode = false }: TaskEditProps) {
   const { updateTask } = useTaskStore()
   const [editedTask, setEditedTask] = useState<Task>({ ...task })
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(startInEditMode)
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSave = async () => {
@@ -275,9 +276,10 @@ export function TaskEdit({ task, onClose }: TaskEditProps) {
                   </Text>
                   <DatePicker
                     value={editedTask.deadline}
-                    onChange={(dateString) => setEditedTask({ ...editedTask, deadline: dateString ? new Date(dateString) : undefined })}
+                    onChange={(dateString) => setEditedTask({ ...editedTask, deadline: dateString ? new Date(dateString) : null as any })}
                     showTime
                     placeholder="Select deadline"
+                    allowClear
                     style={{ width: '100%' }}
                     disabledDate={(current) => {
                       // Disable dates before today
