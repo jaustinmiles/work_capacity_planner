@@ -170,8 +170,8 @@ export function calculateAsyncUrgency(
   // Find earliest deadline in chain (optional - not required for async boost)
   const chainDeadline = findEarliestDeadlineInChain(item, dependentTasks, context)
   if (!chainDeadline) {
-    // No deadline, just return the base async boost
-    return Math.min(100, baseAsyncBoost)
+    // No deadline, just return the base async boost (no cap needed!)
+    return baseAsyncBoost
   }
 
   // Calculate time dynamics
@@ -271,6 +271,7 @@ export interface PriorityBreakdown {
   asyncBoost: number
   cognitiveMatch: number
   contextSwitchPenalty: number
+  workflowDepthBonus?: number
   total: number
 }
 
@@ -344,8 +345,23 @@ export function calculatePriorityWithBreakdown(
     }
   }
 
-  // Calculate total using same formula as before
-  const total = (eisenhower * deadlinePressure + asyncBoost) * cognitiveMatchFactor + contextSwitchPenalty
+  // Add workflow depth bonus - longer critical paths get priority
+  let workflowDepthBonus = 0
+  if ('taskId' in item) {
+    // It's a workflow step - find the workflow
+    const workflow = context.workflows.find(w => w.id === item.taskId || 
+      w.steps?.some(s => s.id === item.id))
+    if (workflow) {
+      // Give bonus based on critical path length
+      // Longer workflows need to start earlier
+      const criticalPathHours = (workflow.criticalPathDuration || 0) / 60
+      workflowDepthBonus = Math.min(50, criticalPathHours * 5) // 5 points per hour of critical path
+    }
+  }
+
+  // Calculate total using same formula as before, plus workflow bonus
+  const total = (eisenhower * deadlinePressure + asyncBoost) * cognitiveMatchFactor + 
+    contextSwitchPenalty + workflowDepthBonus
 
   return {
     eisenhower,
@@ -353,6 +369,7 @@ export function calculatePriorityWithBreakdown(
     asyncBoost,
     cognitiveMatch,
     contextSwitchPenalty,
+    workflowDepthBonus,
     total,
   }
 }

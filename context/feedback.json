@@ -400,5 +400,16 @@
     "description": "Sometimes, a user may encounter a task that actually needs to be split into several steps. Rather than marking complete the old step and creating two new ones, we should introduce a 'split' functionality that allows a task to split into two subtasks while preserving the dependency relation. We should have options for splitting in sequence (one subtask depends on the other) and splitting in parallel (subtasks can be done in any order)",
     "timestamp": "2025-08-27T14:33:05.921Z",
     "sessionId": "session-1756305185910-n5v9ik3yo"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "tasks/TaskList"
+    ],
+    "title": "Editing Cognitive Complexity shows nothing on task view",
+    "description": "after changing a task's cognitive complexity, I would imagine the task list view should update to show the new complexity, but it doesn't. In fact, complexity is missing entirely from some tasks' display card, but exists on others. ",
+    "timestamp": "2025-08-27T16:21:34.977Z",
+    "sessionId": "session-1756311694968-lo640d0de"
   }
 ]
