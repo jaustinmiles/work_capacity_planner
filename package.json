@@ -34,6 +34,9 @@
     "lint:fix": "eslint . --fix",
     "check": "npm run typecheck && npm run lint",
     "preview": "vite preview",
+    "feedback": "node scripts/feedback-utils.js",
+    "feedback:high": "node scripts/feedback-utils.js high",
+    "feedback:summary": "node scripts/feedback-utils.js summary",
     "pack": "electron-builder --dir",
     "dist": "npm run build && electron-builder"
   },
