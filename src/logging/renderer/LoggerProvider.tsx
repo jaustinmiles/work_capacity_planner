@@ -4,11 +4,11 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react'
 import { RendererLogger } from './RendererLogger'
-import { LoggerConfig, LogLevel, ILogger } from '../types'
+import { LoggerConfig, LogLevel, ILogger, LogEntry } from '../types'
 
 interface LoggerContextValue {
   logger: ILogger
-  dumpBuffer: () => void
+  dumpBuffer: () => LogEntry[]
   showDevTools: () => void
   hideDevTools: () => void
 }
@@ -124,6 +124,19 @@ export function useLogger(context?: Record<string, any>): ILogger {
   }
 
   return loggerContext.logger
+}
+
+/**
+ * Hook to get the full logger context (includes dumpBuffer, etc)
+ */
+export function useLoggerContext(): LoggerContextValue {
+  const loggerContext = useContext(LoggerContext)
+
+  if (!loggerContext) {
+    throw new Error('useLoggerContext must be used within LoggerProvider')
+  }
+
+  return loggerContext
 }
 
 /**
