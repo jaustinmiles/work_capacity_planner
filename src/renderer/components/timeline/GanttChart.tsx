@@ -265,7 +265,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     // Pass current time as start date to ensure scheduling starts from now
     const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, new Date(), {
       allowTaskSplitting: true,
-      minimumSplitDuration: 10
+      minimumSplitDuration: 10,
     })
     setDebugInfo(result.debugInfo)
     // Auto-show debug info if there are issues

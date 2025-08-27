@@ -152,7 +152,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
               return timeA - timeB
             })
 
-            return timelineItems.map((item, index) => {
+            return timelineItems.map((item) => {
               if (item.type === 'block') {
                 const block = item.data
                 const hasItems = block.items.length > 0
