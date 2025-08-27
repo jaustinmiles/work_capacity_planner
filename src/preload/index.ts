@@ -95,6 +95,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Logging operations
   log: (level: string, scope: string, message: string, data?: any) =>
     ipcRenderer.send('log:message', { level, scope, message, data }),
+  sendLog: (channel: string, payload: any) =>
+    ipcRenderer.send(channel, payload),
 
   // Feedback operations
   saveFeedback: (feedback: any) => ipcRenderer.invoke('feedback:save', feedback),

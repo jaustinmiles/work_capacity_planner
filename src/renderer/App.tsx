@@ -24,7 +24,7 @@ import { exampleSequencedTask } from '@shared/sequencing-types'
 import type { TaskStep } from '@shared/types'
 import { getDatabase } from './services/database'
 import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
-import { logger } from './utils/logger'
+import { useLogger } from '../logging/index.renderer'
 
 
 const { Header, Sider, Content } = Layout
@@ -44,6 +44,7 @@ interface ExtractedTask {
 }
 
 function App() {
+  const logger = useLogger({ component: 'App' })
   const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
@@ -76,7 +77,7 @@ function App() {
 
   // Initialize data when app starts
   useEffect(() => {
-    // App initialization started
+    logger.info('App initialization started')
     initializeData()
   }, [initializeData])
 
@@ -222,7 +223,7 @@ function App() {
         setActiveView('workflows')
       }
     } catch (error) {
-      logger.ui.error('Error creating workflows:', error)
+      logger.error('Error creating workflows', { error })
       Message.error('Failed to create workflows and tasks')
     }
   }
@@ -237,7 +238,7 @@ function App() {
       await deleteSequencedTask(taskId)
       Message.success('Workflow deleted successfully')
     } catch (error) {
-      logger.ui.error('Error deleting workflow:', error)
+      logger.error('Error deleting workflow', { error })
       Message.error('Failed to delete workflow')
     }
   }
@@ -267,7 +268,7 @@ function App() {
 
       Message.success('Workflow started successfully')
     } catch (error) {
-      logger.ui.error('Failed to start workflow:', error)
+      logger.error('Failed to start workflow', { error })
       Message.error('Failed to start workflow')
     }
   }
@@ -292,7 +293,7 @@ function App() {
 
       Message.success('Workflow paused')
     } catch (error) {
-      logger.ui.error('Failed to pause workflow:', error)
+      logger.error('Failed to pause workflow', { error })
       Message.error('Failed to pause workflow')
     }
   }
@@ -304,7 +305,7 @@ function App() {
       await loadSequencedTasks()
       Message.success('Step updated successfully')
     } catch (error) {
-      logger.ui.error('Failed to update step:', error)
+      logger.error('Failed to update step', { error })
       Message.error('Failed to update step')
     }
   }
@@ -339,7 +340,7 @@ function App() {
 
       Message.success('Workflow reset to initial state')
     } catch (error) {
-      logger.ui.error('Failed to reset workflow:', error)
+      logger.error('Failed to reset workflow', { error })
       Message.error('Failed to reset workflow')
     }
   }
@@ -350,7 +351,7 @@ function App() {
       await initializeData() // Reload all data
       Message.success('All workflows deleted successfully')
     } catch (error) {
-      logger.ui.error('Error deleting all workflows:', error)
+      logger.error('Error deleting all workflows', { error })
       Message.error('Failed to delete all workflows')
     }
   }
@@ -672,7 +673,7 @@ function App() {
               // Refresh data to show changes
               await initializeData()
             } catch (error) {
-              logger.ui.error('Failed to apply amendments:', error)
+              logger.error('Failed to apply amendments', { error })
               Message.error('Failed to apply amendments')
             }
           }}

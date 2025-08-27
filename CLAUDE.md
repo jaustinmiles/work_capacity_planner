@@ -53,13 +53,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Principle**: All other files REFERENCE these sources, never duplicate them.
 
-### 🛑 Configuration Files - DO NOT MODIFY
+### 🛑 Configuration Files - GENERALLY DO NOT MODIFY
 
-These configurations are FROZEN. Fix code to meet their requirements:
-- `.eslintrc.js` - ESLint rules are non-negotiable
+These configurations are generally FROZEN. Fix code to meet their requirements:
+- `.eslintrc.js` - ESLint rules are non-negotiable (exception: adding missing global type definitions is acceptable over using 'any')
 - `tsconfig.json` - TypeScript strict mode must be maintained
 - `jest.config.js` - Test configuration is immutable
 - `/config/*` - All config files are locked
+
+**Exception**: When ESLint doesn't recognize standard browser/Node.js global types (e.g., ErrorEvent, PromiseRejectionEvent), it is preferable to add them to the ESLint globals configuration rather than using 'any' casts.
 
 ### ✅ Before ANY Implementation
 

@@ -3,9 +3,19 @@ import path from 'node:path'
 import { DatabaseService } from './database'
 import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
-import { logger, logInfo, logError } from '../shared/logger'
+import { getMainLogger } from '../logging/index.main'
 import type { Task } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
+
+// Initialize logger
+const logger = getMainLogger()
+// Legacy compatibility functions
+const logInfo = (category: string, message: string, data?: any) => {
+  logger.info(`[${category}] ${message}`, data)
+}
+const logError = (category: string, message: string, error?: any) => {
+  logger.error(`[${category}] ${message}`, { error })
+}
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -354,7 +364,7 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
     const jobContexts = await db.getJobContexts()
     if (jobContexts && jobContexts.length > 0) {
       (context as any).jobContexts = jobContexts
-      logger.ipc.debug('[IPC] Including job contexts in amendment parsing:', jobContexts.length, 'contexts')
+      logger.debug('[IPC] Including job contexts in amendment parsing', { count: jobContexts.length })
     }
   } catch (error) {
     logError('ipc', 'Failed to fetch job contexts:', error)
@@ -403,7 +413,7 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
     const projectRoot = process.cwd()
     const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
 
-    logger.main.info('Saving feedback to:', feedbackPath)
+    logger.info('Saving feedback', { path: feedbackPath })
 
     // Ensure directory exists
     await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
@@ -465,10 +475,10 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
     // Save all feedback (flat array only)
     await fs.writeFile(feedbackPath, JSON.stringify(allFeedback, null, 2))
 
-    logger.main.info('Feedback saved to context folder')
+    logger.info('Feedback saved to context folder')
     return true
   } catch (error) {
-    logger.main.error('Failed to save feedback:', error)
+    logger.error('Failed to save feedback', { error })
     throw error
   }
 })
@@ -507,7 +517,7 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
     const projectRoot = process.cwd()
     const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
 
-    logger.main.info('Updating feedback in:', feedbackPath)
+    logger.info('Updating feedback', { path: feedbackPath })
 
     // Ensure directory exists
     await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
@@ -542,10 +552,10 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
     // Save updated feedback (ensure it's a flat, deduplicated array)
     await fs.writeFile(feedbackPath, JSON.stringify(uniqueFeedback, null, 2))
 
-    logger.main.info('Feedback updated in context folder')
+    logger.info('Feedback updated in context folder')
     return true
   } catch (error) {
-    logger.main.error('Failed to update feedback:', error)
+    logger.error('Failed to update feedback', { error })
     throw error
   }
 })
@@ -555,23 +565,26 @@ ipcMain.handle('app:getSessionId', () => {
   return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 })
 
-// Logging handler
+// Logging handler - forward renderer logs
 ipcMain.on('log:message', (_event, { level, scope, message, data }) => {
+  // Add scope to context if provided
+  const contextData = scope ? { ...data, scope } : data
+
   // Use the appropriate logger based on level
   switch (level) {
     case 'debug':
-      logger[scope as keyof typeof logger]?.debug(message, data)
+      logger.debug(message, contextData)
       break
     case 'info':
-      logger[scope as keyof typeof logger]?.info(message, data)
+      logger.info(message, contextData)
       break
     case 'warn':
-      logger[scope as keyof typeof logger]?.warn(message, data)
+      logger.warn(message, contextData)
       break
     case 'error':
-      logger[scope as keyof typeof logger]?.error(message, data)
+      logger.error(message, contextData)
       break
     default:
-      logger.main.info(message, data)
+      logger.info(message, contextData)
   }
 })

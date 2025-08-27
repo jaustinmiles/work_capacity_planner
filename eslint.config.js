@@ -48,6 +48,8 @@ module.exports = [
         DragEvent: 'readonly',
         WheelEvent: 'readonly',
         Touch: 'readonly',
+        ErrorEvent: 'readonly',
+        PromiseRejectionEvent: 'readonly',
         TouchEvent: 'readonly',
         Element: 'readonly',
         Event: 'readonly',
