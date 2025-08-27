@@ -4,7 +4,7 @@ import { LogEntry, LogLevel } from '../types'
 
 describe('RingBuffer', () => {
   let buffer: RingBuffer
-  
+
   const createLogEntry = (level: LogLevel, message: string): LogEntry => ({
     level,
     message,
@@ -22,7 +22,7 @@ describe('RingBuffer', () => {
     it('should add entries to buffer', () => {
       const entry = createLogEntry(LogLevel.INFO, 'test message')
       buffer.add(entry)
-      
+
       const entries = buffer.dump()
       expect(entries).toHaveLength(1)
       expect(entries[0]).toEqual(entry)
@@ -32,11 +32,11 @@ describe('RingBuffer', () => {
       const entry1 = createLogEntry(LogLevel.INFO, 'first')
       const entry2 = createLogEntry(LogLevel.WARN, 'second')
       const entry3 = createLogEntry(LogLevel.ERROR, 'third')
-      
+
       buffer.add(entry1)
       buffer.add(entry2)
       buffer.add(entry3)
-      
+
       const entries = buffer.dump()
       expect(entries).toHaveLength(3)
       expect(entries[0].message).toBe('first')
@@ -49,7 +49,7 @@ describe('RingBuffer', () => {
       for (let i = 1; i <= 7; i++) {
         buffer.add(createLogEntry(LogLevel.INFO, `message ${i}`))
       }
-      
+
       const entries = buffer.dump()
       expect(entries).toHaveLength(5)
       // Should contain the last 5 entries (3, 4, 5, 6, 7)
@@ -95,7 +95,7 @@ describe('RingBuffer', () => {
       buffer.add(createLogEntry(LogLevel.INFO, 'info'))
       buffer.add(createLogEntry(LogLevel.WARN, 'warning'))
       buffer.add(createLogEntry(LogLevel.ERROR, 'error'))
-      
+
       const errors = buffer.getErrors()
       expect(errors).toHaveLength(2)
       expect(errors[0].message).toBe('warning')
@@ -105,7 +105,7 @@ describe('RingBuffer', () => {
     it('should return empty array when no errors', () => {
       buffer.add(createLogEntry(LogLevel.DEBUG, 'debug'))
       buffer.add(createLogEntry(LogLevel.INFO, 'info'))
-      
+
       const errors = buffer.getErrors()
       expect(errors).toHaveLength(0)
     })
@@ -115,9 +115,9 @@ describe('RingBuffer', () => {
     it('should remove all entries', () => {
       buffer.add(createLogEntry(LogLevel.INFO, 'test 1'))
       buffer.add(createLogEntry(LogLevel.INFO, 'test 2'))
-      
+
       expect(buffer.dump()).toHaveLength(2)
-      
+
       buffer.clear()
       expect(buffer.dump()).toHaveLength(0)
     })
@@ -126,7 +126,7 @@ describe('RingBuffer', () => {
       buffer.add(createLogEntry(LogLevel.INFO, 'before'))
       buffer.clear()
       buffer.add(createLogEntry(LogLevel.INFO, 'after'))
-      
+
       const entries = buffer.dump()
       expect(entries).toHaveLength(1)
       expect(entries[0].message).toBe('after')
@@ -136,10 +136,10 @@ describe('RingBuffer', () => {
   describe('size', () => {
     it('should return current number of entries', () => {
       expect(buffer.size()).toBe(0)
-      
+
       buffer.add(createLogEntry(LogLevel.INFO, 'test 1'))
       expect(buffer.size()).toBe(1)
-      
+
       buffer.add(createLogEntry(LogLevel.INFO, 'test 2'))
       expect(buffer.size()).toBe(2)
     })
@@ -148,7 +148,7 @@ describe('RingBuffer', () => {
       for (let i = 1; i <= 10; i++) {
         buffer.add(createLogEntry(LogLevel.INFO, `message ${i}`))
       }
-      
+
       expect(buffer.size()).toBe(5) // Max size is 5
     })
   })

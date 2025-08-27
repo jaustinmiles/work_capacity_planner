@@ -92,9 +92,17 @@ function App() {
 
   // Initialize data when app starts
   useEffect(() => {
-    logger.info('App initialization started')
+    logger.info('App initialization started', { 
+      tasksCount: tasks.length,
+      sequencedTasksCount: sequencedTasks.length 
+    })
     initializeData()
   }, [initializeData])
+  
+  // Log view changes
+  useEffect(() => {
+    logger.debug('View changed', { view: activeView })
+  }, [activeView, logger])
 
   // Keyboard shortcuts
   useEffect(() => {
