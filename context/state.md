@@ -40,6 +40,26 @@ This branch includes critical fixes for user test blockers:
 - Deadline field saves to database with workflow updates
 - Addresses high-priority user feedback about missing workflow deadline capability
 
+#### ✅ Added Individual Step Priority Overrides
+- Added importance/urgency fields to TaskStep interface and database schema
+- Created Prisma migration to add step priority fields
+- Updated SequencedTaskEdit UI to allow priority override per step
+- Fixed database persistence for step priority fields
+- Priority overrides now properly used in scheduling calculations
+
+#### ✅ Added Eisenhower Matrix to Feedback Form
+- Added to component list for better bug reporting
+
+#### ✅ Improved Workflow Graph Node Spacing
+- Increased horizontal and vertical gaps between nodes
+- Better visual clarity for complex workflows
+
+#### ✅ Created Comprehensive User Test Plan
+- Created /docs/USER_TEST_PLAN.md with 10 testing phases
+- Covers all features systematically with checkboxes
+- Provides repeatable testing workflow
+- Includes edge cases and stress testing
+
 ### Previous Branch: fix/low-hanging-fruit-batch-1 (PR #18 Created)
 This branch includes multiple low-priority UI fixes and improvements:
 

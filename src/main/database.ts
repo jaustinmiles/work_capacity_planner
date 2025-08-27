@@ -272,6 +272,9 @@ export class DatabaseService {
           status: step.status || 'pending',
           percentComplete: step.percentComplete || 0,
           notes: step.notes || null,
+          cognitiveComplexity: step.cognitiveComplexity || null,
+          importance: step.importance || null,
+          urgency: step.urgency || null,
         }
 
         if (existingStepIds.has(step.id)) {
