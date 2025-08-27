@@ -53,6 +53,11 @@ export function TaskItem({ task }: TaskItemProps) {
   const handleSave = async () => {
     if (editedName.trim()) {
       try {
+        logger.ui.info('Task name updated', { 
+          taskId: task.id, 
+          oldName: task.name, 
+          newName: editedName.trim() 
+        })
         await updateTask(task.id, { name: editedName.trim() })
         setIsEditing(false)
       } catch (__error) {
@@ -101,6 +106,11 @@ export function TaskItem({ task }: TaskItemProps) {
           <Checkbox
             checked={task.completed}
             onChange={() => {
+              logger.ui.info('Task completion toggled', { 
+                taskId: task.id, 
+                taskName: task.name,
+                completed: !task.completed 
+              })
               toggleTaskComplete(task.id).catch(console.error)
             }}
             style={{ marginTop: 2 }}
@@ -132,7 +142,10 @@ export function TaskItem({ task }: TaskItemProps) {
                     cursor: 'pointer',
                     textDecoration: task.completed ? 'line-through' : 'none',
                   }}
-                  onClick={() => selectTask(task.id)}
+                  onClick={() => {
+                    logger.ui.debug('Task selected', { taskId: task.id, taskName: task.name })
+                    selectTask(task.id)
+                  }}
                   className="hover:text-blue-600"
                 >
                   {task.name}
@@ -154,7 +167,10 @@ export function TaskItem({ task }: TaskItemProps) {
                         color={loggedTime > task.duration ? 'orange' : 'green'}
                         size="small"
                         style={{ cursor: 'pointer' }}
-                        onClick={() => setShowSessionsModal(true)}
+                        onClick={() => {
+                          logger.ui.debug('Work sessions modal opened', { taskId: task.id })
+                          setShowSessionsModal(true)
+                        }}
                       >
                         Logged: {formatDuration(loggedTime)}
                       </Tag>
@@ -237,7 +253,10 @@ export function TaskItem({ task }: TaskItemProps) {
                   type="text"
                   size="small"
                   icon={<IconClockCircle />}
-                  onClick={() => setShowTimeModal(true)}
+                  onClick={() => {
+                    logger.ui.info('Time logging modal opened', { taskId: task.id, taskName: task.name })
+                    setShowTimeModal(true)
+                  }}
                 />
               </Tooltip>
 
@@ -246,7 +265,14 @@ export function TaskItem({ task }: TaskItemProps) {
                   type="text"
                   size="small"
                   icon={<IconEdit />}
-                  onClick={() => setShowEditModal(true)}
+                  onClick={() => {
+                    logger.ui.info('Task edit modal opened', { 
+                      taskId: task.id, 
+                      taskName: task.name,
+                      hasSteps: task.hasSteps 
+                    })
+                    setShowEditModal(true)
+                  }}
                 />
               </Tooltip>
             </>
@@ -256,6 +282,7 @@ export function TaskItem({ task }: TaskItemProps) {
             title="Delete Task"
             content="Are you sure you want to delete this task?"
             onOk={() => {
+              logger.ui.warn('Task deleted', { taskId: task.id, taskName: task.name })
               deleteTask(task.id).catch(console.error)
             }}
             okText="Delete"

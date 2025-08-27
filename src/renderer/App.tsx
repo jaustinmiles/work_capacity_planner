@@ -102,7 +102,7 @@ function App() {
   // Log view changes
   useEffect(() => {
     logger.debug('View changed', { view: activeView })
-  }, [activeView, logger])
+  }, [activeView])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -110,6 +110,7 @@ function App() {
       // Cmd/Ctrl + Shift + D for DevTools
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
         e.preventDefault()
+        logger.debug('DevTools opened via keyboard shortcut')
         setShowDevTools(true)
       }
     }
@@ -129,6 +130,7 @@ function App() {
   }, [activeView, currentWeeklySchedule, isScheduling, generateWeeklySchedule])
 
   const handleTasksExtracted = (tasks: ExtractedTask[]): void => {
+    logger.info('Tasks extracted from brainstorm', { count: tasks.length })
     setExtractedTasks(tasks)
     setBrainstormModalVisible(false)
     setTaskCreationFlowVisible(true)
@@ -136,6 +138,10 @@ function App() {
 
   const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]): Promise<void> => {
     try {
+      logger.info('Workflows extracted from brainstorm', { 
+        workflowCount: workflows.length,
+        standaloneTaskCount: standaloneTasks.length 
+      })
       // Create workflows
       for (const workflow of workflows) {
         // Combine description and notes
