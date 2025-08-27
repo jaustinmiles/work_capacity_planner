@@ -483,8 +483,8 @@ export function VoiceAmendmentModal({
                     if (dep.startsWith('task-new-') && allAmendments) {
                       // Find the corresponding task creation amendment
                       const taskIndex = parseInt(dep.replace('task-new-', '')) - 1
-                      const taskCreations = allAmendments.filter(a => 
-                        a.type === AmendmentType.TaskCreation || (a.type as string) === 'task_creation'
+                      const taskCreations = allAmendments.filter(a =>
+                        a.type === AmendmentType.TaskCreation || (a.type as string) === 'task_creation',
                       )
                       const taskCreation = taskCreations[taskIndex] as TaskCreation
                       return taskCreation ? taskCreation.name : dep

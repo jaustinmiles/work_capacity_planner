@@ -611,5 +611,16 @@
     "description": "control nodes for the time segment of the logged work render away from the actual arc around the clock, and the labels for the hours are weird. Prefer a clock with 2 rings or 2 separate clocks, since the unified 24 hour one seems buggy",
     "timestamp": "2025-08-27T18:35:12.770Z",
     "sessionId": "session-1756319712760-u1nxczn59"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "timeline/GanttChart"
+    ],
+    "title": "Task splitting appears to try to schedule multiple chunks of the same task concurrently",
+    "description": "Multiple tasks with the same name (test task 1 (1/3), test task 1 (2/3), ...) I think this is from task splitting, but we are scheduling them overlapping and also at the same time. We should probably have a validation that runs at the end of the timeline generation that catches these easy things and alerts the user or errors. ",
+    "timestamp": "2025-08-27T19:07:52.193Z",
+    "sessionId": "session-1756321672183-9g1flgajs"
   }
 ]

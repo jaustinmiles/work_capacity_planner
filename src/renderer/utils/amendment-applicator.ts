@@ -26,7 +26,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
   const db = getDatabase()
   let successCount = 0
   let errorCount = 0
-  
+
   // Track newly created task IDs to resolve placeholders
   const createdTaskMap = new Map<string, string>() // placeholder -> actual ID
 
@@ -217,8 +217,8 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                     // Add new dependencies
                     if (change.addDependencies && change.addDependencies.length > 0) {
                       // Resolve any placeholder task IDs
-                      const resolvedDeps = change.addDependencies.map(dep => 
-                        createdTaskMap.get(dep) || dep
+                      const resolvedDeps = change.addDependencies.map(dep =>
+                        createdTaskMap.get(dep) || dep,
                       )
                       // Filter out any that are already there
                       const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
@@ -260,8 +260,8 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
                     if (change.addDependencies && change.addDependencies.length > 0) {
                       // Resolve any placeholder task IDs
-                      const resolvedDeps = change.addDependencies.map(dep => 
-                        createdTaskMap.get(dep) || dep
+                      const resolvedDeps = change.addDependencies.map(dep =>
+                        createdTaskMap.get(dep) || dep,
                       )
                       const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
                       currentDeps = [...currentDeps, ...toAdd]
@@ -284,8 +284,8 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
                     if (change.addDependencies && change.addDependencies.length > 0) {
                       // Resolve any placeholder task IDs
-                      const resolvedDeps = change.addDependencies.map(dep => 
-                        createdTaskMap.get(dep) || dep
+                      const resolvedDeps = change.addDependencies.map(dep =>
+                        createdTaskMap.get(dep) || dep,
                       )
                       const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
                       currentDeps = [...currentDeps, ...toAdd]
@@ -338,14 +338,14 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           const newTask = await db.createTask(taskData)
           successCount++
           logger.ui.info('Task created successfully:', creation.name)
-          
+
           // Track the created task ID for resolving placeholders
           // Look for task-new-N pattern in amendments
-          const placeholderIndex = amendments.findIndex(a => 
-            a.type === AmendmentType.TaskCreation && a === amendment
+          const placeholderIndex = amendments.findIndex(a =>
+            a.type === AmendmentType.TaskCreation && a === amendment,
           )
           createdTaskMap.set(`task-new-${placeholderIndex + 1}`, newTask.id)
-          
+
           break
         }
 
