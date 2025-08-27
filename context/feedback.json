@@ -334,7 +334,8 @@
     "title": "Personal blocks appear in the UI as 'mixed'",
     "description": "When creating a personal block on the schedule UI, the block shows us as 'mixed time' as if it is a combination of focus and admin instead of personal. I don't think this affects actual scheduling logic, just a UI bug. ",
     "timestamp": "2025-08-27T13:42:42.671Z",
-    "sessionId": "session-1756302162659-waxjxccox"
+    "sessionId": "session-1756302162659-waxjxccox",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -367,7 +368,8 @@
     "title": "Show cognitive complexity in task list",
     "description": "cognitive complexity should be showed alongside the other task attributes. ",
     "timestamp": "2025-08-27T13:49:49.680Z",
-    "sessionId": "session-1756302589670-c4h8nuibo"
+    "sessionId": "session-1756302589670-c4h8nuibo",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -378,7 +380,8 @@
     "title": "Clock should show hours before 6 am",
     "description": "I know we made the clock originally not show anything except 8-8, but I've been working starting earlier than that, and I think I want to see the full 24 hours on the clock",
     "timestamp": "2025-08-27T14:19:49.934Z",
-    "sessionId": "session-1756304389932-d7dfzwqz1"
+    "sessionId": "session-1756304389932-d7dfzwqz1",
+    "resolved": true
   },
   {
     "type": "feature",
