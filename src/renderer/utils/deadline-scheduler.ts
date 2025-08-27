@@ -176,24 +176,40 @@ export function calculateAsyncUrgency(
     return 150 // Extreme urgency for impossible scenarios
   }
 
-  // Exponential growth function
-  const a = 10
-  const b = 2  // Even less aggressive exponential growth
-  const asyncUrgency = a * Math.exp(b * compressionRatio)
+  // Exponential growth function - more aggressive for async tasks
+  // The longer the wait time relative to the deadline, the more urgent
+  const asyncRatio = asyncWaitHours / Math.max(1, hoursUntilDeadline)
+
+  // Base urgency grows exponentially with wait time
+  // For a task with 24h wait time and 48h deadline, asyncRatio = 0.5
+  // For a task with 48h wait time and 72h deadline, asyncRatio = 0.67
+  const baseAsyncUrgency = 20 * Math.exp(3 * asyncRatio)
+
+  // Additional exponential boost for long absolute wait times
+  // This ensures tasks with long wait times are started early regardless of deadline
+  const waitTimeBoost = 10 * Math.exp(asyncWaitHours / 24) // Exponential growth per day of wait
+
+  // Compression ratio still matters but less than wait time
+  const compressionBoost = 5 * Math.exp(compressionRatio)
 
   // Time pressure factor
   const daysUntilDeadline = hoursUntilDeadline / 24
-  const timePressure = 5 / (daysUntilDeadline + 1)
+  const timePressure = 10 / (daysUntilDeadline + 1)
 
-  // Clamp between reasonable bounds
-  const totalUrgency = asyncUrgency + timePressure
+  // Combine all factors with emphasis on wait time
+  const totalUrgency = baseAsyncUrgency + waitTimeBoost + compressionBoost + timePressure
 
-  // For high but not impossible compression (0.7-1.5), return moderate urgency
-  if (compressionRatio >= 0.7 && compressionRatio <= 1.5) {
-    return Math.min(45, totalUrgency) // Cap at 45 for this range
+  // For truly impossible scenarios (>100% capacity needed)
+  if (compressionRatio > 1.5) {
+    return Math.max(200, totalUrgency) // Extreme urgency for impossible scenarios
   }
 
-  return totalUrgency
+  // For high but not impossible compression (0.7-1.5), still give significant urgency
+  if (compressionRatio >= 0.7 && compressionRatio <= 1.5) {
+    return Math.max(80, totalUrgency) // Higher floor for compressed timelines
+  }
+
+  return Math.min(300, totalUrgency) // Cap at 300 to prevent overflow
 }
 
 /**
@@ -231,12 +247,36 @@ export function calculateCognitiveMatch(
 }
 
 /**
+ * Priority breakdown for debugging
+ */
+export interface PriorityBreakdown {
+  eisenhower: number
+  deadlineBoost: number
+  asyncBoost: number
+  cognitiveMatch: number
+  contextSwitchPenalty: number
+  total: number
+}
+
+/**
  * Calculate integrated priority combining all factors
+ * Returns just the total for backward compatibility
  */
 export function calculatePriority(
   item: Task | TaskStep,
   context: SchedulingContext,
 ): number {
+  const breakdown = calculatePriorityWithBreakdown(item, context)
+  return breakdown.total
+}
+
+/**
+ * Calculate integrated priority with detailed breakdown
+ */
+export function calculatePriorityWithBreakdown(
+  item: Task | TaskStep,
+  context: SchedulingContext,
+): PriorityBreakdown {
   // Base Eisenhower score - TaskStep doesn't have importance/urgency, use parent's
   let importance: number
   let urgency: number
@@ -261,16 +301,18 @@ export function calculatePriority(
     }
   }
 
-  const baseScore = importance * urgency
+  const eisenhower = importance * urgency
 
   // Deadline pressure multiplier
   const deadlinePressure = calculateDeadlinePressure(item, context)
+  const deadlineBoost = eisenhower * (deadlinePressure - 1) // Just the boost amount
 
   // Async urgency bonus
-  const asyncUrgency = calculateAsyncUrgency(item, context)
+  const asyncBoost = calculateAsyncUrgency(item, context)
 
   // Cognitive match multiplier
-  const cognitiveMatch = calculateCognitiveMatch(item, context.currentTime, context)
+  const cognitiveMatchFactor = calculateCognitiveMatch(item, context.currentTime, context)
+  const cognitiveMatch = eisenhower * (cognitiveMatchFactor - 1) // Just the boost/penalty
 
   // Context switch penalty
   let contextSwitchPenalty = 0
@@ -286,8 +328,17 @@ export function calculatePriority(
     }
   }
 
-  // Combine all factors
-  return (baseScore * deadlinePressure + asyncUrgency) * cognitiveMatch + contextSwitchPenalty
+  // Calculate total using same formula as before
+  const total = (eisenhower * deadlinePressure + asyncBoost) * cognitiveMatchFactor + contextSwitchPenalty
+
+  return {
+    eisenhower,
+    deadlineBoost,
+    asyncBoost,
+    cognitiveMatch,
+    contextSwitchPenalty,
+    total,
+  }
 }
 
 /**

@@ -263,9 +263,36 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     logger.ui.debug(`GanttChart: Scheduling with ${tasks.length} tasks and ${sequencedTasks.length} workflows`)
 
     // Pass current time as start date to ensure scheduling starts from now
+    // Also pass scheduling preferences and work settings to enable enhanced priority calculation
     const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, new Date(), {
       allowTaskSplitting: true,
       minimumSplitDuration: 10,
+      schedulingPreferences: {
+        id: 'default',
+        sessionId: 'default',
+        allowWeekendWork: false,
+        weekendPenalty: 0.5,
+        contextSwitchPenalty: 10, // Minutes penalty for context switching
+        asyncParallelizationBonus: 20, // Priority bonus for async work
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      workSettings: {
+        defaultWorkHours: {
+          startTime: '09:00',
+          endTime: '18:00',
+          lunchStart: '12:00',
+          lunchDuration: 60,
+        },
+        customWorkHours: {},
+        defaultCapacity: {
+          maxFocusHours: 4,
+          maxAdminHours: 3,
+          blockedTimes: [],
+        },
+        customCapacity: {},
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
     })
     setDebugInfo(result.debugInfo)
     // Auto-show debug info if there are issues

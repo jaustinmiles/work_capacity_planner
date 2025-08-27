@@ -3,7 +3,7 @@ import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
 import { WorkSettings } from '@shared/work-settings-types'
-import { calculatePriority, SchedulingContext } from './deadline-scheduler'
+import { calculatePriority, calculatePriorityWithBreakdown, SchedulingContext } from './deadline-scheduler'
 import { logger } from './logger'
 
 
@@ -38,6 +38,14 @@ export interface SchedulingDebugInfo {
     type: string
     duration: number
     reason: string
+    priorityBreakdown?: {
+      eisenhower: number  // importance * urgency
+      deadlineBoost: number
+      asyncBoost: number
+      cognitiveMatch: number
+      contextSwitchPenalty: number
+      total: number
+    }
   }>
   blockUtilization: Array<{
     date: string
@@ -56,6 +64,19 @@ export interface SchedulingDebugInfo {
   asyncDependencies?: string[]
   missingDependencies?: string[]
   pendingDependencies?: string[]
+  scheduledItemsPriority?: Array<{
+    id: string
+    name: string
+    scheduledTime: string
+    priorityBreakdown: {
+      eisenhower: number
+      deadlineBoost: number
+      asyncBoost: number
+      cognitiveMatch: number
+      contextSwitchPenalty: number
+      total: number
+    }
+  }>
 }
 
 interface WorkItem {
@@ -450,6 +471,7 @@ export function scheduleItemsWithBlocksAndDebug(
     unscheduledItems: [],
     blockUtilization: [],
     warnings: [],
+    scheduledItemsPriority: [],
   }
 
   // ASSERTION: Validate inputs
@@ -704,20 +726,22 @@ export function scheduleItemsWithBlocksAndDebug(
       if (a.isLocked) return -1
       if (b.isLocked) return 1
 
-      // Then deadlines
+      // Check for extremely urgent deadlines (less than 4 hours)
       const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity
       const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity
       const now = startDate.getTime()
-      const oneDayMs = 24 * 60 * 60 * 1000
+      const fourHoursMs = 4 * 60 * 60 * 1000
 
-      if (aDeadline - now < oneDayMs || bDeadline - now < oneDayMs) {
-        if (aDeadline - now < oneDayMs && bDeadline - now < oneDayMs) {
-          return aDeadline - bDeadline
+      // Only override priority for truly urgent deadlines
+      if (aDeadline - now < fourHoursMs || bDeadline - now < fourHoursMs) {
+        if (aDeadline - now < fourHoursMs && bDeadline - now < fourHoursMs) {
+          // Both are urgent, use priority as tiebreaker
+          return b.priority - a.priority
         }
-        return aDeadline - now < oneDayMs ? -1 : 1
+        return aDeadline - now < fourHoursMs ? -1 : 1
       }
 
-      // Finally by priority score
+      // Use calculated priority which includes async boost
       return b.priority - a.priority
     })
 
@@ -1171,7 +1195,7 @@ export function scheduleItemsWithBlocksAndDebug(
             ? `${item.name} (${splitInfo.part}/${splitInfo.total})`
             : item.name
 
-          scheduledItems.push({
+          const scheduledItem = {
             id: isPartialSchedule ? `${item.id}-part${splitInfo.part}` : item.id,
             name: scheduledName,
             type: item.type,
@@ -1191,7 +1215,22 @@ export function scheduleItemsWithBlocksAndDebug(
             splitTotal: splitInfo.total,
             originalTaskId: splitInfo.originalId,
             remainingDuration: isPartialSchedule ? item.duration - durationToSchedule : 0,
-          })
+          }
+          scheduledItems.push(scheduledItem)
+
+          // Add priority breakdown to debug info if we have scheduling context
+          if (schedulingContext && item.originalItem) {
+            const priorityBreakdown = calculatePriorityWithBreakdown(
+              item.originalItem as Task | TaskStep,
+              schedulingContext,
+            )
+            debugInfo.scheduledItemsPriority?.push({
+              id: scheduledItem.id,
+              name: scheduledItem.name,
+              scheduledTime: startTime.toISOString(),
+              priorityBreakdown,
+            })
+          }
 
           // Update block capacity (use actual scheduled duration, not full duration)
           if (item.taskType === TaskType.Personal) {
@@ -1512,12 +1551,22 @@ export function scheduleItemsWithBlocksAndDebug(
       reason = 'No work blocks available for work task'
     }
 
+    // Calculate priority breakdown for unscheduled items
+    let priorityBreakdown
+    if (schedulingContext && item.originalItem) {
+      priorityBreakdown = calculatePriorityWithBreakdown(
+        item.originalItem as Task | TaskStep,
+        schedulingContext,
+      )
+    }
+
     debugInfo.unscheduledItems.push({
       id: item.id,
       name: item.name,
       type: item.taskType,
       duration: item.duration,
       reason: reason,
+      priorityBreakdown,
     })
   })
 

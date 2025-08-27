@@ -65,11 +65,68 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                     { title: 'Task', dataIndex: 'name' },
                     { title: 'Type', dataIndex: 'type' },
                     { title: 'Duration', dataIndex: 'duration', render: (val) => `${val} min` },
+                    {
+                      title: 'Priority',
+                      render: (_, record) => {
+                        if (!record.priorityBreakdown) return '-'
+                        const p = record.priorityBreakdown
+                        return (
+                          <div style={{ fontSize: 11 }}>
+                            <div>Total: {Math.round(p.total)}</div>
+                            <div style={{ color: '#666' }}>
+                              E:{Math.round(p.eisenhower)}
+                              {p.deadlineBoost > 0 && ` D:+${Math.round(p.deadlineBoost)}`}
+                              {p.asyncBoost > 0 && ` A:+${Math.round(p.asyncBoost)}`}
+                              {p.cognitiveMatch !== 0 && ` C:${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
+                              {p.contextSwitchPenalty < 0 && ` S:${Math.round(p.contextSwitchPenalty)}`}
+                            </div>
+                          </div>
+                        )
+                      },
+                    },
                     { title: 'Reason', dataIndex: 'reason' },
                   ]}
                   data={debugInfo.unscheduledItems}
                   pagination={false}
                   size="small"
+                />
+              </div>
+            )}
+
+            {/* Scheduled Items Priority Breakdown */}
+            {debugInfo.scheduledItemsPriority && debugInfo.scheduledItemsPriority.length > 0 && (
+              <div>
+                <Title heading={6} style={{ marginBottom: 8 }}>
+                  Scheduled Items Priority Analysis
+                </Title>
+                <Table
+                  columns={[
+                    { title: 'Task', dataIndex: 'name' },
+                    { title: 'Time', dataIndex: 'scheduledTime',
+                      render: (val) => new Date(val).toLocaleTimeString() },
+                    {
+                      title: 'Priority Breakdown',
+                      render: (_, record) => {
+                        const p = record.priorityBreakdown
+                        return (
+                          <Space>
+                            <Tag>Total: {Math.round(p.total)}</Tag>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              Eisenhower: {Math.round(p.eisenhower)}
+                              {p.deadlineBoost > 0 && ` | Deadline: +${Math.round(p.deadlineBoost)}`}
+                              {p.asyncBoost > 0 && ` | Async: +${Math.round(p.asyncBoost)}`}
+                              {p.cognitiveMatch !== 0 && ` | Cognitive: ${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
+                              {p.contextSwitchPenalty < 0 && ` | Switch: ${Math.round(p.contextSwitchPenalty)}`}
+                            </Text>
+                          </Space>
+                        )
+                      },
+                    },
+                  ]}
+                  data={debugInfo.scheduledItemsPriority}
+                  pagination={false}
+                  size="small"
+                  scroll={{ y: 200 }}
                 />
               </div>
             )}
