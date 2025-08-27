@@ -1,8 +1,29 @@
 # Current State
 
-## Session In Progress (2025-08-27 - Critical User Test Blockers)
+## Session In Progress (2025-08-27 - Critical Regressions and API Fixes)
 
-### Current Branch: fix/critical-user-test-blockers
+### Current Branch: fix/critical-regressions-and-api
+
+#### ✅ Fixed Missing IPC Endpoints (High Priority #9)
+- Added getWorkPatterns() and deleteWorkPattern() to preload and main process
+- Fixes "Clear future schedules" button crash
+
+#### ✅ Fixed Amendment Applicator Duplicates (High Priority #1, #2)  
+- Added duplicate detection to prevent creating tasks that already exist
+- Warns when task creation might be a workflow step
+- Maps existing task IDs for dependency resolution
+
+#### ✅ Restored Clarifications UI (Medium Priority)
+- Made clarification button appear for any questions in notes
+- Expanded detection to include "?", "question", "need to clarify"
+- Clarification input now shows for all questions
+
+#### ✅ Fixed UI Refresh on Session Changes (High Priority #7)
+- Added SESSION_CHANGED and DATA_REFRESH_NEEDED events
+- WorkStatusWidget now listens for session changes
+- Session manager emits refresh events on create/switch
+
+### Previous Branch: fix/critical-user-test-blockers
 
 #### ✅ Fixed Workflow Duplication Bug (High Priority #10)
 - Issue: Creating workflow manually resulted in duplicate workflows
