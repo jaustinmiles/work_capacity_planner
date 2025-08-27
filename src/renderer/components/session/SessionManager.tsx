@@ -89,6 +89,12 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
 
   const handleSwitchSession = async (sessionId: string) => {
     try {
+      const session = sessions.find(s => s.id === sessionId)
+      logger.ui.info('Switching session', { 
+        from: activeSession?.name || 'none',
+        to: session?.name || 'unknown',
+        sessionId 
+      })
       const db = getDatabase()
       await db.switchSession(sessionId)
 
@@ -99,8 +105,9 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       // Emit event to refresh UI components
       appEvents.emit(EVENTS.SESSION_CHANGED)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      logger.ui.debug('Session switched successfully', { sessionId })
     } catch (error) {
-      logger.ui.error('Failed to switch session:', error)
+      logger.ui.error('Failed to switch session:', error, { sessionId })
       Message.error('Failed to switch session')
     }
   }
@@ -110,9 +117,15 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
 
     try {
       const values = await form.validate()
+      logger.ui.info('Updating session', { 
+        sessionId: editingSession.id,
+        oldName: editingSession.name,
+        newName: values.name 
+      })
       const db = getDatabase()
       await db.updateSession(editingSession.id, values)
 
+      logger.ui.debug('Session updated successfully', { sessionId: editingSession.id })
       Message.success('Session updated')
       form.resetFields()
       setEditingSession(null)

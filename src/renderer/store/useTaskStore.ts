@@ -258,20 +258,32 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const task = get().tasks.find(t => t.id === id)
       if (!task) return
 
+      logger.store.info('Toggling task completion', { 
+        taskId: id, 
+        taskName: task.name,
+        currentStatus: task.completed,
+        newStatus: !task.completed 
+      })
+
       const updates = {
         completed: !task.completed,
         completedAt: !task.completed ? new Date() : undefined,
       }
 
       await get().updateTask(id, updates)
+      logger.store.debug('Task completion toggled successfully', { taskId: id })
     } catch (error) {
+      logger.store.error('Failed to toggle task completion', error, { taskId: id })
       set({
         error: error instanceof Error ? error.message : 'Failed to toggle task completion',
       })
     }
   },
 
-  selectTask: (id) => set({ selectedTaskId: id }),
+  selectTask: (id) => {
+    logger.store.debug('Task selection changed', { taskId: id })
+    set({ selectedTaskId: id })
+  },
 
   // Scheduling actions
   generateSchedule: async (options = {}) => {
