@@ -148,7 +148,7 @@ export abstract class Logger implements ILogger {
    * Dump the ring buffer
    */
   dumpBuffer(): LogEntry[] {
-    return this.ringBuffer.dump()
+    return this.ringBuffer.getAll()
   }
 
   /**
