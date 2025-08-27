@@ -19,7 +19,7 @@ export class RendererLogger extends Logger {
   static getInstance(config?: LoggerConfig): RendererLogger {
     if (!RendererLogger.instance) {
       const defaultConfig: LoggerConfig = {
-        level: process.env.NODE_ENV === 'production' ? LogLevel.INFO : LogLevel.DEBUG,
+        level: process.env.NODE_ENV === 'production' ? LogLevel.INFO : LogLevel.TRACE,
         sampling: {
           errorRate: 1.0,
           warnRate: 1.0,

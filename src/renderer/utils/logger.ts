@@ -1,5 +1,8 @@
-// Renderer process logger - uses console with structured formatting
-// In production, these will be captured by electron-log in the main process
+// LEGACY LOGGER - Now redirects to new logging system
+// This file is kept for backward compatibility
+
+// Import the new logger
+import { getRendererLogger } from '../../logging/index.renderer'
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 type LogScope = 'ui' | 'store' | 'api' | 'scheduler' | 'task' | 'workflow' | 'ai' | 'session'
@@ -12,6 +15,9 @@ interface LogEntry {
   data?: any
 }
 
+// Get singleton instance of new logger
+const newLogger = getRendererLogger()
+
 class RendererLogger {
   private isDevelopment = process.env.NODE_ENV !== 'production'
 
@@ -21,34 +27,32 @@ class RendererLogger {
   }
 
   private log(level: LogLevel, scope: LogScope, message: string, data?: any): void {
-    const entry: LogEntry = {
-      timestamp: new Date().toISOString(),
-      level,
+    // Format message with scope for new logger
+    const formattedMessage = `[${scope.toUpperCase()}] ${message}`
+    
+    // Create context with scope
+    const context = { 
       scope,
-      message,
-      data,
+      ...data 
     }
 
-    const formattedMessage = this.formatMessage(entry)
-
+    // Forward to new logger based on level
     switch (level) {
       case 'debug':
-        if (this.isDevelopment) {
-          console.debug(formattedMessage, data || '')
-        }
+        newLogger.debug(formattedMessage, context)
         break
       case 'info':
-        console.info(formattedMessage, data || '')
+        newLogger.info(formattedMessage, context)
         break
       case 'warn':
-        console.warn(formattedMessage, data || '')
+        newLogger.warn(formattedMessage, context)
         break
       case 'error':
-        console.error(formattedMessage, data || '')
+        newLogger.error(formattedMessage, context)
         break
     }
 
-    // Send to main process for file logging
+    // Still send to main process for backward compatibility
     if (window.electron?.log) {
       const logMethod = window.electron.log[level as keyof typeof window.electron.log]
       if (logMethod) {
@@ -70,14 +74,40 @@ class RendererLogger {
   }
 
   error(scope: LogScope, message: string, error?: Error | unknown, data?: any): void {
+    // Format message with scope for new logger
+    const formattedMessage = `[${scope.toUpperCase()}] ${message}`
+    
+    // Build context with scope and data
+    const context = { 
+      scope,
+      ...data 
+    }
+    
+    // Handle error parameter
     if (error instanceof Error) {
-      this.log('error', scope, message, {
+      // Use the new logger's error method with proper signature
+      newLogger.error(formattedMessage, {
+        ...context,
         error: error.message,
         stack: error.stack,
-        ...data,
+      })
+    } else if (error) {
+      // Non-Error object passed as error
+      newLogger.error(formattedMessage, {
+        ...context,
+        error,
       })
     } else {
-      this.log('error', scope, message, { error, ...data })
+      // No error object
+      newLogger.error(formattedMessage, context)
+    }
+    
+    // Still send to main process for backward compatibility  
+    if (window.electron?.log) {
+      const logMethod = window.electron.log.error
+      if (logMethod) {
+        logMethod(scope, message, error instanceof Error ? { message: error.message, stack: error.stack, ...data } : { error, ...data })
+      }
     }
   }
 

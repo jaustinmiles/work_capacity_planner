@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Modal, Button, Space, Typography, Alert, Tabs } from '@arco-design/web-react'
 import { IconDelete, IconTool, IconMessage, IconList, IconFile } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
@@ -19,16 +19,26 @@ interface DevToolsProps {
 export function DevTools({ visible, onClose }: DevToolsProps) {
   const [isClearing, setIsClearing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [activeTab, setActiveTab] = useState('feedback')
+  
+  useEffect(() => {
+    if (visible) {
+      logger.ui.info('DevTools opened', { activeTab })
+    }
+  }, [visible, activeTab])
 
   const handleClearAllData = async () => {
+    logger.ui.info('Clear all data requested')
     setShowConfirm(true)
   }
 
   const performClearData = async () => {
+    logger.ui.warn('Clearing all user data - confirmed by user')
     setIsClearing(true)
     setShowConfirm(false)
     try {
       await getDatabase().deleteAllUserData()
+      logger.ui.info('All user data cleared successfully')
       Message.success('All user data cleared successfully')
       // Reload the page to refresh everything
       setTimeout(() => window.location.reload(), 1000)
@@ -38,6 +48,11 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
     } finally {
       setIsClearing(false)
     }
+  }
+  
+  const handleTabChange = (key: string) => {
+    logger.ui.debug('DevTools tab changed', { from: activeTab, to: key })
+    setActiveTab(key)
   }
 
   return (
@@ -53,7 +68,7 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
       footer={null}
       style={{ width: 900 }}
     >
-      <Tabs defaultActiveTab="feedback">
+      <Tabs defaultActiveTab="feedback" activeTab={activeTab} onChange={handleTabChange}>
         <TabPane
           key="feedback"
           title={
