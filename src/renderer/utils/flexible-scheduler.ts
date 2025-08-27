@@ -1063,7 +1063,7 @@ export function scheduleItemsWithBlocksAndDebug(
 
         if (fitResult.canFit || (fitResult.canPartiallyFit && options.allowTaskSplitting)) {
           const { startTime } = fitResult
-          const minimumSplit = options.minimumSplitDuration || 30
+          const minimumSplit = options.minimumSplitDuration || 10
 
           // Check if this is a small remainder that shouldn't be scheduled on the same day it was split
           // Small remainders should wait for the next day to avoid fragmentation
@@ -1092,18 +1092,21 @@ export function scheduleItemsWithBlocksAndDebug(
             if (!item.splitInfo) {
               // This is an original item being split for the first time
               if (availableMinutes < minimumSplit) {
-                // The piece we'd schedule is too small
+                // The piece we'd schedule is too small - skip this block
                 continue
               }
 
               // Check if remainder would be too small
               const remainderAfterSplit = item.duration - availableMinutes
               if (remainderAfterSplit > 0 && remainderAfterSplit < minimumSplit) {
-                // The remainder would be too small - but this is OK!
-                // We'll schedule it on the next day
-                // Only skip if both pieces are on the same day
-                // For now, allow the split - remainder will go to next day
+                // The remainder would be too small
+                // This is OK - we'll schedule the remainder on the next day
+                // Allow the split to proceed
               }
+            } else {
+              // This is already a split item (remainder from previous split)
+              // Allow scheduling even if it's smaller than minimumSplit
+              // since it's already been split
             }
 
             durationToSchedule = availableMinutes
