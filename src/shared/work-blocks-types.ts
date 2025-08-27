@@ -20,6 +20,7 @@ export interface DailyWorkPattern {
   accumulated: {
     focusMinutes: number
     adminMinutes: number
+    personalMinutes?: number
   }
   meetings: Meeting[]
 }
