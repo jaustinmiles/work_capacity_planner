@@ -752,6 +752,20 @@ export function scheduleItemsWithBlocksAndDebug(
 
   workItems = sortedWorkItems
 
+  // Helper to check if a workflow has upcoming async wait times
+  const workflowHasUpcomingAsync = (workflowId: string, currentStepIndex: number): boolean => {
+    const workflow = sequencedTasks.find(st => st.id === workflowId)
+    if (!workflow) return false
+    
+    // Check remaining steps for async wait times
+    for (let i = currentStepIndex; i < workflow.steps.length; i++) {
+      if (workflow.steps[i].asyncWaitTime > 0) {
+        return true
+      }
+    }
+    return false
+  }
+
   // Process each day
   const actualNow = new Date() // The real current time
   const now = startDate // The provided start time for scheduling
@@ -920,28 +934,48 @@ export function scheduleItemsWithBlocksAndDebug(
       if (aDeadline - now < oneDayMs) return -1
       if (bDeadline - now < oneDayMs) return 1
 
-      // Penalize workflows that have already made progress
-      const aProgress = a.workflowId ? (workflowProgress.get(a.workflowId) || 0) : 0
-      const bProgress = b.workflowId ? (workflowProgress.get(b.workflowId) || 0) : 0
+      // Check workflow async status
+      const aHasUpcomingAsync = a.workflowId && workflowHasUpcomingAsync(a.workflowId, a.stepIndex || 0)
+      const bHasUpcomingAsync = b.workflowId && workflowHasUpcomingAsync(b.workflowId, b.stepIndex || 0)
+      
+      // Check if current step has async wait (meaning we just scheduled it and will wait)
+      const aHasCurrentAsync = a.asyncWaitTime > 0
+      const bHasCurrentAsync = b.asyncWaitTime > 0
+      
+      // If one has async wait on current step and other doesn't, deprioritize the waiting one
+      if (aHasCurrentAsync && !bHasCurrentAsync) return 1
+      if (bHasCurrentAsync && !aHasCurrentAsync) return -1
 
-      // If one workflow has significantly more progress, deprioritize it
-      if (Math.abs(aProgress - bProgress) >= 2) {
-        return aProgress - bProgress // Lower progress = higher priority
-      }
+      // Boost priority for workflows with upcoming async steps
+      const aAsyncBoost = aHasUpcomingAsync ? 1.3 : 1.0
+      const bAsyncBoost = bHasUpcomingAsync ? 1.3 : 1.0
 
-      // Otherwise use the original priority calculation
+      // Get base priorities
+      const aBasePriority = a.priority * aAsyncBoost
+      const bBasePriority = b.priority * bAsyncBoost
+      
+      // If priorities are close (within 20%), keep workflow steps together
+      const priorityRatio = Math.min(aBasePriority, bBasePriority) / Math.max(aBasePriority, bBasePriority)
       const aIsWorkflowStep = a.type === 'workflow-step'
       const bIsWorkflowStep = b.type === 'workflow-step'
+      
+      if (priorityRatio > 0.8) {
+        // Priorities are close - prefer to continue the same workflow
+        if (aIsWorkflowStep && bIsWorkflowStep && a.workflowId === b.workflowId) {
+          // Same workflow - keep steps together
+          return (a.stepIndex || 0) - (b.stepIndex || 0)
+        }
+        
+        // Different workflows or mix of workflow/task - check if we should switch
+        const aProgress = a.workflowId ? (workflowProgress.get(a.workflowId) || 0) : 0
+        const bProgress = b.workflowId ? (workflowProgress.get(b.workflowId) || 0) : 0
+        
+        // Only switch if the other workflow has significantly higher priority or async urgency
+        if (aHasUpcomingAsync && !bHasUpcomingAsync) return -1
+        if (bHasUpcomingAsync && !aHasUpcomingAsync) return 1
+      }
 
-      const aEffectivePriority = aIsWorkflowStep && (a.stepIndex ?? 0) > 0
-        ? a.priority * (0.9 - aProgress * 0.1) // Further reduce priority based on workflow progress
-        : a.priority
-
-      const bEffectivePriority = bIsWorkflowStep && (b.stepIndex ?? 0) > 0
-        ? b.priority * (0.9 - bProgress * 0.1)
-        : b.priority
-
-      return bEffectivePriority - aEffectivePriority
+      return bBasePriority - aBasePriority
     })
 
     // Keep trying to schedule items until we can't make progress (for dependency resolution)

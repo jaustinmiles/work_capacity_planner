@@ -435,10 +435,10 @@ export function CircularClock({
               {/* Drag handles at edges */}
               {isSelected && (
                 <>
-                  {/* Start handle */}
+                  {/* Start handle - use the same angle calculation as minutesToAngle */}
                   <circle
-                    cx={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos((session.startMinutes / 60 * 30 - 90) * Math.PI / 180)}
-                    cy={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin((session.startMinutes / 60 * 30 - 90) * Math.PI / 180)}
+                    cx={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos(minutesToAngle(session.startMinutes) * Math.PI / 180)}
+                    cy={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin(minutesToAngle(session.startMinutes) * Math.PI / 180)}
                     r={6}
                     fill="white"
                     stroke={session.color}
@@ -447,10 +447,10 @@ export function CircularClock({
                     onMouseDown={(e) => handleArcMouseDown(e, session.id, 'start')}
                   />
 
-                  {/* End handle */}
+                  {/* End handle - use the same angle calculation as minutesToAngle */}
                   <circle
-                    cx={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos((session.endMinutes / 60 * 30 - 90) * Math.PI / 180)}
-                    cy={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin((session.endMinutes / 60 * 30 - 90) * Math.PI / 180)}
+                    cx={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos(minutesToAngle(session.endMinutes) * Math.PI / 180)}
+                    cy={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin(minutesToAngle(session.endMinutes) * Math.PI / 180)}
                     r={6}
                     fill="white"
                     stroke={session.color}
