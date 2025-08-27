@@ -269,12 +269,12 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       minimumSplitDuration: 10,
       productivityPatterns: [
         // Default productivity pattern - peak in morning, dip after lunch
-        { startTime: '09:00', endTime: '11:00', level: 'peak' },
-        { startTime: '11:00', endTime: '12:00', level: 'high' },
-        { startTime: '12:00', endTime: '13:00', level: 'low' },
-        { startTime: '13:00', endTime: '14:30', level: 'moderate' },
-        { startTime: '14:30', endTime: '16:00', level: 'high' },
-        { startTime: '16:00', endTime: '18:00', level: 'moderate' },
+        { id: 'morning-peak', sessionId: 'default', timeRangeStart: '09:00', timeRangeEnd: '11:00', cognitiveCapacity: 'peak', preferredComplexity: [4, 5], createdAt: new Date(), updatedAt: new Date() },
+        { id: 'late-morning', sessionId: 'default', timeRangeStart: '11:00', timeRangeEnd: '12:00', cognitiveCapacity: 'high', preferredComplexity: [3, 4], createdAt: new Date(), updatedAt: new Date() },
+        { id: 'lunch-dip', sessionId: 'default', timeRangeStart: '12:00', timeRangeEnd: '13:00', cognitiveCapacity: 'low', preferredComplexity: [1, 2], createdAt: new Date(), updatedAt: new Date() },
+        { id: 'early-afternoon', sessionId: 'default', timeRangeStart: '13:00', timeRangeEnd: '14:30', cognitiveCapacity: 'moderate', preferredComplexity: [2, 3], createdAt: new Date(), updatedAt: new Date() },
+        { id: 'afternoon-peak', sessionId: 'default', timeRangeStart: '14:30', timeRangeEnd: '16:00', cognitiveCapacity: 'high', preferredComplexity: [3, 4], createdAt: new Date(), updatedAt: new Date() },
+        { id: 'late-afternoon', sessionId: 'default', timeRangeStart: '16:00', timeRangeEnd: '18:00', cognitiveCapacity: 'moderate', preferredComplexity: [2, 3], createdAt: new Date(), updatedAt: new Date() },
       ],
       schedulingPreferences: {
         id: 'default',
