@@ -266,11 +266,11 @@ export class RendererDatabaseService {
   async deleteSession(id: string): Promise<void> {
     return await window.electronAPI.db.deleteSession(id)
   }
-  
+
   async getCurrentSession(): Promise<any> {
     return await window.electronAPI.db.getCurrentSession()
   }
-  
+
   async updateSchedulingPreferences(sessionId: string, updates: any): Promise<any> {
     return await window.electronAPI.db.updateSchedulingPreferences(sessionId, updates)
   }

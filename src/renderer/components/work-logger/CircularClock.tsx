@@ -71,11 +71,11 @@ export function CircularClock({
 
   // Get current time in minutes
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
-  
+
   // Calculate circadian rhythm peaks based on user's sleep schedule
   // Based on typical circadian patterns:
   // - Morning peak: ~4 hours after waking
-  // - Afternoon dip: ~8 hours after waking  
+  // - Afternoon dip: ~8 hours after waking
   // - Evening peak: ~4 hours before bedtime
   const morningPeak = (wakeTimeHour + 4) % 24
   const afternoonDip = (wakeTimeHour + 8) % 24
@@ -371,13 +371,13 @@ export function CircularClock({
           const currentHour = currentTime.getHours()
           let energyLevel = 'Normal'
           let energyColor = '#86909c'
-          
+
           // Determine energy level based on proximity to peaks/dips
           const hourDiff = (a: number, b: number) => {
             const diff = Math.abs(a - b)
             return Math.min(diff, 24 - diff)
           }
-          
+
           if (hourDiff(currentHour, morningPeak) <= 1 || hourDiff(currentHour, eveningPeak) <= 1) {
             energyLevel = 'Peak Focus'
             energyColor = '#165DFF'
@@ -391,7 +391,7 @@ export function CircularClock({
             energyLevel = 'Winding Down'
             energyColor = '#722ED1'
           }
-          
+
           return (
             <text
               x={CENTER}
