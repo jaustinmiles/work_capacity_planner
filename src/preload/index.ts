@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     switchSession: (sessionId: string) => ipcRenderer.invoke('db:switchSession', sessionId),
     updateSession: (id: string, updates: any) => ipcRenderer.invoke('db:updateSession', id, updates),
     deleteSession: (id: string) => ipcRenderer.invoke('db:deleteSession', id),
+    getCurrentSession: () => ipcRenderer.invoke('db:getCurrentSession'),
+    updateSchedulingPreferences: (sessionId: string, updates: any) => ipcRenderer.invoke('db:updateSchedulingPreferences', sessionId, updates),
     // Task operations
     getTasks: () => ipcRenderer.invoke('db:getTasks'),
     getSequencedTasks: () => ipcRenderer.invoke('db:getSequencedTasks'),

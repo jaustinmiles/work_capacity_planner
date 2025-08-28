@@ -141,6 +141,38 @@ export class DatabaseService {
       where: { id },
     })
   }
+  
+  async getCurrentSession(): Promise<any> {
+    const session = await this.client.session.findFirst({
+      where: { isActive: true },
+      include: { SchedulingPreferences: true }
+    })
+    return session
+  }
+  
+  async updateSchedulingPreferences(sessionId: string, updates: any): Promise<any> {
+    // Check if preferences exist
+    const existing = await this.client.schedulingPreferences.findUnique({
+      where: { sessionId }
+    })
+    
+    if (existing) {
+      // Update existing preferences
+      return await this.client.schedulingPreferences.update({
+        where: { sessionId },
+        data: updates
+      })
+    } else {
+      // Create new preferences
+      return await this.client.schedulingPreferences.create({
+        data: {
+          id: `pref-${Date.now()}`,
+          sessionId,
+          ...updates
+        }
+      })
+    }
+  }
 
   // Tasks
   async getTasks(): Promise<Task[]> {

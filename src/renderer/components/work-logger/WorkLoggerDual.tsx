@@ -12,6 +12,7 @@ import {
   Spin,
   Notification,
   Checkbox,
+  Alert,
 } from '@arco-design/web-react'
 import {
   IconClockCircle,
@@ -21,6 +22,7 @@ import {
   IconDelete,
   IconFullscreen,
   IconFullscreenExit,
+  IconSettings,
 } from '@arco-design/web-react/icon'
 import dayjs from 'dayjs'
 import { TaskType } from '@shared/enums'
@@ -59,6 +61,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [meetings, setMeetings] = useState<any[]>([])
   const [hideCompleted, setHideCompleted] = useState(false)
+  const [bedtimeHour, setBedtimeHour] = useState(22) // Default 10 PM
+  const [wakeTimeHour, setWakeTimeHour] = useState(6) // Default 6 AM
+  const [showCircadianSettings, setShowCircadianSettings] = useState(false)
 
   const { tasks, sequencedTasks, loadTasks } = useTaskStore()
 
@@ -67,8 +72,23 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     if (visible) {
       loadWorkSessions()
       loadTasks()
+      loadPreferences()
     }
   }, [selectedDate, visible])
+  
+  const loadPreferences = async () => {
+    try {
+      const db = getDatabase()
+      // Get the current session preferences
+      const session = await db.getCurrentSession()
+      if (session && session.SchedulingPreferences) {
+        setBedtimeHour(session.SchedulingPreferences.bedtimeHour || 22)
+        setWakeTimeHour(session.SchedulingPreferences.wakeTimeHour || 6)
+      }
+    } catch (error) {
+      logger.ui.error('Failed to load preferences:', error)
+    }
+  }
 
   const loadWorkSessions = async () => {
     setIsLoading(true)
@@ -379,12 +399,20 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             <IconClockCircle />
             <span>Work Logger - Dual View</span>
           </Space>
-          <Button
-            type="text"
-            icon={isFullscreen ? <IconFullscreenExit /> : <IconFullscreen />}
-            onClick={() => setIsFullscreen(!isFullscreen)}
-            style={{ marginRight: 24 }}  // Add space between fullscreen and X button
-          />
+          <Space>
+            <Button
+              type="text"
+              icon={<IconSettings />}
+              onClick={() => setShowCircadianSettings(true)}
+              title="Circadian Settings"
+            />
+            <Button
+              type="text"
+              icon={isFullscreen ? <IconFullscreenExit /> : <IconFullscreen />}
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              style={{ marginRight: 24 }}  // Add space between fullscreen and X button
+            />
+          </Space>
         </Space>
       }
       visible={visible}
@@ -495,6 +523,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 currentTime={new Date()}
                 meetings={meetings}
                 sleepBlocks={[]} // TODO: Load sleep blocks
+                bedtimeHour={bedtimeHour}
+                wakeTimeHour={wakeTimeHour}
               />
             </Card>
 
@@ -634,6 +664,91 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             </Select>
           </Space>
         )}
+      </Modal>
+      
+      {/* Circadian Settings Modal */}
+      <Modal
+        title="Circadian Rhythm Settings"
+        visible={showCircadianSettings}
+        onCancel={() => setShowCircadianSettings(false)}
+        onOk={async () => {
+          try {
+            const db = getDatabase()
+            const session = await db.getCurrentSession()
+            if (session) {
+              await db.updateSchedulingPreferences(session.id, {
+                bedtimeHour,
+                wakeTimeHour,
+              })
+              logger.ui.info('Updated circadian settings', { bedtimeHour, wakeTimeHour })
+              Notification.success({
+                title: 'Settings Saved',
+                content: 'Your circadian rhythm settings have been updated.',
+              })
+            }
+            setShowCircadianSettings(false)
+          } catch (error) {
+            logger.ui.error('Failed to save circadian settings:', error)
+            Notification.error({
+              title: 'Save Failed',
+              content: 'Failed to save circadian settings.',
+            })
+          }
+        }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div>
+            <Text>Bedtime (24-hour format):</Text>
+            <Select
+              value={bedtimeHour}
+              onChange={setBedtimeHour}
+              style={{ width: '100%', marginTop: 8 }}
+            >
+              {Array.from({ length: 24 }, (_, i) => (
+                <Select.Option key={i} value={i}>
+                  {i.toString().padStart(2, '0')}:00 - {
+                    i === 0 ? 'Midnight' :
+                    i < 12 ? `${i} AM` :
+                    i === 12 ? 'Noon' :
+                    `${i - 12} PM`
+                  }
+                </Select.Option>
+              ))}
+            </Select>
+          </div>
+          
+          <div>
+            <Text>Wake Time (24-hour format):</Text>
+            <Select
+              value={wakeTimeHour}
+              onChange={setWakeTimeHour}
+              style={{ width: '100%', marginTop: 8 }}
+            >
+              {Array.from({ length: 24 }, (_, i) => (
+                <Select.Option key={i} value={i}>
+                  {i.toString().padStart(2, '0')}:00 - {
+                    i === 0 ? 'Midnight' :
+                    i < 12 ? `${i} AM` :
+                    i === 12 ? 'Noon' :
+                    `${i - 12} PM`
+                  }
+                </Select.Option>
+              ))}
+            </Select>
+          </div>
+          
+          <Alert
+            type="info"
+            content={
+              <div>
+                <div><strong>Your Circadian Rhythm:</strong></div>
+                <div>• Morning Peak: ~{((wakeTimeHour + 4) % 24).toString().padStart(2, '0')}:00 (High energy)</div>
+                <div>• Afternoon Dip: ~{((wakeTimeHour + 8) % 24).toString().padStart(2, '0')}:00 (Low energy)</div>
+                <div>• Evening Peak: ~{((bedtimeHour - 4 + 24) % 24).toString().padStart(2, '0')}:00 (Second wind)</div>
+              </div>
+            }
+          />
+        </Space>
       </Modal>
     </Modal>
   )

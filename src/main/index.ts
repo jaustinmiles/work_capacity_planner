@@ -114,6 +114,14 @@ ipcMain.handle('db:updateSession', async (_event: IpcMainInvokeEvent, id: string
   return await db.updateSession(id, updates)
 })
 
+ipcMain.handle('db:getCurrentSession', async () => {
+  return await db.getCurrentSession()
+})
+
+ipcMain.handle('db:updateSchedulingPreferences', async (_event: IpcMainInvokeEvent, sessionId: string, updates: any) => {
+  return await db.updateSchedulingPreferences(sessionId, updates)
+})
+
 ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteSession(id)
 })

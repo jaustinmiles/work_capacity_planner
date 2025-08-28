@@ -21,6 +21,8 @@ interface CircularClockProps {
   currentTime?: Date
   meetings?: Array<{ startMinutes: number; endMinutes: number; name: string }>
   sleepBlocks?: Array<{ startMinutes: number; endMinutes: number }>
+  bedtimeHour?: number
+  wakeTimeHour?: number
 }
 
 interface DragState {
@@ -43,10 +45,9 @@ const WORKDAY_START = 0 // 12 AM (midnight)
 const WORKDAY_END = 24 // 12 AM next day (full day)
 const WORKDAY_HOURS = WORKDAY_END - WORKDAY_START // 24 hours
 
-// Circadian rhythm peaks and dips
-const MORNING_PEAK = 10 // 10 AM - Morning alertness peak
-const AFTERNOON_DIP = 14 // 2 PM - Post-lunch dip
-const EVENING_PEAK = 18 // 6 PM - Evening alertness peak
+// Default circadian rhythm peaks and dips (based on 10 PM bedtime)
+const DEFAULT_BEDTIME = 22 // 10 PM
+const DEFAULT_WAKE_TIME = 6 // 6 AM
 
 export function CircularClock({
   sessions,
@@ -57,6 +58,8 @@ export function CircularClock({
   selectedSessionId,
   onSessionSelect,
   currentTime = new Date(),
+  bedtimeHour = DEFAULT_BEDTIME,
+  wakeTimeHour = DEFAULT_WAKE_TIME,
 }: CircularClockProps) {
   const svgRef = useRef<any>(null)
   const [dragState, setDragState] = useState<DragState | null>(null)
@@ -68,6 +71,15 @@ export function CircularClock({
 
   // Get current time in minutes
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
+  
+  // Calculate circadian rhythm peaks based on user's sleep schedule
+  // Based on typical circadian patterns:
+  // - Morning peak: ~4 hours after waking
+  // - Afternoon dip: ~8 hours after waking  
+  // - Evening peak: ~4 hours before bedtime
+  const morningPeak = (wakeTimeHour + 4) % 24
+  const afternoonDip = (wakeTimeHour + 8) % 24
+  const eveningPeak = (bedtimeHour - 4 + 24) % 24
 
   // Convert minutes to angle for 12-hour workday clock (8 AM = top)
   const minutesToAngle = (minutes: number): number => {
@@ -322,7 +334,7 @@ export function CircularClock({
           const labelY = CENTER + HOUR_LABEL_RADIUS * Math.sin(angle)
 
           // Check if this is a circadian peak or dip
-          const isCircadianPoint = hour === MORNING_PEAK || hour === AFTERNOON_DIP || hour === EVENING_PEAK
+          const isCircadianPoint = hour === morningPeak || hour === afternoonDip || hour === eveningPeak
 
           return (
             <g key={hour}>
@@ -355,24 +367,44 @@ export function CircularClock({
         })}
 
         {/* Circadian rhythm indicators */}
-        <text
-          x={CENTER}
-          y={CENTER - 30}
-          textAnchor="middle"
-          fontSize={10}
-          fill="#165DFF"
-        >
-          Peak Focus
-        </text>
-        <text
-          x={CENTER}
-          y={CENTER + 35}
-          textAnchor="middle"
-          fontSize={10}
-          fill="#FF7D00"
-        >
-          Low Energy
-        </text>
+        {(() => {
+          const currentHour = currentTime.getHours()
+          let energyLevel = 'Normal'
+          let energyColor = '#86909c'
+          
+          // Determine energy level based on proximity to peaks/dips
+          const hourDiff = (a: number, b: number) => {
+            const diff = Math.abs(a - b)
+            return Math.min(diff, 24 - diff)
+          }
+          
+          if (hourDiff(currentHour, morningPeak) <= 1 || hourDiff(currentHour, eveningPeak) <= 1) {
+            energyLevel = 'Peak Focus'
+            energyColor = '#165DFF'
+          } else if (hourDiff(currentHour, afternoonDip) <= 1) {
+            energyLevel = 'Low Energy'
+            energyColor = '#FF7D00'
+          } else if (hourDiff(currentHour, wakeTimeHour) <= 1) {
+            energyLevel = 'Waking Up'
+            energyColor = '#52C41A'
+          } else if (hourDiff(currentHour, bedtimeHour) <= 1) {
+            energyLevel = 'Winding Down'
+            energyColor = '#722ED1'
+          }
+          
+          return (
+            <text
+              x={CENTER}
+              y={CENTER}
+              textAnchor="middle"
+              fontSize={11}
+              fill={energyColor}
+              fontWeight="500"
+            >
+              {energyLevel}
+            </text>
+          )
+        })()}
 
         {/* Work sessions as arcs */}
         {displaySessions.map(session => {
