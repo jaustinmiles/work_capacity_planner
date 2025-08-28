@@ -40,16 +40,50 @@ export class DatabaseService {
 
   // Session management
   private activeSessionId: string | null = null
+  private sessionInitPromise: Promise<string> | null = null
 
   async getActiveSession(): Promise<string> {
-    if (!this.activeSessionId) {
-      // Find the active session or create one if none exists
-      let session = await this.client.session.findFirst({
-        where: { isActive: true },
+    // If already cached, return it
+    if (this.activeSessionId) {
+      return this.activeSessionId
+    }
+
+    // If initialization is in progress, wait for it
+    if (this.sessionInitPromise) {
+      return this.sessionInitPromise
+    }
+
+    // Start initialization and cache the promise to prevent race conditions
+    this.sessionInitPromise = this.initializeActiveSession()
+    
+    try {
+      this.activeSessionId = await this.sessionInitPromise
+      return this.activeSessionId
+    } finally {
+      this.sessionInitPromise = null
+    }
+  }
+
+  private async initializeActiveSession(): Promise<string> {
+    // Find the active session or create one if none exists
+    let session = await this.client.session.findFirst({
+      where: { isActive: true },
+    })
+
+    if (!session) {
+      // Check again for any existing session to reuse before creating a new one
+      const existingSession = await this.client.session.findFirst({
+        orderBy: { createdAt: 'desc' },
       })
 
-      if (!session) {
-        // Create a default session if none exists
+      if (existingSession) {
+        // Reactivate the most recent session instead of creating a duplicate
+        session = await this.client.session.update({
+          where: { id: existingSession.id },
+          data: { isActive: true },
+        })
+      } else {
+        // Create a default session only if truly none exists
         session = await this.client.session.create({
           data: {
             id: crypto.randomUUID(),
@@ -58,14 +92,10 @@ export class DatabaseService {
             isActive: true,
           },
         })
-      } else {
-        // Session already exists
       }
-
-      this.activeSessionId = session.id
     }
 
-    return this.activeSessionId
+    return session.id
   }
 
   async getSessions(): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }[]> {
