@@ -157,6 +157,28 @@ declare global {
           }>
           summary: string
         }>
+        extractMultiDayScheduleFromVoice: (voiceText: string, __startDate: string) => Promise<Array<{
+          date: string
+          blocks: Array<{
+            id: string
+            startTime: string
+            endTime: string
+            type: TaskType.Focused | 'admin' | 'mixed' | 'personal'
+            capacity?: {
+              focusMinutes?: number
+              adminMinutes?: number
+              personalMinutes?: number
+            }
+          }>
+          meetings: Array<{
+            id: string
+            name: string
+            startTime: string
+            endTime: string
+            type: 'meeting' | 'break' | 'personal' | 'blocked'
+          }>
+          summary: string
+        }>>
         parseAmendment: (transcription: string, __context: any) => Promise<any>
       }
       speech: {
@@ -338,6 +360,10 @@ export class RendererDatabaseService {
 
   async extractScheduleFromVoice(voiceText: string, targetDate: string) {
     return await window.electronAPI.ai.extractScheduleFromVoice(voiceText, targetDate)
+  }
+
+  async extractMultiDayScheduleFromVoice(voiceText: string, startDate: string) {
+    return await window.electronAPI.ai.extractMultiDayScheduleFromVoice(voiceText, startDate)
   }
 
   async extractJargonTerms(contextText: string) {

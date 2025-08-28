@@ -79,6 +79,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getContextualQuestions: (taskName: string, taskDescription?: string) => ipcRenderer.invoke('ai:getContextualQuestions', taskName, taskDescription),
     getJobContextualQuestions: (brainstormText: string, jobContext?: string) => ipcRenderer.invoke('ai:getJobContextualQuestions', brainstormText, jobContext),
     extractScheduleFromVoice: (voiceText: string, targetDate: string) => ipcRenderer.invoke('ai:extractScheduleFromVoice', voiceText, targetDate),
+    extractMultiDayScheduleFromVoice: (voiceText: string, startDate: string) => ipcRenderer.invoke('ai:extractMultiDayScheduleFromVoice', voiceText, startDate),
     parseAmendment: (transcription: string, context: any) => ipcRenderer.invoke('ai:parseAmendment', transcription, context),
   },
 

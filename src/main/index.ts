@@ -356,6 +356,11 @@ ipcMain.handle('ai:extractScheduleFromVoice', async (_event: IpcMainInvokeEvent,
   return await aiService.extractScheduleFromVoice(voiceText, targetDate)
 })
 
+ipcMain.handle('ai:extractMultiDayScheduleFromVoice', async (_event: IpcMainInvokeEvent, voiceText: string, startDate: string) => {
+  const aiService = getAIService()
+  return await aiService.extractMultiDayScheduleFromVoice(voiceText, startDate)
+})
+
 ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcription: string, context: unknown) => {
   const { AmendmentParser } = await import('../shared/amendment-parser')
 

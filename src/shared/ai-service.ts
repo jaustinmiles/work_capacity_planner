@@ -531,7 +531,121 @@ Make questions specific to their apparent work patterns. Prioritize questions th
   }
 
   /**
-   * Extract work schedule from voice description
+   * Extract multi-day work schedule from voice description
+   */
+  async extractMultiDayScheduleFromVoice(voiceText: string, startDate: string): Promise<Array<{
+    date: string
+    blocks: Array<{
+      id: string
+      startTime: string
+      endTime: string
+      type: TaskType | TaskType.Mixed | 'personal'
+      capacity?: {
+        focusMinutes?: number
+        adminMinutes?: number
+        personalMinutes?: number
+      }
+    }>
+    meetings: Array<{
+      id: string
+      name: string
+      startTime: string
+      endTime: string
+      type: 'meeting' | 'break' | 'personal' | 'blocked'
+    }>
+    summary: string
+  }>> {
+    const prompt = `
+You are a scheduling assistant helping someone plan their work week. Analyze the following voice description and extract a structured schedule for multiple days.
+
+Voice description: "${voiceText}"
+Starting date: ${startDate}
+
+Parse the description to understand:
+1. Which days are being described (e.g., "weekdays", "weekends", "Monday through Friday", "Saturday and Sunday")
+2. Different patterns for different days (e.g., weekday work hours vs weekend personal time)
+3. Specific meetings or events on particular days
+
+Generate schedules for the next 7 days starting from ${startDate}, following these patterns:
+- If they mention "weekdays" or "workdays", apply that pattern to Monday-Friday
+- If they mention "weekends", apply that pattern to Saturday-Sunday
+- If they mention specific days (e.g., "Friday meeting"), apply to those specific days
+- If they mention "personal time" or "personal block" on weekends, create a "personal" type block
+
+Return as JSON array with one object per day:
+[
+  {
+    "date": "YYYY-MM-DD",
+    "blocks": [
+      {
+        "id": "block-DATE-1",
+        "startTime": "09:00",
+        "endTime": "17:00",
+        "type": "mixed",
+        "capacity": {
+          "focusMinutes": 240,
+          "adminMinutes": 180
+        }
+      }
+    ],
+    "meetings": [],
+    "summary": "Description for this day"
+  }
+]
+
+For personal blocks on weekends, use:
+{
+  "id": "block-DATE-personal",
+  "startTime": "HH:MM",
+  "endTime": "HH:MM",
+  "type": "personal",
+  "capacity": {
+    "personalMinutes": MINUTES
+  }
+}
+
+Important:
+- Always generate exactly 7 days
+- Use proper date strings in YYYY-MM-DD format
+- Weekends should have different patterns if described
+- Include empty blocks array for days with no schedule
+`
+
+    try {
+      const response = await this.anthropic.messages.create({
+        model: 'claude-opus-4-1-20250805',
+        max_tokens: 4000,
+        messages: [{
+          role: 'user',
+          content: prompt,
+        }],
+      })
+
+      const text = response.content[0].type === 'text' ? response.content[0].text : ''
+      const jsonMatch = text.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) {
+        throw new Error('Failed to extract JSON from response')
+      }
+
+      const jsonText = jsonMatch[0]
+      const schedules = JSON.parse(jsonText)
+      
+      // Ensure all dates are properly formatted
+      return schedules.map((schedule: any) => ({
+        ...schedule,
+        blocks: schedule.blocks || [],
+        meetings: schedule.meetings || [],
+      }))
+    } catch (error) {
+      logger.ai.error('Error extracting multi-day schedule:', error)
+      // Fall back to single day if multi-day extraction fails
+      const singleDay = await this.extractScheduleFromVoice(voiceText, startDate)
+      return [singleDay]
+    }
+  }
+
+  /**
+   * Extract work schedule from voice description (single day)
    */
   async extractScheduleFromVoice(voiceText: string, targetDate: string): Promise<{
     date: string
