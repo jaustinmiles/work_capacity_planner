@@ -18,6 +18,7 @@ const mockDatabase = {
   getSequencedTaskById: vi.fn(),
   createWorkSession: vi.fn(),
   updateTaskStep: vi.fn(),
+  updateTaskStepProgress: vi.fn(),
   addStepToWorkflow: vi.fn(),
   getStepWorkSessions: vi.fn(),
   createStepWorkSession: vi.fn(),
@@ -103,10 +104,24 @@ describe('Amendment Applicator', () => {
         stepName: 'Implementation',
       }
 
-      // For now, this shows an info message since it's not implemented
+      // Mock the workflow with steps
+      mockDatabase.getSequencedTaskById.mockResolvedValue({
+        id: 'wf-1',
+        name: 'Test Workflow',
+        steps: [
+          { id: 'step-1', name: 'Design', status: 'not_started' },
+          { id: 'step-2', name: 'Implementation', status: 'in_progress' },
+          { id: 'step-3', name: 'Testing', status: 'not_started' },
+        ],
+      })
+
       await applyAmendments([amendment])
 
-      expect(Message.info).toHaveBeenCalledWith('Step status updates not yet implemented')
+      expect(mockDatabase.getSequencedTaskById).toHaveBeenCalledWith('wf-1')
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', {
+        status: 'completed',
+      })
+      expect(Message.success).toHaveBeenCalledWith('Applied 1 amendment')
     })
 
     it('should warn when target is not found', async () => {
