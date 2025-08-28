@@ -286,6 +286,8 @@ model SchedulingPreferences {
   weekendPenalty            Float    @default(0.5)
   contextSwitchPenalty      Int      @default(15)
   asyncParallelizationBonus Int      @default(20)
+  bedtimeHour              Int      @default(22) // Default 10 PM (22:00)
+  wakeTimeHour             Int      @default(6)  // Default 6 AM (06:00)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @default(now())
   Session                   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)

@@ -16,6 +16,8 @@ declare global {
         switchSession: (__sessionId: string) => Promise<Session>
         updateSession: (id: string, __updates: { name?: string; description?: string }) => Promise<Session>
         deleteSession: (id: string) => Promise<void>
+        getCurrentSession: () => Promise<any>
+        updateSchedulingPreferences: (sessionId: string, updates: any) => Promise<any>
         // Task operations
         getTasks: () => Promise<Task[]>
         getSequencedTasks: () => Promise<SequencedTask[]>
@@ -263,6 +265,14 @@ export class RendererDatabaseService {
 
   async deleteSession(id: string): Promise<void> {
     return await window.electronAPI.db.deleteSession(id)
+  }
+  
+  async getCurrentSession(): Promise<any> {
+    return await window.electronAPI.db.getCurrentSession()
+  }
+  
+  async updateSchedulingPreferences(sessionId: string, updates: any): Promise<any> {
+    return await window.electronAPI.db.updateSchedulingPreferences(sessionId, updates)
   }
 
   // Task operations
