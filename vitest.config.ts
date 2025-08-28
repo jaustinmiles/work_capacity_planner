@@ -13,8 +13,16 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'text-summary', 'json-summary'],
+      reporter: ['text', 'text-summary', 'json', 'json-summary', 'lcov'],
       reportOnFailure: true,
+      exclude: [
+        'node_modules/**',
+        'src/test/**',
+        '**/*.test.{ts,tsx}',
+        '**/*.spec.{ts,tsx}',
+        '**/index.ts',
+        '**/*.d.ts',
+      ],
     },
   },
   resolve: {

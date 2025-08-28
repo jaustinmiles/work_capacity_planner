@@ -45,14 +45,26 @@ jobs:
         DATABASE_URL: "file:./test.db"
       run: npm run test:coverage -- --run
     
+    - name: Check coverage files
+      if: always()
+      run: |
+        echo "Coverage directory contents:"
+        ls -la coverage/ || echo "No coverage directory found"
+        echo ""
+        echo "Looking for coverage files in project:"
+        find . -name "coverage-*.json" -o -name "lcov.info" 2>/dev/null | head -20
+    
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4
+      if: always()
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./coverage/coverage-final.json
+        directory: ./coverage
+        files: ./coverage/lcov.info,./coverage/coverage-final.json
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+        verbose: true
     
     - name: Generate coverage summary
       if: always()
