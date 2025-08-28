@@ -45,8 +45,24 @@ export function WeeklyCalendar() {
             meetings: pattern.meetings,
             accumulated: { focusMinutes: 0, adminMinutes: 0 },
           })
-        } else if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-          // If no pattern exists and it's a weekday, create a default pattern
+        } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+          // Weekend with no pattern - show personal time
+          patterns.push({
+            date: dateStr,
+            blocks: [
+              {
+                id: `weekend-personal-${dateStr}`,
+                startTime: '10:00',
+                endTime: '14:00',
+                type: 'personal',
+                capacity: { personalMinutes: 240 },
+              },
+            ],
+            meetings: [],
+            accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
+          })
+        } else {
+          // Weekday with no pattern - create a default pattern
           patterns.push({
             date: dateStr,
             blocks: [

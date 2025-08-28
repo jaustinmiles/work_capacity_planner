@@ -314,8 +314,8 @@ export function ScheduleGenerator({
         ? dayjs(selected.schedule[0].startTime).format('YYYY-MM-DD')
         : dayjs().format('YYYY-MM-DD')
 
-      // Generate all dates for the next 7 days (or more based on schedule)
-      for (let i = 0; i < 7; i++) {
+      // Generate all dates for the next 30 days to match what was displayed
+      for (let i = 0; i < 30; i++) {
         const date = dayjs(firstDate).add(i, 'day')
         allDates.add(date.format('YYYY-MM-DD'))
       }

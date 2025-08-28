@@ -630,5 +630,16 @@
     "timestamp": "2025-08-27T19:07:52.193Z",
     "sessionId": "session-1756321672183-9g1flgajs",
     "resolved": true
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "components": [
+      "other"
+    ],
+    "title": "so many active default sessions",
+    "description": "Work Capacity Planner\nNo work schedule defined for today\nTask Management\nTask Overview\n 0 Active\n 0 Completed\n0% Complete\nActive Tasks\nNo active tasks\nSession Management\nActive Session\nActive\nDefault Session\nInitial work session\n Created: Aug 27, 2025\nLast used: a few seconds ago\nAll Sessions\nDefault Session\nInitial session for existing data\nDefault Session\nActive\nInitial work session\nDefault Session\nActive\nInitial work session\nDefault Session\nActive\nInitial work session\nDefault Session\nActive\nInitial work session\nDefault Session\nActive\nInitial work session\nDefault Session\nActive\nInitial work session\nDefault Session\nActive\nInitial work session\nDefault Session\nActive\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nDefault Session\nInitial work session\nUser Test\nNo description\nAustin 8/26\nSLT Work\nAva\nNo description\nAugust 14\nNo description",
+    "timestamp": "2025-08-28T00:04:10.736Z",
+    "sessionId": "session-1756339450729-2hqunyh3d"
   }
 ]
