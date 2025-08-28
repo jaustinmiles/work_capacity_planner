@@ -27,7 +27,17 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       setLoading(true)
       const values = await form.validate()
       const timeSpent = values.timeSpent
-      const workDate = values.date || new Date()
+      const workDateValue = values.date
+      
+      // Better date handling
+      let workDate: Date
+      if (workDateValue && typeof workDateValue === 'string') {
+        workDate = new Date(workDateValue)
+      } else if (workDateValue && dayjs.isDayjs(workDateValue)) {
+        workDate = workDateValue.toDate()
+      } else {
+        workDate = new Date()
+      }
 
       // Validate time is at least 1 minute
       if (!timeSpent || timeSpent < 1) {
@@ -39,6 +49,13 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       // Create a work session record
       const startTime = new Date(workDate)
       startTime.setHours(12, 0, 0, 0) // Default to noon if not specified
+
+      logger.ui.info('Creating work session', {
+        taskId: task.id,
+        taskName: task.name,
+        timeSpent,
+        date: workDate.toISOString(),
+      })
 
       await getDatabase().createWorkSession({
         taskId: task.id,
@@ -69,11 +86,20 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       }
 
       Message.success('Time logged successfully')
+      logger.ui.info('Time logged successfully', {
+        taskId: task.id,
+        totalLogged: currentLoggedTime,
+      })
       form.resetFields()
       onClose()
     } catch (error) {
-      logger.ui.error('Error logging time:', error)
-      Message.error('Failed to log time')
+      logger.ui.error('Error logging time:', error, {
+        taskId: task.id,
+        taskName: task.name,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
+      Message.error(`Failed to log time: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }

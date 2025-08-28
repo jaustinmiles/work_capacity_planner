@@ -543,6 +543,215 @@ describe('Amendment Applicator', () => {
     })
   })
 
+  describe('Complex Workflow Scenarios', () => {
+    it('should handle multiple step completions for a single workflow', async () => {
+      // Test case for the critical bug - completing all bug steps
+      const amendments: StatusUpdate[] = [
+        {
+          type: 'status_update',
+          target: {
+            type: 'workflow',
+            id: 'bug-workflow',
+            name: 'Parallel Bug Fixes with Individual Simulations',
+            confidence: 0.9,
+          },
+          newStatus: 'completed',
+          stepName: 'Fix bug 1',
+        },
+        {
+          type: 'status_update',
+          target: {
+            type: 'workflow',
+            id: 'bug-workflow',
+            name: 'Parallel Bug Fixes with Individual Simulations',
+            confidence: 0.9,
+          },
+          newStatus: 'completed',
+          stepName: 'Fix bug 2',
+        },
+        {
+          type: 'status_update',
+          target: {
+            type: 'workflow',
+            id: 'bug-workflow',
+            name: 'Parallel Bug Fixes with Individual Simulations',
+            confidence: 0.9,
+          },
+          newStatus: 'completed',
+          stepName: 'Fix bug 3',
+        },
+      ]
+
+      // Mock the workflow with steps
+      mockDatabase.getSequencedTaskById.mockResolvedValue({
+        id: 'bug-workflow',
+        name: 'Parallel Bug Fixes with Individual Simulations',
+        steps: [
+          { id: 'step-1', name: 'Fix bug 1', status: 'in_progress' },
+          { id: 'step-2', name: 'Fix bug 2', status: 'in_progress' },
+          { id: 'step-3', name: 'Fix bug 3', status: 'in_progress' },
+          { id: 'step-4', name: 'Run simulation 1', status: 'not_started' },
+        ],
+      })
+
+      await applyAmendments(amendments)
+
+      // Verify each step was updated exactly once
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledTimes(3)
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-1', { status: 'completed' })
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', { status: 'completed' })
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-3', { status: 'completed' })
+      
+      // Verify the entire workflow was NOT marked as completed
+      expect(mockDatabase.updateSequencedTask).not.toHaveBeenCalled()
+      
+      expect(Message.success).toHaveBeenCalledWith('Applied 3 amendments')
+    })
+
+    it('should add multiple steps to workflow and wire dependencies', async () => {
+      const amendments: StepAddition[] = [
+        {
+          type: 'step_addition',
+          workflowTarget: {
+            type: 'workflow',
+            id: 'refactor-workflow',
+            name: 'Refactoring for bug fix workflow',
+            confidence: 0.9,
+          },
+          stepName: 'Refactoring Part 1',
+          duration: 60,
+          stepType: 'focused',
+          afterStep: 'Verify third simulation results',
+        },
+        {
+          type: 'step_addition',
+          workflowTarget: {
+            type: 'workflow',
+            id: 'refactor-workflow',
+            name: 'Refactoring for bug fix workflow',
+            confidence: 0.9,
+          },
+          stepName: 'Refactoring Part 2',
+          duration: 60,
+          stepType: 'focused',
+          afterStep: 'Refactoring Part 1',
+        },
+      ]
+
+      mockDatabase.addStepToWorkflow.mockResolvedValue({
+        id: 'refactor-workflow',
+        name: 'Refactoring for bug fix workflow',
+        steps: [],
+      })
+
+      await applyAmendments(amendments)
+
+      expect(mockDatabase.addStepToWorkflow).toHaveBeenCalledTimes(2)
+      expect(mockDatabase.addStepToWorkflow).toHaveBeenNthCalledWith(1, 'refactor-workflow', {
+        name: 'Refactoring Part 1',
+        duration: 60,
+        type: 'focused',
+        afterStep: 'Verify third simulation results',
+        beforeStep: undefined,
+        dependencies: undefined,
+        asyncWaitTime: 0,
+      })
+      expect(mockDatabase.addStepToWorkflow).toHaveBeenNthCalledWith(2, 'refactor-workflow', {
+        name: 'Refactoring Part 2',
+        duration: 60,
+        type: 'focused',
+        afterStep: 'Refactoring Part 1',
+        beforeStep: undefined,
+        dependencies: undefined,
+        asyncWaitTime: 0,
+      })
+
+      expect(Message.success).toHaveBeenCalledWith('Applied 2 amendments')
+    })
+
+    it('should handle partial step name matches', async () => {
+      const amendment: StatusUpdate = {
+        type: 'status_update',
+        target: {
+          type: 'workflow',
+          id: 'wf-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        newStatus: 'completed',
+        stepName: 'review', // Partial match for 'Code Review'
+      }
+
+      mockDatabase.getSequencedTaskById.mockResolvedValue({
+        id: 'wf-1',
+        name: 'Test Workflow',
+        steps: [
+          { id: 'step-1', name: 'Implementation', status: 'completed' },
+          { id: 'step-2', name: 'Code Review', status: 'in_progress' },
+          { id: 'step-3', name: 'Testing', status: 'not_started' },
+        ],
+      })
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', { status: 'completed' })
+      expect(Message.success).toHaveBeenCalledWith('Applied 1 amendment')
+    })
+
+    it('should warn when step is not found in workflow', async () => {
+      const amendment: StatusUpdate = {
+        type: 'status_update',
+        target: {
+          type: 'workflow',
+          id: 'wf-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        newStatus: 'completed',
+        stepName: 'Nonexistent Step',
+      }
+
+      mockDatabase.getSequencedTaskById.mockResolvedValue({
+        id: 'wf-1',
+        name: 'Test Workflow',
+        steps: [
+          { id: 'step-1', name: 'Implementation', status: 'completed' },
+        ],
+      })
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateTaskStepProgress).not.toHaveBeenCalled()
+      expect(Message.warning).toHaveBeenCalledWith('Step "Nonexistent Step" not found in workflow')
+      expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
+    })
+
+    it('should handle workflow with no steps', async () => {
+      const amendment: StatusUpdate = {
+        type: 'status_update',
+        target: {
+          type: 'workflow',
+          id: 'wf-1',
+          name: 'Empty Workflow',
+          confidence: 0.9,
+        },
+        newStatus: 'completed',
+        stepName: 'Some Step',
+      }
+
+      mockDatabase.getSequencedTaskById.mockResolvedValue({
+        id: 'wf-1',
+        name: 'Empty Workflow',
+        steps: [],
+      })
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateTaskStepProgress).not.toHaveBeenCalled()
+      expect(Message.warning).toHaveBeenCalledWith('Step "Some Step" not found in workflow')
+    })
+  })
+
   describe('Error Handling', () => {
     it('should handle unknown amendment types', async () => {
       const unknownAmendment = {

@@ -99,9 +99,22 @@ export class DatabaseService {
   }
 
   async getSessions(): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }[]> {
-    return await this.client.session.findMany({
+    const sessions = await this.client.session.findMany({
       orderBy: { updatedAt: 'desc' },
     })
+    
+    console.log('[DB] Found sessions:', sessions.length, sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })))
+    
+    // Filter out duplicates (shouldn't happen but let's be safe)
+    const uniqueSessions = sessions.filter((session, index, self) =>
+      index === self.findIndex(s => s.id === session.id)
+    )
+    
+    if (uniqueSessions.length !== sessions.length) {
+      console.warn('[DB] Filtered duplicate sessions:', sessions.length - uniqueSessions.length)
+    }
+    
+    return uniqueSessions
   }
 
   async createSession(name: string, description?: string): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
@@ -159,17 +172,31 @@ export class DatabaseService {
   }
 
   async deleteSession(id: string): Promise<void> {
+    console.log('[DB] Attempting to delete session:', id)
+    
     const session = await this.client.session.findUnique({
       where: { id },
     })
 
+    if (!session) {
+      console.warn('[DB] Session not found for deletion:', id)
+      throw new Error(`Session ${id} not found`)
+    }
+
     if (session?.isActive) {
+      console.warn('[DB] Cannot delete active session:', id)
       throw new Error('Cannot delete the active session')
     }
 
-    await this.client.session.delete({
-      where: { id },
-    })
+    try {
+      await this.client.session.delete({
+        where: { id },
+      })
+      console.log('[DB] Session deleted successfully:', id)
+    } catch (error) {
+      console.error('[DB] Failed to delete session:', id, error)
+      throw error
+    }
   }
 
   async getCurrentSession(): Promise<any> {
