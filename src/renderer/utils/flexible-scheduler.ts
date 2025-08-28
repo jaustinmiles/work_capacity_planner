@@ -1615,7 +1615,10 @@ export function scheduleItemsWithBlocksAndDebug(
   // Convert the utilization map to array for debug info (single source of truth)
   blockUtilizationMap.forEach(utilization => {
     // Skip blocks that have already ended (for debug display only)
-    if (utilization.block && utilization.block.endTime <= actualNow) {
+    // Only filter if we're looking at today's blocks
+    if (utilization.block && utilization.block.endTime && 
+        utilization.date === new Date(actualNow).toISOString().split('T')[0] &&
+        utilization.block.endTime <= actualNow) {
       return
     }
 
