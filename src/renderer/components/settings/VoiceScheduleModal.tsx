@@ -443,7 +443,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                                 <Text>{block.startTime} - {block.endTime}</Text>
                                 <Tag color={
                                   block.type === TaskType.Focused ? 'blue' :
-                                  block.type === TaskType.Admin ? 'green' : 
+                                  block.type === TaskType.Admin ? 'green' :
                                   block.type === 'personal' ? 'orange' : 'purple'
                                 }>
                                   {block.type}
