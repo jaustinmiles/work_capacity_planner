@@ -192,7 +192,9 @@ Parse the transcription into one or more amendments. Common patterns:
    - "finish X", "complete X", "done with X" → status: "completed"
    - "pause X", "stop X" → status: "waiting" (but consider if dependency is better)
    - IMPORTANT: "mark the X steps complete" → update individual steps, NOT the entire workflow
-   - IMPORTANT: Only create ONE status update per distinct task/workflow/step
+   - IMPORTANT: "completed all bug steps" → find each bug-related step and create ONE status update per step
+   - IMPORTANT: "all steps in workflow X" → iterate through workflow steps, create amendment for each
+   - CRITICAL: Only create ONE status update per distinct task/workflow/step - no duplicates!
    
 4. TIME LOG: Recording time spent
    - "spent 2 hours on X", "worked on X for 30 minutes"
@@ -256,7 +258,8 @@ Examples:
 - "I can't do X until Y is done" → dependency_change to add Y as dependency of X using actual IDs
 - "mark the bug fix steps complete" → MULTIPLE status_update amendments with stepName field, one for each bug fix step in the workflow
 - "finished all three bug fixes" → MULTIPLE status_update amendments with stepName field for each bug fix step
-- NEVER generate duplicate amendments for the same target
+- CRITICAL: NEVER generate duplicate amendments for the same target. Each task/workflow should appear at most once in the amendments array
+- "completed all bug steps on the bug workflow" → status_update amendments with stepName for EACH distinct step, NOT multiple completions of the whole workflow
 - "kick off the deployment workflow" → status_update to mark workflow in_progress
 - "the database migration step took 3 hours" → time_log with duration: 180 and stepName: "database migration"
 - "add a code review step after implementation" → step_addition with stepType: "focused", afterStep: "implementation"
@@ -324,6 +327,47 @@ IMPORTANT:
       if (typeof result.confidence !== 'number') result.confidence = 0.5
 
       logger.ai.debug('Parsed amendment result:', result)
+      
+      // Filter out duplicate amendments
+      const seen = new Set<string>()
+      const uniqueAmendments: Amendment[] = []
+      
+      for (const amendment of result.amendments) {
+        // Create a unique key for this amendment
+        let key = `${amendment.type}`
+        
+        if ('target' in amendment) {
+          key += `-${amendment.target.id}-${amendment.target.name}`
+        }
+        if ('workflowTarget' in amendment) {
+          key += `-${(amendment as any).workflowTarget.id}-${(amendment as any).workflowTarget.name}`
+        }
+        if ('newStatus' in amendment) {
+          key += `-${(amendment as any).newStatus}`
+        }
+        if ('stepName' in amendment) {
+          key += `-step:${(amendment as any).stepName}`
+        }
+        
+        // Only add if we haven't seen this exact amendment before
+        if (!seen.has(key)) {
+          seen.add(key)
+          uniqueAmendments.push(amendment)
+        } else {
+          logger.ai.warn('Filtered duplicate amendment:', key)
+          if (!result.warnings) result.warnings = []
+          result.warnings.push('Duplicate amendment removed')
+        }
+      }
+      
+      // Update the result with filtered amendments
+      result.amendments = uniqueAmendments
+      
+      // Adjust confidence if we removed duplicates
+      if (uniqueAmendments.length < result.amendments.length) {
+        result.confidence = result.confidence * 0.9 // Slightly reduce confidence when duplicates were found
+      }
+      
       return result
     } catch (error) {
       logger.ai.error('Error parsing with AI:', error)

@@ -30,6 +30,7 @@ import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { logger } from '../../utils/logger'
+import { appEvents, EVENTS } from '../../utils/events'
 
 
 dayjs.extend(isSameOrBefore)
@@ -123,6 +124,9 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       // Reload patterns
       await loadPatterns()
       onSave?.()
+      
+      // Emit event to refresh UI components (especially sidebar)
+      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
       logger.ui.error('Failed to save pattern:', error)
       Message.error('Failed to save schedule')
@@ -220,6 +224,9 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       Message.success(`Cleared ${clearedCount} schedules`)
       await loadPatterns()
       onSave?.()
+      
+      // Emit event to refresh UI components (especially sidebar)
+      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
       logger.ui.error('Failed to clear schedules:', error)
       Message.error('Failed to clear schedules')
