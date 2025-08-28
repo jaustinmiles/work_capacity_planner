@@ -19,7 +19,7 @@ async function cleanupDuplicateSessions() {
 
   try {
     console.log('🔍 Finding duplicate sessions...')
-    
+
     // Find all Default Sessions
     const defaultSessions = await prisma.session.findMany({
       where: {
@@ -48,17 +48,17 @@ async function cleanupDuplicateSessions() {
         const workflowCount = await prisma.workflow.count({
           where: { sessionId: session.id },
         })
-        
+
         if (taskCount > 0 || workflowCount > 0) {
           console.log(`⚠️  Session ${session.id} has ${taskCount} tasks and ${workflowCount} workflows`)
-          console.log(`   Migrating data to the primary session...`)
-          
+          console.log('   Migrating data to the primary session...')
+
           // Migrate tasks
           await prisma.task.updateMany({
             where: { sessionId: session.id },
             data: { sessionId: toKeep.id },
           })
-          
+
           // Migrate workflows
           await prisma.workflow.updateMany({
             where: { sessionId: session.id },
@@ -82,7 +82,7 @@ async function cleanupDuplicateSessions() {
       console.log('✨ Cleanup complete!')
     } else if (defaultSessions.length === 1) {
       console.log('✅ Only one Default Session found, no cleanup needed')
-      
+
       // Ensure it's active
       await prisma.session.update({
         where: { id: defaultSessions[0].id },
@@ -96,7 +96,7 @@ async function cleanupDuplicateSessions() {
     const allSessions = await prisma.session.findMany({
       orderBy: { createdAt: 'desc' },
     })
-    
+
     console.log('\n📊 Final session state:')
     for (const session of allSessions) {
       const taskCount = await prisma.task.count({
@@ -105,7 +105,7 @@ async function cleanupDuplicateSessions() {
       const workflowCount = await prisma.workflow.count({
         where: { sessionId: session.id },
       })
-      
+
       console.log(`  - ${session.name} (${session.isActive ? '✓ Active' : 'Inactive'}): ${taskCount} tasks, ${workflowCount} workflows`)
     }
 

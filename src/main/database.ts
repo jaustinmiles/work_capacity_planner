@@ -55,7 +55,7 @@ export class DatabaseService {
 
     // Start initialization and cache the promise to prevent race conditions
     this.sessionInitPromise = this.initializeActiveSession()
-    
+
     try {
       this.activeSessionId = await this.sessionInitPromise
       return this.activeSessionId
