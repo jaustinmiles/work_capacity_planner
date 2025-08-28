@@ -508,22 +508,36 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       <VoiceScheduleModal
         visible={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
-        onScheduleExtracted={(schedule) => {
-          // Apply extracted schedule to current day
-          const currentPattern = patterns.get(selectedDate) || { blocks: [], meetings: [] }
-          const updatedPattern = {
-            blocks: [...currentPattern.blocks, ...schedule.blocks],
-            meetings: [...currentPattern.meetings, ...schedule.meetings],
-          }
-
-          // Update the pattern in state
+        onScheduleExtracted={(schedules) => {
+          // Handle both single schedule (legacy) and multi-day schedules
+          const schedulesToApply = Array.isArray(schedules) ? schedules : [schedules]
+          
+          // Apply extracted schedules to their respective days
           const newPatterns = new Map(patterns)
-          newPatterns.set(selectedDate, {
-            date: selectedDate,
-            ...updatedPattern,
-            accumulated: { focusMinutes: 0, adminMinutes: 0 },
-          })
+          
+          for (const schedule of schedulesToApply) {
+            const date = schedule.date
+            const currentPattern = patterns.get(date) || { blocks: [], meetings: [] }
+            
+            // Replace the pattern for this day with the extracted schedule
+            newPatterns.set(date, {
+              date,
+              blocks: schedule.blocks || [],
+              meetings: schedule.meetings || [],
+              accumulated: { 
+                focusMinutes: 0, 
+                adminMinutes: 0,
+                personalMinutes: 0 
+              },
+            })
+          }
+          
           setPatterns(newPatterns)
+          
+          // If multiple days were extracted, show a success message
+          if (schedulesToApply.length > 1) {
+            Message.success(`Applied schedule to ${schedulesToApply.length} days`)
+          }
 
           setShowVoiceModal(false)
           Message.success('Voice schedule imported')

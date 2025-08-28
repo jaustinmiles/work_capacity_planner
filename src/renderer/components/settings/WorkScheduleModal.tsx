@@ -87,15 +87,21 @@ export function WorkScheduleModal({
     }
   }
 
-  const handleVoiceSchedule = (schedule: { blocks: WorkBlock[], meetings: WorkMeeting[] }) => {
-    // Pass the extracted schedule to the editor
-    setPattern({
-      ...pattern,
-      blocks: schedule.blocks,
-      meetings: schedule.meetings,
-    })
-    setShowVoiceModal(false)
-    Message.success('Voice schedule imported successfully')
+  const handleVoiceSchedule = (schedules: any) => {
+    // Handle both single and multi-day schedules
+    const schedulesToUse = Array.isArray(schedules) ? schedules : [schedules]
+    
+    // For single-day modal, just use the first day's schedule
+    if (schedulesToUse.length > 0) {
+      const schedule = schedulesToUse[0]
+      setPattern({
+        ...pattern,
+        blocks: schedule.blocks,
+        meetings: schedule.meetings,
+      })
+      setShowVoiceModal(false)
+      Message.success('Voice schedule imported successfully')
+    }
   }
 
   return (

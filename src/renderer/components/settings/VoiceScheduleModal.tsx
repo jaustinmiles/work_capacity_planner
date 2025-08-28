@@ -14,7 +14,7 @@ const { Title, Text } = Typography
 interface VoiceScheduleModalProps {
   visible: boolean
   onClose: () => void
-  onScheduleExtracted: (__schedule: ExtractedSchedule) => void
+  onScheduleExtracted: (__schedules: ExtractedSchedule[] | ExtractedSchedule) => void
   targetDate?: string
 }
 
@@ -32,7 +32,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
   const [isProcessing, setIsProcessing] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
-  const [scheduleResult, setScheduleResult] = useState<ExtractedSchedule | null>(null)
+  const [scheduleResult, setScheduleResult] = useState<ExtractedSchedule[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recordingDuration, setRecordingDuration] = useState(0)
   const [uploadedAudioFile, setUploadedAudioFile] = useState<File | null>(null)
@@ -207,22 +207,24 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
     setError(null)
 
     try {
-      const result = await getDatabase().extractScheduleFromVoice(
+      // Use multi-day extraction to handle "weekdays", "weekends", etc.
+      const results = await getDatabase().extractMultiDayScheduleFromVoice(
         scheduleText.trim(),
         targetDate || dayjs().format('YYYY-MM-DD'),
       )
-      // Convert capacity format if needed
-      const convertedResult = {
+      // Convert capacity format if needed for all results
+      const convertedResults = results.map((result: any) => ({
         ...result,
         blocks: result.blocks.map((block: any) => ({
           ...block,
           capacity: block.capacity ? {
             focusMinutes: block.capacity.focusMinutes || block.capacity.focused || 0,
             adminMinutes: block.capacity.adminMinutes || block.capacity.admin || 0,
+            personalMinutes: block.capacity.personalMinutes || 0,
           } : undefined,
         })),
-      }
-      setScheduleResult(convertedResult)
+      }))
+      setScheduleResult(convertedResults)
     } catch (error) {
       logger.ui.error('Error processing schedule:', error)
       setError('Failed to process schedule with AI. Please try again.')
@@ -232,7 +234,8 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
   }
 
   const handleUseResults = () => {
-    if (scheduleResult) {
+    if (scheduleResult && scheduleResult.length > 0) {
+      // Pass all schedules to parent - it now handles both single and multi-day
       onScheduleExtracted(scheduleResult)
       onClose()
     }
@@ -407,80 +410,86 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
         )}
 
         {/* Results Display */}
-        {scheduleResult && (
+        {scheduleResult && scheduleResult.length > 0 && (
           <Card
             title={
               <Space>
                 <IconCheckCircle style={{ color: '#00b42a' }} />
-                <span>Extracted Schedule</span>
+                <span>Extracted Schedule ({scheduleResult.length} days)</span>
               </Space>
             }
             style={{ marginTop: 16 }}
           >
             <Space direction="vertical" style={{ width: '100%' }} size="medium">
-              <div>
-                <Text style={{ fontWeight: 'bold' }}>Date:</Text>
-                <Text style={{ display: 'block', marginTop: 8 }}>
-                  {dayjs(scheduleResult.date).format('MMMM D, YYYY')}
-                </Text>
-              </div>
+              {/* Display each day's schedule */}
+              {scheduleResult.map((daySchedule, dayIndex) => (
+                <Card key={dayIndex} size="small" title={dayjs(daySchedule.date).format('dddd, MMMM D, YYYY')}>
+                  <Space direction="vertical" style={{ width: '100%' }} size="small">
+                    <div>
+                      <Text style={{ fontWeight: 'bold' }}>Summary:</Text>
+                      <Text style={{ display: 'block', marginTop: 4 }}>
+                        {daySchedule.summary}
+                      </Text>
+                    </div>
 
-              <div>
-                <Text style={{ fontWeight: 'bold' }}>Summary:</Text>
-                <Text style={{ display: 'block', marginTop: 8 }}>
-                  {scheduleResult.summary}
-                </Text>
-              </div>
+                    {/* Work Blocks */}
+                    {daySchedule.blocks.length > 0 && (
+                      <div>
+                        <Text style={{ fontWeight: 'bold' }}>Work Blocks ({daySchedule.blocks.length}):</Text>
+                        <div style={{ marginTop: 8 }}>
+                          {daySchedule.blocks.map((block, index) => (
+                            <div key={index} style={{ marginBottom: 4 }}>
+                              <Space>
+                                <Text>{block.startTime} - {block.endTime}</Text>
+                                <Tag color={
+                                  block.type === TaskType.Focused ? 'blue' :
+                                  block.type === TaskType.Admin ? 'green' : 
+                                  block.type === 'personal' ? 'orange' : 'purple'
+                                }>
+                                  {block.type}
+                                </Tag>
+                                {block.type === 'mixed' && block.capacity && (
+                                  <Text type="secondary">
+                                    {block.capacity.focusMinutes}min focus / {block.capacity.adminMinutes}min admin
+                                  </Text>
+                                )}
+                                {block.type === 'personal' && block.capacity && (
+                                  <Text type="secondary">
+                                    {block.capacity.personalMinutes}min personal
+                                  </Text>
+                                )}
+                              </Space>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-              {/* Work Blocks */}
-              {scheduleResult.blocks.length > 0 && (
-                <div>
-                  <Text style={{ fontWeight: 'bold' }}>Work Blocks ({scheduleResult.blocks.length}):</Text>
-                  <div style={{ marginTop: 12 }}>
-                    {scheduleResult.blocks.map((block, index) => (
-                      <Card key={index} size="small" style={{ marginBottom: 8 }}>
-                        <Space>
-                          <Text>{block.startTime} - {block.endTime}</Text>
-                          <Tag color={
-                            block.type === TaskType.Focused ? 'blue' :
-                            block.type === TaskType.Admin ? 'green' : 'purple'
-                          }>
-                            {block.type}
-                          </Tag>
-                          {block.type === 'mixed' && block.capacity && (
-                            <Text type="secondary">
-                              {block.capacity.focusMinutes}min focus / {block.capacity.adminMinutes}min admin
-                            </Text>
-                          )}
-                        </Space>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Meetings */}
-              {scheduleResult.meetings.length > 0 && (
-                <div>
-                  <Text style={{ fontWeight: 'bold' }}>Meetings ({scheduleResult.meetings.length}):</Text>
-                  <div style={{ marginTop: 12 }}>
-                    {scheduleResult.meetings.map((meeting, index) => (
-                      <Card key={index} size="small" style={{ marginBottom: 8 }}>
-                        <Space>
-                          <Text style={{ fontWeight: 500 }}>{meeting.name}</Text>
-                          <Text>{meeting.startTime} - {meeting.endTime}</Text>
-                          <Tag color={
-                            meeting.type === 'meeting' ? 'blue' :
-                            meeting.type === 'break' ? 'green' : 'orange'
-                          }>
-                            {meeting.type}
-                          </Tag>
-                        </Space>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    {/* Meetings */}
+                    {daySchedule.meetings.length > 0 && (
+                      <div>
+                        <Text style={{ fontWeight: 'bold' }}>Meetings ({daySchedule.meetings.length}):</Text>
+                        <div style={{ marginTop: 8 }}>
+                          {daySchedule.meetings.map((meeting, index) => (
+                            <div key={index} style={{ marginBottom: 4 }}>
+                              <Space>
+                                <Text style={{ fontWeight: 500 }}>{meeting.name}</Text>
+                                <Text>{meeting.startTime} - {meeting.endTime}</Text>
+                                <Tag color={
+                                  meeting.type === 'meeting' ? 'blue' :
+                                  meeting.type === 'break' ? 'green' : 'orange'
+                                }>
+                                  {meeting.type}
+                                </Tag>
+                              </Space>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </Space>
+                </Card>
+              ))}
 
               <div style={{ textAlign: 'center', paddingTop: 16 }}>
                 <Space>
