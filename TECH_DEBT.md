@@ -112,7 +112,7 @@
 
 **Partially Implemented**:
 - ✅ Step addition via voice amendments
-- ⚠️ Step status updates not yet implemented
+- ✅ Step status updates implemented (2025-08-28)
 - ⚠️ Step time logging not yet implemented
 - ⚠️ Step notes not yet implemented
 - ⚠️ Step removal not yet implemented

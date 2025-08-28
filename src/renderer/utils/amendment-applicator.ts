@@ -39,9 +39,27 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           if (update.target.id) {
             if (update.stepName) {
               // Update workflow step status
-              // This would need to be implemented in the database service
-              logger.ui.debug('TODO: Update workflow step status', update)
-              Message.info('Step status updates not yet implemented')
+              // Find the step in the workflow
+              const workflow = await db.getSequencedTaskById(update.target.id)
+              if (workflow && workflow.steps) {
+                const step = workflow.steps.find(s =>
+                  s.name.toLowerCase().includes(update.stepName!.toLowerCase()) ||
+                  update.stepName!.toLowerCase().includes(s.name.toLowerCase()),
+                )
+                if (step) {
+                  await db.updateTaskStepProgress(step.id, {
+                    status: update.newStatus,
+                  })
+                  successCount++
+                  logger.ui.debug('Updated workflow step status', { stepName: update.stepName, status: update.newStatus })
+                } else {
+                  Message.warning(`Step "${update.stepName}" not found in workflow`)
+                  errorCount++
+                }
+              } else {
+                Message.warning('Workflow not found or has no steps')
+                errorCount++
+              }
             } else if (update.target.type === EntityType.Workflow) {
               // Update workflow status
               await db.updateSequencedTask(update.target.id, {

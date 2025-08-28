@@ -613,6 +613,8 @@ export function scheduleItemsWithBlocksAndDebug(
                 overallStatus: 'not_started',
                 criticalPathDuration: 0,
                 worstCaseDuration: 0,
+                // Pass through cognitive complexity from workflow if step doesn't have its own
+                cognitiveComplexity: step.cognitiveComplexity || workflow.cognitiveComplexity,
               } as Task, schedulingContext)
             : basePriority
 
@@ -1612,6 +1614,11 @@ export function scheduleItemsWithBlocksAndDebug(
 
   // Convert the utilization map to array for debug info (single source of truth)
   blockUtilizationMap.forEach(utilization => {
+    // Skip blocks that have already ended (for debug display only)
+    if (utilization.block && utilization.block.endTime <= actualNow) {
+      return
+    }
+
     const isFlexibleBlock = utilization.block?.blockType === 'flexible'
 
     const unusedFocus = utilization.focusTotal - utilization.focusUsed
