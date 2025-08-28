@@ -629,7 +629,7 @@ Important:
 
       const jsonText = jsonMatch[0]
       const schedules = JSON.parse(jsonText)
-      
+
       // Ensure all dates are properly formatted
       return schedules.map((schedule: any) => ({
         ...schedule,

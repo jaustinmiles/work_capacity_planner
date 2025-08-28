@@ -90,7 +90,7 @@ export function WorkScheduleModal({
   const handleVoiceSchedule = (schedules: any) => {
     // Handle both single and multi-day schedules
     const schedulesToUse = Array.isArray(schedules) ? schedules : [schedules]
-    
+
     // For single-day modal, just use the first day's schedule
     if (schedulesToUse.length > 0) {
       const schedule = schedulesToUse[0]

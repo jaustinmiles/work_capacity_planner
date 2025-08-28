@@ -511,29 +511,28 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
         onScheduleExtracted={(schedules) => {
           // Handle both single schedule (legacy) and multi-day schedules
           const schedulesToApply = Array.isArray(schedules) ? schedules : [schedules]
-          
+
           // Apply extracted schedules to their respective days
           const newPatterns = new Map(patterns)
-          
+
           for (const schedule of schedulesToApply) {
             const date = schedule.date
-            const currentPattern = patterns.get(date) || { blocks: [], meetings: [] }
-            
+
             // Replace the pattern for this day with the extracted schedule
             newPatterns.set(date, {
               date,
               blocks: schedule.blocks || [],
               meetings: schedule.meetings || [],
-              accumulated: { 
-                focusMinutes: 0, 
+              accumulated: {
+                focusMinutes: 0,
                 adminMinutes: 0,
-                personalMinutes: 0 
+                personalMinutes: 0,
               },
             })
           }
-          
+
           setPatterns(newPatterns)
-          
+
           // If multiple days were extracted, show a success message
           if (schedulesToApply.length > 1) {
             Message.success(`Applied schedule to ${schedulesToApply.length} days`)
