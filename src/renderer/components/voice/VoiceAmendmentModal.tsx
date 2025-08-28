@@ -479,10 +479,18 @@ export function VoiceAmendmentModal({
                 <Text>Add dependencies:</Text>
                 <Text bold>
                   {depChange.addDependencies.map(dep => {
-                    // If it's a placeholder like task-new-1, show it more clearly
-                    if (dep.startsWith('task-new-') && allAmendments) {
+                    // Handle both old and new placeholder formats
+                    // Old format: {{task_creation_0}}
+                    // New format: task-new-1
+                    const placeholderMatch = dep.match(/\{\{task_creation_(\d+)\}\}/) || 
+                                           dep.match(/task[-_]new[-_](\d+)/)
+                    
+                    if (placeholderMatch && allAmendments) {
+                      // Extract the index from either format
+                      const indexStr = placeholderMatch[1]
+                      const taskIndex = dep.includes('{{') ? parseInt(indexStr) : parseInt(indexStr) - 1
+                      
                       // Find the corresponding task creation amendment
-                      const taskIndex = parseInt(dep.replace('task-new-', '')) - 1
                       const taskCreations = allAmendments.filter(a =>
                         a.type === AmendmentType.TaskCreation || (a.type as string) === 'task_creation',
                       )
@@ -972,6 +980,27 @@ export function VoiceAmendmentModal({
                                 </Select>
                               </Space>
                             </>
+                          )}
+
+                          {/* Status Update editing */}
+                          {isAmendmentType(amendment, 'status_update', AmendmentType.StatusUpdate) && (
+                            <Space>
+                              <Text>New Status:</Text>
+                              <Select
+                                value={edited.newStatus || (amendment as StatusUpdate).newStatus}
+                                onChange={(value) => {
+                                  const newEdited = new Map(editedAmendments)
+                                  newEdited.set(index, { ...edited, newStatus: value })
+                                  setEditedAmendments(newEdited)
+                                }}
+                                style={{ width: 150 }}
+                              >
+                                <Select.Option value="not_started">Not Started</Select.Option>
+                                <Select.Option value="in_progress">In Progress</Select.Option>
+                                <Select.Option value="blocked">Blocked</Select.Option>
+                                <Select.Option value="completed">Completed</Select.Option>
+                              </Select>
+                            </Space>
                           )}
 
                           {/* Note editing */}

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Modal, Button, Typography, Alert, Space, Card, Input, Tag, Divider, Upload, Select } from '@arco-design/web-react'
+import { Modal, Button, Typography, Alert, Space, Card, Input, Tag, Divider, Upload, Select, InputNumber } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, IconCheckCircle, IconUpload, IconFile } from '@arco-design/web-react/icon'
 import { TaskType } from '@shared/enums'
 import { getDatabase } from '../../services/database'
@@ -1104,11 +1104,20 @@ Only include terms that are likely industry-specific or technical jargon, not co
             title={
               <Space>
                 <IconCheckCircle style={{ color: '#00b42a' }} />
-                <span>Claude Opus 4.1 Analysis Results</span>
+                <span>
+                  {showClarificationMode ? 'Provide Clarifications & Edit Details' : 'Claude Opus 4.1 Analysis Results'}
+                </span>
               </Space>
             }
             style={{ marginTop: 16 }}
           >
+            {showClarificationMode && (
+              <Alert
+                type="info"
+                content="Review the items below. Where questions are highlighted, provide clarifications. You can also adjust durations, priorities, and other details."
+                style={{ marginBottom: 16 }}
+              />
+            )}
             <Space direction="vertical" style={{ width: '100%' }} size="medium">
               <div>
                 <Text style={{ fontWeight: 'bold' }}>Summary:</Text>
@@ -1204,68 +1213,121 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               <Text style={{ fontSize: 13 }}>
                                 <span style={{ fontWeight: 'bold' }}>Notes:</span> {workflow.notes}
                               </Text>
-                              {showClarificationMode && (workflow.notes.toLowerCase().includes('clarification') ||
-                                                         workflow.notes.toLowerCase().includes('question') ||
-                                                         workflow.notes.includes('?')) && (
-                                <div style={{ marginTop: 8 }}>
-                                  <Input.TextArea
-                                    placeholder="Provide clarification..."
-                                    value={clarifications[`workflow-${index}`] || ''}
-                                    onChange={(value) => setClarifications({
-                                      ...clarifications,
-                                      [`workflow-${index}`]: value,
-                                    })}
-                                    style={{ marginTop: 4 }}
-                                    rows={2}
-                                  />
-                                  <Button
-                                    size="small"
-                                    type="primary"
-                                    onClick={() => handleRegenerateSingle('workflow', index)}
-                                    loading={isProcessing}
-                                    style={{ marginTop: 4 }}
-                                  >
-                                    Regenerate with Clarification
-                                  </Button>
-                                </div>
-                              )}
+                            </div>
+                          )}
+                          
+                          {/* Show clarification input when in clarification mode and there are questions/clarifications needed */}
+                          {showClarificationMode && (workflow.notes?.toLowerCase().includes('clarification') ||
+                                                     workflow.notes?.toLowerCase().includes('question') ||
+                                                     workflow.notes?.toLowerCase().includes('need') ||
+                                                     workflow.notes?.includes('?')) && (
+                            <div style={{ marginTop: 8, padding: 12, backgroundColor: '#fff8e6', borderRadius: 4, border: '1px solid #ffdc64' }}>
+                              <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#fa8c16' }}>
+                                Provide Clarification:
+                              </Text>
+                              <Input.TextArea
+                                placeholder="Answer the questions or provide additional context..."
+                                value={clarifications[`workflow-${index}`] || ''}
+                                onChange={(value) => setClarifications({
+                                  ...clarifications,
+                                  [`workflow-${index}`]: value,
+                                })}
+                                style={{ marginTop: 8 }}
+                                rows={3}
+                              />
+                              <Button
+                                size="small"
+                                type="primary"
+                                onClick={() => handleRegenerateSingle('workflow', index)}
+                                loading={isProcessing}
+                                disabled={!clarifications[`workflow-${index}`]?.trim()}
+                                style={{ marginTop: 8 }}
+                              >
+                                Regenerate with Clarification
+                              </Button>
                             </div>
                           )}
                           {showClarificationMode && (
                             <div style={{ marginTop: 12, padding: 8, backgroundColor: '#f9f9f9', borderRadius: 4 }}>
-                              <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Quick Edits:</Text>
+                              <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Quick Edits (Workflow-level):</Text>
                               <Space direction="vertical" style={{ width: '100%', marginTop: 8 }}>
-                                <Input
-                                  size="small"
-                                  addBefore="Duration"
-                                  value={String(editableResult?.workflows?.[index]?.duration || workflow.duration)}
-                                  onChange={(value) => {
-                                    const num = parseInt(value)
-                                    if (!isNaN(num)) handleEditField('workflow', index, 'duration', num)
-                                  }}
-                                  suffix="min"
-                                />
-                                <Select
-                                  size="small"
-                                  value={editableResult?.workflows?.[index]?.importance || workflow.importance}
-                                  onChange={(value) => handleEditField('workflow', index, 'importance', value)}
-                                  style={{ width: '100%' }}
-                                >
-                                  {[1,2,3,4,5].map(i => (
-                                    <Select.Option key={i} value={i}>Importance: {i}</Select.Option>
-                                  ))}
-                                </Select>
-                                <Select
-                                  size="small"
-                                  value={editableResult?.workflows?.[index]?.urgency || workflow.urgency}
-                                  onChange={(value) => handleEditField('workflow', index, 'urgency', value)}
-                                  style={{ width: '100%' }}
-                                >
-                                  {[1,2,3,4,5].map(i => (
-                                    <Select.Option key={i} value={i}>Urgency: {i}</Select.Option>
-                                  ))}
-                                </Select>
+                                <Space style={{ width: '100%' }}>
+                                  <Text style={{ width: 80 }}>Importance:</Text>
+                                  <Select
+                                    size="small"
+                                    value={editableResult?.workflows?.[index]?.importance || workflow.importance}
+                                    onChange={(value) => handleEditField('workflow', index, 'importance', value)}
+                                    style={{ flex: 1 }}
+                                  >
+                                    {[1,2,3,4,5,6,7,8,9,10].map(i => (
+                                      <Select.Option key={i} value={i}>{i}</Select.Option>
+                                    ))}
+                                  </Select>
+                                </Space>
+                                <Space style={{ width: '100%' }}>
+                                  <Text style={{ width: 80 }}>Urgency:</Text>
+                                  <Select
+                                    size="small"
+                                    value={editableResult?.workflows?.[index]?.urgency || workflow.urgency}
+                                    onChange={(value) => handleEditField('workflow', index, 'urgency', value)}
+                                    style={{ flex: 1 }}
+                                  >
+                                    {[1,2,3,4,5,6,7,8,9,10].map(i => (
+                                      <Select.Option key={i} value={i}>{i}</Select.Option>
+                                    ))}
+                                  </Select>
+                                </Space>
                               </Space>
+                              
+                              {/* Individual step editing */}
+                              <Divider style={{ margin: '8px 0' }} />
+                              <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Edit Individual Steps:</Text>
+                              {workflow.steps.map((step: any, stepIndex: number) => (
+                                <div key={stepIndex} style={{ marginTop: 8, padding: 8, backgroundColor: '#fff', borderRadius: 4 }}>
+                                  <Space direction="vertical" style={{ width: '100%' }} size="small">
+                                    <Text style={{ fontSize: 11, fontWeight: 500 }}>Step {stepIndex + 1}: {step.name}</Text>
+                                    <Space>
+                                      <InputNumber
+                                        size="small"
+                                        value={editableResult?.workflows?.[index]?.steps?.[stepIndex]?.duration || step.duration}
+                                        onChange={(value) => {
+                                          if (!editableResult || !editableResult.workflows || !editableResult.workflows[index]) return
+                                          const newResult = { ...editableResult }
+                                          if (!newResult.workflows || !newResult.workflows[index] || !newResult.workflows[index].steps) return
+                                          newResult.workflows[index].steps[stepIndex].duration = value as number
+                                          setEditableResult(newResult)
+                                        }}
+                                        min={5}
+                                        max={480}
+                                        step={5}
+                                        suffix="min"
+                                        style={{ width: 100 }}
+                                      />
+                                      {step.asyncWaitTime > 0 && (
+                                        <>
+                                          <Text>Wait:</Text>
+                                          <InputNumber
+                                            size="small"
+                                            value={editableResult?.workflows?.[index]?.steps?.[stepIndex]?.asyncWaitTime || step.asyncWaitTime}
+                                            onChange={(value) => {
+                                              if (!editableResult || !editableResult.workflows || !editableResult.workflows[index]) return
+                                              const newResult = { ...editableResult }
+                                              if (!newResult.workflows || !newResult.workflows[index] || !newResult.workflows[index].steps) return
+                                              newResult.workflows[index].steps[stepIndex].asyncWaitTime = value as number
+                                              setEditableResult(newResult)
+                                            }}
+                                            min={0}
+                                            max={10080}
+                                            step={15}
+                                            suffix="min"
+                                            style={{ width: 100 }}
+                                          />
+                                        </>
+                                      )}
+                                    </Space>
+                                  </Space>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </Space>

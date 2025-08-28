@@ -56,8 +56,9 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
         actualDuration: currentLoggedTime,
       })
 
-      // Emit event to update other components
+      // Emit events to update other components
       appEvents.emit(EVENTS.TIME_LOGGED)
+      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
 
       // Check if we need to prompt for re-estimation
       if (currentLoggedTime >= task.duration && !task.completed) {

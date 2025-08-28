@@ -25,6 +25,7 @@ import type { TaskStep } from '@shared/types'
 import { getDatabase } from './services/database'
 import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
 import { useLogger, useLoggerContext } from '../logging/index.renderer'
+import { appEvents, EVENTS } from './utils/events'
 
 
 const { Header, Sider, Content } = Layout
@@ -97,6 +98,27 @@ function App() {
       sequencedTasksCount: sequencedTasks.length,
     })
     initializeData()
+  }, [initializeData])
+
+  // Listen for data refresh events
+  useEffect(() => {
+    const handleDataRefresh = () => {
+      logger.debug('Data refresh event received')
+      initializeData()
+    }
+
+    const handleSessionChanged = () => {
+      logger.debug('Session change event received')
+      initializeData()
+    }
+
+    appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
+    appEvents.on(EVENTS.SESSION_CHANGED, handleSessionChanged)
+
+    return () => {
+      appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
+      appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
+    }
   }, [initializeData])
 
   // Log view changes

@@ -1,20 +1,37 @@
 # Current State
 
-## Session In Progress (2025-08-27 - Critical Bug Fixes & UI Improvements)
+## Session In Progress (2025-08-28 - Comprehensive Bug Fix PR)
 
-### ✅ PR #26: Fix Multi-Day Schedule Generation (Ready for Review)
+### 🚧 Working on: fix/comprehensive-bug-fixes branch
 
-#### Fixed the ACTUAL Issue - Voice Schedule Input Multi-Day Support
+#### ✅ Fixed Amendment Applicator Issues (#1 & #2 - High Priority Bugs)
+- Fixed template placeholders like `{{task_creation_0}}` not being replaced with actual task names
+- Added proper handling for both old format (`{{task_creation_0}}`) and new format (`task-new-1`)
+- Added StatusUpdate editing capability in edit mode (was showing blank fields)
+- Fixed the rendering of dependency references to show task names instead of IDs
+
+#### ✅ Fixed UI Refresh Issues (#3 - High Priority Bug)
+- Added event listeners to App component for DATA_REFRESH_NEEDED and SESSION_CHANGED events
+- TaskTimeLoggingModal now emits DATA_REFRESH_NEEDED event after logging work
+- Amendment applicator emits refresh events (DATA_REFRESH_NEEDED, TASK_UPDATED, WORKFLOW_UPDATED) after applying changes
+- SessionManager already emitting proper events - now properly consumed by App
+
+#### ✅ Fixed Clarifications UI (#5 - Medium Priority Bug)
+- Clarification input fields now properly separated from Notes section
+- Added visual distinction with yellow background for clarification requests
+- Improved clarity with "Provide Clarification & Edit Details" header in edit mode
+- Added info alert explaining the clarification process
+- Individual workflow step editing now available with duration and wait time controls
+- Fixed display to show clarifications for any workflow with questions/needs
+
+### Previous Session (2025-08-27)
+
+#### ✅ PR #26: Fix Multi-Day Schedule Generation (Merged)
+- Fixed voice schedule input to properly generate multiple days
 - Added `extractMultiDayScheduleFromVoice` to AI service for proper parsing of "weekdays", "weekends", etc.
 - Updated VoiceScheduleModal to display all 7 generated days for user review
 - Fixed MultiDayScheduleEditor to apply ALL extracted days, not just selected date
 - Voice input now properly handles descriptions like "9-5 weekdays, personal on weekends 8-12"
-
-#### Additional Fixes
-- Modified ScheduleGenerator to save all 30 days instead of just 7
-- Fixed WeeklyCalendar to always display weekends with default personal blocks
-- Updated DailyWorkPattern type to support personalMinutes tracking
-- All TypeScript errors fixed, no linting errors, all tests pass
 
 ### High Priority Issues to Address (from feedback.json):
 
