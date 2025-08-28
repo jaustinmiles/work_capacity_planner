@@ -191,6 +191,8 @@ Parse the transcription into one or more amendments. Common patterns:
    - "kick off X", "start X", "begin X" → status: "in_progress" 
    - "finish X", "complete X", "done with X" → status: "completed"
    - "pause X", "stop X" → status: "waiting" (but consider if dependency is better)
+   - IMPORTANT: "mark the X steps complete" → update individual steps, NOT the entire workflow
+   - IMPORTANT: Only create ONE status update per distinct task/workflow/step
    
 4. TIME LOG: Recording time spent
    - "spent 2 hours on X", "worked on X for 30 minutes"
@@ -252,6 +254,9 @@ Examples:
 - "I need to fix timestamps before running the workflow" → task_creation (fix timestamps task) + dependency_change with actual task IDs
 - "Deploy no longer depends on testing" → dependency_change with removeDependencies: ["actual-task-id"]
 - "I can't do X until Y is done" → dependency_change to add Y as dependency of X using actual IDs
+- "mark the bug fix steps complete" → MULTIPLE status_update amendments with stepName field, one for each bug fix step in the workflow
+- "finished all three bug fixes" → MULTIPLE status_update amendments with stepName field for each bug fix step
+- NEVER generate duplicate amendments for the same target
 - "kick off the deployment workflow" → status_update to mark workflow in_progress
 - "the database migration step took 3 hours" → time_log with duration: 180 and stepName: "database migration"
 - "add a code review step after implementation" → step_addition with stepType: "focused", afterStep: "implementation"

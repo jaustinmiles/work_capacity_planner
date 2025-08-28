@@ -1,8 +1,31 @@
 # Current State
 
-## Session In Progress (2025-08-28 - Final Cleanup and Optimization)
+## Latest Status (2025-08-28)
 
-### 🚧 Working on: feature/final-cleanup-and-optimization branch
+### 🚀 Current PR: Critical User Test Bug Fixes
+
+#### Fixes Completed in This Session
+1. **Amendment Applicator (Critical Bug)** ✅
+   - Fixed AI generating duplicate status updates for workflows instead of individual steps
+   - Implemented workflow step status updates (was marked as TODO)
+   - Updated AI prompts to clarify step vs workflow completion
+   - Added proper step finding and status update functionality
+
+2. **Cognitive Complexity Not Affecting Priority (High Priority)** ✅
+   - Fixed workflow steps not inheriting cognitive complexity from parent workflows
+   - Modified flexible-scheduler.ts to pass through complexity values
+   - Ensures proper priority calculations based on task complexity
+
+3. **Debug Info Showing Past Blocks (High Priority)** ✅
+   - Added filtering to exclude already-ended blocks from debug display
+   - Only shows future blocks relevant for scheduling
+   - Improves clarity of scheduling debug information
+
+4. **Multiple Default Sessions (Medium Priority)** ✅
+   - Already fixed with session initialization promise caching
+   - Cleanup script available for removing duplicates
+
+### ✅ All Recent PRs Merged Successfully
 
 #### ✅ Codebase Cleanup Completed
 - **GitHub Actions**: Added test coverage reporting with Codecov integration
@@ -40,13 +63,16 @@
 - Fixed MultiDayScheduleEditor to apply ALL extracted days, not just selected date
 - Voice input now properly handles descriptions like "9-5 weekdays, personal on weekends 8-12"
 
-### High Priority Issues to Address (from feedback.json):
+### Recently Fixed Issues ✅
 
-#### 🔴 Critical Bugs (High Priority)
-1. **#3 - Need better UI refresh** - UI doesn't update after data changes (sessions, work logs, etc.) - IN PROGRESS
-2. **#5 - Clear future schedules button doesn't work** - Missing getWorkPatterns IPC endpoint
-3. ~~**#4 - Schedule doesn't support multi day generation**~~ - ✅ FIXED
-4. **#1 & #2 - Amendment applicator issues** - Blank fields and duplicate task creation
+#### Fixed Bugs
+1. **#1 & #2 - Amendment applicator issues** - ✅ Fixed template placeholders and blank fields
+2. **#3 - UI refresh issues** - ✅ Added event-driven refresh system
+3. **#7 - UI doesn't auto-refresh** - ✅ Fixed with event system
+4. **#8 - Multi-day schedule generation** - ✅ Fixed to support weekdays and weekends
+5. **#10 - Duplicate default sessions** - ✅ Fixed race condition with promise caching
+6. **#11 - Circadian rhythm customization** - ✅ Added user-configurable sleep schedule
+7. **#13 - Graph node spacing** - ✅ Improved spacing for better visibility
 
 #### 🟡 Important Features (High Priority)
 5. **#6 - Allow periodic events in scheduler** - Support recurring tasks (hourly, daily, weekly)
