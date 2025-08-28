@@ -482,14 +482,14 @@ export function VoiceAmendmentModal({
                     // Handle both old and new placeholder formats
                     // Old format: {{task_creation_0}}
                     // New format: task-new-1
-                    const placeholderMatch = dep.match(/\{\{task_creation_(\d+)\}\}/) || 
+                    const placeholderMatch = dep.match(/\{\{task_creation_(\d+)\}\}/) ||
                                            dep.match(/task[-_]new[-_](\d+)/)
-                    
+
                     if (placeholderMatch && allAmendments) {
                       // Extract the index from either format
                       const indexStr = placeholderMatch[1]
                       const taskIndex = dep.includes('{{') ? parseInt(indexStr) : parseInt(indexStr) - 1
-                      
+
                       // Find the corresponding task creation amendment
                       const taskCreations = allAmendments.filter(a =>
                         a.type === AmendmentType.TaskCreation || (a.type as string) === 'task_creation',

@@ -1215,7 +1215,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               </Text>
                             </div>
                           )}
-                          
+
                           {/* Show clarification input when in clarification mode and there are questions/clarifications needed */}
                           {showClarificationMode && (workflow.notes?.toLowerCase().includes('clarification') ||
                                                      workflow.notes?.toLowerCase().includes('question') ||
@@ -1278,7 +1278,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                   </Select>
                                 </Space>
                               </Space>
-                              
+
                               {/* Individual step editing */}
                               <Divider style={{ margin: '8px 0' }} />
                               <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Edit Individual Steps:</Text>

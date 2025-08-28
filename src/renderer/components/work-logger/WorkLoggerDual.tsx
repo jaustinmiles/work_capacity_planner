@@ -75,7 +75,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       loadPreferences()
     }
   }, [selectedDate, visible])
-  
+
   const loadPreferences = async () => {
     try {
       const db = getDatabase()
@@ -665,7 +665,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           </Space>
         )}
       </Modal>
-      
+
       {/* Circadian Settings Modal */}
       <Modal
         title="Circadian Rhythm Settings"
@@ -716,7 +716,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               ))}
             </Select>
           </div>
-          
+
           <div>
             <Text>Wake Time (24-hour format):</Text>
             <Select
@@ -736,7 +736,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               ))}
             </Select>
           </div>
-          
+
           <Alert
             type="info"
             content={
