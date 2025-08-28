@@ -1616,7 +1616,7 @@ export function scheduleItemsWithBlocksAndDebug(
   blockUtilizationMap.forEach(utilization => {
     // Skip blocks that have already ended (for debug display only)
     // Only filter if we're looking at today's blocks
-    if (utilization.block && utilization.block.endTime && 
+    if (utilization.block && utilization.block.endTime &&
         utilization.date === new Date(actualNow).toISOString().split('T')[0] &&
         utilization.block.endTime <= actualNow) {
       return
