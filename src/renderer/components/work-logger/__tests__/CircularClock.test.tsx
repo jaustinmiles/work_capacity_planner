@@ -82,8 +82,8 @@ describe('CircularClock', () => {
     expect(hasAM).toBe(true)
     expect(hasPM).toBe(true)
 
-    // Check for circadian rhythm indicators
-    expect(screen.getByText('Peak Focus')).toBeInTheDocument()
+    // Check for circadian rhythm indicators - At 14:30 (test time), it should show "Low Energy"
+    // The energy label is determined by the time in the component
     expect(screen.getByText('Low Energy')).toBeInTheDocument()
   })
 
