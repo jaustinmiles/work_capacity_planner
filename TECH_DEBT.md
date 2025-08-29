@@ -64,6 +64,15 @@
 - **CI test failures**: Fixed Date object comparison issues
 - **Block types**: All 'mixed' changed to 'flexible' for optimization
 
+## ✅ Recently Fixed (2025-08-29, PR #33)
+
+### Critical Schedule Generation Bugs - FIXED
+**Status**: ✅ Fixed in PR #33
+- **Sleep blocks deleted during generation**: Now preserves existing meetings/blocks
+- **Flexible blocks broken on day 1**: All blocks use 'flexible' type consistently
+- **Sleep blocks cut off at midnight in UI**: Fixed type checking for proper rendering
+- **Added comprehensive logging**: Better visibility into schedule generation
+
 ## 🔴 CRITICAL Issues (2025-08-29)
 
 ### 1. Amendment Applicator Broken - CRITICAL BUG
