@@ -292,15 +292,13 @@ export function generateOptimalSchedule(
       const itemStartDate = itemStart.toISOString().split('T')[0]
       const maxEndTime = new Date(itemStart)
       maxEndTime.setHours(23, 0, 0, 0) // Cap at 11:00 PM to avoid midnight issues
-      
+
       if (itemEnd > maxEndTime) {
         // Would go past 11pm, truncate it
         item.endTime = maxEndTime
         itemEnd = maxEndTime
       }
-      
-      const itemEndDate = itemEnd.toISOString().split('T')[0]
-      
+
       // Now handle block creation
       if (!currentBlock || currentBlock.type !== 'work' || currentBlock.date !== itemStartDate) {
           if (currentBlock) {
@@ -469,7 +467,7 @@ export function optimalScheduleToWorkPatterns(result: OptimizationResult) {
           id: b.id,
           startTime: b.startTime.toTimeString().slice(0, 5),
           endTime: b.endTime.toTimeString().slice(0, 5),
-          type: 'mixed' as const,
+          type: 'flexible' as const,
           items: b.items,
         }
       }),

@@ -65,9 +65,7 @@ export function ScheduleGenerator({
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
-      // Check if we have any personal tasks that would need weekend time
-      const hasPersonalTasks = tasks.some(t => !t.completed && t.type === TaskType.Personal) ||
-                              sequencedTasks.some(w => !w.completed && w.type === TaskType.Personal)
+      // Removed check for personal tasks - no longer using hardcoded weekend blocks
 
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
@@ -106,13 +104,6 @@ export function ScheduleGenerator({
           accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
         })
       }
-
-      // For deadline-focused scheduler, add weekend work blocks if needed
-      const deadlineWorkPatterns = [...baseWorkPatterns]
-      const hasUrgentDeadlines = tasks.some(t => !t.completed && t.deadline &&
-                                            new Date(t.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) ||
-                                 sequencedTasks.some(w => !w.completed && w.deadline &&
-                                            new Date(w.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
 
       // Removed hardcoded weekend work blocks - respect user's work patterns even with deadlines
 
