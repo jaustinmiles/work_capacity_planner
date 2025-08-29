@@ -2,109 +2,74 @@
 
 ## Latest Status (2025-08-29)
 
-### 🚀 Current Session: Schedule Generation and UI Fixes
+### 🚀 Current Session: Complete Schedule Generation Redesign
 
-#### Fixes Completed in This Session
-1. **Clarification Regeneration UI Refresh (High Priority)** ✅
-   - Fixed issue where clicking "Regenerate with Clarification" didn't update the UI properly
-   - Improved state management to ensure React detects changes when workflows are regenerated
-   - Added success messages with specific workflow/task names
-   - Added comprehensive logging for debugging regeneration flow
-   - Clear clarification input after successful regeneration
-   - Added validation to ensure clarification text is provided before regeneration
+#### Major Architecture Change: Optimal Scheduler
+1. **Created New Optimal Scheduler** 🔄
+   - Built mathematical optimization-based scheduler in `optimal-scheduler.ts`
+   - Removes artificial work hour constraints (9-5 limits)
+   - Generates work blocks based on task needs, not predefined patterns
+   - Optimizes for earliest possible completion time
+   - Respects only hard constraints: sleep (11pm-7am) and meetings
+   - Smart handling of async work, dependencies, and breaks
 
-2. **Schedule Generation Critical Fix (Critical)** ✅
-   - Fixed deadline scheduler not using work blocks at all
-   - Previously just scheduled tasks sequentially ignoring all capacity constraints
-   - Now properly uses flexible-scheduler with work blocks
-   - Removed unnecessary personal blocks on weekends when no personal tasks exist
-   - Added weekend work blocks for deadline-focused scheduling when urgent deadlines exist
-   - Properly reports deadline misses and capacity warnings
+2. **Integration with ScheduleGenerator** ✅
+   - "Optimal (Fastest Completion)" option now uses new optimizer
+   - "Balanced" and "Async-Optimized" still use old scheduler for work-life balance
+   - Maintains backward compatibility with existing components
 
-### Previous Session: Critical Bug Fixes for User Testing
+3. **Key Design Decisions** 
+   - Did NOT modify flexible-scheduler.ts (used by WeeklyCalendar, GanttChart)
+   - Created separate optimal-scheduler to avoid breaking existing manual scheduling
+   - Tests still failing - need update to match new paradigm
 
-#### Fixes Completed
-1. **Amendment Applicator Duplicate Bug (Critical)** ✅
-   - Fixed AI generating 9 duplicate workflow completions when user says "completed all bug steps"
-   - Added duplicate detection and filtering in amendment-parser.ts
-   - Strengthened AI prompts to prevent duplicate generation
-   - Added 5+ comprehensive tests covering workflow step scenarios
+#### Previous Fixes in This Session
+1. **Clarification Regeneration UI Refresh** ✅
+   - Fixed UI not updating after "Regenerate with Clarification"
+   - Improved React state management
+   
+2. **Schedule Generation Critical Issues** ✅
+   - Fixed scheduler ignoring work block time boundaries
+   - Was scheduling outside defined hours (e.g., 8pm-midnight)
+   - Identified root cause: scheduler treating blocks as capacity buckets, not time constraints
 
-2. **Session Deletion & Logging (High Priority)** ✅
-   - Enhanced logging in deleteSession to track operation status
-   - Added proper error handling for non-existent sessions
-   - Added UI refresh event emission after deletion
-   - Fixed session list filtering for duplicates
+### 🔴 Current Issues
+1. **Tests Need Update**
+   - Schedule generation tests expect old behavior
+   - Need to test optimal scheduler separately
+   - 3 tests failing in ScheduleGenerator.test.tsx
 
-3. **Schedule Clearing UI Refresh (High Priority)** ✅
-   - Added DATA_REFRESH_NEEDED event emission when schedules are saved/cleared
-   - Fixed sidebar not updating after schedule clear
-   - Ensured proper event propagation through MultiDayScheduleEditor
-
-4. **Quick Time Logging Error (High Priority)** ✅
-   - Enhanced error handling and logging in TaskTimeLoggingModal
-   - Improved date handling for DatePicker component
-   - Added detailed error messages for debugging
-   - Fixed potential issues with dayjs date conversion
-
-### Previous Fixes Still Active
-
-#### ✅ All Recent PRs Merged Successfully
-
-#### ✅ Codebase Cleanup Completed
-- **GitHub Actions**: Added test coverage reporting with Codecov integration
-- **Duplicate Code**: Removed TaskForm 2.tsx duplicate file  
-- **Session Bug Fix**: Fixed duplicate default sessions race condition (#10)
-- **Code Quality**: Ran ESLint autofix, all tests passing with 0 TypeScript errors
-- **Documentation**: Created cleanup-status.md to track refactoring progress
-
-#### ✅ Previous PR #27: Fixed Amendment Applicator Issues (#1 & #2 - High Priority Bugs)
-- Fixed template placeholders like `{{task_creation_0}}` not being replaced with actual task names
-- Added proper handling for both old format (`{{task_creation_0}}`) and new format (`task-new-1`)
-- Added StatusUpdate editing capability in edit mode (was showing blank fields)
-- Fixed the rendering of dependency references to show task names instead of IDs
-
-#### ✅ Fixed UI Refresh Issues (#3 - High Priority Bug)
-- Added event listeners to App component for DATA_REFRESH_NEEDED and SESSION_CHANGED events
-- TaskTimeLoggingModal now emits DATA_REFRESH_NEEDED event after logging work
-- Amendment applicator emits refresh events (DATA_REFRESH_NEEDED, TASK_UPDATED, WORKFLOW_UPDATED) after applying changes
-- SessionManager already emitting proper events - now properly consumed by App
-
-#### ✅ Fixed Clarifications UI (#5 - Medium Priority Bug)
-- Clarification input fields now properly separated from Notes section
-- Replaced TextArea with Input for single-line clarifications fields
-- Fixed UI styling to match Arco Design patterns
+2. **PR Feedback Not Addressed**
+   - Need to check and respond to PR comments
+   - Schedule generation needs "heavy review" per user
 
 ### 🟢 Current Code Status
 - **TypeScript Errors**: 0 ✅
-- **Test Status**: All passing ✅
-- **Linting**: Clean with minimal warnings ✅
+- **ESLint Errors**: 0 ✅ (warnings exist)
+- **Test Status**: 3 failing (need update)
 - **Build**: Successful ✅
 
-### 📝 Remaining Unresolved Issues (Features - Not Blocking)
-
-1. **Periodic Tasks Feature** (High Priority Feature Request)
-   - Allow tasks to repeat every N hours/days
-   - Not implemented - significant scheduler changes required
-
-2. **Universal Quick Edit UI** (High Priority Feature Request)
-   - Bulk editing interface for tasks
-   - Not implemented - new component needed
-
-3. **Comparison View** (High Priority Feature Request)
-   - Compare planned vs actual time usage
-   - Not implemented - new visualization needed
-
 ### 🎯 Next Steps
-1. Create PR with all critical bug fixes
-2. User can proceed with testing
-3. Feature requests can be addressed after testing feedback
+1. Update tests for new optimal scheduler
+2. Address PR feedback
+3. Complete testing of optimal schedule generation
+4. Consider making sleep hours configurable
 
 ### 📚 Key Technical Details
-- Amendment parser now has duplicate detection
-- Session operations have comprehensive logging
-- UI refresh events properly wired for schedule changes
-- Time logging has improved error handling and logging
+
+#### Optimal Scheduler Algorithm
+- **Critical Path Analysis**: Calculates longest dependency chains
+- **Priority Sorting**: Deadlines > Async triggers > Critical path > Priority
+- **Smart Breaks**: Every 3 hours continuous work, 15-minute break
+- **Sleep Avoidance**: 11pm-7am blocked for sleep
+- **Meeting Respect**: Works around scheduled meetings
+- **Async Optimization**: Starts long async tasks early for parallelization
+
+#### Architecture Impact
+- `flexible-scheduler.ts`: Unchanged, used for manual scheduling
+- `deadline-scheduler.ts`: Unchanged, used for balanced/async modes
+- `optimal-scheduler.ts`: New, used for optimal mode only
+- `ScheduleGenerator.tsx`: Updated to offer 3 modes
 
 ---
-*Last Updated: 2025-08-28 12:30 PM PST*
+*Last Updated: 2025-08-29 12:05 PM PST*
