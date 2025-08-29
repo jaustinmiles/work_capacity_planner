@@ -28,7 +28,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       const values = await form.validate()
       const timeSpent = values.timeSpent
       const workDateValue = values.date
-      
+
       // Better date handling
       let workDate: Date
       if (workDateValue && typeof workDateValue === 'string') {
