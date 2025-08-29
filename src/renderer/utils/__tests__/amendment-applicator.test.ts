@@ -601,10 +601,10 @@ describe('Amendment Applicator', () => {
       expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-1', { status: 'completed' })
       expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', { status: 'completed' })
       expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-3', { status: 'completed' })
-      
+
       // Verify the entire workflow was NOT marked as completed
       expect(mockDatabase.updateSequencedTask).not.toHaveBeenCalled()
-      
+
       expect(Message.success).toHaveBeenCalledWith('Applied 3 amendments')
     })
 

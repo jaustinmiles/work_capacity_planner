@@ -102,18 +102,18 @@ export class DatabaseService {
     const sessions = await this.client.session.findMany({
       orderBy: { updatedAt: 'desc' },
     })
-    
+
     console.log('[DB] Found sessions:', sessions.length, sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })))
-    
+
     // Filter out duplicates (shouldn't happen but let's be safe)
     const uniqueSessions = sessions.filter((session, index, self) =>
-      index === self.findIndex(s => s.id === session.id)
+      index === self.findIndex(s => s.id === session.id),
     )
-    
+
     if (uniqueSessions.length !== sessions.length) {
       console.warn('[DB] Filtered duplicate sessions:', sessions.length - uniqueSessions.length)
     }
-    
+
     return uniqueSessions
   }
 
@@ -173,7 +173,7 @@ export class DatabaseService {
 
   async deleteSession(id: string): Promise<void> {
     console.log('[DB] Attempting to delete session:', id)
-    
+
     const session = await this.client.session.findUnique({
       where: { id },
     })

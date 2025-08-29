@@ -145,7 +145,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       logger.ui.info('Session deleted successfully', { sessionId })
       Message.success('Session deleted')
       await loadSessions()
-      
+
       // Emit event to refresh UI components
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {

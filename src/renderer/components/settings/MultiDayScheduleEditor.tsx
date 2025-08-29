@@ -124,7 +124,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       // Reload patterns
       await loadPatterns()
       onSave?.()
-      
+
       // Emit event to refresh UI components (especially sidebar)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
@@ -224,7 +224,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       Message.success(`Cleared ${clearedCount} schedules`)
       await loadPatterns()
       onSave?.()
-      
+
       // Emit event to refresh UI components (especially sidebar)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {

@@ -327,15 +327,15 @@ IMPORTANT:
       if (typeof result.confidence !== 'number') result.confidence = 0.5
 
       logger.ai.debug('Parsed amendment result:', result)
-      
+
       // Filter out duplicate amendments
       const seen = new Set<string>()
       const uniqueAmendments: Amendment[] = []
-      
+
       for (const amendment of result.amendments) {
         // Create a unique key for this amendment
         let key = `${amendment.type}`
-        
+
         if ('target' in amendment) {
           key += `-${amendment.target.id}-${amendment.target.name}`
         }
@@ -348,7 +348,7 @@ IMPORTANT:
         if ('stepName' in amendment) {
           key += `-step:${(amendment as any).stepName}`
         }
-        
+
         // Only add if we haven't seen this exact amendment before
         if (!seen.has(key)) {
           seen.add(key)
@@ -359,15 +359,15 @@ IMPORTANT:
           result.warnings.push('Duplicate amendment removed')
         }
       }
-      
+
       // Update the result with filtered amendments
       result.amendments = uniqueAmendments
-      
+
       // Adjust confidence if we removed duplicates
       if (uniqueAmendments.length < result.amendments.length) {
         result.confidence = result.confidence * 0.9 // Slightly reduce confidence when duplicates were found
       }
-      
+
       return result
     } catch (error) {
       logger.ai.error('Error parsing with AI:', error)
