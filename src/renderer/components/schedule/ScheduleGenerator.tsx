@@ -5,6 +5,7 @@ import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { scheduleWithDeadlines, SchedulingContext, SchedulingResult } from '../../utils/deadline-scheduler'
+import { generateOptimalSchedule, OptimalScheduleConfig } from '../../utils/optimal-scheduler'
 import { ScheduledItem } from '../../utils/flexible-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
@@ -147,20 +148,80 @@ export function ScheduleGenerator({
         }
       }
 
-      // Option 1: Deadline-First (Prioritize meeting all deadlines)
-      const deadlineContext: SchedulingContext = {
+      // Option 1: Optimal (Mathematical optimization for earliest completion)
+      const optimalConfig: OptimalScheduleConfig = {
+        sleepStart: '23:00',
+        sleepEnd: '07:00',
+        meetings: [], // TODO: Get actual meetings from calendar
+        preferredBreakInterval: 90,
+        preferredBreakDuration: 15,
+        maxContinuousWork: 180,
+      }
+
+      const optimalResult = generateOptimalSchedule(
+        tasks.filter(t => !t.completed),
+        sequencedTasks.filter(w => !w.completed),
+        new Date(),
+        optimalConfig,
+      )
+
+      // Convert optimal schedule to ScheduledItem format for compatibility
+      const optimalScheduledItems: ScheduledItem[] = optimalResult.schedule.map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type === 'workflow-step' ? 'workflow-step' :
+              item.type === 'async-wait' ? 'async-wait' : 'task',
+        priority: item.priority,
+        duration: item.duration,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        color: '#1890ff', // Default color
+        deadline: item.deadline,
+        originalItem: item.originalItem,
+      }))
+
+      options.push({
+        id: 'optimal',
+        name: 'Optimal (Fastest Completion)',
+        description: 'Mathematically optimized for earliest possible completion',
+        schedule: optimalScheduledItems,
+        result: {
+          schedule: optimalScheduledItems,
+          warnings: optimalResult.warnings.map(w => ({
+            type: 'capacity_warning' as const,
+            message: w,
+            item: {} as any,
+          })),
+          failures: [],
+          suggestions: optimalResult.suggestions.map(s => ({
+            type: 'async_optimization' as const,
+            message: s,
+            recommendation: s,
+          })),
+        },
+        score: {
+          deadlinesMet: optimalResult.metrics.deadlinesMet > 0 ?
+            (optimalResult.metrics.deadlinesMet / (optimalResult.metrics.deadlinesMet + optimalResult.metrics.deadlinesMissed)) * 100 : 100,
+          capacityUtilization: Math.min(100, (optimalResult.metrics.activeWorkTime / optimalResult.metrics.totalDuration) * 100),
+          asyncOptimization: optimalResult.metrics.asyncParallelTime > 0 ? 90 : 50,
+          cognitiveMatch: 80,
+        },
+      })
+
+      // Option 2: Balanced (Balance deadlines with work-life balance)
+      const balancedContext: SchedulingContext = {
         currentTime: new Date(),
         tasks: tasks.filter(t => !t.completed),
         workflows: sequencedTasks.filter(w => !w.completed),
-        workPatterns: deadlineWorkPatterns,
+        workPatterns: [...baseWorkPatterns], // Fresh copy
         productivityPatterns: [],
         schedulingPreferences: {
-          id: 'deadline-first',
+          id: 'balanced',
           sessionId: 'default',
-          allowWeekendWork: true, // Always allow for deadline-focused
-          weekendPenalty: hasUrgentDeadlines ? 1.0 : 0.8, // No penalty if urgent deadlines
-          contextSwitchPenalty: 15,
-          asyncParallelizationBonus: 5,
+          allowWeekendWork: false,
+          weekendPenalty: 0.5,
+          contextSwitchPenalty: 20,
+          asyncParallelizationBonus: 10,
           createdAt: new Date(),
           updatedAt: new Date(),
         },
@@ -176,34 +237,6 @@ export function ScheduleGenerator({
           customWorkHours: workSettings?.customWorkHours || {},
         } as any,
         lastScheduledItem: null,
-      }
-
-      const deadlineResult = scheduleWithDeadlines(deadlineContext)
-      options.push({
-        id: 'deadline-first',
-        name: 'Deadline-Focused',
-        description: 'Prioritizes meeting all deadlines, may require overtime',
-        schedule: deadlineResult.schedule,
-        result: deadlineResult,
-        score: {
-          deadlinesMet: deadlineResult.failures.length === 0 ? 100 : 50,
-          capacityUtilization: 75,
-          asyncOptimization: 60,
-          cognitiveMatch: 70,
-        },
-      })
-
-      // Option 2: Balanced (Balance deadlines with work-life balance)
-      const balancedContext: SchedulingContext = {
-        ...deadlineContext,
-        workPatterns: [...baseWorkPatterns], // Fresh copy
-        schedulingPreferences: {
-          ...deadlineContext.schedulingPreferences,
-          id: 'balanced',
-          weekendPenalty: 0.5,
-          contextSwitchPenalty: 20,
-          asyncParallelizationBonus: 10,
-        },
       }
 
       const balancedResult = scheduleWithDeadlines(balancedContext)
@@ -223,15 +256,33 @@ export function ScheduleGenerator({
 
       // Option 3: Async-Optimized (Maximize parallel work)
       const asyncContext: SchedulingContext = {
-        ...deadlineContext,
+        currentTime: new Date(),
+        tasks: tasks.filter(t => !t.completed),
+        workflows: sequencedTasks.filter(w => !w.completed),
         workPatterns: [...baseWorkPatterns], // Fresh copy
+        productivityPatterns: [],
         schedulingPreferences: {
-          ...deadlineContext.schedulingPreferences,
           id: 'async-optimized',
+          sessionId: 'default',
+          allowWeekendWork: true,
           weekendPenalty: 0.3,
           contextSwitchPenalty: 10,
           asyncParallelizationBonus: 20,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
+        workSettings: {
+          defaultCapacity: {
+            maxFocusHours: 4,
+            maxAdminHours: 3,
+          },
+          defaultWorkHours: workSettings?.defaultWorkHours || {
+            startTime: '09:00',
+            endTime: '18:00',
+          },
+          customWorkHours: workSettings?.customWorkHours || {},
+        } as any,
+        lastScheduledItem: null,
       }
 
       const asyncResult = scheduleWithDeadlines(asyncContext)
