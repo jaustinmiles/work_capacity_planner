@@ -367,48 +367,45 @@ export function ScheduleGenerator({
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
         const blocks: any[] = []
 
-        // Group items into work blocks
-        let currentBlock: any = null
-
-        for (const item of items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())) {
-          const startTime = dayjs(item.startTime).format('HH:mm')
-          const endTime = dayjs(item.endTime).format('HH:mm')
-
-          if (!currentBlock || currentBlock.endTime !== startTime) {
-            // Start new block
-            if (currentBlock) {
-              blocks.push(currentBlock)
-            }
-            currentBlock = {
-              id: `block-${blocks.length}`,
-              startTime,
-              endTime,
-              type: 'mixed',
-              capacity: {
-                focusMinutes: 0,
-                adminMinutes: 0,
-              },
-              tasks: [item],
-            }
-          } else {
-            // Extend current block
-            currentBlock.endTime = endTime
-            currentBlock.tasks.push(item)
-          }
-
-          // Update capacity
-          if (item.type === 'task' || item.type === 'workflow-step') {
-            const task = item.originalItem as Task
-            if (task.type === TaskType.Focused) {
-              currentBlock.capacity.focusMinutes += item.duration
-            } else {
-              currentBlock.capacity.adminMinutes += item.duration
+        if (items.length > 0) {
+          // Find the earliest start and latest end time for all items on this day
+          const sortedItems = items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+          const earliestStart = dayjs(sortedItems[0].startTime).format('HH:mm')
+          const latestEnd = sortedItems.reduce((latest, item) => {
+            return item.endTime > latest ? item.endTime : latest
+          }, sortedItems[0].endTime)
+          const latestEndStr = dayjs(latestEnd).format('HH:mm')
+          
+          // Calculate total capacity used
+          let focusMinutes = 0
+          let adminMinutes = 0
+          let personalMinutes = 0
+          
+          for (const item of items) {
+            if (item.type === 'task' || item.type === 'workflow-step') {
+              const task = item.originalItem as Task
+              if (task.type === TaskType.Focused) {
+                focusMinutes += item.duration
+              } else if (task.type === TaskType.Personal) {
+                personalMinutes += item.duration
+              } else {
+                adminMinutes += item.duration
+              }
             }
           }
-        }
-
-        if (currentBlock) {
-          blocks.push(currentBlock)
+          
+          // Create a single block for the entire work period
+          blocks.push({
+            id: `block-${dateStr}-work`,
+            startTime: earliestStart,
+            endTime: latestEndStr,
+            type: personalMinutes > 0 && focusMinutes === 0 && adminMinutes === 0 ? 'personal' : 'mixed',
+            capacity: {
+              focusMinutes,
+              adminMinutes,
+              ...(personalMinutes > 0 ? { personalMinutes } : {}),
+            },
+          })
         }
 
         // If no blocks created but it's a weekend, add personal time block
