@@ -459,17 +459,9 @@ export function ScheduleGenerator({
           })
         }
 
-        // If no blocks created but it's a weekend, add personal time block
-        if (blocks.length === 0 && isWeekend) {
-          blocks.push({
-            startTime: '10:00',
-            endTime: '14:00',
-            type: 'personal',
-            capacity: {
-              personalMinutes: 240, // 4 hours
-            },
-          })
-        } else if (blocks.length === 0 && !isWeekend) {
+        // Don't add empty blocks for optimal scheduling - only create blocks when there's work
+        const isOptimalSchedule = selected.name.includes('Optimal')
+        if (blocks.length === 0 && !isWeekend && !isOptimalSchedule) {
           // For weekdays without scheduled items, create default work blocks
           const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] || workSettings?.defaultWorkHours
           if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
