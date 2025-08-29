@@ -72,11 +72,10 @@ export function ScheduleGenerator({
         date.setDate(date.getDate() + i)
         const dayOfWeek = date.getDay()
         const dateStr = date.toISOString().split('T')[0]
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
 
         // Check if this day has work hours configured
-        const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] ||
-                            (!isWeekend ? workSettings?.defaultWorkHours : null)
+        // Use custom hours for this day if configured, otherwise use default hours
+        const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] || workSettings?.defaultWorkHours
 
         // Create work pattern for each day (even if empty, so weekends are included)
         const blocks: any[] = []
@@ -374,7 +373,6 @@ export function ScheduleGenerator({
         const items = itemsByDate.get(dateStr) || []
         const date = new Date(dateStr)
         const dayOfWeek = date.getDay()
-        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
         const blocks: any[] = []
 
         if (items.length > 0) {
@@ -409,7 +407,7 @@ export function ScheduleGenerator({
             id: `block-${dateStr}-work`,
             startTime: earliestStart,
             endTime: latestEndStr,
-            type: personalMinutes > 0 && focusMinutes === 0 && adminMinutes === 0 ? 'personal' : 'mixed',
+            type: personalMinutes > 0 && focusMinutes === 0 && adminMinutes === 0 ? 'personal' : 'flexible',
             capacity: {
               focusMinutes,
               adminMinutes,
@@ -420,8 +418,8 @@ export function ScheduleGenerator({
 
         // Don't add empty blocks for optimal scheduling - only create blocks when there's work
         const isOptimalSchedule = selected.name.includes('Optimal')
-        if (blocks.length === 0 && !isWeekend && !isOptimalSchedule) {
-          // For weekdays without scheduled items, create default work blocks
+        if (blocks.length === 0 && !isOptimalSchedule) {
+          // For days without scheduled items, create default work blocks if configured
           const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] || workSettings?.defaultWorkHours
           if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
             blocks.push({
