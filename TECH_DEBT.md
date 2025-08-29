@@ -49,6 +49,23 @@
 - Fixed async workflow scheduling to respect wait times
 - Both optimal and flexible schedulers now use common utilities
 
+## Known Issues (NEW - 2025-08-29)
+
+### 1. Work Pattern Repetition Not Implemented
+**Severity**: 🟡 Medium  
+**Impact**: User has to manually copy sleep schedules to each day
+
+**Problem:**
+- UI shows "daily" repetition option for work blocks
+- Backend doesn't actually implement repetition
+- Each pattern is saved only for the specific date
+- No logic to apply patterns to future dates
+
+**Solution Needed:**
+- Implement repetition logic in database layer
+- Add recurring pattern support (daily, weekly, etc.)
+- Update UI to properly reflect repetition status
+
 ## Architectural Issues (NEW - 2025-08-27)
 
 ### 1. Workflow/Task Model Confusion
