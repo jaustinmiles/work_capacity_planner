@@ -383,7 +383,7 @@ describe('Schedule Generation', () => {
         const nextDate = new Date(next.startTime).toDateString()
 
         if (currentDate === nextDate) {
-          expect(current.endTime).toBeLessThanOrEqual(next.startTime)
+          expect(new Date(current.endTime).getTime()).toBeLessThanOrEqual(new Date(next.startTime).getTime())
         }
       }
     })
