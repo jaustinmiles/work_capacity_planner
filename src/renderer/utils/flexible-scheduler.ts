@@ -5,6 +5,7 @@ import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-ty
 import { WorkSettings } from '@shared/work-settings-types'
 import { calculatePriority, calculatePriorityWithBreakdown, SchedulingContext } from './deadline-scheduler'
 import { logger } from './logger'
+import { topologicalSort as commonTopologicalSort, WorkItem as CommonWorkItem } from './scheduling-common'
 
 
 export interface ScheduledItem {
@@ -644,53 +645,44 @@ export function scheduleItemsWithBlocksAndDebug(
       .forEach(step => completedStepIds.add(step.id))
   })
 
-  // Helper function to perform topological sort on work items with dependencies
-  function topologicalSort(items: WorkItem[]): WorkItem[] {
-    const sorted: WorkItem[] = []
-    const visited = new Set<string>()
-    const visiting = new Set<string>()
-    const itemMap = new Map<string, WorkItem>()
-
-    // Build item map for quick lookup
-    items.forEach(item => itemMap.set(item.id, item))
-
-    function visit(item: WorkItem): void {
-      if (visited.has(item.id)) return
-      if (visiting.has(item.id)) {
-        // Circular dependency detected - just skip
-        debugInfo.warnings.push(`Circular dependency detected involving ${item.name}`)
-        return
-      }
-
-      visiting.add(item.id)
-
-      // Visit dependencies first
-      if (item.dependencies && item.dependencies.length > 0) {
-        for (const depId of item.dependencies) {
-          const dep = itemMap.get(depId)
-          if (dep) {
-            visit(dep)
-          }
-        }
-      }
-
-      visiting.delete(item.id)
-      visited.add(item.id)
-      sorted.push(item)
-    }
-
-    // Visit all items
-    items.forEach(item => visit(item))
-
-    return sorted
-  }
-
   // Apply topological sort to ensure dependencies are respected
   logger.scheduler.info('[Scheduler] Performing topological sort for dependencies', {
     itemCount: workItems.length,
     itemsWithDependencies: workItems.filter(item => item.dependencies && item.dependencies.length > 0).length,
   })
-  workItems = topologicalSort(workItems)
+
+  // Convert WorkItem to CommonWorkItem format for topological sort
+  const commonWorkItems: CommonWorkItem[] = workItems.map(item => ({
+    id: item.id,
+    name: item.name,
+    type: item.type === 'task' ? 'task' : 'workflow-step',
+    duration: item.duration,
+    priority: item.priority,
+    deadline: item.deadline,
+    dependencies: item.dependencies,
+    isAsyncTrigger: item.asyncWaitTime > 0,
+    asyncWaitTime: item.asyncWaitTime,
+    cognitiveComplexity: undefined,
+    originalItem: item.originalItem,
+  }))
+
+  // Use common topological sort
+  const topoResult = commonTopologicalSort(commonWorkItems)
+  const sortedCommonItems = topoResult.sorted
+  
+  // Add any warnings to debugInfo
+  if (topoResult.warnings.length > 0) {
+    debugInfo.warnings.push(...topoResult.warnings)
+  }
+
+  // Map back to original WorkItem format, preserving order
+  const sortedIds = new Set(sortedCommonItems.map(item => item.id))
+  workItems = workItems.filter(item => sortedIds.has(item.id))
+  workItems.sort((a, b) => {
+    const aIndex = sortedCommonItems.findIndex(item => item.id === a.id)
+    const bIndex = sortedCommonItems.findIndex(item => item.id === b.id)
+    return aIndex - bIndex
+  })
   logger.scheduler.debug('[Scheduler] Topological sort complete', {
     sortedOrder: workItems.slice(0, 5).map(item => ({ id: item.id, name: item.name })),
   })
