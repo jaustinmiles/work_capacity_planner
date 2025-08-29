@@ -192,9 +192,9 @@ Parse the transcription into one or more amendments. Common patterns:
    - "finish X", "complete X", "done with X" → status: "completed"
    - "pause X", "stop X" → status: "waiting" (but consider if dependency is better)
    - IMPORTANT: "mark the X steps complete" → update individual steps, NOT the entire workflow
-   - IMPORTANT: "completed all bug steps" → find each bug-related step and create ONE status update per step
-   - IMPORTANT: "all steps in workflow X" → iterate through workflow steps, create amendment for each
-   - CRITICAL: Only create ONE status update per distinct task/workflow/step - no duplicates!
+   - IMPORTANT: "completed all [type] steps" → find each related step and create ONE status update per step with stepName field
+   - IMPORTANT: "all steps in workflow X" → iterate through workflow steps, create amendment for each with stepName field
+   - CRITICAL: For workflow steps, always include stepName field to identify which step to update
    
 4. TIME LOG: Recording time spent
    - "spent 2 hours on X", "worked on X for 30 minutes"
@@ -258,8 +258,8 @@ Examples:
 - "I can't do X until Y is done" → dependency_change to add Y as dependency of X using actual IDs
 - "mark the bug fix steps complete" → MULTIPLE status_update amendments with stepName field, one for each bug fix step in the workflow
 - "finished all three bug fixes" → MULTIPLE status_update amendments with stepName field for each bug fix step
-- CRITICAL: NEVER generate duplicate amendments for the same target. Each task/workflow should appear at most once in the amendments array
-- "completed all bug steps on the bug workflow" → status_update amendments with stepName for EACH distinct step, NOT multiple completions of the whole workflow
+- CRITICAL: Each unique task/workflow-step combination should appear at most once. Multiple steps in the same workflow can be updated, but avoid duplicate updates to the same step
+- "completed all steps in workflow X" → create one status_update per step with stepName, NOT multiple updates marking the entire workflow complete
 - "kick off the deployment workflow" → status_update to mark workflow in_progress
 - "the database migration step took 3 hours" → time_log with duration: 180 and stepName: "database migration"
 - "add a code review step after implementation" → step_addition with stepType: "focused", afterStep: "implementation"
@@ -363,9 +363,11 @@ IMPORTANT:
       // Update the result with filtered amendments
       result.amendments = uniqueAmendments
 
-      // Adjust confidence if we removed duplicates
+      // Adjust confidence if we removed duplicates - significant reduction as this indicates misunderstanding
       if (uniqueAmendments.length < result.amendments.length) {
-        result.confidence = result.confidence * 0.9 // Slightly reduce confidence when duplicates were found
+        const duplicateCount = result.amendments.length - uniqueAmendments.length
+        result.confidence = result.confidence * 0.7 // Significant reduction when duplicates were found
+        logger.ai.warn(`Reduced confidence from ${result.confidence / 0.7} to ${result.confidence} due to ${duplicateCount} duplicate amendments`)
       }
 
       return result
