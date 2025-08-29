@@ -649,14 +649,14 @@ Only include terms that are likely industry-specific or technical jargon, not co
 
   const handleRegenerateSingle = async (itemType: 'workflow' | 'task', index: number) => {
     if (!editableResult) return
-    
+
     logger.ai.info(`Starting regeneration of ${itemType} at index ${index}`)
     setIsProcessing(true)
-    
+
     try {
       const item = itemType === 'workflow' ? editableResult.workflows![index] : editableResult.tasks![index]
       const clarification = clarifications[`${itemType}-${index}`] || ''
-      
+
       if (!clarification.trim()) {
         logger.ai.warn(`No clarification provided for ${itemType} at index ${index}`)
         Message.warning('Please provide a clarification before regenerating')
@@ -664,9 +664,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
         return
       }
 
-      logger.ai.debug(`Regenerating ${itemType} with clarification:`, { 
+      logger.ai.debug(`Regenerating ${itemType} with clarification:`, {
         itemName: item.name,
-        clarification 
+        clarification,
       })
 
       // Build prompt with clarification
@@ -677,66 +677,66 @@ Only include terms that are likely industry-specific or technical jargon, not co
       const response = await db.extractWorkflowsFromBrainstorm(prompt)
 
       if (response) {
-        logger.ai.debug(`Received response from AI:`, { 
+        logger.ai.debug('Received response from AI:', {
           hasWorkflows: !!response.workflows,
           workflowCount: response.workflows?.length,
           hasStandaloneTasks: !!response.standaloneTasks,
-          taskCount: response.standaloneTasks?.length
+          taskCount: response.standaloneTasks?.length,
         })
-        
+
         if (itemType === 'workflow' && response && response.workflows && response.workflows[0]) {
           const updatedWorkflow = {
             ...response.workflows[0],
             type: toTaskType(response.workflows[0].type as any),
           }
-          
-          logger.ai.info(`Successfully regenerated workflow:`, {
+
+          logger.ai.info('Successfully regenerated workflow:', {
             oldName: editableResult.workflows![index].name,
             newName: updatedWorkflow.name,
-            index
+            index,
           })
-          
+
           // Create a new object to ensure React detects the change
           const newEditableResult = {
             ...editableResult,
-            workflows: [...(editableResult.workflows || [])]
+            workflows: [...(editableResult.workflows || [])],
           }
           newEditableResult.workflows![index] = updatedWorkflow
           setEditableResult(newEditableResult)
-          
+
           // Clear the clarification field after successful regeneration
           setClarifications(prev => ({
             ...prev,
-            [`${itemType}-${index}`]: ''
+            [`${itemType}-${index}`]: '',
           }))
-          
+
           Message.success(`Workflow "${updatedWorkflow.name}" regenerated successfully with clarifications applied`)
         } else if (itemType === 'task' && response && response.standaloneTasks && response.standaloneTasks[0]) {
           const updatedTask = {
             ...response.standaloneTasks[0],
             type: toTaskType(response.standaloneTasks[0].type as any),
           }
-          
-          logger.ai.info(`Successfully regenerated task:`, {
+
+          logger.ai.info('Successfully regenerated task:', {
             oldName: editableResult.tasks![index].name,
             newName: updatedTask.name,
-            index
+            index,
           })
-          
+
           // Create a new object to ensure React detects the change
           const newEditableResult = {
             ...editableResult,
-            tasks: [...(editableResult.tasks || [])]
+            tasks: [...(editableResult.tasks || [])],
           }
           newEditableResult.tasks![index] = updatedTask
           setEditableResult(newEditableResult)
-          
+
           // Clear the clarification field after successful regeneration
           setClarifications(prev => ({
             ...prev,
-            [`${itemType}-${index}`]: ''
+            [`${itemType}-${index}`]: '',
           }))
-          
+
           Message.success(`Task "${updatedTask.name}" regenerated successfully with clarifications applied`)
         } else {
           logger.ai.warn(`No ${itemType} found in AI response for regeneration at index ${index}`)
