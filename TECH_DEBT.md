@@ -40,18 +40,48 @@
 - Solution: Track completed steps separately for dependency resolution
 - Impact: All workflow steps with completed dependencies can now be scheduled
 
-## ✅ Recently Resolved - Unified Scheduling Logic (2025-08-29)
-**Status**: ✅ Fixed
+## ✅ Recently Resolved - Major Scheduling Fixes (2025-08-29, PR #31)
+**Status**: ✅ Fixed and Merged to Main
+
+### Unified Scheduling Logic
 - Created `scheduling-common.ts` with shared utilities
-- Eliminated duplicate topological sort implementations
+- Eliminated duplicate topological sort implementations  
 - Unified critical path calculation
 - Consolidated dependency checking logic
 - Fixed async workflow scheduling to respect wait times
 - Both optimal and flexible schedulers now use common utilities
 
-## Known Issues (NEW - 2025-08-29)
+### Removed Hardcoded Weekend Assumptions
+- No more automatic weekend personal blocks (10am-4pm removed)
+- No special treatment for weekends vs weekdays
+- Scheduler respects user-defined work patterns ONLY
+- Default work hours apply to ALL days equally
+- Personal blocks created ONLY when personal tasks exist
 
-### 1. Work Pattern Repetition Not Implemented
+### Critical Bug Fixes
+- **Midnight boundary bug**: Blocks no longer cross 23:59
+- **Stack overflow**: Fixed self-reference in topological sort
+- **CI test failures**: Fixed Date object comparison issues
+- **Block types**: All 'mixed' changed to 'flexible' for optimization
+
+## 🔴 CRITICAL Issues (2025-08-29)
+
+### 1. Amendment Applicator Broken - CRITICAL BUG
+**Severity**: 🔴 CRITICAL  
+**Impact**: Voice amendments unusable, causing data corruption
+
+**Reported Problems (from user feedback):**
+- Marking entire workflow complete multiple times incorrectly
+- Creating duplicate tasks instead of updating
+- Dependencies not wiring correctly (orphan nodes in graph)
+- 95%+ confidence but still applying incorrectly
+
+**Root Cause**: Unknown - needs investigation
+**Priority**: HIGHEST - Fix immediately
+
+## Known Issues (Updated 2025-08-29)
+
+### 2. Work Pattern Repetition Not Implemented
 **Severity**: 🟡 Medium  
 **Impact**: User has to manually copy sleep schedules to each day
 
@@ -91,16 +121,19 @@
 
 **Proposed Fix:** Unified scheduling context/store
 
-### 3. Duplicate Scheduler Implementations
+### 3. Multiple Scheduler Implementations
 **Severity**: 🟡 Medium  
 **Impact**: Maintenance burden, potential inconsistencies
 
-**Problems:**
-- deadline-scheduler.ts and flexible-scheduler.ts have overlapping logic
-- Priority calculation exists in multiple places
-- Dead code from old implementations
+**Current State (Partially Fixed):**
+- ✅ Created scheduling-common.ts with shared logic
+- ✅ Unified topological sort and dependency checking
+- ⚠️ Still have 3 separate schedulers:
+  - optimal-scheduler.ts (for optimization mode)
+  - flexible-scheduler.ts (for manual mode)  
+  - deadline-scheduler.ts (for balanced/async modes)
 
-**Proposed Fix:** Single scheduler with strategy pattern
+**Proposed Next Step:** Merge into single scheduler with modes/strategies
 
 ## Remaining High Priority Issues
 
