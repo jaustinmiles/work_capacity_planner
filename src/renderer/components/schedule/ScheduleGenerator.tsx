@@ -64,6 +64,10 @@ export function ScheduleGenerator({
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
+      // Check if we have any personal tasks that would need weekend time
+      const hasPersonalTasks = tasks.some(t => !t.completed && t.type === TaskType.Personal) ||
+                              sequencedTasks.some(w => !w.completed && w.type === TaskType.Personal)
+
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
         date.setDate(date.getDate() + i)
@@ -90,8 +94,8 @@ export function ScheduleGenerator({
               adminMinutes: 180, // 3 hours
             },
           })
-        } else if (isWeekend) {
-          // Weekend personal time block (10am-2pm as user requested)
+        } else if (isWeekend && hasPersonalTasks) {
+          // Only add weekend personal blocks if we actually have personal tasks
           blocks.push({
             id: `block-${dateStr}-personal`,
             startTime: '10:00',
@@ -112,19 +116,49 @@ export function ScheduleGenerator({
         })
       }
 
+      // For deadline-focused scheduler, add weekend work blocks if needed
+      const deadlineWorkPatterns = [...baseWorkPatterns]
+      const hasUrgentDeadlines = tasks.some(t => !t.completed && t.deadline && 
+                                            new Date(t.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) ||
+                                 sequencedTasks.some(w => !w.completed && w.deadline && 
+                                            new Date(w.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
+      
+      if (hasUrgentDeadlines) {
+        // Add weekend work blocks for deadline-focused scheduling
+        for (let i = 0; i < deadlineWorkPatterns.length; i++) {
+          const pattern = deadlineWorkPatterns[i]
+          const date = new Date(pattern.date)
+          const dayOfWeek = date.getDay()
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+          
+          if (isWeekend && pattern.blocks.length === 0) {
+            // Add work blocks to weekends for deadline pressure
+            pattern.blocks.push({
+              id: `block-${pattern.date}-weekend-work`,
+              startTime: '10:00',
+              endTime: '18:00',
+              type: 'mixed',
+              capacity: {
+                focusMinutes: 300, // 5 hours
+                adminMinutes: 180, // 3 hours
+              },
+            })
+          }
+        }
+      }
+
       // Option 1: Deadline-First (Prioritize meeting all deadlines)
       const deadlineContext: SchedulingContext = {
         currentTime: new Date(),
         tasks: tasks.filter(t => !t.completed),
         workflows: sequencedTasks.filter(w => !w.completed),
-        workPatterns: baseWorkPatterns,
+        workPatterns: deadlineWorkPatterns,
         productivityPatterns: [],
         schedulingPreferences: {
           id: 'deadline-first',
           sessionId: 'default',
-          allowWeekendWork: workSettings?.customWorkHours?.[6] !== undefined ||
-                           workSettings?.customWorkHours?.[0] !== undefined,
-          weekendPenalty: 0.8,
+          allowWeekendWork: true, // Always allow for deadline-focused
+          weekendPenalty: hasUrgentDeadlines ? 1.0 : 0.8, // No penalty if urgent deadlines
           contextSwitchPenalty: 15,
           asyncParallelizationBonus: 5,
           createdAt: new Date(),

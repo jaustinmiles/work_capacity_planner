@@ -10,7 +10,7 @@ import { TaskType } from '@shared/enums'
 import { SequencedTask } from '@shared/sequencing-types'
 import { WorkSettings } from '@shared/work-settings-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
-import { ScheduledItem } from './flexible-scheduler'
+import { ScheduledItem, scheduleItemsWithBlocksAndDebug } from './flexible-scheduler'
 
 export interface SchedulingContext {
   tasks: Task[]
@@ -645,60 +645,116 @@ function scheduleItems(
   context: SchedulingContext,
   result: SchedulingResult,
 ): ScheduledItem[] {
-  // This is a simplified version - the real implementation would use
-  // the existing flexible-scheduler logic with our enhanced priorities
-
-  const scheduledItems: ScheduledItem[] = []
-  let currentTime = new Date(context.currentTime)
-  const completedSteps = new Set<string>()
-
+  // Convert work items back to tasks and workflows format for the flexible scheduler
+  const tasks: Task[] = []
+  const workflows: SequencedTask[] = []
+  
+  // Map to track which workflow each step belongs to
+  const workflowStepsMap = new Map<string, TaskStep[]>()
+  
+  // Separate tasks and workflow steps
   for (const workItem of workItems) {
-    const { item } = workItem
-
-    // Check dependencies
-    if ('dependsOn' in item && item.dependsOn.length > 0) {
-      const allDependenciesMet = item.dependsOn.every(dep => completedSteps.has(dep))
-      if (!allDependenciesMet) continue
+    if (workItem.type === 'workflow-step') {
+      const step = workItem.item as TaskStep
+      const workflowId = step.taskId
+      if (!workflowStepsMap.has(workflowId)) {
+        workflowStepsMap.set(workflowId, [])
+      }
+      workflowStepsMap.get(workflowId)!.push(step)
+    } else {
+      // Regular task - keep original task
+      const task = workItem.item as Task
+      tasks.push(task)
     }
-
-    // Create scheduled item
-    const duration = item.duration
-    const endTime = new Date(currentTime.getTime() + duration * 60000)
-
-    scheduledItems.push({
-      id: item.id,
-      name: item.name,
-      type: workItem.type as any,
-      priority: workItem.priority,
-      duration,
-      startTime: new Date(currentTime),
-      endTime,
-      color: '#6B7280',
-      originalItem: item,
-    })
-
-    // Check deadline
-    if ('deadline' in item && item.deadline && endTime > item.deadline) {
-      if (item.deadlineType === 'hard') {
-        // Already reported in constraints analysis
-      } else {
-        result.warnings.push({
-          type: 'soft_deadline_risk',
-          message: `Task "${item.name}" may miss its soft deadline`,
-          item,
-          expectedDelay: endTime.getTime() - item.deadline.getTime(),
+  }
+  
+  // Reconstruct workflows with their steps
+  for (const workflow of context.workflows) {
+    const steps = workflowStepsMap.get(workflow.id)
+    if (steps && steps.length > 0) {
+      workflows.push({
+        ...workflow,
+        steps: steps,
+      })
+    } else if (!workflow.completed) {
+      // Include workflow even if no steps were in workItems (might be blocked by dependencies)
+      workflows.push(workflow)
+    }
+  }
+  
+  // Use the flexible scheduler with work blocks to properly schedule items
+  const schedulingResult = scheduleItemsWithBlocksAndDebug(
+    tasks,
+    workflows,
+    context.workPatterns,
+    context.currentTime,
+    {
+      schedulingPreferences: context.schedulingPreferences,
+      workSettings: context.workSettings,
+      productivityPatterns: context.productivityPatterns,
+    }
+  )
+  
+  // Process debug info into warnings and failures
+  if (schedulingResult.debugInfo.unscheduledItems.length > 0) {
+    for (const unscheduled of schedulingResult.debugInfo.unscheduledItems) {
+      result.warnings.push({
+        type: 'capacity_warning',
+        message: `Could not schedule "${unscheduled.name}": ${unscheduled.reason}`,
+        item: { 
+          id: unscheduled.id || 'unknown',
+          name: unscheduled.name, 
+          duration: unscheduled.duration 
+        } as any,
+      })
+    }
+  }
+  
+  // Check for deadline misses and generate appropriate warnings/failures
+  for (const scheduled of schedulingResult.scheduledItems) {
+    if (scheduled.deadline && scheduled.endTime > scheduled.deadline) {
+      const originalItem = scheduled.originalItem
+      if (originalItem && 'deadlineType' in originalItem) {
+        const delayHours = Math.ceil((scheduled.endTime.getTime() - scheduled.deadline.getTime()) / (1000 * 60 * 60))
+        
+        if (originalItem.deadlineType === 'hard') {
+          result.failures.push({
+            type: 'impossible_deadline',
+            message: `Task "${scheduled.name}" will miss its hard deadline by ${delayHours} hours`,
+            affectedItems: [scheduled.id],
+            severity: 'hard',
+            suggestions: {
+              tasksToDropOrDefer: [],
+              minimumDeadlineExtension: delayHours,
+              capacityNeeded: { focused: 0, admin: 0 },
+            },
+          })
+        } else {
+          result.warnings.push({
+            type: 'soft_deadline_risk',
+            message: `Task "${scheduled.name}" may miss its soft deadline by ${delayHours} hours`,
+            item: originalItem,
+            expectedDelay: scheduled.endTime.getTime() - scheduled.deadline.getTime(),
+          })
+        }
+      }
+    }
+  }
+  
+  // Add debug info about block utilization if available
+  if (schedulingResult.debugInfo.blockUtilization) {
+    for (const block of schedulingResult.debugInfo.blockUtilization) {
+      if (block.unusedReason) {
+        result.suggestions.push({
+          type: 'context_switch',
+          message: `Work block on ${block.date} (${block.startTime}-${block.endTime}) has unused capacity`,
+          recommendation: block.unusedReason,
         })
       }
     }
-
-    // Mark as completed for dependency tracking
-    completedSteps.add(item.id)
-
-    // Advance time
-    currentTime = endTime
   }
-
-  return scheduledItems
+  
+  return schedulingResult.scheduledItems
 }
 
 function optimizeAsyncTriggers(
