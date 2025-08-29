@@ -669,7 +669,7 @@ export function scheduleItemsWithBlocksAndDebug(
   // Use common topological sort
   const topoResult = commonTopologicalSort(commonWorkItems)
   const sortedCommonItems = topoResult.sorted
-  
+
   // Add any warnings to debugInfo
   if (topoResult.warnings.length > 0) {
     debugInfo.warnings.push(...topoResult.warnings)
