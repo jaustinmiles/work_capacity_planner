@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, fireEvent, waitFor } from '@testing-library/react'
 import { ScheduleGenerator } from '../ScheduleGenerator'
 import { getDatabase } from '../../../services/database'
 import { logger } from '../../../utils/logger'
@@ -70,7 +70,7 @@ describe('Schedule Generation Bug Fixes', () => {
         blocks: [],
       })
 
-      const component = render(
+      const { getByText } = render(
         <ScheduleGenerator
           visible={true}
           onClose={vi.fn()}
@@ -80,8 +80,12 @@ describe('Schedule Generation Bug Fixes', () => {
         />,
       )
 
+      // Click the Generate Options button
+      const generateButton = getByText('Generate Options')
+      fireEvent.click(generateButton)
+
       // Wait for async operations
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(mockDb.getWorkPattern).toHaveBeenCalled()
       })
 
@@ -108,7 +112,7 @@ describe('Schedule Generation Bug Fixes', () => {
         blocks: [],
       })
 
-      render(
+      const { getByText } = render(
         <ScheduleGenerator
           visible={true}
           onClose={vi.fn()}
@@ -118,7 +122,11 @@ describe('Schedule Generation Bug Fixes', () => {
         />,
       )
 
-      await vi.waitFor(() => {
+      // Click the Generate Options button
+      const generateButton = getByText('Generate Options')
+      fireEvent.click(generateButton)
+
+      await waitFor(() => {
         expect(mockDb.getWorkPattern).toHaveBeenCalled()
       })
 
@@ -178,7 +186,7 @@ describe('Schedule Generation Bug Fixes', () => {
     it('should log schedule generation progress', async () => {
       mockDb.getWorkPattern.mockResolvedValue(null)
 
-      render(
+      const { getByText } = render(
         <ScheduleGenerator
           visible={true}
           onClose={vi.fn()}
@@ -188,7 +196,11 @@ describe('Schedule Generation Bug Fixes', () => {
         />,
       )
 
-      await vi.waitFor(() => {
+      // Click the Generate Options button
+      const generateButton = getByText('Generate Options')
+      fireEvent.click(generateButton)
+
+      await waitFor(() => {
         expect(logger.ui.info).toHaveBeenCalledWith('=== Starting Schedule Generation ===')
       })
     })
