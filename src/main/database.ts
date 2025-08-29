@@ -111,7 +111,7 @@ export class DatabaseService {
       console.error('[DB] WARNING: Duplicate session IDs detected in database!', {
         totalSessions: sessions.length,
         uniqueIds: uniqueIds.size,
-        duplicates: sessions.length - uniqueIds.size
+        duplicates: sessions.length - uniqueIds.size,
       })
     }
 
