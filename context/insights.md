@@ -1,6 +1,16 @@
 # Cumulative Insights
 
-## Session: 2025-08-19 (Latest)
+## Session: 2025-08-29 (Latest)
+
+### BrainstormModal Clarification Flow Insights
+- **Issue**: When user clicks "Regenerate with Clarification", UI wasn't updating to show regenerated workflow
+- **Root Cause**: React wasn't detecting state changes because object reference wasn't changing
+- **Pattern**: Modal was only updating local state, not persisting to database until "Use Edited Results" clicked
+- **Solution**: Create new array references when updating state to trigger React re-renders
+- **UX Improvement**: Added success messages with specific workflow/task names for better feedback
+- **Validation**: Added check to ensure clarification text is provided before regeneration
+
+## Session: 2025-08-19
 
 ### Critical Development Process Violations
 - **NEVER push directly to main branch** - This is a fundamental violation of professional practices
