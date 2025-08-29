@@ -163,7 +163,7 @@ Look for workflow patterns like:
 For each workflow you identify:
 1. Break into logical steps with realistic durations (15-120 min each)
 2. Identify async wait times (time waiting for external processes)
-3. Model dependencies between steps using step references
+3. Model dependencies between steps using EXACT step names (not "step 1" or "workflow step 1" - use the actual step name like "Write unit tests")
 4. Calculate timeline including async waits
 5. Consider conditional branches and retry scenarios
 6. Estimate importance (1-10) and urgency (1-10) for prioritization
@@ -183,11 +183,27 @@ Return your response as a JSON object:
       "type": "focused",
       "steps": [
         {
-          "name": "Step name",
-          "duration": 60,
+          "name": "Prepare API request",
+          "duration": 30,
           "type": "focused",
           "dependsOn": [],
+          "asyncWaitTime": 0,
+          "conditionalBranches": null
+        },
+        {
+          "name": "Submit API request",
+          "duration": 15,
+          "type": "focused",
+          "dependsOn": ["Prepare API request"],
           "asyncWaitTime": 240,
+          "conditionalBranches": null
+        },
+        {
+          "name": "Process API response",
+          "duration": 45,
+          "type": "focused",
+          "dependsOn": ["Submit API request"],
+          "asyncWaitTime": 0,
           "conditionalBranches": null
         }
       ],

@@ -30,6 +30,7 @@ interface TaskStore {
   // Scheduling state
   currentSchedule: SchedulingResult | null
   currentWeeklySchedule: WeeklySchedule | null
+  optimalSchedule: any | null
   isScheduling: boolean
   schedulingError: string | null
 
@@ -56,6 +57,8 @@ interface TaskStore {
   generateSchedule: (__options?: { startDate?: Date; tieBreaking?: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical' }) => Promise<void>
   generateWeeklySchedule: (weekStartDate: Date) => Promise<void>
   clearSchedule: () => void
+  setOptimalSchedule: (schedule: any) => void
+  getOptimalSchedule: () => any
 
   // Settings actions
   updateWorkSettings: (__settings: WorkSettings) => Promise<void>
@@ -106,6 +109,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   // Scheduling state
   currentSchedule: null,
   currentWeeklySchedule: null,
+  optimalSchedule: null,
   isScheduling: false,
   schedulingError: null,
 
@@ -387,8 +391,18 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   clearSchedule: () => set({
     currentSchedule: null,
     currentWeeklySchedule: null,
+    optimalSchedule: null,
     schedulingError: null,
   }),
+
+  setOptimalSchedule: (schedule: any) => {
+    rendererLogger.info('[TaskStore] Setting optimal schedule', {
+      scheduledItemCount: schedule?.length || 0,
+    })
+    set({ optimalSchedule: schedule })
+  },
+
+  getOptimalSchedule: () => get().optimalSchedule,
 
   // Settings actions
   updateWorkSettings: async (settings: WorkSettings) => {

@@ -182,6 +182,13 @@ export function generateOptimalSchedule(
 
   // Track scheduling state
   let currentTime = new Date(startTime)
+
+  // Check if we're starting during sleep hours and advance to next morning if needed
+  const initialConflict = hasConflict(currentTime, new Date(currentTime.getTime() + 60000), config)
+  if (initialConflict.hasConflict && initialConflict.type === 'sleep' && initialConflict.until) {
+    currentTime = initialConflict.until
+  }
+
   let continuousWorkTime = 0
   const completedItems = new Set<string>()
   const asyncEndTimes = new Map<string, Date>() // Track when async waits complete
