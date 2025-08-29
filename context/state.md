@@ -2,23 +2,37 @@
 
 ## Latest Status (2025-08-29)
 
-### 🚀 Current Session: Unified Scheduling Logic Complete
+### 🚀 Current Session: Major Architecture Changes Merged to Main
 
-#### Major Accomplishments
+#### Major Accomplishments (PR #31 - Merged)
 1. **Unified Scheduling Logic** ✅
    - Created `scheduling-common.ts` with shared utilities
    - Eliminated duplicate code between schedulers
    - Consistent dependency handling across application
    - Topological sort now used in optimal scheduler
+   - Fixed self-reference and circular dependency handling
 
-2. **Fixed Async Workflow Scheduling** ✅
-   - Issue: Tasks scheduled immediately instead of after async wait
-   - Solution: Read actual isAsyncTrigger and asyncWaitTime from workflow steps
+2. **Removed ALL Hardcoded Weekend Assumptions** ✅
+   - No more automatic weekend personal blocks
+   - No special treatment for weekends vs weekdays
+   - Scheduler respects user-defined work patterns only
+   - Default work hours apply to ALL days equally
+   - Personal blocks created ONLY when personal tasks exist
+
+3. **Fixed Critical Scheduling Bugs** ✅
+   - Midnight boundary bug (blocks going past 23:59) - FIXED
+   - Stack overflow in topological sort - FIXED
+   - CI test failures with Date comparisons - FIXED
+   - All 'mixed' block types changed to 'flexible' for optimization
+
+4. **Fixed Async Workflow Scheduling** ✅
+   - Tasks now scheduled after async wait times properly
+   - Read actual isAsyncTrigger and asyncWaitTime from workflow steps
    - Added comprehensive test for 24-hour async waits
-   - Async workflows now properly optimize with parallel wait times
+   - Async workflows properly optimize with parallel wait times
 
-3. **Scheduler Architecture Improvements** ✅
-   - Both schedulers now use common topological sort
+5. **Scheduler Architecture Improvements** ✅
+   - Both schedulers use common topological sort
    - Critical path calculation unified
    - Dependency checking logic consolidated
    - Work item conversion standardized
@@ -45,13 +59,29 @@
 - **ESLint Errors**: 0 ✅ (warnings only)
 - **Test Status**: All passing ✅ (366 passing, 42 skipped)
 - **Build**: Successful ✅
-- **PR #31**: Updated with unified scheduling logic
+- **PR #31**: MERGED to main ✅
+- **Current Branch**: dev/documentation-update
 
-### 🎯 Next Steps
-1. Clean up any remaining dead code
-2. Update documentation for new shared utilities
-3. Consider further unification opportunities
-4. Review and address any PR feedback
+### 🎯 Active Work: Documentation Update
+Currently updating all documentation to reflect the major architectural changes from PR #31.
+
+### 🔴 Critical Feedback Items (from feedback.json)
+1. **Applicator buggy and unusable** (CRITICAL)
+   - Amendment application causing duplicate tasks
+   - Dependencies not wiring correctly
+   - Marking workflows complete incorrectly
+   - Needs comprehensive review
+
+### 📝 Next Priority Tasks
+1. **Fix critical applicator bug** (feedback #1) - HIGHEST PRIORITY
+2. **Implement sleep pattern repetition** - Quick win for usability
+3. **Set up Playwright E2E testing** - Prevent future regressions
+4. **Build Claude-driven test generation** - Improve test coverage
+5. Consider scheduler unification (3 schedulers → 1 with modes)
+
+### 📚 New Documentation
+- `/docs/testing-strategy.md` - Comprehensive testing infrastructure plan
+- `/docs/sleep-repetition-plan.md` - Implementation plan for pattern repetition
 
 ### 📚 Key Technical Details
 
@@ -69,5 +99,12 @@
 - `optimal-scheduler.ts`: New, used for optimal mode only
 - `ScheduleGenerator.tsx`: Updated to offer 3 modes
 
+### 📁 Key Files Changed in PR #31
+- `src/renderer/utils/scheduling-common.ts` - NEW unified utilities
+- `src/renderer/utils/optimal-scheduler.ts` - Refactored to use common
+- `src/renderer/utils/flexible-scheduler.ts` - Refactored to use common
+- `src/renderer/components/schedule/ScheduleGenerator.tsx` - Removed hardcoded weekend logic
+- Multiple test files updated for new architecture
+
 ---
-*Last Updated: 2025-08-29 12:05 PM PST*
+*Last Updated: 2025-08-29 2:05 PM PST*

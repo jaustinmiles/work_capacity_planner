@@ -24,20 +24,32 @@ An Electron-based task management application with AI-powered task extraction an
 - **Batch Operations**: Delete all tasks for development testing (dev mode)
 
 ### 🎯 Intelligent Scheduling Engine
-- **Topological Sorting**: Automatic dependency resolution for complex workflows
-- **Priority-Based Gantt Chart**: Visual timeline with urgency × importance ordering
-- **Work Hours Management**: Configurable daily work hours with lunch breaks
-- **Multi-Day Schedule Editor**: Visual calendar for managing schedules across multiple days
-- **Copy/Paste Schedules**: Duplicate schedules between days with one click
-- **Sleep Block Support**: Cross-midnight scheduling for realistic work patterns
+- **Multiple Scheduling Modes**:
+  - **Optimal Mode**: Mathematical optimization for earliest completion
+  - **Balanced Mode**: Respects work-life balance with capacity limits
+  - **Manual Mode**: Direct control over task placement
+- **Unified Scheduling Logic**: Shared utilities for consistency across modes
+- **Topological Sorting**: Automatic dependency resolution with circular detection
+- **Critical Path Analysis**: Identifies longest dependency chains for accurate estimates
+- **Work Pattern Management**: 
+  - Custom work hours per day of week
+  - Sleep schedules with proper boundary handling
+  - Meeting blocks that are respected during scheduling
+  - Flexible block types for optimization
+- **Smart Async Handling**: Schedules tasks during async wait times
+- **No Weekend Assumptions**: Respects user-defined patterns without hardcoding
 - **Capacity-Based Scheduling**: Respects daily focus/admin time limits
-- **Blocked Time Slots**: Mark unavailable times for meetings or commitments
-- **Smart Interleaving**: Prevents workflows from monopolizing schedule
-- **Async-Aware Packing**: Efficiently fills time during async wait periods
-- **Infinite Scroll Timeline**: Zoom controls with guaranteed minimum block sizes
-- **Real-time Updates**: Current time indicator and dynamic scheduling
 - **Deadline Prioritization**: Automatic urgency boosting for approaching deadlines
-- **Critical Path Calculation**: Accurate time estimates for complex workflows
+- **Break Management**: Automatic breaks after continuous work periods
+- **Real-time Updates**: Current time indicator and dynamic scheduling
+
+### 🎤 Voice Amendments (Beta)
+- **Natural Language Updates**: Update tasks via voice after creation
+- **Status Changes**: "Mark the code review as complete"
+- **Time Logging**: "I spent 2 hours on the API implementation"
+- **Add Notes**: "Note that we need to handle edge cases"
+- **Workflow Updates**: Add steps, update durations, modify dependencies
+- **High Confidence Parsing**: AI confidence scores for each amendment
 
 ### 🧠 Context Management
 - **Job Context**: Persistent context about your role and work patterns
@@ -70,6 +82,11 @@ An Electron-based task management application with AI-powered task extraction an
 3. **Calendar**: Weekly schedule overview  
 4. **Workflows**: Multi-step task sequences with visual graph editor
 5. **Timeline (Gantt Chart)**: Priority-based timeline with work hours and capacity limits
+6. **Work Logger**: Dual-view time tracking with:
+   - **Swim Lane Timeline**: Drag-and-drop session creation
+   - **24-Hour Clock**: Circular time visualization with arc-based sessions
+   - **Real-time Sync**: Bidirectional updates between views
+   - **Zoom Controls**: Adjust UI density for better visibility
 
 ### AI Integration
 - **AI Brainstorm Modal**: Voice recording and transcription
