@@ -112,10 +112,16 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
           meetings,
         })
       } else {
+        // Check if any meeting is a sleep block with recurring set
+        const sleepMeeting = meetings?.find(m => 
+          (m.name === 'Sleep' || m.type === 'blocked') && m.recurring === 'daily'
+        )
+        
         await db.createWorkPattern({
           date,
           blocks,
           meetings,
+          recurring: sleepMeeting ? 'daily' : 'none',
         })
       }
 

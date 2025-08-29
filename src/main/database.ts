@@ -998,9 +998,10 @@ export class DatabaseService {
     meetings?: any[]
     isTemplate?: boolean
     templateName?: string
+    recurring?: 'none' | 'daily' | 'weekly'
   }): Promise<any> {
     const sessionId = await this.getActiveSession()
-    const { blocks, meetings, ...patternData } = data
+    const { blocks, meetings, recurring, ...patternData } = data
 
     // First, delete existing pattern if it exists (to replace it)
     if (!data.isTemplate) {
@@ -1044,6 +1045,68 @@ export class DatabaseService {
         WorkSession: true,
       },
     })
+
+    // Handle repetition for sleep blocks
+    if (recurring === 'daily' && !data.isTemplate) {
+      // Check if this pattern has sleep blocks (in meetings array)
+      const hasSleepBlocks = meetings?.some(m => 
+        m.name === 'Sleep' || m.type === 'blocked'
+      )
+      
+      if (hasSleepBlocks) {
+        // Create patterns for the next 30 days
+        const startDate = new Date(data.date)
+        for (let i = 1; i <= 30; i++) {
+          const futureDate = new Date(startDate)
+          futureDate.setDate(futureDate.getDate() + i)
+          const futureDateStr = futureDate.toISOString().split('T')[0]
+          
+          // Check if pattern already exists for this date
+          const existingPattern = await this.client.workPattern.findUnique({
+            where: {
+              sessionId_date: {
+                sessionId,
+                date: futureDateStr,
+              },
+            },
+          })
+          
+          // Only create if it doesn't exist
+          if (!existingPattern) {
+            await this.client.workPattern.create({
+              data: {
+                id: crypto.randomUUID(),
+                date: futureDateStr,
+                sessionId,
+                isTemplate: false,
+                WorkBlock: {
+                  create: (blocks || []).map((b: any) => {
+                    const { patternId: _patternId, id: _id, ...blockData } = b
+                    return {
+                      id: crypto.randomUUID(),
+                      ...blockData,
+                      capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+                    }
+                  }),
+                },
+                WorkMeeting: {
+                  create: (meetings || []).map((m: any) => {
+                    const { patternId: _patternId, id: _id, ...meetingData } = m
+                    return {
+                      id: crypto.randomUUID(),
+                      ...meetingData,
+                      daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
+                    }
+                  }),
+                },
+              },
+            })
+          }
+        }
+        
+        console.log(`Created daily sleep patterns for next 30 days from ${data.date}`)
+      }
+    }
 
     return {
       ...pattern,
