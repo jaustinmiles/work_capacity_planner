@@ -105,16 +105,17 @@ export class DatabaseService {
 
     console.log('[DB] Found sessions:', sessions.length, sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })))
 
-    // Filter out duplicates (shouldn't happen but let's be safe)
-    const uniqueSessions = sessions.filter((session, index, self) =>
-      index === self.findIndex(s => s.id === session.id),
-    )
-
-    if (uniqueSessions.length !== sessions.length) {
-      console.warn('[DB] Filtered duplicate sessions:', sessions.length - uniqueSessions.length)
+    // Log if we detect duplicates but don't filter them - let the UI show the actual state
+    const uniqueIds = new Set(sessions.map(s => s.id))
+    if (uniqueIds.size !== sessions.length) {
+      console.error('[DB] WARNING: Duplicate session IDs detected in database!', {
+        totalSessions: sessions.length,
+        uniqueIds: uniqueIds.size,
+        duplicates: sessions.length - uniqueIds.size
+      })
     }
 
-    return uniqueSessions
+    return sessions
   }
 
   async createSession(name: string, description?: string): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
