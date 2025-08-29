@@ -60,7 +60,8 @@
       "Bash(gh run view:*)",
       "Bash(git stash:*)",
       "Bash(npx eslint:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(gh run list:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

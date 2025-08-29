@@ -58,6 +58,11 @@ export function topologicalSort(items: WorkItem[]): TopologicalSortResult {
     // Visit dependencies first
     if (item.dependencies && item.dependencies.length > 0) {
       for (const depId of item.dependencies) {
+        // Skip self-references
+        if (depId === item.id) {
+          warnings.push(`Self-reference detected in ${item.name}`)
+          continue
+        }
         const dep = itemMap.get(depId)
         if (dep) {
           visit(dep)
