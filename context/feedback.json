@@ -783,7 +783,10 @@
     "title": "Generation of schedule deletes sleep blocks",
     "description": "I created sleep blocks that were daily, then generated a schedule. After refreshing, the sleep blocks are gone on the calendar view. ",
     "timestamp": "2025-08-29T21:32:14.409Z",
-    "sessionId": "session-1756503134400-4nus4b2ni"
+    "sessionId": "session-1756503134400-4nus4b2ni",
+    "resolved": true,
+    "resolvedIn": "PR #33",
+    "resolvedDate": "2025-08-29"
   },
   {
     "type": "bug",
@@ -794,7 +797,10 @@
     "title": "Flexible blocks created by the schedule generator are broken on day 1.",
     "description": "A flexible block was generated, but nothing was being scheduled. I found that I could edit the block and switch to focused, and then back to flexible, and it worked. \n\nwe need way better logging on the schedule generation. I checked the log dump in the dev tools custom panel and didn't see anything despite these issues. ",
     "timestamp": "2025-08-29T21:34:27.703Z",
-    "sessionId": "session-1756503267698-0fpjy68v9"
+    "sessionId": "session-1756503267698-0fpjy68v9",
+    "resolved": true,
+    "resolvedIn": "PR #33",
+    "resolvedDate": "2025-08-29"
   },
   {
     "type": "bug",
@@ -805,6 +811,9 @@
     "title": "Sleep block only rendered until midnight",
     "description": "sleep block rendering chops off at midnight despite being scheduled until the next morning. This appears to be just a UI bug. ",
     "timestamp": "2025-08-29T21:37:34.591Z",
-    "sessionId": "session-1756503454582-tvr9ggsvq"
+    "sessionId": "session-1756503454582-tvr9ggsvq",
+    "resolved": true,
+    "resolvedIn": "PR #33",
+    "resolvedDate": "2025-08-29"
   }
 ]
