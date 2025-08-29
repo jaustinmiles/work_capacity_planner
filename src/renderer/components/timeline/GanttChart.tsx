@@ -13,6 +13,7 @@ import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
+import { logGanttChart } from '../../../logging/formatters/schedule-formatter'
 
 
 const { Title, Text } = Typography
@@ -33,7 +34,7 @@ const ZOOM_PRESETS = [
 ]
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
-  const { updateTask, updateSequencedTask, generateSchedule } = useTaskStore()
+  const { updateTask, updateSequencedTask, generateSchedule, getOptimalSchedule } = useTaskStore()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -258,9 +259,20 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
 
+    // Check if we have a saved optimal schedule
+    const savedSchedule = getOptimalSchedule()
+    if (savedSchedule && savedSchedule.length > 0) {
+      logger.ui.debug(`GanttChart: Using saved optimal schedule with ${savedSchedule.length} items`)
+
+      // Return the saved schedule directly
+      // No need to show debug info for saved schedule
+      setShowDebugInfo(false)
+      return savedSchedule
+    }
+
     // IMPORTANT: Pass all tasks to scheduler - it will deduplicate
     // The scheduler handles removing any tasks that are also in sequencedTasks
-    logger.ui.debug(`GanttChart: Scheduling with ${tasks.length} tasks and ${sequencedTasks.length} workflows`)
+    logger.ui.debug(`GanttChart: No saved schedule, running flexible scheduler with ${tasks.length} tasks and ${sequencedTasks.length} workflows`)
 
     // Pass current time as start date to ensure scheduling starts from now
     // Also pass scheduling preferences and work settings to enable enhanced priority calculation
@@ -304,13 +316,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       },
     })
     setDebugInfo(result.debugInfo)
+
+    // Log the Gantt chart data for AI debugging
+    const viewWindow = {
+      start: result.scheduledItems.length > 0 ? result.scheduledItems[0].startTime : new Date(),
+      end: result.scheduledItems.length > 0 ?
+        result.scheduledItems[result.scheduledItems.length - 1].endTime :
+        new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
+    }
+    logGanttChart(logger.ui, result.scheduledItems, workPatterns, viewWindow, result.debugInfo)
+
     // Auto-show debug info if there are issues
     if (result.debugInfo.unscheduledItems.length > 0 || result.debugInfo.warnings.length > 0) {
       setShowDebugInfo(true)
     }
 
     return result.scheduledItems
-  }, [tasks, sequencedTasks, workPatterns])
+  }, [tasks, sequencedTasks, workPatterns, getOptimalSchedule])
 
   // Calculate chart dimensions
   const now = new Date()

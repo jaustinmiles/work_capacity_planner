@@ -827,5 +827,16 @@
     "steps": "Make sleep blocks, set to daily. Click generate schedule. Observe error. ",
     "timestamp": "2025-08-29T22:14:33.881Z",
     "sessionId": "session-1756505673871-dwxxsaxkh"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "components": [
+      "other"
+    ],
+    "title": "Logging of schedule output and debug info in AI readable way",
+    "description": "We should make some logging feature (also we should add the logging module as a component on the feedback form) that allows for the schedule, calendar, gantt chart, etc. to be exported and logged in a way that Claude Code can easily access it. This will encourage less copy and pasting from the user, and allow more transparency into the current issues and debugging of the application. Right now, I have to describe what I see on the gantt chart, but this should be logged so that if there's an error, the AI can view it in text format directly,",
+    "timestamp": "2025-08-29T22:22:49.612Z",
+    "sessionId": "session-1756506169603-8bsvn5pk1"
   }
 ]

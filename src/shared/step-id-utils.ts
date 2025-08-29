@@ -46,10 +46,13 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
   steps: T[],
 ): Array<T & { dependsOn: string[] }> {
   const nameToId = new Map<string, string>()
+  const nameToIndex = new Map<string, number>()
 
   // Build name to ID mapping
-  steps.forEach(step => {
+  steps.forEach((step, index) => {
     nameToId.set(step.name, step.id)
+    nameToId.set(step.name.toLowerCase(), step.id) // Case-insensitive fallback
+    nameToIndex.set(step.name, index)
   })
 
   // Map dependencies
@@ -67,16 +70,49 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
         logWarn('scheduler', `Dependency ID "${dep}" not found, attempting to resolve by name`)
       }
 
-      // Try to resolve by name
-      const id = nameToId.get(dep)
+      // Try exact name match
+      let id = nameToId.get(dep)
       if (id) {
         return id
       }
 
+      // Try case-insensitive match
+      id = nameToId.get(dep.toLowerCase())
+      if (id) {
+        return id
+      }
+
+      // Try to parse "step N" or "Step N" references
+      const stepNumberMatch = dep.match(/^(?:step|Step)\s+(\d+)$/i)
+      if (stepNumberMatch) {
+        const stepIndex = parseInt(stepNumberMatch[1], 10) - 1 // Convert to 0-based index
+        if (stepIndex >= 0 && stepIndex < steps.length) {
+          return steps[stepIndex].id
+        }
+      }
+
+      // Try to find if this is a reference like "Workflow Name step N"
+      // where the workflow name is prepended to "step N"
+      const workflowStepMatch = dep.match(/^(.+?)\s+step\s+(\d+)$/i)
+      if (workflowStepMatch) {
+        const stepIndex = parseInt(workflowStepMatch[2], 10) - 1
+        if (stepIndex >= 0 && stepIndex < steps.length) {
+          return steps[stepIndex].id
+        }
+      }
+
+      // Try partial match as last resort - check if any step name is contained in the dependency
+      for (const [stepName, stepId] of nameToId.entries()) {
+        if (dep.includes(stepName) || stepName.includes(dep)) {
+          logWarn('scheduler', `Fuzzy matching dependency "${dep}" to step "${stepName}"`)
+          return stepId
+        }
+      }
+
       logWarn('scheduler', `Could not resolve dependency "${dep}" to an ID`)
-      // Return the original value as fallback
-      return dep
-    }),
+      // Return empty array to prevent blocking - dependencies will be ignored
+      return null
+    }).filter(id => id !== null) as string[],
   }))
 }
 

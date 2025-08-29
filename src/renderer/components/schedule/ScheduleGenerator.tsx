@@ -13,6 +13,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
+import { logSchedule } from '../../../logging/formatters/schedule-formatter'
 
 
 const { Title, Text } = Typography
@@ -52,7 +53,7 @@ export function ScheduleGenerator({
   const [selectedOption, setSelectedOption] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
-  const { workSettings } = useTaskStore()
+  const { workSettings, setOptimalSchedule } = useTaskStore()
 
   const generateScheduleOptions = async () => {
     setGenerating(true)
@@ -175,6 +176,25 @@ export function ScheduleGenerator({
         deadline: item.deadline,
         originalItem: item.originalItem,
       }))
+
+      // Log the optimal schedule for AI debugging
+      logSchedule(
+        logger.ui,
+        'optimal',
+        tasks.filter(t => !t.completed),
+        sequencedTasks.filter(w => !w.completed),
+        optimalResult.schedule,
+        baseWorkPatterns,
+        optimalResult.blocks,
+        {
+          ...optimalResult.metrics,
+          unscheduledItems: optimalResult.schedule.filter(item =>
+            (item as any).unscheduled === true,
+          ),
+          warnings: optimalResult.warnings,
+        },
+        optimalResult.warnings,
+      )
 
       options.push({
         id: 'optimal',
@@ -494,6 +514,11 @@ export function ScheduleGenerator({
           })),
           meetings: existingMeetings,
         })
+      }
+
+      // Save the schedule to the store if it's an optimal schedule
+      if (selected.id === 'optimal') {
+        setOptimalSchedule(selected.schedule)
       }
 
       Message.success('Schedule saved successfully!')

@@ -99,7 +99,7 @@ describe('Step ID Utilities', () => {
       const mapped = mapDependenciesToIds(steps)
 
       expect(consoleWarnSpy).toHaveBeenCalled()
-      expect(mapped[1].dependsOn).toEqual(['NonExistent']) // Preserves unresolvable
+      expect(mapped[1].dependsOn).toEqual([]) // Now filters out unresolvable dependencies
 
       consoleWarnSpy.mockRestore()
     })
