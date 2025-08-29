@@ -38,7 +38,9 @@
     "feedback:high": "node scripts/feedback-utils.js high",
     "feedback:summary": "node scripts/feedback-utils.js summary",
     "pack": "electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "setup:hooks": "./scripts/setup-git-hooks.sh",
+    "postinstall": "./scripts/setup-git-hooks.sh || echo 'Git hooks setup failed (may be CI environment)'"
   },
   "keywords": [
     "electron",
