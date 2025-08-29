@@ -1049,10 +1049,10 @@ export class DatabaseService {
     // Handle repetition for sleep blocks
     if (recurring === 'daily' && !data.isTemplate) {
       // Check if this pattern has sleep blocks (in meetings array)
-      const hasSleepBlocks = meetings?.some(m => 
-        m.name === 'Sleep' || m.type === 'blocked'
+      const hasSleepBlocks = meetings?.some(m =>
+        m.name === 'Sleep' || m.type === 'blocked',
       )
-      
+
       if (hasSleepBlocks) {
         // Create patterns for the next 30 days
         const startDate = new Date(data.date)
@@ -1060,7 +1060,7 @@ export class DatabaseService {
           const futureDate = new Date(startDate)
           futureDate.setDate(futureDate.getDate() + i)
           const futureDateStr = futureDate.toISOString().split('T')[0]
-          
+
           // Check if pattern already exists for this date
           const existingPattern = await this.client.workPattern.findUnique({
             where: {
@@ -1070,7 +1070,7 @@ export class DatabaseService {
               },
             },
           })
-          
+
           // Only create if it doesn't exist
           if (!existingPattern) {
             await this.client.workPattern.create({
@@ -1103,7 +1103,7 @@ export class DatabaseService {
             })
           }
         }
-        
+
         console.log(`Created daily sleep patterns for next 30 days from ${data.date}`)
       }
     }
