@@ -648,10 +648,10 @@ function scheduleItems(
   // Convert work items back to tasks and workflows format for the flexible scheduler
   const tasks: Task[] = []
   const workflows: SequencedTask[] = []
-  
+
   // Map to track which workflow each step belongs to
   const workflowStepsMap = new Map<string, TaskStep[]>()
-  
+
   // Separate tasks and workflow steps
   for (const workItem of workItems) {
     if (workItem.type === 'workflow-step') {
@@ -667,7 +667,7 @@ function scheduleItems(
       tasks.push(task)
     }
   }
-  
+
   // Reconstruct workflows with their steps
   for (const workflow of context.workflows) {
     const steps = workflowStepsMap.get(workflow.id)
@@ -681,7 +681,7 @@ function scheduleItems(
       workflows.push(workflow)
     }
   }
-  
+
   // Use the flexible scheduler with work blocks to properly schedule items
   const schedulingResult = scheduleItemsWithBlocksAndDebug(
     tasks,
@@ -692,35 +692,54 @@ function scheduleItems(
       schedulingPreferences: context.schedulingPreferences,
       workSettings: context.workSettings,
       productivityPatterns: context.productivityPatterns,
-    }
+      allowTaskSplitting: true, // Enable task splitting for long tasks
+      minimumSplitDuration: 30, // Minimum 30 minutes per split
+    },
   )
-  
+
   // Process debug info into warnings and failures
   if (schedulingResult.debugInfo.unscheduledItems.length > 0) {
     for (const unscheduled of schedulingResult.debugInfo.unscheduledItems) {
       result.warnings.push({
         type: 'capacity_warning',
         message: `Could not schedule "${unscheduled.name}": ${unscheduled.reason}`,
-        item: { 
+        item: {
           id: unscheduled.id || 'unknown',
-          name: unscheduled.name, 
-          duration: unscheduled.duration 
+          name: unscheduled.name,
+          duration: unscheduled.duration,
         } as any,
       })
     }
   }
-  
+
   // Check for deadline misses and generate appropriate warnings/failures
+  // For split tasks, only check the FIRST part against the deadline
+  const checkedTasks = new Set<string>()
+
   for (const scheduled of schedulingResult.scheduledItems) {
     if (scheduled.deadline && scheduled.endTime > scheduled.deadline) {
+      // For split tasks, use the original task ID to avoid duplicate checks
+      const taskIdToCheck = scheduled.originalTaskId || scheduled.id
+
+      // Skip if this is not the first part of a split task
+      if (scheduled.isSplit && scheduled.splitPart && scheduled.splitPart > 1) {
+        continue
+      }
+
+      // Skip if we've already checked this task
+      if (checkedTasks.has(taskIdToCheck)) {
+        continue
+      }
+      checkedTasks.add(taskIdToCheck)
+
       const originalItem = scheduled.originalItem
       if (originalItem && 'deadlineType' in originalItem) {
         const delayHours = Math.ceil((scheduled.endTime.getTime() - scheduled.deadline.getTime()) / (1000 * 60 * 60))
-        
+
         if (originalItem.deadlineType === 'hard') {
           result.failures.push({
             type: 'impossible_deadline',
-            message: `Task "${scheduled.name}" will miss its hard deadline by ${delayHours} hours`,
+            message: `Task "${originalItem.name}" will miss its hard deadline by ${delayHours} hours`,
             affectedItems: [scheduled.id],
             severity: 'hard',
             suggestions: {
@@ -732,7 +751,7 @@ function scheduleItems(
         } else {
           result.warnings.push({
             type: 'soft_deadline_risk',
-            message: `Task "${scheduled.name}" may miss its soft deadline by ${delayHours} hours`,
+            message: `Task "${originalItem.name}" may miss its soft deadline by ${delayHours} hours`,
             item: originalItem,
             expectedDelay: scheduled.endTime.getTime() - scheduled.deadline.getTime(),
           })
@@ -740,7 +759,7 @@ function scheduleItems(
       }
     }
   }
-  
+
   // Add debug info about block utilization if available
   if (schedulingResult.debugInfo.blockUtilization) {
     for (const block of schedulingResult.debugInfo.blockUtilization) {
@@ -753,7 +772,7 @@ function scheduleItems(
       }
     }
   }
-  
+
   return schedulingResult.scheduledItems
 }
 

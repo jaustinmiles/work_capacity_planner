@@ -118,11 +118,11 @@ export function ScheduleGenerator({
 
       // For deadline-focused scheduler, add weekend work blocks if needed
       const deadlineWorkPatterns = [...baseWorkPatterns]
-      const hasUrgentDeadlines = tasks.some(t => !t.completed && t.deadline && 
+      const hasUrgentDeadlines = tasks.some(t => !t.completed && t.deadline &&
                                             new Date(t.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) ||
-                                 sequencedTasks.some(w => !w.completed && w.deadline && 
+                                 sequencedTasks.some(w => !w.completed && w.deadline &&
                                             new Date(w.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
-      
+
       if (hasUrgentDeadlines) {
         // Add weekend work blocks for deadline-focused scheduling
         for (let i = 0; i < deadlineWorkPatterns.length; i++) {
@@ -130,7 +130,7 @@ export function ScheduleGenerator({
           const date = new Date(pattern.date)
           const dayOfWeek = date.getDay()
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-          
+
           if (isWeekend && pattern.blocks.length === 0) {
             // Add work blocks to weekends for deadline pressure
             pattern.blocks.push({
@@ -375,12 +375,12 @@ export function ScheduleGenerator({
             return item.endTime > latest ? item.endTime : latest
           }, sortedItems[0].endTime)
           const latestEndStr = dayjs(latestEnd).format('HH:mm')
-          
+
           // Calculate total capacity used
           let focusMinutes = 0
           let adminMinutes = 0
           let personalMinutes = 0
-          
+
           for (const item of items) {
             if (item.type === 'task' || item.type === 'workflow-step') {
               const task = item.originalItem as Task
@@ -393,7 +393,7 @@ export function ScheduleGenerator({
               }
             }
           }
-          
+
           // Create a single block for the entire work period
           blocks.push({
             id: `block-${dateStr}-work`,

@@ -29,7 +29,7 @@ describe('Schedule Generation', () => {
   const createWorkPattern = (date: string, hasWeekendWork = false): DailyWorkPattern => {
     const d = new Date(date)
     const isWeekend = d.getDay() === 0 || d.getDay() === 6
-    
+
     if (isWeekend && !hasWeekendWork) {
       return {
         date,
@@ -38,7 +38,7 @@ describe('Schedule Generation', () => {
         accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
       }
     }
-    
+
     return {
       date,
       blocks: [{
@@ -58,9 +58,10 @@ describe('Schedule Generation', () => {
 
   describe('Deadline Meeting Guarantees', () => {
     it('should schedule tasks to meet Monday deadline when starting Friday', () => {
-      const friday = new Date('2024-01-26T09:00:00') // Friday
-      const monday = new Date('2024-01-29T17:00:00') // Monday 5pm
-      
+      // Use dates in September 2025 (in the future from Aug 29, 2025)
+      const friday = new Date('2025-09-05T09:00:00') // Friday Sep 5, 2025
+      const monday = new Date('2025-09-08T17:00:00') // Monday Sep 8, 2025 5pm
+
       const tasks = [
         createTask({
           name: 'Urgent Feature',
@@ -69,15 +70,15 @@ describe('Schedule Generation', () => {
           deadlineType: 'hard',
         }),
       ]
-      
+
       // Create work patterns for Fri, Sat, Sun, Mon
       const workPatterns = [
-        createWorkPattern('2024-01-26', false), // Friday - 7 hours capacity
-        createWorkPattern('2024-01-27', true),  // Saturday - 4 hours if enabled
-        createWorkPattern('2024-01-28', true),  // Sunday - 4 hours if enabled  
-        createWorkPattern('2024-01-29', false), // Monday - 7 hours capacity
+        createWorkPattern('2025-09-05', false), // Friday - 7 hours capacity
+        createWorkPattern('2025-09-06', true),  // Saturday - 4 hours if enabled
+        createWorkPattern('2025-09-07', true),  // Sunday - 4 hours if enabled
+        createWorkPattern('2025-09-08', false), // Monday - 7 hours capacity
       ]
-      
+
       const context: SchedulingContext = {
         currentTime: friday,
         tasks,
@@ -101,22 +102,44 @@ describe('Schedule Generation', () => {
         } as any,
         lastScheduledItem: null,
       }
-      
+
       const result = scheduleWithDeadlines(context)
-      
+
+      // Debug output to understand what's happening
+      if (result.failures.length > 0) {
+        console.log('Failures:', result.failures)
+      }
+      if (result.warnings.length > 0) {
+        console.log('Warnings:', result.warnings)
+      }
+      console.log('Schedule length:', result.schedule.length)
+      if (result.schedule.length > 0) {
+        console.log('First item scheduled:', {
+          name: result.schedule[0].name,
+          startTime: result.schedule[0].startTime,
+          endTime: result.schedule[0].endTime,
+          deadline: result.schedule[0].deadline,
+        })
+        console.log('Last item scheduled:', {
+          name: result.schedule[result.schedule.length - 1].name,
+          startTime: result.schedule[result.schedule.length - 1].startTime,
+          endTime: result.schedule[result.schedule.length - 1].endTime,
+        })
+      }
+
       // Should successfully schedule the task
       expect(result.schedule.length).toBeGreaterThan(0)
       expect(result.failures.length).toBe(0)
-      
+
       // Should complete before deadline
       const lastItem = result.schedule[result.schedule.length - 1]
       expect(lastItem.endTime).toBeLessThanOrEqual(monday)
     })
 
     it('should report failure when deadline is impossible to meet', () => {
-      const now = new Date('2024-01-29T09:00:00') // Monday morning
-      const tonight = new Date('2024-01-29T17:00:00') // Monday 5pm
-      
+      const now = new Date('2025-09-08T09:00:00') // Monday morning
+      const tonight = new Date('2025-09-08T17:00:00') // Monday 5pm
+
       const tasks = [
         createTask({
           name: 'Impossible Task',
@@ -125,11 +148,11 @@ describe('Schedule Generation', () => {
           deadlineType: 'hard',
         }),
       ]
-      
+
       const workPatterns = [
-        createWorkPattern('2024-01-29', false), // Monday - only 7 hours capacity
+        createWorkPattern('2025-09-08', false), // Monday - only 7 hours capacity
       ]
-      
+
       const context: SchedulingContext = {
         currentTime: now,
         tasks,
@@ -153,9 +176,9 @@ describe('Schedule Generation', () => {
         } as any,
         lastScheduledItem: null,
       }
-      
+
       const result = scheduleWithDeadlines(context)
-      
+
       // Should report failure for impossible deadline
       expect(result.failures.length).toBeGreaterThan(0)
       expect(result.failures[0].type).toBe('impossible_deadline')
@@ -163,8 +186,8 @@ describe('Schedule Generation', () => {
     })
 
     it('should not create personal blocks on weekends without personal tasks', () => {
-      const friday = new Date('2024-01-26T09:00:00')
-      
+      const friday = new Date('2025-09-05T09:00:00')
+
       const tasks = [
         createTask({
           name: 'Work Task',
@@ -172,13 +195,13 @@ describe('Schedule Generation', () => {
           duration: 120,
         }),
       ]
-      
+
       const workPatterns = [
-        createWorkPattern('2024-01-26', false), // Friday
-        createWorkPattern('2024-01-27', false), // Saturday - no blocks
-        createWorkPattern('2024-01-28', false), // Sunday - no blocks
+        createWorkPattern('2025-09-05', false), // Friday
+        createWorkPattern('2025-09-06', false), // Saturday - no blocks
+        createWorkPattern('2025-09-07', false), // Sunday - no blocks
       ]
-      
+
       const context: SchedulingContext = {
         currentTime: friday,
         tasks,
@@ -202,23 +225,23 @@ describe('Schedule Generation', () => {
         } as any,
         lastScheduledItem: null,
       }
-      
+
       const result = scheduleWithDeadlines(context)
-      
+
       // Should schedule on Friday, not on weekend
       expect(result.schedule.length).toBeGreaterThan(0)
-      const scheduledDates = result.schedule.map(item => 
-        new Date(item.startTime).toISOString().split('T')[0]
+      const scheduledDates = result.schedule.map(item =>
+        new Date(item.startTime).toISOString().split('T')[0],
       )
-      expect(scheduledDates).toContain('2024-01-26') // Friday
-      expect(scheduledDates).not.toContain('2024-01-27') // Saturday
-      expect(scheduledDates).not.toContain('2024-01-28') // Sunday
+      expect(scheduledDates).toContain('2025-09-05') // Friday
+      expect(scheduledDates).not.toContain('2025-09-06') // Saturday
+      expect(scheduledDates).not.toContain('2025-09-07') // Sunday
     })
 
     it('should utilize weekends for urgent deadlines in deadline-focused mode', () => {
-      const friday = new Date('2024-01-26T09:00:00')
-      const monday = new Date('2024-01-29T09:00:00')
-      
+      const friday = new Date('2025-09-05T09:00:00')
+      const monday = new Date('2025-09-08T09:00:00')
+
       const tasks = [
         createTask({
           name: 'Urgent Project',
@@ -227,13 +250,13 @@ describe('Schedule Generation', () => {
           deadlineType: 'hard',
         }),
       ]
-      
+
       const workPatterns = [
-        createWorkPattern('2024-01-26', false), // Friday - 7 hours
-        createWorkPattern('2024-01-27', true),  // Saturday - 4 hours
-        createWorkPattern('2024-01-28', true),  // Sunday - 4 hours
+        createWorkPattern('2025-09-05', false), // Friday - 7 hours
+        createWorkPattern('2025-09-06', true),  // Saturday - 4 hours
+        createWorkPattern('2025-09-07', true),  // Sunday - 4 hours
       ]
-      
+
       const context: SchedulingContext = {
         currentTime: friday,
         tasks,
@@ -257,24 +280,24 @@ describe('Schedule Generation', () => {
         } as any,
         lastScheduledItem: null,
       }
-      
+
       const result = scheduleWithDeadlines(context)
-      
+
       // Should successfully schedule using weekend time
       expect(result.schedule.length).toBeGreaterThan(0)
       expect(result.failures.length).toBe(0)
-      
-      const scheduledDates = result.schedule.map(item => 
-        new Date(item.startTime).toISOString().split('T')[0]
+
+      const scheduledDates = result.schedule.map(item =>
+        new Date(item.startTime).toISOString().split('T')[0],
       )
-      expect(scheduledDates).toContain('2024-01-26') // Friday
-      expect(scheduledDates).toContain('2024-01-27') // Saturday
-      expect(scheduledDates).toContain('2024-01-28') // Sunday
+      expect(scheduledDates).toContain('2025-09-05') // Friday
+      expect(scheduledDates).toContain('2025-09-06') // Saturday
+      expect(scheduledDates).toContain('2025-09-07') // Sunday
     })
 
     it('should respect work block capacity constraints', () => {
-      const monday = new Date('2024-01-29T09:00:00')
-      
+      const monday = new Date('2025-09-08T09:00:00')
+
       const tasks = [
         createTask({
           name: 'Focus Task 1',
@@ -292,12 +315,12 @@ describe('Schedule Generation', () => {
           duration: 60,
         }),
       ]
-      
+
       const workPatterns = [
-        createWorkPattern('2024-01-29', false), // Monday - 4h focus, 3h admin
-        createWorkPattern('2024-01-30', false), // Tuesday
+        createWorkPattern('2025-09-08', false), // Monday - 4h focus, 3h admin
+        createWorkPattern('2025-09-09', false), // Tuesday
       ]
-      
+
       const context: SchedulingContext = {
         currentTime: monday,
         tasks,
@@ -321,30 +344,30 @@ describe('Schedule Generation', () => {
         } as any,
         lastScheduledItem: null,
       }
-      
+
       const result = scheduleWithDeadlines(context)
-      
+
       // Should schedule across multiple days due to capacity constraints
-      const scheduledDates = result.schedule.map(item => 
-        new Date(item.startTime).toISOString().split('T')[0]
+      const scheduledDates = result.schedule.map(item =>
+        new Date(item.startTime).toISOString().split('T')[0],
       )
-      expect(scheduledDates).toContain('2024-01-29') // Monday
-      expect(scheduledDates).toContain('2024-01-30') // Tuesday (overflow)
+      expect(scheduledDates).toContain('2025-09-08') // Monday
+      expect(scheduledDates).toContain('2025-09-09') // Tuesday (overflow)
     })
 
     it('should not create overlapping work blocks', () => {
-      const monday = new Date('2024-01-29T09:00:00')
-      
+      const monday = new Date('2025-09-08T09:00:00')
+
       const tasks = [
         createTask({ name: 'Task 1', duration: 60 }),
         createTask({ name: 'Task 2', duration: 60 }),
         createTask({ name: 'Task 3', duration: 60 }),
       ]
-      
+
       const workPatterns = [
-        createWorkPattern('2024-01-29', false),
+        createWorkPattern('2025-09-08', false),
       ]
-      
+
       const context: SchedulingContext = {
         currentTime: monday,
         tasks,
@@ -368,18 +391,18 @@ describe('Schedule Generation', () => {
         } as any,
         lastScheduledItem: null,
       }
-      
+
       const result = scheduleWithDeadlines(context)
-      
+
       // Check that no scheduled items overlap
       for (let i = 0; i < result.schedule.length - 1; i++) {
         const current = result.schedule[i]
         const next = result.schedule[i + 1]
-        
+
         // If on same day, end time should not exceed next start time
         const currentDate = new Date(current.startTime).toDateString()
         const nextDate = new Date(next.startTime).toDateString()
-        
+
         if (currentDate === nextDate) {
           expect(current.endTime).toBeLessThanOrEqual(next.startTime)
         }
