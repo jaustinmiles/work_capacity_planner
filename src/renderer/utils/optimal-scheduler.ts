@@ -409,19 +409,60 @@ export function generateOptimalSchedule(
       item.endTime = itemEnd
       schedule.push(item)
 
-      // Add to current block or create new one
-      if (!currentBlock || currentBlock.type !== 'work') {
-        currentBlock = {
+      // Check if this item crosses midnight
+      const itemStartDate = itemStart.toISOString().split('T')[0]
+      const itemEndDate = itemEnd.toISOString().split('T')[0]
+
+      if (itemStartDate !== itemEndDate) {
+        // Item crosses midnight - need to split the block
+        if (currentBlock) {
+          blocks.push(currentBlock)
+        }
+
+        // Create block for today (up to midnight)
+        const midnight = new Date(itemStart)
+        midnight.setHours(23, 59, 59, 999)
+
+        blocks.push({
           id: `work-${itemStart.getTime()}`,
-          date: itemStart.toISOString().split('T')[0],
+          date: itemStartDate,
           startTime: itemStart,
-          endTime: itemEnd,
+          endTime: midnight,
           items: [item],
+          type: 'work',
+        })
+
+        // Start new block for tomorrow
+        const nextDayStart = new Date(midnight)
+        nextDayStart.setDate(nextDayStart.getDate() + 1)
+        nextDayStart.setHours(0, 0, 0, 0)
+
+        currentBlock = {
+          id: `work-${nextDayStart.getTime()}`,
+          date: itemEndDate,
+          startTime: nextDayStart,
+          endTime: itemEnd,
+          items: [],
           type: 'work',
         }
       } else {
-        currentBlock.items.push(item)
-        currentBlock.endTime = itemEnd
+        // Normal case - item doesn't cross midnight
+        if (!currentBlock || currentBlock.type !== 'work' || currentBlock.date !== itemStartDate) {
+          if (currentBlock) {
+            blocks.push(currentBlock)
+          }
+          currentBlock = {
+            id: `work-${itemStart.getTime()}`,
+            date: itemStartDate,
+            startTime: itemStart,
+            endTime: itemEnd,
+            items: [item],
+            type: 'work',
+          }
+        } else {
+          currentBlock.items.push(item)
+          currentBlock.endTime = itemEnd
+        }
       }
 
       // Update state
@@ -563,13 +604,26 @@ export function optimalScheduleToWorkPatterns(result: OptimizationResult) {
     date,
     blocks: blocks
       .filter(b => b.type === 'work')
-      .map(b => ({
-        id: b.id,
-        startTime: b.startTime.toTimeString().slice(0, 5),
-        endTime: b.endTime.toTimeString().slice(0, 5),
-        type: 'mixed' as const,
-        items: b.items,
-      })),
+      .map(b => {
+        // Ensure times are on the same day for display
+        const startDate = b.startTime.toISOString().split('T')[0]
+        const endDate = b.endTime.toISOString().split('T')[0]
+
+        let endTime = b.endTime
+        if (startDate !== endDate) {
+          // If block crosses midnight, cap at 23:59
+          endTime = new Date(b.startTime)
+          endTime.setHours(23, 59, 0, 0)
+        }
+
+        return {
+          id: b.id,
+          startTime: b.startTime.toTimeString().slice(0, 5),
+          endTime: endTime.toTimeString().slice(0, 5),
+          type: 'mixed' as const,
+          items: b.items,
+        }
+      }),
     meetings: blocks
       .filter(b => b.type === 'meeting')
       .map(b => ({
