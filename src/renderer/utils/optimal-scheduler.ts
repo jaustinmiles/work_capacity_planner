@@ -14,6 +14,15 @@
 import { Task, TaskStep } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { WorkMeeting } from '@shared/work-blocks-types'
+import {
+  WorkItem,
+  topologicalSort,
+  calculateCriticalPaths,
+  createWorkItems,
+  checkDependencies,
+  createAsyncWaitItem,
+  sortBySchedulingPriority,
+} from './scheduling-common'
 
 export interface OptimalScheduleConfig {
   sleepStart: string // e.g., '23:00' - when sleep begins
@@ -66,89 +75,6 @@ export interface OptimizationResult {
   suggestions: string[]
 }
 
-/**
- * Calculate critical path through all tasks and dependencies
- */
-function calculateCriticalPath(
-  tasks: Task[],
-  workflows: SequencedTask[],
-): Map<string, number> {
-  const criticalPathLength = new Map<string, number>()
-  const dependencies = new Map<string, string[]>()
-
-  // Build dependency graph
-  tasks.forEach(task => {
-    if (task.dependencies && task.dependencies.length > 0) {
-      dependencies.set(task.id, task.dependencies)
-    }
-  })
-
-  workflows.forEach(workflow => {
-    if (workflow.steps) {
-      workflow.steps.forEach((step, index) => {
-        if (index > 0) {
-          // Each step depends on previous step
-          const prevStepId = workflow.steps![index - 1].id
-          const currentDeps = dependencies.get(step.id) || []
-          currentDeps.push(prevStepId)
-          dependencies.set(step.id, currentDeps)
-        }
-
-        // Also handle explicit dependencies
-        if (step.dependsOn) {
-          const currentDeps = dependencies.get(step.id) || []
-          currentDeps.push(...step.dependsOn)
-          dependencies.set(step.id, [...new Set(currentDeps)])
-        }
-      })
-    }
-  })
-
-  // Calculate critical path length for each item
-  const calculatePathLength = (itemId: string, visited: Set<string> = new Set()): number => {
-    if (visited.has(itemId)) return 0 // Cycle detection
-    visited.add(itemId)
-
-    if (criticalPathLength.has(itemId)) {
-      return criticalPathLength.get(itemId)!
-    }
-
-    // Find the item
-    let duration = 0
-    const task = tasks.find(t => t.id === itemId)
-    if (task) {
-      duration = task.duration
-    } else {
-      // Check workflow steps
-      for (const workflow of workflows) {
-        const step = workflow.steps?.find(s => s.id === itemId)
-        if (step) {
-          duration = step.duration
-          break
-        }
-      }
-    }
-
-    // Add max dependency path length
-    const deps = dependencies.get(itemId) || []
-    let maxDepPath = 0
-    for (const depId of deps) {
-      maxDepPath = Math.max(maxDepPath, calculatePathLength(depId, new Set(visited)))
-    }
-
-    const totalPath = duration + maxDepPath
-    criticalPathLength.set(itemId, totalPath)
-    return totalPath
-  }
-
-  // Calculate for all items
-  tasks.forEach(task => calculatePathLength(task.id))
-  workflows.forEach(workflow => {
-    workflow.steps?.forEach(step => calculatePathLength(step.id))
-  })
-
-  return criticalPathLength
-}
 
 
 /**
@@ -220,103 +146,39 @@ export function generateOptimalSchedule(
   const warnings: string[] = []
   const suggestions: string[] = []
 
+  // Convert to work items using common utility
+  const workItems = createWorkItems(tasks, workflows)
+
+  // Apply topological sort to respect dependencies
+  const topoResult = topologicalSort(workItems)
+  const topoSorted = topoResult.sorted
+  if (topoResult.warnings.length > 0) {
+    warnings.push(...topoResult.warnings)
+  }
+
   // Calculate critical paths
-  const criticalPaths = calculateCriticalPath(tasks, workflows)
+  const criticalPaths = calculateCriticalPaths(topoSorted)
 
-  // Convert all items to a unified format
-  const workItems: OptimalScheduledItem[] = []
+  // Apply scheduling priority sort after topological sort
+  const sortedWorkItems = sortBySchedulingPriority(topoSorted, criticalPaths)
 
-  // Add tasks
-  tasks.forEach(task => {
-    if (!task.completed) {
-      workItems.push({
-        id: task.id,
-        name: task.name,
-        type: 'task',
-        startTime: new Date(), // Will be set during scheduling
-        endTime: new Date(),   // Will be set during scheduling
-        duration: task.duration,
-        priority: ('priority' in task && typeof task.priority === 'number') ? task.priority : 50,
-        deadline: task.deadline,
-        dependencies: task.dependencies,
-        isAsyncTrigger: task.isAsyncTrigger,
-        asyncWaitTime: task.asyncWaitTime,
-        cognitiveComplexity: task.cognitiveComplexity,
-        originalItem: task,
-      })
-    }
-  })
-
-  // Add workflow steps
-  workflows.forEach(workflow => {
-    if (!workflow.completed && workflow.steps) {
-      workflow.steps.forEach((step, index) => {
-        if (!step.percentComplete || step.percentComplete < 100) {
-          const dependencies = [...(step.dependsOn || [])]
-          if (index > 0) {
-            // Add dependency on previous step
-            dependencies.push(workflow.steps![index - 1].id)
-          }
-
-          workItems.push({
-            id: step.id,
-            name: `${workflow.name}: ${step.name}`,
-            type: 'workflow-step',
-            startTime: new Date(),
-            endTime: new Date(),
-            duration: step.duration,
-            priority: 50, // Workflows don't have priority in our types
-            deadline: workflow.deadline,
-            dependencies: dependencies.length > 0 ? dependencies : undefined,
-            isAsyncTrigger: false, // Steps don't have this in our types
-            asyncWaitTime: 0, // Steps don't have this in our types
-            cognitiveComplexity: step.cognitiveComplexity,
-            originalItem: step,
-          })
-        }
-      })
-    }
-  })
-
-  // Sort by optimal order
-  const sortedItems = workItems.map(item => ({
-    ...item,
+  // Convert WorkItem to OptimalScheduledItem format
+  const sortedItems = sortedWorkItems.map(item => ({
+    id: item.id,
+    name: item.name,
+    type: item.type as 'task' | 'workflow-step' | 'async-wait',
+    startTime: new Date(), // Will be set during scheduling
+    endTime: new Date(),   // Will be set during scheduling
+    duration: item.duration,
+    priority: item.priority,
+    deadline: item.deadline,
+    dependencies: item.dependencies,
+    isAsyncTrigger: item.isAsyncTrigger,
+    asyncWaitTime: item.asyncWaitTime,
+    cognitiveComplexity: item.cognitiveComplexity,
+    originalItem: item.originalItem,
     criticalPath: criticalPaths.get(item.id) || item.duration,
   }))
-
-  // Sort by optimal order
-  sortedItems.sort((a, b) => {
-    // 1. Urgent deadlines first
-    if (a.deadline && b.deadline) {
-      const timeDiff = a.deadline.getTime() - b.deadline.getTime()
-      if (Math.abs(timeDiff) > 24 * 60 * 60 * 1000) { // More than 1 day difference
-        return timeDiff
-      }
-    } else if (a.deadline && !b.deadline) {
-      return -1
-    } else if (!a.deadline && b.deadline) {
-      return 1
-    }
-
-    // 2. Async triggers early (to maximize parallelization)
-    const aAsync = (a.asyncWaitTime || 0) > 0
-    const bAsync = (b.asyncWaitTime || 0) > 0
-    if (aAsync && !bAsync) return -1
-    if (!aAsync && bAsync) return 1
-    if (aAsync && bAsync) {
-      // Longer async wait times go first
-      return (b.asyncWaitTime || 0) - (a.asyncWaitTime || 0)
-    }
-
-    // 3. Longer critical paths first (to avoid bottlenecks)
-    const pathDiff = b.criticalPath - a.criticalPath
-    if (Math.abs(pathDiff) > 60) { // More than 1 hour difference
-      return pathDiff
-    }
-
-    // 4. Higher priority
-    return b.priority - a.priority
-  })
 
   // Track scheduling state
   let currentTime = new Date(startTime)
@@ -333,17 +195,34 @@ export function generateOptimalSchedule(
     for (let i = 0; i < sortedItems.length; i++) {
       const item = sortedItems[i]
 
-      // Check dependencies
-      if (item.dependencies) {
-        const allDepsComplete = item.dependencies.every(depId =>
-          completedItems.has(depId) ||
-          // Check if it's an async wait that's complete
-          (asyncEndTimes.has(depId) && asyncEndTimes.get(depId)! <= currentTime),
-        )
+      // Check dependencies using common utility
+      const depCheck = checkDependencies(
+        item as WorkItem,
+        completedItems,
+        asyncEndTimes,
+        currentTime,
+      )
 
-        if (!allDepsComplete) {
-          continue // Skip this item for now
+      if (!depCheck.canSchedule) {
+        // If we're waiting on async dependencies, we might need to advance time
+        if (depCheck.earliestStart && depCheck.earliestStart > currentTime &&
+            sortedItems.every(otherItem =>
+              otherItem === item ||
+              (otherItem.dependencies && otherItem.dependencies.some(d => !completedItems.has(d))),
+            )) {
+          // All remaining items are waiting on dependencies
+          // Advance time to when the async completes
+          currentTime = depCheck.earliestStart
+          continuousWorkTime = 0 // Reset continuous work after wait
+
+          // Mark any async tasks that have completed as done
+          for (const [taskId, endTime] of asyncEndTimes.entries()) {
+            if (endTime <= currentTime && !completedItems.has(taskId)) {
+              completedItems.add(taskId)
+            }
+          }
         }
+        continue // Skip this item for now
       }
 
       // Check if we need a break
@@ -466,7 +345,6 @@ export function generateOptimalSchedule(
       }
 
       // Update state
-      completedItems.add(item.id)
       currentTime = itemEnd
       continuousWorkTime += item.duration
 
@@ -474,23 +352,27 @@ export function generateOptimalSchedule(
       if (item.isAsyncTrigger && item.asyncWaitTime) {
         const asyncComplete = new Date(itemEnd.getTime() + item.asyncWaitTime * 60000)
         asyncEndTimes.set(item.id, asyncComplete)
+        // Don't mark async tasks as complete yet - they're complete after the wait
 
-        // Add async wait as a scheduled item
+        // Add async wait as a scheduled item using common utility
+        const asyncWait = createAsyncWaitItem(item as WorkItem, itemEnd, item.asyncWaitTime)
         schedule.push({
-          id: `${item.id}-wait`,
-          name: `⏳ Waiting: ${item.name}`,
+          ...asyncWait,
           type: 'async-wait',
-          startTime: itemEnd,
-          endTime: asyncComplete,
-          duration: item.asyncWaitTime,
-          priority: item.priority,
-          originalItem: item.originalItem,
-        })
+          cognitiveComplexity: undefined,
+          deadline: undefined,
+          dependencies: undefined,
+          isAsyncTrigger: undefined,
+          asyncWaitTime: undefined,
+        } as OptimalScheduledItem)
 
         suggestions.push(
           `Started async work "${item.name}" at ${itemStart.toLocaleTimeString()}. ` +
           `Can work on other tasks while waiting until ${asyncComplete.toLocaleTimeString()}.`,
         )
+      } else {
+        // Non-async tasks are complete immediately
+        completedItems.add(item.id)
       }
 
       // Remove from sorted items
