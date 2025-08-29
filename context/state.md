@@ -2,24 +2,26 @@
 
 ## Latest Status (2025-08-29)
 
-### 🚀 Current Session: Schedule Generation Fixes Complete
+### 🚀 Current Session: Unified Scheduling Logic Complete
 
-#### Major Fixes Applied
-1. **Fixed Midnight Boundary Bug** ✅
-   - Issue: Schedule blocks crossing midnight (12:20 PM to 00:15 AM) causing failures
-   - Solution: Split blocks at midnight boundary when they cross days
-   - Now properly handles work that extends past midnight
+#### Major Accomplishments
+1. **Unified Scheduling Logic** ✅
+   - Created `scheduling-common.ts` with shared utilities
+   - Eliminated duplicate code between schedulers
+   - Consistent dependency handling across application
+   - Topological sort now used in optimal scheduler
 
-2. **Fixed Weekend Personal Blocks** ✅  
-   - Issue: Empty personal blocks created on weekends without personal tasks
-   - Solution: Only create blocks when there's actual work to schedule
-   - Optimal scheduler now truly optimizes for minimal time
+2. **Fixed Async Workflow Scheduling** ✅
+   - Issue: Tasks scheduled immediately instead of after async wait
+   - Solution: Read actual isAsyncTrigger and asyncWaitTime from workflow steps
+   - Added comprehensive test for 24-hour async waits
+   - Async workflows now properly optimize with parallel wait times
 
-3. **Optimal Scheduler Complete** ✅
-   - Mathematical optimization working correctly
-   - Respects only sleep (11pm-7am) and meetings
-   - No artificial work hour constraints
-   - Creates blocks dynamically based on task needs
+3. **Scheduler Architecture Improvements** ✅
+   - Both schedulers now use common topological sort
+   - Critical path calculation unified
+   - Dependency checking logic consolidated
+   - Work item conversion standardized
 
 #### Testing & Quality
 1. **All Tests Passing** ✅
@@ -40,15 +42,16 @@
 
 ### 🟢 Current Code Status
 - **TypeScript Errors**: 0 ✅
-- **ESLint Errors**: 0 ✅ (861 warnings)
-- **Test Status**: All passing ✅ (364 passing, 42 skipped)
+- **ESLint Errors**: 0 ✅ (warnings only)
+- **Test Status**: All passing ✅ (366 passing, 42 skipped)
 - **Build**: Successful ✅
+- **PR #31**: Updated with unified scheduling logic
 
 ### 🎯 Next Steps
-1. Update tests for new optimal scheduler
-2. Address PR feedback
-3. Complete testing of optimal schedule generation
-4. Consider making sleep hours configurable
+1. Clean up any remaining dead code
+2. Update documentation for new shared utilities
+3. Consider further unification opportunities
+4. Review and address any PR feedback
 
 ### 📚 Key Technical Details
 
