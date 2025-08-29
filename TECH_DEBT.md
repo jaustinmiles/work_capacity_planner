@@ -40,6 +40,15 @@
 - Solution: Track completed steps separately for dependency resolution
 - Impact: All workflow steps with completed dependencies can now be scheduled
 
+## ✅ Recently Resolved - Unified Scheduling Logic (2025-08-29)
+**Status**: ✅ Fixed
+- Created `scheduling-common.ts` with shared utilities
+- Eliminated duplicate topological sort implementations
+- Unified critical path calculation
+- Consolidated dependency checking logic
+- Fixed async workflow scheduling to respect wait times
+- Both optimal and flexible schedulers now use common utilities
+
 ## Architectural Issues (NEW - 2025-08-27)
 
 ### 1. Workflow/Task Model Confusion
