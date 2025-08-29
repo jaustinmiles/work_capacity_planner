@@ -1228,8 +1228,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const widthPx = getDurationPx(item.duration)
                 const isWaitTime = item.isWaitTime
                 const isBlocked = item.isBlocked
-                const isSleep = item.type === 'blocked-time' && item.originalItem &&
-                  'name' in item.originalItem && item.originalItem.name === 'Sleep'
+                const isSleep = item.type === 'blocked-time' &&
+                  item.originalItem && 'name' in item.originalItem && item.originalItem.name === 'Sleep'
                 const isHovered = hoveredItem === item.id ||
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
 
