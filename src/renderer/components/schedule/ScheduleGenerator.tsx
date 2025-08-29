@@ -95,18 +95,8 @@ export function ScheduleGenerator({
               adminMinutes: 180, // 3 hours
             },
           })
-        } else if (isWeekend && hasPersonalTasks) {
-          // Only add weekend personal blocks if we actually have personal tasks
-          blocks.push({
-            id: `block-${dateStr}-personal`,
-            startTime: '10:00',
-            endTime: '14:00',
-            type: 'personal',
-            capacity: {
-              personalMinutes: 240, // 4 hours
-            },
-          })
         }
+        // Removed hardcoded weekend personal blocks - users should configure their own patterns
 
         // Always add the pattern, even if blocks are empty (for proper multi-day display)
         baseWorkPatterns.push({
@@ -124,29 +114,7 @@ export function ScheduleGenerator({
                                  sequencedTasks.some(w => !w.completed && w.deadline &&
                                             new Date(w.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
 
-      if (hasUrgentDeadlines) {
-        // Add weekend work blocks for deadline-focused scheduling
-        for (let i = 0; i < deadlineWorkPatterns.length; i++) {
-          const pattern = deadlineWorkPatterns[i]
-          const date = new Date(pattern.date)
-          const dayOfWeek = date.getDay()
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-
-          if (isWeekend && pattern.blocks.length === 0) {
-            // Add work blocks to weekends for deadline pressure
-            pattern.blocks.push({
-              id: `block-${pattern.date}-weekend-work`,
-              startTime: '10:00',
-              endTime: '18:00',
-              type: 'mixed',
-              capacity: {
-                focusMinutes: 300, // 5 hours
-                adminMinutes: 180, // 3 hours
-              },
-            })
-          }
-        }
-      }
+      // Removed hardcoded weekend work blocks - respect user's work patterns even with deadlines
 
       // Option 1: Optimal (Mathematical optimization for earliest completion)
       const optimalConfig: OptimalScheduleConfig = {
