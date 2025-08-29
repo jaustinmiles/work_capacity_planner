@@ -10,6 +10,17 @@
 - **UX Improvement**: Added success messages with specific workflow/task names for better feedback
 - **Validation**: Added check to ensure clarification text is provided before regeneration
 
+### Critical Schedule Generation Bug Discovery
+- **Issue**: Deadline scheduler was completely broken - not using work blocks at all
+- **Root Cause**: `scheduleItems` function in deadline-scheduler.ts was a placeholder that just scheduled tasks sequentially
+- **Impact**: Tasks with Monday deadlines were being scheduled for Sep 3rd, ignoring weekend availability
+- **Pattern**: Weekend personal blocks were being created even without personal tasks
+- **Solution**: 
+  - Integrated flexible-scheduler properly to use work blocks
+  - Only create weekend personal blocks when personal tasks exist
+  - Add weekend work blocks for deadline-focused scheduling when urgent deadlines exist
+- **Lesson**: Always verify that "simplified" implementations are actually temporary
+
 ## Session: 2025-08-19
 
 ### Critical Development Process Violations

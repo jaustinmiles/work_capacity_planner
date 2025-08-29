@@ -2,7 +2,7 @@
 
 ## Latest Status (2025-08-29)
 
-### 🚀 Current Session: UI Refresh Fix for Clarification Regeneration
+### 🚀 Current Session: Schedule Generation and UI Fixes
 
 #### Fixes Completed in This Session
 1. **Clarification Regeneration UI Refresh (High Priority)** ✅
@@ -12,6 +12,14 @@
    - Added comprehensive logging for debugging regeneration flow
    - Clear clarification input after successful regeneration
    - Added validation to ensure clarification text is provided before regeneration
+
+2. **Schedule Generation Critical Fix (Critical)** ✅
+   - Fixed deadline scheduler not using work blocks at all
+   - Previously just scheduled tasks sequentially ignoring all capacity constraints
+   - Now properly uses flexible-scheduler with work blocks
+   - Removed unnecessary personal blocks on weekends when no personal tasks exist
+   - Added weekend work blocks for deadline-focused scheduling when urgent deadlines exist
+   - Properly reports deadline misses and capacity warnings
 
 ### Previous Session: Critical Bug Fixes for User Testing
 
