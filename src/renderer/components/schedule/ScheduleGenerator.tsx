@@ -87,7 +87,7 @@ export function ScheduleGenerator({
             id: `block-${dateStr}-work`,
             startTime: dayWorkHours.startTime,
             endTime: dayWorkHours.endTime,
-            type: 'mixed',
+            type: 'flexible',
             capacity: {
               focusMinutes: 240, // 4 hours
               adminMinutes: 180, // 3 hours
@@ -427,7 +427,7 @@ export function ScheduleGenerator({
             blocks.push({
               startTime: dayWorkHours.startTime,
               endTime: dayWorkHours.endTime,
-              type: 'mixed',
+              type: 'flexible',
               capacity: {
                 focusMinutes: 240, // 4 hours default
                 adminMinutes: 180, // 3 hours default
