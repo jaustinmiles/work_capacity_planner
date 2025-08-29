@@ -771,6 +771,40 @@
     "context": "",
     "steps": "Use the prompt and context provided in the description and observe the duplicate tasks (although I did run this twice, maybe it is not clearing the list on ammendment regeneration) and bad amendment edit options (for status change, it doesn't show the task name or old status or anything, and some of the edit options for amendments are still blank. Accept the changes and then you will see the buggy workflow on the workflow view",
     "timestamp": "2025-08-28T19:02:08.363Z",
-    "sessionId": "session-1756407728356-np7i46fmp"
+    "sessionId": "session-1756407728356-np7i46fmp",
+    "resolved": true
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "schedule/ScheduleGenerator"
+    ],
+    "title": "Generation of schedule deletes sleep blocks",
+    "description": "I created sleep blocks that were daily, then generated a schedule. After refreshing, the sleep blocks are gone on the calendar view. ",
+    "timestamp": "2025-08-29T21:32:14.409Z",
+    "sessionId": "session-1756503134400-4nus4b2ni"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "schedule/ScheduleGenerator"
+    ],
+    "title": "Flexible blocks created by the schedule generator are broken on day 1.",
+    "description": "A flexible block was generated, but nothing was being scheduled. I found that I could edit the block and switch to focused, and then back to flexible, and it worked. \n\nwe need way better logging on the schedule generation. I checked the log dump in the dev tools custom panel and didn't see anything despite these issues. ",
+    "timestamp": "2025-08-29T21:34:27.703Z",
+    "sessionId": "session-1756503267698-0fpjy68v9"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "timeline/GanttChart"
+    ],
+    "title": "Sleep block only rendered until midnight",
+    "description": "sleep block rendering chops off at midnight despite being scheduled until the next morning. This appears to be just a UI bug. ",
+    "timestamp": "2025-08-29T21:37:34.591Z",
+    "sessionId": "session-1756503454582-tvr9ggsvq"
   }
 ]

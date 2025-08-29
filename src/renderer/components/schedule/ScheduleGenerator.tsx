@@ -56,14 +56,38 @@ export function ScheduleGenerator({
 
   const generateScheduleOptions = async () => {
     setGenerating(true)
+    logger.ui.info('=== Starting Schedule Generation ===')
 
     try {
       const options: ScheduleOption[] = []
 
-      // Create base work patterns for the next 30 days with proper work hours
-      const baseWorkPatterns: DailyWorkPattern[] = []
+      // Fetch all existing meetings (including sleep blocks) for the next 30 days
+      const db = await getDatabase()
+      const allMeetings: any[] = []
       const today = new Date()
       today.setHours(0, 0, 0, 0)
+
+      logger.ui.info('Fetching existing meetings and sleep blocks for next 30 days...')
+
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today)
+        date.setDate(date.getDate() + i)
+        const dateStr = date.toISOString().split('T')[0]
+        const pattern = await db.getWorkPattern(dateStr)
+        if (pattern?.meetings) {
+          logger.ui.debug(`Day ${i} (${dateStr}): Found ${pattern.meetings.length} meetings`)
+          allMeetings.push(...pattern.meetings.map((m: any) => ({
+            ...m,
+            date: dateStr,
+          })))
+        }
+      }
+
+      logger.ui.info(`Found ${allMeetings.length} total existing meetings/blocks to preserve:`,
+        allMeetings.map(m => ({ name: m.name, type: m.type, date: m.date })))
+
+      // Create base work patterns for the next 30 days with proper work hours
+      const baseWorkPatterns: DailyWorkPattern[] = []
 
       // Removed check for personal tasks - no longer using hardcoded weekend blocks
 
@@ -110,7 +134,7 @@ export function ScheduleGenerator({
       const optimalConfig: OptimalScheduleConfig = {
         sleepStart: '23:00',
         sleepEnd: '07:00',
-        meetings: [], // TODO: Get actual meetings from calendar
+        meetings: allMeetings, // Pass existing meetings (including sleep blocks)
         preferredBreakInterval: 90,
         preferredBreakDuration: 15,
         maxContinuousWork: 180,
@@ -375,9 +399,20 @@ export function ScheduleGenerator({
         const dayOfWeek = date.getDay()
         const blocks: any[] = []
 
+        // Fetch existing pattern to preserve meetings (like sleep blocks)
+        const existingPattern = await db.getWorkPattern(dateStr)
+        const existingMeetings = existingPattern?.meetings || []
+
         if (items.length > 0) {
           // Find the earliest start and latest end time for all items on this day
           const sortedItems = items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+
+          // Safety check - ensure we have items after sorting
+          if (!sortedItems.length || !sortedItems[0]) {
+            logger.ui.error('Unexpected empty sortedItems after sorting', { dateStr, itemsLength: items.length })
+            continue
+          }
+
           const earliestStart = dayjs(sortedItems[0].startTime).format('HH:mm')
           const latestEnd = sortedItems.reduce((latest, item) => {
             return item.endTime > latest ? item.endTime : latest
@@ -434,7 +469,7 @@ export function ScheduleGenerator({
           }
         }
 
-        // Save work pattern
+        // Save work pattern (preserve existing meetings like sleep blocks)
         await db.createWorkPattern({
           date: dateStr,
           blocks: blocks.map(b => ({
@@ -443,7 +478,7 @@ export function ScheduleGenerator({
             type: b.type,
             capacity: b.capacity,
           })),
-          meetings: [],
+          meetings: existingMeetings,
         })
       }
 

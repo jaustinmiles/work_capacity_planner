@@ -96,9 +96,30 @@
 - Add recurring pattern support (daily, weekly, etc.)
 - Update UI to properly reflect repetition status
 
-## Architectural Issues (NEW - 2025-08-27)
+## Architectural Issues (Updated - 2025-08-29)
 
-### 1. Workflow/Task Model Confusion
+### 1. ESLint Configuration Too Permissive (NEW - 2025-08-29)
+**Severity**: 🟡 Medium (but causes 🔴 Critical bugs)
+**Impact**: Missing null/undefined checks cause runtime errors
+
+**Problems:**
+- Current ESLint config doesn't catch potentially undefined values
+- No strict null checking rules enabled  
+- TypeScript `@typescript-eslint/recommended` preset too lenient
+- Leads to bugs like `sortedItems[0]` access without safety checks
+- Manual checking error-prone and inconsistent
+
+**Examples Found:**
+- `sortedItems[0].startTime` accessed without verifying array has elements
+- Many places where optional chaining should be required but isn't
+
+**Solution Needed:**
+- Enable `@typescript-eslint/strict-boolean-expressions`
+- Enable `@typescript-eslint/no-unsafe-member-access`
+- Fix all resulting errors (likely 100+ locations)
+- Consider gradual migration with file-by-file enforcement
+
+### 2. Workflow/Task Model Confusion
 **Severity**: 🔴 Critical  
 **Impact**: Constant type confusion, bugs, and workarounds
 

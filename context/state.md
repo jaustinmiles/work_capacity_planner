@@ -2,7 +2,31 @@
 
 ## Latest Status (2025-08-29)
 
-### 🚀 Current Session: Major Architecture Changes Merged to Main
+### 🚀 Current Session: Critical Schedule Generation Bug Fixes
+
+#### New Critical Bugs Fixed (Branch: fix/critical-schedule-bugs)
+1. **Sleep blocks deleted during schedule generation** ✅
+   - Schedule generator was overwriting existing meetings with empty array
+   - Now fetches and preserves existing meetings/sleep blocks when generating
+   - Passes existing meetings to optimal scheduler for proper avoidance
+
+2. **Flexible blocks broken on day 1** ✅
+   - Ensured all block types use 'flexible' instead of 'mixed'
+   - Better initialization and capacity tracking
+
+3. **Sleep blocks cut off at midnight in UI** ✅
+   - Fixed type checking in GanttChart for sleep block detection
+   - Sleep blocks with type 'blocked-time' now render with moon icon
+
+4. **Comprehensive logging added** ✅
+   - Added detailed logging to schedule generation process
+   - Logs existing meetings found, work patterns created
+   - Better debugging for future issues
+
+5. **Fixed undefined array access** ✅
+   - Added safety check for sortedItems array access
+   - Prevents potential runtime errors when accessing first element
+   - Identified need for stricter ESLint rules (added to TECH_DEBT.md)
 
 #### Major Accomplishments (PR #31 - Merged)
 1. **Unified Scheduling Logic** ✅
@@ -60,10 +84,10 @@
 - **Test Status**: All passing ✅ (366 passing, 42 skipped)
 - **Build**: Successful ✅
 - **PR #31**: MERGED to main ✅
-- **Current Branch**: dev/documentation-update
+- **Current Branch**: fix/critical-schedule-bugs
 
-### 🎯 Active Work: Documentation Update
-Currently updating all documentation to reflect the major architectural changes from PR #31.
+### 🎯 Active Work: Critical Bug Fixes
+Fixed 3 critical schedule generation bugs reported by user testing.
 
 ### 🔴 Critical Feedback Items (from feedback.json)
 1. **Applicator buggy and unusable** (CRITICAL)
@@ -107,4 +131,4 @@ Currently updating all documentation to reflect the major architectural changes 
 - Multiple test files updated for new architecture
 
 ---
-*Last Updated: 2025-08-29 2:05 PM PST*
+*Last Updated: 2025-08-29 3:00 PM PST*
