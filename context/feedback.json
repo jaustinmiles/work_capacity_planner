@@ -815,5 +815,17 @@
     "resolved": true,
     "resolvedIn": "PR #33",
     "resolvedDate": "2025-08-29"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "schedule/ScheduleGenerator"
+    ],
+    "title": "Schedule generate button has bug that prevents UI from moving forward",
+    "description": "15:13:23.784\nINFO\n[UI] === Starting Schedule Generation ===\n{\n  \"scope\": \"ui\"\n}\n15:13:23.786\nINFO\n[UI] Fetching existing meetings and sleep blocks for next 30 days...\n{\n  \"scope\": \"ui\"\n}\n15:13:23.820\nERROR\n[UI] Error generating schedules:\n{\n  \"scope\": \"ui\",\n  \"error\": \"Invalid time value\",\n  \"stack\": \"RangeError: Invalid time value\\n    at Date.toISOString (<anonymous>)\\n    at Jie (http://localhost:5174/assets/index-fHAV97Wk.js:74:112143)\\n    at S (http://localhost:5174/assets/index-fHAV97Wk.js:74:115472)\"\n}",
+    "steps": "Make sleep blocks, set to daily. Click generate schedule. Observe error. ",
+    "timestamp": "2025-08-29T22:14:33.881Z",
+    "sessionId": "session-1756505673871-dwxxsaxkh"
   }
 ]

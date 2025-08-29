@@ -121,8 +121,30 @@ function hasConflict(
 
   // Check meetings
   for (const meeting of config.meetings) {
-    const meetingStart = new Date(meeting.startTime)
-    const meetingEnd = new Date(meeting.endTime)
+    // Handle meetings with either full date-time or just time strings
+    let meetingStart: Date
+    let meetingEnd: Date
+
+    // If meeting has a date property, use it; otherwise use the date from startTime parameter
+    if ('date' in meeting && meeting.date) {
+      // Construct full date-time from date and time components
+      meetingStart = new Date(`${meeting.date}T${meeting.startTime}:00`)
+      meetingEnd = new Date(`${meeting.date}T${meeting.endTime}:00`)
+    } else if (meeting.startTime.includes('T')) {
+      // Full ISO date-time string
+      meetingStart = new Date(meeting.startTime)
+      meetingEnd = new Date(meeting.endTime)
+    } else {
+      // Just time strings - use the date from the slot being checked
+      const dateStr = startTime.toISOString().split('T')[0]
+      meetingStart = new Date(`${dateStr}T${meeting.startTime}:00`)
+      meetingEnd = new Date(`${dateStr}T${meeting.endTime}:00`)
+    }
+
+    // Validate dates before using them
+    if (isNaN(meetingStart.getTime()) || isNaN(meetingEnd.getTime())) {
+      continue // Skip invalid meetings
+    }
 
     if (!(endTime <= meetingStart || startTime >= meetingEnd)) {
       return { hasConflict: true, type: 'meeting', until: meetingEnd }

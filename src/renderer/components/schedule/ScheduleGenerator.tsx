@@ -72,6 +72,13 @@ export function ScheduleGenerator({
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
         date.setDate(date.getDate() + i)
+
+        // Check for invalid date before calling toISOString
+        if (isNaN(date.getTime())) {
+          logger.ui.error('Invalid date created during iteration', { i, today, date })
+          continue
+        }
+
         const dateStr = date.toISOString().split('T')[0]
         const pattern = await db.getWorkPattern(dateStr)
         if (pattern?.meetings) {
@@ -94,6 +101,13 @@ export function ScheduleGenerator({
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
         date.setDate(date.getDate() + i)
+
+        // Check for invalid date before calling toISOString
+        if (isNaN(date.getTime())) {
+          logger.ui.error('Invalid date created during work pattern iteration', { i, today, date })
+          continue
+        }
+
         const dayOfWeek = date.getDay()
         const dateStr = date.toISOString().split('T')[0]
 

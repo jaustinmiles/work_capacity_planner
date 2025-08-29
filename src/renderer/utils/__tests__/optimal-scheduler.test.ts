@@ -117,10 +117,13 @@ describe('Optimal Scheduler', () => {
       expect(actualTasks.length).toBe(2)
 
       // Check that tasks don't overlap with meeting
+      const meetingStart = new Date('2025-09-08T14:00:00')
+      const meetingEnd = new Date('2025-09-08T15:00:00')
+
       actualTasks.forEach(task => {
         const taskOverlapsMeeting = !(
-          task.endTime <= config.meetings[0].startTime ||
-          task.startTime >= config.meetings[0].endTime
+          task.endTime <= meetingStart ||
+          task.startTime >= meetingEnd
         )
         expect(taskOverlapsMeeting).toBe(false)
       })
