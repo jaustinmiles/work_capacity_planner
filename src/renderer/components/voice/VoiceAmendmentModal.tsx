@@ -1107,19 +1107,18 @@ export function VoiceAmendmentModal({
                                   {(() => {
                                     // Find the workflow this step is being added to
                                     const stepAddition = amendment as StepAddition
-                                    const targetWorkflow = sequencedTasks.find(w => 
-                                      w.id === stepAddition.workflowTarget?.id || 
-                                      w.name === stepAddition.workflowTarget?.name
+                                    const targetWorkflow = sequencedTasks.find(w =>
+                                      w.id === stepAddition.workflowTarget?.id ||
+                                      w.name === stepAddition.workflowTarget?.name,
                                     )
-                                    
+
                                     // Get existing steps from the workflow
                                     const existingSteps = targetWorkflow?.steps || []
-                                    
+
                                     // Also include any other steps being added in this amendment batch
                                     const otherNewSteps = amendmentResult?.amendments
                                       .filter((a, i) => i !== index && a.type === AmendmentType.StepAddition)
                                       .map(a => (a as StepAddition).stepName) || []
-                                    
                                     return [...existingSteps.map(s => s.name), ...otherNewSteps].map(stepName => (
                                       <Select.Option key={stepName} value={stepName}>
                                         {stepName}
