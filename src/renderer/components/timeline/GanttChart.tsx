@@ -975,25 +975,39 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               </div>
 
               {/* Time labels */}
-              <div style={{ position: 'relative', height: 30, background: '#fff' }}>
+              <div style={{ 
+                position: 'relative', 
+                height: 30, 
+                background: '#f8f8f8', 
+                borderTop: '1px solid #e5e5e5',
+                overflow: 'visible',
+              }}>
                 {timeMarkers
                   .filter(time => time.getHours() % 2 === 0 && time.getMinutes() === 0)
-                  .map((time) => (
-                    <div
-                      key={time.getTime()}
-                      style={{
-                        position: 'absolute',
-                        left: `${getPositionPx(time)}px`,
-                        transform: 'translateX(-50%)',
-                        fontSize: 11,
-                        color: '#666',
-                        padding: '4px',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {formatTime(time)}
-                    </div>
-                  ))
+                  .map((time) => {
+                    const position = getPositionPx(time)
+                    return (
+                      <div
+                        key={time.getTime()}
+                        style={{
+                          position: 'absolute',
+                          left: `${position}px`,
+                          top: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          fontSize: 11,
+                          color: '#666',
+                          fontWeight: 'normal',
+                          padding: '2px 6px',
+                          whiteSpace: 'nowrap',
+                          background: 'white',
+                          border: '1px solid #ddd',
+                          borderRadius: 2,
+                        }}
+                      >
+                        {formatTime(time)}
+                      </div>
+                    )
+                  })
                 }
               </div>
             </div>
@@ -1119,15 +1133,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                             fontSize: 12,
                             fontWeight: isBlockedRow || isWorkflowRow ? 600 : 400,
                             color: isBlockedRow ? '#ff4d4f' : isWorkflowRow ? '#5865f2' : '#666',
-                            borderRight: '1px solid #e5e5e5',
+                            borderRight: '2px solid #d0d0d0',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
-                            maxWidth: 200,
+                            width: 180,
+                            minWidth: 180,
                             height: '100%',
                             display: 'flex',
                             alignItems: 'center',
-                            zIndex: 5,
+                            zIndex: 20,
+                            boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
                           }}
                         >
                           {isBlockedRow && (
