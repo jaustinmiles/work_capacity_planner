@@ -264,9 +264,53 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     if (savedSchedule && savedSchedule.length > 0) {
       logger.ui.debug(`GanttChart: Using saved optimal schedule with ${savedSchedule.length} items`)
 
-      // Return the saved schedule directly
-      // No need to show debug info for saved schedule
-      setShowDebugInfo(false)
+      // Even with saved schedule, we need to generate debug info for display
+      // Run the scheduler to get debug info, but use the saved schedule
+      const debugResult = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, new Date(), {
+        allowTaskSplitting: true,
+        minimumSplitDuration: 10,
+        productivityPatterns: [
+          // Default productivity pattern - peak in morning, dip after lunch
+          { id: 'morning-peak', sessionId: 'default', timeRangeStart: '09:00', timeRangeEnd: '11:00', cognitiveCapacity: 'peak', preferredComplexity: [4, 5], createdAt: new Date(), updatedAt: new Date() },
+          { id: 'late-morning', sessionId: 'default', timeRangeStart: '11:00', timeRangeEnd: '12:00', cognitiveCapacity: 'high', preferredComplexity: [3, 4], createdAt: new Date(), updatedAt: new Date() },
+          { id: 'lunch-dip', sessionId: 'default', timeRangeStart: '12:00', timeRangeEnd: '13:00', cognitiveCapacity: 'low', preferredComplexity: [1, 2], createdAt: new Date(), updatedAt: new Date() },
+          { id: 'early-afternoon', sessionId: 'default', timeRangeStart: '13:00', timeRangeEnd: '14:30', cognitiveCapacity: 'moderate', preferredComplexity: [2, 3], createdAt: new Date(), updatedAt: new Date() },
+          { id: 'afternoon-peak', sessionId: 'default', timeRangeStart: '14:30', timeRangeEnd: '16:00', cognitiveCapacity: 'high', preferredComplexity: [3, 4], createdAt: new Date(), updatedAt: new Date() },
+          { id: 'late-afternoon', sessionId: 'default', timeRangeStart: '16:00', timeRangeEnd: '18:00', cognitiveCapacity: 'moderate', preferredComplexity: [2, 3], createdAt: new Date(), updatedAt: new Date() },
+        ],
+        schedulingPreferences: {
+          id: 'default',
+          sessionId: 'default',
+          allowWeekendWork: false,
+          weekendPenalty: 0.5,
+          contextSwitchPenalty: 10, // Priority penalty for context switching
+          asyncParallelizationBonus: 20, // Priority bonus for async work
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        workSettings: workSettings || {
+          id: 'default',
+          sessionId: 'default',
+          defaultWorkCapacity: { focus: 240, admin: 240, personal: 30 },
+          adjustmentFactors: {
+            mondayFactor: 0.9,
+            fridayFactor: 0.85,
+            saturdayFactor: 0.5,
+            sundayFactor: 0.25,
+          },
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+      })
+
+      // Set the debug info so it can be displayed
+      setDebugInfo(debugResult.debugInfo)
+
+      // Auto-show debug info if there are issues
+      if (debugResult.debugInfo.unscheduledItems.length > 0 || debugResult.debugInfo.warnings.length > 0) {
+        setShowDebugInfo(true)
+      }
+
+      // Return the saved schedule (not the newly generated one)
       return savedSchedule
     }
 
