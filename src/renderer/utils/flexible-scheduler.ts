@@ -1583,11 +1583,11 @@ export function scheduleItemsWithBlocksAndDebug(
       // Before moving to next day, check if any items are just waiting on async dependencies
       // that will complete within today's remaining blocks
       let hasItemsWaitingForAsyncToday = false
-
+      
       if (asyncWaitEndTimes.size > 0) {
         // Get the earliest async wait end time
         const earliestAsyncEnd = Math.min(...Array.from(asyncWaitEndTimes.keys()).map(d => d.getTime()))
-
+        
         // Check if this async wait will complete before the last block ends today
         if (earliestAsyncEnd < lastBlockEnd.getTime()) {
           // We have items waiting on async that will complete today
