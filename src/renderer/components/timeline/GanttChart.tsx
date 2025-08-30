@@ -975,7 +975,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               </div>
 
               {/* Time labels */}
-              <div style={{ position: 'relative', height: 30 }}>
+              <div style={{ position: 'relative', height: 30, background: '#fff' }}>
                 {timeMarkers
                   .filter(time => time.getHours() % 2 === 0 && time.getMinutes() === 0)
                   .map((time) => (
@@ -988,6 +988,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         fontSize: 11,
                         color: '#666',
                         padding: '4px',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {formatTime(time)}
@@ -1074,7 +1075,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 left: 0,
                 top: 0,
                 width: '100%',
-                zIndex: 0,
+                zIndex: 1,
               }}>
                 {Array.from({ length: itemRowPositions.totalRows }).map((_, rowIndex) => {
                   // Find what's in this row
@@ -1126,6 +1127,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                             height: '100%',
                             display: 'flex',
                             alignItems: 'center',
+                            zIndex: 5,
                           }}
                         >
                           {isBlockedRow && (
