@@ -6,7 +6,6 @@
 import { describe, it, expect } from 'vitest'
 import { scheduleItemsWithBlocksAndDebug } from '../flexible-scheduler'
 import { TaskType } from '@shared/enums'
-import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 
 describe('Async Wait Scheduling Optimization', () => {
@@ -116,7 +115,7 @@ describe('Async Wait Scheduling Optimization', () => {
 
       // Schedule at 8 PM Friday
       const startDate = new Date('2025-08-29T20:00:00')
-      
+
       const result = scheduleItemsWithBlocksAndDebug(
         [], // No regular tasks
         [bedtimeWorkflow],
@@ -126,15 +125,15 @@ describe('Async Wait Scheduling Optimization', () => {
 
       // All 4 steps should be scheduled (excluding async-wait items)
       const bedtimeSteps = result.scheduledItems.filter(item =>
-        item.name.includes('Bedtime Routine') && item.type !== 'async-wait'
+        item.name.includes('Bedtime Routine') && item.type !== 'async-wait',
       )
       expect(bedtimeSteps).toHaveLength(4)
 
       // All steps should be scheduled on the same day
       if (bedtimeSteps.length > 0) {
         const firstStepDate = bedtimeSteps[0].startTime.toISOString().split('T')[0]
-        const allOnSameDay = bedtimeSteps.every(step => 
-          step.startTime.toISOString().split('T')[0] === firstStepDate
+        const allOnSameDay = bedtimeSteps.every(step =>
+          step.startTime.toISOString().split('T')[0] === firstStepDate,
         )
         expect(allOnSameDay).toBe(true)
       }
@@ -142,12 +141,12 @@ describe('Async Wait Scheduling Optimization', () => {
       // Verify the async wait is respected
       const melStep = bedtimeSteps.find(s => s.name.includes('Take melatonin'))
       const readStep = bedtimeSteps.find(s => s.name.includes('Read book'))
-      
+
       if (melStep && readStep) {
         const melEnd = new Date(melStep.endTime)
         const readStart = new Date(readStep.startTime)
         const waitTime = (readStart.getTime() - melEnd.getTime()) / (1000 * 60)
-        
+
         // Read should start about 60 minutes after melatonin
         expect(waitTime).toBeGreaterThanOrEqual(55) // Allow some flexibility
         expect(waitTime).toBeLessThanOrEqual(65)
@@ -236,7 +235,7 @@ describe('Async Wait Scheduling Optimization', () => {
       ]
 
       const startDate = new Date('2025-08-29T20:00:00')
-      
+
       const result = scheduleItemsWithBlocksAndDebug(
         [],
         [longWaitWorkflow],
@@ -245,16 +244,16 @@ describe('Async Wait Scheduling Optimization', () => {
       )
 
       const workflowSteps = result.scheduledItems.filter(item =>
-        item.name.includes('Long Wait Workflow') && item.type !== 'async-wait'
+        item.name.includes('Long Wait Workflow') && item.type !== 'async-wait',
       )
 
       // Steps should be on different days (async wait extends beyond first day blocks)
       const startStep = workflowSteps.find(s => s.name.includes('Start process'))
       const completeStep = workflowSteps.find(s => s.name.includes('Complete process'))
-      
+
       expect(startStep).toBeDefined()
       expect(completeStep).toBeDefined()
-      
+
       if (startStep && completeStep) {
         const startDate = startStep.startTime.toISOString().split('T')[0]
         const completeDate = completeStep.startTime.toISOString().split('T')[0]
@@ -361,7 +360,7 @@ describe('Async Wait Scheduling Optimization', () => {
       ]
 
       const startDate = new Date('2025-08-29T09:00:00')
-      
+
       const result = scheduleItemsWithBlocksAndDebug(
         [],
         [workflow1, workflow2],
@@ -371,10 +370,10 @@ describe('Async Wait Scheduling Optimization', () => {
 
       // Both workflows should be scheduled
       const w1Steps = result.scheduledItems.filter(item =>
-        item.name.includes('Workflow 1') && item.type !== 'async-wait'
+        item.name.includes('Workflow 1') && item.type !== 'async-wait',
       )
       const w2Steps = result.scheduledItems.filter(item =>
-        item.name.includes('Workflow 2') && item.type !== 'async-wait'
+        item.name.includes('Workflow 2') && item.type !== 'async-wait',
       )
 
       expect(w1Steps).toHaveLength(2)
@@ -383,11 +382,11 @@ describe('Async Wait Scheduling Optimization', () => {
       // Workflow 2 (no async wait) should be scheduled normally
       const w2Step1 = w2Steps.find(s => s.name.includes('W2 Step 1'))
       const w2Step2 = w2Steps.find(s => s.name.includes('W2 Step 2'))
-      
+
       if (w2Step1 && w2Step2) {
         const step1End = new Date(w2Step1.endTime)
         const step2Start = new Date(w2Step2.startTime)
-        
+
         // Steps should be consecutive (no significant wait)
         const gap = (step2Start.getTime() - step1End.getTime()) / (1000 * 60)
         expect(gap).toBeLessThanOrEqual(5) // Allow small scheduling gaps
@@ -396,11 +395,11 @@ describe('Async Wait Scheduling Optimization', () => {
       // Workflow 1 should have async wait respected
       const w1Step1 = w1Steps.find(s => s.name.includes('W1 Step 1'))
       const w1Step2 = w1Steps.find(s => s.name.includes('W1 Step 2'))
-      
+
       if (w1Step1 && w1Step2) {
         const step1End = new Date(w1Step1.endTime)
         const step2Start = new Date(w1Step2.startTime)
-        
+
         // Should have ~30 minute async wait
         const gap = (step2Start.getTime() - step1End.getTime()) / (1000 * 60)
         expect(gap).toBeGreaterThanOrEqual(25)
@@ -488,7 +487,7 @@ describe('Async Wait Scheduling Optimization', () => {
       ]
 
       const startDate = new Date('2025-08-29T21:00:00')
-      
+
       const result = scheduleItemsWithBlocksAndDebug(
         [],
         [boundaryWorkflow],
@@ -497,16 +496,16 @@ describe('Async Wait Scheduling Optimization', () => {
       )
 
       const steps = result.scheduledItems.filter(item =>
-        item.name.includes('Boundary Workflow') && item.type !== 'async-wait'
+        item.name.includes('Boundary Workflow') && item.type !== 'async-wait',
       )
 
       // Steps should be on different days (async wait extends past first block)
       const step1 = steps.find(s => s.name.includes('Step at boundary'))
       const step2 = steps.find(s => s.name.includes('Step after wait'))
-      
+
       expect(step1).toBeDefined()
       expect(step2).toBeDefined()
-      
+
       if (step1 && step2) {
         const date1 = step1.startTime.toISOString().split('T')[0]
         const date2 = step2.startTime.toISOString().split('T')[0]
