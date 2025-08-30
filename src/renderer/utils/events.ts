@@ -38,4 +38,5 @@ export const EVENTS = {
   WORKFLOW_UPDATED: 'workflow-updated',
   SESSION_CHANGED: 'session-changed',
   DATA_REFRESH_NEEDED: 'data-refresh-needed',
+  TIME_OVERRIDE_CHANGED: 'time-override-changed',
 } as const

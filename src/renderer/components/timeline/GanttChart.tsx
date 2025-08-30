@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, DatePicker, Alert, Dropdown, Menu } from '@arco-design/web-react'
-import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand } from '@arco-design/web-react/icon'
+import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconRefresh, IconClockCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
@@ -14,7 +14,8 @@ import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
 import { logGanttChart } from '../../../logging/formatters/schedule-formatter'
-import { getCurrentTime } from '@shared/time-provider'
+import { getCurrentTime, isTimeOverridden } from '@shared/time-provider'
+import { appEvents, EVENTS } from '../../utils/events'
 
 
 const { Title, Text } = Typography
@@ -48,8 +49,25 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [draggedItem, setDraggedItem] = useState<any>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [dropTarget, setDropTarget] = useState<{ time: Date, row: number } | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0) // Force re-render when time changes
 
-  const { workSettings } = useTaskStore()
+  const { workSettings, setOptimalSchedule } = useTaskStore()
+
+  // Listen for time override changes
+  useEffect(() => {
+    const handleTimeChange = () => {
+      logger.ui.info('Time override changed, refreshing Gantt chart')
+      // Clear any saved schedule when time changes
+      setOptimalSchedule([])
+      // Force re-render by incrementing key
+      setRefreshKey(prev => prev + 1)
+    }
+
+    appEvents.on(EVENTS.TIME_OVERRIDE_CHANGED, handleTimeChange)
+    return () => {
+      appEvents.off(EVENTS.TIME_OVERRIDE_CHANGED, handleTimeChange)
+    }
+  }, [setOptimalSchedule])
 
   // Zoom controls
   const handleZoomIn = useCallback(() => {
@@ -257,6 +275,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   }
 
   // Use the scheduler to get properly ordered items
+  // Include refreshKey in dependencies to force recalculation when time changes
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
 
@@ -274,7 +293,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         scheduledItemsPriority: savedSchedule.map((item: any) => ({
           id: item.id,
           name: item.name,
-          scheduledTime: item.startTime?.toISOString() || new Date().toISOString(),
+          scheduledTime: item.startTime?.toISOString() || getCurrentTime().toISOString(),
           priorityBreakdown: {
             eisenhower: 0,
             deadlineBoost: 0,
@@ -345,10 +364,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
     // Log the Gantt chart data for AI debugging
     const viewWindow = {
-      start: result.scheduledItems.length > 0 ? result.scheduledItems[0].startTime : new Date(),
+      start: result.scheduledItems.length > 0 ? result.scheduledItems[0].startTime : getCurrentTime(),
       end: result.scheduledItems.length > 0 ?
         result.scheduledItems[result.scheduledItems.length - 1].endTime :
-        new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
+        new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
     }
     logGanttChart(logger.ui, result.scheduledItems, workPatterns, viewWindow, result.debugInfo)
 
@@ -358,10 +377,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     }
 
     return result.scheduledItems
-  }, [tasks, sequencedTasks, workPatterns, getOptimalSchedule])
+  }, [tasks, sequencedTasks, workPatterns, getOptimalSchedule, refreshKey])
 
   // Calculate chart dimensions
-  const now = new Date()
+  const now = getCurrentTime()
   const chartStartTime = scheduledItems.length > 0
     ? new Date(Math.min(scheduledItems[0].startTime.getTime(), now.getTime()))
     : now
@@ -620,6 +639,34 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             </Space>
           }
           closable
+        />
+      )}
+
+      {/* Time Override Indicator and Refresh */}
+      {isTimeOverridden() && (
+        <Alert
+          type="warning"
+          icon={<IconClockCircle />}
+          content={
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Space>
+                <Text style={{ fontWeight: 'bold' }}>Time Override Active:</Text>
+                <Text>{getCurrentTime().toLocaleString()}</Text>
+              </Space>
+              <Button
+                type="primary"
+                size="small"
+                icon={<IconRefresh />}
+                onClick={() => {
+                  logger.ui.info('Manual refresh triggered')
+                  setOptimalSchedule([])
+                  setRefreshKey(prev => prev + 1)
+                }}
+              >
+                Refresh Schedule
+              </Button>
+            </Space>
+          }
         />
       )}
 
@@ -1188,11 +1235,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               ))}
 
               {/* Current time indicator */}
-              {new Date() >= chartStartTime && new Date() <= chartEndTime && (
+              {getCurrentTime() >= chartStartTime && getCurrentTime() <= chartEndTime && (
                 <div
                   style={{
                     position: 'absolute',
-                    left: `${getPositionPx(new Date())}px`,
+                    left: `${getPositionPx(getCurrentTime())}px`,
                     top: 0,
                     bottom: 0,
                     width: 2,
