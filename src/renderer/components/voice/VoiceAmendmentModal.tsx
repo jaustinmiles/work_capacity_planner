@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select } from '@arco-design/web-react'
-import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload, IconInfoCircle } from '@arco-design/web-react/icon'
+import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload, IconInfoCircle, IconExclamationCircle, IconMinus } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import {
   Amendment,
@@ -12,8 +12,12 @@ import {
   NoteAddition,
   DurationChange,
   StepAddition,
+  StepRemoval,
   TaskCreation,
   DependencyChange,
+  DeadlineChange,
+  PriorityChange,
+  TypeChange,
   TaskType,
 } from '../../../shared/amendment-types'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -353,6 +357,18 @@ export function VoiceAmendmentModal({
       case 'dependency_change':
       case AmendmentType.DependencyChange:
         return <IconLink />
+      case 'deadline_change':
+      case AmendmentType.DeadlineChange:
+        return <IconClockCircle />
+      case 'priority_change':
+      case AmendmentType.PriorityChange:
+        return <IconExclamationCircle />
+      case 'type_change':
+      case AmendmentType.TypeChange:
+        return <IconRefresh />
+      case 'step_removal':
+      case AmendmentType.StepRemoval:
+        return <IconMinus />
       default:
         logger.ui.warn('[VoiceAmendmentModal] Unknown amendment type in icon:', type)
         return <IconEdit />
@@ -511,6 +527,79 @@ export function VoiceAmendmentModal({
             )}
             {depChange.stepName && (
               <Text type="secondary">Step: {depChange.stepName}</Text>
+            )}
+          </Space>
+        )
+      }
+      case 'deadline_change':
+      case AmendmentType.DeadlineChange: {
+        const deadlineChange = amendment as any
+        return (
+          <Space>
+            <Text>Set deadline for</Text>
+            <Text bold>{deadlineChange.target.name}</Text>
+            <Text>to</Text>
+            <Text bold>{new Date(deadlineChange.newDeadline).toLocaleDateString()}</Text>
+            {deadlineChange.deadlineType && (
+              <Tag color={deadlineChange.deadlineType === 'hard' ? 'red' : 'orange'}>
+                {deadlineChange.deadlineType}
+              </Tag>
+            )}
+            {deadlineChange.stepName && (
+              <Text type="secondary">Step: {deadlineChange.stepName}</Text>
+            )}
+          </Space>
+        )
+      }
+      case 'priority_change':
+      case AmendmentType.PriorityChange: {
+        const priorityChange = amendment as any
+        const changes: string[] = []
+        if (priorityChange.importance !== undefined) changes.push(`Importance: ${priorityChange.importance}`)
+        if (priorityChange.urgency !== undefined) changes.push(`Urgency: ${priorityChange.urgency}`)
+        if (priorityChange.cognitiveComplexity !== undefined) changes.push(`Complexity: ${priorityChange.cognitiveComplexity}`)
+        
+        return (
+          <Space>
+            <Text>Update priority for</Text>
+            <Text bold>{priorityChange.target.name}</Text>
+            {changes.length > 0 && (
+              <Text>({changes.join(', ')})</Text>
+            )}
+            {priorityChange.stepName && (
+              <Text type="secondary">Step: {priorityChange.stepName}</Text>
+            )}
+          </Space>
+        )
+      }
+      case 'type_change':
+      case AmendmentType.TypeChange: {
+        const typeChange = amendment as any
+        return (
+          <Space>
+            <Text>Change type of</Text>
+            <Text bold>{typeChange.target.name}</Text>
+            <Text>to</Text>
+            <Tag color={typeChange.newType === 'focused' ? 'purple' : typeChange.newType === 'admin' ? 'blue' : 'green'}>
+              {typeChange.newType}
+            </Tag>
+            {typeChange.stepName && (
+              <Text type="secondary">Step: {typeChange.stepName}</Text>
+            )}
+          </Space>
+        )
+      }
+      case 'step_removal':
+      case AmendmentType.StepRemoval: {
+        const stepRemoval = amendment as any
+        return (
+          <Space>
+            <Text>Remove step</Text>
+            <Text bold>{stepRemoval.stepName}</Text>
+            <Text>from</Text>
+            <Text bold>{stepRemoval.workflowTarget.name}</Text>
+            {stepRemoval.reason && (
+              <Text type="secondary">Reason: {stepRemoval.reason}</Text>
             )}
           </Space>
         )
