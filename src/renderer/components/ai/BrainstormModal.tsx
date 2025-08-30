@@ -89,11 +89,12 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
   const [clarifications, setClarifications] = useState<Record<string, string>>({})
   const [regeneratingItems, setRegeneratingItems] = useState<Set<string>>(new Set())
   const [appliedClarifications, setAppliedClarifications] = useState<Set<string>>(new Set())
-  const [clarificationVoiceRecording, setClarificationVoiceRecording] = useState<RecordingState>('idle')
-  const [clarificationVoiceDuration, setClarificationVoiceDuration] = useState(0)
-  const clarificationMediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const clarificationAudioChunksRef = useRef<Blob[]>([])
-  const clarificationRecordingTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // TODO: Add voice recording support in clarification mode
+  // const [clarificationVoiceRecording, setClarificationVoiceRecording] = useState<RecordingState>('idle')
+  // const [clarificationVoiceDuration, setClarificationVoiceDuration] = useState(0)
+  // const clarificationMediaRecorderRef = useRef<MediaRecorder | null>(null)
+  // const clarificationAudioChunksRef = useRef<Blob[]>([])
+  // const clarificationRecordingTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
