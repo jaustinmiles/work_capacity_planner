@@ -1092,19 +1092,41 @@ export function VoiceAmendmentModal({
                                 </Select>
                               </Space>
                               <Space direction="vertical" style={{ width: '100%' }}>
-                                <Text>Dependencies (comma-separated step names):</Text>
-                                <Input
-                                  value={edited.dependencies ? edited.dependencies.join(', ') :
-                                         ((amendment as StepAddition).dependencies || []).join(', ')}
+                                <Text>Dependencies (select steps that must complete first):</Text>
+                                <Select
+                                  mode="multiple"
+                                  value={edited.dependencies || (amendment as StepAddition).dependencies || []}
                                   onChange={(value) => {
                                     const newEdited = new Map(editedAmendments)
-                                    const deps = value ? value.split(',').map(s => s.trim()).filter(s => s) : []
-                                    newEdited.set(index, { ...edited, dependencies: deps })
+                                    newEdited.set(index, { ...edited, dependencies: value })
                                     setEditedAmendments(newEdited)
                                   }}
-                                  placeholder="e.g., Step 1, Step 2"
+                                  placeholder="Select prerequisite steps"
                                   style={{ width: '100%' }}
-                                />
+                                >
+                                  {(() => {
+                                    // Find the workflow this step is being added to
+                                    const stepAddition = amendment as StepAddition
+                                    const targetWorkflow = sequencedTasks.find(w => 
+                                      w.id === stepAddition.workflowTarget?.id || 
+                                      w.name === stepAddition.workflowTarget?.name
+                                    )
+                                    
+                                    // Get existing steps from the workflow
+                                    const existingSteps = targetWorkflow?.steps || []
+                                    
+                                    // Also include any other steps being added in this amendment batch
+                                    const otherNewSteps = amendmentResult?.amendments
+                                      .filter((a, i) => i !== index && a.type === AmendmentType.StepAddition)
+                                      .map(a => (a as StepAddition).stepName) || []
+                                    
+                                    return [...existingSteps.map(s => s.name), ...otherNewSteps].map(stepName => (
+                                      <Select.Option key={stepName} value={stepName}>
+                                        {stepName}
+                                      </Select.Option>
+                                    ))
+                                  })()}
+                                </Select>
                               </Space>
                             </>
                           )}
