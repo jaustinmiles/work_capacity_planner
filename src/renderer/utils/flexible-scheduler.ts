@@ -6,6 +6,7 @@ import { WorkSettings } from '@shared/work-settings-types'
 import { calculatePriority, calculatePriorityWithBreakdown, SchedulingContext } from './deadline-scheduler'
 import { logger } from './logger'
 import { topologicalSort as commonTopologicalSort, WorkItem as CommonWorkItem } from './scheduling-common'
+import { getCurrentTime } from '@shared/time-provider'
 
 
 export interface ScheduledItem {
@@ -435,7 +436,7 @@ export function scheduleItemsWithBlocks(
   tasks: Task[],
   sequencedTasks: SequencedTask[],
   patterns: DailyWorkPattern[],
-  startDate: Date = new Date(),
+  startDate: Date = getCurrentTime(),
   options: SchedulingOptions = {},
 ): ScheduledItem[] {
   const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, patterns, startDate, options)
@@ -446,7 +447,7 @@ export function scheduleItemsWithBlocksAndDebug(
   tasks: Task[],
   sequencedTasks: SequencedTask[],
   patterns: DailyWorkPattern[],
-  startDate: Date = new Date(),
+  startDate: Date = getCurrentTime(),
   options: SchedulingOptions = {},
 ): { scheduledItems: ScheduledItem[], debugInfo: SchedulingDebugInfo } {
   logger.scheduler.info('[Scheduler] Starting scheduling process', {

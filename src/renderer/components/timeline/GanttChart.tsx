@@ -14,6 +14,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
 import { logGanttChart } from '../../../logging/formatters/schedule-formatter'
+import { getCurrentTime } from '@shared/time-provider'
 
 
 const { Title, Text } = Typography
@@ -301,7 +302,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
     // Pass current time as start date to ensure scheduling starts from now
     // Also pass scheduling preferences and work settings to enable enhanced priority calculation
-    const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, new Date(), {
+    const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, getCurrentTime(), {
       allowTaskSplitting: true,
       minimumSplitDuration: 10,
       productivityPatterns: [
