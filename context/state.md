@@ -2,7 +2,27 @@
 
 ## Latest Status (2025-08-30)
 
-### 🚀 Current Session: Comprehensive Scheduling System Fixes
+### 🚀 Recent Accomplishments (PR #38 - Merged)
+
+#### Time Provider System for Development Testing
+1. **Global Time Control** ✅
+   - Created TimeProvider singleton for consistent time across app
+   - LocalStorage persistence for dev time overrides
+   - Event system integration for UI updates
+   - Console commands: setTime(), advanceTime(), clearTime()
+
+2. **Scheduler Async Wait Optimization** ✅  
+   - Prevents unnecessary workflow splitting across days
+   - Keeps bedtime routines together when async wait completes same day
+   - Fixed: 80-minute bedtime routine no longer splits Friday PM/Monday AM
+
+3. **Test Coverage Improvements** ✅
+   - Added 19 comprehensive TimeProvider tests
+   - Created async-wait-scheduling tests
+   - Excluded scripts/ directory from coverage metrics
+   - All tests passing with 0 TypeScript/ESLint errors
+
+### 🚀 Previous Session: Comprehensive Scheduling System Fixes
 
 #### Critical Scheduling Bugs Fixed (Branch: feature/universal-task-quick-edit)
 1. **Sleep blocks deleted during schedule generation** ✅
@@ -95,12 +115,11 @@
 
 ### 🟢 Current Code Status
 - **TypeScript Errors**: 0 ✅
-- **ESLint Errors**: 0 ✅ (warnings only)
+- **ESLint Errors**: 0 ✅ (warnings only in scripts/)
 - **Test Status**: All passing ✅
 - **Build**: Successful ✅
-- **PR #35**: MERGED to main ✅
-- **PR #36**: Ready to merge on feature/universal-task-quick-edit
-- **Current Branch**: feature/universal-task-quick-edit
+- **PR #38**: MERGED to main ✅ (Time Provider & Scheduler Fixes)
+- **Current Branch**: main
 
 ### 🎯 Active Work: Amendment Applicator Enhancement
 Analyzing and documenting gaps in voice amendment capabilities.
@@ -169,4 +188,4 @@ Analyzing and documenting gaps in voice amendment capabilities.
 - Multiple test files updated for new architecture
 
 ---
-*Last Updated: 2025-08-29 3:00 PM PST*
+*Last Updated: 2025-08-30 (Post PR #38 merge)*
