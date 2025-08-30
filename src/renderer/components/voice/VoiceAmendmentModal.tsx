@@ -284,6 +284,7 @@ export function VoiceAmendmentModal({
         if (edits.stepName !== undefined) stepAddition.stepName = edits.stepName
         if (edits.duration !== undefined) stepAddition.duration = edits.duration
         if (edits.stepType !== undefined) stepAddition.stepType = edits.stepType
+        if (edits.dependencies !== undefined) stepAddition.dependencies = edits.dependencies
       }
       if (amendment.type === AmendmentType.DeadlineChange) {
         const deadlineChange = edited as DeadlineChange
@@ -554,7 +555,14 @@ export function VoiceAmendmentModal({
             <Text>Set deadline for</Text>
             <Text bold>{deadlineChange.target.name}</Text>
             <Text>to</Text>
-            <Text bold>{new Date(deadlineChange.newDeadline).toLocaleDateString()}</Text>
+            <Text bold>{new Date(deadlineChange.newDeadline).toLocaleString('en-US', { 
+              month: 'short', 
+              day: 'numeric', 
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true 
+            })}</Text>
             {deadlineChange.deadlineType && (
               <Tag color={deadlineChange.deadlineType === 'hard' ? 'red' : 'orange'}>
                 {deadlineChange.deadlineType}
@@ -1082,6 +1090,21 @@ export function VoiceAmendmentModal({
                                   <Select.Option value={TaskType.Focused}>Focused</Select.Option>
                                   <Select.Option value={TaskType.Admin}>Admin</Select.Option>
                                 </Select>
+                              </Space>
+                              <Space direction="vertical" style={{ width: '100%' }}>
+                                <Text>Dependencies (comma-separated step names):</Text>
+                                <Input
+                                  value={edited.dependencies ? edited.dependencies.join(', ') : 
+                                         ((amendment as StepAddition).dependencies || []).join(', ')}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    const deps = value ? value.split(',').map(s => s.trim()).filter(s => s) : []
+                                    newEdited.set(index, { ...edited, dependencies: deps })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  placeholder="e.g., Step 1, Step 2"
+                                  style={{ width: '100%' }}
+                                />
                               </Space>
                             </>
                           )}

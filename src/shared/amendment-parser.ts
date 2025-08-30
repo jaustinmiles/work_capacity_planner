@@ -215,8 +215,10 @@ Parse the transcription into one or more amendments. Common patterns:
    
 7. STEP ADDITION: Adding new steps to workflows
    - "add a code review step after implementation"
+   - "add a final step that depends on all other steps" → include dependencies array with names of all other steps
    - Break into 15-60 minute granular steps
    - Wire dependencies logically
+   - IMPORTANT: When user says "depends on all other steps", populate the dependencies array with names of existing steps
 
 8. DEADLINE CHANGE: Setting or changing deadlines
    - "set deadline to Friday", "due by 5pm tomorrow"
@@ -292,7 +294,8 @@ Examples:
 - "kick off the deployment workflow" → status_update to mark workflow in_progress
 - "the database migration step took 3 hours" → time_log with duration: 180 and stepName: "database migration"
 - "add a code review step after implementation" → step_addition with stepType: "focused", afterStep: "implementation"
-- "add a final step that depends on all other steps" → step_addition with dependencies: ["step1", "step2", "step3"]
+- "add a final step that depends on all other steps" → step_addition with dependencies: ["step1", "step2", "step3"] (list ALL existing step names)
+- "add bedtime complete step which depends on all other steps" → step_addition with dependencies populated from workflow context
 - "the testing step will take longer, maybe 2 hours" → duration_change with stepName: "testing", newDuration: 120
 - "finished the API design step" → status_update with stepName: "API design", newStatus: "completed"
 - "set the bedtime routine deadline to 11pm tonight" → deadline_change with newDeadline: "${dateStr}T23:00:00", deadlineType: "soft"
