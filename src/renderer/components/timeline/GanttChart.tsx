@@ -442,6 +442,19 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     return Math.max(hours * pixelsPerHour, minBlockWidth)
   }
 
+  // Snap to current time
+  const handleSnapToNow = useCallback(() => {
+    if (!chartContainerRef.current) return
+    
+    const now = getCurrentTime()
+    const nowPosition = getPositionPx(now)
+    const containerWidth = chartContainerRef.current.clientWidth
+    
+    // Center the current time in the viewport
+    const scrollPosition = nowPosition - containerWidth / 2
+    chartContainerRef.current.scrollLeft = Math.max(0, scrollPosition)
+  }, [chartStartTime, pixelsPerHour])
+
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
@@ -899,6 +912,16 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 />
               </Tooltip>
             </Button.Group>
+            <Tooltip content="Jump to current time">
+              <Button
+                size="small"
+                icon={<IconClockCircle />}
+                onClick={handleSnapToNow}
+                type="primary"
+              >
+                Now
+              </Button>
+            </Tooltip>
             <Dropdown
               droplist={
                 <Menu onClickMenuItem={(key) => setPixelsPerHour(Number(key))}>
