@@ -102,22 +102,29 @@
 - **PR #36**: Ready to merge on feature/universal-task-quick-edit
 - **Current Branch**: feature/universal-task-quick-edit
 
-### 🎯 Active Work: AI Brainstorm Clarification UI Fixes
-Working on fixing critical issues with AI brainstorm clarification workflow (feedback #1).
+### 🎯 Active Work: Amendment Applicator Enhancement
+Analyzing and documenting gaps in voice amendment capabilities.
 
-#### Recently Fixed Bugs (2025-08-30)
-1. **AI Brainstorm Clarification UI** (feedback #1 - CRITICAL) ✅
-   - Removed individual "Regenerate with Clarification" buttons from each item
-   - Added single "Apply All Clarifications" button at bottom
-   - Added clarification inputs for standalone tasks (previously only workflows had them)
-   - Clarification boxes now clear after successful regeneration
-   - Added visual indicators showing which items have been updated
-   - Better tracking of regeneration state per item
-   - Improved UX with single-button regeneration workflow
+#### Recently Completed (2025-08-30)
+1. **AI Brainstorm Clarification UI Fixed** (feedback #1 - CRITICAL) ✅
+   - UI now properly updates when clarifications are applied
+   - Fixed data binding to use editableResult in clarification mode
+   - Standalone tasks now show clarification inputs
+   - Single "Apply All Clarifications" button for better UX
+   - Visual indicators for updated items
 
-#### Pending AI Brainstorm Improvements
-- **Voice recording in clarification mode** - Not yet available, needs implementation
-- **Visual diff of changes** - Show what changed after regeneration
+2. **Amendment Applicator Analysis** ✅
+   - Documented current capabilities (~40% coverage)
+   - Identified critical gaps including deadline management
+   - Created enhancement roadmap in /docs/amendment-applicator-analysis.md
+
+#### Critical Amendment Gaps Discovered
+- **No deadline management** - Cannot set/change deadlines (user's "bedtime to 11pm" failed)
+- **No priority updates** - Cannot change importance/urgency after creation
+- **No cognitive complexity** - Cannot set mental load ratings
+- **No task type changes** - Cannot switch between focused/admin/personal
+- **Incomplete step operations** - Step duration, notes, time logging not implemented
+- **No step removal** - StepRemoval defined but not implemented
 
 ### 🔴 Critical Feedback Items (from feedback.json)
 1. **AI brainstorm clarification UI doesn't update** (CRITICAL) - PARTIALLY FIXED
