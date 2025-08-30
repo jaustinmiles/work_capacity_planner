@@ -12,9 +12,14 @@ import {
   NoteAddition,
   DurationChange,
   StepAddition,
+  StepRemoval,
   TaskCreation,
   WorkflowCreation,
   DependencyChange,
+  DeadlineChange,
+  PriorityChange,
+  TypeChange,
+  DeadlineType,
 } from '@shared/amendment-types'
 import { assertNever, TaskType } from '@shared/enums'
 import { getDatabase } from '../services/database'
@@ -205,11 +210,64 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           break
         }
 
-        case AmendmentType.StepRemoval:
-          // TODO: Implement step removal
-          logger.ui.debug('TODO: Step removal not yet implemented', amendment)
-          Message.info('Step removal not yet implemented')
+        case AmendmentType.StepRemoval: {
+          const removal = amendment as StepRemoval
+          if (removal.workflowTarget.id) {
+            try {
+              const workflow = await db.getSequencedTaskById(removal.workflowTarget.id)
+              if (workflow && workflow.steps) {
+                const stepIndex = workflow.steps.findIndex(s =>
+                  s.name.toLowerCase().includes(removal.stepName.toLowerCase()) ||
+                  removal.stepName.toLowerCase().includes(s.name.toLowerCase()),
+                )
+
+                if (stepIndex !== -1) {
+                  const removedStep = workflow.steps[stepIndex]
+                  // Remove the step
+                  const updatedSteps = workflow.steps.filter((_, index) => index !== stepIndex)
+
+                  // Update step indices
+                  updatedSteps.forEach((step, index) => {
+                    step.stepIndex = index
+                  })
+
+                  // Remove dependencies on the removed step
+                  updatedSteps.forEach(step => {
+                    if (step.dependsOn && step.dependsOn.includes(removedStep.id)) {
+                      step.dependsOn = step.dependsOn.filter(id => id !== removedStep.id)
+                    }
+                  })
+
+                  // Update workflow duration
+                  const newDuration = updatedSteps.reduce((sum, step) => sum + step.duration, 0)
+
+                  await db.updateSequencedTask(removal.workflowTarget.id, {
+                    steps: updatedSteps,
+                    duration: newDuration,
+                  })
+
+                  successCount++
+                  logger.ui.info(`Removed step "${removal.stepName}" from workflow`)
+                  Message.success(`Removed step "${removal.stepName}"`)
+                } else {
+                  Message.warning(`Step "${removal.stepName}" not found in workflow`)
+                  errorCount++
+                }
+              } else {
+                Message.warning('Workflow not found or has no steps')
+                errorCount++
+              }
+            } catch (error) {
+              logger.ui.error('Failed to remove step:', error)
+              Message.error(`Failed to remove step "${removal.stepName}"`)
+              errorCount++
+            }
+          } else {
+            Message.warning(`Cannot remove step from ${removal.workflowTarget.name} - workflow not found`)
+            errorCount++
+          }
           break
+        }
 
         case AmendmentType.DependencyChange: {
           const change = amendment as DependencyChange
@@ -437,6 +495,158 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           await db.createSequencedTask(workflowData)
           successCount++
           logger.ui.info('Workflow created successfully:', creation.name)
+          break
+        }
+
+        case AmendmentType.DeadlineChange: {
+          const change = amendment as DeadlineChange
+          if (change.target.id) {
+            try {
+              const deadline = change.newDeadline
+              const deadlineType = change.deadlineType === DeadlineType.Hard ? 'hard' : 'soft'
+
+              if (change.stepName) {
+                // Changing deadline for a workflow step
+                logger.ui.warn('Step-level deadlines not yet supported in database schema')
+                Message.warning('Step deadlines are not yet supported')
+                errorCount++
+              } else if (change.target.type === EntityType.Workflow) {
+                // Update workflow deadline
+                await db.updateSequencedTask(change.target.id, {
+                  deadline: deadline,
+                  deadlineType: deadlineType,
+                })
+                successCount++
+                logger.ui.info(`Updated workflow deadline to ${deadline.toISOString()}`)
+                Message.success(`Deadline updated to ${change.newDeadline.toLocaleString()}`)
+              } else {
+                // Update task deadline
+                await db.updateTask(change.target.id, {
+                  deadline: deadline,
+                  deadlineType: deadlineType,
+                })
+                successCount++
+                logger.ui.info(`Updated task deadline to ${deadline.toISOString()}`)
+                Message.success(`Deadline updated to ${change.newDeadline.toLocaleString()}`)
+              }
+            } catch (error) {
+              logger.ui.error('Failed to update deadline:', error)
+              Message.error(`Failed to update deadline for ${change.target.name}`)
+              errorCount++
+            }
+          } else {
+            Message.warning(`Cannot update deadline for ${change.target.name} - not found`)
+            errorCount++
+          }
+          break
+        }
+
+        case AmendmentType.PriorityChange: {
+          const change = amendment as PriorityChange
+          if (change.target.id) {
+            try {
+              const updates: any = {}
+              if (change.importance !== undefined) updates.importance = change.importance
+              if (change.urgency !== undefined) updates.urgency = change.urgency
+              if (change.cognitiveComplexity !== undefined) updates.cognitiveComplexity = change.cognitiveComplexity
+
+              if (change.stepName) {
+                // Changing priority for a workflow step
+                const workflow = await db.getSequencedTaskById(change.target.id)
+                if (workflow && workflow.steps) {
+                  const stepIndex = workflow.steps.findIndex(s =>
+                    s.name.toLowerCase().includes(change.stepName!.toLowerCase()) ||
+                    change.stepName!.toLowerCase().includes(s.name.toLowerCase()),
+                  )
+
+                  if (stepIndex !== -1) {
+                    // Update step properties (note: step schema may not support all these)
+                    const updatedSteps = [...workflow.steps]
+                    // Steps don't have importance/urgency in current schema
+                    logger.ui.warn('Step-level priority changes not fully supported in current schema')
+                    Message.warning('Step priority changes are limited in current version')
+                    errorCount++
+                  } else {
+                    Message.warning(`Step "${change.stepName}" not found`)
+                    errorCount++
+                  }
+                }
+              } else if (change.target.type === EntityType.Workflow) {
+                // Update workflow priority
+                await db.updateSequencedTask(change.target.id, updates)
+                successCount++
+                logger.ui.info('Updated workflow priority:', updates)
+                Message.success('Priority updated successfully')
+              } else {
+                // Update task priority
+                await db.updateTask(change.target.id, updates)
+                successCount++
+                logger.ui.info('Updated task priority:', updates)
+                Message.success('Priority updated successfully')
+              }
+            } catch (error) {
+              logger.ui.error('Failed to update priority:', error)
+              Message.error(`Failed to update priority for ${change.target.name}`)
+              errorCount++
+            }
+          } else {
+            Message.warning(`Cannot update priority for ${change.target.name} - not found`)
+            errorCount++
+          }
+          break
+        }
+
+        case AmendmentType.TypeChange: {
+          const change = amendment as TypeChange
+          if (change.target.id) {
+            try {
+              if (change.stepName) {
+                // Changing type for a workflow step
+                const workflow = await db.getSequencedTaskById(change.target.id)
+                if (workflow && workflow.steps) {
+                  const stepIndex = workflow.steps.findIndex(s =>
+                    s.name.toLowerCase().includes(change.stepName!.toLowerCase()) ||
+                    change.stepName!.toLowerCase().includes(s.name.toLowerCase()),
+                  )
+
+                  if (stepIndex !== -1) {
+                    const updatedSteps = [...workflow.steps]
+                    updatedSteps[stepIndex] = {
+                      ...updatedSteps[stepIndex],
+                      type: change.newType,
+                    }
+
+                    await db.updateSequencedTask(change.target.id, { steps: updatedSteps })
+                    successCount++
+                    logger.ui.info(`Updated step type to ${change.newType}`)
+                    Message.success(`Step type changed to ${change.newType}`)
+                  } else {
+                    Message.warning(`Step "${change.stepName}" not found`)
+                    errorCount++
+                  }
+                }
+              } else if (change.target.type === EntityType.Workflow) {
+                // Update workflow type
+                await db.updateSequencedTask(change.target.id, { type: change.newType })
+                successCount++
+                logger.ui.info(`Updated workflow type to ${change.newType}`)
+                Message.success(`Type changed to ${change.newType}`)
+              } else {
+                // Update task type
+                await db.updateTask(change.target.id, { type: change.newType })
+                successCount++
+                logger.ui.info(`Updated task type to ${change.newType}`)
+                Message.success(`Type changed to ${change.newType}`)
+              }
+            } catch (error) {
+              logger.ui.error('Failed to update type:', error)
+              Message.error(`Failed to update type for ${change.target.name}`)
+              errorCount++
+            }
+          } else {
+            Message.warning(`Cannot update type for ${change.target.name} - not found`)
+            errorCount++
+          }
           break
         }
 

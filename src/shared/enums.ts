@@ -35,6 +35,9 @@ export enum AmendmentType {
   DependencyChange = 'dependency_change',
   TaskCreation = 'task_creation',
   WorkflowCreation = 'workflow_creation',
+  DeadlineChange = 'deadline_change',
+  PriorityChange = 'priority_change',
+  TypeChange = 'type_change',
 }
 
 // Entity types for amendments
@@ -42,6 +45,12 @@ export enum EntityType {
   Task = 'task',
   Workflow = 'workflow',
   Step = 'step',
+}
+
+// Deadline types
+export enum DeadlineType {
+  Hard = 'hard',
+  Soft = 'soft',
 }
 
 // Work session types

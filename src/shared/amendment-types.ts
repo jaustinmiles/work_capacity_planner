@@ -2,10 +2,10 @@
  * Types for voice amendments and logging
  */
 
-import { AmendmentType, EntityType, TaskStatus, TaskType } from './enums'
+import { AmendmentType, EntityType, TaskStatus, TaskType, DeadlineType } from './enums'
 
 // Re-export enums for convenience
-export { AmendmentType, EntityType, TaskStatus, TaskType }
+export { AmendmentType, EntityType, TaskStatus, TaskType, DeadlineType }
 
 export type AmendmentStatus = 'pending' | 'applied' | 'rejected' | 'error'
 
@@ -109,6 +109,30 @@ export interface WorkflowCreation {
   urgency?: number
 }
 
+export interface DeadlineChange {
+  type: AmendmentType.DeadlineChange
+  target: AmendmentTarget
+  newDeadline: Date
+  deadlineType?: DeadlineType
+  stepName?: string  // For changing step deadline if applicable
+}
+
+export interface PriorityChange {
+  type: AmendmentType.PriorityChange
+  target: AmendmentTarget
+  importance?: number  // 1-10
+  urgency?: number  // 1-10
+  cognitiveComplexity?: 1 | 2 | 3 | 4 | 5
+  stepName?: string  // For changing step priority if applicable
+}
+
+export interface TypeChange {
+  type: AmendmentType.TypeChange
+  target: AmendmentTarget
+  newType: TaskType
+  stepName?: string  // For changing step type
+}
+
 export type Amendment =
   | StatusUpdate
   | TimeLog
@@ -119,6 +143,9 @@ export type Amendment =
   | DependencyChange
   | TaskCreation
   | WorkflowCreation
+  | DeadlineChange
+  | PriorityChange
+  | TypeChange
 
 export interface AmendmentResult {
   amendments: Amendment[]

@@ -212,6 +212,23 @@ Parse the transcription into one or more amendments. Common patterns:
    - Break into 15-60 minute granular steps
    - Wire dependencies logically
 
+8. DEADLINE CHANGE: Setting or changing deadlines
+   - "set deadline to Friday", "due by 5pm tomorrow"
+   - "change bedtime routine deadline to 11pm"
+   - "this must be done by end of day" → hard deadline
+   - "try to finish by noon" → soft deadline
+
+9. PRIORITY CHANGE: Updating importance, urgency, or complexity
+   - "make this high priority", "this is urgent now"
+   - "reduce importance to 3", "not urgent anymore"
+   - "this is very mentally demanding" → high cognitive complexity
+   - "this is a simple task" → low cognitive complexity
+
+10. TYPE CHANGE: Changing task/step type
+   - "change this to personal task", "make this admin work"
+   - "this should be focused work not admin"
+   - "convert to deep work task"
+
 MATCHING RULES:
 - "this", "it", "current" → refer to active task/workflow from context
 - Use fuzzy matching for names (e.g., "API" matches "API Implementation")
@@ -248,6 +265,9 @@ Amendment types and their required fields:
 - duration_change: type, target, newDuration (in minutes), stepName (optional)
 - step_addition: type, workflowTarget, stepName, duration, stepType ("focused"/"admin"), afterStep/beforeStep (optional)
 - step_removal: type, workflowTarget, stepName, reason (optional)
+- deadline_change: type, target, newDeadline (ISO date string), deadlineType ("hard"/"soft", optional), stepName (optional for workflow steps)
+- priority_change: type, target, importance (1-10, optional), urgency (1-10, optional), cognitiveComplexity (1-5, optional), stepName (optional)
+- type_change: type, target, newType ("focused"/"admin"/"personal"), stepName (optional for changing step type)
 
 CRITICAL: For step_addition, use "stepType" NOT "type" for the task type. The "type" field must always be "step_addition".
 
@@ -265,6 +285,12 @@ Examples:
 - "add a code review step after implementation" → step_addition with stepType: "focused", afterStep: "implementation"
 - "the testing step will take longer, maybe 2 hours" → duration_change with stepName: "testing", newDuration: 120
 - "finished the API design step" → status_update with stepName: "API design", newStatus: "completed"
+- "set the bedtime routine deadline to 11pm tonight" → deadline_change with newDeadline: "2025-08-30T23:00:00", deadlineType: "soft"
+- "this task must be done by Friday at 5pm" → deadline_change with newDeadline: "2025-08-30T17:00:00", deadlineType: "hard"
+- "make the deployment task high priority" → priority_change with importance: 9, urgency: 9
+- "this is really mentally taxing work" → priority_change with cognitiveComplexity: 5
+- "change this to a personal task" → type_change with newType: "personal"
+- "the review step should be admin work" → type_change with stepName: "review", newType: "admin"
 
 IMPORTANT: 
 - For workflow modifications, always include the stepName field when referring to specific steps
@@ -362,6 +388,16 @@ IMPORTANT:
 
       // Update the result with filtered amendments
       result.amendments = uniqueAmendments
+
+      // Post-process amendments to convert date strings to Date objects
+      for (const amendment of result.amendments) {
+        if (amendment.type === AmendmentType.DeadlineChange) {
+          const deadlineChange = amendment as any
+          if (typeof deadlineChange.newDeadline === 'string') {
+            deadlineChange.newDeadline = new Date(deadlineChange.newDeadline)
+          }
+        }
+      }
 
       // Adjust confidence if we removed duplicates - significant reduction as this indicates misunderstanding
       if (uniqueAmendments.length < result.amendments.length) {
