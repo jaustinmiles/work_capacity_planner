@@ -1580,7 +1580,46 @@ export function scheduleItemsWithBlocksAndDebug(
         ? blockCapacities[blockCapacities.length - 1].endTime
         : currentTime
 
-      if (currentTime.getTime() >= lastBlockEnd.getTime()) {
+      // Before moving to next day, check if any items are just waiting on async dependencies
+      // that will complete within today's remaining blocks
+      let hasItemsWaitingForAsyncToday = false
+      
+      if (asyncWaitEndTimes.size > 0) {
+        // Get the earliest async wait end time
+        const earliestAsyncEnd = Math.min(...Array.from(asyncWaitEndTimes.keys()).map(d => d.getTime()))
+        
+        // Check if this async wait will complete before the last block ends today
+        if (earliestAsyncEnd < lastBlockEnd.getTime()) {
+          // We have items waiting on async that will complete today
+          // Check if any work items are waiting on these async dependencies
+          for (const item of workItems) {
+            if (item.dependencies && item.dependencies.length > 0) {
+              for (const depId of item.dependencies) {
+                // Check if this dependency is in an async wait that completes today
+                for (const [asyncEndTime, waitingItemId] of asyncWaitEndTimes.entries()) {
+                  if (waitingItemId === depId && asyncEndTime.getTime() <= lastBlockEnd.getTime()) {
+                    hasItemsWaitingForAsyncToday = true
+                    // Fast-forward current time to when the async wait completes
+                    if (asyncEndTime.getTime() > currentTime.getTime()) {
+                      currentTime = new Date(asyncEndTime)
+                      logger.scheduler.debug('[Scheduler] Fast-forwarding to async wait completion', {
+                        newTime: currentTime.toISOString(),
+                        asyncItemId: waitingItemId,
+                      })
+                    }
+                    break
+                  }
+                }
+                if (hasItemsWaitingForAsyncToday) break
+              }
+            }
+            if (hasItemsWaitingForAsyncToday) break
+          }
+        }
+      }
+
+      // Only move to next day if we're past the last block AND not waiting for async
+      if (currentTime.getTime() >= lastBlockEnd.getTime() && !hasItemsWaitingForAsyncToday) {
         currentDate.setDate(currentDate.getDate() + 1)
         dayIndex++
         dateStr = currentDate.toISOString().split('T')[0]  // Update dateStr for the new day
