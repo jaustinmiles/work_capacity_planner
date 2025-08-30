@@ -1,8 +1,37 @@
 # Current State
 
-## Latest Status (2025-08-30)
+## Latest Status (2025-08-30, Evening Session)
 
-### 🚀 Recent Accomplishments (PR #38 - Merged)
+### 🚀 Current Session: Voice Amendments & Gantt Chart Improvements (Branch: fix/voice-amendment-date-parsing)
+
+#### Voice Amendment Improvements ✅
+1. **Date Parsing Fixed**
+   - Added current date/time context to AI prompt
+   - AI now understands "today", "tonight", relative times
+   - Fixed issue where "11 pm" was parsed as January 1st
+
+2. **Amendment UI Enhancements**
+   - Added DatePicker for editing deadline dates
+   - Deadline display shows full date/time (e.g., "Aug 30, 2025, 11:00 PM")
+   - Dependencies field changed from text input to multi-select dropdown
+   - AI prompt improved to handle "depends on all other steps"
+
+#### Gantt Chart Display Fixes ✅
+1. **Time Range Improvements**
+   - Chart now shows full day (midnight to midnight) instead of just scheduled items
+   - Fixed issue where only 1-2 time markers showed for short task windows
+   
+2. **Hour Labels & Grid**
+   - Dynamic hour intervals: every hour when zoomed in (≥60px/hour), every 2 hours when zoomed out
+   - Grid lines match hour label intervals
+   - Debug text shows marker count and interval
+   
+3. **UI Enhancements**
+   - Added "Snap to Now" button to jump to current time
+   - Row labels have proper z-index to prevent overlap with blocks
+   - Time labels have improved styling with borders and background
+
+### 🚀 Previous Accomplishments (PR #38 - Merged)
 
 #### Time Provider System for Development Testing
 1. **Global Time Control** ✅

@@ -381,19 +381,19 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Calculate chart dimensions
   const now = getCurrentTime()
-  
+
   // Start at beginning of current day (or first scheduled item if earlier)
   const todayStart = new Date(now)
   todayStart.setHours(0, 0, 0, 0)
-  
+
   const chartStartTime = scheduledItems.length > 0
     ? new Date(Math.min(scheduledItems[0].startTime.getTime(), todayStart.getTime()))
     : todayStart
-    
-  // End at end of day (or last scheduled item if later)  
+
+  // End at end of day (or last scheduled item if later)
   const todayEnd = new Date(now)
   todayEnd.setHours(23, 59, 59, 999)
-  
+
   const chartEndTime = scheduledItems.length > 0
     ? new Date(Math.max(...scheduledItems.map((item: any) => item.endTime.getTime()), todayEnd.getTime()))
     : todayEnd
@@ -445,11 +445,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Snap to current time
   const handleSnapToNow = useCallback(() => {
     if (!chartContainerRef.current) return
-    
+
     const now = getCurrentTime()
     const nowPosition = getPositionPx(now)
     const containerWidth = chartContainerRef.current.clientWidth
-    
+
     // Center the current time in the viewport
     const scrollPosition = nowPosition - containerWidth / 2
     chartContainerRef.current.scrollLeft = Math.max(0, scrollPosition)
@@ -1008,10 +1008,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               </div>
 
               {/* Time labels */}
-              <div style={{ 
-                position: 'relative', 
-                height: 30, 
-                background: '#f8f8f8', 
+              <div style={{
+                position: 'relative',
+                height: 30,
+                background: '#f8f8f8',
                 borderTop: '1px solid #e5e5e5',
                 overflow: 'visible',
               }}>
