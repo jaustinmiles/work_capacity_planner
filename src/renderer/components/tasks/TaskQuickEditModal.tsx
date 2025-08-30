@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Modal,
-  Card,
   Space,
   Typography,
   Button,
@@ -13,20 +12,16 @@ import {
   Progress,
   Divider,
   Rate,
-  Tooltip,
   Alert,
   Empty,
 } from '@arco-design/web-react'
 import {
   IconLeft,
   IconRight,
-  IconSave,
-  IconClose,
   IconCalendar,
   IconClockCircle,
   IconThunderbolt,
   IconFire,
-  IconCheckCircle,
   IconEdit,
 } from '@arco-design/web-react/icon'
 import { Task, TaskStep } from '@shared/types'
@@ -48,7 +43,7 @@ interface TaskQuickEditModalProps {
 }
 
 // Union type for items we can edit
-type EditableItem = 
+type EditableItem =
   | { type: 'task'; data: Task }
   | { type: 'workflow'; data: Task }  // Workflow is a Task with hasSteps=true
   | { type: 'step'; data: TaskStep; workflow: Task }
@@ -90,16 +85,16 @@ export function TaskQuickEditModal({
   // Build list of editable items (tasks, workflows, and their steps)
   const editableItems = useMemo((): EditableItem[] => {
     const items: EditableItem[] = []
-    
+
     tasks.forEach(task => {
       // Apply filter
       if (filter === 'incomplete' && task.completed) return
       if (filter === 'high-priority' && task.importance < 7 && task.urgency < 7) return
-      
+
       if (task.hasSteps && includeWorkflowSteps) {
         // Add the workflow itself
         items.push({ type: 'workflow', data: task })
-        
+
         // Add each step if we have them loaded
         if (task.steps) {
           task.steps.forEach(step => {
@@ -111,7 +106,7 @@ export function TaskQuickEditModal({
         items.push({ type: 'task', data: task })
       }
     })
-    
+
     return items
   }, [tasks, filter, includeWorkflowSteps])
 
@@ -145,7 +140,7 @@ export function TaskQuickEditModal({
     return changes.tasks[currentItem.data.id] || {}
   }
   const currentChanges = getCurrentChanges()
-  
+
   const getEditedData = () => {
     if (!currentItem) return null
     if (currentItem.type === 'step') {
@@ -241,14 +236,14 @@ export function TaskQuickEditModal({
     try {
       if (currentItem.type === 'step') {
         // Update the step by updating the parent workflow with modified steps
-        const updatedSteps = currentItem.workflow.steps?.map(s => 
-          s.id === currentItem.data.id 
+        const updatedSteps = currentItem.workflow.steps?.map(s =>
+          s.id === currentItem.data.id
             ? { ...s, ...currentChanges }
-            : s
+            : s,
         )
-        
+
         await updateTask(currentItem.workflow.id, { steps: updatedSteps })
-        
+
         // Clear changes for this step
         setChanges(prev => {
           const newChanges = { ...prev }
@@ -257,7 +252,7 @@ export function TaskQuickEditModal({
         })
       } else {
         await updateTask(currentItem.data.id, currentChanges)
-        
+
         // Clear changes for this task
         setChanges(prev => {
           const newChanges = { ...prev }
@@ -279,7 +274,7 @@ export function TaskQuickEditModal({
     const taskChanges = Object.entries(changes.tasks)
     const stepChanges = Object.entries(changes.steps)
     const totalChanges = taskChanges.length + stepChanges.length
-    
+
     if (totalChanges === 0) {
       Message.info('No changes to save')
       return
@@ -291,15 +286,15 @@ export function TaskQuickEditModal({
     try {
       // Save all changes in parallel
       const promises: Promise<any>[] = []
-      
+
       // Save task changes
       taskChanges.forEach(([taskId, taskData]) => {
         promises.push(updateTask(taskId, taskData))
       })
-      
+
       // Save step changes - group by workflow and update each workflow once
       const workflowStepChanges = new Map<string, { workflow: Task; stepChanges: Array<{ stepId: string; changes: any }> }>()
-      
+
       stepChanges.forEach(([stepId, stepData]) => {
         const item = editableItems.find(i => i.type === 'step' && i.data.id === stepId)
         if (item && item.type === 'step') {
@@ -310,7 +305,7 @@ export function TaskQuickEditModal({
           workflowStepChanges.get(workflowId)!.stepChanges.push({ stepId, changes: stepData })
         }
       })
-      
+
       // Update each workflow with all its step changes
       workflowStepChanges.forEach(({ workflow, stepChanges: changes }) => {
         const updatedSteps = workflow.steps?.map(step => {
@@ -319,7 +314,7 @@ export function TaskQuickEditModal({
         })
         promises.push(updateTask(workflow.id, { steps: updatedSteps }))
       })
-      
+
       await Promise.all(promises)
 
       Message.success(`Updated ${totalChanges} items`)
@@ -454,7 +449,7 @@ export function TaskQuickEditModal({
             <Title heading={5}>
               {currentItem?.type === 'step' && (
                 <Text type="secondary" style={{ fontSize: 14 }}>
-                  {currentItem.workflow.name} › 
+                  {currentItem.workflow.name} ›
                 </Text>
               )}
               {editedData?.name}
@@ -661,7 +656,7 @@ export function TaskQuickEditModal({
                 style={{ marginTop: 8 }}
               />
             </div>
-            
+
             <div>
               <Text bold style={{ display: 'block', marginBottom: 8 }}>Step Status</Text>
               <Select
