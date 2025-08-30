@@ -824,6 +824,9 @@ export function scheduleItemsWithBlocksAndDebug(
   // Process patterns even if there are no work items (for empty block detection)
   const shouldProcessPatterns = workItems.length > 0 || patterns.length > 0
 
+  // Track scheduled items to properly remove them from workItems
+  const scheduledItemIds = new Set<string>()
+
   while ((workItems.length > 0 || (shouldProcessPatterns && dayIndex === 0)) && dayIndex < maxDays) {
     let dateStr = currentDate.toISOString().split('T')[0]
     const pattern = patterns.find(p => p.date === dateStr)
@@ -1009,7 +1012,6 @@ export function scheduleItemsWithBlocksAndDebug(
       for (let i = 0; i < itemsToSchedule.length; i++) {
         const item = itemsToSchedule[i]
         if (!item) continue
-        const originalIndex = workItems.findIndex(w => w.id === item.id)
 
         logger.scheduler.debug('[Scheduler] Attempting to schedule item', {
           itemId: item.id,
@@ -1066,8 +1068,8 @@ export function scheduleItemsWithBlocksAndDebug(
               ...item,
               reason: `Conflicts with existing scheduled items at ${lockedTime.toLocaleTimeString()}`,
             })
-            // Remove from work items but don't schedule
-            workItems.splice(originalIndex, 1)
+            // Mark as handled (unscheduled due to conflict)
+            scheduledItemIds.add(item.id)
             itemsToSchedule.splice(i, 1)
             i--
             continue
@@ -1100,10 +1102,10 @@ export function scheduleItemsWithBlocksAndDebug(
               currentTime = new Date(lockedEndTime)
             }
 
-            // Mark as completed and remove from work items
+            // Mark as completed and track for removal
             completedSteps.add(item.id)
-            workItems.splice(originalIndex, 1)
-            // Also remove from itemsToSchedule
+            scheduledItemIds.add(item.id)
+            // Remove from itemsToSchedule
             itemsToSchedule.splice(i, 1)
             i-- // Adjust index since we removed an item
             itemsScheduledToday = true
@@ -1115,8 +1117,9 @@ export function scheduleItemsWithBlocksAndDebug(
           debugInfo.warnings.push(
             `Locked task "${item.name}" has a start time in the past (${lockedTime.toLocaleString()}) - skipping`,
           )
-          workItems.splice(originalIndex, 1)
-          // Also remove from itemsToSchedule
+          // Mark as handled
+          scheduledItemIds.add(item.id)
+          // Remove from itemsToSchedule
           itemsToSchedule.splice(i, 1)
           i-- // Adjust index since we removed an item
           itemScheduled = true
@@ -1447,9 +1450,10 @@ export function scheduleItemsWithBlocksAndDebug(
                   splitDate: currentDate.toDateString(), // Track when this split was created
                 },
               }
-              // Replace the original item with the remainder in workItems
-              workItems.splice(originalIndex, 1, remainderItem)
-              // Also remove the current item from itemsToSchedule since it's been partially scheduled
+              // Mark original as scheduled, add remainder to workItems
+              scheduledItemIds.add(item.id)
+              workItems.push(remainderItem)
+              // Remove the current item from itemsToSchedule since it's been partially scheduled
               itemsToSchedule.splice(i, 1)
               i-- // Adjust index since we removed an item
               itemsScheduledToday = true
@@ -1458,9 +1462,9 @@ export function scheduleItemsWithBlocksAndDebug(
               break
             }
           } else {
-            // Full task was scheduled - remove from work items
-            workItems.splice(originalIndex, 1)
-            // Also remove from itemsToSchedule
+            // Full task was scheduled - mark for removal
+            scheduledItemIds.add(item.id)
+            // Remove from itemsToSchedule
             itemsToSchedule.splice(i, 1)
             i-- // Adjust index since we removed an item
             itemsScheduledToday = true
@@ -1522,6 +1526,9 @@ export function scheduleItemsWithBlocksAndDebug(
       }
     }
     } // End of while loop for dependency resolution
+
+    // Clean up workItems by removing all scheduled items at once
+    workItems = workItems.filter(item => !scheduledItemIds.has(item.id))
 
     // Check if we should move to the next day
     // Move if: no items scheduled, should move flag is set, or current time is past all blocks
@@ -1658,6 +1665,9 @@ export function scheduleItemsWithBlocksAndDebug(
       unusedReason: unusedReason,
     })
   })
+
+  // Final cleanup: remove any remaining scheduled items
+  workItems = workItems.filter(item => !scheduledItemIds.has(item.id))
 
   // Track any remaining unscheduled items
   workItems.forEach(item => {
