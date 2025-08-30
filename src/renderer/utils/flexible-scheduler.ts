@@ -1450,8 +1450,13 @@ export function scheduleItemsWithBlocksAndDebug(
                   splitDate: currentDate.toDateString(), // Track when this split was created
                 },
               }
-              // Mark original as scheduled, add remainder to workItems
-              scheduledItemIds.add(item.id)
+              // For partial schedules: we need to remove the original from workItems
+              // but keep the remainder. Since they have the same ID, we'll manually
+              // remove the original and add the remainder
+              const origIndex = workItems.findIndex(w => w.id === item.id)
+              if (origIndex !== -1) {
+                workItems.splice(origIndex, 1)
+              }
               workItems.push(remainderItem)
               // Remove the current item from itemsToSchedule since it's been partially scheduled
               itemsToSchedule.splice(i, 1)
@@ -1527,7 +1532,8 @@ export function scheduleItemsWithBlocksAndDebug(
     }
     } // End of while loop for dependency resolution
 
-    // Clean up workItems by removing all scheduled items at once
+    // Clean up workItems by removing scheduled items
+    // For partial schedules, the old item is removed and remainder is added above
     workItems = workItems.filter(item => !scheduledItemIds.has(item.id))
 
     // Check if we should move to the next day

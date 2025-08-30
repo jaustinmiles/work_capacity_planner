@@ -418,6 +418,7 @@ export function ScheduleGenerator({
         const date = new Date(dateStr)
         const dayOfWeek = date.getDay()
         const blocks: any[] = []
+        const isOptimalSchedule = selected.name.includes('Optimal')
 
         // Fetch existing pattern to preserve meetings (like sleep blocks)
         const existingPattern = await db.getWorkPattern(dateStr)
@@ -457,33 +458,49 @@ export function ScheduleGenerator({
             }
           }
 
-          // Create a single block for the entire work period
+          // For optimal schedules, create blocks with AVAILABLE capacity, not just used capacity
+          // The optimal scheduler can schedule ALL DAY (7am-11pm = 16 hours = 960 minutes)
+          const totalMinutes = dayjs(latestEnd).diff(dayjs(sortedItems[0].startTime), 'minute')
+
           blocks.push({
             id: `block-${dateStr}-work`,
             startTime: earliestStart,
             endTime: latestEndStr,
             type: personalMinutes > 0 && focusMinutes === 0 && adminMinutes === 0 ? 'personal' : 'flexible',
             capacity: {
-              focusMinutes,
-              adminMinutes,
+              // For optimal schedules, set capacity to total available time
+              // For other schedules, set to what was actually used
+              focusMinutes: isOptimalSchedule ? Math.max(focusMinutes, Math.floor(totalMinutes * 0.6)) : focusMinutes,
+              adminMinutes: isOptimalSchedule ? Math.max(adminMinutes, Math.floor(totalMinutes * 0.4)) : adminMinutes,
               ...(personalMinutes > 0 ? { personalMinutes } : {}),
             },
           })
         }
 
-        // Don't add empty blocks for optimal scheduling - only create blocks when there's work
-        const isOptimalSchedule = selected.name.includes('Optimal')
-        if (blocks.length === 0 && !isOptimalSchedule) {
-          // For days without scheduled items, create default work blocks if configured
-          const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] || workSettings?.defaultWorkHours
+        // For days without scheduled items, create default work blocks
+        // This is especially important for optimal schedules to have future capacity
+        if (blocks.length === 0) {
+          // Use configured work hours or default to 9-5
+          const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] ||
+                               workSettings?.defaultWorkHours ||
+                               { startTime: '09:00', endTime: '17:00' }
+
           if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
+            // For optimal schedules, provide generous capacity for future scheduling
+            // For other schedules, use reasonable defaults
+            const startHour = parseInt(dayWorkHours.startTime.split(':')[0])
+            const endHour = parseInt(dayWorkHours.endTime.split(':')[0])
+            const totalHours = endHour - startHour
+            const totalMinutes = totalHours * 60
+
             blocks.push({
+              id: `block-${dateStr}-default`,
               startTime: dayWorkHours.startTime,
               endTime: dayWorkHours.endTime,
               type: 'flexible',
               capacity: {
-                focusMinutes: 240, // 4 hours default
-                adminMinutes: 180, // 3 hours default
+                focusMinutes: isOptimalSchedule ? Math.floor(totalMinutes * 0.6) : 240, // 60% for optimal, 4h for others
+                adminMinutes: isOptimalSchedule ? Math.floor(totalMinutes * 0.4) : 180, // 40% for optimal, 3h for others
               },
             })
           }
