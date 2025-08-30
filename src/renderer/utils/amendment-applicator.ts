@@ -561,7 +561,8 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
                   if (stepIndex !== -1) {
                     // Update step properties (note: step schema may not support all these)
-                    const updatedSteps = [...workflow.steps]
+                    // const updatedSteps = [...workflow.steps]
+                    // TODO: When schema supports step-level priority, implement update here
                     // Steps don't have importance/urgency in current schema
                     logger.ui.warn('Step-level priority changes not fully supported in current schema')
                     Message.warning('Step priority changes are limited in current version')

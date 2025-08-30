@@ -73,33 +73,26 @@
 - **Sleep blocks cut off at midnight in UI**: Fixed type checking for proper rendering
 - **Added comprehensive logging**: Better visibility into schedule generation
 
-## 🔴 CRITICAL Issues (2025-08-29)
+## ✅ Recently Fixed - Amendment Applicator Coverage (2025-08-30)
 
-### 1. Amendment Applicator Limited to 40% Coverage - CRITICAL
-**Severity**: 🔴 CRITICAL  
-**Impact**: Voice amendments fail for most common operations
+### 1. Amendment Applicator Now ~80% Coverage - FIXED
+**Status**: ✅ Fixed (2025-08-30)
+**Previous Impact**: Voice amendments failed for most common operations
 
-**Analysis Completed (2025-08-30):**
-- Only ~40% of task/workflow attributes can be modified via voice
-- Critical missing: deadline management (user's "bedtime to 11pm" failed)
-- See /docs/amendment-applicator-analysis.md for full analysis
+**Implemented Features:**
+- ✅ **DeadlineChange** - Set/change deadlines with hard/soft types
+- ✅ **PriorityChange** - Update importance/urgency/cognitive complexity  
+- ✅ **TypeChange** - Switch between focused/admin/personal task types
+- ✅ **StepRemoval** - Remove workflow steps with dependency cleanup
+- ✅ **AI Parser Updated** - Recognizes all new amendment types
 
-**Missing Critical Features:**
-- **No deadline management** - Cannot set/change deadlines or deadline types
-- **No priority updates** - Cannot change importance/urgency after creation  
-- **No cognitive complexity** - Cannot set mental load ratings (1-5)
-- **No task type changes** - Cannot switch between focused/admin/personal
-- **Step removal not implemented** - Type exists but logic missing
-- **Incomplete step operations** - Duration, notes, time logging TODO
+**Remaining Gaps (Minor):**
+- Step-level duration changes (partial support)
+- Step-level notes (partial support)
+- Step-level time logging (partial support)
+- Step-level priority attributes (schema limitation)
 
-**Required Amendment Types to Implement:**
-1. DeadlineChange - For setting/changing deadlines
-2. PriorityChange - For importance/urgency/complexity
-3. TypeChange - For task/step type modifications
-4. Complete StepRemoval implementation
-5. Step-level duration/notes/time logging
-
-**Priority**: HIGHEST - Users cannot use voice for basic edits
+**Coverage Increased**: From ~40% to ~80% of common operations
 
 ## Known Issues (Updated 2025-08-29)
 
