@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select } from '@arco-design/web-react'
+import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select, DatePicker } from '@arco-design/web-react'
 import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload, IconInfoCircle, IconExclamationCircle, IconMinus } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import {
@@ -284,6 +284,11 @@ export function VoiceAmendmentModal({
         if (edits.stepName !== undefined) stepAddition.stepName = edits.stepName
         if (edits.duration !== undefined) stepAddition.duration = edits.duration
         if (edits.stepType !== undefined) stepAddition.stepType = edits.stepType
+      }
+      if (amendment.type === AmendmentType.DeadlineChange) {
+        const deadlineChange = edited as DeadlineChange
+        if (edits.newDeadline !== undefined) deadlineChange.newDeadline = edits.newDeadline
+        if (edits.deadlineType !== undefined) deadlineChange.deadlineType = edits.deadlineType
       }
       return edited
     })
@@ -1120,6 +1125,41 @@ export function VoiceAmendmentModal({
                                 style={{ width: '100%' }}
                               />
                             </Space>
+                          )}
+
+                          {/* Deadline editing */}
+                          {isAmendmentType(amendment, AmendmentType.DeadlineChange) && (
+                            <>
+                              <Space>
+                                <Text>Deadline Date:</Text>
+                                <DatePicker
+                                  showTime
+                                  format="YYYY-MM-DD HH:mm"
+                                  value={edited.newDeadline ? new Date(edited.newDeadline) : new Date((amendment as DeadlineChange).newDeadline)}
+                                  onChange={(dateString, date) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, newDeadline: date })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 200 }}
+                                />
+                              </Space>
+                              <Space>
+                                <Text>Deadline Type:</Text>
+                                <Select
+                                  value={edited.deadlineType || (amendment as DeadlineChange).deadlineType || 'soft'}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, deadlineType: value })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 100 }}
+                                >
+                                  <Select.Option value="soft">Soft</Select.Option>
+                                  <Select.Option value="hard">Hard</Select.Option>
+                                </Select>
+                              </Space>
+                            </>
                           )}
                         </Space>
                       </Card>
