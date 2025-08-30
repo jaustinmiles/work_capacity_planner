@@ -563,7 +563,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                     // Update step properties - schema supports importance and urgency for steps
                     const updatedSteps = [...workflow.steps]
                     const step = updatedSteps[stepIndex]
-                    
+
                     // Apply the priority changes that are supported
                     if (change.importance !== undefined) {
                       step.importance = change.importance
@@ -574,14 +574,14 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                     if (change.cognitiveComplexity !== undefined) {
                       step.cognitiveComplexity = change.cognitiveComplexity
                     }
-                    
+
                     await db.updateSequencedTask(change.target.id, { steps: updatedSteps })
                     successCount++
-                    logger.ui.info('Updated step priority:', { 
+                    logger.ui.info('Updated step priority:', {
                       step: change.stepName,
                       importance: change.importance,
                       urgency: change.urgency,
-                      cognitiveComplexity: change.cognitiveComplexity
+                      cognitiveComplexity: change.cognitiveComplexity,
                     })
                     Message.success(`Updated priority for step "${change.stepName}"`)
                   } else {
