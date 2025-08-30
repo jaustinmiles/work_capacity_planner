@@ -5,6 +5,19 @@
 
 import { logInfo, logWarn, logError } from './logger'
 
+// Import events if in renderer process
+let appEvents: any
+let EVENTS: any
+if (typeof window !== 'undefined') {
+  try {
+    const eventsModule = require('../renderer/utils/events')
+    appEvents = eventsModule.appEvents
+    EVENTS = eventsModule.EVENTS
+  } catch (e) {
+    // Not in renderer process or events not available
+  }
+}
+
 class TimeProvider {
   private static instance: TimeProvider
   private overrideTime: Date | null = null
@@ -72,6 +85,11 @@ class TimeProvider {
 
     // Notify all listeners
     this.notifyListeners()
+    
+    // Emit event for UI refresh
+    if (appEvents && EVENTS) {
+      appEvents.emit(EVENTS.TIME_OVERRIDE_CHANGED, this.overrideTime)
+    }
   }
 
   /**
