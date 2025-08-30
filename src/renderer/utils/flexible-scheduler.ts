@@ -280,7 +280,7 @@ function canFitInBlock(
   block: BlockCapacity,
   currentTime: Date,
   scheduledItems: ScheduledItem[],
-  now?: Date,
+  now: Date, // Required - always use the time from getCurrentTime()
   allowSplitting?: boolean,
 ): FitResult {
   // Don't count async wait times as conflicts when checking for available slots
@@ -369,15 +369,14 @@ function canFitInBlock(
   // Find next available time in block
   // For backfilling: try from block start, but respect current time for today's blocks
   // Only backfill within the same day, not into the past
-  const actualNow = now || currentTime
   const blockDate = new Date(block.startTime)
-  const isToday = blockDate.toDateString() === actualNow.toDateString()
+  const isToday = blockDate.toDateString() === now.toDateString()
 
   let tryTime: Date
-  if (isToday && actualNow > block.startTime) {
-    // For today's blocks that have already started, start from actual current time
-    tryTime = new Date(Math.max(actualNow.getTime(), block.startTime.getTime()))
-  } else if (isToday && actualNow <= block.startTime) {
+  if (isToday && now > block.startTime) {
+    // For today's blocks that have already started, start from current time
+    tryTime = new Date(Math.max(now.getTime(), block.startTime.getTime()))
+  } else if (isToday && now <= block.startTime) {
     // Today's block that hasn't started yet - can start from block beginning
     tryTime = new Date(block.startTime.getTime())
   } else {
@@ -811,11 +810,10 @@ export function scheduleItemsWithBlocksAndDebug(
   }
 
   // Process each day
-  const actualNow = new Date() // The real current time
-  const now = startDate // The provided start time for scheduling
+  const now = startDate // The provided start time for scheduling (respects time override)
   const currentDate = new Date(startDate)
   currentDate.setHours(0, 0, 0, 0)
-  let currentTime = new Date(Math.max(startDate.getTime(), actualNow.getTime())) // Don't schedule in the past
+  let currentTime = new Date(startDate) // Use the provided start time directly
   let dayIndex = 0
   const maxDays = 30 // Limit to 30 days
 
@@ -1623,8 +1621,8 @@ export function scheduleItemsWithBlocksAndDebug(
     // Skip blocks that have already ended (for debug display only)
     // Only filter if we're looking at today's blocks
     if (utilization.block && utilization.block.endTime &&
-        utilization.date === new Date(actualNow).toISOString().split('T')[0] &&
-        utilization.block.endTime <= actualNow) {
+        utilization.date === new Date(now).toISOString().split('T')[0] &&
+        utilization.block.endTime <= now) {
       return
     }
 
