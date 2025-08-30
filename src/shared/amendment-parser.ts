@@ -154,7 +154,13 @@ export class AmendmentParser {
       activeWorkflowId: context.activeWorkflowId,
     })
 
+    const currentDate = new Date()
+    const dateStr = currentDate.toISOString().split('T')[0] // YYYY-MM-DD format
+    const timeStr = currentDate.toTimeString().split(' ')[0] // HH:MM:SS format
     const prompt = `You are parsing voice amendments for a task management system. Extract structured amendments from the transcription.
+
+Current Date and Time: ${dateStr} ${timeStr}
+Today is: ${currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 
 Transcription: "${transcription}"
 
@@ -217,6 +223,9 @@ Parse the transcription into one or more amendments. Common patterns:
    - "change bedtime routine deadline to 11pm"
    - "this must be done by end of day" → hard deadline
    - "try to finish by noon" → soft deadline
+   - IMPORTANT: When parsing times like "11pm" without a date, use TODAY's date (${dateStr})
+   - IMPORTANT: "tonight" means today at the specified time
+   - IMPORTANT: Always include the full ISO date string, not just the time
 
 9. PRIORITY CHANGE: Updating importance, urgency, or complexity
    - "make this high priority", "this is urgent now"
@@ -263,7 +272,7 @@ Amendment types and their required fields:
 - time_log: type, target, duration (in minutes), stepName (optional)
 - note_addition: type, target, note, append (boolean, default true), stepName (optional)
 - duration_change: type, target, newDuration (in minutes), stepName (optional)
-- step_addition: type, workflowTarget, stepName, duration, stepType ("focused"/"admin"), afterStep/beforeStep (optional)
+- step_addition: type, workflowTarget, stepName, duration, stepType ("focused"/"admin"), afterStep/beforeStep (optional), dependencies (array of step names, optional)
 - step_removal: type, workflowTarget, stepName, reason (optional)
 - deadline_change: type, target, newDeadline (ISO date string), deadlineType ("hard"/"soft", optional), stepName (optional for workflow steps)
 - priority_change: type, target, importance (1-10, optional), urgency (1-10, optional), cognitiveComplexity (1-5, optional), stepName (optional)
@@ -283,10 +292,11 @@ Examples:
 - "kick off the deployment workflow" → status_update to mark workflow in_progress
 - "the database migration step took 3 hours" → time_log with duration: 180 and stepName: "database migration"
 - "add a code review step after implementation" → step_addition with stepType: "focused", afterStep: "implementation"
+- "add a final step that depends on all other steps" → step_addition with dependencies: ["step1", "step2", "step3"]
 - "the testing step will take longer, maybe 2 hours" → duration_change with stepName: "testing", newDuration: 120
 - "finished the API design step" → status_update with stepName: "API design", newStatus: "completed"
-- "set the bedtime routine deadline to 11pm tonight" → deadline_change with newDeadline: "2025-08-30T23:00:00", deadlineType: "soft"
-- "this task must be done by Friday at 5pm" → deadline_change with newDeadline: "2025-08-30T17:00:00", deadlineType: "hard"
+- "set the bedtime routine deadline to 11pm tonight" → deadline_change with newDeadline: "${dateStr}T23:00:00", deadlineType: "soft"
+- "this task must be done by Friday at 5pm" → deadline_change with appropriate Friday date, deadlineType: "hard"
 - "make the deployment task high priority" → priority_change with importance: 9, urgency: 9
 - "this is really mentally taxing work" → priority_change with cognitiveComplexity: 5
 - "change this to a personal task" → type_change with newType: "personal"
