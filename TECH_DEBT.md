@@ -75,18 +75,31 @@
 
 ## 🔴 CRITICAL Issues (2025-08-29)
 
-### 1. Amendment Applicator Broken - CRITICAL BUG
+### 1. Amendment Applicator Limited to 40% Coverage - CRITICAL
 **Severity**: 🔴 CRITICAL  
-**Impact**: Voice amendments unusable, causing data corruption
+**Impact**: Voice amendments fail for most common operations
 
-**Reported Problems (from user feedback):**
-- Marking entire workflow complete multiple times incorrectly
-- Creating duplicate tasks instead of updating
-- Dependencies not wiring correctly (orphan nodes in graph)
-- 95%+ confidence but still applying incorrectly
+**Analysis Completed (2025-08-30):**
+- Only ~40% of task/workflow attributes can be modified via voice
+- Critical missing: deadline management (user's "bedtime to 11pm" failed)
+- See /docs/amendment-applicator-analysis.md for full analysis
 
-**Root Cause**: Unknown - needs investigation
-**Priority**: HIGHEST - Fix immediately
+**Missing Critical Features:**
+- **No deadline management** - Cannot set/change deadlines or deadline types
+- **No priority updates** - Cannot change importance/urgency after creation  
+- **No cognitive complexity** - Cannot set mental load ratings (1-5)
+- **No task type changes** - Cannot switch between focused/admin/personal
+- **Step removal not implemented** - Type exists but logic missing
+- **Incomplete step operations** - Duration, notes, time logging TODO
+
+**Required Amendment Types to Implement:**
+1. DeadlineChange - For setting/changing deadlines
+2. PriorityChange - For importance/urgency/complexity
+3. TypeChange - For task/step type modifications
+4. Complete StepRemoval implementation
+5. Step-level duration/notes/time logging
+
+**Priority**: HIGHEST - Users cannot use voice for basic edits
 
 ## Known Issues (Updated 2025-08-29)
 
