@@ -5,7 +5,6 @@
  */
 
 import { PrismaClient } from '@prisma/client'
-import { format } from 'date-fns'
 
 const prisma = new PrismaClient()
 
@@ -159,7 +158,7 @@ async function main() {
 
           searchInObject(parsed)
         } catch (e) {
-          // Ignore parse errors
+          console.log('  Could not parse pattern as JSON:', e)
         }
       }
     }
