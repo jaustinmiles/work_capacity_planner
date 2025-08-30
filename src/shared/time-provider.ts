@@ -145,8 +145,8 @@ export const setTimeOverride = (date: Date | string | null) => timeProvider.setO
 export const isTimeOverridden = () => timeProvider.isOverridden()
 export const subscribeToTimeChanges = (listener: (time: Date) => void) => timeProvider.subscribe(listener)
 
-// Make it available globally in dev mode for console access
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+// Make it available globally for console access
+if (typeof window !== 'undefined') {
   const win = window as any
   win.timeProvider = timeProvider
   win.setTime = (hours: number, minutes?: number) => {

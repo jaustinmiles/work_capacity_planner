@@ -60,7 +60,7 @@ function toTaskType(type: string): TaskType {
   if (type === 'focused' || type === TaskType.Focused) return TaskType.Focused
   if (type === 'admin' || type === TaskType.Admin) return TaskType.Admin
   if (type === 'personal' || type === TaskType.Personal) return TaskType.Personal
-  
+
   // Log warning for invalid types and default to personal
   // (things like "routine", "relaxation" are more personal than work)
   logger.ai.warn(`Invalid task type "${type}" received from AI, defaulting to "personal"`)

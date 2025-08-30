@@ -89,10 +89,7 @@ export function TimeControlPanel() {
     setSelectedTime(dayjs(newTime))
   }
 
-  // Only show in development mode
-  if (process.env.NODE_ENV !== 'development') {
-    return null
-  }
+  // Component is already gated by DevTools access
 
   return (
     <Card
