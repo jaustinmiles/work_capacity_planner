@@ -87,6 +87,13 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
   const [showClarificationMode, setShowClarificationMode] = useState(false)
   const [editableResult, setEditableResult] = useState<BrainstormResult | null>(null)
   const [clarifications, setClarifications] = useState<Record<string, string>>({})
+  const [regeneratingItems, setRegeneratingItems] = useState<Set<string>>(new Set())
+  const [appliedClarifications, setAppliedClarifications] = useState<Set<string>>(new Set())
+  const [clarificationVoiceRecording, setClarificationVoiceRecording] = useState<RecordingState>('idle')
+  const [clarificationVoiceDuration, setClarificationVoiceDuration] = useState(0)
+  const clarificationMediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const clarificationAudioChunksRef = useRef<Blob[]>([])
+  const clarificationRecordingTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -647,11 +654,46 @@ Only include terms that are likely industry-specific or technical jargon, not co
     setEditableResult(JSON.parse(JSON.stringify(brainstormResult))) // Deep copy
   }
 
+  const handleRegenerateAllWithClarifications = async () => {
+    if (!editableResult || Object.keys(clarifications).length === 0) {
+      Message.warning('Please provide at least one clarification before regenerating')
+      return
+    }
+
+    logger.ai.info('Starting regeneration of all items with clarifications')
+
+    // Collect all items that have clarifications
+    const itemsToRegenerate: Array<{type: 'workflow' | 'task', index: number}> = []
+
+    Object.keys(clarifications).forEach(key => {
+      if (clarifications[key]?.trim()) {
+        const [type, index] = key.split('-')
+        itemsToRegenerate.push({
+          type: type as 'workflow' | 'task',
+          index: parseInt(index),
+        })
+      }
+    })
+
+    if (itemsToRegenerate.length === 0) {
+      Message.warning('No clarifications provided. Please add clarifications before regenerating.')
+      return
+    }
+
+    // Regenerate all items with clarifications
+    for (const item of itemsToRegenerate) {
+      await handleRegenerateSingle(item.type, item.index)
+    }
+
+    Message.success(`Successfully regenerated ${itemsToRegenerate.length} items with clarifications`)
+  }
+
   const handleRegenerateSingle = async (itemType: 'workflow' | 'task', index: number) => {
     if (!editableResult) return
 
+    const itemKey = `${itemType}-${index}`
     logger.ai.info(`Starting regeneration of ${itemType} at index ${index}`)
-    setIsProcessing(true)
+    setRegeneratingItems(prev => new Set(prev).add(itemKey))
 
     try {
       const item = itemType === 'workflow' ? editableResult.workflows![index] : editableResult.tasks![index]
@@ -660,7 +702,11 @@ Only include terms that are likely industry-specific or technical jargon, not co
       if (!clarification.trim()) {
         logger.ai.warn(`No clarification provided for ${itemType} at index ${index}`)
         Message.warning('Please provide a clarification before regenerating')
-        setIsProcessing(false)
+        setRegeneratingItems(prev => {
+          const next = new Set(prev)
+          next.delete(itemKey)
+          return next
+        })
         return
       }
 
@@ -704,11 +750,13 @@ Only include terms that are likely industry-specific or technical jargon, not co
           newEditableResult.workflows![index] = updatedWorkflow
           setEditableResult(newEditableResult)
 
-          // Clear the clarification field after successful regeneration
-          setClarifications(prev => ({
-            ...prev,
-            [`${itemType}-${index}`]: '',
-          }))
+          // Clear the clarification field and mark as applied
+          setClarifications(prev => {
+            const next = { ...prev }
+            delete next[itemKey]
+            return next
+          })
+          setAppliedClarifications(prev => new Set(prev).add(itemKey))
 
           Message.success(`Workflow "${updatedWorkflow.name}" regenerated successfully with clarifications applied`)
         } else if (itemType === 'task' && response && response.standaloneTasks && response.standaloneTasks[0]) {
@@ -731,11 +779,13 @@ Only include terms that are likely industry-specific or technical jargon, not co
           newEditableResult.tasks![index] = updatedTask
           setEditableResult(newEditableResult)
 
-          // Clear the clarification field after successful regeneration
-          setClarifications(prev => ({
-            ...prev,
-            [`${itemType}-${index}`]: '',
-          }))
+          // Clear the clarification field and mark as applied
+          setClarifications(prev => {
+            const next = { ...prev }
+            delete next[itemKey]
+            return next
+          })
+          setAppliedClarifications(prev => new Set(prev).add(itemKey))
 
           Message.success(`Task "${updatedTask.name}" regenerated successfully with clarifications applied`)
         } else {
@@ -750,7 +800,11 @@ Only include terms that are likely industry-specific or technical jargon, not co
       logger.ai.error(`Error regenerating ${itemType}:`, error)
       setError(`Failed to regenerate ${itemType}. Please try again.`)
     } finally {
-      setIsProcessing(false)
+      setRegeneratingItems(prev => {
+        const next = new Set(prev)
+        next.delete(itemKey)
+        return next
+      })
     }
   }
 
@@ -1306,16 +1360,11 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                 style={{ marginTop: 8 }}
                                 rows={3}
                               />
-                              <Button
-                                size="small"
-                                type="primary"
-                                onClick={() => handleRegenerateSingle('workflow', index)}
-                                loading={isProcessing}
-                                disabled={!clarifications[`workflow-${index}`]?.trim()}
-                                style={{ marginTop: 8 }}
-                              >
-                                Regenerate with Clarification
-                              </Button>
+                              {appliedClarifications.has(`workflow-${index}`) && (
+                                <Tag color="green" size="small" style={{ marginTop: 8 }}>
+                                  <IconCheckCircle /> Clarification Applied
+                                </Tag>
+                              )}
                             </div>
                           )}
                           {showClarificationMode && (
@@ -1454,6 +1503,110 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               Urgency: {task.urgency}/10
                             </Tag>
                           </Space>
+
+                          {/* Show clarification input for standalone tasks in clarification mode */}
+                          {showClarificationMode && task.needsMoreInfo && (
+                            <div style={{ marginTop: 8, padding: 12, backgroundColor: '#fff8e6', borderRadius: 4, border: '1px solid #ffdc64' }}>
+                              <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#fa8c16' }}>
+                                Provide Clarification:
+                              </Text>
+                              {task.clarificationRequest && (
+                                <Text style={{ fontSize: 12, display: 'block', marginTop: 4, marginBottom: 8 }}>
+                                  {task.clarificationRequest}
+                                </Text>
+                              )}
+                              <Input.TextArea
+                                placeholder="Provide additional details or answer questions..."
+                                value={clarifications[`standalonetask-${index}`] || ''}
+                                onChange={(value) => setClarifications({
+                                  ...clarifications,
+                                  [`standalonetask-${index}`]: value,
+                                })}
+                                style={{ marginTop: 8 }}
+                                rows={2}
+                              />
+                              {appliedClarifications.has(`standalonetask-${index}`) && (
+                                <Tag color="green" size="small" style={{ marginTop: 8 }}>
+                                  <IconCheckCircle /> Clarification Applied
+                                </Tag>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Quick edits for standalone tasks in clarification mode */}
+                          {showClarificationMode && (
+                            <div style={{ marginTop: 12, padding: 8, backgroundColor: '#f9f9f9', borderRadius: 4 }}>
+                              <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Quick Edits:</Text>
+                              <Space direction="vertical" style={{ width: '100%', marginTop: 8 }} size="small">
+                                <Space>
+                                  <Text style={{ width: 80 }}>Duration:</Text>
+                                  <InputNumber
+                                    size="small"
+                                    value={editableResult?.standaloneTasks?.[index]?.estimatedDuration || task.estimatedDuration}
+                                    onChange={(value) => {
+                                      if (!editableResult) return
+                                      const newResult = { ...editableResult }
+                                      if (!newResult.standaloneTasks) newResult.standaloneTasks = []
+                                      newResult.standaloneTasks[index] = {
+                                        ...newResult.standaloneTasks[index],
+                                        estimatedDuration: value as number,
+                                      }
+                                      setEditableResult(newResult)
+                                    }}
+                                    min={5}
+                                    max={480}
+                                    step={5}
+                                    suffix="min"
+                                    style={{ flex: 1 }}
+                                  />
+                                </Space>
+                                <Space>
+                                  <Text style={{ width: 80 }}>Importance:</Text>
+                                  <Select
+                                    size="small"
+                                    value={editableResult?.standaloneTasks?.[index]?.importance || task.importance}
+                                    onChange={(value) => {
+                                      if (!editableResult) return
+                                      const newResult = { ...editableResult }
+                                      if (!newResult.standaloneTasks) newResult.standaloneTasks = []
+                                      newResult.standaloneTasks[index] = {
+                                        ...newResult.standaloneTasks[index],
+                                        importance: value,
+                                      }
+                                      setEditableResult(newResult)
+                                    }}
+                                    style={{ flex: 1 }}
+                                  >
+                                    {[1,2,3,4,5,6,7,8,9,10].map(i => (
+                                      <Select.Option key={i} value={i}>{i}</Select.Option>
+                                    ))}
+                                  </Select>
+                                </Space>
+                                <Space>
+                                  <Text style={{ width: 80 }}>Urgency:</Text>
+                                  <Select
+                                    size="small"
+                                    value={editableResult?.standaloneTasks?.[index]?.urgency || task.urgency}
+                                    onChange={(value) => {
+                                      if (!editableResult) return
+                                      const newResult = { ...editableResult }
+                                      if (!newResult.standaloneTasks) newResult.standaloneTasks = []
+                                      newResult.standaloneTasks[index] = {
+                                        ...newResult.standaloneTasks[index],
+                                        urgency: value,
+                                      }
+                                      setEditableResult(newResult)
+                                    }}
+                                    style={{ flex: 1 }}
+                                  >
+                                    {[1,2,3,4,5,6,7,8,9,10].map(i => (
+                                      <Select.Option key={i} value={i}>{i}</Select.Option>
+                                    ))}
+                                  </Select>
+                                </Space>
+                              </Space>
+                            </div>
+                          )}
                         </Space>
                       </Card>
                     ))}
@@ -1515,6 +1668,15 @@ Only include terms that are likely industry-specific or technical jargon, not co
               )}
 
               <div style={{ textAlign: 'center', paddingTop: 16 }}>
+                {/* Show global clarification info when in clarification mode */}
+                {showClarificationMode && Object.keys(clarifications).filter(k => clarifications[k]?.trim()).length > 0 && (
+                  <Alert
+                    type="info"
+                    content={`${Object.keys(clarifications).filter(k => clarifications[k]?.trim()).length} clarification(s) pending. Click "Apply All Clarifications" to regenerate items.`}
+                    style={{ marginBottom: 12, textAlign: 'left' }}
+                  />
+                )}
+
                 <Space>
                   <Button onClick={onClose}>
                     Cancel
@@ -1531,12 +1693,26 @@ Only include terms that are likely industry-specific or technical jargon, not co
                       Answer Questions / Provide Clarifications
                     </Button>
                   )}
+
+                  {/* Single button to apply all clarifications */}
+                  {showClarificationMode && Object.keys(clarifications).filter(k => clarifications[k]?.trim()).length > 0 && (
+                    <Button
+                      type="primary"
+                      onClick={handleRegenerateAllWithClarifications}
+                      loading={regeneratingItems.size > 0}
+                      icon={<IconRefresh />}
+                    >
+                      Apply All Clarifications ({Object.keys(clarifications).filter(k => clarifications[k]?.trim()).length})
+                    </Button>
+                  )}
+
                   <Button
                     onClick={() => {
                       setBrainstormResult(null)
                       setEditableResult(null)
                       setShowClarificationMode(false)
                       setClarifications({})
+                      setAppliedClarifications(new Set())
                     }}
                   >
                     Try Again
