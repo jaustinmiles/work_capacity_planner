@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Modal,
   Card,
@@ -29,7 +29,7 @@ import {
   IconCheckCircle,
   IconEdit,
 } from '@arco-design/web-react/icon'
-import { Task } from '@shared/types'
+import { Task, TaskStep } from '@shared/types'
 import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
@@ -44,10 +44,18 @@ interface TaskQuickEditModalProps {
   onClose: () => void
   initialTaskId?: string
   filter?: 'incomplete' | 'all' | 'high-priority'
+  includeWorkflowSteps?: boolean
 }
 
-interface TaskChanges {
-  [taskId: string]: Partial<Task>
+// Union type for items we can edit
+type EditableItem = 
+  | { type: 'task'; data: Task }
+  | { type: 'workflow'; data: Task }  // Workflow is a Task with hasSteps=true
+  | { type: 'step'; data: TaskStep; workflow: Task }
+
+interface ItemChanges {
+  tasks: { [taskId: string]: Partial<Task> }
+  steps: { [stepId: string]: Partial<TaskStep> }
 }
 
 // Duration presets in minutes
@@ -74,36 +82,78 @@ export function TaskQuickEditModal({
   onClose,
   initialTaskId,
   filter = 'incomplete',
+  includeWorkflowSteps = true,
 }: TaskQuickEditModalProps) {
   const { tasks, updateTask } = useTaskStore()
   const logger = useLogger({ component: 'TaskQuickEditModal' })
 
-  // Filter tasks based on criteria
-  const filteredTasks = tasks.filter(task => {
-    if (filter === 'incomplete') return !task.completed
-    if (filter === 'high-priority') return task.importance >= 7 || task.urgency >= 7
-    return true
-  })
+  // Build list of editable items (tasks, workflows, and their steps)
+  const editableItems = useMemo((): EditableItem[] => {
+    const items: EditableItem[] = []
+    
+    tasks.forEach(task => {
+      // Apply filter
+      if (filter === 'incomplete' && task.completed) return
+      if (filter === 'high-priority' && task.importance < 7 && task.urgency < 7) return
+      
+      if (task.hasSteps && includeWorkflowSteps) {
+        // Add the workflow itself
+        items.push({ type: 'workflow', data: task })
+        
+        // Add each step if we have them loaded
+        if (task.steps) {
+          task.steps.forEach(step => {
+            items.push({ type: 'step', data: step, workflow: task })
+          })
+        }
+      } else {
+        // Regular task
+        items.push({ type: 'task', data: task })
+      }
+    })
+    
+    return items
+  }, [tasks, filter, includeWorkflowSteps])
 
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [changes, setChanges] = useState<TaskChanges>({})
+  const [changes, setChanges] = useState<ItemChanges>({ tasks: {}, steps: {} })
   const [isSaving, setIsSaving] = useState(false)
   const [unsavedChanges, setUnsavedChanges] = useState(false)
 
   // Initialize current index based on initialTaskId
   useEffect(() => {
     if (initialTaskId && visible) {
-      const index = filteredTasks.findIndex(t => t.id === initialTaskId)
+      const index = editableItems.findIndex(item => {
+        if (item.type === 'task' || item.type === 'workflow') {
+          return item.data.id === initialTaskId
+        }
+        return false
+      })
       if (index !== -1) {
         setCurrentIndex(index)
       }
     }
-  }, [initialTaskId, visible, filteredTasks])
+  }, [initialTaskId, visible, editableItems])
 
-  // Current task being edited
-  const currentTask = filteredTasks[currentIndex]
-  const currentChanges = currentTask ? changes[currentTask.id] || {} : {}
-  const editedTask = currentTask ? { ...currentTask, ...currentChanges } : null
+  // Current item being edited
+  const currentItem = editableItems[currentIndex]
+  const getCurrentChanges = () => {
+    if (!currentItem) return {}
+    if (currentItem.type === 'step') {
+      return changes.steps[currentItem.data.id] || {}
+    }
+    return changes.tasks[currentItem.data.id] || {}
+  }
+  const currentChanges = getCurrentChanges()
+  
+  const getEditedData = () => {
+    if (!currentItem) return null
+    if (currentItem.type === 'step') {
+      return { ...currentItem.data, ...currentChanges }
+    }
+    return { ...currentItem.data, ...currentChanges }
+  }
+  const editedData = getEditedData()
 
   // Keyboard navigation
   useEffect(() => {
@@ -121,7 +171,7 @@ export function TaskQuickEditModal({
       // Save
       else if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        saveCurrentTask()
+        saveCurrentItem()
       } else if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault()
         saveAllChanges()
@@ -148,67 +198,132 @@ export function TaskQuickEditModal({
   }
 
   const navigateNext = () => {
-    setCurrentIndex(prev => Math.min(filteredTasks.length - 1, prev + 1))
+    setCurrentIndex(prev => Math.min(editableItems.length - 1, prev + 1))
   }
 
-  const updateField = <K extends keyof Task>(field: K, value: Task[K]) => {
-    if (!currentTask) return
+  const updateField = (field: string, value: any) => {
+    if (!currentItem) return
 
-    setChanges(prev => ({
-      ...prev,
-      [currentTask.id]: {
-        ...prev[currentTask.id],
-        [field]: value,
-      },
-    }))
+    if (currentItem.type === 'step') {
+      setChanges(prev => ({
+        ...prev,
+        steps: {
+          ...prev.steps,
+          [currentItem.data.id]: {
+            ...prev.steps[currentItem.data.id],
+            [field]: value,
+          },
+        },
+      }))
+    } else {
+      setChanges(prev => ({
+        ...prev,
+        tasks: {
+          ...prev.tasks,
+          [currentItem.data.id]: {
+            ...prev.tasks[currentItem.data.id],
+            [field]: value,
+          },
+        },
+      }))
+    }
     setUnsavedChanges(true)
 
-    logger.debug(`Updated ${field} for task ${currentTask.name}`, { field, value })
+    const itemName = currentItem.type === 'step' ? currentItem.data.name : currentItem.data.name
+    logger.debug(`Updated ${field} for ${currentItem.type} ${itemName}`, { field, value })
   }
 
-  const saveCurrentTask = async () => {
-    if (!currentTask || !currentChanges || Object.keys(currentChanges).length === 0) {
+  const saveCurrentItem = async () => {
+    if (!currentItem || !currentChanges || Object.keys(currentChanges).length === 0) {
       return
     }
 
     try {
-      await updateTask(currentTask.id, currentChanges)
+      if (currentItem.type === 'step') {
+        // Update the step by updating the parent workflow with modified steps
+        const updatedSteps = currentItem.workflow.steps?.map(s => 
+          s.id === currentItem.data.id 
+            ? { ...s, ...currentChanges }
+            : s
+        )
+        
+        await updateTask(currentItem.workflow.id, { steps: updatedSteps })
+        
+        // Clear changes for this step
+        setChanges(prev => {
+          const newChanges = { ...prev }
+          delete newChanges.steps[currentItem.data.id]
+          return { ...newChanges, steps: newChanges.steps }
+        })
+      } else {
+        await updateTask(currentItem.data.id, currentChanges)
+        
+        // Clear changes for this task
+        setChanges(prev => {
+          const newChanges = { ...prev }
+          delete newChanges.tasks[currentItem.data.id]
+          return { ...newChanges, tasks: newChanges.tasks }
+        })
+      }
 
-      // Clear changes for this task
-      setChanges(prev => {
-        const newChanges = { ...prev }
-        delete newChanges[currentTask.id]
-        return newChanges
-      })
-
-      Message.success(`Updated "${currentTask.name}"`)
-      logger.info(`Saved changes for task ${currentTask.name}`, currentChanges)
+      const itemName = currentItem.type === 'step' ? currentItem.data.name : currentItem.data.name
+      Message.success(`Updated "${itemName}"`)
+      logger.info(`Saved changes for ${currentItem.type} ${itemName}`, currentChanges)
     } catch (error) {
-      logger.error('Failed to save task', error)
-      Message.error('Failed to save task')
+      logger.error(`Failed to save ${currentItem.type}`, error)
+      Message.error(`Failed to save ${currentItem.type}`)
     }
   }
 
   const saveAllChanges = async () => {
-    const changeEntries = Object.entries(changes)
-    if (changeEntries.length === 0) {
+    const taskChanges = Object.entries(changes.tasks)
+    const stepChanges = Object.entries(changes.steps)
+    const totalChanges = taskChanges.length + stepChanges.length
+    
+    if (totalChanges === 0) {
       Message.info('No changes to save')
       return
     }
 
     setIsSaving(true)
-    logger.info(`Saving changes for ${changeEntries.length} tasks`)
+    logger.info(`Saving ${taskChanges.length} tasks and ${stepChanges.length} steps`)
 
     try {
       // Save all changes in parallel
-      await Promise.all(
-        changeEntries.map(([taskId, taskChanges]) =>
-          updateTask(taskId, taskChanges),
-        ),
-      )
+      const promises: Promise<any>[] = []
+      
+      // Save task changes
+      taskChanges.forEach(([taskId, taskData]) => {
+        promises.push(updateTask(taskId, taskData))
+      })
+      
+      // Save step changes - group by workflow and update each workflow once
+      const workflowStepChanges = new Map<string, { workflow: Task; stepChanges: Array<{ stepId: string; changes: any }> }>()
+      
+      stepChanges.forEach(([stepId, stepData]) => {
+        const item = editableItems.find(i => i.type === 'step' && i.data.id === stepId)
+        if (item && item.type === 'step') {
+          const workflowId = item.workflow.id
+          if (!workflowStepChanges.has(workflowId)) {
+            workflowStepChanges.set(workflowId, { workflow: item.workflow, stepChanges: [] })
+          }
+          workflowStepChanges.get(workflowId)!.stepChanges.push({ stepId, changes: stepData })
+        }
+      })
+      
+      // Update each workflow with all its step changes
+      workflowStepChanges.forEach(({ workflow, stepChanges: changes }) => {
+        const updatedSteps = workflow.steps?.map(step => {
+          const stepChange = changes.find(c => c.stepId === step.id)
+          return stepChange ? { ...step, ...stepChange.changes } : step
+        })
+        promises.push(updateTask(workflow.id, { steps: updatedSteps }))
+      })
+      
+      await Promise.all(promises)
 
-      Message.success(`Updated ${changeEntries.length} tasks`)
-      setChanges({})
+      Message.success(`Updated ${totalChanges} items`)
+      setChanges({ tasks: {}, steps: {} })
       setUnsavedChanges(false)
       logger.info('All changes saved successfully')
     } catch (error) {
@@ -231,7 +346,7 @@ export function TaskQuickEditModal({
           onClose()
         },
         onCancel: () => {
-          setChanges({})
+          setChanges({ tasks: {}, steps: {} })
           setUnsavedChanges(false)
           onClose()
         },
@@ -250,15 +365,19 @@ export function TaskQuickEditModal({
   }
 
   const getModifiedFieldsCount = (): number => {
-    return Object.values(changes).reduce((total, taskChanges) =>
+    const taskFieldCount = Object.values(changes.tasks).reduce((total, taskChanges) =>
       total + Object.keys(taskChanges).length, 0,
     )
+    const stepFieldCount = Object.values(changes.steps).reduce((total, stepChanges) =>
+      total + Object.keys(stepChanges).length, 0,
+    )
+    return taskFieldCount + stepFieldCount
   }
 
-  if (!editedTask) {
+  if (!editedData || !currentItem) {
     return (
       <Modal
-        title="Quick Edit Tasks"
+        title="Quick Edit"
         visible={visible}
         onCancel={onClose}
         footer={null}
@@ -274,9 +393,18 @@ export function TaskQuickEditModal({
       title={
         <Space>
           <IconEdit />
-          <span>Quick Edit Tasks</span>
+          <span>Quick Edit</span>
+          {currentItem && (
+            <Tag color={
+              currentItem.type === 'workflow' ? 'purple' :
+              currentItem.type === 'step' ? 'green' : 'blue'
+            }>
+              {currentItem.type === 'workflow' ? 'Workflow' :
+               currentItem.type === 'step' ? 'Step' : 'Task'}
+            </Tag>
+          )}
           <Tag color="blue">
-            {currentIndex + 1} of {filteredTasks.length}
+            {currentIndex + 1} of {editableItems.length}
           </Tag>
           {unsavedChanges && (
             <Tag color="orange">
@@ -293,7 +421,7 @@ export function TaskQuickEditModal({
           <Button onClick={handleClose}>Cancel</Button>
           <Button
             type="primary"
-            onClick={saveCurrentTask}
+            onClick={saveCurrentItem}
             disabled={!currentChanges || Object.keys(currentChanges).length === 0}
           >
             Save Current
@@ -303,9 +431,9 @@ export function TaskQuickEditModal({
             status="success"
             onClick={saveAllChanges}
             loading={isSaving}
-            disabled={Object.keys(changes).length === 0}
+            disabled={Object.keys(changes.tasks).length === 0 && Object.keys(changes.steps).length === 0}
           >
-            Save All ({Object.keys(changes).length})
+            Save All ({Object.keys(changes.tasks).length + Object.keys(changes.steps).length})
           </Button>
         </Space>
       }
@@ -323,9 +451,16 @@ export function TaskQuickEditModal({
             </Button>
           </Col>
           <Col span={16} style={{ textAlign: 'center' }}>
-            <Title heading={5}>{editedTask.name}</Title>
+            <Title heading={5}>
+              {currentItem?.type === 'step' && (
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  {currentItem.workflow.name} › 
+                </Text>
+              )}
+              {editedData?.name}
+            </Title>
             <Progress
-              percent={(currentIndex + 1) / filteredTasks.length * 100}
+              percent={(currentIndex + 1) / editableItems.length * 100}
               showText={false}
               size="small"
             />
@@ -334,7 +469,7 @@ export function TaskQuickEditModal({
             <Button
               icon={<IconRight />}
               onClick={navigateNext}
-              disabled={currentIndex === filteredTasks.length - 1}
+              disabled={currentIndex === editableItems.length - 1}
             >
               Next
             </Button>
@@ -346,10 +481,10 @@ export function TaskQuickEditModal({
         {/* Duration Slider */}
         <div>
           <Text bold>
-            <IconClockCircle /> Duration: {formatDuration(editedTask.duration)}
+            <IconClockCircle /> Duration: {formatDuration(editedData?.duration || 0)}
           </Text>
           <Slider
-            value={editedTask.duration}
+            value={editedData?.duration || 0}
             min={15}
             max={480}
             step={15}
@@ -368,7 +503,7 @@ export function TaskQuickEditModal({
               <Button
                 key={preset.value}
                 size="small"
-                type={editedTask.duration === preset.value ? 'primary' : 'default'}
+                type={editedData?.duration === preset.value ? 'primary' : 'default'}
                 onClick={() => updateField('duration', preset.value)}
               >
                 {preset.label}
@@ -377,50 +512,52 @@ export function TaskQuickEditModal({
           </Space>
         </div>
 
-        {/* Priority Sliders */}
-        <Row gutter={16}>
-          <Col span={12}>
-            <Text bold>
-              <IconFire /> Importance: {editedTask.importance}
-            </Text>
-            <Slider
-              value={editedTask.importance}
-              min={1}
-              max={10}
-              marks={{
-                1: '1',
-                5: '5',
-                10: '10',
-              }}
-              onChange={(value) => updateField('importance', value as number)}
-              style={{ marginTop: 8 }}
-            />
-          </Col>
-          <Col span={12}>
-            <Text bold>
-              <IconThunderbolt /> Urgency: {editedTask.urgency}
-            </Text>
-            <Slider
-              value={editedTask.urgency}
-              min={1}
-              max={10}
-              marks={{
-                1: '1',
-                5: '5',
-                10: '10',
-              }}
-              onChange={(value) => updateField('urgency', value as number)}
-              style={{ marginTop: 8 }}
-            />
-          </Col>
-        </Row>
+        {/* Priority Sliders - Only for tasks and workflows */}
+        {currentItem?.type !== 'step' && (
+          <Row gutter={16}>
+            <Col span={12}>
+              <Text bold>
+                <IconFire /> Importance: {(editedData as Task)?.importance || 5}
+              </Text>
+              <Slider
+                value={(editedData as Task)?.importance || 5}
+                min={1}
+                max={10}
+                marks={{
+                  1: '1',
+                  5: '5',
+                  10: '10',
+                }}
+                onChange={(value) => updateField('importance', value as number)}
+                style={{ marginTop: 8 }}
+              />
+            </Col>
+            <Col span={12}>
+              <Text bold>
+                <IconThunderbolt /> Urgency: {(editedData as Task)?.urgency || 5}
+              </Text>
+              <Slider
+                value={(editedData as Task)?.urgency || 5}
+                min={1}
+                max={10}
+                marks={{
+                  1: '1',
+                  5: '5',
+                  10: '10',
+                }}
+                onChange={(value) => updateField('urgency', value as number)}
+                style={{ marginTop: 8 }}
+              />
+            </Col>
+          </Row>
+        )}
 
         {/* Type and Cognitive Complexity */}
         <Row gutter={16}>
           <Col span={12}>
             <Text bold style={{ display: 'block', marginBottom: 8 }}>Type</Text>
             <Select
-              value={editedTask.type}
+              value={(editedData as any)?.type || TaskType.Focused}
               onChange={(value) => updateField('type', value)}
               style={{ width: '100%' }}
             >
@@ -440,7 +577,7 @@ export function TaskQuickEditModal({
               Cognitive Complexity
             </Text>
             <Rate
-              value={editedTask.cognitiveComplexity || 3}
+              value={editedData?.cognitiveComplexity || 3}
               onChange={(value) => updateField('cognitiveComplexity', value as 1 | 2 | 3 | 4 | 5)}
               style={{ fontSize: 24 }}
             />
@@ -450,54 +587,97 @@ export function TaskQuickEditModal({
           </Col>
         </Row>
 
-        {/* Deadline */}
-        <div>
-          <Text bold style={{ display: 'block', marginBottom: 8 }}>
-            <IconCalendar /> Deadline
-          </Text>
-          <Space>
-            {DEADLINE_PRESETS.map(preset => (
-              <Button
-                key={preset.label}
-                size="small"
-                onClick={() => {
-                  const value = preset.getValue()
-                  updateField('deadline', value as Date | undefined)
+        {/* Deadline - Only for tasks and workflows */}
+        {currentItem?.type !== 'step' && (
+          <div>
+            <Text bold style={{ display: 'block', marginBottom: 8 }}>
+              <IconCalendar /> Deadline
+            </Text>
+            <Space>
+              {DEADLINE_PRESETS.map(preset => (
+                <Button
+                  key={preset.label}
+                  size="small"
+                  onClick={() => {
+                    const value = preset.getValue()
+                    updateField('deadline', value as Date | undefined)
+                  }}
+                  type={
+                    preset.label === 'No Deadline' && !(editedData as Task)?.deadline ? 'primary' :
+                    preset.label !== 'No Deadline' && (editedData as Task)?.deadline && preset.getValue() &&
+                    dayjs((editedData as Task).deadline).isSame(preset.getValue()!, 'day') ? 'primary' : 'default'
+                  }
+                >
+                  {preset.label}
+                </Button>
+              ))}
+              <DatePicker
+                value={(editedData as Task)?.deadline ? dayjs((editedData as Task).deadline) : undefined}
+                onChange={(dateString, date) => updateField('deadline', date?.toDate())}
+                shortcuts={[
+                  {
+                    text: 'Today',
+                    value: () => dayjs().endOf('day'),
+                  },
+                  {
+                    text: 'Tomorrow',
+                    value: () => dayjs().add(1, 'day').endOf('day'),
+                  },
+                  {
+                    text: 'Next Week',
+                    value: () => dayjs().add(1, 'week').endOf('week'),
+                  },
+                ]}
+              />
+            </Space>
+            {(editedData as Task)?.deadline && (
+              <Tag color="orange" style={{ marginLeft: 8 }}>
+                {dayjs((editedData as Task).deadline).format('MMM D, YYYY')}
+              </Tag>
+            )}
+          </div>
+        )}
+
+        {/* Async Wait Time and Status - Show for steps */}
+        {currentItem?.type === 'step' && (
+          <>
+            <div>
+              <Text bold style={{ display: 'block', marginBottom: 8 }}>
+                <IconClockCircle /> Async Wait Time: {formatDuration((editedData as TaskStep)?.asyncWaitTime || 0)}
+              </Text>
+              <Slider
+                value={(editedData as TaskStep)?.asyncWaitTime || 0}
+                min={0}
+                max={240}
+                step={5}
+                marks={{
+                  0: '0',
+                  30: '30m',
+                  60: '1h',
+                  120: '2h',
+                  240: '4h',
                 }}
-                type={
-                  preset.label === 'No Deadline' && !editedTask.deadline ? 'primary' :
-                  preset.label !== 'No Deadline' && editedTask.deadline && preset.getValue() &&
-                  dayjs(editedTask.deadline).isSame(preset.getValue()!, 'day') ? 'primary' : 'default'
-                }
+                onChange={(value) => updateField('asyncWaitTime', value as number)}
+                style={{ marginTop: 8 }}
+              />
+            </div>
+            
+            <div>
+              <Text bold style={{ display: 'block', marginBottom: 8 }}>Step Status</Text>
+              <Select
+                value={(editedData as TaskStep)?.status || 'pending'}
+                onChange={(value) => updateField('status', value)}
+                style={{ width: 200 }}
               >
-                {preset.label}
-              </Button>
-            ))}
-            <DatePicker
-              value={editedTask.deadline ? dayjs(editedTask.deadline) : undefined}
-              onChange={(dateString, date) => updateField('deadline', date?.toDate())}
-              shortcuts={[
-                {
-                  text: 'Today',
-                  value: () => dayjs().endOf('day'),
-                },
-                {
-                  text: 'Tomorrow',
-                  value: () => dayjs().add(1, 'day').endOf('day'),
-                },
-                {
-                  text: 'Next Week',
-                  value: () => dayjs().add(1, 'week').endOf('week'),
-                },
-              ]}
-            />
-          </Space>
-          {editedTask.deadline && (
-            <Tag color="orange" style={{ marginLeft: 8 }}>
-              {dayjs(editedTask.deadline).format('MMM D, YYYY')}
-            </Tag>
-          )}
-        </div>
+                <Select.Option value="pending">Pending</Select.Option>
+                <Select.Option value="in_progress">In Progress</Select.Option>
+                <Select.Option value="waiting">Waiting</Select.Option>
+                <Select.Option value="completed">Completed</Select.Option>
+                <Select.Option value="skipped">Skipped</Select.Option>
+              </Select>
+            </div>
+          </>
+        )}
 
         {/* Keyboard shortcuts help */}
         <Alert
