@@ -306,7 +306,7 @@ describe('User Reported Scheduling Issues', () => {
         // Just verify the item was scheduled
         expect(bookFlight).toBeDefined()
         expect(bookFlight.startTime).toBeDefined()
-        
+
         // TODO: Consider adding more sophisticated async wait handling tests
         // that verify the scheduler's behavior with complex dependency chains
       }
