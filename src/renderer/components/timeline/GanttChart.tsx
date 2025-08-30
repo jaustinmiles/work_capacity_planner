@@ -496,10 +496,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       }
     })
 
-    // Fourth pass: assign wait times to same row as their parent
+    // Fourth pass: assign wait times to same row as their parent workflow
     waitItems.forEach((item: any) => {
-      const parentId = item.id.replace('-wait', '')
-      positions.set(item.id, positions.get(parentId) || currentRow)
+      // For workflow async waits, use the workflow row
+      if (item.workflowId && workflowRows.has(item.workflowId)) {
+        positions.set(item.id, workflowRows.get(item.workflowId)!)
+      } else {
+        // Fallback: try to find parent by removing '-wait' suffix
+        const parentId = item.id.replace('-wait', '')
+        const parentPosition = positions.get(parentId)
+        if (parentPosition !== undefined) {
+          positions.set(item.id, parentPosition)
+        } else {
+          // If we can't find parent, put it on its own row
+          positions.set(item.id, currentRow)
+          currentRow++
+        }
+      }
     })
 
     // Fifth pass: add unscheduled tasks to display (they don't have scheduled times but need rows)
