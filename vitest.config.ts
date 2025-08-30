@@ -22,6 +22,7 @@ export default defineConfig({
         '**/*.spec.{ts,tsx}',
         '**/index.ts',
         '**/*.d.ts',
+        'scripts/**',
       ],
     },
   },
