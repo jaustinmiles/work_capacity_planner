@@ -364,7 +364,8 @@
     "title": "Universal task field quick edit UI",
     "description": "We need a UI that allows me to cycle through tasks very quickly and correct them (adjust duration, priority, deadline, etc.) Basically I want it to be a single page with a tile, where the tile is the task, and then there are quick edit dropdowns or sliders, etc., that allow me to change all the fields easily without typing or anything like that. It's too time consuming to go through them all right now. ",
     "timestamp": "2025-08-27T13:48:43.707Z",
-    "sessionId": "session-1756302523703-obse9y1sg"
+    "sessionId": "session-1756302523703-obse9y1sg",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -844,5 +845,17 @@
     "resolved": true,
     "resolvedIn": "This PR",
     "resolvedDate": "2025-08-29"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "timeline/GanttChart"
+    ],
+    "title": "Scheduling debug view not visible",
+    "description": "During my use of the application, I eventually arrived at the Gantt chart where i noticed that no matter what I did, clicking on the debug scheduling info did nothing. Maybe this regression came from the scheduling engine major refactor we did. ",
+    "expected": "We should see the debug scheduling view when this is clicked, even if it just shows that there were no scheduling issues. It should also always print out the cognitive complexity, priority, async boost, and other weighting components in the scheduling algorithm. We had this feature not too long ago, maybe one or two PRs, so we lost this somehow and need to get it back. ",
+    "timestamp": "2025-08-30T00:51:29.198Z",
+    "sessionId": "session-1756515089194-eway8sa3n"
   }
 ]
