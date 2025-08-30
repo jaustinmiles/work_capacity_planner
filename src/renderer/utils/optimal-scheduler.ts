@@ -14,7 +14,6 @@
 import { Task, TaskStep } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { WorkMeeting } from '@shared/work-blocks-types'
-import { getCurrentTime } from '@shared/time-provider'
 import {
   WorkItem,
   topologicalSort,

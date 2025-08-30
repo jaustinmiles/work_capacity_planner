@@ -137,15 +137,15 @@ async function main() {
       sequencedTasks,
       workPatterns,
       testDate,
-      { allowTaskSplitting: true }
+      { allowTaskSplitting: true },
     )
 
     console.log('\n📊 Scheduling Results:')
     console.log('  Total items scheduled:', result.scheduledItems.length)
 
     // Check bedtime routine scheduling
-    const bedtimeSteps = result.scheduledItems.filter(item => 
-      item.taskName.includes('Bedtime routine')
+    const bedtimeSteps = result.scheduledItems.filter(item =>
+      item.taskName.includes('Bedtime routine'),
     )
 
     console.log('\n🛏️ Bedtime Routine Scheduling:')
@@ -167,8 +167,8 @@ async function main() {
 
       for (const [dateStr, steps] of stepsByDate) {
         console.log(`\n  📅 ${format(new Date(dateStr), 'EEEE, MMM d')}:`)
-        for (const step of steps.sort((a, b) => 
-          new Date(a.scheduledStartTime).getTime() - new Date(b.scheduledStartTime).getTime()
+        for (const step of steps.sort((a, b) =>
+          new Date(a.scheduledStartTime).getTime() - new Date(b.scheduledStartTime).getTime(),
         )) {
           const start = new Date(step.scheduledStartTime)
           const end = new Date(step.scheduledEndTime)
@@ -179,7 +179,7 @@ async function main() {
       // Check if it was split unnecessarily
       if (stepsByDate.size > 1) {
         console.log('\n  ⚠️  WARNING: Bedtime routine was split across multiple days!')
-        
+
         // Check available time on first day
         const firstDate = Array.from(stepsByDate.keys())[0]
         const firstDayPattern = patterns.find(p => p.date === firstDate)
@@ -193,7 +193,7 @@ async function main() {
           }
           console.log(`  First day (${firstDate}) had ${totalAvailable} minutes available`)
           console.log(`  Workflow needs ${workflow.duration} minutes total`)
-          
+
           if (totalAvailable >= workflow.duration) {
             console.log('  ❌ BUG CONFIRMED: Workflow was split despite sufficient time on first day')
           }

@@ -26,6 +26,7 @@ class TimeProvider {
   private constructor() {
     // Check for dev time override in localStorage on initialization
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      // eslint-disable-next-line no-undef
       const savedOverride = localStorage.getItem('dev-time-override')
       if (savedOverride) {
         try {
@@ -34,6 +35,7 @@ class TimeProvider {
         } catch (_e) {
           logError('main', 'Failed to parse saved time override', _e)
           if (typeof localStorage !== 'undefined') {
+            // eslint-disable-next-line no-undef
             localStorage.removeItem('dev-time-override')
           }
         }
@@ -72,12 +74,14 @@ class TimeProvider {
     if (date === null) {
       this.overrideTime = null
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        // eslint-disable-next-line no-undef
         localStorage.removeItem('dev-time-override')
       }
       logInfo('main', 'Time override cleared')
     } else {
       this.overrideTime = typeof date === 'string' ? new Date(date) : new Date(date)
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        // eslint-disable-next-line no-undef
         localStorage.setItem('dev-time-override', this.overrideTime.toISOString())
       }
       logInfo('main', `Time override set to: ${this.overrideTime.toISOString()}`)
