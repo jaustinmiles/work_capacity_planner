@@ -26,6 +26,33 @@ import { logger } from '../../utils/logger'
 
 const { Title, Text, Paragraph } = Typography
 
+// Helper to normalize amendment type from string or enum to enum
+// IPC serialization converts enums to strings, so we need to handle both
+const normalizeAmendmentType = (type: string | AmendmentType): AmendmentType => {
+  // If it's already an enum value, return it
+  if (Object.values(AmendmentType).includes(type as AmendmentType)) {
+    return type as AmendmentType
+  }
+  
+  // Map string literals to enum values
+  const typeMap: Record<string, AmendmentType> = {
+    'status_update': AmendmentType.StatusUpdate,
+    'time_log': AmendmentType.TimeLog,
+    'note_addition': AmendmentType.NoteAddition,
+    'duration_change': AmendmentType.DurationChange,
+    'step_addition': AmendmentType.StepAddition,
+    'step_removal': AmendmentType.StepRemoval,
+    'dependency_change': AmendmentType.DependencyChange,
+    'task_creation': AmendmentType.TaskCreation,
+    'workflow_creation': AmendmentType.WorkflowCreation,
+    'deadline_change': AmendmentType.DeadlineChange,
+    'priority_change': AmendmentType.PriorityChange,
+    'type_change': AmendmentType.TypeChange,
+  }
+  
+  return typeMap[type] || (type as AmendmentType)
+}
+
 interface VoiceAmendmentModalProps {
   visible: boolean
   onClose: () => void
@@ -333,40 +360,30 @@ export function VoiceAmendmentModal({
   }
 
   const renderAmendmentIcon = (type: Amendment['type']) => {
-    // logger.ui.debug('[VoiceAmendmentModal] renderAmendmentIcon - type:', type, 'typeof:', typeof type)
-    // Handle both string literals and enum values since IPC serialization converts enums to strings
-    switch (type) {
-      case 'status_update':
+    // Normalize to enum value for consistent handling
+    const enumType = normalizeAmendmentType(type)
+    
+    switch (enumType) {
       case AmendmentType.StatusUpdate:
         return <IconCheck />
-      case 'time_log':
       case AmendmentType.TimeLog:
         return <IconClockCircle />
-      case 'note_addition':
       case AmendmentType.NoteAddition:
         return <IconFile />
-      case 'duration_change':
       case AmendmentType.DurationChange:
         return <IconSchedule />
-      case 'step_addition':
       case AmendmentType.StepAddition:
         return <IconEdit />
-      case 'task_creation':
       case AmendmentType.TaskCreation:
         return <IconPlus />
-      case 'dependency_change':
       case AmendmentType.DependencyChange:
         return <IconLink />
-      case 'deadline_change':
       case AmendmentType.DeadlineChange:
         return <IconClockCircle />
-      case 'priority_change':
       case AmendmentType.PriorityChange:
         return <IconExclamationCircle />
-      case 'type_change':
       case AmendmentType.TypeChange:
         return <IconRefresh />
-      case 'step_removal':
       case AmendmentType.StepRemoval:
         return <IconMinus />
       default:
@@ -376,10 +393,10 @@ export function VoiceAmendmentModal({
   }
 
   const renderAmendmentDescription = (amendment: Amendment, allAmendments?: Amendment[]) => {
-    // logger.ui.debug('[VoiceAmendmentModal] renderAmendmentDescription - type:', amendment.type, 'full amendment:', amendment)
-    // Handle both string literals and enum values since IPC serialization converts enums to strings
-    switch (amendment.type) {
-      case 'status_update':
+    // Normalize to enum value for consistent handling
+    const enumType = normalizeAmendmentType(amendment.type)
+    
+    switch (enumType) {
       case AmendmentType.StatusUpdate: {
         const statusUpdate = amendment as StatusUpdate
         return (
@@ -393,7 +410,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'time_log':
       case AmendmentType.TimeLog: {
         const timeLog = amendment as TimeLog
         return (
@@ -405,7 +421,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'note_addition':
       case AmendmentType.NoteAddition: {
         const noteAddition = amendment as NoteAddition
         return (
@@ -420,7 +435,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'duration_change':
       case AmendmentType.DurationChange: {
         const durationChange = amendment as DurationChange
         return (
@@ -432,7 +446,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'step_addition':
       case AmendmentType.StepAddition: {
         const stepAddition = amendment as StepAddition
         return (
@@ -452,7 +465,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'task_creation':
       case AmendmentType.TaskCreation: {
         const taskCreation = amendment as TaskCreation
         return (
@@ -481,7 +493,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'dependency_change':
       case AmendmentType.DependencyChange: {
         const depChange = amendment as DependencyChange
         return (
@@ -531,7 +542,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'deadline_change':
       case AmendmentType.DeadlineChange: {
         const deadlineChange = amendment as DeadlineChange
         return (
@@ -551,7 +561,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'priority_change':
       case AmendmentType.PriorityChange: {
         const priorityChange = amendment as PriorityChange
         const changes: string[] = []
@@ -572,7 +581,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'type_change':
       case AmendmentType.TypeChange: {
         const typeChange = amendment as TypeChange
         return (
@@ -589,7 +597,6 @@ export function VoiceAmendmentModal({
           </Space>
         )
       }
-      case 'step_removal':
       case AmendmentType.StepRemoval: {
         const stepRemoval = amendment as StepRemoval
         return (
@@ -620,38 +627,41 @@ export function VoiceAmendmentModal({
     return 0.5
   }
 
-  // Helper to check amendment types accounting for string literals
-  const isAmendmentType = (amendment: Amendment, ...types: (string | AmendmentType)[]): boolean => {
-    return types.some(t => amendment.type === t)
+  // Helper to check amendment types with normalized enum values
+  const isAmendmentType = (amendment: Amendment, ...types: AmendmentType[]): boolean => {
+    const enumType = normalizeAmendmentType(amendment.type)
+    return types.includes(enumType)
   }
 
   const getAmendmentTitle = (amendment: Amendment) => {
-    // Handle both string literals and enum values
-    switch (amendment.type) {
-      case 'status_update':
+    // Normalize to enum value for consistent handling
+    const enumType = normalizeAmendmentType(amendment.type)
+    
+    switch (enumType) {
       case AmendmentType.StatusUpdate:
         return 'Status Update'
-      case 'time_log':
       case AmendmentType.TimeLog:
         return 'Time Log'
-      case 'note_addition':
       case AmendmentType.NoteAddition:
         return 'Note Addition'
-      case 'duration_change':
       case AmendmentType.DurationChange:
         return 'Duration Change'
-      case 'step_addition':
       case AmendmentType.StepAddition:
         return 'Step Addition'
-      case 'task_creation':
       case AmendmentType.TaskCreation:
         return 'Task Creation'
-      case 'dependency_change':
       case AmendmentType.DependencyChange:
         return 'Dependency Change'
-      case 'workflow_creation':
       case AmendmentType.WorkflowCreation:
         return 'Workflow Creation'
+      case AmendmentType.DeadlineChange:
+        return 'Deadline Change'
+      case AmendmentType.PriorityChange:
+        return 'Priority Change'
+      case AmendmentType.TypeChange:
+        return 'Type Change'
+      case AmendmentType.StepRemoval:
+        return 'Step Removal'
       default:
         return 'Amendment'
     }
@@ -931,9 +941,9 @@ export function VoiceAmendmentModal({
                           <Text bold>{getAmendmentTitle(amendment)}</Text>
 
                           {/* Duration editing for time logs and duration changes */}
-                          {isAmendmentType(amendment, 'time_log', AmendmentType.TimeLog,
-                            'duration_change', AmendmentType.DurationChange,
-                            'task_creation', AmendmentType.TaskCreation) && (
+                          {isAmendmentType(amendment, AmendmentType.TimeLog,
+                            AmendmentType.DurationChange,
+                            AmendmentType.TaskCreation) && (
                             <Space>
                               <Text>Duration (minutes):</Text>
                               <InputNumber
@@ -952,7 +962,7 @@ export function VoiceAmendmentModal({
                           )}
 
                           {/* Priority editing for task creation */}
-                          {isAmendmentType(amendment, 'task_creation', AmendmentType.TaskCreation) && (
+                          {isAmendmentType(amendment, AmendmentType.TaskCreation) && (
                             <>
                               <Space style={{ width: '100%' }}>
                                 <Text>Importance:</Text>
@@ -1024,7 +1034,7 @@ export function VoiceAmendmentModal({
                           )}
 
                           {/* Step Addition editing */}
-                          {isAmendmentType(amendment, 'step_addition', AmendmentType.StepAddition) && (
+                          {isAmendmentType(amendment, AmendmentType.StepAddition) && (
                             <>
                               <Space>
                                 <Text>Step Name:</Text>
@@ -1072,7 +1082,7 @@ export function VoiceAmendmentModal({
                           )}
 
                           {/* Status Update editing */}
-                          {isAmendmentType(amendment, 'status_update', AmendmentType.StatusUpdate) && (
+                          {isAmendmentType(amendment, AmendmentType.StatusUpdate) && (
                             <Space>
                               <Text>New Status:</Text>
                               <Select
@@ -1093,16 +1103,16 @@ export function VoiceAmendmentModal({
                           )}
 
                           {/* Note editing */}
-                          {isAmendmentType(amendment, 'note_addition', AmendmentType.NoteAddition,
-                            'task_creation', AmendmentType.TaskCreation) && (
+                          {isAmendmentType(amendment, AmendmentType.NoteAddition,
+                            AmendmentType.TaskCreation) && (
                             <Space direction="vertical" style={{ width: '100%' }}>
-                              <Text>{isAmendmentType(amendment, 'note_addition', AmendmentType.NoteAddition) ? 'Note:' : 'Description:'}</Text>
+                              <Text>{isAmendmentType(amendment, AmendmentType.NoteAddition) ? 'Note:' : 'Description:'}</Text>
                               <Input.TextArea
                                 value={edited.note || edited.description ||
                                        (amendment as any).note || (amendment as any).description || ''}
                                 onChange={(value) => {
                                   const newEdited = new Map(editedAmendments)
-                                  const field = isAmendmentType(amendment, 'note_addition', AmendmentType.NoteAddition) ? 'note' : 'description'
+                                  const field = isAmendmentType(amendment, AmendmentType.NoteAddition) ? 'note' : 'description'
                                   newEdited.set(index, { ...edited, [field]: value })
                                   setEditedAmendments(newEdited)
                                 }}
