@@ -180,7 +180,7 @@ describe('TimeProvider', () => {
       expect(() => {
         timeProvider.setOverride('invalid-date')
       }).not.toThrow()
-      
+
       // The override will be set to an invalid date
       const override = timeProvider.getOverride()
       if (override) {
