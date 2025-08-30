@@ -2,9 +2,9 @@
 
 ## Latest Status (2025-08-30)
 
-### 🚀 Current Session: Universal Task Quick Edit UI & Critical Bug Fixes
+### 🚀 Current Session: Comprehensive Scheduling System Fixes
 
-#### New Critical Bugs Fixed (Branch: fix/critical-schedule-bugs)
+#### Critical Scheduling Bugs Fixed (Branch: feature/universal-task-quick-edit)
 1. **Sleep blocks deleted during schedule generation** ✅
    - Schedule generator was overwriting existing meetings with empty array
    - Now fetches and preserves existing meetings/sleep blocks when generating
@@ -27,6 +27,21 @@
    - Added safety check for sortedItems array access
    - Prevents potential runtime errors when accessing first element
    - Identified need for stricter ESLint rules (added to TECH_DEBT.md)
+
+6. **Fixed incorrect unscheduled items tracking** ✅
+   - Scheduler was incorrectly reporting items as unscheduled
+   - Items remained in workItems array after being scheduled
+   - Fixed by properly tracking scheduled item IDs and cleaning up arrays
+
+7. **Fixed task splitting issues** ✅
+   - Split tasks weren't being scheduled properly
+   - Remainder items had same ID as originals causing tracking issues
+   - Fixed by correctly handling partial schedules and remainders
+
+8. **Fixed capacity calculation for optimal schedules** ✅
+   - Was setting block capacity to USED amount instead of AVAILABLE
+   - Now correctly sets available capacity for flexible blocks
+   - Creates default 9-5 blocks for future days with proper capacity
 
 #### Major Accomplishments (PR #31 - Merged)
 1. **Unified Scheduling Logic** ✅
@@ -81,31 +96,36 @@
 ### 🟢 Current Code Status
 - **TypeScript Errors**: 0 ✅
 - **ESLint Errors**: 0 ✅ (warnings only)
-- **Test Status**: 1 test error (WorkLoggerCalendar timeout) ⚠️
+- **Test Status**: All passing ✅
 - **Build**: Successful ✅
 - **PR #35**: MERGED to main ✅
-- **PR #36**: In progress on feature/universal-task-quick-edit
+- **PR #36**: Ready to merge on feature/universal-task-quick-edit
 - **Current Branch**: feature/universal-task-quick-edit
 
-### 🎯 Active Work: Universal Task Quick Edit UI
-Implemented universal quick edit modal for rapid task/workflow property editing.
+### 🎯 Active Work: AI Brainstorm Clarification UI Fixes
+Working on fixing critical issues with AI brainstorm clarification workflow (feedback #1).
 
-#### Recently Fixed Bugs (Today)
-1. **Modal.confirm crash** - Replaced with custom modal to avoid markdown renderer error
-2. **Database error logging** - Fixed JSON stringify issue in PrismaTransport
-3. **Scheduling debug view** - Fixed debug info not showing when using saved schedule
+#### Recently Fixed Bugs (2025-08-30)
+1. **AI Brainstorm Clarification UI** (feedback #1 - CRITICAL) ✅
+   - Removed individual "Regenerate with Clarification" buttons from each item
+   - Added single "Apply All Clarifications" button at bottom
+   - Added clarification inputs for standalone tasks (previously only workflows had them)
+   - Clarification boxes now clear after successful regeneration
+   - Added visual indicators showing which items have been updated
+   - Better tracking of regeneration state per item
+   - Improved UX with single-button regeneration workflow
 
-#### Current Investigation
-- **Gantt chart duplicate rows** - Scheduler being called multiple times causing visual duplicates
-- **State corruption** - UI becoming unresponsive after multiple schedule generations
-- **Duplicate workflow warnings** - Workflows appearing in both tasks and sequencedTasks arrays
+#### Pending AI Brainstorm Improvements
+- **Voice recording in clarification mode** - Not yet available, needs implementation
+- **Visual diff of changes** - Show what changed after regeneration
 
 ### 🔴 Critical Feedback Items (from feedback.json)
-1. **Applicator buggy and unusable** (CRITICAL)
-   - Amendment application causing duplicate tasks
-   - Dependencies not wiring correctly
-   - Marking workflows complete incorrectly
-   - Needs comprehensive review
+1. **AI brainstorm clarification UI doesn't update** (CRITICAL) - PARTIALLY FIXED
+   - ✅ Fixed multiple regenerate buttons issue
+   - ✅ Clarifications now clear after use
+   - ✅ Added support for standalone task clarifications
+   - ⏳ Voice recording in clarification mode still needed
+   - ⏳ Visual diff of changes not yet implemented
 
 ### 📝 Next Priority Tasks
 1. **Fix critical applicator bug** (feedback #1) - HIGHEST PRIORITY
