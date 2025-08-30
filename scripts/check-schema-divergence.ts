@@ -39,7 +39,7 @@ async function main() {
         const count = await (prisma as any)[table].count()
         tableCounts[table] = count
         console.log(`  ${table}: ${count} records`)
-      } catch (error: any) {
+      } catch (_error: any) {
         console.log(`  ${table}: ❌ Table doesn't exist or error accessing`)
       }
     }

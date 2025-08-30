@@ -137,7 +137,7 @@ async function main() {
       }
 
       // Check each workflow for time gaps
-      for (const [taskId, steps] of byWorkflow) {
+      for (const [_taskId, steps] of byWorkflow) {
         if (steps.length > 1) {
           const times = steps.map(s => new Date(s.scheduledStartTime).getTime())
           const minTime = Math.min(...times)

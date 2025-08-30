@@ -13,7 +13,7 @@ if (typeof window !== 'undefined') {
     const eventsModule = require('../renderer/utils/events')
     appEvents = eventsModule.appEvents
     EVENTS = eventsModule.EVENTS
-  } catch (e) {
+  } catch (_e) {
     // Not in renderer process or events not available
   }
 }
@@ -31,8 +31,8 @@ class TimeProvider {
         try {
           this.overrideTime = new Date(savedOverride)
           logInfo('main', `Time override loaded from localStorage: ${this.overrideTime.toISOString()}`)
-        } catch (e) {
-          logError('main', 'Failed to parse saved time override', e)
+        } catch (_e) {
+          logError('main', 'Failed to parse saved time override', _e)
           if (typeof localStorage !== 'undefined') {
             localStorage.removeItem('dev-time-override')
           }
@@ -85,7 +85,6 @@ class TimeProvider {
 
     // Notify all listeners
     this.notifyListeners()
-    
     // Emit event for UI refresh
     if (appEvents && EVENTS) {
       appEvents.emit(EVENTS.TIME_OVERRIDE_CHANGED, this.overrideTime)
