@@ -56,11 +56,15 @@ type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped'
 
 // Helper function to convert string literals to TaskType enum
 function toTaskType(type: string): TaskType {
+  // Only accept our 3 valid task types
   if (type === 'focused' || type === TaskType.Focused) return TaskType.Focused
   if (type === 'admin' || type === TaskType.Admin) return TaskType.Admin
-  if (type === 'mixed' || type === TaskType.Mixed) return TaskType.Mixed
-  // Default to focused if unknown
-  return TaskType.Focused
+  if (type === 'personal' || type === TaskType.Personal) return TaskType.Personal
+  
+  // Log warning for invalid types and default to personal
+  // (things like "routine", "relaxation" are more personal than work)
+  logger.ai.warn(`Invalid task type "${type}" received from AI, defaulting to "personal"`)
+  return TaskType.Personal
 }
 
 export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflowsExtracted }: BrainstormModalProps) {
@@ -606,6 +610,11 @@ Only include terms that are likely industry-specific or technical jargon, not co
             type: toTaskType(wf.type),
             duration: wf.totalDuration || 0,
             totalDuration: wf.totalDuration || 0,
+            // Also validate step types
+            steps: wf.steps.map((step: any) => ({
+              ...step,
+              type: toTaskType(step.type),
+            })),
           })),
           standaloneTasks: result.standaloneTasks.map(task => ({
             ...task,
