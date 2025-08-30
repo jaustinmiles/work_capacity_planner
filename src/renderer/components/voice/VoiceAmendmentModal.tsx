@@ -555,13 +555,13 @@ export function VoiceAmendmentModal({
             <Text>Set deadline for</Text>
             <Text bold>{deadlineChange.target.name}</Text>
             <Text>to</Text>
-            <Text bold>{new Date(deadlineChange.newDeadline).toLocaleString('en-US', { 
-              month: 'short', 
-              day: 'numeric', 
+            <Text bold>{new Date(deadlineChange.newDeadline).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
               year: 'numeric',
               hour: 'numeric',
               minute: '2-digit',
-              hour12: true 
+              hour12: true,
             })}</Text>
             {deadlineChange.deadlineType && (
               <Tag color={deadlineChange.deadlineType === 'hard' ? 'red' : 'orange'}>
@@ -1094,7 +1094,7 @@ export function VoiceAmendmentModal({
                               <Space direction="vertical" style={{ width: '100%' }}>
                                 <Text>Dependencies (comma-separated step names):</Text>
                                 <Input
-                                  value={edited.dependencies ? edited.dependencies.join(', ') : 
+                                  value={edited.dependencies ? edited.dependencies.join(', ') :
                                          ((amendment as StepAddition).dependencies || []).join(', ')}
                                   onChange={(value) => {
                                     const newEdited = new Map(editedAmendments)
