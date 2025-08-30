@@ -83,8 +83,8 @@ export class PrismaTransport {
         .map(entry => ({
           level: LogLevel[entry.level],
           message: entry.message,
-          context: entry.context,
-          error: entry.error,
+          context: JSON.stringify(entry.context),
+          error: entry.error ? JSON.stringify(entry.error) : null,
           sessionId: entry.context.sessionId,
           userId: entry.context.userId,
         }))
