@@ -533,7 +533,7 @@ export function VoiceAmendmentModal({
       }
       case 'deadline_change':
       case AmendmentType.DeadlineChange: {
-        const deadlineChange = amendment as any
+        const deadlineChange = amendment as DeadlineChange
         return (
           <Space>
             <Text>Set deadline for</Text>
@@ -553,12 +553,12 @@ export function VoiceAmendmentModal({
       }
       case 'priority_change':
       case AmendmentType.PriorityChange: {
-        const priorityChange = amendment as any
+        const priorityChange = amendment as PriorityChange
         const changes: string[] = []
         if (priorityChange.importance !== undefined) changes.push(`Importance: ${priorityChange.importance}`)
         if (priorityChange.urgency !== undefined) changes.push(`Urgency: ${priorityChange.urgency}`)
         if (priorityChange.cognitiveComplexity !== undefined) changes.push(`Complexity: ${priorityChange.cognitiveComplexity}`)
-        
+
         return (
           <Space>
             <Text>Update priority for</Text>
@@ -574,7 +574,7 @@ export function VoiceAmendmentModal({
       }
       case 'type_change':
       case AmendmentType.TypeChange: {
-        const typeChange = amendment as any
+        const typeChange = amendment as TypeChange
         return (
           <Space>
             <Text>Change type of</Text>
@@ -591,7 +591,7 @@ export function VoiceAmendmentModal({
       }
       case 'step_removal':
       case AmendmentType.StepRemoval: {
-        const stepRemoval = amendment as any
+        const stepRemoval = amendment as StepRemoval
         return (
           <Space>
             <Text>Remove step</Text>
