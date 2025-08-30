@@ -1,11 +1,12 @@
 import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm } from '@arco-design/web-react'
-import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock } from '@arco-design/web-react/icon'
+import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskItem } from './TaskItem'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { useState } from 'react'
 import { ScheduleGenerator } from '../schedule/ScheduleGenerator'
+import { TaskQuickEditModal } from './TaskQuickEditModal'
 import { logger } from '../../utils/logger'
 import { useLoggerContext } from '../../../logging/index.renderer'
 import { RendererLogger } from '../../../logging/renderer/RendererLogger'
@@ -20,6 +21,7 @@ interface TaskListProps {
 export function TaskList({ onAddTask }: TaskListProps) {
   const { tasks, loadTasks, sequencedTasks } = useTaskStore()
   const [scheduleGeneratorVisible, setScheduleGeneratorVisible] = useState(false)
+  const [quickEditVisible, setQuickEditVisible] = useState(false)
   const { logger: newLogger } = useLoggerContext()
   const rendererLogger = newLogger as RendererLogger
 
@@ -89,6 +91,19 @@ export function TaskList({ onAddTask }: TaskListProps) {
               Active Tasks
             </Title>
             <Space>
+              <Button
+                size="small"
+                icon={<IconEdit />}
+                onClick={() => {
+                  rendererLogger.interaction('Quick Edit clicked', {
+                    component: 'TaskList',
+                    taskCount: incompleteTasks.length,
+                  })
+                  setQuickEditVisible(true)
+                }}
+              >
+                Quick Edit
+              </Button>
               <Button
                 type="primary"
                 size="small"
@@ -202,6 +217,13 @@ export function TaskList({ onAddTask }: TaskListProps) {
         tasks={tasks}
         sequencedTasks={sequencedTasks || []}
         onScheduleAccepted={handleScheduleAccepted}
+      />
+
+      {/* Quick Edit Modal */}
+      <TaskQuickEditModal
+        visible={quickEditVisible}
+        onClose={() => setQuickEditVisible(false)}
+        filter="incomplete"
       />
     </Space>
   )
