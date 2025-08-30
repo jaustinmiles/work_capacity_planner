@@ -114,6 +114,7 @@ export function TaskQuickEditModal({
   const [changes, setChanges] = useState<ItemChanges>({ tasks: {}, steps: {} })
   const [isSaving, setIsSaving] = useState(false)
   const [unsavedChanges, setUnsavedChanges] = useState(false)
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
 
   // Initialize current index based on initialTaskId
   useEffect(() => {
@@ -331,24 +332,23 @@ export function TaskQuickEditModal({
 
   const handleClose = () => {
     if (unsavedChanges) {
-      Modal.confirm({
-        title: 'Unsaved Changes',
-        content: 'You have unsaved changes. Do you want to save them before closing?',
-        okText: 'Save & Close',
-        cancelText: 'Discard',
-        onOk: async () => {
-          await saveAllChanges()
-          onClose()
-        },
-        onCancel: () => {
-          setChanges({ tasks: {}, steps: {} })
-          setUnsavedChanges(false)
-          onClose()
-        },
-      })
+      setShowCloseConfirm(true)
     } else {
       onClose()
     }
+  }
+
+  const handleConfirmSaveAndClose = async () => {
+    await saveAllChanges()
+    setShowCloseConfirm(false)
+    onClose()
+  }
+
+  const handleConfirmDiscardAndClose = () => {
+    setChanges({ tasks: {}, steps: {} })
+    setUnsavedChanges(false)
+    setShowCloseConfirm(false)
+    onClose()
   }
 
   const formatDuration = (minutes: number): string => {
@@ -384,8 +384,9 @@ export function TaskQuickEditModal({
   }
 
   return (
-    <Modal
-      title={
+    <>
+      <Modal
+        title={
         <Space>
           <IconEdit />
           <span>Quick Edit</span>
@@ -705,5 +706,19 @@ export function TaskQuickEditModal({
         )}
       </Space>
     </Modal>
+
+    {/* Custom confirmation modal to avoid Modal.confirm markdown bug */}
+    <Modal
+      title="Unsaved Changes"
+      visible={showCloseConfirm}
+      onOk={handleConfirmSaveAndClose}
+      onCancel={handleConfirmDiscardAndClose}
+      okText="Save & Close"
+      cancelText="Discard"
+      maskClosable={false}
+    >
+      <Text>You have unsaved changes. Do you want to save them before closing?</Text>
+    </Modal>
+    </>
   )
 }
