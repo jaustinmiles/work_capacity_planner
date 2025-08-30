@@ -33,7 +33,7 @@ const normalizeAmendmentType = (type: string | AmendmentType): AmendmentType => 
   if (Object.values(AmendmentType).includes(type as AmendmentType)) {
     return type as AmendmentType
   }
-  
+
   // Map string literals to enum values
   const typeMap: Record<string, AmendmentType> = {
     'status_update': AmendmentType.StatusUpdate,
@@ -49,7 +49,7 @@ const normalizeAmendmentType = (type: string | AmendmentType): AmendmentType => 
     'priority_change': AmendmentType.PriorityChange,
     'type_change': AmendmentType.TypeChange,
   }
-  
+
   return typeMap[type] || (type as AmendmentType)
 }
 
@@ -362,7 +362,7 @@ export function VoiceAmendmentModal({
   const renderAmendmentIcon = (type: Amendment['type']) => {
     // Normalize to enum value for consistent handling
     const enumType = normalizeAmendmentType(type)
-    
+
     switch (enumType) {
       case AmendmentType.StatusUpdate:
         return <IconCheck />
@@ -395,7 +395,7 @@ export function VoiceAmendmentModal({
   const renderAmendmentDescription = (amendment: Amendment, allAmendments?: Amendment[]) => {
     // Normalize to enum value for consistent handling
     const enumType = normalizeAmendmentType(amendment.type)
-    
+
     switch (enumType) {
       case AmendmentType.StatusUpdate: {
         const statusUpdate = amendment as StatusUpdate
@@ -636,7 +636,7 @@ export function VoiceAmendmentModal({
   const getAmendmentTitle = (amendment: Amendment) => {
     // Normalize to enum value for consistent handling
     const enumType = normalizeAmendmentType(amendment.type)
-    
+
     switch (enumType) {
       case AmendmentType.StatusUpdate:
         return 'Status Update'
