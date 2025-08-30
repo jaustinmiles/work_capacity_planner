@@ -560,13 +560,30 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                   )
 
                   if (stepIndex !== -1) {
-                    // Update step properties (note: step schema may not support all these)
-                    // const updatedSteps = [...workflow.steps]
-                    // TODO: When schema supports step-level priority, implement update here
-                    // Steps don't have importance/urgency in current schema
-                    logger.ui.warn('Step-level priority changes not fully supported in current schema')
-                    Message.warning('Step priority changes are limited in current version')
-                    errorCount++
+                    // Update step properties - schema supports importance and urgency for steps
+                    const updatedSteps = [...workflow.steps]
+                    const step = updatedSteps[stepIndex]
+                    
+                    // Apply the priority changes that are supported
+                    if (change.importance !== undefined) {
+                      step.importance = change.importance
+                    }
+                    if (change.urgency !== undefined) {
+                      step.urgency = change.urgency
+                    }
+                    if (change.cognitiveComplexity !== undefined) {
+                      step.cognitiveComplexity = change.cognitiveComplexity
+                    }
+                    
+                    await db.updateSequencedTask(change.target.id, { steps: updatedSteps })
+                    successCount++
+                    logger.ui.info('Updated step priority:', { 
+                      step: change.stepName,
+                      importance: change.importance,
+                      urgency: change.urgency,
+                      cognitiveComplexity: change.cognitiveComplexity
+                    })
+                    Message.success(`Updated priority for step "${change.stepName}"`)
                   } else {
                     Message.warning(`Step "${change.stepName}" not found`)
                     errorCount++
