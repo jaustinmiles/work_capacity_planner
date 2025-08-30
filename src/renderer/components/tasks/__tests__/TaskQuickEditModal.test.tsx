@@ -96,7 +96,7 @@ describe('TaskQuickEditModal', () => {
         visible={true}
         onClose={vi.fn()}
         filter="incomplete"
-      />
+      />,
     )
 
     expect(screen.getByText('Quick Edit')).toBeInTheDocument()
@@ -110,7 +110,7 @@ describe('TaskQuickEditModal', () => {
         visible={true}
         onClose={vi.fn()}
         filter="incomplete"
-      />
+      />,
     )
 
     // Initially shows first task
@@ -139,12 +139,12 @@ describe('TaskQuickEditModal', () => {
         visible={true}
         onClose={vi.fn()}
         filter="incomplete"
-      />
+      />,
     )
 
     // The duration slider should show initial value
     expect(screen.getByText('Duration: 1h')).toBeInTheDocument()
-    
+
     // Check that importance and urgency are displayed
     expect(screen.getByText('Importance: 5')).toBeInTheDocument()
     expect(screen.getByText('Urgency: 5')).toBeInTheDocument()
@@ -158,7 +158,7 @@ describe('TaskQuickEditModal', () => {
         visible={true}
         onClose={vi.fn()}
         filter="incomplete"
-      />
+      />,
     )
 
     // Click a duration preset button to make a change
@@ -180,7 +180,7 @@ describe('TaskQuickEditModal', () => {
         visible={true}
         onClose={vi.fn()}
         filter="incomplete"
-      />
+      />,
     )
 
     // Make a change
@@ -204,7 +204,7 @@ describe('TaskQuickEditModal', () => {
         visible={true}
         onClose={vi.fn()}
         filter="incomplete"
-      />
+      />,
     )
 
     // Should show empty state
