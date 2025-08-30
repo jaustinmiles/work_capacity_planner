@@ -1253,7 +1253,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
               </div>
 
               {/* Workflows Section */}
-              {(showClarificationMode ? editableResult?.workflows : brainstormResult.workflows) && 
+              {(showClarificationMode ? editableResult?.workflows : brainstormResult.workflows) &&
                (showClarificationMode ? editableResult?.workflows : brainstormResult.workflows)!.length > 0 && (
                 <div>
                   <Text style={{ fontWeight: 'bold' }}>
@@ -1261,8 +1261,8 @@ Only include terms that are likely industry-specific or technical jargon, not co
                   </Text>
                   <div style={{ marginTop: 12 }}>
                     {(showClarificationMode ? editableResult?.workflows : brainstormResult.workflows)!.map((workflow, index) => {
-                      const displayWorkflow = showClarificationMode && editableResult?.workflows?.[index] 
-                        ? editableResult.workflows[index] 
+                      const displayWorkflow = showClarificationMode && editableResult?.workflows?.[index]
+                        ? editableResult.workflows[index]
                         : workflow
                       return (
                       <Card
@@ -1467,7 +1467,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
               )}
 
               {/* Standalone Tasks Section */}
-              {(showClarificationMode ? editableResult?.standaloneTasks : brainstormResult.standaloneTasks) && 
+              {(showClarificationMode ? editableResult?.standaloneTasks : brainstormResult.standaloneTasks) &&
                (showClarificationMode ? editableResult?.standaloneTasks : brainstormResult.standaloneTasks)!.length > 0 && (
                 <div>
                   <Text style={{ fontWeight: 'bold' }}>
@@ -1475,8 +1475,8 @@ Only include terms that are likely industry-specific or technical jargon, not co
                   </Text>
                   <div style={{ marginTop: 12 }}>
                     {(showClarificationMode ? editableResult?.standaloneTasks : brainstormResult.standaloneTasks)!.map((task, index) => {
-                      const displayTask = showClarificationMode && editableResult?.standaloneTasks?.[index] 
-                        ? editableResult.standaloneTasks[index] 
+                      const displayTask = showClarificationMode && editableResult?.standaloneTasks?.[index]
+                        ? editableResult.standaloneTasks[index]
                         : task
                       return (
                       <Card
@@ -1632,7 +1632,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
               )}
 
               {/* Legacy Tasks Section (for task-only mode) */}
-              {(showClarificationMode ? editableResult?.tasks : brainstormResult.tasks) && 
+              {(showClarificationMode ? editableResult?.tasks : brainstormResult.tasks) &&
                (showClarificationMode ? editableResult?.tasks : brainstormResult.tasks)!.length > 0 && (
                 <div>
                   <Text style={{ fontWeight: 'bold' }}>
