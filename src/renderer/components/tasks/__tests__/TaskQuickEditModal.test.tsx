@@ -99,7 +99,7 @@ describe('TaskQuickEditModal', () => {
       />
     )
 
-    expect(screen.getByText('Quick Edit Tasks')).toBeInTheDocument()
+    expect(screen.getByText('Quick Edit')).toBeInTheDocument()
     expect(screen.getByText('1 of 2')).toBeInTheDocument()
     expect(screen.getByText('Test Task 1')).toBeInTheDocument()
   })
