@@ -982,6 +982,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 borderTop: '1px solid #e5e5e5',
                 overflow: 'visible',
               }}>
+                <div style={{ position: 'absolute', left: 10, top: 5, fontSize: 10, color: '#999' }}>
+                  {timeMarkers.length} time markers, {timeMarkers.filter(time => time.getHours() % 2 === 0 && time.getMinutes() === 0).length} shown
+                </div>
                 {timeMarkers
                   .filter(time => time.getHours() % 2 === 0 && time.getMinutes() === 0)
                   .map((time) => {
