@@ -381,12 +381,22 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Calculate chart dimensions
   const now = getCurrentTime()
+  
+  // Start at beginning of current day (or first scheduled item if earlier)
+  const todayStart = new Date(now)
+  todayStart.setHours(0, 0, 0, 0)
+  
   const chartStartTime = scheduledItems.length > 0
-    ? new Date(Math.min(scheduledItems[0].startTime.getTime(), now.getTime()))
-    : now
+    ? new Date(Math.min(scheduledItems[0].startTime.getTime(), todayStart.getTime()))
+    : todayStart
+    
+  // End at end of day (or last scheduled item if later)  
+  const todayEnd = new Date(now)
+  todayEnd.setHours(23, 59, 59, 999)
+  
   const chartEndTime = scheduledItems.length > 0
-    ? new Date(Math.max(...scheduledItems.map((item: any) => item.endTime.getTime())))
-    : new Date(now.getTime() + 8 * 60 * 60 * 1000) // Default to 8 hours from now
+    ? new Date(Math.max(...scheduledItems.map((item: any) => item.endTime.getTime()), todayEnd.getTime()))
+    : todayEnd
 
   const totalDuration = chartEndTime.getTime() - chartStartTime.getTime()
   const totalHours = totalDuration / (1000 * 60 * 60)
@@ -983,10 +993,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 overflow: 'visible',
               }}>
                 <div style={{ position: 'absolute', left: 10, top: 5, fontSize: 10, color: '#999' }}>
-                  {timeMarkers.length} time markers, {timeMarkers.filter(time => time.getHours() % 2 === 0 && time.getMinutes() === 0).length} shown
+                  {timeMarkers.length} time markers, showing every {pixelsPerHour >= 60 ? 1 : 2} hours
                 </div>
                 {timeMarkers
-                  .filter(time => time.getHours() % 2 === 0 && time.getMinutes() === 0)
+                  .filter(time => {
+                    // Show every hour when zoomed in, every 2 hours when zoomed out
+                    const hourInterval = pixelsPerHour >= 60 ? 1 : 2
+                    return time.getHours() % hourInterval === 0 && time.getMinutes() === 0
+                  })
                   .map((time) => {
                     const position = getPositionPx(time)
                     return (
@@ -1222,7 +1236,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
               {/* Grid lines */}
               {timeMarkers
-                .filter(time => time.getHours() % 2 === 0)
+                .filter(time => {
+                  const hourInterval = pixelsPerHour >= 60 ? 1 : 2
+                  return time.getHours() % hourInterval === 0
+                })
                 .map((time) => (
                   <div
                     key={time.getTime()}
