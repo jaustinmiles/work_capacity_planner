@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Modal, Button, Space, Typography, Alert, Tabs } from '@arco-design/web-react'
-import { IconDelete, IconTool, IconMessage, IconList, IconFile } from '@arco-design/web-react/icon'
+import { IconDelete, IconTool, IconMessage, IconList, IconFile, IconClockCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { logger } from '../../utils/logger'
 import { FeedbackForm } from './FeedbackForm'
 import { FeedbackViewer } from './FeedbackViewer'
 import { LogViewer } from './LogViewer'
+import { TimeControlPanel } from './TimeControlPanel'
 
 const { Title, Text } = Typography
 const TabPane = Tabs.TabPane
@@ -103,6 +104,18 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
           }
         >
           <LogViewer onClose={onClose} />
+        </TabPane>
+
+        <TabPane
+          key="time"
+          title={
+            <Space>
+              <IconClockCircle />
+              <span>Time Control</span>
+            </Space>
+          }
+        >
+          <TimeControlPanel />
         </TabPane>
 
         <TabPane
