@@ -7,6 +7,14 @@ import {
   NoteAddition,
   DurationChange,
   StepAddition,
+  StepRemoval,
+  DeadlineChange,
+  PriorityChange,
+  TypeChange,
+  AmendmentType,
+  EntityType,
+  TaskType,
+  DeadlineType,
 } from '../../../shared/amendment-types'
 import { Message } from '../../components/common/Message'
 
@@ -799,6 +807,309 @@ describe('Amendment Applicator', () => {
       expect(mockDatabase.createWorkSession).toHaveBeenCalledTimes(1)
       expect(Message.success).toHaveBeenCalledWith('Applied 1 amendment')
       expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
+    })
+  })
+
+  describe('Deadline Changes', () => {
+    it('should update task deadline', async () => {
+      const amendment: DeadlineChange = {
+        type: AmendmentType.DeadlineChange,
+        target: {
+          type: EntityType.Task,
+          id: 'task-1',
+          name: 'Test Task',
+          confidence: 0.9,
+        },
+        newDeadline: new Date('2025-09-01T17:00:00'),
+        deadlineType: DeadlineType.Hard,
+      }
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateTask).toHaveBeenCalledWith('task-1', {
+        deadline: new Date('2025-09-01T17:00:00'),
+        deadlineType: 'hard',
+      })
+      expect(Message.success).toHaveBeenCalledWith('Deadline updated to 9/1/2025, 5:00:00 PM')
+    })
+
+    it('should update workflow deadline', async () => {
+      const amendment: DeadlineChange = {
+        type: AmendmentType.DeadlineChange,
+        target: {
+          type: EntityType.Workflow,
+          id: 'workflow-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        newDeadline: new Date('2025-09-01T23:00:00'),
+        deadlineType: DeadlineType.Soft,
+      }
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
+        deadline: new Date('2025-09-01T23:00:00'),
+        deadlineType: 'soft',
+      })
+      expect(Message.success).toHaveBeenCalledWith('Deadline updated to 9/1/2025, 11:00:00 PM')
+    })
+
+    it('should warn when step deadline is not supported', async () => {
+      const amendment: DeadlineChange = {
+        type: AmendmentType.DeadlineChange,
+        target: {
+          type: EntityType.Workflow,
+          id: 'workflow-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        newDeadline: new Date('2025-09-01T23:00:00'),
+        deadlineType: DeadlineType.Soft,
+        stepName: 'Some Step',
+      }
+
+      await applyAmendments([amendment])
+
+      expect(Message.warning).toHaveBeenCalledWith('Step deadlines are not yet supported')
+      expect(mockDatabase.updateSequencedTask).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Priority Changes', () => {
+    it('should update task priority', async () => {
+      const amendment: PriorityChange = {
+        type: AmendmentType.PriorityChange,
+        target: {
+          type: EntityType.Task,
+          id: 'task-1',
+          name: 'Test Task',
+          confidence: 0.9,
+        },
+        importance: 8,
+        urgency: 9,
+        cognitiveComplexity: 4,
+      }
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateTask).toHaveBeenCalledWith('task-1', {
+        importance: 8,
+        urgency: 9,
+        cognitiveComplexity: 4,
+      })
+      expect(Message.success).toHaveBeenCalledWith('Priority updated successfully')
+    })
+
+    it('should update workflow priority', async () => {
+      const amendment: PriorityChange = {
+        type: AmendmentType.PriorityChange,
+        target: {
+          type: EntityType.Workflow,
+          id: 'workflow-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        importance: 7,
+        urgency: 6,
+      }
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
+        importance: 7,
+        urgency: 6,
+      })
+      expect(Message.success).toHaveBeenCalledWith('Priority updated successfully')
+    })
+
+    it('should update step priority', async () => {
+      const amendment: PriorityChange = {
+        type: AmendmentType.PriorityChange,
+        target: {
+          type: EntityType.Workflow,
+          id: 'workflow-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        importance: 7,
+        urgency: 8,
+        cognitiveComplexity: 3,
+        stepName: 'Some Step',
+      }
+
+      const mockWorkflow = {
+        id: 'workflow-1',
+        steps: [
+          { id: 'step-1', name: 'Some Step', duration: 30, type: TaskType.Deep },
+        ],
+      }
+      mockDatabase.getSequencedTaskById.mockResolvedValue(mockWorkflow)
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
+        steps: [
+          { id: 'step-1', name: 'Some Step', duration: 30, type: TaskType.Deep, importance: 7, urgency: 8, cognitiveComplexity: 3 },
+        ],
+      })
+      expect(Message.success).toHaveBeenCalledWith('Updated priority for step "Some Step"')
+    })
+  })
+
+  describe('Type Changes', () => {
+    it('should update task type', async () => {
+      const amendment: TypeChange = {
+        type: AmendmentType.TypeChange,
+        target: {
+          type: EntityType.Task,
+          id: 'task-1',
+          name: 'Test Task',
+          confidence: 0.9,
+        },
+        newType: TaskType.Personal,
+      }
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateTask).toHaveBeenCalledWith('task-1', {
+        type: TaskType.Personal,
+      })
+      expect(Message.success).toHaveBeenCalledWith(`Type changed to ${TaskType.Personal}`)
+    })
+
+    it('should update workflow type', async () => {
+      const amendment: TypeChange = {
+        type: AmendmentType.TypeChange,
+        target: {
+          type: EntityType.Workflow,
+          id: 'workflow-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        newType: TaskType.Admin,
+      }
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
+        type: TaskType.Admin,
+      })
+      expect(Message.success).toHaveBeenCalledWith(`Type changed to ${TaskType.Admin}`)
+    })
+
+    it('should update step type', async () => {
+      const amendment: TypeChange = {
+        type: AmendmentType.TypeChange,
+        target: {
+          type: EntityType.Workflow,
+          id: 'workflow-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        newType: TaskType.Deep,
+        stepName: 'Review Step',
+      }
+
+      const mockWorkflow = {
+        id: 'workflow-1',
+        steps: [
+          { id: 'step-1', name: 'Review Step', duration: 30, type: TaskType.Admin },
+        ],
+      }
+      mockDatabase.getSequencedTaskById.mockResolvedValue(mockWorkflow)
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
+        steps: [
+          { id: 'step-1', name: 'Review Step', duration: 30, type: TaskType.Deep },
+        ],
+      })
+      expect(Message.success).toHaveBeenCalledWith(`Step type changed to ${TaskType.Deep}`)
+    })
+  })
+
+  describe('Step Removal', () => {
+    it('should remove step from workflow', async () => {
+      const amendment: StepRemoval = {
+        type: AmendmentType.StepRemoval,
+        workflowTarget: {
+          type: EntityType.Workflow,
+          id: 'workflow-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        stepName: 'Review Step',
+      }
+
+      const mockWorkflow = {
+        id: 'workflow-1',
+        steps: [
+          { id: 'step-1', name: 'Build Step', duration: 30, type: TaskType.Deep, dependsOn: [], stepIndex: 0 },
+          { id: 'step-2', name: 'Review Step', duration: 20, type: TaskType.Admin, dependsOn: ['step-1'], stepIndex: 1 },
+          { id: 'step-3', name: 'Deploy Step', duration: 15, type: TaskType.Admin, dependsOn: ['step-2'], stepIndex: 2 },
+        ],
+      }
+      mockDatabase.getSequencedTaskById.mockResolvedValue(mockWorkflow)
+
+      await applyAmendments([amendment])
+
+      const expectedSteps = [
+        { id: 'step-1', name: 'Build Step', duration: 30, type: TaskType.Deep, dependsOn: [], stepIndex: 0 },
+        { id: 'step-3', name: 'Deploy Step', duration: 15, type: TaskType.Admin, dependsOn: [], stepIndex: 1 },
+      ]
+      expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
+        steps: expectedSteps,
+        duration: 45,
+      })
+      expect(Message.success).toHaveBeenCalledWith('Removed step "Review Step"')
+    })
+
+    it('should handle step not found', async () => {
+      const amendment: StepRemoval = {
+        type: AmendmentType.StepRemoval,
+        workflowTarget: {
+          type: EntityType.Workflow,
+          id: 'workflow-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        stepName: 'Non-existent Step',
+      }
+
+      const mockWorkflow = {
+        id: 'workflow-1',
+        steps: [
+          { id: 'step-1', name: 'Build Step', duration: 30, type: TaskType.Deep },
+        ],
+      }
+      mockDatabase.getSequencedTaskById.mockResolvedValue(mockWorkflow)
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateSequencedTask).not.toHaveBeenCalled()
+      expect(Message.warning).toHaveBeenCalledWith('Step "Non-existent Step" not found in workflow')
+    })
+
+    it('should handle workflow not found', async () => {
+      const amendment: StepRemoval = {
+        type: AmendmentType.StepRemoval,
+        workflowTarget: {
+          type: EntityType.Workflow,
+          id: 'workflow-1',
+          name: 'Test Workflow',
+          confidence: 0.9,
+        },
+        stepName: 'Some Step',
+      }
+
+      mockDatabase.getSequencedTaskById.mockResolvedValue(null)
+
+      await applyAmendments([amendment])
+
+      expect(mockDatabase.updateSequencedTask).not.toHaveBeenCalled()
+      expect(Message.warning).toHaveBeenCalledWith('Workflow not found or has no steps')
     })
   })
 })
