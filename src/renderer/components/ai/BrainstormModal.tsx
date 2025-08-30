@@ -1253,11 +1253,18 @@ Only include terms that are likely industry-specific or technical jargon, not co
               </div>
 
               {/* Workflows Section */}
-              {brainstormResult.workflows && brainstormResult.workflows.length > 0 && (
+              {(showClarificationMode ? editableResult?.workflows : brainstormResult.workflows) && 
+               (showClarificationMode ? editableResult?.workflows : brainstormResult.workflows)!.length > 0 && (
                 <div>
-                  <Text style={{ fontWeight: 'bold' }}>Async Workflows ({brainstormResult.workflows.length}):</Text>
+                  <Text style={{ fontWeight: 'bold' }}>
+                    Async Workflows ({(showClarificationMode ? editableResult?.workflows : brainstormResult.workflows)!.length}):
+                  </Text>
                   <div style={{ marginTop: 12 }}>
-                    {brainstormResult.workflows.map((workflow, index) => (
+                    {(showClarificationMode ? editableResult?.workflows : brainstormResult.workflows)!.map((workflow, index) => {
+                      const displayWorkflow = showClarificationMode && editableResult?.workflows?.[index] 
+                        ? editableResult.workflows[index] 
+                        : workflow
+                      return (
                       <Card
                         key={index}
                         size="small"
@@ -1265,14 +1272,14 @@ Only include terms that are likely industry-specific or technical jargon, not co
                         title={
                           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                             <Text style={{ fontWeight: 500 }}>
-                              {workflow.name}
+                              {displayWorkflow.name}
                             </Text>
                             <Space>
-                              <Tag color={workflow.type === 'focused' ? 'blue' : 'green'} size="small">
-                                {workflow.type === 'focused' ? 'Focused' : 'Admin'}
+                              <Tag color={displayWorkflow.type === 'focused' ? 'blue' : 'green'} size="small">
+                                {displayWorkflow.type === 'focused' ? 'Focused' : 'Admin'}
                               </Tag>
                               <Tag color="purple" size="small">
-                                {workflow.steps.length} steps
+                                {displayWorkflow.steps.length} steps
                               </Tag>
                             </Space>
                           </Space>
@@ -1280,25 +1287,25 @@ Only include terms that are likely industry-specific or technical jargon, not co
                       >
                         <Space direction="vertical" style={{ width: '100%' }}>
                           <Text type="secondary" style={{ fontSize: 14 }}>
-                            {workflow.description}
+                            {displayWorkflow.description}
                           </Text>
 
                           <Space wrap>
                             <Tag size="small" color="blue">
-                              Active Work: {workflow.duration}min
+                              Active Work: {displayWorkflow.duration}min
                             </Tag>
                             <Tag size="small" color="green">
-                              Earliest: {workflow.earliestCompletion}
+                              Earliest: {displayWorkflow.earliestCompletion}
                             </Tag>
                             <Tag size="small" color="orange">
-                              Worst Case: {workflow.worstCaseCompletion}
+                              Worst Case: {displayWorkflow.worstCaseCompletion}
                             </Tag>
                           </Space>
 
                           <div style={{ marginTop: 12 }}>
                             <Text style={{ fontSize: 13, fontWeight: 'bold' }}>Workflow Steps:</Text>
                             <div style={{ marginTop: 8 }}>
-                              {workflow.steps.map((step: any, stepIndex: number) => (
+                              {displayWorkflow.steps.map((step: any, stepIndex: number) => (
                                 <div
                                   key={stepIndex}
                                   style={{
@@ -1334,19 +1341,19 @@ Only include terms that are likely industry-specific or technical jargon, not co
                             </div>
                           </div>
 
-                          {workflow.notes && (
+                          {displayWorkflow.notes && (
                             <div style={{ marginTop: 12, padding: 12, backgroundColor: '#f0f9ff', borderRadius: 4 }}>
                               <Text style={{ fontSize: 13 }}>
-                                <span style={{ fontWeight: 'bold' }}>Notes:</span> {workflow.notes}
+                                <span style={{ fontWeight: 'bold' }}>Notes:</span> {displayWorkflow.notes}
                               </Text>
                             </div>
                           )}
 
                           {/* Show clarification input when in clarification mode and there are questions/clarifications needed */}
-                          {showClarificationMode && (workflow.notes?.toLowerCase().includes('clarification') ||
-                                                     workflow.notes?.toLowerCase().includes('question') ||
-                                                     workflow.notes?.toLowerCase().includes('need') ||
-                                                     workflow.notes?.includes('?')) && (
+                          {showClarificationMode && (displayWorkflow.notes?.toLowerCase().includes('clarification') ||
+                                                     displayWorkflow.notes?.toLowerCase().includes('question') ||
+                                                     displayWorkflow.notes?.toLowerCase().includes('need') ||
+                                                     displayWorkflow.notes?.includes('?')) && (
                             <div style={{ marginTop: 8, padding: 12, backgroundColor: '#fff8e6', borderRadius: 4, border: '1px solid #ffdc64' }}>
                               <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#fa8c16' }}>
                                 Provide Clarification:
@@ -1376,7 +1383,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                   <Text style={{ width: 80 }}>Importance:</Text>
                                   <Select
                                     size="small"
-                                    value={editableResult?.workflows?.[index]?.importance || workflow.importance}
+                                    value={editableResult?.workflows?.[index]?.importance || displayWorkflow.importance}
                                     onChange={(value) => handleEditField('workflow', index, 'importance', value)}
                                     style={{ flex: 1 }}
                                   >
@@ -1389,7 +1396,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                   <Text style={{ width: 80 }}>Urgency:</Text>
                                   <Select
                                     size="small"
-                                    value={editableResult?.workflows?.[index]?.urgency || workflow.urgency}
+                                    value={editableResult?.workflows?.[index]?.urgency || displayWorkflow.urgency}
                                     onChange={(value) => handleEditField('workflow', index, 'urgency', value)}
                                     style={{ flex: 1 }}
                                   >
@@ -1403,7 +1410,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               {/* Individual step editing */}
                               <Divider style={{ margin: '8px 0' }} />
                               <Text style={{ fontSize: 12, fontWeight: 'bold' }}>Edit Individual Steps:</Text>
-                              {workflow.steps.map((step: any, stepIndex: number) => (
+                              {displayWorkflow.steps.map((step: any, stepIndex: number) => (
                                 <div key={stepIndex} style={{ marginTop: 8, padding: 8, backgroundColor: '#fff', borderRadius: 4 }}>
                                   <Space direction="vertical" style={{ width: '100%' }} size="small">
                                     <Text style={{ fontSize: 11, fontWeight: 500 }}>Step {stepIndex + 1}: {step.name}</Text>
@@ -1453,17 +1460,25 @@ Only include terms that are likely industry-specific or technical jargon, not co
                           )}
                         </Space>
                       </Card>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
 
               {/* Standalone Tasks Section */}
-              {brainstormResult.standaloneTasks && brainstormResult.standaloneTasks.length > 0 && (
+              {(showClarificationMode ? editableResult?.standaloneTasks : brainstormResult.standaloneTasks) && 
+               (showClarificationMode ? editableResult?.standaloneTasks : brainstormResult.standaloneTasks)!.length > 0 && (
                 <div>
-                  <Text style={{ fontWeight: 'bold' }}>Standalone Tasks ({brainstormResult.standaloneTasks.length}):</Text>
+                  <Text style={{ fontWeight: 'bold' }}>
+                    Standalone Tasks ({(showClarificationMode ? editableResult?.standaloneTasks : brainstormResult.standaloneTasks)!.length}):
+                  </Text>
                   <div style={{ marginTop: 12 }}>
-                    {brainstormResult.standaloneTasks.map((task, index) => (
+                    {(showClarificationMode ? editableResult?.standaloneTasks : brainstormResult.standaloneTasks)!.map((task, index) => {
+                      const displayTask = showClarificationMode && editableResult?.standaloneTasks?.[index] 
+                        ? editableResult.standaloneTasks[index] 
+                        : task
+                      return (
                       <Card
                         key={index}
                         size="small"
@@ -1471,16 +1486,16 @@ Only include terms that are likely industry-specific or technical jargon, not co
                         title={
                           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                             <Text style={{ fontWeight: 500 }}>
-                              {task.name}
+                              {displayTask.name}
                             </Text>
                             <Space>
-                              {task.needsMoreInfo && (
+                              {displayTask.needsMoreInfo && (
                                 <Tag color="orange" size="small">
                                   Needs Info
                                 </Tag>
                               )}
-                              <Tag color={task.type === 'focused' ? 'blue' : 'green'} size="small">
-                                {task.type === 'focused' ? 'Focused' : 'Admin'}
+                              <Tag color={displayTask.type === 'focused' ? 'blue' : 'green'} size="small">
+                                {displayTask.type === 'focused' ? 'Focused' : 'Admin'}
                               </Tag>
                             </Space>
                           </Space>
@@ -1488,25 +1503,25 @@ Only include terms that are likely industry-specific or technical jargon, not co
                       >
                         <Space direction="vertical" style={{ width: '100%' }}>
                           <Text type="secondary" style={{ fontSize: 14 }}>
-                            {task.description}
+                            {displayTask.description}
                           </Text>
                           <Space wrap>
                             <Tag size="small">
-                              {task.estimatedDuration}min
+                              {displayTask.estimatedDuration}min
                             </Tag>
                             <Tag size="small" color="red">
-                              Priority: {task.importance * task.urgency}
+                              Priority: {displayTask.importance * displayTask.urgency}
                             </Tag>
                             <Tag size="small">
-                              Importance: {task.importance}/10
+                              Importance: {displayTask.importance}/10
                             </Tag>
                             <Tag size="small">
-                              Urgency: {task.urgency}/10
+                              Urgency: {displayTask.urgency}/10
                             </Tag>
                           </Space>
 
                           {/* Show clarification input for standalone tasks in clarification mode */}
-                          {showClarificationMode && task.needsMoreInfo && (
+                          {showClarificationMode && (displayTask.needsMoreInfo || true) && (
                             <div style={{ marginTop: 8, padding: 12, backgroundColor: '#fff8e6', borderRadius: 4, border: '1px solid #ffdc64' }}>
                               <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#fa8c16' }}>
                                 Provide Clarification:
@@ -1610,17 +1625,21 @@ Only include terms that are likely industry-specific or technical jargon, not co
                           )}
                         </Space>
                       </Card>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
 
               {/* Legacy Tasks Section (for task-only mode) */}
-              {brainstormResult.tasks && brainstormResult.tasks.length > 0 && (
+              {(showClarificationMode ? editableResult?.tasks : brainstormResult.tasks) && 
+               (showClarificationMode ? editableResult?.tasks : brainstormResult.tasks)!.length > 0 && (
                 <div>
-                  <Text style={{ fontWeight: 'bold' }}>Extracted Tasks ({brainstormResult.tasks.length}):</Text>
+                  <Text style={{ fontWeight: 'bold' }}>
+                    Extracted Tasks ({(showClarificationMode ? editableResult?.tasks : brainstormResult.tasks)!.length}):
+                  </Text>
                   <div style={{ marginTop: 12 }}>
-                    {brainstormResult.tasks.map((task, index) => (
+                    {(showClarificationMode ? editableResult?.tasks : brainstormResult.tasks)!.map((task, index) => (
                       <Card
                         key={index}
                         size="small"
