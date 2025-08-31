@@ -291,6 +291,21 @@ export function VoiceAmendmentModal({
         if (edits.newDeadline !== undefined) deadlineChange.newDeadline = edits.newDeadline
         if (edits.deadlineType !== undefined) deadlineChange.deadlineType = edits.deadlineType
       }
+      if (amendment.type === AmendmentType.PriorityChange) {
+        const priorityChange = edited as PriorityChange
+        if (edits.importance !== undefined) priorityChange.importance = edits.importance
+        if (edits.urgency !== undefined) priorityChange.urgency = edits.urgency
+        if (edits.cognitiveComplexity !== undefined) priorityChange.cognitiveComplexity = edits.cognitiveComplexity
+      }
+      if (amendment.type === AmendmentType.TypeChange) {
+        const typeChange = edited as TypeChange
+        if (edits.newType !== undefined) typeChange.newType = edits.newType
+      }
+      if (amendment.type === AmendmentType.DependencyChange) {
+        const depChange = edited as DependencyChange
+        if (edits.addDependencies !== undefined) depChange.addDependencies = edits.addDependencies
+        if (edits.removeDependencies !== undefined) depChange.removeDependencies = edits.removeDependencies
+      }
       return edited
     })
 
@@ -1203,6 +1218,147 @@ export function VoiceAmendmentModal({
                                   <Select.Option value="hard">Hard</Select.Option>
                                 </Select>
                               </Space>
+                            </>
+                          )}
+
+                          {/* Priority Change Edit UI */}
+                          {isAmendmentType(amendment, AmendmentType.PriorityChange) && (
+                            <>
+                              <Space>
+                                <Text>Importance:</Text>
+                                <Slider
+                                  value={edited.importance || (amendment as PriorityChange).importance || 5}
+                                  min={1}
+                                  max={10}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, importance: value as number })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 150 }}
+                                />
+                                <InputNumber
+                                  value={edited.importance || (amendment as PriorityChange).importance || 5}
+                                  min={1}
+                                  max={10}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, importance: value })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 60 }}
+                                />
+                              </Space>
+                              <Space>
+                                <Text>Urgency:</Text>
+                                <Slider
+                                  value={edited.urgency || (amendment as PriorityChange).urgency || 5}
+                                  min={1}
+                                  max={10}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, urgency: value as number })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 150 }}
+                                />
+                                <InputNumber
+                                  value={edited.urgency || (amendment as PriorityChange).urgency || 5}
+                                  min={1}
+                                  max={10}
+                                  onChange={(value) => {
+                                    const newEdited = new Map(editedAmendments)
+                                    newEdited.set(index, { ...edited, urgency: value })
+                                    setEditedAmendments(newEdited)
+                                  }}
+                                  style={{ width: 60 }}
+                                />
+                              </Space>
+                              {(amendment as PriorityChange).cognitiveComplexity !== undefined && (
+                                <Space>
+                                  <Text>Cognitive Complexity:</Text>
+                                  <Slider
+                                    value={edited.cognitiveComplexity || (amendment as PriorityChange).cognitiveComplexity || 3}
+                                    min={1}
+                                    max={5}
+                                    onChange={(value) => {
+                                      const newEdited = new Map(editedAmendments)
+                                      newEdited.set(index, { ...edited, cognitiveComplexity: value as number })
+                                      setEditedAmendments(newEdited)
+                                    }}
+                                    style={{ width: 150 }}
+                                  />
+                                  <InputNumber
+                                    value={edited.cognitiveComplexity || (amendment as PriorityChange).cognitiveComplexity || 3}
+                                    min={1}
+                                    max={5}
+                                    onChange={(value) => {
+                                      const newEdited = new Map(editedAmendments)
+                                      newEdited.set(index, { ...edited, cognitiveComplexity: value })
+                                      setEditedAmendments(newEdited)
+                                    }}
+                                    style={{ width: 60 }}
+                                  />
+                                </Space>
+                              )}
+                            </>
+                          )}
+
+                          {/* Type Change Edit UI */}
+                          {isAmendmentType(amendment, AmendmentType.TypeChange) && (
+                            <Space>
+                              <Text>New Type:</Text>
+                              <Select
+                                value={edited.newType || (amendment as TypeChange).newType}
+                                onChange={(value) => {
+                                  const newEdited = new Map(editedAmendments)
+                                  newEdited.set(index, { ...edited, newType: value })
+                                  setEditedAmendments(newEdited)
+                                }}
+                                style={{ width: 150 }}
+                              >
+                                <Select.Option value={TaskType.Focused}>Focused</Select.Option>
+                                <Select.Option value={TaskType.Admin}>Admin</Select.Option>
+                                <Select.Option value={TaskType.Personal}>Personal</Select.Option>
+                              </Select>
+                            </Space>
+                          )}
+
+                          {/* Dependency Change Edit UI */}
+                          {isAmendmentType(amendment, AmendmentType.DependencyChange) && (
+                            <>
+                              {(amendment as DependencyChange).addDependencies && (
+                                <Space direction="vertical" style={{ width: '100%' }}>
+                                  <Text>Add Dependencies:</Text>
+                                  <Select
+                                    mode="tags"
+                                    value={edited.addDependencies || (amendment as DependencyChange).addDependencies || []}
+                                    onChange={(value) => {
+                                      const newEdited = new Map(editedAmendments)
+                                      newEdited.set(index, { ...edited, addDependencies: value })
+                                      setEditedAmendments(newEdited)
+                                    }}
+                                    placeholder="Enter step names to add as dependencies"
+                                    style={{ width: '100%' }}
+                                  />
+                                </Space>
+                              )}
+                              {(amendment as DependencyChange).removeDependencies && (
+                                <Space direction="vertical" style={{ width: '100%' }}>
+                                  <Text>Remove Dependencies:</Text>
+                                  <Select
+                                    mode="tags"
+                                    value={edited.removeDependencies || (amendment as DependencyChange).removeDependencies || []}
+                                    onChange={(value) => {
+                                      const newEdited = new Map(editedAmendments)
+                                      newEdited.set(index, { ...edited, removeDependencies: value })
+                                      setEditedAmendments(newEdited)
+                                    }}
+                                    placeholder="Enter step names to remove from dependencies"
+                                    style={{ width: '100%' }}
+                                  />
+                                </Space>
+                              )}
                             </>
                           )}
                         </Space>
