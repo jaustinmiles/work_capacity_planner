@@ -4,6 +4,8 @@ import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar } from '@arco
 import { useTaskStore } from '../../store/useTaskStore'
 import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { Task } from '@shared/types'
+import { SequencedTask } from '@shared/sequencing-types'
 import { getDatabase } from '../../services/database'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
@@ -145,7 +147,22 @@ export function WeeklyCalendar() {
 
   // Get tasks with upcoming deadlines
   const upcomingDeadlines = useMemo(() => {
-    const allTasks = [...tasks, ...sequencedTasks]
+    // Deduplicate tasks - sequencedTasks takes precedence
+    const taskMap = new Map<string, Task | SequencedTask>()
+    
+    // Add regular tasks first
+    tasks.forEach(task => {
+      if (!taskMap.has(task.id)) {
+        taskMap.set(task.id, task)
+      }
+    })
+    
+    // Add sequenced tasks, overwriting duplicates
+    sequencedTasks.forEach(task => {
+      taskMap.set(task.id, task)
+    })
+    
+    const allTasks = Array.from(taskMap.values())
     const now = dayjs()
     const oneWeekFromNow = now.add(7, 'day')
 
