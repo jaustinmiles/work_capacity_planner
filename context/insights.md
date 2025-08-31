@@ -1,6 +1,49 @@
 # Cumulative Insights
 
-## Session: 2025-08-29 (Latest)
+## Session: 2025-08-31 (Latest)
+
+### CRITICAL Testing Best Practices Learned
+
+#### The Incremental Test Development Pattern
+**Problem Identified**: Writing many tests at once without verification leads to:
+- Massive test failures that are hard to debug
+- Incorrect assumptions compounding across tests
+- Wasted time fixing all tests when the root issue is in the mock setup
+
+**Solution - Write ONE Test at a Time**:
+1. Start with the simplest possible test case (e.g., empty state)
+2. Run the test immediately and debug any failures
+3. Understand exactly what data format the component expects
+4. Only after it passes, add the next test building on what was learned
+5. Each test reveals more about the component's actual behavior
+
+**Key Discovery from GanttChart Testing**:
+- Error: `timeStr.split is not a function` immediately revealed the data type issue
+- `WorkBlock.startTime` and `endTime` must be strings like "09:00", NOT Date objects
+- Component calls `db.getWorkPattern(dateStr)` for EACH day, not `getWorkPatterns()`
+- Incremental approach found this in minutes vs hours of debugging multiple failures
+
+**Correct Mock Pattern for GanttChart**:
+```typescript
+mockGetWorkPattern.mockImplementation((dateStr: string) => {
+  return Promise.resolve({
+    date: dateStr,
+    blocks: [{
+      id: `block-${dateStr}`,
+      type: 'flexible',
+      startTime: '09:00',  // MUST be string, not Date
+      endTime: '17:00',    // MUST be string, not Date
+      capacity: 480,
+      usedCapacity: 0,
+    }],
+    meetings: []
+  })
+})
+```
+
+**Effectiveness**: Using incremental approach, achieved 23.05% test coverage (exceeding 20.45% requirement) with just 2 working tests instead of 17+ failing tests.
+
+## Session: 2025-08-29
 
 ### BrainstormModal Clarification Flow Insights
 - **Issue**: When user clicks "Regenerate with Clarification", UI wasn't updating to show regenerated workflow
