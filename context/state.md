@@ -1,8 +1,22 @@
 # Current State
 
-## Latest Status (2025-08-30, Evening Session)
+## Latest Status (2025-08-31, Afternoon Session)
 
-### 🚀 Current Session: Voice Amendments & Gantt Chart Improvements (Branch: fix/voice-amendment-date-parsing)
+### 🚀 Current Session: Critical Bug Fix - Personal Workflow Steps (Branch: fix/personal-workflow-step-inheritance)
+
+#### Critical Bug Fixed (2025-08-31) 🔴 → ✅
+**Issue**: Steps do not inherit 'personal' from workflow
+- **Root Cause**: Step type selector only allowed Focused/Admin options
+- **Impact**: Personal workflows couldn't be scheduled - steps looked for wrong block types
+- **Fix Applied**:
+  1. Added Personal option to step type selector
+  2. Steps now default to parent workflow type
+  3. All three types (Focused/Admin/Personal) available for steps
+  4. Display labels and colors updated for Personal type
+- **Test Coverage**: Added comprehensive unit tests
+- **Status**: Ready for PR
+
+### 🚀 Previous Session: Voice Amendments & Gantt Chart Improvements (Branch: fix/voice-amendment-date-parsing)
 
 #### Voice Amendment Improvements ✅
 1. **Date Parsing Fixed**
@@ -147,8 +161,8 @@
 - **ESLint Errors**: 0 ✅ (warnings only in scripts/)
 - **Test Coverage**: 23.05% ✅ (exceeds 20.45% requirement from main)
 - **Build**: Successful ✅
-- **PR #40**: Ready to merge (coverage requirement met)
-- **Current Branch**: fix/ai-brainstorm-clarification-ui
+- **PR #41**: Merged (Amendment Applicator Enhancements)
+- **Current Branch**: fix/personal-workflow-step-inheritance
 
 ### 🎯 Active Work: Amendment Applicator Enhancement (COMPLETED)
 

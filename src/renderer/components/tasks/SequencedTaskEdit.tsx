@@ -329,7 +329,9 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
               )}
               <Space>
                 <Tag color="blue">
-                  {editedTask.type === TaskType.Focused ? 'Focused Work' : 'Admin Task'}
+                  {editedTask.type === TaskType.Focused ? 'Focused Work' :
+                   editedTask.type === TaskType.Admin ? 'Admin Task' :
+                   'Personal Task'}
                 </Tag>
                 <Tag color="orange">
                   {getPriorityLabel(editedTask.importance, editedTask.urgency)} Priority
@@ -516,8 +518,14 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                         <Space direction="vertical" size="small" style={{ width: '100%' }}>
                           <Space>
                             <Text style={{ fontWeight: 'bold' }}>{index + 1}. {step.name}</Text>
-                            <Tag size="small" color={step.type === TaskType.Focused ? 'blue' : 'green'}>
-                              {step.type === TaskType.Focused ? 'Focused' : 'Admin'}
+                            <Tag size="small" color={
+                              step.type === TaskType.Focused ? 'blue' :
+                              step.type === TaskType.Admin ? 'green' :
+                              'orange'
+                            }>
+                              {step.type === TaskType.Focused ? 'Focused' :
+                               step.type === TaskType.Admin ? 'Admin' :
+                               'Personal'}
                             </Tag>
                             {step.status === 'completed' && (
                               <Tag size="small" color="green" icon={<IconCheckCircle />}>
@@ -708,11 +716,12 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           <FormItem
             label="Type"
             field="type"
-            initialValue={TaskType.Focused}
+            initialValue={editedTask.type || TaskType.Focused}
           >
             <Select>
               <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
               <Select.Option value={TaskType.Admin}>Admin Task</Select.Option>
+              <Select.Option value={TaskType.Personal}>Personal Task</Select.Option>
             </Select>
           </FormItem>
 
