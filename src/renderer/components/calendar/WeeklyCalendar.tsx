@@ -149,19 +149,19 @@ export function WeeklyCalendar() {
   const upcomingDeadlines = useMemo(() => {
     // Deduplicate tasks - sequencedTasks takes precedence
     const taskMap = new Map<string, Task | SequencedTask>()
-    
+
     // Add regular tasks first
     tasks.forEach(task => {
       if (!taskMap.has(task.id)) {
         taskMap.set(task.id, task)
       }
     })
-    
+
     // Add sequenced tasks, overwriting duplicates
     sequencedTasks.forEach(task => {
       taskMap.set(task.id, task)
     })
-    
+
     const allTasks = Array.from(taskMap.values())
     const now = dayjs()
     const oneWeekFromNow = now.add(7, 'day')
