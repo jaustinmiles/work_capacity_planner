@@ -892,5 +892,32 @@
     "timestamp": "2025-08-30T02:31:17.341Z",
     "sessionId": "session-1756521077334-7b8ci1zgp",
     "resolved": true
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "tasks/SequencedTaskEdit"
+    ],
+    "title": "Steps do not inherit 'personal' from workflow",
+    "description": "So basically, I have a session now for Sunday 831, and in this session I have two workflow one is like my actual work stuff which is like this is server you can see this in the database using our scripts to debug or print output from the database. The other task that I have is like a personal workflow so like it's getting errands it's driving to get coffee first and then doing research for furniture options and then picking up AC units and going home once again you should be able to see this in database using the scripts. Basically, I can set the workflow itself to personal as a task type, but then all of the workflow steps have to be either focus or admin so if I change a workflow to personal, then I can never actually schedule any of the steps because all of the steps are either focus or admin, and they won't get slotted into the personal block.",
+    "context": "I'm very concerned that we are not using our enums correctly throughout the application. I am very concerned that you are using strings repeatedly, even though all of the best practices say that we should be using enums.",
+    "steps": "Create a workflow with multiple steps and set a workflow type to personal, then go to the menu and click on a step and then try I need to change the step and observe that only focus and admin exist",
+    "expected": "Workflow should be able to work with personal time box just the same as task and so I'm honestly very confused why it's even possible that the workflow step dropped down only has focused and admin types because we should be doing a drop-down based on the enum and so how is this possible at all? The expected behavior is that for any task or any work. Or anything in the application at all that can have a type the type should be selectable as either one of focus, admin or personal, and that is just true, no matter what",
+    "actual": "The app is saying that I cannot select personal time for a worthless step, but I can select personal time for the workflow which puts it in a state where it cannot be scheduled",
+    "timestamp": "2025-08-31T20:07:53.817Z",
+    "sessionId": "session-1756670873805-hq0c6qzez"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "utils/amendment-applicator"
+    ],
+    "title": "After amendment is edited and accepted, it is duplicated",
+    "description": "So basically, I'm still working with the errand workflow that's in the other feedback but I made an amendment that was like, \"please add a step to this work from that is furniture research\" and it presented the step and everythin, and everything looks good, but then when I click accept edited results, the the actual application seems to be buggy. For example, the new step that I was creating was created twice and the dependency wiring still seems to not work.",
+    "steps": "I think that will reproduce it every time if we use the voice amendment to specify a new tasks with dependencies on task edit the option options and then click accept edited results",
+    "timestamp": "2025-08-31T20:16:09.968Z",
+    "sessionId": "session-1756671369961-3respkcpr"
   }
 ]
