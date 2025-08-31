@@ -23,7 +23,6 @@ vi.mock('../../store/useTaskStore', () => ({
 
 describe('VoiceAmendmentModal', () => {
   const mockOnClose = vi.fn()
-  const mockOnAmendmentsApplied = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
