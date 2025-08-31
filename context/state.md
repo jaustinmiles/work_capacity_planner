@@ -150,10 +150,27 @@
 - **PR #40**: Ready to merge (coverage requirement met)
 - **Current Branch**: fix/ai-brainstorm-clarification-ui
 
-### 🎯 Active Work: Amendment Applicator Enhancement
-Analyzing and documenting gaps in voice amendment capabilities.
+### 🎯 Active Work: Amendment Applicator Enhancement (COMPLETED)
 
-#### Recently Completed (2025-08-30)
+#### Recently Completed (2025-08-31)
+1. **Step-Level Operations Implemented** ✅
+   - Step duration changes now working
+   - Step notes addition implemented
+   - Step time logging functional
+   - All tests updated and passing
+
+2. **Edit UI Enhancements** ✅
+   - Added PriorityChange edit UI (importance, urgency, cognitive complexity)
+   - Added TypeChange edit UI (task type dropdown)
+   - Added DependencyChange edit UI (add/remove dependencies)
+   - All edits properly applied when amendments submitted
+
+3. **Coverage Improved to ~85%** ✅
+   - Was ~40% before improvements
+   - Most common amendment types now fully supported
+   - Comprehensive edit UI for user control
+
+#### Previously Completed (2025-08-30)
 1. **AI Brainstorm Clarification UI Fixed** (feedback #1 - CRITICAL) ✅
    - UI now properly updates when clarifications are applied
    - Fixed data binding to use editableResult in clarification mode

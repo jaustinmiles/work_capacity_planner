@@ -91,9 +91,33 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           if (log.target.id) {
             if (log.stepName) {
               // Log time for workflow step
-              // This would need StepWorkSession creation
-              logger.ui.debug('TODO: Log time for workflow step', log)
-              Message.info('Step time logging not yet implemented')
+              const workflow = await db.getSequencedTaskById(log.target.id)
+              if (workflow && workflow.steps) {
+                const step = workflow.steps.find(s =>
+                  s.name.toLowerCase().includes(log.stepName!.toLowerCase()) ||
+                  log.stepName!.toLowerCase().includes(s.name.toLowerCase()),
+                )
+                if (step) {
+                  // Create work session for the step
+                  await db.createWorkSession({
+                    stepId: step.id,
+                    taskId: workflow.id,
+                    date: log.date || new Date(),
+                    plannedMinutes: step.duration,
+                    actualMinutes: log.duration,
+                    description: log.description || `Time logged for step: ${step.name}`,
+                    type: step.type as any,
+                  })
+                  successCount++
+                  logger.ui.info(`Logged ${log.duration} minutes for step "${log.stepName}"`)
+                } else {
+                  Message.warning(`Step "${log.stepName}" not found in workflow`)
+                  errorCount++
+                }
+              } else {
+                Message.warning('Workflow not found or has no steps')
+                errorCount++
+              }
             } else {
               // Log time for task
               await db.createWorkSession({
@@ -117,8 +141,32 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           if (note.target.id) {
             if (note.stepName) {
               // Add note to workflow step
-              logger.ui.debug('TODO: Add note to workflow step', note)
-              Message.info('Step notes not yet implemented')
+              const workflow = await db.getSequencedTaskById(note.target.id)
+              if (workflow && workflow.steps) {
+                const step = workflow.steps.find(s =>
+                  s.name.toLowerCase().includes(note.stepName!.toLowerCase()) ||
+                  note.stepName!.toLowerCase().includes(s.name.toLowerCase()),
+                )
+                if (step) {
+                  const currentNotes = step.notes || ''
+                  const newNotes = note.append
+                    ? currentNotes + (currentNotes ? '\n' : '') + note.note
+                    : note.note
+
+                  // Update the step with new notes
+                  await db.updateTaskStepProgress(step.id, {
+                    notes: newNotes,
+                  })
+                  successCount++
+                  logger.ui.info(`Added note to step "${note.stepName}"`)
+                } else {
+                  Message.warning(`Step "${note.stepName}" not found in workflow`)
+                  errorCount++
+                }
+              } else {
+                Message.warning('Workflow not found or has no steps')
+                errorCount++
+              }
             } else if (note.target.type === EntityType.Workflow) {
               // Add note to workflow
               const workflow = await db.getSequencedTaskById(note.target.id)
@@ -154,8 +202,37 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           if (change.target.id) {
             if (change.stepName) {
               // Update workflow step duration
-              logger.ui.debug('TODO: Update workflow step duration', change)
-              Message.info('Step duration updates not yet implemented')
+              const workflow = await db.getSequencedTaskById(change.target.id)
+              if (workflow && workflow.steps) {
+                const step = workflow.steps.find(s =>
+                  s.name.toLowerCase().includes(change.stepName!.toLowerCase()) ||
+                  change.stepName!.toLowerCase().includes(s.name.toLowerCase()),
+                )
+                if (step) {
+                  // Update the step duration
+                  await db.updateTaskStepProgress(step.id, {
+                    duration: change.newDuration,
+                  })
+
+                  // Recalculate workflow total duration
+                  const updatedWorkflow = await db.getSequencedTaskById(change.target.id)
+                  if (updatedWorkflow && updatedWorkflow.steps) {
+                    const newTotalDuration = updatedWorkflow.steps.reduce((sum, s) => sum + s.duration, 0)
+                    await db.updateSequencedTask(change.target.id, {
+                      duration: newTotalDuration,
+                    })
+                  }
+
+                  successCount++
+                  logger.ui.info(`Updated duration for step "${change.stepName}" to ${change.newDuration} minutes`)
+                } else {
+                  Message.warning(`Step "${change.stepName}" not found in workflow`)
+                  errorCount++
+                }
+              } else {
+                Message.warning('Workflow not found or has no steps')
+                errorCount++
+              }
             } else if (change.target.type === EntityType.Workflow) {
               // Update workflow duration
               await db.updateSequencedTask(change.target.id, {

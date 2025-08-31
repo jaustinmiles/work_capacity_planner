@@ -217,10 +217,28 @@ describe('Amendment Applicator', () => {
         stepName: 'Testing',
       }
 
-      // For now, this shows an info message since it's not implemented
+      // Mock the workflow with steps
+      mockDatabase.getSequencedTaskById.mockResolvedValue({
+        id: 'wf-1',
+        name: 'Test Workflow',
+        steps: [
+          { id: 'step-1', name: 'Implementation', duration: 30, type: 'focused' },
+          { id: 'step-2', name: 'Testing', duration: 45, type: 'focused' },
+        ],
+      })
+
       await applyAmendments([amendment])
 
-      expect(Message.info).toHaveBeenCalledWith('Step time logging not yet implemented')
+      // Should create a work session for the step
+      expect(mockDatabase.createWorkSession).toHaveBeenCalledWith({
+        stepId: 'step-2',
+        taskId: 'wf-1',
+        date: expect.any(Date),
+        plannedMinutes: 45,
+        actualMinutes: 90,
+        description: 'Time logged for step: Testing',
+        type: 'focused',
+      })
     })
   })
 
@@ -323,10 +341,22 @@ describe('Amendment Applicator', () => {
         stepName: 'Implementation',
       }
 
-      // For now, this shows an info message since it's not implemented
+      // Mock the workflow with steps
+      mockDatabase.getSequencedTaskById.mockResolvedValue({
+        id: 'wf-1',
+        name: 'Test Workflow',
+        steps: [
+          { id: 'step-1', name: 'Implementation', notes: null },
+          { id: 'step-2', name: 'Testing', notes: null },
+        ],
+      })
+
       await applyAmendments([amendment])
 
-      expect(Message.info).toHaveBeenCalledWith('Step notes not yet implemented')
+      // Should update the step notes
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-1', {
+        notes: 'Step completed successfully',
+      })
     })
   })
 
@@ -387,10 +417,35 @@ describe('Amendment Applicator', () => {
         stepName: 'Testing',
       }
 
-      // For now, this shows an info message since it's not implemented
+      // Mock the workflow with steps
+      mockDatabase.getSequencedTaskById.mockResolvedValueOnce({
+        id: 'wf-1',
+        name: 'Test Workflow',
+        steps: [
+          { id: 'step-1', name: 'Implementation', duration: 30 },
+          { id: 'step-2', name: 'Testing', duration: 45 },
+        ],
+      })
+      // Mock the second call after update
+      mockDatabase.getSequencedTaskById.mockResolvedValueOnce({
+        id: 'wf-1',
+        name: 'Test Workflow',
+        steps: [
+          { id: 'step-1', name: 'Implementation', duration: 30 },
+          { id: 'step-2', name: 'Testing', duration: 120 },
+        ],
+      })
+
       await applyAmendments([amendment])
 
-      expect(Message.info).toHaveBeenCalledWith('Step duration updates not yet implemented')
+      // Should update the step duration and recalculate workflow total
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', {
+        duration: 120,
+      })
+      // Should recalculate total workflow duration
+      expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('wf-1', {
+        duration: expect.any(Number),
+      })
     })
   })
 
