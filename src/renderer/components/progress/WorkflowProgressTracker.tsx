@@ -47,9 +47,9 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
     startWork(step.id)
   }
 
-  const handlePauseWork = (step: TaskStep) => (e: any) => {
+  const handlePauseWork = (step: TaskStep) => async (e: any) => {
     e.stopPropagation()
-    pauseWork(step.id)
+    await pauseWork(step.id)
   }
 
   const handleCompleteStep = (step: TaskStep) => async (e: any) => {

@@ -2,9 +2,9 @@
 
 ## Latest Status (2025-09-01, Evening Session)
 
-### 🚀 Current Session: Critical Bug Fix - Time Tracking Notes (Branch: fix/workflow-notes-not-saving)
+### 🚀 Current Session: Multiple Critical Fixes (Branch: fix/workflow-notes-not-saving)
 
-#### Critical Bug Fixed (2025-09-01) 🔴 → ✅
+#### Critical Bug #2 Fixed (2025-09-01) 🔴 → ✅
 **Issue**: Time tracking notes not being saved to workflow steps
 - **Root Cause**: Notes were saved to WorkSession table but not to TaskStep.notes field
 - **Impact**: Users lost all notes entered during time tracking
@@ -14,7 +14,24 @@
   3. Fixed updateTaskStep type signature to accept notes
   4. Added logging for note operations
 - **Test Coverage**: Added comprehensive unit tests for notes persistence
-- **Status**: Ready for PR
+
+#### High Priority Bug #4 Fixed (2025-09-01) 🔴 → ✅
+**Issue**: Workflow start/stop not tracking time
+- **Root Cause**: pauseWorkOnStep didn't create WorkSession records
+- **Impact**: Time spent working was lost when pausing workflow steps
+- **Fix Applied**:
+  1. Updated pauseWorkOnStep to create WorkSession when pausing
+  2. Ensures all work sessions end at current time and extend backward
+  3. Fixed time direction for all WorkSession creation
+  4. Added automatic duration updates when pausing
+- **Test Coverage**: Added 7 comprehensive tests for workflow time tracking
+
+#### Time Direction Fix (2025-09-01) ✅
+- All WorkSessions now correctly end at "now" and extend backward
+- Prevents future time entries and maintains accurate time logs
+- Applied to: pauseWorkOnStep, completeStep, logWorkSession
+
+**Status**: PR #43 updated with all fixes
 
 ### 🚀 Previous Session: Critical Bug Fix - Personal Workflow Steps (Branch: fix/personal-workflow-step-inheritance)
 
