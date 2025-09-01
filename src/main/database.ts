@@ -448,7 +448,7 @@ export class DatabaseService {
     return this.formatTask(task)
   }
 
-  async updateTaskStep(taskId: string, stepId: string, updates: { status: string; actualDuration?: number }): Promise<void> {
+  async updateTaskStep(taskId: string, stepId: string, updates: { status?: string; actualDuration?: number; notes?: string; percentComplete?: number; completedAt?: Date; startedAt?: Date }): Promise<void> {
     await this.client.taskStep.update({
       where: { id: stepId },
       data: updates,
