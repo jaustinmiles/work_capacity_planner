@@ -87,6 +87,8 @@ function App() {
     initializeData,
     isLoading,
     error,
+    startWorkOnStep,
+    pauseWorkOnStep,
   } = useTaskStore()
 
   const incompleteTasks = tasks.filter(task => !task.completed).length
@@ -300,24 +302,33 @@ function App() {
       const workflow = sequencedTasks.find(st => st.id === id)
       if (!workflow) return
 
-      // Update the workflow status to in_progress and set the first step as current
-      const firstPendingStep = workflow.steps.find(step => step.status === 'pending')
-      if (!firstPendingStep) {
-        Message.warning('No pending steps in this workflow')
-        return
+      // Find the first pending step or the current in-progress step
+      let stepToStart = workflow.steps.find(step => step.status === 'in_progress')
+      
+      if (!stepToStart) {
+        stepToStart = workflow.steps.find(step => step.status === 'pending')
+        if (!stepToStart) {
+          Message.warning('No pending steps in this workflow')
+          return
+        }
       }
 
+      // Start time tracking on the step
+      startWorkOnStep(stepToStart.id, id)
+
+      // Update the workflow status to in_progress and set the current step
       await updateSequencedTask(id, {
         overallStatus: 'in_progress',
-        currentStepId: firstPendingStep.id,
+        currentStepId: stepToStart.id,
         steps: workflow.steps.map(step =>
-          step.id === firstPendingStep.id
+          step.id === stepToStart!.id
             ? { ...step, status: 'in_progress' }
             : step,
         ),
       })
 
-      Message.success('Workflow started successfully')
+      Message.success('Workflow started - time tracking active')
+      logger.info(`Started time tracking for step: ${stepToStart.name}`)
     } catch (error) {
       logger.error('Failed to start workflow', { error })
       Message.error('Failed to start workflow')
@@ -329,7 +340,16 @@ function App() {
       const workflow = sequencedTasks.find(st => st.id === id)
       if (!workflow) return
 
-      // Find the current in-progress step and pause it
+      // Find the current in-progress step
+      const inProgressStep = workflow.steps.find(step => step.status === 'in_progress')
+      
+      // Pause time tracking if there's an active step
+      if (inProgressStep) {
+        await pauseWorkOnStep(inProgressStep.id)
+        logger.info(`Paused time tracking for step: ${inProgressStep.name}`)
+      }
+
+      // Update the workflow and step statuses
       const updatedSteps = workflow.steps.map(step =>
         step.status === 'in_progress'
           ? { ...step, status: 'pending' as const }
@@ -342,7 +362,7 @@ function App() {
         steps: updatedSteps,
       })
 
-      Message.success('Workflow paused')
+      Message.success('Workflow paused - time logged')
     } catch (error) {
       logger.error('Failed to pause workflow', { error })
       Message.error('Failed to pause workflow')
