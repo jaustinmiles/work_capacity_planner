@@ -504,15 +504,23 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         appEvents.emit(EVENTS.TIME_LOGGED)
       }
 
-      // Update step progress
-      await getDatabase().updateTaskStepProgress(stepId, {
+      // Update step progress AND notes
+      const updateData = {
         status: 'completed',
         completedAt: new Date(),
         actualDuration: totalMinutes,
         percentComplete: 100,
         // If the step was never started, set startedAt to when it was completed minus duration
         startedAt: session?.startTime || new Date(Date.now() - totalMinutes * 60000),
-      })
+        // Save notes to the step itself, not just the work session
+        ...(notes && { notes }),
+      }
+      
+      if (notes) {
+        logger.store.info(`Saving notes to step ${stepId}: "${notes}"`)
+      }
+      
+      await getDatabase().updateTaskStepProgress(stepId, updateData)
 
       // Remove from active sessions
       const newSessions = new Map(state.activeWorkSessions)
@@ -578,8 +586,19 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
       if (step) {
         const newActualDuration = (step.actualDuration || 0) + minutes
+        
+        // Append notes to existing step notes if provided
+        let updatedNotes = step.notes
+        if (notes) {
+          updatedNotes = step.notes 
+            ? `${step.notes}\n\n${new Date().toLocaleString()}: ${notes}`
+            : `${new Date().toLocaleString()}: ${notes}`
+          logger.store.info(`Appending notes to step ${stepId}: "${notes}"`)
+        }
+        
         await getDatabase().updateTaskStepProgress(stepId, {
           actualDuration: newActualDuration,
+          ...(notes && { notes: updatedNotes }),
         })
 
         // Emit event to update other components
