@@ -19,7 +19,7 @@ export interface UseWorkflowProgressReturn {
 
   // Actions
   startWork: (__stepId: string) => void
-  pauseWork: (stepId: string) => void
+  pauseWork: (stepId: string) => Promise<void>
   completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
   updateProgress: (stepId: string, __percentComplete: number) => Promise<void>
   logTime: (stepId: string, __minutes: number, notes?: string) => Promise<void>
@@ -59,8 +59,8 @@ export function useWorkflowProgress(workflowId?: string): UseWorkflowProgressRet
     store.startWorkOnStep(stepId, workflowId || '')
   }, [store, workflowId])
 
-  const pauseWork = useCallback((stepId: string) => {
-    store.pauseWorkOnStep(stepId)
+  const pauseWork = useCallback(async (stepId: string) => {
+    await store.pauseWorkOnStep(stepId)
   }, [store])
 
   const completeStep = useCallback(async (stepId: string, actualMinutes?: number, notes?: string) => {
