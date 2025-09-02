@@ -33,7 +33,7 @@ export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="medium">
       <Space direction="vertical" style={{ width: '100%' }}>
-        <Text strong>Forward Dependencies</Text>
+        <Text style={{ fontWeight: 'bold' }}>Forward Dependencies</Text>
         <Text type="secondary" style={{ fontSize: 12 }}>
           Tasks that {amendment.stepName || 'this task'} depends on
         </Text>
@@ -70,7 +70,7 @@ export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({
       <Divider />
 
       <Space direction="vertical" style={{ width: '100%' }}>
-        <Text strong>Reverse Dependencies</Text>
+        <Text style={{ fontWeight: 'bold' }}>Reverse Dependencies</Text>
         <Text type="secondary" style={{ fontSize: 12 }}>
           Tasks that should depend on {amendment.stepName || 'this task'}
         </Text>
@@ -115,7 +115,7 @@ export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({
           background: '#f5f5f5',
           borderRadius: 4,
         }}>
-          <Text strong>Summary of changes:</Text>
+          <Text style={{ fontWeight: 'bold' }}>Summary of changes:</Text>
           {amendment.addDependencies?.length ? (
             <Text type="secondary" style={{ fontSize: 12 }}>
               • {amendment.stepName} will depend on: {amendment.addDependencies.join(', ')}

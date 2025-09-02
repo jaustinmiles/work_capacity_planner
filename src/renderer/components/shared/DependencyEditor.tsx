@@ -91,7 +91,7 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = ({
     <Space direction="vertical" style={{ width: '100%' }} size="medium">
       {/* Forward Dependencies */}
       <Space direction="vertical" style={{ width: '100%' }}>
-        <Text strong>Dependencies</Text>
+        <Text style={{ fontWeight: 'bold' }}>Dependencies</Text>
         <Text type="secondary" style={{ fontSize: 12 }}>
           Steps that must complete before {currentStepName} can start
         </Text>
@@ -120,7 +120,7 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = ({
           <Divider style={{ margin: '12px 0' }} />
 
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text strong>Reverse Dependencies</Text>
+            <Text style={{ fontWeight: 'bold' }}>Reverse Dependencies</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
               Steps that should wait for {currentStepName} to complete
             </Text>

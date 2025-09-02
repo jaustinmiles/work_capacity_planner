@@ -237,7 +237,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           ),
           error: null,
         }))
-        logger.info('Updated existing workflow', { workflowName: taskData.name })
+        logger.ui.info('Updated existing workflow', { workflowName: taskData.name })
       } else {
         // Create new workflow
         const sequencedTask = await getDatabase().createSequencedTask(taskData)
@@ -245,7 +245,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           sequencedTasks: [...state.sequencedTasks, sequencedTask],
           error: null,
         }))
-        logger.info('Created new workflow', { workflowName: taskData.name })
+        logger.ui.info('Created new workflow', { workflowName: taskData.name })
       }
     } catch (error) {
       set({
