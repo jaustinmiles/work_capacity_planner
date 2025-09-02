@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { TaskQuickEditModal } from '../TaskQuickEditModal'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { TaskType } from '@shared/enums'
@@ -41,6 +41,11 @@ vi.mock('../../common/Message', () => ({
 }))
 
 describe('TaskQuickEditModal', () => {
+  afterEach(() => {
+    cleanup()
+    vi.clearAllTimers()
+  })
+
   const mockTasks: Task[] = [
     {
       id: 'task-1',
