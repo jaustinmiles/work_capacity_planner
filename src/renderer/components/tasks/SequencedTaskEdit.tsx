@@ -247,7 +247,7 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
       const dependents = editingSteps
         .filter((s, idx) => idx !== index && s.dependsOn.includes(step.id))
         .map(s => s.id)
-      
+
       stepForm.setFieldsValue({
         name: step.name,
         duration: step.duration,
@@ -276,7 +276,7 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
         // Edit existing step
         const newSteps = [...editingSteps]
         const currentStepId = newSteps[editingStepIndex].id
-        
+
         // Update the current step
         newSteps[editingStepIndex] = {
           ...newSteps[editingStepIndex],
@@ -290,14 +290,14 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           importance: values.importance,
           urgency: values.urgency,
         }
-        
+
         // Handle reverse dependencies - update other steps to depend on this one
         const reverseDeps = values.dependents || []
         newSteps.forEach((step, idx) => {
           if (idx !== editingStepIndex) {
             const shouldDepend = reverseDeps.includes(step.id)
             const currentlyDepends = step.dependsOn.includes(currentStepId)
-            
+
             if (shouldDepend && !currentlyDepends) {
               // Add this step as a dependency
               step.dependsOn = [...step.dependsOn, currentStepId]
@@ -307,7 +307,7 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
             }
           }
         })
-        
+
         setEditingSteps(newSteps)
       } else {
         // Add new step with proper ID
@@ -330,18 +330,18 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           importance: values.importance,
           urgency: values.urgency,
         }
-        
+
         // Handle reverse dependencies for new step
         const newSteps = [...editingSteps]
         const reverseDeps = values.dependents || []
-        
+
         // Update existing steps to depend on the new step if specified
         newSteps.forEach(step => {
           if (reverseDeps.includes(step.id) && !step.dependsOn.includes(newStepId)) {
             step.dependsOn = [...step.dependsOn, newStepId]
           }
         })
-        
+
         setEditingSteps([...newSteps, newStep])
       }
 
@@ -807,7 +807,7 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
               availableSteps={editingSteps.map((step, idx) => ({
                 id: step.id,
                 name: step.name,
-                stepIndex: idx
+                stepIndex: idx,
               }))}
               forwardDependencies={stepForm.getFieldValue('dependsOn') || []}
               onForwardDependenciesChange={(value) => stepForm.setFieldValue('dependsOn', value)}

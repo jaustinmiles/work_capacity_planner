@@ -7,7 +7,7 @@ import type { SequencedTask } from '@shared/types'
 // Mock the database
 vi.mock('../services/database', () => {
   let mockSequencedTasks: SequencedTask[] = []
-  
+
   return {
     getDatabase: () => ({
       createSequencedTask: vi.fn(async (task) => {
@@ -24,12 +24,12 @@ vi.mock('../services/database', () => {
         const index = mockSequencedTasks.findIndex(t => t.id === id)
         if (index >= 0) {
           // Preserve the ID and timestamps
-          mockSequencedTasks[index] = { 
-            ...mockSequencedTasks[index], 
-            ...updates, 
+          mockSequencedTasks[index] = {
+            ...mockSequencedTasks[index],
+            ...updates,
             id: mockSequencedTasks[index].id,
             createdAt: mockSequencedTasks[index].createdAt,
-            updatedAt: new Date() 
+            updatedAt: new Date(),
           }
           return mockSequencedTasks[index]
         }
@@ -48,7 +48,7 @@ vi.mock('../services/database', () => {
     // Reset mock data between tests
     __resetMockData: () => {
       mockSequencedTasks = []
-    }
+    },
   }
 })
 
@@ -62,7 +62,7 @@ describe('Workflow Duplication Bug', () => {
 
   it('should update existing workflow when edited, not create duplicate', async () => {
     const { result } = renderHook(() => useTaskStore())
-    
+
     // Create initial workflow
     const initialWorkflow = {
       name: 'Test Workflow',
@@ -119,8 +119,6 @@ describe('Workflow Duplication Bug', () => {
 
     expect(result.current.sequencedTasks).toHaveLength(1)
     expect(result.current.sequencedTasks[0].name).toBe('Test Workflow')
-    
-    const workflowId = result.current.sequencedTasks[0].id
 
     // Simulate editing the workflow (what should happen from brainstorm modal)
     const editedWorkflow = {
@@ -161,7 +159,7 @@ describe('Workflow Duplication Bug', () => {
 
   it('should correctly handle workflow updates without duplication', async () => {
     const { result } = renderHook(() => useTaskStore())
-    
+
     // Create initial workflow
     const initialWorkflow = {
       name: 'Update Test Workflow',

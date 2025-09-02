@@ -1,7 +1,6 @@
 import React from 'react'
 import { Space, Typography, Select, Divider } from '@arco-design/web-react'
 import { DependencyChange } from '@shared/amendment-types'
-import { TaskStep } from '@shared/types'
 
 const { Text } = Typography
 
@@ -14,20 +13,20 @@ interface DependencyChangeEditProps {
 export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({
   amendment,
   onChange,
-  availableSteps = []
+  availableSteps = [],
 }) => {
   // Get step names for the select options, excluding the current step
   const stepOptions = availableSteps
     .filter(step => step.name !== amendment.stepName)
     .map(step => ({
       label: step.name,
-      value: step.name
+      value: step.name,
     }))
 
   const handleDependenciesChange = (field: 'addDependencies' | 'removeDependencies' | 'addDependents' | 'removeDependents') => (value: string[]) => {
     onChange({
       ...amendment,
-      [field]: value
+      [field]: value,
     })
   }
 
@@ -38,7 +37,7 @@ export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({
         <Text type="secondary" style={{ fontSize: 12 }}>
           Tasks that {amendment.stepName || 'this task'} depends on
         </Text>
-        
+
         <Space direction="vertical" style={{ width: '100%' }}>
           <div>
             <Text>Add dependencies:</Text>
@@ -52,7 +51,7 @@ export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({
               allowClear
             />
           </div>
-          
+
           <div>
             <Text>Remove dependencies:</Text>
             <Select
@@ -75,7 +74,7 @@ export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({
         <Text type="secondary" style={{ fontSize: 12 }}>
           Tasks that should depend on {amendment.stepName || 'this task'}
         </Text>
-        
+
         <Space direction="vertical" style={{ width: '100%' }}>
           <div>
             <Text>Add dependents:</Text>
@@ -89,7 +88,7 @@ export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({
               allowClear
             />
           </div>
-          
+
           <div>
             <Text>Remove dependents:</Text>
             <Select
@@ -104,17 +103,17 @@ export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({
           </div>
         </Space>
       </Space>
-      
+
       {/* Show a summary of what will happen */}
-      {(amendment.addDependencies?.length || 
-        amendment.removeDependencies?.length || 
-        amendment.addDependents?.length || 
+      {(amendment.addDependencies?.length ||
+        amendment.removeDependencies?.length ||
+        amendment.addDependents?.length ||
         amendment.removeDependents?.length) ? (
-        <Space direction="vertical" style={{ 
-          width: '100%', 
-          padding: 12, 
+        <Space direction="vertical" style={{
+          width: '100%',
+          padding: 12,
           background: '#f5f5f5',
-          borderRadius: 4 
+          borderRadius: 4,
         }}>
           <Text strong>Summary of changes:</Text>
           {amendment.addDependencies?.length ? (

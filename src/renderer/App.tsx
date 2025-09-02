@@ -243,7 +243,7 @@ function App() {
           overallStatus: 'not_started' as const,
           steps: completeSteps,
         }
-        
+
         // Use addOrUpdateSequencedTask which handles the logic
         await addOrUpdateSequencedTask(sequencedTask)
       }

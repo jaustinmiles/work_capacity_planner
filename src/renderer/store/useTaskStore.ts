@@ -227,7 +227,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       // Check if a workflow with this name already exists
       const existingWorkflow = get().sequencedTasks.find(wf => wf.name === taskData.name)
-      
+
       if (existingWorkflow) {
         // Update existing workflow
         const updatedTask = await getDatabase().updateSequencedTask(existingWorkflow.id, taskData)

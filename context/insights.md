@@ -1,6 +1,44 @@
 # Cumulative Insights
 
-## Session: 2025-09-02, Evening (Latest)
+## Session: 2025-09-02, Late Evening (Latest)
+
+### Component Unification Strategy
+
+#### Shared Components for Consistency
+**Problem**: Similar functionality implemented differently across components (e.g., dependency editing in multiple places).
+
+**Solution**: Create shared components for common patterns:
+```typescript
+// DependencyEditor.tsx - unified dependency management
+export const DependencyEditor: React.FC<DependencyEditorProps> = ({
+  forwardDependencies,
+  reverseDependencies,
+  onForwardDependenciesChange,
+  onReverseDependenciesChange,
+  showBidirectional
+}) => { /* unified logic */ }
+```
+
+**Benefits**:
+- Consistent UX across all editors
+- Single source of truth for logic
+- Easier maintenance and testing
+- Prevents circular dependencies automatically
+
+### Bidirectional Dependency Management
+
+#### Reverse Dependencies Implementation
+**Challenge**: Users need to specify not just what a task depends on, but what depends on it.
+
+**Solution Architecture**:
+1. Extended amendment types with `addDependents` and `removeDependents`
+2. Amendment applicator handles bidirectional updates
+3. Shared component prevents circular dependencies
+4. UI shows both directions clearly
+
+**Key Learning**: When updating one step's reverse dependencies, must update the forward dependencies of OTHER steps.
+
+## Session: 2025-09-02, Evening
 
 ### Unified Task Creation Pattern Success
 

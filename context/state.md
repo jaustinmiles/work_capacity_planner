@@ -1,8 +1,25 @@
 # Current State
 
-## Latest Status (2025-09-02, Evening Session)
+## Latest Status (2025-09-02, Late Evening Session)
 
-### 🚀 Completed Session: Bug Fixes and Feature Addition (Branch: fix/feedback-bugs-and-feature)
+### 🚀 Current Session: Bidirectional Dependencies & Bug Fixes (Branch: fix/amendments-and-periodic-events)
+
+#### Completed Improvements (2025-09-02, Evening) ✅
+
+1. **Fixed Duplicate Workflow Bug** ✅
+   - Issue: When editing workflows from AI Brainstorm modal, duplicates were created instead of updating
+   - Solution: Added `addOrUpdateSequencedTask` method that checks for existing workflows by name
+   - Test: Created comprehensive test to prevent regression
+   
+2. **Bidirectional Dependency Wiring** ✅
+   - Extended `DependencyChange` amendment type with `addDependents` and `removeDependents` fields
+   - Updated amendment applicator to handle reverse dependencies
+   - Created shared `DependencyEditor` component for consistent UI across all editors
+   - Enhanced `SequencedTaskEdit` with full bidirectional dependency management
+   - Updated `VoiceAmendmentModal` to support editing both directions
+   - All tests passing (449 passed, 46 skipped)
+
+### 🚀 Previous Session: Bug Fixes and Feature Addition (Branch: fix/feedback-bugs-and-feature)
 
 #### Critical Fixes from Feedback (2025-09-02, Afternoon) ✅
 **Addressed 2 bugs and 1 feature from feedback.json:**
