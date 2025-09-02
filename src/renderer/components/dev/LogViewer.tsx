@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Button, Space, Typography, Table, Tag, Select, Input, Card, Badge, Switch } from '@arco-design/web-react'
 import { IconRefresh, IconDelete, IconDownload, IconSearch } from '@arco-design/web-react/icon'
 import { useLoggerContext } from '../../../logging/index.renderer'
@@ -40,6 +40,8 @@ export function LogViewer(_props: LogViewerProps) {
   const [searchText, setSearchText] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [showDetails, setShowDetails] = useState(true)
+  const [hiddenPatterns, setHiddenPatterns] = useState<Set<string>>(new Set())
+  const [showHiddenCount] = useState(true)
 
   // Load logs from ring buffer
   const loadLogs = useCallback(() => {
@@ -47,7 +49,36 @@ export function LogViewer(_props: LogViewerProps) {
     setLogs(entries)
   }, [loggerContext])
 
-  // Filter logs based on level and search
+  // Generate pattern key for error/log grouping
+  const getPatternKey = useCallback((log: LogEntry): string => {
+    // For errors, group by error message pattern
+    if (log.error) {
+      // Remove dynamic parts like IDs, timestamps, etc.
+      return log.error.message
+        .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, 'UUID')
+        .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/g, 'TIMESTAMP')
+        .replace(/\d+/g, 'NUM')
+    }
+    // For regular logs, group by message pattern
+    return log.message
+      .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, 'UUID')
+      .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/g, 'TIMESTAMP')
+      .replace(/\d+/g, 'NUM')
+  }, [])
+
+  // Count hidden logs by pattern
+  const hiddenCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    logs.forEach(log => {
+      const pattern = getPatternKey(log)
+      if (hiddenPatterns.has(pattern)) {
+        counts[pattern] = (counts[pattern] || 0) + 1
+      }
+    })
+    return counts
+  }, [logs, hiddenPatterns, getPatternKey])
+
+  // Filter logs based on level, search, and hidden patterns
   useEffect(() => {
     let filtered = [...logs]
 
@@ -67,8 +98,13 @@ export function LogViewer(_props: LogViewerProps) {
       )
     }
 
+    // Filter out hidden patterns
+    if (hiddenPatterns.size > 0) {
+      filtered = filtered.filter(log => !hiddenPatterns.has(getPatternKey(log)))
+    }
+
     setFilteredLogs(filtered)
-  }, [logs, selectedLevel, searchText])
+  }, [logs, selectedLevel, searchText, hiddenPatterns, getPatternKey])
 
   // Auto-refresh
   useEffect(() => {
@@ -110,13 +146,32 @@ export function LogViewer(_props: LogViewerProps) {
     setFilteredLogs([])
   }
 
+  // Toggle hiding a specific pattern
+  const toggleHidePattern = (log: LogEntry) => {
+    const pattern = getPatternKey(log)
+    setHiddenPatterns(prev => {
+      const next = new Set(prev)
+      if (next.has(pattern)) {
+        next.delete(pattern)
+      } else {
+        next.add(pattern)
+      }
+      return next
+    })
+  }
+
+  // Clear all hidden patterns
+  const clearHiddenPatterns = () => {
+    setHiddenPatterns(new Set())
+  }
+
   // Table columns
   const columns = [
     {
       title: 'Time',
       dataIndex: 'context',
       width: 100,
-      render: (context: any) => (
+      render: (context: LogEntry['context']) => (
         <Text style={{ fontSize: 12, fontFamily: 'monospace' }}>
           {formatTime(context.timestamp)}
         </Text>
@@ -125,11 +180,21 @@ export function LogViewer(_props: LogViewerProps) {
     {
       title: 'Level',
       dataIndex: 'level',
-      width: 80,
-      render: (level: LogLevel) => (
-        <Tag color={levelColors[level]}>
-          {LogLevel[level]}
-        </Tag>
+      width: 100,
+      render: (level: LogLevel, record: LogEntry) => (
+        <Space>
+          <Tag color={levelColors[level]}>
+            {LogLevel[level]}
+          </Tag>
+          <Button
+            size="mini"
+            type="text"
+            onClick={() => toggleHidePattern(record)}
+            title={hiddenPatterns.has(getPatternKey(record)) ? 'Show similar logs' : 'Hide similar logs'}
+          >
+            {hiddenPatterns.has(getPatternKey(record)) ? '👁' : '🚫'}
+          </Button>
+        </Space>
       ),
     },
     {
@@ -289,15 +354,51 @@ export function LogViewer(_props: LogViewerProps) {
       </Space>
 
       {/* Statistics */}
-      <Space>
-        <Text type="secondary">
-          Showing {filteredLogs.length} of {logs.length} logs
-        </Text>
-        {Object.entries(levelCounts).map(([level, count]) => (
-          <Tag key={level} color={levelColors[Number(level) as LogLevel]}>
-            {LogLevel[Number(level) as LogLevel]}: {count}
-          </Tag>
-        ))}
+      <Space direction="vertical" style={{ width: '100%' }} size="small">
+        <Space>
+          <Text type="secondary">
+            Showing {filteredLogs.length} of {logs.length} logs
+          </Text>
+          {Object.entries(levelCounts).map(([level, count]) => (
+            <Tag key={level} color={levelColors[Number(level) as LogLevel]}>
+              {LogLevel[Number(level) as LogLevel]}: {count}
+            </Tag>
+          ))}
+        </Space>
+
+        {/* Hidden patterns info */}
+        {hiddenPatterns.size > 0 && showHiddenCount && (
+          <Space style={{ width: '100%', padding: '8px', background: 'var(--color-fill-2)', borderRadius: 4 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Hiding {hiddenPatterns.size} pattern{hiddenPatterns.size > 1 ? 's' : ''}:
+            </Text>
+            {Array.from(hiddenPatterns).map(pattern => {
+              const count = hiddenCounts[pattern] || 0
+              return (
+                <Tag
+                  key={pattern}
+                  closable
+                  onClose={() => {
+                    setHiddenPatterns(prev => {
+                      const next = new Set(prev)
+                      next.delete(pattern)
+                      return next
+                    })
+                  }}
+                  style={{ fontSize: 11, maxWidth: 200 }}
+                >
+                  {pattern.substring(0, 30)}... ({count})
+                </Tag>
+              )
+            })}
+            <Button
+              size="mini"
+              onClick={clearHiddenPatterns}
+            >
+              Clear All
+            </Button>
+          </Space>
+        )}
       </Space>
 
       {/* Log Table */}
