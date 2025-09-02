@@ -137,8 +137,8 @@ export function wouldCreateCircularDependency(
   const queue = [toStepId]
 
   while (queue.length > 0) {
-    const currentId = queue.shift()!
-    if (visited.has(currentId)) continue
+    const currentId = queue.shift()
+    if (!currentId || visited.has(currentId)) continue
     visited.add(currentId)
 
     const currentStep = allSteps.find(s => s.id === currentId)
@@ -233,10 +233,12 @@ export function directToAmendmentDependencies(
     allSteps,
   )
 
+  // Return empty arrays instead of undefined for consistency
+  // This makes it easier to iterate over results without null checks
   return {
-    addDependencies: addDependencies.length > 0 ? addDependencies : undefined,
-    removeDependencies: removeDependencies.length > 0 ? removeDependencies : undefined,
-    addDependents: addDependents.length > 0 ? addDependents : undefined,
-    removeDependents: removeDependents.length > 0 ? removeDependents : undefined,
+    addDependencies,
+    removeDependencies,
+    addDependents,
+    removeDependents,
   }
 }

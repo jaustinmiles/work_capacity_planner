@@ -345,10 +345,10 @@ describe('dependency-utils', () => {
       expect(result.addDependencies).toEqual(['Step 2'])
       expect(result.removeDependencies).toEqual(['Step 3'])
       expect(result.addDependents).toEqual(['Step 3'])
-      expect(result.removeDependents).toBeUndefined()
+      expect(result.removeDependents).toEqual([])
     })
 
-    it('should return undefined for empty changes', () => {
+    it('should return empty arrays for no changes', () => {
       const steps = [
         { id: 'step-1', name: 'Step 1' },
       ]
@@ -361,10 +361,10 @@ describe('dependency-utils', () => {
         steps,
       )
 
-      expect(result.addDependencies).toBeUndefined()
-      expect(result.removeDependencies).toBeUndefined()
-      expect(result.addDependents).toBeUndefined()
-      expect(result.removeDependents).toBeUndefined()
+      expect(result.addDependencies).toEqual([])
+      expect(result.removeDependencies).toEqual([])
+      expect(result.addDependents).toEqual([])
+      expect(result.removeDependents).toEqual([])
     })
   })
 })
