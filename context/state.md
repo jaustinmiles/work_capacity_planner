@@ -2,7 +2,7 @@
 
 ## Latest Status (2025-09-02, Late Evening Session - Continued)
 
-### 🚀 Current Session: Enhanced Logging & PR Review Fixes (Branch: fix/amendments-and-periodic-events)
+### 🚀 Current Session: Dependency Fix & Documentation Updates (Branch: fix/amendments-and-periodic-events)
 
 #### Completed Improvements (2025-09-02, Evening) ✅
 
@@ -34,7 +34,19 @@
      - Shows count of hidden logs per pattern
      - Helps reduce log spam from repetitive errors
    - Enhanced amendment applicator with detailed logging
-   - Fixed dependency removal issue in workflow step edit modal
+
+5. **Fixed Dependency Removal Issue** ✅
+   - **Problem**: Could not remove dependencies in workflow step edit modal
+   - **Root Cause**: DependencyEditor was reading stale form values via `getFieldValue()`
+   - **Solution**: Use local state for current values, pass to DependencyEditor
+   - **Result**: Unidirectional data flow - state → component → onChange → state
+   - User confirmed fix is working!
+
+6. **Documentation Updates** ✅
+   - Added PR Review Protocol to CLAUDE.md with all 18 best practices
+   - Updated context/best-practices.md with review response protocol
+   - Documented lessons learned about checking GitHub comments
+   - Added insights about circular dependency patterns
 
 ### 🚀 Previous Session: Bug Fixes and Feature Addition (Branch: fix/feedback-bugs-and-feature)
 
