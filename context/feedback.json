@@ -1046,5 +1046,16 @@
     "description": "When I open the app, instead of loading my last session, it always loads the default session",
     "timestamp": "2025-09-02T17:11:57.760Z",
     "sessionId": "session-1756833117754-x8l2x09i2"
+  },
+  {
+    "type": "feature",
+    "priority": "medium",
+    "components": [
+      "other"
+    ],
+    "title": "Add license to repo",
+    "description": "The license should be some sort of open source thing, but the main thing is I want to ensure I have intellectual property of the codebase and that even if others use it or run it, they can't make money off it. ",
+    "timestamp": "2025-09-02T18:49:09.091Z",
+    "sessionId": "session-1756838949083-cl1dl67pc"
   }
 ]

@@ -23,13 +23,15 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const { tasks, loadTasks, sequencedTasks } = useTaskStore()
   const [scheduleGeneratorVisible, setScheduleGeneratorVisible] = useState(false)
   const [quickEditVisible, setQuickEditVisible] = useState(false)
-  const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | 'all'>('all')
+  const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | 'all' | 'work'>('all')
   const { logger: newLogger } = useLoggerContext()
   const rendererLogger = newLogger as RendererLogger
 
   // Apply task type filter
   const filteredTasks = taskTypeFilter === 'all'
     ? tasks
+    : taskTypeFilter === 'work'
+    ? tasks.filter(task => task.type === TaskType.Focused || task.type === TaskType.Admin)
     : tasks.filter(task => task.type === taskTypeFilter)
 
   const incompleteTasks = filteredTasks.filter(task => !task.completed)
@@ -108,6 +110,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
             placeholder="Select task type"
           >
             <Select.Option value="all">All Tasks</Select.Option>
+            <Select.Option value="work">Work Items (Focused + Admin)</Select.Option>
             <Select.Option value={TaskType.Focused}>Focused Tasks</Select.Option>
             <Select.Option value={TaskType.Admin}>Admin Tasks</Select.Option>
             <Select.Option value={TaskType.Personal}>Personal Tasks</Select.Option>
@@ -125,7 +128,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
         title={
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             <Title heading={5} style={{ margin: 0 }}>
-              Active Tasks {taskTypeFilter !== 'all' && `(${taskTypeFilter})`}
+              Active Tasks {taskTypeFilter !== 'all' && `(${taskTypeFilter === 'work' ? 'Work Items' : taskTypeFilter})`}
             </Title>
             <Space>
               <Button
