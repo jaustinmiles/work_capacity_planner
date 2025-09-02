@@ -7,7 +7,7 @@ const { Text } = Typography
 interface DependencyChangeEditProps {
   amendment: DependencyChange
   onChange: (updated: DependencyChange) => void
-  availableSteps?: TaskStep[]  // Available steps in the workflow for selection
+  availableSteps?: Array<{ id: string; name: string }>  // Available steps in the workflow for selection
 }
 
 export const DependencyChangeEdit: React.FC<DependencyChangeEditProps> = ({

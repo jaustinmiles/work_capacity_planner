@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
 import { Space, Typography, Select, Divider, Tag, Alert } from '@arco-design/web-react'
-import { TaskStep } from '@shared/types'
 
 const { Text } = Typography
 
