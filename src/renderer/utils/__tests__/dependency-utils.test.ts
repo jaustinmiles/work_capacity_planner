@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   applyForwardDependencyChanges,
   applyReverseDependencyChanges,
@@ -10,7 +10,7 @@ import {
   directToAmendmentDependencies,
 } from '../dependency-utils'
 import { TaskStep } from '@shared/sequencing-types'
-import { DependencyChange, AmendmentType, AmendmentTarget, EntityType } from '@shared/amendment-types'
+import { DependencyChange, AmendmentType, EntityType } from '@shared/amendment-types'
 
 // Mock the logger
 vi.mock('@shared/logger', () => ({
@@ -45,16 +45,16 @@ describe('dependency-utils', () => {
         createStep('step-2', 'Step 2'),
         createStep('step-3', 'Step 3'),
       ]
-      
+
       const change: DependencyChange = {
         type: AmendmentType.DependencyChange,
         target: { type: EntityType.Workflow, name: 'Test', confidence: 1 },
         stepName: 'Step 1',
         addDependencies: ['Step 2', 'Step 3'],
       }
-      
+
       applyForwardDependencyChanges(step, change, allSteps)
-      
+
       expect(step.dependsOn).toEqual(['step-2', 'step-3'])
     })
 
@@ -65,16 +65,16 @@ describe('dependency-utils', () => {
         createStep('step-2', 'Step 2'),
         createStep('step-3', 'Step 3'),
       ]
-      
+
       const change: DependencyChange = {
         type: AmendmentType.DependencyChange,
         target: { type: EntityType.Workflow, name: 'Test', confidence: 1 },
         stepName: 'Step 1',
         removeDependencies: ['Step 2'],
       }
-      
+
       applyForwardDependencyChanges(step, change, allSteps)
-      
+
       expect(step.dependsOn).toEqual(['step-3'])
     })
 
@@ -84,16 +84,16 @@ describe('dependency-utils', () => {
         step,
         createStep('step-2', 'Step 2'),
       ]
-      
+
       const change: DependencyChange = {
         type: AmendmentType.DependencyChange,
         target: { type: EntityType.Workflow, name: 'Test', confidence: 1 },
         stepName: 'Step 1',
         addDependencies: ['Step 2'],
       }
-      
+
       applyForwardDependencyChanges(step, change, allSteps)
-      
+
       expect(step.dependsOn).toEqual(['step-2'])
     })
 
@@ -103,16 +103,16 @@ describe('dependency-utils', () => {
         step,
         createStep('step-2', 'Step 2'),
       ]
-      
+
       const change: DependencyChange = {
         type: AmendmentType.DependencyChange,
         target: { type: EntityType.Workflow, name: 'Test', confidence: 1 },
         stepName: 'Step 1',
         addDependencies: ['step 2'], // lowercase
       }
-      
+
       applyForwardDependencyChanges(step, change, allSteps)
-      
+
       expect(step.dependsOn).toEqual(['step-2'])
     })
   })
@@ -122,16 +122,16 @@ describe('dependency-utils', () => {
       const targetStep = createStep('step-1', 'Step 1')
       const dependentStep = createStep('step-2', 'Step 2')
       const allSteps = [targetStep, dependentStep]
-      
+
       const change: DependencyChange = {
         type: AmendmentType.DependencyChange,
         target: { type: EntityType.Workflow, name: 'Test', confidence: 1 },
         stepName: 'Step 1',
         addDependents: ['Step 2'],
       }
-      
+
       applyReverseDependencyChanges(targetStep, change, allSteps)
-      
+
       expect(dependentStep.dependsOn).toEqual(['step-1'])
     })
 
@@ -139,16 +139,16 @@ describe('dependency-utils', () => {
       const targetStep = createStep('step-1', 'Step 1')
       const dependentStep = createStep('step-2', 'Step 2', ['step-1'])
       const allSteps = [targetStep, dependentStep]
-      
+
       const change: DependencyChange = {
         type: AmendmentType.DependencyChange,
         target: { type: EntityType.Workflow, name: 'Test', confidence: 1 },
         stepName: 'Step 1',
         removeDependents: ['Step 2'],
       }
-      
+
       applyReverseDependencyChanges(targetStep, change, allSteps)
-      
+
       expect(dependentStep.dependsOn).toEqual([])
     })
 
@@ -156,16 +156,16 @@ describe('dependency-utils', () => {
       const targetStep = createStep('step-1', 'Step 1')
       const dependentStep = createStep('step-2', 'Step 2', ['step-1'])
       const allSteps = [targetStep, dependentStep]
-      
+
       const change: DependencyChange = {
         type: AmendmentType.DependencyChange,
         target: { type: EntityType.Workflow, name: 'Test', confidence: 1 },
         stepName: 'Step 1',
         addDependents: ['Step 2'],
       }
-      
+
       applyReverseDependencyChanges(targetStep, change, allSteps)
-      
+
       expect(dependentStep.dependsOn).toEqual(['step-1'])
     })
   })
@@ -177,9 +177,9 @@ describe('dependency-utils', () => {
         { id: 'step-2', name: 'Step 2' },
         { id: 'step-3', name: 'Step 3' },
       ]
-      
+
       const names = getDependencyNames(['step-1', 'step-3'], steps)
-      
+
       expect(names).toEqual(['Step 1', 'Step 3'])
     })
 
@@ -187,9 +187,9 @@ describe('dependency-utils', () => {
       const steps = [
         { id: 'step-1', name: 'Step 1' },
       ]
-      
+
       const names = getDependencyNames(['step-1', 'unknown-id'], steps)
-      
+
       expect(names).toEqual(['Step 1', 'unknown-id'])
     })
   })
@@ -201,9 +201,9 @@ describe('dependency-utils', () => {
         { id: 'step-2', name: 'Step 2' },
         { id: 'step-3', name: 'Step 3' },
       ]
-      
+
       const ids = getDependencyIds(['Step 1', 'Step 3'], steps)
-      
+
       expect(ids).toEqual(['step-1', 'step-3'])
     })
 
@@ -211,9 +211,9 @@ describe('dependency-utils', () => {
       const steps = [
         { id: 'step-1', name: 'Step 1' },
       ]
-      
+
       const ids = getDependencyIds(['step 1', 'STEP 1'], steps)
-      
+
       expect(ids).toEqual(['step-1', 'step-1'])
     })
 
@@ -221,9 +221,9 @@ describe('dependency-utils', () => {
       const steps = [
         { id: 'step-1', name: 'Step 1' },
       ]
-      
+
       const ids = getDependencyIds(['Step 1', 'Unknown Step'], steps)
-      
+
       expect(ids).toEqual(['step-1'])
     })
   })
@@ -231,9 +231,9 @@ describe('dependency-utils', () => {
   describe('wouldCreateCircularDependency', () => {
     it('should detect self-dependency', () => {
       const steps = [createStep('step-1', 'Step 1')]
-      
+
       const result = wouldCreateCircularDependency('step-1', 'step-1', steps)
-      
+
       expect(result).toBe(true)
     })
 
@@ -242,9 +242,9 @@ describe('dependency-utils', () => {
         createStep('step-1', 'Step 1', ['step-2']),
         createStep('step-2', 'Step 2'),
       ]
-      
+
       const result = wouldCreateCircularDependency('step-2', 'step-1', steps)
-      
+
       expect(result).toBe(true)
     })
 
@@ -254,9 +254,9 @@ describe('dependency-utils', () => {
         createStep('step-2', 'Step 2', ['step-3']),
         createStep('step-3', 'Step 3'),
       ]
-      
+
       const result = wouldCreateCircularDependency('step-3', 'step-1', steps)
-      
+
       expect(result).toBe(true)
     })
 
@@ -265,9 +265,9 @@ describe('dependency-utils', () => {
         createStep('step-1', 'Step 1'),
         createStep('step-2', 'Step 2'),
       ]
-      
+
       const result = wouldCreateCircularDependency('step-1', 'step-2', steps)
-      
+
       expect(result).toBe(false)
     })
   })
@@ -280,9 +280,9 @@ describe('dependency-utils', () => {
         createStep('step-3', 'Step 3', ['step-1', 'step-2']),
         createStep('step-4', 'Step 4', ['step-2']),
       ]
-      
+
       const dependents = getReverseDependencies('step-1', steps)
-      
+
       expect(dependents).toEqual(['step-2', 'step-3'])
     })
 
@@ -291,9 +291,9 @@ describe('dependency-utils', () => {
         createStep('step-1', 'Step 1'),
         createStep('step-2', 'Step 2'),
       ]
-      
+
       const dependents = getReverseDependencies('step-1', steps)
-      
+
       expect(dependents).toEqual([])
     })
   })
@@ -305,7 +305,7 @@ describe('dependency-utils', () => {
         { id: 'step-2', name: 'Step 2' },
         { id: 'step-3', name: 'Step 3' },
       ]
-      
+
       const amendment: DependencyChange = {
         type: AmendmentType.DependencyChange,
         target: { type: EntityType.Workflow, name: 'Test', confidence: 1 },
@@ -314,13 +314,13 @@ describe('dependency-utils', () => {
         removeDependencies: ['Step 3'],
         addDependents: ['Step 3'],
       }
-      
+
       const result = amendmentToDirectDependencies(
         amendment,
         ['step-3'], // current forward dependencies
-        steps
+        steps,
       )
-      
+
       expect(result.forward).toEqual(['step-2']) // removed step-3, added step-2
       expect(result.reverse).toEqual(['step-3']) // added step-3 as dependent
     })
@@ -333,15 +333,15 @@ describe('dependency-utils', () => {
         { id: 'step-2', name: 'Step 2' },
         { id: 'step-3', name: 'Step 3' },
       ]
-      
+
       const result = directToAmendmentDependencies(
         ['step-1', 'step-2'], // new forward
         ['step-1', 'step-3'], // old forward
         ['step-3'], // new reverse
         [], // old reverse
-        steps
+        steps,
       )
-      
+
       expect(result.addDependencies).toEqual(['Step 2'])
       expect(result.removeDependencies).toEqual(['Step 3'])
       expect(result.addDependents).toEqual(['Step 3'])
@@ -352,15 +352,15 @@ describe('dependency-utils', () => {
       const steps = [
         { id: 'step-1', name: 'Step 1' },
       ]
-      
+
       const result = directToAmendmentDependencies(
         [], // new forward
         [], // old forward
         [], // new reverse
         [], // old reverse
-        steps
+        steps,
       )
-      
+
       expect(result.addDependencies).toBeUndefined()
       expect(result.removeDependencies).toBeUndefined()
       expect(result.addDependents).toBeUndefined()
