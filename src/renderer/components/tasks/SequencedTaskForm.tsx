@@ -68,7 +68,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         stepIndex: index,
         percentComplete: 0,
       }))
-      
+
       // Map dependencies properly (handles name-based dependencies)
       const sequencedSteps: TaskStep[] = mapDependenciesToIds(stepsWithNames)
 
