@@ -106,6 +106,24 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
         return dep
       }
 
+      // Try to extract index from step-N format (where N is the index)
+      const simpleMatch = dep.match(/^step-(\d+)$/)
+      if (simpleMatch) {
+        const index = parseInt(simpleMatch[1], 10)
+        if (index >= 0 && index < editingSteps.length) {
+          return editingSteps[index].name
+        }
+      }
+
+      // Try to extract index from step-taskId-N format
+      const complexMatch = dep.match(/step-.*-(\d+)$/)
+      if (complexMatch) {
+        const index = parseInt(complexMatch[1], 10)
+        if (index >= 0 && index < editingSteps.length) {
+          return editingSteps[index].name
+        }
+      }
+
       // Fallback for malformed IDs
       return dep
     }).join(', ')
@@ -318,21 +336,37 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           <Col flex="auto">
             <Space direction="vertical" size="small">
               {isEditing ? (
-                <Input
-                  value={editedTask.name}
-                  onChange={(value) => setEditedTask({ ...editedTask, name: value })}
-                  style={{ fontSize: 20, fontWeight: 600, maxWidth: 400 }}
-                  placeholder="Workflow name"
-                />
+                <Space direction="vertical" size="small">
+                  <Input
+                    value={editedTask.name}
+                    onChange={(value) => setEditedTask({ ...editedTask, name: value })}
+                    style={{ fontSize: 20, fontWeight: 600, maxWidth: 400 }}
+                    placeholder="Workflow name"
+                  />
+                  <Space>
+                    <Text>Type:</Text>
+                    <Select
+                      value={editedTask.type}
+                      onChange={(value) => setEditedTask({ ...editedTask, type: value })}
+                      style={{ width: 150 }}
+                    >
+                      <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
+                      <Select.Option value={TaskType.Admin}>Admin Task</Select.Option>
+                      <Select.Option value={TaskType.Personal}>Personal Task</Select.Option>
+                    </Select>
+                  </Space>
+                </Space>
               ) : (
                 <Title heading={4}>{editedTask.name}</Title>
               )}
               <Space>
-                <Tag color="blue">
-                  {editedTask.type === TaskType.Focused ? 'Focused Work' :
-                   editedTask.type === TaskType.Admin ? 'Admin Task' :
-                   'Personal Task'}
-                </Tag>
+                {!isEditing && (
+                  <Tag color="blue">
+                    {editedTask.type === TaskType.Focused ? 'Focused Work' :
+                     editedTask.type === TaskType.Admin ? 'Admin Task' :
+                     'Personal Task'}
+                  </Tag>
+                )}
                 <Tag color="orange">
                   {getPriorityLabel(editedTask.importance, editedTask.urgency)} Priority
                 </Tag>

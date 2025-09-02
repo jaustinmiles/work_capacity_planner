@@ -1,5 +1,5 @@
-import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm } from '@arco-design/web-react'
-import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit } from '@arco-design/web-react/icon'
+import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select } from '@arco-design/web-react'
+import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskItem } from './TaskItem'
 import { getDatabase } from '../../services/database'
@@ -10,6 +10,7 @@ import { TaskQuickEditModal } from './TaskQuickEditModal'
 import { logger } from '../../utils/logger'
 import { useLoggerContext } from '../../../logging/index.renderer'
 import { RendererLogger } from '../../../logging/renderer/RendererLogger'
+import { TaskType } from '@shared/enums'
 
 
 const { Title, Text } = Typography
@@ -22,11 +23,17 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const { tasks, loadTasks, sequencedTasks } = useTaskStore()
   const [scheduleGeneratorVisible, setScheduleGeneratorVisible] = useState(false)
   const [quickEditVisible, setQuickEditVisible] = useState(false)
+  const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | 'all'>('all')
   const { logger: newLogger } = useLoggerContext()
   const rendererLogger = newLogger as RendererLogger
 
-  const incompleteTasks = tasks.filter(task => !task.completed)
-  const completedTasks = tasks.filter(task => task.completed)
+  // Apply task type filter
+  const filteredTasks = taskTypeFilter === 'all' 
+    ? tasks 
+    : tasks.filter(task => task.type === taskTypeFilter)
+
+  const incompleteTasks = filteredTasks.filter(task => !task.completed)
+  const completedTasks = filteredTasks.filter(task => task.completed)
 
   const handleDeleteAllTasks = async () => {
     rendererLogger.interaction('Delete All Tasks Confirmed', {
@@ -83,12 +90,42 @@ export function TaskList({ onAddTask }: TaskListProps) {
         </Space>
       </Card>
 
+      {/* Task Type Filter */}
+      <Card>
+        <Space style={{ width: '100%', alignItems: 'center' }}>
+          <IconFilter style={{ fontSize: 16 }} />
+          <Text>Filter by Type:</Text>
+          <Select
+            value={taskTypeFilter}
+            onChange={(value) => {
+              setTaskTypeFilter(value)
+              rendererLogger.interaction('Task Type Filter Changed', {
+                component: 'TaskList',
+                filterType: value,
+              })
+            }}
+            style={{ width: 200 }}
+            placeholder="Select task type"
+          >
+            <Select.Option value="all">All Tasks</Select.Option>
+            <Select.Option value={TaskType.Focused}>Focused Tasks</Select.Option>
+            <Select.Option value={TaskType.Admin}>Admin Tasks</Select.Option>
+            <Select.Option value={TaskType.Personal}>Personal Tasks</Select.Option>
+          </Select>
+          {taskTypeFilter !== 'all' && (
+            <Text type="secondary">
+              Showing {filteredTasks.length} of {tasks.length} tasks
+            </Text>
+          )}
+        </Space>
+      </Card>
+
       {/* Active Tasks */}
       <Card
         title={
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             <Title heading={5} style={{ margin: 0 }}>
-              Active Tasks
+              Active Tasks {taskTypeFilter !== 'all' && `(${taskTypeFilter})`}
             </Title>
             <Space>
               <Button

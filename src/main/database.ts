@@ -269,23 +269,44 @@ export class DatabaseService {
 
     // Create steps if this is a workflow
     if (steps && steps.length > 0) {
-      await this.client.taskStep.createMany({
-        data: steps.map((step: any, index: number) => ({
-          id: step.id || crypto.randomUUID(),
+      // Create a mapping from old IDs to new IDs
+      const idMapping: Record<string, string> = {}
+      const stepsWithNewIds = steps.map((step: any, index: number) => {
+        const newId = crypto.randomUUID()
+        // Store mapping if step has an id (like 'step-0')
+        if (step.id) {
+          idMapping[step.id] = newId
+        }
+        return {
+          ...step,
+          id: newId,
           taskId: task.id,
-          name: step.name,
-          duration: step.duration,
-          type: step.type,
-          dependsOn: JSON.stringify(step.dependsOn || []),
-          asyncWaitTime: step.asyncWaitTime || 0,
-          status: step.status || 'pending',
           stepIndex: step.stepIndex ?? index,
-          percentComplete: step.percentComplete ?? 0,
-          notes: step.notes || null,
-          cognitiveComplexity: step.cognitiveComplexity || null,
-          importance: step.importance || null,
-          urgency: step.urgency || null,
-        })),
+        }
+      })
+
+      // Update dependencies to use new IDs
+      const stepsWithUpdatedDependencies = stepsWithNewIds.map((step: any) => ({
+        id: step.id,
+        taskId: step.taskId,
+        name: step.name,
+        duration: step.duration,
+        type: step.type,
+        dependsOn: JSON.stringify(
+          (step.dependsOn || []).map((depId: string) => idMapping[depId] || depId)
+        ),
+        asyncWaitTime: step.asyncWaitTime || 0,
+        status: step.status || 'pending',
+        stepIndex: step.stepIndex,
+        percentComplete: step.percentComplete ?? 0,
+        notes: step.notes || null,
+        cognitiveComplexity: step.cognitiveComplexity || null,
+        importance: step.importance || null,
+        urgency: step.urgency || null,
+      }))
+
+      await this.client.taskStep.createMany({
+        data: stepsWithUpdatedDependencies,
       })
 
       // Return task with steps
@@ -350,8 +371,28 @@ export class DatabaseService {
       })
       const existingStepIds = new Set(existingSteps.map(s => s.id))
 
+      // Create mapping for any new steps with temporary IDs
+      const idMapping: Record<string, string> = {}
+      
+      // First pass: assign new IDs to steps that need them
+      const stepsWithIds = steps.map((step: any) => {
+        // Only treat as temporary if it's not an existing step
+        const isTemporary = !step.id || 
+          (!existingStepIds.has(step.id) && (step.id.startsWith('step-') || step.id.startsWith('temp-')))
+        
+        if (isTemporary) {
+          // This is a new step with a temporary ID
+          const newId = crypto.randomUUID()
+          if (step.id) {
+            idMapping[step.id] = newId
+          }
+          return { ...step, id: newId }
+        }
+        return step
+      })
+
       // Delete steps that are no longer in the new list
-      const newStepIds = new Set(steps.map(s => s.id))
+      const newStepIds = new Set(stepsWithIds.map((s: any) => s.id))
       const stepsToDelete = existingSteps.filter(s => !newStepIds.has(s.id))
       for (const step of stepsToDelete) {
         await this.client.taskStep.delete({
@@ -360,13 +401,29 @@ export class DatabaseService {
       }
 
       // Update or create each step
-      for (let i = 0; i < steps.length; i++) {
-        const step = steps[i]
+      for (let i = 0; i < stepsWithIds.length; i++) {
+        const step = stepsWithIds[i]
+        
+        // Map dependencies to use new IDs if needed
+        const mappedDependencies = (step.dependsOn || []).map((depId: string) => {
+          // If this dependency ID was mapped, use the new ID
+          if (idMapping[depId]) {
+            return idMapping[depId]
+          }
+          // Otherwise check if it's in the current steps list
+          const depStep = stepsWithIds.find((s: any) => 
+            s.id === depId || 
+            (step.tempId && s.tempId === depId) ||
+            (s.name === depId) // Fallback to name matching
+          )
+          return depStep ? depStep.id : depId
+        })
+        
         const stepData = {
           name: step.name,
           duration: step.duration,
           type: step.type,
-          dependsOn: JSON.stringify(step.dependsOn || []),
+          dependsOn: JSON.stringify(mappedDependencies),
           asyncWaitTime: step.asyncWaitTime || 0,
           stepIndex: i,
           status: step.status || 'pending',
@@ -391,10 +448,10 @@ export class DatabaseService {
             data: stepData,
           })
         } else {
-          // Create new step - need to generate a new ID
+          // Create new step with the already generated UUID
           await this.client.taskStep.create({
             data: {
-              id: step.id || `step_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              id: step.id, // Use the ID we already generated above
               ...stepData,
               taskId: id,
             },
