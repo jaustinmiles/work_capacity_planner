@@ -271,6 +271,11 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
     try {
       await stepForm.validate()
       const values = stepForm.getFields()
+      logger.ui.info('Step form values on submit:', { 
+        dependsOn: values.dependsOn, 
+        dependents: values.dependents,
+        editingStepIndex 
+      })
 
       if (editingStepIndex !== null) {
         // Edit existing step
@@ -290,6 +295,11 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           importance: values.importance,
           urgency: values.urgency,
         }
+        
+        logger.ui.info('Updated step dependencies:', { 
+          stepName: values.name,
+          dependsOn: newSteps[editingStepIndex].dependsOn 
+        })
 
         // Handle reverse dependencies - update other steps to depend on this one
         const reverseDeps = values.dependents || []
@@ -800,7 +810,11 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
             </Select>
           </FormItem>
 
-          <FormItem label="Dependencies">
+          {/* Dependencies are managed via DependencyEditor, not as form fields directly */}
+          <div style={{ marginBottom: 24 }}>
+            <Typography.Text style={{ display: 'block', marginBottom: 8, fontSize: 14, color: '#86909c' }}>
+              Dependencies
+            </Typography.Text>
             <DependencyEditor
               currentStepId={editingStepIndex !== null ? editingSteps[editingStepIndex]?.id : undefined}
               currentStepName={editingStepIndex !== null ? editingSteps[editingStepIndex]?.name : 'this step'}
@@ -810,11 +824,33 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                 stepIndex: idx,
               }))}
               forwardDependencies={stepForm.getFieldValue('dependsOn') || []}
-              onForwardDependenciesChange={(value) => stepForm.setFieldValue('dependsOn', value)}
+              onForwardDependenciesChange={(value) => {
+                logger.ui.info('Updating forward dependencies:', { value, currentValue: stepForm.getFieldValue('dependsOn') })
+                stepForm.setFieldValue('dependsOn', value)
+                // Force form update to recognize the change
+                stepForm.setFields({
+                  dependsOn: { value }
+                })
+              }}
               reverseDependencies={stepForm.getFieldValue('dependents') || []}
-              onReverseDependenciesChange={(value) => stepForm.setFieldValue('dependents', value)}
+              onReverseDependenciesChange={(value) => {
+                logger.ui.info('Updating reverse dependencies:', { value })
+                stepForm.setFieldValue('dependents', value)
+                // Force form update to recognize the change
+                stepForm.setFields({
+                  dependents: { value }
+                })
+              }}
               showBidirectional={true}
             />
+          </div>
+          
+          {/* Hidden form fields to store the actual values */}
+          <FormItem field="dependsOn" hidden>
+            <Input />
+          </FormItem>
+          <FormItem field="dependents" hidden>
+            <Input />
           </FormItem>
 
           <FormItem
