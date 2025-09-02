@@ -394,6 +394,64 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
                     // Save the workflow
                     await db.updateSequencedTask(change.target.id, { steps: workflow.steps })
+                    
+                    // Handle reverse dependencies (addDependents/removeDependents)
+                    if (change.addDependents && change.addDependents.length > 0) {
+                      logger.ui.info(`Adding reverse dependencies - making these steps depend on ${step.name}:`, change.addDependents)
+                      
+                      // For each dependent, find it and add current step to its dependencies
+                      for (const dependentName of change.addDependents) {
+                        const dependentStepIndex = workflow.steps.findIndex(s => 
+                          s.name.toLowerCase() === dependentName.toLowerCase()
+                        )
+                        
+                        if (dependentStepIndex !== -1) {
+                          const dependentStep = workflow.steps[dependentStepIndex]
+                          const depDeps = dependentStep.dependsOn || []
+                          
+                          // Add current step ID if not already present
+                          if (!depDeps.includes(step.id)) {
+                            workflow.steps[dependentStepIndex] = {
+                              ...dependentStep,
+                              dependsOn: [...depDeps, step.id]
+                            }
+                            logger.ui.info(`Made ${dependentName} depend on ${step.name}`)
+                          }
+                        } else {
+                          logger.ui.warn(`Could not find step "${dependentName}" to add as dependent`)
+                        }
+                      }
+                      
+                      // Save the updated workflow with reverse dependencies
+                      await db.updateSequencedTask(change.target.id, { steps: workflow.steps })
+                    }
+                    
+                    if (change.removeDependents && change.removeDependents.length > 0) {
+                      logger.ui.info(`Removing reverse dependencies - these steps will no longer depend on ${step.name}:`, change.removeDependents)
+                      
+                      // For each dependent to remove, find it and remove current step from its dependencies
+                      for (const dependentName of change.removeDependents) {
+                        const dependentStepIndex = workflow.steps.findIndex(s => 
+                          s.name.toLowerCase() === dependentName.toLowerCase()
+                        )
+                        
+                        if (dependentStepIndex !== -1) {
+                          const dependentStep = workflow.steps[dependentStepIndex]
+                          const depDeps = dependentStep.dependsOn || []
+                          
+                          // Remove current step ID
+                          workflow.steps[dependentStepIndex] = {
+                            ...dependentStep,
+                            dependsOn: depDeps.filter(d => d !== step.id)
+                          }
+                          logger.ui.info(`Removed dependency on ${step.name} from ${dependentName}`)
+                        }
+                      }
+                      
+                      // Save the updated workflow with removed reverse dependencies
+                      await db.updateSequencedTask(change.target.id, { steps: workflow.steps })
+                    }
+                    
                     successCount++
                     logger.ui.info(`Successfully updated dependencies for step ${step.name}`)
                   } else {

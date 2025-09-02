@@ -1,6 +1,56 @@
 # Cumulative Insights
 
-## Session: 2025-09-02, Afternoon (Latest)
+## Session: 2025-09-02, Evening (Latest)
+
+### Unified Task Creation Pattern Success
+
+#### The Problem with Multiple ID Systems
+**Issue**: Task creation used different ID generation approaches:
+- Frontend: Temporary IDs like `step-0`, `step-1`
+- AI Brainstorm: Used `generateRandomStepId()` from step-id-utils
+- Database: Generated new UUIDs, breaking dependencies
+
+**Solution**: Unified ID generation using step-id-utils
+```typescript
+import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
+
+// Generate proper IDs from the start
+const [steps, setSteps] = useState<Partial<TaskStep>[]>([
+  { id: generateRandomStepId(), name: '', duration: 60, ... }
+])
+
+// Map dependencies consistently
+const sequencedSteps: TaskStep[] = mapDependenciesToIds(stepsWithNames)
+```
+
+**Key Insight**: Consistency in ID generation across the application prevents dependency breakage. Use the same utilities everywhere rather than ad-hoc solutions.
+
+### Test Coverage Strategy Evolution
+
+#### From UI Tests to Unit Tests
+**Problem**: Arco Design component tests were failing due to complex mocking requirements.
+
+**Failed Approach**: Trying to mock all Arco components and their internal behaviors.
+
+**Successful Strategy**: Replace UI integration tests with focused unit tests:
+1. Test the logic separately from the UI
+2. Create separate test files for different concerns
+3. Mock only the essential dependencies
+4. Achieve 100% coverage on the logic, not the rendering
+
+**Result**: Better coverage, faster tests, more maintainable test suite.
+
+### PR Review Feedback Loop
+
+#### Effective Code Review Response Pattern
+**User's PR Comments**:
+1. "Should not use any type" → Fixed specific type issues
+2. "Need Work Items filter" → Added combined filter option
+3. "Fix or replace skipped tests" → Replaced with unit tests
+
+**Learning**: Address ALL review comments, not just the first one. Re-read the entire review before marking complete.
+
+## Session: 2025-09-02, Afternoon
 
 ### Database ID Management Pattern
 

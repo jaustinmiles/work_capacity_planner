@@ -67,6 +67,28 @@
 
 ## Session: 2025-09-02 Decisions
 
+### Unified ID Generation Strategy
+**Decision**: Use step-id-utils for all task step ID generation
+**Implementation**:
+- Import `generateRandomStepId()` and `mapDependenciesToIds()` 
+- Generate IDs at creation time, not in database
+- Preserve frontend IDs through to database
+**Rationale**:
+- Prevents dependency breakage from ID regeneration
+- Consistent ID format across application
+- Single source of truth for ID generation logic
+
+### Test Strategy for Complex UI Components
+**Decision**: Replace failing UI tests with focused unit tests
+**Example**: TaskList filter tests moved to separate unit test file
+**Rationale**:
+- Arco Design components difficult to mock completely
+- Unit tests provide better coverage of logic
+- Faster test execution and easier maintenance
+- UI rendering less critical than business logic
+
+## Session: 2025-09-02 Earlier Decisions
+
 ### Time Tracking Data Architecture
 **Decision**: Dual storage pattern for time tracking
 **Implementation**:

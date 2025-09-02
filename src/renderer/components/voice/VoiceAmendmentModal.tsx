@@ -305,6 +305,8 @@ export function VoiceAmendmentModal({
         const depChange = edited as DependencyChange
         if (edits.addDependencies !== undefined) depChange.addDependencies = edits.addDependencies
         if (edits.removeDependencies !== undefined) depChange.removeDependencies = edits.removeDependencies
+        if (edits.addDependents !== undefined) depChange.addDependents = edits.addDependents
+        if (edits.removeDependents !== undefined) depChange.removeDependents = edits.removeDependents
       }
       return edited
     })
@@ -1324,10 +1326,11 @@ export function VoiceAmendmentModal({
                             </Space>
                           )}
 
-                          {/* Dependency Change Edit UI */}
+                          {/* Dependency Change Edit UI - Bidirectional */}
                           {isAmendmentType(amendment, AmendmentType.DependencyChange) && (
-                            <>
-                              {(amendment as DependencyChange).addDependencies && (
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                              <Text strong>Forward Dependencies (what this depends on):</Text>
+                              <Space direction="vertical" style={{ width: '100%', paddingLeft: 16 }}>
                                 <Space direction="vertical" style={{ width: '100%' }}>
                                   <Text>Add Dependencies:</Text>
                                   <Select
@@ -1338,12 +1341,10 @@ export function VoiceAmendmentModal({
                                       newEdited.set(index, { ...edited, addDependencies: value })
                                       setEditedAmendments(newEdited)
                                     }}
-                                    placeholder="Enter step names to add as dependencies"
+                                    placeholder="Enter step names this depends on"
                                     style={{ width: '100%' }}
                                   />
                                 </Space>
-                              )}
-                              {(amendment as DependencyChange).removeDependencies && (
                                 <Space direction="vertical" style={{ width: '100%' }}>
                                   <Text>Remove Dependencies:</Text>
                                   <Select
@@ -1358,8 +1359,42 @@ export function VoiceAmendmentModal({
                                     style={{ width: '100%' }}
                                   />
                                 </Space>
-                              )}
-                            </>
+                              </Space>
+                              
+                              <Divider style={{ margin: '12px 0' }} />
+                              
+                              <Text strong>Reverse Dependencies (what depends on this):</Text>
+                              <Space direction="vertical" style={{ width: '100%', paddingLeft: 16 }}>
+                                <Space direction="vertical" style={{ width: '100%' }}>
+                                  <Text>Add Dependents:</Text>
+                                  <Select
+                                    mode="tags"
+                                    value={edited.addDependents || (amendment as DependencyChange).addDependents || []}
+                                    onChange={(value) => {
+                                      const newEdited = new Map(editedAmendments)
+                                      newEdited.set(index, { ...edited, addDependents: value })
+                                      setEditedAmendments(newEdited)
+                                    }}
+                                    placeholder="Enter step names that should depend on this"
+                                    style={{ width: '100%' }}
+                                  />
+                                </Space>
+                                <Space direction="vertical" style={{ width: '100%' }}>
+                                  <Text>Remove Dependents:</Text>
+                                  <Select
+                                    mode="tags"
+                                    value={edited.removeDependents || (amendment as DependencyChange).removeDependents || []}
+                                    onChange={(value) => {
+                                      const newEdited = new Map(editedAmendments)
+                                      newEdited.set(index, { ...edited, removeDependents: value })
+                                      setEditedAmendments(newEdited)
+                                    }}
+                                    placeholder="Enter step names to stop depending on this"
+                                    style={{ width: '100%' }}
+                                  />
+                                </Space>
+                              </Space>
+                            </Space>
                           )}
                         </Space>
                       </Card>

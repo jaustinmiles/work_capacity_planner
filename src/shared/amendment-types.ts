@@ -80,8 +80,10 @@ export interface DependencyChange {
   type: AmendmentType.DependencyChange
   target: AmendmentTarget
   stepName: string
-  addDependencies?: string[]
-  removeDependencies?: string[]
+  addDependencies?: string[]  // Tasks that this task depends on
+  removeDependencies?: string[]  // Tasks to remove from dependencies
+  addDependents?: string[]  // Tasks that should depend on this task (reverse dependencies)
+  removeDependents?: string[]  // Tasks to remove from dependents
 }
 
 export interface TaskCreation {
