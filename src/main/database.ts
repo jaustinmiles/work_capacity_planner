@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { Task } from '../shared/types'
+import { Task, TaskStep } from '../shared/types'
 import { TaskType } from '../shared/enums'
 import { getMainLogger } from '../logging/index.main'
 import * as crypto from 'crypto'
@@ -271,7 +271,7 @@ export class DatabaseService {
     if (steps && steps.length > 0) {
       // Steps should already have proper IDs from the frontend
       // If not, generate new ones (for backward compatibility)
-      const stepsWithIds = steps.map((step: any, index: number) => ({
+      const stepsWithIds = steps.map((step: TaskStep, index: number) => ({
         id: step.id || crypto.randomUUID(),
         taskId: task.id,
         name: step.name,
@@ -355,7 +355,7 @@ export class DatabaseService {
       const existingStepIds = new Set(existingSteps.map(s => s.id))
 
       // First pass: ensure all steps have IDs
-      const stepsWithIds = steps.map((step: any) => {
+      const stepsWithIds = steps.map((step: TaskStep) => {
         // If step doesn't have an ID or it's not in existing steps, it's new
         if (!step.id) {
           // Generate ID for new step
@@ -365,7 +365,7 @@ export class DatabaseService {
       })
 
       // Delete steps that are no longer in the new list
-      const newStepIds = new Set(stepsWithIds.map((s: any) => s.id))
+      const newStepIds = new Set(stepsWithIds.map((s: TaskStep) => s.id))
       const stepsToDelete = existingSteps.filter(s => !newStepIds.has(s.id))
       for (const step of stepsToDelete) {
         await this.client.taskStep.delete({
@@ -1780,7 +1780,7 @@ export class DatabaseService {
     return this.client.workSession.findMany({ where: { stepId } })
   }
 
-  async updateWorkSessionTypesForStep(stepId: string, newType: TaskType.Focused | 'admin'): Promise<void> {
+  async updateWorkSessionTypesForStep(stepId: string, newType: TaskType): Promise<void> {
     await this.client.workSession.updateMany({
       where: { stepId },
       data: { type: newType },
