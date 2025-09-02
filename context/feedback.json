@@ -973,5 +973,16 @@
     "steps": "1. log time on a workflow step\n2. write a note in the textbox\n3. click save and complete step\n4. go to workflow step view (edit mode)\n5. observe no notes were saved. ",
     "timestamp": "2025-09-01T23:15:10.576Z",
     "sessionId": "session-1756768510568-tse8jsnwv"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "utils/amendment-applicator"
+    ],
+    "title": "Applicator makes duplicate tasks, and amendment edit form is missing fields",
+    "description": "When edited results are accepted, duplicate steps are added to the workflow. Additionally, we should be able to not only specify dependencies, but what tasks depend on the new task, so both way wiring of dependencies. ",
+    "timestamp": "2025-09-01T23:58:50.750Z",
+    "sessionId": "session-1756771130744-fni70bub6"
   }
 ]
