@@ -293,7 +293,7 @@ export class DatabaseService {
         duration: step.duration,
         type: step.type,
         dependsOn: JSON.stringify(
-          (step.dependsOn || []).map((depId: string) => idMapping[depId] || depId)
+          (step.dependsOn || []).map((depId: string) => idMapping[depId] || depId),
         ),
         asyncWaitTime: step.asyncWaitTime || 0,
         status: step.status || 'pending',
@@ -373,13 +373,13 @@ export class DatabaseService {
 
       // Create mapping for any new steps with temporary IDs
       const idMapping: Record<string, string> = {}
-      
+
       // First pass: assign new IDs to steps that need them
       const stepsWithIds = steps.map((step: any) => {
         // Only treat as temporary if it's not an existing step
-        const isTemporary = !step.id || 
+        const isTemporary = !step.id ||
           (!existingStepIds.has(step.id) && (step.id.startsWith('step-') || step.id.startsWith('temp-')))
-        
+
         if (isTemporary) {
           // This is a new step with a temporary ID
           const newId = crypto.randomUUID()
@@ -403,7 +403,7 @@ export class DatabaseService {
       // Update or create each step
       for (let i = 0; i < stepsWithIds.length; i++) {
         const step = stepsWithIds[i]
-        
+
         // Map dependencies to use new IDs if needed
         const mappedDependencies = (step.dependsOn || []).map((depId: string) => {
           // If this dependency ID was mapped, use the new ID
@@ -411,14 +411,14 @@ export class DatabaseService {
             return idMapping[depId]
           }
           // Otherwise check if it's in the current steps list
-          const depStep = stepsWithIds.find((s: any) => 
-            s.id === depId || 
+          const depStep = stepsWithIds.find((s: any) =>
+            s.id === depId ||
             (step.tempId && s.tempId === depId) ||
-            (s.name === depId) // Fallback to name matching
+            (s.name === depId), // Fallback to name matching
           )
           return depStep ? depStep.id : depId
         })
-        
+
         const stepData = {
           name: step.name,
           duration: step.duration,

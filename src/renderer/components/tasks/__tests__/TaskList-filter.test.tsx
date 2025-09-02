@@ -68,7 +68,7 @@ describe('TaskList - Task Type Filter', () => {
   beforeAll(() => {
     Object.defineProperty(window, 'getComputedStyle', {
       value: () => ({
-        getPropertyValue: (prop: string) => {
+        getPropertyValue: () => {
           return '0'
         },
         paddingTop: '0',
@@ -147,14 +147,14 @@ describe('TaskList - Task Type Filter', () => {
 
   it('should render task type filter dropdown', () => {
     render(<TaskList onAddTask={vi.fn()} />)
-    
+
     expect(screen.getByText('Filter by Type:')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Select task type')).toBeInTheDocument()
   })
 
   it('should show all tasks by default', () => {
     render(<TaskList onAddTask={vi.fn()} />)
-    
+
     // Check that the active task count shows all incomplete tasks (4)
     const activeTag = screen.getByText(/4 Active/)
     expect(activeTag).toBeInTheDocument()
@@ -162,10 +162,10 @@ describe('TaskList - Task Type Filter', () => {
 
   it('should filter tasks by Focused type', async () => {
     render(<TaskList onAddTask={vi.fn()} />)
-    
+
     const select = screen.getByPlaceholderText('Select task type')
     fireEvent.click(select)
-    
+
     await waitFor(() => {
       const focusedOption = screen.getByText('Focused Tasks')
       fireEvent.click(focusedOption)
@@ -173,17 +173,17 @@ describe('TaskList - Task Type Filter', () => {
 
     // Should show filtering text
     expect(screen.getByText('Showing 2 of 5 tasks')).toBeInTheDocument()
-    
+
     // Title should indicate filtered type
     expect(screen.getByText(/Active Tasks.*focused/i)).toBeInTheDocument()
   })
 
   it('should filter tasks by Personal type', async () => {
     render(<TaskList onAddTask={vi.fn()} />)
-    
+
     const select = screen.getByPlaceholderText('Select task type')
     fireEvent.click(select)
-    
+
     await waitFor(() => {
       const personalOption = screen.getByText('Personal Tasks')
       fireEvent.click(personalOption)
@@ -191,17 +191,17 @@ describe('TaskList - Task Type Filter', () => {
 
     // Should show 2 personal tasks (1 active, 1 completed)
     expect(screen.getByText('Showing 2 of 5 tasks')).toBeInTheDocument()
-    
+
     // Title should indicate filtered type
     expect(screen.getByText(/Active Tasks.*personal/i)).toBeInTheDocument()
   })
 
   it('should filter tasks by Admin type', async () => {
     render(<TaskList onAddTask={vi.fn()} />)
-    
+
     const select = screen.getByPlaceholderText('Select task type')
     fireEvent.click(select)
-    
+
     await waitFor(() => {
       const adminOption = screen.getByText('Admin Tasks')
       fireEvent.click(adminOption)
@@ -209,35 +209,35 @@ describe('TaskList - Task Type Filter', () => {
 
     // Should show 1 admin task
     expect(screen.getByText('Showing 1 of 5 tasks')).toBeInTheDocument()
-    
+
     // Title should indicate filtered type
     expect(screen.getByText(/Active Tasks.*admin/i)).toBeInTheDocument()
   })
 
   it('should reset to show all tasks when "All Tasks" is selected', async () => {
     render(<TaskList onAddTask={vi.fn()} />)
-    
+
     const select = screen.getByPlaceholderText('Select task type')
-    
+
     // First filter by Personal
     fireEvent.click(select)
     await waitFor(() => {
       const personalOption = screen.getByText('Personal Tasks')
       fireEvent.click(personalOption)
     })
-    
+
     expect(screen.getByText('Showing 2 of 5 tasks')).toBeInTheDocument()
-    
+
     // Then reset to All
     fireEvent.click(select)
     await waitFor(() => {
       const allOption = screen.getByText('All Tasks')
       fireEvent.click(allOption)
     })
-    
+
     // Should no longer show filtering text
     expect(screen.queryByText(/Showing \d+ of \d+ tasks/)).not.toBeInTheDocument()
-    
+
     // Title should not have filter type
     expect(screen.queryByText(/Active Tasks.*\(.*\)/)).not.toBeInTheDocument()
   })

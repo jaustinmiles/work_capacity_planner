@@ -4,7 +4,7 @@ import { DatabaseService } from '../database'
 // Mock crypto.randomUUID
 const mockUUIDs = [
   'uuid-task-1',
-  'uuid-step-1-1', 
+  'uuid-step-1-1',
   'uuid-step-1-2',
   'uuid-task-2',
   'uuid-step-2-1',
@@ -54,22 +54,20 @@ describe('Database - Unique ID Generation', () => {
   let mockTaskStepCreateMany: any
   let mockTaskFindUnique: any
   let mockSessionFindFirst: any
-  let mockSessionCreate: any
 
   beforeEach(async () => {
     vi.clearAllMocks()
     uuidIndex = 0 // Reset UUID index
-    
+
     const prismaModule = await import('@prisma/client') as any
     mockTaskCreate = prismaModule.__mocks.mockTaskCreate
     mockTaskStepCreateMany = prismaModule.__mocks.mockTaskStepCreateMany
     mockTaskFindUnique = prismaModule.__mocks.mockTaskFindUnique
     mockSessionFindFirst = prismaModule.__mocks.mockSessionFindFirst
-    mockSessionCreate = prismaModule.__mocks.mockSessionCreate
-    
+
     // Mock session for active session
     mockSessionFindFirst.mockResolvedValue({ id: 'test-session' })
-    
+
     // DatabaseService is a singleton, get instance
     db = DatabaseService.getInstance()
   })
@@ -145,10 +143,10 @@ describe('Database - Unique ID Generation', () => {
     // Ensure no duplicate IDs were used
     const firstCallIds = mockTaskStepCreateMany.mock.calls[0][0].data.map((s: any) => s.id)
     const secondCallIds = mockTaskStepCreateMany.mock.calls[1][0].data.map((s: any) => s.id)
-    
+
     const allIds = [...firstCallIds, ...secondCallIds]
     const uniqueIds = new Set(allIds)
-    
+
     expect(uniqueIds.size).toBe(allIds.length) // All IDs should be unique
   })
 })
