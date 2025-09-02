@@ -5,6 +5,7 @@ import { TaskStep } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import dayjs from 'dayjs'
 import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
+import { DependencyEditor } from '../shared/DependencyEditor'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
