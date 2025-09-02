@@ -78,6 +78,7 @@ function App() {
     sequencedTasks,
     addTask,
     addSequencedTask,
+    addOrUpdateSequencedTask,
     loadSequencedTasks,
     updateSequencedTask,
     deleteSequencedTask,
@@ -173,7 +174,7 @@ function App() {
           ? `${workflow.description}${workflow.notes ? '\n\n' + workflow.notes : ''}`
           : workflow.notes || ''
 
-        // Check if a workflow with this name already exists
+        // Check if a workflow with this name already exists to preserve step IDs
         const existingWorkflow = sequencedTasks.find(wf => wf.name === workflow.name)
 
         // Create step IDs - preserve existing ones if updating
@@ -242,7 +243,9 @@ function App() {
           overallStatus: 'not_started' as const,
           steps: completeSteps,
         }
-        await addSequencedTask(sequencedTask)
+        
+        // Use addOrUpdateSequencedTask which handles the logic
+        await addOrUpdateSequencedTask(sequencedTask)
       }
 
       // Create standalone tasks

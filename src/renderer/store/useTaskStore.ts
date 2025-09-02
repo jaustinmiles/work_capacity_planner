@@ -46,6 +46,7 @@ interface TaskStore {
   // Actions
   addTask: (__task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   addSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
+  addOrUpdateSequencedTask: (task: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   updateTask: (__id: string, updates: Partial<Task>) => Promise<void>
   updateSequencedTask: (__id: string, updates: Partial<SequencedTask>) => Promise<void>
   deleteTask: (__id: string) => Promise<void>
@@ -219,6 +220,36 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to create sequenced task',
+      })
+    }
+  },
+  addOrUpdateSequencedTask: async (taskData) => {
+    try {
+      // Check if a workflow with this name already exists
+      const existingWorkflow = get().sequencedTasks.find(wf => wf.name === taskData.name)
+      
+      if (existingWorkflow) {
+        // Update existing workflow
+        const updatedTask = await getDatabase().updateSequencedTask(existingWorkflow.id, taskData)
+        set((state) => ({
+          sequencedTasks: state.sequencedTasks.map(task =>
+            task.id === existingWorkflow.id ? updatedTask : task,
+          ),
+          error: null,
+        }))
+        logger.info('Updated existing workflow', { workflowName: taskData.name })
+      } else {
+        // Create new workflow
+        const sequencedTask = await getDatabase().createSequencedTask(taskData)
+        set((state) => ({
+          sequencedTasks: [...state.sequencedTasks, sequencedTask],
+          error: null,
+        }))
+        logger.info('Created new workflow', { workflowName: taskData.name })
+      }
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to create or update sequenced task',
       })
     }
   },
