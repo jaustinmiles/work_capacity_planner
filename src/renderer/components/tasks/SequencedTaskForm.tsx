@@ -4,6 +4,7 @@ import { IconPlus, IconDelete } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import dayjs from 'dayjs'
+import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -17,11 +18,12 @@ interface SequencedTaskFormProps {
 export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskFormProps) {
   const [form] = Form.useForm()
   const [steps, setSteps] = useState<Partial<TaskStep>[]>([
-    { name: '', duration: 60, type: TaskType.Focused, dependsOn: [], asyncWaitTime: 0 },
+    { id: generateRandomStepId(), name: '', duration: 60, type: TaskType.Focused, dependsOn: [], asyncWaitTime: 0 },
   ])
 
   const addStep = () => {
     setSteps([...steps, {
+      id: generateRandomStepId(),
       name: '',
       duration: 60,
       type: TaskType.Focused,
@@ -45,7 +47,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
   const getAvailableDependencies = (currentIndex: number) => {
     return steps.slice(0, currentIndex).map((step, index) => ({
       label: step.name || `Step ${index + 1}`,
-      value: `step-${index}`,
+      value: step.id || `step-${index}`, // Use the actual step ID
     }))
   }
 
@@ -53,9 +55,9 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
     try {
       const values = await form.validate()
 
-      // Build the sequenced task
-      const sequencedSteps: TaskStep[] = steps.map((step, index) => ({
-        id: `step-${index}`,
+      // Build the sequenced task with proper IDs
+      const stepsWithNames: any[] = steps.map((step, index) => ({
+        id: step.id || generateRandomStepId(),
         taskId: '',  // Will be set when saved
         name: step.name || `Step ${index + 1}`,
         duration: step.duration || 60,
@@ -65,8 +67,10 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         status: 'pending' as const,
         stepIndex: index,
         percentComplete: 0,
-        // conditionalBranches: step.conditionalBranches, // Not in TaskStep type
       }))
+      
+      // Map dependencies properly (handles name-based dependencies)
+      const sequencedSteps: TaskStep[] = mapDependenciesToIds(stepsWithNames)
 
       const totalDuration = sequencedSteps.reduce((sum, step) => sum + step.duration, 0)
       const criticalPathDuration = totalDuration + Math.max(...sequencedSteps.map(s => s.asyncWaitTime))

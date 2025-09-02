@@ -269,35 +269,18 @@ export class DatabaseService {
 
     // Create steps if this is a workflow
     if (steps && steps.length > 0) {
-      // Create a mapping from old IDs to new IDs
-      const idMapping: Record<string, string> = {}
-      const stepsWithNewIds = steps.map((step: any, index: number) => {
-        const newId = crypto.randomUUID()
-        // Store mapping if step has an id (like 'step-0')
-        if (step.id) {
-          idMapping[step.id] = newId
-        }
-        return {
-          ...step,
-          id: newId,
-          taskId: task.id,
-          stepIndex: step.stepIndex ?? index,
-        }
-      })
-
-      // Update dependencies to use new IDs
-      const stepsWithUpdatedDependencies = stepsWithNewIds.map((step: any) => ({
-        id: step.id,
-        taskId: step.taskId,
+      // Steps should already have proper IDs from the frontend
+      // If not, generate new ones (for backward compatibility)
+      const stepsWithIds = steps.map((step: any, index: number) => ({
+        id: step.id || crypto.randomUUID(),
+        taskId: task.id,
         name: step.name,
         duration: step.duration,
         type: step.type,
-        dependsOn: JSON.stringify(
-          (step.dependsOn || []).map((depId: string) => idMapping[depId] || depId),
-        ),
+        dependsOn: JSON.stringify(step.dependsOn || []),
         asyncWaitTime: step.asyncWaitTime || 0,
         status: step.status || 'pending',
-        stepIndex: step.stepIndex,
+        stepIndex: step.stepIndex ?? index,
         percentComplete: step.percentComplete ?? 0,
         notes: step.notes || null,
         cognitiveComplexity: step.cognitiveComplexity || null,
@@ -306,7 +289,7 @@ export class DatabaseService {
       }))
 
       await this.client.taskStep.createMany({
-        data: stepsWithUpdatedDependencies,
+        data: stepsWithIds,
       })
 
       // Return task with steps
@@ -371,22 +354,12 @@ export class DatabaseService {
       })
       const existingStepIds = new Set(existingSteps.map(s => s.id))
 
-      // Create mapping for any new steps with temporary IDs
-      const idMapping: Record<string, string> = {}
-
-      // First pass: assign new IDs to steps that need them
+      // First pass: ensure all steps have IDs
       const stepsWithIds = steps.map((step: any) => {
-        // Only treat as temporary if it's not an existing step
-        const isTemporary = !step.id ||
-          (!existingStepIds.has(step.id) && (step.id.startsWith('step-') || step.id.startsWith('temp-')))
-
-        if (isTemporary) {
-          // This is a new step with a temporary ID
-          const newId = crypto.randomUUID()
-          if (step.id) {
-            idMapping[step.id] = newId
-          }
-          return { ...step, id: newId }
+        // If step doesn't have an ID or it's not in existing steps, it's new
+        if (!step.id) {
+          // Generate ID for new step
+          return { ...step, id: crypto.randomUUID() }
         }
         return step
       })
@@ -404,26 +377,14 @@ export class DatabaseService {
       for (let i = 0; i < stepsWithIds.length; i++) {
         const step = stepsWithIds[i]
 
-        // Map dependencies to use new IDs if needed
-        const mappedDependencies = (step.dependsOn || []).map((depId: string) => {
-          // If this dependency ID was mapped, use the new ID
-          if (idMapping[depId]) {
-            return idMapping[depId]
-          }
-          // Otherwise check if it's in the current steps list
-          const depStep = stepsWithIds.find((s: any) =>
-            s.id === depId ||
-            (step.tempId && s.tempId === depId) ||
-            (s.name === depId), // Fallback to name matching
-          )
-          return depStep ? depStep.id : depId
-        })
+        // Dependencies should already be properly mapped from frontend
+        const dependencies = step.dependsOn || []
 
         const stepData = {
           name: step.name,
           duration: step.duration,
           type: step.type,
-          dependsOn: JSON.stringify(mappedDependencies),
+          dependsOn: JSON.stringify(dependencies),
           asyncWaitTime: step.asyncWaitTime || 0,
           stepIndex: i,
           status: step.status || 'pending',
