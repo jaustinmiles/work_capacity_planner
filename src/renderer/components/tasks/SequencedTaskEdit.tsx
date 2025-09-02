@@ -271,10 +271,10 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
     try {
       await stepForm.validate()
       const values = stepForm.getFields()
-      logger.ui.info('Step form values on submit:', { 
-        dependsOn: values.dependsOn, 
+      logger.ui.info('Step form values on submit:', {
+        dependsOn: values.dependsOn,
         dependents: values.dependents,
-        editingStepIndex 
+        editingStepIndex,
       })
 
       if (editingStepIndex !== null) {
@@ -295,10 +295,10 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           importance: values.importance,
           urgency: values.urgency,
         }
-        
-        logger.ui.info('Updated step dependencies:', { 
+
+        logger.ui.info('Updated step dependencies:', {
           stepName: values.name,
-          dependsOn: newSteps[editingStepIndex].dependsOn 
+          dependsOn: newSteps[editingStepIndex].dependsOn,
         })
 
         // Handle reverse dependencies - update other steps to depend on this one
@@ -829,7 +829,7 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                 stepForm.setFieldValue('dependsOn', value)
                 // Force form update to recognize the change
                 stepForm.setFields({
-                  dependsOn: { value }
+                  dependsOn: { value },
                 })
               }}
               reverseDependencies={stepForm.getFieldValue('dependents') || []}
@@ -838,13 +838,13 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                 stepForm.setFieldValue('dependents', value)
                 // Force form update to recognize the change
                 stepForm.setFields({
-                  dependents: { value }
+                  dependents: { value },
                 })
               }}
               showBidirectional={true}
             />
           </div>
-          
+
           {/* Hidden form fields to store the actual values */}
           <FormItem field="dependsOn" hidden>
             <Input />
