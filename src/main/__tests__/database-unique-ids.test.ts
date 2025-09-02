@@ -72,7 +72,7 @@ describe('Database - Unique ID Generation', () => {
     db = DatabaseService.getInstance()
   })
 
-  it('should generate unique IDs for steps even when same step data is used', async () => {
+  it('should preserve step IDs provided from frontend', async () => {
     // Setup mock responses
     mockTaskCreate.mockResolvedValueOnce({ id: 'uuid-task-1' })
     mockTaskStepCreateMany.mockResolvedValueOnce({})
@@ -95,15 +95,15 @@ describe('Database - Unique ID Generation', () => {
       steps: stepData,
     })
 
-    // Verify that createMany was called with new UUIDs, not the provided IDs
+    // Verify that createMany was called with the provided IDs (new behavior)
     expect(mockTaskStepCreateMany).toHaveBeenCalledWith({
       data: [
         expect.objectContaining({
-          id: 'uuid-step-1-1', // New UUID, not 'ai-step-1'
+          id: 'ai-step-1', // Should preserve the provided ID
           name: 'Step 1',
         }),
         expect.objectContaining({
-          id: 'uuid-step-1-2', // New UUID, not 'ai-step-2'
+          id: 'ai-step-2', // Should preserve the provided ID
           name: 'Step 2',
         }),
       ],
@@ -126,27 +126,26 @@ describe('Database - Unique ID Generation', () => {
       steps: stepData, // Same step data with same IDs
     })
 
-    // Verify that createMany was called with different UUIDs for the second workflow
+    // Verify that createMany was called with the same IDs for the second workflow
     expect(mockTaskStepCreateMany).toHaveBeenLastCalledWith({
       data: [
         expect.objectContaining({
-          id: 'uuid-step-2-1', // Different UUID from first workflow
+          id: 'ai-step-1', // Same ID as input
           name: 'Step 1',
         }),
         expect.objectContaining({
-          id: 'uuid-step-2-2', // Different UUID from first workflow
+          id: 'ai-step-2', // Same ID as input
           name: 'Step 2',
         }),
       ],
     })
 
-    // Ensure no duplicate IDs were used
+    // Both calls should use the same IDs since we're using the same step data
     const firstCallIds = mockTaskStepCreateMany.mock.calls[0][0].data.map((s: any) => s.id)
     const secondCallIds = mockTaskStepCreateMany.mock.calls[1][0].data.map((s: any) => s.id)
 
-    const allIds = [...firstCallIds, ...secondCallIds]
-    const uniqueIds = new Set(allIds)
-
-    expect(uniqueIds.size).toBe(allIds.length) // All IDs should be unique
+    // The IDs should be the same across both calls since we're using the same input
+    expect(firstCallIds).toEqual(['ai-step-1', 'ai-step-2'])
+    expect(secondCallIds).toEqual(['ai-step-1', 'ai-step-2'])
   })
 })
