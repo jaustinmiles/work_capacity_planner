@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select, DatePicker } from '@arco-design/web-react'
+import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select, DatePicker, Divider } from '@arco-design/web-react'
 import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload, IconInfoCircle, IconExclamationCircle, IconMinus } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import {
@@ -1360,9 +1360,9 @@ export function VoiceAmendmentModal({
                                   />
                                 </Space>
                               </Space>
-                              
+
                               <Divider style={{ margin: '12px 0' }} />
-                              
+
                               <Text strong>Reverse Dependencies (what depends on this):</Text>
                               <Space direction="vertical" style={{ width: '100%', paddingLeft: 16 }}>
                                 <Space direction="vertical" style={{ width: '100%' }}>

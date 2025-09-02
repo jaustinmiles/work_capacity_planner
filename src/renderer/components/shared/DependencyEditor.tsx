@@ -22,7 +22,7 @@ export interface DependencyEditorProps {
 
 /**
  * Shared component for editing task/workflow dependencies
- * Supports both forward dependencies (what this depends on) and 
+ * Supports both forward dependencies (what this depends on) and
  * reverse dependencies (what depends on this)
  */
 export const DependencyEditor: React.FC<DependencyEditorProps> = ({
@@ -34,7 +34,7 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = ({
   reverseDependencies = [],
   onReverseDependenciesChange,
   showBidirectional = false,
-  disabled = false
+  disabled = false,
 }) => {
   // Filter out current step and calculate available options
   const forwardOptions = useMemo(() => {
@@ -48,7 +48,7 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = ({
       })
       .map(step => ({
         label: step.name,
-        value: step.id
+        value: step.id,
       }))
   }, [availableSteps, currentStepId, reverseDependencies])
 
@@ -63,7 +63,7 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = ({
       })
       .map(step => ({
         label: step.name,
-        value: step.id
+        value: step.id,
       }))
   }, [availableSteps, currentStepId, forwardDependencies])
 
@@ -119,7 +119,7 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = ({
       {showBidirectional && onReverseDependenciesChange && (
         <>
           <Divider style={{ margin: '12px 0' }} />
-          
+
           <Space direction="vertical" style={{ width: '100%' }}>
             <Text strong>Reverse Dependencies</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
