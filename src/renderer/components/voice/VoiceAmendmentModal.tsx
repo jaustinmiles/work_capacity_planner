@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select, DatePicker, Divider } from '@arco-design/web-react'
+import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select, DatePicker } from '@arco-design/web-react'
 import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload, IconInfoCircle, IconExclamationCircle, IconMinus } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import {
@@ -22,6 +22,7 @@ import {
 } from '../../../shared/amendment-types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { logger } from '../../utils/logger'
+import { DependencyEditor } from '../shared/DependencyEditor'
 
 
 const { Title, Text, Paragraph } = Typography
@@ -1326,76 +1327,50 @@ export function VoiceAmendmentModal({
                             </Space>
                           )}
 
-                          {/* Dependency Change Edit UI - Bidirectional */}
-                          {isAmendmentType(amendment, AmendmentType.DependencyChange) && (
-                            <Space direction="vertical" style={{ width: '100%' }}>
-                              <Text style={{ fontWeight: 'bold' }}>Forward Dependencies (what this depends on):</Text>
-                              <Space direction="vertical" style={{ width: '100%', paddingLeft: 16 }}>
-                                <Space direction="vertical" style={{ width: '100%' }}>
-                                  <Text>Add Dependencies:</Text>
-                                  <Select
-                                    mode="tags"
-                                    value={edited.addDependencies || (amendment as DependencyChange).addDependencies || []}
-                                    onChange={(value) => {
-                                      const newEdited = new Map(editedAmendments)
-                                      newEdited.set(index, { ...edited, addDependencies: value })
-                                      setEditedAmendments(newEdited)
-                                    }}
-                                    placeholder="Enter step names this depends on"
-                                    style={{ width: '100%' }}
-                                  />
-                                </Space>
-                                <Space direction="vertical" style={{ width: '100%' }}>
-                                  <Text>Remove Dependencies:</Text>
-                                  <Select
-                                    mode="tags"
-                                    value={edited.removeDependencies || (amendment as DependencyChange).removeDependencies || []}
-                                    onChange={(value) => {
-                                      const newEdited = new Map(editedAmendments)
-                                      newEdited.set(index, { ...edited, removeDependencies: value })
-                                      setEditedAmendments(newEdited)
-                                    }}
-                                    placeholder="Enter step names to remove from dependencies"
-                                    style={{ width: '100%' }}
-                                  />
-                                </Space>
-                              </Space>
+                          {/* Dependency Change Edit UI - Using Unified Component */}
+                          {isAmendmentType(amendment, AmendmentType.DependencyChange) && (() => {
+                            const depChange = amendment as DependencyChange
 
-                              <Divider style={{ margin: '12px 0' }} />
+                            // Get the workflow that contains this step
+                            // The target points to the workflow that contains the step
+                            const targetWorkflow = sequencedTasks.find(w =>
+                              w.id === depChange.target.id ||
+                              w.name === depChange.target.name,
+                            )
 
-                              <Text style={{ fontWeight: 'bold' }}>Reverse Dependencies (what depends on this):</Text>
-                              <Space direction="vertical" style={{ width: '100%', paddingLeft: 16 }}>
-                                <Space direction="vertical" style={{ width: '100%' }}>
-                                  <Text>Add Dependents:</Text>
-                                  <Select
-                                    mode="tags"
-                                    value={edited.addDependents || (amendment as DependencyChange).addDependents || []}
-                                    onChange={(value) => {
-                                      const newEdited = new Map(editedAmendments)
-                                      newEdited.set(index, { ...edited, addDependents: value })
-                                      setEditedAmendments(newEdited)
-                                    }}
-                                    placeholder="Enter step names that should depend on this"
-                                    style={{ width: '100%' }}
-                                  />
-                                </Space>
-                                <Space direction="vertical" style={{ width: '100%' }}>
-                                  <Text>Remove Dependents:</Text>
-                                  <Select
-                                    mode="tags"
-                                    value={edited.removeDependents || (amendment as DependencyChange).removeDependents || []}
-                                    onChange={(value) => {
-                                      const newEdited = new Map(editedAmendments)
-                                      newEdited.set(index, { ...edited, removeDependents: value })
-                                      setEditedAmendments(newEdited)
-                                    }}
-                                    placeholder="Enter step names to stop depending on this"
-                                    style={{ width: '100%' }}
-                                  />
-                                </Space>
-                              </Space>
-                            </Space>
-                          )}
+                            // Get available steps from the workflow
+                            const availableSteps = targetWorkflow?.steps?.map(s => ({
+                              id: s.id,
+                              name: s.name,
+                              stepIndex: s.stepIndex,
+                            })) || []
+
+                            // Create the current amendment state (with edits if any)
+                            const currentAmendment: DependencyChange = {
+                              ...depChange,
+                              ...edited,
+                            }
+
+                            return (
+                              <DependencyEditor
+                                mode="amendment"
+                                amendment={currentAmendment}
+                                onChange={(updated) => {
+                                  const newEdited = new Map(editedAmendments)
+                                  // Only store the changes, not the full amendment
+                                  newEdited.set(index, {
+                                    addDependencies: updated.addDependencies,
+                                    removeDependencies: updated.removeDependencies,
+                                    addDependents: updated.addDependents,
+                                    removeDependents: updated.removeDependents,
+                                  })
+                                  setEditedAmendments(newEdited)
+                                }}
+                                availableSteps={availableSteps}
+                                disabled={false}
+                              />
+                            )
+                          })()}
                         </Space>
                       </Card>
                     )
