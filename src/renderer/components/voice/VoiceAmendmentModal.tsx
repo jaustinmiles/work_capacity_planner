@@ -1329,7 +1329,7 @@ export function VoiceAmendmentModal({
                           {/* Dependency Change Edit UI - Bidirectional */}
                           {isAmendmentType(amendment, AmendmentType.DependencyChange) && (
                             <Space direction="vertical" style={{ width: '100%' }}>
-                              <Text strong>Forward Dependencies (what this depends on):</Text>
+                              <Text style={{ fontWeight: 'bold' }}>Forward Dependencies (what this depends on):</Text>
                               <Space direction="vertical" style={{ width: '100%', paddingLeft: 16 }}>
                                 <Space direction="vertical" style={{ width: '100%' }}>
                                   <Text>Add Dependencies:</Text>
@@ -1363,7 +1363,7 @@ export function VoiceAmendmentModal({
 
                               <Divider style={{ margin: '12px 0' }} />
 
-                              <Text strong>Reverse Dependencies (what depends on this):</Text>
+                              <Text style={{ fontWeight: 'bold' }}>Reverse Dependencies (what depends on this):</Text>
                               <Space direction="vertical" style={{ width: '100%', paddingLeft: 16 }}>
                                 <Space direction="vertical" style={{ width: '100%' }}>
                                   <Text>Add Dependents:</Text>
