@@ -3,19 +3,26 @@ import { renderHook, act } from '@testing-library/react'
 import { useTaskStore } from '../useTaskStore'
 import { TaskType, TaskStatus } from '@shared/enums'
 
-// Create mock functions
-const mockCreateStepWorkSession = vi.fn().mockResolvedValue({})
-const mockUpdateTaskStepProgress = vi.fn().mockResolvedValue({})
-const mockGetSequencedTaskById = vi.fn().mockResolvedValue(null)
-
 // Mock the database
-vi.mock('../../services/database', () => ({
-  getDatabase: vi.fn(() => ({
-    createStepWorkSession: mockCreateStepWorkSession,
-    updateTaskStepProgress: mockUpdateTaskStepProgress,
-    getSequencedTaskById: mockGetSequencedTaskById,
-  })),
-}))
+vi.mock('../../services/database', () => {
+  const mockCreateStepWorkSession = vi.fn().mockResolvedValue({})
+  const mockUpdateTaskStepProgress = vi.fn().mockResolvedValue({})
+  const mockGetSequencedTaskById = vi.fn().mockResolvedValue(null)
+
+  return {
+    getDatabase: vi.fn(() => ({
+      createStepWorkSession: mockCreateStepWorkSession,
+      updateTaskStepProgress: mockUpdateTaskStepProgress,
+      getSequencedTaskById: mockGetSequencedTaskById,
+    })),
+    // Export mocks for test access
+    __mocks: {
+      createStepWorkSession: mockCreateStepWorkSession,
+      updateTaskStepProgress: mockUpdateTaskStepProgress,
+      getSequencedTaskById: mockGetSequencedTaskById,
+    },
+  }
+})
 
 // Mock the logger
 vi.mock('../../utils/logger', () => ({
@@ -24,37 +31,53 @@ vi.mock('../../utils/logger', () => ({
       info: vi.fn(),
       error: vi.fn(),
     },
+    store: {
+      info: vi.fn(),
+      error: vi.fn(),
+    },
   },
 }))
 
 // Mock app events
-vi.mock('../../utils/events', () => ({
-  appEvents: {
-    emit: vi.fn(),
-  },
-  EVENTS: {
-    TIME_LOGGED: 'time-logged',
-  },
-}))
+vi.mock('../../utils/events', () => {
+  const mockEmit = vi.fn()
+  return {
+    appEvents: {
+      emit: mockEmit,
+    },
+    EVENTS: {
+      TIME_LOGGED: 'time-logged',
+    },
+    __mockEmit: mockEmit,
+  }
+})
 
 describe('Notes Persistence in Time Tracking', () => {
-  beforeEach(() => {
+  let mockCreateStepWorkSession: any
+  let mockUpdateTaskStepProgress: any
+
+  beforeEach(async () => {
     vi.clearAllMocks()
+
+    // Get the mocks
+    const dbModule = await import('../../services/database') as any
+    mockCreateStepWorkSession = dbModule.__mocks.createStepWorkSession
+    mockUpdateTaskStepProgress = dbModule.__mocks.updateTaskStepProgress
   })
 
   describe('completeStep', () => {
     it('should save notes to the step when completing', async () => {
       const { result } = renderHook(() => useTaskStore())
-      
+
       // Set up test data
       const stepId = 'step-1'
       const notes = 'Completed this task successfully with some challenges'
       const actualMinutes = 45
-      
+
       await act(async () => {
         await result.current.completeStep(stepId, actualMinutes, notes)
       })
-      
+
       // Verify that updateTaskStepProgress was called with notes
       expect(mockUpdateTaskStepProgress).toHaveBeenCalledWith(
         stepId,
@@ -63,35 +86,35 @@ describe('Notes Persistence in Time Tracking', () => {
           actualDuration: actualMinutes,
           percentComplete: 100,
           notes: notes,
-        })
+        }),
       )
-      
+
       // Verify that createStepWorkSession was called with notes
       expect(mockCreateStepWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
           taskStepId: stepId,
           duration: actualMinutes,
           notes: notes,
-        })
+        }),
       )
     })
 
     it('should not include notes field if no notes provided', async () => {
       const { result } = renderHook(() => useTaskStore())
-      
+
       const stepId = 'step-2'
       const actualMinutes = 30
-      
+
       await act(async () => {
         await result.current.completeStep(stepId, actualMinutes, undefined)
       })
-      
+
       // Verify notes field is not included when not provided
       expect(mockUpdateTaskStepProgress).toHaveBeenCalledWith(
         stepId,
         expect.not.objectContaining({
           notes: expect.anything(),
-        })
+        }),
       )
     })
   })
@@ -99,7 +122,7 @@ describe('Notes Persistence in Time Tracking', () => {
   describe('logWorkSession', () => {
     it('should append notes to existing step notes with timestamp', async () => {
       const { result } = renderHook(() => useTaskStore())
-      
+
       // Add a test step to the store
       const existingStep = {
         id: 'step-3',
@@ -114,7 +137,7 @@ describe('Notes Persistence in Time Tracking', () => {
         percentComplete: 25,
         dependsOn: [],
       }
-      
+
       act(() => {
         result.current.sequencedTasks = [{
           id: 'task-1',
@@ -130,23 +153,23 @@ describe('Notes Persistence in Time Tracking', () => {
           updatedAt: new Date(),
         }]
       })
-      
+
       const newNotes = 'Made good progress on this part'
       const minutes = 20
-      
+
       await act(async () => {
         await result.current.logWorkSession(existingStep.id, minutes, newNotes)
       })
-      
+
       // Verify notes were appended with timestamp
       expect(mockUpdateTaskStepProgress).toHaveBeenCalledWith(
         existingStep.id,
         expect.objectContaining({
           actualDuration: 35, // 15 + 20
           notes: expect.stringContaining('Initial notes from earlier'),
-        })
+        }),
       )
-      
+
       // The notes should contain both old and new with timestamp
       const callArgs = mockUpdateTaskStepProgress.mock.calls[0][1]
       expect(callArgs.notes).toContain('Initial notes from earlier')
@@ -156,7 +179,7 @@ describe('Notes Persistence in Time Tracking', () => {
 
     it('should create notes with timestamp when no existing notes', async () => {
       const { result } = renderHook(() => useTaskStore())
-      
+
       // Add a test step without notes
       const stepWithoutNotes = {
         id: 'step-4',
@@ -171,7 +194,7 @@ describe('Notes Persistence in Time Tracking', () => {
         percentComplete: 0,
         dependsOn: [],
       }
-      
+
       act(() => {
         result.current.sequencedTasks = [{
           id: 'task-2',
@@ -187,14 +210,14 @@ describe('Notes Persistence in Time Tracking', () => {
           updatedAt: new Date(),
         }]
       })
-      
+
       const notes = 'Starting work on this step'
       const minutes = 15
-      
+
       await act(async () => {
         await result.current.logWorkSession(stepWithoutNotes.id, minutes, notes)
       })
-      
+
       // Verify notes were created with timestamp
       const callArgs = mockUpdateTaskStepProgress.mock.calls[0][1]
       expect(callArgs.notes).toMatch(/\d{1,2}\/\d{1,2}\/\d{4}.*Starting work on this step/)
@@ -202,7 +225,7 @@ describe('Notes Persistence in Time Tracking', () => {
 
     it('should not update notes if none provided', async () => {
       const { result } = renderHook(() => useTaskStore())
-      
+
       const step = {
         id: 'step-5',
         taskId: 'task-3',
@@ -216,7 +239,7 @@ describe('Notes Persistence in Time Tracking', () => {
         percentComplete: 20,
         dependsOn: [],
       }
-      
+
       act(() => {
         result.current.sequencedTasks = [{
           id: 'task-3',
@@ -232,17 +255,17 @@ describe('Notes Persistence in Time Tracking', () => {
           updatedAt: new Date(),
         }]
       })
-      
+
       await act(async () => {
         await result.current.logWorkSession(step.id, 15, undefined)
       })
-      
+
       // Verify notes field was not included
       expect(mockUpdateTaskStepProgress).toHaveBeenCalledWith(
         step.id,
         expect.not.objectContaining({
           notes: expect.anything(),
-        })
+        }),
       )
     })
   })
@@ -250,22 +273,22 @@ describe('Notes Persistence in Time Tracking', () => {
   describe('WorkSession records', () => {
     it('should always save notes to WorkSession table', async () => {
       const { result } = renderHook(() => useTaskStore())
-      
+
       const stepId = 'step-6'
       const notes = 'Notes for work session record'
       const minutes = 25
-      
+
       await act(async () => {
         await result.current.logWorkSession(stepId, minutes, notes)
       })
-      
+
       // Verify WorkSession was created with notes
       expect(mockCreateStepWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
           taskStepId: stepId,
           duration: minutes,
           notes: notes,
-        })
+        }),
       )
     })
   })

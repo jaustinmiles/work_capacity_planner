@@ -476,19 +476,19 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           startTime: session.startTime,
           duration: minutesWorked,
         })
-        
+
         // Update step's actual duration
         const step = state.sequencedTasks
           .flatMap(t => t.steps)
           .find(s => s.id === stepId)
-        
+
         if (step) {
           const newActualDuration = (step.actualDuration || 0) + minutesWorked
           await getDatabase().updateTaskStepProgress(stepId, {
             actualDuration: newActualDuration,
           })
         }
-        
+
         // Emit event to update other components
         appEvents.emit(EVENTS.TIME_LOGGED)
         logger.store.info(`Logged ${minutesWorked} minutes for step ${stepId} on pause`)
@@ -547,11 +547,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         // Save notes to the step itself, not just the work session
         ...(notes && { notes }),
       }
-      
+
       if (notes) {
         logger.store.info(`Saving notes to step ${stepId}: "${notes}"`)
       }
-      
+
       await getDatabase().updateTaskStepProgress(stepId, updateData)
 
       // Remove from active sessions
@@ -618,16 +618,16 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
       if (step) {
         const newActualDuration = (step.actualDuration || 0) + minutes
-        
+
         // Append notes to existing step notes if provided
         let updatedNotes = step.notes
         if (notes) {
-          updatedNotes = step.notes 
+          updatedNotes = step.notes
             ? `${step.notes}\n\n${new Date().toLocaleString()}: ${notes}`
             : `${new Date().toLocaleString()}: ${notes}`
           logger.store.info(`Appending notes to step ${stepId}: "${notes}"`)
         }
-        
+
         await getDatabase().updateTaskStepProgress(stepId, {
           actualDuration: newActualDuration,
           ...(notes && { notes: updatedNotes }),

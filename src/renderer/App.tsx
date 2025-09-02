@@ -304,7 +304,7 @@ function App() {
 
       // Find the first pending step or the current in-progress step
       let stepToStart = workflow.steps.find(step => step.status === 'in_progress')
-      
+
       if (!stepToStart) {
         stepToStart = workflow.steps.find(step => step.status === 'pending')
         if (!stepToStart) {
@@ -342,7 +342,7 @@ function App() {
 
       // Find the current in-progress step
       const inProgressStep = workflow.steps.find(step => step.status === 'in_progress')
-      
+
       // Pause time tracking if there's an active step
       if (inProgressStep) {
         await pauseWorkOnStep(inProgressStep.id)
