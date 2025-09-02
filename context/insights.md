@@ -1,6 +1,37 @@
 # Cumulative Insights
 
-## Session: 2025-09-02 (Latest)
+## Session: 2025-09-02, Afternoon (Latest)
+
+### Database ID Management Pattern
+
+#### The Dependency ID Mapping Problem
+**Issue Discovered**: When creating sequenced tasks with dependencies, step IDs would be lost.
+- Steps created with temporary IDs like `step-0`, `step-1`
+- Dependencies reference these temporary IDs
+- Database generates new UUIDs for steps
+- Dependencies become broken, showing "step-0" instead of step names
+
+**Solution Pattern**: ID Mapping During Creation
+```typescript
+// Create mapping from old IDs to new IDs
+const idMapping: Record<string, string> = {}
+const stepsWithNewIds = steps.map((step, index) => {
+  const newId = crypto.randomUUID()
+  if (step.id) {
+    idMapping[step.id] = newId  // Map old to new
+  }
+  return { ...step, id: newId }
+})
+
+// Update dependencies to use new IDs
+const mappedDependencies = step.dependsOn.map(depId => 
+  idMapping[depId] || depId  // Use mapped ID or original
+)
+```
+
+**Key Insight**: When transforming data with relationships, always create ID mappings BEFORE modifying the data, then use the mapping to update all references.
+
+## Session: 2025-09-02, Morning
 
 ### Critical Testing Patterns for Mock Hoisting Issues
 

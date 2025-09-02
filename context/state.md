@@ -1,10 +1,41 @@
 # Current State
 
-## Latest Status (2025-09-02, Morning Session)
+## Latest Status (2025-09-02, Afternoon Session)
 
-### 🚀 Current Session: Multiple Critical Fixes (Branch: fix/ai-brainstorm-clarification-ui)
+### 🚀 Current Session: Bug Fixes and Feature Addition (Branch: fix/ai-brainstorm-clarification-ui)
 
-#### All Tests Fixed (2025-09-02) ✅
+#### Critical Fixes from Feedback (2025-09-02, Afternoon) ✅
+**Addressed 2 bugs and 1 feature from feedback.json:**
+
+1. **Bug Fix: Sequenced Task Creation Failure** ✅
+   - Issue: Duplicate ID constraint violation when creating sequenced tasks
+   - Root Cause: Steps were reusing IDs from existing tasks
+   - Fix: Always generate new UUIDs for task steps in database.ts
+
+2. **Bug Fix: Dependency Wiring Not Working** ✅
+   - Issue: Dependencies showed "step-0" instead of actual step names
+   - Root Cause: When creating tasks, temporary IDs (step-0, step-1) weren't mapped to new UUIDs
+   - Fix: Created ID mapping system to update dependencies when steps get new IDs
+   - Also fixed updateTask to handle dependency mapping correctly
+
+3. **Feature: Task Type Filter** ✅
+   - Added filter dropdown to TaskList component
+   - Users can filter by: All Tasks, Focused, Admin, or Personal
+   - Shows count of filtered vs total tasks
+   - Title updates to show active filter
+
+4. **Additional Fix: Workflow Type Selection** ✅
+   - Added ability to select Personal type for workflows (not just steps)
+   - Workflow edit mode now shows type selector with all three options
+   - Personal workflows can now be properly created and scheduled
+
+#### Test Status
+- **Work Sessions Test**: Fixed - was failing due to ID mapping logic
+- **No-Overlap Scheduling Test**: Fixed - capacity format issue
+- **TaskList Filter Tests**: 4 tests still failing due to Arco component mocking issues
+- **Overall**: 434/439 tests passing
+
+#### All Tests Fixed (2025-09-02, Morning) ✅
 - Fixed 3 failing tests in notes-persistence.test.ts
 - Issue was mock hoisting - needed to export mocks via __mocks property
 - Added missing logger.store mock
