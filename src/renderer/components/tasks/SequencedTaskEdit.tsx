@@ -72,6 +72,9 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
   const [showStepModal, setShowStepModal] = useState(false)
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null)
   const [stepForm] = Form.useForm()
+  // Local state for dependencies to ensure UI updates properly
+  const [_stepDependencies, setStepDependencies] = useState<string[]>([])
+  const [_stepDependents, setStepDependents] = useState<string[]>([])
 
   // Load logged times for all steps
   useEffect(() => {
@@ -260,8 +263,13 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
         importance: step.importance,
         urgency: step.urgency,
       })
+      // Also set local state for dependencies
+      setStepDependencies(convertedDependencies)
+      setStepDependents(dependents)
     } else {
       stepForm.resetFields()
+      setStepDependencies([])
+      setStepDependents([])
     }
     setEditingStepIndex(index)
     setShowStepModal(true)

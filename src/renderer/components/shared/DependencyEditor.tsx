@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { Space, Typography, Select, Divider, Tag, Alert } from '@arco-design/web-react'
 import { DependencyChange } from '@shared/amendment-types'
+import { logger } from '../../utils/logger'
 
 const { Text } = Typography
 
@@ -139,13 +140,28 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = (props) => {
     }
   }
 
-  const handleForwardChange = (value: string[]) => {
-    // Remove any that would create circular dependencies
-    const filtered = value.filter(v => !reverseDependencies.includes(v))
+  const handleForwardChange = (value: string[] | undefined) => {
+    // Handle undefined or null value as empty array
+    const newValue = value || []
+
+    logger.ui.debug('DependencyEditor: Forward dependencies changed', {
+      mode: isAmendmentMode ? 'amendment' : 'direct',
+      currentStepName,
+      previousValue: forwardDependencies,
+      newValue,
+      reverseDependencies,
+    })
+
+    // Only filter for circular dependencies when adding, not when removing
+    const filtered = newValue.filter(v => !reverseDependencies.includes(v))
 
     if (isAmendmentMode) {
       // Update the amendment
       const amendmentProps = props as AmendmentModeProps
+      logger.ui.debug('DependencyEditor: Updating amendment', {
+        stepName: amendmentProps.amendment.stepName,
+        addDependencies: filtered,
+      })
       amendmentProps.onChange({
         ...amendmentProps.amendment,
         addDependencies: filtered,
@@ -153,7 +169,11 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = (props) => {
     } else {
       // Update direct dependencies
       const directProps = props as DirectModeProps
-      directProps.onForwardDependenciesChange(filtered)
+      logger.ui.debug('DependencyEditor: Updating direct dependencies', {
+        currentStepId,
+        newDependencies: newValue,
+      })
+      directProps.onForwardDependenciesChange(newValue)
     }
   }
 
