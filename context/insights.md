@@ -1,6 +1,55 @@
 # Cumulative Insights
 
-## Session: 2025-09-02, Late Evening (Latest)
+## Session: 2025-09-02, PR Review Response (Latest)
+
+### Component Unification After Code Review
+
+#### The Power of Code Review Feedback
+**Review Comment**: "Please let's try to unify and reuse code as much as possible. This goes for UI components as well as utility code for dependency parsing."
+
+**Response Strategy**:
+1. Created unified `DependencyEditor` component supporting both modes
+2. Extracted shared utilities into `dependency-utils.ts`
+3. Deleted duplicate `DependencyChangeEdit` component
+4. Updated all consumers to use unified components
+
+#### Multi-Mode Component Design Pattern
+**Challenge**: Supporting different data formats in one component (direct IDs vs amendment operations).
+
+**Solution**: Discriminated union types with mode-based behavior:
+```typescript
+// Support both direct editing and amendment modes
+export type DependencyEditorProps = DirectModeProps | AmendmentModeProps
+
+export const DependencyEditor: React.FC<DependencyEditorProps> = (props) => {
+  const mode = props.mode || 'direct'
+  const isAmendmentMode = mode === 'amendment'
+  
+  // Type narrowing for proper TypeScript support
+  if (isAmendmentMode && props.mode === 'amendment') {
+    // Amendment mode logic
+  } else {
+    const directProps = props as DirectModeProps
+    // Direct mode logic
+  }
+}
+```
+
+**Key Learning**: Don't create separate components for similar functionality. Use discriminated unions and mode switches to handle variations.
+
+#### Shared Utility Extraction Pattern
+**Before**: Dependency logic duplicated in amendment-applicator.ts.
+
+**After**: Extracted to dependency-utils.ts:
+- `applyForwardDependencyChanges()`
+- `applyReverseDependencyChanges()`
+- `getDependencyNames()`
+- `getDependencyIds()`
+- `wouldCreateCircularDependency()`
+
+**Benefit**: Amendment applicator reduced from 80+ lines to 10 lines for dependency logic.
+
+## Session: 2025-09-02, Late Evening
 
 ### Component Unification Strategy
 
