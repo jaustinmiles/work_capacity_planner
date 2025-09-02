@@ -65,6 +65,60 @@
 - Types: `/src/shared/types.ts`
 - Enums: `/src/shared/enums.ts`
 
+## Session: 2025-09-02 Decisions
+
+### Time Tracking Data Architecture
+**Decision**: Dual storage pattern for time tracking
+**Implementation**:
+- `WorkSession` table stores immutable work period records
+- `TaskStep.notes` and `TaskStep.actualDuration` store aggregated state
+- Notes saved to BOTH locations for different use cases
+**Rationale**:
+- WorkSession provides audit trail and detailed history
+- TaskStep provides quick current state without aggregation queries
+- Supports both historical analysis and quick UI updates
+
+### Work Session Time Direction
+**Decision**: All work sessions end at current time and extend backward
+**Implementation**: `startTime = new Date(Date.now() - minutes * 60000)`
+**Rationale**:
+- Prevents future time entries that confuse users
+- Matches user mental model: "I just worked for X minutes"
+- Consistent with how people think about time tracking
+
+### Mock Hoisting Pattern for Tests
+**Decision**: Define mocks inline within vi.mock() and export via __mocks
+**Implementation**:
+```typescript
+vi.mock('./module', () => {
+  const mockFn = vi.fn()
+  return {
+    getDatabase: () => ({ method: mockFn }),
+    __mocks: { mockFn }
+  }
+})
+```
+**Rationale**:
+- Vitest hoists vi.mock() calls, making external variables undefined
+- Inline definition ensures mocks are available during hoisting
+- __mocks export allows test access to mock functions
+
+### Async Store Methods for Database Operations  
+**Decision**: Make store methods async when they perform database operations
+**Example**: Changed `pauseWorkOnStep` to async
+**Rationale**:
+- Database operations are inherently asynchronous
+- Ensures operations complete before UI updates
+- Prevents race conditions in time tracking
+
+### Pre-Push Hook Enforcement
+**Decision**: NEVER bypass pre-push hooks with --no-verify
+**Rationale**:
+- Hooks catch issues before they reach CI/CD
+- Saves reviewer time and maintains code quality
+- Shows confidence in code changes
+- User explicitly forbade this practice
+
 ## Recently Completed Decisions
 
 ### Scheduling Engine Consolidation (2025-08-17)

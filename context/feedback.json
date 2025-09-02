@@ -948,7 +948,8 @@
     "expected": "Starting and stopping a workflow should track time similar to all of the other tracking and time logging modules. When work is completed in a pause from my workflow, I should see work logging and work sessions appear on all components",
     "actual": "Starting and stopping, the workflow does not cause any log work to appear",
     "timestamp": "2025-09-01T22:13:08.578Z",
-    "sessionId": "session-1756764788570-di8tlyz3n"
+    "sessionId": "session-1756764788570-di8tlyz3n",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -972,7 +973,8 @@
     "description": "I've been using time tracking and writing notes as I complete workflow steps. But now when I look at the workflow steps, I don't see any of my notes! where did they go, were they ever saved?",
     "steps": "1. log time on a workflow step\n2. write a note in the textbox\n3. click save and complete step\n4. go to workflow step view (edit mode)\n5. observe no notes were saved. ",
     "timestamp": "2025-09-01T23:15:10.576Z",
-    "sessionId": "session-1756768510568-tse8jsnwv"
+    "sessionId": "session-1756768510568-tse8jsnwv",
+    "resolved": true
   },
   {
     "type": "bug",

@@ -1,6 +1,108 @@
 # Cumulative Insights
 
-## Session: 2025-08-31 (Latest)
+## Session: 2025-09-02 (Latest)
+
+### Critical Testing Patterns for Mock Hoisting Issues
+
+#### The Mock Hoisting Problem
+**Issue Discovered**: Tests were failing with "mockUpdateTaskStepProgress not called" even though the code was correct.
+
+**Root Cause**: Vitest hoists `vi.mock()` calls to the top of the file, but variables defined outside the mock are undefined during hoisting.
+
+**Failed Pattern**:
+```typescript
+// This FAILS - variables are undefined when mock is hoisted
+const mockFunction = vi.fn()
+vi.mock('./module', () => ({
+  getDatabase: () => ({ someMethod: mockFunction })
+}))
+```
+
+**Successful Pattern**:
+```typescript
+// This WORKS - define mocks inline and export for test access
+vi.mock('./module', () => {
+  const mockFunction = vi.fn()
+  return {
+    getDatabase: () => ({ someMethod: mockFunction }),
+    __mocks: { mockFunction } // Export for test access
+  }
+})
+
+// Then in beforeEach, retrieve the mocks
+beforeEach(async () => {
+  const module = await import('./module')
+  const mockFunction = module.__mocks.mockFunction
+})
+```
+
+### Time Tracking Architecture Insights
+
+#### Dual Storage Pattern
+**Discovery**: Time tracking data is stored in two places:
+1. `WorkSession` table - Immutable historical records of work periods
+2. `TaskStep.notes` and `TaskStep.actualDuration` - Aggregated current state
+
+**Why This Matters**: 
+- WorkSession provides audit trail and detailed history
+- TaskStep provides quick access to current totals without aggregation queries
+- Notes must be saved to BOTH places for different use cases
+
+#### Time Direction Principle
+**Critical Insight**: All work sessions should END at the current time and extend BACKWARD.
+- Prevents future time entries that confuse users
+- Matches mental model: "I just worked for X minutes" 
+- Calculation: `startTime = now - duration * 60000`
+
+### Workflow UI Connection Pattern
+
+#### The Hidden Integration Gap
+**Problem**: Workflow Start/Pause buttons in App.tsx updated visual state but didn't track time.
+
+**Root Cause**: UI components and store methods evolved separately:
+- Store had `startWorkOnStep` and `pauseWorkOnStep` methods
+- UI had its own status management logic
+- No one connected them together
+
+**Lesson**: When fixing time tracking bugs, check THREE layers:
+1. Store methods (business logic)
+2. Database operations (persistence)
+3. UI components (user interaction)
+
+### Development Workflow Excellence
+
+#### The --no-verify Antipattern
+**Critical Learning**: NEVER use `git push --no-verify` to bypass pre-push hooks.
+- Pre-push hooks catch issues before they hit CI
+- Bypassing them wastes reviewer time
+- Shows lack of confidence in code quality
+- User explicitly stated: "never use no-verify ever again"
+
+#### Test-First Bug Fixing
+**Successful Pattern Used**:
+1. Write comprehensive tests for the expected behavior
+2. Run tests to confirm they fail (validates test quality)
+3. Implement the fix
+4. Run tests to confirm they pass
+5. Check for regression in other tests
+
+This approach caught several issues:
+- Missing logger mocks
+- Incorrect mock structure
+- Trailing spaces and unused variables
+
+### Code Review Readiness Checklist
+**What Made PR #43 "basically perfect"**:
+1. ✅ Comprehensive test coverage for all changes
+2. ✅ TypeScript: 0 errors
+3. ✅ ESLint: 0 errors (warnings only in scripts/)
+4. ✅ All existing tests still passing
+5. ✅ Clear commit messages explaining each change
+6. ✅ PR description with problem/solution/testing sections
+7. ✅ No use of --no-verify flag
+8. ✅ Atomic commits (one logical change per commit)
+
+## Session: 2025-08-31
 
 ### CRITICAL Testing Best Practices Learned
 
