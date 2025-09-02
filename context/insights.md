@@ -1,5 +1,25 @@
 # Cumulative Insights
 
+## PR Review Process Insights (2025-09-02)
+
+### Always Check GitHub Comments Directly
+- Terminal mentions of "PR review feedback" are not enough
+- Must use `gh pr view [PR#] --comments` or check GitHub UI directly
+- Each comment represents a specific issue that needs addressing
+- Ignoring comments leads to wrong implementations
+- Circular patterns in code are a red flag - simplify the flow
+
+### Understanding "Circular" Feedback
+When a reviewer says something "seems circular":
+1. They're seeing a confusing bidirectional data flow
+2. Component A updates Component B which updates Component A
+3. This creates unpredictable behavior and infinite loops
+4. Solution: Make data flow unidirectional with clear ownership
+
+Example from our codebase:
+- **Problem**: DependencyEditor's onChange called parent's onChange which updated form which re-rendered DependencyEditor
+- **Solution**: Use local state in parent, pass value down, receive changes up, update form separately
+
 ## Session: 2025-09-02, PR Review Response (Latest)
 
 ### Component Unification After Code Review

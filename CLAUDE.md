@@ -42,6 +42,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 5. **Verify Quality**: Run format → lint → typecheck → test
 6. **Commit Atomically**: One logical change per commit with clear messages
 
+### 🔍 PR REVIEW PROTOCOL - MANDATORY
+**Before making ANY changes based on PR feedback:**
+1. **Check GitHub PR Comments**: Use `gh pr view [PR#] --comments` to see all review comments
+2. **Address EVERY Comment**: Each comment must be either:
+   - Fixed with a code change
+   - Responded to with explanation why not changed
+   - Discussed with reviewer if unclear
+3. **Never ignore review comments** - This is a critical failure
+4. **Look for patterns** in feedback - recurring issues indicate systematic problems
+
+**Best Practices (from user feedback):**
+1. Always make changes on a developer feature branch
+2. Maintain user stories and enable beta test walkthrough
+3. Ensure all tests pass, typecheck runs with no errors, no linting issues
+4. Add user requests to todo list, complete in order unless directed otherwise
+5. Keep context/ folder updated, sync README, TECH_DEBT, CLAUDE.md, docs/
+6. Constantly improve test coverage, develop with testing in mind
+7. Minimize lint warnings (okay to have some, but reduce when possible)
+8. Check periodically for dead code, inconsistencies, refactoring opportunities
+9. Use lint autofix functionality to clean up code
+10. Check feedback.json using utility scripts, ensure changes address feedback
+11. All new code for a PR must be tested
+12. Frequently check with user to verify you're on the right track
+13. Never push without tests, lint, and typecheck passing
+14. Update documentation, context, and project knowledge frequently
+15. All functionality must use custom logger module
+16. Write tests one at a time, verify each passes before continuing
+17. Cannot merge PRs with less code coverage than main
+18. **All PR review feedback must be addressed and comments resolved**
+
 ### 📍 Single Source of Truth Rules
 
 **Authoritative Sources:**

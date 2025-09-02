@@ -1,8 +1,8 @@
 # Current State
 
-## Latest Status (2025-09-02, Late Evening Session)
+## Latest Status (2025-09-02, Late Evening Session - Continued)
 
-### 🚀 Current Session: Bidirectional Dependencies & Bug Fixes (Branch: fix/amendments-and-periodic-events)
+### 🚀 Current Session: Enhanced Logging & PR Review Fixes (Branch: fix/amendments-and-periodic-events)
 
 #### Completed Improvements (2025-09-02, Evening) ✅
 
@@ -18,6 +18,23 @@
    - Enhanced `SequencedTaskEdit` with full bidirectional dependency management
    - Updated `VoiceAmendmentModal` to support editing both directions
    - All tests passing (449 passed, 46 skipped)
+
+3. **PR Review Feedback Addressed** ✅
+   - Created unified `dependency-utils.ts` with shared dependency logic
+   - Extended `DependencyEditor` to support both direct and amendment modes
+   - Removed duplicate `DependencyChangeEdit` component
+   - Increased test coverage from 23.51% to 24.57%
+   - Added 31 new tests for dependency utilities and editor
+
+4. **Enhanced Logging System** ✅
+   - Added comprehensive logging to `DependencyEditor` for debugging UI issues
+   - Implemented pattern-based log filtering in `LogViewer`:
+     - Automatically groups similar errors by pattern
+     - Hide/show error patterns with single click
+     - Shows count of hidden logs per pattern
+     - Helps reduce log spam from repetitive errors
+   - Enhanced amendment applicator with detailed logging
+   - Fixed dependency removal issue in workflow step edit modal
 
 ### 🚀 Previous Session: Bug Fixes and Feature Addition (Branch: fix/feedback-bugs-and-feature)
 
@@ -340,5 +357,20 @@
 - `src/renderer/components/schedule/ScheduleGenerator.tsx` - Removed hardcoded weekend logic
 - Multiple test files updated for new architecture
 
+### 📚 Lessons Learned
+
+#### PR Review Process Failure (2025-09-02)
+**Issue**: Failed to check actual GitHub PR comments before implementing fixes
+**Impact**: Implemented wrong solution, created circular dependency pattern
+**Root Cause**: No clear instruction to check PR comments directly
+**Fix**: Added PR Review Protocol to CLAUDE.md and best-practices.md
+**Prevention**: Always use `gh pr view` to check comments before starting work
+
+**Specific Failure**:
+- User pointed out circular onChange pattern in DependencyEditor
+- Comment: "this almost feels circular... handleDependenciesChange is calling onChange(), but onChange() is defined to call handleDependencies"
+- I didn't read this comment and instead made superficial fixes
+- Result: Wasted time on wrong solution, user frustration
+
 ---
-*Last Updated: 2025-08-30 (Post PR #38 merge)*
+*Last Updated: 2025-09-02 (Added lessons learned)*

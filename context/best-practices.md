@@ -129,6 +129,46 @@ Your code is ready for review when:
 - You can explain every change made
 - You're confident in the solution
 
+## PR Review Response Protocol
+
+### Mandatory Steps When Addressing Review Feedback
+1. **Retrieve all comments**: Use `gh pr view [PR#] --comments` or check GitHub UI
+2. **Create a checklist** of all feedback items
+3. **Address each item**:
+   - Implement requested changes
+   - OR explain why change wasn't made
+   - OR ask for clarification if unclear
+4. **Verify circular dependencies**: If reviewer mentions circular patterns, trace the full flow
+5. **Test the actual user flow**: Don't just run unit tests, manually verify the fix works
+6. **Document what was changed** in response to each comment
+
+### Common Review Feedback Patterns
+- **"This seems circular"**: You have a confusing dependency chain, simplify the flow
+- **"Where is this defined?"**: Missing imports, unclear variable sources, or poor naming
+- **"Why is this different?"**: Inconsistent patterns, should reuse existing code
+- **Code duplication**: Extract to shared utilities or components
+- **Unclear logic**: Add comments or refactor for clarity
+
+### Example: Circular Dependency Pattern
+When reviewer says "this seems circular":
+```javascript
+// ❌ BAD - Circular pattern
+Component passes onChange to DependencyEditor
+  → DependencyEditor calls onChange
+  → onChange updates form
+  → Form triggers re-render
+  → Component passes new onChange to DependencyEditor
+  → Creates confusion about data flow
+
+// ✅ GOOD - Clear unidirectional flow
+Component has local state
+  → Passes state value to DependencyEditor
+  → DependencyEditor calls onChange with new value
+  → Component updates local state
+  → Component updates form for submission
+  → Clear data flow
+```
+
 ## Performance Considerations
 
 - Batch database operations when possible
