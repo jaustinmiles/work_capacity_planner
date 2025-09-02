@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
+import { DependencyEditor } from '../shared/DependencyEditor'
 import {
   Card,
   Space,
@@ -242,12 +243,18 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
         return matchingStep ? matchingStep.id : dep
       })
 
+      // Calculate which steps depend on this step (reverse dependencies)
+      const dependents = editingSteps
+        .filter((s, idx) => idx !== index && s.dependsOn.includes(step.id))
+        .map(s => s.id)
+      
       stepForm.setFieldsValue({
         name: step.name,
         duration: step.duration,
         type: step.type,
         asyncWaitTime: step.asyncWaitTime,
         dependsOn: convertedDependencies,
+        dependents: dependents,  // Add reverse dependencies
         notes: step.notes || '',
         cognitiveComplexity: step.cognitiveComplexity || 3,
         importance: step.importance,
@@ -268,6 +275,9 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
       if (editingStepIndex !== null) {
         // Edit existing step
         const newSteps = [...editingSteps]
+        const currentStepId = newSteps[editingStepIndex].id
+        
+        // Update the current step
         newSteps[editingStepIndex] = {
           ...newSteps[editingStepIndex],
           name: values.name,
@@ -280,12 +290,31 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           importance: values.importance,
           urgency: values.urgency,
         }
+        
+        // Handle reverse dependencies - update other steps to depend on this one
+        const reverseDeps = values.dependents || []
+        newSteps.forEach((step, idx) => {
+          if (idx !== editingStepIndex) {
+            const shouldDepend = reverseDeps.includes(step.id)
+            const currentlyDepends = step.dependsOn.includes(currentStepId)
+            
+            if (shouldDepend && !currentlyDepends) {
+              // Add this step as a dependency
+              step.dependsOn = [...step.dependsOn, currentStepId]
+            } else if (!shouldDepend && currentlyDepends) {
+              // Remove this step as a dependency
+              step.dependsOn = step.dependsOn.filter(id => id !== currentStepId)
+            }
+          }
+        })
+        
         setEditingSteps(newSteps)
       } else {
         // Add new step with proper ID
         const newStepIndex = editingSteps.length
+        const newStepId = `step-${editedTask.id}-${newStepIndex}`
         const newStep: EditingStep = {
-          id: `step-${editedTask.id}-${newStepIndex}`,
+          id: newStepId,
           tempId: `temp-${Date.now()}`,
           taskId: editedTask.id || '',
           name: values.name,
@@ -301,7 +330,19 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           importance: values.importance,
           urgency: values.urgency,
         }
-        setEditingSteps([...editingSteps, newStep])
+        
+        // Handle reverse dependencies for new step
+        const newSteps = [...editingSteps]
+        const reverseDeps = values.dependents || []
+        
+        // Update existing steps to depend on the new step if specified
+        newSteps.forEach(step => {
+          if (reverseDeps.includes(step.id) && !step.dependsOn.includes(newStepId)) {
+            step.dependsOn = [...step.dependsOn, newStepId]
+          }
+        })
+        
+        setEditingSteps([...newSteps, newStep])
       }
 
       setShowStepModal(false)
@@ -759,31 +800,21 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
             </Select>
           </FormItem>
 
-          <FormItem
-            label="Dependencies"
-            field="dependsOn"
-            initialValue={[]}
-            help="Select which steps must complete before this step can start"
-          >
-            <Select
-              mode="multiple"
-              placeholder="Select steps this depends on"
-              allowClear
-              value={stepForm.getFieldValue('dependsOn')}
-              onChange={(value) => stepForm.setFieldValue('dependsOn', value)}
-            >
-              {editingSteps.map((step, index) => {
-                // Don't allow depending on self or steps after this one
-                if (index !== editingStepIndex && (editingStepIndex === null || index < editingStepIndex)) {
-                  return (
-                    <Select.Option key={step.id || `index-${index}`} value={step.id}>
-                      {step.name}
-                    </Select.Option>
-                  )
-                }
-                return null
-              })}
-            </Select>
+          <FormItem label="Dependencies">
+            <DependencyEditor
+              currentStepId={editingStepIndex !== null ? editingSteps[editingStepIndex]?.id : undefined}
+              currentStepName={editingStepIndex !== null ? editingSteps[editingStepIndex]?.name : 'this step'}
+              availableSteps={editingSteps.map((step, idx) => ({
+                id: step.id,
+                name: step.name,
+                stepIndex: idx
+              }))}
+              forwardDependencies={stepForm.getFieldValue('dependsOn') || []}
+              onForwardDependenciesChange={(value) => stepForm.setFieldValue('dependsOn', value)}
+              reverseDependencies={stepForm.getFieldValue('dependents') || []}
+              onReverseDependenciesChange={(value) => stepForm.setFieldValue('dependents', value)}
+              showBidirectional={true}
+            />
           </FormItem>
 
           <FormItem
