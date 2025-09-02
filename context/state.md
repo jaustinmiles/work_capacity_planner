@@ -17,13 +17,16 @@
 
 #### High Priority Bug #4 Fixed (2025-09-01) 🔴 → ✅
 **Issue**: Workflow start/stop not tracking time
-- **Root Cause**: pauseWorkOnStep didn't create WorkSession records
+- **Root Cause**: Two issues found:
+  1. pauseWorkOnStep didn't create WorkSession records
+  2. Workflow-level Start/Pause buttons didn't call time tracking functions
 - **Impact**: Time spent working was lost when pausing workflow steps
 - **Fix Applied**:
   1. Updated pauseWorkOnStep to create WorkSession when pausing
-  2. Ensures all work sessions end at current time and extend backward
-  3. Fixed time direction for all WorkSession creation
-  4. Added automatic duration updates when pausing
+  2. Connected workflow Start/Pause buttons to time tracking functions
+  3. Ensures all work sessions end at current time and extend backward
+  4. Fixed time direction for all WorkSession creation
+  5. Added automatic duration updates when pausing
 - **Test Coverage**: Added 7 comprehensive tests for workflow time tracking
 
 #### Time Direction Fix (2025-09-01) ✅
