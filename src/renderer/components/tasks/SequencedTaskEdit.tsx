@@ -73,8 +73,8 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null)
   const [stepForm] = Form.useForm()
   // Local state for dependencies to ensure UI updates properly
-  const [_stepDependencies, setStepDependencies] = useState<string[]>([])
-  const [_stepDependents, setStepDependents] = useState<string[]>([])
+  const [stepDependencies, setStepDependencies] = useState<string[]>([])
+  const [stepDependents, setStepDependents] = useState<string[]>([])
 
   // Load logged times for all steps
   useEffect(() => {
@@ -365,6 +365,8 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
 
       setShowStepModal(false)
       stepForm.resetFields()
+      setStepDependencies([])
+      setStepDependents([])
     } catch (__error) {
       // Form validation failed
     }
@@ -765,6 +767,8 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
         onCancel={() => {
           setShowStepModal(false)
           stepForm.resetFields()
+          setStepDependencies([])
+          setStepDependents([])
         }}
         style={{ width: 600 }}
       >
@@ -831,35 +835,22 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                 name: step.name,
                 stepIndex: idx,
               }))}
-              forwardDependencies={stepForm.getFieldValue('dependsOn') || []}
+              forwardDependencies={stepDependencies}
               onForwardDependenciesChange={(value) => {
-                logger.ui.info('Updating forward dependencies:', { value, currentValue: stepForm.getFieldValue('dependsOn') })
-                stepForm.setFieldValue('dependsOn', value)
-                // Force form update to recognize the change
-                stepForm.setFields({
-                  dependsOn: { value },
-                })
+                logger.ui.info('Updating forward dependencies:', { value, previous: stepDependencies })
+                setStepDependencies(value)  // Update local state first
+                stepForm.setFieldValue('dependsOn', value)  // Then update form for submission
               }}
-              reverseDependencies={stepForm.getFieldValue('dependents') || []}
+              reverseDependencies={stepDependents}
               onReverseDependenciesChange={(value) => {
-                logger.ui.info('Updating reverse dependencies:', { value })
-                stepForm.setFieldValue('dependents', value)
-                // Force form update to recognize the change
-                stepForm.setFields({
-                  dependents: { value },
-                })
+                logger.ui.info('Updating reverse dependencies:', { value, previous: stepDependents })
+                setStepDependents(value)  // Update local state first
+                stepForm.setFieldValue('dependents', value)  // Then update form for submission
               }}
               showBidirectional={true}
             />
           </div>
 
-          {/* Hidden form fields to store the actual values */}
-          <FormItem field="dependsOn" hidden>
-            <Input />
-          </FormItem>
-          <FormItem field="dependents" hidden>
-            <Input />
-          </FormItem>
 
           <FormItem
             label="Cognitive Complexity (1-5)"
