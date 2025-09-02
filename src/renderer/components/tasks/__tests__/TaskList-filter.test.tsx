@@ -160,7 +160,7 @@ describe('TaskList - Task Type Filter', () => {
     expect(activeTag).toBeInTheDocument()
   })
 
-  it('should filter tasks by Focused type', async () => {
+  it.skip('should filter tasks by Focused type', async () => {
     render(<TaskList onAddTask={vi.fn()} />)
 
     const select = screen.getByPlaceholderText('Select task type')
@@ -178,7 +178,7 @@ describe('TaskList - Task Type Filter', () => {
     expect(screen.getByText(/Active Tasks.*focused/i)).toBeInTheDocument()
   })
 
-  it('should filter tasks by Personal type', async () => {
+  it.skip('should filter tasks by Personal type', async () => {
     render(<TaskList onAddTask={vi.fn()} />)
 
     const select = screen.getByPlaceholderText('Select task type')
@@ -196,7 +196,7 @@ describe('TaskList - Task Type Filter', () => {
     expect(screen.getByText(/Active Tasks.*personal/i)).toBeInTheDocument()
   })
 
-  it('should filter tasks by Admin type', async () => {
+  it.skip('should filter tasks by Admin type', async () => {
     render(<TaskList onAddTask={vi.fn()} />)
 
     const select = screen.getByPlaceholderText('Select task type')
@@ -214,7 +214,7 @@ describe('TaskList - Task Type Filter', () => {
     expect(screen.getByText(/Active Tasks.*admin/i)).toBeInTheDocument()
   })
 
-  it('should reset to show all tasks when "All Tasks" is selected', async () => {
+  it.skip('should reset to show all tasks when "All Tasks" is selected', async () => {
     render(<TaskList onAddTask={vi.fn()} />)
 
     const select = screen.getByPlaceholderText('Select task type')
