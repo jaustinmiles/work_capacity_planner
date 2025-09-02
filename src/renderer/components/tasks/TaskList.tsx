@@ -28,8 +28,8 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const rendererLogger = newLogger as RendererLogger
 
   // Apply task type filter
-  const filteredTasks = taskTypeFilter === 'all' 
-    ? tasks 
+  const filteredTasks = taskTypeFilter === 'all'
+    ? tasks
     : tasks.filter(task => task.type === taskTypeFilter)
 
   const incompleteTasks = filteredTasks.filter(task => !task.completed)

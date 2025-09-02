@@ -12,7 +12,7 @@ describe('No Overlap Scheduling', () => {
   it('should not schedule multiple items at the same time when starting mid-block', () => {
     // Set current time to middle of a work block
     const now = new Date('2025-09-02T09:30:00')
-    
+
     // Create tasks that should be scheduled
     const tasks: Task[] = [
       {
@@ -86,36 +86,36 @@ describe('No Overlap Scheduling', () => {
     // Check that no two items have the same start time
     const startTimes = scheduledItems.map(item => item.startTime.getTime())
     const uniqueStartTimes = new Set(startTimes)
-    
+
     expect(uniqueStartTimes.size).toBe(startTimes.length)
-    
+
     // Verify items are scheduled sequentially, not overlapping
     for (let i = 0; i < scheduledItems.length - 1; i++) {
       const currentItem = scheduledItems[i]
       const nextItem = scheduledItems[i + 1]
-      
+
       // Next item should start when current item ends (or later)
       expect(nextItem.startTime.getTime()).toBeGreaterThanOrEqual(currentItem.endTime.getTime())
     }
 
     // First item should start at current time (9:30 AM)
     expect(scheduledItems[0].startTime.getTime()).toBe(now.getTime())
-    
+
     // Second item should start when first ends (10:00 AM)
     expect(scheduledItems[1].startTime.getTime()).toBe(
-      scheduledItems[0].endTime.getTime()
+      scheduledItems[0].endTime.getTime(),
     )
-    
+
     // Third item should start when second ends (10:30 AM)
     expect(scheduledItems[2].startTime.getTime()).toBe(
-      scheduledItems[1].endTime.getTime()
+      scheduledItems[1].endTime.getTime(),
     )
   })
 
   it('should handle multiple items being scheduled in a block that has already started', () => {
     // Current time is 2:00 PM, block started at 1:30 PM
     const now = new Date('2025-09-02T14:00:00')
-    
+
     const workflows = [
       {
         id: 'workflow-1',
@@ -190,8 +190,8 @@ describe('No Overlap Scheduling', () => {
     )
 
     // All 3 workflow steps should be scheduled
-    const workflowSteps = scheduledItems.filter(item => 
-      item.type === 'workflow-step'
+    const workflowSteps = scheduledItems.filter(item =>
+      item.type === 'workflow-step',
     )
     expect(workflowSteps).toHaveLength(3)
 
@@ -199,10 +199,10 @@ describe('No Overlap Scheduling', () => {
     for (let i = 0; i < workflowSteps.length - 1; i++) {
       const currentStep = workflowSteps[i]
       const nextStep = workflowSteps[i + 1]
-      
+
       // Steps should not overlap
       expect(currentStep.endTime.getTime()).toBeLessThanOrEqual(nextStep.startTime.getTime())
-      
+
       // Steps should not have the same start time
       expect(currentStep.startTime.getTime()).not.toBe(nextStep.startTime.getTime())
     }

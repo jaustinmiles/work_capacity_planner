@@ -377,14 +377,14 @@ function canFitInBlock(
     // For today's blocks that have already started, start from current time
     // But also check if there are already scheduled items after now
     const baseTime = new Date(Math.max(now.getTime(), block.startTime.getTime()))
-    
+
     // Find the latest scheduled item that ends after now in this block
-    const itemsInBlock = nonWaitScheduledItems.filter(scheduled => 
-      scheduled.startTime >= block.startTime && 
+    const itemsInBlock = nonWaitScheduledItems.filter(scheduled =>
+      scheduled.startTime >= block.startTime &&
       scheduled.endTime <= block.endTime &&
-      scheduled.endTime > baseTime
+      scheduled.endTime > baseTime,
     )
-    
+
     if (itemsInBlock.length > 0) {
       // Start after the last scheduled item
       const latestEnd = Math.max(...itemsInBlock.map(s => s.endTime.getTime()))
