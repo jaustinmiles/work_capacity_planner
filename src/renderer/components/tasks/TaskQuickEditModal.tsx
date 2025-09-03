@@ -78,11 +78,13 @@ export function TaskQuickEditModal({
   visible,
   onClose,
   initialTaskId,
-  filter = 'incomplete',
-  includeWorkflowSteps = true,
+  filter: initialFilter = 'incomplete',
+  includeWorkflowSteps: initialIncludeSteps = true,
 }: TaskQuickEditModalProps) {
   const { tasks, updateTask } = useTaskStore()
   const logger = useLogger({ component: 'TaskQuickEditModal' })
+  const [filter, setFilter] = useState(initialFilter)
+  const [includeWorkflowSteps, setIncludeWorkflowSteps] = useState(initialIncludeSteps)
 
   // Build list of editable items (tasks, workflows, and their steps)
   const editableItems = useMemo((): EditableItem[] => {
@@ -100,6 +102,8 @@ export function TaskQuickEditModal({
         // Add each step if we have them loaded
         if (task.steps) {
           task.steps.forEach(step => {
+            // Skip completed steps when filtering for incomplete
+            if (filter === 'incomplete' && step.status === 'completed') return
             items.push({ type: 'step', data: step, workflow: task })
           })
         }
@@ -389,27 +393,48 @@ export function TaskQuickEditModal({
     <>
       <Modal
         title={
-        <Space>
-          <IconEdit />
-          <span>Quick Edit</span>
-          {currentItem && (
-            <Tag color={
-              currentItem.type === 'workflow' ? 'purple' :
-              currentItem.type === 'step' ? 'green' : 'blue'
-            }>
-              {currentItem.type === 'workflow' ? 'Workflow' :
-               currentItem.type === 'step' ? 'Step' : 'Task'}
-            </Tag>
-          )}
-          <Tag color="blue">
-            {currentIndex + 1} of {editableItems.length}
-          </Tag>
-          {unsavedChanges && (
-            <Tag color="orange">
-              {getModifiedFieldsCount()} unsaved changes
-            </Tag>
-          )}
-        </Space>
+        <div style={{ width: '100%' }}>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Space>
+              <IconEdit />
+              <span>Quick Edit</span>
+              {currentItem && (
+                <Tag color={
+                  currentItem.type === 'workflow' ? 'purple' :
+                  currentItem.type === 'step' ? 'green' : 'blue'
+                }>
+                  {currentItem.type === 'workflow' ? 'Workflow' :
+                   currentItem.type === 'step' ? 'Step' : 'Task'}
+                </Tag>
+              )}
+              <Tag color="blue">
+                {currentIndex + 1} of {editableItems.length}
+              </Tag>
+              {unsavedChanges && (
+                <Tag color="orange">
+                  {getModifiedFieldsCount()} unsaved changes
+                </Tag>
+              )}
+            </Space>
+            <Space size="small">
+              <Select
+                value={filter}
+                onChange={setFilter}
+                size="small"
+                style={{ width: 120 }}
+              >
+                <Select.Option value="all">All Items</Select.Option>
+                <Select.Option value="incomplete">Incomplete</Select.Option>
+                <Select.Option value="high-priority">High Priority</Select.Option>
+              </Select>
+              {filter === 'incomplete' && (
+                <Tag color="green">
+                  Hiding {tasks.filter(t => t.completed).length} completed
+                </Tag>
+              )}
+            </Space>
+          </Space>
+        </div>
       }
       visible={visible}
       onCancel={handleClose}
