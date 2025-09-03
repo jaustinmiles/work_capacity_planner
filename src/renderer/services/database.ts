@@ -254,14 +254,14 @@ export class RendererDatabaseService {
   async createSession(name: string, description?: string): Promise<Session> {
     const session = await window.electronAPI.db.createSession(name, description)
     // Save the newly created session as last used
-    localStorage.setItem('lastUsedSessionId', session.id)
+    window.localStorage.setItem('lastUsedSessionId', session.id)
     return session
   }
 
   async switchSession(sessionId: string): Promise<Session> {
     const session = await window.electronAPI.db.switchSession(sessionId)
     // Save the last used session ID to localStorage
-    localStorage.setItem('lastUsedSessionId', sessionId)
+    window.localStorage.setItem('lastUsedSessionId', sessionId)
     return session
   }
 
@@ -278,24 +278,24 @@ export class RendererDatabaseService {
   }
 
   async loadLastUsedSession(): Promise<void> {
-    const lastUsedSessionId = localStorage.getItem('lastUsedSessionId')
+    const lastUsedSessionId = window.localStorage.getItem('lastUsedSessionId')
     if (lastUsedSessionId) {
       try {
         // Check if the session still exists
         const sessions = await this.getSessions()
         const sessionExists = sessions.some(s => s.id === lastUsedSessionId)
-        
+
         if (sessionExists) {
           // Switch to the last used session
           await this.switchSession(lastUsedSessionId)
           logger.ui.info('Loaded last used session', { sessionId: lastUsedSessionId })
         } else {
           // Session no longer exists, clear the stored ID
-          localStorage.removeItem('lastUsedSessionId')
+          window.localStorage.removeItem('lastUsedSessionId')
         }
       } catch (error) {
         logger.ui.error('Failed to load last used session', error)
-        localStorage.removeItem('lastUsedSessionId')
+        window.localStorage.removeItem('lastUsedSessionId')
       }
     }
   }

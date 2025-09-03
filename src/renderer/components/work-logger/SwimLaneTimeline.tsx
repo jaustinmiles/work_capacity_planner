@@ -666,7 +666,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                     const hour = START_HOUR + i
                     const energy = getCircadianEnergy(hour)
                     const nextEnergy = getCircadianEnergy(hour + 1)
-                    
+
                     return (
                       <div
                         key={hour}

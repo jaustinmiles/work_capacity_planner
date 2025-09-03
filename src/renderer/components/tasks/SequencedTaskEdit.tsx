@@ -977,17 +977,17 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
               <Text>{editedTask.notes}</Text>
             </Card>
           )}
-          
+
           {editingSteps.filter(step => step.notes).length === 0 ? (
             <Text type="secondary">No notes found for any steps in this workflow.</Text>
           ) : (
             editingSteps
               .filter(step => step.notes)
-              .map((step, actualIndex) => {
+              .map((step) => {
                 const stepIndex = editingSteps.findIndex(s => s.id === step.id)
                 return (
-                  <Card 
-                    key={step.id || step.tempId} 
+                  <Card
+                    key={step.id || step.tempId}
                     size="small"
                     title={
                       <Space>
