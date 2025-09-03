@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TaskType } from '@shared/enums'
+import { TaskType, StepStatus } from '@shared/enums'
 import { DependencyEditor } from '../shared/DependencyEditor'
 import {
   Card,
@@ -220,12 +220,12 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
 
   const toggleStepStatus = (index: number) => {
     const step = editingSteps[index]
-    const newStatus = step.status === 'completed' ? 'pending' : 'completed'
+    const newStatus = step.status === StepStatus.Completed ? StepStatus.Pending : StepStatus.Completed
     const updatedSteps = [...editingSteps]
     updatedSteps[index] = {
       ...step,
       status: newStatus,
-      percentComplete: newStatus === 'completed' ? 100 : 0,
+      percentComplete: newStatus === StepStatus.Completed ? 100 : 0,
     }
     setEditingSteps(updatedSteps)
   }
@@ -340,7 +340,7 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
           type: values.type,
           asyncWaitTime: values.asyncWaitTime || 0,
           dependsOn: values.dependsOn || [],
-          status: 'pending',
+          status: StepStatus.Pending,
           stepIndex: newStepIndex,
           percentComplete: 0,
           notes: values.notes || '',
