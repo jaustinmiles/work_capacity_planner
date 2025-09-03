@@ -105,6 +105,21 @@ describe('EisenhowerMatrix', () => {
   })
 
   describe('Scatter Plot View', () => {
+    beforeEach(() => {
+      // Mock getBoundingClientRect to return valid dimensions
+      Element.prototype.getBoundingClientRect = vi.fn(() => ({
+        width: 800,
+        height: 600,
+        top: 0,
+        left: 0,
+        right: 800,
+        bottom: 600,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      }))
+    })
+
     it('should toggle to scatter plot view', async () => {
       render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 

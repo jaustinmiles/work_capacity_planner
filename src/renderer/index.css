@@ -93,3 +93,18 @@ input, textarea {
   flex: 1;
   overflow: auto;
 }
+
+/* Fix Arco tooltip background color with higher specificity */
+.arco-tooltip .arco-tooltip-content .arco-tooltip-content-inner {
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #1d2129;
+  border: 1px solid #e5e6eb;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode support for tooltips with higher specificity */
+body[arco-theme='dark'] .arco-tooltip .arco-tooltip-content .arco-tooltip-content-inner {
+  background-color: rgba(29, 33, 41, 0.95);
+  color: #f6f6f6;
+  border: 1px solid #4a4a4a;
+}

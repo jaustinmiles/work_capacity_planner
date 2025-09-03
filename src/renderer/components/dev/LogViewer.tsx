@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Button, Space, Typography, Table, Tag, Select, Input, Card, Badge, Switch } from '@arco-design/web-react'
-import { IconRefresh, IconDelete, IconDownload, IconSearch } from '@arco-design/web-react/icon'
+import { Button, Space, Typography, Table, Tag, Select, Input, Card, Badge, Switch, Divider } from '@arco-design/web-react'
+import { IconRefresh, IconDelete, IconDownload, IconSearch, IconStorage, IconDesktop } from '@arco-design/web-react/icon'
 import { useLoggerContext } from '../../../logging/index.renderer'
 import { LogEntry, LogLevel } from '../../../logging/types'
 
@@ -42,28 +42,44 @@ export function LogViewer(_props: LogViewerProps) {
   const [showDetails, setShowDetails] = useState(true)
   const [hiddenPatterns, setHiddenPatterns] = useState<Set<string>>(new Set())
   const [showHiddenCount] = useState(true)
+  const [loadFromDatabase, setLoadFromDatabase] = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
 
-  // Load logs from ring buffer
-  const loadLogs = useCallback(() => {
-    const entries = loggerContext.dumpBuffer()
-    setLogs(entries)
-  }, [loggerContext])
+  // Load logs from ring buffer or database
+  const loadLogs = useCallback(async (clearFilters = false, _forceRefresh = false) => {
+    if (clearFilters) {
+      setHiddenPatterns(new Set())
+      setSearchText('')
+      setSelectedLevel('all')
+    }
+
+    if (loadFromDatabase && sessionId) {
+      // Load from database for a specific session
+      try {
+        // TODO: Implement database log loading
+        // const dbLogs = await window.electron.invoke('get-session-logs', sessionId)
+        const dbLogs: LogEntry[] = []
+        setLogs(dbLogs || [])
+      } catch (error) {
+        console.error('Failed to load logs from database:', error)
+        // Fallback to ring buffer
+        const entries = loggerContext.dumpBuffer()
+        setLogs(entries)
+      }
+    } else {
+      // Load from ring buffer (current session)
+      const entries = loggerContext.dumpBuffer()
+      setLogs(entries)
+    }
+  }, [loggerContext, loadFromDatabase, sessionId])
 
   // Generate pattern key for error/log grouping
   const getPatternKey = useCallback((log: LogEntry): string => {
-    // For errors, group by error message pattern
-    if (log.error) {
-      // Remove dynamic parts like IDs, timestamps, etc.
-      return log.error.message
-        .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, 'UUID')
-        .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/g, 'TIMESTAMP')
-        .replace(/\d+/g, 'NUM')
-    }
-    // For regular logs, group by message pattern
-    return log.message
-      .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, 'UUID')
-      .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/g, 'TIMESTAMP')
-      .replace(/\d+/g, 'NUM')
+    // Use the full message for exact matching to ensure hiding works correctly
+    const baseMessage = log.error ? log.error.message : log.message
+    // For now, use exact message matching to ensure filtering works
+    // We can improve pattern matching later if needed
+    return baseMessage
   }, [])
 
   // Count hidden logs by pattern
@@ -80,15 +96,19 @@ export function LogViewer(_props: LogViewerProps) {
 
   // Filter logs based on level, search, and hidden patterns
   useEffect(() => {
+    console.log(`[LogViewer] Filtering started - logs: ${logs.length}, hiddenPatterns: ${hiddenPatterns.size}`)
     let filtered = [...logs]
 
     // Filter by level
     if (selectedLevel !== 'all') {
+      const beforeLevel = filtered.length
       filtered = filtered.filter(log => log.level === selectedLevel)
+      console.log(`[LogViewer] Level filter: ${beforeLevel} -> ${filtered.length}`)
     }
 
     // Filter by search text
     if (searchText) {
+      const beforeSearch = filtered.length
       const search = searchText.toLowerCase()
       filtered = filtered.filter(log =>
         log.message.toLowerCase().includes(search) ||
@@ -96,39 +116,50 @@ export function LogViewer(_props: LogViewerProps) {
         log.error?.message?.toLowerCase().includes(search) ||
         log.context?.source?.file?.toLowerCase().includes(search),
       )
+      console.log(`[LogViewer] Search filter: ${beforeSearch} -> ${filtered.length}`)
     }
 
     // Filter out hidden patterns completely
     if (hiddenPatterns.size > 0) {
+      const beforeCount = filtered.length
+      console.log(`[LogViewer] Hidden patterns: ${Array.from(hiddenPatterns).join(', ')}`)
       filtered = filtered.filter(log => {
         const pattern = getPatternKey(log)
-        return !hiddenPatterns.has(pattern)
+        const isHidden = hiddenPatterns.has(pattern)
+        if (isHidden) {
+          console.log(`[LogViewer] Hiding log: ${pattern.substring(0, 50)}...`)
+        }
+        return !isHidden
       })
+      console.log(`[LogViewer] Hidden filter: ${beforeCount} -> ${filtered.length}`)
     }
 
+    console.log(`[LogViewer] Final filtered count: ${filtered.length}`)
     setFilteredLogs(filtered)
   }, [logs, selectedLevel, searchText, hiddenPatterns, getPatternKey])
 
   // Auto-refresh
   useEffect(() => {
-    if (!autoRefresh) return
+    if (!autoRefresh || loadFromDatabase) return // Don't auto-refresh when viewing database logs
 
-    const interval = setInterval(loadLogs, 1000)
+    const interval = setInterval(() => loadLogs(false), 1000)
     return () => clearInterval(interval)
-  }, [autoRefresh, loadLogs])
+  }, [autoRefresh, loadLogs, loadFromDatabase])
 
   // Initial load
   useEffect(() => {
-    loadLogs()
+    loadLogs(false) // Don't clear filters on initial load
 
     // Test log to verify logging is working
     const logger = loggerContext.logger
     logger.info('[LogViewer] Log viewer initialized')
 
     // Load logs again after a short delay to catch the initial logs
-    setTimeout(() => {
-      loadLogs()
+    const timeoutId = setTimeout(() => {
+      loadLogs(false)
     }, 100)
+
+    return () => clearTimeout(timeoutId)
   }, [loadLogs, loggerContext])
 
   // Export logs as JSON
@@ -152,13 +183,17 @@ export function LogViewer(_props: LogViewerProps) {
   // Toggle hiding a specific pattern
   const toggleHidePattern = (log: LogEntry) => {
     const pattern = getPatternKey(log)
+    console.log(`[LogViewer] Toggling pattern: "${pattern}"`)
     setHiddenPatterns(prev => {
       const next = new Set(prev)
       if (next.has(pattern)) {
         next.delete(pattern)
+        console.log(`[LogViewer] Unhiding pattern: "${pattern}"`)
       } else {
         next.add(pattern)
+        console.log(`[LogViewer] Hiding pattern: "${pattern}"`)
       }
+      console.log(`[LogViewer] Hidden patterns now: ${next.size}`)
       return next
     })
   }
@@ -194,8 +229,12 @@ export function LogViewer(_props: LogViewerProps) {
             <Button
               size="mini"
               type="text"
-              onClick={() => toggleHidePattern(record)}
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleHidePattern(record)
+              }}
               title="Hide this pattern"
+              style={{ cursor: 'pointer', padding: '2px 6px' }}
             >
               🚫
             </Button>
@@ -278,6 +317,40 @@ export function LogViewer(_props: LogViewerProps) {
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
+      {/* Source Selection */}
+      <Space style={{ width: '100%' }}>
+        <Button.Group>
+          <Button
+            type={!loadFromDatabase ? 'primary' : 'default'}
+            icon={<IconDesktop />}
+            onClick={() => {
+              setLoadFromDatabase(false)
+              setSessionId(null)
+              loadLogs(false, true)
+            }}
+          >
+            Current Session
+          </Button>
+          <Button
+            type={loadFromDatabase ? 'primary' : 'default'}
+            icon={<IconStorage />}
+            onClick={() => {
+              setLoadFromDatabase(true)
+              // TODO: Add session selector
+              loadLogs(false, true)
+            }}
+            disabled // Enable when we add session selector
+          >
+            Database History
+          </Button>
+        </Button.Group>
+        {loadFromDatabase && (
+          <Text type="secondary">Session: {sessionId || 'None selected'}</Text>
+        )}
+      </Space>
+
+      <Divider style={{ margin: '8px 0' }} />
+
       {/* Controls */}
       <Space style={{ width: '100%', justifyContent: 'space-between' }}>
         <Space>
@@ -340,10 +413,20 @@ export function LogViewer(_props: LogViewerProps) {
 
           <Button
             icon={<IconRefresh />}
-            onClick={loadLogs}
+            onClick={() => loadLogs(false, true)}
             disabled={autoRefresh}
+            title="Refresh logs"
           >
             Refresh
+          </Button>
+
+          <Button
+            onClick={() => loadLogs(true, true)}
+            disabled={autoRefresh}
+            status="warning"
+            title="Clear all filters and refresh"
+          >
+            Reset Filters
           </Button>
 
           <Button
@@ -369,7 +452,11 @@ export function LogViewer(_props: LogViewerProps) {
         <Space>
           <Text type="secondary">
             Showing {filteredLogs.length} of {logs.length} logs
-            {hiddenPatterns.size > 0 && ` (${Object.values(hiddenCounts).reduce((a, b) => a + b, 0)} hidden)`}
+            {hiddenPatterns.size > 0 && (
+              <Text type="warning" style={{ fontWeight: 500 }}>
+                {' '}({Object.values(hiddenCounts).reduce((a, b) => a + b, 0)} hidden by {hiddenPatterns.size} filter{hiddenPatterns.size > 1 ? 's' : ''})
+              </Text>
+            )}
           </Text>
           {Object.entries(levelCounts).map(([level, count]) => (
             <Tag key={level} color={levelColors[Number(level) as LogLevel]}>
@@ -415,6 +502,7 @@ export function LogViewer(_props: LogViewerProps) {
 
       {/* Log Table */}
       <Table
+        key={`table-${filteredLogs.length}-${hiddenPatterns.size}`}
         columns={columns}
         data={filteredLogs}
         pagination={{
@@ -425,7 +513,7 @@ export function LogViewer(_props: LogViewerProps) {
         }}
         scroll={{ y: 400 }}
         size="small"
-        rowKey={(record) => `${record.context.timestamp}-${record.message}`}
+        rowKey={(record) => `${record.context.timestamp}-${record.message.substring(0, 10)}`}
         style={{ minHeight: 400 }}
       />
     </Space>

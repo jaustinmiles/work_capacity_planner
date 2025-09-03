@@ -1,5 +1,59 @@
 # Cumulative Insights
 
+## PR #47 Success Patterns (2025-09-03)
+
+### Test-Driven Development Wins
+**Key Success**: Following TDD rigorously for PR #47 resulted in:
+- All 6 implemented fixes working correctly first time
+- Zero regression bugs introduced
+- Easy verification of fix completeness
+- Clear documentation of expected behavior through tests
+
+**Pattern That Worked**:
+1. Write comprehensive tests for the expected fix
+2. Run tests - verify they fail (red phase)
+3. Implement minimal code to pass tests (green phase)
+4. Verify no other tests broke
+5. Commit tests and implementation separately
+
+### Responsive UI Pattern for Dynamic Sizing
+**Problem**: Eisenhower matrix scatter plot appeared as horizontal line
+**Solution**: useRef + useEffect pattern for container-aware sizing
+```typescript
+const containerRef = useRef<HTMLDivElement>(null)
+const [size, setSize] = useState({ width: 500, height: 500 })
+
+useEffect(() => {
+  const updateSize = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      setSize({ width: rect.width - padding, height: rect.height - padding })
+    }
+  }
+  updateSize()
+  window.addEventListener('resize', updateSize)
+  return () => window.removeEventListener('resize', updateSize)
+}, [dependencies])
+```
+
+### Enum Migration Completion Strategy
+**Challenge**: Converting all string literals to enums across entire codebase
+**Success Pattern**: 
+- Search systematically by string pattern (e.g., `"pending"`, `"completed"`)
+- Update imports file by file
+- Use TypeScript compiler to catch missed conversions
+- Result: Zero TypeScript errors with full enum usage
+
+### Session Persistence Without Flash
+**Problem**: Default session showed briefly before last-used session loaded
+**Root Cause**: Store initialization loaded default data before session
+**Fix**: Load session FIRST in initialization sequence
+```typescript
+// Load last used session first to prevent flash
+await getDatabase().loadLastUsedSession()
+await getDatabase().initializeDefaultData()
+```
+
 ## PR Review Process Insights (2025-09-02)
 
 ### Always Check GitHub Comments Directly

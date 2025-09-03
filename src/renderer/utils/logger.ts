@@ -83,19 +83,15 @@ class RendererLogger {
       ...data,
     }
 
-    // Handle error parameter
+    // Handle error parameter - pass error as separate parameter to new logger
     if (error instanceof Error) {
-      // Use the new logger's error method with proper signature
-      newLogger.error(formattedMessage, {
-        ...context,
-        error: error.message,
-        stack: error.stack,
-      })
+      // Pass Error object as the 3rd parameter (after message and data)
+      newLogger.error(formattedMessage, error, context)
     } else if (error) {
-      // Non-Error object passed as error
+      // Non-Error object - put in context data
       newLogger.error(formattedMessage, {
         ...context,
-        error,
+        errorObject: error,
       })
     } else {
       // No error object
