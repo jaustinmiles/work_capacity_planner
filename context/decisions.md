@@ -1,5 +1,57 @@
 # Technical Decisions & Rationale
 
+## PR #51 Technical Decisions (2025-09-03)
+
+### Task Clustering for Overlapping Items
+**Decision**: Implement clustering algorithm for scatter plot
+**Implementation**: Group tasks by rounded x/y coordinates
+**Rationale**:
+- Multiple tasks often have same importance/urgency values
+- Overlapping dots made it impossible to see all tasks
+- Numbered badges clearly show task count
+**Pattern**:
+```typescript
+const posKey = `${Math.round(xPercent)}-${Math.round(yPercent)}`
+const cluster = taskClusters.get(posKey) || []
+cluster.push(task)
+```
+
+### Stable React Table Keys
+**Decision**: Remove Math.random() from table rowKey
+**Implementation**: Use timestamp + message substring for unique stable keys
+**Rationale**:
+- Random keys prevented React reconciliation
+- Table wouldn't update when data filtered
+- Stable keys enable proper re-rendering
+**Fix**: `rowKey={(record) => \`${record.timestamp}-${record.message.substring(0,10)}\`}`
+
+### Script Directory Organization
+**Decision**: Organize scripts into logical subdirectories
+**Implementation**: /database, /dev, /pr, /analysis folders
+**Rationale**:
+- 30+ scripts in flat directory was unmanageable
+- Logical grouping improves discoverability
+- Easier to find relevant tools
+**Impact**: Must update all package.json script paths
+
+### Error Object Preservation in Logging
+**Decision**: Pass Error objects as separate parameter to logger
+**Implementation**: Changed error passing in logger wrapper
+**Rationale**:
+- Serializing Error to plain object loses stack trace
+- New logger expects Error as separate parameter
+- Stack traces critical for debugging
+**Pattern**: `logger.error(message, errorObject, contextData)`
+
+### Defensive Container Sizing
+**Decision**: Always set minHeight on containers that calculate size
+**Implementation**: Added minHeight to Card and container divs
+**Rationale**:
+- getBoundingClientRect() can return 0 during initialization
+- Padding can reduce calculated height below 0
+- MinHeight prevents complete collapse
+**Values**: Card minHeight: 600px, Container minHeight: 500px
+
 ## PR #47 Technical Decisions (2025-09-03)
 
 ### Responsive UI Pattern for Dynamic Components

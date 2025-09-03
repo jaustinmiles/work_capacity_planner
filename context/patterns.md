@@ -1,5 +1,84 @@
 # State Management & Architecture Patterns
 
+## PR #51 Patterns (2025-09-03)
+
+### Clustering Algorithm for Overlapping UI Elements
+```typescript
+// Problem: Multiple items at same position overlap
+// Solution: Detect and group into clusters with badges
+
+const clusters = new Map<string, Item[]>()
+items.forEach(item => {
+  const key = `${Math.round(item.x)}-${Math.round(item.y)}`
+  if (!clusters.has(key)) clusters.set(key, [])
+  clusters.get(key)!.push(item)
+})
+
+// Render: Single item or cluster with badge
+{cluster.length > 1 ? (
+  <Badge count={cluster.length}>{renderItem(cluster[0])}</Badge>
+) : (
+  renderItem(cluster[0])
+)}
+```
+
+### Defensive Container Sizing Pattern
+```typescript
+// Problem: Container height collapses during initialization
+// Solution: Always set minHeight as safety net
+
+<Card style={{ minHeight: 600 }}>
+  <div ref={containerRef} style={{ minHeight: 500, height: '100%' }}>
+    {/* Content that depends on container size */}
+  </div>
+</Card>
+```
+
+### Stable React Table Keys Without Random Values
+```typescript
+// BAD: Random keys break reconciliation
+rowKey={() => Math.random()}
+
+// GOOD: Stable unique keys from data
+rowKey={(record) => `${record.timestamp}-${record.message.substring(0, 10)}`}
+
+// Force re-render when data changes
+<Table 
+  key={`table-${data.length}-${filters.size}`}
+  rowKey={stableKeyFunction}
+/>
+```
+
+### Error Object Preservation Through IPC
+```typescript
+// BAD: Loses stack trace
+logger.error(message, { error: errorObj })
+
+// GOOD: Preserves Error object
+logger.error(message, errorObj, contextData)
+
+// In wrapper:
+if (error instanceof Error) {
+  newLogger.error(msg, error, context)  // Pass as separate param
+} else {
+  newLogger.error(msg, { error, ...context })  // Include in data
+}
+```
+
+### Git Workflow Best Practices
+```bash
+# ALWAYS before starting new work
+git fetch origin main
+git rebase origin main
+git checkout -b feature/new-feature
+
+# When branch gets messy (>20 commits)
+git checkout -b feature/clean main
+git checkout feature/messy -- .
+git add -A
+git commit -m "feat: Single descriptive commit"
+```
+
 ## Data Flow Architecture
 
 ```
