@@ -1101,5 +1101,16 @@
     "description": "I want to add a feature for 'Time sinks', which are tasks that never get completed but still take up time. User story: I, as a user, am trying to track my day. I realized I have spent the last hour talking on the phone with a friend, just chatting, accomplishing no real goal. I want to setup a time sink in the app called 'phone time with friends' so that I can log time on it. Over time, I can see how much time I've spent on each 'Time sink' over the course of different time periods so I can analyze how I spend my time. This should go hand in hand with the other feature request about doing the planned vs actual day",
     "timestamp": "2025-09-03T01:38:05.696Z",
     "sessionId": "session-1756863485686-bjvjzn4cg"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "tasks/TaskList"
+    ],
+    "title": "When attempting to log time on a workflow, the step should be specified",
+    "description": "we should try to avoid logging time on the workflow itself, and always do it on steps. ",
+    "timestamp": "2025-09-03T03:15:55.078Z",
+    "sessionId": "session-1756869355074-1ei7ydkck"
   }
 ]

@@ -101,25 +101,34 @@ export function SwimLaneTimeline({
     return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, hours * 60))
   }
 
-  // Calculate circadian rhythm energy level (0-1) for a given hour
+  // Calculate circadian rhythm energy level (0-1) for a given hour with smooth interpolation
   const getCircadianEnergy = (hour: number): number => {
-    // Typical circadian rhythm pattern
-    // Peak hours: 9-11 AM and 3-5 PM
-    // Low energy: early morning, post-lunch dip, evening
-    if (hour < 6) return 0.2
-    if (hour === 6) return 0.3
-    if (hour === 7) return 0.5
-    if (hour === 8) return 0.7
-    if (hour >= 9 && hour <= 11) return 1.0 // Morning peak
-    if (hour === 12) return 0.8
-    if (hour === 13) return 0.6 // Post-lunch dip
-    if (hour === 14) return 0.5
-    if (hour >= 15 && hour <= 17) return 0.9 // Afternoon peak
-    if (hour === 18) return 0.7
-    if (hour === 19) return 0.6
-    if (hour === 20) return 0.4
-    if (hour === 21) return 0.3
-    return 0.2
+    // Use sine waves to create smooth circadian rhythm curve
+    // Two peaks: morning (9-11 AM) and afternoon (3-5 PM)
+    // Post-lunch dip around 1-2 PM
+    
+    // Normalize hour to 0-24 range
+    const h = hour % 24
+    
+    // Base circadian rhythm using cosine wave
+    // Peak at 10 AM, trough at 10 PM
+    const baseRhythm = 0.5 + 0.5 * Math.cos((h - 10) * Math.PI / 12)
+    
+    // Add post-lunch dip (negative peak at 2 PM)
+    const lunchDip = 0.15 * Math.cos((h - 14) * Math.PI / 6)
+    
+    // Add second peak boost (around 4 PM)
+    const afternoonBoost = 0.1 * Math.cos((h - 16) * Math.PI / 4)
+    
+    // Combine and clamp between 0.1 and 1.0
+    const energy = Math.max(0.1, Math.min(1.0, baseRhythm - lunchDip + afternoonBoost))
+    
+    // Scale down during sleep hours (10 PM - 6 AM)
+    if (h >= 22 || h < 6) {
+      return energy * 0.3
+    }
+    
+    return energy
   }
 
   // Toggle workflow expansion
@@ -649,9 +658,9 @@ if (!checkOverlap(newSession, laneSessions)) {
                 }
               }}
             >
-              {/* Circadian Rhythm Background */}
+              {/* Circadian Rhythm Curve */}
               {showCircadianRhythm && (
-                <div
+                <svg
                   style={{
                     position: 'absolute',
                     left: TIME_LABEL_WIDTH,
@@ -662,80 +671,107 @@ if (!checkOverlap(newSession, laneSessions)) {
                     zIndex: 0,
                   }}
                 >
-                  {Array.from({ length: TOTAL_HOURS }, (_, i) => {
-                    const hour = START_HOUR + i
-                    const energy = getCircadianEnergy(hour)
-                    const nextEnergy = getCircadianEnergy(hour + 1)
-
-                    return (
-                      <div
-                        key={hour}
-                        style={{
-                          position: 'absolute',
-                          left: i * hourWidth,
-                          top: 0,
-                          width: hourWidth,
-                          height: '100%',
-                          background: `linear-gradient(to right, 
-                            rgba(255, 215, 0, ${energy * 0.15}), 
-                            rgba(255, 215, 0, ${nextEnergy * 0.15}))`,
-                        }}
-                      >
-                        {/* Peak labels */}
-                        {hour === 10 && (
-                          <div style={{
-                            position: 'absolute',
-                            top: 5,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(255, 215, 0, 0.9)',
-                            color: '#8B4513',
-                            padding: '2px 8px',
-                            borderRadius: 4,
-                            fontSize: 10,
-                            fontWeight: 'bold',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            Peak Focus
-                          </div>
-                        )}
-                        {hour === 16 && (
-                          <div style={{
-                            position: 'absolute',
-                            top: 5,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(255, 215, 0, 0.9)',
-                            color: '#8B4513',
-                            padding: '2px 8px',
-                            borderRadius: 4,
-                            fontSize: 10,
-                            fontWeight: 'bold',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            Peak Focus
-                          </div>
-                        )}
-                        {hour === 13 && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: 5,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(100, 149, 237, 0.7)',
-                            color: 'white',
-                            padding: '2px 8px',
-                            borderRadius: 4,
-                            fontSize: 10,
-                            whiteSpace: 'nowrap',
-                          }}>
-                            Low Energy
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+                  <defs>
+                    <linearGradient id="circadianGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#FFD700" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#FFD700" stopOpacity="0.05" />
+                    </linearGradient>
+                  </defs>
+                  
+                  {/* Generate smooth curve path */}
+                  <path
+                    d={(() => {
+                      const points: string[] = []
+                      const height = 400 // Fixed height for the curve
+                      const samples = 100 // Number of points for smooth curve
+                      
+                      for (let i = 0; i <= samples; i++) {
+                        const hour = START_HOUR + (i / samples) * TOTAL_HOURS
+                        const x = (i / samples) * TOTAL_HOURS * hourWidth
+                        const energy = getCircadianEnergy(hour)
+                        // Invert Y and scale to use bottom 60% of height
+                        const y = height - (energy * height * 0.6)
+                        
+                        if (i === 0) {
+                          points.push(`M ${x} ${y}`)
+                        } else {
+                          // Use line for smooth curve (with many points it appears smooth)
+                          points.push(`L ${x} ${y}`)
+                        }
+                      }
+                      
+                      // Close the path to create filled area
+                      points.push(`L ${TOTAL_HOURS * hourWidth} ${height}`)
+                      points.push(`L 0 ${height}`)
+                      points.push('Z')
+                      
+                      return points.join(' ')
+                    })()}
+                    fill="url(#circadianGradient)"
+                    stroke="#FFD700"
+                    strokeWidth="2"
+                    opacity="0.7"
+                  />
+                  
+                  {/* Add curve line on top for clarity */}
+                  <path
+                    d={(() => {
+                      const points: string[] = []
+                      const height = 400 // Fixed height for the curve
+                      const samples = 100
+                      
+                      for (let i = 0; i <= samples; i++) {
+                        const hour = START_HOUR + (i / samples) * TOTAL_HOURS
+                        const x = (i / samples) * TOTAL_HOURS * hourWidth
+                        const energy = getCircadianEnergy(hour)
+                        const y = height - (energy * height * 0.6)
+                        
+                        if (i === 0) {
+                          points.push(`M ${x} ${y}`)
+                        } else {
+                          points.push(`L ${x} ${y}`)
+                        }
+                      }
+                      
+                      return points.join(' ')
+                    })()}
+                    fill="none"
+                    stroke="#FFA500"
+                    strokeWidth="2"
+                    opacity="0.8"
+                  />
+                  
+                  {/* Peak and dip labels */}
+                  <text 
+                    x={4 * hourWidth} 
+                    y={20} 
+                    fill="#FF8C00" 
+                    fontSize="11" 
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    Morning Peak
+                  </text>
+                  <text 
+                    x={10 * hourWidth} 
+                    y={20} 
+                    fill="#FF8C00" 
+                    fontSize="11" 
+                    fontWeight="bold"
+                    textAnchor="middle"
+                  >
+                    Afternoon Peak
+                  </text>
+                  <text 
+                    x={7.5 * hourWidth} 
+                    y={380} 
+                    fill="#4169E1" 
+                    fontSize="11"
+                    textAnchor="middle"
+                  >
+                    Post-lunch Dip
+                  </text>
+                </svg>
               )}
 
               {/* Hour grid lines */}

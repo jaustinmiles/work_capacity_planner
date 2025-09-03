@@ -282,12 +282,12 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       </div>
       ) : (
         // Scatter Plot View
-        <Card style={{ height: 600, position: 'relative' }}>
+        <Card style={{ height: 600, position: 'relative', overflow: 'hidden' }}>
           <div style={{
             width: '100%',
             height: '100%',
             position: 'relative',
-            padding: '40px',
+            padding: '50px',
           }}>
             {/* Axis Labels */}
             <Text
@@ -318,11 +318,12 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             {/* Grid Lines and Quadrant Labels */}
             <div style={{
               position: 'absolute',
-              top: 40,
-              left: 40,
-              right: 40,
-              bottom: 40,
+              top: 50,
+              left: 50,
+              right: 50,
+              bottom: 50,
               border: '2px solid #e5e6eb',
+              background: '#fafafa',
             }}>
               {/* Vertical Center Line */}
               <div style={{
@@ -388,9 +389,10 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               }}>
                 Eliminate
               </Text>
+            </div>
 
-              {/* Task Points */}
-              {incompleteTasks.map(task => {
+            {/* Task Points - Outside the grid container */}
+            {incompleteTasks.map(task => {
                 const isWorkflow = sequencedTasks.some(st => st.id === task.id)
                 const quadrant = categorizeTask(task)
                 const config = quadrantConfig[quadrant]
@@ -401,6 +403,12 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
                 // Calculate bubble size based on duration (min 20px, max 60px)
                 const size = Math.min(60, Math.max(20, 20 + (task.duration / 30)))
+
+                // Adjust positions to account for container padding (50px)
+                const containerWidth = 500 // 600 - 100 (50px padding each side)
+                const containerHeight = 500 // 600 - 100 (50px padding each side)
+                const xPos = 50 + (x / 100) * containerWidth // Add 50px offset
+                const yPos = 50 + (y / 100) * containerHeight // Add 50px offset
 
                 return (
                   <Tooltip
@@ -420,8 +428,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                       onClick={() => selectTask(task.id)}
                       style={{
                         position: 'absolute',
-                        left: `${x}%`,
-                        top: `${y}%`,
+                        left: xPos,
+                        top: yPos,
                         transform: `translate(-50%, -50%) scale(${zoom})`,
                         width: size,
                         height: size,
@@ -459,8 +467,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                     </div>
                   </Tooltip>
                 )
-              })}
-            </div>
+            })}
           </div>
         </Card>
       )}
