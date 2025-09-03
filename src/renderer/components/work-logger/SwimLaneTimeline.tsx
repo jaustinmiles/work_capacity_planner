@@ -10,6 +10,8 @@ import {
   roundToQuarter,
   checkOverlap,
 } from './SessionState'
+import { useContainerQuery } from '../../hooks/useContainerQuery'
+import { useResponsive } from '../../providers/ResponsiveProvider'
 
 const { Text } = Typography
 
@@ -65,7 +67,6 @@ export function SwimLaneTimeline({
   bedtimeHour = 22,
   wakeTimeHour = 6,
 }: SwimLaneTimelineProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [creatingSession, setCreatingSession] = useState<{
     taskId: string
@@ -76,9 +77,33 @@ export function SwimLaneTimeline({
   const [hoveredSession, setHoveredSession] = useState<string | null>(null)
   const [internalExpandedWorkflows, setInternalExpandedWorkflows] = useState<Set<string>>(new Set())
   const [laneHeight, setLaneHeight] = useState(30)
-  const [hourWidth, setHourWidth] = useState(80)
+  const [baseHourWidth, setBaseHourWidth] = useState(80)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
+  
+  // Responsive container measurement
+  const { ref: timelineRef, width: containerWidth, isNarrow, isStandard, isWide } = useContainerQuery<HTMLDivElement>()
+  const { isCompact, isMobile } = useResponsive()
+  
+  // Calculate responsive hour width based on container size
+  const calculateHourWidth = () => {
+    if (!containerWidth) return baseHourWidth
+    
+    // Calculate width available for timeline (minus label column)
+    const availableWidth = containerWidth - TIME_LABEL_WIDTH - 20 // 20px for padding/scrollbar
+    
+    // Fit mode: Scale hours to fit container without scroll
+    if (isCompact || containerWidth < 1366) {
+      const fitWidth = availableWidth / TOTAL_HOURS
+      // Ensure minimum readable width
+      return Math.max(MIN_HOUR_WIDTH, Math.min(fitWidth, baseHourWidth))
+    }
+    
+    // Desktop mode: Use base width with zoom control
+    return baseHourWidth
+  }
+  
+  const hourWidth = calculateHourWidth()
 
   // Use external state if provided, otherwise use internal
   const expandedWorkflows = externalExpandedWorkflows ?? internalExpandedWorkflows
@@ -314,7 +339,7 @@ export function SwimLaneTimeline({
     }
 
     e.preventDefault()
-    const rect = containerRef.current?.getBoundingClientRect()
+    const rect = timelineRef.current?.getBoundingClientRect()
     if (!rect) {
       return
     }
@@ -398,7 +423,7 @@ export function SwimLaneTimeline({
           }
         }
       } else if (creatingSession) {
-        const container = containerRef.current
+        const container = timelineRef.current
         if (!container) return
 
         // Find the specific swim lane being dragged on
@@ -480,21 +505,21 @@ if (!checkOverlap(newSession, laneSessions)) {
           <Button
             size="mini"
             icon={<IconZoomOut />}
-            onClick={() => setHourWidth(Math.max(MIN_HOUR_WIDTH, hourWidth - 20))}
-            disabled={hourWidth <= MIN_HOUR_WIDTH}
+            onClick={() => setBaseHourWidth(Math.max(MIN_HOUR_WIDTH, baseHourWidth - 20))}
+            disabled={baseHourWidth <= MIN_HOUR_WIDTH}
           />
           <Slider
-            value={hourWidth}
+            value={baseHourWidth}
             min={MIN_HOUR_WIDTH}
             max={MAX_HOUR_WIDTH}
-            onChange={(val) => setHourWidth(val as number)}
+            onChange={(val) => setBaseHourWidth(val as number)}
             style={{ width: 100 }}
           />
           <Button
             size="mini"
             icon={<IconZoomIn />}
-            onClick={() => setHourWidth(Math.min(MAX_HOUR_WIDTH, hourWidth + 20))}
-            disabled={hourWidth >= MAX_HOUR_WIDTH}
+            onClick={() => setBaseHourWidth(Math.min(MAX_HOUR_WIDTH, baseHourWidth + 20))}
+            disabled={baseHourWidth >= MAX_HOUR_WIDTH}
           />
         </div>
 
@@ -534,13 +559,16 @@ if (!checkOverlap(newSession, laneSessions)) {
       </div>
 
       <div
-        ref={containerRef}
+        ref={timelineRef}
+        className="swimlane-timeline"
         style={{
           position: 'relative',
-          overflow: 'auto',
+          overflow: hourWidth === baseHourWidth ? 'auto' : 'hidden',
+          overflowY: 'auto',
           background: '#fafbfc',
           borderRadius: 8,
           flex: 1,
+          scrollbarWidth: 'thin',
         }}
       >
       {/* Time axis header */}
