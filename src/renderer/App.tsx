@@ -4,6 +4,7 @@ import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconS
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+import { ResponsiveProvider } from './providers/ResponsiveProvider'
 import { TaskList } from './components/tasks/TaskList'
 import { TaskForm } from './components/tasks/TaskForm'
 import { SequencedTaskForm } from './components/tasks/SequencedTaskForm'
@@ -434,9 +435,10 @@ function App() {
   }
 
   return (
-    <ConfigProvider
-      locale={enUS}
-      theme={{
+    <ResponsiveProvider>
+      <ConfigProvider
+        locale={enUS}
+        theme={{
         primaryColor: '#165DFF',
       }}
     >
@@ -814,6 +816,7 @@ function App() {
         />
       </Layout>
     </ConfigProvider>
+    </ResponsiveProvider>
   )
 }
 

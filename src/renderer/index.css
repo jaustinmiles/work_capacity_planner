@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import responsive design system */
+@import './styles/responsive.css';
+
 /* Arco Design overrides for better desktop experience */
 .arco-layout-sider {
   transition: all 0.2s;
