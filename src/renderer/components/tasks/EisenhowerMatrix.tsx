@@ -182,9 +182,9 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             </Text>
           </div>
           <Space>
-            <Radio.Group 
-              type="button" 
-              value={viewMode} 
+            <Radio.Group
+              type="button"
+              value={viewMode}
               onChange={setViewMode}
               size="small"
             >
@@ -290,9 +290,9 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             padding: '40px',
           }}>
             {/* Axis Labels */}
-            <Text 
-              type="secondary" 
-              style={{ 
+            <Text
+              type="secondary"
+              style={{
                 position: 'absolute',
                 bottom: 10,
                 left: '50%',
@@ -302,9 +302,9 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             >
               Urgency →
             </Text>
-            <Text 
-              type="secondary" 
-              style={{ 
+            <Text
+              type="secondary"
+              style={{
                 position: 'absolute',
                 left: 10,
                 top: '50%',
@@ -342,7 +342,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 height: 2,
                 background: '#e5e6eb',
               }} />
-              
+
               {/* Quadrant Labels */}
               <Text style={{
                 position: 'absolute',
@@ -394,14 +394,14 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 const isWorkflow = sequencedTasks.some(st => st.id === task.id)
                 const quadrant = categorizeTask(task)
                 const config = quadrantConfig[quadrant]
-                
+
                 // Convert importance/urgency (1-10) to position (0-100%)
                 const x = (task.urgency / 10) * 100
                 const y = 100 - (task.importance / 10) * 100 // Invert Y axis
-                
+
                 // Calculate bubble size based on duration (min 20px, max 60px)
                 const size = Math.min(60, Math.max(20, 20 + (task.duration / 30)))
-                
+
                 return (
                   <Tooltip
                     key={task.id}
@@ -445,8 +445,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                         e.currentTarget.style.transform = `translate(-50%, -50%) scale(${zoom})`
                       }}
                     >
-                      <Text style={{ 
-                        color: 'white', 
+                      <Text style={{
+                        color: 'white',
                         fontSize: 10,
                         fontWeight: 500,
                         textAlign: 'center',

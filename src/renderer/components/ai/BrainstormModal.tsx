@@ -8,7 +8,7 @@ import { logger } from '../../utils/logger'
 
 
 const { TextArea } = Input
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface BrainstormModalProps {
   visible: boolean
@@ -885,8 +885,8 @@ Only include terms that are likely industry-specific or technical jargon, not co
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         {/* Processing Mode Selection */}
-        <Card 
-          size="small" 
+        <Card
+          size="small"
           title={<><IconRobot /> Processing Mode</> }
           style={{ marginBottom: 16 }}
         >
@@ -921,8 +921,8 @@ Only include terms that are likely industry-specific or technical jargon, not co
 
         {/* Job Context Section */}
         {processingMode === 'workflows' && (
-          <Card 
-            size="small" 
+          <Card
+            size="small"
             title={
               <Space>
                 <IconBulb />
@@ -981,11 +981,11 @@ Only include terms that are likely industry-specific or technical jargon, not co
                 <Divider style={{ margin: '12px 0' }} />
 
                 {/* Voice Context Options */}
-                <div style={{ 
-                  padding: 12, 
-                  backgroundColor: '#f5f5f5', 
+                <div style={{
+                  padding: 12,
+                  backgroundColor: '#f5f5f5',
                   borderRadius: 8,
-                  border: '1px solid #e8e8e8'
+                  border: '1px solid #e8e8e8',
                 }}>
                   <Text style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, display: 'block' }}>
                     Voice Input Options:
@@ -1148,8 +1148,8 @@ Only include terms that are likely industry-specific or technical jargon, not co
         )}
 
         {/* Voice Recording Section */}
-        <Card 
-          size="small" 
+        <Card
+          size="small"
           title={<><IconSoundFill /> Voice Input</> }
           style={{ marginBottom: 16 }}
         >
@@ -1184,8 +1184,8 @@ Only include terms that are likely industry-specific or technical jargon, not co
         </Card>
 
         {/* Audio File Upload Section */}
-        <Card 
-          size="small" 
+        <Card
+          size="small"
           title={<><IconUpload /> Upload Audio File</> }
           style={{ marginBottom: 16 }}
         >
@@ -1228,8 +1228,8 @@ Only include terms that are likely industry-specific or technical jargon, not co
         </Card>
 
         {/* Text Input Section */}
-        <Card 
-          size="small" 
+        <Card
+          size="small"
           title={<><IconEdit /> Brainstorm Text</> }
           style={{ marginBottom: 16 }}
         >
