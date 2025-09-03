@@ -1,4 +1,4 @@
-import { TaskType } from './enums'
+import { TaskType, TaskStatus, StepStatus, DeadlineType } from './enums'
 
 export interface Session {
   id: string
@@ -21,7 +21,7 @@ export interface Task {
   completed: boolean
   completedAt?: Date
   deadline?: Date // deadline for task
-  deadlineType?: 'hard' | 'soft' // type of deadline
+  deadlineType?: DeadlineType // type of deadline
   cognitiveComplexity?: 1 | 2 | 3 | 4 | 5 // cognitive load rating
   isLocked?: boolean // whether task is locked to specific time
   lockedStartTime?: Date // specific time task must start
@@ -35,7 +35,7 @@ export interface Task {
   // Workflow support
   hasSteps: boolean
   currentStepId?: string
-  overallStatus: 'not_started' | 'in_progress' | 'waiting' | 'completed'
+  overallStatus: TaskStatus
   criticalPathDuration: number
   worstCaseDuration: number
   steps?: TaskStep[] // Optional - populated when needed
@@ -52,7 +52,7 @@ export interface TaskStep {
   type: TaskType
   dependsOn: string[] // step IDs
   asyncWaitTime: number
-  status: 'pending' | 'in_progress' | 'waiting' | 'completed' | 'skipped'
+  status: StepStatus
   stepIndex: number
   actualDuration?: number
   startedAt?: Date

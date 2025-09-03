@@ -6,12 +6,21 @@
  * If ESLint reports these as unused, it means we have architectural issues to fix.
  */
 
-// Task and workflow status
+// Task and workflow overall status
 export enum TaskStatus {
   NotStarted = 'not_started',
   InProgress = 'in_progress',
   Waiting = 'waiting',
   Completed = 'completed',
+}
+
+// Step-specific status (includes additional 'skipped' state)
+export enum StepStatus {
+  Pending = 'pending',
+  InProgress = 'in_progress',
+  Waiting = 'waiting',
+  Completed = 'completed',
+  Skipped = 'skipped',
 }
 
 // Task types
