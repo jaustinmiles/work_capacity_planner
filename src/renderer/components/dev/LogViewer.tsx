@@ -78,7 +78,7 @@ export function LogViewer(_props: LogViewerProps) {
     return counts
   }, [logs, hiddenPatterns, getPatternKey])
 
-  // Filter logs based on level, search, and hidden patterns
+  // Filter logs based on level and search - but NOT hidden patterns (we'll mark them instead)
   useEffect(() => {
     let filtered = [...logs]
 
@@ -98,13 +98,9 @@ export function LogViewer(_props: LogViewerProps) {
       )
     }
 
-    // Filter out hidden patterns
-    if (hiddenPatterns.size > 0) {
-      filtered = filtered.filter(log => !hiddenPatterns.has(getPatternKey(log)))
-    }
-
+    // Don't filter out hidden patterns - we'll mark them in the UI instead
     setFilteredLogs(filtered)
-  }, [logs, selectedLevel, searchText, hiddenPatterns, getPatternKey])
+  }, [logs, selectedLevel, searchText])
 
   // Auto-refresh
   useEffect(() => {
@@ -181,31 +177,43 @@ export function LogViewer(_props: LogViewerProps) {
       title: 'Level',
       dataIndex: 'level',
       width: 100,
-      render: (level: LogLevel, record: LogEntry) => (
-        <Space>
-          <Tag color={levelColors[level]}>
-            {LogLevel[level]}
-          </Tag>
-          {!hiddenPatterns.has(getPatternKey(record)) && (
+      render: (level: LogLevel, record: LogEntry) => {
+        const isHidden = hiddenPatterns.has(getPatternKey(record))
+        return (
+          <Space>
+            <Tag 
+              color={levelColors[level]}
+              style={{ opacity: isHidden ? 0.4 : 1 }}
+            >
+              {LogLevel[level]}
+            </Tag>
             <Button
               size="mini"
               type="text"
               onClick={() => toggleHidePattern(record)}
-              title="Hide similar logs"
+              title={isHidden ? 'Show this pattern' : 'Hide this pattern'}
+              style={{ opacity: isHidden ? 0.6 : 1 }}
             >
-              🚫
+              {isHidden ? '👁️' : '🚫'}
             </Button>
-          )}
-        </Space>
-      ),
+          </Space>
+        )
+      },
     },
     {
       title: 'Message',
       dataIndex: 'message',
-      render: (message: string, record: LogEntry) => (
-        <Space direction="vertical" style={{ width: '100%' }} size="mini">
-          <Text>{message}</Text>
-          {record.context?.source && showDetails && (
+      render: (message: string, record: LogEntry) => {
+        const isHidden = hiddenPatterns.has(getPatternKey(record))
+        return (
+          <Space direction="vertical" style={{ width: '100%' }} size="mini">
+            <Text style={{ 
+              opacity: isHidden ? 0.4 : 1,
+              textDecoration: isHidden ? 'line-through' : 'none'
+            }}>
+              {message}
+            </Text>
+            {record.context?.source && showDetails && (
             <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
               {record.context.source.file}:{record.context.source.line}
               {record.context.source.function && ` (${record.context.source.function})`}
@@ -256,8 +264,9 @@ export function LogViewer(_props: LogViewerProps) {
               </pre>
             </Card>
           )}
-        </Space>
-      ),
+          </Space>
+        )
+      },
     },
   ]
 
