@@ -21,7 +21,7 @@ export enum TaskType {
   Focused = 'focused',
   Admin = 'admin',
   Personal = 'personal',
-  Mixed = 'mixed',
+  Mixed = 'mixed', // Only used for work blocks in scheduling, not for individual tasks
 }
 
 // Amendment types for voice amendments
