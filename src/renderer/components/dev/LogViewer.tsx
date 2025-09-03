@@ -186,14 +186,16 @@ export function LogViewer(_props: LogViewerProps) {
           <Tag color={levelColors[level]}>
             {LogLevel[level]}
           </Tag>
-          <Button
-            size="mini"
-            type="text"
-            onClick={() => toggleHidePattern(record)}
-            title={hiddenPatterns.has(getPatternKey(record)) ? 'Show similar logs' : 'Hide similar logs'}
-          >
-            {hiddenPatterns.has(getPatternKey(record)) ? '👁' : '🚫'}
-          </Button>
+          {!hiddenPatterns.has(getPatternKey(record)) && (
+            <Button
+              size="mini"
+              type="text"
+              onClick={() => toggleHidePattern(record)}
+              title="Hide similar logs"
+            >
+              🚫
+            </Button>
+          )}
         </Space>
       ),
     },

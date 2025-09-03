@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { Typography, Tooltip, Button, Slider } from '@arco-design/web-react'
-import { IconDown, IconRight, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
+import { Typography, Tooltip, Button, Slider, Switch } from '@arco-design/web-react'
+import { IconDown, IconRight, IconZoomIn, IconZoomOut, IconSun } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
@@ -74,6 +74,7 @@ export function SwimLaneTimeline({
   const [laneHeight, setLaneHeight] = useState(30)
   const [hourWidth, setHourWidth] = useState(80)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
 
   // Use external state if provided, otherwise use internal
   const expandedWorkflows = externalExpandedWorkflows ?? internalExpandedWorkflows
@@ -98,6 +99,27 @@ export function SwimLaneTimeline({
   const pixelsToMinutes = (pixels: number): number => {
     const hours = (pixels - TIME_LABEL_WIDTH) / hourWidth + START_HOUR
     return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, hours * 60))
+  }
+
+  // Calculate circadian rhythm energy level (0-1) for a given hour
+  const getCircadianEnergy = (hour: number): number => {
+    // Typical circadian rhythm pattern
+    // Peak hours: 9-11 AM and 3-5 PM
+    // Low energy: early morning, post-lunch dip, evening
+    if (hour < 6) return 0.2
+    if (hour === 6) return 0.3
+    if (hour === 7) return 0.5
+    if (hour === 8) return 0.7
+    if (hour >= 9 && hour <= 11) return 1.0 // Morning peak
+    if (hour === 12) return 0.8
+    if (hour === 13) return 0.6 // Post-lunch dip
+    if (hour === 14) return 0.5
+    if (hour >= 15 && hour <= 17) return 0.9 // Afternoon peak
+    if (hour === 18) return 0.7
+    if (hour === 19) return 0.6
+    if (hour === 20) return 0.4
+    if (hour === 21) return 0.3
+    return 0.2
   }
 
   // Toggle workflow expansion
@@ -476,6 +498,17 @@ if (!checkOverlap(newSession, laneSessions)) {
             disabled={laneHeight >= MAX_LANE_HEIGHT}
           />
         </div>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <IconSun style={{ fontSize: 16, color: '#FFD700' }} />
+          <Switch
+            checked={showCircadianRhythm}
+            onChange={setShowCircadianRhythm}
+            checkedText="Circadian"
+            uncheckedText="Hide"
+            size="small"
+          />
+        </div>
       </div>
 
       <div
@@ -616,6 +649,95 @@ if (!checkOverlap(newSession, laneSessions)) {
                 }
               }}
             >
+              {/* Circadian Rhythm Background */}
+              {showCircadianRhythm && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: TIME_LABEL_WIDTH,
+                    top: 0,
+                    width: TOTAL_HOURS * hourWidth,
+                    height: '100%',
+                    pointerEvents: 'none',
+                    zIndex: 0,
+                  }}
+                >
+                  {Array.from({ length: TOTAL_HOURS }, (_, i) => {
+                    const hour = START_HOUR + i
+                    const energy = getCircadianEnergy(hour)
+                    const nextEnergy = getCircadianEnergy(hour + 1)
+                    
+                    return (
+                      <div
+                        key={hour}
+                        style={{
+                          position: 'absolute',
+                          left: i * hourWidth,
+                          top: 0,
+                          width: hourWidth,
+                          height: '100%',
+                          background: `linear-gradient(to right, 
+                            rgba(255, 215, 0, ${energy * 0.15}), 
+                            rgba(255, 215, 0, ${nextEnergy * 0.15}))`,
+                        }}
+                      >
+                        {/* Peak labels */}
+                        {hour === 10 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 5,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(255, 215, 0, 0.9)',
+                            color: '#8B4513',
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            fontSize: 10,
+                            fontWeight: 'bold',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            Peak Focus
+                          </div>
+                        )}
+                        {hour === 16 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 5,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(255, 215, 0, 0.9)',
+                            color: '#8B4513',
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            fontSize: 10,
+                            fontWeight: 'bold',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            Peak Focus
+                          </div>
+                        )}
+                        {hour === 13 && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 5,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'rgba(100, 149, 237, 0.7)',
+                            color: 'white',
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            fontSize: 10,
+                            whiteSpace: 'nowrap',
+                          }}>
+                            Low Energy
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
               {/* Hour grid lines */}
               {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => (
                 <div

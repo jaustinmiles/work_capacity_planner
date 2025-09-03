@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { TaskType } from '@shared/enums'
-import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip, Slider } from '@arco-design/web-react'
-import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
+import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip, Slider, Radio } from '@arco-design/web-react'
+import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut, IconApps, IconDragDot } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Task } from '@shared/types'
 
@@ -15,6 +15,7 @@ interface EisenhowerMatrixProps {
 export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { tasks, sequencedTasks, selectTask } = useTaskStore()
   const [zoom, setZoom] = useState(1)
+  const [viewMode, setViewMode] = useState<'grid' | 'scatter'>('grid')
 
   // Combine regular tasks and sequenced tasks (workflows)
   // Deduplicate by ID - sequenced tasks take precedence
@@ -181,6 +182,19 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             </Text>
           </div>
           <Space>
+            <Radio.Group 
+              type="button" 
+              value={viewMode} 
+              onChange={setViewMode}
+              size="small"
+            >
+              <Radio value="grid">
+                <IconApps /> Grid
+              </Radio>
+              <Radio value="scatter">
+                <IconDragDot /> Scatter
+              </Radio>
+            </Radio.Group>
             <Space>
               <Button icon={<IconZoomOut />} onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} />
               <Slider
@@ -201,8 +215,9 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         </Space>
       </Card>
 
-      {/* Matrix Grid */}
-      <div style={{
+      {/* Matrix View */}
+      {viewMode === 'grid' ? (
+        <div style={{
         position: 'relative',
         overflow: 'auto',
         maxHeight: 'calc(100vh - 300px)',
@@ -265,6 +280,190 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
           </Row>
         </div>
       </div>
+      ) : (
+        // Scatter Plot View
+        <Card style={{ height: 600, position: 'relative' }}>
+          <div style={{
+            width: '100%',
+            height: '100%',
+            position: 'relative',
+            padding: '40px',
+          }}>
+            {/* Axis Labels */}
+            <Text 
+              type="secondary" 
+              style={{ 
+                position: 'absolute',
+                bottom: 10,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                fontWeight: 500,
+              }}
+            >
+              Urgency →
+            </Text>
+            <Text 
+              type="secondary" 
+              style={{ 
+                position: 'absolute',
+                left: 10,
+                top: '50%',
+                transform: 'translateY(-50%) rotate(-90deg)',
+                fontWeight: 500,
+              }}
+            >
+              Importance →
+            </Text>
+
+            {/* Grid Lines and Quadrant Labels */}
+            <div style={{
+              position: 'absolute',
+              top: 40,
+              left: 40,
+              right: 40,
+              bottom: 40,
+              border: '2px solid #e5e6eb',
+            }}>
+              {/* Vertical Center Line */}
+              <div style={{
+                position: 'absolute',
+                left: '50%',
+                top: 0,
+                bottom: 0,
+                width: 2,
+                background: '#e5e6eb',
+              }} />
+              {/* Horizontal Center Line */}
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: 0,
+                right: 0,
+                height: 2,
+                background: '#e5e6eb',
+              }} />
+              
+              {/* Quadrant Labels */}
+              <Text style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                color: quadrantConfig['do-first'].color,
+                fontWeight: 500,
+                background: 'white',
+                padding: '2px 8px',
+              }}>
+                Do First
+              </Text>
+              <Text style={{
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                color: quadrantConfig['schedule'].color,
+                fontWeight: 500,
+                background: 'white',
+                padding: '2px 8px',
+              }}>
+                Schedule
+              </Text>
+              <Text style={{
+                position: 'absolute',
+                bottom: 10,
+                right: 10,
+                color: quadrantConfig['delegate'].color,
+                fontWeight: 500,
+                background: 'white',
+                padding: '2px 8px',
+              }}>
+                Delegate
+              </Text>
+              <Text style={{
+                position: 'absolute',
+                bottom: 10,
+                left: 10,
+                color: quadrantConfig['eliminate'].color,
+                fontWeight: 500,
+                background: 'white',
+                padding: '2px 8px',
+              }}>
+                Eliminate
+              </Text>
+
+              {/* Task Points */}
+              {incompleteTasks.map(task => {
+                const isWorkflow = sequencedTasks.some(st => st.id === task.id)
+                const quadrant = categorizeTask(task)
+                const config = quadrantConfig[quadrant]
+                
+                // Convert importance/urgency (1-10) to position (0-100%)
+                const x = (task.urgency / 10) * 100
+                const y = 100 - (task.importance / 10) * 100 // Invert Y axis
+                
+                // Calculate bubble size based on duration (min 20px, max 60px)
+                const size = Math.min(60, Math.max(20, 20 + (task.duration / 30)))
+                
+                return (
+                  <Tooltip
+                    key={task.id}
+                    content={
+                      <Space direction="vertical">
+                        <Text style={{ fontWeight: 500 }}>{task.name}</Text>
+                        <Space size="small">
+                          <Tag size="small">I: {task.importance}</Tag>
+                          <Tag size="small">U: {task.urgency}</Tag>
+                          <Tag size="small">{Math.floor(task.duration / 60)}h {task.duration % 60}m</Tag>
+                        </Space>
+                      </Space>
+                    }
+                  >
+                    <div
+                      onClick={() => selectTask(task.id)}
+                      style={{
+                        position: 'absolute',
+                        left: `${x}%`,
+                        top: `${y}%`,
+                        transform: `translate(-50%, -50%) scale(${zoom})`,
+                        width: size,
+                        height: size,
+                        borderRadius: '50%',
+                        background: config.color,
+                        opacity: 0.8,
+                        border: isWorkflow ? '3px solid purple' : 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.3s',
+                        zIndex: 10,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1'
+                        e.currentTarget.style.transform = `translate(-50%, -50%) scale(${zoom * 1.1})`
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.8'
+                        e.currentTarget.style.transform = `translate(-50%, -50%) scale(${zoom})`
+                      }}
+                    >
+                      <Text style={{ 
+                        color: 'white', 
+                        fontSize: 10,
+                        fontWeight: 500,
+                        textAlign: 'center',
+                        padding: 2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {task.name.substring(0, 3)}
+                      </Text>
+                    </div>
+                  </Tooltip>
+                )
+              })}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Info Footer */}
       <Card style={{ background: '#F7F8FA' }}>
