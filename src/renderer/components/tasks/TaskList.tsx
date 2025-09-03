@@ -1,7 +1,8 @@
-import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select } from '@arco-design/web-react'
-import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter } from '@arco-design/web-react/icon'
+import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select, Table, Radio } from '@arco-design/web-react'
+import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter, IconList, IconApps } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskItem } from './TaskItem'
+import { TaskGridView } from './TaskGridView'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { useState } from 'react'
@@ -24,6 +25,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const [scheduleGeneratorVisible, setScheduleGeneratorVisible] = useState(false)
   const [quickEditVisible, setQuickEditVisible] = useState(false)
   const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | 'all' | 'work'>('all')
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
   const { logger: newLogger } = useLoggerContext()
   const rendererLogger = newLogger as RendererLogger
 
@@ -92,34 +94,54 @@ export function TaskList({ onAddTask }: TaskListProps) {
         </Space>
       </Card>
 
-      {/* Task Type Filter */}
+      {/* Filters and View Mode */}
       <Card>
-        <Space style={{ width: '100%', alignItems: 'center' }}>
-          <IconFilter style={{ fontSize: 16 }} />
-          <Text>Filter by Type:</Text>
-          <Select
-            value={taskTypeFilter}
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space style={{ alignItems: 'center' }}>
+            <IconFilter style={{ fontSize: 16 }} />
+            <Text>Filter by Type:</Text>
+            <Select
+              value={taskTypeFilter}
+              onChange={(value) => {
+                setTaskTypeFilter(value)
+                rendererLogger.interaction('Task Type Filter Changed', {
+                  component: 'TaskList',
+                  filterType: value,
+                })
+              }}
+              style={{ width: 200 }}
+              placeholder="Select task type"
+            >
+              <Select.Option value="all">All Tasks</Select.Option>
+              <Select.Option value="work">Work Items (Focused + Admin)</Select.Option>
+              <Select.Option value={TaskType.Focused}>Focused Tasks</Select.Option>
+              <Select.Option value={TaskType.Admin}>Admin Tasks</Select.Option>
+              <Select.Option value={TaskType.Personal}>Personal Tasks</Select.Option>
+            </Select>
+            {taskTypeFilter !== 'all' && (
+              <Text type="secondary">
+                Showing {filteredTasks.length} of {tasks.length} tasks
+              </Text>
+            )}
+          </Space>
+          <Radio.Group
+            type="button"
+            value={viewMode}
             onChange={(value) => {
-              setTaskTypeFilter(value)
-              rendererLogger.interaction('Task Type Filter Changed', {
+              setViewMode(value)
+              rendererLogger.interaction('View Mode Changed', {
                 component: 'TaskList',
-                filterType: value,
+                viewMode: value,
               })
             }}
-            style={{ width: 200 }}
-            placeholder="Select task type"
           >
-            <Select.Option value="all">All Tasks</Select.Option>
-            <Select.Option value="work">Work Items (Focused + Admin)</Select.Option>
-            <Select.Option value={TaskType.Focused}>Focused Tasks</Select.Option>
-            <Select.Option value={TaskType.Admin}>Admin Tasks</Select.Option>
-            <Select.Option value={TaskType.Personal}>Personal Tasks</Select.Option>
-          </Select>
-          {taskTypeFilter !== 'all' && (
-            <Text type="secondary">
-              Showing {filteredTasks.length} of {tasks.length} tasks
-            </Text>
-          )}
+            <Radio value="list">
+              <IconList /> List
+            </Radio>
+            <Radio value="grid">
+              <IconApps /> Grid
+            </Radio>
+          </Radio.Group>
         </Space>
       </Card>
 
@@ -217,7 +239,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
               </Space>
             }
           />
-        ) : (
+        ) : viewMode === 'list' ? (
           <List
             dataSource={sortedIncompleteTasks}
             render={(task) => (
@@ -226,6 +248,8 @@ export function TaskList({ onAddTask }: TaskListProps) {
               </List.Item>
             )}
           />
+        ) : (
+          <TaskGridView tasks={sortedIncompleteTasks} />
         )}
       </Card>
 
