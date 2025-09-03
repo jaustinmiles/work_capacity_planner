@@ -9,6 +9,8 @@ import {
   roundToQuarter,
   checkOverlap,
 } from './SessionState'
+import { useContainerQuery } from '../../hooks/useContainerQuery'
+import { useResponsive } from '../../providers/ResponsiveProvider'
 
 interface CircularClockProps {
   sessions: WorkSessionData[]
@@ -33,12 +35,10 @@ interface DragState {
   initialEndMinutes: number
 }
 
-const CLOCK_SIZE = 240
-const CENTER = CLOCK_SIZE / 2
-const OUTER_RADIUS = 100
-const INNER_RADIUS = 70
-const _MIDDLE_RADIUS = 85 // Unused for now, keeping for future use
-const HOUR_LABEL_RADIUS = 110
+const BASE_CLOCK_SIZE = 240
+const BASE_OUTER_RADIUS = 100
+const BASE_INNER_RADIUS = 70
+const BASE_HOUR_LABEL_RADIUS = 110
 
 // Clock configuration - Show full 24 hours
 const WORKDAY_START = 0 // 12 AM (midnight)
@@ -68,6 +68,39 @@ export function CircularClock({
     currentMinutes: number
   } | null>(null)
   const [hoveredSession, setHoveredSession] = useState<string | null>(null)
+  
+  // Responsive sizing
+  const { ref: clockContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
+  const { scale: globalScale, isCompact, isMobile } = useResponsive()
+  
+  // Calculate responsive dimensions based on container
+  const calculateClockDimensions = () => {
+    // Use container size if available, with padding
+    const maxSize = Math.min(
+      containerWidth || BASE_CLOCK_SIZE,
+      containerHeight || BASE_CLOCK_SIZE,
+      isMobile ? 320 : 400
+    ) - 40 // 40px padding
+    
+    const size = Math.max(200, maxSize) // Minimum size of 200px
+    const scale = size / BASE_CLOCK_SIZE
+    
+    return {
+      clockSize: size,
+      center: size / 2,
+      outerRadius: BASE_OUTER_RADIUS * scale,
+      innerRadius: BASE_INNER_RADIUS * scale,
+      hourLabelRadius: BASE_HOUR_LABEL_RADIUS * scale,
+      fontSize: {
+        hours: Math.max(10, Math.floor(12 * scale)),
+        labels: Math.max(8, Math.floor(11 * scale)),
+        tiny: Math.max(6, Math.floor(8 * scale))
+      }
+    }
+  }
+  
+  const dimensions = calculateClockDimensions()
+  const { clockSize, center, outerRadius, innerRadius, hourLabelRadius, fontSize } = dimensions
 
   // Get current time in minutes
   const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
@@ -127,10 +160,10 @@ export function CircularClock({
     if (!svgRef.current) return 0
 
     const rect = svgRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left - CENTER
-    const y = e.clientY - rect.top - CENTER
+    const x = e.clientX - rect.left - center
+    const y = e.clientY - rect.top - center
 
-    return angleToMinutes(x + CENTER, y + CENTER, CENTER, CENTER, WORKDAY_START, WORKDAY_HOURS)
+    return angleToMinutes(x + center, y + center, center, center, WORKDAY_START, WORKDAY_HOURS)
   }
 
   // Handle arc click/drag start
@@ -290,19 +323,19 @@ export function CircularClock({
   }, [dragState, creatingSession, onSessionUpdate, onSessionCreate])
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: 16 }}>
+    <div ref={clockContainerRef} className="circular-clock" style={{ display: 'flex', justifyContent: 'center', padding: 16, width: '100%', minHeight: 240 }}>
       <svg
         ref={svgRef}
-        width={CLOCK_SIZE}
-        height={CLOCK_SIZE}
+        width={clockSize}
+        height={clockSize}
         style={{ cursor: 'crosshair' }}
       >
         {/* Clock face background */}
         <circle
           className="clock-face"
-          cx={CENTER}
-          cy={CENTER}
-          r={OUTER_RADIUS}
+          cx={center}
+          cy={center}
+          r={outerRadius}
           fill="#f5f7fa"
           stroke="#e5e6eb"
           strokeWidth={2}
@@ -311,9 +344,9 @@ export function CircularClock({
 
         {/* Inner circle */}
         <circle
-          cx={CENTER}
-          cy={CENTER}
-          r={INNER_RADIUS}
+          cx={center}
+          cy={center}
+          r={innerRadius}
           fill="white"
           stroke="#e5e6eb"
           strokeWidth={1}
@@ -324,14 +357,14 @@ export function CircularClock({
           const hour = WORKDAY_START + i
           const angle = (i * 30 - 90) * (Math.PI / 180) // 30 degrees per hour
           const isMainHour = i % 3 === 0 // Show every 3 hours
-          const markerRadius = isMainHour ? OUTER_RADIUS : OUTER_RADIUS - 5
-          const x1 = CENTER + (OUTER_RADIUS - 10) * Math.cos(angle)
-          const y1 = CENTER + (OUTER_RADIUS - 10) * Math.sin(angle)
-          const x2 = CENTER + markerRadius * Math.cos(angle)
-          const y2 = CENTER + markerRadius * Math.sin(angle)
+          const markerRadius = isMainHour ? outerRadius : outerRadius - 5
+          const x1 = center + (outerRadius - 10) * Math.cos(angle)
+          const y1 = center + (outerRadius - 10) * Math.sin(angle)
+          const x2 = center + markerRadius * Math.cos(angle)
+          const y2 = center + markerRadius * Math.sin(angle)
 
-          const labelX = CENTER + HOUR_LABEL_RADIUS * Math.cos(angle)
-          const labelY = CENTER + HOUR_LABEL_RADIUS * Math.sin(angle)
+          const labelX = center + hourLabelRadius * Math.cos(angle)
+          const labelY = center + hourLabelRadius * Math.sin(angle)
 
           // Check if this is a circadian peak or dip
           const isCircadianPoint = hour === morningPeak || hour === afternoonDip || hour === eveningPeak
@@ -354,7 +387,7 @@ export function CircularClock({
                   x={labelX}
                   y={labelY + 4}
                   textAnchor="middle"
-                  fontSize={12}
+                  fontSize={fontSize.hours}
                   fill={isCircadianPoint ? '#165DFF' : '#4e5969'}
                   fontWeight="bold"
                 >
@@ -394,10 +427,10 @@ export function CircularClock({
 
           return (
             <text
-              x={CENTER}
-              y={CENTER}
+              x={center}
+              y={center}
               textAnchor="middle"
-              fontSize={11}
+              fontSize={fontSize.labels}
               fill={energyColor}
               fontWeight="500"
             >
@@ -413,16 +446,16 @@ export function CircularClock({
           const isCollapsed = session.isCollapsed || false
 
           // Use consistent arc radii for all sessions
-          const arcInnerRadius = INNER_RADIUS
-          const arcOuterRadius = OUTER_RADIUS
+          const arcInnerRadius = innerRadius
+          const arcOuterRadius = outerRadius
 
           const path = generateArcPath(
             session.startMinutes,
             session.endMinutes,
             arcInnerRadius,
             arcOuterRadius,
-            CENTER,
-            CENTER,
+            center,
+            center,
             WORKDAY_START,
             WORKDAY_HOURS,
           )
@@ -469,8 +502,8 @@ export function CircularClock({
                 <>
                   {/* Start handle - use the same angle calculation as minutesToAngle */}
                   <circle
-                    cx={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos(minutesToAngle(session.startMinutes) * Math.PI / 180)}
-                    cy={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin(minutesToAngle(session.startMinutes) * Math.PI / 180)}
+                    cx={center + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos(minutesToAngle(session.startMinutes) * Math.PI / 180)}
+                    cy={center + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin(minutesToAngle(session.startMinutes) * Math.PI / 180)}
                     r={6}
                     fill="white"
                     stroke={session.color}
@@ -481,8 +514,8 @@ export function CircularClock({
 
                   {/* End handle - use the same angle calculation as minutesToAngle */}
                   <circle
-                    cx={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos(minutesToAngle(session.endMinutes) * Math.PI / 180)}
-                    cy={CENTER + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin(minutesToAngle(session.endMinutes) * Math.PI / 180)}
+                    cx={center + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos(minutesToAngle(session.endMinutes) * Math.PI / 180)}
+                    cy={center + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin(minutesToAngle(session.endMinutes) * Math.PI / 180)}
                     r={6}
                     fill="white"
                     stroke={session.color}
@@ -502,10 +535,10 @@ export function CircularClock({
             d={generateArcPath(
               Math.min(creatingSession.startMinutes, creatingSession.currentMinutes),
               Math.max(creatingSession.startMinutes, creatingSession.currentMinutes),
-              INNER_RADIUS,
-              OUTER_RADIUS,
-              CENTER,
-              CENTER,
+              innerRadius,
+              outerRadius,
+              center,
+              center,
               WORKDAY_START,
               WORKDAY_HOURS,
             )}
@@ -520,10 +553,10 @@ export function CircularClock({
         {/* Current time indicator - only show during workday */}
         {currentMinutes >= WORKDAY_START * 60 && currentMinutes <= WORKDAY_END * 60 && (
           <line
-            x1={CENTER}
-            y1={CENTER}
-            x2={CENTER + (OUTER_RADIUS - 20) * Math.cos(minutesToAngle(currentMinutes) * Math.PI / 180)}
-            y2={CENTER + (OUTER_RADIUS - 20) * Math.sin(minutesToAngle(currentMinutes) * Math.PI / 180)}
+            x1={center}
+            y1={center}
+            x2={center + (outerRadius - 20) * Math.cos(minutesToAngle(currentMinutes) * Math.PI / 180)}
+            y2={center + (outerRadius - 20) * Math.sin(minutesToAngle(currentMinutes) * Math.PI / 180)}
             stroke="#f53f3f"
             strokeWidth={2}
             strokeLinecap="round"
@@ -532,18 +565,18 @@ export function CircularClock({
 
         {/* Center dot */}
         <circle
-          cx={CENTER}
-          cy={CENTER}
+          cx={center}
+          cy={center}
           r={4}
           fill="#f53f3f"
         />
 
         {/* Current time text */}
         <text
-          x={CENTER}
-          y={CENTER + 50}
+          x={center}
+          y={center + 50}
           textAnchor="middle"
-          fontSize={14}
+          fontSize={fontSize.hours}
           fill="#1d2129"
           fontWeight="bold"
         >

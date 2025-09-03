@@ -5,6 +5,8 @@ import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, Icon
 import { useTaskStore } from '../../store/useTaskStore'
 import { Task } from '@shared/types'
 import { getRendererLogger } from '../../../logging/index.renderer'
+import { useContainerQuery } from '../../hooks/useContainerQuery'
+import { useResponsive } from '../../providers/ResponsiveProvider'
 
 const { Row, Col } = Grid
 const { Title, Text } = Typography
@@ -19,7 +21,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { tasks, sequencedTasks, selectTask } = useTaskStore()
   const [zoom, setZoom] = useState(1)
   const [viewMode, setViewMode] = useState<'grid' | 'scatter'>('grid')
-  const scatterContainerRef = useRef<HTMLDivElement>(null)
+  const { ref: scatterContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
+  const { isCompact, isMobile } = useResponsive()
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 })
 
   // Diagonal scan state
@@ -29,45 +32,34 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const [scannedTasks, setScannedTasks] = useState<Task[]>([])
   const scanAnimationRef = useRef<number | undefined>(undefined)
 
-  // Update container size on mount and resize
+  // Update container size based on container query results
   useEffect(() => {
-    const updateSize = () => {
-      if (scatterContainerRef.current) {
-        const rect = scatterContainerRef.current.getBoundingClientRect()
-
-        // Log when we get invalid dimensions
-        if (rect.height === 0 && viewMode === 'scatter') {
-          logger.warn('Scatter container has zero height', {
-            width: rect.width,
-            height: rect.height,
-            viewMode,
-          })
-        }
-
-        // Account for padding (50px on each side)
-        // But ensure we don't go below minimum sizes
-        const newSize = {
-          width: Math.max(100, rect.width - 100),
-          height: Math.max(100, rect.height - 100),
-        }
+    if (containerWidth && containerHeight) {
+      // Account for padding, but with responsive values
+      const padding = isMobile ? 20 : isCompact ? 40 : 50
+      const newSize = {
+        width: Math.max(200, containerWidth - (padding * 2)),
+        height: Math.max(200, Math.min(containerHeight - 100, 600)) // Cap height at 600px
+      }
+      
+      // Only update if significantly different to avoid re-renders
+      if (Math.abs(newSize.width - containerSize.width) > 10 || 
+          Math.abs(newSize.height - containerSize.height) > 10) {
         setContainerSize(newSize)
-
-        // Log container size changes for debugging
+        
         if (viewMode === 'scatter') {
-          logger.debug('Container size updated', {
+          logger.debug('Container size updated (responsive)', {
             width: newSize.width,
             height: newSize.height,
-            rectWidth: rect.width,
-            rectHeight: rect.height,
+            containerWidth,
+            containerHeight,
+            isMobile,
+            isCompact
           })
         }
       }
     }
-
-    updateSize()
-    window.addEventListener('resize', updateSize)
-    return () => window.removeEventListener('resize', updateSize)
-  }, [viewMode]) // Re-calculate when switching views
+  }, [containerWidth, containerHeight, viewMode, isMobile, isCompact])
 
   // Combine regular tasks and sequenced tasks (workflows)
   // Deduplicate by ID - sequenced tasks take precedence
@@ -520,13 +512,14 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       </div>
       ) : (
         // Scatter Plot View
-        <Card style={{ minHeight: 600, height: 600, position: 'relative', overflow: 'hidden' }}>
-          <div ref={scatterContainerRef} style={{
+        <Card style={{ minHeight: isMobile ? 400 : 500, height: isMobile ? 'auto' : 600, position: 'relative', overflow: 'hidden' }}>
+          <div ref={scatterContainerRef} className="eisenhower-scatter-container" style={{
             width: '100%',
             height: '100%',
-            minHeight: 500,
+            minHeight: isMobile ? 300 : 400,
+            maxHeight: isMobile ? 400 : 600,
             position: 'relative',
-            padding: '50px',
+            padding: isMobile ? '20px' : isCompact ? '30px' : '50px',
           }}>
             {/* Axis Labels */}
             <Text
