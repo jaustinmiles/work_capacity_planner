@@ -61,6 +61,20 @@ function App() {
     }
   }, [logger, loggerContext])
 
+  // Load last used session on app startup
+  useEffect(() => {
+    const loadSession = async () => {
+      try {
+        const db = getDatabase()
+        await db.loadLastUsedSession()
+        logger.info('App initialized with last used session')
+      } catch (error) {
+        logger.error('Failed to load last used session on startup', error)
+      }
+    }
+    loadSession()
+  }, [])
+
   const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)

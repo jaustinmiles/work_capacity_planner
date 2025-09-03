@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Modal, Button, Typography, Alert, Space, Card, Input, Tag, Divider, Upload, Select, InputNumber } from '@arco-design/web-react'
-import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, IconCheckCircle, IconUpload, IconFile } from '@arco-design/web-react/icon'
+import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, IconCheckCircle, IconUpload, IconFile, IconEdit } from '@arco-design/web-react/icon'
 import { TaskType } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
@@ -77,7 +77,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
   const [recordingDuration, setRecordingDuration] = useState(0)
   const [processingMode, setProcessingMode] = useState<'tasks' | 'workflows'>('workflows')
   const [jobContext, setJobContext] = useState('')
-  const [showJobContextInput, setShowJobContextInput] = useState(false)
+  const [showJobContextInput, setShowJobContextInput] = useState(true) // Default to visible for better discoverability
   const [uploadedAudioFile, setUploadedAudioFile] = useState<File | null>(null)
   const [isProcessingAudioFile, setIsProcessingAudioFile] = useState(false)
   const [contextAudioFile, setContextAudioFile] = useState<File | null>(null)
@@ -880,73 +880,116 @@ Only include terms that are likely industry-specific or technical jargon, not co
       visible={visible}
       onCancel={onClose}
       footer={null}
-      style={{ width: 800 }}
+      style={{ width: 900 }} // Wider for better content display
       autoFocus={false}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         {/* Processing Mode Selection */}
-        <div>
-          <Title heading={6}>AI Processing Mode</Title>
-          <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 12 }}>
-            Choose how you want the AI to interpret your brainstorm text:
-          </Text>
-          <Space>
-            <Button
-              type={processingMode === 'workflows' ? 'primary' : 'outline'}
-              onClick={() => setProcessingMode('workflows')}
-              icon={<IconBulb />}
-            >
-              Workflows (Recommended)
-            </Button>
-            <Button
-              type={processingMode === 'tasks' ? 'primary' : 'outline'}
-              onClick={() => setProcessingMode('tasks')}
-            >
-              Simple Tasks
-            </Button>
-          </Space>
-          {processingMode === 'workflows' && (
-            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-              AI will understand async dependencies, wait times, and create sequenced workflows.
+        <Card 
+          size="small" 
+          title={<><IconRobot /> Processing Mode</> }
+          style={{ marginBottom: 16 }}
+        >
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Text type="secondary" style={{ fontSize: 14 }}>
+              Choose how the AI interprets your input:
             </Text>
-          )}
-        </div>
+            <Space>
+              <Button
+                type={processingMode === 'workflows' ? 'primary' : 'outline'}
+                onClick={() => setProcessingMode('workflows')}
+                icon={<IconBulb />}
+              >
+                Workflows (Recommended)
+              </Button>
+              <Button
+                type={processingMode === 'tasks' ? 'primary' : 'outline'}
+                onClick={() => setProcessingMode('tasks')}
+              >
+                Simple Tasks
+              </Button>
+            </Space>
+            {processingMode === 'workflows' && (
+              <Alert
+                type="info"
+                content="Workflows mode understands dependencies, wait times, and sequences."
+                style={{ marginTop: 8 }}
+              />
+            )}
+          </Space>
+        </Card>
 
         {/* Job Context Section */}
         {processingMode === 'workflows' && (
-          <div>
-            <Space style={{ marginBottom: 12 }}>
-              <Title heading={6}>Job Context</Title>
-              <Button
-                size="small"
-                type="outline"
-                onClick={() => setShowJobContextInput(!showJobContextInput)}
-              >
-                {showJobContextInput ? 'Hide' : 'Add Context'}
-              </Button>
-            </Space>
+          <Card 
+            size="small" 
+            title={
+              <Space>
+                <IconBulb />
+                <span>Job Context & Terminology</span>
+              </Space>
+            }
+            extra={
+              <Space>
+                <Button
+                  size="small"
+                  type="text"
+                  status="danger"
+                  onClick={() => {
+                    setJobContext('')
+                    setJargonDictionary({})
+                    saveJobContext('')
+                    Message.success('Context cleared')
+                  }}
+                >
+                  Clear All
+                </Button>
+                <Button
+                  size="small"
+                  type="text"
+                  onClick={() => setShowJobContextInput(!showJobContextInput)}
+                >
+                  {showJobContextInput ? 'Collapse' : 'Expand'}
+                </Button>
+              </Space>
+            }
+            style={{ marginBottom: 16 }}
+          >
             {showJobContextInput && (
-              <>
-                <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 8 }}>
-                  Describe your role and typical async work patterns to help AI understand your workflow needs:
-                </Text>
-                <TextArea
-                  value={jobContext}
-                  onChange={setJobContext}
-                  placeholder="e.g., I'm a software engineer working with CI/CD pipelines, code reviews typically take 4-24 hours, I work with external APIs that have processing delays..."
-                  rows={3}
-                  style={{ marginBottom: 8 }}
-                  onBlur={() => saveJobContext()}
+              <Space direction="vertical" style={{ width: '100%' }} size="medium">
+                <Alert
+                  type="info"
+                  content="Provide context about your role to help AI better understand your workflow patterns."
                 />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Context is automatically saved and persisted for future sessions
-                </Text>
+                <div>
+                  <Text style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, display: 'block' }}>
+                    Your Role & Work Patterns:
+                  </Text>
+                  <TextArea
+                    value={jobContext}
+                    onChange={setJobContext}
+                    placeholder="Example: I'm a software engineer working with CI/CD pipelines. Code reviews typically take 4-24 hours, deployments require approval and take 2-3 hours..."
+                    rows={4}
+                    style={{ marginBottom: 8 }}
+                    onBlur={() => saveJobContext()}
+                  />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    💡 Tip: Context is automatically saved for future sessions
+                  </Text>
+                </div>
 
                 <Divider style={{ margin: '12px 0' }} />
 
                 {/* Voice Context Options */}
-                <div>
-                  <Text style={{ fontSize: 14, fontWeight: 'bold' }}>Or use voice input:</Text>
+                <div style={{ 
+                  padding: 12, 
+                  backgroundColor: '#f5f5f5', 
+                  borderRadius: 8,
+                  border: '1px solid #e8e8e8'
+                }}>
+                  <Text style={{ fontSize: 14, fontWeight: 500, marginBottom: 8, display: 'block' }}>
+                    Voice Input Options:
+                  </Text>
                   <Space style={{ marginTop: 8 }}>
                     <Upload
                       accept="audio/*"
@@ -983,17 +1026,19 @@ Only include terms that are likely industry-specific or technical jargon, not co
                     </Tag>
                   )}
                 </div>
-              </>
+              </Space>
             )}
 
             {/* Jargon Dictionary - Always visible when in workflow mode */}
-            {processingMode === 'workflows' && (
+            {showJobContextInput && (
               <>
-                <Divider style={{ margin: '12px 0' }} />
+                <Divider style={{ margin: '16px 0' }} />
                 <div>
-                  <Space style={{ marginBottom: 8 }}>
-                    <Text style={{ fontSize: 14, fontWeight: 'bold' }}>Industry Jargon Dictionary</Text>
-                    <Tag size="small">{Object.keys(jargonDictionary).length} terms</Tag>
+                  <Space style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }}>
+                    <Space>
+                      <Text style={{ fontSize: 14, fontWeight: 500 }}>Industry Terminology</Text>
+                      <Tag color="blue" size="small">{Object.keys(jargonDictionary).length} terms</Tag>
+                    </Space>
                     <Button
                       size="small"
                       type="text"
@@ -1099,12 +1144,15 @@ Only include terms that are likely industry-specific or technical jargon, not co
                 </div>
               </>
             )}
-          </div>
+          </Card>
         )}
 
         {/* Voice Recording Section */}
-        <div>
-          <Title heading={6}>Voice Input</Title>
+        <Card 
+          size="small" 
+          title={<><IconSoundFill /> Voice Input</> }
+          style={{ marginBottom: 16 }}
+        >
           <Text type="secondary" style={{ fontSize: 14 }}>
             {processingMode === 'workflows'
               ? 'Describe your async workflows naturally - mention dependencies, wait times, and sequencing.'
@@ -1133,11 +1181,14 @@ Only include terms that are likely industry-specific or technical jargon, not co
               {isTranscribing && <Text type="secondary">Transcribing...</Text>}
             </Space>
           </div>
-        </div>
+        </Card>
 
         {/* Audio File Upload Section */}
-        <div>
-          <Title heading={6}>Or Upload Audio File</Title>
+        <Card 
+          size="small" 
+          title={<><IconUpload /> Upload Audio File</> }
+          style={{ marginBottom: 16 }}
+        >
           <Text type="secondary" style={{ fontSize: 14, display: 'block', marginBottom: 12 }}>
             Upload a pre-recorded audio file for transcription (great for development testing!)
           </Text>
@@ -1174,13 +1225,14 @@ Only include terms that are likely industry-specific or technical jargon, not co
               </Button>
             </Space>
           )}
-        </div>
-
-        <Divider />
+        </Card>
 
         {/* Text Input Section */}
-        <div>
-          <Title heading={6}>Brainstorm Text</Title>
+        <Card 
+          size="small" 
+          title={<><IconEdit /> Brainstorm Text</> }
+          style={{ marginBottom: 16 }}
+        >
           <Text type="secondary" style={{ fontSize: 14 }}>
             {processingMode === 'workflows'
               ? 'Describe your async workflows - mention sequences, dependencies, wait times, and handoffs.'
@@ -1199,7 +1251,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
             style={{ marginTop: 12 }}
             disabled={isProcessing}
           />
-        </div>
+        </Card>
 
         {/* AI Processing Section */}
         <div>
