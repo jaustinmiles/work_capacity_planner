@@ -71,6 +71,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 16. Write tests one at a time, verify each passes before continuing
 17. Cannot merge PRs with less code coverage than main
 18. **All PR review feedback must be addressed and comments resolved**
+19. **Never use --no-verify or bypass safety infrastructure**
+20. **ALL test/lint failures on current branch are OUR responsibility**
+21. **Use PR review scripts to track all feedback systematically**
+22. **Never use git commit --amend (breaks review history)**
+
+### 🚨 PR Workflow (MANDATORY - PR #51 Lessons)
+
+**Starting a PR:**
+```bash
+git fetch origin main
+git rebase origin main  # CRITICAL: Avoid 43-commit divergence!
+git checkout -b feature/your-feature
+```
+
+**During Review:**
+```bash
+# Get ALL comments including inline
+gh pr view [PR#] --comments
+npx tsx scripts/pr/pr-review-tracker.ts [PR#]
+
+# Address EVERY item - track with TodoWrite
+# Never say "unrelated to my changes"
+# All failures are our responsibility
+```
+
+**If Branch Gets Messy (>20 commits):**
+```bash
+# Create clean branch
+git checkout -b feature/your-feature-clean main
+git checkout feature/your-feature -- .
+git add -A
+git commit -m "feat: Single clean commit message"
+git push --force-with-lease
+```
 
 ### 📍 Single Source of Truth Rules
 

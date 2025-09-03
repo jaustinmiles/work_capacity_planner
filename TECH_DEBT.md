@@ -1,6 +1,23 @@
 # Technical Debt Inventory
 
-## ✅ Recently Resolved Issues
+## ✅ Recently Resolved Issues (PR #51 - 2025-09-03)
+
+### Eisenhower Matrix Enhancements - COMPLETED
+**Status**: ✅ Merged in PR #51
+- Diagonal scan animation with synchronized highlighting
+- Task clustering for overlapping scatter plot items
+- Fixed tooltip background colors
+- Added comprehensive debug logging for Y-axis issues
+- All tests passing, TypeScript clean
+
+### LogViewer Filtering - COMPLETED  
+**Status**: ✅ Merged in PR #51
+- Fixed React Table reconciliation issues
+- Pattern-based log hiding now works correctly
+- Added database/session switching UI (backend pending)
+- Improved performance with stable rowKey
+
+## ✅ Previously Resolved Issues
 
 ### 1. Dual-View Work Logger - COMPLETED
 **Status**: ✅ Completed (2025-08-19)
@@ -231,7 +248,40 @@ case AmendmentType.DependencyChange:
 - Would allow "Create a new task for code review"
 - Would allow "Create a workflow for deployment"
 
+## High Priority Issues
+
+### 1. LogViewer Database Integration
+**Severity**: 🔴 High
+**Impact**: Cannot view historical logs from previous sessions
+
+**Missing Implementation**:
+- IPC handler for `get-session-logs` not implemented
+- Database query methods for ErrorLog table needed
+- Session selector UI disabled but ready
+- This blocks debugging of past issues
+
+**Solution**:
+- Add database methods to fetch ErrorLog entries by session
+- Implement IPC handler in main process
+- Enable session selector dropdown
+- Test with multiple sessions
+
 ## Medium Priority Issues
+
+### 2. Script Directory Organization
+**Severity**: 🟡 Medium
+**Impact**: 1386+ ESLint warnings from scripts
+
+**Current Issues**:
+- Scripts use console.log extensively (expected but noisy)
+- Consider unified CLI tool instead of 30+ individual scripts
+- Missing TypeScript types in some scripts
+- Duplicate functionality across scripts
+
+**Solution**:
+- Create unified CLI with subcommands
+- Add proper .eslintrc for scripts directory
+- Type all script parameters properly
 
 ### 3. Console Logging Cleanup
 **Severity**: 🟡 Medium  
