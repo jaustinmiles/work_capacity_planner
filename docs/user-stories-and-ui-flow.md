@@ -17,7 +17,27 @@ This document describes the user experience, workflows, and interaction patterns
 
 ## Core User Stories
 
-### Story 1: AI-Powered Task Brainstorming
+### Story 1: Visual Priority Management with Scatter Plot
+**As a task manager**, I want to visualize all my tasks in a 2D scatter plot by importance and urgency so that I can understand priority distribution at a glance.
+
+**Acceptance Criteria**:
+- ✅ Tasks display as dots on a scatter plot with urgency (X) and importance (Y) axes
+- ✅ Overlapping tasks show numbered badges indicating count
+- ✅ Animated diagonal scan shows priority order from high to low
+- ✅ Tooltips show task details on hover
+- ✅ Tasks are color-coded by quadrant
+- ✅ Can toggle between quadrant and scatter plot views
+
+**UI Flow**:
+1. User navigates to Eisenhower Matrix view
+2. User toggles "Scatter Plot" mode
+3. Tasks render as dots positioned by urgency/importance
+4. User clicks "Start Scan" to see diagonal animation
+5. Tasks highlight in priority order as scan passes
+6. Scanned tasks list appears below plot
+7. User hovers over clustered tasks to see all items
+
+### Story 2: AI-Powered Task Brainstorming
 **As a busy professional**, I want to quickly capture my thoughts through voice input and have AI organize them into structured tasks so that I can rapidly plan my work without manual organization.
 
 **Acceptance Criteria**:
@@ -42,7 +62,26 @@ This document describes the user experience, workflows, and interaction patterns
 10. User can choose between original and AI-enhanced versions
 11. Tasks are created and appear in normal task list
 
-### Story 2: Basic Task Management
+### Story 3: Developer Tools and Log Management
+**As a developer**, I want advanced tools to debug issues and track errors so that I can maintain and improve the application effectively.
+
+**Acceptance Criteria**:
+- ✅ View logs with pattern-based filtering
+- ✅ Hide repetitive error patterns with one click
+- ✅ See grouped errors with occurrence counts
+- ✅ Session persistence remembers last used session
+- ✅ Circadian rhythm overlay shows energy levels
+- ✅ PR review tracking script helps manage feedback
+
+**UI Flow**:
+1. User opens DevTools panel
+2. LogViewer shows recent errors with patterns
+3. User clicks "Hide Pattern" to filter noise
+4. Hidden count updates in real-time
+5. User can toggle pattern visibility
+6. Session automatically loads on next startup
+
+### Story 4: Basic Task Management
 **As a software engineer**, I want to create and manage individual tasks so that I can track my work items and priorities.
 
 **Acceptance Criteria**:

@@ -13,14 +13,19 @@ An Electron-based task management application with AI-powered task extraction an
 - **Context-Aware**: Uses persistent job context and industry jargon for better understanding
 
 ### 📋 Advanced Task Management
-- **Smart Prioritization**: Eisenhower Matrix with importance × urgency scoring
+- **Smart Prioritization**: 
+  - Eisenhower Matrix with importance × urgency scoring
+  - **NEW: Scatter Plot Mode** with animated diagonal scan
+  - **NEW: Task Clustering** for overlapping priority items
 - **Multi-Step Workflows**: Create complex sequenced tasks with dependencies
 - **Async Wait Times**: Model external delays (code reviews, CI/CD, approvals)
 - **Task Types**: Distinguish between focused work and administrative tasks
 - **Duration Tracking**: Realistic time estimates with capacity-based scheduling
 - **Hard Deadlines**: Priority boost for tasks approaching deadlines
 - **Workflow Controls**: Start, pause, and reset workflow execution
-- **Session Management**: Multiple work contexts with isolated data
+- **Session Management**: 
+  - Multiple work contexts with isolated data
+  - **NEW: Auto-loads last used session** on startup
 - **Batch Operations**: Delete all tasks for development testing (dev mode)
 - **Grid View**: Data-dense table view with sortable/filterable columns
 - **Inline Editing**: Click any cell in grid view to edit values instantly
@@ -64,6 +69,15 @@ An Electron-based task management application with AI-powered task extraction an
 - **Local SQLite Database**: All data persists between sessions
 - **Secure Architecture**: Database operations isolated to main process
 - **Real-time Sync**: Changes immediately reflected across all views
+
+### 🛠️ Developer Tools (NEW)
+- **Advanced Log Viewer**: 
+  - Pattern-based log filtering and hiding
+  - Group similar errors automatically
+  - Session-based log viewing (ring buffer + database)
+- **PR Review Tracking**: Script to track and manage PR feedback
+- **Organized Scripts**: Logical subdirectories for database, dev, PR, and analysis tools
+- **Circadian Rhythm Visualization**: Energy level overlay on timeline view
 
 ## 🛠️ Technical Stack
 

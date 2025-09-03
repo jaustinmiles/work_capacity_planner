@@ -1,7 +1,7 @@
 # Work Capacity Planner - Architecture Documentation
 
-**Last Updated:** August 15, 2025  
-**Version:** 2.0.0
+**Last Updated:** September 3, 2025  
+**Version:** 3.0.0 (Post PR #51)
 
 ## Overview
 
@@ -31,6 +31,8 @@ Work Capacity Planner is an Electron-based desktop application for managing soft
 │  - Window management                                     │
 │  - AI service integration (Claude + Whisper)             │
 │  - Amendment parsing with job context                    │
+│  - Centralized logging system (file + database)          │
+│  - Error persistence to database                         │
 └───────────────┬─────────────────────────────────────────┘
                 │
                 │ IPC via Preload Script (contextBridge)
@@ -41,8 +43,10 @@ Work Capacity Planner is an Electron-based desktop application for managing soft
 │  - React application                                     │
 │  - Zustand store with task/workflow state                │
 │  - UI components (Arco Design)                           │
-│  - Scheduling algorithms                                 │
+│  - Scheduling algorithms (3 modes: optimal/balanced/manual)│
 │  - Voice amendment UI                                    │
+│  - Advanced developer tools (LogViewer, PR tracker)      │
+│  - Eisenhower scatter plot with clustering               │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -423,15 +427,58 @@ src/shared/__tests__/
 4. **Mobile Companion**: View-only mobile app
 5. **API Integration**: JIRA, GitHub, etc.
 
+## Logging System Architecture (NEW in v3.0)
+
+### Dual-Layer Logging
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Ring Buffer (Memory)                  │
+│  - Last 1000 log entries                                 │
+│  - Fast access for development                           │
+│  - Cleared on app restart                                │
+└───────────────┬─────────────────────────────────────────┘
+                │
+                │ Error logs persisted
+                │
+┌───────────────▼─────────────────────────────────────────┐
+│                  ErrorLog Database Table                 │
+│  - Permanent storage of errors                           │
+│  - Session-based querying                                │
+│  - Stack traces preserved                                │
+│  - Pattern analysis capabilities                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### LogViewer Features
+- **Pattern Detection**: Groups similar errors automatically
+- **Hide/Show Patterns**: Filter out noise with one click
+- **Session Switching**: View logs from previous sessions (pending IPC implementation)
+- **React Table**: Stable keys for proper reconciliation
+
+## UI Component Improvements (PR #51)
+
+### Eisenhower Matrix Enhancements
+- **Scatter Plot Mode**: Visual representation of task priority distribution
+- **Diagonal Scan Animation**: Animated priority ordering from high to low
+- **Task Clustering**: Numbered badges for overlapping items
+- **Responsive Sizing**: Container-aware dimensions with minHeight safeguards
+
+### Session Management
+- **Auto-load Last Session**: Persists last used session to localStorage
+- **No Flash on Startup**: Session loaded before default data initialization
+
 ### Technical Debt (Resolved)
 - ✅ Unified task model migration
 - ✅ TypeScript strict mode compliance
 - ✅ Voice amendment implementation
 - ✅ IPC serialization handling
+- ✅ React Table reconciliation issues
+- ✅ Container height collapse bugs
+- ✅ Script organization into subdirectories
 
 ### Remaining Technical Debt
 - Complete all amendment types
-- Remove debug logging
+- LogViewer database integration (IPC handler)
 - Optimize large workflow performance
 - Add E2E test coverage
 
