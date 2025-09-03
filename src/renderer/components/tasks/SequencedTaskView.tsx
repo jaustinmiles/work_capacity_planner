@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Tag, Button, Alert, Statistic, Grid, Progress, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory, IconBook } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
-import { TaskType } from '@shared/enums'
+import { TaskType, StepStatus } from '@shared/enums'
 import { TaskStepItem } from './TaskStepItem'
 import { SequencedTaskEdit } from './SequencedTaskEdit'
 import { WorkflowVisualization } from './WorkflowVisualization'
@@ -103,13 +103,13 @@ export function SequencedTaskView({
   // Step completion handlers
   const handleStepStart = (stepId: string) => {
     if (onUpdateStep) {
-      onUpdateStep(stepId, { status: 'in_progress' })
+      onUpdateStep(stepId, { status: StepStatus.InProgress })
     }
   }
 
   const handleStepComplete = (stepId: string) => {
     if (onUpdateStep) {
-      onUpdateStep(stepId, { status: 'completed', percentComplete: 100 })
+      onUpdateStep(stepId, { status: StepStatus.Completed, percentComplete: 100 })
     }
   }
 

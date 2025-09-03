@@ -1,5 +1,5 @@
 import { Button } from '@arco-design/web-react'
-import { TaskType } from '@shared/enums'
+import { TaskType, TaskStatus, StepStatus } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { SequencedTask } from '@shared/sequencing-types'
 
@@ -18,7 +18,7 @@ export function TestWorkflowCreator() {
       duration: 180,
       criticalPathDuration: 180,
       worstCaseDuration: 240,
-      overallStatus: 'not_started',
+      overallStatus: TaskStatus.NotStarted,
       sessionId: 'default',  // Add required sessionId
       asyncWaitTime: 0,
       hasSteps: true,
@@ -31,7 +31,7 @@ export function TestWorkflowCreator() {
           type: TaskType.Focused,
           dependsOn: [],
           asyncWaitTime: 0,
-          status: 'pending',
+          status: StepStatus.Pending,
           stepIndex: 0,
           percentComplete: 0,
         },
@@ -43,7 +43,7 @@ export function TestWorkflowCreator() {
           type: TaskType.Focused,
           dependsOn: ['step-test-1'],
           asyncWaitTime: 0,
-          status: 'pending',
+          status: StepStatus.Pending,
           stepIndex: 1,
           percentComplete: 0,
         },
@@ -55,7 +55,7 @@ export function TestWorkflowCreator() {
           type: TaskType.Admin,
           dependsOn: ['step-test-2'],
           asyncWaitTime: 30,
-          status: 'pending',
+          status: StepStatus.Pending,
           stepIndex: 2,
           percentComplete: 0,
         },
@@ -67,7 +67,7 @@ export function TestWorkflowCreator() {
           type: TaskType.Focused,
           dependsOn: ['step-test-2', 'step-test-3'],
           asyncWaitTime: 0,
-          status: 'pending',
+          status: StepStatus.Pending,
           stepIndex: 3,
           percentComplete: 0,
         },

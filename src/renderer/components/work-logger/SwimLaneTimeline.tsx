@@ -793,7 +793,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                   key={i}
                   style={{
                     position: 'absolute',
-                    left: i * hourWidth,
+                    left: TIME_LABEL_WIDTH + i * hourWidth,
                     top: 0,
                     bottom: 0,
                     borderLeft: '1px solid #f0f0f0',

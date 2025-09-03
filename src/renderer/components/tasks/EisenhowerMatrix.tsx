@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
 import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip, Slider, Radio } from '@arco-design/web-react'
 import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut, IconApps, IconDragDot } from '@arco-design/web-react/icon'
@@ -16,6 +16,26 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { tasks, sequencedTasks, selectTask } = useTaskStore()
   const [zoom, setZoom] = useState(1)
   const [viewMode, setViewMode] = useState<'grid' | 'scatter'>('grid')
+  const scatterContainerRef = useRef<HTMLDivElement>(null)
+  const [containerSize, setContainerSize] = useState({ width: 500, height: 500 })
+
+  // Update container size on mount and resize
+  useEffect(() => {
+    const updateSize = () => {
+      if (scatterContainerRef.current) {
+        const rect = scatterContainerRef.current.getBoundingClientRect()
+        // Account for padding (50px on each side)
+        setContainerSize({
+          width: rect.width - 100,
+          height: rect.height - 100,
+        })
+      }
+    }
+
+    updateSize()
+    window.addEventListener('resize', updateSize)
+    return () => window.removeEventListener('resize', updateSize)
+  }, [viewMode]) // Re-calculate when switching views
 
   // Combine regular tasks and sequenced tasks (workflows)
   // Deduplicate by ID - sequenced tasks take precedence
@@ -283,7 +303,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       ) : (
         // Scatter Plot View
         <Card style={{ height: 600, position: 'relative', overflow: 'hidden' }}>
-          <div style={{
+          <div ref={scatterContainerRef} style={{
             width: '100%',
             height: '100%',
             position: 'relative',
@@ -323,7 +343,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               right: 50,
               bottom: 50,
               border: '2px solid #e5e6eb',
-              background: '#fafafa',
+              background: 'white',
             }}>
               {/* Vertical Center Line */}
               <div style={{
@@ -398,17 +418,15 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 const config = quadrantConfig[quadrant]
 
                 // Convert importance/urgency (1-10) to position (0-100%)
-                const x = (task.urgency / 10) * 100
-                const y = 100 - (task.importance / 10) * 100 // Invert Y axis
+                const xPercent = (task.urgency / 10) * 100
+                const yPercent = 100 - (task.importance / 10) * 100 // Invert Y axis
 
                 // Calculate bubble size based on duration (min 20px, max 60px)
                 const size = Math.min(60, Math.max(20, 20 + (task.duration / 30)))
 
-                // Adjust positions to account for container padding (50px)
-                const containerWidth = 500 // 600 - 100 (50px padding each side)
-                const containerHeight = 500 // 600 - 100 (50px padding each side)
-                const xPos = 50 + (x / 100) * containerWidth // Add 50px offset
-                const yPos = 50 + (y / 100) * containerHeight // Add 50px offset
+                // Use actual container dimensions for positioning
+                const xPos = 50 + (xPercent / 100) * containerSize.width
+                const yPos = 50 + (yPercent / 100) * containerSize.height
 
                 return (
                   <Tooltip

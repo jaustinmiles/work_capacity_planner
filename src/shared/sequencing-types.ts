@@ -1,5 +1,5 @@
 import { Task, TaskStep } from './types'
-import { TaskType } from './enums'
+import { TaskType, TaskStatus, StepStatus } from './enums'
 
 // Re-export TaskStep for backward compatibility
 export type { TaskStep }
@@ -55,7 +55,7 @@ export function createWorkflowTask(params: {
     id: `step-${index}`,
     taskId: '', // Will be set when saved
     stepIndex: index,
-    status: step.status || 'pending',
+    status: step.status || StepStatus.Pending,
     percentComplete: step.percentComplete || 0,
     dependsOn: step.dependsOn || [],
   }))
@@ -76,7 +76,7 @@ export function createWorkflowTask(params: {
     notes: params.notes,
     sessionId: params.sessionId,
     hasSteps: true,
-    overallStatus: 'not_started',
+    overallStatus: TaskStatus.NotStarted,
     criticalPathDuration,
     worstCaseDuration,
     steps,
@@ -116,7 +116,7 @@ export const exampleSequencedTask: SequencedTask = {
   notes: 'Complex workflow with async waits and conditional branches',
   hasSteps: true,
   currentStepId: undefined,
-  overallStatus: 'not_started',
+  overallStatus: TaskStatus.NotStarted,
   criticalPathDuration: 425,
   worstCaseDuration: 1200,
   steps: [
@@ -128,7 +128,7 @@ export const exampleSequencedTask: SequencedTask = {
       type: TaskType.Focused,
       dependsOn: [],
       asyncWaitTime: 0,
-      status: 'pending',
+      status: StepStatus.Pending,
       stepIndex: 0,
       percentComplete: 0,
     },
@@ -140,7 +140,7 @@ export const exampleSequencedTask: SequencedTask = {
       type: TaskType.Focused,
       dependsOn: ['step-1'],
       asyncWaitTime: 0,
-      status: 'pending',
+      status: StepStatus.Pending,
       stepIndex: 1,
       percentComplete: 0,
     },
@@ -152,7 +152,7 @@ export const exampleSequencedTask: SequencedTask = {
       type: TaskType.Admin,
       dependsOn: ['step-2'],
       asyncWaitTime: 60,
-      status: 'pending',
+      status: StepStatus.Pending,
       stepIndex: 2,
       percentComplete: 0,
     },
@@ -164,7 +164,7 @@ export const exampleSequencedTask: SequencedTask = {
       type: TaskType.Focused,
       dependsOn: ['step-3'],
       asyncWaitTime: 0,
-      status: 'pending',
+      status: StepStatus.Pending,
       stepIndex: 3,
       percentComplete: 0,
     },
@@ -176,7 +176,7 @@ export const exampleSequencedTask: SequencedTask = {
       type: TaskType.Admin,
       dependsOn: ['step-4'],
       asyncWaitTime: 480,
-      status: 'pending',
+      status: StepStatus.Pending,
       stepIndex: 4,
       percentComplete: 0,
     },

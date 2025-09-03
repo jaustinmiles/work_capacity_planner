@@ -19,9 +19,9 @@ import {
   DeadlineChange,
   PriorityChange,
   TypeChange,
-  DeadlineType,
+  TaskType,
 } from '@shared/amendment-types'
-import { assertNever, TaskType } from '@shared/enums'
+import { assertNever, StepStatus } from '@shared/enums'
 import { getDatabase } from '../services/database'
 import { Message } from '../components/common/Message'
 import { logger } from './logger'
@@ -550,7 +550,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
               asyncWaitTime: step.asyncWaitTime || 0,
               completed: false,
               completedCumulativeMinutes: 0,
-              status: 'pending' as const,
+              status: StepStatus.Pending,
               stepIndex: index,
               percentComplete: 0,
             })),
@@ -569,7 +569,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           if (change.target.id) {
             try {
               const deadline = change.newDeadline
-              const deadlineType = change.deadlineType === DeadlineType.Hard ? 'hard' : 'soft'
+              const deadlineType = change.deadlineType
 
               if (change.stepName) {
                 // Changing deadline for a workflow step

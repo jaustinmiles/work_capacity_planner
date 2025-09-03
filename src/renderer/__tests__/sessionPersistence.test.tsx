@@ -115,7 +115,7 @@ describe('Session Persistence', () => {
       localStorageMock.setItem('lastUsedSessionId', sessionId)
       return mockSessions.find(s => s.id === sessionId)
     })
-    
+
     mockDb.switchSession = mockSwitchSession
 
     // Simulate switching to a session
@@ -128,7 +128,7 @@ describe('Session Persistence', () => {
   it('should load session during initialization to prevent default flash', async () => {
     // This test ensures session is loaded as part of initialization
     localStorageMock.getItem.mockReturnValue('session-1')
-    
+
     const { result } = renderHook(() => useTaskStore())
 
     // Start initialization
@@ -139,7 +139,7 @@ describe('Session Persistence', () => {
     expect(mockDb.loadLastUsedSession).toHaveBeenCalled()
     expect(mockDb.loadLastUsedSession).toHaveBeenCalledBefore(mockDb.getTasks as any)
     expect(mockDb.loadLastUsedSession).toHaveBeenCalledBefore(mockDb.getSequencedTasks as any)
-    
+
     // Should no longer be loading after initialization
     expect(result.current.isLoading).toBe(false)
   })
