@@ -14,6 +14,8 @@ import {
   Rate,
   Alert,
   Empty,
+  InputNumber,
+  Radio,
 } from '@arco-design/web-react'
 import {
   IconLeft,
@@ -474,11 +476,34 @@ export function TaskQuickEditModal({
 
         <Divider />
 
-        {/* Duration Slider */}
+        {/* Duration with better UI */}
         <div>
-          <Text bold>
-            <IconClockCircle /> Duration: {formatDuration(editedData?.duration || 0)}
-          </Text>
+          <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text bold>
+              <IconClockCircle /> Duration
+            </Text>
+            <InputNumber
+              value={editedData?.duration || 0}
+              min={0}
+              max={960}
+              step={15}
+              suffix="min"
+              onChange={(value) => value !== undefined && updateField('duration', value)}
+              style={{ width: 120 }}
+            />
+          </Space>
+          <Radio.Group
+            type="button"
+            value={editedData?.duration || 60}
+            onChange={(value) => updateField('duration', value)}
+            style={{ width: '100%' }}
+          >
+            {DURATION_PRESETS.map(preset => (
+              <Radio key={preset.value} value={preset.value}>
+                {preset.label}
+              </Radio>
+            ))}
+          </Radio.Group>
           <Slider
             value={editedData?.duration || 0}
             min={15}
@@ -494,27 +519,38 @@ export function TaskQuickEditModal({
             onChange={(value) => updateField('duration', value as number)}
             style={{ marginTop: 8 }}
           />
-          <Space style={{ marginTop: 8 }}>
-            {DURATION_PRESETS.map(preset => (
-              <Button
-                key={preset.value}
-                size="small"
-                type={editedData?.duration === preset.value ? 'primary' : 'default'}
-                onClick={() => updateField('duration', preset.value)}
-              >
-                {preset.label}
-              </Button>
-            ))}
-          </Space>
         </div>
 
-        {/* Priority Sliders - Only for tasks and workflows */}
+        {/* Priority with Quick Select Buttons */}
         {currentItem?.type !== 'step' && (
           <Row gutter={16}>
             <Col span={12}>
-              <Text bold>
-                <IconFire /> Importance: {(editedData as Task)?.importance || 5}
-              </Text>
+              <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text bold>
+                  <IconFire /> Importance
+                </Text>
+                <Select
+                  value={(editedData as Task)?.importance || 5}
+                  onChange={(value) => updateField('importance', value)}
+                  style={{ width: 80 }}
+                  size="small"
+                >
+                  {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                    <Select.Option key={n} value={n}>{n}</Select.Option>
+                  ))}
+                </Select>
+              </Space>
+              <Radio.Group
+                type="button"
+                size="small"
+                value={(editedData as Task)?.importance || 5}
+                onChange={(value) => updateField('importance', value)}
+                style={{ width: '100%' }}
+              >
+                {[1,3,5,7,10].map(n => (
+                  <Radio key={n} value={n}>{n}</Radio>
+                ))}
+              </Radio.Group>
               <Slider
                 value={(editedData as Task)?.importance || 5}
                 min={1}
@@ -529,9 +565,32 @@ export function TaskQuickEditModal({
               />
             </Col>
             <Col span={12}>
-              <Text bold>
-                <IconThunderbolt /> Urgency: {(editedData as Task)?.urgency || 5}
-              </Text>
+              <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text bold>
+                  <IconThunderbolt /> Urgency
+                </Text>
+                <Select
+                  value={(editedData as Task)?.urgency || 5}
+                  onChange={(value) => updateField('urgency', value)}
+                  style={{ width: 80 }}
+                  size="small"
+                >
+                  {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                    <Select.Option key={n} value={n}>{n}</Select.Option>
+                  ))}
+                </Select>
+              </Space>
+              <Radio.Group
+                type="button"
+                size="small"
+                value={(editedData as Task)?.urgency || 5}
+                onChange={(value) => updateField('urgency', value)}
+                style={{ width: '100%' }}
+              >
+                {[1,3,5,7,10].map(n => (
+                  <Radio key={n} value={n}>{n}</Radio>
+                ))}
+              </Radio.Group>
               <Slider
                 value={(editedData as Task)?.urgency || 5}
                 min={1}
@@ -572,14 +631,28 @@ export function TaskQuickEditModal({
             <Text bold style={{ display: 'block', marginBottom: 8 }}>
               Cognitive Complexity
             </Text>
-            <Rate
+            <Radio.Group
+              type="button"
               value={editedData?.cognitiveComplexity || 3}
-              onChange={(value) => updateField('cognitiveComplexity', value as 1 | 2 | 3 | 4 | 5)}
-              style={{ fontSize: 24 }}
-            />
-            <Text type="secondary" style={{ marginLeft: 8 }}>
-              (Press 1-5)
-            </Text>
+              onChange={(value) => updateField('cognitiveComplexity', value)}
+              style={{ width: '100%' }}
+            >
+              <Radio value={1}>Low</Radio>
+              <Radio value={2}>Med-</Radio>
+              <Radio value={3}>Med</Radio>
+              <Radio value={4}>Med+</Radio>
+              <Radio value={5}>High</Radio>
+            </Radio.Group>
+            <Space style={{ marginTop: 8 }}>
+              <Rate
+                value={editedData?.cognitiveComplexity || 3}
+                onChange={(value) => updateField('cognitiveComplexity', value as 1 | 2 | 3 | 4 | 5)}
+                style={{ fontSize: 20 }}
+              />
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                (Press 1-5)
+              </Text>
+            </Space>
           </Col>
         </Row>
 
