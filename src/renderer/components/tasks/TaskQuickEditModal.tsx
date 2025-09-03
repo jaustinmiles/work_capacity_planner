@@ -84,7 +84,7 @@ export function TaskQuickEditModal({
   const { tasks, updateTask } = useTaskStore()
   const logger = useLogger({ component: 'TaskQuickEditModal' })
   const [filter, setFilter] = useState(initialFilter)
-  const [includeWorkflowSteps, setIncludeWorkflowSteps] = useState(initialIncludeSteps)
+  const [includeWorkflowSteps] = useState(initialIncludeSteps)
 
   // Build list of editable items (tasks, workflows, and their steps)
   const editableItems = useMemo((): EditableItem[] => {

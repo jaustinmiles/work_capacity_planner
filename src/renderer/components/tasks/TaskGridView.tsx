@@ -23,7 +23,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
   const handleToggleComplete = async (task: Task) => {
     try {
       await updateTask(task.id, {
-        completed: !task.completed
+        completed: !task.completed,
       })
       Message.success(task.completed ? 'Task marked as incomplete' : 'Task completed!')
     } catch (error) {
@@ -102,7 +102,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       onFilter: (value: string, record: Task) => {
         return record.name.toLowerCase().includes(value.toLowerCase())
       },
-      render: (name: string, record: Task) => (
+      render: (name: string) => (
         <Text>{name}</Text>
       ),
     },
@@ -142,7 +142,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       sorter: (a: Task, b: Task) => a.importance - b.importance,
       render: (value: number, record: Task) => {
         const isEditing = editingCell?.taskId === record.id && editingCell?.field === 'importance'
-        
+
         if (isEditing) {
           return (
             <Select
@@ -164,9 +164,9 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
             </Select>
           )
         }
-        
+
         return (
-          <Tag 
+          <Tag
             color={value >= 7 ? 'red' : value >= 4 ? 'orange' : 'gray'}
             onClick={() => setEditingCell({ taskId: record.id, field: 'importance' })}
             style={{ cursor: 'pointer' }}
@@ -185,7 +185,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       sorter: (a: Task, b: Task) => a.urgency - b.urgency,
       render: (value: number, record: Task) => {
         const isEditing = editingCell?.taskId === record.id && editingCell?.field === 'urgency'
-        
+
         if (isEditing) {
           return (
             <Select
@@ -207,9 +207,9 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
             </Select>
           )
         }
-        
+
         return (
-          <Tag 
+          <Tag
             color={value >= 7 ? 'red' : value >= 4 ? 'orange' : 'gray'}
             onClick={() => setEditingCell({ taskId: record.id, field: 'urgency' })}
             style={{ cursor: 'pointer' }}
@@ -229,7 +229,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       render: (value: number | undefined, record: Task) => {
         const isEditing = editingCell?.taskId === record.id && editingCell?.field === 'cognitive'
         const displayValue = value || 3
-        
+
         if (isEditing) {
           return (
             <Select
@@ -253,12 +253,12 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
             </Select>
           )
         }
-        
+
         const labels = { 1: 'Low', 2: 'Med-', 3: 'Med', 4: 'Med+', 5: 'High' }
         const colors = { 1: 'green', 2: 'cyan', 3: 'blue', 4: 'orange', 5: 'red' }
-        
+
         return (
-          <Tag 
+          <Tag
             color={colors[displayValue as keyof typeof colors] || 'gray'}
             onClick={() => setEditingCell({ taskId: record.id, field: 'cognitive' })}
             style={{ cursor: 'pointer' }}
@@ -284,7 +284,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
         if (score >= 64) color = 'red'
         else if (score >= 36) color = 'orange'
         else if (score >= 16) color = 'blue'
-        
+
         return <Tag color={color}>{score}</Tag>
       },
     },
@@ -339,7 +339,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
         border
         scroll={{ x: true }}
       />
-      
+
       {selectedTask && editModalVisible && (
         <TaskEdit
           task={selectedTask}
