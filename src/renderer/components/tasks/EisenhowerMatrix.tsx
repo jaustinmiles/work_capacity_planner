@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { TaskType } from '@shared/enums'
 import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip, Slider, Radio } from '@arco-design/web-react'
-import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut, IconApps, IconDragDot } from '@arco-design/web-react/icon'
+import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut, IconApps, IconDragDot, IconScan } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Task } from '@shared/types'
+import { getRendererLogger } from '../../../logging/index.renderer'
 
 const { Row, Col } = Grid
 const { Title, Text } = Typography
@@ -12,6 +13,8 @@ interface EisenhowerMatrixProps {
   onAddTask: () => void
 }
 
+const logger = getRendererLogger().child({ category: 'eisenhower' })
+
 export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { tasks, sequencedTasks, selectTask } = useTaskStore()
   const [zoom, setZoom] = useState(1)
@@ -19,16 +22,45 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const scatterContainerRef = useRef<HTMLDivElement>(null)
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 })
 
+  // Diagonal scan state
+  const [isScanning, setIsScanning] = useState(false)
+  const [scanProgress, setScanProgress] = useState(0)
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
+  const [scannedTasks, setScannedTasks] = useState<Task[]>([])
+  const scanAnimationRef = useRef<number | undefined>(undefined)
+
   // Update container size on mount and resize
   useEffect(() => {
     const updateSize = () => {
       if (scatterContainerRef.current) {
         const rect = scatterContainerRef.current.getBoundingClientRect()
+
+        // Log when we get invalid dimensions
+        if (rect.height === 0 && viewMode === 'scatter') {
+          logger.warn('Scatter container has zero height', {
+            width: rect.width,
+            height: rect.height,
+            viewMode,
+          })
+        }
+
         // Account for padding (50px on each side)
-        setContainerSize({
-          width: rect.width - 100,
-          height: rect.height - 100,
-        })
+        // But ensure we don't go below minimum sizes
+        const newSize = {
+          width: Math.max(100, rect.width - 100),
+          height: Math.max(100, rect.height - 100),
+        }
+        setContainerSize(newSize)
+
+        // Log container size changes for debugging
+        if (viewMode === 'scatter') {
+          logger.debug('Container size updated', {
+            width: newSize.width,
+            height: newSize.height,
+            rectWidth: rect.width,
+            rectHeight: rect.height,
+          })
+        }
       }
     }
 
@@ -53,6 +85,72 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   // Only show incomplete tasks in the matrix
   const incompleteTasks = allTasks.filter(task => !task.completed)
 
+  // Log when scatter view is activated with full dataset analysis
+  useEffect(() => {
+    if (viewMode === 'scatter' && incompleteTasks.length > 0) {
+      // Log scatter plot rendering for debugging
+      logger.debug('EISENHOWER SCATTER DEBUG: Scatter plot rendering', {
+        taskCount: incompleteTasks.length,
+        containerWidth: containerSize.width,
+        containerHeight: containerSize.height,
+        firstTaskImportance: incompleteTasks[0]?.importance,
+        firstTaskUrgency: incompleteTasks[0]?.urgency,
+        hasWindowElectron: Boolean(window.electron),
+        hasWindowElectronLog: Boolean(window.electron?.log),
+      })
+      const importanceValues = incompleteTasks.map(t => t.importance)
+      const urgencyValues = incompleteTasks.map(t => t.urgency)
+
+      // Check for Y-axis collapse
+      const yPositions = incompleteTasks.map(t => (1 - t.importance / 10) * 100)
+      const uniqueYPositions = new Set(yPositions)
+
+      if (uniqueYPositions.size === 1 && incompleteTasks.length > 1) {
+        logger.warn('Y-axis collapsed - all tasks have same Y position', {
+          collapsedYValue: [...uniqueYPositions][0],
+          taskCount: incompleteTasks.length,
+          containerHeight: containerSize.height,
+          importanceValues: [...new Set(importanceValues)],
+        })
+      }
+
+      logger.info('Scatter view activated', {
+        taskCount: incompleteTasks.length,
+        importanceDistribution: {
+          min: Math.min(...importanceValues),
+          max: Math.max(...importanceValues),
+          unique: [...new Set(importanceValues)].sort((a, b) => a - b),
+          all: importanceValues,
+        },
+        urgencyDistribution: {
+          min: Math.min(...urgencyValues),
+          max: Math.max(...urgencyValues),
+          unique: [...new Set(urgencyValues)].sort((a, b) => a - b),
+          all: urgencyValues,
+        },
+        yPositionDistribution: {
+          min: Math.min(...yPositions),
+          max: Math.max(...yPositions),
+          unique: [...new Set(yPositions)].sort((a, b) => a - b),
+          count: new Set(yPositions).size,
+          all: yPositions,
+        },
+        containerSize,
+        timestamp: new Date().toISOString(),
+      })
+
+      // Warn if Y-axis appears collapsed
+      if (new Set(yPositions).size === 1 && incompleteTasks.length > 1) {
+        logger.warn('Y-axis collapsed in scatter view', {
+          message: 'Y-axis is collapsed - all tasks have same Y position!',
+          yPosition: yPositions[0],
+          taskCount: incompleteTasks.length,
+          importanceValues: [...new Set(importanceValues)],
+        })
+      }
+    }
+  }, [viewMode, incompleteTasks.length, containerSize.width, containerSize.height])
+
   // Categorize tasks into quadrants
   const categorizeTask = (task: Task) => {
     if (task.importance >= 7 && task.urgency >= 7) return 'do-first'
@@ -60,6 +158,115 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
     if (task.importance < 7 && task.urgency >= 7) return 'delegate'
     return 'eliminate'
   }
+
+
+  // Calculate perpendicular distance from point to scan line
+  const getDistanceToScanLine = useCallback((task: Task, progress: number) => {
+    // Scan line goes from top-right (width, 0) to bottom-left (0, height)
+    // At progress p, the line is at:
+    // Start point: (width * (1-p), 0)
+    // End point: (width, height * p)
+
+    // Convert task importance/urgency to pixel position
+    const xPos = (task.urgency / 10) * containerSize.width
+    const yPos = ((10 - task.importance) / 10) * containerSize.height // Inverted Y
+
+    // Scan line endpoints at current progress
+    const lineX1 = containerSize.width * (1 - progress)
+    const lineY1 = 0
+    const lineX2 = containerSize.width
+    const lineY2 = containerSize.height * progress
+
+    // Calculate perpendicular distance from point to line
+    const A = lineY2 - lineY1
+    const B = lineX1 - lineX2
+    const C = lineX2 * lineY1 - lineX1 * lineY2
+
+    const distance = Math.abs(A * xPos + B * yPos + C) / Math.sqrt(A * A + B * B)
+    return distance
+  }, [containerSize])
+
+  // Start/stop diagonal scan animation
+  const toggleDiagonalScan = useCallback(() => {
+    if (isScanning) {
+      // Stop scanning
+      setIsScanning(false)
+      setScanProgress(0)
+      setHighlightedTaskId(null)
+      if (scanAnimationRef.current) {
+        window.cancelAnimationFrame(scanAnimationRef.current)
+      }
+    } else {
+      // Start scanning - reset scanned tasks only when starting new scan
+      setIsScanning(true)
+      setScanProgress(0)
+      setScannedTasks([])
+
+      const scannedTaskIds = new Set<string>()
+      let startTime: number | null = null
+      const animationDuration = 8000 // 8 seconds for full scan
+      const scanThreshold = 30 // Pixels distance to consider "hit" by scan line
+
+      const animate = (timestamp: number) => {
+        if (!startTime) startTime = timestamp
+        const elapsed = timestamp - startTime
+
+        // Calculate progress (0 to 1)
+        const progress = Math.min(elapsed / animationDuration, 1)
+        setScanProgress(progress)
+
+        // Find tasks that are currently hit by the scan line
+        let currentHighlightedTask: Task | null = null
+
+        incompleteTasks.forEach((task: Task) => {
+          const distance = getDistanceToScanLine(task, progress)
+
+          // Check if scan line is hitting this task
+          if (distance < scanThreshold) {
+            // Add to scanned tasks if not already added
+            if (!scannedTaskIds.has(task.id)) {
+              scannedTaskIds.add(task.id)
+              setScannedTasks(prev => [...prev, task])
+            }
+
+            // Highlight the task closest to the scan line
+            if (!currentHighlightedTask || distance < getDistanceToScanLine(currentHighlightedTask as Task, progress)) {
+              currentHighlightedTask = task
+            }
+          }
+        })
+
+        // Update highlighted task
+        if (currentHighlightedTask !== null) {
+          const highlightedTask = currentHighlightedTask as Task
+          setHighlightedTaskId(highlightedTask.id)
+          selectTask(highlightedTask.id)
+        } else {
+          setHighlightedTaskId(null)
+        }
+
+        if (progress < 1) {
+          scanAnimationRef.current = window.requestAnimationFrame(animate)
+        } else {
+          // Keep list visible when complete - don't reset
+          setIsScanning(false)
+          setScanProgress(0)
+          setHighlightedTaskId(null)
+        }
+      }
+
+      scanAnimationRef.current = window.requestAnimationFrame(animate)
+    }
+  }, [isScanning, incompleteTasks, selectTask, getDistanceToScanLine])
+
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (scanAnimationRef.current) {
+        window.cancelAnimationFrame(scanAnimationRef.current)
+      }
+    }
+  }, [])
 
   const quadrants = {
     'do-first': incompleteTasks.filter(task => categorizeTask(task) === 'do-first'),
@@ -215,6 +422,17 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 <IconDragDot /> Scatter
               </Radio>
             </Radio.Group>
+            {viewMode === 'scatter' && (
+              <Button
+                // Arco Design button types: 'primary' (blue, prominent), 'default' (gray, standard)
+                type={isScanning ? 'primary' : 'default'}
+                icon={<IconScan />}
+                onClick={toggleDiagonalScan}
+                loading={isScanning}
+              >
+                {isScanning ? 'Scanning...' : 'Diagonal Scan'}
+              </Button>
+            )}
             <Space>
               <Button icon={<IconZoomOut />} onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} />
               <Slider
@@ -302,10 +520,11 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       </div>
       ) : (
         // Scatter Plot View
-        <Card style={{ height: 600, position: 'relative', overflow: 'hidden' }}>
+        <Card style={{ minHeight: 600, height: 600, position: 'relative', overflow: 'hidden' }}>
           <div ref={scatterContainerRef} style={{
             width: '100%',
             height: '100%',
+            minHeight: 500,
             position: 'relative',
             padding: '50px',
           }}>
@@ -411,18 +630,202 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               </Text>
             </div>
 
+            {/* Diagonal Scan Line Animation */}
+            {isScanning && (
+              <div
+                data-testid="diagonal-scan-line"
+                style={{
+                  position: 'absolute',
+                  top: 50,
+                  left: 50,
+                  width: containerSize.width,
+                  height: containerSize.height,
+                  pointerEvents: 'none',
+                  overflow: 'visible',
+                }}
+              >
+                {/* Animated diagonal line */}
+                <svg
+                  width={containerSize.width}
+                  height={containerSize.height}
+                  style={{ position: 'absolute', top: 0, left: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="scan-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#165DFF" stopOpacity="0" />
+                      <stop offset="50%" stopColor="#165DFF" stopOpacity="0.8" />
+                      <stop offset="100%" stopColor="#165DFF" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <line
+                    x1={containerSize.width * (1 - scanProgress)}
+                    y1={0}
+                    x2={containerSize.width}
+                    y2={containerSize.height * scanProgress}
+                    stroke="url(#scan-gradient)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
+                  {/* Scanning wave effect */}
+                  <circle
+                    cx={containerSize.width - (containerSize.width * scanProgress)}
+                    cy={containerSize.height * scanProgress}
+                    r="20"
+                    fill="none"
+                    stroke="#165DFF"
+                    strokeWidth="2"
+                    opacity={0.6}
+                  >
+                    <animate
+                      attributeName="r"
+                      from="10"
+                      to="40"
+                      dur="1s"
+                      repeatCount="indefinite"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      from="0.8"
+                      to="0"
+                      dur="1s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                </svg>
+              </div>
+            )}
+
             {/* Task Points - Outside the grid container */}
-            {incompleteTasks.map(task => {
+            {/* Only render points when container has valid dimensions */}
+            {(() => {
+              // Debug why nothing is showing
+              if (containerSize.height <= 0) {
+                logger.error('EISENHOWER RENDER BLOCKED: Container height is zero or negative', {
+                  containerHeight: containerSize.height,
+                  containerWidth: containerSize.width,
+                  taskCount: incompleteTasks.length,
+                })
+                return null
+              }
+              // Group tasks by position to detect clusters
+              const taskClusters = new Map<string, typeof incompleteTasks>()
+              incompleteTasks.forEach(task => {
+                const xPercent = Math.round((task.urgency / 10) * 100)
+                const yPercent = Math.round((1 - task.importance / 10) * 100)
+                const posKey = `${xPercent}-${yPercent}`
+
+                const cluster = taskClusters.get(posKey) || []
+                cluster.push(task)
+                taskClusters.set(posKey, cluster)
+              })
+
+              // Create a Set of tasks that are part of clusters (for hiding duplicates)
+              const renderedTasks = new Set<string>()
+              const clusterElements: React.ReactNode[] = []
+
+              // First pass: render cluster indicators
+              taskClusters.forEach((tasksAtPosition, posKey) => {
+                if (tasksAtPosition.length > 1) {
+                  const [xStr, yStr] = posKey.split('-')
+                  const xPercent = parseInt(xStr)
+                  const yPercent = parseInt(yStr)
+
+                  // Add all but first task to rendered set (we'll show them in the cluster)
+                  tasksAtPosition.slice(1).forEach(t => renderedTasks.add(t.id))
+
+                  // Get the dominant quadrant color
+                  const quadrant = categorizeTask(tasksAtPosition[0])
+                  const config = quadrantConfig[quadrant]
+
+                  clusterElements.push(
+                    <Tooltip
+                      key={`cluster-${posKey}`}
+                      content={
+                        <div>
+                          {tasksAtPosition.map(t => (
+                            <div key={t.id} style={{ marginBottom: 4 }}>
+                              • {t.name}
+                            </div>
+                          ))}
+                        </div>
+                      }
+                    >
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: 50 + (xPercent / 100) * (containerSize.width - 100),
+                          top: 50 + (yPercent / 100) * (containerSize.height - 100),
+                          transform: 'translate(-50%, -50%)',
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          background: config.color,
+                          border: '3px solid white',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          zIndex: 10,
+                        }}
+                        onClick={() => {
+                          // Could expand to show all tasks on click
+                          console.log('Cluster clicked:', tasksAtPosition)
+                        }}
+                      >
+                        {tasksAtPosition.length}
+                      </div>
+                    </Tooltip>,
+                  )
+                }
+              })
+
+              return (
+                <>
+                  {incompleteTasks.filter(task => !renderedTasks.has(task.id)).map((task) => {
                 const isWorkflow = sequencedTasks.some(st => st.id === task.id)
                 const quadrant = categorizeTask(task)
                 const config = quadrantConfig[quadrant]
+                const isHighlighted = task.id === highlightedTaskId
 
                 // Convert importance/urgency (1-10) to position (0-100%)
                 const xPercent = (task.urgency / 10) * 100
-                const yPercent = 100 - (task.importance / 10) * 100 // Invert Y axis
+                const yPercent = (1 - task.importance / 10) * 100 // Invert Y axis (high importance at top)
+
+                // Detailed debug logging for Y-axis collapse investigation
+                logger.debug('Task position calculated', {
+                  taskId: task.id,
+                  taskName: task.name,
+                  importance: task.importance,
+                  urgency: task.urgency,
+                  importanceType: typeof task.importance,
+                  urgencyType: typeof task.urgency,
+                  xPercent,
+                  yPercent,
+                  xPos: 50 + (xPercent / 100) * containerSize.width,
+                  yPos: 50 + (yPercent / 100) * containerSize.height,
+                  containerWidth: containerSize.width,
+                  containerHeight: containerSize.height,
+                  isNaN: {
+                    importance: isNaN(task.importance),
+                    urgency: isNaN(task.urgency),
+                    xPercent: isNaN(xPercent),
+                    yPercent: isNaN(yPercent),
+                  },
+                  calculation: {
+                    step1: `importance=${task.importance}`,
+                    step2: `importance/10=${task.importance / 10}`,
+                    step3: `1 - importance/10=${1 - task.importance / 10}`,
+                    step4: `(1 - importance/10) * 100=${(1 - task.importance / 10) * 100}`,
+                  },
+                })
 
                 // Calculate bubble size based on duration (min 20px, max 60px)
-                const size = Math.min(60, Math.max(20, 20 + (task.duration / 30)))
+                const baseSize = Math.min(60, Math.max(20, 20 + (task.duration / 30)))
+                const size = isHighlighted ? baseSize * 1.3 : baseSize
 
                 // Use actual container dimensions for positioning
                 const xPos = 50 + (xPercent / 100) * containerSize.width
@@ -452,40 +855,108 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                         width: size,
                         height: size,
                         borderRadius: '50%',
-                        background: config.color,
-                        opacity: 0.8,
+                        background: isHighlighted
+                          ? `linear-gradient(135deg, ${config.color}, ${config.color}dd)`
+                          : config.color,
+                        opacity: isHighlighted ? 1 : 0.8,
                         border: isWorkflow ? '3px solid purple' : 'none',
+                        boxShadow: isHighlighted ? `0 0 20px ${config.color}` : 'none',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transition: 'all 0.3s',
-                        zIndex: 10,
+                        transition: 'transform 0.3s, opacity 0.3s, box-shadow 0.3s, background 0.3s',
+                        zIndex: isHighlighted ? 20 : 10,
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.opacity = '1'
-                        e.currentTarget.style.transform = `translate(-50%, -50%) scale(${zoom * 1.1})`
+                        if (!isHighlighted) {
+                          e.currentTarget.style.opacity = '1'
+                          e.currentTarget.style.transform = `translate(-50%, -50%) scale(${zoom * 1.1})`
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.opacity = '0.8'
-                        e.currentTarget.style.transform = `translate(-50%, -50%) scale(${zoom})`
+                        if (!isHighlighted) {
+                          e.currentTarget.style.opacity = '0.8'
+                          e.currentTarget.style.transform = `translate(-50%, -50%) scale(${zoom})`
+                        }
                       }}
                     >
-                      <Text style={{
+                      <div style={{
                         color: 'white',
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: 500,
                         textAlign: 'center',
-                        padding: 2,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}>
-                        {task.name.substring(0, 3)}
-                      </Text>
+                        <div>{task.importance}/{task.urgency}</div>
+                        <div style={{ fontSize: 7 }}>{task.name.substring(0, 3)}</div>
+                      </div>
                     </div>
                   </Tooltip>
                 )
-            })}
+              })}
+              {clusterElements}
+            </>
+            )
+            })()}
+          </div>
+        </Card>
+      )}
+
+      {/* Scanned Tasks List - Only show in scatter view when tasks have been scanned */}
+      {viewMode === 'scatter' && scannedTasks.length > 0 && (
+        <Card
+          title={
+            <Space>
+              <IconScan style={{ fontSize: 18 }} />
+              <Text style={{ fontWeight: 500 }}>
+                Eisenhower Priority Order ({scannedTasks.length} tasks)
+              </Text>
+            </Space>
+          }
+          style={{ background: '#FAFBFC' }}
+        >
+          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+              {scannedTasks.map((task, index) => (
+                <div
+                  key={task.id}
+                  onClick={() => selectTask(task.id)}
+                  style={{
+                    padding: '8px 12px',
+                    background: 'white',
+                    border: '1px solid #E5E6EB',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#F7F8FA'
+                    e.currentTarget.style.borderColor = '#C9CDD4'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'white'
+                    e.currentTarget.style.borderColor = '#E5E6EB'
+                  }}
+                >
+                  <Text type="secondary" style={{ minWidth: 24 }}>
+                    {index + 1}.
+                  </Text>
+                  <Text style={{ flex: 1 }}>{task.name}</Text>
+                  <Space size="small">
+                    <Tag size="small" color={quadrantConfig[categorizeTask(task)].color}>
+                      {quadrantConfig[categorizeTask(task)].title}
+                    </Tag>
+                  </Space>
+                </div>
+              ))}
+            </Space>
           </div>
         </Card>
       )}

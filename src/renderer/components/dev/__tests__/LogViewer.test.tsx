@@ -95,7 +95,8 @@ describe('LogViewer - Log Hiding', () => {
     fireEvent.click(hideButtons[0])
 
     // Should show that 3 logs are hidden (grouped by pattern)
-    expect(screen.getByText(/Connection timeout after NUM/)).toBeInTheDocument()
+    // Pattern is truncated to first 30 chars: "Connection timeout after [DURATION]..."
+    expect(screen.getByText(/Connection timeout after/)).toBeInTheDocument()
     expect(screen.getByText(/\(3\)/)).toBeInTheDocument() // Count of hidden logs
   })
 
@@ -109,8 +110,8 @@ describe('LogViewer - Log Hiding', () => {
     // Verify logs are hidden
     expect(screen.queryAllByText('Database connection failed')).toHaveLength(0)
 
-    // Find and click the close button on the hidden pattern tag
-    const hiddenPatternTag = screen.getByText(/Connection timeout after NUM/)
+    // Find and click the close button on the hidden pattern tag (pattern is truncated)
+    const hiddenPatternTag = screen.getByText(/Connection timeout after/)
     const closeButton = hiddenPatternTag.parentElement?.querySelector('[class*="close"]')
     if (closeButton) {
       fireEvent.click(closeButton)

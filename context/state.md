@@ -414,32 +414,80 @@ Successfully implemented 7 high-impact improvements:
 - I didn't read this comment and instead made superficial fixes
 - Result: Wasted time on wrong solution, user frustration
 
-## Latest Session: PR #47 Feedback Fixes (2025-09-03)
+## Latest Session: Eisenhower Matrix & LogViewer Fixes (2025-09-03, Continued)
 
-### Completed Fixes
-1. **Session Persistence** ✅
-   - Fixed startup flash of default session
-   - Added loadLastUsedSession to store initialization
-   - Tests passing for session persistence
+### 🚀 Current Work: Scatter Plot Clustering & Log Filtering
+Successfully fixed task overlapping in scatter plot and LogViewer filtering issues.
 
-2. **Log Hiding** ✅  
-   - Fixed to filter logs completely instead of strikethrough
-   - Hidden logs no longer visible in table
-   - Shows count of hidden logs in statistics
-   - Tests passing for log viewer filtering
+### Completed Fixes (Session Continuation)
+1. **Scatter Plot Task Clustering** ✅
+   - Fixed overlapping tasks in eliminate quadrant
+   - Implemented cluster indicators showing count of overlapped tasks
+   - Tooltip on hover shows all tasks in cluster
+   - Clusters use dominant quadrant color
+   - Single tasks render normally, only overlaps show count badge
 
-3. **String to Enum Conversion** (In Progress)
-   - Added StepStatus enum for step states
-   - Updated TaskStatus enum usage
-   - Converting all string literals to proper enums
-   - Multiple files still need updates
+2. **LogViewer Filtering Fix** ✅
+   - Fixed issue where Table showed all logs despite filter count
+   - Removed Math.random() from rowKey for proper React reconciliation
+   - Added key prop to force Table re-rendering on filter changes
+   - Comprehensive debug logging for filter operations
+   - Pattern-based hiding now actually removes logs from display
 
-### Remaining Tasks
-- Fix Eisenhower scatter plot positioning (use relative sizing)
-- Implement diagonal scan feature for Eisenhower matrix
-- Fix swim lane timeline grid rendering
-- Make circadian rhythm configurable
-- Complete enum conversion across all files
+### Technical Implementation
+- **Clustering Algorithm**: Groups tasks by rounded position coordinates
+- **Cluster Detection**: Tasks at same position show as numbered badge
+- **React Fix**: Stable rowKey prevents stale Table renders
+- **Database Logs**: Stub added for future IPC implementation
+
+### Pending Work
+- Database log viewing implementation (IPC handler needed)
+- Session selector UI for historical log viewing
+
+### Code Quality Status
+- **TypeScript**: 0 errors ✅
+- **ESLint**: 2 errors, 1386 warnings (mostly in scripts/)
+- **Build**: Successful ✅
 
 ---
-*Last Updated: 2025-09-03 (PR #47 fixes in progress)*
+
+### Previous PR #51 Work: Diagonal Scan Animation
+Successfully implemented diagonal scan animation feature with synchronized highlighting and task list display.
+
+### Completed Enhancements
+1. **Tooltip Background Fix** ✅
+   - Fixed black background issue on node hover tooltips
+   - Added proper CSS overrides with theme support
+   - Tooltips now show with white/light background
+
+2. **Diagonal Scan Synchronization** ✅
+   - Fixed desynchronization between scan line and node highlighting
+   - Nodes now highlight only when scan line passes through them
+   - Uses perpendicular distance calculation for accurate detection
+   - 30-pixel threshold for smooth highlighting
+
+3. **Scanned Tasks List** ✅
+   - Added dynamic task list below scatter plot
+   - Shows tasks in order as scan line hits them
+   - List persists after scan completes
+   - Only resets when starting new scan
+   - Shows task title with order number and quadrant
+
+## Previous Session: PR #47 Successfully Merged! (2025-09-03)
+
+### 🎉 PR #47 Merge Success
+Successfully completed and merged PR #47 with comprehensive fixes for all review feedback. Achieved zero TypeScript errors, zero ESLint errors, and all tests passing.
+
+### Completed Fixes (6 of 6 issues resolved)
+1. **Session Persistence** ✅
+2. **Log Hiding** ✅  
+3. **String to Enum Conversion** ✅
+4. **Eisenhower Scatter Plot** ✅
+5. **Swim Lane Timeline Grid** ✅
+6. **Circadian Rhythm** ✅
+
+### Next Priority: Relative Sizing Redesign
+User has requested redesign of visualization system using relative sizing instead of absolute pixels to reduce brittleness.
+
+---
+*Last Updated: 2025-09-03 (PR #51 in progress)*

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { WorkLoggerCalendar } from '../WorkLoggerCalendar'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { getDatabase } from '../../../services/database'
@@ -91,6 +91,7 @@ describe('WorkLoggerCalendar', () => {
   })
 
   afterEach(() => {
+    cleanup()
     vi.clearAllMocks()
   })
 

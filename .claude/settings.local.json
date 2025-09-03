@@ -63,7 +63,10 @@
       "Bash(git fetch:*)",
       "Bash(gh run list:*)",
       "Bash(gh api:*)",
-      "WebFetch(domain:arco.design)"
+      "WebFetch(domain:arco.design)",
+      "Bash(gh help:*)",
+      "Bash(/Users/austinmiles/.claude-code/scripts/gh-auth-bot.sh:*)",
+      "Bash(git merge-base:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

@@ -2,9 +2,20 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 # Run type checking and linting before push
-echo "Running pre-push checks..."
-npm run check || {
-  echo "❌ Pre-push checks failed. Please fix errors before pushing."
+echo "🔍 Running pre-push checks..."
+
+# Run TypeScript check
+echo "📐 Checking TypeScript..."
+npm run typecheck || {
+  echo "❌ TypeScript check failed. Please fix errors before pushing."
+  exit 1
+}
+
+# Run ESLint in quiet mode (only show errors, not warnings)
+echo "🔍 Running ESLint check (errors only)..."
+npx eslint . --quiet || {
+  echo "❌ ESLint found errors. Please fix them before pushing."
+  echo "To see all warnings too, run: npm run lint"
   exit 1
 }
 

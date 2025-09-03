@@ -879,7 +879,8 @@
     "title": "Better UI presentation on Ai brainstorm modal",
     "description": "During a user test, a user was very confused with the AI brainstorm model so basically there's not a clear delineation between the job context section and then the actual brainstorming section and the user was unclear about what to say in the context especially for nontraditional jobs or non-computer science jobs let's say and I think in general, we need to make this more friendly towards people who don't work in a very specific software engineering job but also there should be a way to like a UI button to get rid of the context cause you can delete it from the text box but then it still shows up that it's using like the recording. It shows that like M4a or webm file so we need to basically clear the UI completely to signal the user that the job context is actually gone.",
     "timestamp": "2025-08-30T01:58:06.149Z",
-    "sessionId": "session-1756519086140-icweoioqf"
+    "sessionId": "session-1756519086140-icweoioqf",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -960,7 +961,8 @@
     "title": "Should be able to press a button and see all notes for all workflow steps in sequence",
     "description": "User story: I've been logging work and tracking everything as I go, including writing notes. But now I can't remember which steps I put the notes on, and I don't want to click through all of them. I want to press a button and see a print out of all the notes I've ever put on any part of this workflow. ",
     "timestamp": "2025-09-01T23:13:00.442Z",
-    "sessionId": "session-1756768380434-aw4b5k20o"
+    "sessionId": "session-1756768380434-aw4b5k20o",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -985,7 +987,8 @@
     "title": "Applicator makes duplicate tasks, and amendment edit form is missing fields",
     "description": "When edited results are accepted, duplicate steps are added to the workflow. Additionally, we should be able to not only specify dependencies, but what tasks depend on the new task, so both way wiring of dependencies. ",
     "timestamp": "2025-09-01T23:58:50.750Z",
-    "sessionId": "session-1756771130744-fni70bub6"
+    "sessionId": "session-1756771130744-fni70bub6",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -1045,7 +1048,8 @@
     "title": "Load last used session by default",
     "description": "When I open the app, instead of loading my last session, it always loads the default session",
     "timestamp": "2025-09-02T17:11:57.760Z",
-    "sessionId": "session-1756833117754-x8l2x09i2"
+    "sessionId": "session-1756833117754-x8l2x09i2",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -1056,7 +1060,8 @@
     "title": "Add license to repo",
     "description": "The license should be some sort of open source thing, but the main thing is I want to ensure I have intellectual property of the codebase and that even if others use it or run it, they can't make money off it. ",
     "timestamp": "2025-09-02T18:49:09.091Z",
-    "sessionId": "session-1756838949083-cl1dl67pc"
+    "sessionId": "session-1756838949083-cl1dl67pc",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1076,7 +1081,7 @@
       "work-logger/WorkLoggerDualView"
     ],
     "title": "Add some way to show circadian rhythm",
-    "description": "some cool UI showing a bezier curve or something else with control points to illustrate cognitive peaks and dips. ",
+    "description": "some cool UI showing a bezier curve or something else with control points to illustrate cognitive peaks and dips. \n\nUPDATE Sep 02 10:40 PM: I still can't see the curve aspect on the dual view logger. Is it somewhere else? Also, it seems it STILL doesn't update when user changes their sleep or wake time. Unless it requires a restart or something",
     "timestamp": "2025-09-02T22:27:31.577Z",
     "sessionId": "session-1756852051566-pe5c4r1j3"
   },
