@@ -1057,5 +1057,38 @@
     "description": "The license should be some sort of open source thing, but the main thing is I want to ensure I have intellectual property of the codebase and that even if others use it or run it, they can't make money off it. ",
     "timestamp": "2025-09-02T18:49:09.091Z",
     "sessionId": "session-1756838949083-cl1dl67pc"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "dev/DevTools"
+    ],
+    "title": "Hide pattern in log view not working",
+    "description": "Hiding patterns of log spam messages is only sort of working. Seems like its mostly working but a UI issue is still showing all of them but with an eye icon instead of a void sign. There are other signs of the UI updating, like \"Hiding pattern ...\" but the amount of actual displayed is still the same. Also, the logging around the logging view (haha) needs more attention. Like if we're hiding and showing things the ui and the core logic need to both be logging",
+    "timestamp": "2025-09-02T22:22:51.349Z",
+    "sessionId": "session-1756851771343-vn3c5cmod"
+  },
+  {
+    "type": "feature",
+    "priority": "medium",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Add some way to show circadian rhythm",
+    "description": "some cool UI showing a bezier curve or something else with control points to illustrate cognitive peaks and dips. ",
+    "timestamp": "2025-09-02T22:27:31.577Z",
+    "sessionId": "session-1756852051566-pe5c4r1j3"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "UI improvements",
+    "description": "the timeline has scrollbars for vertical and horizontal, but I don't like scroll bars. It should be more like a canvas with infinite scroll (doesn't actually need to be infinite). Also, we can drag and drop blocks on the clock, but not on the timeline view. The clock has overlapping labels that make it hard to tell the time. When there are too many workflows and personal tasks, the timeline becomes way too crowded. No amount of vertical shrinking can fix it. So we should probably only show tasks that we have actually worked on, and have an option to add a row for a task. And we should make sure the hiding of completed tasks works, and also works for workflow steps (very important). Additionally, we should definitely be able to fullscreen this, and the timeline view should probably take up more space. There's a lot of empty space below the chart (the clock doesn't take up that much horizontal space) so we could probably include a print out of all the work blocks done for the day. I was also thinking we could use the scheduler's output to show 'planned work' with some kind of indicator that it hasn't actually been logged yet. and then the user can verify the time they've spent so far in the day and what their day looks like for the rest of it. ",
+    "timestamp": "2025-09-02T22:32:57.151Z",
+    "sessionId": "session-1756852377145-9hupihisq"
   }
 ]
