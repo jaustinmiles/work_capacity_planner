@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Modal, Button, Typography, Alert, Space, Card, Input, Tag, Divider, Upload, Select, InputNumber } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, IconCheckCircle, IconUpload, IconFile, IconEdit } from '@arco-design/web-react/icon'
-import { TaskType } from '@shared/enums'
+import { TaskType, AIProcessingMode } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { logger } from '../../utils/logger'
@@ -75,7 +75,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
   const [brainstormResult, setBrainstormResult] = useState<BrainstormResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [recordingDuration, setRecordingDuration] = useState(0)
-  const [processingMode, setProcessingMode] = useState<'tasks' | 'workflows'>('workflows')
+  const [processingMode, setProcessingMode] = useState<AIProcessingMode>(AIProcessingMode.Workflows)
   const [jobContext, setJobContext] = useState('')
   const [showJobContextInput, setShowJobContextInput] = useState(true) // Default to visible for better discoverability
   const [uploadedAudioFile, setUploadedAudioFile] = useState<File | null>(null)
@@ -599,7 +599,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
 
       const enrichedContext = (jobContext.trim() || '') + jargonInfo
 
-      if (processingMode === 'workflows') {
+      if (processingMode === AIProcessingMode.Workflows) {
         const result = await getDatabase().extractWorkflowsFromBrainstorm(
           brainstormText.trim(),
           enrichedContext ?? null,
@@ -896,20 +896,20 @@ Only include terms that are likely industry-specific or technical jargon, not co
             </Text>
             <Space>
               <Button
-                type={processingMode === 'workflows' ? 'primary' : 'outline'}
-                onClick={() => setProcessingMode('workflows')}
+                type={processingMode === AIProcessingMode.Workflows ? 'primary' : 'outline'}
+                onClick={() => setProcessingMode(AIProcessingMode.Workflows)}
                 icon={<IconBulb />}
               >
                 Workflows (Recommended)
               </Button>
               <Button
-                type={processingMode === 'tasks' ? 'primary' : 'outline'}
-                onClick={() => setProcessingMode('tasks')}
+                type={processingMode === AIProcessingMode.Tasks ? 'primary' : 'outline'}
+                onClick={() => setProcessingMode(AIProcessingMode.Tasks)}
               >
                 Simple Tasks
               </Button>
             </Space>
-            {processingMode === 'workflows' && (
+            {processingMode === AIProcessingMode.Workflows && (
               <Alert
                 type="info"
                 content="Workflows mode understands dependencies, wait times, and sequences."
@@ -920,7 +920,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
         </Card>
 
         {/* Job Context Section */}
-        {processingMode === 'workflows' && (
+        {processingMode === AIProcessingMode.Workflows && (
           <Card
             size="small"
             title={
@@ -1154,7 +1154,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
           style={{ marginBottom: 16 }}
         >
           <Text type="secondary" style={{ fontSize: 14 }}>
-            {processingMode === 'workflows'
+            {processingMode === AIProcessingMode.Workflows
               ? 'Describe your async workflows naturally - mention dependencies, wait times, and sequencing.'
               : 'Record your thoughts about upcoming tasks, projects, or ideas.'
             }
@@ -1234,7 +1234,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
           style={{ marginBottom: 16 }}
         >
           <Text type="secondary" style={{ fontSize: 14 }}>
-            {processingMode === 'workflows'
+            {processingMode === AIProcessingMode.Workflows
               ? 'Describe your async workflows - mention sequences, dependencies, wait times, and handoffs.'
               : 'Edit the transcribed text or type directly. Include details about deadlines, priorities, and requirements.'
             }
@@ -1243,7 +1243,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
           <TextArea
             value={brainstormText}
             onChange={setBrainstormText}
-            placeholder={processingMode === 'workflows'
+            placeholder={processingMode === AIProcessingMode.Workflows
               ? "Example: I need to run a workflow that will take a few hours to complete. After that I can check the results and submit for code review. Reviews usually take about a day, then I'll need to address feedback and re-submit..."
               : "Example: I need to finish the quarterly report by Friday, it's high priority. Also need to review the new marketing campaign designs and schedule team meetings for next week..."
             }
@@ -1265,7 +1265,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
           >
             {isProcessing
               ? 'Processing with Claude Opus 4.1...'
-              : processingMode === 'workflows'
+              : processingMode === AIProcessingMode.Workflows
                 ? 'Generate Async Workflows'
                 : 'Extract Simple Tasks'
             }

@@ -129,7 +129,7 @@ describe('EisenhowerMatrix', () => {
       await waitFor(() => {
         // Find task bubbles by their positioning
         const bubbles = container.querySelectorAll('[style*="position: absolute"]')
-        
+
         // Filter to only get task bubbles (not axis labels or grid lines)
         const taskBubbles = Array.from(bubbles).filter(el => {
           const style = (el as HTMLElement).style
@@ -163,7 +163,7 @@ describe('EisenhowerMatrix', () => {
 
       await waitFor(() => {
         const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
-        
+
         const sizes = Array.from(bubbles).map(bubble => {
           const style = (bubble as HTMLElement).style
           return parseInt(style.width) || 0
@@ -172,7 +172,7 @@ describe('EisenhowerMatrix', () => {
         // Should have different sizes based on duration
         const uniqueSizes = new Set(sizes)
         expect(uniqueSizes.size).toBeGreaterThan(1)
-        
+
         // Sizes should be within expected range (20-60px)
         sizes.forEach(size => {
           if (size > 0) { // Ignore non-bubble elements
@@ -191,17 +191,17 @@ describe('EisenhowerMatrix', () => {
       fireEvent.click(scatterButton)
 
       // Find zoom controls
-      const zoomInButton = screen.getAllByRole('button').find(btn => 
-        btn.querySelector('[class*="icon-zoom-in"]')
+      const zoomInButton = screen.getAllByRole('button').find(btn =>
+        btn.querySelector('[class*="icon-zoom-in"]'),
       )
-      const zoomOutButton = screen.getAllByRole('button').find(btn => 
-        btn.querySelector('[class*="icon-zoom-out"]')
+      const zoomOutButton = screen.getAllByRole('button').find(btn =>
+        btn.querySelector('[class*="icon-zoom-out"]'),
       )
 
       // Test zoom in
       if (zoomInButton) {
         fireEvent.click(zoomInButton)
-        
+
         await waitFor(() => {
           const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
           const firstBubble = bubbles[0] as HTMLElement
@@ -229,15 +229,15 @@ describe('EisenhowerMatrix', () => {
 
       await waitFor(() => {
         const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
-        
+
         if (bubbles.length > 0) {
           // Hover over first bubble
           fireEvent.mouseEnter(bubbles[0])
-          
+
           // Bubble should change opacity on hover
           const style = (bubbles[0] as HTMLElement).style
           expect(style.opacity).toBe('1')
-          
+
           // Mouse leave should restore opacity
           fireEvent.mouseLeave(bubbles[0])
           expect(style.opacity).toBe('0.8')
@@ -254,10 +254,10 @@ describe('EisenhowerMatrix', () => {
 
       await waitFor(() => {
         const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
-        
+
         if (bubbles.length > 0) {
           fireEvent.click(bubbles[0])
-          
+
           // Should have called selectTask with one of the task IDs
           expect(mockSelectTask).toHaveBeenCalled()
         }

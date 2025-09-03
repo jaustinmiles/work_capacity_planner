@@ -30,6 +30,8 @@ interface SwimLaneTimelineProps {
   onSessionSelect: (id: string | null) => void
   expandedWorkflows?: Set<string>
   onExpandedWorkflowsChange?: (expanded: Set<string>) => void
+  bedtimeHour?: number
+  wakeTimeHour?: number
 }
 
 const TIME_LABEL_WIDTH = 80
@@ -60,6 +62,8 @@ export function SwimLaneTimeline({
   onSessionSelect,
   expandedWorkflows: externalExpandedWorkflows,
   onExpandedWorkflowsChange,
+  bedtimeHour = 22,
+  wakeTimeHour = 6,
 }: SwimLaneTimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [dragState, setDragState] = useState<DragState | null>(null)
@@ -104,30 +108,39 @@ export function SwimLaneTimeline({
   // Calculate circadian rhythm energy level (0-1) for a given hour with smooth interpolation
   const getCircadianEnergy = (hour: number): number => {
     // Use sine waves to create smooth circadian rhythm curve
-    // Two peaks: morning (9-11 AM) and afternoon (3-5 PM)
-    // Post-lunch dip around 1-2 PM
-    
+    // Peaks and troughs adjusted based on user's sleep/wake times
+
     // Normalize hour to 0-24 range
     const h = hour % 24
-    
+
+    // Calculate peak energy time (4 hours after wake)
+    const morningPeak = (wakeTimeHour + 4) % 24
+
     // Base circadian rhythm using cosine wave
-    // Peak at 10 AM, trough at 10 PM
-    const baseRhythm = 0.5 + 0.5 * Math.cos((h - 10) * Math.PI / 12)
-    
-    // Add post-lunch dip (negative peak at 2 PM)
-    const lunchDip = 0.15 * Math.cos((h - 14) * Math.PI / 6)
-    
-    // Add second peak boost (around 4 PM)
-    const afternoonBoost = 0.1 * Math.cos((h - 16) * Math.PI / 4)
-    
+    // Peak at morning peak time, trough 12 hours later
+    const baseRhythm = 0.5 + 0.5 * Math.cos((h - morningPeak) * Math.PI / 12)
+
+    // Add post-lunch dip (7 hours after wake)
+    const lunchDipTime = (wakeTimeHour + 7) % 24
+    const lunchDip = 0.15 * Math.cos((h - lunchDipTime) * Math.PI / 6)
+
+    // Add afternoon boost (9 hours after wake)
+    const afternoonPeakTime = (wakeTimeHour + 9) % 24
+    const afternoonBoost = 0.1 * Math.cos((h - afternoonPeakTime) * Math.PI / 4)
+
     // Combine and clamp between 0.1 and 1.0
     const energy = Math.max(0.1, Math.min(1.0, baseRhythm - lunchDip + afternoonBoost))
-    
-    // Scale down during sleep hours (10 PM - 6 AM)
-    if (h >= 22 || h < 6) {
+
+    // Scale down during sleep hours
+    // Handle cases where bedtime is before midnight and wake is after
+    const isInSleepHours = bedtimeHour > wakeTimeHour
+      ? (h >= bedtimeHour || h < wakeTimeHour)  // Sleep wraps around midnight
+      : (h >= bedtimeHour && h < wakeTimeHour)   // Sleep within same day
+
+    if (isInSleepHours) {
       return energy * 0.3
     }
-    
+
     return energy
   }
 
@@ -677,21 +690,21 @@ if (!checkOverlap(newSession, laneSessions)) {
                       <stop offset="100%" stopColor="#FFD700" stopOpacity="0.05" />
                     </linearGradient>
                   </defs>
-                  
+
                   {/* Generate smooth curve path */}
                   <path
                     d={(() => {
                       const points: string[] = []
                       const height = 400 // Fixed height for the curve
                       const samples = 100 // Number of points for smooth curve
-                      
+
                       for (let i = 0; i <= samples; i++) {
                         const hour = START_HOUR + (i / samples) * TOTAL_HOURS
                         const x = (i / samples) * TOTAL_HOURS * hourWidth
                         const energy = getCircadianEnergy(hour)
                         // Invert Y and scale to use bottom 60% of height
                         const y = height - (energy * height * 0.6)
-                        
+
                         if (i === 0) {
                           points.push(`M ${x} ${y}`)
                         } else {
@@ -699,12 +712,12 @@ if (!checkOverlap(newSession, laneSessions)) {
                           points.push(`L ${x} ${y}`)
                         }
                       }
-                      
+
                       // Close the path to create filled area
                       points.push(`L ${TOTAL_HOURS * hourWidth} ${height}`)
                       points.push(`L 0 ${height}`)
                       points.push('Z')
-                      
+
                       return points.join(' ')
                     })()}
                     fill="url(#circadianGradient)"
@@ -712,27 +725,27 @@ if (!checkOverlap(newSession, laneSessions)) {
                     strokeWidth="2"
                     opacity="0.7"
                   />
-                  
+
                   {/* Add curve line on top for clarity */}
                   <path
                     d={(() => {
                       const points: string[] = []
                       const height = 400 // Fixed height for the curve
                       const samples = 100
-                      
+
                       for (let i = 0; i <= samples; i++) {
                         const hour = START_HOUR + (i / samples) * TOTAL_HOURS
                         const x = (i / samples) * TOTAL_HOURS * hourWidth
                         const energy = getCircadianEnergy(hour)
                         const y = height - (energy * height * 0.6)
-                        
+
                         if (i === 0) {
                           points.push(`M ${x} ${y}`)
                         } else {
                           points.push(`L ${x} ${y}`)
                         }
                       }
-                      
+
                       return points.join(' ')
                     })()}
                     fill="none"
@@ -740,32 +753,32 @@ if (!checkOverlap(newSession, laneSessions)) {
                     strokeWidth="2"
                     opacity="0.8"
                   />
-                  
+
                   {/* Peak and dip labels */}
-                  <text 
-                    x={4 * hourWidth} 
-                    y={20} 
-                    fill="#FF8C00" 
-                    fontSize="11" 
+                  <text
+                    x={4 * hourWidth}
+                    y={20}
+                    fill="#FF8C00"
+                    fontSize="11"
                     fontWeight="bold"
                     textAnchor="middle"
                   >
                     Morning Peak
                   </text>
-                  <text 
-                    x={10 * hourWidth} 
-                    y={20} 
-                    fill="#FF8C00" 
-                    fontSize="11" 
+                  <text
+                    x={10 * hourWidth}
+                    y={20}
+                    fill="#FF8C00"
+                    fontSize="11"
                     fontWeight="bold"
                     textAnchor="middle"
                   >
                     Afternoon Peak
                   </text>
-                  <text 
-                    x={7.5 * hourWidth} 
-                    y={380} 
-                    fill="#4169E1" 
+                  <text
+                    x={7.5 * hourWidth}
+                    y={380}
+                    fill="#4169E1"
                     fontSize="11"
                     textAnchor="middle"
                   >

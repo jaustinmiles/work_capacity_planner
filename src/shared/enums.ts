@@ -89,6 +89,12 @@ export enum ViewType {
   Timeline = 'timeline',
 }
 
+// AI Processing modes for brainstorming
+export enum AIProcessingMode {
+  Tasks = 'tasks',
+  Workflows = 'workflows',
+}
+
 /**
  * Helper function to ensure exhaustive checks in switch statements
  * Usage:
