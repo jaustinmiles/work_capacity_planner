@@ -1,4 +1,8 @@
 #!/usr/bin/env npx tsx
+/* eslint-disable no-console */
+
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Script to check scheduled tasks and identify scheduling issues
  * Usage: npx tsx scripts/check-scheduled-tasks.ts [session-name]

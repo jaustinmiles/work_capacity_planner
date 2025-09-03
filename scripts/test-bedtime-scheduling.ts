@@ -1,4 +1,8 @@
 #!/usr/bin/env npx tsx
+/* eslint-disable no-console */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Test script to verify bedtime routine scheduling fix
  * Tests that workflows with async waits don't split across days unnecessarily

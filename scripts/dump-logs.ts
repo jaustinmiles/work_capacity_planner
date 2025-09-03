@@ -1,4 +1,8 @@
 #!/usr/bin/env npx tsx
+/* eslint-disable no-console */
+
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+
 import { PrismaClient } from '@prisma/client'
 import { format } from 'date-fns'
 import { writeFileSync } from 'fs'

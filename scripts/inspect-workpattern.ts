@@ -1,4 +1,8 @@
 #!/usr/bin/env npx tsx
+/* eslint-disable no-console */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+
 /**
  * Script to inspect WorkPattern data and understand how schedules are stored
  * Usage: npx tsx scripts/inspect-workpattern.ts [session-name]

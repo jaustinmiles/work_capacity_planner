@@ -1,4 +1,8 @@
 #!/usr/bin/env npx tsx
+/* eslint-disable no-console */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Script to check for schema divergence between Prisma schemas and actual database
  * Usage: npx tsx scripts/check-schema-divergence.ts

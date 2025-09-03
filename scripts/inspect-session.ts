@@ -1,4 +1,8 @@
 #!/usr/bin/env npx tsx
+/* eslint-disable no-console */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+
 /**
  * Database inspection script for debugging scheduling issues
  * Usage: npx tsx scripts/inspect-session.ts [session-name]
