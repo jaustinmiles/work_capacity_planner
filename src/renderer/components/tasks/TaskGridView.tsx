@@ -25,6 +25,12 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       await updateTask(task.id, {
         completed: !task.completed,
       })
+      const newStatus = !task.completed ? 'completed' : 'incomplete'
+      logger.ui.info('Task completion toggled', {
+        taskId: task.id,
+        taskName: task.name,
+        newStatus,
+      })
       Message.success(task.completed ? 'Task marked as incomplete' : 'Task completed!')
     } catch (error) {
       logger.ui.error('Failed to toggle task completion', error)
@@ -34,15 +40,25 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
 
   const handleDelete = async (taskId: string) => {
     try {
+      // Find task name for logging
+      const task = tasks.find(t => t.id === taskId)
       await deleteTask(taskId)
+      logger.ui.info('Task deleted', {
+        taskId,
+        taskName: task?.name || 'Unknown',
+      })
       Message.success('Task deleted')
     } catch (error) {
-      logger.ui.error('Failed to delete task', error)
+      logger.ui.error('Failed to delete task', { taskId, error })
       Message.error('Failed to delete task')
     }
   }
 
   const handleEdit = (task: Task) => {
+    logger.ui.info('Task edit modal opened', {
+      taskId: task.id,
+      taskName: task.name,
+    })
     setSelectedTask(task)
     setEditModalVisible(true)
   }
@@ -52,7 +68,6 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       [TaskType.Focused]: { color: 'blue', text: 'Focused' },
       [TaskType.Admin]: { color: 'orange', text: 'Admin' },
       [TaskType.Personal]: { color: 'green', text: 'Personal' },
-      [TaskType.Mixed]: { color: 'purple', text: 'Mixed' },
     }
     const config = typeConfig[type] || { color: 'gray', text: type }
     return <Tag color={config.color} size="small">{config.text}</Tag>
@@ -116,7 +131,6 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
         { text: 'Focused', value: TaskType.Focused },
         { text: 'Admin', value: TaskType.Admin },
         { text: 'Personal', value: TaskType.Personal },
-        { text: 'Mixed', value: TaskType.Mixed },
       ],
       onFilter: (value: TaskType, record: Task) => record.type === value,
       sorter: (a: Task, b: Task) => a.type.localeCompare(b.type),
@@ -150,6 +164,12 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onBlur={() => setEditingCell(null)}
               onChange={(newValue) => {
                 if (newValue !== value) {
+                  logger.ui.info('Task importance updated inline', {
+                    taskId: record.id,
+                    taskName: record.name,
+                    oldValue: value,
+                    newValue,
+                  })
                   updateTask(record.id, { importance: newValue })
                 }
                 setEditingCell(null)
@@ -193,6 +213,12 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onBlur={() => setEditingCell(null)}
               onChange={(newValue) => {
                 if (newValue !== value) {
+                  logger.ui.info('Task urgency updated inline', {
+                    taskId: record.id,
+                    taskName: record.name,
+                    oldValue: value,
+                    newValue,
+                  })
                   updateTask(record.id, { urgency: newValue })
                 }
                 setEditingCell(null)
@@ -237,6 +263,12 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onBlur={() => setEditingCell(null)}
               onChange={(newValue) => {
                 if (newValue !== displayValue) {
+                  logger.ui.info('Task cognitive complexity updated inline', {
+                    taskId: record.id,
+                    taskName: record.name,
+                    oldValue: displayValue,
+                    newValue,
+                  })
                   updateTask(record.id, { cognitiveComplexity: newValue })
                 }
                 setEditingCell(null)
