@@ -419,7 +419,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
                 // Convert importance/urgency (1-10) to position (0-100%)
                 const xPercent = (task.urgency / 10) * 100
-                const yPercent = 100 - (task.importance / 10) * 100 // Invert Y axis
+                const yPercent = (1 - task.importance / 10) * 100 // Invert Y axis (high importance at top)
 
                 // Calculate bubble size based on duration (min 20px, max 60px)
                 const size = Math.min(60, Math.max(20, 20 + (task.duration / 30)))

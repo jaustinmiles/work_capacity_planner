@@ -1,5 +1,58 @@
 # Technical Decisions & Rationale
 
+## PR #47 Technical Decisions (2025-09-03)
+
+### Responsive UI Pattern for Dynamic Components
+**Decision**: Use useRef + useEffect for container-aware sizing
+**Implementation**: EisenhowerMatrix scatter plot, other visualizations
+**Rationale**:
+- Fixes rendering issues with fixed dimensions
+- Adapts to window/container resizes
+- Better user experience across screen sizes
+**Pattern**:
+```typescript
+const ref = useRef<HTMLDivElement>(null)
+const [size, setSize] = useState(defaultSize)
+useEffect(() => {
+  const updateSize = () => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      setSize({ width: rect.width - padding, height: rect.height - padding })
+    }
+  }
+  updateSize()
+  window.addEventListener('resize', updateSize)
+  return () => window.removeEventListener('resize', updateSize)
+}, [])
+```
+
+### Session Loading Order for Persistence
+**Decision**: Load last session before default data initialization
+**Implementation**: Modified useTaskStore initialization sequence
+**Rationale**:
+- Prevents flash of default session on startup
+- Better perceived performance
+- Maintains session continuity
+**Code**: `await getDatabase().loadLastUsedSession()` before `initializeDefaultData()`
+
+### Complete Enum Migration
+**Decision**: Replace ALL string literals with enums
+**Implementation**: Added StepStatus enum, completed full migration
+**Rationale**:
+- Type safety across entire codebase
+- Zero TypeScript errors in strict mode
+- Prevents runtime string comparison bugs
+**Result**: Every status/type now uses proper enums
+
+### Log Filtering vs Visual Styling
+**Decision**: Filter hidden logs completely rather than strike-through
+**Implementation**: LogViewer filters array instead of applying CSS
+**Rationale**:
+- Cleaner interface when debugging specific issues
+- Performance improvement with large log volumes
+- User explicitly requested complete hiding
+**Pattern**: Filter at data level, not presentation level
+
 ## Architecture Decisions
 
 ### Unified Task Model (2025-08-14)
