@@ -31,7 +31,6 @@ import {
   IconCheckCircle,
   IconCloseCircle,
   IconCalendar,
-  IconBook,
 } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -61,7 +60,6 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
   const [showWorkSessionsModal, setShowWorkSessionsModal] = useState(false)
   const [selectedStepForSessions, setSelectedStepForSessions] = useState<{id: string, name: string} | null>(null)
   const [stepLoggedTimes, setStepLoggedTimes] = useState<Record<string, number>>({})
-  const [showAllNotesModal, setShowAllNotesModal] = useState(false)
   const [editingSteps, setEditingSteps] = useState<EditingStep[]>(
     task.steps.map((step, index) => ({
       ...step,
@@ -578,18 +576,6 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
       <Card
         title="Workflow Steps"
         bodyStyle={{ padding: 24 }}
-        extra={
-          editingSteps.some(step => step.notes) && (
-            <Button
-              size="small"
-              type="outline"
-              icon={<IconBook />}
-              onClick={() => setShowAllNotesModal(true)}
-            >
-              View All Notes
-            </Button>
-          )
-        }
       >
               {isEditing && (
                 <div style={{ marginBottom: 16, textAlign: 'right' }}>
@@ -954,68 +940,6 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
         />
       )}
 
-      {/* All Notes Modal */}
-      <Modal
-        title={
-          <Space>
-            <IconBook />
-            <span>All Step Notes for {editedTask.name}</span>
-          </Space>
-        }
-        visible={showAllNotesModal}
-        onCancel={() => setShowAllNotesModal(false)}
-        footer={[
-          <Button key="close" onClick={() => setShowAllNotesModal(false)}>
-            Close
-          </Button>,
-        ]}
-        style={{ width: 700 }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }} size="medium">
-          {editedTask.notes && (
-            <Card size="small" title="Workflow Notes" style={{ marginBottom: 16 }}>
-              <Text>{editedTask.notes}</Text>
-            </Card>
-          )}
-
-          {editingSteps.filter(step => step.notes).length === 0 ? (
-            <Text type="secondary">No notes found for any steps in this workflow.</Text>
-          ) : (
-            editingSteps
-              .filter(step => step.notes)
-              .map((step) => {
-                const stepIndex = editingSteps.findIndex(s => s.id === step.id)
-                return (
-                  <Card
-                    key={step.id || step.tempId}
-                    size="small"
-                    title={
-                      <Space>
-                        <Text style={{ fontWeight: 500 }}>
-                          Step {stepIndex + 1}: {step.name}
-                        </Text>
-                        <Tag size="small" color={
-                          step.type === TaskType.Focused ? 'blue' :
-                          step.type === TaskType.Admin ? 'green' :
-                          'orange'
-                        }>
-                          {formatDuration(step.duration)}
-                        </Tag>
-                        {step.asyncWaitTime > 0 && (
-                          <Tag size="small" color="red">
-                            +{formatDuration(step.asyncWaitTime)} wait
-                          </Tag>
-                        )}
-                      </Space>
-                    }
-                  >
-                    <Text style={{ whiteSpace: 'pre-wrap' }}>{step.notes}</Text>
-                  </Card>
-                )
-              })
-          )}
-        </Space>
-      </Modal>
     </Space>
   )
 }

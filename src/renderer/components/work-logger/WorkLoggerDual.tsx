@@ -504,6 +504,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                   onSessionSelect={(id) => setSelectedSessionId(id || null)}
                   expandedWorkflows={expandedWorkflows}
                   onExpandedWorkflowsChange={handleWorkflowExpansionChange}
+                  bedtimeHour={bedtimeHour}
+                  wakeTimeHour={wakeTimeHour}
                 />
               </div>
             </Card>

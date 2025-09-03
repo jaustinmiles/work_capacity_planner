@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Card, Space, Typography, Tag, Button, Alert, Statistic, Grid, Progress, Popconfirm, Tabs } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory } from '@arco-design/web-react/icon'
+import { Card, Space, Typography, Tag, Button, Alert, Statistic, Grid, Progress, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
+import { IconClockCircle, IconCalendar, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory, IconBook } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
+import { TaskType } from '@shared/enums'
 import { TaskStepItem } from './TaskStepItem'
 import { SequencedTaskEdit } from './SequencedTaskEdit'
 import { WorkflowVisualization } from './WorkflowVisualization'
@@ -34,6 +35,7 @@ export function SequencedTaskView({
   const [showDetails, setShowDetails] = useState(false)
   const [showEditView, setShowEditView] = useState(false)
   const [showVisualization, setShowVisualization] = useState(false)
+  const [showAllNotesModal, setShowAllNotesModal] = useState(false)
   const [activeTab, setActiveTab] = useState<string>('overview')
   const [stepTimeLogs, setStepTimeLogs] = useState<Record<string, number>>({})
   const [stepsCollapsed, setStepsCollapsed] = useState(true) // Start collapsed for better UX with many workflows
@@ -315,14 +317,24 @@ export function SequencedTaskView({
                       {stepsCollapsed ? 'Show Steps' : 'Hide Steps'}
                     </Button>
                     {!stepsCollapsed && (
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<IconDown style={{ transform: showDetails ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />}
-                        onClick={() => setShowDetails(!showDetails)}
-                      >
-                        {showDetails ? 'Hide Details' : 'Show Details'}
-                      </Button>
+                      <>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<IconDown style={{ transform: showDetails ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />}
+                          onClick={() => setShowDetails(!showDetails)}
+                        >
+                          {showDetails ? 'Hide Details' : 'Show Details'}
+                        </Button>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<IconBook />}
+                          onClick={() => setShowAllNotesModal(true)}
+                        >
+                          View All Notes
+                        </Button>
+                      </>
                     )}
                   </Space>
                 }
@@ -415,6 +427,65 @@ export function SequencedTaskView({
         visible={showVisualization}
         onClose={() => setShowVisualization(false)}
       />
+
+      {/* All Notes Modal */}
+      <Modal
+        title={
+          <Space>
+            <IconBook />
+            <span>All Step Notes for {task.name}</span>
+          </Space>
+        }
+        visible={showAllNotesModal}
+        onCancel={() => setShowAllNotesModal(false)}
+        footer={[
+          <Button key="close" onClick={() => setShowAllNotesModal(false)}>
+            Close
+          </Button>,
+        ]}
+        style={{ width: 700 }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="medium">
+          {task.notes && (
+            <Card size="small" title="Workflow Notes" style={{ marginBottom: 16 }}>
+              <Text>{task.notes}</Text>
+            </Card>
+          )}
+          {task.steps.filter(step => step.notes).length === 0 ? (
+            <Text type="secondary">No notes found for any steps in this workflow.</Text>
+          ) : (
+            task.steps
+              .filter(step => step.notes)
+              .map((step, index) => (
+                <Card
+                  key={step.id}
+                  size="small"
+                  title={
+                    <Space>
+                      <Text style={{ fontWeight: 500 }}>
+                        Step {index + 1}: {step.name}
+                      </Text>
+                      <Tag size="small" color={
+                        step.type === TaskType.Focused ? 'blue' :
+                        step.type === TaskType.Admin ? 'green' :
+                        'orange'
+                      }>
+                        {formatDuration(step.duration)}
+                      </Tag>
+                      {step.asyncWaitTime > 0 && (
+                        <Tag size="small" color="red">
+                          +{formatDuration(step.asyncWaitTime)} wait
+                        </Tag>
+                      )}
+                    </Space>
+                  }
+                >
+                  <Text style={{ whiteSpace: 'pre-wrap' }}>{step.notes}</Text>
+                </Card>
+              ))
+          )}
+        </Space>
+      </Modal>
     </Space>
   )
 }

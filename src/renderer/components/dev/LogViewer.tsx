@@ -181,7 +181,7 @@ export function LogViewer(_props: LogViewerProps) {
         const isHidden = hiddenPatterns.has(getPatternKey(record))
         return (
           <Space>
-            <Tag 
+            <Tag
               color={levelColors[level]}
               style={{ opacity: isHidden ? 0.4 : 1 }}
             >
@@ -207,9 +207,9 @@ export function LogViewer(_props: LogViewerProps) {
         const isHidden = hiddenPatterns.has(getPatternKey(record))
         return (
           <Space direction="vertical" style={{ width: '100%' }} size="mini">
-            <Text style={{ 
+            <Text style={{
               opacity: isHidden ? 0.4 : 1,
-              textDecoration: isHidden ? 'line-through' : 'none'
+              textDecoration: isHidden ? 'line-through' : 'none',
             }}>
               {message}
             </Text>
