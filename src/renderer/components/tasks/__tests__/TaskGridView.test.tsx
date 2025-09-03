@@ -157,7 +157,7 @@ describe('TaskGridView', () => {
 
     // Check for status icons (using aria-label or svg elements)
     const svgIcons = container.querySelectorAll('svg')
-    
+
     // We should have status icons for each task
     expect(svgIcons.length).toBeGreaterThan(0)
   })
@@ -242,7 +242,7 @@ describe('TaskGridView', () => {
   })
 
   it('should sort tasks by columns', () => {
-    const { rerender } = render(<TaskGridView tasks={mockTasks} />)
+    render(<TaskGridView tasks={mockTasks} />)
 
     // The table component handles sorting internally
     // We can verify the sort functions exist by checking column definitions
@@ -251,7 +251,7 @@ describe('TaskGridView', () => {
 
     // Verify sorting doesn't break the component
     fireEvent.click(nameColumn)
-    
+
     // Component should still render
     expect(screen.getByText('Test Task 1')).toBeInTheDocument()
   })
