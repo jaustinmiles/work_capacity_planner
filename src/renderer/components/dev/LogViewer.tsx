@@ -78,7 +78,7 @@ export function LogViewer(_props: LogViewerProps) {
     return counts
   }, [logs, hiddenPatterns, getPatternKey])
 
-  // Filter logs based on level and search - but NOT hidden patterns (we'll mark them instead)
+  // Filter logs based on level, search, and hidden patterns
   useEffect(() => {
     let filtered = [...logs]
 
@@ -98,9 +98,16 @@ export function LogViewer(_props: LogViewerProps) {
       )
     }
 
-    // Don't filter out hidden patterns - we'll mark them in the UI instead
+    // Filter out hidden patterns completely
+    if (hiddenPatterns.size > 0) {
+      filtered = filtered.filter(log => {
+        const pattern = getPatternKey(log)
+        return !hiddenPatterns.has(pattern)
+      })
+    }
+
     setFilteredLogs(filtered)
-  }, [logs, selectedLevel, searchText])
+  }, [logs, selectedLevel, searchText, hiddenPatterns, getPatternKey])
 
   // Auto-refresh
   useEffect(() => {
@@ -178,23 +185,19 @@ export function LogViewer(_props: LogViewerProps) {
       dataIndex: 'level',
       width: 100,
       render: (level: LogLevel, record: LogEntry) => {
-        const isHidden = hiddenPatterns.has(getPatternKey(record))
+        // No need to check if hidden since filtered logs won't include hidden patterns
         return (
           <Space>
-            <Tag
-              color={levelColors[level]}
-              style={{ opacity: isHidden ? 0.4 : 1 }}
-            >
+            <Tag color={levelColors[level]}>
               {LogLevel[level]}
             </Tag>
             <Button
               size="mini"
               type="text"
               onClick={() => toggleHidePattern(record)}
-              title={isHidden ? 'Show this pattern' : 'Hide this pattern'}
-              style={{ opacity: isHidden ? 0.6 : 1 }}
+              title="Hide this pattern"
             >
-              {isHidden ? '👁️' : '🚫'}
+              🚫
             </Button>
           </Space>
         )
@@ -204,13 +207,10 @@ export function LogViewer(_props: LogViewerProps) {
       title: 'Message',
       dataIndex: 'message',
       render: (message: string, record: LogEntry) => {
-        const isHidden = hiddenPatterns.has(getPatternKey(record))
+        // No strikethrough needed since hidden logs are filtered out
         return (
           <Space direction="vertical" style={{ width: '100%' }} size="mini">
-            <Text style={{
-              opacity: isHidden ? 0.4 : 1,
-              textDecoration: isHidden ? 'line-through' : 'none',
-            }}>
+            <Text>
               {message}
             </Text>
             {record.context?.source && showDetails && (
@@ -369,6 +369,7 @@ export function LogViewer(_props: LogViewerProps) {
         <Space>
           <Text type="secondary">
             Showing {filteredLogs.length} of {logs.length} logs
+            {hiddenPatterns.size > 0 && ` (${Object.values(hiddenCounts).reduce((a, b) => a + b, 0)} hidden)`}
           </Text>
           {Object.entries(levelCounts).map(([level, count]) => (
             <Tag key={level} color={levelColors[Number(level) as LogLevel]}>

@@ -32,7 +32,7 @@ const { Header, Sider, Content } = Layout
 const { Title } = Typography
 const MenuItem = Menu.Item
 
-import { TaskType } from '@shared/enums'
+import { TaskType, TaskStatus, StepStatus } from '@shared/enums'
 
 interface ExtractedTask {
   name: string
@@ -61,19 +61,8 @@ function App() {
     }
   }, [logger, loggerContext])
 
-  // Load last used session on app startup
-  useEffect(() => {
-    const loadSession = async () => {
-      try {
-        const db = getDatabase()
-        await db.loadLastUsedSession()
-        logger.info('App initialized with last used session')
-      } catch (error) {
-        logger.error('Failed to load last used session on startup', error)
-      }
-    }
-    loadSession()
-  }, [])
+  // Session loading is now handled in useTaskStore.initializeData()
+  // to prevent flash of default session
 
   const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
@@ -206,7 +195,7 @@ function App() {
             return {
               ...step,
               id: existingId || generateRandomStepId(),
-              status: 'pending' as const,
+              status: StepStatus.Pending,
               stepIndex: index,
             }
           })
@@ -216,7 +205,7 @@ function App() {
             return {
               ...step,
               id: generateRandomStepId(),
-              status: 'pending' as const,
+              status: StepStatus.Pending,
               stepIndex: index,
             }
           })
@@ -234,7 +223,7 @@ function App() {
           type: step.type || TaskType.Focused,
           dependsOn: step.dependsOn || [],
           asyncWaitTime: step.asyncWaitTime || 0,
-          status: step.status || ('pending' as const),
+          status: step.status || StepStatus.Pending,
           stepIndex: step.stepIndex ?? 0,
           percentComplete: step.percentComplete ?? 0,
           notes: step.notes || undefined,
@@ -254,7 +243,7 @@ function App() {
           hasSteps: true as true,
           criticalPathDuration: workflow.totalDuration || 0, // Will be calculated properly
           worstCaseDuration: (workflow.totalDuration || 0) * 1.5, // Estimate
-          overallStatus: 'not_started' as const,
+          overallStatus: TaskStatus.NotStarted,
           steps: completeSteps,
         }
 
@@ -276,7 +265,7 @@ function App() {
           notes: task.description,
           sessionId: '',  // Will be set by database
           hasSteps: false,
-          overallStatus: 'not_started' as const,
+          overallStatus: TaskStatus.NotStarted,
           criticalPathDuration: task.estimatedDuration,
           worstCaseDuration: task.estimatedDuration,
         })
@@ -320,10 +309,10 @@ function App() {
       if (!workflow) return
 
       // Find the first pending step or the current in-progress step
-      let stepToStart = workflow.steps.find(step => step.status === 'in_progress')
+      let stepToStart = workflow.steps.find(step => step.status === StepStatus.InProgress)
 
       if (!stepToStart) {
-        stepToStart = workflow.steps.find(step => step.status === 'pending')
+        stepToStart = workflow.steps.find(step => step.status === StepStatus.Pending)
         if (!stepToStart) {
           Message.warning('No pending steps in this workflow')
           return
@@ -335,11 +324,11 @@ function App() {
 
       // Update the workflow status to in_progress and set the current step
       await updateSequencedTask(id, {
-        overallStatus: 'in_progress',
+        overallStatus: TaskStatus.InProgress,
         currentStepId: stepToStart.id,
         steps: workflow.steps.map(step =>
           step.id === stepToStart!.id
-            ? { ...step, status: 'in_progress' }
+            ? { ...step, status: StepStatus.InProgress }
             : step,
         ),
       })
@@ -358,7 +347,7 @@ function App() {
       if (!workflow) return
 
       // Find the current in-progress step
-      const inProgressStep = workflow.steps.find(step => step.status === 'in_progress')
+      const inProgressStep = workflow.steps.find(step => step.status === StepStatus.InProgress)
 
       // Pause time tracking if there's an active step
       if (inProgressStep) {
@@ -368,13 +357,13 @@ function App() {
 
       // Update the workflow and step statuses
       const updatedSteps = workflow.steps.map(step =>
-        step.status === 'in_progress'
-          ? { ...step, status: 'pending' as const }
+        step.status === StepStatus.InProgress
+          ? { ...step, status: StepStatus.Pending }
           : step,
       )
 
       await updateSequencedTask(id, {
-        overallStatus: 'not_started',
+        overallStatus: TaskStatus.NotStarted,
         currentStepId: null as any,
         steps: updatedSteps,
       })
@@ -414,14 +403,14 @@ function App() {
         asyncWaitTime: step.asyncWaitTime,
         stepIndex: step.stepIndex,
         percentComplete: 0,
-        status: 'pending' as const,
+        status: StepStatus.Pending,
         completedAt: null as any,
         actualDuration: null as any,
         startedAt: null as any,
       }))
 
       await updateSequencedTask(id, {
-        overallStatus: 'not_started',
+        overallStatus: TaskStatus.NotStarted,
         currentStepId: null as any,
         steps: resetSteps,
       })

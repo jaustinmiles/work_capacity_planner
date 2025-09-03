@@ -414,5 +414,32 @@ Successfully implemented 7 high-impact improvements:
 - I didn't read this comment and instead made superficial fixes
 - Result: Wasted time on wrong solution, user frustration
 
+## Latest Session: PR #47 Feedback Fixes (2025-09-03)
+
+### Completed Fixes
+1. **Session Persistence** ✅
+   - Fixed startup flash of default session
+   - Added loadLastUsedSession to store initialization
+   - Tests passing for session persistence
+
+2. **Log Hiding** ✅  
+   - Fixed to filter logs completely instead of strikethrough
+   - Hidden logs no longer visible in table
+   - Shows count of hidden logs in statistics
+   - Tests passing for log viewer filtering
+
+3. **String to Enum Conversion** (In Progress)
+   - Added StepStatus enum for step states
+   - Updated TaskStatus enum usage
+   - Converting all string literals to proper enums
+   - Multiple files still need updates
+
+### Remaining Tasks
+- Fix Eisenhower scatter plot positioning (use relative sizing)
+- Implement diagonal scan feature for Eisenhower matrix
+- Fix swim lane timeline grid rendering
+- Make circadian rhythm configurable
+- Complete enum conversion across all files
+
 ---
-*Last Updated: 2025-09-02 (Added lessons learned)*
+*Last Updated: 2025-09-03 (PR #47 fixes in progress)*

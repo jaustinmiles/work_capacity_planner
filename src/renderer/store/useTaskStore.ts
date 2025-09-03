@@ -166,6 +166,10 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     try {
       // Initializing store data
       set({ isLoading: true, error: null })
+      
+      // Load last used session first to prevent default session flash
+      await getDatabase().loadLastUsedSession()
+      
       await getDatabase().initializeDefaultData()
       // Loading all data from database
       const [tasks, sequencedTasks] = await Promise.all([
