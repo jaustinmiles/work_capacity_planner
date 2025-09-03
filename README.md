@@ -22,6 +22,9 @@ An Electron-based task management application with AI-powered task extraction an
 - **Workflow Controls**: Start, pause, and reset workflow execution
 - **Session Management**: Multiple work contexts with isolated data
 - **Batch Operations**: Delete all tasks for development testing (dev mode)
+- **Grid View**: Data-dense table view with sortable/filterable columns
+- **Inline Editing**: Click any cell in grid view to edit values instantly
+- **Quick Edit Modal**: Enhanced UI with multiple input methods for each field
 
 ### 🎯 Intelligent Scheduling Engine
 - **Multiple Scheduling Modes**:
