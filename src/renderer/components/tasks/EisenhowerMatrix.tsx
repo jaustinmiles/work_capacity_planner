@@ -47,11 +47,15 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       viewMode,
     })
 
-    if (containerWidth && containerHeight) {
-      // Account for padding, using responsive values
+    // Use measured dimensions or fallback to reasonable defaults
+    const effectiveWidth = containerWidth || 800
+    const effectiveHeight = containerHeight || 600
+    
+    if (effectiveWidth > 0 && effectiveHeight > 0) {
+      // Don't subtract padding from container - we handle it in positioning
       const newSize = {
-        width: Math.max(200, containerWidth - (padding * 2)),
-        height: Math.max(200, Math.min(containerHeight - 100, 600)), // Cap height at 600px
+        width: Math.max(300, effectiveWidth),
+        height: Math.max(300, Math.min(effectiveHeight, 600)), // Cap height at 600px
       }
 
       const needsUpdate = Math.abs(newSize.width - containerSize.width) > 10 ||
@@ -557,11 +561,12 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         <Card style={{ minHeight: isMobile ? 400 : 500, height: isMobile ? 'auto' : 600, position: 'relative', overflow: 'hidden' }}>
           <div ref={scatterContainerRef} className="eisenhower-scatter-container" style={{
             width: '100%',
-            height: '100%',
-            minHeight: isMobile ? 300 : 400,
-            maxHeight: isMobile ? 400 : 600,
+            height: isMobile ? 400 : 600,
+            minHeight: isMobile ? 400 : 600,
             position: 'relative',
-            padding: isMobile ? '20px' : isCompact ? '30px' : '50px',
+            padding: 0, // Remove padding from container since we handle it in positioning
+            display: 'flex',
+            flexDirection: 'column',
           }}>
             {/* Axis Labels */}
             <Text
