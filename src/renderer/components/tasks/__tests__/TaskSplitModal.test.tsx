@@ -60,7 +60,7 @@ describe('TaskSplitModal', () => {
         visible={true}
         onClose={mockOnClose}
         onSplit={mockOnSplit}
-      />
+      />,
     )
 
     // Check that the modal is visible with correct content
@@ -74,7 +74,7 @@ describe('TaskSplitModal', () => {
         visible={true}
         onClose={mockOnClose}
         onSplit={mockOnSplit}
-      />
+      />,
     )
 
     // Should show 1h each for 50/50 split of 2 hours
@@ -89,7 +89,7 @@ describe('TaskSplitModal', () => {
         visible={true}
         onClose={mockOnClose}
         onSplit={mockOnSplit}
-      />
+      />,
     )
 
     // Find the slider element
@@ -107,19 +107,19 @@ describe('TaskSplitModal', () => {
         visible={true}
         onClose={mockOnClose}
         onSplit={mockOnSplit}
-      />
+      />,
     )
 
     // Clear the first task name
     const firstNameInput = screen.getAllByRole('textbox')[0]
-    
+
     await act(async () => {
       fireEvent.change(firstNameInput, { target: { value: '' } })
     })
 
     // Try to submit
     const splitButton = screen.getByText('Split Task')
-    
+
     await act(async () => {
       fireEvent.click(splitButton)
     })
@@ -138,7 +138,7 @@ describe('TaskSplitModal', () => {
         visible={true}
         onClose={mockOnClose}
         onSplit={mockOnSplit}
-      />
+      />,
     )
 
     const cancelButton = screen.getByText('Cancel')
@@ -154,12 +154,12 @@ describe('TaskSplitModal', () => {
         visible={true}
         onClose={mockOnClose}
         onSplit={mockOnSplit}
-      />
+      />,
     )
 
     // Fill in the form
     const inputs = screen.getAllByRole('textbox')
-    
+
     await act(async () => {
       fireEvent.change(inputs[0], { target: { value: 'First Part' } })
       fireEvent.change(inputs[2], { target: { value: 'Second Part' } })
@@ -167,7 +167,7 @@ describe('TaskSplitModal', () => {
 
     // Click split
     const splitButton = screen.getByRole('button', { name: 'Split Task' })
-    
+
     await act(async () => {
       fireEvent.click(splitButton)
     })
@@ -179,7 +179,7 @@ describe('TaskSplitModal', () => {
         expect.objectContaining({
           name: 'First Part',
           duration: 60, // 50% of 120
-        })
+        }),
       )
 
       // Should add the second task
@@ -189,7 +189,7 @@ describe('TaskSplitModal', () => {
           duration: 60, // 50% of 120
           importance: 5,
           urgency: 5,
-        })
+        }),
       )
 
       // Should call onSplit callback
@@ -204,19 +204,19 @@ describe('TaskSplitModal', () => {
         visible={true}
         onClose={mockOnClose}
         onSplit={mockOnSplit}
-      />
+      />,
     )
 
     // Fill in minimal required fields
     const inputs = screen.getAllByRole('textbox')
-    
+
     await act(async () => {
       fireEvent.change(inputs[2], { target: { value: 'Second Part' } })
     })
 
     // Click split
     const splitButton = screen.getByRole('button', { name: 'Split Task' })
-    
+
     await act(async () => {
       fireEvent.click(splitButton)
     })
@@ -230,7 +230,7 @@ describe('TaskSplitModal', () => {
           urgency: 5,
           deadline: mockTask.deadline,
           cognitiveComplexity: 3,
-        })
+        }),
       )
     })
   })

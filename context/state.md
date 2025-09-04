@@ -1,6 +1,51 @@
 # Current State
 
-## Latest Status (2025-09-04, Documentation Update Post-PR #55 Merge)
+## Latest Status (2025-09-04, Three Major Improvements Implemented)
+
+### 🚀 Feature Implementation Session (2025-09-04, Evening)
+
+**Branch**: feature/fix-feedback-duplicate-ids
+
+**Completed Improvements:**
+1. ✅ **Fixed Workflow Time Logging**
+   - Issue: Time logging on workflows didn't require step selection
+   - Solution: Use existing WorkflowProgressTracker instead of TaskTimeLoggingModal
+   - Result: Consistent workflow time tracking behavior across app
+   
+2. ✅ **Implemented UI Task/Step Splitting**
+   - Added split button to TaskEdit and SequencedTaskEdit
+   - Created TaskSplitModal and StepSplitModal components
+   - Allow users to split tasks/steps with customizable duration ratio
+   - Preserves all task properties in both split parts
+   - Generates unique IDs for new tasks/steps
+   
+3. ✅ **Added Test Coverage**
+   - Created comprehensive tests for TaskSplitModal
+   - 5 of 7 tests passing (validation and slider tests need refinement)
+   - Tests verify modal rendering, split logic, property preservation
+   
+**Technical Details:**
+- Fixed Task type issues (missing hasSteps, overallStatus fields)
+- Fixed TaskStep type mapping (using notes instead of description)
+- Resolved React prop warnings (Text strong prop, Slider onChange)
+- All TypeScript errors resolved, ESLint clean
+
+**Files Created:**
+- TaskSplitModal.tsx - UI for splitting regular tasks
+- StepSplitModal.tsx - UI for splitting workflow steps  
+- TaskSplitModal.test.tsx - Test coverage for split functionality
+
+**Files Modified:**
+- TaskItem.tsx - Fixed workflow time logging to use WorkflowProgressTracker
+- TaskEdit.tsx - Added split button and modal integration
+- SequencedTaskEdit.tsx - Added step splitting functionality
+
+**Next Steps:**
+- Consider addressing Workflow/Task model confusion (architectural refactor)
+- Create PR for these improvements
+- Continue working through feedback.json items
+
+## Previous Status (2025-09-04, Documentation Update Post-PR #55 Merge)
 
 ### 🎉 PR #55 Merged Successfully!
 
