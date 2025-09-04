@@ -24,6 +24,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { ref: scatterContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
   const { isCompact, isMobile } = useResponsive()
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 })
+  const [debugMode, setDebugMode] = useState(true) // Enable debug mode by default for now
 
   // Calculate responsive padding
   const padding = isMobile ? 20 : isCompact ? 40 : 50
@@ -721,6 +722,182 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 </svg>
               </div>
             )}
+
+            {/* Debug Overlay - Shows coordinate system details */}
+            {debugMode && containerSize.width > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+                zIndex: 1000,
+              }}>
+                {/* Debug Grid Lines every 10% */}
+                <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
+                    <g key={`debug-grid-${i}`}>
+                      {/* Vertical lines */}
+                      <line
+                        x1={padding + (i / 10) * gridWidth}
+                        y1={padding}
+                        x2={padding + (i / 10) * gridWidth}
+                        y2={padding + gridHeight}
+                        stroke="rgba(255, 0, 255, 0.2)"
+                        strokeDasharray="2 2"
+                      />
+                      <text
+                        x={padding + (i / 10) * gridWidth}
+                        y={padding - 5}
+                        fill="magenta"
+                        fontSize="10"
+                        textAnchor="middle"
+                      >
+                        U:{i}
+                      </text>
+                      {/* Horizontal lines */}
+                      <line
+                        x1={padding}
+                        y1={padding + (i / 10) * gridHeight}
+                        x2={padding + gridWidth}
+                        y2={padding + (i / 10) * gridHeight}
+                        stroke="rgba(255, 0, 255, 0.2)"
+                        strokeDasharray="2 2"
+                      />
+                      <text
+                        x={padding - 5}
+                        y={padding + (i / 10) * gridHeight}
+                        fill="magenta"
+                        fontSize="10"
+                        textAnchor="end"
+                        alignmentBaseline="middle"
+                      >
+                        I:{10-i}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+
+                {/* Debug Info Panel */}
+                <div style={{
+                  position: 'absolute',
+                  top: 10,
+                  right: 10,
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  border: '2px solid magenta',
+                  padding: '10px',
+                  borderRadius: '5px',
+                  fontSize: '12px',
+                  fontFamily: 'monospace',
+                  maxWidth: '300px',
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: 5, color: 'magenta' }}>
+                    🔍 SCATTER PLOT DEBUG MODE
+                  </div>
+                  <div>Container: {containerSize.width}x{containerSize.height}px</div>
+                  <div>Measured: {containerWidth?.toFixed(0) || '?'}x{containerHeight?.toFixed(0) || '?'}px</div>
+                  <div>Padding: {padding}px</div>
+                  <div>Grid: {gridWidth}x{gridHeight}px</div>
+                  <div>Tasks: {incompleteTasks.length}</div>
+                  <div style={{ marginTop: 5, fontWeight: 'bold' }}>Coordinate System:</div>
+                  <div>• X-axis: Urgency (0-10) → Left to Right</div>
+                  <div>• Y-axis: Importance (10-0) → Top to Bottom</div>
+                  <div>• Origin (0,10): Top-Left of grid</div>
+                  <div>• Max (10,0): Bottom-Right of grid</div>
+                </div>
+
+                {/* Show task positions with arrows */}
+                {incompleteTasks.slice(0, 5).map((task, idx) => {
+                  const xPercent = (task.urgency / 10) * 100
+                  const yPercent = (1 - task.importance / 10) * 100
+                  const xPos = padding + (xPercent / 100) * gridWidth
+                  const yPos = padding + (yPercent / 100) * gridHeight
+
+                  return (
+                    <div key={`debug-task-${task.id}`}>
+                      {/* Arrow pointing to task position */}
+                      <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
+                        <line
+                          x1={xPos}
+                          y1={yPos}
+                          x2={xPos + 50}
+                          y2={yPos - 30}
+                          stroke="red"
+                          strokeWidth="2"
+                          markerEnd="url(#arrowhead)"
+                        />
+                        <defs>
+                          <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                           refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="red" />
+                          </marker>
+                        </defs>
+                      </svg>
+                      {/* Label with task info */}
+                      <div style={{
+                        position: 'absolute',
+                        left: xPos + 55,
+                        top: yPos - 45,
+                        background: 'white',
+                        border: '1px solid red',
+                        padding: '2px 5px',
+                        borderRadius: '3px',
+                        fontSize: '10px',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        <div style={{ fontWeight: 'bold' }}>{task.name.slice(0, 15)}</div>
+                        <div>I:{task.importance} U:{task.urgency}</div>
+                        <div>Pos: ({xPos.toFixed(0)}, {yPos.toFixed(0)})</div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Show exact center point */}
+                <div style={{
+                  position: 'absolute',
+                  left: padding + gridWidth / 2,
+                  top: padding + gridHeight / 2,
+                  width: 10,
+                  height: 10,
+                  background: 'lime',
+                  border: '2px solid green',
+                  borderRadius: '50%',
+                  transform: 'translate(-50%, -50%)',
+                }} />
+                <div style={{
+                  position: 'absolute',
+                  left: padding + gridWidth / 2 + 10,
+                  top: padding + gridHeight / 2,
+                  background: 'white',
+                  padding: '2px 5px',
+                  border: '1px solid green',
+                  fontSize: '10px',
+                  fontFamily: 'monospace',
+                }}>
+                  Center (I:5, U:5)
+                </div>
+              </div>
+            )}
+
+            {/* Debug Mode Toggle Button */}
+            <Button
+              size="small"
+              type="text"
+              onClick={() => setDebugMode(!debugMode)}
+              style={{
+                position: 'absolute',
+                bottom: 10,
+                right: 10,
+                zIndex: 1001,
+                background: debugMode ? 'magenta' : 'white',
+                color: debugMode ? 'white' : 'black',
+              }}
+            >
+              {debugMode ? '🔍 Debug ON' : '🔍 Debug OFF'}
+            </Button>
 
             {/* Task Points - Outside the grid container */}
             {/* Only render points when container has valid dimensions */}
