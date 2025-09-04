@@ -1,5 +1,77 @@
 # Technical Decisions & Rationale
 
+## PR #55 Technical Decisions (2025-09-04)
+
+### ResponsiveProvider Context Pattern
+**Decision**: Centralized viewport state management with React Context
+**Implementation**: ResponsiveProvider wraps entire app
+**Rationale**:
+- Single source of truth for viewport dimensions
+- Consistent breakpoint definitions across app
+- Reduced prop drilling for responsive state
+- Performance: Single resize listener vs multiple
+**Pattern**:
+```typescript
+const { breakpoint, isMobile, isTablet } = useResponsive()
+```
+
+### Container Query Hook Implementation
+**Decision**: Custom useContainerQuery hook with ResizeObserver
+**Implementation**: Component-level responsive behavior
+**Rationale**:
+- Components adapt to container size, not just viewport
+- More flexible than media queries
+- Better for nested/embedded components
+- Future-proof as container queries gain browser support
+**Pattern**:
+```typescript
+const containerRef = useRef<HTMLDivElement>(null)
+const { width, height } = useContainerQuery(containerRef)
+```
+
+### Percentage-Based Positioning
+**Decision**: Use percentages for scatter plot positioning
+**Implementation**: Calculate x/y as percentages of container
+**Rationale**:
+- True responsiveness without recalculation
+- Maintains relative positions across sizes
+- CSS handles scaling automatically
+- Eliminates pixel-based breakage
+**Example**: `left: ${xPercent}%` instead of `left: ${xPixels}px`
+
+### Playwright E2E Testing Strategy
+**Decision**: Test across 7 viewport configurations
+**Implementation**: Parameterized tests for each viewport
+**Rationale**:
+- Catch responsive bugs early
+- Ensure functionality at all sizes
+- Validate touch targets on mobile
+- Verify text readability
+**Viewports**: mobile (375px), tablet (768px), desktop (1440px), etc.
+
+### GitHub GraphQL for PR Reviews
+**Decision**: Use GitHub GraphQL API for PR comment tracking
+**Implementation**: Custom scripts with GraphQL queries
+**Rationale**:
+- More efficient than REST API (single request)
+- Get nested data (comments + reviews + threads)
+- Better rate limits
+- Cleaner data structure
+**Tool**: `scripts/pr/pr-review-tracker.ts`
+
+### Arco Grid Responsive Configuration
+**Decision**: Use Arco's built-in responsive spans
+**Implementation**: Object syntax for breakpoint-specific columns
+**Rationale**:
+- Native Arco support (no custom CSS)
+- Consistent with design system
+- Clean declarative syntax
+- SSR-friendly
+**Pattern**:
+```typescript
+<Col span={{ xs: 24, sm: 12, md: 8, lg: 6 }}>
+```
+
 ## PR #51 Technical Decisions (2025-09-03)
 
 ### Task Clustering for Overlapping Items

@@ -1,7 +1,7 @@
 # Work Capacity Planner - Architecture Documentation
 
-**Last Updated:** September 3, 2025  
-**Version:** 3.0.0 (Post PR #51)
+**Last Updated:** September 4, 2025  
+**Version:** 4.0.0 (Post PR #55 - Responsive Design Implementation)
 
 ## Overview
 
@@ -14,10 +14,11 @@ Work Capacity Planner is an Electron-based desktop application for managing soft
 - **Desktop Framework:** Electron 26+
 - **Frontend:** React 19 with TypeScript 5.0+ (strict mode)
 - **UI Components:** Arco Design + Tailwind CSS
+- **Responsive Design:** Container queries + ResponsiveProvider context
 - **State Management:** Zustand with session-aware persistence
 - **Database:** SQLite with Prisma ORM
 - **Build System:** Vite
-- **Testing:** Vitest + React Testing Library
+- **Testing:** Vitest + React Testing Library + Playwright E2E
 - **AI Services:** Claude Opus 4.1 + OpenAI Whisper API
 - **Type Safety:** Comprehensive enum system with exhaustive checking
 
@@ -455,6 +456,67 @@ src/shared/__tests__/
 - **Session Switching**: View logs from previous sessions (pending IPC implementation)
 - **React Table**: Stable keys for proper reconciliation
 
+## Responsive Design Architecture (PR #55)
+
+### Core Responsive System
+
+#### ResponsiveProvider Context
+```typescript
+// Centralized viewport state management
+interface ViewportState {
+  width: number
+  height: number
+  breakpoint: 'mobile' | 'tablet' | 'desktop' | 'wide'
+}
+```
+
+#### Container Query Pattern
+```typescript
+// useContainerQuery hook for component-level responsiveness
+const { width, height } = useContainerQuery(containerRef)
+// Components adapt to container size, not just viewport
+```
+
+#### Breakpoint System
+- **Mobile**: < 640px
+- **Tablet**: 640px - 1024px  
+- **Desktop**: 1024px - 1440px
+- **Wide**: > 1440px
+
+### Responsive Components
+
+#### Grid Layouts
+- **Arco Grid**: Responsive column spans per breakpoint
+- **Container Queries**: Component-specific responsive behavior
+- **Fluid Typography**: em/rem units with CSS clamp()
+- **Percentage Positioning**: True responsiveness in scatter plots
+
+#### Key Implementations
+1. **EisenhowerMatrix**: Container-aware scatter plot
+2. **TaskList**: Responsive table with column visibility
+3. **WorkScheduleModal**: Adaptive layout for schedule editing
+4. **GanttChart**: Horizontal scrolling with fixed headers
+5. **Navigation**: Collapsible sidebar on mobile
+
+### E2E Testing Strategy
+
+#### Playwright Configuration
+```typescript
+// 7 viewport configurations tested
+const viewports = [
+  { name: 'mobile', width: 375, height: 667 },
+  { name: 'tablet', width: 768, height: 1024 },
+  { name: 'desktop', width: 1440, height: 900 },
+  // ... more viewports
+]
+```
+
+#### Test Coverage
+- Component rendering at all breakpoints
+- Interactive elements remain accessible
+- Text readability across sizes
+- Touch targets meet minimum size (44x44px)
+
 ## UI Component Improvements (PR #51)
 
 ### Eisenhower Matrix Enhancements
@@ -475,13 +537,13 @@ src/shared/__tests__/
 - ✅ React Table reconciliation issues
 - ✅ Container height collapse bugs
 - ✅ Script organization into subdirectories
+- ✅ Responsive design implementation (PR #55)
+- ✅ Container-aware component sizing
+- ✅ E2E test coverage with Playwright
 
 ### Remaining Technical Debt
-- Complete all amendment types
-- LogViewer database integration (IPC handler)
-- Optimize large workflow performance
-- Add E2E test coverage
+**Note:** All unresolved items migrated to `context/feedback.json`. Run `node scripts/analysis/feedback-utils.js unresolved` to view current issues.
 
 ---
 
-*This architecture represents the current state after the successful implementation of the voice amendment system and unified task model migration.*
+*This architecture represents the current state after the successful implementation of responsive design (PR #55), voice amendment system, and unified task model migration.*
