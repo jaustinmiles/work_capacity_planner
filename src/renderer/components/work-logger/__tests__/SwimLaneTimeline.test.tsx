@@ -86,7 +86,7 @@ describe('SwimLaneTimeline', () => {
   })
 
   it('renders swim lanes for tasks', () => {
-    render(
+    renderWithProvider(
       <SwimLaneTimeline
         sessions={mockSessions}
         tasks={mockTasks}
@@ -102,7 +102,7 @@ describe('SwimLaneTimeline', () => {
   })
 
   it('renders time axis with correct hours', () => {
-    render(
+    renderWithProvider(
       <SwimLaneTimeline
         sessions={mockSessions}
         tasks={mockTasks}
@@ -121,7 +121,7 @@ describe('SwimLaneTimeline', () => {
   })
 
   it('expands and collapses workflows when clicked', () => {
-    render(
+    renderWithProvider(
       <SwimLaneTimeline
         sessions={mockSessions}
         tasks={mockTasks}
@@ -148,7 +148,7 @@ describe('SwimLaneTimeline', () => {
   })
 
   it('calls onSessionSelect when a session is clicked', () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <SwimLaneTimeline
         sessions={mockSessions}
         tasks={mockTasks}
@@ -177,7 +177,7 @@ describe('SwimLaneTimeline', () => {
   })
 
   it('handles zoom controls', () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <SwimLaneTimeline
         sessions={mockSessions}
         tasks={mockTasks}
@@ -214,7 +214,7 @@ describe('SwimLaneTimeline', () => {
       mockTasks[0], // Duplicate the first task
     ]
 
-    render(
+    renderWithProvider(
       <SwimLaneTimeline
         sessions={mockSessions}
         tasks={duplicateTasks}
@@ -234,7 +234,7 @@ describe('SwimLaneTimeline', () => {
   it('syncs expanded state with parent component when provided', () => {
     const expandedWorkflows = new Set<string>()
 
-    render(
+    renderWithProvider(
       <SwimLaneTimeline
         sessions={mockSessions}
         tasks={mockTasks}

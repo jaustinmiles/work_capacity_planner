@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
+
+// Helper function to render with ResponsiveProvider
+const renderWithProvider = (component: React.ReactElement) => {
+  return render(<ResponsiveProvider>{component}</ResponsiveProvider>)
+}
 import { EisenhowerMatrix } from '../EisenhowerMatrix'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { TaskType } from '@shared/enums'
@@ -72,7 +78,7 @@ describe('EisenhowerMatrix', () => {
 
   describe('Grid View', () => {
     it('should render tasks in correct quadrants', () => {
-      render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       // Check that completed task is not shown
       expect(screen.queryByText('Completed Task')).not.toBeInTheDocument()
@@ -85,7 +91,7 @@ describe('EisenhowerMatrix', () => {
     })
 
     it('should categorize tasks correctly', () => {
-      render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       // Check quadrant headers exist
       expect(screen.getByText('Do First')).toBeInTheDocument()
@@ -95,7 +101,7 @@ describe('EisenhowerMatrix', () => {
     })
 
     it('should handle task selection', () => {
-      render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       const task = screen.getByText('Urgent Important Task')
       fireEvent.click(task)
@@ -121,7 +127,7 @@ describe('EisenhowerMatrix', () => {
     })
 
     it('should toggle to scatter plot view', async () => {
-      render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       // Find and click the scatter view toggle
       const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -135,7 +141,7 @@ describe('EisenhowerMatrix', () => {
     })
 
     it('should position tasks correctly in scatter plot', async () => {
-      const { container } = render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       // Switch to scatter view
       const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -170,7 +176,7 @@ describe('EisenhowerMatrix', () => {
     })
 
     it('should size bubbles based on task duration', async () => {
-      const { container } = render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       // Switch to scatter view
       const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -199,7 +205,7 @@ describe('EisenhowerMatrix', () => {
     })
 
     it('should handle zoom controls', async () => {
-      const { container } = render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       // Switch to scatter view
       const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -236,7 +242,7 @@ describe('EisenhowerMatrix', () => {
     })
 
     it('should show tooltips on hover', async () => {
-      const { container } = render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       // Switch to scatter view
       const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -261,7 +267,7 @@ describe('EisenhowerMatrix', () => {
     })
 
     it('should handle task click in scatter plot', async () => {
-      const { container } = render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       // Switch to scatter view
       const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -282,7 +288,7 @@ describe('EisenhowerMatrix', () => {
 
   describe('View Mode Toggle', () => {
     it('should persist view mode selection', () => {
-      const { rerender } = render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      const { rerender } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       // Switch to scatter view
       const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -292,7 +298,7 @@ describe('EisenhowerMatrix', () => {
       expect(screen.getByText('Urgency →')).toBeInTheDocument()
 
       // Rerender component
-      rerender(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      rerender(<ResponsiveProvider><EisenhowerMatrix onAddTask={mockOnAddTask} /></ResponsiveProvider>)
 
       // View mode should be maintained (in real app, would use localStorage)
       // For now, just verify the toggle works
@@ -302,7 +308,7 @@ describe('EisenhowerMatrix', () => {
 
   describe('Add Task Button', () => {
     it('should call onAddTask when add button is clicked', () => {
-      render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
       const addButton = screen.getByRole('button', { name: /add task/i })
       fireEvent.click(addButton)
