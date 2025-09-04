@@ -60,9 +60,6 @@ function replyToComment(prNumber: string, commentId: string, replyText: string) 
 
   try {
     // Create the reply using gh API
-    const reply = {
-      body: replyText,
-    }
 
     const result = exec(
       `gh api repos/{owner}/{repo}/pulls/${prNumber}/comments/${commentId}/replies \
@@ -77,7 +74,7 @@ function replyToComment(prNumber: string, commentId: string, replyText: string) 
     console.log(`\n${colors.bright}Reply URL:${colors.reset} ${replyData.html_url}`)
     console.log(`${colors.bright}Reply text:${colors.reset}\n${replyData.body}`)
 
-  } catch (error: any) {
+  } catch (_error: any) {
     // If the reply endpoint doesn't work, try creating a new review comment
     console.log(`${colors.yellow}Reply endpoint not available, creating review comment...${colors.reset}`)
 
