@@ -1,4 +1,4 @@
-import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select, Radio } from '@arco-design/web-react'
+import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select, Radio, Pagination } from '@arco-design/web-react'
 import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter, IconList, IconApps } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskItem } from './TaskItem'
@@ -26,6 +26,8 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const [quickEditVisible, setQuickEditVisible] = useState(false)
   const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | 'all' | 'work'>('all')
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20) // Show 20 tasks per page
   const { logger: newLogger } = useLoggerContext()
   const rendererLogger = newLogger as RendererLogger
 
@@ -38,6 +40,12 @@ export function TaskList({ onAddTask }: TaskListProps) {
 
   const incompleteTasks = filteredTasks.filter(task => !task.completed)
   const completedTasks = filteredTasks.filter(task => task.completed)
+
+  // Apply pagination
+  const startIndex = (currentPage - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const paginatedIncompleteTasks = incompleteTasks.slice(startIndex, endIndex)
+  const paginatedCompletedTasks = completedTasks.slice(0, 5) // Always show just 5 completed tasks
 
   const handleDeleteAllTasks = async () => {
     rendererLogger.interaction('Delete All Tasks Confirmed', {
@@ -62,7 +70,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
   }
 
   // Sort incomplete tasks by priority (importance * urgency)
-  const sortedIncompleteTasks = [...incompleteTasks].sort((a, b) => {
+  const sortedIncompleteTasks = [...paginatedIncompleteTasks].sort((a, b) => {
     const priorityA = a.importance * a.urgency
     const priorityB = b.importance * b.urgency
     return priorityB - priorityA
@@ -104,6 +112,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
               value={taskTypeFilter}
               onChange={(value) => {
                 setTaskTypeFilter(value)
+                setCurrentPage(1) // Reset to first page when changing filter
                 rendererLogger.interaction('Task Type Filter Changed', {
                   component: 'TaskList',
                   filterType: value,
@@ -253,6 +262,25 @@ export function TaskList({ onAddTask }: TaskListProps) {
         )}
       </Card>
 
+      {/* Pagination */}
+      {incompleteTasks.length > pageSize && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+          <Pagination
+            current={currentPage}
+            total={incompleteTasks.length}
+            pageSize={pageSize}
+            onChange={setCurrentPage}
+            showTotal
+            sizeOptions={[10, 20, 30, 50]}
+            onPageSizeChange={(size) => {
+              setPageSize(size)
+              setCurrentPage(1) // Reset to first page when changing page size
+            }}
+            showJumper
+          />
+        </div>
+      )}
+
       {/* Completed Tasks */}
       {completedTasks.length > 0 && (
         <Card
@@ -264,7 +292,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
           style={{ opacity: 0.8 }}
         >
           <List
-            dataSource={completedTasks}
+            dataSource={paginatedCompletedTasks}
             render={(task) => (
               <List.Item key={task.id}>
                 <TaskItem task={task} />

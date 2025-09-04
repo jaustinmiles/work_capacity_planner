@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm, Tooltip } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle, IconMenuFold, IconMenuUnfold } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -462,23 +462,34 @@ function App() {
           onCollapse={handleSidebarCollapse}
           width={240}
           collapsedWidth={80}
+          trigger={null}
           style={{
             background: '#fff',
             boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
+            overflow: 'hidden', // Prevent horizontal scrollbar
           }}
         >
           <div style={{
-            padding: sidebarCollapsed ? '24px 10px' : '24px 20px',
+            padding: '16px',
             borderBottom: '1px solid #E5E8EF',
-            textAlign: sidebarCollapsed ? 'center' : 'left',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            minHeight: 60,
           }}>
-            {!sidebarCollapsed ? (
-              <Title heading={4} style={{ margin: 0, color: '#1D2129' }}>
-                Work Capacity Planner
-              </Title>
-            ) : (
-              <Title heading={5} style={{ margin: 0, color: '#1D2129' }}>
-                WCP
+            <Button
+              type="text"
+              size="default"
+              icon={sidebarCollapsed ? <IconMenuUnfold /> : <IconMenuFold />}
+              onClick={() => handleSidebarCollapse(!sidebarCollapsed)}
+              style={{ 
+                minWidth: 32,
+                padding: '4px 8px',
+              }}
+            />
+            {!sidebarCollapsed && (
+              <Title heading={5} style={{ margin: 0, color: '#1D2129', flex: 1 }}>
+                Work Capacity
               </Title>
             )}
           </div>
@@ -565,9 +576,9 @@ function App() {
 
           <div style={{
             position: 'absolute',
-            bottom: 24,
-            left: sidebarCollapsed ? 10 : 20,
-            right: sidebarCollapsed ? 10 : 20,
+            bottom: 16,
+            left: 16,
+            right: 16,
           }}>
             <Dropdown
               trigger="click"
