@@ -38,6 +38,15 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
   // Update container size based on container query results
   useEffect(() => {
+    logger.info('🔄 [SCATTER] Container measurement received', {
+      containerWidth,
+      containerHeight,
+      hasValidDimensions: !!(containerWidth && containerHeight),
+      currentSize: containerSize,
+      padding,
+      viewMode,
+    })
+
     if (containerWidth && containerHeight) {
       // Account for padding, using responsive values
       const newSize = {
@@ -45,21 +54,49 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         height: Math.max(200, Math.min(containerHeight - 100, 600)), // Cap height at 600px
       }
 
+      const needsUpdate = Math.abs(newSize.width - containerSize.width) > 10 ||
+                         Math.abs(newSize.height - containerSize.height) > 10
+
+      logger.info('📐 [SCATTER] Size calculation', {
+        input: { containerWidth, containerHeight },
+        padding,
+        calculated: newSize,
+        current: containerSize,
+        difference: {
+          width: newSize.width - containerSize.width,
+          height: newSize.height - containerSize.height,
+        },
+        needsUpdate,
+        gridSize: {
+          width: newSize.width - padding * 2,
+          height: newSize.height - padding * 2,
+        }
+      })
+
       // Only update if significantly different to avoid re-renders
-      if (Math.abs(newSize.width - containerSize.width) > 10 ||
-          Math.abs(newSize.height - containerSize.height) > 10) {
+      if (needsUpdate) {
         setContainerSize(newSize)
 
         if (viewMode === 'scatter') {
-          logger.debug('Container size updated (responsive)', {
-            width: newSize.width,
-            height: newSize.height,
-            containerWidth,
-            containerHeight,
-            isMobile,
-            isCompact,
+          logger.info('✅ [SCATTER] Container size UPDATED', {
+            newSize,
+            gridArea: {
+              left: padding,
+              top: padding,
+              width: newSize.width - padding * 2,
+              height: newSize.height - padding * 2,
+            },
+            coordinateSpace: {
+              xAxis: '0-10 (urgency)',
+              yAxis: '10-0 (importance inverted)',
+              origin: { x: padding, y: padding },
+              max: { x: newSize.width - padding, y: newSize.height - padding },
+            },
+            responsive: { isMobile, isCompact },
           })
         }
+      } else {
+        logger.debug('⏸️ [SCATTER] Size update skipped (difference < 10px)')
       }
     }
   }, [containerWidth, containerHeight, viewMode, isMobile, isCompact])
@@ -1053,8 +1090,16 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 const xPercent = (task.urgency / 10) * 100
                 const yPercent = (1 - task.importance / 10) * 100 // Invert Y axis (high importance at top)
 
-                // Detailed debug logging for Y-axis collapse investigation
-                logger.debug('Task position calculated', {
+                // Calculate grid dimensions
+                const taskGridWidth = containerSize.width - padding * 2
+                const taskGridHeight = containerSize.height - padding * 2
+
+                // Calculate actual pixel positions
+                const xPos = padding + (xPercent / 100) * taskGridWidth
+                const yPos = padding + (yPercent / 100) * taskGridHeight
+
+                // Comprehensive logging for each task position
+                logger.info(`🎯 [SCATTER] Task "${task.name}" positioning`, {
                   taskId: task.id,
                   taskName: task.name,
                   importance: task.importance,
@@ -1087,8 +1132,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
                 // Position relative to grid box (which already accounts for padding)
                 // Grid box is at (padding, padding) with size (containerSize - 2*padding)
-                const xPos = padding + (xPercent / 100) * gridWidth
-                const yPos = padding + (yPercent / 100) * gridHeight
+                const finalXPos = padding + (xPercent / 100) * taskGridWidth
+                const finalYPos = padding + (yPercent / 100) * taskGridHeight
 
                 return (
                   <Tooltip
@@ -1108,8 +1153,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                       onClick={() => selectTask(task.id)}
                       style={{
                         position: 'absolute',
-                        left: xPos,
-                        top: yPos,
+                        left: finalXPos,
+                        top: finalYPos,
                         transform: `translate(-50%, -50%) scale(${zoom})`,
                         width: size,
                         height: size,
