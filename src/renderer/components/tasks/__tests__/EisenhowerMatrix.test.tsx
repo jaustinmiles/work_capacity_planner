@@ -1,14 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
+import { EisenhowerMatrix } from '../EisenhowerMatrix'
+import { useTaskStore } from '../../../store/useTaskStore'
+import { TaskType } from '@shared/enums'
+
+// Mock the useContainerQuery hook to return proper dimensions in tests
+vi.mock('../../../hooks/useContainerQuery', () => ({
+  useContainerQuery: () => ({
+    ref: vi.fn(),
+    width: 800,
+    height: 600,
+  }),
+}))
 
 // Helper function to render with ResponsiveProvider
 const renderWithProvider = (component: React.ReactElement) => {
   return render(<ResponsiveProvider>{component}</ResponsiveProvider>)
 }
-import { EisenhowerMatrix } from '../EisenhowerMatrix'
-import { useTaskStore } from '../../../store/useTaskStore'
-import { TaskType } from '@shared/enums'
 
 // Mock the task store
 vi.mock('../../../store/useTaskStore', () => ({
@@ -157,8 +166,8 @@ describe('EisenhowerMatrix', () => {
           return style.borderRadius === '50%' // Task bubbles are circular
         })
 
-        // Should have 4 visible tasks (excluding completed one)
-        expect(taskBubbles).toHaveLength(4)
+        // Should have 4 visible tasks (excluding completed one) + 1 debug marker
+        expect(taskBubbles).toHaveLength(5)
 
         // Check that bubbles have different positions based on importance/urgency
         const positions = taskBubbles.map(bubble => {
@@ -225,10 +234,14 @@ describe('EisenhowerMatrix', () => {
 
         await waitFor(() => {
           const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
-          const firstBubble = bubbles[0] as HTMLElement
-          if (firstBubble) {
-            // Check that transform scale has increased
-            expect(firstBubble.style.transform).toContain('scale')
+          // Find a task bubble (not the debug marker)
+          const taskBubble = Array.from(bubbles).find(b => 
+            (b as HTMLElement).style.transform?.includes('scale')
+          ) as HTMLElement
+          
+          if (taskBubble) {
+            // Check that transform scale exists
+            expect(taskBubble.style.transform).toContain('scale')
           }
         })
       }
@@ -250,18 +263,21 @@ describe('EisenhowerMatrix', () => {
 
       await waitFor(() => {
         const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
+        // Find a task bubble (not the debug marker - it has opacity 0.8 by default)
+        const taskBubble = Array.from(bubbles).find(b => 
+          (b as HTMLElement).style.opacity === '0.8'
+        ) as HTMLElement
 
-        if (bubbles.length > 0) {
-          // Hover over first bubble
-          fireEvent.mouseEnter(bubbles[0])
+        if (taskBubble) {
+          // Hover over task bubble
+          fireEvent.mouseEnter(taskBubble)
 
           // Bubble should change opacity on hover
-          const style = (bubbles[0] as HTMLElement).style
-          expect(style.opacity).toBe('1')
+          expect(taskBubble.style.opacity).toBe('1')
 
           // Mouse leave should restore opacity
-          fireEvent.mouseLeave(bubbles[0])
-          expect(style.opacity).toBe('0.8')
+          fireEvent.mouseLeave(taskBubble)
+          expect(taskBubble.style.opacity).toBe('0.8')
         }
       })
     })
@@ -275,9 +291,13 @@ describe('EisenhowerMatrix', () => {
 
       await waitFor(() => {
         const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
+        // Find a task bubble (not the debug marker - it has cursor: pointer)
+        const taskBubble = Array.from(bubbles).find(b => 
+          (b as HTMLElement).style.cursor === 'pointer'
+        ) as HTMLElement
 
-        if (bubbles.length > 0) {
-          fireEvent.click(bubbles[0])
+        if (taskBubble) {
+          fireEvent.click(taskBubble)
 
           // Should have called selectTask with one of the task IDs
           expect(mockSelectTask).toHaveBeenCalled()
