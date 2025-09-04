@@ -85,6 +85,16 @@ git rebase origin main  # CRITICAL: Avoid 43-commit divergence!
 git checkout -b feature/your-feature
 ```
 
+**IMPORTANT: Use Bot Account for PRs**
+```bash
+# Always use the bot auth script when creating PRs
+./context/setup-claude-bot.sh
+
+# This ensures PRs are created with the bot account
+# The script sets up proper GitHub authentication
+# User shouldn't need to remind you about this!
+```
+
 **During Review:**
 ```bash
 # Get ALL comments including inline
