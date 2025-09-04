@@ -140,15 +140,17 @@ function main() {
   const existingTitles = new Set(feedback.map(item => item.title))
 
   let addedCount = 0
-  const timestamp = new Date().toISOString()
+  const baseTimestamp = new Date()
 
-  techDebtItems.forEach(item => {
+  techDebtItems.forEach((item, index) => {
     if (existingTitles.has(item.title)) {
       console.log(`  ⏭️  Skipping duplicate: ${item.title}`)
     } else {
+      // Add unique timestamp for each item (increment by 100ms to ensure uniqueness)
+      const itemTimestamp = new Date(baseTimestamp.getTime() + (index * 100))
       feedback.push({
         ...item,
-        timestamp,
+        timestamp: itemTimestamp.toISOString(),
         sessionId: 'tech-debt-migration-2025-09-04',
       })
       addedCount++
