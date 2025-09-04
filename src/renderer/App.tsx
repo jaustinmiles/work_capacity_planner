@@ -497,10 +497,7 @@ function App() {
           <Menu
             selectedKeys={[activeView]}
             onClickMenuItem={(key) => setActiveView(key as any)}
-            style={{ 
-              marginTop: 20,
-              overflow: 'hidden',
-            }}
+            style={{ marginTop: 20 }}
           >
             <MenuItem key="tasks">
               <Tooltip
@@ -508,19 +505,13 @@ function App() {
                 position="right"
                 disabled={!sidebarCollapsed}
               >
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8,
-                  overflow: 'hidden',
-                  width: '100%',
-                }}>
+                <Space>
                   <IconList />
                   {!sidebarCollapsed && <span>Task List</span>}
-                  {!sidebarCollapsed && incompleteTasks > 0 && (
+                  {incompleteTasks > 0 && (
                     <Badge count={incompleteTasks} dot offset={[6, -4]} />
                   )}
-                </div>
+                </Space>
               </Tooltip>
             </MenuItem>
             <MenuItem key="matrix">
@@ -529,15 +520,10 @@ function App() {
                 position="right"
                 disabled={!sidebarCollapsed}
               >
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8,
-                  overflow: 'hidden',
-                }}>
+                <Space>
                   <IconApps />
                   {!sidebarCollapsed && <span>Eisenhower Matrix</span>}
-                </div>
+                </Space>
               </Tooltip>
             </MenuItem>
             <MenuItem key="calendar">
@@ -546,15 +532,10 @@ function App() {
                 position="right"
                 disabled={!sidebarCollapsed}
               >
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8,
-                  overflow: 'hidden',
-                }}>
+                <Space>
                   <IconCalendar />
                   {!sidebarCollapsed && <span>Calendar</span>}
-                </div>
+                </Space>
               </Tooltip>
             </MenuItem>
             <MenuItem key="workflows">
@@ -563,18 +544,13 @@ function App() {
                 position="right"
                 disabled={!sidebarCollapsed}
               >
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8,
-                  overflow: 'hidden',
-                }}>
+                <Space>
                   <IconBranch />
                   {!sidebarCollapsed && <span>Workflows</span>}
-                  {!sidebarCollapsed && activeWorkflows > 0 && (
+                  {activeWorkflows > 0 && (
                     <Badge count={activeWorkflows} dot offset={[6, -4]} />
                   )}
-                </div>
+                </Space>
               </Tooltip>
             </MenuItem>
             <MenuItem key="timeline">
@@ -583,15 +559,10 @@ function App() {
                 position="right"
                 disabled={!sidebarCollapsed}
               >
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8,
-                  overflow: 'hidden',
-                }}>
+                <Space>
                   <IconSchedule />
                   {!sidebarCollapsed && <span>Timeline</span>}
-                </div>
+                </Space>
               </Tooltip>
             </MenuItem>
           </Menu>

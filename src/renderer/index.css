@@ -21,6 +21,35 @@
   overflow-x: hidden !important;
 }
 
+/* Fix Space component overflow in collapsed sidebar */
+.arco-layout-sider-collapsed .arco-space {
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+  max-width: 100% !important;
+  justify-content: center !important;
+}
+
+.arco-layout-sider-collapsed .arco-menu-item {
+  overflow: hidden !important;
+  padding: 0 !important;
+  justify-content: center !important;
+}
+
+.arco-layout-sider-collapsed .arco-menu-item .arco-space {
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+.arco-layout-sider-collapsed .arco-badge {
+  display: none !important; /* Hide badges when collapsed */
+}
+
+/* Ensure icons are visible and centered when collapsed */
+.arco-layout-sider-collapsed .arco-icon {
+  font-size: 20px !important;
+  margin: 0 auto !important;
+}
+
 .arco-menu {
   border-right: none !important;
 }
