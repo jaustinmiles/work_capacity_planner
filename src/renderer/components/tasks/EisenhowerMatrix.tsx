@@ -557,6 +557,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               border: '2px solid #e5e6eb',
               background: 'white',
             }}>
+              {/* Tasks and clusters will be positioned within this grid box */}
               {/* Vertical Center Line */}
               <div style={{
                 position: 'absolute',
@@ -575,6 +576,39 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 height: 2,
                 background: '#e5e6eb',
               }} />
+              
+              {/* Debug Marker at 5,5 (center point) */}
+              <div style={{
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                border: '3px solid red',
+                background: 'rgba(255, 0, 0, 0.2)',
+                zIndex: 100,
+                pointerEvents: 'none',
+              }} title="5,5 Reference Point" />
+              
+              {/* Axis value labels */}
+              <div style={{
+                position: 'absolute',
+                left: '50%',
+                bottom: -20,
+                transform: 'translateX(-50%)',
+                fontSize: 10,
+                color: '#999',
+              }}>5</div>
+              <div style={{
+                position: 'absolute',
+                right: -20,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 10,
+                color: '#999',
+              }}>5</div>
 
               {/* Quadrant Labels */}
               <Text style={{
@@ -702,10 +736,38 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               }
               // Group tasks by position to detect clusters
               const taskClusters = new Map<string, typeof incompleteTasks>()
+              
+              // Debug logging for scatter plot positioning
+              logger.debug('EisenhowerMatrix Scatter Plot Debug', {
+                containerSize,
+                padding,
+                gridCenterX: padding + (containerSize.width - padding * 2) / 2,
+                gridCenterY: padding + (containerSize.height - padding * 2) / 2,
+                expectedCenter5_5: {
+                  x: padding + (0.5 * (containerSize.width - padding * 2)),
+                  y: padding + (0.5 * (containerSize.height - padding * 2))
+                },
+                totalTasks: incompleteTasks.length
+              })
+              
               incompleteTasks.forEach(task => {
                 const xPercent = Math.round((task.urgency / 10) * 100)
                 const yPercent = Math.round((1 - task.importance / 10) * 100)
                 const posKey = `${xPercent}-${yPercent}`
+                
+                // Log first few tasks for debugging
+                if (incompleteTasks.indexOf(task) < 3) {
+                  logger.debug('Task Position Calculation', {
+                    taskName: task.name,
+                    importance: task.importance,
+                    urgency: task.urgency,
+                    xPercent,
+                    yPercent,
+                    expectedPixelX: padding + (xPercent / 100) * (containerSize.width - padding * 2),
+                    expectedPixelY: padding + (yPercent / 100) * (containerSize.height - padding * 2),
+                    shouldBeAtCenter: task.importance === 5 && task.urgency === 5
+                  })
+                }
 
                 const cluster = taskClusters.get(posKey) || []
                 cluster.push(task)
@@ -715,6 +777,10 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               // Create a Set of tasks that are part of clusters (for hiding duplicates)
               const renderedTasks = new Set<string>()
               const clusterElements: React.ReactNode[] = []
+              
+              // Calculate grid dimensions for positioning
+              const gridWidth = containerSize.width - padding * 2
+              const gridHeight = containerSize.height - padding * 2
 
               // First pass: render cluster indicators
               taskClusters.forEach((tasksAtPosition, posKey) => {
@@ -729,6 +795,21 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   // Get the dominant quadrant color
                   const quadrant = categorizeTask(tasksAtPosition[0])
                   const config = quadrantConfig[quadrant]
+                  
+                  // Debug cluster positioning - use grid-relative coordinates
+                  const clusterX = padding + (xPercent / 100) * gridWidth
+                  const clusterY = padding + (yPercent / 100) * gridHeight
+                  
+                  logger.debug('Cluster Position', {
+                    posKey,
+                    taskCount: tasksAtPosition.length,
+                    firstTask: tasksAtPosition[0].name,
+                    xPercent,
+                    yPercent,
+                    pixelX: clusterX,
+                    pixelY: clusterY,
+                    quadrant
+                  })
 
                   clusterElements.push(
                     <Tooltip
@@ -746,8 +827,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                       <div
                         style={{
                           position: 'absolute',
-                          left: padding + (xPercent / 100) * (containerSize.width - padding * 2),
-                          top: padding + (yPercent / 100) * (containerSize.height - padding * 2),
+                          left: clusterX,
+                          top: clusterY,
                           transform: 'translate(-50%, -50%)',
                           width: 32,
                           height: 32,
@@ -820,9 +901,10 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 const baseSize = Math.min(60, Math.max(20, 20 + (task.duration / 30)))
                 const size = isHighlighted ? baseSize * 1.3 : baseSize
 
-                // Use actual container dimensions for positioning
-                const xPos = padding + (xPercent / 100) * (containerSize.width - padding * 2)
-                const yPos = padding + (yPercent / 100) * (containerSize.height - padding * 2)
+                // Position relative to grid box (which already accounts for padding)
+                // Grid box is at (padding, padding) with size (containerSize - 2*padding)
+                const xPos = padding + (xPercent / 100) * gridWidth
+                const yPos = padding + (yPercent / 100) * gridHeight
 
                 return (
                   <Tooltip

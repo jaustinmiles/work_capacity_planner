@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm } from '@arco-design/web-react'
+import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm, Tooltip } from '@arco-design/web-react'
 import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
@@ -77,6 +77,18 @@ function App() {
   const [showWorkLoggerDual, setShowWorkLoggerDual] = useState(false)
   const [voiceAmendmentVisible, setVoiceAmendmentVisible] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
+  
+  // Sidebar collapsed state - persist to localStorage
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed')
+    return saved === 'true'
+  })
+  
+  const handleSidebarCollapse = (collapsed: boolean) => {
+    setSidebarCollapsed(collapsed)
+    localStorage.setItem('sidebarCollapsed', collapsed.toString())
+  }
+  
   const {
     tasks,
     sequencedTasks,
@@ -97,6 +109,7 @@ function App() {
   } = useTaskStore()
 
   const incompleteTasks = tasks.filter(task => !task.completed).length
+  const activeWorkflows = sequencedTasks.filter(w => w.overallStatus !== 'completed').length
 
   // Initialize data when app starts
   useEffect(() => {
@@ -444,19 +457,30 @@ function App() {
     >
       <Layout style={{ minHeight: '100vh' }}>
         <Sider
+          collapsible
+          collapsed={sidebarCollapsed}
+          onCollapse={handleSidebarCollapse}
           width={240}
+          collapsedWidth={80}
           style={{
             background: '#fff',
             boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
           }}
         >
           <div style={{
-            padding: '24px 20px',
+            padding: sidebarCollapsed ? '24px 10px' : '24px 20px',
             borderBottom: '1px solid #E5E8EF',
+            textAlign: sidebarCollapsed ? 'center' : 'left',
           }}>
-            <Title heading={4} style={{ margin: 0, color: '#1D2129' }}>
-              Work Capacity Planner
-            </Title>
+            {!sidebarCollapsed ? (
+              <Title heading={4} style={{ margin: 0, color: '#1D2129' }}>
+                Work Capacity Planner
+              </Title>
+            ) : (
+              <Title heading={5} style={{ margin: 0, color: '#1D2129' }}>
+                WCP
+              </Title>
+            )}
           </div>
 
           <Menu
@@ -465,50 +489,85 @@ function App() {
             style={{ marginTop: 20 }}
           >
             <MenuItem key="tasks">
-              <Space>
-                <IconList />
-                <span>Task List</span>
-                {incompleteTasks > 0 && (
-                  <Badge count={incompleteTasks} dot offset={[6, -4]} />
-                )}
-              </Space>
+              <Tooltip
+                content="Task List"
+                position="right"
+                disabled={!sidebarCollapsed}
+              >
+                <Space>
+                  <IconList />
+                  {!sidebarCollapsed && <span>Task List</span>}
+                  {incompleteTasks > 0 && (
+                    <Badge count={incompleteTasks} dot offset={[6, -4]} />
+                  )}
+                </Space>
+              </Tooltip>
             </MenuItem>
             <MenuItem key="matrix">
-              <Space>
-                <IconApps />
-                <span>Eisenhower Matrix</span>
-              </Space>
+              <Tooltip
+                content="Eisenhower Matrix"
+                position="right"
+                disabled={!sidebarCollapsed}
+              >
+                <Space>
+                  <IconApps />
+                  {!sidebarCollapsed && <span>Eisenhower Matrix</span>}
+                </Space>
+              </Tooltip>
             </MenuItem>
             <MenuItem key="calendar">
-              <Space>
-                <IconCalendar />
-                <span>Calendar</span>
-              </Space>
+              <Tooltip
+                content="Calendar"
+                position="right"
+                disabled={!sidebarCollapsed}
+              >
+                <Space>
+                  <IconCalendar />
+                  {!sidebarCollapsed && <span>Calendar</span>}
+                </Space>
+              </Tooltip>
             </MenuItem>
             <MenuItem key="workflows">
-              <Space>
-                <IconBranch />
-                <span>Workflows</span>
-              </Space>
+              <Tooltip
+                content="Workflows"
+                position="right"
+                disabled={!sidebarCollapsed}
+              >
+                <Space>
+                  <IconBranch />
+                  {!sidebarCollapsed && <span>Workflows</span>}
+                  {activeWorkflows > 0 && (
+                    <Badge count={activeWorkflows} dot offset={[6, -4]} />
+                  )}
+                </Space>
+              </Tooltip>
             </MenuItem>
             <MenuItem key="timeline">
-              <Space>
-                <IconSchedule />
-                <span>Timeline</span>
-              </Space>
+              <Tooltip
+                content="Timeline"
+                position="right"
+                disabled={!sidebarCollapsed}
+              >
+                <Space>
+                  <IconSchedule />
+                  {!sidebarCollapsed && <span>Timeline</span>}
+                </Space>
+              </Tooltip>
             </MenuItem>
           </Menu>
 
           {/* Work Status Widget */}
-          <div style={{ padding: '20px 16px' }}>
-            <WorkStatusWidget onEditSchedule={() => setShowWorkSchedule(true)} />
-          </div>
+          {!sidebarCollapsed && (
+            <div style={{ padding: '20px 16px' }}>
+              <WorkStatusWidget onEditSchedule={() => setShowWorkSchedule(true)} />
+            </div>
+          )}
 
           <div style={{
             position: 'absolute',
             bottom: 24,
-            left: 20,
-            right: 20,
+            left: sidebarCollapsed ? 10 : 20,
+            right: sidebarCollapsed ? 10 : 20,
           }}>
             <Dropdown
               trigger="click"
@@ -543,7 +602,7 @@ function App() {
             >
               <Button
                 type="primary"
-                size="large"
+                size={sidebarCollapsed ? "default" : "large"}
                 icon={<IconPlus />}
                 long
                 style={{
@@ -551,7 +610,11 @@ function App() {
                   fontWeight: 500,
                 }}
               >
-                Add Task <IconDown style={{ marginLeft: 8 }} />
+                {!sidebarCollapsed ? (
+                  <>Add Task <IconDown style={{ marginLeft: 8 }} /></>
+                ) : (
+                  <IconDown />
+                )}
               </Button>
             </Dropdown>
           </div>
