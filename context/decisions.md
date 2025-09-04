@@ -1,5 +1,12 @@
 # Technical Decisions & Rationale
 
+## Bot Authentication for PRs (2025-09-04)
+**Decision**: Always use the bot authentication script when creating PRs
+**Rationale**: Ensures proper GitHub account is used for PR creation
+**Implementation**: Run `./context/setup-claude-bot.sh` before creating PRs
+**Note**: This should be done automatically without user reminders
+**Script Location**: `/Users/austinmiles/Documents/code/claude_code/task_planner/context/setup-claude-bot.sh`
+
 ## PR #55 Technical Decisions (2025-09-04)
 
 ### ResponsiveProvider Context Pattern
