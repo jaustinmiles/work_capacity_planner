@@ -17,10 +17,12 @@ import {
   IconSave,
   IconClose,
   IconCalendar,
+  IconScissor,
 } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
+import { TaskSplitModal } from './TaskSplitModal'
 import { logger } from '../../utils/logger'
 
 
@@ -39,6 +41,7 @@ export function TaskEdit({ task, onClose, startInEditMode = false }: TaskEditPro
   const [editedTask, setEditedTask] = useState<Task>({ ...task })
   const [isEditing, setIsEditing] = useState(startInEditMode)
   const [isSaving, setIsSaving] = useState(false)
+  const [showSplitModal, setShowSplitModal] = useState(false)
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -123,6 +126,14 @@ export function TaskEdit({ task, onClose, startInEditMode = false }: TaskEditPro
                     Cancel
                   </Button>
                 </>
+              )}
+              {!task.completed && (
+                <Button
+                  icon={<IconScissor />}
+                  onClick={() => setShowSplitModal(true)}
+                >
+                  Split Task
+                </Button>
               )}
               {onClose && (
                 <Button onClick={onClose}>
@@ -349,6 +360,17 @@ export function TaskEdit({ task, onClose, startInEditMode = false }: TaskEditPro
           </Space>
         </Card>
       )}
+
+      {/* Task Split Modal */}
+      <TaskSplitModal
+        task={editedTask}
+        visible={showSplitModal}
+        onClose={() => setShowSplitModal(false)}
+        onSplit={() => {
+          setShowSplitModal(false)
+          if (onClose) onClose()
+        }}
+      />
     </Space>
   )
 }

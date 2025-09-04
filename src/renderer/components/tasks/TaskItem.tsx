@@ -8,6 +8,7 @@ import { TaskEdit } from './TaskEdit'
 import { SequencedTaskEdit } from './SequencedTaskEdit'
 import { TaskTimeLoggingModal } from './TaskTimeLoggingModal'
 import { WorkSessionsModal } from './WorkSessionsModal'
+import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { getDatabase } from '../../services/database'
 import { SequencedTask } from '@shared/sequencing-types'
 import dayjs from 'dayjs'
@@ -33,6 +34,7 @@ export function TaskItem({ task }: TaskItemProps) {
   const [editedName, setEditedName] = useState(task.name)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showTimeModal, setShowTimeModal] = useState(false)
+  const [showProgressModal, setShowProgressModal] = useState(false)
   const [showSessionsModal, setShowSessionsModal] = useState(false)
   const [loggedTime, setLoggedTime] = useState<number>(0)
 
@@ -273,9 +275,19 @@ export function TaskItem({ task }: TaskItemProps) {
                       component: 'TaskItem',
                       taskId: task.id,
                       taskName: task.name,
+                      hasSteps: task.hasSteps,
                     })
-                    logger.ui.info('Time logging modal opened', { taskId: task.id, taskName: task.name })
-                    setShowTimeModal(true)
+                    logger.ui.info('Time logging modal opened', {
+                      taskId: task.id,
+                      taskName: task.name,
+                      hasSteps: task.hasSteps,
+                    })
+                    // Use WorkflowProgressTracker for workflows, TaskTimeLoggingModal for regular tasks
+                    if (task.hasSteps) {
+                      setShowProgressModal(true)
+                    } else {
+                      setShowTimeModal(true)
+                    }
                   }}
                 />
               </Tooltip>
@@ -380,6 +392,28 @@ export function TaskItem({ task }: TaskItemProps) {
           })
         }}
       />
+
+      {/* Workflow Progress Modal - for time logging on workflows */}
+      {task.hasSteps && (
+        <Modal
+          title="Track Workflow Progress"
+          visible={showProgressModal}
+          onCancel={() => setShowProgressModal(false)}
+          footer={null}
+          style={{ width: 1000 }}
+        >
+          <WorkflowProgressTracker
+            workflow={{
+              ...task,
+              steps: task.steps || [],
+              totalDuration: task.duration,
+              overallStatus: task.overallStatus || 'not_started',
+              criticalPathDuration: task.criticalPathDuration || task.duration,
+              worstCaseDuration: task.worstCaseDuration || task.duration,
+            } as SequencedTask}
+          />
+        </Modal>
+      )}
     </div>
   )
 }
