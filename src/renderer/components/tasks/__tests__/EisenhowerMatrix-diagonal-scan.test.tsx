@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
+
+// Helper function to render with ResponsiveProvider
+const renderWithProvider = (component: React.ReactElement) => {
+  return render(<ResponsiveProvider>{component}</ResponsiveProvider>)
+}
 import { EisenhowerMatrix } from '../EisenhowerMatrix'
 import { useTaskStore } from '../../../store/useTaskStore'
 
@@ -28,7 +34,7 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
   })
 
   it('should show diagonal scan button in scatter view', () => {
-    render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+    renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
     // Switch to scatter view
     const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -40,7 +46,7 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
   })
 
   it('should start diagonal scan animation when button clicked', async () => {
-    render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+    renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
     // Switch to scatter view
     const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -57,7 +63,7 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
   })
 
   it('should change button text when scanning starts', () => {
-    render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+    renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
     // Switch to scatter view
     const scatterButton = screen.getByRole('radio', { name: /scatter/i })
@@ -75,7 +81,7 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
   })
 
   it('should display scan line when scanning', async () => {
-    render(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+    renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
     // Switch to scatter view
     const scatterButton = screen.getByRole('radio', { name: /scatter/i })
