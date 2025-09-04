@@ -6,7 +6,8 @@
     "node": true
   },
   "globals": {
-    "localStorage": "readonly"
+    "localStorage": "readonly",
+    "ResizeObserver": "readonly"
   },
   "extends": [
     "eslint:recommended",
