@@ -39,14 +39,14 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       const padding = isMobile ? 20 : isCompact ? 40 : 50
       const newSize = {
         width: Math.max(200, containerWidth - (padding * 2)),
-        height: Math.max(200, Math.min(containerHeight - 100, 600)) // Cap height at 600px
+        height: Math.max(200, Math.min(containerHeight - 100, 600)), // Cap height at 600px
       }
-      
+
       // Only update if significantly different to avoid re-renders
-      if (Math.abs(newSize.width - containerSize.width) > 10 || 
+      if (Math.abs(newSize.width - containerSize.width) > 10 ||
           Math.abs(newSize.height - containerSize.height) > 10) {
         setContainerSize(newSize)
-        
+
         if (viewMode === 'scatter') {
           logger.debug('Container size updated (responsive)', {
             width: newSize.width,
@@ -54,7 +54,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             containerWidth,
             containerHeight,
             isMobile,
-            isCompact
+            isCompact,
           })
         }
       }

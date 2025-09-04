@@ -68,23 +68,23 @@ export function CircularClock({
     currentMinutes: number
   } | null>(null)
   const [hoveredSession, setHoveredSession] = useState<string | null>(null)
-  
+
   // Responsive sizing
   const { ref: clockContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
   const { scale: globalScale, isCompact, isMobile } = useResponsive()
-  
+
   // Calculate responsive dimensions based on container
   const calculateClockDimensions = () => {
     // Use container size if available, with padding
     const maxSize = Math.min(
       containerWidth || BASE_CLOCK_SIZE,
       containerHeight || BASE_CLOCK_SIZE,
-      isMobile ? 320 : 400
+      isMobile ? 320 : 400,
     ) - 40 // 40px padding
-    
+
     const size = Math.max(200, maxSize) // Minimum size of 200px
     const scale = size / BASE_CLOCK_SIZE
-    
+
     return {
       clockSize: size,
       center: size / 2,
@@ -94,11 +94,11 @@ export function CircularClock({
       fontSize: {
         hours: Math.max(10, Math.floor(12 * scale)),
         labels: Math.max(8, Math.floor(11 * scale)),
-        tiny: Math.max(6, Math.floor(8 * scale))
-      }
+        tiny: Math.max(6, Math.floor(8 * scale)),
+      },
     }
   }
-  
+
   const dimensions = calculateClockDimensions()
   const { clockSize, center, outerRadius, innerRadius, hourLabelRadius, fontSize } = dimensions
 

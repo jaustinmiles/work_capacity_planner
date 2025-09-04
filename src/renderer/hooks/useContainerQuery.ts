@@ -31,12 +31,12 @@ const DEFAULT_OPTIONS: UseContainerQueryOptions = {
 /**
  * Hook to observe container size changes and provide responsive breakpoints
  * Uses ResizeObserver API for efficient size tracking
- * 
+ *
  * @example
  * ```tsx
  * function MyComponent() {
  *   const { ref, width, height, breakpoint, isNarrow } = useContainerQuery()
- *   
+ *
  *   return (
  *     <div ref={ref}>
  *       {isNarrow ? <CompactView /> : <FullView />}
@@ -46,11 +46,11 @@ const DEFAULT_OPTIONS: UseContainerQueryOptions = {
  * ```
  */
 export function useContainerQuery<T extends HTMLElement = HTMLDivElement>(
-  options?: UseContainerQueryOptions
+  options?: UseContainerQueryOptions,
 ): { ref: RefObject<T | null> } & ContainerSize {
   const ref = useRef<T>(null)
   const opts = { ...DEFAULT_OPTIONS, ...options }
-  
+
   const [size, setSize] = useState<ContainerSize>({
     width: 0,
     height: 0,
@@ -64,22 +64,22 @@ export function useContainerQuery<T extends HTMLElement = HTMLDivElement>(
     if (!ref.current) return
 
     let timeoutId: NodeJS.Timeout | null = null
-    
+
     const observer = new ResizeObserver((entries) => {
       // Clear any pending updates
       if (timeoutId) clearTimeout(timeoutId)
-      
+
       // Debounce the resize callback
       timeoutId = setTimeout(() => {
         for (const entry of entries) {
           const { width, height } = entry.contentRect
-          
+
           // Determine breakpoint
           let breakpoint: ContainerBreakpoint = 'standard'
           let isNarrow = false
           let isStandard = false
           let isWide = false
-          
+
           if (width < opts.narrowThreshold!) {
             breakpoint = 'narrow'
             isNarrow = true
@@ -89,7 +89,7 @@ export function useContainerQuery<T extends HTMLElement = HTMLDivElement>(
           } else {
             isStandard = true
           }
-          
+
           const newSize = {
             width: Math.round(width),
             height: Math.round(height),
@@ -98,14 +98,14 @@ export function useContainerQuery<T extends HTMLElement = HTMLDivElement>(
             isStandard,
             isWide,
           }
-          
+
           if (opts.debug) {
             console.log('[useContainerQuery]', {
               element: ref.current?.className,
               ...newSize,
             })
           }
-          
+
           setSize(newSize)
         }
       }, opts.debounce)
@@ -129,23 +129,23 @@ export function useContainerQuery<T extends HTMLElement = HTMLDivElement>(
 /**
  * Hook variant that accepts an external ref
  * Useful when you already have a ref you need to use
- * 
+ *
  * @example
  * ```tsx
  * function MyComponent() {
  *   const containerRef = useRef<HTMLDivElement>(null)
  *   const { width, breakpoint } = useContainerQueryWithRef(containerRef)
- *   
+ *
  *   return <div ref={containerRef}>...</div>
  * }
  * ```
  */
 export function useContainerQueryWithRef<T extends HTMLElement = HTMLDivElement>(
   existingRef: RefObject<T>,
-  options?: UseContainerQueryOptions
+  options?: UseContainerQueryOptions,
 ): ContainerSize {
   const opts = { ...DEFAULT_OPTIONS, ...options }
-  
+
   const [size, setSize] = useState<ContainerSize>({
     width: 0,
     height: 0,
@@ -159,19 +159,19 @@ export function useContainerQueryWithRef<T extends HTMLElement = HTMLDivElement>
     if (!existingRef.current) return
 
     let timeoutId: NodeJS.Timeout | null = null
-    
+
     const observer = new ResizeObserver((entries) => {
       if (timeoutId) clearTimeout(timeoutId)
-      
+
       timeoutId = setTimeout(() => {
         for (const entry of entries) {
           const { width, height } = entry.contentRect
-          
+
           let breakpoint: ContainerBreakpoint = 'standard'
           let isNarrow = false
           let isStandard = false
           let isWide = false
-          
+
           if (width < opts.narrowThreshold!) {
             breakpoint = 'narrow'
             isNarrow = true
@@ -181,7 +181,7 @@ export function useContainerQueryWithRef<T extends HTMLElement = HTMLDivElement>
           } else {
             isStandard = true
           }
-          
+
           setSize({
             width: Math.round(width),
             height: Math.round(height),

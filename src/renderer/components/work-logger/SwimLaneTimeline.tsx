@@ -80,29 +80,29 @@ export function SwimLaneTimeline({
   const [baseHourWidth, setBaseHourWidth] = useState(80)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
-  
+
   // Responsive container measurement
   const { ref: timelineRef, width: containerWidth, isNarrow, isStandard, isWide } = useContainerQuery<HTMLDivElement>()
   const { isCompact, isMobile } = useResponsive()
-  
+
   // Calculate responsive hour width based on container size
   const calculateHourWidth = () => {
     if (!containerWidth) return baseHourWidth
-    
+
     // Calculate width available for timeline (minus label column)
     const availableWidth = containerWidth - TIME_LABEL_WIDTH - 20 // 20px for padding/scrollbar
-    
+
     // Fit mode: Scale hours to fit container without scroll
     if (isCompact || containerWidth < 1366) {
       const fitWidth = availableWidth / TOTAL_HOURS
       // Ensure minimum readable width
       return Math.max(MIN_HOUR_WIDTH, Math.min(fitWidth, baseHourWidth))
     }
-    
+
     // Desktop mode: Use base width with zoom control
     return baseHourWidth
   }
-  
+
   const hourWidth = calculateHourWidth()
 
   // Use external state if provided, otherwise use internal

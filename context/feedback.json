@@ -30,7 +30,8 @@
     "title": "UI improvements",
     "description": "the timeline has scrollbars for vertical and horizontal, but I don't like scroll bars. It should be more like a canvas with infinite scroll (doesn't actually need to be infinite). Also, we can drag and drop blocks on the clock, but not on the timeline view. The clock has overlapping labels that make it hard to tell the time. When there are too many workflows and personal tasks, the timeline becomes way too crowded. No amount of vertical shrinking can fix it. So we should probably only show tasks that we have actually worked on, and have an option to add a row for a task. And we should make sure the hiding of completed tasks works, and also works for workflow steps (very important). Additionally, we should definitely be able to fullscreen this, and the timeline view should probably take up more space. There's a lot of empty space below the chart (the clock doesn't take up that much horizontal space) so we could probably include a print out of all the work blocks done for the day. I was also thinking we could use the scheduler's output to show 'planned work' with some kind of indicator that it hasn't actually been logged yet. and then the user can verify the time they've spent so far in the day and what their day looks like for the rest of it. ",
     "timestamp": "2025-09-02T22:32:57.151Z",
-    "sessionId": "session-1756852377145-9hupihisq"
+    "sessionId": "session-1756852377145-9hupihisq",
+    "resolved": true
   },
   {
     "type": "feature",

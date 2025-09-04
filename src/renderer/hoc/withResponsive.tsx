@@ -13,17 +13,17 @@ export interface ResponsiveProps {
 
 /**
  * Higher-order component that injects responsive props into wrapped components
- * 
+ *
  * @example
  * ```tsx
  * interface MyComponentProps extends ResponsiveProps {
  *   title: string
  * }
- * 
- * const MyComponentBase: React.FC<MyComponentProps> = ({ 
- *   title, 
- *   breakpoint, 
- *   isCompact 
+ *
+ * const MyComponentBase: React.FC<MyComponentProps> = ({
+ *   title,
+ *   breakpoint,
+ *   isCompact
  * }) => {
  *   return (
  *     <div style={{ fontSize: isCompact ? 12 : 16 }}>
@@ -31,28 +31,28 @@ export interface ResponsiveProps {
  *     </div>
  *   )
  * }
- * 
+ *
  * export const MyComponent = withResponsive(MyComponentBase)
- * 
+ *
  * // Usage - no need to pass responsive props
  * <MyComponent title="Hello" />
  * ```
  */
 export function withResponsive<P extends ResponsiveProps>(
-  Component: ComponentType<P>
+  Component: ComponentType<P>,
 ): ComponentType<Omit<P, keyof ResponsiveProps>> {
   const WithResponsiveComponent = forwardRef<
     any,
     Omit<P, keyof ResponsiveProps>
   >((props, ref) => {
-    const { 
-      breakpoint, 
-      scale, 
-      isCompact, 
-      isMobile, 
+    const {
+      breakpoint,
+      scale,
+      isCompact,
+      isMobile,
       isDesktop,
       windowWidth,
-      windowHeight
+      windowHeight,
     } = useResponsive()
 
     const responsiveProps: ResponsiveProps = {
@@ -76,7 +76,7 @@ export function withResponsive<P extends ResponsiveProps>(
 /**
  * HOC variant that provides only specific responsive props
  * Useful when you only need certain responsive values
- * 
+ *
  * @example
  * ```tsx
  * const MyComponent = withResponsiveProps(['isCompact', 'breakpoint'])(
@@ -87,17 +87,17 @@ export function withResponsive<P extends ResponsiveProps>(
  * ```
  */
 export function withResponsiveProps<K extends keyof ResponsiveProps>(
-  keys: K[]
+  keys: K[],
 ) {
   return function <P extends Pick<ResponsiveProps, K>>(
-    Component: ComponentType<P>
+    Component: ComponentType<P>,
   ): ComponentType<Omit<P, K>> {
     const WithResponsivePropsComponent = forwardRef<
       any,
       Omit<P, K>
     >((props, ref) => {
       const responsive = useResponsive()
-      
+
       const selectedProps = keys.reduce((acc, key) => {
         acc[key] = responsive[key as keyof typeof responsive] as any
         return acc
@@ -115,13 +115,13 @@ export function withResponsiveProps<K extends keyof ResponsiveProps>(
 /**
  * Conditional rendering HOC based on breakpoints
  * Useful for showing/hiding components at different screen sizes
- * 
+ *
  * @example
  * ```tsx
  * const DesktopOnlyComponent = withBreakpoint({
  *   minBreakpoint: 'lg'
  * })(MyComponent)
- * 
+ *
  * const MobileOnlyComponent = withBreakpoint({
  *   maxBreakpoint: 'md'
  * })(MyComponent)
@@ -137,13 +137,13 @@ const breakpointOrder: Breakpoint[] = ['xs', 'sm', 'md', 'lg', 'xl', 'xxl']
 
 export function withBreakpoint(options: BreakpointOptions) {
   return function <P extends object>(
-    Component: ComponentType<P>
+    Component: ComponentType<P>,
   ): ComponentType<P> {
     const WithBreakpointComponent = forwardRef<any, P>((props, ref) => {
       const { breakpoint } = useResponsive()
-      
+
       const currentIndex = breakpointOrder.indexOf(breakpoint)
-      const minIndex = options.minBreakpoint 
+      const minIndex = options.minBreakpoint
         ? breakpointOrder.indexOf(options.minBreakpoint)
         : -1
       const maxIndex = options.maxBreakpoint
