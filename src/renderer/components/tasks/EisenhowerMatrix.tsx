@@ -576,7 +576,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 height: 2,
                 background: '#e5e6eb',
               }} />
-              
+
               {/* Debug Marker at 5,5 (center point) */}
               <div style={{
                 position: 'absolute',
@@ -591,7 +591,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 zIndex: 100,
                 pointerEvents: 'none',
               }} title="5,5 Reference Point" />
-              
+
               {/* Axis value labels */}
               <div style={{
                 position: 'absolute',
@@ -736,7 +736,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               }
               // Group tasks by position to detect clusters
               const taskClusters = new Map<string, typeof incompleteTasks>()
-              
+
               // Debug logging for scatter plot positioning
               logger.debug('EisenhowerMatrix Scatter Plot Debug', {
                 containerSize,
@@ -745,16 +745,16 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 gridCenterY: padding + (containerSize.height - padding * 2) / 2,
                 expectedCenter5_5: {
                   x: padding + (0.5 * (containerSize.width - padding * 2)),
-                  y: padding + (0.5 * (containerSize.height - padding * 2))
+                  y: padding + (0.5 * (containerSize.height - padding * 2)),
                 },
-                totalTasks: incompleteTasks.length
+                totalTasks: incompleteTasks.length,
               })
-              
+
               incompleteTasks.forEach(task => {
                 const xPercent = Math.round((task.urgency / 10) * 100)
                 const yPercent = Math.round((1 - task.importance / 10) * 100)
                 const posKey = `${xPercent}-${yPercent}`
-                
+
                 // Log first few tasks for debugging
                 if (incompleteTasks.indexOf(task) < 3) {
                   logger.debug('Task Position Calculation', {
@@ -765,7 +765,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                     yPercent,
                     expectedPixelX: padding + (xPercent / 100) * (containerSize.width - padding * 2),
                     expectedPixelY: padding + (yPercent / 100) * (containerSize.height - padding * 2),
-                    shouldBeAtCenter: task.importance === 5 && task.urgency === 5
+                    shouldBeAtCenter: task.importance === 5 && task.urgency === 5,
                   })
                 }
 
@@ -777,7 +777,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               // Create a Set of tasks that are part of clusters (for hiding duplicates)
               const renderedTasks = new Set<string>()
               const clusterElements: React.ReactNode[] = []
-              
+
               // Calculate grid dimensions for positioning
               const gridWidth = containerSize.width - padding * 2
               const gridHeight = containerSize.height - padding * 2
@@ -795,11 +795,11 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   // Get the dominant quadrant color
                   const quadrant = categorizeTask(tasksAtPosition[0])
                   const config = quadrantConfig[quadrant]
-                  
+
                   // Debug cluster positioning - use grid-relative coordinates
                   const clusterX = padding + (xPercent / 100) * gridWidth
                   const clusterY = padding + (yPercent / 100) * gridHeight
-                  
+
                   logger.debug('Cluster Position', {
                     posKey,
                     taskCount: tasksAtPosition.length,
@@ -808,7 +808,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                     yPercent,
                     pixelX: clusterX,
                     pixelY: clusterY,
-                    quadrant
+                    quadrant,
                   })
 
                   clusterElements.push(
