@@ -4,8 +4,7 @@ import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, M
 import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
-import { TaskEdit } from './TaskEdit'
-import { SequencedTaskEdit } from './SequencedTaskEdit'
+import { UnifiedTaskEdit } from './UnifiedTaskEdit'
 import { TaskTimeLoggingModal } from './TaskTimeLoggingModal'
 import { WorkSessionsModal } from './WorkSessionsModal'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
@@ -351,26 +350,18 @@ export function TaskItem({ task }: TaskItemProps) {
         footer={null}
         style={{ width: task.hasSteps ? 1000 : 800 }}
       >
-        {task.hasSteps ? (
-          <SequencedTaskEdit
-            task={{
-              ...task,
-              steps: task.steps || [],
-              totalDuration: task.duration,
-              overallStatus: task.overallStatus || 'not_started',
-              criticalPathDuration: task.criticalPathDuration || task.duration,
-              worstCaseDuration: task.worstCaseDuration || task.duration,
-            } as SequencedTask}
-            onClose={() => setShowEditModal(false)}
-            startInEditMode={true}
-          />
-        ) : (
-          <TaskEdit
-            task={task}
-            onClose={() => setShowEditModal(false)}
-            startInEditMode={true}
-          />
-        )}
+        <UnifiedTaskEdit
+          task={task.hasSteps ? {
+            ...task,
+            steps: task.steps || [],
+            totalDuration: task.duration,
+            overallStatus: task.overallStatus || 'not_started',
+            criticalPathDuration: task.criticalPathDuration || task.duration,
+            worstCaseDuration: task.worstCaseDuration || task.duration,
+          } as SequencedTask : task}
+          onClose={() => setShowEditModal(false)}
+          startInEditMode={true}
+        />
       </Modal>
 
       {/* Time Logging Modal */}

@@ -4,7 +4,7 @@ import { IconClockCircle, IconCalendar, IconPlayArrow, IconPause, IconRefresh, I
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskType, StepStatus } from '@shared/enums'
 import { TaskStepItem } from './TaskStepItem'
-import { SequencedTaskEdit } from './SequencedTaskEdit'
+import { UnifiedTaskEdit } from './UnifiedTaskEdit'
 import { WorkflowVisualization } from './WorkflowVisualization'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { WorkflowMinimap } from './WorkflowMinimap'
@@ -115,7 +115,7 @@ export function SequencedTaskView({
 
   if (showEditView) {
     return (
-      <SequencedTaskEdit
+      <UnifiedTaskEdit
         task={task}
         onClose={() => setShowEditView(false)}
         startInEditMode={true}

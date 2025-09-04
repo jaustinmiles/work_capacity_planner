@@ -16,9 +16,9 @@ vi.mock('../../common/Message', () => ({
   },
 }))
 
-// Mock TaskEdit component
-vi.mock('../TaskEdit', () => ({
-  TaskEdit: vi.fn(() => null),
+// Mock UnifiedTaskEdit component  
+vi.mock('../UnifiedTaskEdit', () => ({
+  UnifiedTaskEdit: vi.fn(() => null),
 }))
 
 // Mock the logger
