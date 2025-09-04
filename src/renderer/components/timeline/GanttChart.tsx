@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, DatePicker, Alert, Dropdown, Menu } from '@arco-design/web-react'
+import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, DatePicker, Alert, Dropdown, Menu } from '@arco-design/web-react'
 import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconRefresh, IconClockCircle, IconUp, IconDown } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
@@ -700,8 +700,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         bordered={false}
         style={{ marginBottom: 16 }}
         extra={
-          <Button 
-            size="small" 
+          <Button
+            size="small"
             type="text"
             onClick={() => setSummaryCollapsed(!summaryCollapsed)}
             icon={summaryCollapsed ? <IconDown /> : <IconUp />}

@@ -77,18 +77,18 @@ function App() {
   const [showWorkLoggerDual, setShowWorkLoggerDual] = useState(false)
   const [voiceAmendmentVisible, setVoiceAmendmentVisible] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
-  
+
   // Sidebar collapsed state - persist to localStorage
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    const saved = localStorage.getItem('sidebarCollapsed')
+    const saved = window.localStorage.getItem('sidebarCollapsed')
     return saved === 'true'
   })
-  
+
   const handleSidebarCollapse = (collapsed: boolean) => {
     setSidebarCollapsed(collapsed)
-    localStorage.setItem('sidebarCollapsed', collapsed.toString())
+    window.localStorage.setItem('sidebarCollapsed', collapsed.toString())
   }
-  
+
   const {
     tasks,
     sequencedTasks,
@@ -602,7 +602,7 @@ function App() {
             >
               <Button
                 type="primary"
-                size={sidebarCollapsed ? "default" : "large"}
+                size={sidebarCollapsed ? 'default' : 'large'}
                 icon={<IconPlus />}
                 long
                 style={{
