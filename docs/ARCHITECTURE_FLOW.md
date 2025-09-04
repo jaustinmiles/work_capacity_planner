@@ -10,15 +10,24 @@ This document maps the complete architecture of the Task Planner application, sh
 graph TB
     subgraph "UI Layer"
         GC[GanttChart<br/>📅]
-        WC[WeeklyCalendar<br/>📆]
+        WC[WeeklyCalendar<br/>📆]  
         EM[EisenhowerMatrix<br/>⚡]
         SG[ScheduleGenerator<br/>🎯]
         TL[TaskList<br/>📝]
     end
 
+    subgraph "Time Logging Components"
+        SLT[SwimLaneTimeline<br/>🏊‍♂️ Circadian Rhythm]
+        WLD[WorkLoggerDual<br/>📊 Dual View]
+        WLC[WorkLoggerCalendar<br/>📅 Calendar View]
+        WPT[WorkflowProgressTracker<br/>🔄 Step Progress]
+        TTL[TaskTimeLoggingModal<br/>⏱️ Basic Time]
+    end
+
     subgraph "State Management"
         TS[useTaskStore<br/>Zustand]
         WS[WorkSettings<br/>Local State]
+        CS[Circadian State<br/>Local Storage]
     end
 
     subgraph "Scheduling Layer"
@@ -74,6 +83,42 @@ graph TB
     style DS fill:#fff3e0
     style DB fill:#f3e5f5
     style RL fill:#e8f5e9
+```
+
+## ⏰ Time Logging Architecture
+
+### Variety of Time Logging Systems
+```
+1. SwimLaneTimeline - Circadian rhythm tracking with energy levels
+2. WorkLoggerDual - Side-by-side productivity analysis  
+3. WorkLoggerCalendar - Calendar-based time visualization
+4. WorkflowProgressTracker - Step-by-step workflow time tracking
+5. TaskTimeLoggingModal - Basic task time entry
+```
+
+### Time Data Persistence Flow
+```
+Time Entry → Local State → IPC → Main Process → SQLite Database
+                ↓              ↓
+        Real-time UI Updates   Batch Persistence
+                ↓              ↓  
+        Circadian Analysis    Historical Reports
+```
+
+### HTML/DOM Structure
+```
+App Container
+├── Navigation Sidebar
+├── Main Content Area
+│   ├── TaskList (Grid/List View)
+│   ├── Timeline Views (Gantt/Calendar)
+│   ├── Matrix Views (Eisenhower)
+│   └── Time Logging Modals (Overlay)
+├── Work Logger Panel
+│   ├── SwimLane Timeline (Circadian)
+│   ├── Dual View Logger
+│   └── Progress Tracker
+└── Debug Panels (Dev Mode)
 ```
 
 ## 🔄 Data Flow Patterns
