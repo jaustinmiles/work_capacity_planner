@@ -27,7 +27,10 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const [debugMode, setDebugMode] = useState(false) // Debug mode off by default
 
   // Calculate responsive padding
-  const padding = isMobile ? 20 : isCompact ? 40 : 50
+  const PADDING_MOBILE = 20
+  const PADDING_COMPACT = 40
+  const PADDING_DESKTOP = 50
+  const padding = isMobile ? PADDING_MOBILE : isCompact ? PADDING_COMPACT : PADDING_DESKTOP
 
   // Diagonal scan state
   const [isScanning, setIsScanning] = useState(false)

@@ -262,8 +262,8 @@ export function TaskList({ onAddTask }: TaskListProps) {
         )}
       </Card>
 
-      {/* Pagination */}
-      {incompleteTasks.length > pageSize && (
+      {/* Pagination - Always show when there are tasks, even if just one page */}
+      {incompleteTasks.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
           <Pagination
             current={currentPage}
@@ -276,7 +276,8 @@ export function TaskList({ onAddTask }: TaskListProps) {
               setPageSize(size)
               setCurrentPage(1) // Reset to first page when changing page size
             }}
-            showJumper
+            showJumper={incompleteTasks.length > pageSize}
+            hideOnSinglePage={false}
           />
         </div>
       )}

@@ -6,13 +6,21 @@ Scripts for managing pull requests and their CI/CD results.
 
 Track and manage PR review comments:
 ```bash
-npx tsx scripts/pr/pr-review-tracker.ts <pr-number>
+npx tsx scripts/pr/pr-review-tracker.ts [pr-number] [options]
 ```
 
+Options:
+- `--show-resolved` - Include resolved comments
+- `--all` - Show all comments including resolved and collapsed
+- `--no-reviews` - Hide review summaries (only show inline comments)
+- `--verbose` - Show full review bodies without truncation
+
 Features:
-- Lists all inline review comments
-- Tracks which comments have been addressed
-- Shows comment locations in code
+- Automatically hides resolved and collapsed comments
+- Filters out hidden/minimized reviews (e.g., long CI logs)
+- Truncates long review bodies for readability
+- Shows statistics on comment status
+- Tracks which comments still need addressing
 
 ## pr-comment-reply.ts
 
