@@ -1,5 +1,36 @@
 # Cumulative Insights
 
+## Responsive Design Implementation (2025-09-03)
+
+### Container Query Pattern
+**Problem**: Components need to adapt to their container size, not just viewport
+**Solution**: Custom useContainerQuery hook with ResizeObserver
+```typescript
+const { ref, width, height, isNarrow, isWide } = useContainerQuery()
+// Component adapts based on container measurements
+```
+**Benefits**: 
+- Components work in any layout context
+- No coupling to viewport size
+- Better component reusability
+
+### Fluid Sizing with CSS clamp()
+**Pattern**: Use clamp() for smooth responsive scaling
+```css
+--space-md: clamp(1rem, 3vw, 1.5rem);
+--text-base: clamp(1rem, 2.5vw, 1.125rem);
+```
+**Benefits**:
+- No JavaScript needed for scaling
+- Smooth transitions between breakpoints
+- Maintains readability limits
+
+### Responsive Testing Strategy
+**Key Insight**: Test at actual problem viewports, not just standard breakpoints
+- User reported issues at 1366x768 (common laptop size)
+- Standard breakpoints (768, 1024) didn't catch the issue
+- Solution: Configure Playwright with exact problem viewport sizes
+
 ## PR #47 Success Patterns (2025-09-03)
 
 ### Test-Driven Development Wins
