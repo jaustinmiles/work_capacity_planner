@@ -18,7 +18,7 @@ const techDebtItems = [
     components: ['utils/scheduling'],
     title: 'Work Pattern Repetition Not Implemented',
     description: 'UI shows "daily" repetition option for work blocks but backend doesn\'t actually implement repetition. Each pattern is saved only for the specific date with no logic to apply patterns to future dates. Need to implement repetition logic in database layer, add recurring pattern support (daily, weekly, etc.), and update UI to properly reflect repetition status.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'improvement',
@@ -26,7 +26,7 @@ const techDebtItems = [
     components: ['config/eslint'],
     title: 'ESLint Configuration Too Permissive',
     description: 'Current ESLint config doesn\'t catch potentially undefined values. No strict null checking rules enabled. TypeScript @typescript-eslint/recommended preset too lenient. This leads to bugs like sortedItems[0] access without safety checks. Need to enable strict-boolean-expressions and no-unsafe-member-access, then fix all resulting errors (likely 100+ locations).',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'improvement',
@@ -34,7 +34,7 @@ const techDebtItems = [
     components: ['database', 'tasks/TaskList', 'tasks/SequencedTaskEdit'],
     title: 'Workflow/Task Model Confusion',
     description: 'Workflows stored as Tasks with hasSteps=true causing type confusion throughout codebase. Priority calculation creates fake Task objects from TaskSteps. Duplicate logic for handling tasks vs workflow steps. Constant type casting required. See context/architecture-improvements.md for proposed fix.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'bug',
@@ -42,7 +42,7 @@ const techDebtItems = [
     components: ['dev/LogViewer'],
     title: 'LogViewer Database Integration Missing',
     description: 'Cannot view historical logs from previous sessions. IPC handler for get-session-logs not implemented. Database query methods for ErrorLog table needed. Session selector UI disabled but ready. This blocks debugging of past issues. Need to add database methods to fetch ErrorLog entries by session and implement IPC handler in main process.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'improvement',
@@ -50,7 +50,7 @@ const techDebtItems = [
     components: ['utils/scheduling', 'tests'],
     title: 'Scheduling Test Suite Rewrite Needed',
     description: 'Tests written for old deadline-scheduler don\'t match new SchedulingEngine behavior. Entire deadline-scheduling.test.ts suite skipped. One test in dependency-scheduling.test.ts skipped. Need to write new test suite for unified SchedulingEngine testing deadline pressure, async urgency, and priority calculations in context.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'bug',
@@ -58,7 +58,7 @@ const techDebtItems = [
     components: ['voice/VoiceAmendmentModal', 'utils/amendment-applicator'],
     title: 'AI Amendment Dependency Editing Not Working',
     description: 'Dependency changes via voice commands fail. Issue discovered during beta test. Need to debug amendment-applicator.ts dependency logic. Voice amendments for dependencies not functional.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'improvement',
@@ -66,7 +66,7 @@ const techDebtItems = [
     components: ['scripts'],
     title: 'Script Directory Organization Issues',
     description: '1386+ ESLint warnings from scripts using console.log extensively. Consider unified CLI tool instead of 30+ individual scripts. Missing TypeScript types in some scripts. Duplicate functionality across scripts. Need to create unified CLI with subcommands and add proper .eslintrc for scripts directory.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'improvement',
@@ -74,7 +74,7 @@ const techDebtItems = [
     components: ['logging'],
     title: 'Console Logging Cleanup Needed',
     description: 'Excessive logging in database operations (DB: logs everywhere), amendment parsing flow, and voice modal debugging. Noisy console output affecting development. Need to add debug flag or remove before production.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'improvement',
@@ -82,7 +82,7 @@ const techDebtItems = [
     components: ['tests', 'voice/VoiceAmendmentModal'],
     title: 'Test Coverage for Voice Features',
     description: 'Missing tests for voice amendment integration, workflow step addition, IPC enum serialization, and job context integration. Reduced confidence in voice features. Need comprehensive test suite for new functionality.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'improvement',
@@ -90,7 +90,7 @@ const techDebtItems = [
     components: ['tasks/SequencedTaskEdit', 'ui'],
     title: 'Workflow UI Polish Needed',
     description: 'Graph view could be more interactive. Step completion UI needs better feedback. Dependency visualization could be clearer. Overall UX improvements needed for workflow management.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'improvement',
@@ -98,7 +98,7 @@ const techDebtItems = [
     components: ['docs'],
     title: 'Documentation Updates Needed',
     description: 'Architecture diagram still shows old dual model. API documentation for new voice features missing. Testing guide for voice amendments needed. Various documentation files need updates to reflect current state.',
-    source: 'TECH_DEBT.md'
+    source: 'TECH_DEBT.md',
   },
   {
     type: 'improvement',
@@ -106,8 +106,8 @@ const techDebtItems = [
     components: ['performance'],
     title: 'Performance Optimizations Needed',
     description: 'Database queries could be optimized. UI re-renders on amendment application. Voice recording file cleanup needed. Performance issues with large workflow handling.',
-    source: 'TECH_DEBT.md'
-  }
+    source: 'TECH_DEBT.md',
+  },
 ]
 
 function loadFeedback() {
@@ -138,10 +138,10 @@ function main() {
 
   // Check for duplicates (by title)
   const existingTitles = new Set(feedback.map(item => item.title))
-  
+
   let addedCount = 0
   const timestamp = new Date().toISOString()
-  
+
   techDebtItems.forEach(item => {
     if (existingTitles.has(item.title)) {
       console.log(`  ⏭️  Skipping duplicate: ${item.title}`)
@@ -149,7 +149,7 @@ function main() {
       feedback.push({
         ...item,
         timestamp,
-        sessionId: 'tech-debt-migration-2025-09-04'
+        sessionId: 'tech-debt-migration-2025-09-04',
       })
       addedCount++
       console.log(`  ✅ Added: [${item.priority}] ${item.title}`)
@@ -170,7 +170,7 @@ function main() {
     critical: unresolved.filter(item => item.priority === 'critical').length,
     high: unresolved.filter(item => item.priority === 'high').length,
     medium: unresolved.filter(item => item.priority === 'medium').length,
-    low: unresolved.filter(item => item.priority === 'low').length
+    low: unresolved.filter(item => item.priority === 'low').length,
   }
 
   console.log('\n📊 Updated Summary:')
