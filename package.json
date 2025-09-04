@@ -35,7 +35,7 @@
     "typecheck:all": "tsc --noEmit",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint:fix": "eslint . --fix --quiet",
     "check": "npm run typecheck && npm run lint",
     "preview": "vite preview",
     "feedback": "node scripts/analysis/feedback-utils.js",
