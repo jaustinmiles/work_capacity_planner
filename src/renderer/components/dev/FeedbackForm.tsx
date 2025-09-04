@@ -31,7 +31,7 @@ interface FeedbackData {
 // Component options that map to actual files
 const COMPONENT_OPTIONS = [
   { label: 'Task List', value: 'tasks/TaskList' },
-  { label: 'Task Edit Form', value: 'tasks/TaskEdit' },
+  { label: 'Task Edit Form', value: 'tasks/UnifiedTaskEdit' },
   { label: 'Eisenhower Matrix', value: 'tasks/EisenhowerMatrix' },
   { label: 'Gantt Chart', value: 'timeline/GanttChart' },
   { label: 'Gantt Chart Sidebar', value: 'timeline/GanttChartSidebar' },
