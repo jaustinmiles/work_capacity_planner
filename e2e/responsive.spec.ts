@@ -91,7 +91,7 @@ test.describe('Responsive Layout Tests', () => {
     const scatterButton = await page.locator('text=Scatter')
     if (await scatterButton.isVisible()) {
       await scatterButton.click()
-      
+
       // Wait for scatter container to render after clicking button
       await page.waitForSelector('.eisenhower-scatter-container', { timeout: 5000 })
 
@@ -146,13 +146,13 @@ test.describe('Responsive Layout Tests', () => {
 
     // Check button sizes - skip icon-only buttons which might be smaller
     const buttons = await page.locator('button:not(.arco-btn-icon-only)').all()
-    
+
     // Check at least 3 regular buttons
     let checkedButtons = 0
     for (const button of buttons.slice(0, 10)) { // Check up to 10 buttons
       const bounds = await button.boundingBox()
       const isVisible = await button.isVisible()
-      
+
       if (bounds && isVisible && bounds.width > 0) {
         // For text buttons, check height is at least 44px
         // Width can vary based on text content
@@ -162,12 +162,12 @@ test.describe('Responsive Layout Tests', () => {
           console.log(`Button with text "${text}" has height ${bounds.height}px (expected >= 44px)`)
         }
         expect(bounds.height).toBeGreaterThanOrEqual(44)
-        
+
         checkedButtons++
         if (checkedButtons >= 3) break // Check at least 3 buttons
       }
     }
-    
+
     // Ensure we actually tested some buttons
     expect(checkedButtons).toBeGreaterThan(0)
   })
