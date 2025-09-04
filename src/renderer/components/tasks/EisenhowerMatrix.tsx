@@ -874,10 +874,10 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                     strokeWidth="3"
                     strokeLinecap="round"
                   />
-                  {/* Scanning wave effect - at intersection point */}
+                  {/* Scanning wave effect - at scan line endpoint */}
                   <circle
-                    cx={`${100 - (100 * scanProgress)}%`} // FIXED: Use proper intersection calculation
-                    cy={`${100 * scanProgress}%`}          // At scan line's current position on diagonal
+                    cx="100%" // Always at the right edge (line endpoint)
+                    cy={`${100 * scanProgress}%`} // Follow the y-position of scan line endpoint
                     r="3%"
                     fill="none"
                     stroke="#165DFF"

@@ -106,10 +106,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      logger.ui.info('Saving task/workflow changes', { 
-        taskId: task.id, 
-        isWorkflow: isWorkflow, 
-        stepCount: steps.length 
+      logger.ui.info('Saving task/workflow changes', {
+        taskId: task.id,
+        isWorkflow: isWorkflow,
+        stepCount: steps.length,
       })
 
       if (isWorkflow && sequencedTask) {
@@ -153,7 +153,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           worstCaseDuration,
         })
 
-        // Emit workflow updated event  
+        // Emit workflow updated event
         appEvents.emit(EVENTS.WORKFLOW_UPDATED)
         logger.ui.info('Workflow saved successfully', { workflowId: task.id, stepCount: cleanedSteps.length })
       } else {
@@ -191,10 +191,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
       const values = await form.validate()
       if (!editingStep) return
 
-      logger.ui.info('Saving step changes', { 
-        stepId: editingStep.id, 
-        stepName: values.name, 
-        isNewStep: editingStep.id === 'new' 
+      logger.ui.info('Saving step changes', {
+        stepId: editingStep.id,
+        stepName: values.name,
+        isNewStep: editingStep.id === 'new',
       })
 
       const updatedStep = {
@@ -225,7 +225,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
       // Update local state
       setSteps(updatedSteps)
-      
+
       // CRITICAL FIX: Actually save to database immediately
       if (isWorkflow && sequencedTask) {
         const totalDuration = updatedSteps.reduce((sum, step) => sum + step.duration, 0)
@@ -259,7 +259,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
       setShowStepModal(false)
       setEditingStep(null)
       form.resetFields()
-      
+
       Message.success('Step saved successfully')
     } catch (error) {
       logger.ui.error('Failed to save step:', error)
@@ -726,7 +726,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
             <FormItem field="notes" label="Notes">
               <TextArea placeholder="Optional notes" autoSize={{ minRows: 2, maxRows: 4 }} />
             </FormItem>
-            
+
             {/* Dependencies - COPIED from working SequencedTaskEdit */}
             <div style={{ marginBottom: 24 }}>
               <Typography.Text style={{ display: 'block', marginBottom: 8, fontSize: 14, color: '#86909c' }}>
