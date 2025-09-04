@@ -24,7 +24,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { ref: scatterContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
   const { isCompact, isMobile } = useResponsive()
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 })
-  
+
   // Calculate responsive padding
   const padding = isMobile ? 20 : isCompact ? 40 : 50
 

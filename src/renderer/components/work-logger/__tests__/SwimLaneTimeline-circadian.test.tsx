@@ -1,8 +1,15 @@
+import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SwimLaneTimeline } from '../SwimLaneTimeline'
 import { WorkSessionData } from '@shared/types'
 import { TaskType } from '@shared/enums'
+import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
+
+// Helper function to render with ResponsiveProvider
+const renderWithProvider = (component: React.ReactElement) => {
+  return render(<ResponsiveProvider>{component}</ResponsiveProvider>)
+}
 
 describe('SwimLaneTimeline - Circadian Rhythm', () => {
   const mockOnSessionUpdate = vi.fn()
@@ -29,7 +36,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
 
   describe('Circadian Rhythm Toggle', () => {
     it('should show circadian rhythm toggle button', () => {
-      render(
+      renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -47,7 +54,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
     })
 
     it('should toggle circadian rhythm display when clicked', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -75,7 +82,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
 
   describe('Circadian Energy Calculation', () => {
     it('should adapt to custom wake time', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -98,7 +105,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
     })
 
     it('should adapt to night owl schedule', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -121,7 +128,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
     })
 
     it('should handle bedtime after midnight correctly', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -144,7 +151,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
     })
 
     it('should use default values when not provided', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -168,7 +175,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
 
   describe('Circadian Rhythm Visual', () => {
     it('should render smooth curves, not blocks', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -197,7 +204,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
     })
 
     it('should display behind task lanes', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -228,7 +235,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
     })
 
     it('should use gradient fill for visual appeal', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -259,7 +266,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
 
   describe('Interaction with Other Features', () => {
     it('should not interfere with session creation', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -287,7 +294,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
     })
 
     it('should persist toggle state during re-renders', () => {
-      const { rerender } = render(
+      const { rerender: _rerender } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -304,7 +311,8 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
       expect(toggleButton).toBeChecked()
 
       // Re-render with new props
-      rerender(
+      _rerender(
+        <ResponsiveProvider>
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={[...mockTasks, {
@@ -320,7 +328,8 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
           onSessionCreate={mockOnSessionCreate}
           onSessionDelete={mockOnSessionDelete}
           onSessionSelect={mockOnSessionSelect}
-        />,
+        />
+        </ResponsiveProvider>,
       )
 
       // Toggle should still be checked
@@ -331,7 +340,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
 
   describe('Edge Cases', () => {
     it('should handle same wake and bedtime gracefully', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
@@ -354,7 +363,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
     })
 
     it('should handle invalid hour values by using defaults', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
           tasks={mockTasks}
