@@ -35,12 +35,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 🚨 CRITICAL CODING WORKFLOW
 **MANDATORY ORDER FOR EVERY CHANGE:**
-1. **Search First**: Find existing implementations before creating new code
-2. **Document Findings**: Explain what was found and justify any new code
-3. **Test First**: Write tests that FAIL initially
-4. **Implement Minimally**: Write just enough code to pass tests
-5. **Verify Quality**: Run format → lint → typecheck → test
-6. **Commit Atomically**: One logical change per commit with clear messages
+1. **🤖 Bot Authentication FIRST**: Run `./context/setup-claude-bot.sh` before any PR work
+2. **Search First**: Find existing implementations before creating new code
+3. **Document Findings**: Explain what was found and justify any new code
+4. **Test First**: Write tests that FAIL initially
+5. **Implement Minimally**: Write just enough code to pass tests
+6. **Verify Quality**: Run format → lint → typecheck → test
+7. **Commit Atomically**: One logical change per commit with clear messages
+
+### 🤖 BOT AUTHENTICATION - CRITICAL
+**ALWAYS RUN BEFORE STARTING ANY PR WORK:**
+```bash
+./context/setup-claude-bot.sh
+```
+**Why this matters:**
+- PRs must be created by Claude Code[bot], not personal account
+- Maintains consistent attribution for AI-assisted development
+- Prevents user from having to remind you repeatedly
+- Required for proper GitHub App permissions
 
 ### 🔍 PR REVIEW PROTOCOL - MANDATORY
 **Before making ANY changes based on PR feedback:**

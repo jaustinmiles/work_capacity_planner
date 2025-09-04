@@ -341,5 +341,135 @@ describe('EisenhowerMatrix', () => {
 
       expect(mockOnAddTask).toHaveBeenCalled()
     })
+
+    it('should display workflow steps in scatter plot', async () => {
+      // Create a workflow with steps for testing
+      const mockWorkflow = {
+        id: 'workflow-1',
+        name: 'Test Workflow',
+        importance: 8,
+        urgency: 6,
+        duration: 120,
+        type: 'personal' as const,
+        completed: false,
+        hasSteps: true,
+        steps: [
+          {
+            id: 'step-1',
+            name: 'Step 1',
+            duration: 30,
+            taskId: 'workflow-1',
+            importance: null,
+            urgency: null,
+            status: 'not_started' as const,
+            stepIndex: 0,
+            dependsOn: [],
+            asyncWaitTime: 0,
+            isAsyncTrigger: false,
+          },
+          {
+            id: 'step-2',
+            name: 'Step 2',
+            duration: 45,
+            taskId: 'workflow-1',
+            importance: 9,
+            urgency: null,
+            status: 'not_started' as const,
+            stepIndex: 1,
+            dependsOn: ['step-1'],
+            asyncWaitTime: 0,
+            isAsyncTrigger: false,
+          },
+        ],
+      }
+
+      // Mock the store to include the workflow
+      const mockStore = {
+        tasks: [mockWorkflow],
+        sequencedTasks: [mockWorkflow],
+        selectTask: vi.fn(),
+      }
+
+      vi.mocked(useTaskStore).mockReturnValue(mockStore as any)
+
+      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+
+      // Switch to scatter view
+      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
+      fireEvent.click(scatterButton)
+
+      await waitFor(() => {
+        // Should have workflow task + 2 steps = 3 items total
+        const allItems = container.querySelectorAll('[style*="border-radius"]')
+        expect(allItems.length).toBeGreaterThanOrEqual(3)
+
+        // Check for step indicators (should have "S1", "S2" text)
+        const stepElements = Array.from(allItems).filter(el =>
+          el.textContent?.startsWith('S'),
+        )
+        expect(stepElements.length).toBe(2)
+
+        // Check step visual differentiation (dashed border)
+        const stepWithDashedBorder = Array.from(allItems).find(el =>
+          (el as HTMLElement).style.border?.includes('dashed'),
+        )
+        expect(stepWithDashedBorder).toBeTruthy()
+      })
+    })
+
+    it('should inherit importance/urgency for workflow steps', async () => {
+      const mockWorkflow = {
+        id: 'workflow-inherit',
+        name: 'Inheritance Test',
+        importance: 7,
+        urgency: 8,
+        duration: 60,
+        type: 'personal' as const,
+        completed: false,
+        hasSteps: true,
+        steps: [
+          {
+            id: 'step-inherit',
+            name: 'Inheriting Step',
+            duration: 30,
+            taskId: 'workflow-inherit',
+            importance: null, // Should inherit 7
+            urgency: null,    // Should inherit 8
+            status: 'not_started' as const,
+            stepIndex: 0,
+            dependsOn: [],
+            asyncWaitTime: 0,
+            isAsyncTrigger: false,
+          },
+        ],
+      }
+
+      const mockStore = {
+        tasks: [mockWorkflow],
+        sequencedTasks: [mockWorkflow],
+        selectTask: vi.fn(),
+      }
+
+      vi.mocked(useTaskStore).mockReturnValue(mockStore as any)
+
+      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+
+      // Switch to scatter view
+      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
+      fireEvent.click(scatterButton)
+
+      await waitFor(() => {
+        // Find step element
+        const stepElement = Array.from(container.querySelectorAll('[style*="border-radius"]')).find(el =>
+          el.textContent?.includes('S1'),
+        ) as HTMLElement
+
+        expect(stepElement).toBeTruthy()
+
+        // Check tooltip shows inherited values
+        expect(stepElement.getAttribute('title')).toContain('I:7')
+        expect(stepElement.getAttribute('title')).toContain('U:8')
+      })
+    })
   })
 })
