@@ -737,36 +737,40 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               // Group tasks by position to detect clusters
               const taskClusters = new Map<string, typeof incompleteTasks>()
 
-              // Debug logging for scatter plot positioning
-              logger.debug('EisenhowerMatrix Scatter Plot Debug', {
-                containerSize,
-                padding,
-                gridCenterX: padding + (containerSize.width - padding * 2) / 2,
-                gridCenterY: padding + (containerSize.height - padding * 2) / 2,
-                expectedCenter5_5: {
-                  x: padding + (0.5 * (containerSize.width - padding * 2)),
-                  y: padding + (0.5 * (containerSize.height - padding * 2)),
-                },
-                totalTasks: incompleteTasks.length,
-              })
+              // Debug logging for scatter plot positioning (disabled in test environment)
+              if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
+                logger.debug('EisenhowerMatrix Scatter Plot Debug', {
+                  containerSize,
+                  padding,
+                  gridCenterX: padding + (containerSize.width - padding * 2) / 2,
+                  gridCenterY: padding + (containerSize.height - padding * 2) / 2,
+                  expectedCenter5_5: {
+                    x: padding + (0.5 * (containerSize.width - padding * 2)),
+                    y: padding + (0.5 * (containerSize.height - padding * 2)),
+                  },
+                  totalTasks: incompleteTasks.length,
+                })
+              }
 
               incompleteTasks.forEach(task => {
                 const xPercent = Math.round((task.urgency / 10) * 100)
                 const yPercent = Math.round((1 - task.importance / 10) * 100)
                 const posKey = `${xPercent}-${yPercent}`
 
-                // Log first few tasks for debugging
-                if (incompleteTasks.indexOf(task) < 3) {
-                  logger.debug('Task Position Calculation', {
-                    taskName: task.name,
-                    importance: task.importance,
-                    urgency: task.urgency,
-                    xPercent,
-                    yPercent,
-                    expectedPixelX: padding + (xPercent / 100) * (containerSize.width - padding * 2),
-                    expectedPixelY: padding + (yPercent / 100) * (containerSize.height - padding * 2),
-                    shouldBeAtCenter: task.importance === 5 && task.urgency === 5,
-                  })
+                // Log first few tasks for debugging (disabled in test environment)
+                if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
+                  if (incompleteTasks.indexOf(task) < 3) {
+                    logger.debug('Task Position Calculation', {
+                      taskName: task.name,
+                      importance: task.importance,
+                      urgency: task.urgency,
+                      xPercent,
+                      yPercent,
+                      expectedPixelX: padding + (xPercent / 100) * (containerSize.width - padding * 2),
+                      expectedPixelY: padding + (yPercent / 100) * (containerSize.height - padding * 2),
+                      shouldBeAtCenter: task.importance === 5 && task.urgency === 5,
+                    })
+                  }
                 }
 
                 const cluster = taskClusters.get(posKey) || []
@@ -800,16 +804,19 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   const clusterX = padding + (xPercent / 100) * gridWidth
                   const clusterY = padding + (yPercent / 100) * gridHeight
 
-                  logger.debug('Cluster Position', {
-                    posKey,
-                    taskCount: tasksAtPosition.length,
-                    firstTask: tasksAtPosition[0].name,
-                    xPercent,
-                    yPercent,
-                    pixelX: clusterX,
-                    pixelY: clusterY,
-                    quadrant,
-                  })
+                  // Logging disabled in test environment to prevent async errors
+                  if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
+                    logger.debug('Cluster Position', {
+                      posKey,
+                      taskCount: tasksAtPosition.length,
+                      firstTask: tasksAtPosition[0].name,
+                      xPercent,
+                      yPercent,
+                      pixelX: clusterX,
+                      pixelY: clusterY,
+                      quadrant,
+                    })
+                  }
 
                   clusterElements.push(
                     <Tooltip
