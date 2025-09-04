@@ -8,6 +8,17 @@
 /* Arco Design overrides for better desktop experience */
 .arco-layout-sider {
   transition: all 0.2s;
+  overflow-x: hidden !important; /* Prevent horizontal scroll */
+}
+
+/* Ensure collapsed sidebar never shows horizontal scroll */
+.arco-layout-sider-collapsed {
+  overflow-x: hidden !important;
+  overflow-y: auto;
+}
+
+.arco-layout-sider .arco-menu {
+  overflow-x: hidden !important;
 }
 
 .arco-menu {
