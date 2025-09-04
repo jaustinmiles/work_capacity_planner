@@ -1,5 +1,11 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
+
+// Helper function to render with ResponsiveProvider
+const renderWithProvider = (component: React.ReactElement) => {
+  return render(<ResponsiveProvider>{component}</ResponsiveProvider>)
+}
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CircularClock } from '../CircularClock'
 import { TaskType } from '@shared/enums'
@@ -50,7 +56,7 @@ describe('CircularClock', () => {
   })
 
   it('renders clock face with hour markers', () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <CircularClock
         sessions={mockSessions}
         onSessionUpdate={mockOnSessionUpdate}
@@ -104,7 +110,7 @@ describe('CircularClock', () => {
   })
 
   it('renders session arcs', () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <CircularClock
         sessions={mockSessions}
         onSessionUpdate={mockOnSessionUpdate}
@@ -122,7 +128,7 @@ describe('CircularClock', () => {
   })
 
   it('calls onSessionSelect when session arc is clicked', () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <CircularClock
         sessions={mockSessions}
         onSessionUpdate={mockOnSessionUpdate}
@@ -168,7 +174,7 @@ describe('CircularClock', () => {
       },
     ]
 
-    const { container } = render(
+    const { container } = renderWithProvider(
       <CircularClock
         sessions={[...mockSessions.slice(0, 2), ...workflowSessions]}
         collapsedWorkflows={collapsedWorkflows}
@@ -185,7 +191,7 @@ describe('CircularClock', () => {
   })
 
   it('shows drag handles for selected session', () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <CircularClock
         sessions={mockSessions}
         selectedSessionId="session-1"
@@ -202,7 +208,7 @@ describe('CircularClock', () => {
   })
 
   it('allows creating new session by clicking on clock face', () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <CircularClock
         sessions={[]}
         onSessionUpdate={mockOnSessionUpdate}
@@ -228,7 +234,7 @@ describe('CircularClock', () => {
   })
 
   it('displays tooltips with session information', () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <CircularClock
         sessions={mockSessions}
         onSessionUpdate={mockOnSessionUpdate}
