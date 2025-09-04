@@ -66,7 +66,8 @@
       "WebFetch(domain:arco.design)",
       "Bash(gh help:*)",
       "Bash(/Users/austinmiles/.claude-code/scripts/gh-auth-bot.sh:*)",
-      "Bash(git merge-base:*)"
+      "Bash(git merge-base:*)",
+      "Bash(./context/setup-claude-bot.sh:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
