@@ -71,7 +71,7 @@ export function CircularClock({
 
   // Responsive sizing
   const { ref: clockContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
-  const { scale: globalScale, isCompact, isMobile } = useResponsive()
+  const { scale: _globalScale, isCompact: _isCompact, isMobile } = useResponsive()
 
   // Calculate responsive dimensions based on container
   const calculateClockDimensions = () => {

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Typography, Tooltip, Button, Slider, Switch } from '@arco-design/web-react'
 import { IconDown, IconRight, IconZoomIn, IconZoomOut, IconSun } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -82,8 +82,8 @@ export function SwimLaneTimeline({
   const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
 
   // Responsive container measurement
-  const { ref: timelineRef, width: containerWidth, isNarrow, isStandard, isWide } = useContainerQuery<HTMLDivElement>()
-  const { isCompact, isMobile } = useResponsive()
+  const { ref: timelineRef, width: containerWidth } = useContainerQuery<HTMLDivElement>()
+  const { isCompact } = useResponsive()
 
   // Calculate responsive hour width based on container size
   const calculateHourWidth = () => {
@@ -563,7 +563,7 @@ if (!checkOverlap(newSession, laneSessions)) {
         className="swimlane-timeline"
         style={{
           position: 'relative',
-          overflow: hourWidth === baseHourWidth ? 'auto' : 'hidden',
+          overflow: 'auto',
           overflowY: 'auto',
           background: '#fafbfc',
           borderRadius: 8,

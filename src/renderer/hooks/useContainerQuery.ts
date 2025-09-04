@@ -1,3 +1,4 @@
+/* global ResizeObserver */
 import { useEffect, useRef, useState, RefObject } from 'react'
 
 type ContainerBreakpoint = 'narrow' | 'standard' | 'wide'
