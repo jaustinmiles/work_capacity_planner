@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { TaskType } from '@shared/enums'
 import { Card, Grid, Typography, Space, Tag, Empty, Button, Badge, Tooltip, Slider, Radio } from '@arco-design/web-react'
 import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut, IconApps, IconDragDot, IconScan } from '@arco-design/web-react/icon'
@@ -123,6 +123,40 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
   // Only show incomplete tasks in the matrix
   const incompleteTasks = allTasks.filter(task => !task.completed)
+
+  // For scatter plot, also include workflow steps as individual items
+  const allItemsForScatter = useMemo(() => {
+    const items: Array<Task & { isStep?: boolean; parentWorkflow?: string; stepName?: string; stepIndex?: number }> = []
+    
+    // Add regular tasks and workflows
+    incompleteTasks.forEach(task => {
+      items.push(task)
+      
+      // If it's a workflow, also add its steps
+      const sequencedTask = sequencedTasks.find(st => st.id === task.id)
+      if (sequencedTask?.steps) {
+        sequencedTask.steps.forEach((step, index) => {
+          // Create a task-like object for each step
+          items.push({
+            ...task, // Inherit parent task properties
+            id: step.id,
+            name: `${task.name} - ${step.name}`,
+            duration: step.duration,
+            importance: step.importance ?? task.importance,
+            urgency: step.urgency ?? task.urgency,
+            completed: step.status === 'completed',
+            isStep: true,
+            parentWorkflow: task.id,
+            stepName: step.name,
+            stepIndex: index,
+          })
+        })
+      }
+    })
+    
+    // Filter out completed steps
+    return items.filter(item => !item.completed)
+  }, [incompleteTasks, sequencedTasks])
 
   // Calculate grid dimensions (used in multiple places)
   const gridWidth = containerSize.width - padding * 2
@@ -249,6 +283,9 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       let startTime: number | null = null
       const animationDuration = 8000 // 8 seconds for full scan
       const scanThreshold = 30 // Pixels distance to consider "hit" by scan line
+      
+      // Use allItemsForScatter when in scatter view to include steps
+      const itemsToScan = viewMode === 'scatter' ? allItemsForScatter : incompleteTasks
 
       const animate = (timestamp: number) => {
         if (!startTime) startTime = timestamp
@@ -261,7 +298,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         // Find tasks that are currently hit by the scan line
         let currentHighlightedTask: Task | null = null
 
-        incompleteTasks.forEach((task: Task) => {
+        itemsToScan.forEach((task: Task) => {
           const distance = getDistanceToScanLine(task, progress)
 
           // Check if scan line is hitting this task
@@ -283,7 +320,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         if (currentHighlightedTask !== null) {
           const highlightedTask = currentHighlightedTask as Task
           setHighlightedTaskId(highlightedTask.id)
-          selectTask(highlightedTask.id)
+          const isStep = (highlightedTask as any).isStep
+          selectTask(isStep ? (highlightedTask as any).parentWorkflow : highlightedTask.id)
         } else {
           setHighlightedTaskId(null)
         }
@@ -300,7 +338,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
       scanAnimationRef.current = window.requestAnimationFrame(animate)
     }
-  }, [isScanning, incompleteTasks, selectTask, getDistanceToScanLine])
+  }, [isScanning, incompleteTasks, allItemsForScatter, viewMode, selectTask, getDistanceToScanLine])
 
   // Cleanup animation on unmount
   useEffect(() => {
@@ -726,7 +764,10 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   return null
                 }
 
-                return incompleteTasks.map((task) => {
+                // Use allItemsForScatter to include workflow steps
+                const itemsToRender = allItemsForScatter
+
+                return itemsToRender.map((task) => {
                   // Calculate percentage positions (0-100%)
                   const xPercent = (task.urgency / 10) * 100
                   const yPercent = (1 - task.importance / 10) * 100
@@ -746,16 +787,19 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                     containerSize: { width: containerSize.width, height: containerSize.height },
                   })
 
+                  const isStep = (task as any).isStep
+                  const stepIndex = (task as any).stepIndex
+                  
                   return (
                     <div
                       key={task.id}
-                      onClick={() => selectTask(task.id)}
+                      onClick={() => selectTask(isStep ? (task as any).parentWorkflow : task.id)}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.opacity = '1'
                         e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.1)'
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.opacity = '0.8'
+                        e.currentTarget.style.opacity = isStep ? '0.7' : '0.8'
                         e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'
                       }}
                       style={{
@@ -766,28 +810,28 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                         width: `${responsiveSize}px`,
                         height: `${responsiveSize}px`,
                         aspectRatio: '1 / 1',
-                        borderRadius: '50%',
+                        borderRadius: isStep ? '40%' : '50%', // Steps are slightly less round
                         background: categorizeTask(task) === 'do-first' ? '#F53F3F' :
                                    categorizeTask(task) === 'schedule' ? '#165DFF' :
                                    categorizeTask(task) === 'delegate' ? '#FF7D00' : '#86909C',
-                        opacity: 0.8,
+                        opacity: isStep ? 0.7 : 0.8, // Steps are slightly more transparent
                         cursor: 'pointer',
-                        zIndex: 10,
+                        zIndex: isStep ? 9 : 10, // Steps behind tasks
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: 'white',
-                        fontSize: '0.625rem',
+                        fontSize: isStep ? '0.55rem' : '0.625rem',
                         fontWeight: 'bold',
-                        border: '2px solid white',
+                        border: isStep ? '2px dashed rgba(255,255,255,0.8)' : '2px solid white', // Dashed border for steps
                         boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                         minWidth: '30px',
                         minHeight: '30px',
                         transition: 'all 0.2s ease',
                       }}
-                      title={`${task.name} (I:${task.importance} U:${task.urgency})`}
+                      title={`${task.name} (I:${task.importance} U:${task.urgency})${isStep ? ` [Step ${stepIndex + 1}]` : ''}`}
                     >
-                      {task.name.slice(0, 3).toUpperCase()}
+                      {isStep ? `S${stepIndex + 1}` : task.name.slice(0, 3).toUpperCase()}
                     </div>
                   )
                 })
@@ -1072,7 +1116,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             <Space>
               <IconScan style={{ fontSize: 18 }} />
               <Text style={{ fontWeight: 500 }}>
-                Eisenhower Priority Order ({scannedTasks.length} tasks)
+                Eisenhower Priority Order ({scannedTasks.length} items)
               </Text>
             </Space>
           }
@@ -1080,10 +1124,15 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         >
           <div>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
-              {scannedTasks.map((task, index) => (
+              {scannedTasks.map((task, index) => {
+                const isStep = (task as any).isStep
+                const stepIndex = (task as any).stepIndex
+                const stepName = (task as any).stepName
+                
+                return (
                 <div
                   key={task.id}
-                  onClick={() => selectTask(task.id)}
+                  onClick={() => selectTask(isStep ? (task as any).parentWorkflow : task.id)}
                   style={{
                     padding: '8px 12px',
                     background: 'white',
@@ -1107,14 +1156,26 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   <Text type="secondary" style={{ minWidth: 24 }}>
                     {index + 1}.
                   </Text>
-                  <Text style={{ flex: 1 }}>{task.name}</Text>
+                  <Text style={{ 
+                    flex: 1,
+                    fontStyle: isStep ? 'italic' : 'normal',
+                    paddingLeft: isStep ? 16 : 0 
+                  }}>
+                    {isStep ? `↳ Step ${stepIndex + 1}: ${stepName}` : task.name}
+                  </Text>
                   <Space size="small">
+                    {isStep && (
+                      <Tag size="small" color="blue">
+                        Step
+                      </Tag>
+                    )}
                     <Tag size="small" color={quadrantConfig[categorizeTask(task)].color}>
                       {quadrantConfig[categorizeTask(task)].title}
                     </Tag>
                   </Space>
                 </div>
-              ))}
+                )
+              })}
             </Space>
           </div>
         </Card>
