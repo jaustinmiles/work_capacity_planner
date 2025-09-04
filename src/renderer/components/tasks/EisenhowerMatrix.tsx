@@ -117,6 +117,10 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   // Only show incomplete tasks in the matrix
   const incompleteTasks = allTasks.filter(task => !task.completed)
 
+  // Calculate grid dimensions (used in multiple places)
+  const gridWidth = containerSize.width - padding * 2
+  const gridHeight = containerSize.height - padding * 2
+
   // Log when scatter view is activated with full dataset analysis
   useEffect(() => {
     if (viewMode === 'scatter' && incompleteTasks.length > 0) {
@@ -995,10 +999,6 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               // Create a Set of tasks that are part of clusters (for hiding duplicates)
               const renderedTasks = new Set<string>()
               const clusterElements: React.ReactNode[] = []
-
-              // Calculate grid dimensions for positioning
-              const gridWidth = containerSize.width - padding * 2
-              const gridHeight = containerSize.height - padding * 2
 
               // First pass: render cluster indicators
               taskClusters.forEach((tasksAtPosition, posKey) => {
