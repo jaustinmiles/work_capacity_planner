@@ -196,13 +196,13 @@ describe('StepSplitModal', () => {
     )
 
     const inputs = screen.getAllByRole('textbox')
-    
+
     // First step name should be original name
     expect(inputs[0]).toHaveValue('Test Step')
-    
+
     // First description should have original notes
     expect(inputs[1]).toHaveValue('Test notes')
-    
+
     // Second step name should have "(continued)" suffix
     expect(inputs[2]).toHaveValue('Test Step (continued)')
   })
