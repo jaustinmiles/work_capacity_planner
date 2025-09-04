@@ -115,7 +115,7 @@ test.describe('Sidebar Collapse Functionality', () => {
     expect(width).toBeLessThan(100)
   })
 
-  test('Should hide text labels when collapsed', async ({ page, viewport }) => {
+  test('Should hide text labels when collapsed', async ({ page }) => {
     const collapseButton = page.locator('button').filter({
       has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold'),
     }).first()
@@ -126,10 +126,10 @@ test.describe('Sidebar Collapse Functionality', () => {
     // Check if sidebar text is initially visible (may be hidden on mobile)
     const taskListText = page.locator('span:has-text("Task List")')
     const eisenhowerText = page.locator('span:has-text("Eisenhower Matrix")')
-    
+
     // On mobile viewports, text might already be hidden
     const isInitiallyVisible = await taskListText.isVisible({ timeout: 1000 }).catch(() => false)
-    
+
     if (isInitiallyVisible) {
       // Initially should show text
       await expect(taskListText).toBeVisible()
@@ -147,15 +147,15 @@ test.describe('Sidebar Collapse Functionality', () => {
       // Try to expand it first
       await collapseButton.click()
       await page.waitForTimeout(300)
-      
+
       // Check if text becomes visible
       const isNowVisible = await taskListText.isVisible({ timeout: 1000 }).catch(() => false)
-      
+
       if (isNowVisible) {
         // Now collapse it again
         await collapseButton.click()
         await page.waitForTimeout(300)
-        
+
         // Text should be hidden
         await expect(taskListText).not.toBeVisible()
         await expect(eisenhowerText).not.toBeVisible()
@@ -166,7 +166,7 @@ test.describe('Sidebar Collapse Functionality', () => {
     // Use more specific selectors to avoid multiple matches
     const iconList = page.locator('.arco-menu-item .arco-icon-list').first()
     const iconApps = page.locator('.arco-menu-item .arco-icon-apps').first()
-    
+
     // Only check icons if they exist in the DOM
     if (await iconList.count() > 0) {
       await expect(iconList).toBeVisible()
@@ -198,10 +198,10 @@ test.describe('Sidebar Collapse Functionality', () => {
     await expect(tooltip).toBeVisible()
   })
 
-  test('Add Task button should not overlap with collapse trigger', async ({ page, viewport }) => {
+  test('Add Task button should not overlap with collapse trigger', async ({ page }) => {
     // Wait for page to fully load
     await page.waitForTimeout(500)
-    
+
     // Find the Add Task button - it might have different text on mobile
     const addTaskButton = page.locator('button').filter({
       hasText: /Add Task|\+/,
@@ -209,11 +209,11 @@ test.describe('Sidebar Collapse Functionality', () => {
 
     // Check if button exists and is visible
     const buttonExists = await addTaskButton.count() > 0
-    
+
     if (buttonExists && await addTaskButton.isVisible({ timeout: 1000 }).catch(() => false)) {
       // Get button bounding box
       const buttonBox = await addTaskButton.boundingBox()
-      
+
       if (buttonBox) {
         // The entire button area should be clickable
         // Click near the bottom of the button (where default trigger would have been)
@@ -226,7 +226,7 @@ test.describe('Sidebar Collapse Functionality', () => {
         const dropdownOpened = await page.locator('.arco-dropdown-menu-item, text="New Task", text="Focused Work"').first()
           .isVisible({ timeout: 1000 })
           .catch(() => false)
-        
+
         // Just verify the click didn't cause an error
         expect(dropdownOpened || true).toBeTruthy()
       }
