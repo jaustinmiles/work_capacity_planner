@@ -639,23 +639,37 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 pointerEvents: 'none',
               }} title="5,5 Reference Point" />
 
-              {/* Axis value labels */}
-              <div style={{
-                position: 'absolute',
-                left: '50%',
-                bottom: -20,
-                transform: 'translateX(-50%)',
-                fontSize: 10,
-                color: '#999',
-              }}>5</div>
-              <div style={{
-                position: 'absolute',
-                right: -20,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                fontSize: 10,
-                color: '#999',
-              }}>5</div>
+              {/* X-Axis value labels (Urgency: 0-10) */}
+              {[0, 2.5, 5, 7.5, 10].map((val, i) => {
+                const xPos = (val / 10) * 100
+                logger.debug(`📏 [AXIS] X-axis label`, { value: val, position: `${xPos}%` })
+                return (
+                  <div key={`x-label-${val}`} style={{
+                    position: 'absolute',
+                    left: `${xPos}%`,
+                    bottom: -20,
+                    transform: 'translateX(-50%)',
+                    fontSize: 10,
+                    color: '#999',
+                  }}>{val}</div>
+                )
+              })}
+              
+              {/* Y-Axis value labels (Importance: 10-0 inverted) */}
+              {[10, 7.5, 5, 2.5, 0].map((val, i) => {
+                const yPos = ((10 - val) / 10) * 100
+                logger.debug(`📏 [AXIS] Y-axis label`, { value: val, position: `${yPos}%` })
+                return (
+                  <div key={`y-label-${val}`} style={{
+                    position: 'absolute',
+                    right: -20,
+                    top: `${yPos}%`,
+                    transform: 'translateY(-50%)',
+                    fontSize: 10,
+                    color: '#999',
+                  }}>{val}</div>
+                )
+              })}
 
               {/* Quadrant Labels */}
               <Text style={{
@@ -782,7 +796,21 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               }}>
                 {/* Debug Grid Lines every 10% */}
                 <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => {
+                    // Log axis values for debugging
+                    const xAxisValue = i // Urgency: 0-10 left to right
+                    const yAxisValue = 10 - i // Importance: 10-0 top to bottom (inverted)
+                    const xPixel = padding + (i / 10) * gridWidth
+                    const yPixel = padding + (i / 10) * gridHeight
+                    
+                    logger.debug(`📊 [AXIS] Grid line ${i}`, {
+                      xAxis: { value: xAxisValue, pixel: xPixel, label: `U:${xAxisValue}` },
+                      yAxis: { value: yAxisValue, pixel: yPixel, label: `I:${yAxisValue}` },
+                      gridDimensions: { width: gridWidth, height: gridHeight },
+                      padding,
+                    })
+                    
+                    return (
                     <g key={`debug-grid-${i}`}>
                       {/* Vertical lines */}
                       <line
@@ -825,18 +853,20 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   ))}
                 </svg>
 
-                {/* Debug Info Panel */}
+                {/* Debug Info Panel - Fixed position overlay */}
                 <div style={{
-                  position: 'absolute',
-                  top: 10,
-                  right: 10,
-                  background: 'rgba(255, 255, 255, 0.95)',
+                  position: 'fixed',
+                  top: 80,
+                  right: 20,
+                  background: 'rgba(255, 255, 255, 0.98)',
                   border: '2px solid magenta',
                   padding: '10px',
                   borderRadius: '5px',
                   fontSize: '12px',
                   fontFamily: 'monospace',
                   maxWidth: '300px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  zIndex: 2000,
                 }}>
                   <div style={{ fontWeight: 'bold', marginBottom: 5, color: 'magenta' }}>
                     🔍 SCATTER PLOT DEBUG MODE
@@ -1095,11 +1125,13 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 const xPercent = (task.urgency / 10) * 100
                 const yPercent = (1 - task.importance / 10) * 100 // Invert Y axis (high importance at top)
 
-                // Calculate grid dimensions
+                // Grid dimensions (must match the actual grid box)
                 const taskGridWidth = containerSize.width - padding * 2
                 const taskGridHeight = containerSize.height - padding * 2
 
-                // Calculate actual pixel positions
+                // Calculate actual pixel positions RELATIVE TO THE GRID BOX
+                // The grid box is already positioned at (padding, padding)
+                // So positions should be relative to the grid, not the container
                 const xPos = padding + (xPercent / 100) * taskGridWidth
                 const yPos = padding + (yPercent / 100) * taskGridHeight
 
