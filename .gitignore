@@ -43,4 +43,4 @@ coverage/
 # Playwright test artifacts
 playwright-report/
 test-results/
-playwright/.cache/
+playwright/.cache//playwright-report-from-ci
