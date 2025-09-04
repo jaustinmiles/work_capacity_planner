@@ -235,10 +235,10 @@ describe('EisenhowerMatrix', () => {
         await waitFor(() => {
           const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
           // Find a task bubble (not the debug marker)
-          const taskBubble = Array.from(bubbles).find(b => 
-            (b as HTMLElement).style.transform?.includes('scale')
+          const taskBubble = Array.from(bubbles).find(b =>
+            (b as HTMLElement).style.transform?.includes('scale'),
           ) as HTMLElement
-          
+
           if (taskBubble) {
             // Check that transform scale exists
             expect(taskBubble.style.transform).toContain('scale')
@@ -264,8 +264,8 @@ describe('EisenhowerMatrix', () => {
       await waitFor(() => {
         const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
         // Find a task bubble (not the debug marker - it has opacity 0.8 by default)
-        const taskBubble = Array.from(bubbles).find(b => 
-          (b as HTMLElement).style.opacity === '0.8'
+        const taskBubble = Array.from(bubbles).find(b =>
+          (b as HTMLElement).style.opacity === '0.8',
         ) as HTMLElement
 
         if (taskBubble) {
@@ -292,8 +292,8 @@ describe('EisenhowerMatrix', () => {
       await waitFor(() => {
         const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
         // Find a task bubble (not the debug marker - it has cursor: pointer)
-        const taskBubble = Array.from(bubbles).find(b => 
-          (b as HTMLElement).style.cursor === 'pointer'
+        const taskBubble = Array.from(bubbles).find(b =>
+          (b as HTMLElement).style.cursor === 'pointer',
         ) as HTMLElement
 
         if (taskBubble) {
