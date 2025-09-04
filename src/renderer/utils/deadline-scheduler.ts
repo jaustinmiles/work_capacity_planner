@@ -127,7 +127,7 @@ export function calculateDeadlinePressure(
   // For large slack (>5 days), add a small base pressure
   const basePressure = slackDays > 5 ? 1.1 : 1.0
 
-  return Math.max(basePressure, Math.min(pressure, 100))
+  return Math.max(basePressure, Math.min(pressure, 1000))
 }
 
 /**
@@ -333,7 +333,7 @@ export function calculatePriorityWithBreakdown(
 
   // Deadline pressure multiplier
   const deadlinePressure = calculateDeadlinePressure(item, context)
-  const deadlineBoost = eisenhower * (deadlinePressure - 1) // Just the boost amount
+  const deadlineBoost = deadlinePressure > 1 ? deadlinePressure * 100 : 0 // Additive boost amount
 
   // Async urgency bonus
   const asyncBoost = calculateAsyncUrgency(item, context)
@@ -370,8 +370,10 @@ export function calculatePriorityWithBreakdown(
     }
   }
 
-  // Calculate total using same formula as before, plus workflow bonus
-  const total = (eisenhower * deadlinePressure + asyncBoost) * cognitiveMatchFactor +
+  // Calculate total - deadline pressure should be additive, not multiplicative
+  // This ensures urgent deadlines always take priority regardless of base priority
+  const deadlineAdditive = deadlinePressure > 1 ? deadlinePressure * 100 : 0
+  const total = eisenhower + deadlineAdditive + asyncBoost * cognitiveMatchFactor +
     contextSwitchPenalty + workflowDepthBonus
 
   return {
