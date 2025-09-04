@@ -45,3 +45,4 @@ playwright-report/
 test-results/
 playwright/.cache//playwright-report-from-ci
 /playwright-report
+coverage.json
