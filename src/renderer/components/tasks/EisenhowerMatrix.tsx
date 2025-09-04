@@ -24,6 +24,9 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { ref: scatterContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
   const { isCompact, isMobile } = useResponsive()
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 })
+  
+  // Calculate responsive padding
+  const padding = isMobile ? 20 : isCompact ? 40 : 50
 
   // Diagonal scan state
   const [isScanning, setIsScanning] = useState(false)
@@ -35,8 +38,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   // Update container size based on container query results
   useEffect(() => {
     if (containerWidth && containerHeight) {
-      // Account for padding, but with responsive values
-      const padding = isMobile ? 20 : isCompact ? 40 : 50
+      // Account for padding, using responsive values
       const newSize = {
         width: Math.max(200, containerWidth - (padding * 2)),
         height: Math.max(200, Math.min(containerHeight - 100, 600)), // Cap height at 600px
@@ -370,7 +372,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             </Text>
           </Tooltip>
 
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <div style={{ flex: 1, minHeight: 0 }}>
             {tasks.length === 0 ? (
               <Empty
                 description={<Text type="secondary">No tasks in this quadrant</Text>}
@@ -449,8 +451,6 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       {viewMode === 'grid' ? (
         <div style={{
         position: 'relative',
-        overflow: 'auto',
-        maxHeight: 'calc(100vh - 300px)',
         border: '1px solid #e5e6eb',
         borderRadius: 4,
         padding: 16,
@@ -550,10 +550,10 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             {/* Grid Lines and Quadrant Labels */}
             <div style={{
               position: 'absolute',
-              top: 50,
-              left: 50,
-              right: 50,
-              bottom: 50,
+              top: padding,
+              left: padding,
+              right: padding,
+              bottom: padding,
               border: '2px solid #e5e6eb',
               background: 'white',
             }}>
@@ -629,8 +629,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 data-testid="diagonal-scan-line"
                 style={{
                   position: 'absolute',
-                  top: 50,
-                  left: 50,
+                  top: padding,
+                  left: padding,
                   width: containerSize.width,
                   height: containerSize.height,
                   pointerEvents: 'none',
@@ -746,8 +746,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                       <div
                         style={{
                           position: 'absolute',
-                          left: 50 + (xPercent / 100) * (containerSize.width - 100),
-                          top: 50 + (yPercent / 100) * (containerSize.height - 100),
+                          left: padding + (xPercent / 100) * (containerSize.width - padding * 2),
+                          top: padding + (yPercent / 100) * (containerSize.height - padding * 2),
                           transform: 'translate(-50%, -50%)',
                           width: 32,
                           height: 32,
@@ -798,8 +798,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   urgencyType: typeof task.urgency,
                   xPercent,
                   yPercent,
-                  xPos: 50 + (xPercent / 100) * containerSize.width,
-                  yPos: 50 + (yPercent / 100) * containerSize.height,
+                  xPos: padding + (xPercent / 100) * (containerSize.width - padding * 2),
+                  yPos: padding + (yPercent / 100) * (containerSize.height - padding * 2),
                   containerWidth: containerSize.width,
                   containerHeight: containerSize.height,
                   isNaN: {
@@ -821,8 +821,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 const size = isHighlighted ? baseSize * 1.3 : baseSize
 
                 // Use actual container dimensions for positioning
-                const xPos = 50 + (xPercent / 100) * containerSize.width
-                const yPos = 50 + (yPercent / 100) * containerSize.height
+                const xPos = padding + (xPercent / 100) * (containerSize.width - padding * 2)
+                const yPos = padding + (yPercent / 100) * (containerSize.height - padding * 2)
 
                 return (
                   <Tooltip
@@ -912,7 +912,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
           }
           style={{ background: '#FAFBFC' }}
         >
-          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+          <div>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {scannedTasks.map((task, index) => (
                 <div
