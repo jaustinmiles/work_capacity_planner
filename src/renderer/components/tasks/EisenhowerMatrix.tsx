@@ -127,11 +127,11 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   // For scatter plot, also include workflow steps as individual items
   const allItemsForScatter = useMemo(() => {
     const items: Array<Task & { isStep?: boolean; parentWorkflow?: string; stepName?: string; stepIndex?: number }> = []
-    
+
     // Add regular tasks and workflows
     incompleteTasks.forEach(task => {
       items.push(task)
-      
+
       // If it's a workflow, also add its steps
       const sequencedTask = sequencedTasks.find(st => st.id === task.id)
       if (sequencedTask?.steps) {
@@ -153,7 +153,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         })
       }
     })
-    
+
     // Filter out completed steps
     return items.filter(item => !item.completed)
   }, [incompleteTasks, sequencedTasks])
@@ -283,7 +283,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       let startTime: number | null = null
       const animationDuration = 8000 // 8 seconds for full scan
       const scanThreshold = 30 // Pixels distance to consider "hit" by scan line
-      
+
       // Use allItemsForScatter when in scatter view to include steps
       const itemsToScan = viewMode === 'scatter' ? allItemsForScatter : incompleteTasks
 
@@ -789,7 +789,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
                   const isStep = (task as any).isStep
                   const stepIndex = (task as any).stepIndex
-                  
+
                   return (
                     <div
                       key={task.id}
@@ -1128,7 +1128,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 const isStep = (task as any).isStep
                 const stepIndex = (task as any).stepIndex
                 const stepName = (task as any).stepName
-                
+
                 return (
                 <div
                   key={task.id}
@@ -1156,10 +1156,10 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   <Text type="secondary" style={{ minWidth: 24 }}>
                     {index + 1}.
                   </Text>
-                  <Text style={{ 
+                  <Text style={{
                     flex: 1,
                     fontStyle: isStep ? 'italic' : 'normal',
-                    paddingLeft: isStep ? 16 : 0 
+                    paddingLeft: isStep ? 16 : 0,
                   }}>
                     {isStep ? `↳ Step ${stepIndex + 1}: ${stepName}` : task.name}
                   </Text>

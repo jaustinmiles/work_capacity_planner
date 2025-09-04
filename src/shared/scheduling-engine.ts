@@ -139,8 +139,9 @@ export class SchedulingEngine {
         name: `${step.name}`,
         duration: step.duration,
         type: step.type,
-        importance: workflow.importance || 8, // Inherit from parent workflow
-        urgency: workflow.urgency || 8,
+        // Use step values if they exist and are not null, otherwise inherit from parent workflow
+        importance: (step.importance !== null && step.importance !== undefined) ? step.importance : (workflow.importance || 8),
+        urgency: (step.urgency !== null && step.urgency !== undefined) ? step.urgency : (workflow.urgency || 8),
         dependsOn: step.dependsOn.map(dep => `workflow_${workflow.id}_step_${dep}`),
         asyncWaitTime: step.asyncWaitTime,
         isAsyncTrigger: step.isAsyncTrigger,

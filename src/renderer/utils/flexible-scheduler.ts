@@ -619,8 +619,9 @@ export function scheduleItemsWithBlocksAndDebug(
           const priority = schedulingContext
             ? calculatePriority({
                 ...step,
-                importance: workflow.importance,
-                urgency: workflow.urgency,
+                // Use step values if they exist and are not null, otherwise use workflow values
+                importance: (step.importance !== null && step.importance !== undefined) ? step.importance : workflow.importance,
+                urgency: (step.urgency !== null && step.urgency !== undefined) ? step.urgency : workflow.urgency,
                 sessionId: workflow.sessionId || 'default',
                 createdAt: workflow.createdAt,
                 updatedAt: workflow.updatedAt,
