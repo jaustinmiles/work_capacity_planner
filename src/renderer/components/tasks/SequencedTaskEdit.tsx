@@ -31,10 +31,12 @@ import {
   IconCheckCircle,
   IconCloseCircle,
   IconCalendar,
+  IconScissor,
 } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { StepWorkSessionsModal } from './StepWorkSessionsModal'
+import { StepSplitModal } from './StepSplitModal'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import { logger } from '../../utils/logger'
@@ -75,6 +77,9 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
   // Local state for dependencies to ensure UI updates properly
   const [stepDependencies, setStepDependencies] = useState<string[]>([])
   const [stepDependents, setStepDependents] = useState<string[]>([])
+  // State for step splitting
+  const [showStepSplitModal, setShowStepSplitModal] = useState(false)
+  const [stepToSplit, setStepToSplit] = useState<{ step: TaskStep; index: number } | null>(null)
 
   // Load logged times for all steps
   useEffect(() => {
@@ -216,6 +221,31 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
     })
 
     setEditingSteps(newSteps)
+  }
+
+  const handleStepSplit = (step1: TaskStep, step2: TaskStep) => {
+    if (!stepToSplit) return
+
+    const newSteps = [...editingSteps]
+    const { index } = stepToSplit
+
+    // Update the existing step
+    newSteps[index] = step1 as EditingStep
+
+    // Insert the new step after the existing one
+    newSteps.splice(index + 1, 0, step2 as EditingStep)
+
+    // Update any dependencies on steps after the split point
+    // (their indices have shifted)
+    setEditingSteps(newSteps)
+    setShowStepSplitModal(false)
+    setStepToSplit(null)
+
+    logger.ui.info('Step split completed', {
+      originalStep: step1.name,
+      newStep: step2.name,
+      workflowId: editedTask.id,
+    })
   }
 
   const toggleStepStatus = (index: number) => {
@@ -693,6 +723,14 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
                             />
                             <Button
                               size="small"
+                              icon={<IconScissor />}
+                              onClick={() => {
+                                setStepToSplit({ step, index })
+                                setShowStepSplitModal(true)
+                              }}
+                            />
+                            <Button
+                              size="small"
                               icon={<IconClockCircle />}
                               onClick={() => {
                                 setSelectedStepForSessions({ id: step.id, name: step.name })
@@ -937,6 +975,20 @@ export function SequencedTaskEdit({ task, onClose, startInEditMode = false }: Se
               logger.ui.error('Failed to reload logged time:', error)
             }
           }}
+        />
+      )}
+
+      {/* Step Split Modal */}
+      {stepToSplit && (
+        <StepSplitModal
+          step={stepToSplit.step}
+          stepIndex={stepToSplit.index}
+          visible={showStepSplitModal}
+          onClose={() => {
+            setShowStepSplitModal(false)
+            setStepToSplit(null)
+          }}
+          onSplit={handleStepSplit}
         />
       )}
 
