@@ -1,13 +1,14 @@
+import React from 'react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { EisenhowerMatrix } from '../EisenhowerMatrix'
+import { useTaskStore } from '../../../store/useTaskStore'
 import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
 
 // Helper function to render with ResponsiveProvider
 const renderWithProvider = (component: React.ReactElement) => {
   return render(<ResponsiveProvider>{component}</ResponsiveProvider>)
 }
-import { EisenhowerMatrix } from '../EisenhowerMatrix'
-import { useTaskStore } from '../../../store/useTaskStore'
 
 vi.mock('../../../store/useTaskStore')
 
