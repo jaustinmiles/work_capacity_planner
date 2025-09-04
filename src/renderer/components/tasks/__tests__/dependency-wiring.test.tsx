@@ -249,7 +249,7 @@ describe('Dependency Wiring in Split Features', () => {
       // This test verifies the conceptual integrity of dependency chains
       // when a step in the middle of a chain is split
 
-      const originalChain = {
+      const _originalChain = {
         step1: { id: 'step-1', dependsOn: [] },
         step2: { id: 'step-2', dependsOn: ['step-1'] },
         step3: { id: 'step-3', dependsOn: ['step-2'] }, // This one gets split
@@ -303,7 +303,7 @@ describe('Dependency Wiring in Split Features', () => {
       // Verify no self-dependency
       expect(step1.dependsOn).not.toContain(step1.id)
       expect(step2.dependsOn).not.toContain(step2.id)
-      
+
       // Verify both maintain original dependency
       expect(step1.dependsOn).toContain('step-1')
       expect(step2.dependsOn).toContain('step-1')

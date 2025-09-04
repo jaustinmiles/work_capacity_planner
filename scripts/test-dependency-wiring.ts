@@ -54,7 +54,7 @@ async function testDependencyWiring() {
 
     const task2 = await prisma.task.create({
       data: {
-        id: 'prereq-task-2', 
+        id: 'prereq-task-2',
         name: 'Prerequisite Task 2',
         duration: 45,
         importance: 4,
@@ -144,12 +144,12 @@ async function testDependencyWiring() {
     console.log('------------------------')
     console.log('1. Main Task with Dependencies:')
     console.log(`   - "${mainTask.name}" depends on:`)
-    console.log(`     • "${task1.name}"`);
-    console.log(`     • "${task2.name}"`);
+    console.log(`     • "${task1.name}"`)
+    console.log(`     • "${task2.name}"`)
     console.log('\n2. Workflow with Step Dependencies:')
-    console.log(`   - Step 1: No dependencies`)
-    console.log(`   - Step 2: Depends on Step 1`)
-    console.log(`   - Step 3: Depends on Steps 1 & 2`)
+    console.log('   - Step 1: No dependencies')
+    console.log('   - Step 2: Depends on Step 1')
+    console.log('   - Step 3: Depends on Steps 1 & 2')
 
     console.log('\n🎯 Next Steps:')
     console.log('1. Open the application')
