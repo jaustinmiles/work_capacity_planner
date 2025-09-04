@@ -78,11 +78,37 @@ function App() {
   const [voiceAmendmentVisible, setVoiceAmendmentVisible] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
 
-  // Sidebar collapsed state - persist to localStorage
+  // Responsive breakpoints
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth)
+  
+  // Sidebar collapsed state - persist to localStorage + auto-collapse on narrow screens
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = window.localStorage.getItem('sidebarCollapsed')
-    return saved === 'true'
+    const userPreference = saved === 'true'
+    // Auto-collapse below 1024px unless user explicitly set it
+    const shouldAutoCollapse = window.innerWidth < 1024 && saved === null
+    return userPreference || shouldAutoCollapse
   })
+
+  // Handle window resize for responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      const newWidth = window.innerWidth
+      setScreenWidth(newWidth)
+      
+      // Auto-collapse sidebar on narrow screens (only if not user-set)
+      const userSet = window.localStorage.getItem('sidebarCollapsed') !== null
+      if (!userSet) {
+        const shouldCollapse = newWidth < 1024
+        if (shouldCollapse !== sidebarCollapsed) {
+          setSidebarCollapsed(shouldCollapse)
+        }
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [sidebarCollapsed])
 
   const handleSidebarCollapse = (collapsed: boolean) => {
     setSidebarCollapsed(collapsed)
@@ -460,13 +486,16 @@ function App() {
           collapsible
           collapsed={sidebarCollapsed}
           onCollapse={handleSidebarCollapse}
-          width={240}
-          collapsedWidth={80}
+          width={screenWidth < 768 ? 200 : 240} // Narrower on small screens
+          collapsedWidth={screenWidth < 768 ? 60 : 80} // Even narrower when collapsed on mobile
           trigger={null}
           style={{
             background: '#fff',
             boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-            overflow: 'hidden', // Prevent horizontal scrollbar
+            overflow: 'hidden',
+            // Responsive sidebar width
+            minWidth: sidebarCollapsed ? (screenWidth < 768 ? 60 : 80) : (screenWidth < 768 ? 200 : 240),
+            maxWidth: sidebarCollapsed ? (screenWidth < 768 ? 60 : 80) : (screenWidth < 768 ? 200 : 240),
           }}
         >
           <div style={{
@@ -641,12 +670,24 @@ function App() {
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
-            <Title heading={5} style={{ margin: 0, color: '#4E5969' }}>
-              {activeView === 'tasks' && 'Task Management'}
-              {activeView === 'matrix' && 'Priority Matrix'}
-              {activeView === 'calendar' && 'Schedule Overview'}
-              {activeView === 'workflows' && 'Sequenced Workflows'}
-              {activeView === 'timeline' && 'Gantt Chart'}
+            <Title 
+              heading={5} 
+              style={{ 
+                margin: 0, 
+                color: '#4E5969',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                minWidth: 0, // Allow truncation
+                flex: 1, // Take available space but allow shrinking
+              }}
+            >
+              {/* Responsive titles */}
+              {activeView === 'tasks' && (screenWidth < 640 ? 'Tasks' : 'Task Management')}
+              {activeView === 'matrix' && (screenWidth < 640 ? 'Matrix' : 'Priority Matrix')}
+              {activeView === 'calendar' && (screenWidth < 640 ? 'Calendar' : 'Schedule Overview')}
+              {activeView === 'workflows' && (screenWidth < 640 ? 'Workflows' : 'Sequenced Workflows')}
+              {activeView === 'timeline' && (screenWidth < 640 ? 'Timeline' : 'Gantt Chart')}
             </Title>
 
             <Space>
@@ -668,9 +709,13 @@ function App() {
           </Header>
 
           <Content style={{
-            padding: 24,
+            padding: screenWidth < 768 ? 12 : 24, // Less padding on mobile
             background: '#F7F8FA',
             overflow: 'auto',
+            minWidth: 0, // Critical: allow flex shrinking
+            flex: 1, // Take remaining space
+            // Responsive padding and max-width
+            maxWidth: '100%',
           }}>
             {error && (
               <Alert
