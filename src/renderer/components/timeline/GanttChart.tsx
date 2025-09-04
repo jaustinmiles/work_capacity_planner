@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Slider, DatePicker, Alert, Dropdown, Menu } from '@arco-design/web-react'
-import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconRefresh, IconClockCircle } from '@arco-design/web-react/icon'
+import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconRefresh, IconClockCircle, IconUp, IconDown } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
@@ -50,6 +50,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [dropTarget, setDropTarget] = useState<{ time: Date, row: number } | null>(null)
   const [refreshKey, setRefreshKey] = useState(0) // Force re-render when time changes
+  const [summaryCollapsed, setSummaryCollapsed] = useState(false)
 
   const { workSettings, setOptimalSchedule } = useTaskStore()
 
@@ -694,7 +695,20 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       )}
 
       {/* Summary */}
-      <Card>
+      <Card
+        title="Schedule Summary"
+        bordered={false}
+        style={{ marginBottom: 16 }}
+        extra={
+          <Button 
+            size="small" 
+            type="text"
+            onClick={() => setSummaryCollapsed(!summaryCollapsed)}
+            icon={summaryCollapsed ? <IconDown /> : <IconUp />}
+          />
+        }
+      >
+        {!summaryCollapsed && (
         <Row gutter={16} align="center">
           <Col xs={24} sm={12} md={6} lg={4}>
             <Space direction="vertical">
@@ -733,79 +747,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           </Col>
           <Col xs={24} sm={24} md={10} lg={7}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">Zoom Controls</Text>
+              <Text type="secondary">Schedule Options</Text>
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                {/* Zoom buttons and slider */}
-                <Space style={{ width: '100%' }}>
-                  <Button.Group>
-                    <Button
-                      icon={<IconZoomOut />}
-                      onClick={handleZoomOut}
-                      disabled={pixelsPerHour <= 15}
-                    />
-                    <Button
-                      onClick={handleZoomReset}
-                    >
-                      Reset
-                    </Button>
-                    <Button
-                      icon={<IconZoomIn />}
-                      onClick={handleZoomIn}
-                      disabled={pixelsPerHour >= 300}
-                    />
-                  </Button.Group>
-                  <Dropdown
-                    droplist={
-                      <Menu onClickMenuItem={(key) => setPixelsPerHour(Number(key))}>
-                        {ZOOM_PRESETS.map(preset => (
-                          <Menu.Item
-                            key={String(preset.value)}
-                            style={{
-                              backgroundColor: pixelsPerHour === preset.value ? '#e6f7ff' : undefined,
-                            }}
-                          >
-                            <Space>
-                              <span style={{ fontWeight: pixelsPerHour === preset.value ? 600 : 400 }}>
-                                {preset.label}
-                              </span>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                {preset.description}
-                              </Text>
-                            </Space>
-                          </Menu.Item>
-                        ))}
-                      </Menu>
-                    }
-                    trigger="click"
-                  >
-                    <Button icon={<IconExpand />}>
-                      Presets
-                    </Button>
-                  </Dropdown>
-                </Space>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Slider
-                    min={15}
-                    max={300}
-                    step={15}
-                    value={pixelsPerHour}
-                    onChange={(value) => setPixelsPerHour(value as number)}
-                    style={{ flex: 1 }}
-                    marks={{
-                      15: '15',
-                      30: '1w',
-                      60: '1d',
-                      120: '½d',
-                      180: 'Detail',
-                      240: '1h',
-                      300: 'Max',
-                    }}
-                  />
-                </div>
-                <Text type="secondary" style={{ fontSize: 11 }}>
-                  Tip: Use Ctrl/Cmd + (+/-/0) for zoom
-                </Text>
-                <Space direction="vertical" style={{ width: '100%' }}>
                   <DatePicker
                     value={selectedDate ? dayjs(selectedDate) : undefined}
                     onChange={(dateString, __date) => {
@@ -847,11 +790,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   >
                     Debug Info
                   </Button>
-                </Space>
               </Space>
             </Space>
           </Col>
         </Row>
+        )}
       </Card>
 
       {/* Gantt Chart */}
