@@ -98,6 +98,34 @@ export const ResponsiveProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isMobile: ['xs', 'sm', 'md'].includes(breakpoint),
         isDesktop: ['lg', 'xl', 'xxl'].includes(breakpoint),
       })
+
+      // Apply mobile button sizes via inline styles for better specificity
+      if (width < 768) {
+        const style = document.getElementById('responsive-mobile-styles') || document.createElement('style')
+        style.id = 'responsive-mobile-styles'
+        style.innerHTML = `
+          button, .arco-btn {
+            min-height: 44px !important;
+            min-width: 44px !important;
+          }
+          .arco-btn-size-default,
+          .arco-btn-size-small,
+          .arco-btn-size-mini {
+            height: auto !important;
+            min-height: 44px !important;
+            padding: 8px 16px !important;
+          }
+        `
+        if (!document.getElementById('responsive-mobile-styles')) {
+          document.head.appendChild(style)
+        }
+      } else {
+        // Remove mobile styles on desktop
+        const style = document.getElementById('responsive-mobile-styles')
+        if (style) {
+          style.remove()
+        }
+      }
     }
 
     // Update on mount

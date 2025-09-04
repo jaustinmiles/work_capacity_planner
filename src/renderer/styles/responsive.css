@@ -116,6 +116,37 @@
    ======================================== */
 
 /* Mobile First: Default styles for smallest screens */
+
+/* Ensure touch-friendly sizes on mobile devices */
+@media (max-width: 767px) {
+  button,
+  a,
+  input[type="checkbox"],
+  input[type="radio"],
+  .clickable,
+  .arco-btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  /* Ensure Arco button heights are adequate */
+  .arco-btn-size-default,
+  .arco-btn-size-small,
+  .arco-btn-size-mini {
+    height: auto !important;
+    min-height: 44px !important;
+    padding: 8px 16px !important;
+  }
+  
+  /* Icon buttons need square dimensions */
+  .arco-btn-icon-only {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
 @media (min-width: 640px) {
   /* Small devices (landscape phones) */
   :root {
