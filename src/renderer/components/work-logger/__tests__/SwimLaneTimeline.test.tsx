@@ -5,6 +5,12 @@ import { SwimLaneTimeline } from '../SwimLaneTimeline'
 import { TaskType } from '@shared/enums'
 import type { Task } from '@shared/types'
 import type { WorkSessionData } from '../SessionState'
+import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
+
+// Helper function to render with ResponsiveProvider
+const renderWithProvider = (component: React.ReactElement) => {
+  return render(<ResponsiveProvider>{component}</ResponsiveProvider>)
+}
 
 describe('SwimLaneTimeline', () => {
   const mockOnSessionUpdate = vi.fn()
