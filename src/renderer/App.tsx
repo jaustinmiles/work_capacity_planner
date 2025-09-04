@@ -80,7 +80,7 @@ function App() {
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
-  
+
   // Sidebar collapsed state - persist to localStorage + auto-collapse on narrow screens
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = window.localStorage.getItem('sidebarCollapsed')
@@ -95,7 +95,7 @@ function App() {
     const handleResize = () => {
       const newWidth = window.innerWidth
       setScreenWidth(newWidth)
-      
+
       // Auto-collapse sidebar on narrow screens (only if not user-set)
       const userSet = window.localStorage.getItem('sidebarCollapsed') !== null
       if (!userSet) {
@@ -670,10 +670,10 @@ function App() {
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
-            <Title 
-              heading={5} 
-              style={{ 
-                margin: 0, 
+            <Title
+              heading={5}
+              style={{
+                margin: 0,
                 color: '#4E5969',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',

@@ -150,7 +150,7 @@ export function SequencedTaskView({
               <Progress
                 percent={progressPercent}
                 formatText={() => `${completedSteps}/${totalSteps}`} // Shorter text to prevent overflow
-                style={{ 
+                style={{
                   width: '100%', // Use available width instead of fixed 400px
                   maxWidth: 400, // But cap at 400px on larger screens
                   minWidth: 150, // Minimum width for readability
@@ -303,13 +303,13 @@ export function SequencedTaskView({
                   <Col xs={12} sm={12} md={6} lg={6} xl={6}>
                     <Statistic
                       title="Due" // Much shorter for mobile
-                      value={calculateEstimatedCompletionTime().toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric' 
+                      value={calculateEstimatedCompletionTime().toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
                       })} // Shorter date format: "Sep 4" instead of "9/4/2025"
-                      suffix={calculateEstimatedCompletionTime().toLocaleTimeString([], { 
-                        hour: 'numeric', 
-                        minute: '2-digit' 
+                      suffix={calculateEstimatedCompletionTime().toLocaleTimeString([], {
+                        hour: 'numeric',
+                        minute: '2-digit',
                       })} // Shorter time format: "3:45 PM" instead of "03:45 PM"
                       style={{ minWidth: 0 }}
                     />
@@ -405,14 +405,14 @@ export function SequencedTaskView({
                       style={{ marginBottom: 8 }}
                       strokeWidth={8}
                     />
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       flexWrap: 'wrap', // Allow wrapping on narrow screens
                       gap: 8, // Add space between wrapped items
                     }}>
-                      <Text 
+                      <Text
                         type="secondary"
                         style={{
                           overflow: 'hidden',
@@ -423,9 +423,9 @@ export function SequencedTaskView({
                       >
                         {completedSteps}/{totalSteps} steps {/* Shorter format */}
                       </Text>
-                      <Text 
-                        type="secondary" 
-                        style={{ 
+                      <Text
+                        type="secondary"
+                        style={{
                           fontSize: 12,
                           whiteSpace: 'nowrap', // Prevent % breaking from "complete"
                         }}
