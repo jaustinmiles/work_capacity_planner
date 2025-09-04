@@ -30,17 +30,17 @@ function exec(command: string): string {
 
 function listComments(prNumber: string) {
   console.log(`\n${colors.cyan}${colors.bright}Fetching comments for PR #${prNumber}...${colors.reset}\n`)
-  
+
   const commentsJson = exec(`gh api repos/{owner}/{repo}/pulls/${prNumber}/comments`)
   const comments = JSON.parse(commentsJson)
-  
+
   if (comments.length === 0) {
     console.log(`${colors.yellow}No inline comments found for PR #${prNumber}${colors.reset}`)
     return
   }
-  
+
   console.log(`${colors.green}Found ${comments.length} comment(s):${colors.reset}\n`)
-  
+
   comments.forEach((comment: any, index: number) => {
     console.log(`${colors.bright}[${index + 1}] Comment ID: ${comment.id}${colors.reset}`)
     console.log(`${colors.blue}File:${colors.reset} ${comment.path}:${comment.line || comment.original_line}`)
@@ -50,42 +50,42 @@ function listComments(prNumber: string) {
     console.log(comment.body)
     console.log(`${colors.gray}────────────────────────────────────────${colors.reset}\n`)
   })
-  
+
   console.log(`${colors.cyan}To reply to a comment, use:${colors.reset}`)
   console.log(`npx tsx scripts/pr/pr-comment-reply.ts ${prNumber} <comment-id> "your reply"`)
 }
 
 function replyToComment(prNumber: string, commentId: string, replyText: string) {
   console.log(`\n${colors.cyan}Replying to comment ${commentId} on PR #${prNumber}...${colors.reset}\n`)
-  
+
   try {
     // Create the reply using gh API
     const reply = {
-      body: replyText
+      body: replyText,
     }
-    
+
     const result = exec(
       `gh api repos/{owner}/{repo}/pulls/${prNumber}/comments/${commentId}/replies \
        --method POST \
-       --field body="${replyText.replace(/"/g, '\\"')}"`
+       --field body="${replyText.replace(/"/g, '\\"')}"`,
     )
-    
+
     console.log(`${colors.green}✅ Reply posted successfully!${colors.reset}`)
-    
+
     // Parse and show the created reply
     const replyData = JSON.parse(result)
     console.log(`\n${colors.bright}Reply URL:${colors.reset} ${replyData.html_url}`)
     console.log(`${colors.bright}Reply text:${colors.reset}\n${replyData.body}`)
-    
+
   } catch (error: any) {
     // If the reply endpoint doesn't work, try creating a new review comment
     console.log(`${colors.yellow}Reply endpoint not available, creating review comment...${colors.reset}`)
-    
+
     try {
       // First get the comment details to get the commit SHA and position
       const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/comments/${commentId}`)
       const comment = JSON.parse(commentJson)
-      
+
       const result = exec(
         `gh api repos/{owner}/{repo}/pulls/${prNumber}/comments \
          --method POST \
@@ -94,13 +94,13 @@ function replyToComment(prNumber: string, commentId: string, replyText: string) 
          --field path="${comment.path}" \
          --field line=${comment.line || comment.original_line} \
          --field side="${comment.side || 'RIGHT'}" \
-         --field in_reply_to=${commentId}`
+         --field in_reply_to=${commentId}`,
       )
-      
+
       console.log(`${colors.green}✅ Reply posted successfully!${colors.reset}`)
       const replyData = JSON.parse(result)
       console.log(`\n${colors.bright}Reply URL:${colors.reset} ${replyData.html_url}`)
-      
+
     } catch (error2: any) {
       console.error(`${colors.red}Failed to post reply:${colors.reset}`, error2.message)
       console.log(`\n${colors.yellow}You may need to reply directly on GitHub.${colors.reset}`)

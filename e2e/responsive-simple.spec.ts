@@ -1,9 +1,13 @@
 import { test, expect } from '@playwright/test'
+import { mockElectronAPI } from './fixtures/electron-mock'
 
 test.describe('Simple Responsive Tests', () => {
   test('App loads without horizontal scrollbar at 1366x768', async ({ page }) => {
     // Set viewport to the problematic size
     await page.setViewportSize({ width: 1366, height: 768 })
+
+    // Mock Electron API
+    await mockElectronAPI(page)
 
     // Navigate to app
     await page.goto('/')
@@ -21,11 +25,12 @@ test.describe('Simple Responsive Tests', () => {
 
   test('SwimLaneTimeline fits at 1366x768', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 })
+    await mockElectronAPI(page)
     await page.goto('/')
     await page.waitForTimeout(2000)
 
     // Navigate to Work Logger if button exists
-    const workLoggerButton = page.getByText('Work Logger')
+    const workLoggerButton = page.getByText('Log Work')
     if (await workLoggerButton.isVisible()) {
       await workLoggerButton.click()
       await page.waitForTimeout(2000)
@@ -43,6 +48,7 @@ test.describe('Simple Responsive Tests', () => {
 
   test('Mobile view at 375px works', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
+    await mockElectronAPI(page)
     await page.goto('/')
     await page.waitForTimeout(3000)
 

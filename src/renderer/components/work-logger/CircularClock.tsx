@@ -381,8 +381,8 @@ export function CircularClock({
                 strokeWidth={isMainHour ? 2 : 1}
               />
 
-              {/* Hour label */}
-              {isMainHour && (
+              {/* Hour label - only show every other hour on mobile */}
+              {isMainHour && (!isMobile || hour % 2 === 0) && (
                 <text
                   x={labelX}
                   y={labelY + 4}
@@ -392,7 +392,7 @@ export function CircularClock({
                   fontWeight="bold"
                 >
                   {hour > 12 ? hour - 12 : hour}
-                  {hour >= 12 ? 'pm' : 'am'}
+                  {!isMobile && (hour >= 12 ? 'pm' : 'am')}
                 </text>
               )}
             </g>
