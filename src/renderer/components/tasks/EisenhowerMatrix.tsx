@@ -866,19 +866,19 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                     </linearGradient>
                   </defs>
                   <line
-                    x1="0%"
-                    y1="0%"
-                    x2={`${100 * scanProgress}%`}  // FIXED: Proper diagonal from top-left
-                    y2={`${100 * scanProgress}%`}  // FIXED: Equal x,y progression
+                    x1={`${100 * (1 - scanProgress)}%`} // Moving start point (sweeps left to right)
+                    y1="0%"                              // Top edge
+                    x2="100%"                            // Right edge (fixed)
+                    y2={`${100 * scanProgress}%`}        // Moving down (sweeps top to bottom)
                     stroke="url(#scan-gradient)"
                     strokeWidth="3"
                     strokeLinecap="round"
                   />
-                  {/* Scanning wave effect - responsive - FIXED to follow proper diagonal */}
+                  {/* Scanning wave effect - at intersection point */}
                   <circle
-                    cx={`${100 * scanProgress}%`} // Follow the line's endpoint
-                    cy={`${100 * scanProgress}%`} // Stay on true diagonal
-                    r="2%"
+                    cx={`${100 - (100 * scanProgress)}%`} // FIXED: Use proper intersection calculation
+                    cy={`${100 * scanProgress}%`}          // At scan line's current position on diagonal
+                    r="3%"
                     fill="none"
                     stroke="#165DFF"
                     strokeWidth="2"
