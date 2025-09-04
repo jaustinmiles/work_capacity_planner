@@ -188,7 +188,9 @@ export class SchedulingEngine {
       // Calculate async urgency for async triggers
       const asyncUrgency = this.calculateAsyncUrgency(item, items)
 
-      const adjustedScore = rawScore * deadlinePressure + dependencyWeight + asyncUrgency
+      // Deadline pressure should be additive, not multiplicative, to ensure urgent deadlines take priority
+      // A task with a critical deadline (pressure=1000) should always outrank non-deadline tasks
+      const adjustedScore = rawScore + (deadlinePressure > 1 ? deadlinePressure * 100 : 0) + dependencyWeight + asyncUrgency
 
       // Tie-breaking value
       let tieBreakingValue: number | string = 0
@@ -643,7 +645,7 @@ export class SchedulingEngine {
     // For large slack (>5 days), add a small base pressure
     const basePressure = slackDays > 5 ? 1.1 : 1.0
 
-    return Math.max(basePressure, Math.min(pressure, 100))
+    return Math.max(basePressure, Math.min(pressure, 1000))
   }
 
   /**
