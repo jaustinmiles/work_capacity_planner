@@ -15,8 +15,9 @@ An Electron-based task management application with AI-powered task extraction an
 ### 📋 Advanced Task Management
 - **Smart Prioritization**: 
   - Eisenhower Matrix with importance × urgency scoring
-  - **NEW: Scatter Plot Mode** with animated diagonal scan
-  - **NEW: Task Clustering** for overlapping priority items
+  - Scatter Plot Mode with animated diagonal scan
+  - Task Clustering for overlapping priority items
+  - Responsive design adapts to all screen sizes
 - **Multi-Step Workflows**: Create complex sequenced tasks with dependencies
 - **Async Wait Times**: Model external delays (code reviews, CI/CD, approvals)
 - **Task Types**: Distinguish between focused work and administrative tasks
@@ -70,7 +71,7 @@ An Electron-based task management application with AI-powered task extraction an
 - **Secure Architecture**: Database operations isolated to main process
 - **Real-time Sync**: Changes immediately reflected across all views
 
-### 🛠️ Developer Tools (NEW)
+### 🛠️ Developer Tools
 - **Advanced Log Viewer**: 
   - Pattern-based log filtering and hiding
   - Group similar errors automatically
@@ -82,16 +83,19 @@ An Electron-based task management application with AI-powered task extraction an
 ## 🛠️ Technical Stack
 
 - **Frontend**: React + TypeScript + ArcoDesign
+- **Responsive Design**: Container queries + ResponsiveProvider context
 - **Backend**: Electron with secure IPC architecture
 - **Database**: SQLite with Prisma ORM
 - **AI Services**: 
   - Claude Opus 4.1 (Anthropic) for advanced workflow extraction
   - OpenAI Whisper API for speech-to-text transcription
 - **State Management**: Zustand with async operations
-- **Testing**: Vitest with React Testing Library
+- **Testing**: 
+  - Unit/Integration: Vitest + React Testing Library
+  - E2E: Playwright (7 viewport configurations)
 - **Code Quality**: ESLint + TypeScript strict mode
 
-## 📱 User Interface
+## 📱 User Interface (Fully Responsive)
 
 ### Main Views
 1. **Task List**: Complete task management with inline editing
