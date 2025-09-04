@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test'
-import * as path from 'path'
 
 export default defineConfig({
   testDir: './e2e',
@@ -27,21 +26,21 @@ export default defineConfig({
   projects: [
     {
       name: 'Desktop Ultra-wide',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1920, height: 1080 },
       },
     },
     {
       name: 'Desktop Standard',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1366, height: 768 },
       },
     },
     {
       name: 'Laptop',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 1024, height: 768 },
       },

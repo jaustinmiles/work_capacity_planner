@@ -47,7 +47,7 @@ export const ResponsiveProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const width = typeof window !== 'undefined' ? window.innerWidth : 1024
     const height = typeof window !== 'undefined' ? window.innerHeight : 768
     const breakpoint = getBreakpoint(width)
-    
+
     return {
       breakpoint,
       orientation: width > height ? 'landscape' : 'portrait',
@@ -70,7 +70,7 @@ export const ResponsiveProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const rect = element.getBoundingClientRect()
     const width = rect.width
     const height = rect.height
-    
+
     let breakpoint: ContainerBreakpoint = 'standard'
     if (width < CONTAINER_BREAKPOINTS.narrow) {
       breakpoint = 'narrow'
@@ -174,10 +174,10 @@ export const useIsCompact = () => {
 }
 
 // Export types for external use
-export type { 
-  Breakpoint, 
-  Orientation, 
-  ContainerBreakpoint, 
-  ContainerSize, 
-  ResponsiveContextValue 
+export type {
+  Breakpoint,
+  Orientation,
+  ContainerBreakpoint,
+  ContainerSize,
+  ResponsiveContextValue,
 }
