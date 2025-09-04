@@ -220,7 +220,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
               {step.status === 'in_progress' && (
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <Row justify="space-between" align="center">
-                    <Col span={16}>
+                    <Col xs={24} sm={18} md={16} lg={16}>
                       <Slider
                         value={step.percentComplete}
                         onChange={(value) => updateProgress(step.id, value as number)}
@@ -259,26 +259,26 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
         <Title heading={5} style={{ marginBottom: 24 }}>Workflow Progress</Title>
 
         <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6} lg={6}>
             <Statistic
               title="Completion"
               value={stats.completionPercentage}
               suffix="%"
             />
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6} lg={6}>
             <Statistic
               title="Steps"
               value={`${stats.completedSteps}/${stats.totalSteps}`}
             />
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6} lg={6}>
             <Statistic
               title="Time Spent"
               value={formatDuration(stats.totalActualMinutes)}
             />
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={12} md={6} lg={6}>
             <Statistic
               title="Remaining"
               value={formatDuration(stats.remainingEstimatedMinutes)}

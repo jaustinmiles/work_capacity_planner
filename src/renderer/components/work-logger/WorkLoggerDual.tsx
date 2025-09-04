@@ -431,7 +431,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         {/* Header controls */}
         <Row justify="space-between" align="center">
-          <Col span={12}>
+          <Col xs={24} sm={24} md={12} lg={12}>
             <Space>
               <Button
                 icon={<IconLeft />}
@@ -453,7 +453,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               )}
             </Space>
           </Col>
-          <Col span={12} style={{ textAlign: 'right' }}>
+          <Col xs={24} sm={24} md={12} lg={12} style={{ textAlign: 'right' }}>
             <Space>
               <Tag color="blue">Focused: {summary.focused} min</Tag>
               <Tag color="green">Admin: {summary.admin} min</Tag>
@@ -535,13 +535,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               <Card title="Selected Session">
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <Row gutter={16}>
-                    <Col span={8}>
+                    <Col xs={24} sm={12} md={8} lg={8}>
                       <Text style={{ fontWeight: 'bold' }}>Task:</Text> {selectedSession.taskName}
                       {selectedSession.stepName && (
                         <div><Text type="secondary">Step: {selectedSession.stepName}</Text></div>
                       )}
                     </Col>
-                    <Col span={8}>
+                    <Col xs={24} sm={12} md={8} lg={8}>
                       <Space>
                         <Text style={{ fontWeight: 'bold' }}>Time:</Text>
                         <ClockTimePicker
@@ -563,7 +563,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                         />
                       </Space>
                     </Col>
-                    <Col span={8} style={{ textAlign: 'right' }}>
+                    <Col xs={24} sm={12} md={8} lg={8} style={{ textAlign: 'right' }}>
                       <Space>
                         <Tag color={selectedSession.type === TaskType.Focused ? 'blue' : 'green'}>
                           {selectedSession.type === TaskType.Focused ? 'Focused' : 'Admin'}

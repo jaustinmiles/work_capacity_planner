@@ -696,32 +696,32 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       {/* Summary */}
       <Card>
         <Row gutter={16} align="center">
-          <Col span={4}>
+          <Col xs={24} sm={12} md={6} lg={4}>
             <Space direction="vertical">
               <Text type="secondary">Total Items</Text>
               <Title heading={4}>{scheduledItems.filter((item: any) => !item.isWaitTime).length}</Title>
             </Space>
           </Col>
-          <Col span={4}>
+          <Col xs={24} sm={12} md={6} lg={4}>
             <Space direction="vertical">
               <Text type="secondary">Completion</Text>
               <Title heading={4}>{formatDate(chartEndTime)}</Title>
               <Text type="secondary">{formatTime(chartEndTime)}</Text>
             </Space>
           </Col>
-          <Col span={3}>
+          <Col xs={12} sm={8} md={4} lg={3}>
             <Space direction="vertical">
               <Text type="secondary">Work Days</Text>
               <Title heading={4}>{totalDays} days</Title>
             </Space>
           </Col>
-          <Col span={3}>
+          <Col xs={12} sm={8} md={4} lg={3}>
             <Space direction="vertical">
               <Text type="secondary">Workflows</Text>
               <Title heading={4}>{sequencedTasks.filter(w => w.overallStatus !== 'completed').length}</Title>
             </Space>
           </Col>
-          <Col span={3}>
+          <Col xs={12} sm={8} md={4} lg={3}>
             <Space direction="vertical">
               <Text type="secondary">Meeting Time</Text>
               <Title heading={4}>
@@ -731,7 +731,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               </Title>
             </Space>
           </Col>
-          <Col span={7}>
+          <Col xs={24} sm={24} md={10} lg={7}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <Text type="secondary">Zoom Controls</Text>
               <Space direction="vertical" size="small" style={{ width: '100%' }}>
