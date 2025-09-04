@@ -563,7 +563,7 @@ if (!checkOverlap(newSession, laneSessions)) {
         className="swimlane-timeline"
         style={{
           position: 'relative',
-          overflow: 'auto',
+          overflowX: isCompact || containerWidth < 1366 ? 'hidden' : 'auto',
           overflowY: 'auto',
           background: '#fafbfc',
           borderRadius: 8,

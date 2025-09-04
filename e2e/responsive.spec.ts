@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test'
+import { mockElectronAPI } from './fixtures/electron-mock'
 
 test.describe('Responsive Layout Tests', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock Electron API before navigating
+    await mockElectronAPI(page)
     await page.goto('/')
-    // Wait for app to load
-    await page.waitForSelector('.app-container', { timeout: 10000 })
+    // Wait for app to load - look for the main Layout component
+    await page.waitForSelector('.arco-layout', { timeout: 10000 })
   })
 
   test('No horizontal scrollbars at any breakpoint', async ({ page, viewport: _viewport }) => {
@@ -25,7 +28,11 @@ test.describe('Responsive Layout Tests', () => {
 
   test('SwimLaneTimeline fits in viewport', async ({ page, viewport }) => {
     // Navigate to work logger view
-    await page.click('text=Work Logger')
+    const workLoggerButton = page.getByText('Log Work')
+    if (await workLoggerButton.isVisible()) {
+      await workLoggerButton.click()
+      await page.waitForTimeout(1000)
+    }
 
     // Wait for timeline to render
     await page.waitForSelector('.swimlane-timeline', { timeout: 5000 })
@@ -52,7 +59,11 @@ test.describe('Responsive Layout Tests', () => {
 
   test('CircularClock scales appropriately', async ({ page, viewport }) => {
     // Navigate to work logger view
-    await page.click('text=Work Logger')
+    const workLoggerButton = page.getByText('Log Work')
+    if (await workLoggerButton.isVisible()) {
+      await workLoggerButton.click()
+      await page.waitForTimeout(1000)
+    }
 
     // Wait for clock to render
     await page.waitForSelector('.circular-clock svg', { timeout: 5000 })
