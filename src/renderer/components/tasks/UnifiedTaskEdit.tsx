@@ -35,6 +35,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { TaskSplitModal } from './TaskSplitModal'
 import { StepSplitModal } from './StepSplitModal'
 import { StepWorkSessionsModal } from './StepWorkSessionsModal'
+import { DependencyEditor } from '../shared/DependencyEditor'
 import { Message } from '../common/Message'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
@@ -56,7 +57,7 @@ interface UnifiedTaskEditProps {
  * Combines functionality from TaskEdit and SequencedTaskEdit
  */
 export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: UnifiedTaskEditProps) {
-  const { updateTask } = useTaskStore()
+  const { updateTask, updateSequencedTask } = useTaskStore()
   const [editedTask, setEditedTask] = useState<Task | SequencedTask>({ ...task })
   const [isEditing, setIsEditing] = useState(startInEditMode)
   const [isSaving, setIsSaving] = useState(false)
@@ -105,24 +106,66 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      await updateTask(task.id, editedTask)
+      logger.ui.info('Saving task/workflow changes', { 
+        taskId: task.id, 
+        isWorkflow: isWorkflow, 
+        stepCount: steps.length 
+      })
 
-      // Save steps if workflow
       if (isWorkflow && sequencedTask) {
-        // Update the task with the new steps
-        const totalDuration = steps.reduce((acc, step) => acc + step.duration, 0)
-        await updateTask(sequencedTask.id, {
-          steps: steps as any,
+        // COPIED working save logic for workflows
+        // Recalculate durations based on steps
+        const totalDuration = steps.reduce((sum, step) => sum + step.duration, 0)
+        const totalWaitTime = steps.reduce((sum, step) => sum + (step.asyncWaitTime || 0), 0)
+        const criticalPathDuration = totalDuration + totalWaitTime
+        const worstCaseDuration = criticalPathDuration * 1.5
+
+        // Clean up step data before sending to database
+        const cleanedSteps = steps.map((step, index) => ({
+          id: step.id,
+          taskId: task.id,
+          name: step.name,
+          duration: step.duration,
+          type: step.type,
+          dependsOn: step.dependsOn || [],
+          asyncWaitTime: step.asyncWaitTime || 0,
+          isAsyncTrigger: step.isAsyncTrigger || false,
+          stepIndex: index,
+          status: step.status || StepStatus.Pending,
+          percentComplete: step.percentComplete || 0,
+          actualDuration: step.actualDuration || 0,
+          cognitiveComplexity: step.cognitiveComplexity || 3,
+          notes: step.notes || '',
+          importance: step.importance,
+          urgency: step.urgency,
+        }))
+
+        await updateSequencedTask(task.id, {
+          name: editedTask.name,
+          importance: editedTask.importance,
+          urgency: editedTask.urgency,
+          type: editedTask.type,
+          notes: editedTask.notes,
+          deadline: editedTask.deadline,
+          steps: cleanedSteps,
           duration: totalDuration,
+          criticalPathDuration,
+          worstCaseDuration,
         })
+
+        // Emit workflow updated event  
+        appEvents.emit(EVENTS.WORKFLOW_UPDATED)
+        logger.ui.info('Workflow saved successfully', { workflowId: task.id, stepCount: cleanedSteps.length })
+      } else {
+        // Regular task save
+        await updateTask(task.id, editedTask)
+        appEvents.emit(EVENTS.TASK_UPDATED, { taskId: task.id })
+        logger.ui.info('Task saved successfully', { taskId: task.id })
       }
 
       Message.success(isWorkflow ? 'Workflow updated successfully' : 'Task updated successfully')
       setIsEditing(false)
       onClose?.()
-
-      // Emit update event
-      appEvents.emit(EVENTS.TASK_UPDATED, { taskId: task.id })
     } catch (error) {
       logger.ui.error('Failed to save task:', error)
       Message.error('Failed to save changes')
@@ -148,11 +191,19 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
       const values = await form.validate()
       if (!editingStep) return
 
+      logger.ui.info('Saving step changes', { 
+        stepId: editingStep.id, 
+        stepName: values.name, 
+        isNewStep: editingStep.id === 'new' 
+      })
+
       const updatedStep = {
         ...editingStep,
         ...values,
+        dependsOn: editingStep.dependsOn || [], // Ensure dependencies are preserved
       }
 
+      let updatedSteps: TaskStep[]
       if (editingStep.id === 'new') {
         // New step
         const newStep: TaskStep = {
@@ -164,17 +215,55 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           percentComplete: 0,
           actualDuration: 0,
         }
-        setSteps([...steps, newStep])
+        updatedSteps = [...steps, newStep]
+        logger.ui.info('Added new step', { stepId: newStep.id, stepName: newStep.name })
       } else {
         // Update existing step
-        setSteps(steps.map(s => s.id === editingStep.id ? updatedStep : s))
+        updatedSteps = steps.map(s => s.id === editingStep.id ? updatedStep : s)
+        logger.ui.info('Updated existing step', { stepId: editingStep.id, stepName: updatedStep.name })
+      }
+
+      // Update local state
+      setSteps(updatedSteps)
+      
+      // CRITICAL FIX: Actually save to database immediately
+      if (isWorkflow && sequencedTask) {
+        const totalDuration = updatedSteps.reduce((sum, step) => sum + step.duration, 0)
+        const totalWaitTime = updatedSteps.reduce((sum, step) => sum + (step.asyncWaitTime || 0), 0)
+        const criticalPathDuration = totalDuration + totalWaitTime
+        const worstCaseDuration = criticalPathDuration * 1.5
+
+        const cleanedSteps = updatedSteps.map((step, index) => ({
+          ...step,
+          stepIndex: index,
+          dependsOn: step.dependsOn || [],
+        }))
+
+        await updateSequencedTask(task.id, {
+          name: editedTask.name,
+          importance: editedTask.importance,
+          urgency: editedTask.urgency,
+          type: editedTask.type,
+          notes: editedTask.notes,
+          deadline: editedTask.deadline,
+          steps: cleanedSteps,
+          duration: totalDuration,
+          criticalPathDuration,
+          worstCaseDuration,
+        })
+
+        appEvents.emit(EVENTS.WORKFLOW_UPDATED)
+        logger.ui.info('Step saved to database', { workflowId: task.id, totalSteps: cleanedSteps.length })
       }
 
       setShowStepModal(false)
       setEditingStep(null)
       form.resetFields()
+      
+      Message.success('Step saved successfully')
     } catch (error) {
       logger.ui.error('Failed to save step:', error)
+      Message.error('Failed to save step')
     }
   }
 
@@ -637,6 +726,29 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
             <FormItem field="notes" label="Notes">
               <TextArea placeholder="Optional notes" autoSize={{ minRows: 2, maxRows: 4 }} />
             </FormItem>
+            
+            {/* Dependencies - COPIED from working SequencedTaskEdit */}
+            <div style={{ marginBottom: 24 }}>
+              <Typography.Text style={{ display: 'block', marginBottom: 8, fontSize: 14, color: '#86909c' }}>
+                Dependencies
+              </Typography.Text>
+              <DependencyEditor
+                currentStepId={editingStep?.id}
+                currentStepName={editingStep?.name || 'this step'}
+                availableSteps={steps.map((step, idx) => ({
+                  id: step.id,
+                  name: step.name,
+                  stepIndex: idx,
+                }))}
+                forwardDependencies={editingStep?.dependsOn || []}
+                onForwardDependenciesChange={(value) => {
+                  logger.ui.info('Updating step dependencies:', { stepId: editingStep?.id, dependencies: value })
+                  if (editingStep) {
+                    setEditingStep({ ...editingStep, dependsOn: value })
+                  }
+                }}
+              />
+            </div>
           </Form>
         </Modal>
       )}
