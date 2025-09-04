@@ -798,7 +798,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       </Card>
 
       {/* Gantt Chart */}
-      <Card title="Scheduled Tasks (Priority Order)">
+      <Card
+        title="Scheduled Tasks (Priority Order)"
+        style={{ position: 'relative' }}
+      >
         {/* Pinch indicator */}
         {isPinching && (
           <div style={{
@@ -818,18 +821,16 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             {Math.round((pixelsPerHour / 120) * 100)}%
           </div>
         )}
-        {/* Floating zoom controls */}
+        {/* Floating zoom controls - absolute overlay */}
         <div style={{
-          position: 'sticky',
+          position: 'absolute',
           top: 10,
           right: 10,
-          float: 'right',
           zIndex: 100,
           backgroundColor: 'white',
           padding: 8,
           borderRadius: 8,
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          marginBottom: -40,
         }}>
           <Space>
             <Button.Group>
@@ -861,9 +862,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 icon={<IconClockCircle />}
                 onClick={handleSnapToNow}
                 type="primary"
-              >
-                Now
-              </Button>
+              />
             </Tooltip>
             <Dropdown
               droplist={

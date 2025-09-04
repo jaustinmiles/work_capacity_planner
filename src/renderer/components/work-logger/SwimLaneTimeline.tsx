@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Typography, Tooltip, Button, Slider, Switch } from '@arco-design/web-react'
-import { IconDown, IconRight, IconZoomIn, IconZoomOut, IconSun } from '@arco-design/web-react/icon'
+import { Typography, Tooltip, Button, Switch } from '@arco-design/web-react'
+import { IconDown, IconRight, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
@@ -40,8 +40,7 @@ const TIME_LABEL_WIDTH = 80
 const START_HOUR = 6
 const END_HOUR = 22
 const TOTAL_HOURS = END_HOUR - START_HOUR
-const MIN_LANE_HEIGHT = 20
-const MAX_LANE_HEIGHT = 60
+// Removed unused: MIN_LANE_HEIGHT, MAX_LANE_HEIGHT
 const MIN_HOUR_WIDTH = 40
 const MAX_HOUR_WIDTH = 200
 
@@ -76,7 +75,7 @@ export function SwimLaneTimeline({
   } | null>(null)
   const [hoveredSession, setHoveredSession] = useState<string | null>(null)
   const [internalExpandedWorkflows, setInternalExpandedWorkflows] = useState<Set<string>>(new Set())
-  const [laneHeight, setLaneHeight] = useState(30)
+  const [laneHeight] = useState(30)
   const [baseHourWidth, setBaseHourWidth] = useState(80)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
@@ -490,72 +489,48 @@ if (!checkOverlap(newSession, laneSessions)) {
   }, [dragState, creatingSession, onSessionUpdate, onSessionCreate, hourWidth])
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Zoom Controls */}
+    <div style={{ height: '100%', position: 'relative' }}>
+      {/* Zoom Controls - Floating Overlay */}
       <div style={{
-        padding: '8px 16px',
-        background: 'white',
-        borderBottom: '1px solid #e5e6eb',
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        zIndex: 100,
+        background: 'rgba(255, 255, 255, 0.95)',
+        border: '1px solid #e5e6eb',
+        borderRadius: 6,
+        padding: '4px 8px',
         display: 'flex',
         alignItems: 'center',
-        gap: 16,
+        gap: 8,
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 12, color: '#86909c' }}>Horizontal:</Text>
+        {/* Compact zoom controls */}
+        <Tooltip content="Zoom Out">
           <Button
             size="mini"
             icon={<IconZoomOut />}
             onClick={() => setBaseHourWidth(Math.max(MIN_HOUR_WIDTH, baseHourWidth - 20))}
             disabled={baseHourWidth <= MIN_HOUR_WIDTH}
           />
-          <Slider
-            value={baseHourWidth}
-            min={MIN_HOUR_WIDTH}
-            max={MAX_HOUR_WIDTH}
-            onChange={(val) => setBaseHourWidth(val as number)}
-            style={{ width: 100 }}
-          />
+        </Tooltip>
+        <Text style={{ fontSize: 11, color: '#86909c' }}>{Math.round(baseHourWidth / 100 * 100)}%</Text>
+        <Tooltip content="Zoom In">
           <Button
             size="mini"
             icon={<IconZoomIn />}
             onClick={() => setBaseHourWidth(Math.min(MAX_HOUR_WIDTH, baseHourWidth + 20))}
             disabled={baseHourWidth >= MAX_HOUR_WIDTH}
           />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Text style={{ fontSize: 12, color: '#86909c' }}>Vertical:</Text>
-          <Button
-            size="mini"
-            icon={<IconZoomOut />}
-            onClick={() => setLaneHeight(Math.max(MIN_LANE_HEIGHT, laneHeight - 5))}
-            disabled={laneHeight <= MIN_LANE_HEIGHT}
-          />
-          <Slider
-            value={laneHeight}
-            min={MIN_LANE_HEIGHT}
-            max={MAX_LANE_HEIGHT}
-            onChange={(val) => setLaneHeight(val as number)}
-            style={{ width: 100 }}
-          />
-          <Button
-            size="mini"
-            icon={<IconZoomIn />}
-            onClick={() => setLaneHeight(Math.min(MAX_LANE_HEIGHT, laneHeight + 5))}
-            disabled={laneHeight >= MAX_LANE_HEIGHT}
-          />
-        </div>
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <IconSun style={{ fontSize: 16, color: '#FFD700' }} />
+        </Tooltip>
+        <div style={{ width: 1, height: 16, background: '#e5e6eb' }} />
+        <Tooltip content="Circadian Rhythm">
           <Switch
             checked={showCircadianRhythm}
             onChange={setShowCircadianRhythm}
-            checkedText="Circadian"
-            uncheckedText="Hide"
             size="small"
           />
-        </div>
+        </Tooltip>
       </div>
 
       <div
@@ -567,7 +542,7 @@ if (!checkOverlap(newSession, laneSessions)) {
           overflowY: 'auto',
           background: '#fafbfc',
           borderRadius: 8,
-          flex: 1,
+          height: '100%',
           scrollbarWidth: 'thin',
         }}
       >

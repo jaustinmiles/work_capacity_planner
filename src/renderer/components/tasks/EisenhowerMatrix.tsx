@@ -32,25 +32,25 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   // Diagonal scan state
   const [isScanning, setIsScanning] = useState(false)
   const [scanProgress, setScanProgress] = useState(0)
-  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
+  const [_highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
   const [scannedTasks, setScannedTasks] = useState<Task[]>([])
   const scanAnimationRef = useRef<number | undefined>(undefined)
 
   // Update container size based on container query results
   useEffect(() => {
-    logger.info('🔄 [SCATTER] Container measurement received', {
-      containerWidth,
-      containerHeight,
+    logger.warn('🔄 [SCATTER] Container resize detected', {
+      measured: { width: containerWidth, height: containerHeight },
+      current: containerSize,
       hasValidDimensions: !!(containerWidth && containerHeight),
-      currentSize: containerSize,
       padding,
       viewMode,
+      timestamp: Date.now(),
     })
 
     // Use measured dimensions or fallback to reasonable defaults
     const effectiveWidth = containerWidth || 800
     const effectiveHeight = containerHeight || 600
-    
+
     if (effectiveWidth > 0 && effectiveHeight > 0) {
       // Don't subtract padding from container - we handle it in positioning
       const newSize = {
@@ -74,7 +74,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         gridSize: {
           width: newSize.width - padding * 2,
           height: newSize.height - padding * 2,
-        }
+        },
       })
 
       // Only update if significantly different to avoid re-renders
@@ -103,7 +103,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         logger.debug('⏸️ [SCATTER] Size update skipped (difference < 10px)')
       }
     }
-  }, [containerWidth, containerHeight, viewMode, isMobile, isCompact])
+  }, [containerWidth, containerHeight, viewMode, isMobile, isCompact, padding])
 
   // Combine regular tasks and sequenced tasks (workflows)
   // Deduplicate by ID - sequenced tasks take precedence
@@ -558,15 +558,15 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       </div>
       ) : (
         // Scatter Plot View
-        <Card style={{ minHeight: isMobile ? 400 : 500, height: isMobile ? 'auto' : 600, position: 'relative', overflow: 'hidden' }}>
+        <Card style={{ position: 'relative', overflow: 'hidden', padding: 0 }}>
           <div ref={scatterContainerRef} className="eisenhower-scatter-container" style={{
             width: '100%',
-            height: isMobile ? 400 : 600,
-            minHeight: isMobile ? 400 : 600,
+            height: isMobile ? 450 : 650,
+            minHeight: isMobile ? 450 : 650,
+            maxHeight: 800,
             position: 'relative',
-            padding: 0, // Remove padding from container since we handle it in positioning
-            display: 'flex',
-            flexDirection: 'column',
+            overflow: 'hidden',
+            background: '#fafbfc',
           }}>
             {/* Axis Labels */}
             <Text
@@ -640,9 +640,9 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               }} title="5,5 Reference Point" />
 
               {/* X-Axis value labels (Urgency: 0-10) */}
-              {[0, 2.5, 5, 7.5, 10].map((val, i) => {
+              {[0, 2.5, 5, 7.5, 10].map((val) => {
                 const xPos = (val / 10) * 100
-                logger.debug(`📏 [AXIS] X-axis label`, { value: val, position: `${xPos}%` })
+                logger.debug('📏 [AXIS] X-axis label', { value: val, position: `${xPos}%` })
                 return (
                   <div key={`x-label-${val}`} style={{
                     position: 'absolute',
@@ -654,11 +654,11 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   }}>{val}</div>
                 )
               })}
-              
+
               {/* Y-Axis value labels (Importance: 10-0 inverted) */}
-              {[10, 7.5, 5, 2.5, 0].map((val, i) => {
+              {[10, 7.5, 5, 2.5, 0].map((val) => {
                 const yPos = ((10 - val) / 10) * 100
-                logger.debug(`📏 [AXIS] Y-axis label`, { value: val, position: `${yPos}%` })
+                logger.debug('📏 [AXIS] Y-axis label', { value: val, position: `${yPos}%` })
                 return (
                   <div key={`y-label-${val}`} style={{
                     position: 'absolute',
@@ -716,26 +716,99 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               }}>
                 Eliminate
               </Text>
+
+              {/* Task Points - RESPONSIVE with percentage positioning */}
+              {(() => {
+                if (containerSize.height <= 0 || containerSize.width <= 0) {
+                  return null
+                }
+
+                return incompleteTasks.map((task) => {
+                  // Calculate percentage positions (0-100%)
+                  const xPercent = (task.urgency / 10) * 100
+                  const yPercent = (1 - task.importance / 10) * 100
+
+                  // Size based on duration, responsive to container
+                  const baseSize = Math.min(40, Math.max(20, 20 + (task.duration / 60)))
+                  // Scale size based on container width, but maintain minimum size
+                  const scaleFactor = Math.min(1.5, Math.max(0.8, containerSize.width / 800))
+                  const responsiveSize = Math.max(20, Math.round(baseSize * scaleFactor))
+
+                  logger.debug(`📍 [TASK] "${task.name}" render position`, {
+                    importance: task.importance,
+                    urgency: task.urgency,
+                    xPercent: `${xPercent}%`,
+                    yPercent: `${yPercent}%`,
+                    size: `${responsiveSize}px`,
+                    containerSize: { width: containerSize.width, height: containerSize.height },
+                  })
+
+                  return (
+                    <div
+                      key={task.id}
+                      onClick={() => selectTask(task.id)}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.opacity = '1'
+                        e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.1)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.opacity = '0.8'
+                        e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'
+                      }}
+                      style={{
+                        position: 'absolute',
+                        left: `${xPercent}%`,
+                        top: `${yPercent}%`,
+                        transform: 'translate(-50%, -50%)',
+                        width: `${responsiveSize}px`,
+                        height: `${responsiveSize}px`,
+                        aspectRatio: '1 / 1',
+                        borderRadius: '50%',
+                        background: categorizeTask(task) === 'do-first' ? '#F53F3F' :
+                                   categorizeTask(task) === 'schedule' ? '#165DFF' :
+                                   categorizeTask(task) === 'delegate' ? '#FF7D00' : '#86909C',
+                        opacity: 0.8,
+                        cursor: 'pointer',
+                        zIndex: 10,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: '0.625rem',
+                        fontWeight: 'bold',
+                        border: '2px solid white',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                        minWidth: '30px',
+                        minHeight: '30px',
+                        transition: 'all 0.2s ease',
+                      }}
+                      title={`${task.name} (I:${task.importance} U:${task.urgency})`}
+                    >
+                      {task.name.slice(0, 3).toUpperCase()}
+                    </div>
+                  )
+                })
+              })()}
             </div>
 
-            {/* Diagonal Scan Line Animation */}
+            {/* Diagonal Scan Line Animation - RESPONSIVE */}
             {isScanning && (
               <div
                 data-testid="diagonal-scan-line"
                 style={{
                   position: 'absolute',
-                  top: padding,
-                  left: padding,
-                  width: containerSize.width,
-                  height: containerSize.height,
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
                   pointerEvents: 'none',
                   overflow: 'visible',
                 }}
               >
-                {/* Animated diagonal line */}
+                {/* Animated diagonal line - use percentages */}
                 <svg
-                  width={containerSize.width}
-                  height={containerSize.height}
+                  width="100%"
+                  height="100%"
                   style={{ position: 'absolute', top: 0, left: 0 }}
                 >
                   <defs>
@@ -746,19 +819,19 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                     </linearGradient>
                   </defs>
                   <line
-                    x1={containerSize.width * (1 - scanProgress)}
-                    y1={0}
-                    x2={containerSize.width}
-                    y2={containerSize.height * scanProgress}
+                    x1={`${100 * (1 - scanProgress)}%`}
+                    y1="0%"
+                    x2="100%"
+                    y2={`${100 * scanProgress}%`}
                     stroke="url(#scan-gradient)"
                     strokeWidth="3"
                     strokeLinecap="round"
                   />
-                  {/* Scanning wave effect */}
+                  {/* Scanning wave effect - responsive */}
                   <circle
-                    cx={containerSize.width - (containerSize.width * scanProgress)}
-                    cy={containerSize.height * scanProgress}
-                    r="20"
+                    cx={`${100 - (100 * scanProgress)}%`}
+                    cy={`${100 * scanProgress}%`}
+                    r="3%"
                     fill="none"
                     stroke="#165DFF"
                     strokeWidth="2"
@@ -766,8 +839,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   >
                     <animate
                       attributeName="r"
-                      from="10"
-                      to="40"
+                      from="2%"
+                      to="6%"
                       dur="1s"
                       repeatCount="indefinite"
                     />
@@ -794,79 +867,86 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 pointerEvents: 'none',
                 zIndex: 1000,
               }}>
-                {/* Debug Grid Lines every 10% */}
+                {/* Debug Grid Lines every 10% - RESPONSIVE */}
                 <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
                   {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => {
-                    // Log axis values for debugging
+                    // Use percentage-based positioning for responsiveness
+                    const xPercent = (i * 10) // 0%, 10%, 20%, ... 100%
+                    const yPercent = (i * 10) // 0%, 10%, 20%, ... 100%
+
+                    // Calculate actual pixel positions for logging
+                    const xPixel = (xPercent / 100) * containerSize.width
+                    const yPixel = (yPercent / 100) * containerSize.height
+
                     const xAxisValue = i // Urgency: 0-10 left to right
                     const yAxisValue = 10 - i // Importance: 10-0 top to bottom (inverted)
-                    const xPixel = padding + (i / 10) * gridWidth
-                    const yPixel = padding + (i / 10) * gridHeight
-                    
+
                     logger.debug(`📊 [AXIS] Grid line ${i}`, {
-                      xAxis: { value: xAxisValue, pixel: xPixel, label: `U:${xAxisValue}` },
-                      yAxis: { value: yAxisValue, pixel: yPixel, label: `I:${yAxisValue}` },
-                      gridDimensions: { width: gridWidth, height: gridHeight },
-                      padding,
+                      xAxis: { value: xAxisValue, pixel: xPixel, percent: xPercent, label: `U:${xAxisValue}` },
+                      yAxis: { value: yAxisValue, pixel: yPixel, percent: yPercent, label: `I:${yAxisValue}` },
+                      containerSize: { width: containerSize.width, height: containerSize.height },
                     })
-                    
+
                     return (
-                    <g key={`debug-grid-${i}`}>
-                      {/* Vertical lines */}
+                      <g key={`debug-grid-${i}`}>
+                      {/* Vertical lines - use percentages */}
                       <line
-                        x1={padding + (i / 10) * gridWidth}
-                        y1={padding}
-                        x2={padding + (i / 10) * gridWidth}
-                        y2={padding + gridHeight}
+                        x1={`${xPercent}%`}
+                        y1="0%"
+                        x2={`${xPercent}%`}
+                        y2="100%"
                         stroke="rgba(255, 0, 255, 0.2)"
                         strokeDasharray="2 2"
                       />
                       <text
-                        x={padding + (i / 10) * gridWidth}
-                        y={padding - 5}
+                        x={`${xPercent}%`}
+                        y="5"
                         fill="magenta"
                         fontSize="10"
                         textAnchor="middle"
                       >
                         U:{i}
                       </text>
-                      {/* Horizontal lines */}
+                      {/* Horizontal lines - use percentages */}
                       <line
-                        x1={padding}
-                        y1={padding + (i / 10) * gridHeight}
-                        x2={padding + gridWidth}
-                        y2={padding + (i / 10) * gridHeight}
+                        x1="0%"
+                        y1={`${yPercent}%`}
+                        x2="100%"
+                        y2={`${yPercent}%`}
                         stroke="rgba(255, 0, 255, 0.2)"
                         strokeDasharray="2 2"
                       />
                       <text
-                        x={padding - 5}
-                        y={padding + (i / 10) * gridHeight}
+                        x="5"
+                        y={`${yPercent}%`}
                         fill="magenta"
                         fontSize="10"
-                        textAnchor="end"
+                        textAnchor="start"
                         alignmentBaseline="middle"
                       >
                         I:{10-i}
                       </text>
                     </g>
-                  ))}
+                  )
+                })}
                 </svg>
 
-                {/* Debug Info Panel - Fixed position overlay */}
+                {/* Debug Info Panel - Stays within container bounds */}
                 <div style={{
-                  position: 'fixed',
-                  top: 80,
-                  right: 20,
-                  background: 'rgba(255, 255, 255, 0.98)',
+                  position: 'absolute',
+                  top: '2%',
+                  right: '2%',
+                  background: 'rgba(255, 255, 255, 0.95)',
                   border: '2px solid magenta',
                   padding: '10px',
                   borderRadius: '5px',
-                  fontSize: '12px',
+                  fontSize: '11px',
                   fontFamily: 'monospace',
-                  maxWidth: '300px',
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                  zIndex: 2000,
+                  maxWidth: '40%',
+                  maxHeight: '40%',
+                  overflow: 'auto',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  zIndex: 1500,
                 }}>
                   <div style={{ fontWeight: 'bold', marginBottom: 5, color: 'magenta' }}>
                     🔍 SCATTER PLOT DEBUG MODE
@@ -883,28 +963,26 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                   <div>• Max (10,0): Bottom-Right of grid</div>
                 </div>
 
-                {/* Show task positions with arrows */}
-                {incompleteTasks.slice(0, 5).map((task, idx) => {
+                {/* Show task positions with arrows - RESPONSIVE */}
+                {incompleteTasks.slice(0, 5).map((task) => {
                   const xPercent = (task.urgency / 10) * 100
                   const yPercent = (1 - task.importance / 10) * 100
-                  const xPos = padding + (xPercent / 100) * gridWidth
-                  const yPos = padding + (yPercent / 100) * gridHeight
 
                   return (
                     <div key={`debug-task-${task.id}`}>
                       {/* Arrow pointing to task position */}
                       <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
                         <line
-                          x1={xPos}
-                          y1={yPos}
-                          x2={xPos + 50}
-                          y2={yPos - 30}
+                          x1={`${xPercent}%`}
+                          y1={`${yPercent}%`}
+                          x2={`${xPercent + 10}%`}
+                          y2={`${yPercent - 5}%`}
                           stroke="red"
                           strokeWidth="2"
                           markerEnd="url(#arrowhead)"
                         />
                         <defs>
-                          <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                          <marker id="arrowhead" markerWidth="10" markerHeight="7"
                            refX="9" refY="3.5" orient="auto">
                             <polygon points="0 0, 10 3.5, 0 7" fill="red" />
                           </marker>
@@ -913,8 +991,8 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                       {/* Label with task info */}
                       <div style={{
                         position: 'absolute',
-                        left: xPos + 55,
-                        top: yPos - 45,
+                        left: `${Math.min(xPercent + 11, 85)}%`, // Keep within bounds
+                        top: `${Math.max(yPercent - 8, 2)}%`, // Keep within bounds
                         background: 'white',
                         border: '1px solid red',
                         padding: '2px 5px',
@@ -922,20 +1000,23 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                         fontSize: '10px',
                         fontFamily: 'monospace',
                         whiteSpace: 'nowrap',
+                        maxWidth: '15%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}>
                         <div style={{ fontWeight: 'bold' }}>{task.name.slice(0, 15)}</div>
                         <div>I:{task.importance} U:{task.urgency}</div>
-                        <div>Pos: ({xPos.toFixed(0)}, {yPos.toFixed(0)})</div>
+                        <div>Pos: ({xPercent.toFixed(0)}%, {yPercent.toFixed(0)}%)</div>
                       </div>
                     </div>
                   )
                 })}
 
-                {/* Show exact center point */}
+                {/* Show exact center point - RESPONSIVE */}
                 <div style={{
                   position: 'absolute',
-                  left: padding + gridWidth / 2,
-                  top: padding + gridHeight / 2,
+                  left: '50%',
+                  top: '50%',
                   width: 10,
                   height: 10,
                   background: 'lime',
@@ -945,13 +1026,14 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 }} />
                 <div style={{
                   position: 'absolute',
-                  left: padding + gridWidth / 2 + 10,
-                  top: padding + gridHeight / 2,
+                  left: '52%',
+                  top: '50%',
                   background: 'white',
                   padding: '2px 5px',
                   border: '1px solid green',
                   fontSize: '10px',
                   fontFamily: 'monospace',
+                  transform: 'translateY(-50%)',
                 }}>
                   Center (I:5, U:5)
                 </div>
@@ -975,274 +1057,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               {debugMode ? '🔍 Debug ON' : '🔍 Debug OFF'}
             </Button>
 
-            {/* Task Points - Outside the grid container */}
-            {/* Only render points when container has valid dimensions */}
-            {(() => {
-              // Debug why nothing is showing
-              if (containerSize.height <= 0) {
-                logger.error('EISENHOWER RENDER BLOCKED: Container height is zero or negative', {
-                  containerHeight: containerSize.height,
-                  containerWidth: containerSize.width,
-                  taskCount: incompleteTasks.length,
-                })
-                return null
-              }
-              // Group tasks by position to detect clusters
-              const taskClusters = new Map<string, typeof incompleteTasks>()
-
-              // Debug logging for scatter plot positioning (disabled in test environment)
-              if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
-                logger.debug('EisenhowerMatrix Scatter Plot Debug', {
-                  containerSize,
-                  padding,
-                  gridCenterX: padding + (containerSize.width - padding * 2) / 2,
-                  gridCenterY: padding + (containerSize.height - padding * 2) / 2,
-                  expectedCenter5_5: {
-                    x: padding + (0.5 * (containerSize.width - padding * 2)),
-                    y: padding + (0.5 * (containerSize.height - padding * 2)),
-                  },
-                  totalTasks: incompleteTasks.length,
-                })
-              }
-
-              incompleteTasks.forEach(task => {
-                const xPercent = Math.round((task.urgency / 10) * 100)
-                const yPercent = Math.round((1 - task.importance / 10) * 100)
-                const posKey = `${xPercent}-${yPercent}`
-
-                // Log first few tasks for debugging (disabled in test environment)
-                if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
-                  if (incompleteTasks.indexOf(task) < 3) {
-                    logger.debug('Task Position Calculation', {
-                      taskName: task.name,
-                      importance: task.importance,
-                      urgency: task.urgency,
-                      xPercent,
-                      yPercent,
-                      expectedPixelX: padding + (xPercent / 100) * (containerSize.width - padding * 2),
-                      expectedPixelY: padding + (yPercent / 100) * (containerSize.height - padding * 2),
-                      shouldBeAtCenter: task.importance === 5 && task.urgency === 5,
-                    })
-                  }
-                }
-
-                const cluster = taskClusters.get(posKey) || []
-                cluster.push(task)
-                taskClusters.set(posKey, cluster)
-              })
-
-              // Create a Set of tasks that are part of clusters (for hiding duplicates)
-              const renderedTasks = new Set<string>()
-              const clusterElements: React.ReactNode[] = []
-
-              // First pass: render cluster indicators
-              taskClusters.forEach((tasksAtPosition, posKey) => {
-                if (tasksAtPosition.length > 1) {
-                  const [xStr, yStr] = posKey.split('-')
-                  const xPercent = parseInt(xStr)
-                  const yPercent = parseInt(yStr)
-
-                  // Add all but first task to rendered set (we'll show them in the cluster)
-                  tasksAtPosition.slice(1).forEach(t => renderedTasks.add(t.id))
-
-                  // Get the dominant quadrant color
-                  const quadrant = categorizeTask(tasksAtPosition[0])
-                  const config = quadrantConfig[quadrant]
-
-                  // Debug cluster positioning - use grid-relative coordinates
-                  const clusterX = padding + (xPercent / 100) * gridWidth
-                  const clusterY = padding + (yPercent / 100) * gridHeight
-
-                  // Logging disabled in test environment to prevent async errors
-                  if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
-                    logger.debug('Cluster Position', {
-                      posKey,
-                      taskCount: tasksAtPosition.length,
-                      firstTask: tasksAtPosition[0].name,
-                      xPercent,
-                      yPercent,
-                      pixelX: clusterX,
-                      pixelY: clusterY,
-                      quadrant,
-                    })
-                  }
-
-                  clusterElements.push(
-                    <Tooltip
-                      key={`cluster-${posKey}`}
-                      content={
-                        <div>
-                          {tasksAtPosition.map(t => (
-                            <div key={t.id} style={{ marginBottom: 4 }}>
-                              • {t.name}
-                            </div>
-                          ))}
-                        </div>
-                      }
-                    >
-                      <div
-                        style={{
-                          position: 'absolute',
-                          left: clusterX,
-                          top: clusterY,
-                          transform: 'translate(-50%, -50%)',
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          background: config.color,
-                          border: '3px solid white',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          zIndex: 10,
-                        }}
-                        onClick={() => {
-                          // Could expand to show all tasks on click
-                          console.log('Cluster clicked:', tasksAtPosition)
-                        }}
-                      >
-                        {tasksAtPosition.length}
-                      </div>
-                    </Tooltip>,
-                  )
-                }
-              })
-
-              return (
-                <>
-                  {incompleteTasks.filter(task => !renderedTasks.has(task.id)).map((task) => {
-                const isWorkflow = sequencedTasks.some(st => st.id === task.id)
-                const quadrant = categorizeTask(task)
-                const config = quadrantConfig[quadrant]
-                const isHighlighted = task.id === highlightedTaskId
-
-                // Convert importance/urgency (1-10) to position (0-100%)
-                const xPercent = (task.urgency / 10) * 100
-                const yPercent = (1 - task.importance / 10) * 100 // Invert Y axis (high importance at top)
-
-                // Grid dimensions (must match the actual grid box)
-                const taskGridWidth = containerSize.width - padding * 2
-                const taskGridHeight = containerSize.height - padding * 2
-
-                // Calculate actual pixel positions RELATIVE TO THE GRID BOX
-                // The grid box is already positioned at (padding, padding)
-                // So positions should be relative to the grid, not the container
-                const xPos = padding + (xPercent / 100) * taskGridWidth
-                const yPos = padding + (yPercent / 100) * taskGridHeight
-
-                // Comprehensive logging for each task position
-                logger.info(`🎯 [SCATTER] Task "${task.name}" positioning`, {
-                  taskId: task.id,
-                  taskName: task.name,
-                  importance: task.importance,
-                  urgency: task.urgency,
-                  importanceType: typeof task.importance,
-                  urgencyType: typeof task.urgency,
-                  xPercent,
-                  yPercent,
-                  xPos: padding + (xPercent / 100) * (containerSize.width - padding * 2),
-                  yPos: padding + (yPercent / 100) * (containerSize.height - padding * 2),
-                  containerWidth: containerSize.width,
-                  containerHeight: containerSize.height,
-                  isNaN: {
-                    importance: isNaN(task.importance),
-                    urgency: isNaN(task.urgency),
-                    xPercent: isNaN(xPercent),
-                    yPercent: isNaN(yPercent),
-                  },
-                  calculation: {
-                    step1: `importance=${task.importance}`,
-                    step2: `importance/10=${task.importance / 10}`,
-                    step3: `1 - importance/10=${1 - task.importance / 10}`,
-                    step4: `(1 - importance/10) * 100=${(1 - task.importance / 10) * 100}`,
-                  },
-                })
-
-                // Calculate bubble size based on duration (min 20px, max 60px)
-                const baseSize = Math.min(60, Math.max(20, 20 + (task.duration / 30)))
-                const size = isHighlighted ? baseSize * 1.3 : baseSize
-
-                // Position relative to grid box (which already accounts for padding)
-                // Grid box is at (padding, padding) with size (containerSize - 2*padding)
-                const finalXPos = padding + (xPercent / 100) * taskGridWidth
-                const finalYPos = padding + (yPercent / 100) * taskGridHeight
-
-                return (
-                  <Tooltip
-                    key={task.id}
-                    content={
-                      <Space direction="vertical">
-                        <Text style={{ fontWeight: 500 }}>{task.name}</Text>
-                        <Space size="small">
-                          <Tag size="small">I: {task.importance}</Tag>
-                          <Tag size="small">U: {task.urgency}</Tag>
-                          <Tag size="small">{Math.floor(task.duration / 60)}h {task.duration % 60}m</Tag>
-                        </Space>
-                      </Space>
-                    }
-                  >
-                    <div
-                      onClick={() => selectTask(task.id)}
-                      style={{
-                        position: 'absolute',
-                        left: finalXPos,
-                        top: finalYPos,
-                        transform: `translate(-50%, -50%) scale(${zoom})`,
-                        width: size,
-                        height: size,
-                        borderRadius: '50%',
-                        background: isHighlighted
-                          ? `linear-gradient(135deg, ${config.color}, ${config.color}dd)`
-                          : config.color,
-                        opacity: isHighlighted ? 1 : 0.8,
-                        border: isWorkflow ? '3px solid purple' : 'none',
-                        boxShadow: isHighlighted ? `0 0 20px ${config.color}` : 'none',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'transform 0.3s, opacity 0.3s, box-shadow 0.3s, background 0.3s',
-                        zIndex: isHighlighted ? 20 : 10,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isHighlighted) {
-                          e.currentTarget.style.opacity = '1'
-                          e.currentTarget.style.transform = `translate(-50%, -50%) scale(${zoom * 1.1})`
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isHighlighted) {
-                          e.currentTarget.style.opacity = '0.8'
-                          e.currentTarget.style.transform = `translate(-50%, -50%) scale(${zoom})`
-                        }
-                      }}
-                    >
-                      <div style={{
-                        color: 'white',
-                        fontSize: 9,
-                        fontWeight: 500,
-                        textAlign: 'center',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        <div>{task.importance}/{task.urgency}</div>
-                        <div style={{ fontSize: 7 }}>{task.name.substring(0, 3)}</div>
-                      </div>
-                    </div>
-                  </Tooltip>
-                )
-              })}
-              {clusterElements}
-            </>
-            )
-            })()}
+            {/* Old task rendering removed - tasks now render inside grid box */}
           </div>
         </Card>
       )}

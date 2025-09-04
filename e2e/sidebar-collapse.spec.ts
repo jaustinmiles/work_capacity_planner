@@ -12,12 +12,12 @@ test.describe('Sidebar Collapse Functionality', () => {
 
   test('Should have collapse button visible in top-left', async ({ page }) => {
     // Look for the collapse button with menu fold/unfold icon
-    const collapseButton = page.locator('button').filter({ 
-      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold') 
+    const collapseButton = page.locator('button').filter({
+      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold'),
     }).first()
-    
+
     await expect(collapseButton).toBeVisible()
-    
+
     // Check it's in the top area of the sidebar
     const buttonBox = await collapseButton.boundingBox()
     expect(buttonBox).toBeTruthy()
@@ -29,8 +29,8 @@ test.describe('Sidebar Collapse Functionality', () => {
 
   test('Should toggle sidebar collapsed state', async ({ page }) => {
     const sidebar = page.locator('.arco-layout-sider').first()
-    const collapseButton = page.locator('button').filter({ 
-      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold') 
+    const collapseButton = page.locator('button').filter({
+      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold'),
     }).first()
 
     // Check initial state - should be expanded (240px)
@@ -55,10 +55,10 @@ test.describe('Sidebar Collapse Functionality', () => {
     expect(expandedWidth).toBeGreaterThan(200)
   })
 
-  test('Should NOT have horizontal scrollbar when collapsed', async ({ page, viewport }) => {
+  test('Should NOT have horizontal scrollbar when collapsed', async ({ page }) => {
     const sidebar = page.locator('.arco-layout-sider').first()
-    const collapseButton = page.locator('button').filter({ 
-      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold') 
+    const collapseButton = page.locator('button').filter({
+      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold'),
     }).first()
 
     // Collapse the sidebar
@@ -91,8 +91,8 @@ test.describe('Sidebar Collapse Functionality', () => {
   })
 
   test('Should persist collapsed state in localStorage', async ({ page }) => {
-    const collapseButton = page.locator('button').filter({ 
-      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold') 
+    const collapseButton = page.locator('button').filter({
+      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold'),
     }).first()
 
     // Collapse sidebar
@@ -116,8 +116,8 @@ test.describe('Sidebar Collapse Functionality', () => {
   })
 
   test('Should hide text labels when collapsed', async ({ page }) => {
-    const collapseButton = page.locator('button').filter({ 
-      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold') 
+    const collapseButton = page.locator('button').filter({
+      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold'),
     }).first()
 
     // Initially should show text
@@ -138,8 +138,8 @@ test.describe('Sidebar Collapse Functionality', () => {
   })
 
   test('Tooltips should show on hover when collapsed', async ({ page }) => {
-    const collapseButton = page.locator('button').filter({ 
-      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold') 
+    const collapseButton = page.locator('button').filter({
+      has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold'),
     }).first()
 
     // Collapse sidebar
@@ -148,9 +148,9 @@ test.describe('Sidebar Collapse Functionality', () => {
 
     // Hover over Task List menu item
     const taskMenuItem = page.locator('.arco-menu-item').filter({
-      has: page.locator('.arco-icon-list')
+      has: page.locator('.arco-icon-list'),
     }).first()
-    
+
     await taskMenuItem.hover()
     await page.waitForTimeout(500) // Wait for tooltip
 
@@ -167,16 +167,16 @@ test.describe('Sidebar Collapse Functionality', () => {
 
     // Check button is visible and clickable
     await expect(addTaskButton).toBeVisible()
-    
+
     const buttonBox = await addTaskButton.boundingBox()
     if (buttonBox) {
       // The entire button area should be clickable
       // Click near the bottom of the button (where default trigger would have been)
       await page.mouse.click(
         buttonBox.x + buttonBox.width / 2,
-        buttonBox.y + buttonBox.height - 5
+        buttonBox.y + buttonBox.height - 5,
       )
-      
+
       // Check that dropdown opened (no error thrown means click worked)
       await expect(page.locator('text="New Task"')).toBeVisible({ timeout: 1000 })
     }

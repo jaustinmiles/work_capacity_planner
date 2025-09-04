@@ -482,7 +482,7 @@ function App() {
               size="default"
               icon={sidebarCollapsed ? <IconMenuUnfold /> : <IconMenuFold />}
               onClick={() => handleSidebarCollapse(!sidebarCollapsed)}
-              style={{ 
+              style={{
                 minWidth: 32,
                 padding: '4px 8px',
               }}
