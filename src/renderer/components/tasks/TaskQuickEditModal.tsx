@@ -547,90 +547,89 @@ export function TaskQuickEditModal({
         </div>
 
         {/* Priority with Quick Select Buttons */}
-        {currentItem?.type !== 'step' && (
-          <Row gutter={16}>
-            <Col span={12}>
-              <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text bold>
-                  <IconFire /> Importance
-                </Text>
-                <Select
-                  value={(editedData as Task)?.importance || 5}
-                  onChange={(value) => updateField('importance', value)}
-                  style={{ width: 80 }}
-                  size="small"
-                >
-                  {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                    <Select.Option key={n} value={n}>{n}</Select.Option>
-                  ))}
-                </Select>
-              </Space>
-              <Radio.Group
-                type="button"
-                size="small"
-                value={(editedData as Task)?.importance || 5}
+        {/* Importance and Urgency - now available for tasks and steps */}
+        <Row gutter={16}>
+          <Col span={12}>
+            <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text bold>
+                <IconFire /> Importance
+              </Text>
+              <Select
+                value={editedData?.importance || 5}
                 onChange={(value) => updateField('importance', value)}
-                style={{ width: '100%' }}
-              >
-                {[1,3,5,7,10].map(n => (
-                  <Radio key={n} value={n}>{n}</Radio>
-                ))}
-              </Radio.Group>
-              <Slider
-                value={(editedData as Task)?.importance || 5}
-                min={1}
-                max={10}
-                marks={{
-                  1: '1',
-                  5: '5',
-                  10: '10',
-                }}
-                onChange={(value) => updateField('importance', value as number)}
-                style={{ marginTop: 8 }}
-              />
-            </Col>
-            <Col span={12}>
-              <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Text bold>
-                  <IconThunderbolt /> Urgency
-                </Text>
-                <Select
-                  value={(editedData as Task)?.urgency || 5}
-                  onChange={(value) => updateField('urgency', value)}
-                  style={{ width: 80 }}
-                  size="small"
-                >
-                  {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                    <Select.Option key={n} value={n}>{n}</Select.Option>
-                  ))}
-                </Select>
-              </Space>
-              <Radio.Group
-                type="button"
+                style={{ width: 80 }}
                 size="small"
-                value={(editedData as Task)?.urgency || 5}
-                onChange={(value) => updateField('urgency', value)}
-                style={{ width: '100%' }}
               >
-                {[1,3,5,7,10].map(n => (
-                  <Radio key={n} value={n}>{n}</Radio>
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                  <Select.Option key={n} value={n}>{n}</Select.Option>
                 ))}
-              </Radio.Group>
-              <Slider
-                value={(editedData as Task)?.urgency || 5}
-                min={1}
-                max={10}
-                marks={{
-                  1: '1',
-                  5: '5',
-                  10: '10',
-                }}
-                onChange={(value) => updateField('urgency', value as number)}
-                style={{ marginTop: 8 }}
-              />
-            </Col>
-          </Row>
-        )}
+              </Select>
+            </Space>
+            <Radio.Group
+              type="button"
+              size="small"
+              value={editedData?.importance || 5}
+              onChange={(value) => updateField('importance', value)}
+              style={{ width: '100%' }}
+            >
+              {[1,3,5,7,10].map(n => (
+                <Radio key={n} value={n}>{n}</Radio>
+              ))}
+            </Radio.Group>
+            <Slider
+              value={editedData?.importance || 5}
+              min={1}
+              max={10}
+              marks={{
+                1: '1',
+                5: '5',
+                10: '10',
+              }}
+              onChange={(value) => updateField('importance', value as number)}
+              style={{ marginTop: 8 }}
+            />
+          </Col>
+          <Col span={12}>
+            <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text bold>
+                <IconThunderbolt /> Urgency
+              </Text>
+              <Select
+                value={editedData?.urgency || 5}
+                onChange={(value) => updateField('urgency', value)}
+                style={{ width: 80 }}
+                size="small"
+              >
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                  <Select.Option key={n} value={n}>{n}</Select.Option>
+                ))}
+              </Select>
+            </Space>
+            <Radio.Group
+              type="button"
+              size="small"
+              value={editedData?.urgency || 5}
+              onChange={(value) => updateField('urgency', value)}
+              style={{ width: '100%' }}
+            >
+              {[1,3,5,7,10].map(n => (
+                <Radio key={n} value={n}>{n}</Radio>
+              ))}
+            </Radio.Group>
+            <Slider
+              value={editedData?.urgency || 5}
+              min={1}
+              max={10}
+              marks={{
+                1: '1',
+                5: '5',
+                10: '10',
+              }}
+              onChange={(value) => updateField('urgency', value as number)}
+              style={{ marginTop: 8 }}
+            />
+          </Col>
+        </Row>
 
         {/* Type and Cognitive Complexity */}
         <Row gutter={16}>
