@@ -1,15 +1,15 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { CircularClock } from '../CircularClock'
+import { TaskType } from '@shared/enums'
+import type { WorkSessionData } from '../SessionState'
 import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
 
 // Helper function to render with ResponsiveProvider
 const renderWithProvider = (component: React.ReactElement) => {
   return render(<ResponsiveProvider>{component}</ResponsiveProvider>)
 }
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { CircularClock } from '../CircularClock'
-import { TaskType } from '@shared/enums'
-import type { WorkSessionData } from '../SessionState'
 
 describe('CircularClock', () => {
   const mockOnSessionUpdate = vi.fn()
@@ -94,7 +94,7 @@ describe('CircularClock', () => {
   })
 
   it('displays current time', () => {
-    render(
+    renderWithProvider(
       <CircularClock
         sessions={mockSessions}
         onSessionUpdate={mockOnSessionUpdate}
