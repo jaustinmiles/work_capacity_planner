@@ -5,7 +5,7 @@ import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import { useState } from 'react'
-import { TaskEdit } from './TaskEdit'
+import { UnifiedTaskEdit } from './UnifiedTaskEdit'
 import { logger } from '@shared/logger'
 
 const { Text } = Typography
@@ -373,7 +373,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       />
 
       {selectedTask && editModalVisible && (
-        <TaskEdit
+        <UnifiedTaskEdit
           task={selectedTask}
           onClose={() => {
             setEditModalVisible(false)

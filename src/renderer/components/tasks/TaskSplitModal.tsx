@@ -57,7 +57,7 @@ export function TaskSplitModal({ task, visible, onClose, onSplit }: TaskSplitMod
         urgency: task.urgency,
         type: task.type,
         asyncWaitTime: 0,
-        dependencies: [],
+        dependencies: task.dependencies || [],
         completed: false,
         sessionId: task.sessionId,
         createdAt: new Date(),
