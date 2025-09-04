@@ -193,7 +193,7 @@ describe('SwimLaneTimeline', () => {
       btn.querySelector('.arco-icon-zoom-in, .arco-icon-zoom-out'),
     )
 
-    expect(zoomButtons.length).toBeGreaterThanOrEqual(4) // 2 for horizontal, 2 for vertical
+    expect(zoomButtons.length).toBeGreaterThanOrEqual(2) // Only horizontal zoom controls now
 
     // Click zoom in for horizontal
     const zoomInButtons = zoomButtons.filter(btn =>
@@ -203,9 +203,9 @@ describe('SwimLaneTimeline', () => {
       fireEvent.click(zoomInButtons[0])
     }
 
-    // Find sliders
+    // Sliders removed in compact design - zoom controls are now just buttons
     const sliders = container.querySelectorAll('.arco-slider')
-    expect(sliders.length).toBe(2) // One for horizontal, one for vertical zoom
+    expect(sliders.length).toBe(0) // No sliders in new compact design
   })
 
   it('deduplicates tasks with same ID', () => {
