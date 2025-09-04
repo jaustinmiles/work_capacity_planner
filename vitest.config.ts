@@ -12,7 +12,7 @@ export default defineConfig({
       'node_modules/**',
       'e2e/**',
       '**/*.e2e.{ts,tsx}',
-      '**/playwright/**'
+      '**/playwright/**',
     ],
     typecheck: {
       tsconfig: './tsconfig.test.json',
