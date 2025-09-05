@@ -1,4 +1,4 @@
-import { Table, Tag, Button, Space, Dropdown, Menu, Typography, Input, Select, Card, List } from '@arco-design/web-react'
+import { Table, Tag, Button, Space, Dropdown, Menu, Typography, Input, Select, Card } from '@arco-design/web-react'
 import { IconEdit, IconDelete, IconCheckCircle, IconClockCircle, IconMore } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { TaskType } from '@shared/enums'
@@ -19,11 +19,11 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [editModalVisible, setEditModalVisible] = useState(false)
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
-  
+
   // Responsive layout detection
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
   const isNarrowScreen = screenWidth < 768 // Below tablet width
-  
+
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth)
     window.addEventListener('resize', handleResize)
@@ -375,7 +375,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
           </Text>
           {getStatusIcon(task)}
         </div>
-        
+
         {/* Key info in compact format */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           <Tag>{task.type}</Tag>
@@ -383,12 +383,12 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
           <Tag color="blue">{task.importance}/{task.urgency}</Tag>
           <Tag color="orange">P{task.importance * task.urgency}</Tag>
         </div>
-        
+
         {/* Actions */}
         <Space>
           <Button size="small" icon={<IconEdit />} onClick={() => handleEdit(task)}>Edit</Button>
-          <Button 
-            size="small" 
+          <Button
+            size="small"
             type={task.completed ? 'default' : 'primary'}
             icon={<IconCheckCircle />}
             onClick={() => handleToggleComplete(task)}
@@ -410,7 +410,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
           </Space>
         </div>
       ) : (
-        // Table layout for wide screens  
+        // Table layout for wide screens
         <Table
           columns={columns}
           data={tasks}

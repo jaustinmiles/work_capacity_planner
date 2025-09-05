@@ -496,24 +496,24 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   }
 
   return (
-    <Space 
-      direction="vertical" 
-      style={{ 
+    <Space
+      direction="vertical"
+      style={{
         width: '100%',
         minWidth: 400, // Prevent catastrophic narrowing that breaks text rendering
-      }} 
+      }}
       size="large"
     >
       {/* Header with Add Task Button and Zoom Controls */}
       <Card>
         <Space style={{ width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ 
+          <div style={{
             minWidth: 300, // Prevent extreme narrowing that causes character wrapping
             flex: '1 1 auto', // Allow growth but maintain minimum width
           }}>
-            <Title 
-              heading={5} 
-              style={{ 
+            <Title
+              heading={5}
+              style={{
                 margin: 0,
                 whiteSpace: 'nowrap', // Force single line
                 overflow: 'hidden',
@@ -523,11 +523,11 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             >
               Eisenhower Priority Matrix
             </Title>
-            <Text 
+            <Text
               type="secondary"
               style={{
                 whiteSpace: 'nowrap',
-                overflow: 'hidden', 
+                overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 display: 'block',
                 maxWidth: 400, // Prevent subtitle from getting too wide
