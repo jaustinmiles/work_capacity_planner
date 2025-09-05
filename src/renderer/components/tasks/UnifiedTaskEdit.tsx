@@ -140,11 +140,17 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           urgency: step.urgency,
         }))
 
+        // CRITICAL FIX: Ensure deadline is proper Date object for Prisma
+        const deadlineForSave = editedTask.deadline 
+          ? (editedTask.deadline instanceof Date ? editedTask.deadline : new Date(editedTask.deadline))
+          : null
+
         logger.ui.info('Saving workflow with deadline', {
           workflowId: task.id,
           deadlineValue: editedTask.deadline,
           deadlineType: typeof editedTask.deadline,
-          deadlineString: editedTask.deadline ? editedTask.deadline.toString() : 'null',
+          deadlineForSave: deadlineForSave,
+          deadlineISO: deadlineForSave ? deadlineForSave.toISOString() : 'null',
         })
 
         await updateSequencedTask(task.id, {
@@ -153,7 +159,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           urgency: editedTask.urgency,
           type: editedTask.type,
           notes: editedTask.notes,
-          deadline: editedTask.deadline,
+          deadline: deadlineForSave,
           steps: cleanedSteps,
           duration: totalDuration,
           criticalPathDuration,
