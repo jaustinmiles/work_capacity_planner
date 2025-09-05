@@ -279,7 +279,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Use the scheduler to get properly ordered items
   // Include refreshKey in dependencies to force recalculation when time changes
   const scheduledItems = useMemo(() => {
-    logger.ganttChart.info('🏗️ [GANTT] Starting schedule calculation', {
+    logger.ui.info('🏗️ [GANTT] Starting schedule calculation', {
       workPatternsCount: workPatterns.length,
       tasksCount: tasks.length,
       sequencedTasksCount: sequencedTasks.length,
@@ -288,7 +288,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     })
 
     if (workPatterns.length === 0) {
-      logger.ganttChart.warn('⚠️ [GANTT] No work patterns available, returning empty schedule')
+      logger.ui.warn('⚠️ [GANTT] No work patterns available, returning empty schedule')
       return []
     }
 
@@ -296,7 +296,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const tasksWithDeadlines = tasks.filter(task => task.deadline)
     const workflowsWithDeadlines = sequencedTasks.filter(workflow => workflow.deadline)
 
-    logger.ganttChart.info('📋 [GANTT] Input data analysis', {
+    logger.ui.info('📋 [GANTT] Input data analysis', {
       totalTasks: tasks.length,
       tasksWithDeadlines: tasksWithDeadlines.length,
       totalWorkflows: sequencedTasks.length,
@@ -308,7 +308,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     // Check if we have a saved optimal schedule
     const savedSchedule = getOptimalSchedule()
     if (savedSchedule && savedSchedule.length > 0) {
-      logger.ganttChart.info(`💾 [GANTT] Using saved optimal schedule with ${savedSchedule.length} items`, {
+      logger.ui.info(`💾 [GANTT] Using saved optimal schedule with ${savedSchedule.length} items`, {
         itemsWithDeadlines: savedSchedule.filter((item: any) => item.deadline).length,
         savedScheduleItems: savedSchedule.slice(0, 5).map((item: any) => ({
           name: item.name,
@@ -416,7 +416,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       dayjs(item.endTime).isAfter(dayjs(item.deadline)),
     )
 
-    logger.ganttChart.info('✅ [GANTT] Schedule calculation complete', {
+    logger.ui.info('✅ [GANTT] Schedule calculation complete', {
       totalScheduledItems: result.scheduledItems.length,
       itemsWithDeadlines: finalItemsWithDeadlines.length,
       violatedDeadlines: violatedDeadlines.length,
@@ -1399,7 +1399,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
 
                 // Check for deadline violation with extensive logging
-                logger.ganttChart.debug('🔍 [DEADLINE] Checking deadline for item', {
+                logger.ui.debug('🔍 [DEADLINE] Checking deadline for item', {
                   itemId: item.id,
                   itemName: item.name,
                   hasDeadline: !!item.deadline,
@@ -1417,7 +1417,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   const endTimeDate = dayjs(item.endTime)
                   const delayMinutes = endTimeDate.diff(deadlineDate, 'minutes')
 
-                  logger.ganttChart.info('📅 [DEADLINE] Item has deadline', {
+                  logger.ui.info('📅 [DEADLINE] Item has deadline', {
                     itemId: item.id,
                     itemName: item.name,
                     deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
@@ -1430,7 +1430,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   })
 
                   if (isDeadlineViolated) {
-                    logger.ganttChart.warn('🚨 [DEADLINE] VIOLATION DETECTED!', {
+                    logger.ui.warn('🚨 [DEADLINE] VIOLATION DETECTED!', {
                       itemId: item.id,
                       itemName: item.name,
                       deadline: deadlineDate.format('YYYY-MM-DD HH:mm:ss'),
@@ -1445,7 +1445,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       violationType: item.workflowId ? 'WORKFLOW_DEADLINE' : 'TASK_DEADLINE',
                     })
                   } else {
-                    logger.ganttChart.debug('✅ [DEADLINE] On time', {
+                    logger.ui.debug('✅ [DEADLINE] On time', {
                       itemId: item.id,
                       itemName: item.name,
                       deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
