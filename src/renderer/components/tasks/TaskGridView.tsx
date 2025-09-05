@@ -22,7 +22,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
 
   // Responsive layout detection
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
-  const isNarrowScreen = screenWidth < 768 // Below tablet width
+  const isNarrowScreen = screenWidth < 1400 // Show cards below large desktop to prevent grid catastrophe
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth)
