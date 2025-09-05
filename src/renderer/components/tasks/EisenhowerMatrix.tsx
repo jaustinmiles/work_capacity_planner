@@ -281,7 +281,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
       const scannedTaskIds = new Set<string>()
       let startTime: number | null = null
-      const animationDuration = 8000 // 8 seconds for full scan
+      const animationDuration = 4000 // 4 seconds for full scan - faster!
       const scanThreshold = 30 // Pixels distance to consider "hit" by scan line
 
       // Use allItemsForScatter when in scatter view to include steps
@@ -291,9 +291,21 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         if (!startTime) startTime = timestamp
         const elapsed = timestamp - startTime
 
-        // Calculate progress (0 to 1)
-        const progress = Math.min(elapsed / animationDuration, 1)
+        // Calculate progress (0 to 2.0) - MUST reach bottom-left corner (0,0) Eisenhower coordinates
+        // which is at (0%, 100%) SVG coordinates, requiring progress = 2.0
+        const rawProgress = elapsed / animationDuration
+        const progress = Math.min(rawProgress, 2.0) // Continue until line reaches (0%, 100%)
         setScanProgress(progress)
+
+        // Debug logging for animation progress
+        if (progress % 0.1 < 0.02) { // Log every ~10% progress
+          logger.debug('Diagonal scan progress', {
+            progress: Math.round(progress * 100) / 100,
+            elapsed: elapsed,
+            duration: animationDuration,
+            scannedCount: scannedTaskIds.size,
+          })
+        }
 
         // Find tasks that are currently hit by the scan line
         let currentHighlightedTask: Task | null = null
@@ -326,9 +338,16 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
           setHighlightedTaskId(null)
         }
 
-        if (progress < 1) {
+        if (progress < 2.0) { // Run until line reaches bottom-left corner (0%, 100%)
           scanAnimationRef.current = window.requestAnimationFrame(animate)
         } else {
+          // Animation complete - log final results
+          logger.info('Diagonal scan completed', {
+            totalScanned: scannedTaskIds.size,
+            animationDuration: elapsed,
+            finalProgress: progress,
+          })
+
           // Keep list visible when complete - don't reset
           setIsScanning(false)
           setScanProgress(0)
@@ -866,39 +885,14 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                     </linearGradient>
                   </defs>
                   <line
-                    x1={`${100 * (1 - scanProgress)}%`}
-                    y1="0%"
-                    x2="100%"
-                    y2={`${100 * scanProgress}%`}
+                    x1={`${100 * (1 - scanProgress)}%`} // Moving start point (sweeps left to right)
+                    y1="0%"                              // Top edge
+                    x2="100%"                            // Right edge (fixed)
+                    y2={`${100 * scanProgress}%`}        // Moving down (sweeps top to bottom)
                     stroke="url(#scan-gradient)"
                     strokeWidth="3"
                     strokeLinecap="round"
                   />
-                  {/* Scanning wave effect - responsive */}
-                  <circle
-                    cx={`${100 - (100 * scanProgress)}%`}
-                    cy={`${100 * scanProgress}%`}
-                    r="3%"
-                    fill="none"
-                    stroke="#165DFF"
-                    strokeWidth="2"
-                    opacity={0.6}
-                  >
-                    <animate
-                      attributeName="r"
-                      from="2%"
-                      to="6%"
-                      dur="1s"
-                      repeatCount="indefinite"
-                    />
-                    <animate
-                      attributeName="opacity"
-                      from="0.8"
-                      to="0"
-                      dur="1s"
-                      repeatCount="indefinite"
-                    />
-                  </circle>
                 </svg>
               </div>
             )}

@@ -1,6 +1,46 @@
 # Technical Debt Inventory
 
-## ✅ Recently Resolved Issues (PR #55 - 2025-09-04)
+## 🚨 High Priority Issues (PR #57 Review - 2025-09-04)
+
+### Reverse Dependency Integrity (CRITICAL)
+**Status**: 🚧 Identified in PR #57 review
+- **Problem**: Task splitting doesn't update reverse dependencies
+- **Impact**: Tasks depending on split tasks point to non-existent IDs
+- **Example**: Task A depends on Task B → Split Task B → Task A still depends on "Task B" (deleted)
+- **Solution**: Update all reverse dependencies to point to final split part
+- **Components**: TaskSplitModal, StepSplitModal
+
+### Component Architecture Violations
+**Status**: 🚧 Technical debt identified
+- **EisenhowerMatrix.tsx**: 1500+ lines, violates single responsibility
+- **Needs**: Separation into Grid/Scatter/Container components
+- **Impact**: Maintenance burden, review difficulty
+- **Priority**: Medium (functionality works, but hard to maintain)
+
+## ✅ Recently Resolved Issues (PR #57 - 2025-09-04)
+
+### Critical Workflow Editing Regression - FIXED
+**Status**: ✅ Resolved in PR #57
+- **Problem**: UnifiedTaskEdit missing DependencyEditor, save persistence
+- **Impact**: Workflow editing completely broken (no dependencies, steps don't save)
+- **Solution**: Copied working code from removed SequencedTaskEdit.tsx
+- **Result**: Full workflow functionality restored with comprehensive logging
+
+### Diagonal Scan Animation Issues - FIXED  
+**Status**: ✅ Resolved in PR #57
+- **Problem**: Animation stopped at visible axes (5,5) instead of corner (0,0)
+- **Impact**: Low priority tasks never scanned
+- **Solution**: Extended progress to 2.0, removed confusing circle
+- **Result**: Full matrix coverage, 4-second smooth sweep
+
+### Responsive Design Catastrophe - FIXED
+**Status**: ✅ Resolved in PR #59
+- **Problem**: App unusable at 960px width (split-screen development blocked)
+- **Impact**: Character-breaking text, fixed sidebar taking 40% of screen
+- **Solution**: Auto-collapse sidebar, responsive grids, text overflow fixes
+- **Result**: Full functionality preserved at half-screen width
+
+## ✅ Previously Resolved Issues (PR #55 - 2025-09-04)
 
 ### Responsive Design Implementation - COMPLETED
 **Status**: ✅ Merged in PR #55
