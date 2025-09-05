@@ -123,7 +123,11 @@ export enum AIProcessingMode {
  * ```
  */
 export function assertNever(value: never): never {
-  throw new Error(`Unexpected value: ${value}`)
+  // Provide a more helpful error message for debugging
+  const displayValue = typeof value === 'object' && value !== null
+    ? JSON.stringify(value, null, 2)
+    : String(value)
+  throw new Error(`Unexpected value: ${displayValue}`)
 }
 
 /**
