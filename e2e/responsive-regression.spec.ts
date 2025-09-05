@@ -53,13 +53,13 @@ test.describe('Responsive Design Regression Prevention', () => {
         // Should use table layout or show empty state
         const table = page.locator('.arco-table')
         const emptyState = page.locator('.arco-empty')
-        
+
         // Either table or empty state should be visible
         const hasTable = await table.count() > 0
         const hasEmpty = await emptyState.count() > 0
-        
+
         expect(hasTable || hasEmpty).toBe(true)
-        
+
         if (hasTable) {
           await expect(table).toBeVisible()
           // Table should have headers
