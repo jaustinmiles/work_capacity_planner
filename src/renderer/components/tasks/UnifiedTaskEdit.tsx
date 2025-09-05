@@ -182,6 +182,9 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
       type: step.type,
       notes: step.notes || '',
       cognitiveComplexity: step.cognitiveComplexity || 1,
+      // Step-level priority fields
+      importance: step.importance || undefined, // Show as empty if null to allow inheritance
+      urgency: step.urgency || undefined,
     })
     setShowStepModal(true)
   }
@@ -723,6 +726,16 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
             <FormItem field="cognitiveComplexity" label="Cognitive Complexity (1-5)">
               <InputNumber min={1} max={5} style={{ width: '100%' }} />
             </FormItem>
+
+            {/* Step-level priority fields */}
+            <FormItem field="importance" label="Importance (1-10)" tooltip="Step-specific importance (overrides workflow default)">
+              <InputNumber min={1} max={10} placeholder="Inherit from workflow" style={{ width: '100%' }} />
+            </FormItem>
+
+            <FormItem field="urgency" label="Urgency (1-10)" tooltip="Step-specific urgency (overrides workflow default)">
+              <InputNumber min={1} max={10} placeholder="Inherit from workflow" style={{ width: '100%' }} />
+            </FormItem>
+
             <FormItem field="notes" label="Notes">
               <TextArea placeholder="Optional notes" autoSize={{ minRows: 2, maxRows: 4 }} />
             </FormItem>

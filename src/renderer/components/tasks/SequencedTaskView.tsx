@@ -149,8 +149,12 @@ export function SequencedTaskView({
 
               <Progress
                 percent={progressPercent}
-                formatText={() => `${completedSteps}/${totalSteps} steps complete`}
-                style={{ width: 400 }}
+                formatText={() => `${completedSteps}/${totalSteps}`} // Shorter text to prevent overflow
+                style={{
+                  width: '100%', // Use available width instead of fixed 400px
+                  maxWidth: 400, // But cap at 400px on larger screens
+                  minWidth: 150, // Minimum width for readability
+                }}
               />
             </Space>
           </Col>
@@ -269,35 +273,41 @@ export function SequencedTaskView({
             <Space direction="vertical" style={{ width: '100%' }} size="large">
               {/* Summary Statistics */}
               <Card>
-                <Row gutter={16}>
-                  <Col span={6}>
+                <Row gutter={[16, 16]}> {/* Add vertical gutters for wrapping */}
+                  <Col xs={24} sm={12} md={6} lg={6} xl={6}> {/* Responsive columns */}
                     <Statistic
                       title="Total Duration"
                       value={formatDuration(task.duration)}
                       prefix={<IconClockCircle />}
                     />
                   </Col>
-                  <Col span={6}>
+                  <Col xs={24} sm={12} md={6} lg={6} xl={6}> {/* Responsive columns */}
                     <div style={{ color: Object.values(stepTimeLogs).reduce((sum, time) => sum + time, 0) > 0 ? '#00B42A' : undefined }}>
                       <Statistic
-                        title="Time Logged"
+                        title="Logged" // Shorter for mobile
                         value={formatDuration(Object.values(stepTimeLogs).reduce((sum, time) => sum + time, 0))}
                         prefix={<IconHistory />}
                       />
                     </div>
                   </Col>
-                  <Col span={6}>
+                  <Col xs={24} sm={12} md={6} lg={6} xl={6}> {/* Responsive columns */}
                     <Statistic
-                      title="Critical Path"
+                      title="Path" // Shorter for mobile
                       value={formatDuration(task.criticalPathDuration)}
                       prefix={<IconCalendar />}
                     />
                   </Col>
-                  <Col span={6}>
+                  <Col xs={24} sm={12} md={6} lg={6} xl={6}> {/* Responsive columns */}
                     <Statistic
-                      title="Est. Completion"
-                      value={calculateEstimatedCompletionTime().toLocaleDateString()}
-                      suffix={calculateEstimatedCompletionTime().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      title="Due" // Much shorter for mobile
+                      value={calculateEstimatedCompletionTime().toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })} // Shorter date format: "Sep 4" instead of "9/4/2025"
+                      suffix={calculateEstimatedCompletionTime().toLocaleTimeString([], {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })} // Shorter time format: "3:45 PM" instead of "03:45 PM"
                     />
                   </Col>
                 </Row>
@@ -391,12 +401,32 @@ export function SequencedTaskView({
                       style={{ marginBottom: 8 }}
                       strokeWidth={8}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text type="secondary">
-                        {completedSteps} of {totalSteps} steps completed
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap', // Allow wrapping on narrow screens
+                      gap: 8, // Add space between wrapped items
+                    }}>
+                      <Text
+                        type="secondary"
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          minWidth: 0,
+                        }}
+                      >
+                        {completedSteps}/{totalSteps} steps {/* Shorter format */}
                       </Text>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {Math.round(progressPercent)}% complete
+                      <Text
+                        type="secondary"
+                        style={{
+                          fontSize: 12,
+                          whiteSpace: 'nowrap', // Prevent % breaking from "complete"
+                        }}
+                      >
+                        {Math.round(progressPercent)}%
                       </Text>
                     </div>
                   </div>
