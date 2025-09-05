@@ -528,7 +528,7 @@ function App() {
             onClickMenuItem={(key) => setActiveView(key as any)}
             style={{ marginTop: 20 }}
           >
-            <MenuItem key="tasks">
+            <MenuItem key="tasks" data-testid="nav-tasks">
               <Tooltip
                 content="Task List"
                 position="right"
@@ -543,7 +543,7 @@ function App() {
                 </Space>
               </Tooltip>
             </MenuItem>
-            <MenuItem key="matrix">
+            <MenuItem key="matrix" data-testid="nav-matrix">
               <Tooltip
                 content="Eisenhower Matrix"
                 position="right"
@@ -555,7 +555,7 @@ function App() {
                 </Space>
               </Tooltip>
             </MenuItem>
-            <MenuItem key="calendar">
+            <MenuItem key="calendar" data-testid="nav-calendar">
               <Tooltip
                 content="Calendar"
                 position="right"
@@ -567,7 +567,7 @@ function App() {
                 </Space>
               </Tooltip>
             </MenuItem>
-            <MenuItem key="workflows">
+            <MenuItem key="workflows" data-testid="nav-workflows">
               <Tooltip
                 content="Workflows"
                 position="right"
@@ -582,7 +582,7 @@ function App() {
                 </Space>
               </Tooltip>
             </MenuItem>
-            <MenuItem key="timeline">
+            <MenuItem key="timeline" data-testid="nav-timeline">
               <Tooltip
                 content="Timeline"
                 position="right"
