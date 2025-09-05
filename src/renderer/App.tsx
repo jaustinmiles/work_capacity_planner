@@ -712,9 +712,8 @@ function App() {
             padding: screenWidth < 768 ? 12 : 24, // Less padding on mobile
             background: '#F7F8FA',
             overflow: 'auto',
-            minWidth: 0, // Critical: allow flex shrinking
-            flex: 1, // Take remaining space
-            // Responsive padding and max-width
+            minWidth: 320, // CRITICAL FIX: Prevent extreme narrowing causing text breaking
+            flex: 1, // Take remaining space  
             maxWidth: '100%',
           }}>
             {error && (

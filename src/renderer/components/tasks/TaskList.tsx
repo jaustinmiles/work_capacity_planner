@@ -86,7 +86,16 @@ export function TaskList({ onAddTask }: TaskListProps) {
       <Card>
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
-            <Title heading={6} style={{ margin: 0 }}>Task Overview</Title>
+            <Title 
+              heading={6} 
+              style={{ 
+                margin: 0,
+                whiteSpace: 'nowrap', // Prevent character-breaking
+                minWidth: 120, // Ensure adequate space
+              }}
+            >
+              Task Overview
+            </Title>
             <Tag color="blue">
               <IconClockCircle /> {incompleteTasks.length} Active
             </Tag>
@@ -107,7 +116,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space style={{ alignItems: 'center' }}>
             <IconFilter style={{ fontSize: 16 }} />
-            <Text>Filter by Type:</Text>
+            <Text style={{ whiteSpace: 'nowrap', minWidth: 100 }}>Filter by Type:</Text>
             <Select
               value={taskTypeFilter}
               onChange={(value) => {
