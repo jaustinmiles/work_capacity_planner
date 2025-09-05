@@ -544,13 +544,13 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               size="small"
             >
               <Radio value="grid">
-                <IconApps /> {useContainerQuery ? 'Grid' : ''}
+                <IconApps /> {containerWidth > 500 ? 'Grid' : ''}
               </Radio>
               <Radio value="scatter">
-                <IconDragDot /> {useContainerQuery ? 'Scatter' : ''}
+                <IconDragDot /> {containerWidth > 500 ? 'Scatter' : ''}
               </Radio>
             </Radio.Group>
-            
+
             {viewMode === 'scatter' && (
               <Button
                 type={isScanning ? 'primary' : 'default'}
@@ -562,7 +562,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 {isScanning ? 'Scan...' : 'Scan'}
               </Button>
             )}
-            
+
             {/* Zoom controls - only in grid view, hidden on very narrow screens */}
             {viewMode === 'grid' && containerWidth > 400 && (
               <Space>
@@ -579,7 +579,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                 <Button icon={<IconZoomIn />} size="small" onClick={() => setZoom(Math.min(2, zoom + 0.1))} />
               </Space>
             )}
-            
+
             {/* Add Task - only in grid view, makes no sense in scatter plot */}
             {viewMode === 'grid' && (
               <Button type="primary" icon={<IconPlus />} onClick={onAddTask} size="small">
