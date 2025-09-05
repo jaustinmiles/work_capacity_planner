@@ -281,7 +281,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
       const scannedTaskIds = new Set<string>()
       let startTime: number | null = null
-      const animationDuration = 8000 // 8 seconds for full scan
+      const animationDuration = 4000 // 4 seconds for full scan - faster!
       const scanThreshold = 30 // Pixels distance to consider "hit" by scan line
 
       // Use allItemsForScatter when in scatter view to include steps
