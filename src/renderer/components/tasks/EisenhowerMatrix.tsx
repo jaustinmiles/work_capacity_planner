@@ -294,11 +294,11 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         // Calculate progress (0 to 1.5) - extends past 1.0 so line center reaches corner
         const rawProgress = elapsed / animationDuration
         const progress = Math.min(rawProgress, 1.5) // Allow overshoot for center calculation
-        
+
         // Visual progress for SVG (capped at 1.0)
         const visualProgress = Math.min(progress, 1.0)
         setScanProgress(visualProgress)
-        
+
         // Debug logging for animation progress
         if (progress % 0.1 < 0.02) { // Log every ~10% progress
           logger.debug('Diagonal scan progress', {
@@ -349,7 +349,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
             animationDuration: elapsed,
             finalProgress: progress,
           })
-          
+
           // Keep list visible when complete - don't reset
           setIsScanning(false)
           setScanProgress(0)
