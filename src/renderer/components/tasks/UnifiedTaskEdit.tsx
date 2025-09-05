@@ -717,6 +717,11 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
             <FormItem field="duration" label="Duration (minutes)" required>
               <InputNumber min={1} style={{ width: '100%' }} />
             </FormItem>
+            
+            <FormItem field="asyncWaitTime" label="Async Wait Time (minutes)" tooltip="Time to wait for async operations">
+              <InputNumber min={0} placeholder="0 (no async wait)" style={{ width: '100%' }} />
+            </FormItem>
+            
             <FormItem field="type" label="Type">
               <Select style={{ width: '100%' }}>
                 <Select.Option value={TaskType.Focused}>Focused</Select.Option>
@@ -735,10 +740,6 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
             <FormItem field="urgency" label="Urgency (1-10)" tooltip="Step-specific urgency (overrides workflow default)">
               <InputNumber min={1} max={10} placeholder="Inherit from workflow" style={{ width: '100%' }} />
-            </FormItem>
-
-            <FormItem field="asyncWaitTime" label="Async Wait Time (minutes)" tooltip="Time to wait for async operations">
-              <InputNumber min={0} placeholder="0 (no async wait)" style={{ width: '100%' }} />
             </FormItem>
 
             <FormItem field="notes" label="Notes">
