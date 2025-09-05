@@ -157,6 +157,19 @@ export function TaskQuickEditModal({
     }
     return { ...currentItem.data, ...currentChanges }
   }
+
+  // Get default values with workflow inheritance for steps
+  const getDefaultValue = (field: 'importance' | 'urgency') => {
+    if (!currentItem) return 5
+    if (currentItem.type === 'step' && currentItem.workflow) {
+      // For steps, use step value if exists, otherwise inherit from workflow
+      const stepValue = editedData?.[field]
+      const workflowValue = currentItem.workflow[field]
+      return stepValue || workflowValue || 5
+    }
+    // For regular tasks, use task value or default to 5
+    return editedData?.[field] || 5
+  }
   const editedData = getEditedData()
 
   // Keyboard navigation
@@ -559,7 +572,7 @@ export function TaskQuickEditModal({
                 <IconFire /> Importance
               </Text>
               <Select
-                value={editedData?.importance || 5}
+                value={getDefaultValue('importance')}
                 onChange={(value) => updateField('importance', value)}
                 style={{ width: 80 }}
                 size="small"
@@ -599,7 +612,7 @@ export function TaskQuickEditModal({
                 <IconThunderbolt /> Urgency
               </Text>
               <Select
-                value={editedData?.urgency || 5}
+                value={getDefaultValue('urgency')}
                 onChange={(value) => updateField('urgency', value)}
                 style={{ width: 80 }}
                 size="small"
