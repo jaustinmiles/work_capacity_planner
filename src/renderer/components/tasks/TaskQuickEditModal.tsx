@@ -55,8 +55,10 @@ interface ItemChanges {
   steps: { [stepId: string]: Partial<TaskStep> }
 }
 
-// Duration presets in minutes
+// Duration presets in minutes - optimized for dogfooding  
 const DURATION_PRESETS = [
+  { label: '5m', value: 5 },   // Quick tasks for dogfooding
+  { label: '10m', value: 10 }, // Short tasks for dogfooding
   { label: '15m', value: 15 },
   { label: '30m', value: 30 },
   { label: '1h', value: 60 },
@@ -531,10 +533,12 @@ export function TaskQuickEditModal({
           </Radio.Group>
           <Slider
             value={editedData?.duration || 0}
-            min={15}
+            min={5}  // Support 5-minute tasks for dogfooding
             max={480}
-            step={15}
+            step={5}  // Finer granularity for quick tasks
             marks={{
+              5: '5m',   // Quick task
+              10: '10m', // Short task
               15: '15m',
               60: '1h',
               120: '2h',
