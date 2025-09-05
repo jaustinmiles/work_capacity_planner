@@ -281,8 +281,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const scheduledItems = useMemo(() => {
     logger.ganttChart.info('🏗️ [GANTT] Starting schedule calculation', {
       workPatternsCount: workPatterns.length,
-      allTasksCount: allTasks.length,
-      activeWorkflowsCount: activeWorkflows.length,
+      tasksCount: tasks.length,
+      sequencedTasksCount: sequencedTasks.length,
       refreshKey,
       currentTime: getCurrentTime().toISOString(),
     })
@@ -293,13 +293,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     }
 
     // Log all tasks with their deadline status
-    const tasksWithDeadlines = allTasks.filter(task => task.deadline)
-    const workflowsWithDeadlines = activeWorkflows.filter(workflow => workflow.deadline)
-    
+    const tasksWithDeadlines = tasks.filter(task => task.deadline)
+    const workflowsWithDeadlines = sequencedTasks.filter(workflow => workflow.deadline)
+
     logger.ganttChart.info('📋 [GANTT] Input data analysis', {
-      totalTasks: allTasks.length,
+      totalTasks: tasks.length,
       tasksWithDeadlines: tasksWithDeadlines.length,
-      totalWorkflows: activeWorkflows.length,
+      totalWorkflows: sequencedTasks.length,
       workflowsWithDeadlines: workflowsWithDeadlines.length,
       deadlineTaskNames: tasksWithDeadlines.map(t => ({ name: t.name, deadline: t.deadline })),
       deadlineWorkflowNames: workflowsWithDeadlines.map(w => ({ name: w.name, deadline: w.deadline })),
@@ -412,8 +412,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
     // Log final schedule results with deadline analysis
     const finalItemsWithDeadlines = result.scheduledItems.filter(item => item.deadline)
-    const violatedDeadlines = finalItemsWithDeadlines.filter(item => 
-      dayjs(item.endTime).isAfter(dayjs(item.deadline))
+    const violatedDeadlines = finalItemsWithDeadlines.filter(item =>
+      dayjs(item.endTime).isAfter(dayjs(item.deadline)),
     )
 
     logger.ganttChart.info('✅ [GANTT] Schedule calculation complete', {
@@ -1416,7 +1416,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   const deadlineDate = dayjs(item.deadline)
                   const endTimeDate = dayjs(item.endTime)
                   const delayMinutes = endTimeDate.diff(deadlineDate, 'minutes')
-                  
+
                   logger.ganttChart.info('📅 [DEADLINE] Item has deadline', {
                     itemId: item.id,
                     itemName: item.name,
@@ -1437,8 +1437,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       actualEnd: endTimeDate.format('YYYY-MM-DD HH:mm:ss'),
                       delayMinutes,
                       delayHours: Math.floor(delayMinutes / 60),
-                      delayText: delayMinutes >= 60 
-                        ? `${Math.floor(delayMinutes / 60)}h ${delayMinutes % 60}m` 
+                      delayText: delayMinutes >= 60
+                        ? `${Math.floor(delayMinutes / 60)}h ${delayMinutes % 60}m`
                         : `${delayMinutes}m`,
                       isWorkflow: !!item.workflowId,
                       workflowName: item.workflowName,
