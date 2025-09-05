@@ -273,6 +273,39 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
     setSteps(reindexed)
   }
 
+  const handleStepToggleComplete = (step: TaskStep) => {
+    const newStatus = step.status === StepStatus.Completed ? StepStatus.Pending : StepStatus.Completed
+    
+    logger.ui.info('Toggling step completion', {
+      stepId: step.id,
+      stepName: step.name,
+      oldStatus: step.status,
+      newStatus: newStatus,
+    })
+
+    // Update step status in local state
+    const updatedSteps = steps.map(s => 
+      s.id === step.id ? { ...s, status: newStatus } : s
+    )
+    setSteps(updatedSteps)
+
+    // Save to database immediately
+    if (isWorkflow && sequencedTask) {
+      const cleanedSteps = updatedSteps.map((step, index) => ({
+        ...step,
+        stepIndex: index,
+        dependsOn: step.dependsOn || [],
+      }))
+
+      updateSequencedTask(task.id, {
+        ...editedTask,
+        steps: cleanedSteps,
+      }).catch(error => {
+        logger.ui.error('Failed to save step completion status:', error)
+      })
+    }
+  }
+
   const handleStepMove = (index: number, direction: 'up' | 'down') => {
     const newSteps = [...steps]
     const targetIndex = direction === 'up' ? index - 1 : index + 1
@@ -494,6 +527,15 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
                         size="small"
                         onClick={() => handleStepEdit(step)}
                       />,
+                      <Button
+                        key="complete"
+                        icon={<IconCheckCircle />}
+                        size="small"
+                        type={step.status === StepStatus.Completed ? 'default' : 'primary'}
+                        onClick={() => handleStepToggleComplete(step)}
+                      >
+                        {step.status === StepStatus.Completed ? 'Reopen' : 'Complete'}
+                      </Button>,
                       <Button
                         key="split"
                         icon={<IconScissor />}
