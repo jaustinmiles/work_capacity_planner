@@ -1,10 +1,10 @@
-import { Table, Tag, Button, Space, Dropdown, Menu, Typography, Input, Select } from '@arco-design/web-react'
+import { Table, Tag, Button, Space, Dropdown, Menu, Typography, Input, Select, Card, List } from '@arco-design/web-react'
 import { IconEdit, IconDelete, IconCheckCircle, IconClockCircle, IconMore } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
 import { logger } from '@shared/logger'
 
@@ -19,6 +19,16 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [editModalVisible, setEditModalVisible] = useState(false)
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
+  
+  // Responsive layout detection
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth)
+  const isNarrowScreen = screenWidth < 768 // Below tablet width
+  
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const handleToggleComplete = async (task: Task) => {
     try {
@@ -354,23 +364,69 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
     },
   ]
 
+  // Responsive card component for narrow screens
+  const renderTaskCard = (task: Task) => (
+    <Card key={task.id} style={{ marginBottom: 8 }}>
+      <Space direction="vertical" style={{ width: '100%' }} size="small">
+        {/* Task name and status */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ fontWeight: 500, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {task.name}
+          </Text>
+          {getStatusIcon(task)}
+        </div>
+        
+        {/* Key info in compact format */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <Tag>{task.type}</Tag>
+          <Tag>{task.duration}m</Tag>
+          <Tag color="blue">{task.importance}/{task.urgency}</Tag>
+          <Tag color="orange">P{task.importance * task.urgency}</Tag>
+        </div>
+        
+        {/* Actions */}
+        <Space>
+          <Button size="small" icon={<IconEdit />} onClick={() => handleEdit(task)}>Edit</Button>
+          <Button 
+            size="small" 
+            type={task.completed ? 'default' : 'primary'}
+            icon={<IconCheckCircle />}
+            onClick={() => handleToggleComplete(task)}
+          >
+            {task.completed ? 'Reopen' : 'Complete'}
+          </Button>
+        </Space>
+      </Space>
+    </Card>
+  )
+
   return (
     <>
-      <Table
-        columns={columns}
-        data={tasks}
-        rowKey="id"
-        pagination={{
-          pageSize: 20,
-          showTotal: true,
-          showJumper: true,
-          sizeOptions: [10, 20, 50, 100],
-        }}
-        size="small"
-        stripe
-        border
-        scroll={{ x: true }}
-      />
+      {isNarrowScreen ? (
+        // Card layout for narrow screens - PREVENTS TABLE CATASTROPHE
+        <div style={{ minWidth: 300 }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {tasks.map(renderTaskCard)}
+          </Space>
+        </div>
+      ) : (
+        // Table layout for wide screens  
+        <Table
+          columns={columns}
+          data={tasks}
+          rowKey="id"
+          pagination={{
+            pageSize: 20,
+            showTotal: true,
+            showJumper: true,
+            sizeOptions: [10, 20, 50, 100],
+          }}
+          size="small"
+          stripe
+          border
+          scroll={{ x: true }}
+        />
+      )}
 
       {selectedTask && editModalVisible && (
         <UnifiedTaskEdit
