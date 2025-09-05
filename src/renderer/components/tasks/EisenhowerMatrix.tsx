@@ -294,6 +294,16 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         // Calculate progress (0 to 1)
         const progress = Math.min(elapsed / animationDuration, 1)
         setScanProgress(progress)
+        
+        // Debug logging for animation progress
+        if (progress % 0.1 < 0.02) { // Log every ~10% progress
+          logger.debug('Diagonal scan progress', {
+            progress: Math.round(progress * 100) / 100,
+            elapsed: elapsed,
+            duration: animationDuration,
+            scannedCount: scannedTaskIds.size,
+          })
+        }
 
         // Find tasks that are currently hit by the scan line
         let currentHighlightedTask: Task | null = null
@@ -329,6 +339,13 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         if (progress < 1) {
           scanAnimationRef.current = window.requestAnimationFrame(animate)
         } else {
+          // Animation complete - log final results
+          logger.info('Diagonal scan completed', {
+            totalScanned: scannedTaskIds.size,
+            animationDuration: elapsed,
+            finalProgress: progress,
+          })
+          
           // Keep list visible when complete - don't reset
           setIsScanning(false)
           setScanProgress(0)
@@ -874,31 +891,6 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
                     strokeWidth="3"
                     strokeLinecap="round"
                   />
-                  {/* Scanning wave effect - at scan line endpoint */}
-                  <circle
-                    cx="100%" // Always at the right edge (line endpoint)
-                    cy={`${100 * scanProgress}%`} // Follow the y-position of scan line endpoint
-                    r="3%"
-                    fill="none"
-                    stroke="#165DFF"
-                    strokeWidth="2"
-                    opacity={0.6}
-                  >
-                    <animate
-                      attributeName="r"
-                      from="2%"
-                      to="6%"
-                      dur="1s"
-                      repeatCount="indefinite"
-                    />
-                    <animate
-                      attributeName="opacity"
-                      from="0.8"
-                      to="0"
-                      dur="1s"
-                      repeatCount="indefinite"
-                    />
-                  </circle>
                 </svg>
               </div>
             )}
