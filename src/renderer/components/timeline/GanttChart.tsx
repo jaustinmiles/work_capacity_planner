@@ -7,6 +7,7 @@ import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { scheduleItemsWithBlocksAndDebug, SchedulingDebugInfo } from '../../utils/flexible-scheduler'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
+import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
 import { getDatabase } from '../../services/database'
@@ -1344,6 +1345,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const isHovered = hoveredItem === item.id ||
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
 
+                // Check for deadline violation
+                const isDeadlineViolated = item.deadline &&
+                  dayjs(item.endTime).isAfter(dayjs(item.deadline))
+
                 // Calculate proper position for all items including blocked ones
                 const topPosition = (itemRowPositions.positions.get(item.id) || 0) * rowHeight + 5
 
@@ -1436,7 +1441,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                             : item.color,
                           opacity: isBlocked ? 0.7 : isWaitTime ? 0.5 : (isHovered ? 1 : 0.85),
                           borderRadius: 4,
-                          border: `1px solid ${item.color}`,
+                          border: isDeadlineViolated ? '3px solid #ff4d4f' : `1px solid ${item.color}`,
                           borderStyle: isBlocked ? 'solid' : isWaitTime ? 'dashed' : 'solid',
                           display: 'flex',
                           alignItems: 'center',
@@ -1450,6 +1455,32 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                           boxShadow: isHovered ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
                         }}
                       >
+                        {/* Deadline Violation Badge */}
+                        {item.deadline && !isWaitTime && (() => {
+                          const isViolated = dayjs(item.endTime).isAfter(dayjs(item.deadline))
+                          if (!isViolated) return null
+
+                          // Log deadline violation for debugging
+                          logger.ui.warn('🚨 DEADLINE VIOLATION DETECTED', {
+                            itemId: item.id,
+                            itemName: item.name,
+                            deadline: dayjs(item.deadline).format(),
+                            actualEnd: dayjs(item.endTime).format(),
+                            delayMinutes: dayjs(item.endTime).diff(dayjs(item.deadline), 'minutes'),
+                            isWorkflow: !!item.workflowId,
+                            workflowName: item.workflowName,
+                          })
+
+                          return (
+                            <DeadlineViolationBadge
+                              deadline={item.deadline}
+                              endTime={item.endTime}
+                              isWorkflow={!!item.workflowId}
+                              workflowName={item.workflowName}
+                            />
+                          )
+                        })()}
+
                         {/* Priority indicator */}
                         {!isWaitTime && (
                           <div
