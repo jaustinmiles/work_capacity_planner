@@ -41,9 +41,11 @@ vi.mock('../../common/Message', () => ({
 }))
 
 describe('TaskQuickEditModal', () => {
-  afterEach(() => {
+  afterEach(async () => {
     cleanup()
     vi.clearAllTimers()
+    // Wait for any async operations to complete
+    await new Promise(resolve => setTimeout(resolve, 0))
   })
 
   const mockTasks: Task[] = [
