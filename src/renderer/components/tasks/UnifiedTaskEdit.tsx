@@ -298,7 +298,12 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
       }))
 
       updateSequencedTask(task.id, {
-        ...editedTask,
+        name: editedTask.name,
+        importance: editedTask.importance,
+        urgency: editedTask.urgency,
+        type: editedTask.type,
+        notes: editedTask.notes,
+        deadline: editedTask.deadline,
         steps: cleanedSteps,
       }).catch(error => {
         logger.ui.error('Failed to save step completion status:', error)
