@@ -140,6 +140,13 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           urgency: step.urgency,
         }))
 
+        logger.ui.info('Saving workflow with deadline', {
+          workflowId: task.id,
+          deadlineValue: editedTask.deadline,
+          deadlineType: typeof editedTask.deadline,
+          deadlineString: editedTask.deadline ? editedTask.deadline.toString() : 'null',
+        })
+
         await updateSequencedTask(task.id, {
           name: editedTask.name,
           importance: editedTask.importance,
@@ -420,10 +427,17 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
             {isEditing ? (
               <DatePicker
                 value={editedTask.deadline ? new Date(editedTask.deadline) : undefined}
-                onChange={(value) =>
+                onChange={(value) => {
+                  logger.ui.info('Deadline changed in editor', { 
+                    workflowId: task.id, 
+                    oldDeadline: editedTask.deadline, 
+                    newDeadline: value 
+                  })
                   setEditedTask({ ...editedTask, deadline: value } as any)
-                }
+                }}
                 style={{ width: '100%' }}
+                showTime
+                format="YYYY-MM-DD HH:mm"
               />
             ) : (
               <Text>
