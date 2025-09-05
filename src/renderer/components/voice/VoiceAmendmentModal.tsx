@@ -1100,6 +1100,7 @@ export function VoiceAmendmentModal({
                                 <Text>Step Name:</Text>
                                 <Input
                                   value={edited.stepName || (amendment as StepAddition).stepName || ''}
+                                  placeholder="Enter step name"
                                   onChange={(value) => {
                                     const newEdited = new Map(editedAmendments)
                                     newEdited.set(index, { ...edited, stepName: value })
@@ -1182,7 +1183,8 @@ export function VoiceAmendmentModal({
                             <Space>
                               <Text>New Status:</Text>
                               <Select
-                                value={edited.newStatus || (amendment as StatusUpdate).newStatus}
+                                value={edited.newStatus || (amendment as StatusUpdate).newStatus || 'in_progress'}
+                                placeholder="Select status"
                                 onChange={(value) => {
                                   const newEdited = new Map(editedAmendments)
                                   newEdited.set(index, { ...edited, newStatus: value })
