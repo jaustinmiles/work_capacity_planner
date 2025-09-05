@@ -22,7 +22,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
 
   // Responsive layout detection
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
-  const isNarrowScreen = screenWidth < 1400 // Show cards below large desktop to prevent grid catastrophe
+  const isNarrowScreen = screenWidth < 600 // Only use cards for truly narrow screens (phones)
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth)
@@ -410,9 +410,12 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
           </Space>
         </div>
       ) : (
-        // Table layout for wide screens
+        // Table layout for wide screens with responsive columns
         <Table
-          columns={columns}
+          columns={screenWidth < 900 ? columns.filter(col => 
+            // Hide less important columns on smaller tablets to fit better
+            !['cognitiveComplexity', 'notes'].includes(col.key as string)
+          ) : columns}
           data={tasks}
           rowKey="id"
           pagination={{
@@ -421,10 +424,13 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
             showJumper: true,
             sizeOptions: [10, 20, 50, 100],
           }}
-          size="small"
+          size={screenWidth < 800 ? 'mini' : 'small'} // Smaller table on tablets
           stripe
           border
-          scroll={{ x: true }}
+          scroll={{ x: true, y: 400 }} // Horizontal scroll + vertical for space
+          style={{ 
+            minWidth: 500, // Ensure table has minimum usable width
+          }}
         />
       )}
 
