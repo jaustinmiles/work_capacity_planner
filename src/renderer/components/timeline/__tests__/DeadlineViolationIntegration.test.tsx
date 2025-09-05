@@ -10,7 +10,7 @@ vi.mock('../../../utils/logger')
 
 describe('Deadline Violation Integration', () => {
   it('should display deadline violations with proper styling', () => {
-    const mockTasks = [
+    const _mockTasks = [ // Unused in this test but shows data structure
       {
         id: 'task-1',
         name: 'Overdue Task',
@@ -20,12 +20,12 @@ describe('Deadline Violation Integration', () => {
         importance: 8,
         urgency: 9,
         type: 'focused',
-      }
+      },
     ]
 
-    const mockSequencedTasks = [
+    const _mockSequencedTasks = [ // Unused in this test but shows workflow structure
       {
-        id: 'workflow-1', 
+        id: 'workflow-1',
         name: 'Overdue Workflow',
         deadline: dayjs().subtract(1, 'day').toDate(), // 1 day ago
         hasSteps: true,
@@ -41,19 +41,19 @@ describe('Deadline Violation Integration', () => {
             stepIndex: 0,
             percentComplete: 0,
             actualDuration: 0,
-          }
+          },
         ],
         duration: 30,
         criticalPathDuration: 30,
         worstCaseDuration: 45,
-      }
+      },
     ]
 
     // Mock scheduled items that would show violations
     const mockScheduledItems = [
       {
         id: 'task-1',
-        name: 'Overdue Task', 
+        name: 'Overdue Task',
         startTime: dayjs().subtract(1, 'hour').toDate(),
         endTime: dayjs().add(1, 'hour').toDate(), // Ends after deadline
         deadline: dayjs().subtract(2, 'hours').toDate(),
@@ -69,14 +69,14 @@ describe('Deadline Violation Integration', () => {
         name: '[Overdue Workflow] Late Step',
         startTime: dayjs().add(2, 'hours').toDate(),
         endTime: dayjs().add(2.5, 'hours').toDate(),
-        deadline: dayjs().subtract(1, 'day').toDate(), // Workflow deadline  
+        deadline: dayjs().subtract(1, 'day').toDate(), // Workflow deadline
         duration: 30,
         type: 'workflow-step',
         color: '#7C3AED',
         priority: 45,
         workflowId: 'workflow-1',
         workflowName: 'Overdue Workflow',
-      }
+      },
     ]
 
     // Mock the scheduling function
@@ -88,7 +88,7 @@ describe('Deadline Violation Integration', () => {
           warnings: [],
           blockUtilization: [],
           scheduledItemsPriority: [],
-        }
+        },
       })
 
     render(<GanttChart />)
@@ -103,11 +103,11 @@ describe('Deadline Violation Integration', () => {
     const now = dayjs()
     const deadline = now.subtract(2, 'hours').toDate()
     const endTime = now.add(1, 'hour').toDate()
-    
+
     // Manual calculation: 2 hours past deadline + 1 hour to complete = 3 hours total delay
     const expectedDelayMinutes = 180
     const actualDelay = dayjs(endTime).diff(dayjs(deadline), 'minutes')
-    
+
     expect(actualDelay).toBe(expectedDelayMinutes)
   })
 })
