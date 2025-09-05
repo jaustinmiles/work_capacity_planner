@@ -185,6 +185,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
       // Step-level priority fields
       importance: step.importance || undefined, // Show as empty if null to allow inheritance
       urgency: step.urgency || undefined,
+      asyncWaitTime: step.asyncWaitTime || 0,
     })
     setShowStepModal(true)
   }
@@ -734,6 +735,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
             <FormItem field="urgency" label="Urgency (1-10)" tooltip="Step-specific urgency (overrides workflow default)">
               <InputNumber min={1} max={10} placeholder="Inherit from workflow" style={{ width: '100%' }} />
+            </FormItem>
+
+            <FormItem field="asyncWaitTime" label="Async Wait Time (minutes)" tooltip="Time to wait for async operations">
+              <InputNumber min={0} placeholder="0 (no async wait)" style={{ width: '100%' }} />
             </FormItem>
 
             <FormItem field="notes" label="Notes">
