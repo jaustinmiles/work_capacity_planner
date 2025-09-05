@@ -37,24 +37,24 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
   it('should show diagonal scan button in scatter view', () => {
     renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-    // Switch to scatter view
-    const scatterButton = screen.getByRole('radio', { name: /scatter/i })
+    // Switch to scatter view - use value since text is conditionally rendered
+    const scatterButton = screen.getByDisplayValue('scatter')
     fireEvent.click(scatterButton)
 
     // Check for diagonal scan button
-    const diagonalScanButton = screen.getByRole('button', { name: /diagonal scan/i })
+    const diagonalScanButton = screen.getByRole('button', { name: /scan/i }) // Changed from 'Diagonal Scan' to 'Scan'
     expect(diagonalScanButton).toBeInTheDocument()
   })
 
   it('should start diagonal scan animation when button clicked', async () => {
     renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-    // Switch to scatter view
-    const scatterButton = screen.getByRole('radio', { name: /scatter/i })
+    // Switch to scatter view - use value since text is conditionally rendered
+    const scatterButton = screen.getByDisplayValue('scatter')
     fireEvent.click(scatterButton)
 
     // Click diagonal scan button
-    const diagonalScanButton = screen.getByRole('button', { name: /diagonal scan/i })
+    const diagonalScanButton = screen.getByRole('button', { name: /scan/i }) // Changed from 'Diagonal Scan' to 'Scan'
     fireEvent.click(diagonalScanButton)
 
     // Check for animation indicator
@@ -66,12 +66,12 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
   it('should change button text when scanning starts', () => {
     renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-    // Switch to scatter view
-    const scatterButton = screen.getByRole('radio', { name: /scatter/i })
+    // Switch to scatter view - use value since text is conditionally rendered
+    const scatterButton = screen.getByDisplayValue('scatter')
     fireEvent.click(scatterButton)
 
     // Get diagonal scan button
-    const diagonalScanButton = screen.getByRole('button', { name: /diagonal scan/i })
+    const diagonalScanButton = screen.getByRole('button', { name: /scan/i }) // Changed from 'Diagonal Scan' to 'Scan'
     expect(diagonalScanButton).toBeInTheDocument()
 
     // Start scanning
@@ -84,12 +84,12 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
   it('should display scan line when scanning', async () => {
     renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-    // Switch to scatter view
-    const scatterButton = screen.getByRole('radio', { name: /scatter/i })
+    // Switch to scatter view - use value since text is conditionally rendered
+    const scatterButton = screen.getByDisplayValue('scatter')
     fireEvent.click(scatterButton)
 
     // Start diagonal scan
-    const diagonalScanButton = screen.getByRole('button', { name: /diagonal scan/i })
+    const diagonalScanButton = screen.getByRole('button', { name: /scan/i }) // Changed from 'Diagonal Scan' to 'Scan'
     fireEvent.click(diagonalScanButton)
 
     // Check animation line appears
