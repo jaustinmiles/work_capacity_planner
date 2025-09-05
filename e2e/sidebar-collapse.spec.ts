@@ -36,43 +36,43 @@ test.describe('Sidebar Collapse Functionality', () => {
     // Mobile viewports start collapsed, desktop starts expanded
     const isMobile = viewport && viewport.width < 768
     const initialWidth = await sidebar.evaluate(el => el.offsetWidth)
-    
+
     if (isMobile) {
       // Mobile starts collapsed (60px)
       expect(initialWidth).toBeLessThan(100)
-      
+
       // Click to expand
       await collapseButton.click()
       await page.waitForTimeout(300)
-      
+
       // Check expanded state (mobile expands to 200px exactly)
       const expandedWidth = await sidebar.evaluate(el => el.offsetWidth)
       expect(expandedWidth).toBeGreaterThanOrEqual(200)
-      
+
       // Click again to collapse
       await collapseButton.click()
       await page.waitForTimeout(300)
-      
+
       // Check collapsed again
       const collapsedWidth = await sidebar.evaluate(el => el.offsetWidth)
       expect(collapsedWidth).toBeLessThan(100)
     } else {
       // Desktop starts expanded (240px)
       expect(initialWidth).toBeGreaterThan(200)
-      
+
       // Click collapse button
       await collapseButton.click()
       await page.waitForTimeout(300)
-      
+
       // Check collapsed state (80px)
       const collapsedWidth = await sidebar.evaluate(el => el.offsetWidth)
       expect(collapsedWidth).toBeLessThan(100)
       expect(collapsedWidth).toBeGreaterThan(50)
-      
+
       // Click again to expand
       await collapseButton.click()
       await page.waitForTimeout(300)
-      
+
       // Check expanded again
       const expandedWidth = await sidebar.evaluate(el => el.offsetWidth)
       expect(expandedWidth).toBeGreaterThan(200)
@@ -118,14 +118,14 @@ test.describe('Sidebar Collapse Functionality', () => {
     const collapseButton = page.locator('button').filter({
       has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold'),
     }).first()
-    
+
     const sidebar = page.locator('.arco-layout-sider').first()
     const isMobile = viewport && viewport.width < 768
 
     // Mobile starts collapsed, desktop starts expanded
     // We need to get to a known state first
     const initialWidth = await sidebar.evaluate(el => el.offsetWidth)
-    
+
     if (isMobile) {
       // Mobile starts collapsed - expand it first
       if (initialWidth < 100) {
@@ -221,13 +221,13 @@ test.describe('Sidebar Collapse Functionality', () => {
 
   test('Tooltips should show on hover when collapsed', async ({ page, viewport }) => {
     const isMobile = viewport && viewport.width < 768
-    
+
     // Skip this test on mobile - hover interactions don't work well on mobile
     if (isMobile) {
       test.skip()
       return
     }
-    
+
     const collapseButton = page.locator('button').filter({
       has: page.locator('.arco-icon-menu-fold, .arco-icon-menu-unfold'),
     }).first()
@@ -235,7 +235,7 @@ test.describe('Sidebar Collapse Functionality', () => {
     // Collapse sidebar if not already collapsed
     const sidebar = page.locator('.arco-layout-sider').first()
     const initialWidth = await sidebar.evaluate(el => el.offsetWidth)
-    
+
     if (initialWidth > 100) {
       await collapseButton.click()
       await page.waitForTimeout(300)
