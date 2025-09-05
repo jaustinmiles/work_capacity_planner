@@ -349,7 +349,7 @@ export class RendererDatabaseService {
   async addStepToWorkflow(workflowId: string, stepData: {
     name: string
     duration: number
-    type: TaskType.Focused | 'admin'
+    type: TaskType
     afterStep?: string
     beforeStep?: string
     dependencies?: string[]

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Modal, Button, Typography, Alert, Space, Card, Tag, Spin, List, Badge, Input, Upload, Slider, InputNumber, Select, DatePicker } from '@arco-design/web-react'
-import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload, IconInfoCircle, IconExclamationCircle, IconMinus } from '@arco-design/web-react/icon'
+import { IconSoundFill, IconStop, IconRefresh, IconCheck, IconClose, IconEdit, IconClockCircle, IconFile, IconSchedule, IconMessage, IconPlus, IconLink, IconUpload, IconInfoCircle, IconExclamationCircle, IconMinus, IconBranch } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import {
   Amendment,
@@ -410,6 +410,8 @@ export function VoiceAmendmentModal({
         return <IconRefresh />
       case AmendmentType.StepRemoval:
         return <IconMinus />
+      case AmendmentType.WorkflowCreation:
+        return <IconBranch />
       default:
         logger.ui.warn('[VoiceAmendmentModal] Unknown amendment type in icon:', type)
         return <IconEdit />
@@ -638,6 +640,33 @@ export function VoiceAmendmentModal({
             <Text bold>{stepRemoval.workflowTarget.name}</Text>
             {stepRemoval.reason && (
               <Text type="secondary">Reason: {stepRemoval.reason}</Text>
+            )}
+          </Space>
+        )
+      }
+      case AmendmentType.WorkflowCreation: {
+        const workflowCreation = amendment as any // WorkflowCreation type
+        return (
+          <Space direction="vertical" size={4}>
+            <Space>
+              <Text>Create workflow:</Text>
+              <Text bold>{workflowCreation.name}</Text>
+            </Space>
+            <Text type="secondary">Steps: {workflowCreation.steps?.length || 0}</Text>
+            <Text type="secondary">
+              Priority: {workflowCreation.importance || 'Default'}/{workflowCreation.urgency || 'Default'}
+            </Text>
+            {workflowCreation.steps && workflowCreation.steps.length > 0 && (
+              <div style={{ marginLeft: 16 }}>
+                {workflowCreation.steps.slice(0, 3).map((step: any, index: number) => (
+                  <Text key={index} type="secondary" style={{ display: 'block' }}>
+                    • {step.name} ({step.duration}m)
+                  </Text>
+                ))}
+                {workflowCreation.steps.length > 3 && (
+                  <Text type="secondary">... and {workflowCreation.steps.length - 3} more steps</Text>
+                )}
+              </div>
             )}
           </Space>
         )
@@ -1071,6 +1100,7 @@ export function VoiceAmendmentModal({
                                 <Text>Step Name:</Text>
                                 <Input
                                   value={edited.stepName || (amendment as StepAddition).stepName || ''}
+                                  placeholder="Enter step name"
                                   onChange={(value) => {
                                     const newEdited = new Map(editedAmendments)
                                     newEdited.set(index, { ...edited, stepName: value })
@@ -1153,7 +1183,8 @@ export function VoiceAmendmentModal({
                             <Space>
                               <Text>New Status:</Text>
                               <Select
-                                value={edited.newStatus || (amendment as StatusUpdate).newStatus}
+                                value={edited.newStatus || (amendment as StatusUpdate).newStatus || 'in_progress'}
+                                placeholder="Select status"
                                 onChange={(value) => {
                                   const newEdited = new Map(editedAmendments)
                                   newEdited.set(index, { ...edited, newStatus: value })
