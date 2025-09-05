@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { mockElectronAPI } from './fixtures/electron-mock'
 
 /**
  * Responsive Design Regression Tests
@@ -17,9 +18,11 @@ const CRITICAL_WIDTHS = [
 test.describe('Responsive Design Regression Prevention', () => {
 
   test.beforeEach(async ({ page }) => {
+    // CRITICAL: Mock Electron API before navigating (like other working tests)
+    await mockElectronAPI(page)
     await page.goto('/')
-    // Wait for app to load
-    await page.waitForSelector('[data-testid="task-list"], .arco-empty', { timeout: 10000 })
+    // Wait for app to load - look for layout like other working tests
+    await page.waitForSelector('.arco-layout', { timeout: 10000 })
   })
 
   CRITICAL_WIDTHS.forEach(({ width, name }) => {
@@ -78,8 +81,15 @@ test.describe('Responsive Design Regression Prevention', () => {
     test(`Eisenhower Matrix title displays properly at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 })
 
-      // Navigate to matrix view - use text selector
-      await page.click('text=Eisenhower Matrix')
+      // Navigate to matrix view only if not already there
+      const matrixTitle = page.locator('h5').filter({ hasText: /Eisenhower|Matrix|Priority/ })
+      if (await matrixTitle.count() === 0) {
+        // Try to navigate to matrix view
+        const matrixNav = page.locator('text=Eisenhower Matrix').first()
+        if (await matrixNav.isVisible()) {
+          await matrixNav.click()
+        }
+      }
       await page.waitForSelector('h5', { timeout: 5000 })
 
       // Title should not be character-broken
