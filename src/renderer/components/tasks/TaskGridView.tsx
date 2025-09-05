@@ -108,6 +108,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
+      width: 200, // Set fixed width to prevent excessive expansion
       ellipsis: true,
       sorter: (a: Task, b: Task) => a.name.localeCompare(b.name),
       filterIcon: <IconMore />,
@@ -128,7 +129,18 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
         return record.name.toLowerCase().includes(value.toLowerCase())
       },
       render: (name: string) => (
-        <Text>{name}</Text>
+        <Text 
+          style={{ 
+            maxWidth: 200, // Constrain name width
+            overflow: 'hidden',
+            textOverflow: 'ellipsis', 
+            whiteSpace: 'nowrap',
+            lineHeight: 1.2, // Prevent excessive line height
+          }}
+          title={name} // Show full name on hover
+        >
+          {name}
+        </Text>
       ),
     },
     {
