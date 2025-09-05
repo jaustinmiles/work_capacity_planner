@@ -65,7 +65,21 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [wakeTimeHour, setWakeTimeHour] = useState(6) // Default 6 AM
   const [showCircadianSettings, setShowCircadianSettings] = useState(false)
 
-  const { tasks, sequencedTasks, loadTasks } = useTaskStore()
+  const { tasks, sequencedTasks, loadTasks, activeWorkSessions, getActiveWorkSession } = useTaskStore()
+
+  // Real-time timer for active work sessions (updates every 10 seconds for dogfooding)
+  const [, forceUpdate] = useState({})
+  useEffect(() => {
+    if (!visible) return
+    
+    const timer = setInterval(() => {
+      if (activeWorkSessions.size > 0) {
+        forceUpdate({}) // Force re-render to update elapsed time
+      }
+    }, 10000) // Update every 10 seconds
+    
+    return () => clearInterval(timer)
+  }, [visible, activeWorkSessions.size])
 
   // Load sessions when date changes or modal opens
   useEffect(() => {
@@ -429,6 +443,59 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       wrapClassName={isFullscreen ? 'fullscreen-modal' : undefined}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
+        {/* Current Work Indicator for Dogfooding */}
+        {(() => {
+          // Find any active work session
+          const activeSessionEntries = Array.from(activeWorkSessions.entries())
+          if (activeSessionEntries.length === 0) {
+            return (
+              <Card style={{ background: '#f7f8fa', border: '1px dashed #d9d9d9' }}>
+                <Space>
+                  <IconClockCircle style={{ color: '#86909c' }} />
+                  <Text type="secondary">No active work session</Text>
+                </Space>
+              </Card>
+            )
+          }
+
+          const [stepId, session] = activeSessionEntries[0] // Get first active session
+          
+          // Find the step and its parent workflow
+          let stepName = 'Unknown Step'
+          let workflowName = 'Unknown Workflow'
+          
+          sequencedTasks.forEach(workflow => {
+            const step = workflow.steps?.find(s => s.id === stepId)
+            if (step) {
+              stepName = step.name
+              workflowName = workflow.name
+            }
+          })
+
+          // Calculate elapsed time
+          const elapsedMinutes = Math.floor((Date.now() - session.startTime.getTime()) / 60000) + session.duration
+          const elapsedHours = Math.floor(elapsedMinutes / 60)
+          const elapsedMins = elapsedMinutes % 60
+          const elapsedText = elapsedHours > 0 ? `${elapsedHours}h ${elapsedMins}m` : `${elapsedMins}m`
+
+          return (
+            <Card style={{ background: '#e6f7ff', border: '1px solid #91d5ff' }}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Space>
+                    <IconClockCircle style={{ color: '#1890ff' }} />
+                    <Text style={{ fontWeight: 600 }}>Currently Working:</Text>
+                  </Space>
+                  <Tag color="blue">{elapsedText} elapsed</Tag>
+                </Space>
+                <Text style={{ fontSize: 14 }}>
+                  <strong>{workflowName}</strong> → {stepName}
+                </Text>
+              </Space>
+            </Card>
+          )
+        })()}
+
         {/* Header controls */}
         <Row justify="space-between" align="center">
           <Col xs={24} sm={24} md={12} lg={12}>
