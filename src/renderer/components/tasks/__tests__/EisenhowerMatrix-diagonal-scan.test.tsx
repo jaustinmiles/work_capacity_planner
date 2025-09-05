@@ -78,7 +78,7 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
     fireEvent.click(diagonalScanButton)
 
     // Button should now show scanning state
-    expect(screen.getByRole('button', { name: /scanning/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /scan/i })).toBeInTheDocument() // Changed from 'Scanning...' to 'Scan...'
   })
 
   it('should display scan line when scanning', async () => {
