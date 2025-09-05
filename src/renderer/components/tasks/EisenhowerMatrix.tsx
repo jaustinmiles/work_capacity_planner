@@ -281,7 +281,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
 
       const scannedTaskIds = new Set<string>()
       let startTime: number | null = null
-      const animationDuration = 8000 // 8 seconds for full scan
+      const animationDuration = 12000 // 12 seconds - longer to account for line center reaching corner
       const scanThreshold = 30 // Pixels distance to consider "hit" by scan line
 
       // Use allItemsForScatter when in scatter view to include steps
@@ -291,9 +291,13 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
         if (!startTime) startTime = timestamp
         const elapsed = timestamp - startTime
 
-        // Calculate progress (0 to 1)
-        const progress = Math.min(elapsed / animationDuration, 1)
-        setScanProgress(progress)
+        // Calculate progress (0 to 1.5) - extends past 1.0 so line center reaches corner
+        const rawProgress = elapsed / animationDuration
+        const progress = Math.min(rawProgress, 1.5) // Allow overshoot for center calculation
+        
+        // Visual progress for SVG (capped at 1.0)
+        const visualProgress = Math.min(progress, 1.0)
+        setScanProgress(visualProgress)
         
         // Debug logging for animation progress
         if (progress % 0.1 < 0.02) { // Log every ~10% progress
@@ -336,7 +340,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
           setHighlightedTaskId(null)
         }
 
-        if (progress < 1) {
+        if (progress < 1.5) { // Run until line center reaches corner
           scanAnimationRef.current = window.requestAnimationFrame(animate)
         } else {
           // Animation complete - log final results
