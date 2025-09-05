@@ -62,8 +62,8 @@ test.describe('Responsive Design Regression Prevention', () => {
         // Use text-based navigation (most reliable)
         const navTexts = {
           'tasks': 'Task List',
-          'workflows': 'Workflows', 
-          'matrix': 'Eisenhower Matrix'
+          'workflows': 'Workflows',
+          'matrix': 'Eisenhower Matrix',
         }
         await page.click(`text=${navTexts[view as keyof typeof navTexts]}`)
         await page.waitForTimeout(500) // Allow view to render
@@ -85,7 +85,7 @@ test.describe('Responsive Design Regression Prevention', () => {
       const pageTitle = page.locator('h5').first()
       if (await pageTitle.count() > 0) {
         const titleText = await pageTitle.textContent()
-        
+
         // Title should not be character-broken
         if (titleText) {
           // Should not be just single letters
