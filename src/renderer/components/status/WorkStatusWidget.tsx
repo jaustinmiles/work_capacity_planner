@@ -200,7 +200,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             </Space>
             <div style={{ borderTop: '1px solid #e5e5e5', marginTop: 8, paddingTop: 8 }}>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 600 }}>📊 Total Time:</Text>
+                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 100 }}>📊 Total Time:</Text>
                 <Tag color="green">{formatMinutes(totalCapacity.focusMinutes + totalCapacity.adminMinutes + meetingMinutes)}</Tag>
               </Space>
             </div>
@@ -211,7 +211,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         <div>
           {currentBlock ? (
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">Currently in Work Block</Text>
+              <Text type="secondary" style={{ whiteSpace: 'nowrap', minWidth: 150 }}>Currently in Work Block</Text>
               <Space>
                 <Tag color="green" icon={<IconCaretRight />}>
                   {currentBlock.startTime} - {currentBlock.endTime}
@@ -227,7 +227,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             <Space direction="vertical" style={{ width: '100%' }}>
               {nextBlock ? (
                 <>
-                  <Text type="secondary">Next Work Block</Text>
+                  <Text type="secondary" style={{ whiteSpace: 'nowrap', minWidth: 120 }}>Next Work Block</Text>
                   <Space>
                     <Tag color="cyan">
                       {nextBlock.startTime} - {nextBlock.endTime}
