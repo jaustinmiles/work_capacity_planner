@@ -536,7 +536,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               Organize tasks by importance and urgency to focus on what matters most
             </Text>
           </div>
-          <Space>
+          <Space wrap style={{ width: '100%', justifyContent: 'flex-end' }}>
             <Radio.Group
               type="button"
               value={viewMode}
@@ -544,39 +544,48 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
               size="small"
             >
               <Radio value="grid">
-                <IconApps /> Grid
+                <IconApps /> {useContainerQuery ? 'Grid' : ''}
               </Radio>
               <Radio value="scatter">
-                <IconDragDot /> Scatter
+                <IconDragDot /> {useContainerQuery ? 'Scatter' : ''}
               </Radio>
             </Radio.Group>
+            
             {viewMode === 'scatter' && (
               <Button
-                // Arco Design button types: 'primary' (blue, prominent), 'default' (gray, standard)
                 type={isScanning ? 'primary' : 'default'}
                 icon={<IconScan />}
                 onClick={toggleDiagonalScan}
                 loading={isScanning}
+                size="small"
               >
-                {isScanning ? 'Scanning...' : 'Diagonal Scan'}
+                {isScanning ? 'Scan...' : 'Scan'}
               </Button>
             )}
-            <Space>
-              <Button icon={<IconZoomOut />} onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} />
-              <Slider
-                value={zoom}
-                onChange={(val) => setZoom(Array.isArray(val) ? val[0] : val)}
-                min={0.5}
-                max={2}
-                step={0.1}
-                style={{ width: 120 }}
-                formatTooltip={(val) => `${Math.round(val * 100)}%`}
-              />
-              <Button icon={<IconZoomIn />} onClick={() => setZoom(Math.min(2, zoom + 0.1))} />
-            </Space>
-            <Button type="primary" icon={<IconPlus />} onClick={onAddTask}>
-              Add Task
-            </Button>
+            
+            {/* Zoom controls - only in grid view, hidden on very narrow screens */}
+            {viewMode === 'grid' && containerWidth > 400 && (
+              <Space>
+                <Button icon={<IconZoomOut />} size="small" onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} />
+                <Slider
+                  value={zoom}
+                  onChange={(val) => setZoom(Array.isArray(val) ? val[0] : val)}
+                  min={0.5}
+                  max={2}
+                  step={0.1}
+                  style={{ width: containerWidth > 600 ? 120 : 80 }} // Responsive slider width
+                  formatTooltip={(val) => `${Math.round(val * 100)}%`}
+                />
+                <Button icon={<IconZoomIn />} size="small" onClick={() => setZoom(Math.min(2, zoom + 0.1))} />
+              </Space>
+            )}
+            
+            {/* Add Task - only in grid view, makes no sense in scatter plot */}
+            {viewMode === 'grid' && (
+              <Button type="primary" icon={<IconPlus />} onClick={onAddTask} size="small">
+                {containerWidth > 500 ? 'Add Task' : ''}
+              </Button>
+            )}
           </Space>
         </Space>
       </Card>
