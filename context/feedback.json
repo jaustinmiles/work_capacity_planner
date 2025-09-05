@@ -9,7 +9,8 @@
     "title": "Reverse dependency handling in task splitting",
     "description": "When splitting tasks, reverse dependencies are not updated. Tasks that depend on the original should depend on the final split part, but currently still point to non-existent original task ID. Critical dependency integrity issue.",
     "timestamp": "2025-09-04T22:00:00.000Z",
-    "sessionId": "session-pr57-review"
+    "sessionId": "session-pr57-review",
+    "resolved": true
   },
   {
     "type": "refactoring",
@@ -32,7 +33,8 @@
     "title": "Extract BaseSplitModal for shared logic",
     "description": "Split modals share significant slider logic, duration calculations, and UI patterns. Could extract common functionality into parent component to reduce duplication.",
     "timestamp": "2025-09-04T22:02:00.000Z",
-    "sessionId": "session-pr57-review"
+    "sessionId": "session-pr57-review",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -43,7 +45,8 @@
     "title": "Time logging export for development dogfooding",
     "description": "Need ability to export time spent on workflows/tasks to better track development time. Should show breakdown by phase/component for project estimation improvements.",
     "timestamp": "2025-09-04T22:03:00.000Z",
-    "sessionId": "session-pr57-review"
+    "sessionId": "session-pr57-review",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -54,7 +57,8 @@
     "title": "When attempting to log time on a workflow, the step should be specified",
     "description": "we should try to avoid logging time on the workflow itself, and always do it on steps. ",
     "timestamp": "2025-09-03T03:15:55.078Z",
-    "sessionId": "session-1756869355074-1ei7ydkck"
+    "sessionId": "session-1756869355074-1ei7ydkck",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -769,7 +773,8 @@
     "title": "Add split button to split task into two parallel or sequential task with same dependencies",
     "description": "Sometimes, a user may encounter a task that actually needs to be split into several steps. Rather than marking complete the old step and creating two new ones, we should introduce a 'split' functionality that allows a task to split into two subtasks while preserving the dependency relation. We should have options for splitting in sequence (one subtask depends on the other) and splitting in parallel (subtasks can be done in any order)",
     "timestamp": "2025-08-27T14:33:05.921Z",
-    "sessionId": "session-1756305185910-n5v9ik3yo"
+    "sessionId": "session-1756305185910-n5v9ik3yo",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -1248,7 +1253,8 @@
     "description": "Dependency changes via voice commands fail. Issue discovered during beta test. Need to debug amendment-applicator.ts dependency logic. Voice amendments for dependencies not functional.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:00.822Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1298,7 +1304,8 @@
     "description": "Graph view could be more interactive. Step completion UI needs better feedback. Dependency visualization could be clearer. Overall UX improvements needed for workflow management.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:01.222Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1310,7 +1317,8 @@
     "description": "Architecture diagram still shows old dual model. API documentation for new voice features missing. Testing guide for voice amendments needed. Various documentation files need updates to reflect current state.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:01.322Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1322,7 +1330,8 @@
     "description": "Database queries could be optimized. UI re-renders on amendment application. Voice recording file cleanup needed. Performance issues with large workflow handling.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:01.422Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1333,6 +1342,7 @@
     "title": "Can't create workflow, duplicate amendment type, unknown amendment type",
     "description": "Work Capacity\nWork Capacity - Sep 4\nToday's Planned Capacity\n🎯 Focus Time:\n7h 27.5m\n📋 Admin Time:\n7h 27.5m\n🤝 Meeting Time:\n0m\n📊 Total Time:\n14h 55m\nCurrently in Work Block\n09:00 - 23:55\n🔄 Mixed\nCompleted Today\nFocus\n3h 4m / 7h 27.5m\n41%\nAdmin\n0m / 7h 27.5m\n0%\nPersonal\n0m\n0%\nTotal Logged\n3h 4m\nRemaining Focus\n263.5min\nRemaining Admin\n447.5min\nTask Management\nTask Overview\n 9 Active\n 0 Completed\n0% Complete\nFilter by Type:\nSelect task type\n\n List\n\n Grid\nActive Tasks\n\nCritical Responsive Design Fix\nEst: 50m\nLogged: 18m\nHigh Priority (100)\nComplexity: 3/5\nFocused Work\nFix completely broken app functionality at 960px width (split-screen mode) to unblock development work This appears to be a straightforward CSS/layout fix workflow with no async dependencies or review cycles mentioned. All fixes depend on the initial media query breakpoint being added, then can potentially be done in parallel before final testing. No mention of Cloud Code bot involvement, PR submission, or review cycle - unclear if this will be done directly or through the bot. Questions: Will this be implemented directly or through Cloud Code bot? If using bot, should we account for PR creation and review time (10-15 min)? Are there any build/deploy steps after fixing?\n\nAddress PR #57 Review Feedback\nEst: 2h 35m\nLogged: 2h 20m\nHigh Priority (100)\nComplexity: 3/5\nFocused Work\nHandle existing feedback on PR before starting new features URGENT: This needs to be done before or integrated with the 6 phases. Need clarification on: 1) What specific bot authentication needs documenting? 2) Current test coverage percentage and which areas need tests? 3) Which TaskEdit components need unifying and how they should inherit?\n\nPhase 3: Deadline Violation Indicators\nEst: 1h 10m\nLogged: 26m\nHigh Priority (81)\nComplexity: 3/5\nFocused Work\nAdd visual warnings for missed deadlines with red borders and badges Creates DeadlineViolationBadge component with red borders, warning badges, and tooltips. Logs violations to custom logger. Bot can begin Phase 4 during review.\n\nMonitor bot for stuck states\nEst: 5m\nHigh Priority (64)\nComplexity: 3/5\nAdmin/Meeting\nCheck if Claude Code bot is held up on something during development\n\nPhase 2: ASCII Art Visual Debugger\nEst: 1h 25m\nHigh Priority (64)\nComplexity: 3/5\nFocused Work\nImplement ASCII visualization for Gantt timeline debugging integrated with custom ringbuffer logger Creates gantt-ascii-art.ts formatter that generates visual timeline representations with priority markers, deadline indicators, and inheritance notes. Bot continues to Phase 3 during review wait time.\n\nPhase 4: Enhanced Debug Logging\nEst: 50m\nMedium Priority (49)\nComplexity: 3/5\nFocused Work\nAdd multi-point logging throughout the scheduling pipeline to track discrepancies Adds logging at item creation with inherited values, pixel calculation, DOM render, and discrepancy detection points. Critical for debugging Trader Joe's positioning issue.\n\nProcess user feedback bugs\nEst: 15m\nMedium Priority (42)\nComplexity: 3/5\nAdmin/Meeting\nReview feedback.json file for any bugs discovered during testing\n\nPhase 5: Database Persistence\nEst: 1h 25m\nLow Priority (30)\nComplexity: 3/5\nFocused Work\nAdd Prisma model and IPC handlers to persist debug logs to database Adds database persistence for debug logs including ASCII art, scheduled vs rendered data, and discrepancies. Enables historical analysis of scheduling issues.\n\nPhase 6: Real-time Comparison View\nEst: 55m\nLow Priority (18)\nComplexity: 3/5\nFocused Work\nCreate side-by-side comparison component showing expected vs actual schedules Final integration phase creating visual comparison tool for expected vs actual schedules with export capability. Completes the debugging toolkit.\nTotal: 9\nVoice Amendment\nRecord Your Amendment\nSpeak naturally about what you want to update. For example:\nMark the API implementation as complete\nI spent 2 hours on code review\nAdd note: waiting for design approval\nThe database migration will take 4 hours not 2\nAdd a code review step after implementation\nAdditional Context (Optional)\nProvide any additional context that might help the AI understand your amendments better...\nAdd context about your work environment, project specifics, or clarify terminology\n  IMMEDIATE (Next 30 min):\n\n  1. E2E Test for Text Overflow - 15 min\n    - Prevent character-breaking regression\n    - Test at 960px width specifically\n  2. Push PR #60 for Review - 5 min\n  3. Create Updated Plan - 10 min\n\n  PHASE A: EisenhowerMatrix Refactoring (45 min)\n\n  - EisenhowerGrid.tsx - Grid view component (15 min)\n  - EisenhowerScatter.tsx - Scatter plot + diagonal scan (20 min)\n  - EisenhowerMatrix.tsx - Container only (10 min)\n  - Update Architecture Flow - Document new structure (5 min)\nTranscription\nIMMEDIATE (Next 30 min): 1. E2E Test for Text Overflow - 15 min - Prevent character-breaking regression - Test at 960px width specifically 2. Push PR #60 for Review - 5 min 3. Create Updated Plan - 10 min PHASE A: EisenhowerMatrix Refactoring (45 min) - EisenhowerGrid.tsx - Grid view component (15 min) - EisenhowerScatter.tsx - Scatter plot + diagonal scan (20 min) - EisenhowerMatrix.tsx - Container only (10 min) - Update Architecture Flow - Document new structure (5 min)\nDetected Changes\nConfidence: 95%\nCreate new task:\nE2E Test for Text Overflow\nDuration:\n15 minutes\nType:\nFocused\nPrevent character-breaking regression, test at 960px width specifically\n50%\nUnknown amendment type: workflow_creation\n50%\nDuplicate amendment removed. Duplicate amendment removed\n\nTime\nLevel\nMessage\n18:32:49.081\nERROR\n[UI] [VoiceAmendmentModal] Unknown amendment type: workflow_creation\n{\n  \"scope\": \"ui\",\n  \"fullAmendment\": {\n    \"type\": \"workflow_creation\",\n    \"name\": \"EisenhowerMatrix Refactoring\",\n    \"steps\": [\n      {\n        \"name\": \"EisenhowerGrid.tsx - Grid view component\",\n        \"duration\": 15,\n        \"stepType\": \"focused\",\n        \"description\": \"Create grid view component for Eisenhower Matrix\"\n      },\n      {\n        \"name\": \"EisenhowerScatter.tsx - Scatter plot + diagonal scan\",\n        \"duration\": 20,\n        \"stepType\": \"focused\",\n        \"description\": \"Implement scatter plot visualization with diagonal scan feature\"\n      },\n      {\n        \"name\": \"EisenhowerMatrix.tsx - Container only\",\n        \"duration\": 10,\n        \"stepType\": \"focused\",\n        \"description\": \"Refactor to container-only component\"\n      },\n      {\n        \"name\": \"Update Architecture Flow - Document new structure\",\n        \"duration\": 5,\n        \"stepType\": \"admin\",\n        \"description\": \"Document the new component structure and architecture flow\"\n      }\n    ],\n    \"importance\": 8,\n    \"urgency\": 8\n  }\n}",
     "timestamp": "2025-09-05T01:33:40.698Z",
-    "sessionId": "session-1757036020690-qmmveid7r"
+    "sessionId": "session-1757036020690-qmmveid7r",
+    "resolved": true
   }
 ]
