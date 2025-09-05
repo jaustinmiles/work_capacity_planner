@@ -275,7 +275,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
   const handleStepToggleComplete = (step: TaskStep) => {
     const newStatus = step.status === StepStatus.Completed ? StepStatus.Pending : StepStatus.Completed
-    
+
     logger.ui.info('Toggling step completion', {
       stepId: step.id,
       stepName: step.name,
@@ -284,8 +284,8 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
     })
 
     // Update step status in local state
-    const updatedSteps = steps.map(s => 
-      s.id === step.id ? { ...s, status: newStatus } : s
+    const updatedSteps = steps.map(s =>
+      s.id === step.id ? { ...s, status: newStatus } : s,
     )
     setSteps(updatedSteps)
 

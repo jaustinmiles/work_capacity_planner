@@ -50,7 +50,7 @@ describe('Deadline Violation Integration', () => {
     ]
 
     // Mock scheduled items that would show violations
-    const mockScheduledItems = [
+    const _mockScheduledItems = [ // Data structure example for deadline violations
       {
         id: 'task-1',
         name: 'Overdue Task',
