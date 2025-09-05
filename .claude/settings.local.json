@@ -69,7 +69,8 @@
       "Bash(git merge-base:*)",
       "Bash(./context/setup-claude-bot.sh:*)",
       "Bash(./scripts/dev-timer.sh:*)",
-      "Bash(./scripts/dev/dev-timer.sh:*)"
+      "Bash(./scripts/dev/dev-timer.sh:*)",
+      "Bash(npx playwright test:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

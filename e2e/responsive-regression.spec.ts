@@ -29,8 +29,8 @@ test.describe('Responsive Design Regression Prevention', () => {
     test(`Task Management grid usable at ${width}px (${name})`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 })
 
-      // Navigate to Task Management - use text selector (most reliable)
-      await page.click('text=Task List')
+      // App loads on Tasks view by default - no navigation needed for narrow widths
+      // Wait for either table or card layout to render
       await page.waitForSelector('.arco-table, .arco-card', { timeout: 5000 })
 
       if (width <= 768) {
