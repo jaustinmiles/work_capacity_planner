@@ -86,9 +86,9 @@ export function TaskList({ onAddTask }: TaskListProps) {
       <Card>
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
-            <Title 
-              heading={6} 
-              style={{ 
+            <Title
+              heading={6}
+              style={{
                 margin: 0,
                 whiteSpace: 'nowrap', // Prevent character-breaking
                 minWidth: 120, // Ensure adequate space

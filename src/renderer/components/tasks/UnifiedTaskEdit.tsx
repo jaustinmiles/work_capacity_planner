@@ -141,7 +141,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
         }))
 
         // CRITICAL FIX: Ensure deadline is proper Date object for Prisma
-        const deadlineForSave = editedTask.deadline 
+        const deadlineForSave = editedTask.deadline
           ? (editedTask.deadline instanceof Date ? editedTask.deadline : new Date(editedTask.deadline))
           : null
 
@@ -159,7 +159,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           urgency: editedTask.urgency,
           type: editedTask.type,
           notes: editedTask.notes,
-          deadline: deadlineForSave,
+          deadline: deadlineForSave || undefined,
           steps: cleanedSteps,
           duration: totalDuration,
           criticalPathDuration,
@@ -434,10 +434,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
               <DatePicker
                 value={editedTask.deadline ? new Date(editedTask.deadline) : undefined}
                 onChange={(value) => {
-                  logger.ui.info('Deadline changed in editor', { 
-                    workflowId: task.id, 
-                    oldDeadline: editedTask.deadline, 
-                    newDeadline: value 
+                  logger.ui.info('Deadline changed in editor', {
+                    workflowId: task.id,
+                    oldDeadline: editedTask.deadline,
+                    newDeadline: value,
                   })
                   setEditedTask({ ...editedTask, deadline: value } as any)
                 }}
@@ -737,11 +737,11 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
             <FormItem field="duration" label="Duration (minutes)" required>
               <InputNumber min={1} style={{ width: '100%' }} />
             </FormItem>
-            
+
             <FormItem field="asyncWaitTime" label="Async Wait Time (minutes)" tooltip="Time to wait for async operations">
               <InputNumber min={0} placeholder="0 (no async wait)" style={{ width: '100%' }} />
             </FormItem>
-            
+
             <FormItem field="type" label="Type">
               <Select style={{ width: '100%' }}>
                 <Select.Option value={TaskType.Focused}>Focused</Select.Option>

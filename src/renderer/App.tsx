@@ -713,7 +713,7 @@ function App() {
             background: '#F7F8FA',
             overflow: 'auto',
             minWidth: 320, // CRITICAL FIX: Prevent extreme narrowing causing text breaking
-            flex: 1, // Take remaining space  
+            flex: 1, // Take remaining space
             maxWidth: '100%',
           }}>
             {error && (

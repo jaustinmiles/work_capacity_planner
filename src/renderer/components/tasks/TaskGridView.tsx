@@ -129,11 +129,11 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
         return record.name.toLowerCase().includes(value.toLowerCase())
       },
       render: (name: string) => (
-        <Text 
-          style={{ 
+        <Text
+          style={{
             maxWidth: 200, // Constrain name width
             overflow: 'hidden',
-            textOverflow: 'ellipsis', 
+            textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             lineHeight: 1.2, // Prevent excessive line height
           }}
@@ -424,9 +424,9 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       ) : (
         // Table layout for wide screens with responsive columns
         <Table
-          columns={screenWidth < 900 ? columns.filter(col => 
+          columns={screenWidth < 900 ? columns.filter(col =>
             // Hide less important columns on smaller tablets to fit better
-            !['cognitiveComplexity', 'notes'].includes(col.key as string)
+            !['cognitiveComplexity', 'notes'].includes(col.key as string),
           ) : columns}
           data={tasks}
           rowKey="id"
@@ -440,7 +440,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
           stripe
           border
           scroll={{ x: true, y: 400 }} // Horizontal scroll + vertical for space
-          style={{ 
+          style={{
             minWidth: 500, // Ensure table has minimum usable width
           }}
         />

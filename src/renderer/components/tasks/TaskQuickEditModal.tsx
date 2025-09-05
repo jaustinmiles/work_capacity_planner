@@ -55,7 +55,7 @@ interface ItemChanges {
   steps: { [stepId: string]: Partial<TaskStep> }
 }
 
-// Duration presets in minutes - optimized for dogfooding  
+// Duration presets in minutes - optimized for dogfooding
 const DURATION_PRESETS = [
   { label: '5m', value: 5 },   // Quick tasks for dogfooding
   { label: '10m', value: 10 }, // Short tasks for dogfooding
