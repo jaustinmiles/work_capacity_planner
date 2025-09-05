@@ -534,7 +534,7 @@ function App() {
                 position="right"
                 disabled={!sidebarCollapsed}
               >
-                <Space>
+                <Space data-testid="nav-tasks-content">
                   <IconList />
                   {!sidebarCollapsed && <span>Task List</span>}
                   {incompleteTasks > 0 && (

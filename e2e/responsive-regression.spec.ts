@@ -26,8 +26,8 @@ test.describe('Responsive Design Regression Prevention', () => {
     test(`Task Management grid usable at ${width}px (${name})`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 })
 
-      // Navigate to Task Management
-      await page.click('[data-testid="nav-tasks"]')
+      // Navigate to Task Management - use text selector (most reliable)
+      await page.click('text=Task List')
       await page.waitForSelector('.arco-table, .arco-card', { timeout: 5000 })
 
       if (width <= 768) {
@@ -56,7 +56,13 @@ test.describe('Responsive Design Regression Prevention', () => {
       const views = ['tasks', 'workflows', 'matrix']
 
       for (const view of views) {
-        await page.click(`[data-testid="nav-${view}"]`)
+        // Use text-based navigation (most reliable)
+        const navTexts = {
+          'tasks': 'Task List',
+          'workflows': 'Workflows', 
+          'matrix': 'Eisenhower Matrix'
+        }
+        await page.click(`text=${navTexts[view as keyof typeof navTexts]}`)
         await page.waitForTimeout(500) // Allow view to render
 
         // Check for single-character text elements (indicates breaking)
@@ -72,7 +78,8 @@ test.describe('Responsive Design Regression Prevention', () => {
     test(`Eisenhower Matrix title displays properly at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 })
 
-      await page.click('[data-testid="nav-matrix"]')
+      // Navigate to matrix view - use text selector
+      await page.click('text=Eisenhower Matrix')
       await page.waitForSelector('h5', { timeout: 5000 })
 
       // Title should not be character-broken
