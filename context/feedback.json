@@ -1,5 +1,41 @@
 [
   {
+    "type": "technical_debt",
+    "priority": "high", 
+    "components": ["tasks/TaskSplitModal", "tasks/StepSplitModal"],
+    "title": "Reverse dependency handling in task splitting",
+    "description": "When splitting tasks, reverse dependencies are not updated. Tasks that depend on the original should depend on the final split part, but currently still point to non-existent original task ID. Critical dependency integrity issue.",
+    "timestamp": "2025-09-04T22:00:00.000Z",
+    "sessionId": "session-pr57-review"
+  },
+  {
+    "type": "refactoring",
+    "priority": "medium",
+    "components": ["tasks/EisenhowerMatrix"],  
+    "title": "EisenhowerMatrix component too large (1500+ lines)",
+    "description": "Component needs separation into EisenhowerGrid.tsx (grid view), EisenhowerScatter.tsx (scatter plot + diagonal scan), and EisenhowerMatrix.tsx (container + view switching). Single responsibility principle violated.",
+    "timestamp": "2025-09-04T22:01:00.000Z", 
+    "sessionId": "session-pr57-review"
+  },
+  {
+    "type": "enhancement",
+    "priority": "low",
+    "components": ["tasks/TaskSplitModal", "tasks/StepSplitModal"],
+    "title": "Extract BaseSplitModal for shared logic",
+    "description": "Split modals share significant slider logic, duration calculations, and UI patterns. Could extract common functionality into parent component to reduce duplication.",
+    "timestamp": "2025-09-04T22:02:00.000Z",
+    "sessionId": "session-pr57-review"
+  },
+  {
+    "type": "feature", 
+    "priority": "medium",
+    "components": ["work-logger"],
+    "title": "Time logging export for development dogfooding",
+    "description": "Need ability to export time spent on workflows/tasks to better track development time. Should show breakdown by phase/component for project estimation improvements.",
+    "timestamp": "2025-09-04T22:03:00.000Z",
+    "sessionId": "session-pr57-review"
+  },
+  {
     "type": "bug",
     "priority": "high",
     "components": [

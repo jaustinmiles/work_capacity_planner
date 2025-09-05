@@ -68,7 +68,8 @@
       "Bash(/Users/austinmiles/.claude-code/scripts/gh-auth-bot.sh:*)",
       "Bash(git merge-base:*)",
       "Bash(./context/setup-claude-bot.sh:*)",
-      "Bash(./scripts/dev-timer.sh:*)"
+      "Bash(./scripts/dev-timer.sh:*)",
+      "Bash(./scripts/dev/dev-timer.sh:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
