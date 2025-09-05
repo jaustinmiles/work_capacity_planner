@@ -172,7 +172,7 @@ test.describe('Responsive Layout Tests', () => {
     expect(checkedButtons).toBeGreaterThan(0)
   })
 
-  test('Modals fit in viewport on mobile', async ({ page, viewport }) => {
+  test('Modals fit in viewport on mobile', async ({ _page, viewport }) => {
     if (!viewport || viewport.width >= 768) {
       test.skip()
       return
