@@ -64,7 +64,7 @@ export function DeadlineViolationBadge({
         }}
         icon={<IconExclamationCircleFill style={{ fontSize: '12px' }} />}
       >
-        {badgeText}
+        {delayHours >= 1 ? `${delayHours}h LATE` : `${delayMinutes}m LATE`}
       </Tag>
     </Tooltip>
   )

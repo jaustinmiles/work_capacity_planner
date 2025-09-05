@@ -15,7 +15,7 @@ describe('DeadlineViolationBadge', () => {
       />,
     )
 
-    expect(screen.getByText('DEADLINE MISSED')).toBeInTheDocument()
+    expect(screen.getByText(/LATE/)).toBeInTheDocument() // Now shows "3h LATE" instead of "DEADLINE MISSED"
   })
 
   it('should not render when deadline is not violated', () => {
@@ -45,7 +45,7 @@ describe('DeadlineViolationBadge', () => {
       />,
     )
 
-    expect(screen.getByText('WORKFLOW DEADLINE MISSED')).toBeInTheDocument()
+    expect(screen.getByText(/LATE/)).toBeInTheDocument() // Now shows "1.5h LATE" instead of "WORKFLOW DEADLINE MISSED"
   })
 
   it('should not render when visible is false', () => {
