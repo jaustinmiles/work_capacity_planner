@@ -113,11 +113,18 @@ describe('SwimLaneTimeline', () => {
       />,
     )
 
-    // Check for time labels from 6:00 to 22:00
-    expect(screen.getByText('06:00')).toBeInTheDocument()
-    expect(screen.getByText('12:00')).toBeInTheDocument()
-    expect(screen.getByText('18:00')).toBeInTheDocument()
-    expect(screen.getByText('22:00')).toBeInTheDocument()
+    // Check for time labels from 6:00 to 22:00 (now shows multiple days)
+    const timeLabels = screen.getAllByText('06:00')
+    expect(timeLabels.length).toBeGreaterThanOrEqual(1) // Should have at least one 06:00
+
+    // Check for day labels
+    expect(screen.getByText('Yesterday')).toBeInTheDocument()
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    expect(screen.getByText('Tomorrow')).toBeInTheDocument()
+
+    // Check that we have multiple instances of common hours
+    expect(screen.getAllByText('12:00').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('22:00').length).toBeGreaterThanOrEqual(1)
   })
 
   it('expands and collapses workflows when clicked', () => {

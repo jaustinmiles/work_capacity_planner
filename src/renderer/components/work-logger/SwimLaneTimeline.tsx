@@ -39,7 +39,9 @@ interface SwimLaneTimelineProps {
 const TIME_LABEL_WIDTH = 80
 const START_HOUR = 6
 const END_HOUR = 22
-const TOTAL_HOURS = END_HOUR - START_HOUR
+const HOURS_PER_DAY = END_HOUR - START_HOUR
+const TOTAL_DAYS = 3 // Show yesterday, today, tomorrow
+const TOTAL_HOURS = HOURS_PER_DAY * TOTAL_DAYS
 // Removed unused: MIN_LANE_HEIGHT, MAX_LANE_HEIGHT
 const MIN_HOUR_WIDTH = 40
 const MAX_HOUR_WIDTH = 200
@@ -82,24 +84,15 @@ export function SwimLaneTimeline({
 
   // Responsive container measurement
   const { ref: timelineRef, width: containerWidth } = useContainerQuery<HTMLDivElement>()
-  const { isCompact } = useResponsive()
+  const { isCompact: _isCompact } = useResponsive()
 
   // Calculate responsive hour width based on container size
   const calculateHourWidth = () => {
     if (!containerWidth) return baseHourWidth
 
-    // Calculate width available for timeline (minus label column)
-    const availableWidth = containerWidth - TIME_LABEL_WIDTH - 20 // 20px for padding/scrollbar
-
-    // Fit mode: Scale hours to fit container without scroll
-    if (isCompact || containerWidth < 1366) {
-      const fitWidth = availableWidth / TOTAL_HOURS
-      // Ensure minimum readable width
-      return Math.max(MIN_HOUR_WIDTH, Math.min(fitWidth, baseHourWidth))
-    }
-
-    // Desktop mode: Use base width with zoom control
-    return baseHourWidth
+    // Always respect zoom level - don't override with fit mode
+    // This ensures zoom buttons actually work at all screen sizes
+    return Math.max(MIN_HOUR_WIDTH, Math.min(MAX_HOUR_WIDTH, baseHourWidth))
   }
 
   const hourWidth = calculateHourWidth()
@@ -514,7 +507,7 @@ if (!checkOverlap(newSession, laneSessions)) {
             disabled={baseHourWidth <= MIN_HOUR_WIDTH}
           />
         </Tooltip>
-        <Text style={{ fontSize: 11, color: '#86909c' }}>{Math.round(baseHourWidth / 100 * 100)}%</Text>
+        <Text style={{ fontSize: 11, color: '#86909c' }}>{Math.round((baseHourWidth / 80) * 100)}%</Text>
         <Tooltip content="Zoom In">
           <Button
             size="mini"
@@ -570,25 +563,45 @@ if (!checkOverlap(newSession, laneSessions)) {
           <Text style={{ fontWeight: 'bold' }}>Tasks</Text>
         </div>
         <div style={{ flex: 1, position: 'relative' }}>
-          {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => (
-            <div
-              key={i}
-              style={{
-                position: 'absolute',
-                left: i * hourWidth,
-                top: 0,
-                height: '100%',
-                borderLeft: '1px solid #e5e6eb',
-                paddingLeft: 4,
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 12, color: '#86909c' }}>
-                {(START_HOUR + i).toString().padStart(2, '0')}:00
-              </Text>
-            </div>
-          ))}
+          {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => {
+            const dayIndex = Math.floor(i / HOURS_PER_DAY) // 0 = yesterday, 1 = today, 2 = tomorrow
+            const hourInDay = i % HOURS_PER_DAY
+            const actualHour = START_HOUR + hourInDay
+
+            const today = new Date()
+            const displayDate = new Date(today)
+            displayDate.setDate(today.getDate() + (dayIndex - 1)) // -1, 0, +1 days
+
+            const dayLabel = dayIndex === 0 ? 'Yesterday' :
+                           dayIndex === 1 ? 'Today' : 'Tomorrow'
+
+            return (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  left: i * hourWidth,
+                  top: 0,
+                  height: '100%',
+                  borderLeft: i % HOURS_PER_DAY === 0 ? '2px solid #165DFF' : '1px solid #e5e6eb',
+                  paddingLeft: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexDirection: 'column',
+                  background: i % HOURS_PER_DAY === 0 ? '#f5f7fa' : 'transparent',
+                }}
+              >
+                {i % HOURS_PER_DAY === 0 && (
+                  <Text style={{ fontSize: 10, color: '#165DFF', fontWeight: 'bold' }}>
+                    {dayLabel}
+                  </Text>
+                )}
+                <Text style={{ fontSize: 12, color: '#86909c' }}>
+                  {actualHour.toString().padStart(2, '0')}:00
+                </Text>
+              </div>
+            )
+          })}
         </div>
       </div>
 
