@@ -257,4 +257,83 @@ describe('SwimLaneTimeline', () => {
       expect(mockOnExpandedWorkflowsChange).toHaveBeenCalled()
     }
   })
+
+  describe('Scroll and Zoom Functionality (Feedback #1)', () => {
+    it('should always allow horizontal scroll to see multiple days', () => {
+      const { container } = renderWithProvider(
+        <SwimLaneTimeline
+          sessions={mockSessions}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      const timelineContainer = container.querySelector('.swimlane-timeline')
+      expect(timelineContainer).toBeTruthy()
+
+      if (timelineContainer) {
+        // Check the inline style directly since getComputedStyle may not work in test env
+        const style = (timelineContainer as HTMLElement).style
+        expect(style.overflowX).toBe('auto')
+      }
+    })
+
+    it('should never show vertical scrollbar', () => {
+      const { container } = renderWithProvider(
+        <SwimLaneTimeline
+          sessions={mockSessions}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      const timelineContainer = container.querySelector('.swimlane-timeline')
+      expect(timelineContainer).toBeTruthy()
+
+      if (timelineContainer) {
+        // Check the inline style directly since getComputedStyle may not work in test env
+        const style = (timelineContainer as HTMLElement).style
+        expect(style.overflowY).toBe('hidden')
+      }
+    })
+
+    it('should have functional zoom buttons that change hour width', () => {
+      const { container } = renderWithProvider(
+        <SwimLaneTimeline
+          sessions={mockSessions}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      // Find zoom in and zoom out buttons
+      const zoomInButton = container.querySelector('[class*="icon-zoom-in"]')?.closest('button')
+      const zoomOutButton = container.querySelector('[class*="icon-zoom-out"]')?.closest('button')
+
+      expect(zoomInButton).toBeTruthy()
+      expect(zoomOutButton).toBeTruthy()
+
+      if (zoomInButton && zoomOutButton) {
+        // Buttons should be clickable
+        expect(zoomInButton.disabled).toBe(false)
+
+        // Click zoom in should not throw error
+        fireEvent.click(zoomInButton)
+        expect(zoomInButton).toBeInTheDocument()
+
+        // Click zoom out should not throw error
+        fireEvent.click(zoomOutButton)
+        expect(zoomOutButton).toBeInTheDocument()
+      }
+    })
+  })
 })

@@ -538,8 +538,8 @@ if (!checkOverlap(newSession, laneSessions)) {
         className="swimlane-timeline"
         style={{
           position: 'relative',
-          overflowX: isCompact || containerWidth < 1366 ? 'hidden' : 'auto',
-          overflowY: 'auto',
+          overflowX: 'auto', // Always allow horizontal scroll to see multiple days
+          overflowY: 'hidden', // Never show vertical scrollbar per feedback
           background: '#fafbfc',
           borderRadius: 8,
           height: '100%',

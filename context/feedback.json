@@ -1344,5 +1344,84 @@
     "timestamp": "2025-09-05T01:33:40.698Z",
     "sessionId": "session-1757036020690-qmmveid7r",
     "resolved": true
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Zoom buttons and scroll don't work",
+    "description": "should be able to see multiple days by scrolling in the swim lanes, and should be able to scroll into the past. and the zoom should actually do somehting. But It shouldn't have a scrollbar, or if it does, horizontal scroll only. There should never be a vertical scroll bar. ",
+    "timestamp": "2025-09-06T20:22:35.090Z",
+    "sessionId": "session-1757190155085-q2uw1xtki"
+  },
+  {
+    "type": "improvement",
+    "priority": "critical",
+    "components": [
+      "tasks/SequencedTaskEdit",
+      "progress/WorkflowProgressTracker"
+    ],
+    "title": "Archive/Hide Completed workflows",
+    "description": "Workflow cards take up a lot of space, and this space is wasted if they are completed and can't be hidden. We should allow the option to hide or archive tasks/workflows. ",
+    "timestamp": "2025-09-06T20:23:26.010Z",
+    "sessionId": "session-1757190206002-eb76qrhom"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "timeline/GanttChart",
+      "timeline/GanttChartSidebar"
+    ],
+    "title": "Gantt Chart Schedule summary should not include schedule editing by default",
+    "description": "maybe we can collapse this, or entirely remove it. But it's too big compared to the timeline, which should be the main focus of attention. ",
+    "timestamp": "2025-09-06T20:24:45.328Z",
+    "sessionId": "session-1757190285319-xyud3m0lo"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "timeline/GanttChart"
+    ],
+    "title": "Gantt Chart should default to 'now' whenever the 'Timeline' is clicked in the navigation",
+    "description": "Gantt Chart should default to show 'now' on the timeline whenever the 'Timeline' is clicked in the navigation",
+    "timestamp": "2025-09-06T20:25:44.082Z",
+    "sessionId": "session-1757190344081-nh027ahej"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "layout/Navigation"
+    ],
+    "title": "When navigation sidebar is collapsed, icons should be clickable without tooltips",
+    "description": "When navigation sidebar is collapsed, icons should be clickable without tooltips. Right now the tooltip looks weird and unprofessional, and sometimes I can't just click the icon itself to navigate, but have to hover to get the tooltip then click. very unintuitive. ",
+    "timestamp": "2025-09-06T20:27:19.241Z",
+    "sessionId": "session-1757190439233-10ahidxel"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "tasks/EisenhowerMatrix"
+    ],
+    "title": "Drag and drop edit capabilities for points on the scatter plot",
+    "description": "Edit task and workflow step priorities (urgency and importance) by dragging them around on the scatter plot with an edit mode. ",
+    "timestamp": "2025-09-06T20:28:14.607Z",
+    "sessionId": "session-1757190494600-1pz4izro8"
+  },
+  {
+    "type": "other",
+    "priority": "medium",
+    "components": [
+      "other"
+    ],
+    "title": "Delete strike system Markdown file from codebase",
+    "description": "this got merged in a previous pr, but is weird and harsh and shouldn't exist. ",
+    "timestamp": "2025-09-06T20:29:41.939Z",
+    "sessionId": "session-1757190581932-ur1vz2430"
   }
 ]

@@ -529,70 +529,40 @@ function App() {
             style={{ marginTop: 20 }}
           >
             <MenuItem key="tasks" data-testid="nav-tasks">
-              <Tooltip
-                content="Task List"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
-                <Space data-testid="nav-tasks-content">
-                  <IconList />
-                  {!sidebarCollapsed && <span>Task List</span>}
-                  {incompleteTasks > 0 && (
-                    <Badge count={incompleteTasks} dot offset={[6, -4]} />
-                  )}
-                </Space>
-              </Tooltip>
+              <Space data-testid="nav-tasks-content">
+                <IconList />
+                {!sidebarCollapsed && <span>Task List</span>}
+                {incompleteTasks > 0 && (
+                  <Badge count={incompleteTasks} dot offset={[6, -4]} />
+                )}
+              </Space>
             </MenuItem>
             <MenuItem key="matrix" data-testid="nav-matrix">
-              <Tooltip
-                content="Eisenhower Matrix"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
-                <Space>
-                  <IconApps />
-                  {!sidebarCollapsed && <span>Eisenhower Matrix</span>}
-                </Space>
-              </Tooltip>
+              <Space>
+                <IconApps />
+                {!sidebarCollapsed && <span>Eisenhower Matrix</span>}
+              </Space>
             </MenuItem>
             <MenuItem key="calendar" data-testid="nav-calendar">
-              <Tooltip
-                content="Calendar"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
-                <Space>
-                  <IconCalendar />
-                  {!sidebarCollapsed && <span>Calendar</span>}
-                </Space>
-              </Tooltip>
+              <Space>
+                <IconCalendar />
+                {!sidebarCollapsed && <span>Calendar</span>}
+              </Space>
             </MenuItem>
             <MenuItem key="workflows" data-testid="nav-workflows">
-              <Tooltip
-                content="Workflows"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
-                <Space>
-                  <IconBranch />
-                  {!sidebarCollapsed && <span>Workflows</span>}
-                  {activeWorkflows > 0 && (
-                    <Badge count={activeWorkflows} dot offset={[6, -4]} />
-                  )}
-                </Space>
-              </Tooltip>
+              <Space>
+                <IconBranch />
+                {!sidebarCollapsed && <span>Workflows</span>}
+                {activeWorkflows > 0 && (
+                  <Badge count={activeWorkflows} dot offset={[6, -4]} />
+                )}
+              </Space>
             </MenuItem>
             <MenuItem key="timeline" data-testid="nav-timeline">
-              <Tooltip
-                content="Timeline"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
-                <Space>
-                  <IconSchedule />
-                  {!sidebarCollapsed && <span>Timeline</span>}
-                </Space>
-              </Tooltip>
+              <Space>
+                <IconSchedule />
+                {!sidebarCollapsed && <span>Timeline</span>}
+              </Space>
             </MenuItem>
           </Menu>
 
