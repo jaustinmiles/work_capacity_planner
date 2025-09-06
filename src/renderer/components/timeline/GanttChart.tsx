@@ -1399,23 +1399,30 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
 
                 // Check for deadline violation with extensive logging
+                // For workflow steps, inherit deadline from parent workflow
+                const effectiveDeadline = item.deadline || 
+                  (item.workflowId && sequencedTasks.find(w => w.id === item.workflowId)?.deadline)
+
                 logger.ui.debug('🔍 [DEADLINE] Checking deadline for item', {
                   itemId: item.id,
                   itemName: item.name,
-                  hasDeadline: !!item.deadline,
-                  deadline: item.deadline,
+                  hasOwnDeadline: !!item.deadline,
+                  ownDeadline: item.deadline,
+                  effectiveDeadline: effectiveDeadline,
                   endTime: item.endTime,
                   isWorkflow: !!item.workflowId,
                   workflowName: item.workflowName,
+                  inheritedFromWorkflow: !item.deadline && !!effectiveDeadline,
                 })
 
-                const isDeadlineViolated = item.deadline &&
-                  dayjs(item.endTime).isAfter(dayjs(item.deadline))
+                const isDeadlineViolated = effectiveDeadline &&
+                  dayjs(item.endTime).isAfter(dayjs(effectiveDeadline))
 
-                if (item.deadline) {
-                  const deadlineDate = dayjs(item.deadline)
+                if (effectiveDeadline) {
+                  const deadlineDate = dayjs(effectiveDeadline)
                   const endTimeDate = dayjs(item.endTime)
                   const delayMinutes = endTimeDate.diff(deadlineDate, 'minutes')
+                  const isInheritedDeadline = !item.deadline && !!effectiveDeadline
 
                   logger.ui.info('📅 [DEADLINE] Item has deadline', {
                     itemId: item.id,
@@ -1427,6 +1434,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     delayHours: isDeadlineViolated ? Math.floor(delayMinutes / 60) : 0,
                     isWorkflow: !!item.workflowId,
                     workflowName: item.workflowName,
+                    deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
                   })
 
                   if (isDeadlineViolated) {
@@ -1442,7 +1450,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         : `${delayMinutes}m`,
                       isWorkflow: !!item.workflowId,
                       workflowName: item.workflowName,
-                      violationType: item.workflowId ? 'WORKFLOW_DEADLINE' : 'TASK_DEADLINE',
+                      deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
+                      violationType: item.workflowId 
+                        ? (isInheritedDeadline ? 'WORKFLOW_STEP_DEADLINE' : 'WORKFLOW_DEADLINE')
+                        : 'TASK_DEADLINE',
                     })
                   } else {
                     logger.ui.debug('✅ [DEADLINE] On time', {
@@ -1451,6 +1462,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
                       endTime: endTimeDate.format('YYYY-MM-DD HH:mm'),
                       marginMinutes: deadlineDate.diff(endTimeDate, 'minutes'),
+                      deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
                     })
                   }
                 }
@@ -1562,24 +1574,29 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         }}
                       >
                         {/* Deadline Violation Badge */}
-                        {item.deadline && !isWaitTime && (() => {
-                          const isViolated = dayjs(item.endTime).isAfter(dayjs(item.deadline))
+                        {effectiveDeadline && !isWaitTime && (() => {
+                          const isViolated = dayjs(item.endTime).isAfter(dayjs(effectiveDeadline))
                           if (!isViolated) return null
 
-                          // Log deadline violation for debugging
-                          logger.ui.warn('🚨 DEADLINE VIOLATION DETECTED', {
+                          // Log deadline violation for debugging (additional to main logging above)
+                          const isInheritedDeadline = !item.deadline && !!effectiveDeadline
+                          logger.ui.warn('🎯 [BADGE] Rendering deadline violation badge', {
                             itemId: item.id,
                             itemName: item.name,
-                            deadline: dayjs(item.deadline).format(),
+                            deadline: dayjs(effectiveDeadline).format(),
                             actualEnd: dayjs(item.endTime).format(),
-                            delayMinutes: dayjs(item.endTime).diff(dayjs(item.deadline), 'minutes'),
+                            delayMinutes: dayjs(item.endTime).diff(dayjs(effectiveDeadline), 'minutes'),
                             isWorkflow: !!item.workflowId,
                             workflowName: item.workflowName,
+                            deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
+                            badgeType: item.workflowId 
+                              ? (isInheritedDeadline ? 'WORKFLOW_STEP' : 'WORKFLOW') 
+                              : 'TASK',
                           })
 
                           return (
                             <DeadlineViolationBadge
-                              deadline={item.deadline}
+                              deadline={effectiveDeadline}
                               endTime={item.endTime}
                               isWorkflow={!!item.workflowId}
                               workflowName={item.workflowName}
