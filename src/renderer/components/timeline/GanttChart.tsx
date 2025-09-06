@@ -1467,7 +1467,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       isWorkflow: !!item.workflowId,
                       workflowName: item.workflowName,
                       deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
-                      violationType: item.workflowId 
+                      violationType: item.workflowId
                         ? (isInheritedDeadline ? 'WORKFLOW_STEP_DEADLINE' : 'WORKFLOW_DEADLINE')
                         : 'TASK_DEADLINE',
                     })
