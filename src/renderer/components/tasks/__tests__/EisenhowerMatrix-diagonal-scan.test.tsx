@@ -16,10 +16,10 @@ vi.mock('../EisenhowerGrid', () => ({
 }))
 
 vi.mock('../EisenhowerScatter', () => ({
-  EisenhowerScatter: ({ onSelectTask }: any) => (
+  EisenhowerScatter: ({ onSelectTask: _onSelectTask }: any) => (
     <div data-testid="eisenhower-scatter">
       <div data-testid="scatter-view">Scatter View</div>
-      <button 
+      <button
         data-testid="diagonal-scan-button"
         aria-label="Start diagonal scan"
       >
@@ -31,8 +31,8 @@ vi.mock('../EisenhowerScatter', () => ({
 
 vi.mock('../EisenhowerDiagonalScan', () => ({
   EisenhowerDiagonalScan: ({ isScanning, onToggleScan }: any) => (
-    <button 
-      data-testid="diagonal-scan-button" 
+    <button
+      data-testid="diagonal-scan-button"
       onClick={onToggleScan}
       aria-label={isScanning ? 'Stop scanning' : 'Start diagonal scan'}
     >
@@ -89,7 +89,7 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
       fireEvent.click(scatterRadio)
 
       const scanButton = screen.getByTestId('diagonal-scan-button')
-      
+
       // Scan button should be present and functional
       expect(scanButton).toBeInTheDocument()
       expect(scanButton).toHaveTextContent('Scan')

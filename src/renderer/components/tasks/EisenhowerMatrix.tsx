@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Card, Grid, Typography, Space, Radio } from '@arco-design/web-react'
+import { Card, Typography, Space, Radio } from '@arco-design/web-react'
 import { IconApps, IconDragDot } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Task } from '@shared/types'
@@ -131,7 +131,7 @@ export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
       {/* Matrix View */}
       <div ref={containerRef}>
         {viewMode === 'grid' ? (
-          <EisenhowerGrid 
+          <EisenhowerGrid
             tasks={incompleteTasks}
             onAddTask={onAddTask}
             onSelectTask={(task) => selectTask(task.id)}

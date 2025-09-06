@@ -142,7 +142,7 @@ describe('EisenhowerMatrix', () => {
       // Should show incomplete tasks
       expect(screen.getByText('Urgent Important Task')).toBeInTheDocument()
       expect(screen.getByText('Important Not Urgent')).toBeInTheDocument()
-      
+
       // Should not show completed task
       expect(screen.queryByText('Completed Task')).not.toBeInTheDocument()
     })

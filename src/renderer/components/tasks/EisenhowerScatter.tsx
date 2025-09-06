@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { Card, Typography, Space, Tag, Empty, Button, Badge, Tooltip } from '@arco-design/web-react'
+import { Card, Typography, Space, Tag, Button, Badge, Tooltip } from '@arco-design/web-react'
 import { IconScan } from '@arco-design/web-react/icon'
-import { TaskType } from '@shared/enums'
+// import { TaskType } from '@shared/enums' // Not used in this component
 import { Task } from '@shared/types'
 import { getRendererLogger } from '../../../logging/index.renderer'
 import { useContainerQuery } from '../../hooks/useContainerQuery'
@@ -19,12 +19,12 @@ interface EisenhowerScatterProps {
 
 const logger = getRendererLogger().child({ category: 'eisenhower' })
 
-export function EisenhowerScatter({ 
-  tasks, 
-  allItemsForScatter, 
-  onSelectTask, 
-  containerSize, 
-  setContainerSize 
+export function EisenhowerScatter({
+  tasks,
+  allItemsForScatter,
+  onSelectTask,
+  containerSize,
+  setContainerSize,
 }: EisenhowerScatterProps) {
   const { ref: scatterContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
   const { isCompact, isMobile } = useResponsive()
@@ -128,7 +128,7 @@ export function EisenhowerScatter({
   // Calculate distance from a point to the diagonal scan line
   const getDistanceToScanLine = useCallback((xPercent: number, yPercent: number) => {
     const containerRect = { width: containerSize.width - 2 * padding, height: containerSize.height - 2 * padding }
-    
+
     const scanLineX1 = containerRect.width * (1 - scanProgress) // Moving start point
     const scanLineY1 = 0 // Top edge
     const scanLineX2 = containerRect.width // Right edge (fixed)
@@ -154,7 +154,7 @@ export function EisenhowerScatter({
       setScanProgress(0)
       setHighlightedTaskId(null)
       setScannedTasks([])
-      
+
       if (scanAnimationRef.current !== undefined) {
         window.cancelAnimationFrame(scanAnimationRef.current)
         scanAnimationRef.current = undefined
@@ -166,7 +166,7 @@ export function EisenhowerScatter({
     setIsScanning(true)
     setScanProgress(0)
     setScannedTasks([])
-    
+
     const scannedTaskIds = new Set<string>()
     const scanStartTime = Date.now()
 
@@ -179,16 +179,16 @@ export function EisenhowerScatter({
 
       // Find tasks within threshold of scan line
       const currentHighlighted: string[] = []
-      
+
       allItemsForScatter.forEach(task => {
         const xPercent = task.urgency * 10 // Convert 0-10 to 0-100%
         const yPercent = 100 - (task.importance * 10) // Convert 0-10 to 0-100%, inverted
-        
+
         const distance = getDistanceToScanLine(xPercent, yPercent)
-        
+
         if (distance <= 30) { // 30 pixel threshold for highlighting
           currentHighlighted.push(task.id)
-          
+
           if (!scannedTaskIds.has(task.id)) {
             scannedTaskIds.add(task.id)
             setScannedTasks(prev => [...prev, task])
@@ -240,18 +240,18 @@ export function EisenhowerScatter({
   // Task clustering for overlapping positions
   const taskClusters = useMemo(() => {
     const clusters = new Map<string, typeof allItemsForScatter>()
-    
+
     allItemsForScatter.forEach(task => {
       const xPercent = task.urgency * 10
       const yPercent = 100 - (task.importance * 10)
       const posKey = `${Math.round(xPercent)}-${Math.round(yPercent)}`
-      
+
       if (!clusters.has(posKey)) {
         clusters.set(posKey, [])
       }
       clusters.get(posKey)!.push(task)
     })
-    
+
     return clusters
   }, [allItemsForScatter])
 
@@ -325,7 +325,7 @@ export function EisenhowerScatter({
               const [x, y] = posKey.split('-').map(Number)
               const task = clusterTasks[0]
               const isHighlighted = highlightedTaskId === task.id
-              
+
               return (
                 <div
                   key={posKey}

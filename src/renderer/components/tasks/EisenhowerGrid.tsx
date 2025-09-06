@@ -6,7 +6,7 @@ import { Task } from '@shared/types'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 
 const { Row, Col } = Grid
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface EisenhowerGridProps {
   tasks: Task[]
@@ -24,7 +24,7 @@ interface QuadrantCardProps {
 
 export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth }: EisenhowerGridProps) {
   const [zoom, setZoom] = useState(1)
-  const { isMobile } = useResponsive()
+  const { } = useResponsive()
 
   // Filter tasks by completion status
   const incompleteTasks = tasks.filter(task => !task.completed)
@@ -105,7 +105,7 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
         <Text type="secondary" style={{ marginBottom: 16, display: 'block' }}>
           {info.description}
         </Text>
-        
+
         <Space direction="vertical" style={{ width: '100%' }} size="small">
           {quadrantTasks.map(task => (
             <Card
@@ -113,7 +113,7 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
               size="small"
               style={{
                 cursor: 'pointer',
-                borderColor: task.type === TaskType.Focused ? '#165DFF' : 
+                borderColor: task.type === TaskType.Focused ? '#165DFF' :
                            task.type === TaskType.Admin ? '#00B42A' : '#FF7D00',
                 backgroundColor: '#fff',
                 transform: `scale(${Math.min(zoom, 1.2)})`,
@@ -125,8 +125,8 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
               <Space direction="vertical" style={{ width: '100%' }} size="small">
                 <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{task.name}</Text>
                 <Space>
-                  <Tag 
-                    color={task.type === TaskType.Focused ? 'blue' : 
+                  <Tag
+                    color={task.type === TaskType.Focused ? 'blue' :
                           task.type === TaskType.Admin ? 'green' : 'orange'}
                     size="small"
                   >
@@ -163,7 +163,7 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
               />
               <Button icon={<IconZoomIn />} size="small" onClick={() => setZoom(Math.min(2, zoom + 0.1))} />
             </Space>
-            
+
             <Button type="primary" icon={<IconPlus />} onClick={onAddTask} size="small">
               {containerWidth > 500 ? 'Add Task' : ''}
             </Button>
@@ -213,16 +213,16 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
             <Col span={12}>
               <Row gutter={[24, 24]}>
                 <Col span={24} style={{ minHeight: 400 }}>
-                  <QuadrantCard 
-                    quadrant="schedule" 
+                  <QuadrantCard
+                    quadrant="schedule"
                     tasks={categorizedTasks.schedule}
                     onSelectTask={onSelectTask}
                     zoom={zoom}
                   />
                 </Col>
                 <Col span={24} style={{ minHeight: 400 }}>
-                  <QuadrantCard 
-                    quadrant="eliminate" 
+                  <QuadrantCard
+                    quadrant="eliminate"
                     tasks={categorizedTasks.eliminate}
                     onSelectTask={onSelectTask}
                     zoom={zoom}
@@ -233,16 +233,16 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
             <Col span={12}>
               <Row gutter={[24, 24]}>
                 <Col span={24} style={{ minHeight: 400 }}>
-                  <QuadrantCard 
-                    quadrant="do-first" 
+                  <QuadrantCard
+                    quadrant="do-first"
                     tasks={categorizedTasks['do-first']}
                     onSelectTask={onSelectTask}
                     zoom={zoom}
                   />
                 </Col>
                 <Col span={24} style={{ minHeight: 400 }}>
-                  <QuadrantCard 
-                    quadrant="delegate" 
+                  <QuadrantCard
+                    quadrant="delegate"
                     tasks={categorizedTasks.delegate}
                     onSelectTask={onSelectTask}
                     zoom={zoom}
