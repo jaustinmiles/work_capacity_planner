@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Card, Grid, Typography, Space, Tag, Button, Slider } from '@arco-design/web-react'
 import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { TaskType } from '@shared/enums'
@@ -97,7 +97,7 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
         title={
           <Space>
             {info.icon}
-            <Text strong style={{ color: info.color }}>{info.title}</Text>
+            <Text style={{ color: info.color, fontWeight: 'bold' }}>{info.title}</Text>
             <Tag color={info.color} size="small">{quadrantTasks.length}</Tag>
           </Space>
         }
@@ -123,7 +123,7 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
               hoverable
             >
               <Space direction="vertical" style={{ width: '100%' }} size="small">
-                <Text strong style={{ fontSize: 14 }}>{task.name}</Text>
+                <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{task.name}</Text>
                 <Space>
                   <Tag 
                     color={task.type === TaskType.Focused ? 'blue' : 

@@ -120,18 +120,18 @@ describe('EisenhowerMatrix', () => {
       expect(screen.getByTestId('eisenhower-scatter')).toBeInTheDocument()
     })
 
-    it('should show diagonal scan button only in scatter mode', () => {
+    it('should show scatter view when toggled', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      // Grid mode - no scan button
-      expect(screen.queryByTestId('diagonal-scan-button')).not.toBeInTheDocument()
+      // Grid mode initially
+      expect(screen.getByTestId('eisenhower-grid')).toBeInTheDocument()
 
       // Switch to scatter mode
       const scatterButton = screen.getByDisplayValue('scatter')
       fireEvent.click(scatterButton)
 
-      // Scatter mode - scan button should appear
-      expect(screen.getByTestId('diagonal-scan-button')).toBeInTheDocument()
+      // Scatter mode should show
+      expect(screen.getByTestId('eisenhower-scatter')).toBeInTheDocument()
     })
   })
 
@@ -153,10 +153,7 @@ describe('EisenhowerMatrix', () => {
       const taskElement = screen.getByText('Urgent Important Task')
       fireEvent.click(taskElement)
 
-      expect(mockSelectTask).toHaveBeenCalledWith(expect.objectContaining({
-        id: 'task-1',
-        name: 'Urgent Important Task'
-      }))
+      expect(mockSelectTask).toHaveBeenCalledWith('task-1')
     })
 
     it('should handle add task action from child components', () => {

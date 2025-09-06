@@ -1,0 +1,504 @@
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { Card, Typography, Space, Tag, Empty, Button, Badge, Tooltip } from '@arco-design/web-react'
+import { IconScan } from '@arco-design/web-react/icon'
+import { TaskType } from '@shared/enums'
+import { Task } from '@shared/types'
+import { getRendererLogger } from '../../../logging/index.renderer'
+import { useContainerQuery } from '../../hooks/useContainerQuery'
+import { useResponsive } from '../../providers/ResponsiveProvider'
+
+const { Text } = Typography
+
+interface EisenhowerScatterProps {
+  tasks: Task[]
+  allItemsForScatter: Array<Task & { isStep?: boolean; parentWorkflow?: string; stepName?: string; stepIndex?: number }>
+  onSelectTask: (task: Task) => void
+  containerSize: { width: number; height: number }
+  setContainerSize: (size: { width: number; height: number }) => void
+}
+
+const logger = getRendererLogger().child({ category: 'eisenhower' })
+
+export function EisenhowerScatter({ 
+  tasks, 
+  allItemsForScatter, 
+  onSelectTask, 
+  containerSize, 
+  setContainerSize 
+}: EisenhowerScatterProps) {
+  const { ref: scatterContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
+  const { isCompact, isMobile } = useResponsive()
+  const [debugMode, setDebugMode] = useState(false)
+
+  // Diagonal scan state
+  const [isScanning, setIsScanning] = useState(false)
+  const [scanProgress, setScanProgress] = useState(0)
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
+  const [scannedTasks, setScannedTasks] = useState<Task[]>([])
+  const scanAnimationRef = useRef<number | undefined>(undefined)
+
+  // Calculate responsive padding
+  const PADDING_MOBILE = 20
+  const PADDING_COMPACT = 40
+  const PADDING_DESKTOP = 50
+  const padding = isMobile ? PADDING_MOBILE : isCompact ? PADDING_COMPACT : PADDING_DESKTOP
+
+  // Filter incomplete tasks
+  const incompleteTasks = tasks.filter(task => !task.completed)
+
+  // Update container size based on container query results
+  useEffect(() => {
+    logger.warn('🔄 [SCATTER] Container resize detected', {
+      measured: { width: containerWidth, height: containerHeight },
+      current: containerSize,
+      hasValidDimensions: !!(containerWidth && containerHeight),
+      padding,
+      viewMode: 'scatter',
+      timestamp: Date.now(),
+    })
+
+    if (containerWidth && containerHeight) {
+      const newSize = {
+        width: containerWidth,
+        height: containerHeight,
+      }
+
+      // Only update if significantly different to avoid render loops
+      const widthDiff = Math.abs(newSize.width - containerSize.width)
+      const heightDiff = Math.abs(newSize.height - containerSize.height)
+
+      if (widthDiff > 10 || heightDiff > 10) {
+        logger.info('📐 [SCATTER] Size calculation', {
+          input: { containerWidth, containerHeight },
+          padding,
+          calculated: newSize,
+          current: containerSize,
+          difference: { width: widthDiff, height: heightDiff },
+          needsUpdate: true,
+          gridSize: { width: newSize.width - 2 * padding, height: newSize.height - 2 * padding },
+        })
+
+        setContainerSize(newSize)
+      } else {
+        logger.debug('⏸️ [SCATTER] Size update skipped (difference < 10px)')
+      }
+    }
+  }, [containerWidth, containerHeight, containerSize, padding, setContainerSize])
+
+  // Scatter plot logging
+  useEffect(() => {
+    if (incompleteTasks.length > 0) {
+      logger.debug('EISENHOWER SCATTER DEBUG: Scatter plot rendering', {
+        taskCount: incompleteTasks.length,
+        containerWidth: containerSize.width,
+        containerHeight: containerSize.height,
+        firstTaskImportance: incompleteTasks[0]?.importance,
+        firstTaskUrgency: incompleteTasks[0]?.urgency,
+        hasWindowElectron: typeof window !== 'undefined' && !!(window as any).electron,
+        hasWindowElectronLog: typeof window !== 'undefined' && !!(window as any).electron?.log,
+      })
+
+      logger.info('Scatter view activated', {
+        taskCount: incompleteTasks.length,
+        importanceDistribution: {
+          min: Math.min(...incompleteTasks.map(t => t.importance)),
+          max: Math.max(...incompleteTasks.map(t => t.importance)),
+          unique: [...new Set(incompleteTasks.map(t => t.importance))],
+          all: incompleteTasks.map(t => t.importance),
+        },
+        urgencyDistribution: {
+          min: Math.min(...incompleteTasks.map(t => t.urgency)),
+          max: Math.max(...incompleteTasks.map(t => t.urgency)),
+          unique: [...new Set(incompleteTasks.map(t => t.urgency))],
+          all: incompleteTasks.map(t => t.urgency),
+        },
+        yPositionDistribution: {
+          min: Math.min(...incompleteTasks.map(t => 100 - (t.importance * 10))),
+          max: Math.max(...incompleteTasks.map(t => 100 - (t.importance * 10))),
+          unique: [...new Set(incompleteTasks.map(t => 100 - (t.importance * 10)))],
+          count: new Set(incompleteTasks.map(t => 100 - (t.importance * 10))).size,
+          all: incompleteTasks.map(t => 100 - (t.importance * 10)),
+        },
+        containerSize,
+        timestamp: new Date().toISOString(),
+      })
+    }
+  }, [incompleteTasks, containerSize])
+
+  // Calculate distance from a point to the diagonal scan line
+  const getDistanceToScanLine = useCallback((xPercent: number, yPercent: number) => {
+    const containerRect = { width: containerSize.width - 2 * padding, height: containerSize.height - 2 * padding }
+    
+    const scanLineX1 = containerRect.width * (1 - scanProgress) // Moving start point
+    const scanLineY1 = 0 // Top edge
+    const scanLineX2 = containerRect.width // Right edge (fixed)
+    const scanLineY2 = containerRect.height * scanProgress // Moving down
+
+    const pointX = (xPercent / 100) * containerRect.width
+    const pointY = (yPercent / 100) * containerRect.height
+
+    // Calculate perpendicular distance from point to line
+    const A = scanLineY2 - scanLineY1
+    const B = scanLineX1 - scanLineX2
+    const C = scanLineX2 * scanLineY1 - scanLineX1 * scanLineY2
+
+    const distance = Math.abs(A * pointX + B * pointY + C) / Math.sqrt(A * A + B * B)
+    return distance
+  }, [containerSize, padding, scanProgress])
+
+  // Start/stop diagonal scan animation
+  const toggleDiagonalScan = useCallback(() => {
+    if (isScanning) {
+      // Stop scanning
+      setIsScanning(false)
+      setScanProgress(0)
+      setHighlightedTaskId(null)
+      setScannedTasks([])
+      
+      if (scanAnimationRef.current !== undefined) {
+        window.cancelAnimationFrame(scanAnimationRef.current)
+        scanAnimationRef.current = undefined
+      }
+      return
+    }
+
+    // Start scanning
+    setIsScanning(true)
+    setScanProgress(0)
+    setScannedTasks([])
+    
+    const scannedTaskIds = new Set<string>()
+    const scanStartTime = Date.now()
+
+    const animate = () => {
+      const elapsed = Date.now() - scanStartTime
+      const duration = 4000 // 4 seconds total
+      const progress = Math.min(elapsed / duration, 2.0) // Allow progress to go beyond 1.0 to 2.0
+
+      setScanProgress(progress)
+
+      // Find tasks within threshold of scan line
+      const currentHighlighted: string[] = []
+      
+      allItemsForScatter.forEach(task => {
+        const xPercent = task.urgency * 10 // Convert 0-10 to 0-100%
+        const yPercent = 100 - (task.importance * 10) // Convert 0-10 to 0-100%, inverted
+        
+        const distance = getDistanceToScanLine(xPercent, yPercent)
+        
+        if (distance <= 30) { // 30 pixel threshold for highlighting
+          currentHighlighted.push(task.id)
+          
+          if (!scannedTaskIds.has(task.id)) {
+            scannedTaskIds.add(task.id)
+            setScannedTasks(prev => [...prev, task])
+            onSelectTask(task)
+          }
+        }
+      })
+
+      setHighlightedTaskId(currentHighlighted.length > 0 ? currentHighlighted[0] : null)
+
+      // Debug logging for animation progress
+      if (progress % 0.1 < 0.02) { // Log every ~10% progress
+        logger.debug('Diagonal scan progress', {
+          progress: Math.round(progress * 100) / 100,
+          elapsed: elapsed,
+          highlighted: currentHighlighted.length,
+          scanned: scannedTaskIds.size,
+        })
+      }
+
+      if (progress >= 2.0) {
+        // Animation complete - log final results
+        logger.info('Diagonal scan completed', {
+          totalScanned: scannedTaskIds.size,
+          animationDuration: elapsed,
+          finalProgress: progress,
+        })
+        setIsScanning(false)
+        setScanProgress(0)
+        setHighlightedTaskId(null)
+        scanAnimationRef.current = undefined
+      } else {
+        scanAnimationRef.current = window.requestAnimationFrame(animate)
+      }
+    }
+
+    scanAnimationRef.current = window.requestAnimationFrame(animate)
+  }, [isScanning, allItemsForScatter, onSelectTask, getDistanceToScanLine])
+
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (scanAnimationRef.current !== undefined) {
+        window.cancelAnimationFrame(scanAnimationRef.current)
+      }
+    }
+  }, [])
+
+  // Task clustering for overlapping positions
+  const taskClusters = useMemo(() => {
+    const clusters = new Map<string, typeof allItemsForScatter>()
+    
+    allItemsForScatter.forEach(task => {
+      const xPercent = task.urgency * 10
+      const yPercent = 100 - (task.importance * 10)
+      const posKey = `${Math.round(xPercent)}-${Math.round(yPercent)}`
+      
+      if (!clusters.has(posKey)) {
+        clusters.set(posKey, [])
+      }
+      clusters.get(posKey)!.push(task)
+    })
+    
+    return clusters
+  }, [allItemsForScatter])
+
+  return (
+    <div>
+      {/* Scatter Plot Controls */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space>
+          <Button
+            type={isScanning ? 'primary' : 'default'}
+            icon={<IconScan />}
+            onClick={toggleDiagonalScan}
+            loading={isScanning}
+            size="small"
+          >
+            {isScanning ? 'Scan...' : 'Scan'}
+          </Button>
+        </Space>
+      </Card>
+
+      {/* Scatter Plot View */}
+      <Card style={{ position: 'relative', overflow: 'hidden', padding: 0 }}>
+        <div ref={scatterContainerRef} className="eisenhower-scatter-container" style={{
+          width: '100%',
+          height: isMobile ? 450 : 650,
+          minHeight: isMobile ? 450 : 650,
+          maxHeight: 800,
+          position: 'relative',
+          overflow: 'hidden',
+          background: '#fafbfc',
+        }}>
+          {/* Axis Labels */}
+          <Text
+            type="secondary"
+            style={{
+              position: 'absolute',
+              bottom: 10,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              fontWeight: 500,
+            }}
+          >
+            Urgency →
+          </Text>
+          <Text
+            type="secondary"
+            style={{
+              position: 'absolute',
+              left: 10,
+              top: '50%',
+              transform: 'translateY(-50%) rotate(-90deg)',
+              fontWeight: 500,
+            }}
+          >
+            Importance →
+          </Text>
+
+          {/* Main scatter plot content area */}
+          <div style={{
+            position: 'absolute',
+            top: padding,
+            left: padding,
+            right: padding,
+            bottom: padding,
+            border: '2px solid #e5e6eb',
+            background: 'white',
+          }}>
+            {/* Task clusters and plotting logic would go here */}
+            {/* This would need the full complex rendering logic from the original component */}
+            {Array.from(taskClusters.entries()).map(([posKey, clusterTasks]) => {
+              const [x, y] = posKey.split('-').map(Number)
+              const task = clusterTasks[0]
+              const isHighlighted = highlightedTaskId === task.id
+              
+              return (
+                <div
+                  key={posKey}
+                  style={{
+                    position: 'absolute',
+                    left: `${x}%`,
+                    top: `${y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => onSelectTask(task)}
+                >
+                  {clusterTasks.length > 1 ? (
+                    <Badge count={clusterTasks.length}>
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        backgroundColor: isHighlighted ? '#ff4757' : '#3742fa',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: 12,
+                        fontWeight: 'bold',
+                      }}>
+                        {task.name.substring(0, 2)}
+                      </div>
+                    </Badge>
+                  ) : (
+                    <Tooltip content={task.name}>
+                      <div style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: '50%',
+                        backgroundColor: isHighlighted ? '#ff4757' : '#3742fa',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: 10,
+                        fontWeight: 'bold',
+                      }}>
+                        {task.name.substring(0, 2)}
+                      </div>
+                    </Tooltip>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Diagonal Scan Line Animation */}
+            {isScanning && (
+              <div
+                data-testid="diagonal-scan-line"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  pointerEvents: 'none',
+                  zIndex: 1000,
+                }}
+              >
+                <svg
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                  }}
+                  preserveAspectRatio="none"
+                >
+                  <defs>
+                    <linearGradient id="scan-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" style={{ stopColor: '#ff6b6b', stopOpacity: 1 }} />
+                      <stop offset="50%" style={{ stopColor: '#4ecdc4', stopOpacity: 1 }} />
+                      <stop offset="100%" style={{ stopColor: '#45b7d1', stopOpacity: 0.8 }} />
+                    </linearGradient>
+                  </defs>
+                  <line
+                    x1={`${100 * (1 - scanProgress)}%`}
+                    y1="0%"
+                    x2="100%"
+                    y2={`${100 * scanProgress}%`}
+                    stroke="url(#scan-gradient)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    style={{
+                      filter: 'drop-shadow(0 0 4px rgba(255, 107, 107, 0.6))',
+                    }}
+                  />
+                </svg>
+              </div>
+            )}
+
+            {/* Debug Mode Elements */}
+            {debugMode && (
+              <div style={{
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                width: 8,
+                height: 8,
+                background: 'lime',
+                border: '2px solid green',
+                borderRadius: '50%',
+                transform: 'translate(-50%, -50%)',
+              }} />
+            )}
+
+            {/* Debug Mode Toggle Button */}
+            <Button
+              size="small"
+              type="text"
+              onClick={() => setDebugMode(!debugMode)}
+              style={{
+                position: 'absolute',
+                bottom: 10,
+                right: 10,
+                zIndex: 1001,
+                background: debugMode ? 'magenta' : 'white',
+                color: debugMode ? 'white' : 'black',
+              }}
+            >
+              {debugMode ? '🔍 Debug ON' : '🔍 Debug OFF'}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Scanned Tasks List */}
+      {scannedTasks.length > 0 && (
+        <Card
+          title={
+            <Space>
+              <IconScan style={{ fontSize: 18 }} />
+              <Text style={{ fontWeight: 500 }}>
+                Scanned Tasks ({scannedTasks.length})
+              </Text>
+            </Space>
+          }
+          style={{ marginTop: 16 }}
+        >
+          <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {scannedTasks.map((task, index) => (
+                <div key={task.id} style={{
+                  padding: '8px 12px',
+                  background: '#f5f5f5',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+                onClick={() => onSelectTask(task)}>
+                  <Space>
+                    <Tag size="small" color="blue">#{index + 1}</Tag>
+                    <Text style={{ fontWeight: 500 }}>{task.name}</Text>
+                    <Tag size="small" color="purple">I:{task.importance}</Tag>
+                    <Tag size="small" color="orange">U:{task.urgency}</Tag>
+                    <Tag size="small">
+                      {task.importance >= 7 && task.urgency >= 7 ? 'Do First' :
+                       task.importance >= 7 ? 'Schedule' :
+                       task.urgency >= 7 ? 'Delegate' : 'Eliminate'}
+                    </Tag>
+                  </Space>
+                </div>
+              ))}
+            </Space>
+          </div>
+        </Card>
+      )}
+    </div>
+  )
+}
