@@ -529,86 +529,40 @@ function App() {
             style={{ marginTop: 20 }}
           >
             <MenuItem key="tasks" data-testid="nav-tasks">
-              {sidebarCollapsed ? (
-                <Tooltip content="Task List" position="right">
-                  <Space data-testid="nav-tasks-content">
-                    <IconList />
-                    {incompleteTasks > 0 && (
-                      <Badge count={incompleteTasks} dot offset={[6, -4]} />
-                    )}
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space data-testid="nav-tasks-content">
-                  <IconList />
-                  <span>Task List</span>
-                  {incompleteTasks > 0 && (
-                    <Badge count={incompleteTasks} dot offset={[6, -4]} />
-                  )}
-                </Space>
-              )}
+              <Space data-testid="nav-tasks-content">
+                <IconList />
+                {!sidebarCollapsed && <span>Task List</span>}
+                {incompleteTasks > 0 && (
+                  <Badge count={incompleteTasks} dot offset={[6, -4]} />
+                )}
+              </Space>
             </MenuItem>
             <MenuItem key="matrix" data-testid="nav-matrix">
-              {sidebarCollapsed ? (
-                <Tooltip content="Eisenhower Matrix" position="right">
-                  <Space>
-                    <IconApps />
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space>
-                  <IconApps />
-                  <span>Eisenhower Matrix</span>
-                </Space>
-              )}
+              <Space>
+                <IconApps />
+                {!sidebarCollapsed && <span>Eisenhower Matrix</span>}
+              </Space>
             </MenuItem>
             <MenuItem key="calendar" data-testid="nav-calendar">
-              {sidebarCollapsed ? (
-                <Tooltip content="Calendar" position="right">
-                  <Space>
-                    <IconCalendar />
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space>
-                  <IconCalendar />
-                  <span>Calendar</span>
-                </Space>
-              )}
+              <Space>
+                <IconCalendar />
+                {!sidebarCollapsed && <span>Calendar</span>}
+              </Space>
             </MenuItem>
             <MenuItem key="workflows" data-testid="nav-workflows">
-              {sidebarCollapsed ? (
-                <Tooltip content="Workflows" position="right">
-                  <Space>
-                    <IconBranch />
-                    {activeWorkflows > 0 && (
-                      <Badge count={activeWorkflows} dot offset={[6, -4]} />
-                    )}
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space>
-                  <IconBranch />
-                  <span>Workflows</span>
-                  {activeWorkflows > 0 && (
-                    <Badge count={activeWorkflows} dot offset={[6, -4]} />
-                  )}
-                </Space>
-              )}
+              <Space>
+                <IconBranch />
+                {!sidebarCollapsed && <span>Workflows</span>}
+                {activeWorkflows > 0 && (
+                  <Badge count={activeWorkflows} dot offset={[6, -4]} />
+                )}
+              </Space>
             </MenuItem>
             <MenuItem key="timeline" data-testid="nav-timeline">
-              {sidebarCollapsed ? (
-                <Tooltip content="Timeline" position="right">
-                  <Space>
-                    <IconSchedule />
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space>
-                  <IconSchedule />
-                  <span>Timeline</span>
-                </Space>
-              )}
+              <Space>
+                <IconSchedule />
+                {!sidebarCollapsed && <span>Timeline</span>}
+              </Space>
             </MenuItem>
           </Menu>
 

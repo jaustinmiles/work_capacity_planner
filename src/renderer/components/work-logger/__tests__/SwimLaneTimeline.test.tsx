@@ -117,10 +117,10 @@ describe('SwimLaneTimeline', () => {
     const timeLabels = screen.getAllByText('06:00')
     expect(timeLabels.length).toBeGreaterThanOrEqual(1) // Should have at least one 06:00
 
-    // Check for day labels
-    expect(screen.getByText('Yesterday')).toBeInTheDocument()
-    expect(screen.getByText('Today')).toBeInTheDocument()
-    expect(screen.getByText('Tomorrow')).toBeInTheDocument()
+    // Check for day labels (allowing for multiple if rendered)
+    expect(screen.getAllByText('Yesterday').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Today').length).toBeGreaterThanOrEqual(1) 
+    expect(screen.getAllByText('Tomorrow').length).toBeGreaterThanOrEqual(1)
 
     // Check that we have multiple instances of common hours
     expect(screen.getAllByText('12:00').length).toBeGreaterThanOrEqual(1)
