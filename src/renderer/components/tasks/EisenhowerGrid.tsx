@@ -3,7 +3,7 @@ import { Card, Grid, Typography, Space, Tag, Button, Slider } from '@arco-design
 import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { TaskType } from '@shared/enums'
 import { Task } from '@shared/types'
-import { useResponsive } from '../../providers/ResponsiveProvider'
+// import { useResponsive } from '../../providers/ResponsiveProvider' // Not used
 
 const { Row, Col } = Grid
 const { Text } = Typography
