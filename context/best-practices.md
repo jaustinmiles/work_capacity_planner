@@ -120,11 +120,53 @@ Before marking any task complete:
 3. **E2E Tests**: Test full user workflows (when available)
 4. **Manual Testing**: Verify UI/UX feels right
 
+## Logging-First Development (MANDATORY)
+
+### All New Features Must Include Comprehensive Logging
+**Before marking ANY feature complete:**
+1. **Implement extensive logging** at all key decision points
+2. **Test that logging actually appears** when using the feature
+3. **Verify log messages are helpful** for debugging and understanding
+4. **Use appropriate log levels**: debug for details, info for operations, warn for issues
+5. **Only THEN mark feature as complete**
+
+### Logging Requirements for Features
+```typescript
+// Feature initialization
+logger.ui.info('🏗️ [FEATURE] Starting initialization', { inputParams, context })
+
+// Key processing steps  
+logger.ui.info('📋 [FEATURE] Processing data', { dataSize, options })
+
+// Decision points and branches
+logger.ui.debug('🔍 [FEATURE] Checking condition', { condition, result, impact })
+
+// Problems or edge cases
+logger.ui.warn('🚨 [FEATURE] Issue detected', { issue, severity, mitigation })
+
+// Successful completion
+logger.ui.info('✅ [FEATURE] Operation complete', { results, performance })
+```
+
+### Verification Protocol
+1. Implement feature code
+2. Add comprehensive logging throughout
+3. Test feature manually and verify logs appear correctly
+4. Check that logs provide enough detail for debugging
+5. ONLY AFTER logging verified - mark feature complete
+
+### Features Are Incomplete Without Working Logging
+- Cannot debug issues without observable behavior
+- Cannot verify feature works in production
+- Cannot troubleshoot user problems
+- Logging is not optional - it's a core requirement
+
 ## Code Review Readiness
 
 Your code is ready for review when:
 - All automated checks pass
 - You've manually tested the changes
+- **Comprehensive logging is implemented and verified working**
 - Documentation is updated
 - You can explain every change made
 - You're confident in the solution
