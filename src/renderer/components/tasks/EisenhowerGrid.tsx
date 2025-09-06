@@ -24,7 +24,7 @@ interface QuadrantCardProps {
 
 export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth }: EisenhowerGridProps) {
   const [zoom, setZoom] = useState(1)
-  const { } = useResponsive()
+  // const { } = useResponsive() // Not used in this component
 
   // Filter tasks by completion status
   const incompleteTasks = tasks.filter(task => !task.completed)
