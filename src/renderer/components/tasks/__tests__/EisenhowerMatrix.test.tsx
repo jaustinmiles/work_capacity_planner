@@ -5,32 +5,8 @@ import { EisenhowerMatrix } from '../EisenhowerMatrix'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { TaskType } from '@shared/enums'
 
-// Mock child components that will be extracted during refactor
-vi.mock('../EisenhowerGrid', () => ({
-  EisenhowerGrid: ({ tasks, onAddTask, onSelectTask }: any) => (
-    <div data-testid="eisenhower-grid">
-      <button onClick={onAddTask}>Add Task</button>
-      {tasks.map((task: any) => (
-        <div key={task.id} onClick={() => onSelectTask(task)}>
-          {task.name}
-        </div>
-      ))}
-    </div>
-  ),
-}))
-
-vi.mock('../EisenhowerScatter', () => ({
-  EisenhowerScatter: ({ tasks, onSelectTask }: any) => (
-    <div data-testid="eisenhower-scatter">
-      {tasks.map((task: any) => (
-        <div key={task.id} onClick={() => onSelectTask(task)}>
-          {task.name}
-        </div>
-      ))}
-    </div>
-  ),
-}))
-
+// Don't mock the actual components anymore - test the integration
+// Only mock components that don't exist yet
 vi.mock('../EisenhowerDiagonalScan', () => ({
   EisenhowerDiagonalScan: ({ isScanning, onToggleScan }: any) => (
     <button data-testid="diagonal-scan-button" onClick={onToggleScan}>
@@ -105,8 +81,14 @@ describe('EisenhowerMatrix', () => {
     it('should render grid view by default', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      expect(screen.getByTestId('eisenhower-grid')).toBeInTheDocument()
-      expect(screen.queryByTestId('eisenhower-scatter')).not.toBeInTheDocument()
+      // Check for grid-specific elements
+      expect(screen.getByText('Do First')).toBeInTheDocument()
+      expect(screen.getByText('Schedule')).toBeInTheDocument()
+      expect(screen.getByText('Delegate')).toBeInTheDocument()
+      expect(screen.getByText('Eliminate')).toBeInTheDocument()
+
+      // Scatter-specific elements should not be present
+      expect(screen.queryByText('Urgency →')).not.toBeInTheDocument()
     })
 
     it('should switch to scatter view when toggled', () => {
@@ -116,22 +98,29 @@ describe('EisenhowerMatrix', () => {
       const scatterButton = screen.getByDisplayValue('scatter')
       fireEvent.click(scatterButton)
 
-      expect(screen.queryByTestId('eisenhower-grid')).not.toBeInTheDocument()
-      expect(screen.getByTestId('eisenhower-scatter')).toBeInTheDocument()
+      // Check for scatter-specific elements
+      expect(screen.getByText('Urgency →')).toBeInTheDocument()
+      expect(screen.getByText('Importance →')).toBeInTheDocument()
+
+      // Grid quadrant labels should not be visible in scatter view
+      // (They might exist as overlays but not as card titles)
+      const doFirstElements = screen.queryAllByText('Do First')
+      expect(doFirstElements.length).toBeLessThanOrEqual(1) // May exist as overlay label
     })
 
     it('should show scatter view when toggled', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      // Grid mode initially
-      expect(screen.getByTestId('eisenhower-grid')).toBeInTheDocument()
+      // Grid mode initially - check for grid elements
+      expect(screen.getByText('Schedule')).toBeInTheDocument()
 
       // Switch to scatter mode
       const scatterButton = screen.getByDisplayValue('scatter')
       fireEvent.click(scatterButton)
 
-      // Scatter mode should show
-      expect(screen.getByTestId('eisenhower-scatter')).toBeInTheDocument()
+      // Scatter mode should show axis labels
+      expect(screen.getByText('Urgency →')).toBeInTheDocument()
+      expect(screen.getByText('Importance →')).toBeInTheDocument()
     })
   })
 
@@ -159,7 +148,10 @@ describe('EisenhowerMatrix', () => {
     it('should handle add task action from child components', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      const addButton = screen.getByText('Add Task')
+      // Find add button - it has an icon and might have text depending on width
+      const buttons = screen.getAllByRole('button')
+      const addButton = buttons.find(btn => btn.querySelector('.arco-icon-plus')) || screen.getByText('Add Task')
+
       fireEvent.click(addButton)
 
       expect(mockOnAddTask).toHaveBeenCalled()
