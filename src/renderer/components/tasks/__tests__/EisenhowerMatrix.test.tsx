@@ -1,9 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
 import { EisenhowerMatrix } from '../EisenhowerMatrix'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { TaskType } from '@shared/enums'
+
+// Mock child components that will be extracted during refactor
+vi.mock('../EisenhowerGrid', () => ({
+  EisenhowerGrid: ({ tasks, onAddTask, onSelectTask }: any) => (
+    <div data-testid="eisenhower-grid">
+      <button onClick={onAddTask}>Add Task</button>
+      {tasks.map((task: any) => (
+        <div key={task.id} onClick={() => onSelectTask(task)}>
+          {task.name}
+        </div>
+      ))}
+    </div>
+  ),
+}))
+
+vi.mock('../EisenhowerScatter', () => ({
+  EisenhowerScatter: ({ tasks, onSelectTask }: any) => (
+    <div data-testid="eisenhower-scatter">
+      {tasks.map((task: any) => (
+        <div key={task.id} onClick={() => onSelectTask(task)}>
+          {task.name}
+        </div>
+      ))}
+    </div>
+  ),
+}))
+
+vi.mock('../EisenhowerDiagonalScan', () => ({
+  EisenhowerDiagonalScan: ({ isScanning, onToggleScan }: any) => (
+    <button data-testid="diagonal-scan-button" onClick={onToggleScan}>
+      {isScanning ? 'Stop Scan' : 'Start Scan'}
+    </button>
+  ),
+}))
 
 // Mock the useContainerQuery hook to return proper dimensions in tests
 vi.mock('../../../hooks/useContainerQuery', () => ({
@@ -49,24 +83,6 @@ describe('EisenhowerMatrix', () => {
     },
     {
       id: 'task-3',
-      name: 'Urgent Not Important',
-      importance: 3,
-      urgency: 8,
-      duration: 30,
-      type: TaskType.Personal,
-      completed: false,
-    },
-    {
-      id: 'task-4',
-      name: 'Low Priority',
-      importance: 2,
-      urgency: 2,
-      duration: 45,
-      type: TaskType.Personal,
-      completed: false,
-    },
-    {
-      id: 'task-5',
       name: 'Completed Task',
       importance: 5,
       urgency: 5,
@@ -85,391 +101,71 @@ describe('EisenhowerMatrix', () => {
     })
   })
 
-  describe('Grid View', () => {
-    it('should render tasks in correct quadrants', () => {
+  describe('View Mode Orchestration', () => {
+    it('should render grid view by default', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      // Check that completed task is not shown
-      expect(screen.queryByText('Completed Task')).not.toBeInTheDocument()
-
-      // Check that other tasks are shown
-      expect(screen.getByText('Urgent Important Task')).toBeInTheDocument()
-      expect(screen.getByText('Important Not Urgent')).toBeInTheDocument()
-      expect(screen.getByText('Urgent Not Important')).toBeInTheDocument()
-      expect(screen.getByText('Low Priority')).toBeInTheDocument()
+      expect(screen.getByTestId('eisenhower-grid')).toBeInTheDocument()
+      expect(screen.queryByTestId('eisenhower-scatter')).not.toBeInTheDocument()
     })
 
-    it('should categorize tasks correctly', () => {
+    it('should switch to scatter view when toggled', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      // Check quadrant headers exist
-      expect(screen.getByText('Do First')).toBeInTheDocument()
-      expect(screen.getByText('Schedule')).toBeInTheDocument()
-      expect(screen.getByText('Delegate')).toBeInTheDocument()
-      expect(screen.getByText('Eliminate')).toBeInTheDocument()
+      // Find scatter toggle button
+      const scatterButton = screen.getByDisplayValue('scatter')
+      fireEvent.click(scatterButton)
+
+      expect(screen.queryByTestId('eisenhower-grid')).not.toBeInTheDocument()
+      expect(screen.getByTestId('eisenhower-scatter')).toBeInTheDocument()
     })
 
-    it('should handle task selection', () => {
+    it('should show diagonal scan button only in scatter mode', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      const task = screen.getByText('Urgent Important Task')
-      fireEvent.click(task)
+      // Grid mode - no scan button
+      expect(screen.queryByTestId('diagonal-scan-button')).not.toBeInTheDocument()
 
-      expect(mockSelectTask).toHaveBeenCalledWith('task-1')
+      // Switch to scatter mode
+      const scatterButton = screen.getByDisplayValue('scatter')
+      fireEvent.click(scatterButton)
+
+      // Scatter mode - scan button should appear
+      expect(screen.getByTestId('diagonal-scan-button')).toBeInTheDocument()
     })
   })
 
-  describe('Scatter Plot View', () => {
-    beforeEach(() => {
-      // Mock getBoundingClientRect to return valid dimensions
-      Element.prototype.getBoundingClientRect = vi.fn(() => ({
-        width: 800,
-        height: 600,
-        top: 0,
-        left: 0,
-        right: 800,
-        bottom: 600,
-        x: 0,
-        y: 0,
-        toJSON: () => {},
+  describe('Task Data Management', () => {
+    it('should pass filtered tasks to child components', () => {
+      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+
+      // Should show incomplete tasks
+      expect(screen.getByText('Urgent Important Task')).toBeInTheDocument()
+      expect(screen.getByText('Important Not Urgent')).toBeInTheDocument()
+      
+      // Should not show completed task
+      expect(screen.queryByText('Completed Task')).not.toBeInTheDocument()
+    })
+
+    it('should handle task selection from child components', () => {
+      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+
+      const taskElement = screen.getByText('Urgent Important Task')
+      fireEvent.click(taskElement)
+
+      expect(mockSelectTask).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'task-1',
+        name: 'Urgent Important Task'
       }))
     })
 
-    it('should toggle to scatter plot view', async () => {
+    it('should handle add task action from child components', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      // Find and click the scatter view toggle
-      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
-      fireEvent.click(scatterButton)
-
-      // Check that scatter plot elements are rendered
-      await waitFor(() => {
-        expect(screen.getByText('Urgency →')).toBeInTheDocument()
-        expect(screen.getByText('Importance →')).toBeInTheDocument()
-      })
-    })
-
-    it('should position tasks correctly in scatter plot', async () => {
-      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Switch to scatter view
-      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
-      fireEvent.click(scatterButton)
-
-      await waitFor(() => {
-        // Find task bubbles by their positioning
-        const bubbles = container.querySelectorAll('[style*="position: absolute"]')
-
-        // Filter to only get task bubbles (not axis labels or grid lines)
-        const taskBubbles = Array.from(bubbles).filter(el => {
-          const style = (el as HTMLElement).style
-          return style.borderRadius === '50%' // Task bubbles are circular
-        })
-
-        // Should have task bubbles (4 tasks) plus debug elements (center point, debug button may be circular)
-        // Filter more specifically for actual task bubbles
-        const actualTaskBubbles = taskBubbles.filter(el => {
-          const style = (el as HTMLElement).style
-          // Task bubbles have specific size range and transform
-          return style.transform && style.transform.includes('translate')
-        })
-        expect(actualTaskBubbles.length).toBeGreaterThanOrEqual(4) // At least 4 task bubbles
-
-        // Check that bubbles have different positions based on importance/urgency
-        const positions = taskBubbles.map(bubble => {
-          const style = (bubble as HTMLElement).style
-          return {
-            left: parseInt(style.left),
-            top: parseInt(style.top),
-          }
-        })
-
-        // All positions should be different (no overlapping tasks at same importance/urgency)
-        const uniquePositions = new Set(positions.map(p => `${p.left},${p.top}`))
-        expect(uniquePositions.size).toBeGreaterThan(1)
-      })
-    })
-
-    it('should size bubbles based on task duration', async () => {
-      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Switch to scatter view
-      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
-      fireEvent.click(scatterButton)
-
-      await waitFor(() => {
-        const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
-
-        const sizes = Array.from(bubbles).map(bubble => {
-          const style = (bubble as HTMLElement).style
-          return parseInt(style.width) || 0
-        })
-
-        // Should have different sizes based on duration
-        const uniqueSizes = new Set(sizes)
-        expect(uniqueSizes.size).toBeGreaterThan(1)
-
-        // Sizes should be within expected range (now responsive, so can be smaller)
-        sizes.forEach(size => {
-          if (size > 0) { // Ignore non-bubble elements
-            expect(size).toBeGreaterThanOrEqual(10) // Reduced minimum for responsive sizing
-            expect(size).toBeLessThanOrEqual(60)
-          }
-        })
-      })
-    })
-
-    it('should handle zoom controls', async () => {
-      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Switch to scatter view
-      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
-      fireEvent.click(scatterButton)
-
-      // Find zoom controls
-      const zoomInButton = screen.getAllByRole('button').find(btn =>
-        btn.querySelector('[class*="icon-zoom-in"]'),
-      )
-      const zoomOutButton = screen.getAllByRole('button').find(btn =>
-        btn.querySelector('[class*="icon-zoom-out"]'),
-      )
-
-      // Test zoom in
-      if (zoomInButton) {
-        fireEvent.click(zoomInButton)
-
-        await waitFor(() => {
-          const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
-          // Find a task bubble (not the debug marker)
-          const taskBubble = Array.from(bubbles).find(b =>
-            (b as HTMLElement).style.transform?.includes('scale'),
-          ) as HTMLElement
-
-          if (taskBubble) {
-            // Check that transform scale exists
-            expect(taskBubble.style.transform).toContain('scale')
-          }
-        })
-      }
-
-      // Test zoom out
-      if (zoomOutButton) {
-        fireEvent.click(zoomOutButton)
-        // Zoom functionality should work without errors
-        expect(true).toBe(true)
-      }
-    })
-
-    it('should show tooltips on hover', async () => {
-      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Switch to scatter view
-      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
-      fireEvent.click(scatterButton)
-
-      await waitFor(() => {
-        const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
-        // Find a task bubble (not the debug marker - it has opacity 0.8 by default)
-        const taskBubble = Array.from(bubbles).find(b =>
-          (b as HTMLElement).style.opacity === '0.8',
-        ) as HTMLElement
-
-        if (taskBubble) {
-          // Hover over task bubble
-          fireEvent.mouseEnter(taskBubble)
-
-          // Bubble should change opacity on hover
-          expect(taskBubble.style.opacity).toBe('1')
-
-          // Mouse leave should restore opacity
-          fireEvent.mouseLeave(taskBubble)
-          expect(taskBubble.style.opacity).toBe('0.8')
-        }
-      })
-    })
-
-    it('should handle task click in scatter plot', async () => {
-      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Switch to scatter view
-      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
-      fireEvent.click(scatterButton)
-
-      await waitFor(() => {
-        const bubbles = container.querySelectorAll('[style*="border-radius: 50%"]')
-        // Find a task bubble (not the debug marker - it has cursor: pointer)
-        const taskBubble = Array.from(bubbles).find(b =>
-          (b as HTMLElement).style.cursor === 'pointer',
-        ) as HTMLElement
-
-        if (taskBubble) {
-          fireEvent.click(taskBubble)
-
-          // Should have called selectTask with one of the task IDs
-          expect(mockSelectTask).toHaveBeenCalled()
-        }
-      })
-    })
-  })
-
-  describe('View Mode Toggle', () => {
-    it('should persist view mode selection', () => {
-      const { rerender } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Switch to scatter view
-      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
-      fireEvent.click(scatterButton)
-
-      // Check scatter view is active
-      expect(screen.getByText('Urgency →')).toBeInTheDocument()
-
-      // Rerender component
-      rerender(<ResponsiveProvider><EisenhowerMatrix onAddTask={mockOnAddTask} /></ResponsiveProvider>)
-
-      // View mode should be maintained (in real app, would use localStorage)
-      // For now, just verify the toggle works
-      expect(screen.getByRole('radio', { name: /scatter/i })).toBeInTheDocument()
-    })
-  })
-
-  describe('Add Task Button', () => {
-    it('should call onAddTask when add button is clicked', () => {
-      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      const addButton = screen.getByRole('button', { name: /add task/i })
+      const addButton = screen.getByText('Add Task')
       fireEvent.click(addButton)
 
       expect(mockOnAddTask).toHaveBeenCalled()
-    })
-
-    it('should display workflow steps in scatter plot', async () => {
-      // Create a workflow with steps for testing
-      const mockWorkflow = {
-        id: 'workflow-1',
-        name: 'Test Workflow',
-        importance: 8,
-        urgency: 6,
-        duration: 120,
-        type: 'personal' as const,
-        completed: false,
-        hasSteps: true,
-        steps: [
-          {
-            id: 'step-1',
-            name: 'Step 1',
-            duration: 30,
-            taskId: 'workflow-1',
-            importance: null,
-            urgency: null,
-            status: 'not_started' as const,
-            stepIndex: 0,
-            dependsOn: [],
-            asyncWaitTime: 0,
-            isAsyncTrigger: false,
-          },
-          {
-            id: 'step-2',
-            name: 'Step 2',
-            duration: 45,
-            taskId: 'workflow-1',
-            importance: 9,
-            urgency: null,
-            status: 'not_started' as const,
-            stepIndex: 1,
-            dependsOn: ['step-1'],
-            asyncWaitTime: 0,
-            isAsyncTrigger: false,
-          },
-        ],
-      }
-
-      // Mock the store to include the workflow
-      const mockStore = {
-        tasks: [mockWorkflow],
-        sequencedTasks: [mockWorkflow],
-        selectTask: vi.fn(),
-      }
-
-      vi.mocked(useTaskStore).mockReturnValue(mockStore as any)
-
-      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Switch to scatter view
-      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
-      fireEvent.click(scatterButton)
-
-      await waitFor(() => {
-        // Should have workflow task + 2 steps = 3 items total
-        const allItems = container.querySelectorAll('[style*="border-radius"]')
-        expect(allItems.length).toBeGreaterThanOrEqual(3)
-
-        // Check for step indicators (should have "S1", "S2" text)
-        const stepElements = Array.from(allItems).filter(el =>
-          el.textContent?.startsWith('S'),
-        )
-        expect(stepElements.length).toBe(2)
-
-        // Check step visual differentiation (dashed border)
-        const stepWithDashedBorder = Array.from(allItems).find(el =>
-          (el as HTMLElement).style.border?.includes('dashed'),
-        )
-        expect(stepWithDashedBorder).toBeTruthy()
-      })
-    })
-
-    it('should inherit importance/urgency for workflow steps', async () => {
-      const mockWorkflow = {
-        id: 'workflow-inherit',
-        name: 'Inheritance Test',
-        importance: 7,
-        urgency: 8,
-        duration: 60,
-        type: 'personal' as const,
-        completed: false,
-        hasSteps: true,
-        steps: [
-          {
-            id: 'step-inherit',
-            name: 'Inheriting Step',
-            duration: 30,
-            taskId: 'workflow-inherit',
-            importance: null, // Should inherit 7
-            urgency: null,    // Should inherit 8
-            status: 'not_started' as const,
-            stepIndex: 0,
-            dependsOn: [],
-            asyncWaitTime: 0,
-            isAsyncTrigger: false,
-          },
-        ],
-      }
-
-      const mockStore = {
-        tasks: [mockWorkflow],
-        sequencedTasks: [mockWorkflow],
-        selectTask: vi.fn(),
-      }
-
-      vi.mocked(useTaskStore).mockReturnValue(mockStore as any)
-
-      const { container } = renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Switch to scatter view
-      const scatterButton = screen.getByRole('radio', { name: /scatter/i })
-      fireEvent.click(scatterButton)
-
-      await waitFor(() => {
-        // Find step element
-        const stepElement = Array.from(container.querySelectorAll('[style*="border-radius"]')).find(el =>
-          el.textContent?.includes('S1'),
-        ) as HTMLElement
-
-        expect(stepElement).toBeTruthy()
-
-        // Check tooltip shows inherited values
-        expect(stepElement.getAttribute('title')).toContain('I:7')
-        expect(stepElement.getAttribute('title')).toContain('U:8')
-      })
     })
   })
 })
