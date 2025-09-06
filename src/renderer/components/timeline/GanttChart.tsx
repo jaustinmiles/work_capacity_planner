@@ -799,6 +799,22 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               </Title>
             </Space>
           </Col>
+          <Col xs={12} sm={8} md={4} lg={3}>
+            <Space direction="vertical">
+              <Text type="secondary">Deadline Violations</Text>
+              <Title heading={4} style={{ color: scheduledItems.filter((item: any) => {
+                const parentWorkflow = item.workflowId ? sequencedTasks.find(w => w.id === item.workflowId) : null
+                const effectiveDeadline = item.deadline || (parentWorkflow?.deadline ? parentWorkflow.deadline : null)
+                return effectiveDeadline && dayjs(item.endTime).isAfter(dayjs(effectiveDeadline))
+              }).length > 0 ? '#ff4d4f' : '#00b42a' }}>
+                {scheduledItems.filter((item: any) => {
+                  const parentWorkflow = item.workflowId ? sequencedTasks.find(w => w.id === item.workflowId) : null
+                  const effectiveDeadline = item.deadline || (parentWorkflow?.deadline ? parentWorkflow.deadline : null)
+                  return effectiveDeadline && dayjs(item.endTime).isAfter(dayjs(effectiveDeadline))
+                }).length}
+              </Title>
+            </Space>
+          </Col>
           <Col xs={24} sm={24} md={10} lg={7}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <Text type="secondary">Schedule Options</Text>
@@ -1399,9 +1415,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   (item.workflowId && hoveredItem?.startsWith(item.workflowId))
 
                 // Check for deadline violation with extensive logging
-                // For workflow steps, inherit deadline from parent workflow
-                const effectiveDeadline = item.deadline || 
-                  (item.workflowId && sequencedTasks.find(w => w.id === item.workflowId)?.deadline)
+                // For workflow steps, inherit deadline from parent workflow ONLY if parent has deadline
+                const parentWorkflow = item.workflowId ? sequencedTasks.find(w => w.id === item.workflowId) : null
+                const effectiveDeadline = item.deadline || (parentWorkflow?.deadline ? parentWorkflow.deadline : null)
 
                 logger.ui.debug('🔍 [DEADLINE] Checking deadline for item', {
                   itemId: item.id,
@@ -1574,35 +1590,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         }}
                       >
                         {/* Deadline Violation Badge */}
-                        {effectiveDeadline && !isWaitTime && (() => {
-                          const isViolated = dayjs(item.endTime).isAfter(dayjs(effectiveDeadline))
-                          if (!isViolated) return null
-
-                          // Log deadline violation for debugging (additional to main logging above)
-                          const isInheritedDeadline = !item.deadline && !!effectiveDeadline
-                          logger.ui.warn('🎯 [BADGE] Rendering deadline violation badge', {
-                            itemId: item.id,
-                            itemName: item.name,
-                            deadline: dayjs(effectiveDeadline).format(),
-                            actualEnd: dayjs(item.endTime).format(),
-                            delayMinutes: dayjs(item.endTime).diff(dayjs(effectiveDeadline), 'minutes'),
-                            isWorkflow: !!item.workflowId,
-                            workflowName: item.workflowName,
-                            deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
-                            badgeType: item.workflowId 
-                              ? (isInheritedDeadline ? 'WORKFLOW_STEP' : 'WORKFLOW') 
-                              : 'TASK',
-                          })
-
-                          return (
-                            <DeadlineViolationBadge
-                              deadline={effectiveDeadline}
-                              endTime={item.endTime}
-                              isWorkflow={!!item.workflowId}
-                              workflowName={item.workflowName}
-                            />
-                          )
-                        })()}
+                        {effectiveDeadline && !isWaitTime && isDeadlineViolated && (
+                          <DeadlineViolationBadge
+                            deadline={effectiveDeadline}
+                            endTime={item.endTime}
+                            isWorkflow={!!item.workflowId}
+                            workflowName={item.workflowName}
+                          />
+                        )}
 
                         {/* Priority indicator */}
                         {!isWaitTime && (
