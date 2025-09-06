@@ -87,6 +87,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 20. **ALL test/lint failures on current branch are OUR responsibility**
 21. **Use PR review scripts to track all feedback systematically**
 22. **Never use git commit --amend (breaks review history)**
+23. **ASK WHEN UNCERTAIN** - Better to ask than assume and violate user intent
+24. **LOGGING IS MANDATORY** - All new features require extensive logging before completion
+25. **NO PR MERGING AUTHORITY** - Claude never merges PRs, user uses GitHub button
+26. **NEVER DELETE TESTS** - Only skip tests with TECH_DEBT.md documentation
+27. **TEST FEATURES WITH LOGGING** - Verify logging works before marking features complete
+
+## 🚫 FORBIDDEN ACTIONS - CLAUDE MUST NEVER:
+
+### Repository & PR Management
+1. **Merge PRs** - Only user can merge via GitHub button interface
+2. **Close PRs** - Only user decides when to close pull requests  
+3. **Force push without permission** - Always ask before rewriting git history
+4. **Delete branches** - User manages branch lifecycle
+
+### Code Quality & Testing
+5. **Delete tests** - Only skip tests with documentation in TECH_DEBT.md
+6. **Bypass safety hooks** - Never use --no-verify or similar bypass flags
+7. **Ship features without logging** - All new features require extensive logging before completion
+8. **Commit without quality checks** - lint, typecheck, and tests must pass
+
+### Decision Making
+9. **Assume user intent** - When conversation is ambiguous, ASK for clarification
+10. **Take major actions without approval** - Database changes, config updates, architectural decisions
+11. **Proceed when uncertain** - Better to ask than assume and be wrong
+
+## 🤔 WHEN TO ASK THE USER
+
+### ALWAYS ASK BEFORE:
+- Merging or closing PRs
+- Force pushing or rewriting git history
+- Making architectural changes
+- Modifying configuration files (package.json, tsconfig, eslint, etc.)
+- Creating new database migrations
+- Implementing features without comprehensive logging
+- Taking any action you're uncertain about
+- Deleting or significantly modifying existing tests
+
+### YOU MAY PROCEED WITHOUT ASKING:
+- Writing tests and implementation for approved features
+- Running quality checks (lint, typecheck, build, test)
+- Adding logging to existing features
+- Fixing obvious bugs with clear solutions
+- Updating documentation for completed work
+- Committing code changes to feature branches
+- Regular pushes to feature branches
 
 ### 🚨 PR Workflow (MANDATORY - PR #51 Lessons)
 

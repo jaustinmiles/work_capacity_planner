@@ -159,7 +159,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           urgency: editedTask.urgency,
           type: editedTask.type,
           notes: editedTask.notes,
-          deadline: deadlineForSave || undefined,
+          deadline: deadlineForSave as Date | undefined,
           steps: cleanedSteps,
           duration: totalDuration,
           criticalPathDuration,

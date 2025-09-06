@@ -1,5 +1,24 @@
 # Technical Decisions & Rationale
 
+## AI Assistant Authority Constraints (2025-09-05)
+**Decision**: Claude Code assistant has NO authority to merge or close PRs
+**Implementation**: User must merge all PRs via GitHub interface, Claude cannot use `gh pr merge`
+**Rationale**: PR merging affects main codebase and requires human oversight for safety
+**Enforcement**: CLAUDE.md and ai-boundaries.md explicitly prohibit PR merging actions
+**Violation Protocol**: Attempts to merge constitute a "Strike 3" level violation
+
+**Decision**: Logging-first development mandate for all new features
+**Implementation**: Features are incomplete until comprehensive logging is verified working
+**Rationale**: Cannot verify feature works or debug issues without observable behavior
+**Pattern**: Implement feature → Add extensive logging → Test logging works → Mark complete
+**Enforcement**: Features marked "done" without working logging constitute Strike 2+ violations
+
+**Decision**: Ask-first protocol for ambiguous situations  
+**Implementation**: When user intent unclear, Claude must ask for clarification before proceeding
+**Rationale**: Prevents assumption-based violations and maintains user control
+**Examples**: "close this PR" could mean merge, abandon, or delete - must ask which
+**Authority Reference**: Complete boundaries documented in `context/ai-boundaries.md`
+
 ## Bot Authentication for PRs (2025-09-04)
 **Decision**: Always use the bot authentication script when creating PRs
 **Rationale**: Ensures proper GitHub account is used for PR creation
