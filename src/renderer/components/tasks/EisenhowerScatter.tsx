@@ -163,6 +163,12 @@ export function EisenhowerScatter({
     }
 
     // Start scanning
+    logger.info('🔍 STARTING DIAGONAL SCAN', {
+      category: 'eisenhower-scan',
+      totalItems: allItemsForScatter.length,
+      timestamp: new Date().toISOString(),
+    })
+
     setIsScanning(true)
     setScanProgress(0)
     setScannedTasks([])
@@ -186,7 +192,7 @@ export function EisenhowerScatter({
 
         const distance = getDistanceToScanLine(xPercent, yPercent)
 
-        if (distance <= 30) { // 30 pixel threshold for highlighting
+        if (distance <= 50) { // Increased threshold to 50 pixels to catch more tasks
           currentHighlighted.push(task.id)
 
           if (!scannedTaskIds.has(task.id)) {
@@ -194,9 +200,9 @@ export function EisenhowerScatter({
             setScannedTasks(prev => [...prev, task])
             onSelectTask(task)
 
-            // Log the scanned task name for user feedback
-            console.log(`📍 [DIAGONAL SCAN] Found task: "${task.name}" (Importance: ${task.importance}, Urgency: ${task.urgency})`)
-            logger.info('📍 [DIAGONAL SCAN] Task scanned', {
+            // Log the scanned task name for user feedback with more emphasis
+            logger.info('🎯 TASK FOUND DURING DIAGONAL SCAN', {
+              category: 'eisenhower-scan',
               taskName: task.name,
               importance: task.importance,
               urgency: task.urgency,
@@ -220,11 +226,29 @@ export function EisenhowerScatter({
 
       if (progress >= 2.0) {
         // Animation complete - log final results
-        logger.info('Diagonal scan completed', {
+        const scannedTasksList = Array.from(scannedTaskIds).map(taskId => {
+          const task = allItemsForScatter.find(t => t.id === taskId)
+          return task ? {
+            name: task.name,
+            importance: task.importance,
+            urgency: task.urgency,
+          } : null
+        }).filter(Boolean)
+
+        logger.info('📊 DIAGONAL SCAN COMPLETE', {
+          category: 'eisenhower-scan',
           totalScanned: scannedTaskIds.size,
+          scannedTasks: scannedTasksList,
           animationDuration: elapsed,
           finalProgress: progress,
         })
+
+        if (scannedTaskIds.size === 0) {
+          logger.warn('⚠️ No tasks found during diagonal scan', {
+            category: 'eisenhower-scan',
+            message: 'No tasks are positioned near the diagonal line (threshold: 50px)',
+          })
+        }
         setIsScanning(false)
         setScanProgress(0)
         setHighlightedTaskId(null)
