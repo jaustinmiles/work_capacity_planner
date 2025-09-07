@@ -77,8 +77,15 @@ export function SwimLaneTimeline({
   } | null>(null)
   const [hoveredSession, setHoveredSession] = useState<string | null>(null)
   const [internalExpandedWorkflows, setInternalExpandedWorkflows] = useState<Set<string>>(new Set())
-  const [laneHeight] = useState(30)
+  const [baseLaneHeight] = useState(30)
   const [baseHourWidth, setBaseHourWidth] = useState(80)
+
+  // Calculate zoom-responsive visual elements
+  const zoomFactor = baseHourWidth / 80 // 80 = baseline
+  const laneHeight = Math.max(20, Math.min(50, baseLaneHeight * zoomFactor))
+  const headerFontSize = Math.max(10, Math.min(14, 12 * zoomFactor))
+  const timeFontSize = Math.max(9, Math.min(12, 10 * zoomFactor))
+  const sessionFontSize = Math.max(9, Math.min(13, 11 * zoomFactor))
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
 
@@ -88,14 +95,34 @@ export function SwimLaneTimeline({
 
   // Calculate responsive hour width based on container size
   const calculateHourWidth = () => {
-    if (!containerWidth) return baseHourWidth
+    // Hard constraint: assume modal is at most 1200px wide, timeline area gets 1000px max
+    const maxTimelineWidth = 1000
+    const maxHourWidth = maxTimelineWidth / TOTAL_HOURS // ~20px per hour
 
-    // Always respect zoom level - don't override with fit mode
-    // This ensures zoom buttons actually work at all screen sizes
-    return Math.max(MIN_HOUR_WIDTH, Math.min(MAX_HOUR_WIDTH, baseHourWidth))
+    if (!containerWidth) {
+      // Before container measurement, use safe default that won't overflow
+      return Math.min(MIN_HOUR_WIDTH, maxHourWidth)
+    }
+
+    // Calculate width available for timeline (minus label column and padding)
+    const availableWidth = Math.min(containerWidth - TIME_LABEL_WIDTH - 60, maxTimelineWidth)
+
+    // CRITICAL: Always fit 48-hour timeline within available width
+    const fitWidth = availableWidth / TOTAL_HOURS
+
+    // Never allow hour width to exceed what fits
+    const constrainedWidth = Math.max(MIN_HOUR_WIDTH, Math.min(fitWidth, maxHourWidth))
+
+    // Zoom cannot exceed container fit constraint
+    const zoomFactor = baseHourWidth / 80 // 80 = default
+    const requestedWidth = constrainedWidth * Math.min(zoomFactor, 0.8) // Actually reduce zoom to be safe
+
+    // FINAL CONSTRAINT: absolutely never exceed maximum
+    return Math.min(constrainedWidth, requestedWidth, maxHourWidth)
   }
 
   const hourWidth = calculateHourWidth()
+
 
   // Use external state if provided, otherwise use internal
   const expandedWorkflows = externalExpandedWorkflows ?? internalExpandedWorkflows
@@ -507,7 +534,9 @@ if (!checkOverlap(newSession, laneSessions)) {
             disabled={baseHourWidth <= MIN_HOUR_WIDTH}
           />
         </Tooltip>
-        <Text style={{ fontSize: 11, color: '#86909c' }}>{Math.round((baseHourWidth / 80) * 100)}%</Text>
+        <Text style={{ fontSize: 11, color: '#86909c' }}>
+          Zoom: {Math.round(zoomFactor * 100)}% | H:{laneHeight}px | W:{Math.round(hourWidth)}px
+        </Text>
         <Tooltip content="Zoom In">
           <Button
             size="mini"
@@ -531,12 +560,13 @@ if (!checkOverlap(newSession, laneSessions)) {
         className="swimlane-timeline"
         style={{
           position: 'relative',
-          overflowX: 'auto', // Always allow horizontal scroll to see multiple days
-          overflowY: 'hidden', // Never show vertical scrollbar per feedback
+          overflowX: 'auto', // Allow horizontal scroll for 3-day timeline
+          overflowY: 'hidden', // Never show vertical scrollbar
           background: '#fafbfc',
           borderRadius: 8,
           height: '100%',
-          scrollbarWidth: 'thin',
+          width: '100%',
+          maxWidth: '100%',
         }}
       >
       {/* Time axis header */}
@@ -562,7 +592,14 @@ if (!checkOverlap(newSession, laneSessions)) {
         >
           <Text style={{ fontWeight: 'bold' }}>Tasks</Text>
         </div>
-        <div style={{ flex: 1, position: 'relative' }}>
+        <div style={{
+          flex: 1,
+          position: 'relative',
+          width: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
+          minWidth: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
+          maxWidth: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
+          overflow: 'hidden', // Critical: prevent any child elements from overflowing
+        }}>
           {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => {
             const dayIndex = Math.floor(i / HOURS_PER_DAY) // 0 = yesterday, 1 = today, 2 = tomorrow
             const hourInDay = i % HOURS_PER_DAY
@@ -583,20 +620,22 @@ if (!checkOverlap(newSession, laneSessions)) {
                   left: i * hourWidth,
                   top: 0,
                   height: '100%',
+                  width: Math.max(hourWidth, 40), // Ensure minimum column width
                   borderLeft: i % HOURS_PER_DAY === 0 ? '2px solid #165DFF' : '1px solid #e5e6eb',
                   paddingLeft: 4,
                   display: 'flex',
                   alignItems: 'center',
                   flexDirection: 'column',
                   background: i % HOURS_PER_DAY === 0 ? '#f5f7fa' : 'transparent',
+                  boxSizing: 'border-box',
                 }}
               >
                 {i % HOURS_PER_DAY === 0 && (
-                  <Text style={{ fontSize: 10, color: '#165DFF', fontWeight: 'bold' }}>
+                  <Text style={{ fontSize: headerFontSize, color: '#165DFF', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                     {dayLabel}
                   </Text>
                 )}
-                <Text style={{ fontSize: 12, color: '#86909c' }}>
+                <Text style={{ fontSize: timeFontSize, color: '#86909c', whiteSpace: 'nowrap' }}>
                   {actualHour.toString().padStart(2, '0')}:00
                 </Text>
               </div>
@@ -650,7 +689,7 @@ if (!checkOverlap(newSession, laneSessions)) {
               <Tooltip content={lane.name}>
                 <Text
                   style={{
-                    fontSize: 11,
+                    fontSize: sessionFontSize,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -666,9 +705,12 @@ if (!checkOverlap(newSession, laneSessions)) {
             <div
               className="swim-lane"
               style={{
-                flex: 1,
+                width: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
+                minWidth: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
+                maxWidth: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
                 position: 'relative',
                 cursor: 'crosshair',
+                overflow: 'hidden', // Critical: prevent sessions and grid lines from overflowing
               }}
               onMouseDown={(e) => {
                 // Don't allow creating on meetings lane
@@ -869,20 +911,20 @@ if (!checkOverlap(newSession, laneSessions)) {
                     style={{
                       position: 'absolute',
                       left: left - TIME_LABEL_WIDTH,
-                      top: 4,
-                      bottom: 4,
+                      top: Math.max(2, 4 * zoomFactor),
+                      bottom: Math.max(2, 4 * zoomFactor),
                       width,
                       background: isMeetingSession
                         ? '#722ed1aa'
                         : session.completed
                         ? `repeating-linear-gradient(45deg, ${session.color}33, ${session.color}33 10px, ${session.color}55 10px, ${session.color}55 20px)`
                         : session.color + (isSelected ? '33' : '22'),
-                      border: `2px solid ${isMeetingSession ? '#722ed1' : session.color}`,
-                      borderRadius: isMeetingSession ? 8 : 4,
+                      border: `${Math.max(1, 2 * zoomFactor)}px solid ${isMeetingSession ? '#722ed1' : session.color}`,
+                      borderRadius: isMeetingSession ? 8 : Math.max(2, 4 * zoomFactor),
                       cursor: isMeetingSession ? 'default' : 'move',
                       display: 'flex',
                       alignItems: 'center',
-                      padding: '0 4px',
+                      padding: `0 ${Math.max(2, 4 * zoomFactor)}px`,
                       overflow: 'hidden',
                       boxShadow: isHovered ? '0 2px 8px rgba(0,0,0,0.15)' : undefined,
                       transition: 'box-shadow 0.2s',
@@ -946,7 +988,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                     >
                       <Text
                         style={{
-                          fontSize: 11,
+                          fontSize: sessionFontSize,
                           color: isMeetingSession ? 'white' : 'white',
                           fontWeight: isMeetingSession ? 600 : 500,
                           whiteSpace: 'nowrap',
@@ -954,7 +996,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                           textOverflow: 'ellipsis',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 4,
+                          gap: Math.max(2, 4 * zoomFactor),
                         }}
                       >
                         {isMeetingSession && width > 30 ? (

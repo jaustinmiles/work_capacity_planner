@@ -266,20 +266,23 @@
    Component-Specific Responsive Fixes
    ======================================== */
 
-/* SwimLane Timeline - Prevent horizontal scroll */
+/* SwimLane Timeline - Responsive layout */
 .swimlane-timeline {
   width: 100%;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: auto; /* Allow horizontal scroll for 3-day view */
+  overflow-y: hidden; /* No vertical scroll */
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
 }
 
-/* Hide scrollbars on desktop if not needed */
-@media (min-width: 1366px) {
-  .swimlane-timeline:not(.force-scroll) {
-    overflow-x: hidden;
-  }
+.swimlane-timeline::-webkit-scrollbar {
+  height: 6px;
+}
+
+.swimlane-timeline::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
 }
 
 /* Circular Clock - Responsive sizing */

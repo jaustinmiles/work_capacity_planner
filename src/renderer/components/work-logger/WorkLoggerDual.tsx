@@ -559,7 +559,12 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 </Space>
               }
               style={{ marginBottom: 16 }}>
-              <div style={{ height: 400, overflow: 'hidden' }}>
+              <div style={{
+                height: 400,
+                overflow: 'hidden',
+                width: '100%',
+                maxWidth: '100%',
+              }}>
                 <SwimLaneTimeline
                   sessions={sessions}
                   tasks={filteredTasks}

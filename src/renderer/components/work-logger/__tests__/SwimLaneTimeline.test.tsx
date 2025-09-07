@@ -119,7 +119,7 @@ describe('SwimLaneTimeline', () => {
 
     // Check for day labels (allowing for multiple if rendered)
     expect(screen.getAllByText('Yesterday').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Today').length).toBeGreaterThanOrEqual(1) 
+    expect(screen.getAllByText('Today').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Tomorrow').length).toBeGreaterThanOrEqual(1)
 
     // Check that we have multiple instances of common hours

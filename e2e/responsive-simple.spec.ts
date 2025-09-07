@@ -33,7 +33,10 @@ test.describe('Simple Responsive Tests', () => {
     const workLoggerButton = page.getByText('Log Work')
     if (await workLoggerButton.isVisible()) {
       await workLoggerButton.click()
-      await page.waitForTimeout(2000)
+
+      // Wait for WorkLoggerDual modal to open and timeline to render
+      await page.waitForSelector('.arco-modal-wrapper', { timeout: 5000 })
+      await page.waitForTimeout(2000) // Allow modal to fully render
     }
 
     // Check if timeline exists and fits
