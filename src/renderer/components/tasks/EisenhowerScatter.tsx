@@ -193,6 +193,15 @@ export function EisenhowerScatter({
             scannedTaskIds.add(task.id)
             setScannedTasks(prev => [...prev, task])
             onSelectTask(task)
+            
+            // Log the scanned task name for user feedback
+            console.log(`📍 [DIAGONAL SCAN] Found task: "${task.name}" (Importance: ${task.importance}, Urgency: ${task.urgency})`)
+            logger.info('📍 [DIAGONAL SCAN] Task scanned', {
+              taskName: task.name,
+              importance: task.importance,
+              urgency: task.urgency,
+              position: { x: xPercent, y: yPercent },
+            })
           }
         }
       })
@@ -319,6 +328,81 @@ export function EisenhowerScatter({
             border: '2px solid #e5e6eb',
             background: 'white',
           }}>
+            {/* Axes and grid lines */}
+            <svg
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                width: '100%',
+                height: '100%',
+                pointerEvents: 'none',
+              }}
+            >
+              {/* Quadrant divider lines (at 50% = value 5 on 0-10 scale) */}
+              <line
+                x1="50%"
+                y1="0%"
+                x2="50%"
+                y2="100%"
+                stroke="#d4d4d8"
+                strokeWidth="2"
+                strokeDasharray="8,4"
+              />
+              <line
+                x1="0%"
+                y1="50%"
+                x2="100%"
+                y2="50%"
+                stroke="#d4d4d8"
+                strokeWidth="2"
+                strokeDasharray="8,4"
+              />
+              
+              {/* Center cross at (5,5) - intersection point */}
+              <circle
+                cx="50%"
+                cy="50%"
+                r="4"
+                fill="#165DFF"
+                stroke="white"
+                strokeWidth="2"
+              />
+              
+              {/* Axis scale markers */}
+              {[0, 2.5, 5, 7.5, 10].map((value) => (
+                <g key={`x-${value}`}>
+                  {/* X-axis labels */}
+                  <text
+                    x={`${value * 10}%`}
+                    y="100%"
+                    dy="-5"
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill="#6b7280"
+                  >
+                    {value}
+                  </text>
+                </g>
+              ))}
+              {[10, 7.5, 5, 2.5, 0].map((value, index) => (
+                <g key={`y-${value}`}>
+                  {/* Y-axis labels (inverted because higher importance = higher on screen) */}
+                  <text
+                    x="0%"
+                    y={`${index * 25}%`}
+                    dx="5"
+                    dy="4"
+                    fontSize="10"
+                    fill="#6b7280"
+                  >
+                    {value}
+                  </text>
+                </g>
+              ))}
+            </svg>
             {/* Task clusters and plotting logic would go here */}
             {/* This would need the full complex rendering logic from the original component */}
             {Array.from(taskClusters.entries()).map(([posKey, clusterTasks]) => {

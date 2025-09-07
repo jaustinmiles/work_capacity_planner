@@ -2,14 +2,14 @@ import { test, expect } from '@playwright/test'
 
 test.describe('EisenhowerMatrix E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to the Task Management page
+    // Navigate to the Eisenhower Matrix page
     await page.goto('/')
 
     // Wait for app to load
     await page.waitForSelector('.arco-menu', { timeout: 10000 })
 
-    // Navigate to Task Management
-    await page.click('text=Task Management')
+    // Navigate to Eisenhower Matrix (clicking on the sidebar menu item)
+    await page.click('text=Eisenhower Matrix')
     await page.waitForLoadState('networkidle')
   })
 
@@ -17,11 +17,11 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
     // Check for the matrix title
     await expect(page.locator('text=Eisenhower Priority Matrix')).toBeVisible()
 
-    // Check for grid quadrants
-    await expect(page.locator('text=Do First')).toBeVisible()
-    await expect(page.locator('text=Schedule')).toBeVisible()
-    await expect(page.locator('text=Delegate')).toBeVisible()
-    await expect(page.locator('text=Eliminate')).toBeVisible()
+    // Check for grid quadrants (using more specific selectors to avoid conflicts)
+    await expect(page.locator('h6:has-text("Do First")')).toBeVisible()
+    await expect(page.locator('h6:has-text("Schedule")')).toBeVisible()
+    await expect(page.locator('h6:has-text("Delegate")')).toBeVisible()
+    await expect(page.locator('h6:has-text("Eliminate")')).toBeVisible()
 
     // Check for axis labels
     await expect(page.locator('text=/Less Urgent.*More Urgent/')).toBeVisible()
@@ -30,10 +30,12 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
 
   test('should switch between grid and scatter views', async ({ page }) => {
     // Initially in grid view
-    await expect(page.locator('text=Do First')).toBeVisible()
+    await expect(page.locator('h6:has-text("Do First")')).toBeVisible()
 
-    // Switch to scatter view
-    await page.click('input[value="scatter"]')
+    // Switch to scatter view (wait for element to be visible and clickable)
+    const scatterRadio = page.locator('input[value="scatter"]')
+    await expect(scatterRadio).toBeVisible()
+    await scatterRadio.click()
 
     // Wait for scatter view to render
     await page.waitForTimeout(500)
@@ -46,11 +48,13 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
     await expect(page.locator('button:has-text("Scan")')).toBeVisible()
 
     // Switch back to grid view
-    await page.click('input[value="grid"]')
+    const gridRadio = page.locator('input[value="grid"]')
+    await expect(gridRadio).toBeVisible()
+    await gridRadio.click()
 
     // Verify grid view is back
-    await expect(page.locator('text=Do First')).toBeVisible()
-    await expect(page.locator('text=Schedule')).toBeVisible()
+    await expect(page.locator('h6:has-text("Do First")')).toBeVisible()
+    await expect(page.locator('h6:has-text("Schedule")')).toBeVisible()
   })
 
   test('should handle zoom controls in grid view', async ({ page }) => {
@@ -83,8 +87,10 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
   })
 
   test('should run diagonal scan in scatter view', async ({ page }) => {
-    // Switch to scatter view
-    await page.click('input[value="scatter"]')
+    // Switch to scatter view (check visibility first)
+    const scatterRadio = page.locator('input[value="scatter"]')
+    await expect(scatterRadio).toBeVisible()
+    await scatterRadio.click()
     await page.waitForTimeout(500)
 
     // Find and click scan button
@@ -108,8 +114,10 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
   })
 
   test('should toggle debug mode in scatter view', async ({ page }) => {
-    // Switch to scatter view
-    await page.click('input[value="scatter"]')
+    // Switch to scatter view (check visibility first)
+    const scatterRadio = page.locator('input[value="scatter"]')
+    await expect(scatterRadio).toBeVisible()
+    await scatterRadio.click()
     await page.waitForTimeout(500)
 
     // Find debug button
@@ -155,8 +163,8 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
 
       // For mobile, check if text labels are hidden
       if (viewport.name === 'Mobile') {
-        // On mobile, some text might be hidden
-        const addTaskButton = page.locator('.arco-icon-plus')
+        // On mobile, some text might be hidden - use first() to avoid multiple elements
+        const addTaskButton = page.locator('.arco-icon-plus').first()
         await expect(addTaskButton).toBeVisible()
       }
     }
