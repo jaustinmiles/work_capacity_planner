@@ -186,13 +186,31 @@ export function EisenhowerScatter({
       // Find tasks within threshold of scan line
       const currentHighlighted: string[] = []
 
+      // Calculate a dynamic threshold based on container size
+      // Use 15% of the smaller dimension as the threshold
+      const dynamicThreshold = Math.min(containerSize.width, containerSize.height) * 0.15
+
       allItemsForScatter.forEach(task => {
         const xPercent = task.urgency * 10 // Convert 0-10 to 0-100%
         const yPercent = 100 - (task.importance * 10) // Convert 0-10 to 0-100%, inverted
 
         const distance = getDistanceToScanLine(xPercent, yPercent)
 
-        if (distance <= 50) { // Increased threshold to 50 pixels to catch more tasks
+        // Log first few tasks to debug distance calculation
+        if (scannedTaskIds.size < 3 && progress > 0.1) {
+          logger.debug('📏 Distance calculation for task', {
+            category: 'eisenhower-scan',
+            taskName: task.name,
+            distance: Math.round(distance),
+            threshold: Math.round(dynamicThreshold),
+            willBeScanned: distance <= dynamicThreshold,
+            position: { x: xPercent, y: yPercent },
+            importance: task.importance,
+            urgency: task.urgency,
+          })
+        }
+
+        if (distance <= dynamicThreshold) { // Use dynamic threshold based on container size
           currentHighlighted.push(task.id)
 
           if (!scannedTaskIds.has(task.id)) {
@@ -207,6 +225,8 @@ export function EisenhowerScatter({
               importance: task.importance,
               urgency: task.urgency,
               position: { x: xPercent, y: yPercent },
+              distance: Math.round(distance),
+              threshold: Math.round(dynamicThreshold),
             })
           }
         }
@@ -244,9 +264,12 @@ export function EisenhowerScatter({
         })
 
         if (scannedTaskIds.size === 0) {
+          const threshold = Math.min(containerSize.width, containerSize.height) * 0.15
           logger.warn('⚠️ No tasks found during diagonal scan', {
             category: 'eisenhower-scan',
-            message: 'No tasks are positioned near the diagonal line (threshold: 50px)',
+            message: `No tasks are positioned near the diagonal line (threshold: ${Math.round(threshold)}px)`,
+            containerSize,
+            totalTasksScanned: allItemsForScatter.length,
           })
         }
         setIsScanning(false)
