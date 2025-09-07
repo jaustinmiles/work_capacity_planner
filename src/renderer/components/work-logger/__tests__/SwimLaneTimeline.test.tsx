@@ -122,9 +122,10 @@ describe('SwimLaneTimeline', () => {
     expect(screen.getAllByText('Today').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Tomorrow').length).toBeGreaterThanOrEqual(1)
 
-    // Check that we have multiple instances of common hours
-    expect(screen.getAllByText('12:00').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('22:00').length).toBeGreaterThanOrEqual(1)
+    // Check that we have multiple instances of common hours across the 3 days
+    // With 3 days (Yesterday, Today, Tomorrow), each hour appears 3 times
+    expect(screen.getAllByText('12:00').length).toBe(3)
+    expect(screen.getAllByText('18:00').length).toBe(3) // 6 PM appears in all 3 days
   })
 
   it('expands and collapses workflows when clicked', () => {
