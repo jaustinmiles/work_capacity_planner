@@ -529,70 +529,86 @@ function App() {
             style={{ marginTop: 20 }}
           >
             <MenuItem key="tasks" data-testid="nav-tasks">
-              <Tooltip
-                content="Task List"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
+              {sidebarCollapsed ? (
+                <Tooltip content="Task List" position="right">
+                  <Space data-testid="nav-tasks-content" style={{ width: '100%' }}>
+                    <IconList />
+                    {incompleteTasks > 0 && (
+                      <Badge count={incompleteTasks} dot offset={[6, -4]} />
+                    )}
+                  </Space>
+                </Tooltip>
+              ) : (
                 <Space data-testid="nav-tasks-content">
                   <IconList />
-                  {!sidebarCollapsed && <span>Task List</span>}
+                  <span>Task List</span>
                   {incompleteTasks > 0 && (
                     <Badge count={incompleteTasks} dot offset={[6, -4]} />
                   )}
                 </Space>
-              </Tooltip>
+              )}
             </MenuItem>
             <MenuItem key="matrix" data-testid="nav-matrix">
-              <Tooltip
-                content="Eisenhower Matrix"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
+              {sidebarCollapsed ? (
+                <Tooltip content="Eisenhower Matrix" position="right">
+                  <Space style={{ width: '100%' }}>
+                    <IconApps />
+                  </Space>
+                </Tooltip>
+              ) : (
                 <Space>
                   <IconApps />
-                  {!sidebarCollapsed && <span>Eisenhower Matrix</span>}
+                  <span>Eisenhower Matrix</span>
                 </Space>
-              </Tooltip>
+              )}
             </MenuItem>
             <MenuItem key="calendar" data-testid="nav-calendar">
-              <Tooltip
-                content="Calendar"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
+              {sidebarCollapsed ? (
+                <Tooltip content="Calendar" position="right">
+                  <Space style={{ width: '100%' }}>
+                    <IconCalendar />
+                  </Space>
+                </Tooltip>
+              ) : (
                 <Space>
                   <IconCalendar />
-                  {!sidebarCollapsed && <span>Calendar</span>}
+                  <span>Calendar</span>
                 </Space>
-              </Tooltip>
+              )}
             </MenuItem>
             <MenuItem key="workflows" data-testid="nav-workflows">
-              <Tooltip
-                content="Workflows"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
+              {sidebarCollapsed ? (
+                <Tooltip content="Workflows" position="right">
+                  <Space style={{ width: '100%' }}>
+                    <IconBranch />
+                    {activeWorkflows > 0 && (
+                      <Badge count={activeWorkflows} dot offset={[6, -4]} />
+                    )}
+                  </Space>
+                </Tooltip>
+              ) : (
                 <Space>
                   <IconBranch />
-                  {!sidebarCollapsed && <span>Workflows</span>}
+                  <span>Workflows</span>
                   {activeWorkflows > 0 && (
                     <Badge count={activeWorkflows} dot offset={[6, -4]} />
                   )}
                 </Space>
-              </Tooltip>
+              )}
             </MenuItem>
             <MenuItem key="timeline" data-testid="nav-timeline">
-              <Tooltip
-                content="Timeline"
-                position="right"
-                disabled={!sidebarCollapsed}
-              >
+              {sidebarCollapsed ? (
+                <Tooltip content="Timeline" position="right">
+                  <Space style={{ width: '100%' }}>
+                    <IconSchedule />
+                  </Space>
+                </Tooltip>
+              ) : (
                 <Space>
                   <IconSchedule />
-                  {!sidebarCollapsed && <span>Timeline</span>}
+                  <span>Timeline</span>
                 </Space>
-              </Tooltip>
+              )}
             </MenuItem>
           </Menu>
 

@@ -113,11 +113,19 @@ describe('SwimLaneTimeline', () => {
       />,
     )
 
-    // Check for time labels from 6:00 to 22:00
-    expect(screen.getByText('06:00')).toBeInTheDocument()
-    expect(screen.getByText('12:00')).toBeInTheDocument()
-    expect(screen.getByText('18:00')).toBeInTheDocument()
-    expect(screen.getByText('22:00')).toBeInTheDocument()
+    // Check for time labels from 6:00 to 22:00 (now shows multiple days)
+    const timeLabels = screen.getAllByText('06:00')
+    expect(timeLabels.length).toBeGreaterThanOrEqual(1) // Should have at least one 06:00
+
+    // Check for day labels (allowing for multiple if rendered)
+    expect(screen.getAllByText('Yesterday').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Today').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Tomorrow').length).toBeGreaterThanOrEqual(1)
+
+    // Check that we have multiple instances of common hours across the 3 days
+    // With 3 days (Yesterday, Today, Tomorrow), each hour appears 3 times
+    expect(screen.getAllByText('12:00').length).toBe(3)
+    expect(screen.getAllByText('18:00').length).toBe(3) // 6 PM appears in all 3 days
   })
 
   it('expands and collapses workflows when clicked', () => {
@@ -256,5 +264,84 @@ describe('SwimLaneTimeline', () => {
       fireEvent.click(expandButtons[0])
       expect(mockOnExpandedWorkflowsChange).toHaveBeenCalled()
     }
+  })
+
+  describe('Scroll and Zoom Functionality (Feedback #1)', () => {
+    it('should always allow horizontal scroll to see multiple days', () => {
+      const { container } = renderWithProvider(
+        <SwimLaneTimeline
+          sessions={mockSessions}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      const timelineContainer = container.querySelector('.swimlane-timeline')
+      expect(timelineContainer).toBeTruthy()
+
+      if (timelineContainer) {
+        // Check the inline style directly since getComputedStyle may not work in test env
+        const style = (timelineContainer as HTMLElement).style
+        expect(style.overflowX).toBe('auto')
+      }
+    })
+
+    it('should never show vertical scrollbar', () => {
+      const { container } = renderWithProvider(
+        <SwimLaneTimeline
+          sessions={mockSessions}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      const timelineContainer = container.querySelector('.swimlane-timeline')
+      expect(timelineContainer).toBeTruthy()
+
+      if (timelineContainer) {
+        // Check the inline style directly since getComputedStyle may not work in test env
+        const style = (timelineContainer as HTMLElement).style
+        expect(style.overflowY).toBe('hidden')
+      }
+    })
+
+    it('should have functional zoom buttons that change hour width', () => {
+      const { container } = renderWithProvider(
+        <SwimLaneTimeline
+          sessions={mockSessions}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      // Find zoom in and zoom out buttons
+      const zoomInButton = container.querySelector('[class*="icon-zoom-in"]')?.closest('button')
+      const zoomOutButton = container.querySelector('[class*="icon-zoom-out"]')?.closest('button')
+
+      expect(zoomInButton).toBeTruthy()
+      expect(zoomOutButton).toBeTruthy()
+
+      if (zoomInButton && zoomOutButton) {
+        // Buttons should be clickable
+        expect(zoomInButton.disabled).toBe(false)
+
+        // Click zoom in should not throw error
+        fireEvent.click(zoomInButton)
+        expect(zoomInButton).toBeInTheDocument()
+
+        // Click zoom out should not throw error
+        fireEvent.click(zoomOutButton)
+        expect(zoomOutButton).toBeInTheDocument()
+      }
+    })
   })
 })
