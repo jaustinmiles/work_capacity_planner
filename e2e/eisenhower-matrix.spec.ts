@@ -190,7 +190,7 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
 
     // Wait for scatter view to be fully loaded
     await expect(page.locator('text=Urgency →')).toBeVisible()
-    
+
     // Enable debug mode (with emoji)
     const debugButton = page.locator('button:has-text("🔍 Debug OFF")')
     await expect(debugButton).toBeVisible()
@@ -211,7 +211,7 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
 
     // Wait for scatter view to be fully loaded again
     await expect(page.locator('text=Urgency →')).toBeVisible()
-    
+
     // TODO: Debug mode is currently persisting when it shouldn't
     // This is a bug in the component where debug state is not properly reset
     // For now, we'll check that debug mode is still ON (current behavior)
