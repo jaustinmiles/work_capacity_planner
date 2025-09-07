@@ -90,35 +90,16 @@ export function SwimLaneTimeline({
   const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
 
   // Responsive container measurement
-  const { ref: timelineRef, width: containerWidth } = useContainerQuery<HTMLDivElement>()
+  const { ref: timelineRef, width: _containerWidth } = useContainerQuery<HTMLDivElement>()
   const { isCompact: _isCompact } = useResponsive()
 
-  // Calculate responsive hour width based on container size
+  // Calculate hour width based on zoom level - let it overflow!
   const calculateHourWidth = () => {
-    // Hard constraint: assume modal is at most 1200px wide, timeline area gets 1000px max
-    const maxTimelineWidth = 1000
-    const maxHourWidth = maxTimelineWidth / TOTAL_HOURS // ~20px per hour
+    // Simple calculation: base zoom factor applied to minimum width
+    const zoomFactor = baseHourWidth / 80 // 80 = default zoom baseline
 
-    if (!containerWidth) {
-      // Before container measurement, use safe default that won't overflow
-      return Math.min(MIN_HOUR_WIDTH, maxHourWidth)
-    }
-
-    // Calculate width available for timeline (minus label column and padding)
-    const availableWidth = Math.min(containerWidth - TIME_LABEL_WIDTH - 60, maxTimelineWidth)
-
-    // CRITICAL: Always fit 48-hour timeline within available width
-    const fitWidth = availableWidth / TOTAL_HOURS
-
-    // Never allow hour width to exceed what fits
-    const constrainedWidth = Math.max(MIN_HOUR_WIDTH, Math.min(fitWidth, maxHourWidth))
-
-    // Apply zoom factor
-    const zoomFactor = baseHourWidth / 80 // 80 = default
-    const requestedWidth = constrainedWidth * zoomFactor
-
-    // FINAL CONSTRAINT: absolutely never exceed maximum
-    return Math.min(constrainedWidth, requestedWidth, maxHourWidth)
+    // Return zoomed width - NO CONSTRAINTS! Let it overflow and scroll!
+    return Math.max(MIN_HOUR_WIDTH, MIN_HOUR_WIDTH * zoomFactor)
   }
 
   const hourWidth = calculateHourWidth()
@@ -595,10 +576,9 @@ if (!checkOverlap(newSession, laneSessions)) {
         <div style={{
           flex: 1,
           position: 'relative',
-          width: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
-          minWidth: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
-          maxWidth: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
-          overflow: 'hidden', // Critical: prevent any child elements from overflowing
+          width: TOTAL_HOURS * hourWidth, // Let timeline be its natural width
+          minWidth: TOTAL_HOURS * hourWidth,
+          overflow: 'visible', // Allow content to be visible for scrolling
         }}>
           {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => {
             const dayIndex = Math.floor(i / HOURS_PER_DAY) // 0 = yesterday, 1 = today, 2 = tomorrow
@@ -705,12 +685,11 @@ if (!checkOverlap(newSession, laneSessions)) {
             <div
               className="swim-lane"
               style={{
-                width: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
-                minWidth: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
-                maxWidth: Math.min(TOTAL_HOURS * hourWidth, containerWidth ? containerWidth - TIME_LABEL_WIDTH - 20 : 1000),
+                width: TOTAL_HOURS * hourWidth, // Let timeline be its natural width
+                minWidth: TOTAL_HOURS * hourWidth,
                 position: 'relative',
                 cursor: 'crosshair',
-                overflow: 'hidden', // Critical: prevent sessions and grid lines from overflowing
+                overflow: 'visible', // Allow content to be visible for scrolling
               }}
               onMouseDown={(e) => {
                 // Don't allow creating on meetings lane
