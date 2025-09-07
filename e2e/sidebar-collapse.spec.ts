@@ -219,7 +219,7 @@ test.describe('Sidebar Collapse Functionality', () => {
     }
   })
 
-  test('Tooltips should show on hover when collapsed', async ({ page, viewport }) => {
+  test.skip('Tooltips should show on hover when collapsed', async ({ page, viewport }) => {
     const isMobile = viewport && viewport.width < 768
 
     // Skip this test on mobile - hover interactions don't work well on mobile

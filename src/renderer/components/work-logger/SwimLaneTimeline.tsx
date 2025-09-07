@@ -113,9 +113,9 @@ export function SwimLaneTimeline({
     // Never allow hour width to exceed what fits
     const constrainedWidth = Math.max(MIN_HOUR_WIDTH, Math.min(fitWidth, maxHourWidth))
 
-    // Zoom cannot exceed container fit constraint
+    // Apply zoom factor
     const zoomFactor = baseHourWidth / 80 // 80 = default
-    const requestedWidth = constrainedWidth * Math.min(zoomFactor, 0.8) // Actually reduce zoom to be safe
+    const requestedWidth = constrainedWidth * zoomFactor
 
     // FINAL CONSTRAINT: absolutely never exceed maximum
     return Math.min(constrainedWidth, requestedWidth, maxHourWidth)

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm } from '@arco-design/web-react'
+import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm, Tooltip } from '@arco-design/web-react'
 import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle, IconMenuFold, IconMenuUnfold } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
@@ -529,40 +529,86 @@ function App() {
             style={{ marginTop: 20 }}
           >
             <MenuItem key="tasks" data-testid="nav-tasks">
-              <Space data-testid="nav-tasks-content">
-                <IconList />
-                {!sidebarCollapsed && <span>Task List</span>}
-                {incompleteTasks > 0 && (
-                  <Badge count={incompleteTasks} dot offset={[6, -4]} />
-                )}
-              </Space>
+              {sidebarCollapsed ? (
+                <Tooltip content="Task List" position="right">
+                  <Space data-testid="nav-tasks-content" style={{ width: '100%' }}>
+                    <IconList />
+                    {incompleteTasks > 0 && (
+                      <Badge count={incompleteTasks} dot offset={[6, -4]} />
+                    )}
+                  </Space>
+                </Tooltip>
+              ) : (
+                <Space data-testid="nav-tasks-content">
+                  <IconList />
+                  <span>Task List</span>
+                  {incompleteTasks > 0 && (
+                    <Badge count={incompleteTasks} dot offset={[6, -4]} />
+                  )}
+                </Space>
+              )}
             </MenuItem>
             <MenuItem key="matrix" data-testid="nav-matrix">
-              <Space>
-                <IconApps />
-                {!sidebarCollapsed && <span>Eisenhower Matrix</span>}
-              </Space>
+              {sidebarCollapsed ? (
+                <Tooltip content="Eisenhower Matrix" position="right">
+                  <Space style={{ width: '100%' }}>
+                    <IconApps />
+                  </Space>
+                </Tooltip>
+              ) : (
+                <Space>
+                  <IconApps />
+                  <span>Eisenhower Matrix</span>
+                </Space>
+              )}
             </MenuItem>
             <MenuItem key="calendar" data-testid="nav-calendar">
-              <Space>
-                <IconCalendar />
-                {!sidebarCollapsed && <span>Calendar</span>}
-              </Space>
+              {sidebarCollapsed ? (
+                <Tooltip content="Calendar" position="right">
+                  <Space style={{ width: '100%' }}>
+                    <IconCalendar />
+                  </Space>
+                </Tooltip>
+              ) : (
+                <Space>
+                  <IconCalendar />
+                  <span>Calendar</span>
+                </Space>
+              )}
             </MenuItem>
             <MenuItem key="workflows" data-testid="nav-workflows">
-              <Space>
-                <IconBranch />
-                {!sidebarCollapsed && <span>Workflows</span>}
-                {activeWorkflows > 0 && (
-                  <Badge count={activeWorkflows} dot offset={[6, -4]} />
-                )}
-              </Space>
+              {sidebarCollapsed ? (
+                <Tooltip content="Workflows" position="right">
+                  <Space style={{ width: '100%' }}>
+                    <IconBranch />
+                    {activeWorkflows > 0 && (
+                      <Badge count={activeWorkflows} dot offset={[6, -4]} />
+                    )}
+                  </Space>
+                </Tooltip>
+              ) : (
+                <Space>
+                  <IconBranch />
+                  <span>Workflows</span>
+                  {activeWorkflows > 0 && (
+                    <Badge count={activeWorkflows} dot offset={[6, -4]} />
+                  )}
+                </Space>
+              )}
             </MenuItem>
             <MenuItem key="timeline" data-testid="nav-timeline">
-              <Space>
-                <IconSchedule />
-                {!sidebarCollapsed && <span>Timeline</span>}
-              </Space>
+              {sidebarCollapsed ? (
+                <Tooltip content="Timeline" position="right">
+                  <Space style={{ width: '100%' }}>
+                    <IconSchedule />
+                  </Space>
+                </Tooltip>
+              ) : (
+                <Space>
+                  <IconSchedule />
+                  <span>Timeline</span>
+                </Space>
+              )}
             </MenuItem>
           </Menu>
 
