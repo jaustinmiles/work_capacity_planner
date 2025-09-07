@@ -193,7 +193,7 @@ export function EisenhowerScatter({
             scannedTaskIds.add(task.id)
             setScannedTasks(prev => [...prev, task])
             onSelectTask(task)
-            
+
             // Log the scanned task name for user feedback
             console.log(`📍 [DIAGONAL SCAN] Found task: "${task.name}" (Importance: ${task.importance}, Urgency: ${task.urgency})`)
             logger.info('📍 [DIAGONAL SCAN] Task scanned', {
@@ -360,7 +360,7 @@ export function EisenhowerScatter({
                 strokeWidth="2"
                 strokeDasharray="8,4"
               />
-              
+
               {/* Center cross at (5,5) - intersection point */}
               <circle
                 cx="50%"
@@ -370,7 +370,7 @@ export function EisenhowerScatter({
                 stroke="white"
                 strokeWidth="2"
               />
-              
+
               {/* Axis scale markers */}
               {[0, 2.5, 5, 7.5, 10].map((value) => (
                 <g key={`x-${value}`}>
