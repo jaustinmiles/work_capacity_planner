@@ -227,7 +227,8 @@ export function EisenhowerScatter({
 
   // Start/stop diagonal scan animation
   const toggleDiagonalScan = useCallback(() => {
-    if (isScanning) {
+    if (scanAnimationRef.current !== undefined) {
+      // Already scanning - stop it
       logger.error('[SCAN-DEBUG] 🛑 STOPPING SCAN', {
         timestamp: new Date().toISOString(),
         scannedTasksBeforeStop: scannedTasks.length,
@@ -239,10 +240,8 @@ export function EisenhowerScatter({
       setHighlightedTaskId(null)
       // Don't clear scannedTasks here - keep them visible!
 
-      if (scanAnimationRef.current !== undefined) {
-        window.cancelAnimationFrame(scanAnimationRef.current)
-        scanAnimationRef.current = undefined
-      }
+      window.cancelAnimationFrame(scanAnimationRef.current)
+      scanAnimationRef.current = undefined
       return
     }
 
@@ -540,7 +539,7 @@ export function EisenhowerScatter({
     }
 
     scanAnimationRef.current = window.requestAnimationFrame(animate)
-  }, [isScanning, allItemsForScatter, onSelectTask, getDistanceToScanLine, containerSize, scannedTasks])
+  }, [isScanning, allItemsForScatter, onSelectTask, getDistanceToScanLine, containerSize])
 
   // Cleanup animation on unmount
   useEffect(() => {
