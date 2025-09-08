@@ -167,13 +167,17 @@ export function EisenhowerScatter({
     // The scan line SVG uses the full container, so we should too
     const containerRect = { width: containerSize.width, height: containerSize.height }
 
-    // Scan line moves from top-left to bottom-right
+    // Clamp scan progress to 0-1 range for line calculations
+    // (animation continues to 2.0 but scan line stops at 1.0)
+    const clampedProgress = Math.min(Math.max(scanProgress, 0), 1)
+
+    // Scan line moves from top-right to bottom-left
     // Progress 0: line from (100%, 0%) to (100%, 0%) - just a point at top-right
     // Progress 1: line from (0%, 0%) to (100%, 100%) - full diagonal
-    const scanLineX1 = containerRect.width * (1 - scanProgress) // Moving start point
+    const scanLineX1 = containerRect.width * (1 - clampedProgress) // Moving start point
     const scanLineY1 = 0 // Top edge
     const scanLineX2 = containerRect.width // Right edge (fixed)
-    const scanLineY2 = containerRect.height * scanProgress // Moving down
+    const scanLineY2 = containerRect.height * clampedProgress // Moving down
 
     // Convert task position to pixels - use same coordinate system as visual rendering
     // Tasks are displayed at percentage positions, so we use the same here
@@ -181,26 +185,45 @@ export function EisenhowerScatter({
     const pointX = (xPercent / 100) * containerRect.width
     const pointY = (yPercent / 100) * containerRect.height
 
+    // Handle edge case where scan line is a point (at start of animation)
+    if (clampedProgress === 0) {
+      // Distance to the starting point (top-right corner)
+      const dx = pointX - containerRect.width
+      const dy = pointY - 0
+      return Math.sqrt(dx * dx + dy * dy)
+    }
+
     // Calculate perpendicular distance from point to line
     const A = scanLineY2 - scanLineY1
     const B = scanLineX1 - scanLineX2
     const C = scanLineX2 * scanLineY1 - scanLineX1 * scanLineY2
 
-    const distance = Math.abs(A * pointX + B * pointY + C) / Math.sqrt(A * A + B * B)
+    // Avoid division by zero
+    const denominator = Math.sqrt(A * A + B * B)
+    if (denominator === 0) {
+      // Line is degenerate (point), calculate distance to that point
+      const dx = pointX - scanLineX1
+      const dy = pointY - scanLineY1
+      return Math.sqrt(dx * dx + dy * dy)
+    }
+
+    const distance = Math.abs(A * pointX + B * pointY + C) / denominator
     
-    // Log distance calculation details for first few calculations
-    if (scanProgress > 0.49 && scanProgress < 0.51) {
-      logger.warn('[SCAN-DEBUG] 📐 DISTANCE CALC', {
-        scanProgress: scanProgress.toFixed(4),
-        scanLine: { x1: scanLineX1, y1: scanLineY1, x2: scanLineX2, y2: scanLineY2 },
-        taskPosition: { xPercent, yPercent, xPixels: pointX, yPixels: pointY },
-        lineEquation: { A, B, C },
+    // Log distance calculation details for debugging
+    if (scanProgress > 0.24 && scanProgress < 0.26) {
+      logger.error('[SCAN-DEBUG] 📐 DISTANCE CALC', {
+        rawProgress: scanProgress.toFixed(4),
+        clampedProgress: clampedProgress.toFixed(4),
+        scanLine: { x1: scanLineX1.toFixed(2), y1: scanLineY1.toFixed(2), x2: scanLineX2.toFixed(2), y2: scanLineY2.toFixed(2) },
+        taskPosition: { xPercent, yPercent, xPixels: pointX.toFixed(2), yPixels: pointY.toFixed(2) },
+        lineEquation: { A: A.toFixed(2), B: B.toFixed(2), C: C.toFixed(2) },
+        denominator: denominator.toFixed(2),
         distance: distance.toFixed(2),
       })
     }
     
     return distance
-  }, [containerSize, padding, scanProgress])
+  }, [containerSize, scanProgress])
 
   // Start/stop diagonal scan animation
   const toggleDiagonalScan = useCallback(() => {
@@ -380,16 +403,57 @@ export function EisenhowerScatter({
               timestamp: new Date().toISOString(),
             })
             scannedTaskIds.add(task.id)
+            
+            // Update React state immediately when task is detected
             setScannedTasks(prev => {
-              const newTasks = [...prev, task]
-              logger.error('[SCAN-DEBUG] 📋 SET_SCANNED_TASKS CALLED', {
+              // Check if task already exists in the state
+              if (prev.some(t => t.id === task.id)) {
+                return prev
+              }
+              
+              // Convert to Task type if needed
+              const taskToAdd: Task = {
+                id: task.id,
+                name: task.name,
+                importance: task.importance,
+                urgency: task.urgency,
+                duration: task.duration,
+                completed: task.completed,
+                createdAt: task.createdAt,
+                updatedAt: task.updatedAt,
+                deadline: task.deadline,
+                deadlineType: task.deadlineType,
+                type: task.type,
+                asyncWaitTime: task.asyncWaitTime,
+                dependencies: task.dependencies,
+                completedAt: task.completedAt,
+                cognitiveComplexity: task.cognitiveComplexity,
+                isLocked: task.isLocked,
+                lockedStartTime: task.lockedStartTime,
+                sessionId: task.sessionId,
+                actualDuration: task.actualDuration,
+                notes: task.notes,
+                projectId: task.projectId,
+                hasSteps: task.hasSteps,
+                currentStepId: task.currentStepId,
+                overallStatus: task.overallStatus,
+                criticalPathDuration: task.criticalPathDuration,
+                worstCaseDuration: task.worstCaseDuration,
+                steps: task.steps,
+                isAsyncTrigger: task.isAsyncTrigger,
+              }
+              
+              const newTasks = [...prev, taskToAdd]
+              logger.error('[SCAN-DEBUG] 📋 UPDATING SCANNED TASKS STATE', {
+                frameNumber: frameNum,
                 oldCount: prev.length,
                 newCount: newTasks.length,
-                newTaskIds: newTasks.map(t => t.id),
+                addedTask: task.name,
                 timestamp: new Date().toISOString(),
               })
               return newTasks
             })
+            
             onSelectTask(task)
 
             // Log the scanned task name for user feedback with more emphasis
@@ -438,7 +502,7 @@ export function EisenhowerScatter({
 
       if (progress >= 2.0) {
         // Animation complete - log final results
-        const scannedTasksList = Array.from(scannedTaskIds).map(taskId => {
+        const scannedTasksInfo = Array.from(scannedTaskIds).map(taskId => {
           const task = allItemsForScatter.find(t => t.id === taskId)
           return task ? {
             name: task.name,
@@ -450,7 +514,7 @@ export function EisenhowerScatter({
         logger.error('[SCAN-DEBUG] 🏁 SCAN COMPLETE', {
           totalFrames: frameNum,
           scannedCount: scannedTaskIds.size,
-          scannedTasks: scannedTasksList,
+          scannedTasks: scannedTasksInfo,
           animationDuration: elapsed,
           finalScannedTasksState: scannedTasks,
           timestamp: new Date().toISOString(),
@@ -476,7 +540,7 @@ export function EisenhowerScatter({
     }
 
     scanAnimationRef.current = window.requestAnimationFrame(animate)
-  }, [isScanning, allItemsForScatter, onSelectTask, getDistanceToScanLine])
+  }, [isScanning, allItemsForScatter, onSelectTask, getDistanceToScanLine, containerSize, scannedTasks])
 
   // Cleanup animation on unmount
   useEffect(() => {
