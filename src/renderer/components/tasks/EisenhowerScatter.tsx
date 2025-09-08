@@ -187,6 +187,18 @@ export function EisenhowerScatter({
     const C = scanLineX2 * scanLineY1 - scanLineX1 * scanLineY2
 
     const distance = Math.abs(A * pointX + B * pointY + C) / Math.sqrt(A * A + B * B)
+    
+    // Log distance calculation details for first few calculations
+    if (scanProgress > 0.49 && scanProgress < 0.51) {
+      logger.warn('[SCAN-DEBUG] 📐 DISTANCE CALC', {
+        scanProgress: scanProgress.toFixed(4),
+        scanLine: { x1: scanLineX1, y1: scanLineY1, x2: scanLineX2, y2: scanLineY2 },
+        taskPosition: { xPercent, yPercent, xPixels: pointX, yPixels: pointY },
+        lineEquation: { A, B, C },
+        distance: distance.toFixed(2),
+      })
+    }
+    
     return distance
   }, [containerSize, padding, scanProgress])
 
@@ -276,6 +288,17 @@ export function EisenhowerScatter({
       // Calculate a dynamic threshold - increase to 25% for better detection
       // This gives us a wider band around the diagonal line
       const dynamicThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
+      
+      // Log threshold calculation on first frame
+      if (frameNum === 1) {
+        logger.error('[SCAN-DEBUG] 🎯 THRESHOLD CALCULATION', {
+          containerWidth: containerSize.width,
+          containerHeight: containerSize.height,
+          minDimension: Math.min(containerSize.width, containerSize.height),
+          calculatedThreshold: dynamicThreshold,
+          percentage: '25%',
+        })
+      }
 
       // Track closest task for debugging
       type ScatterItem = Task & { isStep?: boolean; parentWorkflow?: string; stepName?: string; stepIndex?: number }
@@ -288,8 +311,8 @@ export function EisenhowerScatter({
         const distance = getDistanceToScanLine(xPercent, yPercent)
 
         // Log EVERY task position on key frames
-        if (frameNum % 20 === 0 || distance <= dynamicThreshold || frameNum === 1) {
-          logger.debug('[SCAN-DEBUG] 📍 TASK POSITION', {
+        if (frameNum <= 5 || frameNum % 50 === 0 || distance <= dynamicThreshold || (frameNum >= 240 && frameNum <= 245)) {
+          logger.error('[SCAN-DEBUG] 📍 TASK POSITION', {
             frameNumber: frameNum,
             taskIndex,
             taskId: task.id,
@@ -303,6 +326,7 @@ export function EisenhowerScatter({
             distance: distance.toFixed(2),
             threshold: dynamicThreshold.toFixed(2),
             willBeScanned: distance <= dynamicThreshold,
+            progress: progress.toFixed(4),
           })
         }
 
