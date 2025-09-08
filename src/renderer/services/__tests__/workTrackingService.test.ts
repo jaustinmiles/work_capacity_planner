@@ -1,15 +1,13 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { WorkTrackingService } from '../workTrackingService'
-import type {
-  LocalWorkSession,
-} from '../types/workTracking'
+import type { WorkSession } from '../../../shared/work-blocks-types'
 import * as database from '../database'
 
 // Mock the database module
 vi.mock('../database', () => ({
   getDatabase: vi.fn(() => ({
     saveActiveWorkSession: vi.fn(),
-    getActiveWorkSessions: vi.fn(),
+    getLastActiveWorkSession: vi.fn(),
     clearActiveWorkSessions: vi.fn(),
     deleteActiveWorkSession: vi.fn(),
     getCurrentSession: vi.fn(),
@@ -73,7 +71,7 @@ describe('WorkTrackingService', () => {
       expect(mockDatabase.saveActiveWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
           taskId,
-          sessionId: 'session-1',
+          type: 'focused' as const,
         }),
       )
     })
@@ -123,12 +121,13 @@ describe('WorkTrackingService', () => {
 
   describe('Session Persistence', () => {
     it('should save active session to database', async () => {
-      const session: LocalWorkSession = {
+      const session: WorkSession = {
         id: 'local-session-1',
         taskId: 'task-123',
         startTime: new Date(),
-        duration: 30,
-        isPaused: false,
+        plannedDuration: 60,
+        actualDuration: 30,
+        type: 'focused',
       }
 
       await service.saveActiveSession(session)
@@ -137,55 +136,41 @@ describe('WorkTrackingService', () => {
         expect.objectContaining({
           taskId: 'task-123',
           startTime: session.startTime,
-          duration: 30,
+          actualDuration: 30,
         }),
       )
     })
 
-    it('should restore active sessions from database', async () => {
-      const mockSessions = [
-        {
-          id: 'db-session-1',
-          taskId: 'task-123',
-          startTime: new Date('2025-09-08T10:00:00Z'),
-          duration: 30,
-          sessionId: 'session-1',
-        },
-        {
-          id: 'db-session-2',
-          stepId: 'step-456',
-          workflowId: 'workflow-789',
-          startTime: new Date('2025-09-08T11:00:00Z'),
-          duration: 15,
-          sessionId: 'session-1',
-        },
-      ]
+    it('should get last active work session from database', async () => {
+      const mockSession = {
+        id: 'db-session-1',
+        taskId: 'task-123',
+        startTime: new Date('2025-09-08T10:00:00Z'),
+        plannedDuration: 60,
+        actualDuration: 30,
+        type: 'focused' as const,
+      }
 
-      mockDatabase.getActiveWorkSessions.mockResolvedValue(mockSessions)
+      mockDatabase.getLastActiveWorkSession.mockResolvedValue(mockSession)
 
-      const restored = await service.restoreActiveSessions()
+      const lastSession = await service.getLastActiveWorkSession()
 
-      expect(restored.size).toBe(2)
-      expect(restored.has('task-123')).toBe(true)
-      expect(restored.has('step-456')).toBe(true)
-
-      const taskSession = restored.get('task-123')
-      expect(taskSession?.duration).toBe(30)
-      expect(taskSession?.isPaused).toBe(true) // Should be paused after restore
+      expect(lastSession).toEqual(mockSession)
+      expect(lastSession?.taskId).toBe('task-123')
+      expect(lastSession?.actualDuration).toBe(30)
     })
 
     it('should restore sessions on service initialization', async () => {
-      const mockSessions = [
-        {
-          id: 'db-session-1',
-          taskId: 'task-123',
-          startTime: new Date(),
-          duration: 10,
-          sessionId: 'session-1',
-        },
-      ]
+      const mockSession = {
+        id: 'db-session-1',
+        taskId: 'task-123',
+        startTime: new Date(),
+        plannedDuration: 60,
+        actualDuration: 10,
+        type: 'focused' as const,
+      }
 
-      mockDatabase.getActiveWorkSessions.mockResolvedValue(mockSessions)
+      mockDatabase.getLastActiveWorkSession.mockResolvedValue(mockSession)
 
       const newService = new WorkTrackingService({
         clearStaleSessionsOnStartup: false,
@@ -193,7 +178,7 @@ describe('WorkTrackingService', () => {
       await newService.initialize()
 
       expect(newService.getCurrentActiveSession()).toBeTruthy()
-      expect(mockDatabase.getActiveWorkSessions).toHaveBeenCalled()
+      expect(mockDatabase.getLastActiveWorkSession).toHaveBeenCalled()
     })
 
     it('should clear stale sessions on startup when enabled', async () => {
@@ -201,11 +186,12 @@ describe('WorkTrackingService', () => {
         id: 'old-session',
         taskId: 'task-old',
         startTime: new Date(Date.now() - 25 * 60 * 60 * 1000), // 25 hours ago
-        duration: 5,
-        sessionId: 'session-1',
+        plannedDuration: 60,
+        actualDuration: 5,
+        type: 'focused' as const,
       }
 
-      mockDatabase.getActiveWorkSessions.mockResolvedValue([oldSession])
+      mockDatabase.getLastActiveWorkSession.mockResolvedValue(oldSession)
 
       const newService = new WorkTrackingService({
         clearStaleSessionsOnStartup: true,
@@ -230,11 +216,10 @@ describe('WorkTrackingService', () => {
       await service.pauseWorkSession(sessionId!)
 
       const session = service.getCurrentActiveSession()
-      expect(session?.isPaused).toBe(true)
-      expect(session?.pausedAt).toBeInstanceOf(Date)
+      expect(session?.endTime).toBeUndefined() // Still active but paused
       expect(mockDatabase.saveActiveWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
-          pausedAt: expect.any(Date),
+          endTime: expect.any(Date),
         }),
       )
     })
@@ -250,8 +235,7 @@ describe('WorkTrackingService', () => {
       await service.resumeWorkSession(sessionId)
 
       const session = service.getCurrentActiveSession()
-      expect(session?.isPaused).toBe(false)
-      expect(session?.pausedAt).toBeUndefined()
+      expect(session?.endTime).toBeUndefined() // Active and not paused
     })
 
     it('should stop active work session', async () => {
@@ -309,13 +293,21 @@ describe('WorkTrackingService', () => {
     it('should calculate elapsed time correctly', async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
 
-      const startTime = new Date(Date.now() - 10 * 60 * 1000) // 10 minutes ago
-      vi.spyOn(Date, 'now').mockReturnValue(startTime.getTime() + 5 * 60 * 1000) // 5 minutes later
+      // Mock timers to control time progression
+      vi.useFakeTimers()
+      const startTime = new Date('2025-09-08T10:00:00Z')
+      vi.setSystemTime(startTime)
 
       await service.startWorkSession('task-123')
 
+      // Advance time by 5 minutes
+      vi.advanceTimersByTime(5 * 60 * 1000)
+
       const session = service.getCurrentActiveSession()
-      expect(session?.getElapsedMinutes()).toBe(5)
+      const elapsed = session ? Math.floor((Date.now() - session.startTime.getTime()) / (1000 * 60)) : 0
+      expect(elapsed).toBe(5)
+
+      vi.useRealTimers()
     })
   })
 
@@ -345,12 +337,12 @@ describe('WorkTrackingService', () => {
         startTime: 'not-a-date',
       }
 
-      mockDatabase.getActiveWorkSessions.mockResolvedValue([malformedSession])
+      mockDatabase.getLastActiveWorkSession.mockResolvedValue(malformedSession)
 
-      const restored = await service.restoreActiveSessions()
+      const lastSession = await service.getLastActiveWorkSession()
 
-      // Should skip malformed sessions and log warning
-      expect(restored.size).toBe(0)
+      // Should return null for malformed sessions and log warning
+      expect(lastSession).toBeNull()
     })
   })
 

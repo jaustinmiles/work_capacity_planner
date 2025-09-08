@@ -1,11 +1,10 @@
 // import { logger } from '../utils/logger'
 import type {
-  ActiveWorkSession,
-  LocalWorkSession,
   WorkSessionPersistenceOptions,
-  NextTaskCandidate,
   WorkTrackingServiceInterface,
 } from './types/workTracking'
+import type { WorkSession } from '../../shared/work-blocks-types'
+import type { Task, TaskStep } from '../../shared/types'
 
 /**
  * WorkTrackingService - Manages active work sessions with database persistence
@@ -14,7 +13,7 @@ import type {
  * The actual implementation will be added after test approval.
  */
 export class WorkTrackingService implements WorkTrackingServiceInterface {
-  private activeSessions: Map<string, LocalWorkSession> = new Map()
+  private activeSessions: Map<string, WorkSession> = new Map()
   private options: Required<WorkSessionPersistenceOptions>
 
   constructor(options: WorkSessionPersistenceOptions = {}) {
@@ -30,7 +29,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
     throw new Error('WorkTrackingService.initialize() not implemented yet')
   }
 
-  async startWorkSession(_taskId?: string, _stepId?: string, _workflowId?: string): Promise<ActiveWorkSession> {
+  async startWorkSession(_taskId?: string, _stepId?: string, _workflowId?: string): Promise<WorkSession> {
     throw new Error('WorkTrackingService.startWorkSession() not implemented yet')
   }
 
@@ -46,23 +45,23 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
     throw new Error('WorkTrackingService.stopWorkSession() not implemented yet')
   }
 
-  async saveActiveSession(_session: LocalWorkSession): Promise<void> {
+  async saveActiveSession(_session: WorkSession): Promise<void> {
     throw new Error('WorkTrackingService.saveActiveSession() not implemented yet')
   }
 
-  async restoreActiveSessions(): Promise<Map<string, LocalWorkSession>> {
-    throw new Error('WorkTrackingService.restoreActiveSessions() not implemented yet')
+  async getLastActiveWorkSession(): Promise<WorkSession | null> {
+    throw new Error('WorkTrackingService.getLastActiveWorkSession() not implemented yet')
   }
 
   async clearStaleSessionsBeforeDate(_cutoffDate: Date): Promise<number> {
     throw new Error('WorkTrackingService.clearStaleSessionsBeforeDate() not implemented yet')
   }
 
-  getCurrentActiveSession(): LocalWorkSession | null {
+  getCurrentActiveSession(): WorkSession | null {
     throw new Error('WorkTrackingService.getCurrentActiveSession() not implemented yet')
   }
 
-  getCurrentActiveTask(): NextTaskCandidate | null {
+  getCurrentActiveTask(): Task | TaskStep | null {
     throw new Error('WorkTrackingService.getCurrentActiveTask() not implemented yet')
   }
 
@@ -70,7 +69,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
     throw new Error('WorkTrackingService.isAnyWorkActive() not implemented yet')
   }
 
-  async getNextScheduledTask(): Promise<NextTaskCandidate | null> {
+  async getNextScheduledTask(): Promise<Task | TaskStep | null> {
     throw new Error('WorkTrackingService.getNextScheduledTask() not implemented yet')
   }
 
