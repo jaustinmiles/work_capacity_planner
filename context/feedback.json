@@ -1423,5 +1423,16 @@
     "description": "this got merged in a previous pr, but is weird and harsh and shouldn't exist. ",
     "timestamp": "2025-09-06T20:29:41.939Z",
     "sessionId": "session-1757190581932-ur1vz2430"
+  },
+  {
+    "type": "feature",
+    "priority": "critical",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Show timeline of all logged and planned future time",
+    "description": "the timeline should be below the clock, or next to it, and should have blocks that are clickable to select the work logging session, where the user can then edit the start and end times. But it should be free of clutter, so the user can quickly go over how they spent their time for the day and change start and end times. The swim lanes are good for finding tasks under workflows to log time, and the clock is good for seeing that the time is continuous, but the clock is not big enough, and too crowded, especially for small work sessions and fine grained editing. If the clock was bigger and zoomable that could suffice too. ",
+    "timestamp": "2025-09-06T21:11:35.234Z",
+    "sessionId": "session-1757193095228-znt69miyb"
   }
 ]

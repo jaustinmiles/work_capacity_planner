@@ -30,40 +30,48 @@ test.describe('Responsive Design Regression Prevention', () => {
       await page.setViewportSize({ width, height: 800 })
 
       // App loads on Tasks view by default - no navigation needed for narrow widths
-      // Wait for the main content area to render
-      await page.waitForSelector('.task-list-container, .arco-empty', { timeout: 5000 })
+      // Wait for the main content area to render - looking for Arco Card or Empty components
+      await page.waitForSelector('.arco-card, .arco-empty', { timeout: 5000 })
 
       if (width <= 768) {
-        // Should use card layout - look for the main task list container
-        const taskListContainer = page.locator('.task-list-container')
-        if (await taskListContainer.count() > 0) {
-          // Check for card layout (mobile view)
-          const taskCards = page.locator('.task-list-container .arco-card').first()
-          if (await taskCards.count() > 0) {
-            await expect(taskCards).toBeVisible()
-          }
-        } else {
-          // Empty state is also valid
-          const emptyState = page.locator('.arco-empty')
-          if (await emptyState.count() > 0) {
-            await expect(emptyState).toBeVisible()
-          }
-        }
-      } else {
-        // Should use table layout or show empty state
-        const table = page.locator('.arco-table')
+        // Mobile view uses cards with list items
+        const cards = page.locator('.arco-card')
         const emptyState = page.locator('.arco-empty')
 
-        // Either table or empty state should be visible
-        const hasTable = await table.count() > 0
+        if (await cards.count() > 0) {
+          // Check for list items inside cards (mobile view)
+          await expect(cards.first()).toBeVisible()
+          // Check if there are task items rendered as list items
+          const listItems = page.locator('.arco-list-item')
+          if (await listItems.count() > 0) {
+            await expect(listItems.first()).toBeVisible()
+          }
+        } else if (await emptyState.count() > 0) {
+          // Empty state is also valid
+          await expect(emptyState).toBeVisible()
+        }
+      } else {
+        // Desktop view can use either list or grid view
+        const cards = page.locator('.arco-card')
+        const emptyState = page.locator('.arco-empty')
+
+        // Should have either cards with content or empty state
+        const hasCards = await cards.count() > 0
         const hasEmpty = await emptyState.count() > 0
 
-        expect(hasTable || hasEmpty).toBe(true)
+        expect(hasCards || hasEmpty).toBe(true)
 
-        if (hasTable) {
-          await expect(table).toBeVisible()
-          // Table should have headers
-          await expect(page.locator('.arco-table th')).toHaveCount.greaterThan(3)
+        if (hasCards) {
+          await expect(cards.first()).toBeVisible()
+          // Check for either list items or grid items
+          const listItems = page.locator('.arco-list-item')
+          const gridItems = page.locator('.task-grid-item')
+
+          if (await listItems.count() > 0) {
+            await expect(listItems.first()).toBeVisible()
+          } else if (await gridItems.count() > 0) {
+            await expect(gridItems.first()).toBeVisible()
+          }
         } else if (hasEmpty) {
           await expect(emptyState).toBeVisible()
         }

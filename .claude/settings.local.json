@@ -70,7 +70,8 @@
       "Bash(./context/setup-claude-bot.sh:*)",
       "Bash(./scripts/dev-timer.sh:*)",
       "Bash(./scripts/dev/dev-timer.sh:*)",
-      "Bash(npx playwright test:*)"
+      "Bash(npx playwright test:*)",
+      "Read(//Users/austinmiles/Downloads/**)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

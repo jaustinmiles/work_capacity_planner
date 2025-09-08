@@ -6,10 +6,11 @@ import { Page } from '@playwright/test'
  */
 export async function mockElectronAPI(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    // Create mock electron API on window
-    (window as Record<string, unknown>).electron = {
-      // Mock database methods
-      getTasks: () => Promise.resolve([
+    // Create mock electron API on window - must match window.electronAPI structure
+    (window as any).electronAPI = {
+      db: {
+        // Mock database methods
+        getTasks: () => Promise.resolve([
         {
           id: 'test-task-1',
           name: 'Test Task 1',
@@ -34,12 +35,54 @@ export async function mockElectronAPI(page: Page): Promise<void> {
         },
       ]),
 
-      getSequencedTasks: () => Promise.resolve([]),
+        getSequencedTasks: () => Promise.resolve([]),
 
-      getSessions: () => Promise.resolve({
-        '2025-09-04': [],
-      }),
+        getSessions: () => Promise.resolve([
+          {
+            id: 'default',
+            name: 'Default Session',
+            description: 'Default test session',
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ]),
 
+        getCurrentSession: () => Promise.resolve({
+          id: 'default',
+          name: 'Default Session',
+          isActive: true,
+        }),
+
+        switchSession: () => Promise.resolve(),
+        createSession: () => Promise.resolve(),
+        updateSession: () => Promise.resolve(),
+        deleteSession: () => Promise.resolve(),
+
+        // Mock other necessary methods
+        createTask: () => Promise.resolve({ id: 'new-task', name: 'New Task' }),
+        updateTask: () => Promise.resolve(),
+        deleteTask: () => Promise.resolve(),
+
+        createSequencedTask: () => Promise.resolve(),
+        updateSequencedTask: () => Promise.resolve(),
+        deleteSequencedTask: () => Promise.resolve(),
+
+        addStepToWorkflow: () => Promise.resolve(),
+        updateSchedulingPreferences: () => Promise.resolve(),
+
+        // Initialize default data
+        initializeDefaultData: () => Promise.resolve(),
+
+        // Other database methods that might be called
+        getProjects: () => Promise.resolve([]),
+        getWorkLogs: () => Promise.resolve([]),
+        createWorkLog: () => Promise.resolve(),
+        updateWorkLog: () => Promise.resolve(),
+        deleteWorkLog: () => Promise.resolve(),
+      },
+
+      // Mock work patterns (outside db namespace)
       getWorkPattern: () => Promise.resolve({
         id: 'default',
         name: 'Default',
@@ -52,18 +95,6 @@ export async function mockElectronAPI(page: Page): Promise<void> {
           { dayOfWeek: 5, blocksOfWork: [] },
         ],
       }),
-
-      getSessionNames: () => Promise.resolve([
-        { name: 'default', lastUsed: new Date().toISOString() },
-      ]),
-
-      getCurrentSession: () => Promise.resolve('default'),
-      setCurrentSession: () => Promise.resolve(),
-
-      // Mock other necessary methods
-      createTask: () => Promise.resolve({ id: 'new-task', name: 'New Task' }),
-      updateTask: () => Promise.resolve(),
-      deleteTask: () => Promise.resolve(),
 
       // Mock logger
       log: () => Promise.resolve(),
