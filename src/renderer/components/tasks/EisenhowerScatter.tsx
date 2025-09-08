@@ -85,57 +85,54 @@ export function EisenhowerScatter({
     }
   }, [containerWidth, containerHeight, containerSize, padding, setContainerSize])
 
-  // Scatter plot logging
+  // Scatter plot logging - only log when tasks change, not on every resize
   useEffect(() => {
     if (incompleteTasks.length > 0) {
-      logger.debug('EISENHOWER SCATTER DEBUG: Scatter plot rendering', {
+      logger.debug('EISENHOWER SCATTER DEBUG: Tasks updated', {
+        category: 'eisenhower',
         taskCount: incompleteTasks.length,
         containerWidth: containerSize.width,
         containerHeight: containerSize.height,
         firstTaskImportance: incompleteTasks[0]?.importance,
         firstTaskUrgency: incompleteTasks[0]?.urgency,
-        hasWindowElectron: typeof window !== 'undefined' && !!(window as any).electron,
-        hasWindowElectronLog: typeof window !== 'undefined' && !!(window as any).electron?.log,
       })
 
-      logger.info('Scatter view activated', {
+      logger.info('Scatter view tasks updated', {
+        category: 'eisenhower',
         taskCount: incompleteTasks.length,
         importanceDistribution: {
           min: Math.min(...incompleteTasks.map(t => t.importance)),
           max: Math.max(...incompleteTasks.map(t => t.importance)),
           unique: [...new Set(incompleteTasks.map(t => t.importance))],
-          all: incompleteTasks.map(t => t.importance),
         },
         urgencyDistribution: {
           min: Math.min(...incompleteTasks.map(t => t.urgency)),
           max: Math.max(...incompleteTasks.map(t => t.urgency)),
           unique: [...new Set(incompleteTasks.map(t => t.urgency))],
-          all: incompleteTasks.map(t => t.urgency),
         },
-        yPositionDistribution: {
-          min: Math.min(...incompleteTasks.map(t => 100 - (t.importance * 10))),
-          max: Math.max(...incompleteTasks.map(t => 100 - (t.importance * 10))),
-          unique: [...new Set(incompleteTasks.map(t => 100 - (t.importance * 10)))],
-          count: new Set(incompleteTasks.map(t => 100 - (t.importance * 10))).size,
-          all: incompleteTasks.map(t => 100 - (t.importance * 10)),
-        },
-        containerSize,
         timestamp: new Date().toISOString(),
       })
     }
-  }, [incompleteTasks, containerSize])
+  }, [incompleteTasks]) // Removed containerSize to prevent spam on resize
 
   // Calculate distance from a point to the diagonal scan line
   const getDistanceToScanLine = useCallback((xPercent: number, yPercent: number) => {
-    const containerRect = { width: containerSize.width - 2 * padding, height: containerSize.height - 2 * padding }
+    // Use full container dimensions for consistency with SVG rendering
+    // The scan line SVG uses the full container, so we should too
+    const containerRect = { width: containerSize.width, height: containerSize.height }
 
+    // Scan line moves from top-left to bottom-right
+    // Progress 0: line from (100%, 0%) to (100%, 0%) - just a point at top-right
+    // Progress 1: line from (0%, 0%) to (100%, 100%) - full diagonal
     const scanLineX1 = containerRect.width * (1 - scanProgress) // Moving start point
     const scanLineY1 = 0 // Top edge
     const scanLineX2 = containerRect.width // Right edge (fixed)
     const scanLineY2 = containerRect.height * scanProgress // Moving down
 
-    const pointX = (xPercent / 100) * containerRect.width
-    const pointY = (yPercent / 100) * containerRect.height
+    // Convert task position to pixels in the full container
+    // Tasks are positioned with padding, so we need to account for that
+    const pointX = padding + (xPercent / 100) * (containerRect.width - 2 * padding)
+    const pointY = padding + (yPercent / 100) * (containerRect.height - 2 * padding)
 
     // Calculate perpendicular distance from point to line
     const A = scanLineY2 - scanLineY1
@@ -149,11 +146,11 @@ export function EisenhowerScatter({
   // Start/stop diagonal scan animation
   const toggleDiagonalScan = useCallback(() => {
     if (isScanning) {
-      // Stop scanning
+      // Stop scanning but KEEP the results visible
       setIsScanning(false)
       setScanProgress(0)
       setHighlightedTaskId(null)
-      setScannedTasks([])
+      // Don't clear scannedTasks here - keep them visible!
 
       if (scanAnimationRef.current !== undefined) {
         window.cancelAnimationFrame(scanAnimationRef.current)
@@ -163,9 +160,16 @@ export function EisenhowerScatter({
     }
 
     // Start scanning
+    const tasksOnly = allItemsForScatter.filter(item => !item.isStep)
+    const stepsOnly = allItemsForScatter.filter(item => item.isStep)
+
     logger.info('🔍 STARTING DIAGONAL SCAN', {
       category: 'eisenhower-scan',
       totalItems: allItemsForScatter.length,
+      tasks: tasksOnly.length,
+      workflowSteps: stepsOnly.length,
+      containerSize,
+      padding,
       timestamp: new Date().toISOString(),
     })
 
@@ -186,31 +190,55 @@ export function EisenhowerScatter({
       // Find tasks within threshold of scan line
       const currentHighlighted: string[] = []
 
-      // Calculate a dynamic threshold based on container size
-      // Use 15% of the smaller dimension as the threshold
-      const dynamicThreshold = Math.min(containerSize.width, containerSize.height) * 0.15
+      // Calculate a dynamic threshold - increase to 25% for better detection
+      // This gives us a wider band around the diagonal line
+      const dynamicThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
 
-      allItemsForScatter.forEach(task => {
+      // Track closest task for debugging
+      type ScatterItem = Task & { isStep?: boolean; parentWorkflow?: string; stepName?: string; stepIndex?: number }
+      let closestTask: { task: ScatterItem; distance: number } | null = null
+
+      allItemsForScatter.forEach((task: ScatterItem) => {
         const xPercent = task.urgency * 10 // Convert 0-10 to 0-100%
         const yPercent = 100 - (task.importance * 10) // Convert 0-10 to 0-100%, inverted
 
         const distance = getDistanceToScanLine(xPercent, yPercent)
 
-        // Log first few tasks to debug distance calculation
-        if (scannedTaskIds.size < 3 && progress > 0.1) {
-          logger.debug('📏 Distance calculation for task', {
+        // Track closest task
+        if (!closestTask || distance < closestTask.distance) {
+          closestTask = { task, distance }
+        }
+
+        // Log first scan attempt with detailed info
+        if (scannedTaskIds.size === 0 && progress > 0.3 && progress < 0.35) {
+          logger.debug('📏 Scan line position and task distance', {
             category: 'eisenhower-scan',
-            taskName: task.name,
+            scanProgress: progress.toFixed(2),
+            scanLine: {
+              x1: Math.round((1 - progress) * containerSize.width),
+              y1: 0,
+              x2: containerSize.width,
+              y2: Math.round(progress * containerSize.height),
+            },
+            task: {
+              name: task.name,
+              importance: task.importance,
+              urgency: task.urgency,
+              isStep: task.isStep || false,
+            },
+            position: {
+              xPercent: xPercent.toFixed(1),
+              yPercent: yPercent.toFixed(1),
+              xPixels: Math.round(padding + (xPercent / 100) * (containerSize.width - 2 * padding)),
+              yPixels: Math.round(padding + (yPercent / 100) * (containerSize.height - 2 * padding)),
+            },
             distance: Math.round(distance),
             threshold: Math.round(dynamicThreshold),
             willBeScanned: distance <= dynamicThreshold,
-            position: { x: xPercent, y: yPercent },
-            importance: task.importance,
-            urgency: task.urgency,
           })
         }
 
-        if (distance <= dynamicThreshold) { // Use dynamic threshold based on container size
+        if (distance <= dynamicThreshold) {
           currentHighlighted.push(task.id)
 
           if (!scannedTaskIds.has(task.id)) {
@@ -221,16 +249,34 @@ export function EisenhowerScatter({
             // Log the scanned task name for user feedback with more emphasis
             logger.info('🎯 TASK FOUND DURING DIAGONAL SCAN', {
               category: 'eisenhower-scan',
+              scanProgress: progress.toFixed(2),
               taskName: task.name,
+              taskType: task.isStep ? 'workflow-step' : 'task',
               importance: task.importance,
               urgency: task.urgency,
-              position: { x: xPercent, y: yPercent },
+              position: { x: xPercent.toFixed(1), y: yPercent.toFixed(1) },
               distance: Math.round(distance),
               threshold: Math.round(dynamicThreshold),
+              foundCount: scannedTaskIds.size,
             })
           }
         }
       })
+
+      // Log closest task at midpoint if nothing found yet
+      if (scannedTaskIds.size === 0 && progress > 0.5 && progress < 0.55) {
+        if (closestTask) {
+          const { task, distance } = closestTask as { task: ScatterItem; distance: number }
+          logger.warn('📍 No tasks found yet - closest task', {
+            category: 'eisenhower-scan',
+            closestTaskName: task.name,
+            closestDistance: Math.round(distance),
+            threshold: Math.round(dynamicThreshold),
+            needsLargerThreshold: distance > dynamicThreshold,
+            suggestedThreshold: Math.round(distance * 1.2),
+          })
+        }
+      }
 
       setHighlightedTaskId(currentHighlighted.length > 0 ? currentHighlighted[0] : null)
 
@@ -293,14 +339,18 @@ export function EisenhowerScatter({
     }
   }, [])
 
-  // Task clustering for overlapping positions
+  // Task clustering for overlapping positions - use more precision to reduce clustering
   const taskClusters = useMemo(() => {
     const clusters = new Map<string, typeof allItemsForScatter>()
 
     allItemsForScatter.forEach(task => {
       const xPercent = task.urgency * 10
       const yPercent = 100 - (task.importance * 10)
-      const posKey = `${Math.round(xPercent)}-${Math.round(yPercent)}`
+      // Round to 0.5 increments for less aggressive clustering
+      // This allows values like 5.1 and 5.4 to be at different positions
+      const roundedX = Math.round(xPercent * 2) / 2
+      const roundedY = Math.round(yPercent * 2) / 2
+      const posKey = `${roundedX}-${roundedY}`
 
       if (!clusters.has(posKey)) {
         clusters.set(posKey, [])
@@ -470,29 +520,48 @@ export function EisenhowerScatter({
                   onClick={() => onSelectTask(task)}
                 >
                   {clusterTasks.length > 1 ? (
-                    <Badge count={clusterTasks.length}>
-                      <div style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        backgroundColor: isHighlighted ? '#ff4757' : '#3742fa',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontSize: 12,
-                        fontWeight: 'bold',
-                      }}>
-                        {task.name.substring(0, 2)}
-                      </div>
-                    </Badge>
+                    <Tooltip
+                      content={
+                        <div>
+                          <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
+                            {clusterTasks.length} items at this position:
+                          </div>
+                          {clusterTasks.map((t, i) => (
+                            <div key={t.id} style={{ fontSize: 12 }}>
+                              {i + 1}. {t.name} {t.isStep ? '(step)' : ''}
+                            </div>
+                          ))}
+                        </div>
+                      }
+                    >
+                      <Badge count={clusterTasks.length}>
+                        <div style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: '50%',
+                          backgroundColor: isHighlighted ? '#ff4757' :
+                            clusterTasks.some(t => t.isStep) ? '#9b59b6' : '#3742fa',
+                          border: clusterTasks.some(t => t.isStep) ? '2px dashed rgba(255,255,255,0.5)' : 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontSize: 12,
+                          fontWeight: 'bold',
+                        }}>
+                          {task.name.substring(0, 2)}
+                        </div>
+                      </Badge>
+                    </Tooltip>
                   ) : (
-                    <Tooltip content={task.name}>
+                    <Tooltip content={`${task.name}${task.isStep ? ' (workflow step)' : ''}`}>
                       <div style={{
                         width: 30,
                         height: 30,
                         borderRadius: '50%',
-                        backgroundColor: isHighlighted ? '#ff4757' : '#3742fa',
+                        backgroundColor: isHighlighted ? '#ff4757' :
+                          task.isStep ? '#9b59b6' : '#3742fa',
+                        border: task.isStep ? '2px dashed rgba(255,255,255,0.5)' : 'none',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
