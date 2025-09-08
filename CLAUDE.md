@@ -227,6 +227,56 @@ grep -r "TODO.*feature" src/
 6. **NEVER modify tests to make code pass**
 7. **Any test that passes immediately is invalid**
 
+### 🎭 E2E Testing Best Practices (PR #64-65 Lessons)
+
+**Selector Strategy:**
+```typescript
+// ❌ BAD - Too specific, breaks with DOM changes
+await page.locator('h6:has-text("Do First")')
+
+// ✅ GOOD - Simple, resilient to DOM changes  
+await page.locator('text="Do First"')
+```
+
+**Electron API Mocking:**
+```typescript
+// REQUIRED in all E2E tests
+import { mockElectronAPI } from './fixtures/electron-mock'
+test.beforeEach(async ({ page }) => {
+  await mockElectronAPI(page)  // BEFORE navigation
+  await page.goto('/')
+})
+```
+
+**Mobile Test Handling:**
+```typescript
+// Skip mobile tests when maintenance cost exceeds value
+test('desktop feature', async ({ page }, testInfo) => {
+  if (testInfo.project.name.includes('Mobile')) {
+    test.skip()
+    return
+  }
+  // Desktop test logic
+})
+```
+
+**Arco Component Testing:**
+```typescript
+// Radio buttons need filter approach
+const button = page.locator('.arco-radio-button')
+  .filter({ hasText: 'Label' })
+  
+// Slider values are on button, not slider
+const value = await page.locator('.arco-slider-button')
+  .first().getAttribute('aria-valuenow')
+```
+
+**Debug Strategy:**
+1. Use `--reporter=line` not HTML server
+2. Fix tests one by one, not in batch
+3. Ask for actual HTML when selectors fail
+4. Check existing test patterns first
+
 ### 🎯 Decision Tree for Common Scenarios
 
 **Q: Should I create a new file?**
