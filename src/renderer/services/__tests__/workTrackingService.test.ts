@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { WorkTrackingService } from '../workTrackingService'
-import type { WorkSession } from '../../../shared/work-blocks-types'
+import type { WorkSession } from '../types/workTracking'
 import * as database from '../database'
 
 // Mock the database module
@@ -33,7 +33,7 @@ describe('WorkTrackingService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockDatabase = (database.getDatabase as any)()
-    service = new WorkTrackingService()
+    service = new WorkTrackingService({}, mockDatabase)
   })
 
   afterEach(() => {
@@ -174,7 +174,7 @@ describe('WorkTrackingService', () => {
 
       const newService = new WorkTrackingService({
         clearStaleSessionsOnStartup: false,
-      })
+      }, mockDatabase)
       await newService.initialize()
 
       expect(newService.getCurrentActiveSession()).toBeTruthy()
@@ -196,7 +196,7 @@ describe('WorkTrackingService', () => {
       const newService = new WorkTrackingService({
         clearStaleSessionsOnStartup: true,
         maxSessionAgeHours: 24,
-      })
+      }, mockDatabase)
       await newService.initialize()
 
       expect(mockDatabase.deleteActiveWorkSession).toHaveBeenCalledWith('old-session')

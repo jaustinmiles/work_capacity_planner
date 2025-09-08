@@ -3,8 +3,16 @@
  * These interfaces define the shape of the WorkTrackingService API
  */
 
-import type { WorkSession } from '../../../shared/work-blocks-types'
+import type { WorkSession as BaseWorkSession } from '../../../shared/work-blocks-types'
 import type { Task, TaskStep } from '../../../shared/types'
+
+// Extended WorkSession for work tracking with stepId support
+export interface WorkSession extends BaseWorkSession {
+  stepId?: string
+  duration?: number // For backward compatibility with tests
+  isPaused?: boolean // For pause/resume state
+  pausedAt?: Date // When paused
+}
 
 export interface WorkSessionPersistenceOptions {
   clearStaleSessionsOnStartup?: boolean
