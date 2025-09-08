@@ -129,10 +129,11 @@ export function EisenhowerScatter({
     const scanLineX2 = containerRect.width // Right edge (fixed)
     const scanLineY2 = containerRect.height * scanProgress // Moving down
 
-    // Convert task position to pixels in the full container
-    // Tasks are positioned with padding, so we need to account for that
-    const pointX = padding + (xPercent / 100) * (containerRect.width - 2 * padding)
-    const pointY = padding + (yPercent / 100) * (containerRect.height - 2 * padding)
+    // Convert task position to pixels - use same coordinate system as visual rendering
+    // Tasks are displayed at percentage positions, so we use the same here
+    // NO PADDING - tasks and scan line both use full container coordinates
+    const pointX = (xPercent / 100) * containerRect.width
+    const pointY = (yPercent / 100) * containerRect.height
 
     // Calculate perpendicular distance from point to line
     const A = scanLineY2 - scanLineY1
@@ -163,12 +164,17 @@ export function EisenhowerScatter({
     const tasksOnly = allItemsForScatter.filter(item => !item.isStep)
     const stepsOnly = allItemsForScatter.filter(item => item.isStep)
 
+    // Calculate and log the threshold that will be used
+    const scanThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
+
     logger.info('🔍 STARTING DIAGONAL SCAN', {
       category: 'eisenhower-scan',
       totalItems: allItemsForScatter.length,
       tasks: tasksOnly.length,
       workflowSteps: stepsOnly.length,
       containerSize,
+      thresholdPixels: Math.round(scanThreshold),
+      thresholdPercentage: '25% of min dimension',
       padding,
       timestamp: new Date().toISOString(),
     })
@@ -229,8 +235,8 @@ export function EisenhowerScatter({
             position: {
               xPercent: xPercent.toFixed(1),
               yPercent: yPercent.toFixed(1),
-              xPixels: Math.round(padding + (xPercent / 100) * (containerSize.width - 2 * padding)),
-              yPixels: Math.round(padding + (yPercent / 100) * (containerSize.height - 2 * padding)),
+              xPixels: Math.round((xPercent / 100) * containerSize.width),
+              yPixels: Math.round((yPercent / 100) * containerSize.height),
             },
             distance: Math.round(distance),
             threshold: Math.round(dynamicThreshold),
