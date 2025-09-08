@@ -38,6 +38,7 @@ export function EisenhowerScatter({
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null)
   const [scannedTasks, setScannedTasks] = useState<Task[]>([])
   const scanAnimationRef = useRef<number | undefined>(undefined)
+  const scannedTaskIdsRef = useRef<Set<string>>(new Set())
 
   // Log component lifecycle
   useEffect(() => {
@@ -275,8 +276,10 @@ export function EisenhowerScatter({
     setIsScanning(true)
     setScanProgress(0)
     setScannedTasks([])
-
-    const scannedTaskIds = new Set<string>()
+    
+    // Clear the ref's Set for a fresh scan
+    scannedTaskIdsRef.current.clear()
+    
     const scanStartTime = Date.now()
 
     const animate = () => {
@@ -358,7 +361,7 @@ export function EisenhowerScatter({
         }
 
         // Log first scan attempt with detailed info
-        if (scannedTaskIds.size === 0 && progress > 0.3 && progress < 0.35) {
+        if (scannedTaskIdsRef.current.size === 0 && progress > 0.3 && progress < 0.35) {
           logger.debug('📏 Scan line position and task distance', {
             category: 'eisenhower-scan',
             scanProgress: progress.toFixed(2),
@@ -389,7 +392,16 @@ export function EisenhowerScatter({
         if (distance <= dynamicThreshold) {
           currentHighlighted.push(task.id)
 
-          if (!scannedTaskIds.has(task.id)) {
+          // Log why tasks might not be added
+          if (scannedTaskIdsRef.current.has(task.id)) {
+            logger.warn('[SCAN-DEBUG] ⚠️ TASK ALREADY SCANNED', {
+              frameNumber: frameNum,
+              taskId: task.id,
+              taskName: task.name,
+              scannedTaskIds: Array.from(scannedTaskIdsRef.current),
+              timestamp: new Date().toISOString(),
+            })
+          } else {
             logger.error('[SCAN-DEBUG] 🎯 ADDING TASK TO SCANNED', {
               frameNumber: frameNum,
               taskId: task.id,
@@ -398,10 +410,10 @@ export function EisenhowerScatter({
               urgency: task.urgency,
               distance: distance.toFixed(2),
               threshold: dynamicThreshold.toFixed(2),
-              scannedSoFar: scannedTaskIds.size,
+              scannedSoFar: scannedTaskIdsRef.current.size,
               timestamp: new Date().toISOString(),
             })
-            scannedTaskIds.add(task.id)
+            scannedTaskIdsRef.current.add(task.id)
             
             // Update React state immediately when task is detected
             setScannedTasks(prev => {
@@ -466,14 +478,14 @@ export function EisenhowerScatter({
               position: { x: xPercent.toFixed(1), y: yPercent.toFixed(1) },
               distance: Math.round(distance),
               threshold: Math.round(dynamicThreshold),
-              foundCount: scannedTaskIds.size,
+              foundCount: scannedTaskIdsRef.current.size,
             })
           }
         }
       })
 
       // Log closest task at midpoint if nothing found yet
-      if (scannedTaskIds.size === 0 && progress > 0.5 && progress < 0.55) {
+      if (scannedTaskIdsRef.current.size === 0 && progress > 0.5 && progress < 0.55) {
         if (closestTask) {
           const { task, distance } = closestTask as { task: ScatterItem; distance: number }
           logger.warn('📍 No tasks found yet - closest task', {
@@ -495,13 +507,13 @@ export function EisenhowerScatter({
           progress: Math.round(progress * 100) / 100,
           elapsed: elapsed,
           highlighted: currentHighlighted.length,
-          scanned: scannedTaskIds.size,
+          scanned: scannedTaskIdsRef.current.size,
         })
       }
 
       if (progress >= 2.0) {
         // Animation complete - log final results
-        const scannedTasksInfo = Array.from(scannedTaskIds).map(taskId => {
+        const scannedTasksInfo = Array.from(scannedTaskIdsRef.current).map(taskId => {
           const task = allItemsForScatter.find(t => t.id === taskId)
           return task ? {
             name: task.name,
@@ -512,7 +524,7 @@ export function EisenhowerScatter({
 
         logger.error('[SCAN-DEBUG] 🏁 SCAN COMPLETE', {
           totalFrames: frameNum,
-          scannedCount: scannedTaskIds.size,
+          scannedCount: scannedTaskIdsRef.current.size,
           scannedTasks: scannedTasksInfo,
           animationDuration: elapsed,
           finalScannedTasksState: scannedTasks,
@@ -520,7 +532,7 @@ export function EisenhowerScatter({
           finalProgress: progress,
         })
 
-        if (scannedTaskIds.size === 0) {
+        if (scannedTaskIdsRef.current.size === 0) {
           const threshold = Math.min(containerSize.width, containerSize.height) * 0.15
           logger.warn('⚠️ No tasks found during diagonal scan', {
             category: 'eisenhower-scan',
