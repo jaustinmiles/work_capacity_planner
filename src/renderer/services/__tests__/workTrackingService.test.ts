@@ -17,7 +17,7 @@ vi.mock('../database', () => ({
 // Mock logger
 vi.mock('../../utils/logger', () => ({
   logger: {
-    service: {
+    store: {
       info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),

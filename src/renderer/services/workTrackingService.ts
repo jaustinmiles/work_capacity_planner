@@ -10,12 +10,20 @@ import type { Task, TaskStep } from '../../shared/types'
 /**
  * WorkTrackingService - Manages active work sessions with database persistence
  */
+// Extended database interface for Phase 1 testing
+interface TestDatabaseService extends ReturnType<typeof getDatabase> {
+  saveActiveWorkSession?: (session: any) => Promise<any>
+  getLastActiveWorkSession?: () => Promise<any>
+  clearActiveWorkSessions?: (cutoffDate: Date) => Promise<number>
+  deleteActiveWorkSession?: (sessionId: string) => Promise<void>
+}
+
 export class WorkTrackingService implements WorkTrackingServiceInterface {
   private activeSessions: Map<string, WorkSession> = new Map()
   private options: Required<WorkSessionPersistenceOptions>
-  private database: ReturnType<typeof getDatabase>
+  private database: TestDatabaseService
 
-  constructor(options: WorkSessionPersistenceOptions = {}, database?: ReturnType<typeof getDatabase>) {
+  constructor(options: WorkSessionPersistenceOptions = {}, database?: TestDatabaseService) {
     this.options = {
       clearStaleSessionsOnStartup: true,
       maxSessionAgeHours: 24,
@@ -40,16 +48,16 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
         const maxAgeMs = this.options.maxSessionAgeHours * 60 * 60 * 1000
 
         if (sessionAge > maxAgeMs && this.options.clearStaleSessionsOnStartup) {
-          logger.service.info('Deleting stale session', { sessionId: lastSession.id })
-          await this.database.deleteActiveWorkSession(lastSession.id)
+          logger.store.info('Deleting stale session', { sessionId: lastSession.id })
+          await this.database.deleteActiveWorkSession?.(lastSession.id)
         } else {
           const sessionKey = this.getSessionKey(lastSession)
           this.activeSessions.set(sessionKey, lastSession)
-          logger.service.info('Restored active work session', { sessionId: lastSession.id })
+          logger.store.info('Restored active work session', { sessionId: lastSession.id })
         }
       }
     } catch (error) {
-      logger.service.error('Failed to initialize WorkTrackingService', error)
+      logger.store.error('Failed to initialize WorkTrackingService', error)
       throw error
     }
   }
@@ -85,7 +93,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       }
 
       // Save to database
-      await this.database.saveActiveWorkSession({
+      await this.database.saveActiveWorkSession?.({
         ...workSession,
         sessionId: currentSession?.id || 'session-1',
       })
@@ -94,7 +102,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       const sessionKey = this.getSessionKey(workSession)
       this.activeSessions.set(sessionKey, workSession)
 
-      logger.service.info('Started work session', {
+      logger.store.info('Started work session', {
         sessionId: workSession.id,
         taskId,
         stepId,
@@ -120,12 +128,12 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       ;(session as any).pausedAt = new Date()
 
       // Update database
-      await this.database.saveActiveWorkSession({
+      await this.database.saveActiveWorkSession?.({
         ...session,
         endTime: new Date(),
       })
 
-      logger.service.info('Paused work session', { sessionId })
+      logger.store.info('Paused work session', { sessionId })
     } catch (error) {
       this.handleSessionError(error as Error, 'pausing work session')
       throw error
@@ -145,12 +153,12 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       delete session.endTime
 
       // Update database
-      await this.database.saveActiveWorkSession({
+      await this.database.saveActiveWorkSession?.({
         ...session,
         endTime: undefined,
       })
 
-      logger.service.info('Resumed work session', { sessionId })
+      logger.store.info('Resumed work session', { sessionId })
     } catch (error) {
       this.handleSessionError(error as Error, 'resuming work session')
       throw error
@@ -173,9 +181,9 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       this.activeSessions.delete(sessionKey)
 
       // Delete from database (no longer active)
-      await this.database.deleteActiveWorkSession(session.id)
+      await this.database.deleteActiveWorkSession?.(session.id)
 
-      logger.service.info('Stopped work session', {
+      logger.store.info('Stopped work session', {
         sessionId,
         actualDuration: session.actualDuration,
       })
@@ -187,8 +195,8 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
 
   async saveActiveSession(session: WorkSession): Promise<void> {
     try {
-      const result = await this.database.saveActiveWorkSession(session)
-      logger.service.debug('Saved active work session', { sessionId: session.id })
+      const result = await this.database.saveActiveWorkSession?.(session)
+      logger.store.debug('Saved active work session', { sessionId: session.id })
       return result
     } catch (error) {
       this.handleSessionError(error as Error, 'saving active session')
@@ -198,7 +206,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
 
   async getLastActiveWorkSession(): Promise<WorkSession | null> {
     try {
-      const session = await this.database.getLastActiveWorkSession()
+      const session = await this.database.getLastActiveWorkSession?.()
       if (!session || !this.isValidSession(session)) {
         return null
       }
@@ -215,8 +223,8 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
 
   async clearStaleSessionsBeforeDate(cutoffDate: Date): Promise<number> {
     try {
-      const clearedCount = await this.database.clearActiveWorkSessions(cutoffDate)
-      logger.service.info('Cleared stale work sessions', { clearedCount, cutoffDate })
+      const clearedCount = await this.database.clearActiveWorkSessions?.(cutoffDate) || 0
+      logger.store.info('Cleared stale work sessions', { clearedCount, cutoffDate })
       return clearedCount || 0
     } catch (error) {
       this.handleSessionError(error as Error, 'clearing stale sessions')
@@ -245,7 +253,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
   }
 
   handleSessionError(error: Error, context: string): void {
-    logger.service.error(`WorkTrackingService error in ${context}:`, error)
+    logger.store.error(`WorkTrackingService error in ${context}:`, error)
   }
 
   // Helper methods for testing
