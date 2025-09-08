@@ -6,10 +6,12 @@ import * as database from '../database'
 // Mock the database module
 vi.mock('../database', () => ({
   getDatabase: vi.fn(() => ({
-    saveActiveWorkSession: vi.fn(),
-    getLastActiveWorkSession: vi.fn(),
-    clearActiveWorkSessions: vi.fn(),
-    deleteActiveWorkSession: vi.fn(),
+    // Real database methods for work sessions
+    createWorkSession: vi.fn(),
+    updateWorkSession: vi.fn(),
+    deleteWorkSession: vi.fn(),
+    getWorkSessions: vi.fn(),
+    getWorkSessionsForTask: vi.fn(),
     getCurrentSession: vi.fn(),
   })),
 }))
@@ -68,10 +70,11 @@ describe('WorkTrackingService', () => {
       expect(session.taskId).toBe(taskId)
       expect(session.startTime).toBeInstanceOf(Date)
       expect(session.duration).toBe(0)
-      expect(mockDatabase.saveActiveWorkSession).toHaveBeenCalledWith(
+      expect(mockDatabase.createWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
           taskId,
           type: 'focused' as const,
+          date: expect.any(String),
         }),
       )
     })
@@ -132,10 +135,11 @@ describe('WorkTrackingService', () => {
 
       await service.saveActiveSession(session)
 
-      expect(mockDatabase.saveActiveWorkSession).toHaveBeenCalledWith(
+      expect(mockDatabase.updateWorkSession).toHaveBeenCalledWith(
+        session.id,
         expect.objectContaining({
           taskId: 'task-123',
-          startTime: session.startTime,
+          startTime: session.startTime.toISOString(),
           actualDuration: 30,
         }),
       )
@@ -151,11 +155,15 @@ describe('WorkTrackingService', () => {
         type: 'focused' as const,
       }
 
-      mockDatabase.getLastActiveWorkSession.mockResolvedValue(mockSession)
+      mockDatabase.getWorkSessions.mockResolvedValue([mockSession])
 
       const lastSession = await service.getLastActiveWorkSession()
 
-      expect(lastSession).toEqual(mockSession)
+      expect(lastSession).toEqual(expect.objectContaining({
+        id: 'db-session-1',
+        taskId: 'task-123',
+        actualDuration: 30,
+      }))
       expect(lastSession?.taskId).toBe('task-123')
       expect(lastSession?.actualDuration).toBe(30)
     })
@@ -170,7 +178,7 @@ describe('WorkTrackingService', () => {
         type: 'focused' as const,
       }
 
-      mockDatabase.getLastActiveWorkSession.mockResolvedValue(mockSession)
+      mockDatabase.getWorkSessions.mockResolvedValue([mockSession])
 
       const newService = new WorkTrackingService({
         clearStaleSessionsOnStartup: false,
@@ -178,7 +186,7 @@ describe('WorkTrackingService', () => {
       await newService.initialize()
 
       expect(newService.getCurrentActiveSession()).toBeTruthy()
-      expect(mockDatabase.getLastActiveWorkSession).toHaveBeenCalled()
+      expect(mockDatabase.getWorkSessions).toHaveBeenCalled()
     })
 
     it('should clear stale sessions on startup when enabled', async () => {
@@ -191,7 +199,7 @@ describe('WorkTrackingService', () => {
         type: 'focused' as const,
       }
 
-      mockDatabase.getLastActiveWorkSession.mockResolvedValue(oldSession)
+      mockDatabase.getWorkSessions.mockResolvedValue([oldSession])
 
       const newService = new WorkTrackingService({
         clearStaleSessionsOnStartup: true,
@@ -199,7 +207,7 @@ describe('WorkTrackingService', () => {
       }, mockDatabase)
       await newService.initialize()
 
-      expect(mockDatabase.deleteActiveWorkSession).toHaveBeenCalledWith('old-session')
+      expect(mockDatabase.deleteWorkSession).toHaveBeenCalledWith('old-session')
     })
   })
 
@@ -217,9 +225,11 @@ describe('WorkTrackingService', () => {
 
       const session = service.getCurrentActiveSession()
       expect(session?.endTime).toBeUndefined() // Still active but paused
-      expect(mockDatabase.saveActiveWorkSession).toHaveBeenCalledWith(
+      expect(mockDatabase.updateWorkSession).toHaveBeenCalledWith(
+        sessionId,
         expect.objectContaining({
-          endTime: expect.any(Date),
+          isPaused: true,
+          pausedAt: expect.any(Date),
         }),
       )
     })
@@ -245,7 +255,13 @@ describe('WorkTrackingService', () => {
 
       expect(service.getCurrentActiveSession()).toBeNull()
       expect(service.isAnyWorkActive()).toBe(false)
-      expect(mockDatabase.deleteActiveWorkSession).toHaveBeenCalled()
+      expect(mockDatabase.updateWorkSession).toHaveBeenCalledWith(
+        sessionId,
+        expect.objectContaining({
+          endTime: expect.any(Date),
+          actualDuration: expect.any(Number),
+        }),
+      )
     })
 
     it('should handle invalid session IDs gracefully', async () => {
@@ -321,7 +337,7 @@ describe('WorkTrackingService', () => {
     })
 
     it('should handle database connection failures', async () => {
-      mockDatabase.saveActiveWorkSession.mockRejectedValue(
+      mockDatabase.createWorkSession.mockRejectedValue(
         new Error('Database connection lost'),
       )
 
@@ -337,7 +353,7 @@ describe('WorkTrackingService', () => {
         startTime: 'not-a-date',
       }
 
-      mockDatabase.getLastActiveWorkSession.mockResolvedValue(malformedSession)
+      mockDatabase.getWorkSessions.mockResolvedValue([malformedSession])
 
       const lastSession = await service.getLastActiveWorkSession()
 
@@ -349,16 +365,27 @@ describe('WorkTrackingService', () => {
   describe('Cleanup Operations', () => {
     it('should clear stale sessions before specified date', async () => {
       const cutoffDate = new Date('2025-09-07T00:00:00Z')
-      mockDatabase.clearActiveWorkSessions.mockResolvedValue(3)
+      const staleSessions = [
+        { id: 'stale-1', startTime: '2025-09-06T10:00:00Z' },
+        { id: 'stale-2', startTime: '2025-09-05T15:00:00Z' },
+        { id: 'stale-3', startTime: '2025-09-04T09:00:00Z' }
+      ]
+      // The method calls getWorkSessions once for each of the past 7 days
+      // Return our stale sessions for the first call, empty for the rest
+      mockDatabase.getWorkSessions
+        .mockResolvedValueOnce(staleSessions)
+        .mockResolvedValue([])
 
       const clearedCount = await service.clearStaleSessionsBeforeDate(cutoffDate)
 
       expect(clearedCount).toBe(3)
-      expect(mockDatabase.clearActiveWorkSessions).toHaveBeenCalledWith(cutoffDate)
+      expect(mockDatabase.deleteWorkSession).toHaveBeenCalledWith('stale-1')
+      expect(mockDatabase.deleteWorkSession).toHaveBeenCalledWith('stale-2')
+      expect(mockDatabase.deleteWorkSession).toHaveBeenCalledWith('stale-3')
     })
 
     it('should handle cleanup errors gracefully', async () => {
-      mockDatabase.clearActiveWorkSessions.mockRejectedValue(
+      mockDatabase.getWorkSessions.mockRejectedValue(
         new Error('Cleanup failed'),
       )
 

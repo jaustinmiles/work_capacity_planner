@@ -1,5 +1,21 @@
 # Technical Debt Inventory
 
+## 🚨 High Priority Issues (PR #67 TDD Violation - 2025-09-08)
+
+### Mock-Only Implementation Pattern (RESOLVED)
+**Status**: ✅ Resolved in PR #67
+- **Problem**: WorkTrackingService implemented with database methods that only existed in mocks
+- **Impact**: 25 tests passing locally but non-functional production code
+- **Root Cause**: Used `TestDatabaseService` interface with optional chaining to bypass missing methods
+- **Example**: `await this.database.saveActiveWorkSession?.(session)` - method didn't exist in production
+- **Solution**: Refactored to use real database methods (`createWorkSession`, `updateWorkSession`, `deleteWorkSession`)
+- **Result**: Production-ready code with same test coverage
+
+**Documentation Updates**:
+- Added TDD phase completion requirements to CLAUDE.md
+- Enhanced context/insights.md with violation patterns
+- Updated context/state.md with recovery process
+
 ## 🚨 High Priority Issues (PR #60 E2E - 2025-09-05)
 
 ### E2E Test Coverage Reduction (TECHNICAL DEBT)

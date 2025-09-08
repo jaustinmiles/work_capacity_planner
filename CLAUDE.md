@@ -227,6 +227,21 @@ grep -r "TODO.*feature" src/
 6. **NEVER modify tests to make code pass**
 7. **Any test that passes immediately is invalid**
 
+**🚨 TDD Phase Completion Requirements (PR #67 Lessons):**
+- **Each phase MUST produce working software** - not just passing tests
+- **Never use optional chaining (?.) to bypass missing methods** - this creates test-only code
+- **Implementation must work in both test AND production environments**
+- **Avoid mock-only implementations** - use real database methods or proper adapters
+- **Each TDD phase should leave the codebase in a deployable state**
+
+**Common TDD Violations to Avoid:**
+- ❌ Creating database methods that only exist in mocks
+- ❌ Using optional chaining to ignore missing production methods
+- ❌ Tests passing while production code is non-functional
+- ❌ Each phase not being independently testable in production
+- ✅ Use existing database patterns and real persistence methods
+- ✅ Ensure code actually saves/retrieves data, not just mocked responses
+
 ### 🎭 E2E Testing Best Practices (PR #64-65 Lessons)
 
 **Selector Strategy:**

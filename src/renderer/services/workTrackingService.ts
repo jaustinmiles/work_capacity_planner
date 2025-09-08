@@ -10,20 +10,15 @@ import type { Task, TaskStep } from '../../shared/types'
 /**
  * WorkTrackingService - Manages active work sessions with database persistence
  */
-// Extended database interface for Phase 1 testing
-interface TestDatabaseService extends ReturnType<typeof getDatabase> {
-  saveActiveWorkSession?: (session: any) => Promise<any>
-  getLastActiveWorkSession?: () => Promise<any>
-  clearActiveWorkSessions?: (cutoffDate: Date) => Promise<number>
-  deleteActiveWorkSession?: (sessionId: string) => Promise<void>
-}
+// We'll store active work sessions using the existing work session infrastructure
+// and track which ones are "active" vs "completed" in the session data
 
 export class WorkTrackingService implements WorkTrackingServiceInterface {
   private activeSessions: Map<string, WorkSession> = new Map()
   private options: Required<WorkSessionPersistenceOptions>
-  private database: TestDatabaseService
+  private database: ReturnType<typeof getDatabase>
 
-  constructor(options: WorkSessionPersistenceOptions = {}, database?: TestDatabaseService) {
+  constructor(options: WorkSessionPersistenceOptions = {}, database?: ReturnType<typeof getDatabase>) {
     this.options = {
       clearStaleSessionsOnStartup: true,
       maxSessionAgeHours: 24,
@@ -40,20 +35,32 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
         await this.clearStaleSessionsBeforeDate(cutoffDate)
       }
 
-      // Restore last active session
-      const lastSession = await this.getLastActiveWorkSession()
-      if (lastSession && this.isValidSession(lastSession)) {
-        // Check if session is stale
-        const sessionAge = Date.now() - lastSession.startTime.getTime()
-        const maxAgeMs = this.options.maxSessionAgeHours * 60 * 60 * 1000
+      // Restore last active session by looking for work sessions without endTime from today
+      const today = new Date().toISOString().split('T')[0]
+      const todaysSessions = await this.database.getWorkSessions(today)
+      const activeSessions = todaysSessions.filter((session: any) => !session.endTime)
+      
+      if (activeSessions.length > 0) {
+        const lastSession = activeSessions[activeSessions.length - 1]
+        if (this.isValidSession(lastSession)) {
+          // Check if session is stale
+          const sessionAge = Date.now() - new Date(lastSession.startTime).getTime()
+          const maxAgeMs = this.options.maxSessionAgeHours * 60 * 60 * 1000
 
-        if (sessionAge > maxAgeMs && this.options.clearStaleSessionsOnStartup) {
-          logger.store.info('Deleting stale session', { sessionId: lastSession.id })
-          await this.database.deleteActiveWorkSession?.(lastSession.id)
-        } else {
-          const sessionKey = this.getSessionKey(lastSession)
-          this.activeSessions.set(sessionKey, lastSession)
-          logger.store.info('Restored active work session', { sessionId: lastSession.id })
+          if (sessionAge > maxAgeMs && this.options.clearStaleSessionsOnStartup) {
+            logger.store.info('Deleting stale session', { sessionId: lastSession.id })
+            await this.database.deleteWorkSession(lastSession.id)
+          } else {
+            // Convert database session to our WorkSession format
+            const workSession: WorkSession = {
+              ...lastSession,
+              startTime: new Date(lastSession.startTime),
+              endTime: lastSession.endTime ? new Date(lastSession.endTime) : undefined,
+            }
+            const sessionKey = this.getSessionKey(workSession)
+            this.activeSessions.set(sessionKey, workSession)
+            logger.store.info('Restored active work session', { sessionId: workSession.id })
+          }
         }
       }
     } catch (error) {
@@ -92,10 +99,12 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
         duration: 0, // Initial duration
       }
 
-      // Save to database
-      await this.database.saveActiveWorkSession?.({
+      // Save to database as an active work session (no endTime)
+      await this.database.createWorkSession({
         ...workSession,
         sessionId: currentSession?.id || 'session-1',
+        date: new Date().toISOString().split('T')[0],
+        // Don't set endTime - indicates this is active
       })
 
       // Store in local state
@@ -127,10 +136,10 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       ;(session as any).isPaused = true
       ;(session as any).pausedAt = new Date()
 
-      // Update database
-      await this.database.saveActiveWorkSession?.({
-        ...session,
-        endTime: new Date(),
+      // Update database with pause state
+      await this.database.updateWorkSession(session.id, {
+        isPaused: true,
+        pausedAt: new Date(),
       })
 
       logger.store.info('Paused work session', { sessionId })
@@ -152,10 +161,10 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       delete (session as any).pausedAt
       delete session.endTime
 
-      // Update database
-      await this.database.saveActiveWorkSession?.({
-        ...session,
-        endTime: undefined,
+      // Update database to remove pause state
+      await this.database.updateWorkSession(session.id, {
+        isPaused: false,
+        pausedAt: null,
       })
 
       logger.store.info('Resumed work session', { sessionId })
@@ -180,8 +189,11 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       const sessionKey = this.getSessionKey(session)
       this.activeSessions.delete(sessionKey)
 
-      // Delete from database (no longer active)
-      await this.database.deleteActiveWorkSession?.(session.id)
+      // Update database with end time (marks as completed, not active)
+      await this.database.updateWorkSession(session.id, {
+        endTime: session.endTime,
+        actualDuration: session.actualDuration,
+      })
 
       logger.store.info('Stopped work session', {
         sessionId,
@@ -195,7 +207,11 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
 
   async saveActiveSession(session: WorkSession): Promise<void> {
     try {
-      const result = await this.database.saveActiveWorkSession?.(session)
+      const result = await this.database.updateWorkSession(session.id, {
+        ...session,
+        startTime: session.startTime.toISOString(),
+        endTime: session.endTime?.toISOString(),
+      })
       logger.store.debug('Saved active work session', { sessionId: session.id })
       return result
     } catch (error) {
@@ -206,15 +222,27 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
 
   async getLastActiveWorkSession(): Promise<WorkSession | null> {
     try {
-      const session = await this.database.getLastActiveWorkSession?.()
-      if (!session || !this.isValidSession(session)) {
+      // Get today's work sessions and find active ones (no endTime)
+      const today = new Date().toISOString().split('T')[0]
+      const sessions = await this.database.getWorkSessions(today)
+      const activeSessions = sessions.filter((session: any) => !session.endTime)
+      
+      if (activeSessions.length === 0) {
         return null
       }
-      // Ensure startTime is a Date object
-      if (typeof session.startTime === 'string') {
-        session.startTime = new Date(session.startTime)
+      
+      // Get the most recent active session
+      const lastSession = activeSessions[activeSessions.length - 1]
+      if (!this.isValidSession(lastSession)) {
+        return null
       }
-      return session
+      
+      // Convert to WorkSession format
+      return {
+        ...lastSession,
+        startTime: new Date(lastSession.startTime),
+        endTime: lastSession.endTime ? new Date(lastSession.endTime) : undefined,
+      }
     } catch (error) {
       this.handleSessionError(error as Error, 'getting last active work session')
       return null
@@ -223,9 +251,29 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
 
   async clearStaleSessionsBeforeDate(cutoffDate: Date): Promise<number> {
     try {
-      const clearedCount = await this.database.clearActiveWorkSessions?.(cutoffDate) || 0
+      // Get work sessions from the past few days and clean up stale ones
+      const dates = []
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(cutoffDate)
+        date.setDate(date.getDate() - i)
+        dates.push(date.toISOString().split('T')[0])
+      }
+      
+      let clearedCount = 0
+      for (const date of dates) {
+        const sessions = await this.database.getWorkSessions(date)
+        const staleSessions = sessions.filter((session: any) => 
+          !session.endTime && new Date(session.startTime) < cutoffDate
+        )
+        
+        for (const session of staleSessions) {
+          await this.database.deleteWorkSession(session.id)
+          clearedCount++
+        }
+      }
+      
       logger.store.info('Cleared stale work sessions', { clearedCount, cutoffDate })
-      return clearedCount || 0
+      return clearedCount
     } catch (error) {
       this.handleSessionError(error as Error, 'clearing stale sessions')
       throw new Error(`Failed to clear stale sessions: ${(error as Error).message}`)
