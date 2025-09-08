@@ -14,7 +14,9 @@
     "start": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"wait-on http://localhost:5174 && npm run electron:dev\"",
     "start:logged": "./scripts/dev/dev-with-logging.sh",
     "start:stable": "./scripts/dev/dev-no-watch.sh",
+    "start:windows": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"timeout /t 5 /nobreak >nul && npm run electron:dev\"",
     "restart": "pkill -f electron && chmod 666 dev.db 2>/dev/null || true && npm run start",
+    "restart:windows": "taskkill /F /IM electron.exe 2>nul & npm run start:windows",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
@@ -32,6 +34,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.dev.json",
     "typecheck:strict": "tsc --noEmit -p tsconfig.prod.json",
     "typecheck:count": "tsc --noEmit -p tsconfig.prod.json 2>&1 | grep 'error TS' | wc -l",
+    "typecheck:count:windows": "npx tsc --noEmit -p tsconfig.prod.json 2>&1 | findstr /C:\"error TS\" | find /c /v \"\"",
     "typecheck:all": "tsc --noEmit",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "lint": "eslint .",
@@ -44,7 +47,9 @@
     "pack": "electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "setup:hooks": "./scripts/dev/setup-git-hooks.sh",
-    "postinstall": "./scripts/dev/setup-git-hooks.sh || echo 'Git hooks setup failed (may be CI environment)'"
+    "setup:hooks:windows": "node scripts/dev/setup-git-hooks.js || echo Git hooks setup failed",
+    "postinstall": "./scripts/dev/setup-git-hooks.sh || echo 'Git hooks setup failed (may be CI environment)'",
+    "postinstall:windows": "node scripts/dev/setup-git-hooks.js || echo Git hooks setup failed"
   },
   "keywords": [
     "electron",
@@ -77,6 +82,7 @@
     "cross-env": "^10.0.0",
     "electron": "^37.2.5",
     "electron-builder": "^26.0.12",
+    "electron-rebuild": "^3.2.9",
     "electron-reload": "^2.0.0-alpha.1",
     "eslint": "^9.32.0",
     "eslint-plugin-import": "^2.32.0",

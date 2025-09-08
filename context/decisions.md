@@ -1,5 +1,64 @@
 # Technical Decisions & Rationale
 
+## PR #64 & #65 Architectural Decisions (2025-09-08)
+
+### EisenhowerMatrix Component Splitting
+**Decision**: Split 1500+ line component into three focused components
+**Implementation**: 
+- EisenhowerGrid.tsx - Grid quadrant view (258 lines)
+- EisenhowerScatter.tsx - Scatter plot with diagonal scan (887 lines)  
+- EisenhowerMatrix.tsx - Container managing view state (182 lines)
+**Rationale**:
+- Single responsibility principle - each component has one clear purpose
+- Easier testing - can test each view independently
+- Better maintainability - bugs isolated to specific components
+- Improved performance - only render active view
+**Result**: 87% line reduction in main component, cleaner architecture
+
+### Mobile E2E Test Strategy
+**Decision**: Skip all mobile viewport E2E tests
+**Implementation**: Systematic test.skip() for Mobile Small/Large viewports
+**Rationale**:
+- Maintenance cost exceeded value for desktop-primary application
+- Mobile tests required complex hamburger menu interactions
+- Viewport-specific logic made tests brittle
+- User explicitly approved this approach
+**Pattern**:
+```typescript
+if (testInfo.project.name === 'Mobile Small' || 
+    testInfo.project.name === 'Mobile Large') {
+  test.skip()
+  return
+}
+```
+
+### E2E Test Selector Strategy
+**Decision**: Use simple text selectors over structural selectors
+**Previous Approach**: `h6:has-text("Do First")` - brittle, DOM-dependent
+**New Approach**: `text="Do First"` - resilient to DOM changes
+**Rationale**:
+- Text content more stable than DOM structure
+- Arco components have complex internal structure
+- Simpler selectors easier to maintain
+- User-visible text is the actual test target
+**Exception**: Use structural selectors only when text is ambiguous
+
+### Electron API Mocking Standard
+**Decision**: All E2E tests must mock Electron API before navigation
+**Implementation**: Import and apply mockElectronAPI in beforeEach
+**Rationale**:
+- Tests fail without window.electron object
+- Must be applied before page.goto()
+- Centralizes mocking logic in one fixture
+**Standard Pattern**:
+```typescript
+import { mockElectronAPI } from './fixtures/electron-mock'
+test.beforeEach(async ({ page }) => {
+  await mockElectronAPI(page)
+  await page.goto('/')
+})
+```
+
 ## AI Assistant Authority Constraints (2025-09-05)
 **Decision**: Claude Code assistant has NO authority to merge or close PRs
 **Implementation**: User must merge all PRs via GitHub interface, Claude cannot use `gh pr merge`

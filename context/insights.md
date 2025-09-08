@@ -588,6 +588,134 @@ Successfully fixed the CI/CD pipeline by consolidating scheduling engines and es
 | Post-Enum | 0 | 0 | ~40% |
 | Target | 0 | 0 | 70% |
 
+## Session: 2025-09-08, PR #64 & #65 Retrospective
+
+### Component Refactoring Patterns
+
+#### Large Component Splitting Success
+**Problem**: EisenhowerMatrix.tsx was 1500+ lines, unmaintainable
+**Solution**: Split into 3 focused components
+- EisenhowerGrid.tsx (258 lines) - Grid view logic
+- EisenhowerScatter.tsx (887 lines) - Scatter plot and diagonal scan
+- EisenhowerMatrix.tsx (182 lines) - Container and view switching
+
+**Key Insight**: Any component over 500 lines should be considered for splitting. The refactor made testing easier and bugs more isolated.
+
+### E2E Testing Hard-Won Lessons
+
+#### Selector Strategy Evolution
+**Failed Approaches**:
+```typescript
+// Too specific - breaks with any DOM change
+await expect(page.locator('h6:has-text("Do First")')).toBeVisible()
+
+// Assumes structure that may not exist
+await expect(page.locator('.quadrant-title')).toHaveText('Do First')
+```
+
+**Successful Pattern**:
+```typescript
+// Simple text matching - resilient to DOM changes
+await expect(page.locator('text="Do First"')).toBeVisible()
+
+// For exact matches when needed
+await expect(page.locator('text="Do First"')).toBeVisible()
+```
+
+#### Arco Component Testing Patterns
+**Discovery**: Arco Design components have complex internal structure
+```typescript
+// Radio buttons need filter approach
+const scatterButton = page.locator('.arco-radio-button').filter({ 
+  hasText: 'Scatter'  // Text label
+})
+// OR
+const gridButton = page.locator('.arco-radio-button').filter({ 
+  has: page.locator('.arco-icon-apps')  // Icon
+})
+
+// Slider values are on the button, not the slider
+const sliderButton = page.locator('.arco-slider-button').first()
+const value = await sliderButton.getAttribute('aria-valuenow')
+```
+
+#### Mobile Test Strategy Decision
+**Problem**: Mobile tests were constantly breaking due to:
+- Hamburger menu interactions needed
+- Different element visibility
+- Viewport-specific logic complexity
+
+**Solution**: Skip mobile tests entirely with clear pattern:
+```typescript
+test('should do something', async ({ page }, testInfo) => {
+  // Skip mobile viewports
+  if (testInfo.project.name === 'Mobile Small' || 
+      testInfo.project.name === 'Mobile Large') {
+    test.skip()
+    return
+  }
+  // Desktop test logic
+})
+```
+
+**Rationale**: Maintenance cost exceeded value for primarily desktop app
+
+### Git Workflow Lessons
+
+#### Rebase Frequency Critical
+**Problem**: PR #64 accumulated 43 commits before rebase attempt
+**Impact**: Complex conflicts, lost commit history, confusion
+
+**Solution**: 
+1. Fetch and rebase main daily minimum
+2. Before any PR work: `git fetch origin main && git rebase origin/main`
+3. If conflicts arise, consider creating clean branch
+
+#### Clean Branch Strategy for Messy History
+**When branch has too many commits**:
+```bash
+# Create clean branch from main
+git checkout -b feature/clean-branch main
+# Apply all changes from messy branch
+git checkout feature/messy-branch -- .
+# Single clean commit
+git add -A && git commit -m "feat: Complete feature description"
+```
+
+### Debugging Strategies That Worked
+
+#### Getting Actual HTML from User
+**Pattern**: When selector fails, ask user for actual HTML
+**Example**: User provided `<div class="arco-slider-button" ...>` which revealed the issue immediately
+
+#### Working "One by One"
+**Success Pattern**: 
+1. Fix one test completely
+2. Verify it passes
+3. Move to next test
+4. Don't try to fix multiple issues simultaneously
+
+#### Line Reporter Over HTML Server
+**Discovery**: HTML test server was causing confusion
+**Solution**: Always use `--reporter=line` for debugging
+```bash
+npx playwright test responsive.spec.ts --reporter=line
+```
+
+### Electron API Mocking Requirement
+**Critical Discovery**: E2E tests need Electron API mocked
+```typescript
+import { mockElectronAPI } from './fixtures/electron-mock'
+
+test.beforeEach(async ({ page }) => {
+  // Must mock BEFORE navigation
+  await mockElectronAPI(page)
+  await page.goto('/')
+})
+```
+
+**Without this**: Tests fail with cryptic errors about undefined window.electron
+
 ## Future Considerations
 
 ### Technical Debt Priority
