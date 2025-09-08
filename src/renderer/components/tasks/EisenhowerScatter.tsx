@@ -154,7 +154,7 @@ export function EisenhowerScatter({
     const actualProgress = progress !== undefined ? progress : scanProgress
     // Clamp scan progress to 0-1 range
     const clampedProgress = Math.min(Math.max(actualProgress, 0), 1)
-    
+
     if (clampedProgress === 0) {
       return false // Nothing swept yet
     }
@@ -164,29 +164,29 @@ export function EisenhowerScatter({
     // - Top-right corner (100, 0)
     // - Current scan line start (100 - progress*100, 0)
     // - Current scan line end (100, progress*100)
-    
+
     // Convert to normalized coordinates (0-1)
     const x = xPercent / 100
     const y = yPercent / 100
-    
+
     // For a point to be swept, it must be:
     // 1. To the right of the vertical line at x = 1 - progress
     // 2. Above the diagonal line from (1-progress, 0) to (1, progress)
-    
+
     // Check if point is to the right of the sweep's left boundary
     if (x < (1 - clampedProgress)) {
       return false // Point is to the left of swept area
     }
-    
+
     // Check if point is above the diagonal
     // The diagonal line goes from (1-progress, 0) to (1, progress)
     // Parametric form: for a given x, y_line = progress * (x - (1-progress)) / progress
     // Simplified: y_line = x - (1 - progress)
     const yOnDiagonal = x - (1 - clampedProgress)
-    
+
     // Point is swept if it's above the diagonal (smaller y value since y=0 is top)
     const isSwept = y <= yOnDiagonal
-    
+
     // Log sweep check for debugging on key frames
     const frameNum = frameCountRef.current
     if (frameNum <= 10 || frameNum % 30 === 0 || isSwept || (frameNum >= 240 && frameNum <= 250)) {
@@ -197,10 +197,10 @@ export function EisenhowerScatter({
         leftBoundary: (1 - clampedProgress).toFixed(2),
         yOnDiagonal: yOnDiagonal.toFixed(2),
         isSwept,
-        explanation: isSwept ? 'Task is in swept area' : 'Task not yet swept'
+        explanation: isSwept ? 'Task is in swept area' : 'Task not yet swept',
       })
     }
-    
+
     return isSwept
   }, [scanProgress])
 
@@ -254,10 +254,10 @@ export function EisenhowerScatter({
     setIsScanning(true)
     setScanProgress(0)
     setScannedTasks([])
-    
+
     // Clear the ref's Set for a fresh scan
     scannedTaskIdsRef.current.clear()
-    
+
     const scanStartTime = Date.now()
 
     const animate = () => {
@@ -293,7 +293,7 @@ export function EisenhowerScatter({
       // Calculate a dynamic threshold - increase to 25% for better detection
       // This gives us a wider band around the diagonal line
       const dynamicThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
-      
+
       // Log threshold calculation on first frame
       if (frameNum === 1) {
         logger.error('[SCAN-DEBUG] 🎯 THRESHOLD CALCULATION', {
@@ -380,14 +380,14 @@ export function EisenhowerScatter({
             timestamp: new Date().toISOString(),
           })
           scannedTaskIdsRef.current.add(task.id)
-          
+
           // Update React state immediately when task is detected
           setScannedTasks(prev => {
             // Check if task already exists in the state
             if (prev.some(t => t.id === task.id)) {
               return prev
             }
-            
+
             // Convert to Task type if needed
             const taskToAdd: Task = {
                 id: task.id,
@@ -419,7 +419,7 @@ export function EisenhowerScatter({
                 steps: task.steps,
                 isAsyncTrigger: task.isAsyncTrigger,
             }
-            
+
             const newTasks = [...prev, taskToAdd]
             logger.debug('Added task to scanned list', {
                 taskName: task.name,
@@ -427,7 +427,7 @@ export function EisenhowerScatter({
             })
             return newTasks
           })
-          
+
           onSelectTask(task)
 
           // Log the scanned task name for user feedback with more emphasis

@@ -45,7 +45,7 @@ export async function mockElectronAPI(page: Page): Promise<void> {
             isActive: true,
             createdAt: new Date(),
             updatedAt: new Date(),
-          }
+          },
         ]),
 
         getCurrentSession: () => Promise.resolve({
@@ -53,7 +53,7 @@ export async function mockElectronAPI(page: Page): Promise<void> {
           name: 'Default Session',
           isActive: true,
         }),
-        
+
         switchSession: () => Promise.resolve(),
         createSession: () => Promise.resolve(),
         updateSession: () => Promise.resolve(),
@@ -63,17 +63,17 @@ export async function mockElectronAPI(page: Page): Promise<void> {
         createTask: () => Promise.resolve({ id: 'new-task', name: 'New Task' }),
         updateTask: () => Promise.resolve(),
         deleteTask: () => Promise.resolve(),
-        
+
         createSequencedTask: () => Promise.resolve(),
         updateSequencedTask: () => Promise.resolve(),
         deleteSequencedTask: () => Promise.resolve(),
-        
+
         addStepToWorkflow: () => Promise.resolve(),
         updateSchedulingPreferences: () => Promise.resolve(),
-        
+
         // Initialize default data
         initializeDefaultData: () => Promise.resolve(),
-        
+
         // Other database methods that might be called
         getProjects: () => Promise.resolve([]),
         getWorkLogs: () => Promise.resolve([]),
