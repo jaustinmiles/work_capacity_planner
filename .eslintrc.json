@@ -7,9 +7,7 @@
   },
   "globals": {
     "localStorage": "readonly",
-    "ResizeObserver": "readonly",
-    "crypto": "readonly",
-    "Crypto": "readonly"
+    "ResizeObserver": "readonly"
   },
   "extends": [
     "eslint:recommended",

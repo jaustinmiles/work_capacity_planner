@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * Enhanced script to manage PR review comments
- * Usage: 
+ * Usage:
  *   npx tsx scripts/pr/pr-comment-reply.ts <pr-number> --list (list all comments)
  *   npx tsx scripts/pr/pr-comment-reply.ts <pr-number> --unresolved (list only unresolved comments)
  *   npx tsx scripts/pr/pr-comment-reply.ts <pr-number> <comment-id> "reply text" (reply to comment)
@@ -66,18 +66,18 @@ function getCodeSnippet(filePath: string, lineNumber: number | null, diffHunk?: 
   if (!lineNumber) {
     return diffHunk ? `\n${colors.gray}${diffHunk}${colors.reset}` : ''
   }
-  
+
   try {
     const fullPath = path.resolve(process.cwd(), filePath)
     if (!fs.existsSync(fullPath)) {
       return diffHunk ? `\n${colors.gray}${diffHunk}${colors.reset}` : `\n${colors.red}File not found: ${filePath}${colors.reset}`
     }
-    
+
     const fileContent = fs.readFileSync(fullPath, 'utf-8')
     const lines = fileContent.split('\n')
     const startLine = Math.max(0, lineNumber - 3)
     const endLine = Math.min(lines.length, lineNumber + 2)
-    
+
     let snippet = `\n${colors.gray}Code context (${filePath}:${lineNumber}):${colors.reset}\n`
     for (let i = startLine; i < endLine; i++) {
       const isTargetLine = i === lineNumber - 1
@@ -128,7 +128,7 @@ function listComments(prNumber: string, unresolvedOnly: boolean = false) {
     // Write query to temp file to avoid shell escaping issues
     const queryFile = '/tmp/pr-query.graphql'
     require('fs').writeFileSync(queryFile, graphQLQuery)
-    
+
     const result = exec(`gh api graphql -F query=@${queryFile}`)
     exec(`rm -f ${queryFile}`)
     const response = JSON.parse(result)
@@ -140,7 +140,7 @@ function listComments(prNumber: string, unresolvedOnly: boolean = false) {
     }
 
     let threads = data.data.repository.pullRequest.reviewThreads.nodes
-    
+
     // Filter for unresolved comments if requested
     if (unresolvedOnly) {
       threads = threads.filter(thread => !thread.isResolved)
@@ -157,35 +157,35 @@ function listComments(prNumber: string, unresolvedOnly: boolean = false) {
       const statusColor = thread.isResolved ? colors.green : colors.red
       const statusText = thread.isResolved ? '✅ RESOLVED' : '❌ UNRESOLVED'
       const outdatedText = thread.isOutdated ? ` (${colors.gray}OUTDATED${colors.reset})` : ''
-      
+
       console.log(`${colors.bright}[${threadIndex + 1}] Thread Status: ${statusColor}${statusText}${colors.reset}${outdatedText}`)
       console.log(`${colors.gray}${'─'.repeat(60)}${colors.reset}`)
 
       thread.comments.nodes.forEach((comment, commentIndex) => {
         const lineInfo = comment.line || comment.originalLine || comment.startLine || comment.originalStartLine
         const lineDisplay = lineInfo ? `:${lineInfo}` : ''
-        
+
         console.log(`${colors.bright}  Comment ${commentIndex + 1} - ID: ${comment.id}${colors.reset}`)
         console.log(`${colors.blue}  File:${colors.reset} ${comment.path || 'General PR comment'}${lineDisplay}`)
         console.log(`${colors.blue}  Author:${colors.reset} ${comment.author.login}`)
         console.log(`${colors.blue}  Created:${colors.reset} ${new Date(comment.createdAt).toLocaleString()}`)
-        
+
         // Show code snippet if it's a line comment
         if (comment.path && lineInfo) {
           console.log(getCodeSnippet(comment.path, lineInfo, comment.diffHunk))
         }
-        
+
         console.log(`${colors.gray}  ┌─ Comment:${colors.reset}`)
         comment.body.split('\n').forEach(line => {
           console.log(`${colors.gray}  │${colors.reset} ${line}`)
         })
         console.log(`${colors.gray}  └${'─'.repeat(50)}${colors.reset}`)
-        
+
         if (commentIndex < thread.comments.nodes.length - 1) {
           console.log(`${colors.gray}  ↓ Reply ↓${colors.reset}`)
         }
       })
-      
+
       console.log() // Empty line between threads
     })
 
@@ -224,49 +224,31 @@ function replyToComment(prNumber: string, commentId: string, replyText: string) 
   console.log(`\n${colors.cyan}Replying to comment ${commentId} on PR #${prNumber}...${colors.reset}\n`)
 
   try {
-    // Create the reply using gh API
+    // Get the comment details first
+    const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/comments/${commentId}`)
+    const comment = JSON.parse(commentJson)
 
+    // Create a reply to this specific comment
     const result = exec(
-      `gh api repos/{owner}/{repo}/pulls/${prNumber}/comments/${commentId}/replies \
+      `gh api repos/{owner}/{repo}/pulls/${prNumber}/comments \
        --method POST \
-       --field body="${replyText.replace(/"/g, '\\"')}"`,
+       --field body="${replyText.replace(/"/g, '\\"')}" \
+       --field commit_id="${comment.commit_id}" \
+       --field path="${comment.path}" \
+       --field line=${comment.line || comment.original_line} \
+       --field side="${comment.side || 'RIGHT'}" \
+       --field in_reply_to=${commentId}`,
     )
 
     console.log(`${colors.green}✅ Reply posted successfully!${colors.reset}`)
-
-    // Parse and show the created reply
     const replyData = JSON.parse(result)
     console.log(`\n${colors.bright}Reply URL:${colors.reset} ${replyData.html_url}`)
-    console.log(`${colors.bright}Reply text:${colors.reset}\n${replyData.body}`)
+    console.log(`${colors.bright}Reply posted as reply to comment ${commentId}${colors.reset}`)
 
-  } catch (_error: any) {
-    // If the reply endpoint doesn't work, try creating a new review comment
-    console.log(`${colors.yellow}Reply endpoint not available, creating review comment...${colors.reset}`)
-
-    try {
-      // First get the comment details to get the commit SHA and position
-      const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/comments/${commentId}`)
-      const comment = JSON.parse(commentJson)
-
-      const result = exec(
-        `gh api repos/{owner}/{repo}/pulls/${prNumber}/comments \
-         --method POST \
-         --field body="${replyText.replace(/"/g, '\\"')}" \
-         --field commit_id="${comment.commit_id}" \
-         --field path="${comment.path}" \
-         --field line=${comment.line || comment.original_line} \
-         --field side="${comment.side || 'RIGHT'}" \
-         --field in_reply_to=${commentId}`,
-      )
-
-      console.log(`${colors.green}✅ Reply posted successfully!${colors.reset}`)
-      const replyData = JSON.parse(result)
-      console.log(`\n${colors.bright}Reply URL:${colors.reset} ${replyData.html_url}`)
-
-    } catch (error2: any) {
-      console.error(`${colors.red}Failed to post reply:${colors.reset}`, error2.message)
-      console.log(`\n${colors.yellow}You may need to reply directly on GitHub.${colors.reset}`)
-    }
+  } catch (error: any) {
+    console.error(`${colors.red}Failed to post reply:${colors.reset}`, error.message)
+    console.error(`${colors.red}Error details:${colors.reset}`, error.stderr || error.stdout)
+    console.log(`\n${colors.yellow}Make sure the comment ID ${commentId} is correct.${colors.reset}`)
   }
 }
 

@@ -379,7 +379,7 @@ export class SchedulingService {
       logger.scheduler.warn('Could not find matching task or step, returning null')
       return null
     } catch (error) {
-      console.error('Failed to get next scheduled item:', error)
+      logger.scheduler.error('Failed to get next scheduled item:', error)
       return null
     }
   }
