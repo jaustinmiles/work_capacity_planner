@@ -502,7 +502,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     try {
       // Start work session in WorkTrackingService for persistence
       await workTrackingService.startWorkSession(undefined, stepId, workflowId)
-      
+
       // Also maintain LocalWorkSession for UI reactivity
       const newSession: LocalWorkSession = {
         stepId,
@@ -762,7 +762,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         duration: 0, // Duration will be calculated by the WorkTrackingService
       }
     }
-    
+
     // Fall back to local session state
     return get().activeWorkSessions.get(stepId)
   },
@@ -770,20 +770,20 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   getNextScheduledItem: async () => {
     try {
       const state = get()
-      
+
       // Get current tasks and workflows from state
       const tasks = state.tasks
       const sequencedTasks = state.sequencedTasks
-      
+
       // Use SchedulingService to determine the next item
       const nextItem = await schedulingService.getNextScheduledItem(tasks, sequencedTasks)
-      
+
       rendererLogger.info('[TaskStore] Got next scheduled item', {
         nextItem,
         totalTasks: tasks.length,
         totalWorkflows: sequencedTasks.length,
       })
-      
+
       return nextItem
     } catch (error) {
       rendererLogger.error('[TaskStore] Failed to get next scheduled item', error as Error)
@@ -801,22 +801,22 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         rendererLogger.warn('[TaskStore] Cannot start next task: work session already active')
         return
       }
-      
+
       // Get the next scheduled item
       const nextItem = await get().getNextScheduledItem()
-      
+
       if (!nextItem) {
         rendererLogger.info('[TaskStore] No next task available to start')
         return
       }
-      
+
       rendererLogger.info('[TaskStore] Starting next task', {
         type: nextItem.type,
         id: nextItem.id,
         title: nextItem.title,
         workflowId: nextItem.workflowId,
       })
-      
+
       // Start work based on item type
       if (nextItem.type === 'step' && nextItem.workflowId) {
         await get().startWorkOnStep(nextItem.id, nextItem.workflowId)

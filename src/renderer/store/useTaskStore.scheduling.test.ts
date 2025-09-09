@@ -77,7 +77,7 @@ describe('useTaskStore Scheduling Integration', () => {
       createSchedule: vi.fn(),
       getNextScheduledItem: vi.fn(),
     }
-    
+
     // Import the mocked SchedulingService
     const { SchedulingService } = await import('@shared/scheduling-service')
     vi.mocked(SchedulingService).mockImplementation(() => mockSchedulingService)
@@ -131,7 +131,7 @@ describe('useTaskStore Scheduling Integration', () => {
       // Assert - This should FAIL since getNextScheduledItem doesn't exist yet
       expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalledWith(
         mockTasks,
-        mockSequencedTasks
+        mockSequencedTasks,
       )
       expect(nextItem).toEqual(mockNextItem)
     })
@@ -267,7 +267,7 @@ describe('useTaskStore Scheduling Integration', () => {
       // Assert - This should FAIL since getNextScheduledItem doesn't exist yet
       expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalledWith(
         expectedTasks,
-        expectedSequenced
+        expectedSequenced,
       )
     })
   })

@@ -111,7 +111,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         db.getWorkPattern(currentDate),
         db.getTodayAccumulated(currentDate),
       ])
-      
+
       // Load next task separately since it has side effects
       await loadNextTask()
 
@@ -183,12 +183,12 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
           <Button type="primary" onClick={onEditSchedule}>
             Create Schedule
           </Button>
-          
+
           {/* Start Next Task section - works even without schedule */}
           <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
-              
+
               {isLoadingNextTask ? (
                 <Text type="secondary">Loading...</Text>
               ) : nextTask ? (
@@ -204,7 +204,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               ) : (
                 <Text type="secondary">No tasks available</Text>
               )}
-              
+
               <Button
                 type="primary"
                 icon={<IconPlayArrow />}
@@ -383,7 +383,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
-            
+
             {isLoadingNextTask ? (
               <Text type="secondary">Loading...</Text>
             ) : nextTask ? (
@@ -399,7 +399,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             ) : (
               <Text type="secondary">No tasks available</Text>
             )}
-            
+
             <Button
               type="primary"
               icon={<IconPlayArrow />}

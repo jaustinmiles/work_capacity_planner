@@ -239,7 +239,7 @@ export class SchedulingService {
    */
   async getNextScheduledItem(
     tasks: Task[],
-    sequencedTasks: SequencedTask[]
+    sequencedTasks: SequencedTask[],
   ): Promise<{
     type: 'task' | 'step'
     id: string
@@ -251,14 +251,14 @@ export class SchedulingService {
     try {
       // Filter out completed tasks (Task uses 'completed' boolean)
       const incompleteTasks = tasks.filter(task => !task.completed)
-      
+
       // Filter out completed workflow steps (TaskStep uses StepStatus enum)
       const incompleteSequenced = sequencedTasks
         .map(seq => ({
           ...seq,
-          steps: seq.steps.filter(step => 
-            step.status === 'pending' || step.status === 'in_progress'
-          )
+          steps: seq.steps.filter(step =>
+            step.status === 'pending' || step.status === 'in_progress',
+          ),
         }))
         .filter(seq => seq.steps.length > 0)
 
@@ -275,7 +275,7 @@ export class SchedulingService {
           startDate: new Date(),
           tieBreaking: 'creation_date',
           allowOverflow: false,
-        }
+        },
       )
 
       // Get the first scheduled item (highest priority)
@@ -286,16 +286,16 @@ export class SchedulingService {
 
       // Determine if it's a task or workflow step
       const isWorkflowStep = incompleteSequenced.some(seq =>
-        seq.steps.some(step => step.id === firstItem.id)
+        seq.steps.some(step => step.id === firstItem.id),
       )
 
       if (isWorkflowStep) {
         // Find the workflow and step
         const workflow = incompleteSequenced.find(seq =>
-          seq.steps.some(step => step.id === firstItem.id)
+          seq.steps.some(step => step.id === firstItem.id),
         )
         const step = workflow?.steps.find(step => step.id === firstItem.id)
-        
+
         if (workflow && step) {
           return {
             type: 'step',
@@ -309,7 +309,7 @@ export class SchedulingService {
       } else {
         // Find the task
         const task = incompleteTasks.find(task => task.id === firstItem.id)
-        
+
         if (task) {
           return {
             type: 'task',
