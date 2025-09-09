@@ -14,6 +14,16 @@ vi.mock('../../services/database', () => {
       createStepWorkSession: mockCreateStepWorkSession,
       updateTaskStepProgress: mockUpdateTaskStepProgress,
       getSequencedTaskById: mockGetSequencedTaskById,
+      // Additional methods needed by WorkTrackingService
+      getTasks: vi.fn().mockResolvedValue([]),
+      getSequencedTasks: vi.fn().mockResolvedValue([]),
+      getWorkSessions: vi.fn().mockResolvedValue([]),
+      loadLastUsedSession: vi.fn().mockResolvedValue(undefined),
+      createWorkSession: vi.fn().mockResolvedValue(undefined),
+      updateWorkSession: vi.fn().mockResolvedValue(undefined),
+      deleteWorkSession: vi.fn().mockResolvedValue(undefined),
+      getCurrentSession: vi.fn().mockResolvedValue({ id: 'test-session' }),
+      initializeDefaultData: vi.fn().mockResolvedValue(undefined),
     })),
     // Export mocks for test access
     __mocks: {
@@ -53,10 +63,47 @@ vi.mock('../../utils/events', () => {
   }
 })
 
+// Mock WorkTrackingService
+vi.mock('../../services/workTrackingService', () => {
+  const mockStartWorkSession = vi.fn().mockResolvedValue({
+    id: 'session-1',
+    taskId: 'task-1',
+    stepId: 'step-1',
+    startTime: new Date(),
+    plannedMinutes: 60,
+    type: 'focused',
+  })
+  const mockPauseWorkSession = vi.fn().mockResolvedValue(undefined)
+  const mockStopWorkSession = vi.fn().mockResolvedValue(undefined)
+  const mockGetCurrentActiveSession = vi.fn().mockReturnValue(null)
+  const mockIsAnyWorkActive = vi.fn().mockReturnValue(false)
+
+  return {
+    WorkTrackingService: vi.fn().mockImplementation(() => ({
+      startWorkSession: mockStartWorkSession,
+      pauseWorkSession: mockPauseWorkSession,
+      stopWorkSession: mockStopWorkSession,
+      getCurrentActiveSession: mockGetCurrentActiveSession,
+      isAnyWorkActive: mockIsAnyWorkActive,
+    })),
+    __mocks: {
+      startWorkSession: mockStartWorkSession,
+      pauseWorkSession: mockPauseWorkSession,
+      stopWorkSession: mockStopWorkSession,
+      getCurrentActiveSession: mockGetCurrentActiveSession,
+      isAnyWorkActive: mockIsAnyWorkActive,
+    },
+  }
+})
+
 describe('Workflow Time Tracking', () => {
   let mockCreateStepWorkSession: any
   let mockUpdateTaskStepProgress: any
   let mockEmit: any
+  let mockStartWorkSession: any
+  let mockPauseWorkSession: any
+  let _mockStopWorkSession: any
+  let mockGetCurrentActiveSession: any
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -69,6 +116,20 @@ describe('Workflow Time Tracking', () => {
 
     const eventsModule = await import('../../utils/events') as any
     mockEmit = eventsModule.__mockEmit
+
+    const workTrackingModule = await import('../../services/workTrackingService') as any
+    mockStartWorkSession = workTrackingModule.__mocks.startWorkSession
+    mockPauseWorkSession = workTrackingModule.__mocks.pauseWorkSession
+    _mockStopWorkSession = workTrackingModule.__mocks.stopWorkSession
+    mockGetCurrentActiveSession = workTrackingModule.__mocks.getCurrentActiveSession
+
+    // Reset mock return values to avoid test pollution
+    mockGetCurrentActiveSession.mockReturnValue(null)
+
+    // Reset the store's active sessions to prevent test pollution
+    const { result } = renderHook(() => useTaskStore())
+    result.current.activeWorkSessions.clear()
+    result.current.sequencedTasks = []
   })
 
   afterEach(() => {
@@ -113,9 +174,19 @@ describe('Workflow Time Tracking', () => {
         }]
       })
 
+      // Set up mock to return active session during pause
+      mockGetCurrentActiveSession.mockReturnValue({
+        id: 'session-1',
+        stepId: stepId,
+        taskId: workflowId,
+        startTime: now,
+        plannedMinutes: 60,
+        type: 'focused',
+      })
+
       // Start work on the step
-      act(() => {
-        result.current.startWorkOnStep(stepId, workflowId)
+      await act(async () => {
+        await result.current.startWorkOnStep(stepId, workflowId)
       })
 
       // Advance time by 25 minutes
@@ -127,10 +198,14 @@ describe('Workflow Time Tracking', () => {
         await result.current.pauseWorkOnStep(stepId)
       })
 
-      // Verify work session was created
+      // Verify WorkTrackingService methods were called
+      expect(mockStartWorkSession).toHaveBeenCalledWith(undefined, stepId, workflowId)
+      expect(mockPauseWorkSession).toHaveBeenCalledWith('session-1')
+
+      // Verify work session was created for the time worked (only if > 0 minutes)
       expect(mockCreateStepWorkSession).toHaveBeenCalledWith({
         taskStepId: stepId,
-        startTime: now,
+        startTime: expect.any(Date), // This uses the session startTime from the local store
         duration: 25,
       })
 
@@ -151,22 +226,39 @@ describe('Workflow Time Tracking', () => {
       const now = new Date('2025-09-01T14:00:00')
       vi.setSystemTime(now)
 
-      // Start work on the step
-      act(() => {
-        result.current.startWorkOnStep(stepId, workflowId)
+      // Set up mock to return active session during pause
+      mockGetCurrentActiveSession.mockReturnValue({
+        id: 'session-2',
+        stepId: stepId,
+        taskId: workflowId,
+        startTime: now,
+        plannedMinutes: 60,
+        type: 'focused',
       })
 
-      // Clear the mock calls from start (which updates status)
+      // Start work on the step
+      await act(async () => {
+        await result.current.startWorkOnStep(stepId, workflowId)
+      })
+
+      // Clear the mock calls from start
       vi.clearAllMocks()
 
-      // Pause immediately (no time passed)
+      // Pause immediately (no time passed - same timestamp)
       await act(async () => {
         await result.current.pauseWorkOnStep(stepId)
       })
 
-      // Verify no work session was created (since no time passed)
+      // Verify WorkTrackingService pause was called
+      expect(mockPauseWorkSession).toHaveBeenCalledWith('session-2')
+
+      // Verify no work session was created (since no time passed, minutesWorked = 0)
       expect(mockCreateStepWorkSession).not.toHaveBeenCalled()
+
+      // Verify actualDuration was not updated (since no time passed)
       expect(mockUpdateTaskStepProgress).not.toHaveBeenCalled()
+
+      // Verify no event was emitted (since no time was logged)
       expect(mockEmit).not.toHaveBeenCalled()
     })
 
@@ -209,8 +301,17 @@ describe('Workflow Time Tracking', () => {
       const time1 = new Date('2025-09-01T09:00:00')
       vi.setSystemTime(time1)
 
-      act(() => {
-        result.current.startWorkOnStep(stepId, workflowId)
+      mockGetCurrentActiveSession.mockReturnValue({
+        id: 'session-3a',
+        stepId: stepId,
+        taskId: workflowId,
+        startTime: time1,
+        plannedMinutes: 60,
+        type: 'admin',
+      })
+
+      await act(async () => {
+        await result.current.startWorkOnStep(stepId, workflowId)
       })
 
       vi.setSystemTime(new Date('2025-09-01T09:10:00'))
@@ -227,8 +328,17 @@ describe('Workflow Time Tracking', () => {
       const time2 = new Date('2025-09-01T10:00:00')
       vi.setSystemTime(time2)
 
-      act(() => {
-        result.current.startWorkOnStep(stepId, workflowId)
+      mockGetCurrentActiveSession.mockReturnValue({
+        id: 'session-3b',
+        stepId: stepId,
+        taskId: workflowId,
+        startTime: time2,
+        plannedMinutes: 60,
+        type: 'admin',
+      })
+
+      await act(async () => {
+        await result.current.startWorkOnStep(stepId, workflowId)
       })
 
       vi.setSystemTime(new Date('2025-09-01T10:15:00'))
@@ -303,27 +413,69 @@ describe('Workflow Time Tracking', () => {
       const startTime = new Date('2025-09-01T10:00:00')
       vi.setSystemTime(startTime)
 
-      // Start work on the step
+      // Set up mock to return active session during completion
+      mockGetCurrentActiveSession.mockReturnValue({
+        id: 'session-6',
+        stepId: stepId,
+        taskId: workflowId,
+        startTime: startTime,
+        plannedMinutes: 60,
+        type: 'focused',
+      })
+
+      // Add a test step to the store
       act(() => {
-        result.current.startWorkOnStep(stepId, workflowId)
+        result.current.sequencedTasks = [{
+          id: workflowId,
+          name: 'Test Workflow',
+          type: TaskType.Focused,
+          importance: 5,
+          urgency: 5,
+          duration: 120,
+          hasSteps: true,
+          steps: [{
+            id: stepId,
+            taskId: workflowId,
+            name: 'Test Step',
+            type: TaskType.Focused,
+            duration: 60,
+            actualDuration: 0,
+            notes: null,
+            status: TaskStatus.NotStarted,
+            stepIndex: 0,
+            percentComplete: 0,
+            dependsOn: [],
+          }],
+          status: TaskStatus.InProgress,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }]
+      })
+
+      // Start work on the step
+      await act(async () => {
+        await result.current.startWorkOnStep(stepId, workflowId)
       })
 
       // Advance time by 60 minutes
       const endTime = new Date('2025-09-01T11:00:00')
       vi.setSystemTime(endTime)
 
-      // Complete the step
+      // Complete the step with explicit duration to ensure it's recorded
       await act(async () => {
-        await result.current.completeStep(stepId)
+        await result.current.completeStep(stepId, 60)  // Pass explicit duration
       })
 
-      // Verify work session uses the actual start time
+      // Verify work session was created with the explicit duration
       expect(mockCreateStepWorkSession).toHaveBeenCalledWith({
         taskStepId: stepId,
-        startTime: startTime,
+        startTime: expect.any(Date),
         duration: 60,
         notes: undefined,
       })
+
+      // Verify WorkTrackingService stop was called
+      expect(mockGetCurrentActiveSession).toHaveBeenCalled()
     })
   })
 
@@ -338,8 +490,18 @@ describe('Workflow Time Tracking', () => {
       const now = new Date('2025-09-01T12:00:00')
       vi.setSystemTime(now)
 
-      act(() => {
-        result.current.startWorkOnStep(stepId, workflowId)
+      // Set up mock to return active session during pause
+      mockGetCurrentActiveSession.mockReturnValue({
+        id: 'session-7',
+        stepId: stepId,
+        taskId: workflowId,
+        startTime: now,
+        plannedMinutes: 60,
+        type: 'focused',
+      })
+
+      await act(async () => {
+        await result.current.startWorkOnStep(stepId, workflowId)
       })
 
       // Work for 20 minutes

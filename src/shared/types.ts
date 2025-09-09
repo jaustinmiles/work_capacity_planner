@@ -66,6 +66,19 @@ export interface TaskStep {
   urgency?: number // 1-10, optional override for individual step priority
 }
 
+/**
+ * Represents a scheduled item (task or workflow step) returned by the scheduler
+ * Used for "Start Next Task" functionality
+ */
+export interface NextScheduledItem {
+  type: 'task' | 'step'
+  id: string
+  workflowId?: string
+  title: string
+  estimatedDuration: number
+  scheduledStartTime?: Date
+}
+
 export interface DailySchedule {
   id: string
   dayOfWeek: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday'

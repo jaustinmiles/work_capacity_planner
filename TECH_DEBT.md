@@ -1,5 +1,44 @@
 # Technical Debt Inventory
 
+## 🚨 High Priority Issues (PR #67 TDD Violation - 2025-09-08)
+
+### Mock-Only Implementation Pattern (RESOLVED)
+**Status**: ✅ Resolved in PR #67
+- **Problem**: WorkTrackingService implemented with database methods that only existed in mocks
+- **Impact**: 25 tests passing locally but non-functional production code
+- **Root Cause**: Used `TestDatabaseService` interface with optional chaining to bypass missing methods
+- **Example**: `await this.database.saveActiveWorkSession?.(session)` - method didn't exist in production
+- **Solution**: Refactored to use real database methods (`createWorkSession`, `updateWorkSession`, `deleteWorkSession`)
+- **Result**: Production-ready code with same test coverage
+
+**Documentation Updates**:
+- Added TDD phase completion requirements to CLAUDE.md
+- Enhanced context/insights.md with violation patterns
+- Updated context/state.md with recovery process
+
+## 🎉 Major Achievement: Session Type Unification (PR #67 - 2025-09-09)
+
+### UnifiedWorkSession Consolidation (COMPLETED)
+**Status**: ✅ Resolved in PR #67
+- **Problem**: 5 different session types scattered across codebase causing type confusion and field mismatches
+- **Types Consolidated**:
+  1. `LocalWorkSession` in `useTaskStore.ts` 
+  2. `WorkSession` in `workflow-progress-types.ts`
+  3. `WorkSession` in `work-blocks-types.ts`  
+  4. `WorkSession` in `WorkLoggerCalendar.tsx`
+  5. `WorkSession` in `WorkSessionsModal.tsx`
+- **Solution**: Created `UnifiedWorkSession` as single source of truth with migration adapters
+- **Migration Adapters**: `fromLocalWorkSession()`, `fromDatabaseWorkSession()`, `toDatabaseWorkSession()`
+- **Test Impact**: All 631 tests passing after systematic test migration
+- **Result**: Type safety, consistency, and maintainability dramatically improved
+
+**Key Benefits**:
+- Single session type eliminates field name conflicts (`duration` vs `plannedMinutes` vs `actualDuration`)
+- Proper support for all session types (tasks, workflow steps, manual entries)
+- Database persistence layer unified and consistent
+- WorkTrackingService fully integrated with UI and database
+- 100% test coverage maintained through migration process
+
 ## 🚨 High Priority Issues (PR #60 E2E - 2025-09-05)
 
 ### E2E Test Coverage Reduction (TECHNICAL DEBT)

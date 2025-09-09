@@ -139,12 +139,9 @@ function App() {
 
   // Initialize data when app starts
   useEffect(() => {
-    logger.info('App initialization started', {
-      tasksCount: tasks.length,
-      sequencedTasksCount: sequencedTasks.length,
-    })
+    logger.info('App initialization started - loading data from database')
     initializeData()
-  }, [initializeData])
+  }, []) // Empty dependency array - run once on mount. We omit initializeData to avoid infinite re-renders.
 
   // Listen for data refresh events
   useEffect(() => {

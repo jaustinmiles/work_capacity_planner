@@ -55,6 +55,8 @@ module.exports = [
         Event: 'readonly',
         FormData: 'readonly',
         AudioBuffer: 'readonly',
+        crypto: 'readonly',
+        Crypto: 'readonly',
       },
     },
     plugins: {

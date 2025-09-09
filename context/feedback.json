@@ -21,7 +21,8 @@
     "title": "EisenhowerMatrix component too large (1500+ lines)",
     "description": "Component needs separation into EisenhowerGrid.tsx (grid view), EisenhowerScatter.tsx (scatter plot + diagonal scan), and EisenhowerMatrix.tsx (container + view switching). Single responsibility principle violated.",
     "timestamp": "2025-09-04T22:01:00.000Z",
-    "sessionId": "session-pr57-review"
+    "sessionId": "session-pr57-review",
+    "resolved": true
   },
   {
     "type": "enhancement",
@@ -1189,7 +1190,8 @@
     "description": "UI shows \"daily\" repetition option for work blocks but backend doesn't actually implement repetition. Each pattern is saved only for the specific date with no logic to apply patterns to future dates. Need to implement repetition logic in database layer, add recurring pattern support (daily, weekly, etc.), and update UI to properly reflect repetition status.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:00.322Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1354,7 +1356,8 @@
     "title": "Zoom buttons and scroll don't work",
     "description": "should be able to see multiple days by scrolling in the swim lanes, and should be able to scroll into the past. and the zoom should actually do somehting. But It shouldn't have a scrollbar, or if it does, horizontal scroll only. There should never be a vertical scroll bar. ",
     "timestamp": "2025-09-06T20:22:35.090Z",
-    "sessionId": "session-1757190155085-q2uw1xtki"
+    "sessionId": "session-1757190155085-q2uw1xtki",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1400,7 +1403,8 @@
     "title": "When navigation sidebar is collapsed, icons should be clickable without tooltips",
     "description": "When navigation sidebar is collapsed, icons should be clickable without tooltips. Right now the tooltip looks weird and unprofessional, and sometimes I can't just click the icon itself to navigate, but have to hover to get the tooltip then click. very unintuitive. ",
     "timestamp": "2025-09-06T20:27:19.241Z",
-    "sessionId": "session-1757190439233-10ahidxel"
+    "sessionId": "session-1757190439233-10ahidxel",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1422,7 +1426,8 @@
     "title": "Delete strike system Markdown file from codebase",
     "description": "this got merged in a previous pr, but is weird and harsh and shouldn't exist. ",
     "timestamp": "2025-09-06T20:29:41.939Z",
-    "sessionId": "session-1757190581932-ur1vz2430"
+    "sessionId": "session-1757190581932-ur1vz2430",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -1434,5 +1439,27 @@
     "description": "the timeline should be below the clock, or next to it, and should have blocks that are clickable to select the work logging session, where the user can then edit the start and end times. But it should be free of clutter, so the user can quickly go over how they spent their time for the day and change start and end times. The swim lanes are good for finding tasks under workflows to log time, and the clock is good for seeing that the time is continuous, but the clock is not big enough, and too crowded, especially for small work sessions and fine grained editing. If the clock was bigger and zoomable that could suffice too. ",
     "timestamp": "2025-09-06T21:11:35.234Z",
     "sessionId": "session-1757193095228-znt69miyb"
+  },
+  {
+    "type": "improvement",
+    "priority": "critical",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "AI brainstorm should allow deletion of tasks and workflows",
+    "description": "When editing results given by the AI, the user should be able to delete tasks, workflows, and workflow steps before regenerating the workflows/tasks with clarifications or before the User selects \"Use edited results\"",
+    "timestamp": "2025-09-08T22:16:00.118Z",
+    "sessionId": "session-1757369760108-b17v15cjk"
+  },
+  {
+    "type": "feature",
+    "priority": "critical",
+    "components": [
+      "other"
+    ],
+    "title": "Should be able to 'start next task' from the home page. ",
+    "description": "The app should support the ability to start work from the home screen. What I mean by this is that the next scheduled task or the next scheduled workflow should be able to be started, meaning a work session that logs work should be attached to it, from multiple locations, including the task list page and the dual view work logger. Basically a user should be able to click start next task and then the next task according to scheduling priority, which accounts for all of the stuff that we use on the Gantt chart view, should be actively tracking work. We already show what task is actively tracking work in the dual work logger but it's kind of buggy. Here are a few of the things that I've noticed: first, when a workflow is started, we usually can complete the step that we are currently working on by pressing complete step on the progress tracking page. This doesn't stop the workflow in terms of progress tracking (like the start stop workflow button that also influences whether we see a current task being logged in the dual view work log) and it also doesn't start the next step of the workflow - instead it just shows that we are currently working on the workflow, but not a specific step of the workflow. Second, I think the current task is being worked on it stored in the browser, local storage or something, but it seems that if I close out the app and then restart it while working on a task, the actual work logging is broken and if I click on the dual view work log, I no longer see that I'm currently working on a task, but if I go back to the workflow page, I will still see that the start button has been pressed and that it is now a pause button and it appears as if I'm working on the workflow, but no time is being logged. So basically I just need to make sure that we can start and stop time on tasks and workflow, and that when the app is started or stopped and restarted, but if there is a currently tracked task, that it still is being tracked, and that on the door of your work longer, and on the task list page, we should have a button to start the next task which starts the next task in the priority order, determined by the scheduler",
+    "timestamp": "2025-09-08T22:22:01.702Z",
+    "sessionId": "session-1757370121692-4nckvwtwa"
   }
 ]

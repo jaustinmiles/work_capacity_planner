@@ -9,6 +9,7 @@ import {
   WeeklySchedule,
   TimeBreak,
 } from './scheduling-models'
+import { logger } from './logger'
 
 /**
  * Service layer that provides high-level scheduling operations
@@ -231,6 +232,156 @@ export class SchedulingService {
     }
 
     return { workloadAnalysis, recommendations }
+  }
+
+  /**
+   * Get the next scheduled item that should be worked on
+   * Filters out completed/in-progress items and returns the highest priority item
+   */
+  async getNextScheduledItem(
+    tasks: Task[],
+    sequencedTasks: SequencedTask[],
+  ): Promise<{
+    type: 'task' | 'step'
+    id: string
+    workflowId?: string
+    title: string
+    estimatedDuration: number
+    scheduledStartTime?: Date
+  } | null> {
+    try {
+      logger.scheduler.info('Getting next scheduled item', {
+        totalTasks: tasks.length,
+        totalSequenced: sequencedTasks.length,
+      })
+
+      // Filter out completed tasks (Task uses 'completed' boolean)
+      const incompleteTasks = tasks.filter(task => !task.completed)
+
+      logger.scheduler.info('Filtered incomplete tasks', {
+        originalTasks: tasks.length,
+        incompleteTasks: incompleteTasks.length,
+      })
+
+      // Filter out completed workflow steps (TaskStep uses StepStatus enum)
+      const incompleteSequenced = sequencedTasks
+        .map(seq => ({
+          ...seq,
+          steps: seq.steps.filter(step =>
+            step.status === 'pending' || step.status === 'in_progress',
+          ),
+        }))
+        .filter(seq => seq.steps.length > 0)
+
+      logger.scheduler.info('Filtered incomplete workflows', {
+        originalWorkflows: sequencedTasks.length,
+        incompleteWorkflows: incompleteSequenced.length,
+        totalIncompleteSteps: incompleteSequenced.reduce((sum, seq) => sum + seq.steps.length, 0),
+      })
+
+      // If no incomplete items, return null
+      if (incompleteTasks.length === 0 && incompleteSequenced.length === 0) {
+        logger.scheduler.info('No incomplete items found, returning null')
+        return null
+      }
+
+      // Use the scheduling engine to determine priorities
+      logger.scheduler.info('Creating schedule with engine...')
+      const schedulingResult = await this.createSchedule(
+        incompleteTasks,
+        incompleteSequenced,
+        {
+          startDate: new Date(),
+          tieBreaking: 'creation_date',
+          allowOverflow: false,
+        },
+      )
+
+      logger.scheduler.info('Schedule created', {
+        totalScheduledItems: schedulingResult.scheduledItems.length,
+        firstItemId: schedulingResult.scheduledItems[0]?.id || 'none',
+      })
+
+      // Get the first scheduled item (highest priority)
+      const firstItem = schedulingResult.scheduledItems[0]
+      if (!firstItem) {
+        logger.scheduler.info('No items in schedule, returning null')
+        return null
+      }
+
+
+      // Handle potential ID prefixes from scheduling engine
+      // Format can be: 'task_id', 'step_id', or 'workflow_id_step_step-id'
+      let stepIdToFind = firstItem.id
+      let taskIdToFind = firstItem.id
+
+      if (firstItem.id.includes('_step_')) {
+        // Handle workflow step format: 'workflow_..._step_step-...'
+        const parts = firstItem.id.split('_step_')
+        if (parts.length === 2) {
+          stepIdToFind = parts[1] // Extract 'step-...' part
+        }
+      } else if (firstItem.id.startsWith('step_')) {
+        stepIdToFind = firstItem.id.slice(5)
+      } else if (firstItem.id.startsWith('task_')) {
+        taskIdToFind = firstItem.id.slice(5)
+      }
+
+      logger.scheduler.debug('ID parsing:', {
+        originalId: firstItem.id,
+        stepIdToFind,
+        taskIdToFind,
+        hasWorkflowStepFormat: firstItem.id.includes('_step_'),
+      })
+
+      // Determine if it's a task or workflow step (check both original and cleaned IDs)
+      const isWorkflowStep = incompleteSequenced.some(seq =>
+        seq.steps.some(step => step.id === firstItem.id || step.id === stepIdToFind),
+      )
+
+
+      if (isWorkflowStep) {
+        // Find the workflow and step (check both original and cleaned IDs)
+        const workflow = incompleteSequenced.find(seq =>
+          seq.steps.some(step => step.id === firstItem.id || step.id === stepIdToFind),
+        )
+        const step = workflow?.steps.find(step => step.id === firstItem.id || step.id === stepIdToFind)
+
+        if (workflow && step) {
+          const result = {
+            type: 'step' as const,
+            id: step.id,
+            workflowId: workflow.id,
+            title: step.name, // TaskStep uses 'name'
+            estimatedDuration: step.duration, // TaskStep uses 'duration'
+            scheduledStartTime: firstItem.scheduledStartTime,
+          }
+          logger.scheduler.info('Returning workflow step', result)
+          return result
+        }
+      } else {
+        // Find the task with cleaned ID (remove 'task_' prefix if present)
+        const task = incompleteTasks.find(task => task.id === taskIdToFind)
+
+        if (task) {
+          const result = {
+            type: 'task' as const,
+            id: task.id,
+            title: task.name, // Task uses 'name'
+            estimatedDuration: task.duration, // Task uses 'duration'
+            scheduledStartTime: firstItem.scheduledStartTime,
+          }
+          logger.scheduler.info('Returning regular task', result)
+          return result
+        }
+      }
+
+      logger.scheduler.warn('Could not find matching task or step, returning null')
+      return null
+    } catch (error) {
+      logger.scheduler.error('Failed to get next scheduled item:', error)
+      return null
+    }
   }
 
   /**

@@ -82,7 +82,7 @@ export function useWorkflowProgress(workflowId?: string): UseWorkflowProgressRet
     let elapsedMinutes = 0
     if (session) {
       const elapsed = session.isPaused ? 0 : Date.now() - new Date(session.startTime).getTime()
-      elapsedMinutes = session.duration + Math.floor(elapsed / 60000)
+      elapsedMinutes = (session.actualMinutes || 0) + Math.floor(elapsed / 60000)
     }
 
     return {

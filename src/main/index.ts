@@ -575,7 +575,7 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
 
 ipcMain.handle('app:getSessionId', () => {
   // Generate a session ID for feedback tracking
-  return `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  return `session-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`
 })
 
 // Logging handler - forward renderer logs
