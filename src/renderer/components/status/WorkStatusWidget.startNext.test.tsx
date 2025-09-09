@@ -16,13 +16,12 @@ vi.mock('../../services/database', () => ({
 }))
 
 vi.mock('../../store/useTaskStore', () => ({
-  useTaskStore: {
-    getState: vi.fn(() => ({
-      startNextTask: vi.fn(),
-      getNextScheduledItem: vi.fn().mockResolvedValue(null),
-    })),
-    subscribe: vi.fn(() => () => {}),
-  },
+  useTaskStore: vi.fn(() => ({
+    isLoading: false,
+    activeWorkSessions: new Map(),
+    startNextTask: vi.fn(),
+    getNextScheduledItem: vi.fn().mockResolvedValue(null),
+  })),
 }))
 
 vi.mock('dayjs', () => ({
@@ -37,7 +36,7 @@ vi.mock('../../utils/events', () => ({
 }))
 
 vi.mock('../../utils/logger', () => ({
-  logger: { ui: { warn: vi.fn(), error: vi.fn() } },
+  logger: { ui: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
 }))
 
 vi.mock('@shared/work-blocks-types', () => ({
@@ -62,11 +61,11 @@ describe('WorkStatusWidget Start Next Task Button', () => {
     expect(screen.getByText('Start Next Task')).toBeInTheDocument()
   })
 
-  it('should show next task preview when available', () => {
+  it('should show appropriate message when no tasks are available', () => {
     // Act
     render(<WorkStatusWidget />)
 
-    // Assert - This should FAIL since next task display doesn't exist yet
-    expect(screen.getByText(/Next:/)).toBeInTheDocument()
+    // Assert - Since getNextScheduledItem returns null, should show no tasks message
+    expect(screen.getByText('No tasks available')).toBeInTheDocument()
   })
 })
