@@ -10,7 +10,8 @@ import {
   injectWorkTrackingServiceForTesting,
   clearInjectedWorkTrackingService,
 } from './useTaskStore'
-import { WorkTrackingService } from '../services/workTrackingService'
+// WorkTrackingService import not used in mocked test
+// import { WorkTrackingService } from '../services/workTrackingService'
 import { getDatabase } from '../services/database'
 
 // Mock the database

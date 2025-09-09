@@ -6,7 +6,7 @@ import { SchedulingService } from '@shared/scheduling-service'
 import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { WorkSession as ImportedWorkSession } from '@shared/workflow-progress-types'
-import { UnifiedWorkSession, fromLocalWorkSession, getElapsedMinutes } from '@shared/unified-work-session-types'
+import { UnifiedWorkSession, fromLocalWorkSession } from '@shared/unified-work-session-types'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
 import { logger } from '../utils/logger'
@@ -30,6 +30,8 @@ export interface LocalWorkSession {
 }
 
 // Migration function to convert legacy LocalWorkSession to UnifiedWorkSession
+// Currently unused but kept for potential future migration needs
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function migrateLocalSession(session: LocalWorkSession): UnifiedWorkSession {
   return fromLocalWorkSession(session)
 }
@@ -566,7 +568,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // Also maintain UnifiedWorkSession for UI reactivity
       const newSession: UnifiedWorkSession = {
-        id: crypto.randomUUID(),
+        id: `session-${Date.now()}-${Math.random().toString(36).substring(2)}`,
         taskId: workflowId,
         stepId,
         startTime: new Date(),

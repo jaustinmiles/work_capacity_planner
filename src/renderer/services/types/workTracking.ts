@@ -3,8 +3,7 @@
  * These interfaces define the shape of the WorkTrackingService API
  */
 
-import type { WorkSession as BaseWorkSession } from '../../../shared/work-blocks-types'
-import type { Task, TaskStep } from '../../../shared/types'
+// Types removed - using UnifiedWorkSession from unified-work-session-types instead
 
 // WorkSession type removed - using LocalWorkSession from store instead to avoid duplication
 

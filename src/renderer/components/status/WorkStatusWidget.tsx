@@ -148,7 +148,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       logger.ui.info('[WorkStatusWidget] Starting next task...')
       setIsStartingTask(true)
 
-      const result = await useTaskStore.getState().startNextTask()
+      await useTaskStore.getState().startNextTask()
 
       // Show success notification with task name
       if (nextTask) {

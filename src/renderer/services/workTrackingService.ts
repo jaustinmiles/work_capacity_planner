@@ -9,8 +9,6 @@ import {
   fromDatabaseWorkSession,
   toDatabaseWorkSession,
   createUnifiedWorkSession,
-  isActiveSession,
-  getElapsedMinutes,
 } from '../../shared/unified-work-session-types'
 import { TaskType } from '../../shared/enums'
 
