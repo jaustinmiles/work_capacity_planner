@@ -81,6 +81,15 @@ interface TaskStore {
   getActiveSequencedTasks: () => SequencedTask[]
   getCompletedSequencedTasks: () => SequencedTask[]
   getActiveWorkSession: (stepId: string) => LocalWorkSession | undefined
+  getNextScheduledItem: () => Promise<{
+    type: 'task' | 'step'
+    id: string
+    workflowId?: string
+    title: string
+    estimatedDuration: number
+    scheduledStartTime?: Date
+  } | null>
+  startNextTask: () => Promise<void>
 }
 
 
@@ -756,6 +765,76 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     
     // Fall back to local session state
     return get().activeWorkSessions.get(stepId)
+  },
+
+  getNextScheduledItem: async () => {
+    try {
+      const state = get()
+      
+      // Get current tasks and workflows from state
+      const tasks = state.tasks
+      const sequencedTasks = state.sequencedTasks
+      
+      // Use SchedulingService to determine the next item
+      const nextItem = await schedulingService.getNextScheduledItem(tasks, sequencedTasks)
+      
+      rendererLogger.info('[TaskStore] Got next scheduled item', {
+        nextItem,
+        totalTasks: tasks.length,
+        totalWorkflows: sequencedTasks.length,
+      })
+      
+      return nextItem
+    } catch (error) {
+      rendererLogger.error('[TaskStore] Failed to get next scheduled item', error as Error)
+      set({
+        error: error instanceof Error ? error.message : 'Failed to get next scheduled item',
+      })
+      return null
+    }
+  },
+
+  startNextTask: async () => {
+    try {
+      // Check if any work is already active
+      if (workTrackingService.isAnyWorkActive()) {
+        rendererLogger.warn('[TaskStore] Cannot start next task: work session already active')
+        return
+      }
+      
+      // Get the next scheduled item
+      const nextItem = await get().getNextScheduledItem()
+      
+      if (!nextItem) {
+        rendererLogger.info('[TaskStore] No next task available to start')
+        return
+      }
+      
+      rendererLogger.info('[TaskStore] Starting next task', {
+        type: nextItem.type,
+        id: nextItem.id,
+        title: nextItem.title,
+        workflowId: nextItem.workflowId,
+      })
+      
+      // Start work based on item type
+      if (nextItem.type === 'step' && nextItem.workflowId) {
+        await get().startWorkOnStep(nextItem.id, nextItem.workflowId)
+      } else if (nextItem.type === 'task') {
+        // For regular tasks, we would call startWorkOnTask (not implemented yet)
+        // For now, log that we would start this task
+        rendererLogger.info('[TaskStore] Would start work on task', {
+          taskId: nextItem.id,
+          title: nextItem.title,
+        })
+        // TODO: Implement startWorkOnTask method
+      }
+    } catch (error) {
+      rendererLogger.error('[TaskStore] Failed to start next task', error as Error)
+      set({
+        error: error instanceof Error ? error.message : 'Failed to start next task',
+      })
+    }
   },
 }
 })

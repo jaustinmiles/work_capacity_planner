@@ -234,6 +234,102 @@ export class SchedulingService {
   }
 
   /**
+   * Get the next scheduled item that should be worked on
+   * Filters out completed/in-progress items and returns the highest priority item
+   */
+  async getNextScheduledItem(
+    tasks: Task[],
+    sequencedTasks: SequencedTask[]
+  ): Promise<{
+    type: 'task' | 'step'
+    id: string
+    workflowId?: string
+    title: string
+    estimatedDuration: number
+    scheduledStartTime?: Date
+  } | null> {
+    try {
+      // Filter out completed and in-progress items
+      const incompleteTasks = tasks.filter(task => 
+        task.status === 'todo' || task.status === 'not_started'
+      )
+      
+      const incompleteSequenced = sequencedTasks
+        .map(seq => ({
+          ...seq,
+          steps: seq.steps.filter(step => 
+            step.status === 'todo' || step.status === 'not_started'
+          )
+        }))
+        .filter(seq => seq.steps.length > 0)
+
+      // If no incomplete items, return null
+      if (incompleteTasks.length === 0 && incompleteSequenced.length === 0) {
+        return null
+      }
+
+      // Use the scheduling engine to determine priorities
+      const schedulingResult = await this.createSchedule(
+        incompleteTasks,
+        incompleteSequenced,
+        {
+          startDate: new Date(),
+          tieBreaking: 'creation_date',
+          allowOverflow: false,
+        }
+      )
+
+      // Get the first scheduled item (highest priority)
+      const firstItem = schedulingResult.scheduledItems[0]
+      if (!firstItem) {
+        return null
+      }
+
+      // Determine if it's a task or workflow step
+      const isWorkflowStep = incompleteSequenced.some(seq =>
+        seq.steps.some(step => step.id === firstItem.itemId)
+      )
+
+      if (isWorkflowStep) {
+        // Find the workflow and step
+        const workflow = incompleteSequenced.find(seq =>
+          seq.steps.some(step => step.id === firstItem.itemId)
+        )
+        const step = workflow?.steps.find(step => step.id === firstItem.itemId)
+        
+        if (workflow && step) {
+          return {
+            type: 'step',
+            id: step.id,
+            workflowId: workflow.id,
+            title: step.title || step.name,
+            estimatedDuration: step.duration || step.estimatedDuration || 60,
+            scheduledStartTime: firstItem.scheduledStartTime,
+          }
+        }
+      } else {
+        // Find the task
+        const task = incompleteTasks.find(task => task.id === firstItem.itemId)
+        
+        if (task) {
+          return {
+            type: 'task',
+            id: task.id,
+            title: task.title || task.name,
+            estimatedDuration: task.duration || task.estimatedDuration || 60,
+            scheduledStartTime: firstItem.scheduledStartTime,
+          }
+        }
+      }
+
+      return null
+    } catch (error) {
+      console.error('Failed to get next scheduled item:', error)
+      return null
+    }
+  }
+
+  /**
    * Create default work day configurations
    */
   private createDefaultWorkDayConfigs(overrides: Partial<WorkDayConfiguration> = {}): WorkDayConfiguration[] {
