@@ -102,7 +102,7 @@ describe('Workflow Time Tracking', () => {
   let mockEmit: any
   let mockStartWorkSession: any
   let mockPauseWorkSession: any
-  let mockStopWorkSession: any
+  let _mockStopWorkSession: any
   let mockGetCurrentActiveSession: any
 
   beforeEach(async () => {
@@ -120,7 +120,7 @@ describe('Workflow Time Tracking', () => {
     const workTrackingModule = await import('../../services/workTrackingService') as any
     mockStartWorkSession = workTrackingModule.__mocks.startWorkSession
     mockPauseWorkSession = workTrackingModule.__mocks.pauseWorkSession
-    mockStopWorkSession = workTrackingModule.__mocks.stopWorkSession
+    _mockStopWorkSession = workTrackingModule.__mocks.stopWorkSession
     mockGetCurrentActiveSession = workTrackingModule.__mocks.getCurrentActiveSession
 
     // Reset mock return values to avoid test pollution
@@ -251,13 +251,13 @@ describe('Workflow Time Tracking', () => {
 
       // Verify WorkTrackingService pause was called
       expect(mockPauseWorkSession).toHaveBeenCalledWith('session-2')
-      
+
       // Verify no work session was created (since no time passed, minutesWorked = 0)
       expect(mockCreateStepWorkSession).not.toHaveBeenCalled()
-      
+
       // Verify actualDuration was not updated (since no time passed)
       expect(mockUpdateTaskStepProgress).not.toHaveBeenCalled()
-      
+
       // Verify no event was emitted (since no time was logged)
       expect(mockEmit).not.toHaveBeenCalled()
     })
@@ -324,7 +324,7 @@ describe('Workflow Time Tracking', () => {
         result.current.sequencedTasks[0].steps[0].actualDuration = 10
       })
 
-      // Second work session: 15 minutes  
+      // Second work session: 15 minutes
       const time2 = new Date('2025-09-01T10:00:00')
       vi.setSystemTime(time2)
 
@@ -452,7 +452,7 @@ describe('Workflow Time Tracking', () => {
         }]
       })
 
-      // Start work on the step  
+      // Start work on the step
       await act(async () => {
         await result.current.startWorkOnStep(stepId, workflowId)
       })

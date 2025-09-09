@@ -54,7 +54,7 @@ vi.mock('@shared/scheduling-service', () => {
     createSchedule: vi.fn(),
     getNextScheduledItem: vi.fn(),
   }
-  
+
   return {
     SchedulingService: vi.fn().mockImplementation(() => mockInstance),
     __mockInstance: mockInstance, // Export for access in tests
@@ -255,8 +255,8 @@ describe('useTaskStore Scheduling Integration', () => {
       ]
 
       // Only incomplete items should be passed to scheduling service
-      const expectedTasks = [mockTasks[2]] // Only the todo task
-      const expectedSequenced = [{
+      const _expectedTasks = [mockTasks[2]] // Only the todo task
+      const _expectedSequenced = [{
         ...mockSequencedTasks[0],
         steps: [mockSequencedTasks[0].steps[1]], // Only the todo step
       }]
