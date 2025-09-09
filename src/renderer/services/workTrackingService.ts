@@ -72,7 +72,7 @@ export class WorkTrackingService {
 
   async startWorkSession(taskId?: string, stepId?: string, workflowId?: string): Promise<LocalWorkSession> {
     try {
-      rendererLogger.info('[WorkTrackingService] Starting work session', {
+      logger.store.info('[WorkTrackingService] Starting work session', {
         taskId, stepId, workflowId,
         currentActiveSessions: this.activeSessions.size
       })
@@ -87,7 +87,7 @@ export class WorkTrackingService {
 
       // Check for existing active session
       if (this.activeSessions.size > 0) {
-        rendererLogger.warn('[WorkTrackingService] Cannot start new session - another session is active', {
+        logger.store.warn('[WorkTrackingService] Cannot start new session - another session is active', {
           activeSessionCount: this.activeSessions.size
         })
         throw new Error('Cannot start new work session: another session is already active')
@@ -128,7 +128,7 @@ export class WorkTrackingService {
         date: new Date().toISOString().split('T')[0],
       }
 
-      rendererLogger.info('[WorkTrackingService] Creating database work session', {
+      logger.store.info('[WorkTrackingService] Creating database work session', {
         dbPayload: {
           ...dbPayload,
           startTime: dbPayload.startTime.toISOString()
@@ -141,7 +141,7 @@ export class WorkTrackingService {
       const sessionKey = this.getSessionKey(workSession)
       this.activeSessions.set(sessionKey, workSession)
 
-      rendererLogger.info('[WorkTrackingService] Work session started successfully', {
+      logger.store.info('[WorkTrackingService] Work session started successfully', {
         sessionId: workSession.id,
         sessionKey,
         taskId,
