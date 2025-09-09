@@ -17,6 +17,7 @@ interface WorkStatusWidgetProps {
 }
 
 export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
+  const { isLoading } = useTaskStore()
   const [currentDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
@@ -79,12 +80,19 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     }
   }, [pattern])
 
-  // Load next task on component mount and when data changes
+  // Load next task when data finishes loading or when data changes
   useEffect(() => {
-    logger.ui.info('[WorkStatusWidget] Component mounted, loading next task')
-    loadNextTask()
+    // Only load next task if data has finished loading
+    if (!isLoading) {
+      logger.ui.info('[WorkStatusWidget] Data loaded, loading next task')
+      loadNextTask()
+    } else {
+      logger.ui.info('[WorkStatusWidget] Store is loading, waiting for data...')
+    }
+  }, [isLoading]) // Depend on isLoading to run when data finishes loading
 
-    // Listen for data refresh events to reload next task
+  // Listen for data refresh events to reload next task
+  useEffect(() => {
     const handleDataRefresh = () => {
       logger.ui.info('[WorkStatusWidget] Data refresh event, reloading next task')
       loadNextTask()
