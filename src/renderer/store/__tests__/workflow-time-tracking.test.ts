@@ -14,6 +14,16 @@ vi.mock('../../services/database', () => {
       createStepWorkSession: mockCreateStepWorkSession,
       updateTaskStepProgress: mockUpdateTaskStepProgress,
       getSequencedTaskById: mockGetSequencedTaskById,
+      // Additional methods needed by WorkTrackingService
+      getTasks: vi.fn().mockResolvedValue([]),
+      getSequencedTasks: vi.fn().mockResolvedValue([]),
+      getWorkSessions: vi.fn().mockResolvedValue([]),
+      loadLastUsedSession: vi.fn().mockResolvedValue(undefined),
+      createWorkSession: vi.fn().mockResolvedValue(undefined),
+      updateWorkSession: vi.fn().mockResolvedValue(undefined),
+      deleteWorkSession: vi.fn().mockResolvedValue(undefined),
+      getCurrentSession: vi.fn().mockResolvedValue({ id: 'test-session' }),
+      initializeDefaultData: vi.fn().mockResolvedValue(undefined),
     })),
     // Export mocks for test access
     __mocks: {
