@@ -1,0 +1,300 @@
+/**
+ * Tests for WorkTrackingService integration with useTaskStore
+ * These tests verify that the store properly uses WorkTrackingService
+ * for work session management instead of the local LocalWorkSession approach
+ */
+
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { useTaskStore } from './useTaskStore'
+import { WorkTrackingService } from '../services/workTrackingService'
+import { getDatabase } from '../services/database'
+
+// Mock the database
+vi.mock('../services/database', () => ({
+  getDatabase: vi.fn(() => ({
+    getTasks: vi.fn(),
+    getSequencedTasks: vi.fn(),
+    updateTaskStepProgress: vi.fn(),
+    createStepWorkSession: vi.fn(),
+  })),
+}))
+
+// Mock the WorkTrackingService
+vi.mock('../services/workTrackingService', () => ({
+  WorkTrackingService: vi.fn().mockImplementation(() => ({
+    initialize: vi.fn(),
+    startWorkSession: vi.fn(),
+    pauseWorkSession: vi.fn(),
+    stopWorkSession: vi.fn(),
+    getCurrentActiveSession: vi.fn(),
+    isAnyWorkActive: vi.fn(),
+  })),
+}))
+
+// Mock app events
+vi.mock('../utils/events', () => ({
+  appEvents: {
+    emit: vi.fn(),
+  },
+  EVENTS: {
+    TIME_LOGGED: 'timeLogged',
+  },
+}))
+
+// Mock logger
+vi.mock('../utils/logger', () => ({
+  logger: {
+    ui: { warn: vi.fn(), error: vi.fn() },
+    store: { info: vi.fn(), error: vi.fn() },
+  },
+}))
+
+describe('useTaskStore WorkTrackingService Integration', () => {
+  let mockWorkTrackingService: any
+  let mockDatabase: any
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+
+    // Get the mocked constructor
+    const MockedWorkTrackingService = vi.mocked(WorkTrackingService)
+    mockWorkTrackingService = {
+      initialize: vi.fn(),
+      startWorkSession: vi.fn(),
+      pauseWorkSession: vi.fn(),
+      stopWorkSession: vi.fn(),
+      getCurrentActiveSession: vi.fn(),
+      isAnyWorkActive: vi.fn(),
+    }
+
+    // Make the constructor return our mock
+    MockedWorkTrackingService.mockImplementation(() => mockWorkTrackingService)
+
+    mockDatabase = {
+      getTasks: vi.fn().mockResolvedValue([]),
+      getSequencedTasks: vi.fn().mockResolvedValue([]),
+      updateTaskStepProgress: vi.fn().mockResolvedValue(undefined),
+      createStepWorkSession: vi.fn().mockResolvedValue(undefined),
+    }
+
+    vi.mocked(getDatabase).mockReturnValue(mockDatabase)
+  })
+
+  describe('startWorkOnStep integration', () => {
+    it('should call WorkTrackingService.startWorkSession when starting work on a step', async () => {
+      // Arrange
+      const stepId = 'step-123'
+      const workflowId = 'workflow-456'
+
+      mockWorkTrackingService.startWorkSession.mockResolvedValue({
+        id: 'session-1',
+        stepId,
+        workflowId,
+        startTime: new Date(),
+      })
+
+      // Act
+      const store = useTaskStore.getState()
+      store.startWorkOnStep(stepId, workflowId)
+
+      // Assert - This should FAIL since WorkTrackingService is not integrated yet
+      expect(mockWorkTrackingService.startWorkSession).toHaveBeenCalledWith(
+        undefined, // taskId
+        stepId,    // stepId
+        workflowId, // workflowId
+      )
+    })
+
+    it('should handle WorkTrackingService errors gracefully', async () => {
+      // Arrange
+      const stepId = 'step-123'
+      const workflowId = 'workflow-456'
+      const error = new Error('Database connection failed')
+
+      mockWorkTrackingService.startWorkSession.mockRejectedValue(error)
+
+      // Act & Assert - Should not throw
+      const store = useTaskStore.getState()
+      expect(() => {
+        store.startWorkOnStep(stepId, workflowId)
+      }).not.toThrow()
+    })
+
+    it('should prevent starting work if another session is already active', async () => {
+      // Arrange
+      const stepId = 'step-123'
+      const workflowId = 'workflow-456'
+
+      mockWorkTrackingService.isAnyWorkActive.mockReturnValue(true)
+
+      // Act
+      const store = useTaskStore.getState()
+      store.startWorkOnStep(stepId, workflowId)
+
+      // Assert - Should not call startWorkSession if work is already active
+      expect(mockWorkTrackingService.startWorkSession).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('pauseWorkOnStep integration', () => {
+    it('should call WorkTrackingService.pauseWorkSession when pausing work', async () => {
+      // Arrange
+      const stepId = 'step-123'
+      const sessionId = 'session-1'
+
+      mockWorkTrackingService.getCurrentActiveSession.mockReturnValue({
+        id: sessionId,
+        stepId,
+        startTime: new Date(Date.now() - 30 * 60000), // 30 minutes ago
+      })
+
+      mockWorkTrackingService.pauseWorkSession.mockResolvedValue(undefined)
+
+      // Act
+      const store = useTaskStore.getState()
+      await store.pauseWorkOnStep(stepId)
+
+      // Assert - This should FAIL since integration doesn't exist yet
+      expect(mockWorkTrackingService.pauseWorkSession).toHaveBeenCalledWith(sessionId)
+    })
+
+    it('should handle pausing when no active session exists', async () => {
+      // Arrange
+      const stepId = 'step-123'
+
+      mockWorkTrackingService.getCurrentActiveSession.mockReturnValue(null)
+
+      // Act
+      const store = useTaskStore.getState()
+      await store.pauseWorkOnStep(stepId)
+
+      // Assert - Should not call pauseWorkSession
+      expect(mockWorkTrackingService.pauseWorkSession).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('completeStep integration', () => {
+    it('should call WorkTrackingService.stopWorkSession when completing a step', async () => {
+      // Arrange
+      const stepId = 'step-123'
+      const sessionId = 'session-1'
+      const actualMinutes = 45
+      const notes = 'Step completed successfully'
+
+      mockWorkTrackingService.getCurrentActiveSession.mockReturnValue({
+        id: sessionId,
+        stepId,
+        startTime: new Date(Date.now() - actualMinutes * 60000),
+      })
+
+      mockWorkTrackingService.stopWorkSession.mockResolvedValue(undefined)
+
+      // Act
+      const store = useTaskStore.getState()
+      await store.completeStep(stepId, actualMinutes, notes)
+
+      // Assert - This should FAIL since integration doesn't exist yet
+      expect(mockWorkTrackingService.stopWorkSession).toHaveBeenCalledWith(sessionId)
+    })
+
+    it('should complete steps without active sessions using manual time entry', async () => {
+      // Arrange
+      const stepId = 'step-123'
+      const actualMinutes = 30
+      const notes = 'Manual completion'
+
+      mockWorkTrackingService.getCurrentActiveSession.mockReturnValue(null)
+
+      // Act
+      const store = useTaskStore.getState()
+      await store.completeStep(stepId, actualMinutes, notes)
+
+      // Assert - Should update database directly without stopping a session
+      expect(mockWorkTrackingService.stopWorkSession).not.toHaveBeenCalled()
+      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith(stepId, expect.objectContaining({
+        status: 'completed',
+        actualDuration: actualMinutes,
+        percentComplete: 100,
+      }))
+    })
+  })
+
+  describe('active session state', () => {
+    it('should use WorkTrackingService to determine if work is active', () => {
+      // Arrange
+      const stepId = 'step-123'
+
+      mockWorkTrackingService.getCurrentActiveSession.mockReturnValue({
+        id: 'session-1',
+        stepId,
+        startTime: new Date(),
+      })
+
+      // Act
+      const store = useTaskStore.getState()
+      const activeSession = store.getActiveWorkSession(stepId)
+
+      // Assert - This should FAIL since getActiveWorkSession doesn't use WorkTrackingService yet
+      expect(activeSession).toBeDefined()
+      expect(activeSession?.stepId).toBe(stepId)
+    })
+
+    it('should return undefined for inactive sessions', () => {
+      // Arrange
+      const stepId = 'step-123'
+
+      mockWorkTrackingService.getCurrentActiveSession.mockReturnValue(null)
+
+      // Act
+      const store = useTaskStore.getState()
+      const activeSession = store.getActiveWorkSession(stepId)
+
+      // Assert
+      expect(activeSession).toBeUndefined()
+    })
+  })
+
+  describe('WorkTrackingService initialization', () => {
+    it('should initialize WorkTrackingService when store is created', () => {
+      // Act - Store creation happens on import
+      useTaskStore.getState()
+
+      // Assert - This should FAIL since initialization isn't added yet
+      expect(mockWorkTrackingService.initialize).toHaveBeenCalled()
+    })
+
+    it('should handle WorkTrackingService initialization errors', async () => {
+      // Arrange
+      const error = new Error('Failed to initialize work tracking')
+      mockWorkTrackingService.initialize.mockRejectedValue(error)
+
+      // Act & Assert - Should not throw during store creation
+      expect(() => {
+        useTaskStore.getState()
+      }).not.toThrow()
+    })
+  })
+
+  describe('persistence across app restarts', () => {
+    it('should restore active work sessions on store initialization', async () => {
+      // Arrange
+      const activeSession = {
+        id: 'session-1',
+        stepId: 'step-123',
+        startTime: new Date(Date.now() - 15 * 60000), // 15 minutes ago
+        isPaused: false,
+      }
+
+      mockWorkTrackingService.getCurrentActiveSession.mockReturnValue(activeSession)
+
+      // Act
+      const store = useTaskStore.getState()
+      await store.initializeData()
+
+      // Assert - This should FAIL since restoration isn't implemented yet
+      const restoredSession = store.getActiveWorkSession('step-123')
+      expect(restoredSession).toBeDefined()
+      expect(restoredSession?.stepId).toBe('step-123')
+    })
+  })
+})

@@ -233,14 +233,27 @@ grep -r "TODO.*feature" src/
 - **Implementation must work in both test AND production environments**
 - **Avoid mock-only implementations** - use real database methods or proper adapters
 - **Each TDD phase should leave the codebase in a deployable state**
+- **MUST integrate with UI** - Backend services without UI integration are incomplete
+- **MUST understand existing systems** - Creating parallel systems is a failure
 
 **Common TDD Violations to Avoid:**
 - ❌ Creating database methods that only exist in mocks
 - ❌ Using optional chaining to ignore missing production methods
 - ❌ Tests passing while production code is non-functional
 - ❌ Each phase not being independently testable in production
+- ❌ Creating new services without understanding existing implementations
+- ❌ Building backend features without UI integration points
 - ✅ Use existing database patterns and real persistence methods
 - ✅ Ensure code actually saves/retrieves data, not just mocked responses
+- ✅ Research and understand existing systems before creating new ones
+- ✅ Always connect backend services to UI components
+
+**🚨 Integration Pattern Requirements (PR #67 Lessons):**
+- **Research existing patterns FIRST** - Never create parallel systems
+- **Understand the app architecture** - Ask questions when uncertain
+- **UI integration is mandatory** - Backend-only features are incomplete
+- **Use existing schedulers** - Don't reinvent priority calculation
+- **Unify, don't duplicate** - Enhance existing systems instead of replacing
 
 ### 🎭 E2E Testing Best Practices (PR #64-65 Lessons)
 
