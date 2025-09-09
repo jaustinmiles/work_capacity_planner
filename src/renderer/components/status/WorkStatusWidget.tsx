@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconRefresh } from '@arco-design/web-react/icon'
+import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconRefresh, IconPause } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { calculateDuration } from '@shared/time-utils'
@@ -8,6 +8,7 @@ import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
+import { Message } from '../common/Message'
 
 
 const { Text } = Typography
@@ -17,7 +18,7 @@ interface WorkStatusWidgetProps {
 }
 
 export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
-  const { isLoading } = useTaskStore()
+  const { isLoading, activeWorkSessions } = useTaskStore()
   const [currentDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
@@ -136,15 +137,67 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     }
   }
 
+  // Check if there's currently an active work session
+  const getActiveSession = () => {
+    const sessions = Array.from(activeWorkSessions.values())
+    return sessions.find(session => !session.isPaused) || null
+  }
+
   const handleStartNextTask = async () => {
     try {
       logger.ui.info('[WorkStatusWidget] Starting next task...')
       setIsStartingTask(true)
-      await useTaskStore.getState().startNextTask()
+      
+      const result = await useTaskStore.getState().startNextTask()
+      
+      // Show success notification with task name
+      if (nextTask) {
+        Message.success(`Started work on: ${nextTask.title}`)
+      }
+      
       // Reload the next task after starting one
       await loadNextTask()
     } catch (error) {
       logger.ui.error('[WorkStatusWidget] Failed to start next task:', error)
+      Message.error('Failed to start work session')
+    } finally {
+      setIsStartingTask(false)
+    }
+  }
+
+  const handlePauseCurrentTask = async () => {
+    try {
+      const activeSession = getActiveSession()
+      if (!activeSession) return
+
+      logger.ui.info('[WorkStatusWidget] Pausing current task...')
+      setIsStartingTask(true)
+
+      const store = useTaskStore.getState()
+      
+      // Determine if it's a task or step and pause accordingly
+      if (activeSession.stepId) {
+        await store.pauseWorkOnStep(activeSession.stepId)
+        Message.success('Work session paused')
+      } else if (activeSession.taskId) {
+        // For regular tasks, we'll stop the session entirely for now
+        // TODO: Add proper pauseWorkOnTask method
+        const sessionKey = activeSession.taskId
+        
+        // Remove from store activeWorkSessions first
+        const newSessions = new Map(activeWorkSessions)
+        newSessions.delete(sessionKey)
+        
+        // Update store
+        useTaskStore.setState({ activeWorkSessions: newSessions })
+        
+        Message.success('Work session stopped')
+      }
+
+      await loadNextTask()
+    } catch (error) {
+      logger.ui.error('[WorkStatusWidget] Failed to pause current task:', error)
+      Message.error('Failed to pause work session')
     } finally {
       setIsStartingTask(false)
     }
@@ -266,16 +319,24 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                 <Text type="secondary">No tasks available</Text>
               )}
 
-              <Button
-                type="primary"
-                icon={<IconPlayArrow />}
-                loading={isStartingTask}
-                disabled={!nextTask || isLoadingNextTask}
-                onClick={handleStartNextTask}
-                style={{ width: '100%' }}
-              >
-                Start Next Task
-              </Button>
+              {(() => {
+                const activeSession = getActiveSession()
+                const isActive = !!activeSession
+                
+                return (
+                  <Button
+                    type={isActive ? "outline" : "primary"}
+                    status={isActive ? "warning" : undefined}
+                    icon={isActive ? <IconPause /> : <IconPlayArrow />}
+                    loading={isStartingTask}
+                    disabled={(!nextTask && !isActive) || isLoadingNextTask}
+                    onClick={isActive ? handlePauseCurrentTask : handleStartNextTask}
+                    style={{ width: '100%' }}
+                  >
+                    {isActive ? 'Pause Current Task' : 'Start Next Task'}
+                  </Button>
+                )
+              })()}
             </Space>
           </div>
         </Space>
@@ -471,16 +532,24 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               <Text type="secondary">No tasks available</Text>
             )}
 
-            <Button
-              type="primary"
-              icon={<IconPlayArrow />}
-              loading={isStartingTask}
-              disabled={!nextTask || isLoadingNextTask}
-              onClick={handleStartNextTask}
-              style={{ width: '100%' }}
-            >
-              Start Next Task
-            </Button>
+            {(() => {
+              const activeSession = getActiveSession()
+              const isActive = !!activeSession
+              
+              return (
+                <Button
+                  type={isActive ? "outline" : "primary"}
+                  status={isActive ? "warning" : undefined}
+                  icon={isActive ? <IconPause /> : <IconPlayArrow />}
+                  loading={isStartingTask}
+                  disabled={(!nextTask && !isActive) || isLoadingNextTask}
+                  onClick={isActive ? handlePauseCurrentTask : handleStartNextTask}
+                  style={{ width: '100%' }}
+                >
+                  {isActive ? 'Pause Current Task' : 'Start Next Task'}
+                </Button>
+              )
+            })()}
           </Space>
         </div>
 
