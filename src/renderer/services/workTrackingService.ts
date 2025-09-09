@@ -252,7 +252,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
   async clearStaleSessionsBeforeDate(cutoffDate: Date): Promise<number> {
     try {
       // Get work sessions from the past few days and clean up stale ones
-      const dates = []
+      const dates: string[] = []
       for (let i = 0; i < 7; i++) {
         const date = new Date(cutoffDate)
         date.setDate(date.getDate() - i)
