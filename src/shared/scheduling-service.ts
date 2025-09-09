@@ -308,10 +308,17 @@ export class SchedulingService {
         return null
       }
 
+      // Debug: log what we're looking for vs what we have
+      console.log('[SchedulingService] Looking for item with ID:', firstItem.id)
+      console.log('[SchedulingService] Available task IDs:', incompleteTasks.map(t => t.id))
+      console.log('[SchedulingService] Available step IDs:', incompleteSequenced.flatMap(seq => seq.steps.map(step => step.id)))
+
       // Determine if it's a task or workflow step
       const isWorkflowStep = incompleteSequenced.some(seq =>
         seq.steps.some(step => step.id === firstItem.id),
       )
+
+      console.log('[SchedulingService] Is workflow step?', isWorkflowStep)
 
       if (isWorkflowStep) {
         // Find the workflow and step
