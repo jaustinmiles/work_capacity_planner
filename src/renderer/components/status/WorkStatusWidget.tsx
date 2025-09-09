@@ -3,6 +3,7 @@ import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco
 import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconRefresh, IconPause } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
+import { NextScheduledItem } from '@shared/types'
 import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
@@ -25,14 +26,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const [meetingMinutes, setMeetingMinutes] = useState(0)
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
-  const [nextTask, setNextTask] = useState<{
-    type: 'task' | 'step'
-    id: string
-    workflowId?: string
-    title: string
-    estimatedDuration: number
-    scheduledStartTime?: Date
-  } | null>(null)
+  const [nextTask, setNextTask] = useState<NextScheduledItem | null>(null)
   const [isLoadingNextTask, setIsLoadingNextTask] = useState(false)
   const [isStartingTask, setIsStartingTask] = useState(false)
   // Tracking state removed - handled through time logging modal
@@ -180,8 +174,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         await store.pauseWorkOnStep(activeSession.stepId)
         Message.success('Work session paused')
       } else if (activeSession.taskId) {
-        // For regular tasks, we'll stop the session entirely for now
-        // TODO: Add proper pauseWorkOnTask method
+        // For regular tasks, we stop the session entirely (no pause/resume for tasks)
         const sessionKey = activeSession.taskId
 
         // Remove from store activeWorkSessions first

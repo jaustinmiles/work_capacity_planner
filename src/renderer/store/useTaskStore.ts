@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Task } from '@shared/types'
+import { Task, NextScheduledItem } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskStatus } from '@shared/enums'
 import { SchedulingService } from '@shared/scheduling-service'
@@ -99,14 +99,7 @@ interface TaskStore {
   getActiveSequencedTasks: () => SequencedTask[]
   getCompletedSequencedTasks: () => SequencedTask[]
   getActiveWorkSession: (stepId: string) => UnifiedWorkSession | undefined
-  getNextScheduledItem: () => Promise<{
-    type: 'task' | 'step'
-    id: string
-    workflowId?: string
-    title: string
-    estimatedDuration: number
-    scheduledStartTime?: Date
-  } | null>
+  getNextScheduledItem: () => Promise<NextScheduledItem | null>
   startNextTask: () => Promise<void>
 }
 

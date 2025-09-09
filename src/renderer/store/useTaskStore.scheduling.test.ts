@@ -133,7 +133,7 @@ describe('useTaskStore Scheduling Integration', () => {
       // Act
       const nextItem = await store.getNextScheduledItem()
 
-      // Assert - This should FAIL since getNextScheduledItem doesn't exist yet
+      // Assert
       expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalledWith(
         mockTasks,
         mockSequencedTasks,
@@ -151,7 +151,7 @@ describe('useTaskStore Scheduling Integration', () => {
       const store = useTaskStore.getState()
       const nextItem = await store.getNextScheduledItem()
 
-      // Assert - This should FAIL since getNextScheduledItem doesn't exist yet
+      // Assert
       expect(nextItem).toBeNull()
     })
 
@@ -210,7 +210,7 @@ describe('useTaskStore Scheduling Integration', () => {
       const store = useTaskStore.getState()
       const nextItem = await store.getNextScheduledItem()
 
-      // Assert - This should FAIL since getNextScheduledItem doesn't exist yet
+      // Assert
       expect(nextItem).toEqual(mockNextItem)
       expect(nextItem?.type).toBe('step')
     })
@@ -299,7 +299,7 @@ describe('useTaskStore Scheduling Integration', () => {
       const store = useTaskStore.getState()
       await store.startNextTask()
 
-      // Assert - This should FAIL since startNextTask doesn't exist yet
+      // Assert
       expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalled()
       // Verify that startWorkOnTask was called with the next item
     })
@@ -320,7 +320,7 @@ describe('useTaskStore Scheduling Integration', () => {
       const store = useTaskStore.getState()
       await store.startNextTask()
 
-      // Assert - This should FAIL since startNextTask doesn't exist yet
+      // Assert
       expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalled()
       // Verify that startWorkOnStep was called with the next item
     })

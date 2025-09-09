@@ -110,7 +110,7 @@ describe('useTaskStore WorkTrackingService Integration', () => {
       const store = useTaskStore.getState()
       store.startWorkOnStep(stepId, workflowId)
 
-      // Assert - This should FAIL since WorkTrackingService is not integrated yet
+      // Assert
       expect(mockWorkTrackingService.startWorkSession).toHaveBeenCalledWith(
         undefined, // taskId
         stepId,    // stepId
@@ -167,7 +167,7 @@ describe('useTaskStore WorkTrackingService Integration', () => {
       const store = useTaskStore.getState()
       await store.pauseWorkOnStep(stepId)
 
-      // Assert - This should FAIL since integration doesn't exist yet
+      // Assert
       expect(mockWorkTrackingService.pauseWorkSession).toHaveBeenCalledWith(sessionId)
     })
 
@@ -206,7 +206,7 @@ describe('useTaskStore WorkTrackingService Integration', () => {
       const store = useTaskStore.getState()
       await store.completeStep(stepId, actualMinutes, notes)
 
-      // Assert - This should FAIL since integration doesn't exist yet
+      // Assert
       expect(mockWorkTrackingService.stopWorkSession).toHaveBeenCalledWith(sessionId)
     })
 
@@ -247,7 +247,7 @@ describe('useTaskStore WorkTrackingService Integration', () => {
       const store = useTaskStore.getState()
       const activeSession = store.getActiveWorkSession(stepId)
 
-      // Assert - This should FAIL since getActiveWorkSession doesn't use WorkTrackingService yet
+      // Assert
       expect(activeSession).toBeDefined()
       expect(activeSession?.stepId).toBe(stepId)
     })
@@ -305,7 +305,7 @@ describe('useTaskStore WorkTrackingService Integration', () => {
       const store = useTaskStore.getState()
       await store.initializeData()
 
-      // Assert - This should FAIL since restoration isn't implemented yet
+      // Assert
       const restoredSession = store.getActiveWorkSession('step-123')
       expect(restoredSession).toBeDefined()
       expect(restoredSession?.stepId).toBe('step-123')

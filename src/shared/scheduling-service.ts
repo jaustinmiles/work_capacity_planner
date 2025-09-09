@@ -9,6 +9,7 @@ import {
   WeeklySchedule,
   TimeBreak,
 } from './scheduling-models'
+import { logger } from './logger'
 
 /**
  * Service layer that provides high-level scheduling operations
@@ -249,7 +250,7 @@ export class SchedulingService {
     scheduledStartTime?: Date
   } | null> {
     try {
-      console.log('[SchedulingService] Getting next scheduled item', {
+      logger.scheduler.info('Getting next scheduled item', {
         totalTasks: tasks.length,
         totalSequenced: sequencedTasks.length,
       })
@@ -257,7 +258,7 @@ export class SchedulingService {
       // Filter out completed tasks (Task uses 'completed' boolean)
       const incompleteTasks = tasks.filter(task => !task.completed)
 
-      console.log('[SchedulingService] Filtered incomplete tasks', {
+      logger.scheduler.info('Filtered incomplete tasks', {
         originalTasks: tasks.length,
         incompleteTasks: incompleteTasks.length,
       })
@@ -272,7 +273,7 @@ export class SchedulingService {
         }))
         .filter(seq => seq.steps.length > 0)
 
-      console.log('[SchedulingService] Filtered incomplete workflows', {
+      logger.scheduler.info('Filtered incomplete workflows', {
         originalWorkflows: sequencedTasks.length,
         incompleteWorkflows: incompleteSequenced.length,
         totalIncompleteSteps: incompleteSequenced.reduce((sum, seq) => sum + seq.steps.length, 0),
@@ -280,12 +281,12 @@ export class SchedulingService {
 
       // If no incomplete items, return null
       if (incompleteTasks.length === 0 && incompleteSequenced.length === 0) {
-        console.log('[SchedulingService] No incomplete items found, returning null')
+        logger.scheduler.info('No incomplete items found, returning null')
         return null
       }
 
       // Use the scheduling engine to determine priorities
-      console.log('[SchedulingService] Creating schedule with engine...')
+      logger.scheduler.info('Creating schedule with engine...')
       const schedulingResult = await this.createSchedule(
         incompleteTasks,
         incompleteSequenced,
@@ -296,7 +297,7 @@ export class SchedulingService {
         },
       )
 
-      console.log('[SchedulingService] Schedule created', {
+      logger.scheduler.info('Schedule created', {
         totalScheduledItems: schedulingResult.scheduledItems.length,
         firstItemId: schedulingResult.scheduledItems[0]?.id || 'none',
       })
@@ -304,7 +305,7 @@ export class SchedulingService {
       // Get the first scheduled item (highest priority)
       const firstItem = schedulingResult.scheduledItems[0]
       if (!firstItem) {
-        console.log('[SchedulingService] No items in schedule, returning null')
+        logger.scheduler.info('No items in schedule, returning null')
         return null
       }
 
@@ -326,7 +327,7 @@ export class SchedulingService {
         taskIdToFind = firstItem.id.slice(5)
       }
 
-      console.log('[SchedulingService] ID parsing:', {
+      logger.scheduler.debug('ID parsing:', {
         originalId: firstItem.id,
         stepIdToFind,
         taskIdToFind,
@@ -355,7 +356,7 @@ export class SchedulingService {
             estimatedDuration: step.duration, // TaskStep uses 'duration'
             scheduledStartTime: firstItem.scheduledStartTime,
           }
-          console.log('[SchedulingService] Returning workflow step', result)
+          logger.scheduler.info('Returning workflow step', result)
           return result
         }
       } else {
@@ -370,12 +371,12 @@ export class SchedulingService {
             estimatedDuration: task.duration, // Task uses 'duration'
             scheduledStartTime: firstItem.scheduledStartTime,
           }
-          console.log('[SchedulingService] Returning regular task', result)
+          logger.scheduler.info('Returning regular task', result)
           return result
         }
       }
 
-      console.log('[SchedulingService] Could not find matching task or step, returning null')
+      logger.scheduler.warn('Could not find matching task or step, returning null')
       return null
     } catch (error) {
       console.error('Failed to get next scheduled item:', error)
