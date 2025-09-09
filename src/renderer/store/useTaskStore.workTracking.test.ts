@@ -4,8 +4,12 @@
  * for work session management instead of the local LocalWorkSession approach
  */
 
-import { beforeEach, describe, it, expect, vi } from 'vitest'
-import { useTaskStore } from './useTaskStore'
+import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
+import { 
+  useTaskStore, 
+  injectWorkTrackingServiceForTesting, 
+  clearInjectedWorkTrackingService 
+} from './useTaskStore'
 import { WorkTrackingService } from '../services/workTrackingService'
 import { getDatabase } from '../services/database'
 
@@ -19,17 +23,7 @@ vi.mock('../services/database', () => ({
   })),
 }))
 
-// Mock the WorkTrackingService
-vi.mock('../services/workTrackingService', () => ({
-  WorkTrackingService: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn(),
-    startWorkSession: vi.fn(),
-    pauseWorkSession: vi.fn(),
-    stopWorkSession: vi.fn(),
-    getCurrentActiveSession: vi.fn(),
-    isAnyWorkActive: vi.fn(),
-  })),
-}))
+// No longer need to mock the constructor - we'll use dependency injection
 
 // Mock app events
 vi.mock('../utils/events', () => ({
@@ -56,8 +50,7 @@ describe('useTaskStore WorkTrackingService Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Get the mocked constructor
-    const MockedWorkTrackingService = vi.mocked(WorkTrackingService)
+    // Create a mock WorkTrackingService and inject it into the store
     mockWorkTrackingService = {
       initialize: vi.fn(),
       startWorkSession: vi.fn(),
@@ -65,10 +58,10 @@ describe('useTaskStore WorkTrackingService Integration', () => {
       stopWorkSession: vi.fn(),
       getCurrentActiveSession: vi.fn(),
       isAnyWorkActive: vi.fn(),
-    }
+    } as any
 
-    // Make the constructor return our mock
-    MockedWorkTrackingService.mockImplementation(() => mockWorkTrackingService)
+    // Inject the mock service into the store for testing
+    injectWorkTrackingServiceForTesting(mockWorkTrackingService)
 
     mockDatabase = {
       getTasks: vi.fn().mockResolvedValue([]),
@@ -78,6 +71,11 @@ describe('useTaskStore WorkTrackingService Integration', () => {
     }
 
     vi.mocked(getDatabase).mockReturnValue(mockDatabase)
+  })
+
+  afterEach(() => {
+    // Clean up injected service after each test
+    clearInjectedWorkTrackingService()
   })
 
   describe('startWorkOnStep integration', () => {

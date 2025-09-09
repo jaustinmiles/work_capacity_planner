@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
+import { TaskStatus } from '@shared/enums'
 import { SchedulingService } from '@shared/scheduling-service'
 import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
@@ -67,6 +68,7 @@ interface TaskStore {
 
   // Progress tracking actions
   startWorkOnStep: (stepId: string, __workflowId: string) => Promise<void>
+  startWorkOnTask: (taskId: string) => Promise<void>
   pauseWorkOnStep: (stepId: string) => Promise<void>
   completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
   updateStepProgress: (stepId: string, __percentComplete: number) => Promise<void>
@@ -105,9 +107,20 @@ const rendererLogger = getRendererLogger()
 // Factory function for work tracking service (allows mocking in tests)
 const createWorkTrackingService = () => new WorkTrackingService()
 
+// Allow injecting a custom service for testing
+let injectedWorkTrackingService: WorkTrackingService | null = null
+
+export const injectWorkTrackingServiceForTesting = (service: WorkTrackingService) => {
+  injectedWorkTrackingService = service
+}
+
+export const clearInjectedWorkTrackingService = () => {
+  injectedWorkTrackingService = null
+}
+
 export const useTaskStore = create<TaskStore>((set, get) => {
-  // Create work tracking service instance
-  const workTrackingService = createWorkTrackingService()
+  // Use injected service for testing, otherwise create new one
+  const workTrackingService = injectedWorkTrackingService || createWorkTrackingService()
 
   return {
     tasks: [],
@@ -532,6 +545,31 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     }
   },
 
+  startWorkOnTask: async (taskId: string) => {
+    // Check if any work is active globally via WorkTrackingService
+    if (workTrackingService.isAnyWorkActive()) {
+      logger.ui.warn('Cannot start work: another work session is already active')
+      return
+    }
+
+    try {
+      // Start work session in WorkTrackingService for persistence
+      await workTrackingService.startWorkSession(taskId, undefined, undefined)
+
+      // Update task status in database  
+      await getDatabase().updateTask(taskId, {
+        overallStatus: TaskStatus.InProgress,
+      })
+
+      rendererLogger.info('[TaskStore] Started work on task', {
+        taskId,
+      })
+    } catch (error) {
+      logger.ui.error('Failed to start work on task:', error)
+      // Don't throw - handle gracefully
+    }
+  },
+
   pauseWorkOnStep: async (stepId: string) => {
     const state = get()
     const session = state.activeWorkSessions.get(stepId)
@@ -821,13 +859,8 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       if (nextItem.type === 'step' && nextItem.workflowId) {
         await get().startWorkOnStep(nextItem.id, nextItem.workflowId)
       } else if (nextItem.type === 'task') {
-        // For regular tasks, we would call startWorkOnTask (not implemented yet)
-        // For now, log that we would start this task
-        rendererLogger.info('[TaskStore] Would start work on task', {
-          taskId: nextItem.id,
-          title: nextItem.title,
-        })
-        // TODO: Implement startWorkOnTask method
+        // Start work on regular task
+        await get().startWorkOnTask(nextItem.id)
       }
     } catch (error) {
       rendererLogger.error('[TaskStore] Failed to start next task', error as Error)
