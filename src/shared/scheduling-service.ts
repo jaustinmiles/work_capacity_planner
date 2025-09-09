@@ -308,24 +308,23 @@ export class SchedulingService {
         return null
       }
 
-      // Debug: log what we're looking for vs what we have
-      console.log('[SchedulingService] Looking for item with ID:', firstItem.id)
-      console.log('[SchedulingService] Available task IDs:', incompleteTasks.map(t => t.id))
-      console.log('[SchedulingService] Available step IDs:', incompleteSequenced.flatMap(seq => seq.steps.map(step => step.id)))
 
-      // Determine if it's a task or workflow step
+      // Handle potential ID prefixes from scheduling engine  
+      const stepIdToFind = firstItem.id.startsWith('step_') ? firstItem.id.slice(5) : firstItem.id
+      const taskIdToFind = firstItem.id.startsWith('task_') ? firstItem.id.slice(5) : firstItem.id
+
+      // Determine if it's a task or workflow step (check both original and cleaned IDs)
       const isWorkflowStep = incompleteSequenced.some(seq =>
-        seq.steps.some(step => step.id === firstItem.id),
+        seq.steps.some(step => step.id === firstItem.id || step.id === stepIdToFind),
       )
 
-      console.log('[SchedulingService] Is workflow step?', isWorkflowStep)
 
       if (isWorkflowStep) {
-        // Find the workflow and step
+        // Find the workflow and step (check both original and cleaned IDs)
         const workflow = incompleteSequenced.find(seq =>
-          seq.steps.some(step => step.id === firstItem.id),
+          seq.steps.some(step => step.id === firstItem.id || step.id === stepIdToFind),
         )
-        const step = workflow?.steps.find(step => step.id === firstItem.id)
+        const step = workflow?.steps.find(step => step.id === firstItem.id || step.id === stepIdToFind)
 
         if (workflow && step) {
           const result = {
@@ -340,8 +339,8 @@ export class SchedulingService {
           return result
         }
       } else {
-        // Find the task
-        const task = incompleteTasks.find(task => task.id === firstItem.id)
+        // Find the task with cleaned ID (remove 'task_' prefix if present)
+        const task = incompleteTasks.find(task => task.id === taskIdToFind)
 
         if (task) {
           const result = {
