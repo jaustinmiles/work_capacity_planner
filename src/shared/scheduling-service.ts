@@ -309,9 +309,29 @@ export class SchedulingService {
       }
 
 
-      // Handle potential ID prefixes from scheduling engine  
-      const stepIdToFind = firstItem.id.startsWith('step_') ? firstItem.id.slice(5) : firstItem.id
-      const taskIdToFind = firstItem.id.startsWith('task_') ? firstItem.id.slice(5) : firstItem.id
+      // Handle potential ID prefixes from scheduling engine
+      // Format can be: 'task_id', 'step_id', or 'workflow_id_step_step-id'
+      let stepIdToFind = firstItem.id
+      let taskIdToFind = firstItem.id
+      
+      if (firstItem.id.includes('_step_')) {
+        // Handle workflow step format: 'workflow_..._step_step-...'
+        const parts = firstItem.id.split('_step_')
+        if (parts.length === 2) {
+          stepIdToFind = parts[1] // Extract 'step-...' part
+        }
+      } else if (firstItem.id.startsWith('step_')) {
+        stepIdToFind = firstItem.id.slice(5)
+      } else if (firstItem.id.startsWith('task_')) {
+        taskIdToFind = firstItem.id.slice(5)
+      }
+
+      console.log('[SchedulingService] ID parsing:', {
+        originalId: firstItem.id,
+        stepIdToFind,
+        taskIdToFind,
+        hasWorkflowStepFormat: firstItem.id.includes('_step_')
+      })
 
       // Determine if it's a task or workflow step (check both original and cleaned IDs)
       const isWorkflowStep = incompleteSequenced.some(seq =>

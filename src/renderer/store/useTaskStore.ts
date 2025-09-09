@@ -394,7 +394,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const task = get().tasks.find(t => t.id === id)
       if (!task) return
 
-      rendererLogger.info('[TaskStore] Toggling task completion', {
+      logger.store.info('[TaskStore] Toggling task completion', {
         taskId: id,
         taskName: task.name,
         currentStatus: task.completed,
@@ -414,14 +414,34 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }
 
       await get().updateTask(id, updates)
-      rendererLogger.info('[TaskStore] Task completion toggled successfully', {
+
+      // If task is being marked as completed, clean up any active work session
+      if (!task.completed) { // Will be completed after toggle
+        const state = get()
+        const activeSession = state.activeWorkSessions.get(id)
+        if (activeSession) {
+          try {
+            // Stop session in WorkTrackingService
+            await workTrackingService.stopWorkSession(activeSession.id!)
+            
+            // Remove from store
+            const newSessions = new Map(state.activeWorkSessions)
+            newSessions.delete(id)
+            set({ activeWorkSessions: newSessions })
+            
+            logger.store.info('Stopped work session for completed task', { taskId: id, sessionId: activeSession.id })
+          } catch (error) {
+            logger.store.warn('Failed to stop work session for completed task', error)
+          }
+        }
+      }
+
+      logger.store.info('Task completion toggled successfully', {
         taskId: id,
         isNowCompleted: !task.completed,
       })
-      logger.store.debug('Task completion toggled successfully', { taskId: id })
     } catch (error) {
-      rendererLogger.error('[TaskStore] Failed to toggle task completion', error as Error, { taskId: id })
-      logger.store.error('Failed to toggle task completion', error, { taskId: id })
+      logger.store.error('[TaskStore] Failed to toggle task completion', error, { taskId: id })
       set({
         error: error instanceof Error ? error.message : 'Failed to toggle task completion',
       })
@@ -430,11 +450,10 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   selectTask: (id) => {
     const task = id ? get().tasks.find(t => t.id === id) : null
-    rendererLogger.debug('[TaskStore] Task selection changed', {
+    logger.store.debug('[TaskStore] Task selection changed', {
       taskId: id,
       taskName: task?.name,
     })
-    logger.store.debug('Task selection changed', { taskId: id })
     set({ selectedTaskId: id })
   },
 
@@ -577,15 +596,31 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
     try {
       // Start work session in WorkTrackingService for persistence
-      await workTrackingService.startWorkSession(taskId, undefined, undefined)
+      const workSession = await workTrackingService.startWorkSession(taskId, undefined, undefined)
+
+      // Sync the session to store's activeWorkSessions so UI can see it
+      const localSession: LocalWorkSession = {
+        id: workSession.id,
+        taskId: workSession.taskId,
+        startTime: workSession.startTime,
+        isPaused: workSession.isPaused || false,
+        duration: workSession.duration || 0,
+        type: workSession.type,
+        plannedDuration: workSession.plannedDuration,
+      }
+
+      set(state => ({
+        activeWorkSessions: new Map(state.activeWorkSessions.set(taskId, localSession))
+      }))
 
       // Update task status in database  
       await getDatabase().updateTask(taskId, {
         overallStatus: TaskStatus.InProgress,
       })
 
-      rendererLogger.info('[TaskStore] Started work on task', {
+      logger.store.info('[TaskStore] Started work on task', {
         taskId,
+        sessionId: workSession.id,
       })
     } catch (error) {
       logger.ui.error('Failed to start work on task:', error)
