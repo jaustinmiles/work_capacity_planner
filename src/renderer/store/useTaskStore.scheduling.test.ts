@@ -49,12 +49,17 @@ vi.mock('../utils/logger', () => ({
 }))
 
 // Mock the shared SchedulingService
-vi.mock('@shared/scheduling-service', () => ({
-  SchedulingService: vi.fn().mockImplementation(() => ({
+vi.mock('@shared/scheduling-service', () => {
+  const mockInstance = {
     createSchedule: vi.fn(),
-    getNextScheduledItem: vi.fn(), // This method doesn't exist yet - we'll create it
-  })),
-}))
+    getNextScheduledItem: vi.fn(),
+  }
+  
+  return {
+    SchedulingService: vi.fn().mockImplementation(() => mockInstance),
+    __mockInstance: mockInstance, // Export for access in tests
+  }
+})
 
 describe('useTaskStore Scheduling Integration', () => {
   let mockDatabase: any
@@ -72,15 +77,9 @@ describe('useTaskStore Scheduling Integration', () => {
 
     vi.mocked(getDatabase).mockReturnValue(mockDatabase)
 
-    // Mock the SchedulingService instance
-    mockSchedulingService = {
-      createSchedule: vi.fn(),
-      getNextScheduledItem: vi.fn(),
-    }
-
-    // Import the mocked SchedulingService
-    const { SchedulingService } = await import('@shared/scheduling-service')
-    vi.mocked(SchedulingService).mockImplementation(() => mockSchedulingService)
+    // Get the mock instance from the mocked module
+    const schedulingModule = await import('@shared/scheduling-service') as any
+    mockSchedulingService = schedulingModule.__mockInstance
   })
 
   describe('getNextScheduledItem integration', () => {
@@ -124,8 +123,14 @@ describe('useTaskStore Scheduling Integration', () => {
       mockDatabase.getSequencedTasks.mockResolvedValue(mockSequencedTasks)
       mockSchedulingService.getNextScheduledItem.mockResolvedValue(mockNextItem)
 
-      // Act
+      // Set the store's state directly (since getNextScheduledItem reads from state, not database)
       const store = useTaskStore.getState()
+      useTaskStore.setState({
+        tasks: mockTasks as any,
+        sequencedTasks: mockSequencedTasks as any,
+      })
+
+      // Act
       const nextItem = await store.getNextScheduledItem()
 
       // Assert - This should FAIL since getNextScheduledItem doesn't exist yet
@@ -260,14 +265,20 @@ describe('useTaskStore Scheduling Integration', () => {
       mockDatabase.getSequencedTasks.mockResolvedValue(mockSequencedTasks)
       mockSchedulingService.getNextScheduledItem.mockResolvedValue(null)
 
-      // Act
+      // Set the store's state directly
       const store = useTaskStore.getState()
+      useTaskStore.setState({
+        tasks: mockTasks as any,
+        sequencedTasks: mockSequencedTasks as any,
+      })
+
+      // Act
       await store.getNextScheduledItem()
 
-      // Assert - This should FAIL since getNextScheduledItem doesn't exist yet
+      // Assert - The store should pass all tasks to the SchedulingService, which does its own filtering
       expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalledWith(
-        expectedTasks,
-        expectedSequenced,
+        mockTasks, // Store passes all tasks, SchedulingService filters
+        mockSequencedTasks, // Store passes all sequenced tasks, SchedulingService filters
       )
     })
   })
