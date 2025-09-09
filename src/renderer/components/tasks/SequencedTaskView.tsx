@@ -10,6 +10,7 @@ import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { WorkflowMinimap } from './WorkflowMinimap'
 import { getDatabase } from '../../services/database'
 import { logger } from '../../utils/logger'
+import { useTaskStore } from '../../store/useTaskStore'
 
 
 const { Title, Text } = Typography
@@ -32,6 +33,7 @@ export function SequencedTaskView({
   onResetWorkflow,
   onDelete,
 }: SequencedTaskViewProps) {
+  const { activeWorkSessions } = useTaskStore()
   const [showDetails, setShowDetails] = useState(false)
   const [showEditView, setShowEditView] = useState(false)
   const [showVisualization, setShowVisualization] = useState(false)
@@ -45,6 +47,18 @@ export function SequencedTaskView({
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0
 
   const currentStep = task.steps.find(step => step.status === 'in_progress')
+  
+  // Check if any step in this workflow has an active work session
+  const getActiveWorkflowSession = () => {
+    const sessions = Array.from(activeWorkSessions.values())
+    return sessions.find(session => 
+      session.workflowId === task.id || 
+      task.steps.some(step => step.id === session.stepId)
+    ) || null
+  }
+  
+  const activeSession = getActiveWorkflowSession()
+  const hasActiveSession = !!activeSession && !activeSession.isPaused
 
   // Fetch time logged for each step
   useEffect(() => {
@@ -161,7 +175,8 @@ export function SequencedTaskView({
 
           <Col>
             <Space>
-              {task.overallStatus === 'not_started' && (
+              {/* Show start button if workflow is not started OR no active session */}
+              {(!hasActiveSession && task.overallStatus !== 'completed') && (
                 <Button
                   type="primary"
                   icon={<IconPlayArrow />}
@@ -171,13 +186,14 @@ export function SequencedTaskView({
                 </Button>
               )}
 
-              {task.overallStatus === 'in_progress' && (
+              {/* Show pause button if there's an active session in this workflow */}
+              {hasActiveSession && (
                 <Button
                   status="warning"
                   icon={<IconPause />}
                   onClick={onPauseWorkflow}
                 >
-                  Pause
+                  Pause Work Session
                 </Button>
               )}
 
