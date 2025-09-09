@@ -368,7 +368,7 @@ describe('WorkTrackingService', () => {
       const staleSessions = [
         { id: 'stale-1', startTime: '2025-09-06T10:00:00Z' },
         { id: 'stale-2', startTime: '2025-09-05T15:00:00Z' },
-        { id: 'stale-3', startTime: '2025-09-04T09:00:00Z' }
+        { id: 'stale-3', startTime: '2025-09-04T09:00:00Z' },
       ]
       // The method calls getWorkSessions once for each of the past 7 days
       // Return our stale sessions for the first call, empty for the rest

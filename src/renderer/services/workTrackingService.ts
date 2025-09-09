@@ -39,7 +39,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       const today = new Date().toISOString().split('T')[0]
       const todaysSessions = await this.database.getWorkSessions(today)
       const activeSessions = todaysSessions.filter((session: any) => !session.endTime)
-      
+
       if (activeSessions.length > 0) {
         const lastSession = activeSessions[activeSessions.length - 1]
         if (this.isValidSession(lastSession)) {
@@ -226,17 +226,17 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       const today = new Date().toISOString().split('T')[0]
       const sessions = await this.database.getWorkSessions(today)
       const activeSessions = sessions.filter((session: any) => !session.endTime)
-      
+
       if (activeSessions.length === 0) {
         return null
       }
-      
+
       // Get the most recent active session
       const lastSession = activeSessions[activeSessions.length - 1]
       if (!this.isValidSession(lastSession)) {
         return null
       }
-      
+
       // Convert to WorkSession format
       return {
         ...lastSession,
@@ -258,20 +258,20 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
         date.setDate(date.getDate() - i)
         dates.push(date.toISOString().split('T')[0])
       }
-      
+
       let clearedCount = 0
       for (const date of dates) {
         const sessions = await this.database.getWorkSessions(date)
-        const staleSessions = sessions.filter((session: any) => 
-          !session.endTime && new Date(session.startTime) < cutoffDate
+        const staleSessions = sessions.filter((session: any) =>
+          !session.endTime && new Date(session.startTime) < cutoffDate,
         )
-        
+
         for (const session of staleSessions) {
           await this.database.deleteWorkSession(session.id)
           clearedCount++
         }
       }
-      
+
       logger.store.info('Cleared stale work sessions', { clearedCount, cutoffDate })
       return clearedCount
     } catch (error) {
