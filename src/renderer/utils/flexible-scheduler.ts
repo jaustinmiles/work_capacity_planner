@@ -1,3 +1,44 @@
+/**
+ * FLEXIBLE SCHEDULER - UI Component Scheduler
+ * 
+ * ⚠️  CRITICAL: This is ONE OF THREE scheduler implementations that still exist.
+ * Despite claims of "unification", the codebase still has multiple schedulers:
+ * 1. flexible-scheduler.ts (THIS FILE) - Used by GanttChart and WeeklyCalendar UI
+ * 2. deadline-scheduler.ts - Provides priority calculations for flexible-scheduler
+ * 3. scheduling-engine.ts - Separate system used by ScheduleGenerator component
+ * 
+ * PURPOSE:
+ * This scheduler is specifically designed for real-time UI visualization in:
+ * - GanttChart component (timeline view)
+ * - WeeklyCalendar component (weekly view)
+ * 
+ * KEY FEATURES:
+ * - Flexible work block scheduling with mixed/personal time allocation
+ * - Task splitting across multiple days when tasks exceed daily capacity
+ * - Real-time scheduling for UI display (not persisted to database)
+ * - Integrates with deadline-scheduler.ts for priority calculations
+ * - Supports async wait times and workflow dependencies
+ * 
+ * ARCHITECTURE FLOW:
+ * 1. UI components call scheduleItemsWithBlocks() or scheduleItemsWithBlocksAndDebug()
+ * 2. Tasks are sorted by priority using deadline-scheduler.ts
+ * 3. Available work blocks are identified from work patterns
+ * 4. Tasks are allocated to blocks, splitting when necessary
+ * 5. Scheduled items returned for immediate UI rendering
+ * 
+ * ⚠️  KNOWN BUGS:
+ * - Priority calculation formula differs from scheduling-engine.ts
+ * - No persistence layer (results are UI-only)
+ * - Trader Joe's task scheduling bug due to multiplicative deadline pressure
+ * 
+ * USAGE:
+ * - Called by GanttChart.tsx via scheduleItemsWithBlocksAndDebug()
+ * - Called by WeeklyCalendar.tsx via scheduleItemsWithBlocks() 
+ * - Returns ScheduledItem[] for immediate UI display
+ * 
+ * Last Updated: 2025-09-09 (Added documentation during PR #67 cleanup)
+ */
+
 import { Task, ProductivityPattern, SchedulingPreferences } from '@shared/types'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'

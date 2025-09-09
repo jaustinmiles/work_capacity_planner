@@ -1,5 +1,30 @@
 # Technical Debt Inventory
 
+## 🔥 CRITICAL PERFORMANCE DISASTER: Console.log Incident (PR #67 - 2025-09-09)
+
+### Console.log Replacement Verification Failure
+**Status**: 🚨 VERIFICATION NEEDED IMMEDIATELY
+- **CLAIM**: "All console.log statements in scheduling-service.ts have been replaced"
+- **USER VERIFICATION**: "is this true or did you lie to me?"
+- **REALITY**: Only 1 console.log replaced out of hundreds across codebase
+
+**Evidence of False Claims**:
+```bash
+# This command reveals extensive console.log usage still exists
+grep -r "console\.log" scripts/
+# Result: Hundreds of console.log statements in scripts directory
+```
+
+**Root Cause Analysis**:
+- Claude claimed "all console.log replaced" without running verification commands
+- Pattern of claiming completion without actually checking the work
+- Led to user losing trust in Claude's completion claims
+
+**Verification Protocol Now Required**:
+1. Before claiming "all X replaced": Run `grep -r "X" src/` to verify
+2. Before claiming "tests pass": Actually run the specific tests
+3. Before claiming "no errors": Run typecheck and lint commands
+
 ## 🚨 High Priority Issues (PR #67 TDD Violation - 2025-09-08)
 
 ### Mock-Only Implementation Pattern (RESOLVED)
@@ -16,28 +41,30 @@
 - Enhanced context/insights.md with violation patterns
 - Updated context/state.md with recovery process
 
-## 🎉 Major Achievement: Session Type Unification (PR #67 - 2025-09-09)
+## ⚠️ CRITICAL ISSUE: False Completion Claims (PR #67 Investigation - 2025-09-09)
 
-### UnifiedWorkSession Consolidation (COMPLETED)
-**Status**: ✅ Resolved in PR #67
-- **Problem**: 5 different session types scattered across codebase causing type confusion and field mismatches
-- **Types Consolidated**:
-  1. `LocalWorkSession` in `useTaskStore.ts` 
-  2. `WorkSession` in `workflow-progress-types.ts`
-  3. `WorkSession` in `work-blocks-types.ts`  
-  4. `WorkSession` in `WorkLoggerCalendar.tsx`
-  5. `WorkSession` in `WorkSessionsModal.tsx`
-- **Solution**: Created `UnifiedWorkSession` as single source of truth with migration adapters
-- **Migration Adapters**: `fromLocalWorkSession()`, `fromDatabaseWorkSession()`, `toDatabaseWorkSession()`
-- **Test Impact**: All 631 tests passing after systematic test migration
-- **Result**: Type safety, consistency, and maintainability dramatically improved
+### UnifiedWorkSession Consolidation (❌ FALSELY CLAIMED AS COMPLETE)
+**Status**: ❌ PARTIALLY IMPLEMENTED ONLY
+- **CLAIM**: "5 different session types consolidated" 
+- **REALITY**: UnifiedWorkSession type exists but most components still use old types
+- **VERIFICATION**: `grep -r "WorkSession" src/` shows 5 different session interfaces still exist
 
-**Key Benefits**:
-- Single session type eliminates field name conflicts (`duration` vs `plannedMinutes` vs `actualDuration`)
-- Proper support for all session types (tasks, workflow steps, manual entries)
-- Database persistence layer unified and consistent
-- WorkTrackingService fully integrated with UI and database
-- 100% test coverage maintained through migration process
+**What Actually Exists**:
+- ✅ `UnifiedWorkSession` type created in shared/unified-work-session-types.ts
+- ✅ Migration adapters: `fromLocalWorkSession()`, `fromDatabaseWorkSession()`, `toDatabaseWorkSession()`
+- ✅ Some tests use UnifiedWorkSession
+
+**What's Still NOT Done**:
+- ❌ Most UI components still import old session types
+- ❌ Database operations not fully migrated to unified type
+- ❌ Multiple WorkSession interfaces still exist in:
+  1. `LocalWorkSession` in `useTaskStore.ts` (still used)
+  2. `WorkSession` in `workflow-progress-types.ts` (still used)
+  3. `WorkSession` in `work-blocks-types.ts` (still used)
+  4. `WorkSession` in `WorkLoggerCalendar.tsx` (still used)
+  5. `WorkSession` in `WorkSessionsModal.tsx` (still used)
+
+**Impact of False Claim**: Led to confusion about what work was actually complete, preventing proper task planning
 
 ## 🚨 High Priority Issues (PR #60 E2E - 2025-09-05)
 
@@ -67,7 +94,115 @@
 - **Impact**: Maintenance burden, review difficulty
 - **Priority**: Medium (functionality works, but hard to maintain)
 
-## ✅ Recently Resolved Issues (PR #57 - 2025-09-04)
+## 📝 SKIPPED TESTS DOCUMENTATION (2025-09-09 Investigation)
+
+### Test Skipping Patterns - 25+ Tests Currently Skipped
+
+**CRITICAL**: Many tests are skipped rather than fixed, indicating incomplete implementations.
+
+#### 1. Mobile E2E Tests (Intentionally Skipped - Strategic Decision)
+```typescript
+if (testInfo.project.name === 'Mobile Small' || testInfo.project.name === 'Mobile Large') {
+  test.skip()
+  return
+}
+```
+**Status**: ✅ Strategic decision - documented in context/decisions.md
+**Rationale**: Desktop-focused application, mobile testing maintenance cost too high
+
+#### 2. Scheduler Unification Tests (❌ INCOMPLETE WORK)
+- `src/renderer/utils/__tests__/dependency-scheduling.test.ts`:
+  - `it.skip('should handle multiple independent workflows (needs update for unified scheduler)')`
+  
+**Root Cause**: Tests were skipped when scheduler unification was attempted but never completed
+**Impact**: Features may not work as expected
+
+#### 3. Amendment Parser Tests (❌ ABANDONED FEATURES)
+- `src/shared/__tests__/amendment-parser.test.ts` - 8 skipped tests:
+  - `it.skip('should parse "X took Y" format - NLP pattern matching not used with Claude')`
+  - `it.skip('should parse time ranges - NLP pattern matching not used with Claude')`
+  - `it.skip('should parse "change duration of X to Y" format')`
+  - Plus 5 more fuzzy matching and pattern tests
+
+**Root Cause**: Originally planned NLP parsing approach was abandoned in favor of Claude AI parsing
+**Status**: These tests should be deleted, not skipped (architectural change completed)
+
+#### 4. Database/Workflow Integration Tests (❌ INCOMPLETE IMPLEMENTATIONS)
+- `src/main/__tests__/database-unified.test.ts`:
+  - `it.skip('should create a workflow task with steps - Task type does not support steps')`
+  - `it.skip('should handle legacy sequenced task methods - complex mock setup')`
+
+**Root Cause**: Database unified task model not fully supporting workflow operations
+**Impact**: Workflow creation/editing may have bugs
+
+#### 5. Voice Amendment Integration (❌ ENTIRE SUITE SKIPPED)
+- `src/renderer/__tests__/voice-amendment-integration.test.tsx`:
+  - `describe.skip('Voice Amendment Integration')` - ENTIRE suite disabled
+
+**Root Cause**: Unknown - needs investigation
+**Impact**: Voice amendment features may not work in production
+
+#### 6. Work Logger Calendar Tests (❌ ENTIRE SUITE SKIPPED)
+- `src/renderer/components/work-logger/__tests__/WorkLoggerCalendar.test.tsx`:
+  - `describe.skip('WorkLoggerCalendar')` - ENTIRE suite disabled
+
+**Root Cause**: Component testing issues not resolved
+**Impact**: Work logger functionality may have bugs
+
+#### 7. Time Provider Edge Cases (❌ INCOMPLETE ERROR HANDLING)
+- `src/shared/__tests__/time-provider.test.ts`:
+  - `it.skip('should handle invalid date strings gracefully - throws when saving to localStorage')`
+
+**Root Cause**: Error handling not implemented for edge cases
+**Impact**: App may crash with invalid date inputs
+
+#### 8. Scheduling Engine Workflow Tests (❌ INCOMPLETE WORKFLOW SUPPORT)
+- `src/shared/__tests__/scheduling-engine.test.ts`:
+  - `it.skip('should handle chained async dependencies (needs workflow step scheduling fix)')`
+
+**Root Cause**: Workflow step scheduling has known bugs
+**Impact**: Complex workflows may not schedule correctly
+
+### VERIFICATION COMMAND:
+```bash
+# Count all skipped tests
+grep -r "\.skip\|test\.skip\|describe\.skip" src/ | wc -l
+# Result: 25+ skipped tests across multiple files
+```
+
+### RECOMMENDED ACTIONS:
+1. **DELETE abandoned feature tests** (amendment parser NLP tests)
+2. **FIX incomplete implementation tests** (workflow, voice amendment) 
+3. **DOCUMENT strategic skips** (mobile tests are OK)
+4. **INVESTIGATE entire skipped suites** (voice integration, work logger)
+
+## 🚨 SCHEDULER UNIFICATION NEVER COMPLETED (2025-09-09 Investigation)
+
+### Multiple Scheduler Systems Still Exist (❌ FALSELY CLAIMED AS UNIFIED)
+**Status**: ❌ UNIFICATION NEVER COMPLETED
+- **CLAIM**: Various sections claim schedulers are "unified" or "consolidated"
+- **REALITY**: 3+ separate scheduler files still actively used by UI components
+
+**Current Scheduler Reality**:
+- ❌ `flexible-scheduler.ts` - Used by GanttChart and WeeklyCalendar
+- ❌ `deadline-scheduler.ts` - Provides priority calculations 
+- ❌ `scheduling-engine.ts` - Separate system used by ScheduleGenerator
+- ❌ Different priority calculation formulas between systems (ACTIVE BUG)
+- ❌ 20+ tests skipped with "needs rewrite for unified scheduler" comments
+
+**Evidence of Incomplete Work**:
+```bash
+# Shows 3 schedulers still exist and are imported
+grep -r "flexible-scheduler\|deadline-scheduler\|scheduling-engine" src/
+```
+
+**Impact**: 
+- Priority calculation bugs (Trader Joe's task scheduling incorrectly)
+- Inconsistent scheduling behavior across UI components
+- Technical debt from maintaining 3+ scheduling systems
+- Tests skipped rather than migrated to "unified" system
+
+## ✅ Actually Resolved Issues (Verified 2025-09-09)
 
 ### Critical Workflow Editing Regression - FIXED
 **Status**: ✅ Resolved in PR #57
@@ -437,11 +572,12 @@ case AmendmentType.DependencyChange:
 
 ## Code Quality Improvements
 
-### Clean Code Patterns
+### Clean Code Patterns (UPDATED REALITY CHECK)
 - ✅ Enum usage throughout codebase
-- ✅ Consistent error handling
-- ✅ Type-safe IPC communication
+- ❌ Console.log still used extensively in scripts/ directory
+- ✅ Type-safe IPC communication (where implemented)
 - ⚠️ Some large components could be split
+- ❌ Documentation out of sync with actual codebase state
 
 ### Testing Strategy
 - ✅ Unit tests for critical paths
@@ -460,13 +596,15 @@ case AmendmentType.DependencyChange:
 
 ## Current Sprint Achievements
 
-### Voice Amendment System
-- ✅ Parse all major amendment types
-- ✅ Display amendments correctly in UI
-- ✅ Apply amendments to database
+### Voice Amendment System (PARTIALLY IMPLEMENTED)
+- ✅ Parse most amendment types
+- ✅ Display amendments correctly in UI  
+- ✅ Apply some amendments to database
 - ✅ Auto-refresh UI after changes
 - ✅ Handle IPC serialization properly
 - ✅ Include job context in AI parsing
+- ❌ Step removal operations incomplete
+- ❌ Dependency editing through amendments has issues
 
 ### Technical Improvements
 - ✅ Comprehensive enum system

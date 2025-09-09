@@ -126,7 +126,24 @@ model TaskStep {
   completedAt      DateTime?
   
   Task             Task      @relation("TaskSteps", fields: [taskId])
-  StepWorkSession  StepWorkSession[]
+}
+
+model WorkSession {
+  id             String       @id
+  taskId         String
+  stepId         String?
+  patternId      String?
+  type           String
+  startTime      DateTime
+  endTime        DateTime?
+  plannedMinutes Int          @default(0)
+  actualMinutes  Int?
+  notes          String?
+  createdAt      DateTime     @default(now())
+  WorkPattern    WorkPattern? @relation(fields: [patternId], references: [id])
+  Task           Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  @@index([startTime])
+  @@index([taskId])
 }
 
 model Session {
@@ -169,32 +186,54 @@ src/main/
     └── speech-service.ts # Whisper API integration
 ```
 
-### Renderer Process Structure
+### Renderer Process Structure (ACTUAL CURRENT STATE)
 
 ```
 src/renderer/
 ├── components/
 │   ├── ai/
-│   │   └── BrainstormModal.tsx    # Voice-to-task extraction
+│   │   └── BrainstormModal.tsx           # Voice-to-task extraction
 │   ├── voice/
-│   │   └── VoiceAmendmentModal.tsx # Voice amendments UI
+│   │   └── VoiceAmendmentModal.tsx       # Voice amendments UI
 │   ├── tasks/
-│   │   ├── TaskList.tsx
-│   │   ├── TaskEdit.tsx
-│   │   ├── SequencedTaskEdit.tsx  # Workflow editing
-│   │   └── TaskStepItem.tsx
+│   │   ├── TaskList.tsx                  # Main task list
+│   │   ├── UnifiedTaskEdit.tsx           # Task editing (unified model)
+│   │   ├── SequencedTaskView.tsx         # Workflow viewing
+│   │   ├── TaskStepItem.tsx              # Individual step display
+│   │   ├── EisenhowerMatrix.tsx          # Priority matrix container
+│   │   ├── EisenhowerGrid.tsx            # Grid view
+│   │   ├── EisenhowerScatter.tsx         # Scatter plot view
+│   │   ├── TaskTimeLoggingModal.tsx      # Basic time logging
+│   │   └── StepWorkSessionsModal.tsx     # Step-specific sessions
 │   ├── schedule/
-│   │   ├── WorkScheduleModal.tsx
-│   │   └── TimelineVisualizer.tsx
-│   └── timeline/
-│       └── GanttChart.tsx         # Gantt visualization
+│   │   ├── ScheduleGenerator.tsx         # Schedule generation
+│   │   └── TimelineVisualizer.tsx       # Timeline visualization
+│   ├── timeline/
+│   │   ├── GanttChart.tsx               # Gantt chart component
+│   │   └── DeadlineViolationBadge.tsx   # Deadline indicators
+│   ├── calendar/
+│   │   └── WeeklyCalendar.tsx           # Weekly view
+│   ├── work-logger/
+│   │   ├── SwimLaneTimeline.tsx         # Circadian rhythm view
+│   │   ├── WorkLoggerDual.tsx           # Dual productivity view
+│   │   └── WorkLoggerCalendar.tsx       # Calendar-based logging
+│   ├── progress/
+│   │   └── WorkflowProgressTracker.tsx  # Step progress tracking
+│   ├── dev/
+│   │   ├── LogViewer.tsx                # Debug log viewer
+│   │   ├── DevTools.tsx                 # Developer tools panel
+│   │   └── FeedbackViewer.tsx           # Feedback management
+│   └── session/
+│       └── SessionManager.tsx           # Session management
 ├── store/
-│   └── useTaskStore.ts             # Zustand state management
+│   └── useTaskStore.ts                   # Zustand state management
 ├── services/
-│   └── database.ts                 # IPC wrapper for DB calls
+│   └── database.ts                       # IPC wrapper for DB calls
 └── utils/
-    ├── scheduling.ts               # Scheduling algorithms
-    └── amendment-applicator.ts    # Apply voice amendments
+    ├── flexible-scheduler.ts             # UI scheduler (GanttChart/Calendar)
+    ├── deadline-scheduler.ts             # Priority calculations
+    ├── scheduling.ts                     # Core scheduling algorithms
+    └── amendment-applicator.ts          # Apply voice amendments
 ```
 
 ### Shared Types and Utilities
@@ -396,6 +435,44 @@ src/shared/__tests__/
 - **macOS**: DMG installer
 - **Windows**: NSIS installer (planned)
 - **Linux**: AppImage (planned)
+
+## INCOMPLETE REFACTORINGS
+
+### ⚠️ Critical: These refactorings were attempted but NOT completed
+
+#### 1. Scheduler Unification (ATTEMPTED, NOT COMPLETED)
+**Attempted Goal**: Merge flexible-scheduler, deadline-scheduler, and scheduling-engine into one system
+**Current Reality**: 
+- GanttChart/WeeklyCalendar still use `flexible-scheduler.ts`
+- `deadline-scheduler.ts` still provides priority calculations
+- `scheduling-engine.ts` exists but is separate system
+- Different priority formulas between systems (BUG)
+- 20+ tests skipped with "needs rewrite for unified scheduler" comments
+
+#### 2. Work Session Consolidation (PARTIALLY COMPLETED)
+**Goal**: Unify 5 different session types into UnifiedWorkSession
+**Status**: 
+- ✅ `UnifiedWorkSession` type created with migration adapters
+- ❌ Most UI components still use old session types
+- ❌ Database operations not fully migrated
+- ❌ Multiple session interfaces still exist
+
+**Remaining Session Types Still in Use:**
+1. `LocalWorkSession` in useTaskStore.ts
+2. `WorkSession` in workflow-progress-types.ts  
+3. `WorkSession` in work-blocks-types.ts
+4. `WorkSession` in WorkLoggerCalendar.tsx
+5. `WorkSession` in WorkSessionsModal.tsx
+
+#### 3. Console.log Replacement (CLAIMED COMPLETE, NOT DONE)
+**Claimed**: "All console.log statements replaced with logger"
+**Reality**: Scripts directory still contains hundreds of console.log statements
+**Verification**: `grep -r "console\.log" scripts/` shows extensive usage
+
+#### 4. Test Migration for Unified Systems (INCOMPLETE)
+**Issue**: 20+ tests marked as "needs rewrite for unified scheduler"
+**Status**: Tests skipped rather than migrated to new systems
+**Files affected**: Multiple test files in scheduling and workflow areas
 
 ## Known Architectural Decisions
 
