@@ -21,6 +21,13 @@ vi.mock('../services/database', () => ({
     getSequencedTasks: vi.fn(),
     updateTaskStepProgress: vi.fn(),
     createStepWorkSession: vi.fn(),
+    getWorkSessions: vi.fn(),
+    loadLastUsedSession: vi.fn(),
+    createWorkSession: vi.fn(),
+    updateWorkSession: vi.fn(),
+    deleteWorkSession: vi.fn(),
+    getCurrentSession: vi.fn(),
+    initializeDefaultData: vi.fn(),
   })),
 }))
 
@@ -69,6 +76,13 @@ describe('useTaskStore WorkTrackingService Integration', () => {
       getSequencedTasks: vi.fn().mockResolvedValue([]),
       updateTaskStepProgress: vi.fn().mockResolvedValue(undefined),
       createStepWorkSession: vi.fn().mockResolvedValue(undefined),
+      getWorkSessions: vi.fn().mockResolvedValue([]),
+      loadLastUsedSession: vi.fn().mockResolvedValue(undefined),
+      createWorkSession: vi.fn().mockResolvedValue(undefined),
+      updateWorkSession: vi.fn().mockResolvedValue(undefined),
+      deleteWorkSession: vi.fn().mockResolvedValue(undefined),
+      getCurrentSession: vi.fn().mockResolvedValue({ id: 'test-session' }),
+      initializeDefaultData: vi.fn().mockResolvedValue(undefined),
     }
 
     vi.mocked(getDatabase).mockReturnValue(mockDatabase)
@@ -254,11 +268,12 @@ describe('useTaskStore WorkTrackingService Integration', () => {
   })
 
   describe('WorkTrackingService initialization', () => {
-    it('should initialize WorkTrackingService when store is created', () => {
-      // Act - Store creation happens on import
-      useTaskStore.getState()
+    it('should initialize WorkTrackingService when initializeData is called', async () => {
+      // Act - Store initialization happens via initializeData()
+      const store = useTaskStore.getState()
+      await store.initializeData()
 
-      // Assert - This should FAIL since initialization isn't added yet
+      // Assert - Initialization should be called during data initialization
       expect(mockWorkTrackingService.initialize).toHaveBeenCalled()
     })
 

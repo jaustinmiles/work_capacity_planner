@@ -135,8 +135,8 @@ export const clearInjectedWorkTrackingService = () => {
 }
 
 export const useTaskStore = create<TaskStore>((set, get) => {
-  // Use injected service for testing, otherwise create new one
-  const workTrackingService = injectedWorkTrackingService || createWorkTrackingService()
+  // Helper to get the current WorkTrackingService (checks injection each time for testing)
+  const getWorkTrackingService = () => injectedWorkTrackingService || createWorkTrackingService()
 
   return {
     tasks: [],
@@ -217,7 +217,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Initialize WorkTrackingService first to restore active sessions
       try {
         rendererLogger.info('[TaskStore] Initializing WorkTrackingService...')
-        await workTrackingService.initialize()
+        await getWorkTrackingService().initialize()
         rendererLogger.info('[TaskStore] WorkTrackingService initialized successfully')
       } catch (error) {
         rendererLogger.error('[TaskStore] Failed to initialize WorkTrackingService:', error)
@@ -430,7 +430,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         if (activeSession) {
           try {
             // Stop session in WorkTrackingService
-            await workTrackingService.stopWorkSession(activeSession.id!)
+            await getWorkTrackingService().stopWorkSession(activeSession.id!)
 
             // Remove from store
             const newSessions = new Map(state.activeWorkSessions)
@@ -552,7 +552,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     const activeSession = state.activeWorkSessions.get(stepId)
 
     // Check if any work is active globally via WorkTrackingService
-    if (workTrackingService.isAnyWorkActive()) {
+    if (getWorkTrackingService().isAnyWorkActive()) {
       logger.ui.warn('Cannot start work: another work session is already active')
       return
     }
@@ -564,7 +564,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
     try {
       // Start work session in WorkTrackingService for persistence
-      await workTrackingService.startWorkSession(undefined, stepId, workflowId)
+      await getWorkTrackingService().startWorkSession(undefined, stepId, workflowId)
 
       // Also maintain UnifiedWorkSession for UI reactivity
       const newSession: UnifiedWorkSession = {
@@ -601,14 +601,14 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   startWorkOnTask: async (taskId: string) => {
     // Check if any work is active globally via WorkTrackingService
-    if (workTrackingService.isAnyWorkActive()) {
+    if (getWorkTrackingService().isAnyWorkActive()) {
       logger.ui.warn('Cannot start work: another work session is already active')
       return
     }
 
     try {
       // Start work session in WorkTrackingService for persistence
-      const workSession = await workTrackingService.startWorkSession(taskId, undefined, undefined)
+      const workSession = await getWorkTrackingService().startWorkSession(taskId, undefined, undefined)
 
       // Sync the session to store's activeWorkSessions so UI can see it
       const localSession: UnifiedWorkSession = {
@@ -646,10 +646,10 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
     try {
       // Get current active session from WorkTrackingService
-      const activeWorkSession = workTrackingService.getCurrentActiveSession()
+      const activeWorkSession = getWorkTrackingService().getCurrentActiveSession()
       if (activeWorkSession && activeWorkSession.stepId === stepId) {
         // Pause via WorkTrackingService
-        await workTrackingService.pauseWorkSession(activeWorkSession.id)
+        await getWorkTrackingService().pauseWorkSession(activeWorkSession.id)
       }
 
       // Calculate duration since last start
@@ -716,9 +716,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
     try {
       // Stop work session in WorkTrackingService if there's an active one
-      const activeWorkSession = workTrackingService.getCurrentActiveSession()
+      const activeWorkSession = getWorkTrackingService().getCurrentActiveSession()
       if (activeWorkSession && activeWorkSession.stepId === stepId) {
-        await workTrackingService.stopWorkSession(activeWorkSession.id)
+        await getWorkTrackingService().stopWorkSession(activeWorkSession.id)
       }
 
       // Create work session record
@@ -855,7 +855,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   getActiveWorkSession: (stepId: string) => {
     // Check WorkTrackingService first for authoritative state
-    const activeWorkSession = workTrackingService.getCurrentActiveSession()
+    const activeWorkSession = getWorkTrackingService().getCurrentActiveSession()
     if (activeWorkSession && activeWorkSession.stepId === stepId) {
       // Return the unified work session directly
       return {
@@ -916,7 +916,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   startNextTask: async () => {
     try {
       // Check if any work is already active
-      if (workTrackingService.isAnyWorkActive()) {
+      if (getWorkTrackingService().isAnyWorkActive()) {
         rendererLogger.warn('[TaskStore] Cannot start next task: work session already active')
         return
       }
