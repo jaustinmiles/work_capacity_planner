@@ -152,16 +152,29 @@ git checkout -b feature/your-feature
 # User shouldn't need to remind you about this!
 ```
 
-**During Review:**
+**During Review - ALWAYS USE PR SCRIPTS:**
 ```bash
-# Get ALL comments including inline
-gh pr view [PR#] --comments
+# MANDATORY: Use these scripts instead of manual gh commands
+# Track all PR review comments and their status
 npx tsx scripts/pr/pr-review-tracker.ts [PR#]
+
+# Reply to PR comments programmatically  
+npx tsx scripts/pr/pr-comment-reply.ts [PR#] [comment-id] "Your reply"
+npx tsx scripts/pr/pr-comment-reply.ts [PR#] batch  # For multiple replies
+
+# Get ALL comments including inline (fallback only)
+gh pr view [PR#] --comments
 
 # Address EVERY item - track with TodoWrite
 # Never say "unrelated to my changes"
 # All failures are our responsibility
 ```
+
+**PR Review Scripts Features:**
+- `pr-review-tracker.ts` - Shows unresolved comments, filters noise, tracks status
+- `pr-comment-reply.ts` - Reply to specific comments or batch mode
+- Automatically hides resolved/collapsed comments
+- Shows statistics on what needs addressing
 
 **If Branch Gets Messy (>20 commits):**
 ```bash

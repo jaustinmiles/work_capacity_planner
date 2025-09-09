@@ -249,8 +249,18 @@ export class SchedulingService {
     scheduledStartTime?: Date
   } | null> {
     try {
+      console.log('[SchedulingService] Getting next scheduled item', {
+        totalTasks: tasks.length,
+        totalSequenced: sequencedTasks.length
+      })
+
       // Filter out completed tasks (Task uses 'completed' boolean)
       const incompleteTasks = tasks.filter(task => !task.completed)
+      
+      console.log('[SchedulingService] Filtered incomplete tasks', {
+        originalTasks: tasks.length,
+        incompleteTasks: incompleteTasks.length
+      })
 
       // Filter out completed workflow steps (TaskStep uses StepStatus enum)
       const incompleteSequenced = sequencedTasks
@@ -262,12 +272,20 @@ export class SchedulingService {
         }))
         .filter(seq => seq.steps.length > 0)
 
+      console.log('[SchedulingService] Filtered incomplete workflows', {
+        originalWorkflows: sequencedTasks.length,
+        incompleteWorkflows: incompleteSequenced.length,
+        totalIncompleteSteps: incompleteSequenced.reduce((sum, seq) => sum + seq.steps.length, 0)
+      })
+
       // If no incomplete items, return null
       if (incompleteTasks.length === 0 && incompleteSequenced.length === 0) {
+        console.log('[SchedulingService] No incomplete items found, returning null')
         return null
       }
 
       // Use the scheduling engine to determine priorities
+      console.log('[SchedulingService] Creating schedule with engine...')
       const schedulingResult = await this.createSchedule(
         incompleteTasks,
         incompleteSequenced,
@@ -278,9 +296,15 @@ export class SchedulingService {
         },
       )
 
+      console.log('[SchedulingService] Schedule created', {
+        totalScheduledItems: schedulingResult.scheduledItems.length,
+        firstItemId: schedulingResult.scheduledItems[0]?.id || 'none'
+      })
+
       // Get the first scheduled item (highest priority)
       const firstItem = schedulingResult.scheduledItems[0]
       if (!firstItem) {
+        console.log('[SchedulingService] No items in schedule, returning null')
         return null
       }
 
@@ -297,7 +321,7 @@ export class SchedulingService {
         const step = workflow?.steps.find(step => step.id === firstItem.id)
 
         if (workflow && step) {
-          return {
+          const result = {
             type: 'step',
             id: step.id,
             workflowId: workflow.id,
@@ -305,22 +329,27 @@ export class SchedulingService {
             estimatedDuration: step.duration, // TaskStep uses 'duration'
             scheduledStartTime: firstItem.scheduledStartTime,
           }
+          console.log('[SchedulingService] Returning workflow step', result)
+          return result
         }
       } else {
         // Find the task
         const task = incompleteTasks.find(task => task.id === firstItem.id)
 
         if (task) {
-          return {
+          const result = {
             type: 'task',
             id: task.id,
             title: task.name, // Task uses 'name'
             estimatedDuration: task.duration, // Task uses 'duration'
             scheduledStartTime: firstItem.scheduledStartTime,
           }
+          console.log('[SchedulingService] Returning regular task', result)
+          return result
         }
       }
 
+      console.log('[SchedulingService] Could not find matching task or step, returning null')
       return null
     } catch (error) {
       console.error('Failed to get next scheduled item:', error)

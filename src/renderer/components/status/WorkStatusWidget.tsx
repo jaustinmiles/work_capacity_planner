@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow } from '@arco-design/web-react/icon'
+import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconRefresh } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { calculateDuration } from '@shared/time-utils'
@@ -79,29 +79,72 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     }
   }, [pattern])
 
+  // Load next task on component mount and when data changes
+  useEffect(() => {
+    logger.ui.info('[WorkStatusWidget] Component mounted, loading next task')
+    loadNextTask()
+
+    // Listen for data refresh events to reload next task
+    const handleDataRefresh = () => {
+      logger.ui.info('[WorkStatusWidget] Data refresh event, reloading next task')
+      loadNextTask()
+    }
+
+    appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
+    return () => {
+      appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
+    }
+  }, []) // Empty dependency array - run once on mount
+
   const loadNextTask = async () => {
     try {
+      logger.ui.info('[WorkStatusWidget] Loading next task...')
       setIsLoadingNextTask(true)
-      const nextItem = await useTaskStore.getState().getNextScheduledItem()
+      
+      // Get current store state for logging
+      const state = useTaskStore.getState()
+      logger.ui.info('[WorkStatusWidget] Store state:', {
+        totalTasks: state.tasks.length,
+        totalWorkflows: state.sequencedTasks.length,
+        isLoading: state.isLoading
+      })
+      
+      const nextItem = await state.getNextScheduledItem()
+      logger.ui.info('[WorkStatusWidget] Next scheduled item result:', {
+        nextItem: nextItem ? {
+          type: nextItem.type,
+          id: nextItem.id,
+          title: nextItem.title,
+          estimatedDuration: nextItem.estimatedDuration
+        } : null
+      })
+      
       setNextTask(nextItem)
     } catch (error) {
-      logger.ui.error('Failed to load next task:', error)
+      logger.ui.error('[WorkStatusWidget] Failed to load next task:', error)
     } finally {
       setIsLoadingNextTask(false)
+      logger.ui.info('[WorkStatusWidget] Finished loading next task')
     }
   }
 
   const handleStartNextTask = async () => {
     try {
+      logger.ui.info('[WorkStatusWidget] Starting next task...')
       setIsStartingTask(true)
       await useTaskStore.getState().startNextTask()
       // Reload the next task after starting one
       await loadNextTask()
     } catch (error) {
-      logger.ui.error('Failed to start next task:', error)
+      logger.ui.error('[WorkStatusWidget] Failed to start next task:', error)
     } finally {
       setIsStartingTask(false)
     }
+  }
+
+  const handleRefreshNextTask = async () => {
+    logger.ui.info('[WorkStatusWidget] Manual refresh requested')
+    await loadNextTask()
   }
 
   const loadWorkData = async () => {
@@ -187,7 +230,17 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
           {/* Start Next Task section - works even without schedule */}
           <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
+                <Button 
+                  type="text" 
+                  icon={<IconRefresh />}
+                  loading={isLoadingNextTask}
+                  onClick={handleRefreshNextTask}
+                  size="small"
+                  title="Refresh task list"
+                />
+              </Space>
 
               {isLoadingNextTask ? (
                 <Text type="secondary">Loading...</Text>
@@ -382,7 +435,17 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         {/* Start Next Task */}
         <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
+              <Button 
+                type="text" 
+                icon={<IconRefresh />}
+                loading={isLoadingNextTask}
+                onClick={handleRefreshNextTask}
+                size="small"
+                title="Refresh task list"
+              />
+            </Space>
 
             {isLoadingNextTask ? (
               <Text type="secondary">Loading...</Text>

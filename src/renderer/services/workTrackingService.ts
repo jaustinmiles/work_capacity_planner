@@ -2,10 +2,9 @@ import { logger } from '../utils/logger'
 import { getDatabase } from './database'
 import type {
   WorkSessionPersistenceOptions,
-  WorkTrackingServiceInterface,
-  WorkSession,
 } from './types/workTracking'
 import type { Task, TaskStep } from '../../shared/types'
+import type { LocalWorkSession } from '../store/useTaskStore'
 
 /**
  * WorkTrackingService - Manages active work sessions with database persistence
@@ -13,8 +12,8 @@ import type { Task, TaskStep } from '../../shared/types'
 // We'll store active work sessions using the existing work session infrastructure
 // and track which ones are "active" vs "completed" in the session data
 
-export class WorkTrackingService implements WorkTrackingServiceInterface {
-  private activeSessions: Map<string, WorkSession> = new Map()
+export class WorkTrackingService {
+  private activeSessions: Map<string, LocalWorkSession> = new Map()
   private options: Required<WorkSessionPersistenceOptions>
   private database: ReturnType<typeof getDatabase>
 
@@ -51,11 +50,13 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
             logger.store.info('Deleting stale session', { sessionId: lastSession.id })
             await this.database.deleteWorkSession(lastSession.id)
           } else {
-            // Convert database session to our WorkSession format
-            const workSession: WorkSession = {
+            // Convert database session to our LocalWorkSession format
+            const workSession: LocalWorkSession = {
               ...lastSession,
               startTime: new Date(lastSession.startTime),
               endTime: lastSession.endTime ? new Date(lastSession.endTime) : undefined,
+              isPaused: lastSession.isPaused || false,
+              duration: lastSession.duration || 0,
             }
             const sessionKey = this.getSessionKey(workSession)
             this.activeSessions.set(sessionKey, workSession)
@@ -69,8 +70,13 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
     }
   }
 
-  async startWorkSession(taskId?: string, stepId?: string, workflowId?: string): Promise<WorkSession> {
+  async startWorkSession(taskId?: string, stepId?: string, workflowId?: string): Promise<LocalWorkSession> {
     try {
+      rendererLogger.info('[WorkTrackingService] Starting work session', {
+        taskId, stepId, workflowId,
+        currentActiveSessions: this.activeSessions.size
+      })
+
       // Validate inputs
       if (!taskId && !stepId) {
         throw new Error('Must provide either taskId or stepId to start work session')
@@ -81,6 +87,9 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
 
       // Check for existing active session
       if (this.activeSessions.size > 0) {
+        rendererLogger.warn('[WorkTrackingService] Cannot start new session - another session is active', {
+          activeSessionCount: this.activeSessions.size
+        })
         throw new Error('Cannot start new work session: another session is already active')
       }
 
@@ -88,31 +97,53 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
       const currentSession = await this.database.getCurrentSession()
 
       // Create new work session
-      const workSession: WorkSession = {
-        id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      const workSession: LocalWorkSession = {
+        id: `session-${Date.now()}-${crypto.randomUUID()}`,
         taskId,
         stepId,
         workflowId,
         startTime: new Date(),
+        isPaused: false,
         type: 'focused',
         plannedDuration: 60, // Default 1 hour
         duration: 0, // Initial duration
       }
 
       // Save to database as an active work session (no endTime)
-      await this.database.createWorkSession({
-        ...workSession,
+      // For workflows: taskId = workflowId, stepId = stepId
+      // For regular tasks: taskId = taskId, stepId = undefined
+      const dbTaskId = workflowId || taskId
+      if (!dbTaskId) {
+        throw new Error('Either taskId or workflowId must be provided')
+      }
+
+      const dbPayload = {
+        taskId: dbTaskId,
+        stepId: stepId,
+        type: workSession.type,
+        startTime: workSession.startTime,
+        plannedMinutes: workSession.plannedDuration,
+        notes: undefined,
         sessionId: currentSession?.id || 'session-1',
         date: new Date().toISOString().split('T')[0],
-        // Don't set endTime - indicates this is active
+      }
+
+      rendererLogger.info('[WorkTrackingService] Creating database work session', {
+        dbPayload: {
+          ...dbPayload,
+          startTime: dbPayload.startTime.toISOString()
+        }
       })
+
+      await this.database.createWorkSession(dbPayload)
 
       // Store in local state
       const sessionKey = this.getSessionKey(workSession)
       this.activeSessions.set(sessionKey, workSession)
 
-      logger.store.info('Started work session', {
+      rendererLogger.info('[WorkTrackingService] Work session started successfully', {
         sessionId: workSession.id,
+        sessionKey,
         taskId,
         stepId,
         workflowId,
@@ -205,7 +236,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
     }
   }
 
-  async saveActiveSession(session: WorkSession): Promise<void> {
+  async saveActiveSession(session: LocalWorkSession): Promise<void> {
     try {
       const result = await this.database.updateWorkSession(session.id, {
         ...session,
@@ -220,7 +251,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
     }
   }
 
-  async getLastActiveWorkSession(): Promise<WorkSession | null> {
+  async getLastActiveWorkSession(): Promise<LocalWorkSession | null> {
     try {
       // Get today's work sessions and find active ones (no endTime)
       const today = new Date().toISOString().split('T')[0]
@@ -280,7 +311,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
     }
   }
 
-  getCurrentActiveSession(): WorkSession | null {
+  getCurrentActiveSession(): LocalWorkSession | null {
     const sessions = Array.from(this.activeSessions.values())
     return sessions.length > 0 ? sessions[0] : null
   }
@@ -310,7 +341,7 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
   }
 
   // Private helper methods
-  private findSessionById(sessionId: string): WorkSession | null {
+  private findSessionById(sessionId: string): LocalWorkSession | null {
     for (const session of this.activeSessions.values()) {
       if (session.id === sessionId) {
         return session
@@ -319,11 +350,11 @@ export class WorkTrackingService implements WorkTrackingServiceInterface {
     return null
   }
 
-  private getSessionKey(session: WorkSession): string {
+  private getSessionKey(session: LocalWorkSession): string {
     return session.taskId || session.stepId || session.workflowId || 'default'
   }
 
-  private isValidSession(session: any): session is WorkSession {
+  private isValidSession(session: any): session is LocalWorkSession {
     return (
       session &&
       typeof session.id === 'string' &&

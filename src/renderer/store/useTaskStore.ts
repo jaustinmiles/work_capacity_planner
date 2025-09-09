@@ -13,11 +13,19 @@ import { getRendererLogger } from '../../logging/index.renderer'
 import { WorkTrackingService } from '../services/workTrackingService'
 
 
-interface LocalWorkSession {
-  stepId: string
+export interface LocalWorkSession {
+  id?: string // For WorkTrackingService compatibility
+  taskId?: string // For regular tasks  
+  stepId?: string // For workflow steps (optional now to support both)
+  workflowId?: string // For workflow identification
   startTime: Date
+  endTime?: Date // For completed sessions
   isPaused: boolean
   duration: number // accumulated minutes
+  pausedAt?: Date // When paused
+  type?: 'focused' | 'admin' // Work type
+  plannedDuration?: number // Planned duration in minutes
+  actualDuration?: number // Actual duration for completed sessions
 }
 
 
@@ -194,31 +202,46 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   initializeData: async () => {
     try {
+      rendererLogger.info('[TaskStore] Starting data initialization...')
       // Initializing store data
       set({ isLoading: true, error: null })
 
       // Initialize WorkTrackingService first to restore active sessions
       try {
+        rendererLogger.info('[TaskStore] Initializing WorkTrackingService...')
         await workTrackingService.initialize()
         rendererLogger.info('[TaskStore] WorkTrackingService initialized successfully')
       } catch (error) {
-        logger.store.error('Failed to initialize WorkTrackingService:', error)
+        rendererLogger.error('[TaskStore] Failed to initialize WorkTrackingService:', error)
         // Don't fail the whole initialization if work tracking fails
       }
 
       // Load last used session first to prevent default session flash
+      rendererLogger.info('[TaskStore] Loading last used session...')
       await getDatabase().loadLastUsedSession()
 
+      rendererLogger.info('[TaskStore] Initializing default data...')
       await getDatabase().initializeDefaultData()
+      
       // Loading all data from database
+      rendererLogger.info('[TaskStore] Loading tasks and workflows from database...')
       const [tasks, sequencedTasks] = await Promise.all([
         getDatabase().getTasks(),
         getDatabase().getSequencedTasks(),
       ])
+      
+      rendererLogger.info('[TaskStore] Data loaded successfully', {
+        taskCount: tasks.length,
+        workflowCount: sequencedTasks.length,
+        totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0)
+      })
+      
       // Store initialized successfully
       set({ tasks, sequencedTasks, isLoading: false })
+      
+      rendererLogger.info('[TaskStore] Store initialization completed successfully')
     } catch (error) {
-      logger.ui.error('Store: Failed to initialize data:', error)
+      rendererLogger.error('[TaskStore] Failed to initialize data:', error)
       set({
         error: error instanceof Error ? error.message : 'Failed to initialize data',
         isLoading: false,
@@ -807,17 +830,34 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   getNextScheduledItem: async () => {
     try {
+      rendererLogger.info('[TaskStore] Getting next scheduled item...')
       const state = get()
 
       // Get current tasks and workflows from state
       const tasks = state.tasks
       const sequencedTasks = state.sequencedTasks
 
+      rendererLogger.info('[TaskStore] Current state for scheduling', {
+        taskCount: tasks.length,
+        workflowCount: sequencedTasks.length,
+        totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0),
+        incompleteTasks: tasks.filter(t => t.overallStatus !== 'completed').length,
+        incompleteWorkflows: sequencedTasks.filter(w => w.status !== 'completed').length,
+      })
+
       // Use SchedulingService to determine the next item
+      rendererLogger.info('[TaskStore] Calling schedulingService.getNextScheduledItem...')
       const nextItem = await schedulingService.getNextScheduledItem(tasks, sequencedTasks)
 
-      rendererLogger.info('[TaskStore] Got next scheduled item', {
-        nextItem,
+      rendererLogger.info('[TaskStore] Got next scheduled item result', {
+        hasResult: !!nextItem,
+        nextItem: nextItem ? {
+          type: nextItem.type,
+          id: nextItem.id,
+          title: nextItem.title,
+          estimatedDuration: nextItem.estimatedDuration,
+          workflowId: nextItem.workflowId
+        } : null,
         totalTasks: tasks.length,
         totalWorkflows: sequencedTasks.length,
       })
