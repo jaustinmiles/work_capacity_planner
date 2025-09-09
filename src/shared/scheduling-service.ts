@@ -249,16 +249,15 @@ export class SchedulingService {
     scheduledStartTime?: Date
   } | null> {
     try {
-      // Filter out completed and in-progress items
-      const incompleteTasks = tasks.filter(task => 
-        task.status === 'todo' || task.status === 'not_started'
-      )
+      // Filter out completed tasks (Task uses 'completed' boolean)
+      const incompleteTasks = tasks.filter(task => !task.completed)
       
+      // Filter out completed workflow steps (TaskStep uses StepStatus enum)
       const incompleteSequenced = sequencedTasks
         .map(seq => ({
           ...seq,
           steps: seq.steps.filter(step => 
-            step.status === 'todo' || step.status === 'not_started'
+            step.status === 'pending' || step.status === 'in_progress'
           )
         }))
         .filter(seq => seq.steps.length > 0)
@@ -287,36 +286,36 @@ export class SchedulingService {
 
       // Determine if it's a task or workflow step
       const isWorkflowStep = incompleteSequenced.some(seq =>
-        seq.steps.some(step => step.id === firstItem.itemId)
+        seq.steps.some(step => step.id === firstItem.id)
       )
 
       if (isWorkflowStep) {
         // Find the workflow and step
         const workflow = incompleteSequenced.find(seq =>
-          seq.steps.some(step => step.id === firstItem.itemId)
+          seq.steps.some(step => step.id === firstItem.id)
         )
-        const step = workflow?.steps.find(step => step.id === firstItem.itemId)
+        const step = workflow?.steps.find(step => step.id === firstItem.id)
         
         if (workflow && step) {
           return {
             type: 'step',
             id: step.id,
             workflowId: workflow.id,
-            title: step.title || step.name,
-            estimatedDuration: step.duration || step.estimatedDuration || 60,
+            title: step.name, // TaskStep uses 'name'
+            estimatedDuration: step.duration, // TaskStep uses 'duration'
             scheduledStartTime: firstItem.scheduledStartTime,
           }
         }
       } else {
         // Find the task
-        const task = incompleteTasks.find(task => task.id === firstItem.itemId)
+        const task = incompleteTasks.find(task => task.id === firstItem.id)
         
         if (task) {
           return {
             type: 'task',
             id: task.id,
-            title: task.title || task.name,
-            estimatedDuration: task.duration || task.estimatedDuration || 60,
+            title: task.name, // Task uses 'name'
+            estimatedDuration: task.duration, // Task uses 'duration'
             scheduledStartTime: firstItem.scheduledStartTime,
           }
         }

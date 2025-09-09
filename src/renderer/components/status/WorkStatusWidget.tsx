@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconSchedule, IconEdit, IconCaretRight } from '@arco-design/web-react/icon'
+import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow } from '@arco-design/web-react/icon'
+import { useTaskStore } from '../../store/useTaskStore'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
@@ -22,6 +23,16 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const [meetingMinutes, setMeetingMinutes] = useState(0)
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
+  const [nextTask, setNextTask] = useState<{
+    type: 'task' | 'step'
+    id: string
+    workflowId?: string
+    title: string
+    estimatedDuration: number
+    scheduledStartTime?: Date
+  } | null>(null)
+  const [isLoadingNextTask, setIsLoadingNextTask] = useState(false)
+  const [isStartingTask, setIsStartingTask] = useState(false)
   // Tracking state removed - handled through time logging modal
 
   useEffect(() => {
@@ -68,6 +79,31 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     }
   }, [pattern])
 
+  const loadNextTask = async () => {
+    try {
+      setIsLoadingNextTask(true)
+      const nextItem = await useTaskStore.getState().getNextScheduledItem()
+      setNextTask(nextItem)
+    } catch (error) {
+      logger.ui.error('Failed to load next task:', error)
+    } finally {
+      setIsLoadingNextTask(false)
+    }
+  }
+
+  const handleStartNextTask = async () => {
+    try {
+      setIsStartingTask(true)
+      await useTaskStore.getState().startNextTask()
+      // Reload the next task after starting one
+      await loadNextTask()
+    } catch (error) {
+      logger.ui.error('Failed to start next task:', error)
+    } finally {
+      setIsStartingTask(false)
+    }
+  }
+
   const loadWorkData = async () => {
     try {
       const db = getDatabase()
@@ -75,6 +111,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         db.getWorkPattern(currentDate),
         db.getTodayAccumulated(currentDate),
       ])
+      
+      // Load next task separately since it has side effects
+      await loadNextTask()
 
       setPattern(patternData)
       setAccumulated({
@@ -139,11 +178,45 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   if (!pattern) {
     return (
       <Card>
-        <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }}>
+        <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }} size="large">
           <Text type="secondary">No work schedule defined for today</Text>
           <Button type="primary" onClick={onEditSchedule}>
             Create Schedule
           </Button>
+          
+          {/* Start Next Task section - works even without schedule */}
+          <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
+              
+              {isLoadingNextTask ? (
+                <Text type="secondary">Loading...</Text>
+              ) : nextTask ? (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Text>Next: {nextTask.title}</Text>
+                  <Space>
+                    <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
+                    <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
+                      {nextTask.type === 'step' ? '🔄 Workflow Step' : '📋 Task'}
+                    </Tag>
+                  </Space>
+                </Space>
+              ) : (
+                <Text type="secondary">No tasks available</Text>
+              )}
+              
+              <Button
+                type="primary"
+                icon={<IconPlayArrow />}
+                loading={isStartingTask}
+                disabled={!nextTask || isLoadingNextTask}
+                onClick={handleStartNextTask}
+                style={{ width: '100%' }}
+              >
+                Start Next Task
+              </Button>
+            </Space>
+          </div>
         </Space>
       </Card>
     )
@@ -305,6 +378,40 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             suffix="min"
           />
         </Space>
+
+        {/* Start Next Task */}
+        <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
+            
+            {isLoadingNextTask ? (
+              <Text type="secondary">Loading...</Text>
+            ) : nextTask ? (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text>Next: {nextTask.title}</Text>
+                <Space>
+                  <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
+                  <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
+                    {nextTask.type === 'step' ? '🔄 Workflow Step' : '📋 Task'}
+                  </Tag>
+                </Space>
+              </Space>
+            ) : (
+              <Text type="secondary">No tasks available</Text>
+            )}
+            
+            <Button
+              type="primary"
+              icon={<IconPlayArrow />}
+              loading={isStartingTask}
+              disabled={!nextTask || isLoadingNextTask}
+              onClick={handleStartNextTask}
+              style={{ width: '100%' }}
+            >
+              Start Next Task
+            </Button>
+          </Space>
+        </div>
 
       </Space>
     </Card>
