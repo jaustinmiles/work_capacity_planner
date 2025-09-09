@@ -251,15 +251,15 @@ export class SchedulingService {
     try {
       console.log('[SchedulingService] Getting next scheduled item', {
         totalTasks: tasks.length,
-        totalSequenced: sequencedTasks.length
+        totalSequenced: sequencedTasks.length,
       })
 
       // Filter out completed tasks (Task uses 'completed' boolean)
       const incompleteTasks = tasks.filter(task => !task.completed)
-      
+
       console.log('[SchedulingService] Filtered incomplete tasks', {
         originalTasks: tasks.length,
-        incompleteTasks: incompleteTasks.length
+        incompleteTasks: incompleteTasks.length,
       })
 
       // Filter out completed workflow steps (TaskStep uses StepStatus enum)
@@ -275,7 +275,7 @@ export class SchedulingService {
       console.log('[SchedulingService] Filtered incomplete workflows', {
         originalWorkflows: sequencedTasks.length,
         incompleteWorkflows: incompleteSequenced.length,
-        totalIncompleteSteps: incompleteSequenced.reduce((sum, seq) => sum + seq.steps.length, 0)
+        totalIncompleteSteps: incompleteSequenced.reduce((sum, seq) => sum + seq.steps.length, 0),
       })
 
       // If no incomplete items, return null
@@ -298,7 +298,7 @@ export class SchedulingService {
 
       console.log('[SchedulingService] Schedule created', {
         totalScheduledItems: schedulingResult.scheduledItems.length,
-        firstItemId: schedulingResult.scheduledItems[0]?.id || 'none'
+        firstItemId: schedulingResult.scheduledItems[0]?.id || 'none',
       })
 
       // Get the first scheduled item (highest priority)
@@ -313,7 +313,7 @@ export class SchedulingService {
       // Format can be: 'task_id', 'step_id', or 'workflow_id_step_step-id'
       let stepIdToFind = firstItem.id
       let taskIdToFind = firstItem.id
-      
+
       if (firstItem.id.includes('_step_')) {
         // Handle workflow step format: 'workflow_..._step_step-...'
         const parts = firstItem.id.split('_step_')
@@ -330,7 +330,7 @@ export class SchedulingService {
         originalId: firstItem.id,
         stepIdToFind,
         taskIdToFind,
-        hasWorkflowStepFormat: firstItem.id.includes('_step_')
+        hasWorkflowStepFormat: firstItem.id.includes('_step_'),
       })
 
       // Determine if it's a task or workflow step (check both original and cleaned IDs)
@@ -348,7 +348,7 @@ export class SchedulingService {
 
         if (workflow && step) {
           const result = {
-            type: 'step',
+            type: 'step' as const,
             id: step.id,
             workflowId: workflow.id,
             title: step.name, // TaskStep uses 'name'
@@ -364,7 +364,7 @@ export class SchedulingService {
 
         if (task) {
           const result = {
-            type: 'task',
+            type: 'task' as const,
             id: task.id,
             title: task.name, // Task uses 'name'
             estimatedDuration: task.duration, // Task uses 'duration'

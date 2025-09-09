@@ -47,16 +47,16 @@ export function SequencedTaskView({
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0
 
   const currentStep = task.steps.find(step => step.status === 'in_progress')
-  
+
   // Check if any step in this workflow has an active work session
   const getActiveWorkflowSession = () => {
     const sessions = Array.from(activeWorkSessions.values())
-    return sessions.find(session => 
-      session.workflowId === task.id || 
-      task.steps.some(step => step.id === session.stepId)
+    return sessions.find(session =>
+      session.workflowId === task.id ||
+      task.steps.some(step => step.id === session.stepId),
     ) || null
   }
-  
+
   const activeSession = getActiveWorkflowSession()
   const hasActiveSession = !!activeSession && !activeSession.isPaused
 

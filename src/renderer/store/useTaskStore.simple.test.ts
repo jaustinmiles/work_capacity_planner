@@ -37,9 +37,9 @@ describe('Start Next Task Simple Integration', () => {
   it('should have startNextTask method', async () => {
     // Import the store after mocking
     const { useTaskStore } = await import('./useTaskStore')
-    
+
     const store = useTaskStore.getState()
-    
+
     // Verify the method exists
     expect(typeof store.startNextTask).toBe('function')
     expect(typeof store.getNextScheduledItem).toBe('function')
@@ -48,25 +48,25 @@ describe('Start Next Task Simple Integration', () => {
 
   it('should have correct method signatures', async () => {
     const { useTaskStore } = await import('./useTaskStore')
-    
+
     const store = useTaskStore.getState()
-    
+
     // These methods should exist and be functions
     expect(store.startNextTask).toBeDefined()
-    expect(store.getNextScheduledItem).toBeDefined()  
+    expect(store.getNextScheduledItem).toBeDefined()
     expect(store.startWorkOnTask).toBeDefined()
     expect(store.startWorkOnStep).toBeDefined()
   })
 
   it('should handle empty task list gracefully', async () => {
     const { useTaskStore } = await import('./useTaskStore')
-    
+
     const store = useTaskStore.getState()
-    
+
     // With no tasks, getNextScheduledItem should return null
     const nextItem = await store.getNextScheduledItem()
     expect(nextItem).toBeNull()
-    
+
     // startNextTask should not throw with no tasks
     await expect(store.startNextTask()).resolves.not.toThrow()
   })

@@ -473,7 +473,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           })
 
           // Calculate elapsed time
-          const elapsedMinutes = Math.floor((Date.now() - session.startTime.getTime()) / 60000) + session.duration
+          const elapsedMinutes = Math.floor((Date.now() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
           const elapsedHours = Math.floor(elapsedMinutes / 60)
           const elapsedMins = elapsedMinutes % 60
           const elapsedText = elapsedHours > 0 ? `${elapsedHours}h ${elapsedMins}m` : `${elapsedMins}m`

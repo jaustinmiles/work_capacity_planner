@@ -5,10 +5,10 @@
  */
 
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
-import { 
-  useTaskStore, 
-  injectWorkTrackingServiceForTesting, 
-  clearInjectedWorkTrackingService 
+import {
+  useTaskStore,
+  injectWorkTrackingServiceForTesting,
+  clearInjectedWorkTrackingService,
 } from './useTaskStore'
 import { WorkTrackingService } from '../services/workTrackingService'
 import { getDatabase } from '../services/database'

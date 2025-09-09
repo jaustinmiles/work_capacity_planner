@@ -4,7 +4,15 @@ import type {
   WorkSessionPersistenceOptions,
 } from './types/workTracking'
 import type { Task, TaskStep } from '../../shared/types'
-import type { LocalWorkSession } from '../store/useTaskStore'
+import {
+  UnifiedWorkSession,
+  fromDatabaseWorkSession,
+  toDatabaseWorkSession,
+  createUnifiedWorkSession,
+  isActiveSession,
+  getElapsedMinutes,
+} from '../../shared/unified-work-session-types'
+import { TaskType } from '../../shared/enums'
 
 /**
  * WorkTrackingService - Manages active work sessions with database persistence
@@ -13,7 +21,7 @@ import type { LocalWorkSession } from '../store/useTaskStore'
 // and track which ones are "active" vs "completed" in the session data
 
 export class WorkTrackingService {
-  private activeSessions: Map<string, LocalWorkSession> = new Map()
+  private activeSessions: Map<string, UnifiedWorkSession> = new Map()
   private options: Required<WorkSessionPersistenceOptions>
   private database: ReturnType<typeof getDatabase>
 
@@ -50,14 +58,10 @@ export class WorkTrackingService {
             logger.store.info('Deleting stale session', { sessionId: lastSession.id })
             await this.database.deleteWorkSession(lastSession.id)
           } else {
-            // Convert database session to our LocalWorkSession format
-            const workSession: LocalWorkSession = {
-              ...lastSession,
-              startTime: new Date(lastSession.startTime),
-              endTime: lastSession.endTime ? new Date(lastSession.endTime) : undefined,
-              isPaused: lastSession.isPaused || false,
-              duration: lastSession.duration || 0,
-            }
+            // Convert database session to unified format
+            const workSession = fromDatabaseWorkSession(lastSession)
+            workSession.isPaused = lastSession.isPaused || false
+
             const sessionKey = this.getSessionKey(workSession)
             this.activeSessions.set(sessionKey, workSession)
             logger.store.info('Restored active work session', { sessionId: workSession.id })
@@ -70,11 +74,11 @@ export class WorkTrackingService {
     }
   }
 
-  async startWorkSession(taskId?: string, stepId?: string, workflowId?: string): Promise<LocalWorkSession> {
+  async startWorkSession(taskId?: string, stepId?: string, workflowId?: string): Promise<UnifiedWorkSession> {
     try {
       logger.store.info('[WorkTrackingService] Starting work session', {
         taskId, stepId, workflowId,
-        currentActiveSessions: this.activeSessions.size
+        currentActiveSessions: this.activeSessions.size,
       })
 
       // Validate inputs
@@ -88,7 +92,7 @@ export class WorkTrackingService {
       // Check for existing active session
       if (this.activeSessions.size > 0) {
         logger.store.warn('[WorkTrackingService] Cannot start new session - another session is active', {
-          activeSessionCount: this.activeSessions.size
+          activeSessionCount: this.activeSessions.size,
         })
         throw new Error('Cannot start new work session: another session is already active')
       }
@@ -96,18 +100,17 @@ export class WorkTrackingService {
       // Get current session info from database
       const currentSession = await this.database.getCurrentSession()
 
-      // Create new work session
-      const workSession: LocalWorkSession = {
-        id: `session-${Date.now()}-${crypto.randomUUID()}`,
-        taskId,
+      // Create new unified work session
+      const workSession = createUnifiedWorkSession({
+        taskId: workflowId || taskId || '',
         stepId,
+        type: TaskType.Focused,
+        plannedMinutes: 60, // Default 1 hour
         workflowId,
-        startTime: new Date(),
-        isPaused: false,
-        type: 'focused',
-        plannedDuration: 60, // Default 1 hour
-        duration: 0, // Initial duration
-      }
+      })
+
+      // Set runtime state
+      workSession.isPaused = false
 
       // Save to database as an active work session (no endTime)
       // For workflows: taskId = workflowId, stepId = stepId
@@ -118,12 +121,7 @@ export class WorkTrackingService {
       }
 
       const dbPayload = {
-        taskId: dbTaskId,
-        stepId: stepId,
-        type: workSession.type,
-        startTime: workSession.startTime,
-        plannedMinutes: workSession.plannedDuration,
-        notes: undefined,
+        ...toDatabaseWorkSession(workSession),
         sessionId: currentSession?.id || 'session-1',
         date: new Date().toISOString().split('T')[0],
       }
@@ -131,8 +129,8 @@ export class WorkTrackingService {
       logger.store.info('[WorkTrackingService] Creating database work session', {
         dbPayload: {
           ...dbPayload,
-          startTime: dbPayload.startTime.toISOString()
-        }
+          startTime: dbPayload.startTime.toISOString(),
+        },
       })
 
       await this.database.createWorkSession(dbPayload)
@@ -214,21 +212,19 @@ export class WorkTrackingService {
 
       // Set final end time and calculate actual duration
       session.endTime = new Date()
-      session.actualDuration = Math.floor((session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60))
+      session.actualMinutes = Math.floor((session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60))
 
       // Remove from active sessions
       const sessionKey = this.getSessionKey(session)
       this.activeSessions.delete(sessionKey)
 
       // Update database with end time (marks as completed, not active)
-      await this.database.updateWorkSession(session.id, {
-        endTime: session.endTime,
-        actualDuration: session.actualDuration,
-      })
+      const dbData = toDatabaseWorkSession(session)
+      await this.database.updateWorkSession(session.id, dbData)
 
       logger.store.info('Stopped work session', {
         sessionId,
-        actualDuration: session.actualDuration,
+        actualMinutes: session.actualMinutes,
       })
     } catch (error) {
       this.handleSessionError(error as Error, 'stopping work session')
@@ -236,13 +232,10 @@ export class WorkTrackingService {
     }
   }
 
-  async saveActiveSession(session: LocalWorkSession): Promise<void> {
+  async saveActiveSession(session: UnifiedWorkSession): Promise<void> {
     try {
-      const result = await this.database.updateWorkSession(session.id, {
-        ...session,
-        startTime: session.startTime.toISOString(),
-        endTime: session.endTime?.toISOString(),
-      })
+      const dbData = toDatabaseWorkSession(session)
+      const result = await this.database.updateWorkSession(session.id, dbData)
       logger.store.debug('Saved active work session', { sessionId: session.id })
       return result
     } catch (error) {
@@ -251,7 +244,7 @@ export class WorkTrackingService {
     }
   }
 
-  async getLastActiveWorkSession(): Promise<LocalWorkSession | null> {
+  async getLastActiveWorkSession(): Promise<UnifiedWorkSession | null> {
     try {
       // Get today's work sessions and find active ones (no endTime)
       const today = new Date().toISOString().split('T')[0]
@@ -268,12 +261,8 @@ export class WorkTrackingService {
         return null
       }
 
-      // Convert to WorkSession format
-      return {
-        ...lastSession,
-        startTime: new Date(lastSession.startTime),
-        endTime: lastSession.endTime ? new Date(lastSession.endTime) : undefined,
-      }
+      // Convert to unified format
+      return fromDatabaseWorkSession(lastSession)
     } catch (error) {
       this.handleSessionError(error as Error, 'getting last active work session')
       return null
@@ -311,7 +300,7 @@ export class WorkTrackingService {
     }
   }
 
-  getCurrentActiveSession(): LocalWorkSession | null {
+  getCurrentActiveSession(): UnifiedWorkSession | null {
     const sessions = Array.from(this.activeSessions.values())
     return sessions.length > 0 ? sessions[0] : null
   }
@@ -341,7 +330,7 @@ export class WorkTrackingService {
   }
 
   // Private helper methods
-  private findSessionById(sessionId: string): LocalWorkSession | null {
+  private findSessionById(sessionId: string): UnifiedWorkSession | null {
     for (const session of this.activeSessions.values()) {
       if (session.id === sessionId) {
         return session
@@ -350,17 +339,17 @@ export class WorkTrackingService {
     return null
   }
 
-  private getSessionKey(session: LocalWorkSession): string {
+  private getSessionKey(session: UnifiedWorkSession): string {
     return session.taskId || session.stepId || session.workflowId || 'default'
   }
 
-  private isValidSession(session: any): session is LocalWorkSession {
+  private isValidSession(session: any): session is UnifiedWorkSession {
     return (
       session &&
       typeof session.id === 'string' &&
       (session.startTime instanceof Date || typeof session.startTime === 'string') &&
       typeof session.type === 'string' &&
-      (typeof session.plannedDuration === 'number' || typeof session.actualDuration === 'number')
+      (typeof session.plannedMinutes === 'number' || typeof session.actualMinutes === 'number')
     )
   }
 }

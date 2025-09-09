@@ -109,25 +109,25 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     try {
       logger.ui.info('[WorkStatusWidget] Loading next task...')
       setIsLoadingNextTask(true)
-      
+
       // Get current store state for logging
       const state = useTaskStore.getState()
       logger.ui.info('[WorkStatusWidget] Store state:', {
         totalTasks: state.tasks.length,
         totalWorkflows: state.sequencedTasks.length,
-        isLoading: state.isLoading
+        isLoading: state.isLoading,
       })
-      
+
       const nextItem = await state.getNextScheduledItem()
       logger.ui.info('[WorkStatusWidget] Next scheduled item result:', {
         nextItem: nextItem ? {
           type: nextItem.type,
           id: nextItem.id,
           title: nextItem.title,
-          estimatedDuration: nextItem.estimatedDuration
-        } : null
+          estimatedDuration: nextItem.estimatedDuration,
+        } : null,
       })
-      
+
       setNextTask(nextItem)
     } catch (error) {
       logger.ui.error('[WorkStatusWidget] Failed to load next task:', error)
@@ -147,14 +147,14 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     try {
       logger.ui.info('[WorkStatusWidget] Starting next task...')
       setIsStartingTask(true)
-      
+
       const result = await useTaskStore.getState().startNextTask()
-      
+
       // Show success notification with task name
       if (nextTask) {
         Message.success(`Started work on: ${nextTask.title}`)
       }
-      
+
       // Reload the next task after starting one
       await loadNextTask()
     } catch (error) {
@@ -174,7 +174,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       setIsStartingTask(true)
 
       const store = useTaskStore.getState()
-      
+
       // Determine if it's a task or step and pause accordingly
       if (activeSession.stepId) {
         await store.pauseWorkOnStep(activeSession.stepId)
@@ -183,14 +183,14 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         // For regular tasks, we'll stop the session entirely for now
         // TODO: Add proper pauseWorkOnTask method
         const sessionKey = activeSession.taskId
-        
+
         // Remove from store activeWorkSessions first
         const newSessions = new Map(activeWorkSessions)
         newSessions.delete(sessionKey)
-        
+
         // Update store
         useTaskStore.setState({ activeWorkSessions: newSessions })
-        
+
         Message.success('Work session stopped')
       }
 
@@ -293,8 +293,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             <Space direction="vertical" style={{ width: '100%' }}>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
-                <Button 
-                  type="text" 
+                <Button
+                  type="text"
                   icon={<IconRefresh />}
                   loading={isLoadingNextTask}
                   onClick={handleRefreshNextTask}
@@ -322,11 +322,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               {(() => {
                 const activeSession = getActiveSession()
                 const isActive = !!activeSession
-                
+
                 return (
                   <Button
-                    type={isActive ? "outline" : "primary"}
-                    status={isActive ? "warning" : undefined}
+                    type={isActive ? 'outline' : 'primary'}
+                    status={isActive ? 'warning' : undefined}
                     icon={isActive ? <IconPause /> : <IconPlayArrow />}
                     loading={isStartingTask}
                     disabled={(!nextTask && !isActive) || isLoadingNextTask}
@@ -506,8 +506,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
               <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
-              <Button 
-                type="text" 
+              <Button
+                type="text"
                 icon={<IconRefresh />}
                 loading={isLoadingNextTask}
                 onClick={handleRefreshNextTask}
@@ -535,11 +535,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             {(() => {
               const activeSession = getActiveSession()
               const isActive = !!activeSession
-              
+
               return (
                 <Button
-                  type={isActive ? "outline" : "primary"}
-                  status={isActive ? "warning" : undefined}
+                  type={isActive ? 'outline' : 'primary'}
+                  status={isActive ? 'warning' : undefined}
                   icon={isActive ? <IconPause /> : <IconPlayArrow />}
                   loading={isStartingTask}
                   disabled={(!nextTask && !isActive) || isLoadingNextTask}

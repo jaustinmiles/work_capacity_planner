@@ -6,26 +6,32 @@ import { SchedulingService } from '@shared/scheduling-service'
 import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { WorkSession as ImportedWorkSession } from '@shared/workflow-progress-types'
+import { UnifiedWorkSession, fromLocalWorkSession, getElapsedMinutes } from '@shared/unified-work-session-types'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
 import { logger } from '../utils/logger'
 import { getRendererLogger } from '../../logging/index.renderer'
 import { WorkTrackingService } from '../services/workTrackingService'
 
-
+// Legacy interface for backward compatibility during migration
 export interface LocalWorkSession {
-  id?: string // For WorkTrackingService compatibility
-  taskId?: string // For regular tasks  
-  stepId?: string // For workflow steps (optional now to support both)
-  workflowId?: string // For workflow identification
+  id?: string
+  taskId?: string
+  stepId?: string
+  workflowId?: string
   startTime: Date
-  endTime?: Date // For completed sessions
+  endTime?: Date
   isPaused: boolean
-  duration: number // accumulated minutes
-  pausedAt?: Date // When paused
-  type?: 'focused' | 'admin' // Work type
-  plannedDuration?: number // Planned duration in minutes
-  actualDuration?: number // Actual duration for completed sessions
+  duration: number
+  pausedAt?: Date
+  type?: 'focused' | 'admin'
+  plannedDuration?: number
+  actualDuration?: number
+}
+
+// Migration function to convert legacy LocalWorkSession to UnifiedWorkSession
+function migrateLocalSession(session: LocalWorkSession): UnifiedWorkSession {
+  return fromLocalWorkSession(session)
 }
 
 
@@ -45,7 +51,7 @@ interface TaskStore {
   schedulingError: string | null
 
   // Progress tracking state
-  activeWorkSessions: Map<string, LocalWorkSession>
+  activeWorkSessions: Map<string, UnifiedWorkSession>
   workSessionHistory: ImportedWorkSession[]
 
   // Data loading actions
@@ -90,7 +96,7 @@ interface TaskStore {
   getCompletedTasks: () => Task[]
   getActiveSequencedTasks: () => SequencedTask[]
   getCompletedSequencedTasks: () => SequencedTask[]
-  getActiveWorkSession: (stepId: string) => LocalWorkSession | undefined
+  getActiveWorkSession: (stepId: string) => UnifiedWorkSession | undefined
   getNextScheduledItem: () => Promise<{
     type: 'task' | 'step'
     id: string
@@ -222,23 +228,23 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       rendererLogger.info('[TaskStore] Initializing default data...')
       await getDatabase().initializeDefaultData()
-      
+
       // Loading all data from database
       rendererLogger.info('[TaskStore] Loading tasks and workflows from database...')
       const [tasks, sequencedTasks] = await Promise.all([
         getDatabase().getTasks(),
         getDatabase().getSequencedTasks(),
       ])
-      
+
       rendererLogger.info('[TaskStore] Data loaded successfully', {
         taskCount: tasks.length,
         workflowCount: sequencedTasks.length,
-        totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0)
+        totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0),
       })
-      
+
       // Store initialized successfully
       set({ tasks, sequencedTasks, isLoading: false })
-      
+
       rendererLogger.info('[TaskStore] Store initialization completed successfully')
     } catch (error) {
       rendererLogger.error('[TaskStore] Failed to initialize data:', error)
@@ -423,12 +429,12 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           try {
             // Stop session in WorkTrackingService
             await workTrackingService.stopWorkSession(activeSession.id!)
-            
+
             // Remove from store
             const newSessions = new Map(state.activeWorkSessions)
             newSessions.delete(id)
             set({ activeWorkSessions: newSessions })
-            
+
             logger.store.info('Stopped work session for completed task', { taskId: id, sessionId: activeSession.id })
           } catch (error) {
             logger.store.warn('Failed to stop work session for completed task', error)
@@ -558,12 +564,16 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Start work session in WorkTrackingService for persistence
       await workTrackingService.startWorkSession(undefined, stepId, workflowId)
 
-      // Also maintain LocalWorkSession for UI reactivity
-      const newSession: LocalWorkSession = {
+      // Also maintain UnifiedWorkSession for UI reactivity
+      const newSession: UnifiedWorkSession = {
+        id: crypto.randomUUID(),
+        taskId: workflowId,
         stepId,
         startTime: new Date(),
         isPaused: false,
-        duration: activeSession?.duration || 0,
+        plannedMinutes: activeSession?.plannedMinutes || 60,
+        actualMinutes: activeSession?.actualMinutes || undefined,
+        type: 'focused' as any,
       }
 
       const newSessions = new Map(state.activeWorkSessions)
@@ -599,21 +609,16 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const workSession = await workTrackingService.startWorkSession(taskId, undefined, undefined)
 
       // Sync the session to store's activeWorkSessions so UI can see it
-      const localSession: LocalWorkSession = {
-        id: workSession.id,
-        taskId: workSession.taskId,
-        startTime: workSession.startTime,
+      const localSession: UnifiedWorkSession = {
+        ...workSession,
         isPaused: workSession.isPaused || false,
-        duration: workSession.duration || 0,
-        type: workSession.type,
-        plannedDuration: workSession.plannedDuration,
       }
 
       set(state => ({
-        activeWorkSessions: new Map(state.activeWorkSessions.set(taskId, localSession))
+        activeWorkSessions: new Map(state.activeWorkSessions.set(taskId, localSession)),
       }))
 
-      // Update task status in database  
+      // Update task status in database
       await getDatabase().updateTask(taskId, {
         overallStatus: TaskStatus.InProgress,
       })
@@ -648,7 +653,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Calculate duration since last start
       const elapsed = Date.now() - session.startTime.getTime()
       const minutesWorked = Math.floor(elapsed / 60000) // Convert to minutes
-      const newDuration = session.duration + minutesWorked
+      const newDuration = (session.actualMinutes || 0) + minutesWorked
 
       // Create a WorkSession record for the time just worked
       if (minutesWorked > 0) {
@@ -680,10 +685,10 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         }
       }
 
-      const updatedSession: LocalWorkSession = {
+      const updatedSession: UnifiedWorkSession = {
         ...session,
         isPaused: true,
-        duration: newDuration,
+        actualMinutes: newDuration,
       }
 
       const newSessions = new Map(state.activeWorkSessions)
@@ -704,7 +709,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     if (session && !actualMinutes) {
       // Calculate final duration if session is active
       const elapsed = session.isPaused ? 0 : Date.now() - session.startTime.getTime()
-      totalMinutes = session.duration + Math.floor(elapsed / 60000)
+      totalMinutes = (session.actualMinutes || 0) + Math.floor(elapsed / 60000)
     }
 
     try {
@@ -850,12 +855,11 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     // Check WorkTrackingService first for authoritative state
     const activeWorkSession = workTrackingService.getCurrentActiveSession()
     if (activeWorkSession && activeWorkSession.stepId === stepId) {
-      // Convert WorkSession to LocalWorkSession format for UI compatibility
+      // Return the unified work session directly
       return {
+        ...activeWorkSession,
         stepId,
-        startTime: activeWorkSession.startTime,
-        isPaused: (activeWorkSession as any).isPaused || false,
-        duration: 0, // Duration will be calculated by the WorkTrackingService
+        isPaused: activeWorkSession.isPaused || false,
       }
     }
 
@@ -877,7 +881,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         workflowCount: sequencedTasks.length,
         totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0),
         incompleteTasks: tasks.filter(t => t.overallStatus !== 'completed').length,
-        incompleteWorkflows: sequencedTasks.filter(w => w.status !== 'completed').length,
+        incompleteWorkflows: sequencedTasks.filter(w => w.overallStatus !== 'completed').length,
       })
 
       // Use SchedulingService to determine the next item
@@ -891,7 +895,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           id: nextItem.id,
           title: nextItem.title,
           estimatedDuration: nextItem.estimatedDuration,
-          workflowId: nextItem.workflowId
+          workflowId: nextItem.workflowId,
         } : null,
         totalTasks: tasks.length,
         totalWorkflows: sequencedTasks.length,
