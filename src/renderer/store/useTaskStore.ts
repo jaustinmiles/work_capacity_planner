@@ -561,7 +561,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // Also maintain UnifiedWorkSession for UI reactivity
       const newSession: UnifiedWorkSession = {
-        id: `session-${Date.now()}-${Math.random().toString(36).substring(2)}`,
+        id: `session-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`,
         taskId: workflowId,
         stepId,
         startTime: new Date(),

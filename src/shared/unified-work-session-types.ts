@@ -181,7 +181,7 @@ export function createUnifiedWorkSession(params: {
   const now = new Date()
 
   return {
-    id: `session-${Date.now()}-${Math.random().toString(36).substring(2)}`,
+    id: `session-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`,
     taskId: params.taskId,
     stepId: params.stepId,
     workflowId: params.workflowId,

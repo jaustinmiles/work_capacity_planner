@@ -141,7 +141,7 @@ function App() {
   useEffect(() => {
     logger.info('App initialization started - loading data from database')
     initializeData()
-  }, []) // Empty dependency array - run once on mount
+  }, []) // Empty dependency array - run once on mount. We omit initializeData to avoid infinite re-renders.
 
   // Listen for data refresh events
   useEffect(() => {

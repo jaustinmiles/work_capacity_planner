@@ -7,3 +7,6 @@ declare module 'electron' {
   }
   export * from 'electron/main'
 }
+
+// Global crypto interface (available in both browser and Node.js)
+declare const crypto: Crypto

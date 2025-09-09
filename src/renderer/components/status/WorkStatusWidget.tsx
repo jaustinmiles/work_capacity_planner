@@ -174,7 +174,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         await store.pauseWorkOnStep(activeSession.stepId)
         Message.success('Work session paused')
       } else if (activeSession.taskId) {
-        // For regular tasks, we stop the session entirely (no pause/resume for tasks)
+        // For regular tasks, we stop the session entirely. Pause/resume is only available for workflow steps.
         const sessionKey = activeSession.taskId
 
         // Remove from store activeWorkSessions first
@@ -209,7 +209,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         db.getTodayAccumulated(currentDate),
       ])
 
-      // Load next task separately since it has side effects
+      // Load next task separately (updates UI state)
       await loadNextTask()
 
       setPattern(patternData)
