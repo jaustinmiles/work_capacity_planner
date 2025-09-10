@@ -119,6 +119,7 @@ export interface SchedulingDebugInfo {
   alternativeScenarios?: any[]
   allocationDetails?: any[]
   conflicts?: any[]
+  deadlineAnalysis?: any
 }
 
 export interface SchedulingMetrics {
@@ -133,6 +134,7 @@ export interface SchedulingMetrics {
   alternativeScenariosCount: number
   scheduledCount?: number
   unscheduledCount?: number
+  totalDuration?: number
   utilizationRate?: number
   averagePriority?: number
   deadlinesMissed?: number
