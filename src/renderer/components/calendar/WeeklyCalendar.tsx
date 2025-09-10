@@ -102,7 +102,7 @@ export function WeeklyCalendar() {
   // Use the unified scheduler to get properly scheduled items
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
-    
+
     const result = scheduleForGantt(
       tasks,
       workPatterns,
@@ -112,12 +112,12 @@ export function WeeklyCalendar() {
         allowSplitting: true,
         respectDeadlines: true,
       },
-      sequencedTasks
+      sequencedTasks,
     )
-    
+
     // Convert LegacyScheduledItem to ScheduledItem format for compatibility
     type ScheduledItemType = 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break'
-    
+
     return result.scheduledTasks.map(item => ({
       id: item.task.id,
       name: item.task.name,
@@ -126,7 +126,7 @@ export function WeeklyCalendar() {
       duration: item.task.duration,
       startTime: item.startTime,
       endTime: item.endTime,
-      color: item.task.type === 'focused' ? '#165DFF' : 
+      color: item.task.type === 'focused' ? '#165DFF' :
              item.task.type === 'admin' ? '#00B42A' : '#F77234',
       originalItem: item.task,
       deadline: item.task.deadline,
