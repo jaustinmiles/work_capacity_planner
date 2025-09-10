@@ -13,7 +13,7 @@ if (isMainProcess) {
   try {
     const { getMainLogger } = require('../logging/main/MainLogger')
     loggerInstance = getMainLogger()
-  } catch (e) {
+  } catch (_e) {
     // Fallback for main process if unified logger not available
     const electronLog = require('electron-log')
     loggerInstance = {
@@ -29,7 +29,7 @@ if (isMainProcess) {
   try {
     const { getRendererLogger } = require('../logging/renderer/RendererLogger')
     loggerInstance = getRendererLogger()
-  } catch (e) {
+  } catch (_e) {
     // If we can't get the renderer logger, create a no-op logger
     // This prevents crashes but doesn't spam console
     loggerInstance = {

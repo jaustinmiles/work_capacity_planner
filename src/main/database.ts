@@ -1017,7 +1017,7 @@ export class DatabaseService {
         if (b.capacity) {
           try {
             capacity = JSON.parse(b.capacity)
-          } catch (e) {
+          } catch (_e) {
             // If not JSON, try to use individual fields
             capacity = null
           }
