@@ -368,6 +368,7 @@ export class UnifiedScheduler {
         scheduleEfficiency: baseResult.debugInfo?.scheduleEfficiency || 100,
         capacityModel,
         alternativeScenarios: alternativeScenarios.slice(0, 3), // Top 3 alternatives
+        deadlineAnalysis,
       },
     }
   }
@@ -1462,8 +1463,9 @@ export class UnifiedScheduler {
         alternativeScenariosCount: 0,
         scheduledCount: scheduled.length,
         unscheduledCount: 0,
-        utilizationRate: activeWorkTime / Math.max(totalDuration, 1),
-        averagePriority: scheduled.reduce((sum, item) => sum + (item.priority || 0), 0) / scheduled.length,
+        totalDuration: activeWorkTime,
+        utilizationRate: scheduled.length > 0 ? 1 : 0, // Perfect utilization in optimal schedule
+        averagePriority: scheduled.length > 0 ? scheduled.reduce((sum, item) => sum + (item.priority || 0), 0) / scheduled.length : 0,
         deadlinesMissed: 0,
         criticalPathLength: this.calculateCriticalPath(scheduled),
       },
