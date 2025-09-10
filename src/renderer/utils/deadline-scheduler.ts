@@ -3,35 +3,35 @@
  *
  * ⚠️  CRITICAL: This is ONE OF THREE scheduler implementations still existing.
  * Despite claims of "scheduler unification", this remains a separate system.
- * 
+ *
  * PURPOSE:
  * Provides priority calculations for flexible-scheduler.ts (UI components).
  * NOT a standalone scheduler - works as calculation service for other schedulers.
- * 
+ *
  * INTEGRATION:
  * - flexible-scheduler.ts imports calculatePriority() and calculatePriorityWithBreakdown()
  * - GanttChart and WeeklyCalendar use this indirectly through flexible-scheduler
  * - scheduling-engine.ts has DIFFERENT priority calculation formulas (BUG!)
- * 
+ *
  * KEY FEATURES:
  * - Eisenhower matrix prioritization (importance × urgency)
- * - Deadline pressure calculations 
+ * - Deadline pressure calculations
  * - Async boost for wait time optimization
  * - Cognitive load matching to user energy patterns
  * - Workflow step inheritance (importance/urgency from parent workflow)
- * 
+ *
  * ⚠️  KNOWN CRITICAL BUG:
  * Priority formula uses MULTIPLICATIVE deadline pressure:
  * `priority = eisenhower * deadlinePressure + asyncBoost`
- * This should be ADDITIVE: 
+ * This should be ADDITIVE:
  * `priority = eisenhower + (deadlinePressure > 1 ? deadlinePressure * 100 : 0)`
- * 
+ *
  * This bug causes "Trader Joe's" task to be scheduled incorrectly despite low priority.
- * 
+ *
  * ARCHITECTURE RELATIONSHIP:
  * flexible-scheduler.ts → deadline-scheduler.ts (THIS FILE) → priority calculations
  * scheduling-engine.ts → separate priority calculations (DIFFERENT FORMULA)
- * 
+ *
  * Last Updated: 2025-09-09 (Added documentation during PR #67 cleanup)
  */
 

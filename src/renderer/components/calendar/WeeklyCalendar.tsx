@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Calendar, Card, Typography, Space, Statistic, Grid, Tag, Alert, Empty, Spin } from '@arco-design/web-react'
 import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
-// TODO: Still using old flexible-scheduler, not unified  
+// TODO: Still using old flexible-scheduler, not unified
 // This should be migrated to use scheduling-engine.ts instead of flexible-scheduler.ts
 // See TECH_DEBT.md for details on scheduler unification that was never completed
 import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-scheduler'
