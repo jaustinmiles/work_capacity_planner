@@ -5,11 +5,10 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
-// TODO: Still using old flexible-scheduler, not unified
-// This should be migrated to use scheduling-engine.ts instead of flexible-scheduler.ts
-// See TECH_DEBT.md for details on scheduler unification that was never completed
-import { scheduleItemsWithBlocksAndDebug, SchedulingDebugInfo } from '../../utils/flexible-scheduler'
+// Updated to use UnifiedScheduler via useUnifiedScheduler hook
+import { useUnifiedScheduler, LegacyScheduleResult } from '../../hooks/useUnifiedScheduler'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
+import { SchedulingDebugInfo } from '../../utils/flexible-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
@@ -41,6 +40,7 @@ const ZOOM_PRESETS = [
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const { updateTask, updateSequencedTask, generateSchedule, getOptimalSchedule } = useTaskStore()
+  const { scheduleForGantt } = useUnifiedScheduler()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -279,6 +279,175 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     setWorkPatterns(patterns)
   }
 
+  // Helper function to convert UnifiedScheduler results to GanttChart format
+  const convertUnifiedToGanttItems = useCallback((result: LegacyScheduleResult): any[] => {
+    logger.ui.debug('🔄 [GANTT] Converting UnifiedScheduler results to Gantt format', {
+      scheduledCount: result.scheduledTasks.length,
+      unscheduledCount: result.unscheduledTasks.length,
+    })
+
+    return result.scheduledTasks.map((item, index) => {
+      logger.ui.debug('Converting scheduled item', {
+        index,
+        taskId: item.task.id,
+        taskName: item.task.name,
+        startTime: item.startTime.toISOString(),
+        endTime: item.endTime.toISOString(),
+      })
+
+      // Get task color based on type
+      const getTaskColor = (taskType: TaskType): string => {
+        switch (taskType) {
+          case TaskType.Focused: return '#3b82f6'
+          case TaskType.Admin: return '#f59e0b'
+          case TaskType.Personal: return '#10b981'
+          default: return '#6b7280'
+        }
+      }
+
+      const ganttItem = {
+        id: item.task.id,
+        name: item.task.name,
+        type: (item as any).isWorkflowStep ? 'workflow-step' as const : 'task' as const,
+        priority: item.priority || 0,
+        duration: item.task.duration,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        color: getTaskColor(item.task.type),
+        deadline: item.task.deadline,
+        originalItem: item.task,
+        blockId: item.blockId,
+      }
+
+      // Preserve workflow metadata if this is a workflow step
+      if ((item as any).workflowId) {
+        ;(ganttItem as any).workflowId = (item as any).workflowId
+        ;(ganttItem as any).workflowName = (item as any).workflowName
+        ;(ganttItem as any).stepIndex = (item as any).stepIndex
+        ;(ganttItem as any).isWorkflowStep = (item as any).isWorkflowStep
+      }
+
+      return ganttItem
+    })
+  }, [])
+
+  // Helper function to convert meetings from workPatterns to ScheduledItem format
+  const getMeetingScheduledItems = useCallback((workPatterns: DailyWorkPattern[]): any[] => {
+    const meetingItems: any[] = []
+    const meetingMap = new Map<string, number>()
+
+    workPatterns.forEach(pattern => {
+      if (!pattern.meetings || pattern.meetings.length === 0) return
+
+      const date = new Date(pattern.date + 'T00:00:00')
+
+      pattern.meetings.forEach(meeting => {
+        // Parse times for this date
+        const parseTimeOnDate = (date: Date, timeStr: string): Date => {
+          const [hours, minutes] = timeStr.split(':').map(Number)
+          const result = new Date(date)
+          result.setHours(hours, minutes, 0, 0)
+          return result
+        }
+
+        const startTime = parseTimeOnDate(date, meeting.startTime)
+        const endTime = parseTimeOnDate(date, meeting.endTime)
+
+        // Generate unique meeting IDs per day
+        const dateStr = date.toISOString().split('T')[0]
+        const baseId = `${meeting.id}-${dateStr}`
+        const count = meetingMap.get(baseId) || 0
+        meetingMap.set(baseId, count + 1)
+        const uniqueMeetingId = count > 0 ? `${baseId}-${count}` : baseId
+
+        // Check if this meeting crosses midnight (end time is earlier than start time)
+        const crossesMidnight = endTime <= startTime
+        const isSleepBlock = meeting.type === 'blocked' && meeting.name === 'Sleep'
+
+        // Handle meetings that cross midnight (like sleep blocks)
+        if (crossesMidnight) {
+          if (isSleepBlock) {
+            // Split sleep blocks across midnight
+            const midnight = new Date(date)
+            midnight.setDate(midnight.getDate() + 1)
+            midnight.setHours(0, 0, 0, 0)
+
+            // Night portion (from start time to midnight)
+            meetingItems.push({
+              id: `${uniqueMeetingId}-night`,
+              name: meeting.name,
+              type: 'blocked-time',
+              priority: 0,
+              duration: (midnight.getTime() - startTime.getTime()) / 60000,
+              startTime,
+              endTime: midnight,
+              color: '#ff4d4f',
+              isBlocked: true,
+              originalItem: meeting,
+            })
+
+            // Morning portion (from midnight to end time next day)
+            const nextDayStart = new Date(date)
+            nextDayStart.setDate(nextDayStart.getDate() + 1)
+            nextDayStart.setHours(0, 0, 0, 0)
+
+            const nextDayEnd = parseTimeOnDate(new Date(date.getTime() + 24 * 60 * 60 * 1000), meeting.endTime)
+
+            meetingItems.push({
+              id: `${uniqueMeetingId}-morning`,
+              name: meeting.name,
+              type: 'blocked-time',
+              priority: 0,
+              duration: (nextDayEnd.getTime() - nextDayStart.getTime()) / 60000,
+              startTime: nextDayStart,
+              endTime: nextDayEnd,
+              color: '#ff4d4f',
+              isBlocked: true,
+              originalItem: meeting,
+            })
+          } else {
+            // For other meetings crossing midnight, adjust end time to next day
+            endTime.setDate(endTime.getDate() + 1)
+
+            // Add the meeting with corrected end time
+            meetingItems.push({
+              id: uniqueMeetingId,
+              name: meeting.name,
+              type: meeting.type === 'meeting' ? 'meeting' : 'blocked-time',
+              priority: 0,
+              duration: (endTime.getTime() - startTime.getTime()) / 60000,
+              startTime,
+              endTime,
+              color: meeting.type === 'meeting' ? '#3370ff' :
+                     meeting.type === 'break' ? '#00b42a' :
+                     meeting.type === 'personal' ? '#ff7d00' : '#ff4d4f',
+              isBlocked: true,
+              originalItem: meeting,
+            })
+          }
+        } else {
+          // Add regular meeting (doesn't cross midnight)
+          meetingItems.push({
+            id: uniqueMeetingId,
+            name: meeting.name,
+            type: meeting.type === 'meeting' ? 'meeting' : 'blocked-time',
+            priority: 0,
+            duration: (endTime.getTime() - startTime.getTime()) / 60000,
+            startTime,
+            endTime,
+            color: meeting.type === 'meeting' ? '#3370ff' :
+                   meeting.type === 'break' ? '#00b42a' :
+                   meeting.type === 'personal' ? '#ff7d00' : '#ff4d4f',
+            isBlocked: true,
+            originalItem: meeting,
+          })
+        }
+      })
+    })
+
+    return meetingItems
+  }, [])
+
   // Use the scheduler to get properly ordered items
   // Include refreshKey in dependencies to force recalculation when time changes
   const scheduledItems = useMemo(() => {
@@ -352,79 +521,79 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       return savedSchedule
     }
 
-    // IMPORTANT: Pass all tasks to scheduler - it will deduplicate
+    // IMPORTANT: Pass all tasks to UnifiedScheduler - it will handle deduplication
     // The scheduler handles removing any tasks that are also in sequencedTasks
-    logger.ui.debug(`GanttChart: No saved schedule, running flexible scheduler with ${tasks.length} tasks and ${sequencedTasks.length} workflows`)
-
-    // Pass current time as start date to ensure scheduling starts from now
-    // Also pass scheduling preferences and work settings to enable enhanced priority calculation
-    const result = scheduleItemsWithBlocksAndDebug(tasks, sequencedTasks, workPatterns, getCurrentTime(), {
-      allowTaskSplitting: true,
-      minimumSplitDuration: 10,
-      productivityPatterns: [
-        // Default productivity pattern - peak in morning, dip after lunch
-        { id: 'morning-peak', sessionId: 'default', timeRangeStart: '09:00', timeRangeEnd: '11:00', cognitiveCapacity: 'peak', preferredComplexity: [4, 5], createdAt: new Date(), updatedAt: new Date() },
-        { id: 'late-morning', sessionId: 'default', timeRangeStart: '11:00', timeRangeEnd: '12:00', cognitiveCapacity: 'high', preferredComplexity: [3, 4], createdAt: new Date(), updatedAt: new Date() },
-        { id: 'lunch-dip', sessionId: 'default', timeRangeStart: '12:00', timeRangeEnd: '13:00', cognitiveCapacity: 'low', preferredComplexity: [1, 2], createdAt: new Date(), updatedAt: new Date() },
-        { id: 'early-afternoon', sessionId: 'default', timeRangeStart: '13:00', timeRangeEnd: '14:30', cognitiveCapacity: 'moderate', preferredComplexity: [2, 3], createdAt: new Date(), updatedAt: new Date() },
-        { id: 'afternoon-peak', sessionId: 'default', timeRangeStart: '14:30', timeRangeEnd: '16:00', cognitiveCapacity: 'high', preferredComplexity: [3, 4], createdAt: new Date(), updatedAt: new Date() },
-        { id: 'late-afternoon', sessionId: 'default', timeRangeStart: '16:00', timeRangeEnd: '18:00', cognitiveCapacity: 'moderate', preferredComplexity: [2, 3], createdAt: new Date(), updatedAt: new Date() },
-      ],
-      schedulingPreferences: {
-        id: 'default',
-        sessionId: 'default',
-        allowWeekendWork: false,
-        weekendPenalty: 0.5,
-        contextSwitchPenalty: 10, // Priority penalty for context switching
-        asyncParallelizationBonus: 20, // Priority bonus for async work
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      workSettings: {
-        defaultWorkHours: {
-          startTime: '09:00',
-          endTime: '18:00',
-          lunchStart: '12:00',
-          lunchDuration: 60,
-        },
-        customWorkHours: {},
-        defaultCapacity: {
-          maxFocusHours: 4,
-          maxAdminHours: 3,
-          blockedTimes: [],
-        },
-        customCapacity: {},
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      },
+    logger.ui.info('🏗️ [GANTT] Using UnifiedScheduler for calculation', {
+      schedulerType: 'unified',
+      tasksCount: tasks.length,
+      sequencedTasksCount: sequencedTasks.length,
+      currentTime: getCurrentTime().toISOString(),
     })
-    setDebugInfo(result.debugInfo)
+
+    // Call UnifiedScheduler via hook with proper options
+    const legacyScheduleResult = scheduleForGantt(tasks, workPatterns, {
+      startDate: getCurrentTime(),
+      allowSplitting: true,
+      respectDeadlines: true,
+      debug: true,
+    }, sequencedTasks)
+
+    // Convert UnifiedScheduler results to GanttChart format
+    const ganttItems = convertUnifiedToGanttItems(legacyScheduleResult)
+
+    // Create debug info structure for UnifiedScheduler output
+    const unifiedDebugInfo: SchedulingDebugInfo = {
+      unscheduledItems: legacyScheduleResult.unscheduledTasks.map(task => ({
+        id: task.id,
+        name: task.name,
+        type: 'task',
+        duration: task.duration,
+        reason: 'No available capacity or constraints not met',
+      })),
+      warnings: legacyScheduleResult.conflicts,
+      blockUtilization: [], // Not available in legacy format
+      scheduledItemsPriority: legacyScheduleResult.scheduledTasks.map(item => ({
+        id: item.task.id,
+        name: item.task.name,
+        scheduledTime: item.startTime.toISOString(),
+        priorityBreakdown: {
+          eisenhower: (item.task.importance || 5) * (item.task.urgency || 5),
+          deadlineBoost: item.task.deadline ? 20 : 0,
+          asyncBoost: 0,
+          cognitiveMatch: 0,
+          contextSwitchPenalty: 0,
+          total: item.priority || 0,
+        },
+      })),
+    }
+    setDebugInfo(unifiedDebugInfo)
 
     // Log the Gantt chart data for AI debugging
     const viewWindow = {
-      start: result.scheduledItems.length > 0 ? result.scheduledItems[0].startTime : getCurrentTime(),
-      end: result.scheduledItems.length > 0 ?
-        result.scheduledItems[result.scheduledItems.length - 1].endTime :
+      start: ganttItems.length > 0 ? ganttItems[0].startTime : getCurrentTime(),
+      end: ganttItems.length > 0 ?
+        ganttItems[ganttItems.length - 1].endTime :
         new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
     }
-    logGanttChart(logger.ui, result.scheduledItems, workPatterns, viewWindow, result.debugInfo)
+    logGanttChart(logger.ui, ganttItems, workPatterns, viewWindow, unifiedDebugInfo)
 
     // Auto-show debug info if there are issues
-    if (result.debugInfo.unscheduledItems.length > 0 || result.debugInfo.warnings.length > 0) {
+    if (unifiedDebugInfo.unscheduledItems.length > 0 || unifiedDebugInfo.warnings.length > 0) {
       setShowDebugInfo(true)
     }
 
     // Log final schedule results with deadline analysis
-    const finalItemsWithDeadlines = result.scheduledItems.filter(item => item.deadline)
+    const finalItemsWithDeadlines = ganttItems.filter(item => item.deadline)
     const violatedDeadlines = finalItemsWithDeadlines.filter(item =>
       dayjs(item.endTime).isAfter(dayjs(item.deadline)),
     )
 
-    logger.ui.info('✅ [GANTT] Schedule calculation complete', {
-      totalScheduledItems: result.scheduledItems.length,
+    logger.ui.info('✅ [GANTT] UnifiedScheduler calculation complete', {
+      totalScheduledItems: ganttItems.length,
       itemsWithDeadlines: finalItemsWithDeadlines.length,
       violatedDeadlines: violatedDeadlines.length,
-      unscheduledItems: result.debugInfo.unscheduledItems.length,
-      warnings: result.debugInfo.warnings.length,
+      unscheduledItems: unifiedDebugInfo.unscheduledItems.length,
+      warnings: unifiedDebugInfo.warnings.length,
       violationDetails: violatedDeadlines.map(item => ({
         name: item.name,
         deadline: dayjs(item.deadline).format('YYYY-MM-DD HH:mm'),
@@ -434,8 +603,20 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       })),
     })
 
-    return result.scheduledItems
-  }, [tasks, sequencedTasks, workPatterns, getOptimalSchedule, refreshKey])
+    // Add meeting items from work patterns
+    const meetingItems = getMeetingScheduledItems(workPatterns)
+
+    logger.ui.info('🏗️ [GANTT] Merging UnifiedScheduler results with meetings', {
+      taskItems: ganttItems.length,
+      meetingItems: meetingItems.length,
+      totalItems: ganttItems.length + meetingItems.length,
+    })
+
+    // Combine task items and meeting items
+    const allItems = [...meetingItems, ...ganttItems]
+
+    return allItems
+  }, [tasks, sequencedTasks, workPatterns, getOptimalSchedule, refreshKey, scheduleForGantt, convertUnifiedToGanttItems, getMeetingScheduledItems])
 
   // Calculate chart dimensions
   const now = getCurrentTime()
@@ -650,51 +831,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     return { positions, totalRows: currentRow, workflowProgress, totalMeetingMinutes, unscheduledTasks }
   }, [scheduledItems])
 
-  // Early return for empty state - AFTER all hooks
-  if (scheduledItems.length === 0) {
-    return (
-      <Card>
-        <Empty
-          description={
-            <Space direction="vertical" align="center">
-              <Text>No scheduled items to display</Text>
-              {workPatterns.length === 0 ? (
-                <>
-                  <Text type="secondary">You need to set up your work schedule first</Text>
-                  <Button
-                    type="primary"
-                    icon={<IconSettings />}
-                    onClick={() => {
-                      setSelectedDate(dayjs().format('YYYY-MM-DD'))
-                      setShowSettings(true)
-                    }}
-                  >
-                    Create Work Schedule
-                  </Button>
-                </>
-              ) : (
-                <Text type="secondary">Add some tasks or workflows to see them scheduled</Text>
-              )}
-            </Space>
-          }
-        />
-        {/* Work Schedule Modal */}
-        <WorkScheduleModal
-          visible={showSettings}
-          date={selectedDate || dayjs().format('YYYY-MM-DD')}
-          onClose={() => {
-            setShowSettings(false)
-            setSelectedDate(null)
-          }}
-          onSave={async () => {
-            await loadWorkPatterns()
-            setShowSettings(false)
-            setSelectedDate(null)
-          }}
-        />
-      </Card>
-    )
-  }
+  // Check for empty state but don't early return - show timeline with empty state message
+  const hasScheduledItems = scheduledItems.length > 0
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -1405,6 +1543,45 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   })
                 })}
               </svg>
+
+              {/* Empty state message */}
+              {!hasScheduledItems && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    zIndex: 10,
+                  }}
+                >
+                  <Empty
+                    description={
+                      <Space direction="vertical" align="center">
+                        <Text>No scheduled items to display</Text>
+                        {workPatterns.length === 0 ? (
+                          <>
+                            <Text type="secondary">You need to set up your work schedule first</Text>
+                            <Button
+                              type="primary"
+                              icon={<IconSettings />}
+                              onClick={() => {
+                                setSelectedDate(dayjs().format('YYYY-MM-DD'))
+                                setShowSettings(true)
+                              }}
+                            >
+                              Create Work Schedule
+                            </Button>
+                          </>
+                        ) : (
+                          <Text type="secondary">Add some tasks or workflows to see them scheduled</Text>
+                        )}
+                      </Space>
+                    }
+                  />
+                </div>
+              )}
 
               {/* Gantt bars */}
               {scheduledItems.map((item, index) => {

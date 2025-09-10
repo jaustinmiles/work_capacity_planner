@@ -1461,5 +1461,17 @@
     "description": "The app should support the ability to start work from the home screen. What I mean by this is that the next scheduled task or the next scheduled workflow should be able to be started, meaning a work session that logs work should be attached to it, from multiple locations, including the task list page and the dual view work logger. Basically a user should be able to click start next task and then the next task according to scheduling priority, which accounts for all of the stuff that we use on the Gantt chart view, should be actively tracking work. We already show what task is actively tracking work in the dual work logger but it's kind of buggy. Here are a few of the things that I've noticed: first, when a workflow is started, we usually can complete the step that we are currently working on by pressing complete step on the progress tracking page. This doesn't stop the workflow in terms of progress tracking (like the start stop workflow button that also influences whether we see a current task being logged in the dual view work log) and it also doesn't start the next step of the workflow - instead it just shows that we are currently working on the workflow, but not a specific step of the workflow. Second, I think the current task is being worked on it stored in the browser, local storage or something, but it seems that if I close out the app and then restart it while working on a task, the actual work logging is broken and if I click on the dual view work log, I no longer see that I'm currently working on a task, but if I go back to the workflow page, I will still see that the start button has been pressed and that it is now a pause button and it appears as if I'm working on the workflow, but no time is being logged. So basically I just need to make sure that we can start and stop time on tasks and workflow, and that when the app is started or stopped and restarted, but if there is a currently tracked task, that it still is being tracked, and that on the door of your work longer, and on the task list page, we should have a button to start the next task which starts the next task in the priority order, determined by the scheduler",
     "timestamp": "2025-09-08T22:22:01.702Z",
     "sessionId": "session-1757370121692-4nckvwtwa"
+  },
+  {
+    "type": "feature",
+    "priority": "medium",
+    "components": [
+      "main/api-server",
+      "other"
+    ],
+    "title": "REST API for Claude Code workflow automation",
+    "description": "Create a REST API server in the main process that allows Claude Code to programmatically interact with the task planner app. This would include: 1) POST /api/workflows/{id}/advance - to advance workflow steps automatically, 2) GET /api/work-sessions/active - to see currently active work sessions, 3) GET /api/workflows/active - to see current workflows in progress, 4) GET /api/schedule/planned - to get planned schedules and upcoming tasks, 5) POST /api/tasks/{id}/start - to start working on a specific task, 6) POST /api/tasks/{id}/complete - to mark tasks as completed. This would enable Claude Code to help users manage their workflows more efficiently by automating routine task progression and providing better visibility into current work state without requiring manual app navigation.",
+    "timestamp": "2025-09-10T10:00:00.000Z",
+    "sessionId": "session-unified-scheduler-dev"
   }
 ]

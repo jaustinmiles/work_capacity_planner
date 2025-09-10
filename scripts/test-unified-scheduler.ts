@@ -21,21 +21,21 @@ const mockWorkPattern: DailyWorkPattern = {
       id: 'morning-focus',
       startTime: '09:00',
       endTime: '12:00',
-      type: 'focused'
+      type: 'focused',
     },
     {
       id: 'afternoon-admin',
       startTime: '13:00',
       endTime: '15:00',
-      type: 'admin'
-    }
+      type: 'admin',
+    },
   ],
   accumulated: {
     focusMinutes: 0,
     adminMinutes: 0,
-    personalMinutes: 0
+    personalMinutes: 0,
   },
-  meetings: []
+  meetings: [],
 }
 
 const mockContext: ScheduleContext = {
@@ -51,15 +51,15 @@ const mockContext: ScheduleContext = {
     defaultCapacity: {
       maxFocusHours: 4,
       maxAdminHours: 2,
-      maxPersonalHours: 1
-    }
-  }
+      maxPersonalHours: 1,
+    },
+  },
 }
 
 const mockConfig: ScheduleConfig = {
   startDate: '2025-01-15',
   debugMode: true,
-  maxDays: 7
+  maxDays: 7,
 }
 
 const createTestTask = (id: string, duration: number, options: Partial<Task> = {}): Task => ({
@@ -73,7 +73,7 @@ const createTestTask = (id: string, duration: number, options: Partial<Task> = {
   status: 'not_started',
   createdAt: new Date('2025-01-15T08:00:00.000Z'),
   notes: '',
-  ...options
+  ...options,
 })
 
 console.log('=== UnifiedScheduler Manual Test ===\n')
@@ -84,7 +84,7 @@ const testTask = createTestTask('test', 60, { importance: 8, urgency: 7 })
 const priority = scheduler.calculatePriority(testTask, mockContext)
 const breakdown = scheduler.calculatePriorityWithBreakdown(testTask, mockContext)
 console.log(`   Priority: ${priority}`)
-console.log(`   Breakdown:`, breakdown)
+console.log('   Breakdown:', breakdown)
 console.log()
 
 // Test 2: Topological sort
@@ -93,8 +93,8 @@ const dependentTasks = [
   scheduler['convertToUnifiedItems']([
     createTestTask('A', 60),
     createTestTask('B', 45, { dependencies: ['A'] }),
-    createTestTask('C', 30, { dependencies: ['A', 'B'] })
-  ])
+    createTestTask('C', 30, { dependencies: ['A', 'B'] }),
+  ]),
 ].flat()
 
 const sorted = scheduler.topologicalSort(dependentTasks)
@@ -105,7 +105,7 @@ console.log()
 console.log('3. Testing main scheduling:')
 const tasks = [
   createTestTask('task1', 60),
-  createTestTask('task2', 45, { taskType: TaskType.Admin })
+  createTestTask('task2', 45, { taskType: TaskType.Admin }),
 ]
 
 console.log(`   Tasks to schedule: ${tasks.map(t => `${t.name} (${t.duration}min, ${t.taskType})`).join(', ')}`)
@@ -170,9 +170,9 @@ allocated.forEach(item => {
 console.log('\n5. Testing async scheduling:')
 scheduler.scheduleForPersistence(tasks, mockContext, mockConfig).then(asyncResult => {
   console.log(`   Async result: ${asyncResult.scheduled.length} scheduled, ${asyncResult.unscheduled.length} unscheduled`)
-  console.log(`   Enhanced metrics:`)
+  console.log('   Enhanced metrics:')
   console.log(`   - Capacity utilization: ${asyncResult.metrics.capacityUtilization}`)
   console.log(`   - Deadline risk score: ${asyncResult.metrics.deadlineRiskScore}`)
-  
+
   console.log('\n=== Test Complete ===')
 })

@@ -5,16 +5,16 @@
 
 import { UnifiedScheduler } from '../unified-scheduler'
 import { UnifiedScheduleItem, ScheduleContext } from '../unified-scheduler-types'
-import { Task, TaskStep } from '../types'
+import { Task } from '../types'
 import { TaskType } from '../enums'
 
 describe('UnifiedScheduler - Optimization Methods', () => {
   let scheduler: UnifiedScheduler
-  
+
   beforeEach(() => {
     scheduler = new UnifiedScheduler()
   })
-  
+
   const mockContext: ScheduleContext = {
     startDate: '2025-01-15',
     tasks: [],
@@ -26,18 +26,18 @@ describe('UnifiedScheduler - Optimization Methods', () => {
       breakPreferences: { duration: 15, frequency: 90 },
       defaultCapacity: {
         maxFocusHours: 4,
-        maxAdminHours: 2, 
-        maxPersonalHours: 1
-      }
-    }
+        maxAdminHours: 2,
+        maxPersonalHours: 1,
+      },
+    },
   }
-  
+
   const createTestItem = (
-    id: string, 
-    duration: number, 
+    id: string,
+    duration: number,
     dependencies: string[] = [],
     isAsyncTrigger = false,
-    asyncWaitTime = 0
+    asyncWaitTime = 0,
   ): UnifiedScheduleItem => ({
     id,
     name: `Task ${id}`,
@@ -47,7 +47,7 @@ describe('UnifiedScheduler - Optimization Methods', () => {
     taskType: TaskType.Focused,
     originalItem: { id, name: `Task ${id}`, duration } as Task,
     isAsyncTrigger,
-    asyncWaitTime
+    asyncWaitTime,
   })
 
   describe('calculateOptimalSchedule', () => {
@@ -57,11 +57,11 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('A', 60),
         createTestItem('B', 45, ['A']),
       ]
-      
+
       const result = scheduler.calculateOptimalSchedule(items, mockContext)
-      
+
       expect(result.scheduled).toHaveLength(3)
-      
+
       // Check schedule order: A should come first, then B, then C
       const scheduleOrder = result.scheduled.map(item => item.id)
       expect(scheduleOrder.indexOf('A')).toBeLessThan(scheduleOrder.indexOf('B'))
@@ -74,9 +74,9 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('dependent', 45, ['async-task']),
         createTestItem('independent', 20),
       ]
-      
+
       const result = scheduler.calculateOptimalSchedule(items, mockContext)
-      
+
       expect(result.scheduled).toHaveLength(3)
       expect(result.metrics.totalDuration).toBeGreaterThan(0)
     })
@@ -86,9 +86,9 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('A', 60),
         createTestItem('B', 30),
       ]
-      
+
       const result = scheduler.calculateOptimalSchedule(items, mockContext)
-      
+
       expect(result.metrics.scheduledCount).toBe(2)
       expect(result.metrics.unscheduledCount).toBe(0)
       expect(result.metrics.totalDuration).toBe(90) // 60 + 30
@@ -108,7 +108,7 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('B', 45),
         createTestItem('C', 60),
       ]
-      
+
       // Independent tasks can run in parallel, so minimum time is the longest task
       const result = scheduler.calculateMinimumCompletionTime(items)
       expect(result).toBe(60) // Longest task duration
@@ -120,7 +120,7 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('B', 45, ['A']),
         createTestItem('C', 60, ['B']),
       ]
-      
+
       // Sequential chain: 30 + 45 + 60 = 135
       const result = scheduler.calculateMinimumCompletionTime(items)
       expect(result).toBe(135)
@@ -133,9 +133,9 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('C', 45, ['A']), // Can run parallel to B
         createTestItem('D', 20, ['B', 'C']),
       ]
-      
+
       const result = scheduler.calculateMinimumCompletionTime(items)
-      
+
       // A(60) -> max(B(30), C(45)) -> D(20) = 60 + 45 + 20 = 125
       expect(result).toBe(125)
     })
@@ -148,9 +148,9 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('B', 45),
         createTestItem('C', 60),
       ]
-      
+
       const result = scheduler.modelParallelExecution(items)
-      
+
       expect(result.parallelGroups).toHaveLength(1)
       expect(result.parallelGroups[0]).toHaveLength(3) // All can run in parallel
       expect(result.maxParallelism).toBe(3)
@@ -164,9 +164,9 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('C', 60, ['A']), // Same level as B
         createTestItem('D', 20, ['B', 'C']),
       ]
-      
+
       const result = scheduler.modelParallelExecution(items)
-      
+
       expect(result.parallelGroups).toHaveLength(3)
       expect(result.parallelGroups[0]).toHaveLength(1) // A
       expect(result.parallelGroups[1]).toHaveLength(2) // B, C
@@ -179,9 +179,9 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('A', 30),
         createTestItem('B', 45),
       ]
-      
+
       const result = scheduler.modelParallelExecution(items)
-      
+
       // Sequential: 30 + 45 = 75
       // Parallel: max(30, 45) = 45
       // Reduction: 75 - 45 = 30
@@ -197,9 +197,9 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('E', 35, ['C', 'D']),
         createTestItem('F', 25, ['B']),
       ]
-      
+
       const result = scheduler.modelParallelExecution(items)
-      
+
       // Should have multiple levels with different parallelization opportunities
       expect(result.parallelGroups.length).toBeGreaterThan(2)
       expect(result.maxParallelism).toBeGreaterThan(1)
@@ -214,10 +214,10 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('B', 45, ['A']),
         createTestItem('C', 60, ['B']),
       ]
-      
+
       const criticalPath = scheduler.calculateCriticalPath(items)
       const minTime = scheduler.calculateMinimumCompletionTime(items)
-      
+
       // For a simple sequential chain, critical path should equal minimum time
       expect(criticalPath).toBe(135) // 30 + 45 + 60
       expect(minTime).toBe(135)
@@ -230,10 +230,10 @@ describe('UnifiedScheduler - Optimization Methods', () => {
         createTestItem('B2', 45, ['A']), // Can run parallel to B1
         createTestItem('C', 20, ['B1', 'B2']),
       ]
-      
+
       const criticalPath = scheduler.calculateCriticalPath(items)
       const minTime = scheduler.calculateMinimumCompletionTime(items)
-      
+
       // Critical path: A(60) + max(B1(30), B2(45)) + C(20) = 60 + 45 + 20 = 125
       expect(criticalPath).toBe(125)
       expect(minTime).toBeLessThanOrEqual(criticalPath)

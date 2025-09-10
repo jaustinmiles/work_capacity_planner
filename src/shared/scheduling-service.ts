@@ -9,6 +9,8 @@ import {
   WeeklySchedule,
   TimeBreak,
 } from './scheduling-models'
+import { UnifiedSchedulerAdapter, LegacyScheduleResult } from './unified-scheduler-adapter'
+import { DailyWorkPattern } from './work-blocks-types'
 import { logger } from './logger'
 
 /**
@@ -17,9 +19,182 @@ import { logger } from './logger'
  */
 export class SchedulingService {
   private engine: SchedulingEngine
+  private unifiedAdapter: UnifiedSchedulerAdapter
 
   constructor() {
     this.engine = new SchedulingEngine()
+    this.unifiedAdapter = new UnifiedSchedulerAdapter()
+  }
+
+  /**
+   * Generate default work patterns for a date range
+   * This is used when work patterns are not provided to the scheduler
+   */
+  private generateDefaultWorkPatterns(startDate: Date, days: number = 30): DailyWorkPattern[] {
+    const patterns: DailyWorkPattern[] = []
+    const currentDate = new Date(startDate)
+
+    for (let i = 0; i < days; i++) {
+      const dateStr = currentDate.toISOString().split('T')[0]
+      const dayOfWeek = currentDate.getDay() // 0 = Sunday, 6 = Saturday
+
+      // Skip weekends for default patterns
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        currentDate.setDate(currentDate.getDate() + 1)
+        continue
+      }
+
+      patterns.push({
+        date: dateStr,
+        blocks: [
+          {
+            id: `default-morning-${dateStr}`,
+            startTime: '09:00',
+            endTime: '12:00',
+            type: 'mixed',
+            capacity: {
+              focusMinutes: 120, // 2 hours
+              adminMinutes: 60,  // 1 hour
+            },
+          },
+          {
+            id: `default-afternoon-${dateStr}`,
+            startTime: '13:00',
+            endTime: '17:00',
+            type: 'mixed',
+            capacity: {
+              focusMinutes: 180, // 3 hours
+              adminMinutes: 60,  // 1 hour
+            },
+          },
+        ],
+        meetings: [],
+        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+      })
+
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    return patterns
+  }
+
+  /**
+   * Convert LegacyScheduleResult to the old SchedulingResult format
+   */
+  private convertToLegacySchedulingResult(
+    legacyResult: LegacyScheduleResult,
+    tasks: Task[],
+    sequencedTasks: SequencedTask[],
+  ): SchedulingResult {
+    // Convert scheduled tasks to ScheduledWorkItem format
+    const scheduledItems = legacyResult.scheduledTasks.map(item => ({
+      // Base SchedulableItem properties
+      id: item.task.id,
+      name: item.task.name,
+      type: item.task.type,
+      duration: item.task.duration,
+      importance: item.task.importance,
+      urgency: item.task.urgency,
+      cognitiveComplexity: item.task.cognitiveComplexity || 3,
+      dependsOn: item.task.dependencies || [],
+      asyncWaitTime: item.task.asyncWaitTime || 0,
+      isAsyncTrigger: false,
+      deadline: item.task.deadline,
+      deadlineType: item.task.deadlineType,
+      sourceType: 'simple_task' as const,
+      sourceId: item.task.id,
+      status: 'scheduled' as const,
+      // ScheduledWorkItem specific properties
+      scheduledDate: new Date(item.startTime.toDateString()),
+      scheduledStartTime: item.startTime,
+      scheduledEndTime: item.endTime,
+      timeSlotId: item.blockId || 'unknown',
+      consumesFocusedTime: item.task.type === TaskType.Focused,
+      consumesAdminTime: item.task.type === TaskType.Admin,
+      isOptimallyPlaced: true, // Assume UnifiedScheduler places optimally
+      wasRescheduled: false,
+    }))
+
+    // Convert unscheduled tasks and workflow steps to SchedulableItem format
+    const unscheduledItems: any[] = []
+
+    // Add unscheduled regular tasks
+    legacyResult.unscheduledTasks.forEach(task => {
+      unscheduledItems.push({
+        id: task.id,
+        name: task.name,
+        type: task.type,
+        duration: task.duration,
+        importance: task.importance,
+        urgency: task.urgency,
+        cognitiveComplexity: task.cognitiveComplexity || 3,
+        dependsOn: task.dependencies || [],
+        asyncWaitTime: task.asyncWaitTime || 0,
+        deadline: task.deadline,
+        deadlineType: task.deadlineType,
+        sourceType: 'simple_task' as const,
+        sourceId: task.id,
+        status: 'pending' as const,
+      })
+    })
+
+    // Add unscheduled workflow steps (find steps not in scheduledItems)
+    const scheduledIds = new Set(scheduledItems.map(item => item.id))
+    sequencedTasks.forEach(workflow => {
+      workflow.steps?.forEach(step => {
+        if (!scheduledIds.has(step.id) && step.status !== 'completed') {
+          unscheduledItems.push({
+            id: step.id,
+            name: step.name,
+            type: step.type || TaskType.Focused,
+            duration: step.duration,
+            importance: step.importance || workflow.importance,
+            urgency: step.urgency || workflow.urgency,
+            cognitiveComplexity: step.cognitiveComplexity || 3,
+            dependsOn: step.dependsOn || [],
+            asyncWaitTime: step.asyncWaitTime || 0,
+            deadline: workflow.deadline,
+            deadlineType: workflow.deadlineType,
+            sourceType: 'workflow_step' as const,
+            sourceId: workflow.id,
+            workflowStepIndex: step.stepIndex,
+            status: 'pending' as const,
+          })
+        }
+      })
+    })
+
+    // Calculate completion date
+    let projectedCompletionDate = new Date()
+    if (scheduledItems.length > 0) {
+      const lastEndTime = Math.max(...scheduledItems.map(item => item.scheduledEndTime.getTime()))
+      projectedCompletionDate = new Date(lastEndTime)
+    }
+
+    return {
+      success: true,
+      scheduledItems,
+      unscheduledItems,
+      totalWorkDays: Math.ceil(legacyResult.totalDuration / (8 * 60)), // Assume 8-hour work days
+      totalFocusedHours: scheduledItems
+        .filter(item => item.type === TaskType.Focused)
+        .reduce((sum, item) => sum + item.duration / 60, 0),
+      totalAdminHours: scheduledItems
+        .filter(item => item.type === TaskType.Admin)
+        .reduce((sum, item) => sum + item.duration / 60, 0),
+      projectedCompletionDate,
+      overCapacityDays: [], // TODO: Extract from UnifiedScheduler debug info if needed
+      underUtilizedDays: [], // TODO: Extract from UnifiedScheduler debug info if needed
+      conflicts: legacyResult.conflicts.map(conflict => ({
+        type: 'dependency_cycle' as const,
+        affectedItems: [],
+        description: conflict,
+        severity: 'error' as const,
+        suggestedResolution: 'Review task dependencies',
+      })),
+      warnings: [],
+      suggestions: [],
+    }
   }
 
   /**
@@ -34,22 +209,59 @@ export class SchedulingService {
       tieBreaking?: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical'
       allowOverflow?: boolean
       workDayConfig?: Partial<WorkDayConfiguration>
+      workPatterns?: DailyWorkPattern[]
+      debug?: boolean
     } = {},
   ): Promise<SchedulingResult> {
-    const workDayConfigs = this.createDefaultWorkDayConfigs(options.workDayConfig)
+    const startDate = options.startDate || new Date()
 
-    const constraints: SchedulingConstraints = {
-      tieBreakingMethod: options.tieBreaking || 'creation_date',
-      allowOverflow: options.allowOverflow || false,
-      earliestStartDate: options.startDate || new Date(),
-      latestEndDate: options.endDate,
-      strictDependencies: true,
-      enforceDailyLimits: true,
-      allowFocusedOvertime: false,
-      allowAdminOvertime: false,
+    logger.scheduler.info('🔄 [SchedulingService] Creating schedule with UnifiedScheduler', {
+      taskCount: tasks.length,
+      workflowCount: sequencedTasks.length,
+      startDate: startDate.toISOString(),
+      debug: options.debug || false,
+    })
+
+    // Generate work patterns if not provided
+    let workPatterns = options.workPatterns
+    if (!workPatterns || workPatterns.length === 0) {
+      logger.scheduler.info('🏗️ [SchedulingService] Generating default work patterns')
+      workPatterns = this.generateDefaultWorkPatterns(startDate, 30)
     }
 
-    return await this.engine.scheduleItems(tasks, sequencedTasks, workDayConfigs, constraints)
+    logger.scheduler.info('📅 [SchedulingService] Work patterns loaded', {
+      patternsCount: workPatterns.length,
+      dateRange: {
+        start: workPatterns[0]?.date || 'none',
+        end: workPatterns[workPatterns.length - 1]?.date || 'none',
+      },
+    })
+
+    // Use UnifiedSchedulerAdapter for scheduling
+    const legacyOptions = {
+      startDate,
+      endDate: options.endDate,
+      respectDeadlines: true,
+      allowSplitting: true,
+      debug: options.debug || false,
+    }
+
+    const legacyResult = this.unifiedAdapter.scheduleTasks(
+      tasks,
+      workPatterns,
+      legacyOptions,
+      sequencedTasks,
+    )
+
+    logger.scheduler.info('✅ [SchedulingService] UnifiedScheduler completed', {
+      scheduledCount: legacyResult.scheduledTasks.length,
+      unscheduledCount: legacyResult.unscheduledTasks.length,
+      totalDuration: legacyResult.totalDuration,
+      conflicts: legacyResult.conflicts.length,
+    })
+
+    // Convert back to legacy SchedulingResult format
+    return this.convertToLegacySchedulingResult(legacyResult, tasks, sequencedTasks)
   }
 
   /**
@@ -286,7 +498,7 @@ export class SchedulingService {
       }
 
       // Use the scheduling engine to determine priorities
-      logger.scheduler.info('Creating schedule with engine...')
+      logger.scheduler.info('Creating schedule with UnifiedScheduler...')
       const schedulingResult = await this.createSchedule(
         incompleteTasks,
         incompleteSequenced,
@@ -294,6 +506,7 @@ export class SchedulingService {
           startDate: new Date(),
           tieBreaking: 'creation_date',
           allowOverflow: false,
+          debug: true, // Enable debug logging for dependency resolution
         },
       )
 
