@@ -22,6 +22,7 @@ import { TaskType } from './enums'
 import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
 import { WorkSettings } from './work-settings-types'
 import { ProductivityPattern, SchedulingPreferences } from './types'
+import { logger } from './logger'
 
 // ============================================================================
 // UNIFIED DATA MODELS
@@ -241,12 +242,27 @@ export class UnifiedScheduler {
     // Apply priority calculation
     unifiedItems.forEach(item => {
       if (item.originalItem) {
-        item.priority = this.calculatePriority(item.originalItem as Task | TaskStep, context)
+        const priority = this.calculatePriority(item.originalItem as Task | TaskStep, context)
+        item.priority = priority
+
+        // Debug logging for priority calculation
+        if (config.debugMode) {
+          const original = item.originalItem as any
+          logger.scheduler.debug(`🔧 [Priority] ${item.name}: priority=${priority.toFixed(2)}, importance=${original.importance || 5}, urgency=${original.urgency || 5}`)
+        }
       }
     })
 
     // Resolve dependencies and get sorted items (passing completed items)
     const dependencyResult = this.resolveDependencies(unifiedItems, completedItemIds)
+
+    // Debug logging for sorted order
+    if (config.debugMode) {
+      logger.scheduler.debug('🔧 [Sorted Order] After topological sort:')
+      dependencyResult.resolved.forEach((item, index) => {
+        logger.scheduler.debug(`  ${index + 1}. ${item.name} (priority=${item.priority?.toFixed(2)})`)
+      })
+    }
 
     if (dependencyResult.conflicts.length > 0) {
       return {
@@ -259,17 +275,22 @@ export class UnifiedScheduler {
 
     // Allocate to work blocks
     if (config.debugMode) {
-      console.log('🔧 [UnifiedScheduler] Starting allocation with items:', dependencyResult.resolved.length)
-      console.log('🔧 [UnifiedScheduler] Work patterns:', context.workPatterns.length)
-      console.log('🔧 [UnifiedScheduler] Items to allocate:', dependencyResult.resolved.map(i => ({ id: i.id, name: i.name, duration: i.duration })))
-      console.log('🔧 [UnifiedScheduler] Completed items:', Array.from(completedItemIds))
+      logger.scheduler.debug('🔧 [UnifiedScheduler] Starting allocation with items:', dependencyResult.resolved.length)
+      logger.scheduler.debug('🔧 [UnifiedScheduler] Work patterns:', context.workPatterns.length)
+      logger.scheduler.debug('🔧 [UnifiedScheduler] Items to allocate:', dependencyResult.resolved.map(i => ({ id: i.id, name: i.name, duration: i.duration })))
+      logger.scheduler.debug('🔧 [UnifiedScheduler] Completed items:', Array.from(completedItemIds))
     }
 
-    const allocated = this.allocateToWorkBlocks(dependencyResult.resolved, context.workPatterns, config, completedItemIds)
+    // Ensure config has startDate from context if not provided
+    const configWithStartDate = {
+      ...config,
+      startDate: config.startDate || context.startDate,
+    }
+    const allocated = this.allocateToWorkBlocks(dependencyResult.resolved, context.workPatterns, configWithStartDate, completedItemIds)
 
     if (config.debugMode) {
-      console.log('🔧 [UnifiedScheduler] Allocation result:', allocated.length)
-      console.log('🔧 [UnifiedScheduler] Allocated items:', allocated.map(i => ({ id: i.id, name: i.name, startTime: i.startTime, endTime: i.endTime })))
+      logger.scheduler.debug('🔧 [UnifiedScheduler] Allocation result:', allocated.length)
+      logger.scheduler.debug('🔧 [UnifiedScheduler] Allocated items:', allocated.map(i => ({ id: i.id, name: i.name, startTime: i.startTime, endTime: i.endTime })))
     }
 
     // Generate debug info if requested
@@ -561,7 +582,28 @@ export class UnifiedScheduler {
       }
     }
 
+    // Base Eisenhower score (raw importance × urgency)
     const eisenhower = importance * urgency
+
+    // Enhanced calculation with importance weighting for final priority
+    // High importance (8-10) gets extra boost to differentiate from medium/low
+    let importanceMultiplier = 1.0
+    if (importance >= 9) {
+      importanceMultiplier = 1.5  // 50% boost for critical importance
+    } else if (importance >= 7) {
+      importanceMultiplier = 1.2  // 20% boost for high importance
+    }
+
+    // Similar for urgency
+    let urgencyMultiplier = 1.0
+    if (urgency >= 9) {
+      urgencyMultiplier = 1.5  // 50% boost for critical urgency
+    } else if (urgency >= 7) {
+      urgencyMultiplier = 1.2  // 20% boost for high urgency
+    }
+
+    // Apply multipliers to get weighted score for actual priority
+    const weightedEisenhower = eisenhower * importanceMultiplier * urgencyMultiplier
 
     // Deadline pressure calculation (additive, not multiplicative)
     const deadlinePressure = this.calculateDeadlinePressure(item, context)
@@ -572,7 +614,7 @@ export class UnifiedScheduler {
 
     // Cognitive match multiplier
     const cognitiveMatchFactor = this.calculateCognitiveMatch(item, context.currentTime, context)
-    const cognitiveMatch = eisenhower * (cognitiveMatchFactor - 1) // Just the boost/penalty
+    const cognitiveMatch = weightedEisenhower * (cognitiveMatchFactor - 1) // Just the boost/penalty
 
     // Context switch penalty
     let contextSwitchPenalty = 0
@@ -605,7 +647,7 @@ export class UnifiedScheduler {
     // Calculate total using proven additive formula
     // This ensures urgent deadlines always take priority regardless of base priority
     const deadlineAdditive = deadlinePressure > 1 ? deadlinePressure * 100 : 0
-    const total = eisenhower + deadlineAdditive + asyncBoost * cognitiveMatchFactor +
+    const total = weightedEisenhower + deadlineAdditive + asyncBoost * cognitiveMatchFactor +
       contextSwitchPenalty + workflowDepthBonus
 
     return {
@@ -1004,24 +1046,51 @@ export class UnifiedScheduler {
     // Initialize scheduled items reference for dependency checking
     this.scheduledItemsReference = scheduled
 
-    const currentDate = new Date(config.startDate)
+    // Ensure startDate is a valid Date object with better fallback handling
+    let startDateValue = config.startDate
+    if (!startDateValue) {
+      logger.scheduler.warn('No startDate provided to allocateToWorkBlocks, using today')
+      startDateValue = new Date().toISOString().split('T')[0]
+    }
+
+    const currentDate = typeof startDateValue === 'string'
+      ? new Date(startDateValue + 'T00:00:00')
+      : new Date(startDateValue)
+
+    // Validate the date immediately
+    if (!currentDate || isNaN(currentDate.getTime())) {
+      logger.scheduler.error('Invalid date in allocateToWorkBlocks', {
+        startDateValue,
+        configStartDate: config.startDate,
+        currentDate,
+      })
+      // Return empty array if we can't create a valid date
+      return []
+    }
+
     let dayIndex = 0
     const maxDays = 30 // Safety limit
 
     while (remaining.length > 0 && dayIndex < maxDays) {
       if (config.debugMode) {
-        console.log(`🔧 [UnifiedScheduler] Day ${dayIndex}: ${remaining.length} items remaining`)
+        logger.scheduler.debug(`🔧 [UnifiedScheduler] Day ${dayIndex}: ${remaining.length} items remaining`)
       }
+
       const dateStr = currentDate.toISOString().split('T')[0]
       const pattern = workPatterns.find(p => p.date === dateStr)
 
       if (!pattern || pattern.blocks.length === 0) {
         if (config.debugMode) {
-          console.log(`🔧 [UnifiedScheduler] No work pattern for date ${dateStr}, skipping`)
+          logger.scheduler.debug(`🔧 [UnifiedScheduler] No work pattern for date ${dateStr}, skipping`)
         }
         // No work pattern for this day, move to next
         currentDate.setDate(currentDate.getDate() + 1)
         dayIndex++
+        // Check if date is still valid after modification
+        if (isNaN(currentDate.getTime())) {
+          logger.scheduler.error('Date became invalid after increment', { dateStr, dayIndex })
+          break
+        }
         continue
       }
 
@@ -1029,7 +1098,7 @@ export class UnifiedScheduler {
       const dayBlocks = pattern.blocks.map(block => this.createBlockCapacity(block, currentDate))
 
       if (config.debugMode) {
-        console.log(`🔧 [UnifiedScheduler] Day ${dayIndex} blocks:`, dayBlocks.map(b => ({
+        logger.scheduler.debug(`🔧 [UnifiedScheduler] Day ${dayIndex} blocks:`, dayBlocks.map(b => ({
           id: b.blockId,
           type: b.blockType,
           focusTotal: b.focusMinutesTotal,
@@ -1056,13 +1125,13 @@ export class UnifiedScheduler {
           // Check if dependencies are satisfied
           if (!this.areDependenciesSatisfied(item, scheduled, completedItemIds)) {
             if (config.debugMode) {
-              console.log(`🔧 [UnifiedScheduler] Dependencies not satisfied for item ${item.id}`)
+              logger.scheduler.debug(`🔧 [UnifiedScheduler] Dependencies not satisfied for item ${item.id}`)
             }
             continue // Skip this item, try next
           }
 
           if (config.debugMode) {
-            console.log(`🔧 [UnifiedScheduler] Trying to fit item ${item.id} (${item.duration} min, ${item.taskType})`)
+            logger.scheduler.debug(`🔧 [UnifiedScheduler] Trying to fit item ${item.id} (${item.duration} min, ${item.taskType})`)
           }
 
           // Try to fit item in available blocks
@@ -1071,7 +1140,7 @@ export class UnifiedScheduler {
           const fitResult = this.findBestBlockForItem(item, dayBlocks, scheduled, currentDate, currentTimeToUse)
 
           if (config.debugMode) {
-            console.log(`🔧 [UnifiedScheduler] Fit result for ${item.id}:`, {
+            logger.scheduler.debug(`🔧 [UnifiedScheduler] Fit result for ${item.id}:`, {
               canFit: fitResult.canFit,
               canPartiallyFit: fitResult.canPartiallyFit,
               availableMinutes: fitResult.availableMinutes,
@@ -1091,7 +1160,7 @@ export class UnifiedScheduler {
             this.updateBlockCapacity(fitResult.block, item)
 
             if (config.debugMode) {
-              console.log(`🔧 [UnifiedScheduler] Scheduled ${item.id} from ${scheduledItem.startTime?.toISOString()} to ${scheduledItem.endTime?.toISOString()}`)
+              logger.scheduler.debug(`🔧 [UnifiedScheduler] Scheduled ${item.id} from ${scheduledItem.startTime?.toISOString()} to ${scheduledItem.endTime?.toISOString()}`)
             }
 
             // Start over from the beginning since we modified the array
@@ -1118,7 +1187,7 @@ export class UnifiedScheduler {
               this.updateBlockCapacity(fitResult.block, firstPart)
 
               if (config.debugMode) {
-                console.log(`🔧 [UnifiedScheduler] Scheduled partial ${firstPart.id} (${firstPart.duration} min)`)
+                logger.scheduler.debug(`🔧 [UnifiedScheduler] Scheduled partial ${firstPart.id} (${firstPart.duration} min)`)
               }
 
               // Start over from the beginning since we modified the array
@@ -1983,7 +2052,7 @@ export class UnifiedScheduler {
           })
         } else if (completedItemIds.has(depId)) {
           // Log successful dependency resolution via completion
-          console.debug(`✅ Dependency "${depId}" for item "${item.name}" satisfied by completion`)
+          logger.scheduler.debug(`✅ Dependency "${depId}" for item "${item.name}" satisfied by completion`)
         }
       }
     }
@@ -2319,14 +2388,100 @@ export class UnifiedScheduler {
     const totalItems = scheduled.length + unscheduled.length
     const efficiency = totalItems > 0 ? (scheduled.length / totalItems) * 100 : 100
 
+    // Calculate block utilization
+    const blockUtilization = this.calculateBlockUtilization(scheduled, context.workPatterns)
+
     return {
       unscheduledItems,
-      blockUtilization: [], // Would be populated by capacity analysis
+      blockUtilization,
       warnings: [],
       totalScheduled: scheduled.length,
       totalUnscheduled: unscheduled.length,
       scheduleEfficiency: efficiency,
     }
+  }
+
+  /**
+   * Calculate block utilization for debug info
+   */
+  private calculateBlockUtilization(
+    scheduled: UnifiedScheduleItem[],
+    workPatterns: DailyWorkPattern[],
+  ): Array<{
+    date: string
+    blockId: string
+    startTime: string
+    endTime: string
+    focusUsed: number
+    focusTotal: number
+    adminUsed: number
+    adminTotal: number
+    personalUsed: number
+    personalTotal: number
+    utilization: number
+  }> {
+    const utilization: Array<any> = []
+
+    // Group scheduled items by date
+    const itemsByDate = new Map<string, UnifiedScheduleItem[]>()
+    scheduled.forEach(item => {
+      if (item.startTime) {
+        const dateStr = item.startTime.toISOString().split('T')[0]
+        if (!itemsByDate.has(dateStr)) {
+          itemsByDate.set(dateStr, [])
+        }
+        itemsByDate.get(dateStr)!.push(item)
+      }
+    })
+
+    // Calculate utilization for each work pattern
+    workPatterns.forEach(pattern => {
+      const dateItems = itemsByDate.get(pattern.date) || []
+
+      pattern.blocks.forEach(block => {
+        const blockStart = this.parseTimeOnDate(new Date(pattern.date), block.startTime)
+        const blockEnd = this.parseTimeOnDate(new Date(pattern.date), block.endTime)
+        const totalMinutes = (blockEnd.getTime() - blockStart.getTime()) / 60000
+
+        // Calculate items scheduled in this block
+        const itemsInBlock = dateItems.filter(item => {
+          if (!item.startTime || !item.endTime) return false
+          return item.startTime >= blockStart && item.endTime <= blockEnd
+        })
+
+        const focusMinutesUsed = itemsInBlock
+          .filter(item => item.taskType === TaskType.Focused)
+          .reduce((sum, item) => sum + item.duration, 0)
+
+        const adminMinutesUsed = itemsInBlock
+          .filter(item => item.taskType === TaskType.Admin)
+          .reduce((sum, item) => sum + item.duration, 0)
+
+        const totalUsed = focusMinutesUsed + adminMinutesUsed
+        const utilizationPercent = totalMinutes > 0 ? (totalUsed / totalMinutes) * 100 : 0
+
+        // Calculate capacity from block
+        const focusTotal = block.capacity?.focusMinutes || 0
+        const adminTotal = block.capacity?.adminMinutes || 0
+        const personalTotal = block.capacity?.personalMinutes || 0
+
+        utilization.push({
+          date: pattern.date,
+          blockId: block.id,
+          startTime: block.startTime,
+          endTime: block.endTime,
+          focusUsed: focusMinutesUsed,
+          focusTotal: focusTotal,
+          adminUsed: adminMinutesUsed,
+          adminTotal: adminTotal,
+          personalUsed: 0,  // Not tracking personal time yet
+          personalTotal: personalTotal,
+          utilization: Math.round(utilizationPercent),
+        })
+      })
+    })
+
+    return utilization
   }
 
   /**

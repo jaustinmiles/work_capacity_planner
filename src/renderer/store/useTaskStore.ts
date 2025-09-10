@@ -108,7 +108,9 @@ interface TaskStore {
 
 
 // Create scheduling service instance
-const schedulingService = new SchedulingService()
+const schedulingService = new SchedulingService({
+  getWorkPattern: (date: string) => getDatabase().getWorkPattern(date),
+})
 
 // Get logger instance for state change logging
 const rendererLogger = getRendererLogger()
@@ -204,8 +206,13 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   initializeData: async () => {
     try {
       rendererLogger.info('[TaskStore] Starting data initialization...')
-      // Initializing store data
-      set({ isLoading: true, error: null })
+      // Clear existing data first to prevent stale data from showing
+      set({
+        tasks: [],
+        sequencedTasks: [],
+        isLoading: true,
+        error: null,
+      })
 
       // Initialize WorkTrackingService first to restore active sessions
       try {
@@ -235,6 +242,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         taskCount: tasks.length,
         workflowCount: sequencedTasks.length,
         totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0),
+        firstTaskSessionId: tasks[0]?.sessionId,
       })
 
       // Store initialized successfully
@@ -881,7 +889,22 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // Use SchedulingService to determine the next item
       rendererLogger.info('[TaskStore] Calling schedulingService.getNextScheduledItem...')
-      const nextItem = await schedulingService.getNextScheduledItem(tasks, sequencedTasks)
+      rendererLogger.debug('[TaskStore] schedulingService instance:', schedulingService)
+      rendererLogger.debug('[TaskStore] schedulingService.getNextScheduledItem:', schedulingService.getNextScheduledItem)
+      rendererLogger.debug('[TaskStore] About to call getNextScheduledItem with:', {
+        tasks: tasks,
+        sequencedTasks: sequencedTasks,
+      })
+
+      let nextItem: any = null
+      try {
+        nextItem = await schedulingService.getNextScheduledItem(tasks, sequencedTasks)
+        rendererLogger.debug('[TaskStore] getNextScheduledItem returned:', nextItem)
+      } catch (callError) {
+        rendererLogger.error('[TaskStore] ERROR calling getNextScheduledItem:', callError)
+        rendererLogger.error('[TaskStore] Error stack:', { stack: callError instanceof Error ? callError.stack : 'No stack' })
+        nextItem = null
+      }
 
       rendererLogger.info('[TaskStore] Got next scheduled item result', {
         hasResult: !!nextItem,

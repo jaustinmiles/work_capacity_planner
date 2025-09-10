@@ -12,71 +12,177 @@ import {
 import { UnifiedSchedulerAdapter, LegacyScheduleResult } from './unified-scheduler-adapter'
 import { DailyWorkPattern } from './work-blocks-types'
 import { logger } from './logger'
+import { timeProvider } from './time-provider'
+import dayjs from 'dayjs'
 
 /**
  * Service layer that provides high-level scheduling operations
  * Acts as a bridge between the UI components and the scheduling engine
  */
+// Database interface for pattern loading
+export interface DatabaseInterface {
+  getWorkPattern(date: string): Promise<any>
+}
+
 export class SchedulingService {
   private engine: SchedulingEngine
   private unifiedAdapter: UnifiedSchedulerAdapter
+  private db?: DatabaseInterface
+  private timeProvider = timeProvider
 
-  constructor() {
+  constructor(db?: DatabaseInterface) {
     this.engine = new SchedulingEngine()
     this.unifiedAdapter = new UnifiedSchedulerAdapter()
+    this.db = db
+    // timeProvider is already initialized as singleton
   }
 
   /**
-   * Generate default work patterns for a date range
-   * This is used when work patterns are not provided to the scheduler
+   * Load user work patterns from database for date range
+   * Returns empty array if no patterns are configured
    */
-  private generateDefaultWorkPatterns(startDate: Date, days: number = 30): DailyWorkPattern[] {
-    const patterns: DailyWorkPattern[] = []
-    const currentDate = new Date(startDate)
-
-    for (let i = 0; i < days; i++) {
-      const dateStr = currentDate.toISOString().split('T')[0]
-      const dayOfWeek = currentDate.getDay() // 0 = Sunday, 6 = Saturday
-
-      // Skip weekends for default patterns
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        currentDate.setDate(currentDate.getDate() + 1)
-        continue
-      }
-
-      patterns.push({
-        date: dateStr,
-        blocks: [
-          {
-            id: `default-morning-${dateStr}`,
-            startTime: '09:00',
-            endTime: '12:00',
-            type: 'mixed',
-            capacity: {
-              focusMinutes: 120, // 2 hours
-              adminMinutes: 60,  // 1 hour
-            },
-          },
-          {
-            id: `default-afternoon-${dateStr}`,
-            startTime: '13:00',
-            endTime: '17:00',
-            type: 'mixed',
-            capacity: {
-              focusMinutes: 180, // 3 hours
-              adminMinutes: 60,  // 1 hour
-            },
-          },
-        ],
-        meetings: [],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
-      })
-
-      currentDate.setDate(currentDate.getDate() + 1)
+  private async loadUserWorkPatterns(startDate: Date, days: number = 30): Promise<DailyWorkPattern[]> {
+    if (!this.db) {
+      logger.scheduler.warn('No database available, no work patterns to load')
+      return []
     }
 
-    return patterns
+    const patterns: DailyWorkPattern[] = []
+    const today = dayjs(startDate).startOf('day')
+
+    try {
+      // Load patterns for the specified date range
+      for (let i = 0; i < days; i++) {
+        const date = today.add(i, 'day')
+        const dateStr = date.format('YYYY-MM-DD')
+        const _dayOfWeek = date.day()
+
+        try {
+          const pattern = await this.db.getWorkPattern(dateStr)
+          if (pattern) {
+            patterns.push({
+              date: dateStr,
+              blocks: pattern.blocks,
+              meetings: pattern.meetings || [],
+              accumulated: { focusMinutes: 0, adminMinutes: 0 },
+            })
+            logger.scheduler.debug('Loaded user work pattern', { date: dateStr, blocks: pattern.blocks.length })
+          }
+          // No pattern for this date - skip it
+        } catch (patternError) {
+          logger.scheduler.warn('Failed to load pattern for date, skipping', { date: dateStr, error: patternError })
+          // Skip this date if pattern load fails
+        }
+      }
+
+      logger.scheduler.info('Loaded user work patterns from database', {
+        totalPatterns: patterns.length,
+        dateRange: `${patterns[0]?.date || 'none'} to ${patterns[patterns.length - 1]?.date || 'none'}`,
+      })
+
+      return patterns
+    } catch (error) {
+      logger.scheduler.error('Failed to load user work patterns', error)
+      return []
+    }
   }
+
+
+  /**
+   * Get the next available time within user's work schedule
+   * Returns current time if within work hours, otherwise next work block start
+   */
+  private async getNextAvailableTime(workPatterns?: DailyWorkPattern[]): Promise<Date> {
+    const now = this.timeProvider.now()
+
+    if (!workPatterns || workPatterns.length === 0) {
+      // If no patterns available, load them
+      workPatterns = await this.loadUserWorkPatterns(now, 7) // Load next week
+    }
+
+    // Check if current time is within any work block
+    const currentDate = now.toISOString().split('T')[0]
+    const currentPattern = workPatterns.find(p => p.date === currentDate)
+
+    if (currentPattern) {
+      const currentTime = now.getHours() * 60 + now.getMinutes() // minutes since midnight
+
+      for (const block of currentPattern.blocks) {
+        const [startHour, startMin] = block.startTime.split(':').map(Number)
+        const [endHour, endMin] = block.endTime.split(':').map(Number)
+        const blockStart = startHour * 60 + startMin
+        const blockEnd = endHour * 60 + endMin
+
+        // If we're currently within this block, use current time
+        if (currentTime >= blockStart && currentTime < blockEnd) {
+          logger.scheduler.debug('Current time is within work block', {
+            currentTime: now.toISOString(),
+            block: `${block.startTime}-${block.endTime}`,
+            blockType: block.type,
+          })
+          return now
+        }
+      }
+    }
+
+    // Current time is outside work hours, find next available work block
+    const nextWorkTime = this.findNextWorkBlockStart(now, workPatterns)
+
+    logger.scheduler.info('Current time outside work hours, using next work block', {
+      currentTime: now.toISOString(),
+      nextWorkTime: nextWorkTime.toISOString(),
+    })
+
+    return nextWorkTime
+  }
+
+  /**
+   * Find the start time of the next work block after the given time
+   */
+  private findNextWorkBlockStart(fromTime: Date, workPatterns: DailyWorkPattern[]): Date {
+    const currentDate = new Date(fromTime)
+
+    // Check remaining blocks today
+    const todayStr = currentDate.toISOString().split('T')[0]
+    const todayPattern = workPatterns.find(p => p.date === todayStr)
+
+    if (todayPattern) {
+      const currentTimeMinutes = fromTime.getHours() * 60 + fromTime.getMinutes()
+
+      for (const block of todayPattern.blocks) {
+        const [startHour, startMin] = block.startTime.split(':').map(Number)
+        const blockStartMinutes = startHour * 60 + startMin
+
+        if (blockStartMinutes > currentTimeMinutes) {
+          const nextBlockTime = new Date(fromTime)
+          nextBlockTime.setHours(startHour, startMin, 0, 0)
+          return nextBlockTime
+        }
+      }
+    }
+
+    // No blocks remaining today, check future days
+    for (let i = 1; i <= 7; i++) { // Check next 7 days
+      const futureDate = new Date(currentDate)
+      futureDate.setDate(currentDate.getDate() + i)
+      const futureDateStr = futureDate.toISOString().split('T')[0]
+
+      const futurePattern = workPatterns.find(p => p.date === futureDateStr)
+      if (futurePattern && futurePattern.blocks.length > 0) {
+        const firstBlock = futurePattern.blocks[0]
+        const [startHour, startMin] = firstBlock.startTime.split(':').map(Number)
+
+        const nextBlockTime = new Date(futureDate)
+        nextBlockTime.setHours(startHour, startMin, 0, 0)
+        return nextBlockTime
+      }
+    }
+
+    // No work blocks found - return current time as fallback
+    logger.scheduler.warn('No work blocks found in next 7 days, returning current time')
+    return currentDate
+  }
+
 
   /**
    * Convert LegacyScheduleResult to the old SchedulingResult format
@@ -165,7 +271,7 @@ export class SchedulingService {
     })
 
     // Calculate completion date
-    let projectedCompletionDate = new Date()
+    let projectedCompletionDate = this.timeProvider.now()
     if (scheduledItems.length > 0) {
       const lastEndTime = Math.max(...scheduledItems.map(item => item.scheduledEndTime.getTime()))
       projectedCompletionDate = new Date(lastEndTime)
@@ -213,7 +319,7 @@ export class SchedulingService {
       debug?: boolean
     } = {},
   ): Promise<SchedulingResult> {
-    const startDate = options.startDate || new Date()
+    const startDate = options.startDate || this.timeProvider.now()
 
     logger.scheduler.info('🔄 [SchedulingService] Creating schedule with UnifiedScheduler', {
       taskCount: tasks.length,
@@ -222,11 +328,11 @@ export class SchedulingService {
       debug: options.debug || false,
     })
 
-    // Generate work patterns if not provided
+    // Load work patterns if not provided
     let workPatterns = options.workPatterns
     if (!workPatterns || workPatterns.length === 0) {
-      logger.scheduler.info('🏗️ [SchedulingService] Generating default work patterns')
-      workPatterns = this.generateDefaultWorkPatterns(startDate, 30)
+      logger.scheduler.info('🏗️ [SchedulingService] Loading user work patterns from database')
+      workPatterns = await this.loadUserWorkPatterns(startDate, 30)
     }
 
     logger.scheduler.info('📅 [SchedulingService] Work patterns loaded', {
@@ -461,6 +567,13 @@ export class SchedulingService {
     estimatedDuration: number
     scheduledStartTime?: Date
   } | null> {
+    logger.scheduler.debug('getNextScheduledItem called', {
+      tasksLength: tasks?.length,
+      sequencedTasksLength: sequencedTasks?.length,
+      tasksType: typeof tasks,
+      sequencedTasksType: typeof sequencedTasks,
+    })
+
     try {
       logger.scheduler.info('Getting next scheduled item', {
         totalTasks: tasks.length,
@@ -475,13 +588,34 @@ export class SchedulingService {
         incompleteTasks: incompleteTasks.length,
       })
 
+      // Debug: Check what steps look like
+      if (sequencedTasks.length > 0 && sequencedTasks[0].steps?.length > 0) {
+        logger.scheduler.debug('Sample step data', {
+          firstStep: sequencedTasks[0].steps[0],
+          stepStatus: sequencedTasks[0].steps[0].status,
+          statusType: typeof sequencedTasks[0].steps[0].status,
+        })
+      }
+
       // Filter out completed workflow steps (TaskStep uses StepStatus enum)
+      // Check if steps exist and filter properly
       const incompleteSequenced = sequencedTasks
+        .filter(seq => seq.steps && Array.isArray(seq.steps) && seq.steps.length > 0)
         .map(seq => ({
           ...seq,
-          steps: seq.steps.filter(step =>
-            step.status === 'pending' || step.status === 'in_progress',
-          ),
+          steps: seq.steps.filter(step => {
+            // Log what we're seeing
+            logger.scheduler.debug('Step status check', {
+              stepId: step.id,
+              status: step.status,
+              statusType: typeof step.status,
+              isPending: step.status === 'pending',
+              isInProgress: step.status === 'in_progress',
+              isCompleted: step.status === 'completed',
+            })
+            // Be more lenient with status checking
+            return step.status !== 'completed' && step.status !== 'skipped'
+          }),
         }))
         .filter(seq => seq.steps.length > 0)
 
@@ -497,13 +631,25 @@ export class SchedulingService {
         return null
       }
 
+      // Load user work patterns and determine next available time
+      logger.scheduler.info('Loading user work patterns for next scheduled item...')
+      const workPatterns = await this.loadUserWorkPatterns(this.timeProvider.now(), 7)
+      const nextAvailableTime = await this.getNextAvailableTime(workPatterns)
+
+      logger.scheduler.info('Using next available time for scheduling', {
+        currentTime: this.timeProvider.now().toISOString(),
+        nextAvailableTime: nextAvailableTime.toISOString(),
+        isCurrentTime: nextAvailableTime.getTime() === this.timeProvider.now().getTime(),
+      })
+
       // Use the scheduling engine to determine priorities
       logger.scheduler.info('Creating schedule with UnifiedScheduler...')
       const schedulingResult = await this.createSchedule(
         incompleteTasks,
         incompleteSequenced,
         {
-          startDate: new Date(),
+          startDate: nextAvailableTime,
+          workPatterns,
           tieBreaking: 'creation_date',
           allowOverflow: false,
           debug: true, // Enable debug logging for dependency resolution

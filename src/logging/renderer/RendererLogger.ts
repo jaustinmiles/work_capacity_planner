@@ -30,7 +30,7 @@ export class RendererLogger extends Logger {
           bypassInDev: true,
         },
         transports: [
-          { type: 'console', enabled: process.env.NODE_ENV !== 'production' },
+          { type: 'console', enabled: false }, // Disabled to prevent console spam
           { type: 'ipc', enabled: true },
         ],
         ringBufferSize: 1000,

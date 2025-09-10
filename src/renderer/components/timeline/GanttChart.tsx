@@ -1599,17 +1599,18 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const parentWorkflow = item.workflowId ? sequencedTasks.find(w => w.id === item.workflowId) : null
                 const effectiveDeadline = item.deadline || (parentWorkflow?.deadline ? parentWorkflow.deadline : null)
 
-                logger.ui.debug('🔍 [DEADLINE] Checking deadline for item', {
-                  itemId: item.id,
-                  itemName: item.name,
-                  hasOwnDeadline: !!item.deadline,
-                  ownDeadline: item.deadline,
-                  effectiveDeadline: effectiveDeadline,
-                  endTime: item.endTime,
-                  isWorkflow: !!item.workflowId,
-                  workflowName: item.workflowName,
-                  inheritedFromWorkflow: !item.deadline && !!effectiveDeadline,
-                })
+                // Commented out to reduce log spam - this was running for EVERY item on EVERY render
+                // logger.ui.debug('🔍 [DEADLINE] Checking deadline for item', {
+                //   itemId: item.id,
+                //   itemName: item.name,
+                //   hasOwnDeadline: !!item.deadline,
+                //   ownDeadline: item.deadline,
+                //   effectiveDeadline: effectiveDeadline,
+                //   endTime: item.endTime,
+                //   isWorkflow: !!item.workflowId,
+                //   workflowName: item.workflowName,
+                //   inheritedFromWorkflow: !item.deadline && !!effectiveDeadline,
+                // })
 
                 const isDeadlineViolated = effectiveDeadline &&
                   dayjs(item.endTime).isAfter(dayjs(effectiveDeadline))

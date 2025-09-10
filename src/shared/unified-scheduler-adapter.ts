@@ -182,12 +182,16 @@ export class UnifiedSchedulerAdapter {
     options: LegacySchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
   ): LegacyScheduleResult {
+    // Filter out completed tasks to reduce processing
+    const incompleteTasks = tasks.filter(t => !t.completed)
+    const incompleteWorkflows = sequencedTasks.filter(w => w.overallStatus !== 'completed')
+
     const config = this.adaptLegacyOptions(options)
     const context: ScheduleContext = {
       startDate: typeof config.startDate === 'string' ? config.startDate : config.startDate.toISOString(),
       currentTime: new Date(),
       tasks: [],
-      workflows: sequencedTasks,
+      workflows: incompleteWorkflows,
       workPatterns: this.fixWorkPatternCapacities(workPatterns),
       workSettings: {
         defaultWorkHours: {
@@ -209,10 +213,10 @@ export class UnifiedSchedulerAdapter {
 
     // Combine items for scheduling - filter out workflow tasks to avoid duplicates
     // UnifiedScheduler will expand sequencedTasks into their steps internally
-    const standaloneTasks = tasks.filter(t => !t.hasSteps)
+    const standaloneTasks = incompleteTasks.filter(t => !t.hasSteps)
     const allItems: (Task | SequencedTask | TaskStep)[] = [
       ...standaloneTasks,
-      ...sequencedTasks,
+      ...incompleteWorkflows,
     ]
 
     const result = this.scheduler.scheduleForDisplay(allItems, context, config)
