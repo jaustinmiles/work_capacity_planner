@@ -3,6 +3,9 @@
  * Script to check error logs in database
  * Shows recent errors with full context
  * Usage: npx tsx scripts/check-error-logs.ts [hours-back]
+ *
+ * Note: This script uses console.log for output - this is intentional and acceptable
+ * Scripts are allowed to use console for direct user output
  */
 
 import { PrismaClient } from '@prisma/client'

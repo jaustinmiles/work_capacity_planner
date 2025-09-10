@@ -8,11 +8,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### MANDATORY Context Updates
 
-**After EVERY significant task or finding:**
+**After EVERY work session (not just "significant" ones):**
 1. Update `/context/state.md` with current progress and blockers
-2. Update `/context/insights.md` with new learnings or patterns discovered
+2. Update `/context/insights.md` with new learnings or patterns discovered  
 3. Update `/context/decisions.md` if any technical decisions were made
 4. Update `/context/schema.md` if data structures changed
+
+**IMMEDIATE UPDATE TRIGGERS:**
+- After making ANY claim about completion status
+- When discovering incomplete/broken work
+- When finding contradictions between docs and code
+- Before stating anything is "RESOLVED" or "COMPLETED"
 
 **Before starting ANY new session:**
 1. Read ALL files in `/context/` directory
@@ -437,13 +443,60 @@ See `/TECH_DEBT.md` for complete list including:
 - Implement memoization for expensive calculations
 - Consider lazy loading for heavy components
 
+## 🚨 MANDATORY VERIFICATION PROTOCOL
+
+### Before Making ANY Claims
+**NEVER state anything as fact without verification. The PR #67 disaster was caused by false claims.**
+
+Required verification steps:
+1. **Before claiming "all X replaced"**: `grep -r "X" src/` to find ALL instances
+2. **Before claiming "tests pass"**: Actually run the specific tests
+3. **Before claiming "fixed"**: Check the actual file contains the fix
+4. **Before claiming "no errors"**: Run the specific check command
+
+**Template for claims**: 
+```
+CLAIM: All console.log statements replaced with logger
+VERIFIED BY: grep -r "console\." src/ | grep -v test
+RESULT: Found 0 instances in source code
+```
+
+### PR Review Claims Checklist
+Before replying to any review comment:
+- [ ] I have verified my claim by checking actual file contents
+- [ ] I have run the specific command to confirm the fix
+- [ ] I can provide exact file:line evidence of the change
+- [ ] If I'm wrong, I will immediately post a correction
+
 ### 💡 When Stuck
 
-1. **First**: Check TECH_DEBT.md for known issues
+1. **First**: Check TECH_DEBT.md for known issues  
 2. **Second**: Search existing code for patterns
 3. **Third**: Review architecture documentation
 4. **Fourth**: Check for TODOs in relevant files
 5. **Last**: Ask for clarification with specific questions
+
+## 🔍 ENHANCED PR REVIEW PROTOCOL
+
+### Script Usage - NO EXCEPTIONS
+- **ALWAYS** use `npx tsx scripts/pr/pr-comment-reply.ts` for ALL review replies
+- **NEVER** use `gh api` directly for PR comments  
+- **ALWAYS** run `npx tsx scripts/pr/pr-review-tracker.ts [PR#]` first to see all comments
+- **Track each reply** to ensure all comments get responses
+
+### Reply Process
+1. **Get all comments**: `npx tsx scripts/pr/pr-comment-reply.ts [PR#] --unresolved`
+2. **For each comment**: Fix the issue AND verify the fix
+3. **Reply with verification**: Include exact command used to verify
+4. **If wrong**: Post immediate correction reply
+
+### Help Request Triggers
+Ask for help IMMEDIATELY when:
+- Tempted to use optional chaining (`?.`) in production code  
+- Creating similar functionality to existing code
+- Tests pass but unsure if production works
+- Confused about which implementation to use
+- Making claims without 100% certainty
 
 ### 🎖️ Success Criteria
 

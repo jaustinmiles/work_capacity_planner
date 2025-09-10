@@ -2,6 +2,28 @@
 
 Scripts for managing pull requests and their CI/CD results.
 
+## 🚨 MANDATORY USAGE
+
+**⚠️ CRITICAL: These scripts MUST be used for all PR review interactions after the PR #67 disaster.**
+
+### Required Workflow:
+1. **ALWAYS** use `pr-review-tracker.ts` FIRST to see all unresolved comments
+2. **ALWAYS** use `pr-comment-reply.ts` for ALL review replies  
+3. **NEVER** use `gh api` directly for PR comment operations
+4. **VERIFY** each fix before posting reply
+
+### Why This Is Mandatory:
+- **PR #67 Disaster**: Manual gh api usage led to missed comments and false claims
+- **Verification Requirements**: Scripts enforce proper verification workflow
+- **User Expectations**: User expects consistent script usage, not manual commands
+
+### Troubleshooting:
+If scripts fail:
+1. Check `gh auth status` - ensure you're authenticated as Claude Code[bot]
+2. Run `./context/setup-claude-bot.sh` to fix authentication
+3. Check PR number is correct and exists
+4. Ask user for help rather than falling back to manual commands
+
 ## pr-review-tracker.ts
 
 Track and manage PR review comments:

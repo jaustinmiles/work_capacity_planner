@@ -100,7 +100,7 @@ This document describes the user experience, workflows, and interaction patterns
 6. User can toggle completion with checkbox
 7. User can delete with trash icon
 
-### Story 2: Complex Workflow Creation
+### Story 5: Complex Workflow Creation
 **As a project manager**, I want to create multi-step workflows so that I can break down complex projects into manageable steps with dependencies.
 
 **Acceptance Criteria**:
@@ -122,7 +122,7 @@ This document describes the user experience, workflows, and interaction patterns
 6. User can expand workflow to see individual steps
 7. User can track progress through each step
 
-### Story 3: Smart Work Scheduling
+### Story 6: Smart Work Scheduling
 **As a busy professional**, I want the system to automatically distribute my tasks across available time so that I can see a realistic schedule.
 
 **Acceptance Criteria**:
@@ -145,7 +145,7 @@ This document describes the user experience, workflows, and interaction patterns
    - Multi-day task spanning
 5. User can see schedule statistics and optimization suggestions
 
-### Story 4: Priority Visualization
+### Story 3: Priority Visualization
 **As a decision maker**, I want to visualize task priorities using the Eisenhower Matrix so that I can focus on what matters most.
 
 **Acceptance Criteria**:

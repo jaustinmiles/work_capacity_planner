@@ -268,15 +268,35 @@ Scheduler Execution
    - Ring buffer prevents memory leaks
    - Async file writes in main process
 
-## 🎯 Next Steps
+## 🎯 Next Steps (ACTUAL STATUS)
 
-1. ✅ Unify scheduler implementations
-2. ✅ Fix priority calculation formulas  
-3. 🚧 Add visual deadline indicators
-4. 🚧 Implement ASCII art debugging
-5. 🚧 Persist debug logs to database
+1. ❌ Unify scheduler implementations (INCOMPLETE - UI still uses multiple schedulers)
+2. ❌ Fix priority calculation formulas (BUG STILL EXISTS in deadline-scheduler.ts)  
+3. ❌ Add visual deadline indicators (NOT IMPLEMENTED)
+4. ❌ Implement ASCII art debugging (NOT IMPLEMENTED)
+5. ❌ Persist debug logs to database (NOT IMPLEMENTED)
+
+## ⚠️ CRITICAL DOCUMENTATION ISSUES
+
+**This document was last updated 2025-09-04 but claims systems are unified that are NOT unified.**
+
+### Scheduler Unification Status: NOT COMPLETED
+- GanttChart/WeeklyCalendar still use `flexible-scheduler.ts`
+- `deadline-scheduler.ts` still exists and is actively used
+- `scheduling-engine.ts` is separate system, not unified
+- Different priority calculation formulas between systems
+- Tests marked as "needs rewrite for unified scheduler" are SKIPPED
+
+### Work Session Types: 5 TYPES STILL EXIST
+1. LocalWorkSession (useTaskStore.ts)
+2. WorkSession (workflow-progress-types.ts)
+3. WorkSession (work-blocks-types.ts)
+4. WorkSession (WorkLoggerCalendar.tsx) 
+5. WorkSession (WorkSessionsModal.tsx)
+
+**UnifiedWorkSession exists but is NOT adopted throughout codebase**
 
 ---
 
-*Last Updated: 2025-09-04*
-*Version: 1.0.0*
+*Last Updated: 2025-09-09*
+*Version: 2.0.0 - CURRENT STATE (Post-Investigation)*

@@ -5,6 +5,9 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
+// TODO: Still using old flexible-scheduler, not unified
+// This should be migrated to use scheduling-engine.ts instead of flexible-scheduler.ts
+// See TECH_DEBT.md for details on scheduler unification that was never completed
 import { scheduleItemsWithBlocksAndDebug, SchedulingDebugInfo } from '../../utils/flexible-scheduler'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'

@@ -14,8 +14,52 @@ import {
 } from './scheduling-models'
 
 /**
- * Core scheduling engine that converts tasks and workflows into an optimized timeline
- * Implements the algorithm documented in /docs/scheduling-algorithm.md
+ * SCHEDULING ENGINE - Database-Persisted Core Scheduler
+ *
+ * ⚠️  CRITICAL: This is ONE OF THREE scheduler implementations still existing.
+ * Despite claims that schedulers were "unified", this remains SEPARATE from UI schedulers.
+ *
+ * PURPOSE:
+ * This is the "official" scheduling engine used by:
+ * - ScheduleGenerator component (generates schedules persisted to database)
+ * - Schedule generation API endpoints
+ * - Any scheduling operations that need database persistence
+ *
+ * INTEGRATION:
+ * - Used by ScheduleGenerator.tsx when user clicks "Generate Schedule"
+ * - Results are persisted to database via IPC calls
+ * - scheduling-service.ts wraps this engine for database operations
+ * - COMPLETELY SEPARATE from flexible-scheduler.ts/deadline-scheduler.ts used by UI
+ *
+ * KEY DIFFERENCES FROM UI SCHEDULERS:
+ * - Priority formula: additive deadline pressure (FIXED BUG that UI schedulers still have)
+ * - Database persistence: saves results to WorkSession table
+ * - More sophisticated algorithm: implements full topological sorting
+ * - Supports complex scheduling constraints and capacity modeling
+ * - Better async wait time handling
+ *
+ * PRIORITY CALCULATION (FIXED):
+ * ```typescript
+ * const deadlineAdditive = deadlinePressure > 1 ? deadlinePressure * 100 : 0
+ * priority = rawScore + deadlineAdditive
+ * ```
+ *
+ * VS UI SCHEDULERS (BUGGY):
+ * ```typescript
+ * priority = eisenhower * deadlinePressure + asyncBoost  // MULTIPLICATIVE BUG
+ * ```
+ *
+ * ARCHITECTURE RELATIONSHIP:
+ * ScheduleGenerator.tsx → scheduling-service.ts → SchedulingEngine (THIS FILE)
+ * GanttChart.tsx → flexible-scheduler.ts → deadline-scheduler.ts (SEPARATE SYSTEM)
+ *
+ * WHY THREE SCHEDULERS EXIST:
+ * - UI needs real-time display scheduling (flexible-scheduler)
+ * - Database needs persistent schedule generation (scheduling-engine)
+ * - Priority calculations shared between systems (deadline-scheduler)
+ * - Multiple attempts at unification failed, leaving all three systems
+ *
+ * Last Updated: 2025-09-09 (Added documentation during PR #67 cleanup)
  */
 export class SchedulingEngine {
 

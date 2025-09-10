@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Pre-commit verification hook
+# Created during PR #67 cleanup to prevent future false completion claims
+
+echo "🔍 Running pre-commit verification checks..."
+
+# Check for console.log in src/ directory (not scripts/)
+console_count=$(grep -r "console\.log" src/ --exclude-dir=__tests__ 2>/dev/null | wc -l)
+if [ "$console_count" -gt 0 ]; then
+    echo "❌ Found $console_count console.log statements in src/"
+    echo "   Run: grep -r 'console\.log' src/ --exclude-dir=__tests__"
+    echo "   Replace with proper logging before committing"
+    exit 1
+fi
+
+# Check for unverified completion claims in commit message
+if git diff --cached --name-only | xargs grep -l "complete\|done\|fixed\|resolved" 2>/dev/null; then
+    echo "⚠️  Commit contains completion claims. Have you verified them?"
+    echo "   Run verification script: ./scripts/verification/quick-verify.sh"
+    echo "   Press Enter to continue or Ctrl+C to abort"
+    read -r
+fi
+
+# Remind to update context files
+if git diff --cached --name-only | grep -E "src/.*\.(ts|tsx)$" > /dev/null; then
+    echo "📝 Remember to update context files after significant changes:"
+    echo "   - context/state.md (current progress)"
+    echo "   - context/insights.md (learnings/patterns)"
+    echo "   - context/decisions.md (technical decisions)"
+fi
+
+# Check TypeScript compilation
+echo "🔎 Checking TypeScript compilation..."
+if ! npm run typecheck > /dev/null 2>&1; then
+    echo "❌ TypeScript compilation failed"
+    echo "   Run: npm run typecheck"
+    exit 1
+fi
+
+# Check ESLint (allow warnings)
+echo "🔎 Checking ESLint..."
+if ! npm run lint -- --max-warnings=1000 > /dev/null 2>&1; then
+    echo "❌ ESLint errors found"
+    echo "   Run: npm run lint"
+    exit 1
+fi
+
+echo "✅ Pre-commit verification passed!"

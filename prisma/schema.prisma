@@ -127,13 +127,16 @@ model Session {
   SchedulingPreferences SchedulingPreferences?
 }
 
+// Task model - Unified model for both simple tasks and workflow containers
+// This replaced the old separate Task/SequencedTask models
+// Tasks with hasSteps=true are workflow containers, hasSteps=false are simple tasks
 model Task {
   id                   String          @id
   name                 String
-  duration             Int
-  importance           Int
-  urgency              Int
-  type                 String
+  duration             Int             // Total duration in minutes (for workflows: sum of steps)
+  importance           Int             // 1-10 priority scale
+  urgency              Int             // 1-10 urgency scale
+  type                 String          // "focused" | "admin"
   category             String          @default("work") // "work" or "personal"
   asyncWaitTime        Int             @default(0)
   dependencies         String          @default("[]")
@@ -246,17 +249,22 @@ model WorkPattern {
   @@unique([sessionId, date])
 }
 
+// WorkSession model - Time tracking for tasks and workflow steps
+// NOTE: There are 11+ different WorkSession interfaces throughout the codebase
+// that were supposed to be unified to use this database model. See:
+// - docs/INCOMPLETE_WORK.md for full consolidation status
+// - src/shared/unified-work-session-types.ts for the attempted unification
 model WorkSession {
   id             String       @id
-  taskId         String
-  stepId         String?
-  patternId      String?
-  type           String
-  startTime      DateTime
-  endTime        DateTime?
-  plannedMinutes Int          @default(0)
-  actualMinutes  Int?
-  notes          String?
+  taskId         String       // Parent task (required)
+  stepId         String?      // Workflow step ID (optional, for step-specific sessions)
+  patternId      String?      // Work pattern reference (for scheduled sessions)
+  type           String       // Session type: "task", "step", "break", etc.
+  startTime      DateTime     // Session start time
+  endTime        DateTime?    // Session end time (null = in progress)
+  plannedMinutes Int          @default(0)  // Estimated duration
+  actualMinutes  Int?         // Actual duration (null = in progress)
+  notes          String?      // Session notes/comments
   createdAt      DateTime     @default(now())
   WorkPattern    WorkPattern? @relation(fields: [patternId], references: [id])
   Task           Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
