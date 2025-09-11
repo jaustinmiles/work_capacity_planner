@@ -208,7 +208,7 @@ export class UnifiedSchedulerAdapter {
     const config = this.adaptLegacyOptions(options)
     const context: ScheduleContext = {
       startDate: typeof config.startDate === 'string' ? config.startDate : config.startDate.toISOString(),
-      currentTime: options.startDate || new Date(),
+      currentTime: options.startDate instanceof Date ? options.startDate : new Date(),
       tasks: [],
       workflows: incompleteWorkflows,
       workPatterns: this.fixWorkPatternCapacities(workPatterns),
