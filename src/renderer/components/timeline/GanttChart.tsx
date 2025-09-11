@@ -242,7 +242,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       const dayOfWeek = date.day()
 
       const pattern = await db.getWorkPattern(dateStr)
-      if (pattern) {
+
+      // Only use patterns that have actual blocks or meetings
+      if (pattern && ((pattern.blocks && pattern.blocks.length > 0) || (pattern.meetings && pattern.meetings.length > 0))) {
         console.log('[GanttChart] loadWorkPatterns - Found pattern for:', dateStr, 'with', pattern.blocks?.length || 0, 'blocks')
         patterns.push({
           date: dateStr,
@@ -250,7 +252,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           meetings: pattern.meetings,
           accumulated: { focusMinutes: 0, adminMinutes: 0 },
         })
-      } else if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      } else if (dayOfWeek !== 0 && dayOfWeek !== 6 && !pattern) {
         console.log('[GanttChart] loadWorkPatterns - No pattern for weekday:', dateStr, '- using default')
         // If no pattern exists and it's a weekday, create a default pattern
         // This allows scheduling on future days even without explicit patterns

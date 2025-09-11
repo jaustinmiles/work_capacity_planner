@@ -99,39 +99,40 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
             )}
 
             {/* Scheduled Items Priority Breakdown */}
-            {debugInfo.scheduledItemsPriority && debugInfo.scheduledItemsPriority.length > 0 && (
+            {debugInfo.scheduledItems && debugInfo.scheduledItems.length > 0 && (
               <div>
                 <Title heading={6} style={{ marginBottom: 8 }}>
-                  Scheduled Items Priority Analysis (Sorted by Priority)
+                  Scheduled Items Priority Analysis (First 10 by Schedule Order)
                 </Title>
                 <Table
                   columns={[
                     { title: 'Task', dataIndex: 'name' },
-                    { title: 'Time', dataIndex: 'scheduledTime',
-                      render: (val) => new Date(val).toLocaleTimeString() },
+                    { title: 'Type', dataIndex: 'type' },
+                    { title: 'Time', dataIndex: 'startTime',
+                      render: (val) => val ? new Date(val).toLocaleTimeString() : '-' },
+                    { title: 'Duration', dataIndex: 'duration', render: (val) => `${val} min` },
                     {
                       title: 'Priority Breakdown',
                       render: (_, record) => {
+                        if (!record.priorityBreakdown) return <Tag>Priority: {record.priority || 0}</Tag>
                         const p = record.priorityBreakdown
                         return (
-                          <Space>
-                            <Tag>Total: {Math.round(p.total)}</Tag>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              Eisenhower: {Math.round(p.eisenhower)}
-                              {p.deadlineBoost !== undefined && p.deadlineBoost > 0 && ` | Deadline: +${Math.round(p.deadlineBoost)}`}
-                              {p.asyncBoost !== undefined && p.asyncBoost > 0 && ` | Async: +${Math.round(p.asyncBoost)}`}
-                              {p.cognitiveMatch !== undefined && p.cognitiveMatch !== 0 && ` | Cognitive: ${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
-                              {p.contextSwitchPenalty !== undefined && p.contextSwitchPenalty !== 0 && ` | Switch: ${Math.round(p.contextSwitchPenalty)}`}
-                              {p.workflowDepthBonus !== undefined && p.workflowDepthBonus > 0 && ` | Depth: +${Math.round(p.workflowDepthBonus)}`}
-                            </Text>
-                          </Space>
+                          <div style={{ fontSize: 11 }}>
+                            <div>Total: {Math.round(p.total)}</div>
+                            <div style={{ color: '#666' }}>
+                              E:{Math.round(p.eisenhower)}
+                              {p.deadlineBoost !== undefined && p.deadlineBoost > 0 && ` D:+${Math.round(p.deadlineBoost)}`}
+                              {p.asyncBoost !== undefined && p.asyncBoost > 0 && ` A:+${Math.round(p.asyncBoost)}`}
+                              {p.cognitiveMatch !== undefined && p.cognitiveMatch !== 0 && ` C:${p.cognitiveMatch > 0 ? '+' : ''}${Math.round(p.cognitiveMatch)}`}
+                              {p.contextSwitchPenalty !== undefined && p.contextSwitchPenalty < 0 && ` S:${Math.round(p.contextSwitchPenalty)}`}
+                              {p.workflowDepthBonus !== undefined && p.workflowDepthBonus > 0 && ` W:+${Math.round(p.workflowDepthBonus)}`}
+                            </div>
+                          </div>
                         )
                       },
                     },
                   ]}
-                  data={[...debugInfo.scheduledItemsPriority].sort((a, b) => {
-                    return b.priorityBreakdown.total - a.priorityBreakdown.total
-                  })}
+                  data={debugInfo.scheduledItems}
                   pagination={false}
                   size="small"
                   scroll={{ y: 200 }}
@@ -142,7 +143,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
             {/* Block Utilization */}
             <div>
               <Title heading={6} style={{ marginBottom: 8 }}>
-                Block Utilization
+                Block Utilization (Current & Next Day)
               </Title>
               <Table
                 columns={[
@@ -207,7 +208,21 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                     },
                   },
                 ]}
-                data={debugInfo.blockUtilization}
+                data={(() => {
+                  // Filter to only show current and next day
+                  const today = new Date()
+                  today.setHours(0, 0, 0, 0)
+                  const tomorrow = new Date(today)
+                  tomorrow.setDate(tomorrow.getDate() + 1)
+                  const dayAfter = new Date(tomorrow)
+                  dayAfter.setDate(dayAfter.getDate() + 1)
+
+                  return debugInfo.blockUtilization.filter(block => {
+                    const blockDate = new Date(block.date)
+                    blockDate.setHours(0, 0, 0, 0)
+                    return blockDate >= today && blockDate < dayAfter
+                  })
+                })()}
                 pagination={false}
                 size="small"
                 scroll={{ y: 300 }}
