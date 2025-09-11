@@ -110,7 +110,7 @@ export function WeeklyCalendar() {
       allowSplitting: true,
       respectDeadlines: true,
     }
-    
+
     const result = scheduleForGantt(
       tasks,
       workPatterns,

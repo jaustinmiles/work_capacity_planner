@@ -206,7 +206,7 @@ export class UnifiedSchedulerAdapter {
     })
 
     const config = this.adaptLegacyOptions(options)
-    
+
     // Ensure we have a valid Date for currentTime
     let currentTime: Date
     if (options.startDate instanceof Date) {
@@ -219,7 +219,7 @@ export class UnifiedSchedulerAdapter {
     } else {
       throw new Error(`Invalid startDate type: expected Date or string, got ${typeof options.startDate}`)
     }
-    
+
     const context: ScheduleContext = {
       startDate: typeof config.startDate === 'string' ? config.startDate : config.startDate.toISOString(),
       currentTime,
