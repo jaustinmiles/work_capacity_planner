@@ -307,7 +307,7 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
       // Should NOT be scheduled during sleep hours (23:00-07:00)
       // In minutes: 1380-420 (wrapping around midnight)
       const isDuringSleep = (timeInMinutes >= 1380) || (timeInMinutes < 420) // 23:00-07:00
-      
+
       // Allow very early morning or late evening as valid work time
       // Just ensure it's not in the middle of the night
       expect(isDuringSleep).toBe(false)
