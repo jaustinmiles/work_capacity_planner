@@ -45,7 +45,7 @@ export class DatabaseService {
   async getActiveSession(): Promise<string> {
     // If already cached, return it
     if (this.activeSessionId) {
-      console.log('[DB] getActiveSession - Using cached sessionId:', this.activeSessionId)
+      mainLogger.info('[DB] getActiveSession - Using cached sessionId', { sessionId: this.activeSessionId })
       return this.activeSessionId
     }
 
@@ -1029,30 +1029,13 @@ export class DatabaseService {
       },
     })
 
-    // Fallback: If no pattern found for current session, try to find ANY pattern for this date
+    // Use only the current session's pattern - no fallback to other sessions
     if (!pattern) {
-      console.log('[DB] getWorkPattern - No pattern for current session, checking other sessions for:', date)
-      pattern = await this.client.workPattern.findFirst({
-        where: {
-          date,
-          isTemplate: false,
-        },
-        include: {
-          WorkBlock: true,
-          WorkMeeting: true,
-          WorkSession: true,
-        },
-        orderBy: { updatedAt: 'desc' },
-      })
-      if (pattern) {
-        console.log('[DB] getWorkPattern - Found pattern from different session:', { date, foundSessionId: pattern.sessionId, patternId: pattern.id })
-      }
-    }
-
-    if (!pattern) {
-      console.log('[DB] getWorkPattern - No pattern found at all for:', date)
+      // No pattern found for current session - return null instead of checking other sessions
       return null
     }
+
+    // Pattern found, process it
     console.log('[DB] getWorkPattern - Returning pattern for:', { date, patternId: pattern.id })
 
     return {
@@ -1092,7 +1075,10 @@ export class DatabaseService {
               capacity = { focusMinutes: 0, adminMinutes: totalMinutes }
               break
             case 'mixed':
-              capacity = { focusMinutes: Math.floor(totalMinutes * 0.7), adminMinutes: Math.floor(totalMinutes * 0.3) }
+              // Use user-specified capacity values if available, otherwise default to 70/30 split
+              capacity = (b.focusCapacity && b.adminCapacity) 
+                ? { focusMinutes: b.focusCapacity, adminMinutes: b.adminCapacity }
+                : { focusMinutes: Math.floor(totalMinutes * 0.7), adminMinutes: Math.floor(totalMinutes * 0.3) }
               break
             case 'flexible':
               capacity = { focusMinutes: Math.floor(totalMinutes * 0.5), adminMinutes: Math.floor(totalMinutes * 0.5) }
@@ -1123,7 +1109,7 @@ export class DatabaseService {
     recurring?: 'none' | 'daily' | 'weekly'
   }): Promise<any> {
     const sessionId = await this.getActiveSession()
-    console.log('[DB] createWorkPattern - Creating pattern:', { date: data.date, sessionId, blocksCount: data.blocks?.length || 0 })
+    mainLogger.info('[DB] createWorkPattern - Creating pattern', { date: data.date, sessionId, blocksCount: data.blocks?.length || 0 })
     const { blocks, meetings, recurring, ...patternData } = data
 
     // First, delete existing pattern if it exists (to replace it)

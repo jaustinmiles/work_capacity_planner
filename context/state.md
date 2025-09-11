@@ -61,6 +61,12 @@
 
 ### 🚀 Recent PR Completions
 
+#### PR #69: UnifiedScheduler Fixes (Closed)
+- **Status**: CLOSED - Work superseded by current PR #70 scheduler unification effort
+- **Original Goal**: Fix past scheduling and improve capacity utilization in UnifiedScheduler
+- **Issues Fixed**: Tasks scheduling in past, poor capacity utilization, priority calculation bugs
+- **Closure Reason**: Improvements were integrated into broader scheduler unification work in PR #70
+
 #### PR #68: Documentation Cleanup and Verification Infrastructure (Merged)
 - **Achievement**: Established systematic verification protocols to prevent future false completion claims
 - **Method**: Added pre-commit hooks, verification scripts, comprehensive tracking systems

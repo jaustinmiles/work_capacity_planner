@@ -72,8 +72,8 @@ export class IPCTransport {
           console.log('[IPC Transport] No IPC available, logging to console:', sanitizedEntry)
         }
       } catch (_error) {
-        // Silently skip entries that can't be serialized
-        // console.error('Failed to send log via IPC:', _error)
+        // Warn about entries that can't be serialized to help with debugging
+        console.warn('[IPC Transport] Failed to serialize log entry, skipping:', _error)
       }
     }
   }

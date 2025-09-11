@@ -39,11 +39,24 @@ scheduling-service.ts          ✅ Uses scheduling-engine.ts (the only one)
 optimal-scheduler.ts           ❌ Still exists, has 5 imports in codebase
 ```
 
-**ACTUAL USAGE COUNT (VERIFIED):**
-- flexible-scheduler: 36 imports across codebase
-- deadline-scheduler: 12 imports (used by flexible-scheduler)
-- scheduling-engine: 9 imports (mostly tests + scheduling-service)
-- optimal-scheduler: 5 imports
+**ACTUAL USAGE COUNT (VERIFIED 2025-09-11):**
+- flexible-scheduler: 25 active imports (reduced from previous 36)
+
+**SPECIFIC LOCATIONS STILL USING FLEXIBLE-SCHEDULER:**
+
+**Core UI Components:**
+- `src/renderer/components/schedule/ScheduleGenerator.tsx` - imports `ScheduledItem` type
+- `src/renderer/components/schedule/DailyScheduleView.tsx` - imports `ScheduledItem` type  
+- `src/renderer/components/timeline/SchedulingDebugInfo.tsx` - imports `SchedulingDebugInfo` type
+
+**Test Files (19 files):**
+- `src/renderer/utils/__tests__/*.test.ts` - All test files import from flexible-scheduler
+- Examples: dependency-scheduling.test.ts, personal-tasks-scheduler.test.ts, etc.
+
+**Other Dependencies:**
+- `src/renderer/utils/deadline-scheduler.ts` - imports from flexible-scheduler
+- `src/logging/formatters/schedule-formatter.ts` - imports `ScheduledItem` type
+- `scripts/test-bedtime-scheduling.ts` and `scripts/analysis/test-bedtime-scheduling.ts`
 
 #### INVESTIGATION FINDINGS (2025-09-10):
 

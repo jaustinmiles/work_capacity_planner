@@ -46,13 +46,6 @@ const mockContext: ScheduleContext = {
   workPatterns: [mockWorkPattern],
   workSettings: {
     sleepHours: { start: '23:00', end: '07:00' },
-    workingHours: { start: '09:00', end: '17:00' },
-    breakPreferences: { duration: 15, frequency: 90 },
-    defaultCapacity: {
-      maxFocusHours: 4,
-      maxAdminHours: 2,
-      maxPersonalHours: 1,
-    },
   },
 }
 
