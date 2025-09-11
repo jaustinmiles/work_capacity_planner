@@ -233,6 +233,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const db = getDatabase()
     const patterns: DailyWorkPattern[] = []
     const today = dayjs().startOf('day')
+    console.log('[GanttChart] loadWorkPatterns - Starting to load patterns for next 30 days')
 
     // Load patterns for the next 30 days
     for (let i = 0; i < 30; i++) {
@@ -242,6 +243,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
       const pattern = await db.getWorkPattern(dateStr)
       if (pattern) {
+        console.log('[GanttChart] loadWorkPatterns - Found pattern for:', dateStr, 'with', pattern.blocks?.length || 0, 'blocks')
         patterns.push({
           date: dateStr,
           blocks: pattern.blocks,
@@ -249,6 +251,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           accumulated: { focusMinutes: 0, adminMinutes: 0 },
         })
       } else if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        console.log('[GanttChart] loadWorkPatterns - No pattern for weekday:', dateStr, '- using default')
         // If no pattern exists and it's a weekday, create a default pattern
         // This allows scheduling on future days even without explicit patterns
         patterns.push({
@@ -276,6 +279,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
     }
 
+    console.log('[GanttChart] loadWorkPatterns - Total patterns loaded:', patterns.length, '(real:', patterns.filter(p => !p.date.includes('default')).length, ')')
     setWorkPatterns(patterns)
   }
 

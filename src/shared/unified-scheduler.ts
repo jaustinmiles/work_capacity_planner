@@ -89,6 +89,15 @@ export interface PriorityBreakdown {
 }
 
 export interface SchedulingDebugInfo {
+  scheduledItems?: Array<{
+    id?: string
+    name: string
+    type: string
+    duration: number
+    priority?: number
+    startTime?: string
+    priorityBreakdown?: PriorityBreakdown
+  }>
   unscheduledItems: Array<{
     id?: string
     name: string
@@ -864,9 +873,8 @@ export class UnifiedScheduler {
     })
 
     // Priority queue - items with no dependencies, sorted by priority
-    const queue = items
-      .filter(item => inDegree.get(item.id) === 0)
-      .sort((a, b) => (b.priority || 0) - (a.priority || 0)) // Higher priority first
+    const itemsWithNoDeps = items.filter(item => inDegree.get(item.id) === 0)
+    const queue = itemsWithNoDeps.sort((a, b) => (b.priority || 0) - (a.priority || 0)) // Higher priority first
 
     const result: UnifiedScheduleItem[] = []
 
@@ -1118,6 +1126,10 @@ export class UnifiedScheduler {
       // Keep trying to schedule items until we can't fit any more in this day
       while (madeProgress && remaining.length > 0) {
         madeProgress = false
+
+        // CRITICAL FIX: Sort remaining items by priority before each scheduling attempt
+        // This ensures high priority items are scheduled first, even after dependencies are resolved
+        remaining.sort((a, b) => (b.priority || 0) - (a.priority || 0))
 
         for (let itemIndex = 0; itemIndex < remaining.length; itemIndex++) {
           const item = remaining[itemIndex]
@@ -2374,6 +2386,19 @@ export class UnifiedScheduler {
     unscheduled: UnifiedScheduleItem[],
     context: ScheduleContext,
   ): SchedulingDebugInfo {
+    // Add priority breakdown for both scheduled and unscheduled items
+    const scheduledItems = scheduled.slice(0, 10).map(item => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      duration: item.duration,
+      priority: item.priority,
+      startTime: item.startTime?.toISOString(),
+      priorityBreakdown: item.originalItem ?
+        this.calculatePriorityWithBreakdown(item.originalItem as Task | TaskStep, context) :
+        undefined,
+    }))
+
     const unscheduledItems = unscheduled.map(item => ({
       id: item.id,
       name: item.name,
@@ -2392,6 +2417,7 @@ export class UnifiedScheduler {
     const blockUtilization = this.calculateBlockUtilization(scheduled, context.workPatterns)
 
     return {
+      scheduledItems,  // Add scheduled items with priority breakdown
       unscheduledItems,
       blockUtilization,
       warnings: [],

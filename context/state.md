@@ -1,12 +1,12 @@
 # Current State
 
-## Latest Status (2025-09-10, Scheduler Fixes Applied)
+## Latest Status (2025-09-11, Priority Scheduling COMPLETE)
 
-### ✅ Current Session: Critical Scheduler Issues Fixed
+### ✅ Current Session: Priority-Based Scheduling Fixed & Committed
 
 **Branch**: feature/complete-scheduler-unification  
-**Recent Achievement**: Fixed work pattern loading, deadline spam, and priority ordering issues  
-**Status**: 🔧 SCHEDULER NOW FUNCTIONAL WITH WORK PATTERNS
+**Recent Achievement**: Fixed priority ordering, Start Next Task, and debug info  
+**Status**: ✅ ALL PRIORITY ISSUES RESOLVED AND COMMITTED
 
 ### 🔥 CRITICAL ISSUES DISCOVERED - NOT PREVIOUSLY DOCUMENTED
 
@@ -97,13 +97,27 @@
    - Added importance/urgency multipliers for better differentiation
    - High importance (9-10) gets 1.5x boost
    - Medium importance (7-8) gets 1.2x boost
+   - **CRITICAL FIX**: Added priority sorting in allocateToWorkBlocks loop
+   - Items now scheduled in correct priority order
+
+4. **Start Next Task** ✅
+   - Fixed to use stored schedule instead of creating new one
+   - Modified getNextScheduledItem in useTaskStore to check currentSchedule
+   - Generates schedule only if none exists
+   - Properly filters completed items
+
+5. **Debug Info Enhancement** ✅
+   - Added scheduledItems array to SchedulingDebugInfo interface
+   - Shows priority breakdown for first 10 scheduled items
+   - Includes priority, startTime, and priorityBreakdown for each item
 
 ### 🟢 Current Code Status
-- **TypeScript Errors**: 0 ✅ (fixed type issues)
+- **TypeScript Errors**: 0 ✅
 - **ESLint Errors**: 0 ✅
 - **Build**: Successful ✅
-- **Scheduler**: Now loads work patterns correctly ✅
-- **Performance**: Deadline spam eliminated ✅
+- **Scheduler**: Priority ordering working correctly ✅
+- **Start Next Task**: Using stored schedule efficiently ✅
+- **Debug Info**: Shows priority breakdown ✅
 
 ### 📊 Key Metrics from Recent Work
 

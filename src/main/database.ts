@@ -45,6 +45,7 @@ export class DatabaseService {
   async getActiveSession(): Promise<string> {
     // If already cached, return it
     if (this.activeSessionId) {
+      console.log('[DB] getActiveSession - Using cached sessionId:', this.activeSessionId)
       return this.activeSessionId
     }
 
@@ -58,6 +59,7 @@ export class DatabaseService {
 
     try {
       this.activeSessionId = await this.sessionInitPromise
+      console.log('[DB] getActiveSession - Initialized new sessionId:', this.activeSessionId)
       return this.activeSessionId
     } finally {
       this.sessionInitPromise = null
@@ -964,7 +966,8 @@ export class DatabaseService {
   // Work patterns
   async getWorkPatterns(): Promise<any[]> {
     const sessionId = await this.getActiveSession()
-    const patterns = await this.client.workPattern.findMany({
+    console.log('[DB] getWorkPatterns - Looking for patterns with sessionId:', sessionId)
+    let patterns = await this.client.workPattern.findMany({
       where: {
         sessionId,
         isTemplate: false,
@@ -975,6 +978,26 @@ export class DatabaseService {
       },
       orderBy: { date: 'desc' },
     })
+
+    // If no patterns found for current session, get ALL patterns as fallback
+    if (patterns.length === 0) {
+      console.log('[DB] getWorkPatterns - No patterns for current session, fetching ALL patterns')
+      patterns = await this.client.workPattern.findMany({
+        where: {
+          isTemplate: false,
+        },
+        include: {
+          WorkBlock: true,
+          WorkMeeting: true,
+        },
+        orderBy: { date: 'desc' },
+      })
+      if (patterns.length > 0) {
+        console.log('[DB] getWorkPatterns - Found', patterns.length, 'patterns from other sessions')
+      }
+    } else {
+      console.log('[DB] getWorkPatterns - Found', patterns.length, 'patterns for current session')
+    }
 
     return patterns.map(pattern => ({
       ...pattern,
@@ -991,7 +1014,8 @@ export class DatabaseService {
 
   async getWorkPattern(date: string): Promise<any | null> {
     const sessionId = await this.getActiveSession()
-    const pattern = await this.client.workPattern.findUnique({
+    console.log('[DB] getWorkPattern - Looking for pattern:', { date, sessionId })
+    let pattern = await this.client.workPattern.findUnique({
       where: {
         sessionId_date: {
           sessionId,
@@ -1005,7 +1029,31 @@ export class DatabaseService {
       },
     })
 
-    if (!pattern) return null
+    // Fallback: If no pattern found for current session, try to find ANY pattern for this date
+    if (!pattern) {
+      console.log('[DB] getWorkPattern - No pattern for current session, checking other sessions for:', date)
+      pattern = await this.client.workPattern.findFirst({
+        where: {
+          date,
+          isTemplate: false,
+        },
+        include: {
+          WorkBlock: true,
+          WorkMeeting: true,
+          WorkSession: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+      })
+      if (pattern) {
+        console.log('[DB] getWorkPattern - Found pattern from different session:', { date, foundSessionId: pattern.sessionId, patternId: pattern.id })
+      }
+    }
+
+    if (!pattern) {
+      console.log('[DB] getWorkPattern - No pattern found at all for:', date)
+      return null
+    }
+    console.log('[DB] getWorkPattern - Returning pattern for:', { date, patternId: pattern.id })
 
     return {
       ...pattern,
@@ -1075,6 +1123,7 @@ export class DatabaseService {
     recurring?: 'none' | 'daily' | 'weekly'
   }): Promise<any> {
     const sessionId = await this.getActiveSession()
+    console.log('[DB] createWorkPattern - Creating pattern:', { date: data.date, sessionId, blocksCount: data.blocks?.length || 0 })
     const { blocks, meetings, recurring, ...patternData } = data
 
     // First, delete existing pattern if it exists (to replace it)

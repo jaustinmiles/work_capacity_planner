@@ -104,6 +104,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
   const handleSavePattern = async (date: string, blocks: WorkBlock[], meetings: WorkMeeting[]) => {
     try {
       const db = getDatabase()
+      console.log('[MultiDayScheduleEditor] handleSavePattern - Saving pattern for:', date, 'with', blocks.length, 'blocks')
       const existingPattern = patterns.get(date)
 
       if (existingPattern && 'id' in existingPattern) {
