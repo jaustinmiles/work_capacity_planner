@@ -291,10 +291,12 @@ export class UnifiedScheduler {
     }
 
     // Ensure config has startDate from context if not provided
+    // Also pass currentTime for proper scheduling
     const configWithStartDate = {
       ...config,
       startDate: config.startDate || context.startDate,
-    }
+      currentTime: context.currentTime, // Pass currentTime for work block scheduling
+    } as ScheduleConfig & { currentTime: Date }
     const allocated = this.allocateToWorkBlocks(dependencyResult.resolved, context.workPatterns, configWithStartDate, completedItemIds)
 
     if (config.debugMode) {
@@ -1045,7 +1047,7 @@ export class UnifiedScheduler {
   allocateToWorkBlocks(
     items: UnifiedScheduleItem[],
     workPatterns: DailyWorkPattern[],
-    config: ScheduleConfig,
+    config: ScheduleConfig & { currentTime?: Date },
     completedItemIds: Set<string> = new Set(),
   ): UnifiedScheduleItem[] {
     const scheduled: UnifiedScheduleItem[] = []
@@ -1148,7 +1150,7 @@ export class UnifiedScheduler {
 
           // Try to fit item in available blocks
           // Pass current time only on first day to avoid scheduling in the past
-          const currentTimeToUse = dayIndex === 0 ? new Date() : undefined
+          const currentTimeToUse = dayIndex === 0 ? (config.currentTime || new Date()) : undefined
           const fitResult = this.findBestBlockForItem(item, dayBlocks, scheduled, currentDate, currentTimeToUse)
 
           if (config.debugMode) {
