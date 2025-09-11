@@ -29,6 +29,27 @@ interface GanttChartProps {
   sequencedTasks: SequencedTask[]
 }
 
+interface GanttItemWorkflowMetadata {
+  workflowId?: string
+  workflowName?: string
+  stepIndex?: number
+  isWorkflowStep?: boolean
+}
+
+interface GanttItem extends GanttItemWorkflowMetadata {
+  id: string
+  name: string
+  type: 'task' | 'workflow-step'
+  priority: number
+  duration: number
+  startTime: Date
+  endTime: Date
+  color: string
+  deadline?: Date
+  originalItem: Task | SequencedTask
+  blockId?: string
+}
+
 // Zoom presets
 const ZOOM_PRESETS = [
   { label: 'Week View', value: 30, description: 'See entire week' },
@@ -252,10 +273,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           meetings: pattern.meetings,
           accumulated: { focusMinutes: 0, adminMinutes: 0 },
         })
-      } else if (dayOfWeek !== 0 && dayOfWeek !== 6 && !pattern) {
-        console.log('[GanttChart] loadWorkPatterns - No pattern for weekday:', dateStr, '- using default')
-        // If no pattern exists and it's a weekday, create a default pattern
-        // This allows scheduling on future days even without explicit patterns
+      } else if (!pattern) {
+        logger.ui.debug('[GanttChart] loadWorkPatterns - No pattern for day:', { date: dateStr, dayOfWeek })
+        // If no pattern exists, create a default pattern
+        // This allows scheduling on any day even without explicit patterns
         patterns.push({
           date: dateStr,
           blocks: [
@@ -303,10 +324,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         }
       }
 
-      const ganttItem = {
+      // Check for workflow metadata in the item
+      const itemWithMetadata = item as any
+      const hasWorkflowMetadata = itemWithMetadata.workflowId !== undefined
+
+      const ganttItem: GanttItem = {
         id: item.task.id,
         name: item.task.name,
-        type: (item as any).isWorkflowStep ? 'workflow-step' as const : 'task' as const,
+        type: itemWithMetadata.isWorkflowStep ? 'workflow-step' : 'task',
         priority: item.priority || 0,
         duration: item.task.duration,
         startTime: item.startTime,
@@ -315,14 +340,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         deadline: item.task.deadline,
         originalItem: item.task,
         blockId: item.blockId,
-      }
-
-      // Preserve workflow metadata if this is a workflow step
-      if ((item as any).workflowId) {
-        ;(ganttItem as any).workflowId = (item as any).workflowId
-        ;(ganttItem as any).workflowName = (item as any).workflowName
-        ;(ganttItem as any).stepIndex = (item as any).stepIndex
-        ;(ganttItem as any).isWorkflowStep = (item as any).isWorkflowStep
+        // Add workflow metadata if present
+        ...(hasWorkflowMetadata && {
+          workflowId: itemWithMetadata.workflowId,
+          workflowName: itemWithMetadata.workflowName,
+          stepIndex: itemWithMetadata.stepIndex,
+          isWorkflowStep: itemWithMetadata.isWorkflowStep,
+        }),
       }
 
       return ganttItem
@@ -519,7 +543,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     })
 
     // Call UnifiedScheduler via hook with proper options
-    const legacyScheduleResult = scheduleForGantt(tasks, workPatterns, {
+    const unifiedScheduleResult = scheduleForGantt(tasks, workPatterns, {
       startDate: getCurrentTime(),
       allowSplitting: true,
       respectDeadlines: true,
@@ -527,23 +551,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     }, sequencedTasks)
 
     // Convert UnifiedScheduler results to GanttChart format
-    const ganttItems = convertUnifiedToGanttItems(legacyScheduleResult)
+    const ganttItems = convertUnifiedToGanttItems(unifiedScheduleResult)
 
     // Use real debug info from UnifiedScheduler if available
-    const unifiedDebugInfo = legacyScheduleResult.debugInfo || {
+    const unifiedDebugInfo = unifiedScheduleResult.debugInfo || {
       // Fallback to basic info if debug info not available
-      unscheduledItems: legacyScheduleResult.unscheduledTasks.map(task => ({
+      unscheduledItems: unifiedScheduleResult.unscheduledTasks.map(task => ({
         id: task.id,
         name: task.name,
         type: 'task',
         duration: task.duration,
         reason: 'No available capacity or constraints not met',
       })),
-      warnings: legacyScheduleResult.conflicts,
+      warnings: unifiedScheduleResult.conflicts,
       blockUtilization: [],
-      totalScheduled: legacyScheduleResult.scheduledTasks.length,
-      totalUnscheduled: legacyScheduleResult.unscheduledTasks.length,
-      scheduleEfficiency: legacyScheduleResult.scheduledTasks.length / Math.max(1, legacyScheduleResult.scheduledTasks.length + legacyScheduleResult.unscheduledTasks.length),
+      totalScheduled: unifiedScheduleResult.scheduledTasks.length,
+      totalUnscheduled: unifiedScheduleResult.unscheduledTasks.length,
+      scheduleEfficiency: unifiedScheduleResult.scheduledTasks.length / Math.max(1, unifiedScheduleResult.scheduledTasks.length + unifiedScheduleResult.unscheduledTasks.length),
     }
     setDebugInfo(unifiedDebugInfo)
 

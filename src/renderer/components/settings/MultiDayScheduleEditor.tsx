@@ -104,7 +104,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
   const handleSavePattern = async (date: string, blocks: WorkBlock[], meetings: WorkMeeting[]) => {
     try {
       const db = getDatabase()
-      console.log('[MultiDayScheduleEditor] handleSavePattern - Saving pattern for:', date, 'with', blocks.length, 'blocks')
+      logger.ui.info('[MultiDayScheduleEditor] handleSavePattern - Saving pattern', { date, blockCount: blocks.length })
       const existingPattern = patterns.get(date)
 
       if (existingPattern && 'id' in existingPattern) {
@@ -227,14 +227,41 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       })
 
       let clearedCount = 0
+      logger.ui.info('[MultiDayScheduleEditor] Starting delete of future patterns', {
+        totalPatterns: allPatterns.length,
+        todayDate: today,
+      })
+
       for (const pattern of allPatterns) {
         // Clear today and all future dates
         if (pattern.date >= today) {
-          logger.ui.info('Deleting pattern:', { id: pattern.id, date: pattern.date })
-          await db.deleteWorkPattern(pattern.id)
-          clearedCount++
+          logger.ui.info('[MultiDayScheduleEditor] Deleting pattern', {
+            id: pattern.id,
+            date: pattern.date,
+            comparison: `${pattern.date} >= ${today}`,
+          })
+          try {
+            await db.deleteWorkPattern(pattern.id)
+            logger.ui.info('[MultiDayScheduleEditor] Successfully deleted pattern', { id: pattern.id })
+            clearedCount++
+          } catch (error) {
+            logger.ui.error('[MultiDayScheduleEditor] Failed to delete pattern', {
+              id: pattern.id,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          }
+        } else {
+          logger.ui.debug('[MultiDayScheduleEditor] Skipping past pattern', {
+            date: pattern.date,
+            comparison: `${pattern.date} < ${today}`,
+          })
         }
       }
+
+      logger.ui.info('[MultiDayScheduleEditor] Completed delete operation', {
+        clearedCount,
+        totalProcessed: allPatterns.length,
+      })
 
       if (clearedCount === 0) {
         Message.info('No future schedules to clear')
