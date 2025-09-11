@@ -3,7 +3,7 @@
  * Allows overriding current time for development/testing
  */
 
-import { logInfo, logWarn, logError } from './logger'
+import { logger } from './logger'
 
 // Import events if in renderer process
 let appEvents: any
@@ -31,9 +31,9 @@ class TimeProvider {
       if (savedOverride) {
         try {
           this.overrideTime = new Date(savedOverride)
-          logInfo('main', `Time override loaded from localStorage: ${this.overrideTime.toISOString()}`)
+          logger.info(`Time override loaded from localStorage: ${this.overrideTime.toISOString()}`)
         } catch (_e) {
-          logError('main', 'Failed to parse saved time override', _e)
+          logger.error('Failed to parse saved time override', { error: _e })
           if (typeof localStorage !== 'undefined') {
             // eslint-disable-next-line no-undef
             localStorage.removeItem('dev-time-override')
@@ -77,14 +77,14 @@ class TimeProvider {
         // eslint-disable-next-line no-undef
         localStorage.removeItem('dev-time-override')
       }
-      logInfo('main', 'Time override cleared')
+      logger.info('Time override cleared')
     } else {
       this.overrideTime = typeof date === 'string' ? new Date(date) : new Date(date)
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         // eslint-disable-next-line no-undef
         localStorage.setItem('dev-time-override', this.overrideTime.toISOString())
       }
-      logInfo('main', `Time override set to: ${this.overrideTime.toISOString()}`)
+      logger.info(`Time override set to: ${this.overrideTime.toISOString()}`)
     }
 
     // Notify all listeners
@@ -128,7 +128,7 @@ class TimeProvider {
       try {
         listener(currentTime)
       } catch (e) {
-        logError('main', 'Error in time change listener', e)
+        logger.error('Error in time change listener', { error: e })
       }
     })
   }
@@ -138,7 +138,7 @@ class TimeProvider {
    */
   advanceBy(minutes: number): void {
     if (!this.overrideTime) {
-      logWarn('main', 'Cannot advance time - no override is set')
+      logger.warn('Cannot advance time - no override is set')
       return
     }
 
@@ -180,9 +180,10 @@ if (typeof window !== 'undefined') {
     timeProvider.setOverride(null)
   }
 
-  logInfo('main', 'Time provider dev tools available:')
-  logInfo('main', '  window.setTime(hours, minutes) - Set time to specific time today')
-  logInfo('main', '  window.advanceTime(minutes) - Advance current override by minutes')
-  logInfo('main', '  window.clearTime() - Clear override and use real time')
-  logInfo('main', '  window.timeProvider - Access full time provider')
+  // Use console.info instead of logger at module level to avoid initialization issues
+  console.info('Time provider dev tools available:')
+  console.info('  window.setTime(hours, minutes) - Set time to specific time today')
+  console.info('  window.advanceTime(minutes) - Advance current override by minutes')
+  console.info('  window.clearTime() - Clear override and use real time')
+  console.info('  window.timeProvider - Access full time provider')
 }

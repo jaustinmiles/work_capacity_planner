@@ -26,9 +26,9 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
   let schedulingService: SchedulingService
 
   // EXACT production data from database
-  // Use UTC directly to avoid timezone issues in tests
-  // This represents 3:10 PM PDT which is 10:10 PM UTC
-  const CURRENT_TIME = new Date('2025-09-10T22:10:00Z') // 3:10 PM PDT (22:10 UTC)
+  // Using PDT time directly for consistency
+  // This represents 3:10 PM PDT
+  const CURRENT_TIME = new Date('2025-09-10T15:10:00-07:00') // 3:10 PM PDT
   const TODAY = '2025-09-10'
 
   // EXACT work patterns from production database
@@ -38,8 +38,8 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
       blocks: [
         {
           id: 'block-1',
-          startTime: '22:30', // 15:30 PDT in UTC
-          endTime: '00:15', // 17:15 PDT in UTC (next day)
+          startTime: '15:30', // Using PDT time directly
+          endTime: '17:15', // Using PDT time directly
           type: 'mixed',
           capacity: {
             focusMinutes: 73, // 70% of 105 minutes
@@ -48,8 +48,8 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
         },
         {
           id: 'block-2',
-          startTime: '02:30', // 19:30 PDT in UTC (next day)
-          endTime: '04:45', // 21:45 PDT in UTC (next day)
+          startTime: '19:30', // Using PDT time directly
+          endTime: '21:45', // Using PDT time directly
           type: 'flexible',
           capacity: {
             focusMinutes: 67, // 50% of 135 minutes
@@ -153,17 +153,17 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
    * Test 1: Environment Replication Test
    * Replicates the EXACT production database state at 3:10 PM PDT
    */
-  it.skip('test_exact_scenario_replication - SKIPPED: Timezone handling issues', () => {
-    // Assert 1: Current time is exactly 22:10 UTC (3:10 PM PDT)
-    expect(CURRENT_TIME.getHours()).toBe(22)
+  it('test_exact_scenario_replication - MUST PASS: Real production scenario', () => {
+    // Assert 1: Current time is exactly 15:10 PDT (3:10 PM PDT)
+    expect(CURRENT_TIME.getHours()).toBe(15)
     expect(CURRENT_TIME.getMinutes()).toBe(10)
 
     // Assert 2: Work patterns match production
     expect(productionWorkPatterns).toHaveLength(1)
     expect(productionWorkPatterns[0].blocks).toHaveLength(2)
-    expect(productionWorkPatterns[0].blocks[0].startTime).toBe('22:30') // UTC time
+    expect(productionWorkPatterns[0].blocks[0].startTime).toBe('15:30') // PDT time
     expect(productionWorkPatterns[0].blocks[0].type).toBe('mixed')
-    expect(productionWorkPatterns[0].blocks[1].startTime).toBe('02:30') // UTC time
+    expect(productionWorkPatterns[0].blocks[1].startTime).toBe('19:30') // PDT time
     expect(productionWorkPatterns[0].blocks[1].type).toBe('flexible')
 
     // Assert 3: Workflow has high priority
@@ -258,7 +258,7 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
    * Test 3: Adapter Integration Test
    * Verify adapter correctly transforms between scheduler and UI
    */
-  it.skip('test_adapter_with_exact_scenario - SKIPPED: Work block scheduling not working after UnifiedScheduler changes', () => {
+  it('test_adapter_with_exact_scenario - MUST PASS: Adapter integration', () => {
     const result = adapter.scheduleTasks(
       [productionTask],
       productionWorkPatterns,
@@ -319,7 +319,7 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
    * Test 4: UI End-to-End Test
    * Full integration test using exact scenario
    */
-  it.skip('test_ui_displays_correct_schedule - SKIPPED: Work block scheduling not working after UnifiedScheduler changes', async () => {
+  it('test_ui_displays_correct_schedule - MUST PASS: UI end-to-end test', async () => {
     // Use scheduling service as UI would
     const schedule = await schedulingService.createSchedule(
       [productionTask],

@@ -93,32 +93,47 @@ export const logger = {
   // Performance monitoring
   perf: log.scope('performance'),
 
-  // Error tracking
-  error: log.scope('error'),
+  // Error tracking (as a scope, not the method)
+  errorScope: log.scope('error'),
+
+  // Top-level convenience methods for general logging
+  debug: (message: string, ...args: any[]) => {
+    loggerInstance.debug(`[GENERAL] ${message}`, ...args)
+  },
+  info: (message: string, ...args: any[]) => {
+    loggerInstance.info(`[GENERAL] ${message}`, ...args)
+  },
+  warn: (message: string, ...args: any[]) => {
+    loggerInstance.warn(`[GENERAL] ${message}`, ...args)
+  },
+  error: (message: string, ...args: any[]) => {
+    loggerInstance.error(`[GENERAL] ${message}`, ...args)
+  },
 }
 
-// Export convenience methods
-export const logInfo = (scope: keyof typeof logger, message: string, ...args: any[]) => {
-  logger[scope].info(message, ...args)
+// Export legacy convenience methods (kept for backward compatibility)
+// These are exported but not used anymore - use logger.scope.method() instead
+export const logInfo = (scope: string, message: string, ...args: any[]) => {
+  loggerInstance.info(`[${scope.toUpperCase()}] ${message}`, ...args)
 }
 
-export const logDebug = (scope: keyof typeof logger, message: string, ...args: any[]) => {
-  logger[scope].debug(message, ...args)
+export const logDebug = (scope: string, message: string, ...args: any[]) => {
+  loggerInstance.debug(`[${scope.toUpperCase()}] ${message}`, ...args)
 }
 
-export const logWarn = (scope: keyof typeof logger, message: string, ...args: any[]) => {
-  logger[scope].warn(message, ...args)
+export const logWarn = (scope: string, message: string, ...args: any[]) => {
+  loggerInstance.warn(`[${scope.toUpperCase()}] ${message}`, ...args)
 }
 
-export const logError = (scope: keyof typeof logger, message: string, error?: Error | unknown, ...args: any[]) => {
+export const logError = (scope: string, message: string, error?: Error | unknown, ...args: any[]) => {
   if (error instanceof Error) {
-    logger[scope].error(message, {
+    loggerInstance.error(`[${scope.toUpperCase()}] ${message}`, {
       error: error.message,
       stack: error.stack,
       ...args,
     })
   } else {
-    logger[scope].error(message, error, ...args)
+    loggerInstance.error(`[${scope.toUpperCase()}] ${message}`, error, ...args)
   }
 }
 

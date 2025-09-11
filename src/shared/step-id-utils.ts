@@ -1,7 +1,7 @@
 /**
  * Utilities for managing stable step IDs across workflow updates
  */
-import { logWarn } from './logger'
+import { logger } from './logger'
 
 /**
  * Generate a stable step ID that won't change between updates
@@ -67,7 +67,7 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
           return dep
         }
         // If not, try to find by name
-        logWarn('scheduler', `Dependency ID "${dep}" not found, attempting to resolve by name`)
+        logger.scheduler.warn(`Dependency ID "${dep}" not found, attempting to resolve by name`)
       }
 
       // Try exact name match
@@ -104,12 +104,12 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
       // Try partial match as last resort - check if any step name is contained in the dependency
       for (const [stepName, stepId] of nameToId.entries()) {
         if (dep.includes(stepName) || stepName.includes(dep)) {
-          logWarn('scheduler', `Fuzzy matching dependency "${dep}" to step "${stepName}"`)
+          logger.scheduler.warn(`Fuzzy matching dependency "${dep}" to step "${stepName}"`)
           return stepId
         }
       }
 
-      logWarn('scheduler', `Could not resolve dependency "${dep}" to an ID`)
+      logger.scheduler.warn(`Could not resolve dependency "${dep}" to an ID`)
       // Return empty array to prevent blocking - dependencies will be ignored
       return null
     }).filter(id => id !== null) as string[],
@@ -188,7 +188,7 @@ export function fixBrokenDependencies(
     dependsOn: step.dependsOn.filter(depId => {
       const isValid = validIds.has(depId)
       if (!isValid) {
-        logWarn('scheduler', `Removing invalid dependency "${depId}" from step "${step.name}"`)
+        logger.scheduler.warn(`Removing invalid dependency "${depId}" from step "${step.name}"`)
       }
       return isValid
     }),
