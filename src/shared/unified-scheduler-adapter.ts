@@ -206,9 +206,23 @@ export class UnifiedSchedulerAdapter {
     })
 
     const config = this.adaptLegacyOptions(options)
+    
+    // Ensure we have a valid Date for currentTime
+    let currentTime: Date
+    if (options.startDate instanceof Date) {
+      currentTime = options.startDate
+    } else if (typeof options.startDate === 'string') {
+      currentTime = new Date(options.startDate)
+      if (isNaN(currentTime.getTime())) {
+        throw new Error(`Invalid startDate string: ${options.startDate}`)
+      }
+    } else {
+      throw new Error(`Invalid startDate type: expected Date or string, got ${typeof options.startDate}`)
+    }
+    
     const context: ScheduleContext = {
       startDate: typeof config.startDate === 'string' ? config.startDate : config.startDate.toISOString(),
-      currentTime: options.startDate instanceof Date ? options.startDate : new Date(),
+      currentTime,
       tasks: [],
       workflows: incompleteWorkflows,
       workPatterns: this.fixWorkPatternCapacities(workPatterns),

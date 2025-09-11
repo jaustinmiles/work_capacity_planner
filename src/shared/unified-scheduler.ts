@@ -217,6 +217,7 @@ export interface ScheduleConfig {
   optimizationMode?: 'realistic' | 'optimal' | 'conservative'
   debugMode?: boolean
   maxDays?: number // Backwards compatibility
+  currentTime?: Date // Optional current time for work block scheduling
 }
 
 // ============================================================================
@@ -292,11 +293,11 @@ export class UnifiedScheduler {
 
     // Ensure config has startDate from context if not provided
     // Also pass currentTime for proper scheduling
-    const configWithStartDate = {
+    const configWithStartDate: ScheduleConfig = {
       ...config,
       startDate: config.startDate || context.startDate,
       currentTime: context.currentTime, // Pass currentTime for work block scheduling
-    } as ScheduleConfig & { currentTime: Date }
+    }
     const allocated = this.allocateToWorkBlocks(dependencyResult.resolved, context.workPatterns, configWithStartDate, completedItemIds)
 
     if (config.debugMode) {

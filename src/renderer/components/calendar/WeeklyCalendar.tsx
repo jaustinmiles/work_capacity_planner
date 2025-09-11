@@ -103,15 +103,18 @@ export function WeeklyCalendar() {
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
 
+    // Create typed options object for better type safety
+    const scheduleOptions = {
+      startDate: dayjs().format('YYYY-MM-DD'),
+      endDate: dayjs().add(30, 'day').format('YYYY-MM-DD'),
+      allowSplitting: true,
+      respectDeadlines: true,
+    }
+    
     const result = scheduleForGantt(
       tasks,
       workPatterns,
-      {
-        startDate: dayjs().format('YYYY-MM-DD'),
-        endDate: dayjs().add(30, 'day').format('YYYY-MM-DD'),
-        allowSplitting: true,
-        respectDeadlines: true,
-      },
+      scheduleOptions,
       sequencedTasks,
     )
 
