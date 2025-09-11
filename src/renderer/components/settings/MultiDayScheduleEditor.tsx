@@ -216,21 +216,42 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
     setLoading(true)
     try {
       const db = getDatabase()
-      // Get all future dates
+      // Get all future dates (including today)
       const today = dayjs().format('YYYY-MM-DD')
-      const patterns = await db.getWorkPatterns()
+      const allPatterns = await db.getWorkPatterns()
+
+      logger.ui.info('Clear All Schedules - Found patterns:', {
+        totalPatterns: allPatterns.length,
+        today,
+        patterns: allPatterns.map(p => ({ id: p.id, date: p.date })),
+      })
 
       let clearedCount = 0
-      for (const pattern of patterns) {
+      for (const pattern of allPatterns) {
+        // Clear today and all future dates
         if (pattern.date >= today) {
+          logger.ui.info('Deleting pattern:', { id: pattern.id, date: pattern.date })
           await db.deleteWorkPattern(pattern.id)
           clearedCount++
         }
       }
 
-      Message.success(`Cleared ${clearedCount} schedules`)
+      if (clearedCount === 0) {
+        Message.info('No future schedules to clear')
+      } else {
+        Message.success(`Cleared ${clearedCount} schedules`)
+      }
+
+      // Clear the local patterns state immediately
+      setPatterns(new Map())
+
+      // Then reload to get any remaining patterns (should be empty or only past dates)
       await loadPatterns()
-      onSave?.()
+
+      // Trigger the parent component's save handler to reload GanttChart patterns
+      if (onSave) {
+        await onSave()
+      }
 
       // Emit event to refresh UI components (especially sidebar)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
