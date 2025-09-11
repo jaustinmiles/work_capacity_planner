@@ -1015,7 +1015,7 @@ export class DatabaseService {
   async getWorkPattern(date: string): Promise<any | null> {
     const sessionId = await this.getActiveSession()
     console.log('[DB] getWorkPattern - Looking for pattern:', { date, sessionId })
-    let pattern = await this.client.workPattern.findUnique({
+    const pattern = await this.client.workPattern.findUnique({
       where: {
         sessionId_date: {
           sessionId,
@@ -1076,7 +1076,7 @@ export class DatabaseService {
               break
             case 'mixed':
               // Use user-specified capacity values if available, otherwise default to 70/30 split
-              capacity = (b.focusCapacity && b.adminCapacity) 
+              capacity = (b.focusCapacity && b.adminCapacity)
                 ? { focusMinutes: b.focusCapacity, adminMinutes: b.adminCapacity }
                 : { focusMinutes: Math.floor(totalMinutes * 0.7), adminMinutes: Math.floor(totalMinutes * 0.3) }
               break
