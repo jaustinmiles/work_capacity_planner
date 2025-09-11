@@ -7,6 +7,7 @@ import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
 import { useUnifiedScheduler, LegacyScheduleResult } from '../../hooks/useUnifiedScheduler'
+import { LegacyScheduledItem } from '@shared/unified-scheduler-adapter'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
@@ -60,7 +61,7 @@ const ZOOM_PRESETS = [
 ]
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
-  const { updateTask, updateSequencedTask, generateSchedule, getOptimalSchedule } = useTaskStore()
+  const { updateTask, updateSequencedTask } = useTaskStore()
   const { scheduleForGantt } = useUnifiedScheduler()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
@@ -307,7 +308,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   }
 
   // Helper function to convert UnifiedScheduler results to GanttChart format
-  const convertUnifiedToGanttItems = useCallback((result: LegacyScheduleResult): any[] => {
+  const convertUnifiedToGanttItems = useCallback((result: LegacyScheduleResult): GanttItem[] => {
     logger.ui.debug('🔄 [GANTT] Converting UnifiedScheduler results to Gantt format', {
       scheduledCount: result.scheduledTasks.length,
       unscheduledCount: result.unscheduledTasks.length,
@@ -324,8 +325,16 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         }
       }
 
-      // Check for workflow metadata in the item
-      const itemWithMetadata = item as any
+      // Type-safe check for workflow metadata
+      // Extend LegacyScheduledItem with optional workflow properties
+      interface ScheduledItemWithWorkflow extends LegacyScheduledItem {
+        workflowId?: string
+        workflowName?: string
+        stepIndex?: number
+        isWorkflowStep?: boolean
+      }
+
+      const itemWithMetadata = item as ScheduledItemWithWorkflow
       const hasWorkflowMetadata = itemWithMetadata.workflowId !== undefined
 
       const ganttItem: GanttItem = {
@@ -499,39 +508,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       deadlineWorkflowNames: workflowsWithDeadlines.map(w => ({ name: w.name, deadline: w.deadline })),
     })
 
-    // Check if we have a saved optimal schedule
-    const savedSchedule = getOptimalSchedule()
-    if (savedSchedule && savedSchedule.length > 0) {
-      logger.ui.info(`💾 [GANTT] Using saved optimal schedule with ${savedSchedule.length} items`, {
-        itemsWithDeadlines: savedSchedule.filter((item: any) => item.deadline).length,
-        savedScheduleItems: savedSchedule.slice(0, 5).map((item: any) => ({
-          name: item.name,
-          deadline: item.deadline,
-          startTime: item.startTime,
-          endTime: item.endTime,
-        })),
-      })
-
-      // Generate minimal debug info for saved schedule without re-running scheduler
-      // This avoids duplicate warnings and performance issues
-      const minimalDebugInfo: SchedulingDebugInfo = {
-        unscheduledItems: [],
-        warnings: [],
-        blockUtilization: [],
-        totalScheduled: savedSchedule.length,
-        totalUnscheduled: 0,
-        scheduleEfficiency: 1.0,
-      }
-
-      // Set the minimal debug info
-      setDebugInfo(minimalDebugInfo)
-
-      // Don't auto-show debug info for saved schedules
-      // User can still click to see it if needed
-
-      // Return the saved schedule
-      return savedSchedule
-    }
+    // Always use UnifiedScheduler for scheduling - no saved schedules
 
     // IMPORTANT: Pass all tasks to UnifiedScheduler - it will handle deduplication
     // The scheduler handles removing any tasks that are also in sequencedTasks
@@ -619,7 +596,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const allItems = [...meetingItems, ...ganttItems]
 
     return allItems
-  }, [tasks, sequencedTasks, workPatterns, getOptimalSchedule, refreshKey, scheduleForGantt, convertUnifiedToGanttItems, getMeetingScheduledItems])
+  }, [tasks, sequencedTasks, workPatterns, refreshKey, scheduleForGantt, convertUnifiedToGanttItems, getMeetingScheduledItems])
 
   // Calculate chart dimensions
   const now = getCurrentTime()
@@ -1268,7 +1245,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   }
 
                   // Trigger a reschedule to respect the new deadline
-                  await generateSchedule()
+                  // TODO: Replace with UnifiedScheduler refresh trigger
+                  // await generateSchedule() - removed legacy method
+                  setRefreshKey(prev => prev + 1) // Force refresh to respect new deadline
                   Message.info('Schedule updated to respect the new deadline')
                 } catch (error) {
                   logger.ui.error('Failed to set deadline:', error)

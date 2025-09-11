@@ -10,6 +10,7 @@ import {
   TimeBreak,
 } from './scheduling-models'
 import { UnifiedSchedulerAdapter, LegacyScheduleResult } from './unified-scheduler-adapter'
+import { SchedulingDebugInfo } from './unified-scheduler'
 import { DailyWorkPattern } from './work-blocks-types'
 import { logger } from './logger'
 import { timeProvider } from './time-provider'
@@ -185,9 +186,9 @@ export class SchedulingService {
 
 
   /**
-   * Convert LegacyScheduleResult to the old SchedulingResult format
+   * Convert FROM UnifiedScheduler's LegacyScheduleResult TO the old SchedulingResult format
    */
-  private convertToLegacySchedulingResult(
+  private convertFromLegacySchedulingResult(
     legacyResult: LegacyScheduleResult,
     tasks: Task[],
     sequencedTasks: SequencedTask[],
@@ -289,8 +290,8 @@ export class SchedulingService {
         .filter(item => item.type === TaskType.Admin)
         .reduce((sum, item) => sum + item.duration / 60, 0),
       projectedCompletionDate,
-      overCapacityDays: [], // TODO: Extract from UnifiedScheduler debug info if needed
-      underUtilizedDays: [], // TODO: Extract from UnifiedScheduler debug info if needed
+      overCapacityDays: this.extractOverCapacityDays(legacyResult.debugInfo),
+      underUtilizedDays: this.extractUnderUtilizedDays(legacyResult.debugInfo),
       conflicts: legacyResult.conflicts.map(conflict => ({
         type: 'dependency_cycle' as const,
         affectedItems: [],
@@ -301,6 +302,65 @@ export class SchedulingService {
       warnings: [],
       suggestions: [],
     }
+  }
+
+  /**
+   * Extract over-capacity days from debug info
+   */
+  private extractOverCapacityDays(debugInfo?: SchedulingDebugInfo): Date[] {
+    if (!debugInfo?.blockUtilization) return []
+
+    const overCapacityDays: Date[] = []
+    const dayMap = new Map<string, boolean>()
+
+    // Check each block for over-capacity (utilization > 100%)
+    debugInfo.blockUtilization.forEach(block => {
+      if (block.utilization > 1.0) {
+        dayMap.set(block.date, true)
+      }
+    })
+
+    // Convert unique dates to Date objects
+    dayMap.forEach((_, dateStr) => {
+      overCapacityDays.push(new Date(dateStr))
+    })
+
+    return overCapacityDays.sort((a, b) => a.getTime() - b.getTime())
+  }
+
+  /**
+   * Extract under-utilized days from debug info
+   */
+  private extractUnderUtilizedDays(debugInfo?: SchedulingDebugInfo): Date[] {
+    if (!debugInfo?.blockUtilization) return []
+
+    const underUtilizedDays: Date[] = []
+    const dayUtilization = new Map<string, { totalUsed: number; totalCapacity: number }>()
+
+    // Aggregate utilization by day
+    debugInfo.blockUtilization.forEach(block => {
+      const existing = dayUtilization.get(block.date) || { totalUsed: 0, totalCapacity: 0 }
+
+      const used = block.focusUsed + block.adminUsed + block.personalUsed
+      const capacity = block.focusTotal + block.adminTotal + block.personalTotal
+
+      dayUtilization.set(block.date, {
+        totalUsed: existing.totalUsed + used,
+        totalCapacity: existing.totalCapacity + capacity,
+      })
+    })
+
+    // Find days with < 50% utilization
+    dayUtilization.forEach((stats, dateStr) => {
+      if (stats.totalCapacity > 0) {
+        const utilization = stats.totalUsed / stats.totalCapacity
+        if (utilization < 0.5) {
+          underUtilizedDays.push(new Date(dateStr))
+        }
+      }
+    })
+
+    return underUtilizedDays.sort((a, b) => a.getTime() - b.getTime())
   }
 
   /**
@@ -367,7 +427,7 @@ export class SchedulingService {
     })
 
     // Convert back to legacy SchedulingResult format
-    return this.convertToLegacySchedulingResult(legacyResult, tasks, sequencedTasks)
+    return this.convertFromLegacySchedulingResult(legacyResult, tasks, sequencedTasks)
   }
 
   /**
