@@ -75,6 +75,23 @@ export interface ScheduledItem {
 }
 
 export interface SchedulingDebugInfo {
+  scheduledItems?: Array<{
+    id?: string
+    name: string
+    type: string
+    duration: number
+    priority?: number
+    startTime?: string
+    priorityBreakdown?: {
+      eisenhower: number  // importance * urgency
+      deadlineBoost: number
+      asyncBoost: number
+      cognitiveMatch: number
+      contextSwitchPenalty: number
+      workflowDepthBonus?: number
+      total: number
+    }
+  }>
   unscheduledItems: Array<{
     id?: string
     name: string

@@ -108,7 +108,9 @@ interface TaskStore {
 
 
 // Create scheduling service instance
-const schedulingService = new SchedulingService()
+const schedulingService = new SchedulingService({
+  getWorkPattern: (date: string) => getDatabase().getWorkPattern(date),
+})
 
 // Get logger instance for state change logging
 const rendererLogger = getRendererLogger()
@@ -135,7 +137,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     tasks: [],
     sequencedTasks: [],
     selectedTaskId: null,
-    isLoading: false,
+    isLoading: true, // Start with true to prevent premature getNextScheduledItem calls
     error: null,
     workSettings: (() => {
       try {
@@ -204,8 +206,13 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   initializeData: async () => {
     try {
       rendererLogger.info('[TaskStore] Starting data initialization...')
-      // Initializing store data
-      set({ isLoading: true, error: null })
+      // Clear existing data first to prevent stale data from showing
+      set({
+        tasks: [],
+        sequencedTasks: [],
+        isLoading: true,
+        error: null,
+      })
 
       // Initialize WorkTrackingService first to restore active sessions
       try {
@@ -235,6 +242,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         taskCount: tasks.length,
         workflowCount: sequencedTasks.length,
         totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0),
+        firstTaskSessionId: tasks[0]?.sessionId,
       })
 
       // Store initialized successfully
@@ -867,36 +875,107 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       rendererLogger.info('[TaskStore] Getting next scheduled item...')
       const state = get()
 
-      // Get current tasks and workflows from state
-      const tasks = state.tasks
-      const sequencedTasks = state.sequencedTasks
+      // First, check if we have a current schedule
+      // If not, generate one
+      if (!state.currentSchedule) {
+        rendererLogger.info('[TaskStore] No current schedule, generating one...')
+        await get().generateSchedule()
+      }
 
-      rendererLogger.info('[TaskStore] Current state for scheduling', {
-        taskCount: tasks.length,
-        workflowCount: sequencedTasks.length,
-        totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0),
-        incompleteTasks: tasks.filter(t => t.overallStatus !== 'completed').length,
+      // Get the updated state after potential schedule generation
+      const updatedState = get()
+      const schedule = updatedState.currentSchedule
+
+      if (!schedule || !schedule.scheduledItems || schedule.scheduledItems.length === 0) {
+        rendererLogger.info('[TaskStore] No scheduled items available')
+        return null
+      }
+
+      // Get current tasks and workflows for finding details
+      const tasks = updatedState.tasks
+      const sequencedTasks = updatedState.sequencedTasks
+
+      rendererLogger.info('[TaskStore] Using existing schedule', {
+        totalScheduledItems: schedule.scheduledItems.length,
+        incompleteTasks: tasks.filter(t => !t.completed).length,
         incompleteWorkflows: sequencedTasks.filter(w => w.overallStatus !== 'completed').length,
       })
 
-      // Use SchedulingService to determine the next item
-      rendererLogger.info('[TaskStore] Calling schedulingService.getNextScheduledItem...')
-      const nextItem = await schedulingService.getNextScheduledItem(tasks, sequencedTasks)
+      // Find the first incomplete scheduled item
+      // Filter out completed items and get the first one
+      for (const scheduledItem of schedule.scheduledItems) {
+        // Parse the item ID to determine type and find the actual item
+        let isCompleted = false
+        let itemDetails: any = null
 
-      rendererLogger.info('[TaskStore] Got next scheduled item result', {
-        hasResult: !!nextItem,
-        nextItem: nextItem ? {
-          type: nextItem.type,
-          id: nextItem.id,
-          title: nextItem.title,
-          estimatedDuration: nextItem.estimatedDuration,
-          workflowId: nextItem.workflowId,
-        } : null,
-        totalTasks: tasks.length,
-        totalWorkflows: sequencedTasks.length,
-      })
+        // Check if it's a workflow step
+        const isWorkflowStep = sequencedTasks.some(seq =>
+          seq.steps.some(step =>
+            step.id === scheduledItem.id ||
+            scheduledItem.id === `workflow_${seq.id}_step_${step.id}` ||
+            scheduledItem.id === `step_${step.id}`,
+          ),
+        )
 
-      return nextItem
+        if (isWorkflowStep) {
+          // Find the workflow and step
+          const workflow = sequencedTasks.find(seq =>
+            seq.steps.some(step =>
+              step.id === scheduledItem.id ||
+              scheduledItem.id === `workflow_${seq.id}_step_${step.id}` ||
+              scheduledItem.id === `step_${step.id}`,
+            ),
+          )
+          const step = workflow?.steps.find(s =>
+            s.id === scheduledItem.id ||
+            scheduledItem.id === `workflow_${workflow.id}_step_${s.id}` ||
+            scheduledItem.id === `step_${s.id}`,
+          )
+
+          if (step) {
+            isCompleted = step.status === 'completed' || step.status === 'skipped'
+            if (!isCompleted) {
+              itemDetails = {
+                type: 'step' as const,
+                id: step.id,
+                workflowId: workflow?.id,
+                title: step.name,
+                estimatedDuration: step.duration,
+                scheduledStartTime: scheduledItem.scheduledStartTime,
+              }
+            }
+          }
+        } else {
+          // Regular task - extract ID
+          let taskId = scheduledItem.id
+          if (taskId.startsWith('task_')) {
+            taskId = taskId.slice(5)
+          }
+
+          const task = tasks.find(t => t.id === taskId)
+          if (task) {
+            isCompleted = task.completed
+            if (!isCompleted) {
+              itemDetails = {
+                type: 'task' as const,
+                id: task.id,
+                title: task.name,
+                estimatedDuration: task.duration,
+                scheduledStartTime: scheduledItem.scheduledStartTime,
+              }
+            }
+          }
+        }
+
+        // Return the first incomplete item
+        if (!isCompleted && itemDetails) {
+          rendererLogger.info('[TaskStore] Found next scheduled item', itemDetails)
+          return itemDetails
+        }
+      }
+
+      rendererLogger.info('[TaskStore] No incomplete scheduled items found')
+      return null
     } catch (error) {
       rendererLogger.error('[TaskStore] Failed to get next scheduled item', error as Error)
       set({

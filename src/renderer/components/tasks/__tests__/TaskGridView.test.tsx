@@ -28,6 +28,9 @@ vi.mock('@shared/logger', () => ({
       error: vi.fn(),
     },
   },
+  logInfo: vi.fn(),
+  logError: vi.fn(),
+  logWarn: vi.fn(),
 }))
 
 describe('TaskGridView', () => {

@@ -49,24 +49,31 @@ export class IPCTransport {
 
     // Send logs to main process
     for (const entry of entries) {
-      const payload: IPCLogPayload = {
-        type: 'log',
-        entry,
-      }
-
       try {
+        // Sanitize the entry to remove non-serializable data
+        const sanitizedEntry = JSON.parse(JSON.stringify(entry))
+
+        const payload: IPCLogPayload = {
+          type: 'log',
+          entry: sanitizedEntry,
+        }
+
         if (ipcRenderer) {
           // Use electron's ipcRenderer if available
           ipcRenderer.send(this.channel, payload)
         } else if (typeof window !== 'undefined' && (window as any).electronAPI?.sendLog) {
           // Use preload API if available
           (window as any).electronAPI.sendLog(this.channel, payload)
+        } else if (typeof window !== 'undefined' && (window as any).electron?.sendLog) {
+          // Use electron context bridge API
+          (window as any).electron.sendLog(this.channel, payload)
         } else {
           // Fallback to console if no IPC available
-          console.log('[IPC Transport] No IPC available, logging to console:', entry)
+          console.log('[IPC Transport] No IPC available, logging to console:', sanitizedEntry)
         }
-      } catch (error) {
-        console.error('Failed to send log via IPC:', error)
+      } catch (_error) {
+        // Warn about entries that can't be serialized to help with debugging
+        console.warn('[IPC Transport] Failed to serialize log entry, skipping:', _error)
       }
     }
   }

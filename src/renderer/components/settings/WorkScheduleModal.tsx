@@ -60,6 +60,19 @@ export function WorkScheduleModal({
     try {
       const db = getDatabase()
 
+      // If no blocks and no meetings, delete the pattern instead of saving empty one
+      if (blocks.length === 0 && meetings.length === 0) {
+        if (pattern && pattern.id) {
+          await db.deleteWorkPattern(pattern.id)
+          setPattern(null)
+          Message.success('Work schedule cleared')
+        } else {
+          Message.info('No schedule to clear')
+        }
+        onSave?.()
+        return
+      }
+
       if (pattern && pattern.id) {
         // Update existing pattern
         await db.updateWorkPattern(pattern.id, {

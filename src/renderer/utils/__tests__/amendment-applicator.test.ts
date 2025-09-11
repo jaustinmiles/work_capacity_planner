@@ -30,6 +30,9 @@ const mockDatabase = {
   addStepToWorkflow: vi.fn(),
   getStepWorkSessions: vi.fn(),
   createStepWorkSession: vi.fn(),
+  // Add missing methods needed by useTaskStore
+  getTasks: vi.fn().mockResolvedValue([]),
+  getSequencedTasks: vi.fn().mockResolvedValue([]),
 }
 
 vi.mock('../../services/database', () => ({
@@ -51,6 +54,9 @@ describe('Amendment Applicator', () => {
     // Reset all mocks
     vi.clearAllMocks()
     Object.values(mockDatabase).forEach(fn => fn.mockReset())
+    // Re-set default return values for getTasks and getSequencedTasks after reset
+    mockDatabase.getTasks.mockResolvedValue([])
+    mockDatabase.getSequencedTasks.mockResolvedValue([])
   })
 
   describe('Status Updates', () => {

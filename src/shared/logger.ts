@@ -1,33 +1,73 @@
-// Check if we're in main process or renderer
+// Unified logger for shared files
+// Routes to the appropriate ring buffer logger based on environment
+
+let loggerInstance: any
+
+// Check environment
 const isMainProcess = typeof process !== 'undefined' && (process as any).type === 'browser'
+const isRenderer = typeof window !== 'undefined'
 
-let log: any
-
+// Create a unified logger that routes to the ring buffer system
 if (isMainProcess) {
-  // Main process - use electron-log
-  log = require('electron-log')
-  const path = require('path')
-
-  // Configure log levels
-  log.transports.file.level = 'info'
-  log.transports.console.level = 'debug'
-
-  // Set log file location
-  const electron = require('electron')
-  const logPath = path.join(electron.app.getPath('userData'), 'logs')
-  log.transports.file.resolvePathFn = () => path.join(logPath, 'main.log')
-} else {
-  // Renderer process or shared context - create a simple console logger
-  const createScope = (scopeName: string) => ({
-    info: (...args: any[]) => console.info(`[${scopeName}]`, ...args),
-    debug: (...args: any[]) => console.debug(`[${scopeName}]`, ...args),
-    warn: (...args: any[]) => console.warn(`[${scopeName}]`, ...args),
-    error: (...args: any[]) => console.error(`[${scopeName}]`, ...args),
-  })
-
-  log = {
-    scope: (name: string) => createScope(name),
+  // Main process - use MainLogger from the unified system
+  try {
+    const { getMainLogger } = require('../logging/main/MainLogger')
+    loggerInstance = getMainLogger()
+  } catch (_e) {
+    // Fallback for main process if unified logger not available
+    const electronLog = require('electron-log')
+    loggerInstance = {
+      debug: (msg: string, ...args: any[]) => electronLog.debug(msg, ...args),
+      info: (msg: string, ...args: any[]) => electronLog.info(msg, ...args),
+      warn: (msg: string, ...args: any[]) => electronLog.warn(msg, ...args),
+      error: (msg: string, ...args: any[]) => electronLog.error(msg, ...args),
+    }
   }
+} else if (isRenderer) {
+  // Renderer process - use RendererLogger from the unified system
+  // Import dynamically to avoid issues with different environments
+  try {
+    const { getRendererLogger } = require('../logging/renderer/RendererLogger')
+    loggerInstance = getRendererLogger()
+  } catch (_e) {
+    // If we can't get the renderer logger, create a no-op logger
+    // This prevents crashes but doesn't spam console
+    loggerInstance = {
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {},
+    }
+  }
+} else {
+  // Other contexts (tests, node scripts) - no-op logger
+  loggerInstance = {
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+  }
+}
+
+// Create scoped loggers that match the existing interface
+const createScopedLogger = (scope: string) => ({
+  debug: (message: string, ...args: any[]) => {
+    loggerInstance.debug(`[${scope.toUpperCase()}] ${message}`, ...args)
+  },
+  info: (message: string, ...args: any[]) => {
+    loggerInstance.info(`[${scope.toUpperCase()}] ${message}`, ...args)
+  },
+  warn: (message: string, ...args: any[]) => {
+    loggerInstance.warn(`[${scope.toUpperCase()}] ${message}`, ...args)
+  },
+  error: (message: string, ...args: any[]) => {
+    loggerInstance.error(`[${scope.toUpperCase()}] ${message}`, ...args)
+  },
+})
+
+// Create log object with scope method for backward compatibility
+const log = {
+  scope: (name: string) => createScopedLogger(name),
 }
 
 // Create scoped loggers
@@ -53,32 +93,47 @@ export const logger = {
   // Performance monitoring
   perf: log.scope('performance'),
 
-  // Error tracking
-  error: log.scope('error'),
+  // Error tracking (as a scope, not the method)
+  errorScope: log.scope('error'),
+
+  // Top-level convenience methods for general logging
+  debug: (message: string, ...args: any[]) => {
+    loggerInstance.debug(`[GENERAL] ${message}`, ...args)
+  },
+  info: (message: string, ...args: any[]) => {
+    loggerInstance.info(`[GENERAL] ${message}`, ...args)
+  },
+  warn: (message: string, ...args: any[]) => {
+    loggerInstance.warn(`[GENERAL] ${message}`, ...args)
+  },
+  error: (message: string, ...args: any[]) => {
+    loggerInstance.error(`[GENERAL] ${message}`, ...args)
+  },
 }
 
-// Export convenience methods
-export const logInfo = (scope: keyof typeof logger, message: string, ...args: any[]) => {
-  logger[scope].info(message, ...args)
+// Export legacy convenience methods (kept for backward compatibility)
+// These are exported but not used anymore - use logger.scope.method() instead
+export const logInfo = (scope: string, message: string, ...args: any[]) => {
+  loggerInstance.info(`[${scope.toUpperCase()}] ${message}`, ...args)
 }
 
-export const logDebug = (scope: keyof typeof logger, message: string, ...args: any[]) => {
-  logger[scope].debug(message, ...args)
+export const logDebug = (scope: string, message: string, ...args: any[]) => {
+  loggerInstance.debug(`[${scope.toUpperCase()}] ${message}`, ...args)
 }
 
-export const logWarn = (scope: keyof typeof logger, message: string, ...args: any[]) => {
-  logger[scope].warn(message, ...args)
+export const logWarn = (scope: string, message: string, ...args: any[]) => {
+  loggerInstance.warn(`[${scope.toUpperCase()}] ${message}`, ...args)
 }
 
-export const logError = (scope: keyof typeof logger, message: string, error?: Error | unknown, ...args: any[]) => {
+export const logError = (scope: string, message: string, error?: Error | unknown, ...args: any[]) => {
   if (error instanceof Error) {
-    logger[scope].error(message, {
+    loggerInstance.error(`[${scope.toUpperCase()}] ${message}`, {
       error: error.message,
       stack: error.stack,
       ...args,
     })
   } else {
-    logger[scope].error(message, error, ...args)
+    loggerInstance.error(`[${scope.toUpperCase()}] ${message}`, error, ...args)
   }
 }
 
@@ -92,7 +147,7 @@ export const logPerformance = (operation: string, duration: number, metadata?: R
 
 // Structured logging for key events
 export const logEvent = (event: string, data?: Record<string, any>) => {
-  log.info('EVENT', {
+  loggerInstance.info(`[EVENT] ${event}`, {
     event,
     timestamp: new Date().toISOString(),
     ...data,

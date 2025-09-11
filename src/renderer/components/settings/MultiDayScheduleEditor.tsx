@@ -104,6 +104,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
   const handleSavePattern = async (date: string, blocks: WorkBlock[], meetings: WorkMeeting[]) => {
     try {
       const db = getDatabase()
+      logger.ui.info('[MultiDayScheduleEditor] handleSavePattern - Saving pattern', { date, blockCount: blocks.length })
       const existingPattern = patterns.get(date)
 
       if (existingPattern && 'id' in existingPattern) {
@@ -215,21 +216,69 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
     setLoading(true)
     try {
       const db = getDatabase()
-      // Get all future dates
+      // Get all future dates (including today)
       const today = dayjs().format('YYYY-MM-DD')
-      const patterns = await db.getWorkPatterns()
+      const allPatterns = await db.getWorkPatterns()
+
+      logger.ui.info('Clear All Schedules - Found patterns:', {
+        totalPatterns: allPatterns.length,
+        today,
+        patterns: allPatterns.map(p => ({ id: p.id, date: p.date })),
+      })
 
       let clearedCount = 0
-      for (const pattern of patterns) {
+      logger.ui.info('[MultiDayScheduleEditor] Starting delete of future patterns', {
+        totalPatterns: allPatterns.length,
+        todayDate: today,
+      })
+
+      for (const pattern of allPatterns) {
+        // Clear today and all future dates
         if (pattern.date >= today) {
-          await db.deleteWorkPattern(pattern.id)
-          clearedCount++
+          logger.ui.info('[MultiDayScheduleEditor] Deleting pattern', {
+            id: pattern.id,
+            date: pattern.date,
+            comparison: `${pattern.date} >= ${today}`,
+          })
+          try {
+            await db.deleteWorkPattern(pattern.id)
+            logger.ui.info('[MultiDayScheduleEditor] Successfully deleted pattern', { id: pattern.id })
+            clearedCount++
+          } catch (error) {
+            logger.ui.error('[MultiDayScheduleEditor] Failed to delete pattern', {
+              id: pattern.id,
+              error: error instanceof Error ? error.message : String(error),
+            })
+          }
+        } else {
+          logger.ui.debug('[MultiDayScheduleEditor] Skipping past pattern', {
+            date: pattern.date,
+            comparison: `${pattern.date} < ${today}`,
+          })
         }
       }
 
-      Message.success(`Cleared ${clearedCount} schedules`)
+      logger.ui.info('[MultiDayScheduleEditor] Completed delete operation', {
+        clearedCount,
+        totalProcessed: allPatterns.length,
+      })
+
+      if (clearedCount === 0) {
+        Message.info('No future schedules to clear')
+      } else {
+        Message.success(`Cleared ${clearedCount} schedules`)
+      }
+
+      // Clear the local patterns state immediately
+      setPatterns(new Map())
+
+      // Then reload to get any remaining patterns (should be empty or only past dates)
       await loadPatterns()
-      onSave?.()
+
+      // Trigger the parent component's save handler to reload GanttChart patterns
+      if (onSave) {
+        await onSave()
+      }
 
       // Emit event to refresh UI components (especially sidebar)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)

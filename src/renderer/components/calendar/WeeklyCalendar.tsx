@@ -2,10 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { Calendar, Card, Typography, Space, Statistic, Grid, Tag, Alert, Empty, Spin } from '@arco-design/web-react'
 import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
-// TODO: Still using old flexible-scheduler, not unified
-// This should be migrated to use scheduling-engine.ts instead of flexible-scheduler.ts
-// See TECH_DEBT.md for details on scheduler unification that was never completed
-import { scheduleItemsWithBlocks, ScheduledItem } from '../../utils/flexible-scheduler'
+// Now using UnifiedScheduler for consistent scheduling across all views
+import { useUnifiedScheduler } from '../../hooks/useUnifiedScheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
@@ -20,6 +18,7 @@ const { Row, Col } = Grid
 
 export function WeeklyCalendar() {
   const { tasks, sequencedTasks } = useTaskStore()
+  const { scheduleForGantt } = useUnifiedScheduler()
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(dayjs())
   const [workPatterns, setWorkPatterns] = useState<DailyWorkPattern[]>([])
   const [loading, setLoading] = useState(false)
@@ -100,26 +99,52 @@ export function WeeklyCalendar() {
     }
   }
 
-  // Use the scheduler to get properly scheduled items
+  // Use the unified scheduler to get properly scheduled items
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
-    return scheduleItemsWithBlocks(tasks, sequencedTasks, workPatterns, new Date(), {
-      allowTaskSplitting: true,
-      minimumSplitDuration: 10,
-    })
-  }, [tasks, sequencedTasks, workPatterns])
+
+    // Create typed options object for better type safety
+    const scheduleOptions = {
+      startDate: dayjs().format('YYYY-MM-DD'),
+      endDate: dayjs().add(30, 'day').format('YYYY-MM-DD'),
+      allowSplitting: true,
+      respectDeadlines: true,
+    }
+
+    const result = scheduleForGantt(
+      tasks,
+      workPatterns,
+      scheduleOptions,
+      sequencedTasks,
+    )
+
+    // Convert LegacyScheduledItem to ScheduledItem format for compatibility
+    type ScheduledItemType = 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break'
+
+    return result.scheduledTasks.map(item => ({
+      id: item.task.id,
+      name: item.task.name,
+      type: ('hasSteps' in item.task && item.task.hasSteps ? 'workflow-step' : 'task') as ScheduledItemType,
+      priority: item.priority || 0,
+      duration: item.task.duration,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      color: item.task.type === 'focused' ? '#165DFF' :
+             item.task.type === 'admin' ? '#00B42A' : '#F77234',
+      originalItem: item.task,
+      deadline: item.task.deadline,
+    }))
+  }, [tasks, sequencedTasks, workPatterns, scheduleForGantt])
 
   // Group scheduled items by date
   const itemsByDate = useMemo(() => {
-    const grouped = new Map<string, ScheduledItem[]>()
+    const grouped = new Map<string, typeof scheduledItems>()
 
     scheduledItems.forEach(item => {
-      if (!item.isWaitTime) {
-        const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
-        const existing = grouped.get(dateStr) || []
-        existing.push(item)
-        grouped.set(dateStr, existing)
-      }
+      const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
+      const existing = grouped.get(dateStr) || []
+      existing.push(item)
+      grouped.set(dateStr, existing)
     })
 
     return grouped
@@ -189,14 +214,18 @@ export function WeeklyCalendar() {
 
     // Calculate time by type for this day
     const focusedMinutes = daySchedule
-      .filter(item => item.originalItem && 'type' in item.originalItem &&
-        (item.originalItem as any).type === 'focused')
-      .reduce((sum, item) => sum + item.duration, 0)
+      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === 'focused')
+      .reduce((sum, item) => {
+        const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
+        return sum + duration
+      }, 0)
 
     const adminMinutes = daySchedule
-      .filter(item => item.originalItem && 'type' in item.originalItem &&
-        (item.originalItem as any).type === 'admin')
-      .reduce((sum, item) => sum + item.duration, 0)
+      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === 'admin')
+      .reduce((sum, item) => {
+        const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
+        return sum + duration
+      }, 0)
 
     const hasScheduledTasks = daySchedule.length > 0
     const workPattern = workPatterns.find(p => p.date === dateStr)

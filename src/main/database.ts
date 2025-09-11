@@ -45,6 +45,7 @@ export class DatabaseService {
   async getActiveSession(): Promise<string> {
     // If already cached, return it
     if (this.activeSessionId) {
+      mainLogger.info('[DB] getActiveSession - Using cached sessionId', { sessionId: this.activeSessionId })
       return this.activeSessionId
     }
 
@@ -58,6 +59,7 @@ export class DatabaseService {
 
     try {
       this.activeSessionId = await this.sessionInitPromise
+      console.log('[DB] getActiveSession - Initialized new sessionId:', this.activeSessionId)
       return this.activeSessionId
     } finally {
       this.sessionInitPromise = null
@@ -140,6 +142,12 @@ export class DatabaseService {
   }
 
   async switchSession(sessionId: string): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
+    console.log('[DB] Switching session to:', sessionId)
+    console.log('[DB] Previous activeSessionId:', this.activeSessionId)
+
+    // Clear the cached session ID to force re-fetch
+    this.activeSessionId = null
+
     // Deactivate all sessions
     await this.client.session.updateMany({
       where: { isActive: true },
@@ -153,6 +161,7 @@ export class DatabaseService {
     })
 
     this.activeSessionId = session.id
+    console.log('[DB] Session switched successfully to:', session.id)
     return session
   }
 
@@ -235,6 +244,7 @@ export class DatabaseService {
   // Tasks
   async getTasks(): Promise<Task[]> {
     const sessionId = await this.getActiveSession()
+    console.log('[DB] getTasks - Using sessionId:', sessionId)
 
     const tasks = await this.client.task.findMany({
       where: { sessionId },
@@ -244,7 +254,9 @@ export class DatabaseService {
       orderBy: { createdAt: 'desc' },
     })
 
+    console.log(`[DB] getTasks - Found ${tasks.length} tasks for session ${sessionId}`)
     const formattedTasks = tasks.map(task => this.formatTask(task))
+    console.log(`[DB] getTasks - Returning ${formattedTasks.length} formatted tasks`)
     return formattedTasks
   }
 
@@ -954,7 +966,8 @@ export class DatabaseService {
   // Work patterns
   async getWorkPatterns(): Promise<any[]> {
     const sessionId = await this.getActiveSession()
-    const patterns = await this.client.workPattern.findMany({
+    console.log('[DB] getWorkPatterns - Looking for patterns with sessionId:', sessionId)
+    let patterns = await this.client.workPattern.findMany({
       where: {
         sessionId,
         isTemplate: false,
@@ -965,6 +978,26 @@ export class DatabaseService {
       },
       orderBy: { date: 'desc' },
     })
+
+    // If no patterns found for current session, get ALL patterns as fallback
+    if (patterns.length === 0) {
+      console.log('[DB] getWorkPatterns - No patterns for current session, fetching ALL patterns')
+      patterns = await this.client.workPattern.findMany({
+        where: {
+          isTemplate: false,
+        },
+        include: {
+          WorkBlock: true,
+          WorkMeeting: true,
+        },
+        orderBy: { date: 'desc' },
+      })
+      if (patterns.length > 0) {
+        console.log('[DB] getWorkPatterns - Found', patterns.length, 'patterns from other sessions')
+      }
+    } else {
+      console.log('[DB] getWorkPatterns - Found', patterns.length, 'patterns for current session')
+    }
 
     return patterns.map(pattern => ({
       ...pattern,
@@ -981,6 +1014,7 @@ export class DatabaseService {
 
   async getWorkPattern(date: string): Promise<any | null> {
     const sessionId = await this.getActiveSession()
+    console.log('[DB] getWorkPattern - Looking for pattern:', { date, sessionId })
     const pattern = await this.client.workPattern.findUnique({
       where: {
         sessionId_date: {
@@ -995,14 +1029,70 @@ export class DatabaseService {
       },
     })
 
-    if (!pattern) return null
+    // Use only the current session's pattern - no fallback to other sessions
+    if (!pattern) {
+      // No pattern found for current session - return null instead of checking other sessions
+      return null
+    }
+
+    // Pattern found, process it
+    console.log('[DB] getWorkPattern - Returning pattern for:', { date, patternId: pattern.id })
 
     return {
       ...pattern,
-      blocks: pattern.WorkBlock.map(b => ({
-        ...b,
-        capacity: b.capacity ? JSON.parse(b.capacity) : null,
-      })),
+      blocks: pattern.WorkBlock.map(b => {
+        // Convert database structure to WorkBlock type structure
+        let capacity: { focusMinutes: number; adminMinutes: number } | null = null
+
+        // Try to parse JSON capacity field first
+        if (b.capacity) {
+          try {
+            capacity = JSON.parse(b.capacity)
+          } catch (_e) {
+            // If not JSON, try to use individual fields
+            capacity = null
+          }
+        }
+
+        // If no capacity object, build from individual fields or calculate defaults
+        if (!capacity && (b.focusCapacity !== null || b.adminCapacity !== null)) {
+          capacity = {
+            focusMinutes: b.focusCapacity || 0,
+            adminMinutes: b.adminCapacity || 0,
+          }
+        } else if (!capacity) {
+          // Calculate default capacity based on block type and duration
+          const [startHour, startMin] = b.startTime.split(':').map(Number)
+          const [endHour, endMin] = b.endTime.split(':').map(Number)
+          const totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin)
+
+          // Set capacity based on block type
+          switch (b.type) {
+            case 'focused':
+              capacity = { focusMinutes: totalMinutes, adminMinutes: 0 }
+              break
+            case 'admin':
+              capacity = { focusMinutes: 0, adminMinutes: totalMinutes }
+              break
+            case 'mixed':
+              // Use user-specified capacity values if available, otherwise default to 70/30 split
+              capacity = (b.focusCapacity && b.adminCapacity)
+                ? { focusMinutes: b.focusCapacity, adminMinutes: b.adminCapacity }
+                : { focusMinutes: Math.floor(totalMinutes * 0.7), adminMinutes: Math.floor(totalMinutes * 0.3) }
+              break
+            case 'flexible':
+              capacity = { focusMinutes: Math.floor(totalMinutes * 0.5), adminMinutes: Math.floor(totalMinutes * 0.5) }
+              break
+            default:
+              capacity = { focusMinutes: 0, adminMinutes: 0 }
+          }
+        }
+
+        return {
+          ...b,
+          capacity,
+        }
+      }),
       meetings: pattern.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -1019,6 +1109,7 @@ export class DatabaseService {
     recurring?: 'none' | 'daily' | 'weekly'
   }): Promise<any> {
     const sessionId = await this.getActiveSession()
+    mainLogger.info('[DB] createWorkPattern - Creating pattern', { date: data.date, sessionId, blocksCount: data.blocks?.length || 0 })
     const { blocks, meetings, recurring, ...patternData } = data
 
     // First, delete existing pattern if it exists (to replace it)

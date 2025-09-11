@@ -25,29 +25,67 @@
 - ❌ GanttChart still uses `flexible-scheduler.ts` (line 8)
 - ❌ WeeklyCalendar still uses `flexible-scheduler.ts` (line 5) 
 - ❌ `deadline-scheduler.ts` still provides priority calculations
-- ❌ Different priority formulas between systems (ACTIVE BUG)
-- ❌ 20+ tests skipped with "needs rewrite for unified scheduler"
+- ❌ Different priority formulas between systems (NEEDS VERIFICATION)
+- ❌ 31 tests skipped across codebase (verified with grep)
 
-#### Migration Status by Component:
+#### Migration Status by Component (VERIFIED 2025-09-10):
 ```
-GanttChart.tsx                  ❌ Not migrated (flexible-scheduler import line 8)
-WeeklyCalendar.tsx             ❌ Not migrated (flexible-scheduler import line 5)
-ScheduleGenerator.tsx          ✅ Uses scheduling-engine.ts
-optimal-scheduler.ts           ❌ Exists but unused (should be deleted)
+GanttChart.tsx                  ❌ Uses flexible-scheduler (scheduleItemsWithBlocksAndDebug)
+WeeklyCalendar.tsx             ❌ Uses flexible-scheduler (scheduleItemsWithBlocks)
+ScheduleGenerator.tsx          ❌ Uses flexible-scheduler (ScheduledItem type only)
+DailyScheduleView.tsx          ❌ Uses flexible-scheduler (ScheduledItem type)
+SchedulingDebugInfo.tsx        ❌ Uses flexible-scheduler (SchedulingDebugInfo type)
+scheduling-service.ts          ✅ Uses scheduling-engine.ts (the only one)
+optimal-scheduler.ts           ❌ Still exists, has 5 imports in codebase
 ```
+
+**ACTUAL USAGE COUNT (VERIFIED 2025-09-11):**
+- flexible-scheduler: 25 active imports (reduced from previous 36)
+
+**SPECIFIC LOCATIONS STILL USING FLEXIBLE-SCHEDULER:**
+
+**Core UI Components:**
+- `src/renderer/components/schedule/ScheduleGenerator.tsx` - imports `ScheduledItem` type
+- `src/renderer/components/schedule/DailyScheduleView.tsx` - imports `ScheduledItem` type  
+- `src/renderer/components/timeline/SchedulingDebugInfo.tsx` - imports `SchedulingDebugInfo` type
+
+**Test Files (19 files):**
+- `src/renderer/utils/__tests__/*.test.ts` - All test files import from flexible-scheduler
+- Examples: dependency-scheduling.test.ts, personal-tasks-scheduler.test.ts, etc.
+
+**Other Dependencies:**
+- `src/renderer/utils/deadline-scheduler.ts` - imports from flexible-scheduler
+- `src/logging/formatters/schedule-formatter.ts` - imports `ScheduledItem` type
+- `scripts/test-bedtime-scheduling.ts` and `scripts/analysis/test-bedtime-scheduling.ts`
+
+#### INVESTIGATION FINDINGS (2025-09-10):
+
+**Priority Bug Investigation (RESOLVED):**
+- ✅ **BUG DOES NOT EXIST**: Test confirms deadline-scheduler.ts uses correct additive formula
+- ✅ Test output: High priority task (81) vs Low priority with deadline (100004)  
+- ✅ Code at line 405-407 uses: `eisenhower + deadlineAdditive + asyncBoost` (CORRECT)
+- ✅ Comments claiming "multiplicative bug" are outdated and incorrect
+- 📝 **Action needed**: Remove outdated bug comments from documentation
+
+**Current Reality Check:**
+- flexible-scheduler has 36 imports vs scheduling-engine has 9 imports
+- UI components (GanttChart, WeeklyCalendar) actively use flexible-scheduler
+- ScheduleGenerator imports flexible-scheduler types but may use scheduling-engine internally
+- scheduling-engine only used by scheduling-service.ts for database operations
 
 #### Why It Failed:
 1. UI components need real-time scheduling for display
-2. Database scheduler is async and designed for persistence
+2. Database scheduler is async and designed for persistence  
 3. No adapter layer created between systems
-4. Priority calculation bugs never resolved
+4. ✅ **Priority calculations are consistent** (outdated comments suggested otherwise)
 
-#### To Complete:
-1. Create UI adapter layer for scheduling-engine
-2. Fix priority calculation inconsistencies
-3. Migrate GanttChart and WeeklyCalendar
-4. Remove old scheduler files
-5. Un-skip and fix 20+ related tests
+#### To Complete (UPDATED 2025-09-10):
+1. Create UI adapter layer for scheduling-engine (main blocker)
+2. ~~Fix priority calculation inconsistencies~~ ✅ RESOLVED - No inconsistencies found
+3. Remove outdated bug comments from codebase documentation
+4. Migrate GanttChart and WeeklyCalendar to use adapter
+5. Remove old scheduler files (flexible-scheduler.ts, deadline-scheduler.ts)
+6. Un-skip and fix 31 related tests
 
 ---
 

@@ -9,13 +9,6 @@ import type { TaskStep } from '../shared/sequencing-types'
 
 // Initialize logger
 const logger = getMainLogger()
-// Legacy compatibility functions
-const logInfo = (category: string, message: string, data?: any) => {
-  logger.info(`[${category}] ${message}`, data)
-}
-const logError = (category: string, message: string, error?: any) => {
-  logger.error(`[${category}] ${message}`, { error })
-}
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -74,9 +67,9 @@ app.whenReady().then(() => {
 
   // Log database path for debugging
   const dbPath = process.env.DATABASE_URL || 'file:./dev.db'
-  logInfo('main', `Database path: ${dbPath}`)
-  logInfo('main', `Working directory: ${process.cwd()}`)
-  logInfo('main', 'Main process initialized successfully')
+  logger.info(`[main] Database path: ${dbPath}`)
+  logger.info(`[main] Working directory: ${process.cwd()}`)
+  logger.info('[main] Main process initialized successfully')
 
   createWindow()
 
@@ -97,7 +90,7 @@ app.on('window-all-closed', () => {
 // IPC handlers for database operations
 // Session management handlers
 ipcMain.handle('db:getSessions', async () => {
-  logInfo('ipc', 'Getting sessions...')
+  logger.info('[ipc] Getting sessions...')
   if (!db) db = DatabaseService.getInstance()
   return await db.getSessions()
 })
@@ -127,13 +120,13 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
 })
 
 ipcMain.handle('db:getTasks', async () => {
-  logInfo('ipc', 'Getting tasks from database...')
+  logger.info('[ipc] Getting tasks from database...')
   try {
     const tasks = await db.getTasks()
-    logInfo('ipc', `Found ${tasks.length} tasks`)
+    logger.info(`[ipc] Found ${tasks.length} tasks`)
     return tasks
   } catch (error) {
-    logError('ipc', 'Error getting tasks', error)
+    logger.error('[ipc] Error getting tasks', { error })
     throw error
   }
 })
@@ -380,7 +373,7 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
       logger.debug('[IPC] Including job contexts in amendment parsing', { count: jobContexts.length })
     }
   } catch (error) {
-    logError('ipc', 'Failed to fetch job contexts:', error)
+    logger.error('[ipc] Failed to fetch job contexts:', { error })
   }
 
   const parser = new AmendmentParser({ useAI: true })

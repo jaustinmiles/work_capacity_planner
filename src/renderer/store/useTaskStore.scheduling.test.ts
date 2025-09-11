@@ -1,36 +1,43 @@
-/**
- * Tests for scheduling integration with useTaskStore
- * These tests verify that the store can get the next scheduled task/step
- * using the existing SchedulingService
- */
-
-import { beforeEach, describe, it, expect, vi } from 'vitest'
-import { useTaskStore } from './useTaskStore'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { useTaskStore } from '../store/useTaskStore'
 import { getDatabase } from '../services/database'
 
-// Mock the database
+// Mock dependencies
 vi.mock('../services/database', () => ({
-  getDatabase: vi.fn(() => ({
-    getTasks: vi.fn(),
-    getSequencedTasks: vi.fn(),
-    updateTaskStepProgress: vi.fn(),
-    createStepWorkSession: vi.fn(),
-  })),
+  getDatabase: vi.fn(),
 }))
 
-// Mock the WorkTrackingService
-vi.mock('../services/workTrackingService', () => ({
-  WorkTrackingService: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn(),
-    startWorkSession: vi.fn(),
-    pauseWorkSession: vi.fn(),
-    stopWorkSession: vi.fn(),
-    getCurrentActiveSession: vi.fn(),
-    isAnyWorkActive: vi.fn(),
-  })),
+vi.mock('../services/workTrackingService', () => {
+  const mockService = {
+    startWorkSession: vi.fn().mockResolvedValue({ id: 'session-1' }),
+    stopWorkSession: vi.fn().mockResolvedValue(undefined),
+    pauseWorkSession: vi.fn().mockResolvedValue(undefined),
+    resumeWorkSession: vi.fn().mockResolvedValue(undefined),
+    isAnyWorkActive: vi.fn().mockReturnValue(false),
+    getActiveWorkSessions: vi.fn().mockReturnValue([]),
+    getCurrentActiveSession: vi.fn().mockReturnValue(null),
+    on: vi.fn(),
+    off: vi.fn(),
+    updateWorkSession: vi.fn().mockResolvedValue(undefined),
+    emit: vi.fn(),
+  }
+
+  return {
+    WorkTrackingService: vi.fn().mockImplementation(() => mockService),
+    getWorkTrackingService: vi.fn().mockReturnValue(mockService),
+  }
+})
+
+// Mock the renderer logger
+vi.mock('../utils/rendererLogger', () => ({
+  getRendererLogger: vi.fn().mockReturnValue({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  }),
 }))
 
-// Mock app events
+// Mock events
 vi.mock('../utils/events', () => ({
   appEvents: {
     emit: vi.fn(),
@@ -46,6 +53,16 @@ vi.mock('../utils/logger', () => ({
     ui: { warn: vi.fn(), error: vi.fn() },
     store: { info: vi.fn(), error: vi.fn() },
   },
+}))
+
+// Mock the renderer logging module
+vi.mock('../../logging/index.renderer', () => ({
+  getRendererLogger: vi.fn().mockReturnValue({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
 }))
 
 // Mock the shared SchedulingService
@@ -73,6 +90,7 @@ describe('useTaskStore Scheduling Integration', () => {
       getSequencedTasks: vi.fn().mockResolvedValue([]),
       updateTaskStepProgress: vi.fn().mockResolvedValue(undefined),
       createStepWorkSession: vi.fn().mockResolvedValue(undefined),
+      getWorkPattern: vi.fn().mockResolvedValue(null),
     }
 
     vi.mocked(getDatabase).mockReturnValue(mockDatabase)
@@ -80,6 +98,24 @@ describe('useTaskStore Scheduling Integration', () => {
     // Get the mock instance from the mocked module
     const schedulingModule = await import('@shared/scheduling-service') as any
     mockSchedulingService = schedulingModule.__mockInstance
+
+    // Set default return values for the mock
+    const defaultSchedule = {
+      scheduledItems: [],
+      conflicts: [],
+      unscheduledTasks: [],
+    }
+    mockSchedulingService.createSchedule.mockResolvedValue(defaultSchedule)
+    mockSchedulingService.getNextScheduledItem.mockResolvedValue(null)
+
+    // Reset store state
+    useTaskStore.setState({
+      tasks: [],
+      sequencedTasks: [],
+      currentSchedule: null,
+      isScheduling: false,
+      schedulingError: null,
+    })
   })
 
   describe('getNextScheduledItem integration', () => {
@@ -89,10 +125,13 @@ describe('useTaskStore Scheduling Integration', () => {
         {
           id: 'task-1',
           title: 'High priority task',
+          name: 'High priority task',
           status: 'todo',
           type: 'focused',
           estimatedDuration: 120,
+          duration: 120,
           priority: 1,
+          completed: false,
         },
       ]
 
@@ -100,52 +139,71 @@ describe('useTaskStore Scheduling Integration', () => {
         {
           id: 'workflow-1',
           title: 'Important workflow',
+          name: 'Important workflow',
+          overallStatus: 'todo',
           steps: [
             {
               id: 'step-1',
               title: 'First step',
+              name: 'First step',
               status: 'todo',
               estimatedDuration: 60,
+              duration: 60,
             },
           ],
         },
       ]
 
-      const mockNextItem = {
-        type: 'task',
-        id: 'task-1',
-        title: 'High priority task',
-        estimatedDuration: 120,
-        scheduledStartTime: new Date('2024-01-15T09:00:00Z'),
+      // Mock schedule with items
+      const mockSchedule = {
+        scheduledItems: [
+          {
+            id: 'task-1',
+            title: 'High priority task',
+            type: 'task',
+            estimatedDuration: 120,
+            scheduledStart: new Date(),
+          },
+        ],
+        conflicts: [],
+        unscheduledTasks: [],
       }
 
-      mockDatabase.getTasks.mockResolvedValue(mockTasks)
-      mockDatabase.getSequencedTasks.mockResolvedValue(mockSequencedTasks)
-      mockSchedulingService.getNextScheduledItem.mockResolvedValue(mockNextItem)
+      mockSchedulingService.createSchedule.mockResolvedValue(mockSchedule)
 
-      // Set the store's state directly (since getNextScheduledItem reads from state, not database)
-      const store = useTaskStore.getState()
+      // Set the store's state directly
       useTaskStore.setState({
         tasks: mockTasks as any,
         sequencedTasks: mockSequencedTasks as any,
       })
 
       // Act
+      const store = useTaskStore.getState()
       const nextItem = await store.getNextScheduledItem()
 
       // Assert
-      expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalledWith(
+      expect(mockSchedulingService.createSchedule).toHaveBeenCalledWith(
         mockTasks,
         mockSequencedTasks,
+        {},
       )
-      expect(nextItem).toEqual(mockNextItem)
+      expect(nextItem).toEqual({
+        type: 'task',
+        id: 'task-1',
+        title: 'High priority task',
+        estimatedDuration: 120,
+      })
     })
 
     it('should return null when no items are available to schedule', async () => {
-      // Arrange
-      mockDatabase.getTasks.mockResolvedValue([])
-      mockDatabase.getSequencedTasks.mockResolvedValue([])
-      mockSchedulingService.getNextScheduledItem.mockResolvedValue(null)
+      // Arrange - empty schedule
+      const mockSchedule = {
+        scheduledItems: [],
+        conflicts: [],
+        unscheduledTasks: [],
+      }
+
+      mockSchedulingService.createSchedule.mockResolvedValue(mockSchedule)
 
       // Act
       const store = useTaskStore.getState()
@@ -155,64 +213,83 @@ describe('useTaskStore Scheduling Integration', () => {
       expect(nextItem).toBeNull()
     })
 
-    it('should handle scheduling service errors gracefully', async () => {
-      // Arrange
-      const error = new Error('Scheduling failed')
-      mockDatabase.getTasks.mockResolvedValue([])
-      mockDatabase.getSequencedTasks.mockResolvedValue([])
-      mockSchedulingService.getNextScheduledItem.mockRejectedValue(error)
-
-      // Act & Assert - Should not throw
-      const store = useTaskStore.getState()
-      await expect(store.getNextScheduledItem()).resolves.toBeNull()
-    })
-
     it('should prioritize workflow steps over regular tasks', async () => {
       // Arrange
       const mockTasks = [
         {
           id: 'task-1',
-          title: 'Low priority task',
+          title: 'Regular task',
+          name: 'Regular task',
           status: 'todo',
+          type: 'admin',
+          estimatedDuration: 60,
+          duration: 60,
           priority: 3,
+          completed: false,
         },
       ]
 
       const mockSequencedTasks = [
         {
           id: 'workflow-1',
-          title: 'High priority workflow',
+          title: 'Important workflow',
+          name: 'Important workflow',
+          overallStatus: 'todo',
           steps: [
             {
               id: 'step-1',
-              title: 'Critical step',
+              title: 'First step',
+              name: 'First step',
               status: 'todo',
-              estimatedDuration: 30,
+              estimatedDuration: 45,
+              duration: 45,
             },
           ],
         },
       ]
 
-      const mockNextItem = {
-        type: 'step',
-        id: 'step-1',
-        workflowId: 'workflow-1',
-        title: 'Critical step',
-        estimatedDuration: 30,
-        scheduledStartTime: new Date('2024-01-15T09:00:00Z'),
+      // Mock schedule with both tasks and steps
+      const mockSchedule = {
+        scheduledItems: [
+          {
+            id: 'step-1',
+            title: 'First step',
+            type: 'step',
+            workflowId: 'workflow-1',
+            estimatedDuration: 45,
+            scheduledStart: new Date(),
+          },
+          {
+            id: 'task-1',
+            title: 'Regular task',
+            type: 'task',
+            estimatedDuration: 60,
+            scheduledStart: new Date(Date.now() + 60 * 60 * 1000),
+          },
+        ],
+        conflicts: [],
+        unscheduledTasks: [],
       }
 
-      mockDatabase.getTasks.mockResolvedValue(mockTasks)
-      mockDatabase.getSequencedTasks.mockResolvedValue(mockSequencedTasks)
-      mockSchedulingService.getNextScheduledItem.mockResolvedValue(mockNextItem)
+      mockSchedulingService.createSchedule.mockResolvedValue(mockSchedule)
+
+      useTaskStore.setState({
+        tasks: mockTasks as any,
+        sequencedTasks: mockSequencedTasks as any,
+      })
 
       // Act
       const store = useTaskStore.getState()
       const nextItem = await store.getNextScheduledItem()
 
-      // Assert
-      expect(nextItem).toEqual(mockNextItem)
-      expect(nextItem?.type).toBe('step')
+      // Assert - should return the workflow step first
+      expect(nextItem).toEqual({
+        type: 'step',
+        id: 'step-1',
+        workflowId: 'workflow-1',
+        title: 'First step',
+        estimatedDuration: 45,
+      })
     })
 
     it('should filter out completed and in-progress items', async () => {
@@ -221,117 +298,199 @@ describe('useTaskStore Scheduling Integration', () => {
         {
           id: 'task-1',
           title: 'Completed task',
-          status: 'completed',
+          name: 'Completed task',
+          status: 'done',
+          completed: true,
+          type: 'focused',
+          estimatedDuration: 90,
+          duration: 90,
+          priority: 1,
         },
         {
           id: 'task-2',
           title: 'In progress task',
-          status: 'in_progress',
+          name: 'In progress task',
+          status: 'doing',
+          completed: false,
+          type: 'admin',
+          estimatedDuration: 60,
+          duration: 60,
+          priority: 2,
         },
         {
           id: 'task-3',
-          title: 'Available task',
+          title: 'Todo task',
+          name: 'Todo task',
           status: 'todo',
+          completed: false,
+          type: 'personal',
+          estimatedDuration: 30,
+          duration: 30,
+          priority: 3,
         },
       ]
 
-      const mockSequencedTasks = [
-        {
-          id: 'workflow-1',
-          title: 'Test workflow',
-          steps: [
-            {
-              id: 'step-1',
-              title: 'Completed step',
-              status: 'completed',
-            },
-            {
-              id: 'step-2',
-              title: 'Available step',
-              status: 'todo',
-            },
-          ],
-        },
-      ]
+      // Mock schedule with only the todo task
+      const mockSchedule = {
+        scheduledItems: [
+          {
+            id: 'task-3',
+            title: 'Todo task',
+            type: 'task',
+            estimatedDuration: 30,
+            scheduledStart: new Date(),
+          },
+        ],
+        conflicts: [],
+        unscheduledTasks: [],
+      }
 
-      // Only incomplete items should be passed to scheduling service
-      const _expectedTasks = [mockTasks[2]] // Only the todo task
-      const _expectedSequenced = [{
-        ...mockSequencedTasks[0],
-        steps: [mockSequencedTasks[0].steps[1]], // Only the todo step
-      }]
+      mockSchedulingService.createSchedule.mockResolvedValue(mockSchedule)
 
-      mockDatabase.getTasks.mockResolvedValue(mockTasks)
-      mockDatabase.getSequencedTasks.mockResolvedValue(mockSequencedTasks)
-      mockSchedulingService.getNextScheduledItem.mockResolvedValue(null)
-
-      // Set the store's state directly
-      const store = useTaskStore.getState()
       useTaskStore.setState({
         tasks: mockTasks as any,
-        sequencedTasks: mockSequencedTasks as any,
+        sequencedTasks: [],
       })
 
       // Act
-      await store.getNextScheduledItem()
+      const store = useTaskStore.getState()
+      const result = await store.getNextScheduledItem()
 
-      // Assert - The store should pass all tasks to the SchedulingService, which does its own filtering
-      expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalledWith(
-        mockTasks, // Store passes all tasks, SchedulingService filters
-        mockSequencedTasks, // Store passes all sequenced tasks, SchedulingService filters
-      )
+      // Assert - should only return the todo task
+      expect(mockSchedulingService.createSchedule).toHaveBeenCalled()
+      expect(result).toEqual({
+        type: 'task',
+        id: 'task-3',
+        title: 'Todo task',
+        estimatedDuration: 30,
+      })
+    })
+
+    it('should handle scheduling service errors gracefully', async () => {
+      // Arrange
+      const mockError = new Error('Scheduling failed')
+      mockSchedulingService.createSchedule.mockRejectedValue(mockError)
+
+      // Act
+      const store = useTaskStore.getState()
+      const nextItem = await store.getNextScheduledItem()
+
+      // Assert
+      expect(nextItem).toBeNull()
     })
   })
 
   describe('integration with startNextTask', () => {
     it('should start work on the next scheduled task', async () => {
       // Arrange
-      const mockNextItem = {
-        type: 'task',
-        id: 'task-1',
-        title: 'Next task',
-        estimatedDuration: 90,
+      const mockTasks = [
+        {
+          id: 'task-1',
+          title: 'Next task',
+          name: 'Next task',
+          status: 'todo',
+          completed: false,
+          estimatedDuration: 90,
+          duration: 90,
+        } as any,
+      ]
+
+      const mockSchedule = {
+        scheduledItems: [
+          {
+            id: 'task-1',
+            title: 'Next task',
+            type: 'task',
+            estimatedDuration: 90,
+            scheduledStart: new Date(),
+          },
+        ],
+        conflicts: [],
+        unscheduledTasks: [],
       }
 
-      mockSchedulingService.getNextScheduledItem.mockResolvedValue(mockNextItem)
+      mockSchedulingService.createSchedule.mockResolvedValue(mockSchedule)
+
+      useTaskStore.setState({
+        tasks: mockTasks as any,
+        sequencedTasks: [],
+      })
 
       // Act
       const store = useTaskStore.getState()
       await store.startNextTask()
 
-      // Assert
-      expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalled()
-      // Verify that startWorkOnTask was called with the next item
+      // Assert - should generate schedule via createSchedule
+      expect(mockSchedulingService.createSchedule).toHaveBeenCalled()
     })
 
     it('should start work on the next scheduled workflow step', async () => {
       // Arrange
-      const mockNextItem = {
-        type: 'step',
-        id: 'step-1',
-        workflowId: 'workflow-1',
-        title: 'Next step',
-        estimatedDuration: 45,
+      const mockSequencedTasks = [
+        {
+          id: 'workflow-1',
+          title: 'Test workflow',
+          name: 'Test workflow',
+          overallStatus: 'todo',
+          steps: [
+            {
+              id: 'step-1',
+              title: 'Next step',
+              name: 'Next step',
+              status: 'todo',
+              estimatedDuration: 45,
+              duration: 45,
+            },
+          ],
+        } as any,
+      ]
+
+      const mockSchedule = {
+        scheduledItems: [
+          {
+            id: 'step-1',
+            title: 'Next step',
+            type: 'step',
+            workflowId: 'workflow-1',
+            estimatedDuration: 45,
+            scheduledStart: new Date(),
+          },
+        ],
+        conflicts: [],
+        unscheduledTasks: [],
       }
 
-      mockSchedulingService.getNextScheduledItem.mockResolvedValue(mockNextItem)
+      mockSchedulingService.createSchedule.mockResolvedValue(mockSchedule)
+
+      useTaskStore.setState({
+        tasks: [],
+        sequencedTasks: mockSequencedTasks as any,
+      })
+
+      // Act
+      const store = useTaskStore.getState()
+      await store.startNextTask()
+
+      // Assert - should generate schedule via createSchedule
+      expect(mockSchedulingService.createSchedule).toHaveBeenCalled()
+    })
+
+    it('should handle case when no next task is available', async () => {
+      // Arrange - empty schedule
+      const mockSchedule = {
+        scheduledItems: [],
+        conflicts: [],
+        unscheduledTasks: [],
+      }
+
+      mockSchedulingService.createSchedule.mockResolvedValue(mockSchedule)
 
       // Act
       const store = useTaskStore.getState()
       await store.startNextTask()
 
       // Assert
-      expect(mockSchedulingService.getNextScheduledItem).toHaveBeenCalled()
-      // Verify that startWorkOnStep was called with the next item
-    })
-
-    it('should handle case when no next task is available', async () => {
-      // Arrange
-      mockSchedulingService.getNextScheduledItem.mockResolvedValue(null)
-
-      // Act & Assert - Should not throw
-      const store = useTaskStore.getState()
-      await expect(store.startNextTask()).resolves.toBeUndefined()
+      expect(mockSchedulingService.createSchedule).toHaveBeenCalled()
     })
   })
 })
