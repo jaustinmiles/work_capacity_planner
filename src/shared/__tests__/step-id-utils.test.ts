@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   generateStableStepId,
   generateRandomStepId,
@@ -8,7 +8,16 @@ import {
   fixBrokenDependencies,
 } from '../step-id-utils'
 
+// Mock the logger module
+vi.mock('../logger', () => ({
+  logWarn: vi.fn(),
+}))
+
 describe('Step ID Utilities', () => {
+  beforeEach(() => {
+    // Clear all mock calls before each test
+    vi.clearAllMocks()
+  })
   describe('generateStableStepId', () => {
     it('should generate consistent IDs for the same inputs', () => {
       const id1 = generateStableStepId('My Workflow', 'Step 1', 0)
@@ -88,10 +97,10 @@ describe('Step ID Utilities', () => {
       expect(mapped[1].dependsOn).toEqual(['step-1', 'step-1'])
     })
 
-    it('should warn about unresolvable dependencies', () => {
-      // Mock the logger module
-      const loggerModule = require('../logger')
-      const logWarnSpy = vi.spyOn(loggerModule, 'logWarn').mockImplementation(() => {})
+    it('should warn about unresolvable dependencies', async () => {
+      // Import the mocked logger
+      const { logWarn } = await import('../logger')
+      const logWarnSpy = vi.mocked(logWarn)
 
       const steps = [
         { id: 'step-1', name: 'Setup', dependsOn: [] },
@@ -102,8 +111,6 @@ describe('Step ID Utilities', () => {
 
       expect(logWarnSpy).toHaveBeenCalled()
       expect(mapped[1].dependsOn).toEqual([]) // Now filters out unresolvable dependencies
-
-      logWarnSpy.mockRestore()
     })
   })
 
@@ -194,10 +201,10 @@ describe('Step ID Utilities', () => {
   })
 
   describe('fixBrokenDependencies', () => {
-    it('should remove invalid dependencies', () => {
-      // Mock the logger module
-      const loggerModule = require('../logger')
-      const logWarnSpy = vi.spyOn(loggerModule, 'logWarn').mockImplementation(() => {})
+    it('should remove invalid dependencies', async () => {
+      // Import the mocked logger
+      const { logWarn } = await import('../logger')
+      const logWarnSpy = vi.mocked(logWarn)
 
       const steps = [
         { id: 'step-1', name: 'Setup', dependsOn: [] },
@@ -210,8 +217,6 @@ describe('Step ID Utilities', () => {
       expect(fixed[1].dependsOn).toEqual(['step-1'])
       expect(fixed[2].dependsOn).toEqual(['step-2'])
       expect(logWarnSpy).toHaveBeenCalledTimes(2)
-
-      logWarnSpy.mockRestore()
     })
 
     it('should not modify valid dependencies', () => {
