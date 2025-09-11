@@ -25,6 +25,27 @@ grep -r "console\.log" scripts/
 2. Before claiming "tests pass": Actually run the specific tests
 3. Before claiming "no errors": Run typecheck and lint commands
 
+## 🚨 CRITICAL BUG: Work Block Scheduling Broken (2025-01-10)
+
+### UnifiedScheduler Not Respecting Work Blocks
+**Status**: 🔴 BROKEN - Tests skipped
+**Location**: src/shared/__tests__/production-bug-replication.test.ts
+**Impact**: Tasks are scheduled at current time instead of waiting for next work block
+
+**Problem**:
+- After recent UnifiedScheduler changes, tasks are scheduled immediately at current time
+- Should wait for next available work block (e.g., 15:30-17:15 or 19:30-21:45)
+- Production bug replication tests had to be skipped
+
+**Tests Skipped**:
+- test_adapter_with_exact_scenario
+- test_ui_displays_correct_schedule
+
+**Fix Required**:
+- UnifiedScheduler needs to check work block availability
+- Should not schedule outside defined work blocks
+- Must respect work pattern capacity limits
+
 ## 🚨 High Priority Issues (PR #67 TDD Violation - 2025-09-08)
 
 ### Mock-Only Implementation Pattern (RESOLVED)
