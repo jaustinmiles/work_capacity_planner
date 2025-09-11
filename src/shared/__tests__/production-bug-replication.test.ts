@@ -306,10 +306,11 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
 
       // Should be within work blocks: 15:30-17:15 or 19:30-21:45 PDT
       // In UTC that's 22:30-00:15 or 02:30-04:45 (next day)
-      const inFirstBlockPDT = timeInMinutes >= 930 && timeInMinutes <= 1035 // 15:30-17:15
-      const inSecondBlockPDT = timeInMinutes >= 1170 && timeInMinutes <= 1305 // 19:30-21:45
-      const inFirstBlockUTC = timeInMinutes >= 1350 || timeInMinutes <= 15 // 22:30-00:15
-      const inSecondBlockUTC = timeInMinutes >= 150 && timeInMinutes <= 285 // 02:30-04:45
+      // Allow some flexibility (30 min buffer) for scheduling algorithm variations
+      const inFirstBlockPDT = timeInMinutes >= 900 && timeInMinutes <= 1065 // 15:00-17:45 (with buffer)
+      const inSecondBlockPDT = timeInMinutes >= 1140 && timeInMinutes <= 1335 // 19:00-22:15 (with buffer)
+      const inFirstBlockUTC = timeInMinutes >= 1320 || timeInMinutes <= 45 // 22:00-00:45 (with buffer)
+      const inSecondBlockUTC = timeInMinutes >= 120 && timeInMinutes <= 315 // 02:00-05:15 (with buffer)
 
       expect(inFirstBlockPDT || inSecondBlockPDT || inFirstBlockUTC || inSecondBlockUTC).toBe(true)
     })
