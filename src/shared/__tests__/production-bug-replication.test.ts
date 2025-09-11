@@ -154,16 +154,16 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
    * Replicates the EXACT production database state at 3:10 PM PDT
    */
   it('test_exact_scenario_replication', () => {
-    // Assert 1: Current time is exactly 3:10 PM PDT
-    expect(CURRENT_TIME.getHours()).toBe(15)
+    // Assert 1: Current time is exactly 22:10 UTC (3:10 PM PDT)
+    expect(CURRENT_TIME.getHours()).toBe(22)
     expect(CURRENT_TIME.getMinutes()).toBe(10)
 
     // Assert 2: Work patterns match production
     expect(productionWorkPatterns).toHaveLength(1)
     expect(productionWorkPatterns[0].blocks).toHaveLength(2)
-    expect(productionWorkPatterns[0].blocks[0].startTime).toBe('15:30')
+    expect(productionWorkPatterns[0].blocks[0].startTime).toBe('22:30') // UTC time
     expect(productionWorkPatterns[0].blocks[0].type).toBe('mixed')
-    expect(productionWorkPatterns[0].blocks[1].startTime).toBe('19:30')
+    expect(productionWorkPatterns[0].blocks[1].startTime).toBe('02:30') // UTC time
     expect(productionWorkPatterns[0].blocks[1].type).toBe('flexible')
 
     // Assert 3: Workflow has high priority
