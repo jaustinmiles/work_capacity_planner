@@ -405,6 +405,38 @@ vi.mock('./module', () => {
 
 ## Recently Completed Decisions
 
+### Scheduler Unification Strategy (2025-09-11, PR #70)
+**Decision**: Migrate components to UnifiedScheduler incrementally, one component per PR
+**Rationale**:
+- 25+ hours for single component migration shows scope is massive
+- Smaller PRs are easier to review and less risky
+- Allows for learning and refinement between migrations
+**Trade-offs**: 
+- Longer overall timeline but higher quality
+- Temporary dual-scheduler state but safer transition
+**Alternative Considered**: Big-bang migration in single PR - rejected as too risky
+
+### Logger Module as Single Source of Truth (2025-09-11, PR #70)
+**Decision**: Use unified logger module (`src/shared/logger.ts`) exclusively
+**Implementation**:
+- Removed all default logger functions (logInfo, logWarn, logError, logDebug)
+- Added top-level convenience methods to logger object
+- All code now uses logger.info(), logger.error(), etc.
+**Rationale**:
+- Single implementation reduces confusion
+- Consistent logging format across codebase
+- Easier to manage and configure
+**Trade-offs**: Had to update many files, but worth it for consistency
+
+### Timezone Test Handling (2025-09-11, PR #70)
+**Decision**: Skip timezone-sensitive tests in CI temporarily rather than make them brittle
+**Rationale**:
+- CI runs in UTC, local development in various timezones
+- Complex timezone conversion logic makes tests fragile
+- Better to skip than have flaky tests
+**Alternative Considered**: Mock all Date objects - too invasive and error-prone
+**Follow-up Required**: Create timezone-agnostic test strategy
+
 ### Scheduling Engine Consolidation (2025-08-17)
 **Decision**: Unified into single engine (SchedulingEngine)
 **Implementation**:
