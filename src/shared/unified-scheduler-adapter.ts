@@ -3,7 +3,7 @@
  * Provides compatibility layer between old scheduling interfaces and UnifiedScheduler
  */
 
-import { UnifiedScheduler, ScheduleContext, ScheduleConfig, ScheduleResult } from './unified-scheduler'
+import { UnifiedScheduler, ScheduleContext, ScheduleConfig, ScheduleResult, SchedulingDebugInfo } from './unified-scheduler'
 import { UnifiedScheduleItem } from './unified-scheduler'
 import { Task, TaskStep } from './types'
 import { SequencedTask } from './sequencing-types'
@@ -16,6 +16,7 @@ export interface LegacyScheduleResult {
   unscheduledTasks: Task[]
   conflicts: string[]
   totalDuration: number
+  debugInfo?: SchedulingDebugInfo // Preserve debug info from UnifiedScheduler
 }
 
 export interface LegacyScheduledItem {
@@ -170,6 +171,7 @@ export class UnifiedSchedulerAdapter {
       unscheduledTasks,
       conflicts: (result.conflicts || []).map(c => c.description),
       totalDuration: scheduledTasks.reduce((sum, item) => sum + item.task.duration, 0),
+      debugInfo: result.debugInfo, // Preserve debug info from UnifiedScheduler
     }
   }
 

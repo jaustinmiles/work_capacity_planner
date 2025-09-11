@@ -8,7 +8,7 @@ import { DailyWorkPattern } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
 import { useUnifiedScheduler, LegacyScheduleResult } from '../../hooks/useUnifiedScheduler'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
-import { SchedulingDebugInfo } from '../../utils/flexible-scheduler'
+import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
@@ -496,19 +496,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         unscheduledItems: [],
         warnings: [],
         blockUtilization: [],
-        scheduledItemsPriority: savedSchedule.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          scheduledTime: item.startTime?.toISOString() || getCurrentTime().toISOString(),
-          priorityBreakdown: {
-            eisenhower: 0,
-            deadlineBoost: 0,
-            asyncBoost: 0,
-            cognitiveMatch: 0,
-            contextSwitchPenalty: 0,
-            total: item.priority || 0,
-          },
-        })),
+        totalScheduled: savedSchedule.length,
+        totalUnscheduled: 0,
+        scheduleEfficiency: 1.0,
       }
 
       // Set the minimal debug info
@@ -541,8 +531,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     // Convert UnifiedScheduler results to GanttChart format
     const ganttItems = convertUnifiedToGanttItems(legacyScheduleResult)
 
-    // Create debug info structure for UnifiedScheduler output
-    const unifiedDebugInfo: SchedulingDebugInfo = {
+    // Use real debug info from UnifiedScheduler if available
+    const unifiedDebugInfo = legacyScheduleResult.debugInfo || {
+      // Fallback to basic info if debug info not available
       unscheduledItems: legacyScheduleResult.unscheduledTasks.map(task => ({
         id: task.id,
         name: task.name,
@@ -551,20 +542,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         reason: 'No available capacity or constraints not met',
       })),
       warnings: legacyScheduleResult.conflicts,
-      blockUtilization: [], // Not available in legacy format
-      scheduledItemsPriority: legacyScheduleResult.scheduledTasks.map(item => ({
-        id: item.task.id,
-        name: item.task.name,
-        scheduledTime: item.startTime.toISOString(),
-        priorityBreakdown: {
-          eisenhower: (item.task.importance || 5) * (item.task.urgency || 5),
-          deadlineBoost: item.task.deadline ? 20 : 0,
-          asyncBoost: 0,
-          cognitiveMatch: 0,
-          contextSwitchPenalty: 0,
-          total: item.priority || 0,
-        },
-      })),
+      blockUtilization: [],
+      totalScheduled: legacyScheduleResult.scheduledTasks.length,
+      totalUnscheduled: legacyScheduleResult.unscheduledTasks.length,
+      scheduleEfficiency: legacyScheduleResult.scheduledTasks.length / Math.max(1, legacyScheduleResult.scheduledTasks.length + legacyScheduleResult.unscheduledTasks.length),
     }
     setDebugInfo(unifiedDebugInfo)
 
@@ -575,7 +556,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         ganttItems[ganttItems.length - 1].endTime :
         new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
     }
-    logGanttChart(logger.ui, ganttItems, workPatterns, viewWindow, unifiedDebugInfo)
+    logGanttChart(logger.ui, ganttItems, workPatterns, viewWindow, tasks, sequencedTasks, unifiedDebugInfo)
 
     // Auto-show debug info if there are issues
     if (unifiedDebugInfo.unscheduledItems.length > 0 || unifiedDebugInfo.warnings.length > 0) {

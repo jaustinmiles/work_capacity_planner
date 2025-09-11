@@ -203,12 +203,14 @@ export class ScheduleFormatter {
     scheduledItems: ScheduledItem[],
     workPatterns: DailyWorkPattern[],
     viewWindow: { start: Date; end: Date },
+    tasks: Task[],
+    workflows: SequencedTask[],
     debugInfo?: any,
   ): ScheduleLogOutput {
     const output = this.formatScheduleGeneration(
       'mixed', // Gantt uses mixed scheduling
-      [],
-      [],
+      tasks,
+      workflows,
       scheduledItems,
       workPatterns,
       undefined,
@@ -391,12 +393,16 @@ export function logGanttChart(
   scheduledItems: ScheduledItem[],
   workPatterns: DailyWorkPattern[],
   viewWindow: { start: Date; end: Date },
+  tasks: Task[],
+  workflows: SequencedTask[],
   debugInfo?: any,
 ): void {
   const output = ScheduleFormatter.formatGanttDisplay(
     scheduledItems,
     workPatterns,
     viewWindow,
+    tasks,
+    workflows,
     debugInfo,
   )
 

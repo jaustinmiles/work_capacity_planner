@@ -137,7 +137,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     tasks: [],
     sequencedTasks: [],
     selectedTaskId: null,
-    isLoading: false,
+    isLoading: true, // Start with true to prevent premature getNextScheduledItem calls
     error: null,
     workSettings: (() => {
       try {

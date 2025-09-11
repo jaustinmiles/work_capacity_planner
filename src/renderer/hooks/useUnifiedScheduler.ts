@@ -56,24 +56,15 @@ export function useUnifiedScheduler(): {
         performanceMs: Math.round(duration * 100) / 100,
       })
 
-      // Log debug info if available
-      // Filter out workflow tasks to avoid duplicates - UnifiedScheduler will expand workflows internally
-      const standaloneTasks = tasks.filter(t => !t.hasSteps)
-      const unifiedResult = adapter.getUnifiedScheduler().scheduleForDisplay([...standaloneTasks, ...sequencedTasks], adapter.createSimpleContext(workPatterns, options.startDate, tasks, sequencedTasks), {
-        startDate: options.startDate || new Date().toISOString().split('T')[0],
-        debugMode: true,
-        allowTaskSplitting: options.allowSplitting,
-        respectMeetings: true,
-      })
-
-      if (unifiedResult.debugInfo) {
+      // Log debug info if available (from the result we already have)
+      if (result.debugInfo) {
         logger.ui.debug('🔍 [GANTT] Debug Info', {
-          unscheduledItems: unifiedResult.debugInfo.unscheduledItems,
-          blockUtilization: unifiedResult.debugInfo.blockUtilization,
-          warnings: unifiedResult.debugInfo.warnings,
-          totalScheduled: unifiedResult.debugInfo.totalScheduled,
-          totalUnscheduled: unifiedResult.debugInfo.totalUnscheduled,
-          scheduleEfficiency: unifiedResult.debugInfo.scheduleEfficiency,
+          unscheduledItems: result.debugInfo.unscheduledItems,
+          blockUtilization: result.debugInfo.blockUtilization,
+          warnings: result.debugInfo.warnings,
+          totalScheduled: result.debugInfo.totalScheduled,
+          totalUnscheduled: result.debugInfo.totalUnscheduled,
+          scheduleEfficiency: result.debugInfo.scheduleEfficiency,
         })
       }
 
