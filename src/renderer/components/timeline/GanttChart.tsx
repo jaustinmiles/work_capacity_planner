@@ -286,15 +286,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       unscheduledCount: result.unscheduledTasks.length,
     })
 
-    return result.scheduledTasks.map((item, index) => {
-      logger.ui.debug('Converting scheduled item', {
-        index,
-        taskId: item.task.id,
-        taskName: item.task.name,
-        startTime: item.startTime.toISOString(),
-        endTime: item.endTime.toISOString(),
-      })
-
+    return result.scheduledTasks.map((item) => {
       // Get task color based on type
       const getTaskColor = (taskType: TaskType): string => {
         switch (taskType) {

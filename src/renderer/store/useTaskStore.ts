@@ -888,14 +888,6 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       })
 
       // Use SchedulingService to determine the next item
-      rendererLogger.info('[TaskStore] Calling schedulingService.getNextScheduledItem...')
-      rendererLogger.debug('[TaskStore] schedulingService instance:', schedulingService)
-      rendererLogger.debug('[TaskStore] schedulingService.getNextScheduledItem:', schedulingService.getNextScheduledItem)
-      rendererLogger.debug('[TaskStore] About to call getNextScheduledItem with:', {
-        tasks: tasks,
-        sequencedTasks: sequencedTasks,
-      })
-
       let nextItem: any = null
       try {
         nextItem = await schedulingService.getNextScheduledItem(tasks, sequencedTasks)

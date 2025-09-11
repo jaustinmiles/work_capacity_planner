@@ -101,12 +101,12 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
   const loadNextTask = async () => {
     try {
-      logger.ui.info('[WorkStatusWidget] Loading next task...')
+      logger.ui.debug('[WorkStatusWidget] Loading next task...')
       setIsLoadingNextTask(true)
 
       // Get current store state for logging
       const state = useTaskStore.getState()
-      logger.ui.info('[WorkStatusWidget] Store state:', {
+      logger.ui.debug('[WorkStatusWidget] Store state:', {
         totalTasks: state.tasks.length,
         totalWorkflows: state.sequencedTasks.length,
         isLoading: state.isLoading,

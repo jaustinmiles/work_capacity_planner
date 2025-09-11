@@ -188,6 +188,23 @@ export class UnifiedSchedulerAdapter {
     const incompleteTasks = tasks.filter(t => !t.completed)
     const incompleteWorkflows = sequencedTasks.filter(w => w.overallStatus !== 'completed')
 
+    // Log comprehensive data flow
+    console.info('[UnifiedSchedulerAdapter] 📊 DATA FLOW START:', {
+      input: {
+        totalTasks: tasks.length,
+        incompleteTasks: incompleteTasks.length,
+        totalWorkflows: sequencedTasks.length,
+        incompleteWorkflows: incompleteWorkflows.length,
+        workPatterns: workPatterns.length,
+        totalWorkflowSteps: incompleteWorkflows.reduce((sum, w) => sum + w.steps.length, 0),
+      },
+      options: {
+        startDate: options.startDate,
+        respectDeadlines: options.respectDeadlines,
+        allowSplitting: options.allowSplitting,
+      },
+    })
+
     const config = this.adaptLegacyOptions(options)
     const context: ScheduleContext = {
       startDate: typeof config.startDate === 'string' ? config.startDate : config.startDate.toISOString(),
@@ -222,7 +239,28 @@ export class UnifiedSchedulerAdapter {
     ]
 
     const result = this.scheduler.scheduleForDisplay(allItems, context, config)
-    return this.adaptUnifiedResult(result)
+    const legacyResult = this.adaptUnifiedResult(result)
+
+    // Log comprehensive data flow result
+    console.info('[UnifiedSchedulerAdapter] ✅ DATA FLOW COMPLETE:', {
+      output: {
+        scheduled: legacyResult.scheduledTasks.length,
+        unscheduled: legacyResult.unscheduledTasks.length,
+        conflicts: legacyResult.conflicts.length,
+        totalDuration: legacyResult.totalDuration,
+        hasDebugInfo: !!legacyResult.debugInfo,
+      },
+      efficiency: {
+        schedulingRate: `${Math.round((legacyResult.scheduledTasks.length / Math.max(1, incompleteTasks.length + incompleteWorkflows.length)) * 100)}%`,
+        capacityUsed: `${Math.round((legacyResult.totalDuration / Math.max(1, workPatterns.reduce((sum, p) => sum + p.blocks.reduce((bs, b) => {
+          const [sh, sm] = b.startTime.split(':').map(Number)
+          const [eh, em] = b.endTime.split(':').map(Number)
+          return bs + (eh * 60 + em) - (sh * 60 + sm)
+        }, 0), 0))) * 100)}%`,
+      },
+    })
+
+    return legacyResult
   }
 
   /**
