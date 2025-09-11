@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useTaskStore } from '../store/useTaskStore'
 import { getDatabase } from '../services/database'
-import { WorkTrackingService } from '../services/workTrackingService'
 
 // Mock dependencies
 vi.mock('../services/database', () => ({
@@ -22,7 +21,7 @@ vi.mock('../services/workTrackingService', () => {
     updateWorkSession: vi.fn().mockResolvedValue(undefined),
     emit: vi.fn(),
   }
-  
+
   return {
     WorkTrackingService: vi.fn().mockImplementation(() => mockService),
     getWorkTrackingService: vi.fn().mockReturnValue(mockService),
@@ -99,7 +98,7 @@ describe('useTaskStore Scheduling Integration', () => {
     // Get the mock instance from the mocked module
     const schedulingModule = await import('@shared/scheduling-service') as any
     mockSchedulingService = schedulingModule.__mockInstance
-    
+
     // Set default return values for the mock
     const defaultSchedule = {
       scheduledItems: [],
@@ -108,7 +107,7 @@ describe('useTaskStore Scheduling Integration', () => {
     }
     mockSchedulingService.createSchedule.mockResolvedValue(defaultSchedule)
     mockSchedulingService.getNextScheduledItem.mockResolvedValue(null)
-    
+
     // Reset store state
     useTaskStore.setState({
       tasks: [],
@@ -395,7 +394,7 @@ describe('useTaskStore Scheduling Integration', () => {
           duration: 90,
         } as any,
       ]
-      
+
       const mockSchedule = {
         scheduledItems: [
           {
@@ -411,7 +410,7 @@ describe('useTaskStore Scheduling Integration', () => {
       }
 
       mockSchedulingService.createSchedule.mockResolvedValue(mockSchedule)
-      
+
       useTaskStore.setState({
         tasks: mockTasks as any,
         sequencedTasks: [],
@@ -445,7 +444,7 @@ describe('useTaskStore Scheduling Integration', () => {
           ],
         } as any,
       ]
-      
+
       const mockSchedule = {
         scheduledItems: [
           {
@@ -462,7 +461,7 @@ describe('useTaskStore Scheduling Integration', () => {
       }
 
       mockSchedulingService.createSchedule.mockResolvedValue(mockSchedule)
-      
+
       useTaskStore.setState({
         tasks: [],
         sequencedTasks: mockSequencedTasks as any,
