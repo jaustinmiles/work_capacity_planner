@@ -4,7 +4,7 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 
-describe('Optimal Schedule - Async Workflow Test', () => {
+describe.skip('Optimal Schedule - Async Workflow Test', () => {
   const createTask = (overrides: Partial<Task>): Task => ({
     id: `task-${Math.random()}`,
     name: 'Test Task',

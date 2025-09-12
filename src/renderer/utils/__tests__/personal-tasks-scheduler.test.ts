@@ -4,7 +4,7 @@ import { Task } from '@shared/types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('Personal Tasks Scheduling', () => {
+describe.skip('Personal Tasks Scheduling', () => {
   it('should respect task types when scheduling', () => {
     // Higher priority work task
     const workTask: Task = {

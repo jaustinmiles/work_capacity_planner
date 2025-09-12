@@ -1,5 +1,37 @@
 # Technical Debt Inventory
 
+## 🧹 Scheduler Unification - Phase 3 (2025-09-11)
+
+### Skipped Test Files - Pending Removal
+**Status**: 🟡 TEMPORARY - Tests skipped pending old scheduler removal
+**Location**: src/renderer/utils/__tests__/ and src/renderer/components/schedule/__tests__/
+**Count**: 20 test files (164 tests) skipped
+**Files**:
+- Old scheduler unit tests (will be deleted with schedulers):
+  - flexible-scheduler-comprehensive.test.ts
+  - flexible-scheduler-coverage.test.ts
+  - flexible-scheduler-simple.test.ts
+  - flexible-scheduler-trivial.test.ts
+  - optimal-scheduler.test.ts
+  - optimal-async-workflow.test.ts
+  - deadline-scheduling.test.ts
+  - flexible-scheduler.test.ts
+- Feature tests using old schedulers (covered by UnifiedScheduler tests):
+  - async-wait-scheduling.test.ts
+  - async-workflow-scheduling.test.ts
+  - database-integration-scheduling.test.ts
+  - dependency-scheduling.test.ts
+  - locked-task-scheduling.test.ts
+  - no-overlap-scheduling.test.ts
+  - personal-task-gantt.test.ts
+  - personal-tasks-scheduler.test.ts
+  - priority-calculation-verification.test.ts
+  - task-splitting.test.ts
+  - user-scenario-scheduling.test.ts
+  - ScheduleGenerator.test.tsx
+**Next Steps**: Delete these files when removing old schedulers in Phase 4
+**Alternative**: UnifiedScheduler has comprehensive test coverage in src/shared/__tests__/
+
 ## 🔄 PR #72 Work Session Architecture Changes (2025-09-11)
 
 ### WorkTrackingService No Longer Auto-Restores Sessions

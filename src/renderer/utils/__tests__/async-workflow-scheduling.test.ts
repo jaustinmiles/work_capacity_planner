@@ -5,7 +5,7 @@ import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('Async Workflow Scheduling Priority', () => {
+describe.skip('Async Workflow Scheduling Priority', () => {
   // Helper to create a test task
   function createTask(overrides: Partial<Task> = {}): Task {
     return {

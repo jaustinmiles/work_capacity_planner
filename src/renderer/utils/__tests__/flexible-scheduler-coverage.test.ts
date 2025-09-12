@@ -4,7 +4,7 @@ import { Task } from '@shared/types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('Flexible Scheduler - Additional Coverage', () => {
+describe.skip('Flexible Scheduler - Additional Coverage', () => {
   describe('Empty Block Warnings', () => {
     it('should warn about completely empty blocks', () => {
       const pattern: DailyWorkPattern = {
