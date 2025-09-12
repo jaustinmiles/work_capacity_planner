@@ -170,9 +170,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     return result
   }
 
-  // Return time as-is without rounding
-  const roundToQuarter = (timeStr: string): string => {
-    // No rounding - return the exact time
+  // Return time as-is without modification
+  const getExactTime = (timeStr: string): string => {
     return timeStr
   }
 
@@ -315,8 +314,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         const endHours = Math.floor(clampedEndMinutes / 60)
         const endMins = clampedEndMinutes % 60
 
-        const newStartTime = roundToQuarter(`${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`)
-        const newEndTime = roundToQuarter(`${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`)
+        const newStartTime = getExactTime(`${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`)
+        const newEndTime = getExactTime(`${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`)
 
         const updatedSession = {
           ...session,
@@ -360,7 +359,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         }
         logger.ui.debug('Edge resize calculation:', debugInfo)
 
-        const newTime = roundToQuarter(pixelsToTime(relativeY))
+        const newTime = getExactTime(pixelsToTime(relativeY))
 
         if (dragState.edge === 'start' && newTime < session.endTime) {
           const updatedSession = {

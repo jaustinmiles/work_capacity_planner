@@ -1,5 +1,26 @@
 # Technical Debt Inventory
 
+## 🔄 PR #72 Work Session Architecture Changes (2025-09-11)
+
+### WorkTrackingService No Longer Auto-Restores Sessions
+**Status**: 🟡 ARCHITECTURAL DECISION
+**Location**: src/renderer/services/workTrackingService.ts
+**Change**: Service no longer automatically restores sessions on initialization
+**Rationale**: 
+- Prevents race conditions during app startup
+- Gives explicit control to components over restoration timing
+- Store (useTaskStore) still handles restoration on mount
+**Impact**: Components must explicitly call restore if needed
+**Alternative**: Could add opt-in auto-restore flag if needed
+
+### Session Instance ID Type Safety
+**Status**: 🟡 IMPROVEMENT NEEDED
+**Location**: src/renderer/services/workTrackingService.ts:25
+**Issue**: Using plain string for instanceId instead of branded type
+**Suggested Fix**: Create branded type like `type SessionInstanceId = string & { __brand: "SessionInstanceId" }`
+**Impact**: Low - type safety improvement
+**Priority**: Low - Can be addressed in type safety pass
+
 ## 📊 PR #70 Introduced Issues (2025-09-11)
 
 ### Console.log Cleanup Still Incomplete
