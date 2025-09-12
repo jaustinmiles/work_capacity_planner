@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
 import { Card, Space, Typography, Tag, Empty, Timeline, Badge } from '@arco-design/web-react'
 import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar, IconMoon } from '@arco-design/web-react/icon'
-// Local type definition to decouple from old scheduler
+import { DailyWorkPattern } from '@shared/work-blocks-types'
+
+// UI representation of a scheduled item - different from the adapter's ScheduledItem
+// which wraps a Task object. This is a flattened structure for UI components.
 interface ScheduledItem {
   id: string
   name: string
@@ -18,7 +21,6 @@ interface ScheduledItem {
   deadline?: Date
   originalItem?: any
 }
-import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
