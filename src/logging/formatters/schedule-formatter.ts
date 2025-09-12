@@ -90,7 +90,7 @@ export class ScheduleFormatter {
   ): ScheduleLogOutput {
     const now = new Date()
     const scheduled = scheduledItems.filter(item => {
-      const taskType = item.task.type
+      const taskType = (item.task as any).type
       return taskType !== 'async-wait' && taskType !== 'break'
     })
 
@@ -147,7 +147,7 @@ export class ScheduleFormatter {
         endTime: item.endTime.toISOString(),
         duration: item.task.duration,
         priority: item.priority,
-        dependencies: item.task.dependencies,
+        dependencies: (item.task as any).dependencies,
         blockId: item.blockId,
       })),
       warnings,
@@ -161,7 +161,7 @@ export class ScheduleFormatter {
         type: item.type,
         duration: item.duration,
         reason: item.reason || 'Unknown reason',
-        dependencies: 'dependencies' in item ? (item as Task).dependencies : undefined,
+        dependencies: (item as any).dependencies,
       }))
     }
 
@@ -258,7 +258,7 @@ export class ScheduleFormatter {
         type: item.type,
         duration: item.duration,
         reason: item.reason,
-        dependencies: 'dependencies' in item ? (item as Task).dependencies : undefined,
+        dependencies: (item as any).dependencies,
       })),
       warnings: debugInfo.warnings,
       debugInfo: {
