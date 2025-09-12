@@ -89,9 +89,10 @@ export class ScheduleFormatter {
     warnings?: string[],
   ): ScheduleLogOutput {
     const now = new Date()
-    const scheduled = scheduledItems.filter(item =>
-      item.type !== 'async-wait' && item.type !== 'break',
-    )
+    const scheduled = scheduledItems.filter(item => {
+      const taskType = (item.task as any).type
+      return taskType !== 'async-wait' && taskType !== 'break'
+    })
 
     // Calculate time span
     const startTimes = scheduledItems.map(item => item.startTime)
@@ -109,7 +110,7 @@ export class ScheduleFormatter {
     }, 0)
 
     // Calculate actual work time
-    const actualWorkTime = scheduled.reduce((sum, item) => sum + item.duration, 0)
+    const actualWorkTime = scheduled.reduce((sum, item) => sum + item.task.duration, 0)
     const utilizationRate = totalCapacity > 0 ? (actualWorkTime / totalCapacity) * 100 : 0
 
     const output: ScheduleLogOutput = {
@@ -139,15 +140,15 @@ export class ScheduleFormatter {
         })),
       })) as DailyWorkPattern[],
       scheduledItems: scheduled.map(item => ({
-        id: item.id,
-        name: item.name,
-        type: item.type,
+        id: item.task.id,
+        name: item.task.name,
+        type: item.task.type,
         startTime: item.startTime.toISOString(),
         endTime: item.endTime.toISOString(),
-        duration: item.duration,
+        duration: item.task.duration,
         priority: item.priority,
-        dependencies: (item as any).dependencies,
-        blockId: (item as any).blockId,
+        dependencies: (item.task as any).dependencies,
+        blockId: item.blockId,
       })),
       warnings,
     }

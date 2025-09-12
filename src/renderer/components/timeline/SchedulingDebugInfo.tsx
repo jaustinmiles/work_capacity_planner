@@ -10,14 +10,43 @@ interface DebugInfo {
     duration: number
     type: string
     reason: string
+    priorityBreakdown?: {
+      total: number
+      eisenhower: number
+      deadlineBoost?: number
+      asyncBoost?: number
+      cognitiveMatch?: number
+      contextSwitchPenalty?: number
+      workflowDepthBonus?: number
+    }
+  }>
+  scheduledItems?: Array<{
+    id: string
+    name: string
+    type: string
+    startTime: string
+    duration: number
+    priority?: number
+    priorityBreakdown?: {
+      total: number
+      eisenhower: number
+      deadlineBoost?: number
+      asyncBoost?: number
+      cognitiveMatch?: number
+      contextSwitchPenalty?: number
+      workflowDepthBonus?: number
+    }
   }>
   warnings: string[]
   unusedFocusCapacity: number
   unusedAdminCapacity: number
   blockUtilization: Array<{
     date: string
+    blockId?: string
     blockStart: string
     blockEnd: string
+    startTime?: string
+    endTime?: string
     type: string
     capacity: number
     used: number
@@ -28,6 +57,7 @@ interface DebugInfo {
     adminTotal?: number
     personalUsed?: number
     personalTotal?: number
+    unusedReason?: string
   }>
 }
 
@@ -179,7 +209,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   { title: 'Block', dataIndex: 'blockId' },
                   {
                     title: 'Time',
-                    render: (_, record) => `${record.startTime} - ${record.endTime}`,
+                    render: (_, record) => `${record.startTime || record.blockStart} - ${record.endTime || record.blockEnd}`,
                   },
                   {
                     title: 'Focus',
