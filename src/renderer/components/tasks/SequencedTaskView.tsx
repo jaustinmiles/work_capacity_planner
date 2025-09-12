@@ -33,7 +33,7 @@ export function SequencedTaskView({
   onResetWorkflow,
   onDelete,
 }: SequencedTaskViewProps) {
-  const { activeWorkSessions } = useTaskStore()
+  const { activeWorkSessions, isStepActivelyWorkedOn } = useTaskStore()
   const [showDetails, setShowDetails] = useState(false)
   const [showEditView, setShowEditView] = useState(false)
   const [showVisualization, setShowVisualization] = useState(false)
@@ -46,7 +46,10 @@ export function SequencedTaskView({
   const totalSteps = task.steps.length
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0
 
-  const currentStep = task.steps.find(step => step.status === 'in_progress')
+  // Find the step that's in progress AND actively being worked on (not paused)
+  const currentStep = task.steps.find(step =>
+    step.status === 'in_progress' && isStepActivelyWorkedOn(step.id),
+  )
 
   // Check if any step in this workflow has an active work session
   const getActiveWorkflowSession = () => {

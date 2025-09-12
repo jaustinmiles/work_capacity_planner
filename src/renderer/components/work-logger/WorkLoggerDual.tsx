@@ -120,9 +120,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
       const formattedSessions: WorkSessionData[] = dbSessions.map(session => {
         const startTime = dayjs(session.startTime)
+        // For active sessions without endTime, just use startTime (will show as in-progress)
         const endTime = session.endTime
           ? dayjs(session.endTime)
-          : startTime.add(session.plannedMinutes || session.actualMinutes || 60, 'minute')
+          : startTime
 
         // Find task and step details
         const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
@@ -458,19 +459,46 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             )
           }
 
-          const [stepId, session] = activeSessionEntries[0] // Get first active session
+          const [_sessionKey, session] = activeSessionEntries[0] // Get first active session
 
-          // Find the step and its parent workflow
-          let stepName = 'Unknown Step'
-          let workflowName = 'Unknown Workflow'
+          // Determine if this is a workflow step or regular task
+          let itemName = ''
+          let parentName = ''
 
-          sequencedTasks.forEach(workflow => {
-            const step = workflow.steps?.find(s => s.id === stepId)
-            if (step) {
-              stepName = step.name
-              workflowName = workflow.name
+          if (session.stepId) {
+            // This is a workflow step session
+            sequencedTasks.forEach(workflow => {
+              const step = workflow.steps?.find(s => s.id === session.stepId)
+              if (step) {
+                itemName = step.name
+                parentName = workflow.name
+              }
+            })
+            if (!itemName) {
+              itemName = 'Unknown Step'
+              parentName = 'Unknown Workflow'
             }
-          })
+          } else if (session.taskId) {
+            // This is a regular task session
+            const task = tasks.find(t => t.id === session.taskId)
+            if (task) {
+              itemName = task.name
+              parentName = 'Task' // Regular tasks don't have parents
+            } else {
+              // Check if it's a workflow (taskId might be workflowId)
+              const workflow = sequencedTasks.find(w => w.id === session.taskId)
+              if (workflow) {
+                itemName = workflow.name
+                parentName = 'Workflow'
+              } else {
+                itemName = 'Unknown Task'
+                parentName = 'Task'
+              }
+            }
+          } else {
+            itemName = 'Unknown Item'
+            parentName = 'Unknown Type'
+          }
 
           // Calculate elapsed time
           const elapsedMinutes = Math.floor((Date.now() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
@@ -489,7 +517,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                   <Tag color="blue">{elapsedText} elapsed</Tag>
                 </Space>
                 <Text style={{ fontSize: 14 }}>
-                  <strong>{workflowName}</strong> → {stepName}
+                  {parentName === 'Task' ? (
+                    <strong>{itemName}</strong>
+                  ) : (
+                    <>
+                      <strong>{parentName}</strong> → {itemName}
+                    </>
+                  )}
                 </Text>
               </Space>
             </Card>
