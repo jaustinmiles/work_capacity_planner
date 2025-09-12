@@ -556,7 +556,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
     }
     // Convert GanttItems to ScheduledItem format for logging
-    const legacyItems = ganttItems.map(item => ({
+    const scheduledItems = ganttItems.map(item => ({
       task: {
         ...item.originalItem,
         id: item.id,
@@ -571,7 +571,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       blockId: item.blockId,
       priority: item.priority,
     }))
-    logGanttChart(logger.ui, legacyItems, workPatterns, viewWindow, tasks, sequencedTasks, unifiedDebugInfo)
+    logGanttChart(logger.ui, scheduledItems, workPatterns, viewWindow, tasks, sequencedTasks, unifiedDebugInfo)
 
     // Auto-show debug info if there are issues
     if (unifiedDebugInfo.unscheduledItems.length > 0 || unifiedDebugInfo.warnings.length > 0) {
