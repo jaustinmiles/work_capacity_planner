@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { ScheduleFormatter, logSchedule, logGanttChart } from './schedule-formatter'
 import { TaskType } from '../../shared/enums'
 import type { Task } from '../../shared/types'
@@ -129,7 +129,7 @@ describe('ScheduleFormatter', () => {
         mockScheduledItems,
         mockWorkPatterns,
         undefined,
-        mockDebugInfo
+        mockDebugInfo,
       )
 
       expect(output).toMatchObject({
@@ -159,7 +159,7 @@ describe('ScheduleFormatter', () => {
         [],
         [],
         undefined,
-        undefined
+        undefined,
       )
 
       expect(output.summary).toMatchObject({
@@ -204,7 +204,7 @@ describe('ScheduleFormatter', () => {
         mockTasks,
         [],
         itemsWithBreaks,
-        mockWorkPatterns
+        mockWorkPatterns,
       )
 
       expect(output.summary.scheduledTasks).toBe(2) // Only real tasks
@@ -213,7 +213,7 @@ describe('ScheduleFormatter', () => {
 
     it('includes warnings when provided', () => {
       const warnings = ['Warning 1', 'Warning 2']
-      
+
       const output = ScheduleFormatter.formatScheduleGeneration(
         'mixed',
         mockTasks,
@@ -222,7 +222,7 @@ describe('ScheduleFormatter', () => {
         mockWorkPatterns,
         undefined,
         undefined,
-        warnings
+        warnings,
       )
 
       expect(output.warnings).toEqual(warnings)
@@ -234,7 +234,7 @@ describe('ScheduleFormatter', () => {
         mockTasks,
         [],
         mockScheduledItems,
-        mockWorkPatterns
+        mockWorkPatterns,
       )
 
       // Total capacity: 180 (focus) + 120 (admin) = 300 minutes
@@ -257,7 +257,7 @@ describe('ScheduleFormatter', () => {
         viewWindow,
         mockTasks,
         mockWorkflows,
-        mockDebugInfo
+        mockDebugInfo,
       )
 
       expect(output.type).toBe('gantt_display')
@@ -320,7 +320,7 @@ describe('ScheduleFormatter', () => {
         mockScheduledItems,
         mockWorkPatterns,
         undefined,
-        mockDebugInfo
+        mockDebugInfo,
       )
 
       const summary = ScheduleFormatter.createReadableSummary(output)
@@ -343,7 +343,7 @@ describe('ScheduleFormatter', () => {
         mockTasks,
         [],
         mockScheduledItems,
-        mockWorkPatterns
+        mockWorkPatterns,
       )
 
       const summary = ScheduleFormatter.createReadableSummary(output)
@@ -371,7 +371,7 @@ describe('ScheduleFormatter', () => {
         [],
         mockScheduledItems,
         mockWorkPatterns,
-        blocks
+        blocks,
       )
 
       const summary = ScheduleFormatter.createReadableSummary(output)
@@ -397,7 +397,7 @@ describe('ScheduleFormatter', () => {
         mockWorkPatterns,
         undefined,
         mockDebugInfo,
-        ['Test warning']
+        ['Test warning'],
       )
 
       expect(mockLogger.info).toHaveBeenCalledTimes(2)
@@ -406,10 +406,10 @@ describe('ScheduleFormatter', () => {
         expect.objectContaining({
           type: 'schedule_generation',
           schedulerUsed: 'optimal',
-        })
+        }),
       )
       expect(mockLogger.info).toHaveBeenCalledWith(
-        expect.stringContaining('Schedule SCHEDULE GENERATION')
+        expect.stringContaining('Schedule SCHEDULE GENERATION'),
       )
     })
   })
@@ -432,7 +432,7 @@ describe('ScheduleFormatter', () => {
         viewWindow,
         mockTasks,
         mockWorkflows,
-        mockDebugInfo
+        mockDebugInfo,
       )
 
       expect(mockLogger.info).toHaveBeenCalledTimes(2)
@@ -441,7 +441,7 @@ describe('ScheduleFormatter', () => {
         expect.objectContaining({
           type: 'gantt_display',
           schedulerUsed: 'mixed',
-        })
+        }),
       )
     })
   })
@@ -467,7 +467,7 @@ describe('ScheduleFormatter', () => {
         [],
         [],
         [],
-        crossMidnightPatterns
+        crossMidnightPatterns,
       )
 
       // 4 hours duration (22:00 to 02:00)
@@ -493,7 +493,7 @@ describe('ScheduleFormatter', () => {
         mockTasks,
         [],
         itemsWithDeps,
-        mockWorkPatterns
+        mockWorkPatterns,
       )
 
       expect(output.scheduledItems[0].dependencies).toEqual(['task-2'])
