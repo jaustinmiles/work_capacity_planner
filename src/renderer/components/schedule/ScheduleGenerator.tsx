@@ -177,7 +177,7 @@ export function ScheduleGenerator({
         schedule: optimalResult.scheduledTasks,
         result: optimalResult,
         score: {
-          deadlinesMet: optimalResult.unscheduledTasks.length === 0 ? 100 : 
+          deadlinesMet: optimalResult.unscheduledTasks.length === 0 ? 100 :
             Math.max(0, 100 - (optimalResult.unscheduledTasks.length * 10)),
           capacityUtilization: optimalResult.scheduledTasks.length > 0 ? 85 : 0,
           asyncOptimization: 90,
@@ -298,7 +298,7 @@ export function ScheduleGenerator({
                             padding: '8px 12px',
                             background: '#f5f5f5',
                             borderRadius: 4,
-                            borderLeft: `3px solid #1890ff`,
+                            borderLeft: '3px solid #1890ff',
                           }}
                         >
                           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
