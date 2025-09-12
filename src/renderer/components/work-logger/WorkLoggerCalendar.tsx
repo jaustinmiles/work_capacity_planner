@@ -97,7 +97,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       // Convert database sessions to our format
       const formattedSessions: WorkSession[] = dbSessions.map(session => {
         const startTime = dayjs(session.startTime)
-        const endTime = session.endTime ? dayjs(session.endTime) : startTime.add(session.plannedMinutes || session.actualMinutes || 60, 'minute')
+        // For active sessions without endTime, just use startTime (will show as in-progress)
+        const endTime = session.endTime ? dayjs(session.endTime) : startTime
 
         // Find task/step names
         const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
@@ -130,7 +131,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           type: session.type as TaskType,
           startTime: startTime.format('HH:mm'),
           endTime: endTime.format('HH:mm'),
-          duration: session.actualMinutes || session.plannedMinutes || 60,
+          duration: session.actualMinutes || 0, // Only show actual logged time, not planned
           notes: session.notes,
           isNew: false,
           isDirty: false,
@@ -169,13 +170,10 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     return result
   }
 
-  // Round time to nearest 15 minutes
+  // Return time as-is without rounding
   const roundToQuarter = (timeStr: string): string => {
-    const [hours, minutes] = timeStr.split(':').map(Number)
-    const roundedMinutes = Math.round(minutes / 15) * 15
-    const adjustedHours = hours + Math.floor(roundedMinutes / 60)
-    const finalMinutes = roundedMinutes % 60
-    return `${adjustedHours.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`
+    // No rounding - return the exact time
+    return timeStr
   }
 
   // Check for overlapping sessions

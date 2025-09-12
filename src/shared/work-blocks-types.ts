@@ -6,7 +6,7 @@ export interface WorkBlock {
   id: string
   startTime: string // "09:00"
   endTime: string // "12:00"
-  type: 'focused' | 'admin' | 'mixed' | 'personal' | 'flexible'
+  type: 'focused' | 'admin' | 'mixed' | 'personal' | 'flexible' | 'universal'
   capacity?: {
     focusMinutes?: number
     adminMinutes?: number
@@ -118,7 +118,12 @@ export function getTotalCapacity(blocks: WorkBlock[]): { focusMinutes: number; a
       acc.adminMinutes += durationMinutes
     } else if (block.type === 'personal') {
       acc.personalMinutes += durationMinutes
-    } else { // mixed
+    } else if (block.type === 'mixed') {
+      acc.focusMinutes += durationMinutes / 2
+      acc.adminMinutes += durationMinutes / 2
+    } else if (block.type === 'flexible' || block.type === 'universal') {
+      // flexible and universal blocks can be used for any task type
+      // we'll split capacity evenly for estimation purposes
       acc.focusMinutes += durationMinutes / 2
       acc.adminMinutes += durationMinutes / 2
     }

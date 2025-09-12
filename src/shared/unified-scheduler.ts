@@ -168,7 +168,7 @@ export interface SchedulingWarning {
 
 interface BlockCapacity {
   blockId: string
-  blockType: 'focused' | 'admin' | 'personal' | 'mixed' | 'flexible'
+  blockType: 'focused' | 'admin' | 'personal' | 'mixed' | 'flexible' | 'universal'
   startTime: Date
   endTime: Date
   focusMinutesTotal: number
@@ -1761,18 +1761,26 @@ export class UnifiedScheduler {
     // Check type compatibility
     const isPersonalTask = item.taskType === TaskType.Personal
     const isPersonalBlock = block.blockType === 'personal'
+    const isUniversalBlock = block.blockType === 'universal'
 
-    if (isPersonalTask && !isPersonalBlock) {
-      return { canFit: false, canPartiallyFit: false }
-    }
+    // Universal blocks accept any task type
+    if (!isUniversalBlock) {
+      if (isPersonalTask && !isPersonalBlock) {
+        return { canFit: false, canPartiallyFit: false }
+      }
 
-    if (!isPersonalTask && isPersonalBlock) {
-      return { canFit: false, canPartiallyFit: false }
+      if (!isPersonalTask && isPersonalBlock) {
+        return { canFit: false, canPartiallyFit: false }
+      }
     }
 
     // Calculate available capacity
     let availableCapacity = 0
-    if (block.blockType === 'flexible' && item.taskType !== TaskType.Personal) {
+    if (block.blockType === 'universal') {
+      // Universal blocks can accept ANY task type
+      availableCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal -
+                         (block.focusMinutesUsed + block.adminMinutesUsed + block.personalMinutesUsed)
+    } else if (block.blockType === 'flexible' && item.taskType !== TaskType.Personal) {
       // Flexible blocks can accept any non-personal work
       availableCapacity = block.focusMinutesTotal - (block.focusMinutesUsed + block.adminMinutesUsed)
     } else if (item.taskType === TaskType.Focused) {

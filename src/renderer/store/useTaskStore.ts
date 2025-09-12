@@ -99,6 +99,7 @@ interface TaskStore {
   getActiveSequencedTasks: () => SequencedTask[]
   getCompletedSequencedTasks: () => SequencedTask[]
   getActiveWorkSession: (stepId: string) => UnifiedWorkSession | undefined
+  isStepActivelyWorkedOn: (stepId: string) => boolean
   getNextScheduledItem: () => Promise<NextScheduledItem | null>
   startNextTask: () => Promise<void>
 }
@@ -115,8 +116,9 @@ const schedulingService = new SchedulingService({
 // Get logger instance for state change logging
 const rendererLogger = getRendererLogger()
 
-// Factory function for work tracking service (allows mocking in tests)
-const createWorkTrackingService = () => new WorkTrackingService()
+// Lazy singleton for WorkTrackingService
+// Created on first use to ensure proper initialization order
+let workTrackingServiceSingleton: WorkTrackingService | null = null
 
 // Allow injecting a custom service for testing
 let injectedWorkTrackingService: WorkTrackingService | null = null
@@ -130,8 +132,22 @@ export const clearInjectedWorkTrackingService = () => {
 }
 
 export const useTaskStore = create<TaskStore>((set, get) => {
-  // Helper to get the current WorkTrackingService (checks injection each time for testing)
-  const getWorkTrackingService = () => injectedWorkTrackingService || createWorkTrackingService()
+  // Helper to get the current WorkTrackingService (lazy singleton or test injection)
+  const getWorkTrackingService = () => {
+    if (injectedWorkTrackingService) {
+      return injectedWorkTrackingService
+    }
+
+    // Lazy creation of singleton - only create when first needed
+    if (!workTrackingServiceSingleton) {
+      workTrackingServiceSingleton = new WorkTrackingService()
+      rendererLogger.info('[TaskStore] Created WorkTrackingService singleton (lazy)', {
+        instanceId: (workTrackingServiceSingleton as any).instanceId,
+      })
+    }
+
+    return workTrackingServiceSingleton
+  }
 
   return {
     tasks: [],
@@ -550,7 +566,11 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   // Progress tracking actions
   startWorkOnStep: async (stepId: string, workflowId: string) => {
     const state = get()
-    const activeSession = state.activeWorkSessions.get(stepId)
+    // Use workflowId as the key to match WorkTrackingService's getSessionKey logic
+    const sessionKey = workflowId
+    const activeSession = state.activeWorkSessions.get(sessionKey)
+
+    // Starting work on workflow step
 
     // Check if any work is active globally via WorkTrackingService
     if (getWorkTrackingService().isAnyWorkActive()) {
@@ -565,24 +585,36 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
     try {
       // Start work session in WorkTrackingService for persistence
-      await getWorkTrackingService().startWorkSession(undefined, stepId, workflowId)
+      const workSession = await getWorkTrackingService().startWorkSession(undefined, stepId, workflowId)
 
-      // Also maintain UnifiedWorkSession for UI reactivity
-      const newSession: UnifiedWorkSession = {
-        id: `session-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`,
-        taskId: workflowId,
-        stepId,
-        startTime: new Date(),
-        isPaused: false,
-        plannedMinutes: activeSession?.plannedMinutes || 60,
-        actualMinutes: activeSession?.actualMinutes || undefined,
-        type: 'focused' as any,
+      // Sync the session to store's activeWorkSessions so UI can see it
+      const localSession: UnifiedWorkSession = {
+        ...workSession,
+        isPaused: false, // Explicitly set to false for new sessions
       }
 
-      const newSessions = new Map(state.activeWorkSessions)
-      newSessions.set(stepId, newSession)
+      const newSessions = new Map(get().activeWorkSessions)
+      // Use workflowId as key to match WorkTrackingService's getSessionKey
+      newSessions.set(sessionKey, localSession)
+
+      rendererLogger.info('[TaskStore] Syncing workflow step session to store state', {
+        stepId,
+        workflowId,
+        sessionKey,
+        sessionId: workSession.id,
+        isPaused: localSession.isPaused,
+        sessionsBeforeUpdate: get().activeWorkSessions.size,
+        sessionsAfterUpdate: newSessions.size,
+      })
 
       set({ activeWorkSessions: newSessions })
+
+      // Log after state update to verify
+      rendererLogger.info('[TaskStore] State updated, verifying activeWorkSessions', {
+        currentActiveSessionsSize: get().activeWorkSessions.size,
+        hasSession: get().activeWorkSessions.has(stepId),
+        sessionIsPaused: get().activeWorkSessions.get(stepId)?.isPaused,
+      })
 
       // Update step status in database
       await getDatabase().updateTaskStepProgress(stepId, {
@@ -594,6 +626,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         stepId,
         workflowId,
       })
+
+      // Emit event to trigger UI updates
+      appEvents.emit(EVENTS.SESSION_CHANGED)
     } catch (error) {
       logger.ui.error('Failed to start work on step:', error)
       // Don't throw - handle gracefully
@@ -607,19 +642,47 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       return
     }
 
+    // Starting work on task
+
     try {
       // Start work session in WorkTrackingService for persistence
       const workSession = await getWorkTrackingService().startWorkSession(taskId, undefined, undefined)
 
+      // Work session created successfully
+
       // Sync the session to store's activeWorkSessions so UI can see it
       const localSession: UnifiedWorkSession = {
         ...workSession,
-        isPaused: workSession.isPaused || false,
+        isPaused: false, // Explicitly set to false for new sessions
       }
 
-      set(state => ({
-        activeWorkSessions: new Map(state.activeWorkSessions.set(taskId, localSession)),
-      }))
+      // Create new Map with the session
+      const newSessions = new Map(get().activeWorkSessions)
+      newSessions.set(taskId, localSession)
+
+      rendererLogger.info('[TaskStore] Syncing session to store state', {
+        taskId,
+        sessionId: workSession.id,
+        isPaused: localSession.isPaused,
+        sessionsBeforeUpdate: get().activeWorkSessions.size,
+        sessionsAfterUpdate: newSessions.size,
+      })
+
+      set({ activeWorkSessions: newSessions })
+
+      // State updated with new work session
+      rendererLogger.debug('[TaskStore] State updated for task', {
+        taskId,
+        currentActiveSessionsSize: get().activeWorkSessions.size,
+        hasSession: get().activeWorkSessions.has(taskId),
+        sessionIsPaused: get().activeWorkSessions.get(taskId)?.isPaused,
+        allSessionKeys: Array.from(get().activeWorkSessions.keys()),
+        allSessions: Array.from(get().activeWorkSessions.values()).map(s => ({
+          id: s.id,
+          taskId: s.taskId,
+          isPaused: s.isPaused,
+        })),
+      })
 
       // Update task status in database
       await getDatabase().updateTask(taskId, {
@@ -629,7 +692,11 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       logger.store.info('[TaskStore] Started work on task', {
         taskId,
         sessionId: workSession.id,
+        activeSessionsInStore: get().activeWorkSessions.size,
       })
+
+      // Emit event to trigger UI updates
+      appEvents.emit(EVENTS.SESSION_CHANGED)
     } catch (error) {
       logger.ui.error('Failed to start work on task:', error)
       // Don't throw - handle gracefully
@@ -637,20 +704,59 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   },
 
   pauseWorkOnStep: async (stepId: string) => {
-    const state = get()
-    const session = state.activeWorkSessions.get(stepId)
+    rendererLogger.warn('[TaskStore] ⏸️ pauseWorkOnStep called', { stepId })
 
-    if (!session || session.isPaused) {
-      logger.ui.warn(`No active work session for step ${stepId}`)
+    const state = get()
+    // Find session by checking all sessions for matching stepId
+    let sessionKey: string | null = null
+    let session: UnifiedWorkSession | undefined
+
+    for (const [key, sess] of state.activeWorkSessions) {
+      if (sess.stepId === stepId) {
+        sessionKey = key
+        session = sess
+        break
+      }
+    }
+
+    if (!session || !sessionKey || session.isPaused) {
+      logger.ui.warn(`No active work session for step ${stepId}`, {
+        sessionFound: !!session,
+        sessionKey,
+        allKeys: Array.from(state.activeWorkSessions.keys()),
+      })
       return
     }
 
     try {
       // Get current active session from WorkTrackingService
-      const activeWorkSession = getWorkTrackingService().getCurrentActiveSession()
+      const service = getWorkTrackingService()
+      rendererLogger.warn('[TaskStore] 🔍 Looking for active session', {
+        stepId,
+        serviceInstanceId: (service as any).instanceId,
+      })
+
+      const activeWorkSession = service.getCurrentActiveSession()
+      rendererLogger.warn('[TaskStore] 🎯 Active session result', {
+        foundActiveSession: !!activeWorkSession,
+        activeSessionId: activeWorkSession?.id,
+        activeSessionStepId: activeWorkSession?.stepId,
+        requestedStepId: stepId,
+        matchesStepId: activeWorkSession?.stepId === stepId,
+      })
+
       if (activeWorkSession && activeWorkSession.stepId === stepId) {
         // Pause via WorkTrackingService
-        await getWorkTrackingService().pauseWorkSession(activeWorkSession.id)
+        rendererLogger.warn('[TaskStore] ⏸️ Attempting to pause session', {
+          sessionId: activeWorkSession.id,
+          serviceInstanceId: (service as any).instanceId,
+        })
+        await service.pauseWorkSession(activeWorkSession.id)
+      } else {
+        rendererLogger.error('[TaskStore] ❌ Cannot pause - no matching session found', {
+          requestedStepId: stepId,
+          foundSessionStepId: activeWorkSession?.stepId,
+        })
       }
 
       // Calculate duration since last start
@@ -695,9 +801,13 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }
 
       const newSessions = new Map(state.activeWorkSessions)
-      newSessions.set(stepId, updatedSession)
+      // Use the correct key that we found earlier
+      newSessions.set(sessionKey!, updatedSession)
 
       set({ activeWorkSessions: newSessions })
+
+      // Emit event to trigger UI updates
+      appEvents.emit(EVENTS.SESSION_CHANGED)
     } catch (error) {
       logger.ui.error('Failed to pause work on step:', error)
     }
@@ -866,8 +976,35 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }
     }
 
-    // Fall back to local session state
-    return get().activeWorkSessions.get(stepId)
+    // Fall back to local session state - need to search all sessions for matching stepId
+    const state = get()
+    for (const session of state.activeWorkSessions.values()) {
+      if (session.stepId === stepId) {
+        return session
+      }
+    }
+
+    return undefined
+  },
+
+  isStepActivelyWorkedOn: (stepId: string) => {
+    // Check if there's an active, non-paused work session for this step
+    const state = get()
+
+    // First check WorkTrackingService for authoritative state
+    const activeWorkSession = getWorkTrackingService().getCurrentActiveSession()
+    if (activeWorkSession && activeWorkSession.stepId === stepId && !activeWorkSession.isPaused) {
+      return true
+    }
+
+    // Fallback to local state
+    for (const session of state.activeWorkSessions.values()) {
+      if (session.stepId === stepId && !session.isPaused) {
+        return true
+      }
+    }
+
+    return false
   },
 
   getNextScheduledItem: async () => {

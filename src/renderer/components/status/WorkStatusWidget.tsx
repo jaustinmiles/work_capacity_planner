@@ -31,6 +31,20 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const [isStartingTask, setIsStartingTask] = useState(false)
   // Tracking state removed - handled through time logging modal
 
+  // Debug: Log when activeWorkSessions changes
+  useEffect(() => {
+    logger.ui.info('[WorkStatusWidget] activeWorkSessions changed', {
+      size: activeWorkSessions.size,
+      sessions: Array.from(activeWorkSessions.entries()).map(([key, session]) => ({
+        key,
+        id: session.id,
+        isPaused: session.isPaused,
+        taskId: session.taskId,
+        stepId: session.stepId,
+      })),
+    })
+  }, [activeWorkSessions])
+
   useEffect(() => {
     loadWorkData()
     const interval = setInterval(loadWorkData, 60000) // Update every minute
@@ -134,12 +148,17 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   // Check if there's currently an active work session
   const getActiveSession = () => {
     const sessions = Array.from(activeWorkSessions.values())
-    return sessions.find(session => !session.isPaused) || null
+    const activeSession = sessions.find(session => !session.isPaused) || null
+
+    // Check for active (non-paused) sessions
+
+    return activeSession
   }
 
   const handleStartNextTask = async () => {
     try {
-      logger.ui.info('[WorkStatusWidget] Starting next task...')
+      // Start button clicked
+
       setIsStartingTask(true)
 
       await useTaskStore.getState().startNextTask()
@@ -162,9 +181,12 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const handlePauseCurrentTask = async () => {
     try {
       const activeSession = getActiveSession()
-      if (!activeSession) return
+      if (!activeSession) {
+        logger.ui.warn('[WorkStatusWidget] No active session to pause')
+        return
+      }
 
-      logger.ui.info('[WorkStatusWidget] Pausing current task...')
+      // Pause button clicked
       setIsStartingTask(true)
 
       const store = useTaskStore.getState()
@@ -315,6 +337,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               {(() => {
                 const activeSession = getActiveSession()
                 const isActive = !!activeSession
+
+                // Render button based on active session state
 
                 return (
                   <Button
@@ -528,6 +552,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             {(() => {
               const activeSession = getActiveSession()
               const isActive = !!activeSession
+
+              // Render button based on active session state
 
               return (
                 <Button

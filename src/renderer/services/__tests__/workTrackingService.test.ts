@@ -169,7 +169,7 @@ describe('WorkTrackingService', () => {
       expect(lastSession?.actualMinutes).toBe(30)
     })
 
-    it('should restore sessions on service initialization', async () => {
+    it('should not restore sessions on service initialization', async () => {
       const mockSession = {
         id: 'db-session-1',
         taskId: 'task-123',
@@ -186,8 +186,10 @@ describe('WorkTrackingService', () => {
       }, mockDatabase)
       await newService.initialize()
 
-      expect(newService.getCurrentActiveSession()).toBeTruthy()
-      expect(mockDatabase.getWorkSessions).toHaveBeenCalled()
+      // Sessions should not be restored on initialization
+      expect(newService.getCurrentActiveSession()).toBeNull()
+      // getWorkSessions should not be called for restoration
+      expect(mockDatabase.getWorkSessions).not.toHaveBeenCalled()
     })
 
     it('should clear stale sessions on startup when enabled', async () => {
@@ -200,7 +202,11 @@ describe('WorkTrackingService', () => {
         type: 'focused' as const,
       }
 
-      mockDatabase.getWorkSessions.mockResolvedValue([oldSession])
+      // The clearStaleSessionsBeforeDate method calls getWorkSessions for each of the past 7 days
+      // Return our stale sessions for the first call, empty for the rest
+      mockDatabase.getWorkSessions
+        .mockResolvedValueOnce([oldSession])
+        .mockResolvedValue([])
 
       const newService = new WorkTrackingService({
         clearStaleSessionsOnStartup: true,
@@ -208,7 +214,9 @@ describe('WorkTrackingService', () => {
       }, mockDatabase)
       await newService.initialize()
 
+      // Should clear stale sessions even though restoration is disabled
       expect(mockDatabase.deleteWorkSession).toHaveBeenCalledWith('old-session')
+      expect(mockDatabase.getWorkSessions).toHaveBeenCalled()
     })
   })
 
@@ -240,12 +248,26 @@ describe('WorkTrackingService', () => {
 
       // First pause the session
       await service.pauseWorkSession(sessionId)
-      expect(service.getCurrentActiveSession()?.isPaused).toBe(true)
+
+      // getCurrentActiveSession returns null for paused sessions, so we verify pause worked
+      expect(service.getCurrentActiveSession()).toBeNull()
+
+      // Verify the database was updated with pause state
+      expect(mockDatabase.updateWorkSession).toHaveBeenCalledWith(
+        sessionId,
+        expect.objectContaining({
+          isPaused: true,
+          pausedAt: expect.any(Date),
+        }),
+      )
 
       // Then resume it
       await service.resumeWorkSession(sessionId)
 
+      // After resume, the session should be active again
       const session = service.getCurrentActiveSession()
+      expect(session).toBeDefined()
+      expect(session?.id).toBe(sessionId)
       expect(session?.endTime).toBeUndefined() // Active and not paused
     })
 

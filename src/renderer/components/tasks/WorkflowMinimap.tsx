@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { TaskType } from '@shared/enums'
 import { SequencedTask } from '@shared/sequencing-types'
+import { useTaskStore } from '@renderer/store/useTaskStore'
 
 interface WorkflowMinimapProps {
   task: SequencedTask
@@ -9,6 +10,8 @@ interface WorkflowMinimapProps {
 }
 
 export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMinimapProps) {
+  const isStepActivelyWorkedOn = useTaskStore(state => state.isStepActivelyWorkedOn)
+
   // Calculate positions for incomplete steps
   const { incompleteSteps, layout } = useMemo(() => {
     // Filter to only show incomplete steps
@@ -131,7 +134,7 @@ export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMini
       {incompleteSteps.map((step, index) => {
         const x = padding + (step.level * horizontalSpacing)
         const y = padding + (step.levelIndex * verticalSpacing)
-        const isInProgress = step.status === 'in_progress'
+        const isInProgress = step.status === 'in_progress' && isStepActivelyWorkedOn(step.id)
         const isFocused = step.type === TaskType.Focused
 
         return (

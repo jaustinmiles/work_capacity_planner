@@ -443,39 +443,6 @@ See `/TECH_DEBT.md` for complete list including:
 - Implement memoization for expensive calculations
 - Consider lazy loading for heavy components
 
-## 🚨 PR #70 PATTERNS - TypeScript & Code Quality
-
-### TypeScript Interface Requirements
-**Problem**: Using 'any' type to bypass TypeScript errors
-**Root Cause**: Laziness or time pressure
-**Prevention**: ALWAYS create proper interfaces, even if it takes more time
-```typescript
-// ❌ BAD - Never do this
-const item = scheduledItem as any
-
-// ✅ GOOD - Create proper interface
-interface ScheduledItemWithWorkflow extends ScheduledItem {
-  workflowId?: string
-  workflowName?: string
-}
-const item = scheduledItem as ScheduledItemWithWorkflow
-```
-
-### Dead Code Removal During Refactoring
-**Problem**: Leaving old implementations when migrating to new ones
-**Prevention**: When replacing functionality, immediately remove the old code
-**Check Command**: `grep -r "oldMethodName" src/` before claiming migration complete
-
-### Weekend/Weekday Scheduling Logic
-**Problem**: Treating weekends differently in scheduling
-**Solution**: All days should be treated equally based on user-defined patterns
-**Rationale**: Users define their own work patterns - don't assume weekends are different
-
-### Scheduler Time Context
-**Problem**: Using `new Date()` in schedulers instead of context time
-**Prevention**: ALWAYS use `context.currentTime` for scheduler calculations
-**Why**: Schedulers need to work with simulated time for testing and planning
-
 ## 🚨 MANDATORY VERIFICATION PROTOCOL
 
 ### Before Making ANY Claims

@@ -1473,5 +1473,30 @@
     "description": "Create a REST API server in the main process that allows Claude Code to programmatically interact with the task planner app. This would include: 1) POST /api/workflows/{id}/advance - to advance workflow steps automatically, 2) GET /api/work-sessions/active - to see currently active work sessions, 3) GET /api/workflows/active - to see current workflows in progress, 4) GET /api/schedule/planned - to get planned schedules and upcoming tasks, 5) POST /api/tasks/{id}/start - to start working on a specific task, 6) POST /api/tasks/{id}/complete - to mark tasks as completed. This would enable Claude Code to help users manage their workflows more efficiently by automating routine task progression and providing better visibility into current work state without requiring manual app navigation.",
     "timestamp": "2025-09-10T10:00:00.000Z",
     "sessionId": "session-unified-scheduler-dev"
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "components": [
+      "tasks/TaskList"
+    ],
+    "title": "Task List needs better refresh logic",
+    "description": "Frequently, if I delete a task, or change a workflow or task, or add one, the task list view needs a refresh (command + r) in order to update. Maybe it's not listening to the proper events",
+    "steps": "create a workflow, go to task page, observe workflow isnt there. refresh, observe task appears. Go to workflow pages, delete workflow. Go to task page, observe task display of workflow still remains. Refresh. Observer task disappears. ",
+    "timestamp": "2025-09-11T21:24:50.893Z",
+    "sessionId": "session-1757625890883-645927c3"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "status/WorkStatusWidget"
+    ],
+    "title": "Need Feedback item for Start Next Task, plus work logging issue",
+    "description": "We need to clean up our feedback submission form to make sure that all of the affected components that we have listed tied to actual files in the proper way. The main things I'm concerned about are the work status widget I'm not really sure exactly what this is, but I think it is the thing that shows today's plan capaci what work Block were currently in and how much focused and everything we've completed today but I'm not sure. And then also I'm not sure what the Gantt chart side bar is and why this is listed as it affected component. And then also I wanna make sure that the start next task widget has a feedback entry, but then as for the bug whenever start next task is clicked an hour of work is for some reason automatically logged on that task.",
+    "steps": "Create a task or a workflow that can fit into a schedule block in your schedule and then click start next task button on the work status widget. Observe the message that appears that shows that one hour of work is logged and then click the log button on the top right of the screen to open the swim line view and observed that there is an hour of log time.",
+    "expected": "Log time should only happen when we pause an active work session not when we start one",
+    "timestamp": "2025-09-11T21:30:20.471Z",
+    "sessionId": "session-1757626220464-bf51c781"
   }
 ]

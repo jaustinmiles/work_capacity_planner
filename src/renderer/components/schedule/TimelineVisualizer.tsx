@@ -62,13 +62,10 @@ export function TimelineVisualizer({
     return `${clampedHours.toString().padStart(2, '0')}:${clampedMinutes.toString().padStart(2, '0')}`
   }
 
-  // Round time to nearest 15 minutes
+  // Return time as-is without rounding
   const roundToQuarter = (timeStr: string): string => {
-    const [hours, minutes] = timeStr.split(':').map(Number)
-    const roundedMinutes = Math.round(minutes / 15) * 15
-    const adjustedHours = hours + Math.floor(roundedMinutes / 60)
-    const finalMinutes = roundedMinutes % 60
-    return `${adjustedHours.toString().padStart(2, '0')}:${finalMinutes.toString().padStart(2, '0')}`
+    // No rounding - return the exact time
+    return timeStr
   }
 
   const handleMouseDown = (e: React.MouseEvent, type: 'block' | 'meeting', id: string, edge: 'start' | 'end' | 'move') => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useTaskStore } from '../useTaskStore'
+import { useTaskStore, injectWorkTrackingServiceForTesting, clearInjectedWorkTrackingService } from '../useTaskStore'
 import { TaskType, TaskStatus } from '@shared/enums'
 
 // Mock the database
@@ -63,6 +63,31 @@ describe('Notes Persistence in Time Tracking', () => {
     const dbModule = await import('../../services/database') as any
     mockCreateStepWorkSession = dbModule.__mocks.createStepWorkSession
     mockUpdateTaskStepProgress = dbModule.__mocks.updateTaskStepProgress
+
+    // Create a mock WorkTrackingService instance and inject it
+    const mockService = {
+      startWorkSession: vi.fn().mockResolvedValue({
+        id: 'session-1',
+        taskId: 'task-1',
+        stepId: 'step-1',
+        startTime: new Date(),
+        plannedMinutes: 60,
+        type: 'focused',
+      }),
+      pauseWorkSession: vi.fn().mockResolvedValue(undefined),
+      stopWorkSession: vi.fn().mockResolvedValue(undefined),
+      getCurrentActiveSession: vi.fn().mockReturnValue(null),
+      isAnyWorkActive: vi.fn().mockReturnValue(false),
+      initialize: vi.fn().mockResolvedValue(undefined),
+    }
+
+    // Inject the mock service into the store
+    injectWorkTrackingServiceForTesting(mockService as any)
+  })
+
+  afterEach(() => {
+    // Clear the injected mock service
+    clearInjectedWorkTrackingService()
   })
 
   describe('completeStep', () => {

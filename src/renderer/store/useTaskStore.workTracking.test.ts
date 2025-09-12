@@ -58,6 +58,11 @@ describe('useTaskStore WorkTrackingService Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
+    // Clear any existing state in the store
+    const store = useTaskStore.getState()
+    store.activeWorkSessions.clear()
+    store.sequencedTasks = []
+
     // Create a mock WorkTrackingService and inject it into the store
     mockWorkTrackingService = {
       initialize: vi.fn(),
@@ -153,7 +158,16 @@ describe('useTaskStore WorkTrackingService Integration', () => {
     it('should call WorkTrackingService.pauseWorkSession when pausing work', async () => {
       // Arrange
       const stepId = 'step-123'
+      const workflowId = 'workflow-456'
       const sessionId = 'session-1'
+
+      // First start a work session so it exists in local state
+      mockWorkTrackingService.startWorkSession.mockResolvedValue({
+        id: sessionId,
+        stepId,
+        workflowId,
+        startTime: new Date(Date.now() - 30 * 60000), // 30 minutes ago
+      })
 
       mockWorkTrackingService.getCurrentActiveSession.mockReturnValue({
         id: sessionId,
@@ -163,8 +177,11 @@ describe('useTaskStore WorkTrackingService Integration', () => {
 
       mockWorkTrackingService.pauseWorkSession.mockResolvedValue(undefined)
 
-      // Act
+      // Start work first to populate local state
       const store = useTaskStore.getState()
+      await store.startWorkOnStep(stepId, workflowId)
+
+      // Act - now pause the work
       await store.pauseWorkOnStep(stepId)
 
       // Assert

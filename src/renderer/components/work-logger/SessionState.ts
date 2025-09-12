@@ -30,8 +30,9 @@ export function minutesToTime(minutes: number): string {
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
 }
 
-// Round minutes to nearest 15-minute increment
+// Round minutes to nearest 15-minute interval
 export function roundToQuarter(minutes: number): number {
+  // Round to nearest 15-minute interval
   return Math.round(minutes / 15) * 15
 }
 
