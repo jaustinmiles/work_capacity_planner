@@ -3,8 +3,7 @@
  * Provides structured output that can be easily parsed and analyzed
  */
 
-import { OptimalScheduledItem, OptimalWorkBlock } from '../../renderer/utils/optimal-scheduler'
-import { ScheduledItem } from '../../renderer/utils/flexible-scheduler'
+import { LegacyScheduledItem } from '../../shared/unified-scheduler-adapter'
 import { DailyWorkPattern } from '../../shared/work-blocks-types'
 import { Task } from '../../shared/types'
 import { SequencedTask } from '../../shared/sequencing-types'
@@ -83,9 +82,9 @@ export class ScheduleFormatter {
     schedulerType: 'optimal' | 'flexible' | 'deadline' | 'mixed',
     tasks: Task[],
     workflows: SequencedTask[],
-    scheduledItems: OptimalScheduledItem[] | ScheduledItem[],
+    scheduledItems: LegacyScheduledItem[],
     workPatterns: DailyWorkPattern[],
-    blocks?: OptimalWorkBlock[],
+    blocks?: any[],
     debugInfo?: any,
     warnings?: string[],
   ): ScheduleLogOutput {
@@ -200,7 +199,7 @@ export class ScheduleFormatter {
    * Format Gantt chart display data for logging
    */
   static formatGanttDisplay(
-    scheduledItems: ScheduledItem[],
+    scheduledItems: LegacyScheduledItem[],
     workPatterns: DailyWorkPattern[],
     viewWindow: { start: Date; end: Date },
     tasks: Task[],
@@ -390,7 +389,7 @@ export function logSchedule(
  */
 export function logGanttChart(
   logger: any,
-  scheduledItems: ScheduledItem[],
+  scheduledItems: LegacyScheduledItem[],
   workPatterns: DailyWorkPattern[],
   viewWindow: { start: Date; end: Date },
   tasks: Task[],
