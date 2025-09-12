@@ -6,8 +6,8 @@ import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
-import { useUnifiedScheduler, LegacyScheduleResult } from '../../hooks/useUnifiedScheduler'
-import { LegacyScheduledItem } from '@shared/unified-scheduler-adapter'
+import { useUnifiedScheduler, ScheduleResult } from '../../hooks/useUnifiedScheduler'
+import { ScheduledItem } from '@shared/unified-scheduler-adapter'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
@@ -308,7 +308,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   }
 
   // Helper function to convert UnifiedScheduler results to GanttChart format
-  const convertUnifiedToGanttItems = useCallback((result: LegacyScheduleResult): GanttItem[] => {
+  const convertUnifiedToGanttItems = useCallback((result: ScheduleResult): GanttItem[] => {
     logger.ui.debug('🔄 [GANTT] Converting UnifiedScheduler results to Gantt format', {
       scheduledCount: result.scheduledTasks.length,
       unscheduledCount: result.unscheduledTasks.length,
@@ -326,8 +326,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       }
 
       // Type-safe check for workflow metadata
-      // Extend LegacyScheduledItem with optional workflow properties
-      interface ScheduledItemWithWorkflow extends LegacyScheduledItem {
+      // Extend ScheduledItem with optional workflow properties
+      interface ScheduledItemWithWorkflow extends ScheduledItem {
         workflowId?: string
         workflowName?: string
         stepIndex?: number
@@ -555,7 +555,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         ganttItems[ganttItems.length - 1].endTime :
         new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
     }
-    // Convert GanttItems to LegacyScheduledItem format for logging
+    // Convert GanttItems to ScheduledItem format for logging
     const legacyItems = ganttItems.map(item => ({
       task: {
         ...item.originalItem,

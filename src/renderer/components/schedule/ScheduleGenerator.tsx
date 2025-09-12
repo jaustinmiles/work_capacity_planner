@@ -4,8 +4,8 @@ import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, 
 import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { useUnifiedScheduler, LegacyScheduleResult } from '../../hooks/useUnifiedScheduler'
-import { LegacyScheduledItem } from '@shared/unified-scheduler-adapter'
+import { useUnifiedScheduler, ScheduleResult } from '../../hooks/useUnifiedScheduler'
+import { ScheduledItem } from '@shared/unified-scheduler-adapter'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -30,8 +30,8 @@ interface ScheduleOption {
   id: string
   name: string
   description: string
-  schedule: LegacyScheduledItem[]
-  result: LegacyScheduleResult
+  schedule: ScheduledItem[]
+  result: ScheduleResult
   score: {
     deadlinesMet: number
     capacityUtilization: number
@@ -263,7 +263,7 @@ export function ScheduleGenerator({
 
   const renderSchedulePreview = (option: ScheduleOption) => {
     // Group schedule items by date
-    const itemsByDate = new Map<string, LegacyScheduledItem[]>()
+    const itemsByDate = new Map<string, ScheduledItem[]>()
 
     for (const item of option.schedule) {
       const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
@@ -337,7 +337,7 @@ export function ScheduleGenerator({
       const db = getDatabase()
 
       // Group scheduled items by date
-      const itemsByDate = new Map<string, LegacyScheduledItem[]>()
+      const itemsByDate = new Map<string, ScheduledItem[]>()
 
       for (const item of selected.schedule) {
         const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
@@ -470,7 +470,7 @@ export function ScheduleGenerator({
 
       // Save the schedule to the store if it's an optimal schedule
       if (selected.id === 'optimal') {
-        // Convert LegacyScheduledItem to the format expected by the store
+        // Convert ScheduledItem to the format expected by the store
         const storeSchedule = selected.schedule.map(item => ({
           id: item.task.id,
           name: item.task.name,

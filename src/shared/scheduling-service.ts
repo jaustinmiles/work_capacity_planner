@@ -9,7 +9,7 @@ import {
   WeeklySchedule,
   TimeBreak,
 } from './scheduling-models'
-import { UnifiedSchedulerAdapter, LegacyScheduleResult } from './unified-scheduler-adapter'
+import { UnifiedSchedulerAdapter, ScheduleResult as AdapterScheduleResult } from './unified-scheduler-adapter'
 import { SchedulingDebugInfo } from './unified-scheduler'
 import { DailyWorkPattern } from './work-blocks-types'
 import { logger } from './logger'
@@ -186,15 +186,15 @@ export class SchedulingService {
 
 
   /**
-   * Convert FROM UnifiedScheduler's LegacyScheduleResult TO the old SchedulingResult format
+   * Convert FROM UnifiedScheduler's ScheduleResult TO the old SchedulingResult format
    */
-  private convertFromLegacySchedulingResult(
-    legacyResult: LegacyScheduleResult,
+  private convertFromSchedulingResult(
+    result: AdapterScheduleResult,
     tasks: Task[],
     sequencedTasks: SequencedTask[],
   ): SchedulingResult {
     // Convert scheduled tasks to ScheduledWorkItem format
-    const scheduledItems = legacyResult.scheduledTasks.map(item => ({
+    const scheduledItems = result.scheduledTasks.map(item => ({
       // Base SchedulableItem properties
       id: item.task.id,
       name: item.task.name,
@@ -226,7 +226,7 @@ export class SchedulingService {
     const unscheduledItems: any[] = []
 
     // Add unscheduled regular tasks
-    legacyResult.unscheduledTasks.forEach(task => {
+    result.unscheduledTasks.forEach(task => {
       unscheduledItems.push({
         id: task.id,
         name: task.name,
@@ -282,7 +282,7 @@ export class SchedulingService {
       success: true,
       scheduledItems,
       unscheduledItems,
-      totalWorkDays: Math.ceil(legacyResult.totalDuration / (8 * 60)), // Assume 8-hour work days
+      totalWorkDays: Math.ceil(result.totalDuration / (8 * 60)), // Assume 8-hour work days
       totalFocusedHours: scheduledItems
         .filter(item => item.type === TaskType.Focused)
         .reduce((sum, item) => sum + item.duration / 60, 0),
@@ -290,9 +290,9 @@ export class SchedulingService {
         .filter(item => item.type === TaskType.Admin)
         .reduce((sum, item) => sum + item.duration / 60, 0),
       projectedCompletionDate,
-      overCapacityDays: this.extractOverCapacityDays(legacyResult.debugInfo),
-      underUtilizedDays: this.extractUnderUtilizedDays(legacyResult.debugInfo),
-      conflicts: legacyResult.conflicts.map(conflict => ({
+      overCapacityDays: this.extractOverCapacityDays(result.debugInfo),
+      underUtilizedDays: this.extractUnderUtilizedDays(result.debugInfo),
+      conflicts: result.conflicts.map(conflict => ({
         type: 'dependency_cycle' as const,
         affectedItems: [],
         description: conflict,
@@ -412,7 +412,7 @@ export class SchedulingService {
       debug: options.debug || false,
     }
 
-    const legacyResult = this.unifiedAdapter.scheduleTasks(
+    const result = this.unifiedAdapter.scheduleTasks(
       tasks,
       workPatterns,
       legacyOptions,
@@ -420,14 +420,14 @@ export class SchedulingService {
     )
 
     logger.scheduler.info('✅ [SchedulingService] UnifiedScheduler completed', {
-      scheduledCount: legacyResult.scheduledTasks.length,
-      unscheduledCount: legacyResult.unscheduledTasks.length,
-      totalDuration: legacyResult.totalDuration,
-      conflicts: legacyResult.conflicts.length,
+      scheduledCount: result.scheduledTasks.length,
+      unscheduledCount: result.unscheduledTasks.length,
+      totalDuration: result.totalDuration,
+      conflicts: result.conflicts.length,
     })
 
     // Convert back to legacy SchedulingResult format
-    return this.convertFromLegacySchedulingResult(legacyResult, tasks, sequencedTasks)
+    return this.convertFromSchedulingResult(result, tasks, sequencedTasks)
   }
 
   /**

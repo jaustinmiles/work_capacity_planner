@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { UnifiedSchedulerAdapter, LegacySchedulingOptions, LegacyScheduleResult } from '@shared/unified-scheduler-adapter'
+import { UnifiedSchedulerAdapter, SchedulingOptions, ScheduleResult } from '@shared/unified-scheduler-adapter'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
@@ -10,11 +10,11 @@ import { logger } from '../utils/logger'
  * Provides logging-enhanced scheduling functionality with performance monitoring
  */
 export function useUnifiedScheduler(): {
-  scheduleForGantt: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: LegacySchedulingOptions, sequencedTasks?: SequencedTask[]) => LegacyScheduleResult
-  getNextScheduledTask: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: LegacySchedulingOptions, sequencedTasks?: SequencedTask[]) => any
+  scheduleForGantt: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => ScheduleResult
+  getNextScheduledTask: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => any
   validateDependencies: (tasks: Task[]) => { isValid: boolean; errors: string[] }
   calculateTaskPriority: (task: Task) => number
-  getSchedulingMetrics: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: LegacySchedulingOptions, sequencedTasks?: SequencedTask[]) => any
+  getSchedulingMetrics: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => any
   adapter: UnifiedSchedulerAdapter
 } {
   const adapter = useMemo(() => {
@@ -25,9 +25,9 @@ export function useUnifiedScheduler(): {
   const scheduleForGantt = useCallback((
     tasks: Task[],
     workPatterns: DailyWorkPattern[],
-    options: LegacySchedulingOptions = {},
+    options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
-  ): LegacyScheduleResult => {
+  ): ScheduleResult => {
     const startTime = globalThis.performance.now()
 
     logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {
@@ -108,7 +108,7 @@ export function useUnifiedScheduler(): {
   const getNextScheduledTask = useCallback((
     tasks: Task[],
     workPatterns: DailyWorkPattern[],
-    options: LegacySchedulingOptions = {},
+    options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
   ) => {
     logger.ui.debug('🎯 [GANTT] Getting next scheduled task')
@@ -171,7 +171,7 @@ export function useUnifiedScheduler(): {
   const getSchedulingMetrics = useCallback((
     tasks: Task[],
     workPatterns: DailyWorkPattern[],
-    options: LegacySchedulingOptions = {},
+    options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
   ) => {
     logger.ui.debug('📈 [GANTT] Calculating scheduling metrics')
@@ -206,4 +206,4 @@ export function useUnifiedScheduler(): {
 }
 
 // Export types for convenience
-export type { LegacyScheduleResult, LegacySchedulingOptions } from '@shared/unified-scheduler-adapter'
+export type { ScheduleResult, SchedulingOptions } from '@shared/unified-scheduler-adapter'
