@@ -1,40 +1,5 @@
 # Cumulative Insights
 
-## PR #70 Learnings - Scheduler Unification (2025-09-11)
-
-### What Went Well
-- **PR Review Scripts Work**: The pr-review-tracker.ts and pr-comment-reply.ts scripts made review management much smoother
-- **Logger Unification Success**: Successfully removed all default logger functions and unified on single logger module
-- **TypeScript Interface Discipline**: Replaced all 'any' type hacks with proper interfaces after review feedback
-- **Work Block Fix**: Identified and fixed critical bug where scheduler was using new Date() instead of context time
-
-### What Went Wrong
-- **Timezone Testing Complexity**: Production bug test fails in CI due to UTC vs PDT timezone differences
-- **Low Test Coverage**: Only 30.9% coverage after major refactoring - should have added more tests
-- **Console.log Cleanup Incomplete**: Still have 77 instances despite claiming full replacement
-- **Lint Warning Accumulation**: 1,947 warnings is excessive - should have fixed incrementally
-
-### Patterns Discovered
-- **Anti-pattern**: Using 'any' type to bypass TypeScript errors → **Solution**: Create proper interfaces even if it takes more time
-- **Anti-pattern**: Weekend/weekday logic in scheduling → **Solution**: Treat all days equally based on user patterns
-- **Best Practice**: Use context.currentTime consistently → **Standardize**: Never use new Date() in schedulers
-- **Best Practice**: Verify changes with grep before claiming complete → **Standardize**: Add to PR checklist
-
-### Code Smells Identified
-- **Dead Code**: generateSchedule and getOptimalSchedule methods still referenced but superseded by UnifiedScheduler
-- **Naming Confusion**: convertToLegacySchedulingResult actually converts FROM legacy → renamed appropriately
-- **Missing Implementation**: overCapacityDays and underUtilizedDays were stubbed → now properly implemented
-
-### Review Pattern Analysis
-**Review Cycles**: 4 total (3 changes requested, 1 approved)
-**Common Issues**:
-1. Type safety violations (using 'any')
-2. Dead code retention
-3. Incomplete migrations (console.log)
-4. Missing functionality (capacity tracking)
-
-**Time Investment**: 25+ hours for a single component migration indicates scheduler unification will be a multi-PR effort
-
 ## PR #67 Review Disaster Analysis (2025-09-09)
 
 ### Root Cause: Pattern of False Completion Claims
