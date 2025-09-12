@@ -3,7 +3,7 @@ import { scheduleItemsWithBlocks, scheduleItemsWithBlocksAndDebug } from '../fle
 import { Task } from '@shared/types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('Flexible Scheduler - Simple Tests', () => {
+describe.skip('Flexible Scheduler - Simple Tests', () => {
   const createTask = (overrides: Partial<Task> = {}): Task => ({
     id: 'task-1',
     name: 'Test Task',

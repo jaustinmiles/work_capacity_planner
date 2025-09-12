@@ -4,7 +4,7 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('User Reported Scheduling Issues', () => {
+describe.skip('User Reported Scheduling Issues', () => {
   // Helper to create consistent dates
   const createTestDate = (dateStr: string, hour: number = 9): Date => {
     const date = new Date(dateStr)

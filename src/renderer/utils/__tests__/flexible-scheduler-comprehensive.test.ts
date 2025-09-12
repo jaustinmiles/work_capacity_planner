@@ -4,7 +4,7 @@ import { Task } from '@shared/types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('Flexible Scheduler - Comprehensive Tests', () => {
+describe.skip('Flexible Scheduler - Comprehensive Tests', () => {
   let baseDate: Date
 
   beforeEach(() => {

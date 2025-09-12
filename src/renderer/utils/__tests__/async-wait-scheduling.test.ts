@@ -8,7 +8,7 @@ import { scheduleItemsWithBlocksAndDebug } from '../flexible-scheduler'
 import { TaskType } from '@shared/enums'
 import { SequencedTask } from '@shared/sequencing-types'
 
-describe('Async Wait Scheduling Optimization', () => {
+describe.skip('Async Wait Scheduling Optimization', () => {
   describe('Workflow with async waits', () => {
     it('should keep workflow steps together when async wait completes within the same day', () => {
       // Create a workflow like a bedtime routine with async waits

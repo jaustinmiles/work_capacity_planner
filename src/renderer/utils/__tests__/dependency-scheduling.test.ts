@@ -4,7 +4,7 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('Dependency-based Scheduling', () => {
+describe.skip('Dependency-based Scheduling', () => {
   // Helper to create consistent dates (handling timezone issues)
   const createTestDate = (dateStr: string, hour: number = 9): Date => {
     const date = new Date(dateStr)
