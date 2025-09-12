@@ -22,6 +22,12 @@ interface DebugInfo {
     capacity: number
     used: number
     utilizationPercent: number
+    focusUsed?: number
+    focusTotal?: number
+    adminUsed?: number
+    adminTotal?: number
+    personalUsed?: number
+    personalTotal?: number
   }>
 }
 
@@ -178,12 +184,15 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   {
                     title: 'Focus',
                     render: (_, record) => {
-                      const isFullyUsed = record.focusUsed === record.focusTotal
-                      const color = isFullyUsed ? 'green' : record.focusUsed > 0 ? 'blue' : 'gray'
+                      const focusUsed = record.focusUsed ?? 0
+                      const focusTotal = record.focusTotal ?? 0
+                      if (focusTotal === 0) return '-'
+                      const isFullyUsed = focusUsed === focusTotal
+                      const color = isFullyUsed ? 'green' : focusUsed > 0 ? 'blue' : 'gray'
                       return (
                         <Space>
                           <Tag color={color} size="small">
-                            {record.focusUsed}/{record.focusTotal}
+                            {focusUsed}/{focusTotal}
                           </Tag>
                         </Space>
                       )
@@ -192,12 +201,15 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   {
                     title: 'Admin',
                     render: (_, record) => {
-                      const isFullyUsed = record.adminUsed === record.adminTotal
-                      const color = isFullyUsed ? 'green' : record.adminUsed > 0 ? 'blue' : 'gray'
+                      const adminUsed = record.adminUsed ?? 0
+                      const adminTotal = record.adminTotal ?? 0
+                      if (adminTotal === 0) return '-'
+                      const isFullyUsed = adminUsed === adminTotal
+                      const color = isFullyUsed ? 'green' : adminUsed > 0 ? 'blue' : 'gray'
                       return (
                         <Space>
                           <Tag color={color} size="small">
-                            {record.adminUsed}/{record.adminTotal}
+                            {adminUsed}/{adminTotal}
                           </Tag>
                         </Space>
                       )
@@ -206,14 +218,15 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   {
                     title: 'Personal',
                     render: (_, record) => {
-                      if (!record.personalTotal || record.personalTotal === 0) return '-'
-                      const personalUsed = record.personalUsed || 0
-                      const isFullyUsed = personalUsed === record.personalTotal
+                      const personalUsed = record.personalUsed ?? 0
+                      const personalTotal = record.personalTotal ?? 0
+                      if (personalTotal === 0) return '-'
+                      const isFullyUsed = personalUsed === personalTotal
                       const color = isFullyUsed ? 'green' : personalUsed > 0 ? 'purple' : 'gray'
                       return (
                         <Space>
                           <Tag color={color} size="small">
-                            {personalUsed}/{record.personalTotal}
+                            {personalUsed}/{personalTotal}
                           </Tag>
                         </Space>
                       )
