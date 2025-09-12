@@ -1,7 +1,29 @@
 import React from 'react'
 import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
-import { SchedulingDebugInfo as DebugInfo } from '../../utils/flexible-scheduler'
+
+// Local type definition for debug info
+interface DebugInfo {
+  unscheduledItems: Array<{
+    id: string
+    name: string
+    duration: number
+    type: string
+    reason: string
+  }>
+  warnings: string[]
+  unusedFocusCapacity: number
+  unusedAdminCapacity: number
+  blockUtilization: Array<{
+    date: string
+    blockStart: string
+    blockEnd: string
+    type: string
+    capacity: number
+    used: number
+    utilizationPercent: number
+  }>
+}
 
 const { Title, Text } = Typography
 
