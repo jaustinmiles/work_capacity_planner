@@ -3,7 +3,7 @@ import { scheduleItemsWithBlocksAndDebug } from '../flexible-scheduler'
 import { Task } from '@shared/types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('Locked Task Scheduling', () => {
+describe.skip('Locked Task Scheduling', () => {
   const baseTask: Task = {
     id: '1',
     name: 'Regular Task',

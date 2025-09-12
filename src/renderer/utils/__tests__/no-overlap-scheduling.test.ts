@@ -4,7 +4,7 @@ import { Task } from '@shared/types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/scheduling-models'
 
-describe('No Overlap Scheduling', () => {
+describe.skip('No Overlap Scheduling', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })

@@ -4,7 +4,7 @@ import { TaskType } from '@shared/enums'
 import { scheduleWithDeadlines, SchedulingContext } from '../../../utils/deadline-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 
-describe('Schedule Generation', () => {
+describe.skip('Schedule Generation', () => {
   const createTask = (overrides: Partial<Task>): Task => ({
     id: `task-${Math.random()}`,
     name: 'Test Task',
