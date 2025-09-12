@@ -555,7 +555,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         ganttItems[ganttItems.length - 1].endTime :
         new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
     }
-    logGanttChart(logger.ui, ganttItems, workPatterns, viewWindow, tasks, sequencedTasks, unifiedDebugInfo)
+    // Convert GanttItems to LegacyScheduledItem format for logging
+    const legacyItems = ganttItems.map(item => ({
+      task: {
+        ...item.originalItem,
+        id: item.id,
+        name: item.name,
+        type: item.type as any,
+        duration: item.duration,
+        priority: item.priority,
+        deadline: item.deadline,
+      } as any,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      blockId: item.blockId,
+      priority: item.priority,
+    }))
+    logGanttChart(logger.ui, legacyItems, workPatterns, viewWindow, tasks, sequencedTasks, unifiedDebugInfo)
 
     // Auto-show debug info if there are issues
     if (unifiedDebugInfo.unscheduledItems.length > 0 || unifiedDebugInfo.warnings.length > 0) {
@@ -1908,7 +1924,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
       {/* Scheduling Debug Info */}
       {showDebugInfo && debugInfo && (
-        <DebugInfoComponent debugInfo={debugInfo} />
+        <DebugInfoComponent debugInfo={{
+          ...debugInfo,
+          unusedFocusCapacity: (debugInfo as any).unusedCapacity?.focus || 0,
+          unusedAdminCapacity: (debugInfo as any).unusedCapacity?.admin || 0,
+        } as any} />
       )}
     </Space>
   )
