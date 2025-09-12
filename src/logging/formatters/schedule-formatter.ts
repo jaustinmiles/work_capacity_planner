@@ -3,7 +3,7 @@
  * Provides structured output that can be easily parsed and analyzed
  */
 
-import { LegacyScheduledItem } from '../../shared/unified-scheduler-adapter'
+import { ScheduledItem } from '../../shared/unified-scheduler-adapter'
 import { DailyWorkPattern } from '../../shared/work-blocks-types'
 import { Task } from '../../shared/types'
 import { SequencedTask } from '../../shared/sequencing-types'
@@ -82,7 +82,7 @@ export class ScheduleFormatter {
     schedulerType: 'optimal' | 'flexible' | 'deadline' | 'mixed',
     tasks: Task[],
     workflows: SequencedTask[],
-    scheduledItems: LegacyScheduledItem[],
+    scheduledItems: ScheduledItem[],
     workPatterns: DailyWorkPattern[],
     blocks?: any[],
     debugInfo?: any,
@@ -90,7 +90,7 @@ export class ScheduleFormatter {
   ): ScheduleLogOutput {
     const now = new Date()
     const scheduled = scheduledItems.filter(item => {
-      const taskType = (item.task as any).type
+      const taskType = item.task.type
       return taskType !== 'async-wait' && taskType !== 'break'
     })
 
@@ -147,7 +147,7 @@ export class ScheduleFormatter {
         endTime: item.endTime.toISOString(),
         duration: item.task.duration,
         priority: item.priority,
-        dependencies: (item.task as any).dependencies,
+        dependencies: item.task.dependencies,
         blockId: item.blockId,
       })),
       warnings,
@@ -161,7 +161,7 @@ export class ScheduleFormatter {
         type: item.type,
         duration: item.duration,
         reason: item.reason || 'Unknown reason',
-        dependencies: (item as any).dependencies,
+        dependencies: 'dependencies' in item ? (item as Task).dependencies : undefined,
       }))
     }
 
@@ -200,7 +200,7 @@ export class ScheduleFormatter {
    * Format Gantt chart display data for logging
    */
   static formatGanttDisplay(
-    scheduledItems: LegacyScheduledItem[],
+    scheduledItems: ScheduledItem[],
     workPatterns: DailyWorkPattern[],
     viewWindow: { start: Date; end: Date },
     tasks: Task[],
@@ -258,7 +258,7 @@ export class ScheduleFormatter {
         type: item.type,
         duration: item.duration,
         reason: item.reason,
-        dependencies: (item as any).dependencies,
+        dependencies: 'dependencies' in item ? (item as Task).dependencies : undefined,
       })),
       warnings: debugInfo.warnings,
       debugInfo: {
@@ -390,7 +390,7 @@ export function logSchedule(
  */
 export function logGanttChart(
   logger: any,
-  scheduledItems: LegacyScheduledItem[],
+  scheduledItems: ScheduledItem[],
   workPatterns: DailyWorkPattern[],
   viewWindow: { start: Date; end: Date },
   tasks: Task[],
