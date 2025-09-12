@@ -18,6 +18,12 @@ import { logSchedule } from '../../../logging/formatters/schedule-formatter'
 const { Title, Text } = Typography
 const { Row, Col } = Grid
 
+// Extended ScheduledItem type for UI display
+interface ExtendedScheduledItem extends ScheduledItem {
+  isWorkflowStep?: boolean
+  stepIndex?: number
+}
+
 interface ScheduleGeneratorProps {
   visible: boolean
   onClose: () => void
@@ -162,7 +168,7 @@ export function ScheduleGenerator({
           originalItem: item.task,
         })),
         baseWorkPatterns,
-        [], // blocks will be derived from work patterns
+        undefined, // blocks parameter removed as it's derived from work patterns
         {
           unscheduledItems: optimalResult.unscheduledTasks,
           warnings: optimalResult.conflicts,
@@ -181,7 +187,7 @@ export function ScheduleGenerator({
             Math.max(0, 100 - (optimalResult.unscheduledTasks.length * 10)),
           capacityUtilization: optimalResult.scheduledTasks.length > 0 ? 85 : 0,
           asyncOptimization: 90,
-          cognitiveMatch: 80,
+          cognitiveMatch: 80, // TODO: Calculate based on task type distribution in time blocks
         },
       })
 
@@ -209,7 +215,7 @@ export function ScheduleGenerator({
           deadlinesMet: balancedResult.conflicts.length === 0 ? 100 : 70,
           capacityUtilization: 85,
           asyncOptimization: 75,
-          cognitiveMatch: 80,
+          cognitiveMatch: 80, // TODO: Calculate based on task type distribution in time blocks
         },
       })
 
@@ -245,7 +251,7 @@ export function ScheduleGenerator({
           deadlinesMet: asyncResult.conflicts.length === 0 ? 100 : 60,
           capacityUtilization: 80,
           asyncOptimization: 95,
-          cognitiveMatch: 75,
+          cognitiveMatch: 75, // TODO: Calculate based on task type distribution in time blocks
         },
       })
 
@@ -289,8 +295,9 @@ export function ScheduleGenerator({
                     <Text type="secondary">No tasks scheduled</Text>
                   ) : (
                     items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime()).map(item => {
-                      const isWorkflowStep = (item as any).isWorkflowStep
-                      const stepIndex = (item as any).stepIndex
+                      const extendedItem = item as ExtendedScheduledItem
+                      const isWorkflowStep = extendedItem.isWorkflowStep
+                      const stepIndex = extendedItem.stepIndex
                       return (
                         <div
                           key={item.task.id}
