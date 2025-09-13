@@ -1167,6 +1167,8 @@ export class UnifiedScheduler {
             // Schedule the full item
             const scheduledItem = this.scheduleItemInBlock(item, fitResult, false)
             scheduled.push(scheduledItem)
+            
+            
             remaining.splice(itemIndex, 1)
             scheduledItemsToday = true
             madeProgress = true
@@ -1695,6 +1697,7 @@ export class UnifiedScheduler {
     const startTime = this.parseTimeOnDate(date, block.startTime)
     const endTime = this.parseTimeOnDate(date, block.endTime)
     const totalMinutes = (endTime.getTime() - startTime.getTime()) / 60000
+    
 
     // Handle flexible blocks specially - they can accept any task type
     if (block.type === 'flexible') {
@@ -1703,10 +1706,11 @@ export class UnifiedScheduler {
         blockType: 'flexible',
         startTime,
         endTime,
-        // Flexible blocks have full capacity for both focus and admin work
-        focusMinutesTotal: block.capacity?.focusMinutes || totalMinutes,
+        // Flexible blocks have a SHARED pool of time that can be used for either focus or admin
+        // We track it in focusMinutesTotal since that's checked first
+        focusMinutesTotal: totalMinutes,
         focusMinutesUsed: 0,
-        adminMinutesTotal: block.capacity?.adminMinutes || totalMinutes,
+        adminMinutesTotal: 0, // Set to 0 to avoid double-counting capacity
         adminMinutesUsed: 0,
         personalMinutesTotal: block.capacity?.personalMinutes || 0,
         personalMinutesUsed: 0,
@@ -1781,8 +1785,12 @@ export class UnifiedScheduler {
       availableCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal -
                          (block.focusMinutesUsed + block.adminMinutesUsed + block.personalMinutesUsed)
     } else if (block.blockType === 'flexible' && item.taskType !== TaskType.Personal) {
-      // Flexible blocks can accept any non-personal work
-      availableCapacity = block.focusMinutesTotal - (block.focusMinutesUsed + block.adminMinutesUsed)
+      // Flexible blocks have a shared pool - total capacity minus what's been used
+      // Note: For flexible blocks, focusMinutesTotal represents the total available time
+      // that can be used for either focus OR admin work
+      const totalCapacity = block.focusMinutesTotal
+      const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed
+      availableCapacity = totalCapacity - totalUsed
     } else if (item.taskType === TaskType.Focused) {
       availableCapacity = block.focusMinutesTotal - block.focusMinutesUsed
     } else if (item.taskType === TaskType.Admin) {
@@ -1801,6 +1809,7 @@ export class UnifiedScheduler {
       s.startTime < block.endTime &&
       s.endTime > block.startTime,
     )
+    
 
     // Find available time slot within the block
     const availableMinutes = Math.min(availableCapacity,
@@ -1836,6 +1845,7 @@ export class UnifiedScheduler {
     let startTime = fitResult.startTime || new Date()
     const duration = isPartial ? (fitResult.availableMinutes || 0) : item.duration
 
+
     // Ensure start time is after all dependencies complete
     if (item.dependencies?.length) {
       const latestDependencyEnd = this.getLatestDependencyEndTime(item)
@@ -1845,6 +1855,7 @@ export class UnifiedScheduler {
     }
 
     const endTime = new Date(startTime.getTime() + duration * 60000)
+    
 
     return {
       ...item,
@@ -1880,6 +1891,9 @@ export class UnifiedScheduler {
   private updateBlockCapacity(block: BlockCapacity | undefined, item: UnifiedScheduleItem): void {
     if (!block) return
 
+    const beforeFocus = block.focusMinutesUsed
+    const beforeAdmin = block.adminMinutesUsed
+    
     // Update the appropriate capacity based on task type
     if (block.blockType === 'flexible') {
       // Flexible blocks track both focus and admin usage separately
@@ -1900,6 +1914,7 @@ export class UnifiedScheduler {
         block.personalMinutesUsed = (block.personalMinutesUsed || 0) + item.duration
       }
     }
+    
   }
 
   /**
@@ -1907,8 +1922,13 @@ export class UnifiedScheduler {
    */
   private parseTimeOnDate(date: Date, timeStr: string): Date {
     const [hours, minutes] = timeStr.split(':').map(Number)
-    const result = new Date(date)
-    result.setHours(hours, minutes, 0, 0)
+    // Create a new date in UTC to avoid timezone issues
+    const year = date.getUTCFullYear()
+    const month = date.getUTCMonth()
+    const day = date.getUTCDate()
+    
+    // Set the time in UTC
+    const result = new Date(Date.UTC(year, month, day, hours, minutes, 0, 0))
     return result
   }
 
@@ -1934,6 +1954,7 @@ export class UnifiedScheduler {
     // Ensure we don't schedule in the past
     const now = currentTime || new Date()
     const effectiveStartTime = new Date(Math.max(block.startTime.getTime(), now.getTime()))
+
 
     // If no items scheduled in this block, return the effective start time
     if (scheduledInBlock.length === 0) {
