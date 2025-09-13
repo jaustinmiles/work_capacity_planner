@@ -1922,13 +1922,10 @@ export class UnifiedScheduler {
    */
   private parseTimeOnDate(date: Date, timeStr: string): Date {
     const [hours, minutes] = timeStr.split(':').map(Number)
-    // Create a new date in UTC to avoid timezone issues
-    const year = date.getUTCFullYear()
-    const month = date.getUTCMonth()
-    const day = date.getUTCDate()
-    
-    // Set the time in UTC
-    const result = new Date(Date.UTC(year, month, day, hours, minutes, 0, 0))
+    // Create a new date in local time - the time strings like "09:00" 
+    // represent local time for the user, not UTC
+    const result = new Date(date)
+    result.setHours(hours, minutes, 0, 0)
     return result
   }
 
@@ -2519,9 +2516,28 @@ export class UnifiedScheduler {
         const utilizationPercent = totalMinutes > 0 ? (totalUsed / totalMinutes) * 100 : 0
 
         // Calculate capacity from block
-        const focusTotal = block.capacity?.focusMinutes || 0
-        const adminTotal = block.capacity?.adminMinutes || 0
-        const personalTotal = block.capacity?.personalMinutes || 0
+        // For flexible blocks, the total capacity is the block duration
+        // For typed blocks, use the specified capacity or block duration
+        let focusTotal = 0
+        let adminTotal = 0
+        let personalTotal = 0
+        
+        if (block.type === 'flexible') {
+          // Flexible blocks have a shared pool - report it as focus capacity
+          focusTotal = totalMinutes
+          adminTotal = 0  // Don't double-count
+        } else if (block.type === 'focused') {
+          focusTotal = block.capacity?.focusMinutes || totalMinutes
+        } else if (block.type === 'admin') {
+          adminTotal = block.capacity?.adminMinutes || totalMinutes
+        } else if (block.type === 'personal') {
+          personalTotal = block.capacity?.personalMinutes || totalMinutes
+        } else if (block.type === 'mixed') {
+          // Mixed blocks should have explicit capacity
+          focusTotal = block.capacity?.focusMinutes || 0
+          adminTotal = block.capacity?.adminMinutes || 0
+          personalTotal = block.capacity?.personalMinutes || 0
+        }
 
         utilization.push({
           date: pattern.date,
