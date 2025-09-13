@@ -1150,8 +1150,11 @@ export class UnifiedScheduler {
           }
 
           // Try to fit item in available blocks
-          // Pass current time only on first day to avoid scheduling in the past
-          const currentTimeToUse = dayIndex === 0 ? (config.currentTime || new Date()) : undefined
+          // Only use current time constraint if:
+          // 1. We're on the first day of scheduling (dayIndex === 0)
+          // 2. AND we have a current time to respect (config.currentTime is provided)
+          // This prevents using "now" when scheduling future days
+          const currentTimeToUse = (dayIndex === 0 && config.currentTime) ? config.currentTime : undefined
           const fitResult = this.findBestBlockForItem(item, dayBlocks, scheduled, currentDate, currentTimeToUse)
 
           if (config.debugMode) {
@@ -1167,6 +1170,8 @@ export class UnifiedScheduler {
             // Schedule the full item
             const scheduledItem = this.scheduleItemInBlock(item, fitResult, false)
             scheduled.push(scheduledItem)
+
+
             remaining.splice(itemIndex, 1)
             scheduledItemsToday = true
             madeProgress = true
@@ -1696,6 +1701,7 @@ export class UnifiedScheduler {
     const endTime = this.parseTimeOnDate(date, block.endTime)
     const totalMinutes = (endTime.getTime() - startTime.getTime()) / 60000
 
+
     // Handle flexible blocks specially - they can accept any task type
     if (block.type === 'flexible') {
       return {
@@ -1703,10 +1709,11 @@ export class UnifiedScheduler {
         blockType: 'flexible',
         startTime,
         endTime,
-        // Flexible blocks have full capacity for both focus and admin work
-        focusMinutesTotal: block.capacity?.focusMinutes || totalMinutes,
+        // Flexible blocks have a SHARED pool of time that can be used for either focus or admin
+        // We track it in focusMinutesTotal since that's checked first
+        focusMinutesTotal: totalMinutes,
         focusMinutesUsed: 0,
-        adminMinutesTotal: block.capacity?.adminMinutes || totalMinutes,
+        adminMinutesTotal: 0, // Set to 0 to avoid double-counting capacity
         adminMinutesUsed: 0,
         personalMinutesTotal: block.capacity?.personalMinutes || 0,
         personalMinutesUsed: 0,
@@ -1781,8 +1788,12 @@ export class UnifiedScheduler {
       availableCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal -
                          (block.focusMinutesUsed + block.adminMinutesUsed + block.personalMinutesUsed)
     } else if (block.blockType === 'flexible' && item.taskType !== TaskType.Personal) {
-      // Flexible blocks can accept any non-personal work
-      availableCapacity = block.focusMinutesTotal - (block.focusMinutesUsed + block.adminMinutesUsed)
+      // Flexible blocks have a shared pool - total capacity minus what's been used
+      // Note: For flexible blocks, focusMinutesTotal represents the total available time
+      // that can be used for either focus OR admin work
+      const totalCapacity = block.focusMinutesTotal
+      const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed
+      availableCapacity = totalCapacity - totalUsed
     } else if (item.taskType === TaskType.Focused) {
       availableCapacity = block.focusMinutesTotal - block.focusMinutesUsed
     } else if (item.taskType === TaskType.Admin) {
@@ -1802,23 +1813,36 @@ export class UnifiedScheduler {
       s.endTime > block.startTime,
     )
 
+
     // Find available time slot within the block
     const availableMinutes = Math.min(availableCapacity,
       this.calculateAvailableTimeInBlock(block, blockScheduled))
 
-    if (item.duration <= availableMinutes) {
+    // Find when we can start in this block
+    const potentialStartTime = this.findNextAvailableTime(block, blockScheduled, currentTime)
+
+    // Check if we're past the block or can't fit
+    if (potentialStartTime.getTime() >= block.endTime.getTime()) {
+      return { canFit: false, canPartiallyFit: false }
+    }
+
+    // Calculate how much time is actually available from the start time
+    const timeFromStart = Math.floor((block.endTime.getTime() - potentialStartTime.getTime()) / 60000)
+    const actualAvailableMinutes = Math.min(availableMinutes, timeFromStart)
+
+    if (item.duration <= actualAvailableMinutes) {
       return {
         canFit: true,
         canPartiallyFit: true,
-        availableMinutes,
-        startTime: this.findNextAvailableTime(block, blockScheduled, currentTime),
+        availableMinutes: actualAvailableMinutes,
+        startTime: potentialStartTime,
       }
-    } else if (availableMinutes > 30) { // Minimum split size
+    } else if (actualAvailableMinutes > 30) { // Minimum split size
       return {
         canFit: false,
         canPartiallyFit: true,
-        availableMinutes,
-        startTime: this.findNextAvailableTime(block, blockScheduled, currentTime),
+        availableMinutes: actualAvailableMinutes,
+        startTime: potentialStartTime,
       }
     }
 
@@ -1836,6 +1860,7 @@ export class UnifiedScheduler {
     let startTime = fitResult.startTime || new Date()
     const duration = isPartial ? (fitResult.availableMinutes || 0) : item.duration
 
+
     // Ensure start time is after all dependencies complete
     if (item.dependencies?.length) {
       const latestDependencyEnd = this.getLatestDependencyEndTime(item)
@@ -1845,6 +1870,7 @@ export class UnifiedScheduler {
     }
 
     const endTime = new Date(startTime.getTime() + duration * 60000)
+
 
     return {
       ...item,
@@ -1900,6 +1926,7 @@ export class UnifiedScheduler {
         block.personalMinutesUsed = (block.personalMinutesUsed || 0) + item.duration
       }
     }
+
   }
 
   /**
@@ -1907,6 +1934,8 @@ export class UnifiedScheduler {
    */
   private parseTimeOnDate(date: Date, timeStr: string): Date {
     const [hours, minutes] = timeStr.split(':').map(Number)
+    // Create a new date in local time - the time strings like "09:00"
+    // represent local time for the user, not UTC
     const result = new Date(date)
     result.setHours(hours, minutes, 0, 0)
     return result
@@ -1931,8 +1960,44 @@ export class UnifiedScheduler {
    * Find next available time in block
    */
   private findNextAvailableTime(block: BlockCapacity, scheduledInBlock: UnifiedScheduleItem[], currentTime?: Date): Date {
-    // Ensure we don't schedule in the past
-    const now = currentTime || new Date()
+    // If no current time constraint, start from block start
+    if (!currentTime) {
+      const effectiveStartTime = block.startTime
+
+      // If no items scheduled in this block, return the block start time
+      if (scheduledInBlock.length === 0) {
+        return effectiveStartTime
+      }
+
+      // Find gaps between scheduled items
+      const sortedItems = scheduledInBlock
+        .filter(item => item.startTime && item.endTime)
+        .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime())
+
+      if (sortedItems.length === 0) {
+        return effectiveStartTime
+      }
+
+      let candidateTime = effectiveStartTime
+      for (const item of sortedItems) {
+        if (item.startTime! > candidateTime) {
+          return candidateTime
+        }
+        candidateTime = new Date(item.endTime!.getTime())
+      }
+
+      return candidateTime
+    }
+
+    // With current time constraint, ensure we don't schedule in the past
+    const now = currentTime
+
+    // If current time is past the block end, we can't use this block
+    if (now.getTime() >= block.endTime.getTime()) {
+      // Return block end time to indicate block is full/past
+      return block.endTime
+    }
+
     const effectiveStartTime = new Date(Math.max(block.startTime.getTime(), now.getTime()))
 
     // If no items scheduled in this block, return the effective start time
@@ -2498,9 +2563,28 @@ export class UnifiedScheduler {
         const utilizationPercent = totalMinutes > 0 ? (totalUsed / totalMinutes) * 100 : 0
 
         // Calculate capacity from block
-        const focusTotal = block.capacity?.focusMinutes || 0
-        const adminTotal = block.capacity?.adminMinutes || 0
-        const personalTotal = block.capacity?.personalMinutes || 0
+        // For flexible blocks, the total capacity is the block duration
+        // For typed blocks, use the specified capacity or block duration
+        let focusTotal = 0
+        let adminTotal = 0
+        let personalTotal = 0
+
+        if (block.type === 'flexible') {
+          // Flexible blocks have a shared pool - report it as focus capacity
+          focusTotal = totalMinutes
+          adminTotal = 0  // Don't double-count
+        } else if (block.type === 'focused') {
+          focusTotal = block.capacity?.focusMinutes || totalMinutes
+        } else if (block.type === 'admin') {
+          adminTotal = block.capacity?.adminMinutes || totalMinutes
+        } else if (block.type === 'personal') {
+          personalTotal = block.capacity?.personalMinutes || totalMinutes
+        } else if (block.type === 'mixed') {
+          // Mixed blocks should have explicit capacity
+          focusTotal = block.capacity?.focusMinutes || 0
+          adminTotal = block.capacity?.adminMinutes || 0
+          personalTotal = block.capacity?.personalMinutes || 0
+        }
 
         utilization.push({
           date: pattern.date,

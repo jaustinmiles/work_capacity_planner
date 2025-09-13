@@ -118,7 +118,7 @@ export function WeeklyCalendar() {
       sequencedTasks,
     )
 
-    // Convert LegacyScheduledItem to ScheduledItem format for compatibility
+    // Convert ScheduledItem to the format expected by the component
     type ScheduledItemType = 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break'
 
     return result.scheduledTasks.map(item => ({

@@ -6,8 +6,8 @@ import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
-import { useUnifiedScheduler, LegacyScheduleResult } from '../../hooks/useUnifiedScheduler'
-import { LegacyScheduledItem } from '@shared/unified-scheduler-adapter'
+import { useUnifiedScheduler, ScheduleResult } from '../../hooks/useUnifiedScheduler'
+import { ScheduledItem } from '@shared/unified-scheduler-adapter'
 import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
@@ -308,7 +308,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   }
 
   // Helper function to convert UnifiedScheduler results to GanttChart format
-  const convertUnifiedToGanttItems = useCallback((result: LegacyScheduleResult): GanttItem[] => {
+  const convertUnifiedToGanttItems = useCallback((result: ScheduleResult): GanttItem[] => {
     logger.ui.debug('🔄 [GANTT] Converting UnifiedScheduler results to Gantt format', {
       scheduledCount: result.scheduledTasks.length,
       unscheduledCount: result.unscheduledTasks.length,
@@ -326,8 +326,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       }
 
       // Type-safe check for workflow metadata
-      // Extend LegacyScheduledItem with optional workflow properties
-      interface ScheduledItemWithWorkflow extends LegacyScheduledItem {
+      // Extend ScheduledItem with optional workflow properties
+      interface ScheduledItemWithWorkflow extends ScheduledItem {
         workflowId?: string
         workflowName?: string
         stepIndex?: number
@@ -555,7 +555,15 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         ganttItems[ganttItems.length - 1].endTime :
         new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
     }
-    logGanttChart(logger.ui, ganttItems, workPatterns, viewWindow, tasks, sequencedTasks, unifiedDebugInfo)
+    // Convert GanttItems to ScheduledItem format for logging
+    const scheduledItems = ganttItems.map(item => ({
+      task: item.originalItem as Task,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      blockId: item.blockId,
+      priority: item.priority,
+    }))
+    logGanttChart(logger.ui, scheduledItems, workPatterns, viewWindow, tasks, sequencedTasks, unifiedDebugInfo)
 
     // Auto-show debug info if there are issues
     if (unifiedDebugInfo.unscheduledItems.length > 0 || unifiedDebugInfo.warnings.length > 0) {
@@ -1908,7 +1916,48 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
       {/* Scheduling Debug Info */}
       {showDebugInfo && debugInfo && (
-        <DebugInfoComponent debugInfo={debugInfo} />
+        <DebugInfoComponent debugInfo={{
+          unscheduledItems: debugInfo.unscheduledItems.map(item => ({
+            id: item.id || '',
+            name: item.name,
+            duration: item.duration,
+            type: item.type,
+            reason: item.reason,
+            priorityBreakdown: item.priorityBreakdown,
+          })),
+          scheduledItems: debugInfo.scheduledItems?.map(item => ({
+            id: item.id || '',
+            name: item.name,
+            type: item.type,
+            startTime: item.startTime || '',
+            duration: item.duration,
+            priority: item.priority,
+            priorityBreakdown: item.priorityBreakdown,
+          })),
+          warnings: debugInfo.warnings,
+          unusedFocusCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
+            sum + (block.focusTotal - block.focusUsed), 0) || 0,
+          unusedAdminCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
+            sum + (block.adminTotal - block.adminUsed), 0) || 0,
+          blockUtilization: debugInfo.blockUtilization?.map(block => ({
+            date: block.date,
+            blockId: block.blockId,
+            blockStart: block.startTime,
+            blockEnd: block.endTime,
+            startTime: block.startTime,
+            endTime: block.endTime,
+            type: 'mixed',
+            capacity: block.focusTotal + block.adminTotal,
+            used: block.focusUsed + block.adminUsed,
+            utilizationPercent: block.utilization,
+            focusUsed: block.focusUsed,
+            focusTotal: block.focusTotal,
+            adminUsed: block.adminUsed,
+            adminTotal: block.adminTotal,
+            personalUsed: block.personalUsed,
+            personalTotal: block.personalTotal,
+          })) || [],
+        }} />
       )}
     </Space>
   )

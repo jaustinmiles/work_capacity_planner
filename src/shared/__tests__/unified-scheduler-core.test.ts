@@ -307,7 +307,11 @@ describe('UnifiedScheduler - Core Functionality', () => {
         },
       ]
 
-      const allocated = scheduler.allocateToWorkBlocks(items, [mockWorkPattern], mockConfig)
+      // Don't pass currentTime so it doesn't restrict scheduling
+      const configWithoutCurrentTime = { ...mockConfig }
+      delete (configWithoutCurrentTime as any).currentTime
+
+      const allocated = scheduler.allocateToWorkBlocks(items, [mockWorkPattern], configWithoutCurrentTime)
 
       expect(allocated.length).toBeGreaterThan(0)
 
@@ -330,7 +334,11 @@ describe('UnifiedScheduler - Core Functionality', () => {
         originalItem: createTestTask('large-task', 240),
       }
 
-      const allocated = scheduler.allocateToWorkBlocks([largeTask], [mockWorkPattern], mockConfig)
+      // Don't pass currentTime so it doesn't restrict scheduling
+      const configWithoutCurrentTime = { ...mockConfig }
+      delete (configWithoutCurrentTime as any).currentTime
+
+      const allocated = scheduler.allocateToWorkBlocks([largeTask], [mockWorkPattern], configWithoutCurrentTime)
 
       // Should either split the task or handle it appropriately
       expect(allocated.length).toBeGreaterThan(0)
