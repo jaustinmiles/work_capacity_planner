@@ -38,14 +38,14 @@ describe('AmendmentParser', () => {
         { id: 'task-3', name: 'update documentation' },
       ],
       recentWorkflows: [
-        { 
-          id: 'workflow-1', 
+        {
+          id: 'workflow-1',
           name: 'development workflow',
           steps: [
             { id: 'step-1', name: 'design' },
             { id: 'step-2', name: 'implement' },
             { id: 'step-3', name: 'test' },
-          ]
+          ],
         },
       ],
       activeTaskId: 'task-1',
@@ -57,7 +57,7 @@ describe('AmendmentParser', () => {
     it('should parse status update amendments', async () => {
       const result = await parser.parseTranscription(
         'mark write tests as completed',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -68,7 +68,7 @@ describe('AmendmentParser', () => {
     it('should parse time log amendments', async () => {
       const result = await parser.parseTranscription(
         'I spent 2 hours on write tests',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -78,7 +78,7 @@ describe('AmendmentParser', () => {
     it('should parse note additions', async () => {
       const result = await parser.parseTranscription(
         'add note to write tests: remember to test edge cases',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -89,7 +89,7 @@ describe('AmendmentParser', () => {
       // Skipping - parser has a bug with duration regex being too lazy
       const result = await parser.parseTranscription(
         'write tests will take 90 minutes',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -113,7 +113,7 @@ describe('AmendmentParser', () => {
     it('should handle in-progress status', async () => {
       const result = await parser.parseTranscription(
         'I just started working on review code',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(1)
@@ -123,7 +123,7 @@ describe('AmendmentParser', () => {
     it('should handle multiple amendments in one transcription', async () => {
       const result = await parser.parseTranscription(
         'mark write tests as completed and I spent 2 hours on it',
-        context
+        context,
       )
 
       expect(result.amendments.length).toBeGreaterThanOrEqual(1)
@@ -132,7 +132,7 @@ describe('AmendmentParser', () => {
     it('should return empty amendments for unrecognized text', async () => {
       const result = await parser.parseTranscription(
         'the weather is nice today',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(0)
@@ -165,7 +165,7 @@ describe('AmendmentParser', () => {
 
       const result = await parser.parseTranscription(
         'mark task as done',
-        context
+        context,
       )
 
       expect(result.amendments).toHaveLength(0)

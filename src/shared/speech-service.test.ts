@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SpeechService } from './speech-service'
 import fs from 'fs'
-import path from 'path'
 
 // Mock OpenAI
 const mockCreate = vi.fn()
@@ -72,7 +71,7 @@ describe('SpeechService', () => {
   describe('transcribeAudio', () => {
     it('should transcribe audio file successfully', async () => {
       const result = await service.transcribeAudio('/path/to/audio.mp3')
-      
+
       expect(result).toEqual({
         text: 'This is a test transcription',
       })
@@ -84,7 +83,7 @@ describe('SpeechService', () => {
       const result = await service.transcribeAudio('/path/to/audio.mp3', {
         language: 'en',
       })
-      
+
       expect(result.text).toBe('This is a test transcription')
     })
 
@@ -92,81 +91,81 @@ describe('SpeechService', () => {
       const result = await service.transcribeAudio('/path/to/audio.mp3', {
         prompt: 'This is about tasks',
       })
-      
+
       expect(result.text).toBe('This is a test transcription')
     })
 
     it('should reject files over 25MB', async () => {
-      vi.mocked(fs.statSync).mockReturnValueOnce({ 
-        size: 26 * 1024 * 1024 // 26MB 
+      vi.mocked(fs.statSync).mockReturnValueOnce({
+        size: 26 * 1024 * 1024, // 26MB
       } as any)
 
       await expect(
-        service.transcribeAudio('/path/to/large.mp3')
+        service.transcribeAudio('/path/to/large.mp3'),
       ).rejects.toThrow('Audio file exceeds 25MB limit')
     })
 
     it('should archive non-tmp files', async () => {
       await service.transcribeAudio('/home/user/audio.mp3')
-      
+
       expect(fs.copyFileSync).toHaveBeenCalled()
     })
 
     it('should not archive files already in tmp directory', async () => {
       vi.clearAllMocks()
       await service.transcribeAudio('/tmp/work-planner-audio/audio.mp3')
-      
+
       expect(fs.copyFileSync).not.toHaveBeenCalled()
     })
 
     it('should create temp directory if it does not exist', async () => {
       vi.mocked(fs.existsSync).mockReturnValueOnce(false)
-      
+
       await service.transcribeAudio('/home/user/audio.mp3')
-      
+
       expect(fs.mkdirSync).toHaveBeenCalledWith(
         '/tmp/work-planner-audio',
-        { recursive: true }
+        { recursive: true },
       )
     })
 
     it('should handle format errors gracefully', async () => {
       mockCreate.mockRejectedValueOnce(
-        new Error('Invalid format or codec')
+        new Error('Invalid format or codec'),
       )
-      
+
       await expect(
-        service.transcribeAudio('/path/to/audio.xyz')
+        service.transcribeAudio('/path/to/audio.xyz'),
       ).rejects.toThrow('Audio format issue with .xyz file')
     })
 
     it('should handle size errors gracefully', async () => {
       mockCreate.mockRejectedValueOnce(
-        new Error('File size limit exceeded')
+        new Error('File size limit exceeded'),
       )
-      
+
       await expect(
-        service.transcribeAudio('/path/to/audio.mp3')
+        service.transcribeAudio('/path/to/audio.mp3'),
       ).rejects.toThrow('Audio file too large')
     })
 
     it('should handle generic errors', async () => {
       mockCreate.mockRejectedValueOnce(
-        new Error('Some other error')
+        new Error('Some other error'),
       )
-      
+
       await expect(
-        service.transcribeAudio('/path/to/audio.mp3')
+        service.transcribeAudio('/path/to/audio.mp3'),
       ).rejects.toThrow('Failed to transcribe audio: Some other error')
     })
 
     it('should handle non-Error exceptions', async () => {
       mockCreate.mockRejectedValueOnce(
-        'String error'
+        'String error',
       )
-      
+
       await expect(
-        service.transcribeAudio('/path/to/audio.mp3')
+        service.transcribeAudio('/path/to/audio.mp3'),
       ).rejects.toThrow('Failed to transcribe audio: Unknown error')
     })
   })
@@ -175,7 +174,7 @@ describe('SpeechService', () => {
     it('should transcribe audio buffer successfully', async () => {
       const buffer = Buffer.from('audio data')
       const result = await service.transcribeAudioBuffer(buffer, 'test.mp3')
-      
+
       expect(result).toEqual({
         text: 'This is a test transcription',
         savedPath: expect.stringContaining('/tmp/work-planner-audio/'),
@@ -185,10 +184,10 @@ describe('SpeechService', () => {
     it('should save buffer to temp file', async () => {
       const buffer = Buffer.from('audio data')
       await service.transcribeAudioBuffer(buffer, 'test.mp3')
-      
+
       expect(fs.writeFileSync).toHaveBeenCalledWith(
         expect.stringContaining('/tmp/work-planner-audio/'),
-        buffer
+        buffer,
       )
     })
 
@@ -198,19 +197,19 @@ describe('SpeechService', () => {
         language: 'es',
         prompt: 'Spanish audio',
       })
-      
+
       expect(result.text).toBe('This is a test transcription')
     })
 
     it('should create temp directory for buffer if needed', async () => {
       vi.mocked(fs.existsSync).mockReturnValueOnce(false)
       const buffer = Buffer.from('audio data')
-      
+
       await service.transcribeAudioBuffer(buffer, 'test.mp3')
-      
+
       expect(fs.mkdirSync).toHaveBeenCalledWith(
         '/tmp/work-planner-audio',
-        { recursive: true }
+        { recursive: true },
       )
     })
   })
