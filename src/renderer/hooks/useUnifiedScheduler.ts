@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { UnifiedSchedulerAdapter, SchedulingOptions, ScheduleResult, ScheduledItem } from '@shared/unified-scheduler-adapter'
+import { UnifiedSchedulerAdapter, SchedulingOptions, ScheduleResult, ScheduledItem, SchedulingMetrics } from '@shared/unified-scheduler-adapter'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
@@ -14,14 +14,7 @@ export function useUnifiedScheduler(): {
   getNextScheduledTask: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => ScheduledItem | null
   validateDependencies: (tasks: Task[]) => { isValid: boolean; errors: string[] }
   calculateTaskPriority: (task: Task) => number
-  getSchedulingMetrics: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => {
-    totalTasks: number
-    scheduledTasks: number
-    unscheduledTasks: number
-    totalDuration: number
-    utilizationRate: number
-    averagePriority: number
-  }
+  getSchedulingMetrics: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => SchedulingMetrics
   adapter: UnifiedSchedulerAdapter
 } {
   const adapter = useMemo(() => {
@@ -213,4 +206,4 @@ export function useUnifiedScheduler(): {
 }
 
 // Export types for convenience
-export type { ScheduleResult, SchedulingOptions } from '@shared/unified-scheduler-adapter'
+export type { ScheduleResult, SchedulingOptions, SchedulingMetrics } from '@shared/unified-scheduler-adapter'

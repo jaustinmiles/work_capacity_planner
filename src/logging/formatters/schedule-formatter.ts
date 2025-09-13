@@ -166,11 +166,11 @@ export class ScheduleFormatter {
       }))
     }
 
-    // Add blocks if provided
+    // Add blocks if provided (without date since blocks don't have date context)
     if (blocks && blocks.length > 0) {
       output.blocks = blocks.map(block => ({
         id: block.id,
-        date: new Date().toISOString().split('T')[0],
+        date: '', // Blocks don't have date context when passed separately
         type: block.type as string,
         startTime: block.startTime,
         endTime: block.endTime,
@@ -345,18 +345,9 @@ export class ScheduleFormatter {
 
     if (output.blocks && output.blocks.length > 0) {
       lines.push('📅 Work Blocks:')
-      const blocksByDate = output.blocks.reduce((acc, block) => {
-        if (!acc[block.date]) acc[block.date] = []
-        acc[block.date].push(block)
-        return acc
-      }, {} as Record<string, typeof output.blocks>)
-
-      Object.entries(blocksByDate).forEach(([date, blocks]) => {
-        lines.push(`  ${date}:`)
-        blocks!.forEach(block => {
-          const utilization = block.utilization !== undefined ? ` (${Math.round(block.utilization)}% used)` : ''
-          lines.push(`    • ${block.type} ${this.formatTime(block.startTime)}-${this.formatTime(block.endTime)}: ${block.items} items${utilization}`)
-        })
+      output.blocks.forEach(block => {
+        const utilization = block.utilization !== undefined ? ` (${Math.round(block.utilization)}% used)` : ''
+        lines.push(`  • ${block.type} ${block.startTime}-${block.endTime}: ${block.items} items${utilization}`)
       })
     }
 

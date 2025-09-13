@@ -35,6 +35,15 @@ export interface SchedulingOptions {
   debug?: boolean
 }
 
+export interface SchedulingMetrics {
+  totalTasks: number
+  scheduledTasks: number
+  unscheduledTasks: number
+  totalDuration: number
+  averagePriority: number
+  utilizationRate: number
+}
+
 /**
  * Adapter class to bridge existing UI components with UnifiedScheduler
  */
@@ -388,14 +397,7 @@ export class UnifiedSchedulerAdapter {
     workPatterns: DailyWorkPattern[],
     options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
-  ): {
-    totalTasks: number
-    scheduledTasks: number
-    unscheduledTasks: number
-    totalDuration: number
-    averagePriority: number
-    utilizationRate: number
-  } {
+  ): SchedulingMetrics {
     const result = this.scheduleTasks(tasks, workPatterns, options, sequencedTasks)
     const avgPriority = tasks.length > 0
       ? tasks.reduce((sum, task) => sum + this.calculateTaskPriority(task), 0) / tasks.length
