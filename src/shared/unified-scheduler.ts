@@ -1150,8 +1150,11 @@ export class UnifiedScheduler {
           }
 
           // Try to fit item in available blocks
-          // Pass current time only on first day to avoid scheduling in the past
-          const currentTimeToUse = dayIndex === 0 ? (config.currentTime || new Date()) : undefined
+          // Only use current time constraint if:
+          // 1. We're on the first day of scheduling (dayIndex === 0)
+          // 2. AND we have a current time to respect (config.currentTime is provided)
+          // This prevents using "now" when scheduling future days
+          const currentTimeToUse = (dayIndex === 0 && config.currentTime) ? config.currentTime : undefined
           const fitResult = this.findBestBlockForItem(item, dayBlocks, scheduled, currentDate, currentTimeToUse)
 
           if (config.debugMode) {
@@ -1815,19 +1818,31 @@ export class UnifiedScheduler {
     const availableMinutes = Math.min(availableCapacity,
       this.calculateAvailableTimeInBlock(block, blockScheduled))
 
-    if (item.duration <= availableMinutes) {
+    // Find when we can start in this block
+    const potentialStartTime = this.findNextAvailableTime(block, blockScheduled, currentTime)
+    
+    // Check if we're past the block or can't fit
+    if (potentialStartTime.getTime() >= block.endTime.getTime()) {
+      return { canFit: false, canPartiallyFit: false }
+    }
+    
+    // Calculate how much time is actually available from the start time
+    const timeFromStart = Math.floor((block.endTime.getTime() - potentialStartTime.getTime()) / 60000)
+    const actualAvailableMinutes = Math.min(availableMinutes, timeFromStart)
+
+    if (item.duration <= actualAvailableMinutes) {
       return {
         canFit: true,
         canPartiallyFit: true,
-        availableMinutes,
-        startTime: this.findNextAvailableTime(block, blockScheduled, currentTime),
+        availableMinutes: actualAvailableMinutes,
+        startTime: potentialStartTime,
       }
-    } else if (availableMinutes > 30) { // Minimum split size
+    } else if (actualAvailableMinutes > 30) { // Minimum split size
       return {
         canFit: false,
         canPartiallyFit: true,
-        availableMinutes,
-        startTime: this.findNextAvailableTime(block, blockScheduled, currentTime),
+        availableMinutes: actualAvailableMinutes,
+        startTime: potentialStartTime,
       }
     }
 
@@ -1948,10 +1963,45 @@ export class UnifiedScheduler {
    * Find next available time in block
    */
   private findNextAvailableTime(block: BlockCapacity, scheduledInBlock: UnifiedScheduleItem[], currentTime?: Date): Date {
-    // Ensure we don't schedule in the past
-    const now = currentTime || new Date()
+    // If no current time constraint, start from block start
+    if (!currentTime) {
+      const effectiveStartTime = block.startTime
+      
+      // If no items scheduled in this block, return the block start time
+      if (scheduledInBlock.length === 0) {
+        return effectiveStartTime
+      }
+      
+      // Find gaps between scheduled items
+      const sortedItems = scheduledInBlock
+        .filter(item => item.startTime && item.endTime)
+        .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime())
+      
+      if (sortedItems.length === 0) {
+        return effectiveStartTime
+      }
+      
+      let candidateTime = effectiveStartTime
+      for (const item of sortedItems) {
+        if (item.startTime! > candidateTime) {
+          return candidateTime
+        }
+        candidateTime = new Date(item.endTime!.getTime())
+      }
+      
+      return candidateTime
+    }
+    
+    // With current time constraint, ensure we don't schedule in the past
+    const now = currentTime
+    
+    // If current time is past the block end, we can't use this block
+    if (now.getTime() >= block.endTime.getTime()) {
+      // Return block end time to indicate block is full/past
+      return block.endTime
+    }
+    
     const effectiveStartTime = new Date(Math.max(block.startTime.getTime(), now.getTime()))
-
 
     // If no items scheduled in this block, return the effective start time
     if (scheduledInBlock.length === 0) {

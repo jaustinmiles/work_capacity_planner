@@ -265,11 +265,23 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   {
                     title: 'Status',
                     dataIndex: 'unusedReason',
-                    render: (val) => {
-                      if (!val) return <Tag color="green">Fully utilized</Tag>
-                      if (val.includes('in the past')) return <Tag color="gray">{val}</Tag>
-                      if (val.includes('started at')) return <Tag color="blue">{val}</Tag>
-                      return <Tag color="orange">{val}</Tag>
+                    render: (val, record) => {
+                      // Check if block is actually utilized
+                      const totalUsed = (record.focusUsed || 0) + (record.adminUsed || 0) + (record.personalUsed || 0)
+                      const totalCapacity = (record.focusTotal || 0) + (record.adminTotal || 0) + (record.personalTotal || 0)
+                      
+                      if (totalUsed === 0 && totalCapacity > 0) {
+                        return <Tag color="yellow">Not utilized</Tag>
+                      }
+                      if (totalUsed >= totalCapacity && totalCapacity > 0) {
+                        return <Tag color="green">Fully utilized</Tag>
+                      }
+                      if (!val && totalUsed > 0) {
+                        return <Tag color="green">Partially utilized</Tag>
+                      }
+                      if (val?.includes('in the past')) return <Tag color="gray">{val}</Tag>
+                      if (val?.includes('started at')) return <Tag color="blue">{val}</Tag>
+                      return <Tag color="orange">{val || 'Available'}</Tag>
                     },
                   },
                 ]}
