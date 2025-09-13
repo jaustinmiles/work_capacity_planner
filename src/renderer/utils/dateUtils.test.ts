@@ -12,7 +12,6 @@ import {
 describe('dateUtils', () => {
   // Mock dates for consistent testing
   const mockDate = new Date('2025-01-13T14:30:00')
-  const mockDateString = '2025-01-13T14:30:00'
 
   beforeEach(() => {
     vi.useFakeTimers()
@@ -138,7 +137,7 @@ describe('dateUtils', () => {
     it('should return "just now" for very recent times', () => {
       const now = new Date()
       expect(getRelativeTime(now)).toBe('just now')
-      
+
       const thirtySecondsAgo = new Date(now.getTime() - 30000)
       expect(getRelativeTime(thirtySecondsAgo)).toBe('just now')
     })
@@ -146,7 +145,7 @@ describe('dateUtils', () => {
     it('should format minutes ago', () => {
       const fiveMinutesAgo = new Date(mockDate.getTime() - 5 * 60000)
       expect(getRelativeTime(fiveMinutesAgo)).toBe('5 minutes ago')
-      
+
       const oneMinuteAgo = new Date(mockDate.getTime() - 60000)
       expect(getRelativeTime(oneMinuteAgo)).toBe('1 minute ago')
     })
@@ -154,7 +153,7 @@ describe('dateUtils', () => {
     it('should format hours ago', () => {
       const twoHoursAgo = new Date(mockDate.getTime() - 2 * 3600000)
       expect(getRelativeTime(twoHoursAgo)).toBe('2 hours ago')
-      
+
       const oneHourAgo = new Date(mockDate.getTime() - 3600000)
       expect(getRelativeTime(oneHourAgo)).toBe('1 hour ago')
     })
@@ -162,7 +161,7 @@ describe('dateUtils', () => {
     it('should format days ago', () => {
       const threeDaysAgo = new Date(mockDate.getTime() - 3 * 86400000)
       expect(getRelativeTime(threeDaysAgo)).toBe('3 days ago')
-      
+
       const oneDayAgo = new Date(mockDate.getTime() - 86400000)
       expect(getRelativeTime(oneDayAgo)).toBe('1 day ago')
     })
@@ -170,10 +169,10 @@ describe('dateUtils', () => {
     it('should format future times', () => {
       const inFiveMinutes = new Date(mockDate.getTime() + 5 * 60000)
       expect(getRelativeTime(inFiveMinutes)).toBe('in 5 minutes')
-      
+
       const inOneHour = new Date(mockDate.getTime() + 3600000)
       expect(getRelativeTime(inOneHour)).toBe('in 1 hour')
-      
+
       const inTwoDays = new Date(mockDate.getTime() + 2 * 86400000)
       expect(getRelativeTime(inTwoDays)).toBe('in 2 days')
     })
@@ -181,7 +180,7 @@ describe('dateUtils', () => {
     it('should handle string dates', () => {
       const pastDateString = new Date(mockDate.getTime() - 3600000).toISOString()
       expect(getRelativeTime(pastDateString)).toBe('1 hour ago')
-      
+
       const futureDateString = new Date(mockDate.getTime() + 3600000).toISOString()
       expect(getRelativeTime(futureDateString)).toBe('in 1 hour')
     })
@@ -189,10 +188,10 @@ describe('dateUtils', () => {
     it('should handle edge cases', () => {
       const exactlyOneMinute = new Date(mockDate.getTime() - 60000)
       expect(getRelativeTime(exactlyOneMinute)).toBe('1 minute ago')
-      
+
       const justUnderOneMinute = new Date(mockDate.getTime() - 59999)
       expect(getRelativeTime(justUnderOneMinute)).toBe('just now')
-      
+
       const justOverOneMinute = new Date(mockDate.getTime() - 60001)
       expect(getRelativeTime(justOverOneMinute)).toBe('1 minute ago')
     })
@@ -264,7 +263,7 @@ describe('dateUtils', () => {
       const start = new Date('2025-01-13T10:00:00Z')
       const end = '2025-01-13T11:30:00Z'
       expect(minutesBetween(start, end)).toBe(90)
-      
+
       const start2 = '2025-01-13T10:00:00Z'
       const end2 = new Date('2025-01-13T12:00:00Z')
       expect(minutesBetween(start2, end2)).toBe(120)
@@ -307,7 +306,7 @@ describe('dateUtils', () => {
     it('should handle extreme dates', () => {
       const farFuture = new Date('2099-12-31T23:59:59Z')
       const farPast = new Date('1900-01-01T00:00:00Z')
-      
+
       expect(minutesBetween(farPast, farFuture)).toBeGreaterThan(0)
       // Date formatting is locale-dependent, just check it doesn't error
       expect(typeof formatDate(farFuture)).toBe('string')
