@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, waitFor, cleanup } from '@testing-library/react'
 import { GanttChart } from './GanttChart'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getCurrentTime } from '@shared/time-provider'
@@ -100,6 +100,12 @@ describe('GanttChart', () => {
       expect(screen.getByText('No scheduled items to display')).toBeInTheDocument()
       expect(screen.getByText('Add some tasks or workflows to see them scheduled')).toBeInTheDocument()
     })
+  })
+
+  afterEach(() => {
+    // Clean up any pending timers from Arco components
+    vi.clearAllTimers()
+    cleanup()
   })
 
   it('should render tasks when provided', async () => {
