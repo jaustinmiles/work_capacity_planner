@@ -92,7 +92,10 @@ export class ScheduleFormatter {
     const now = new Date()
     const scheduled = scheduledItems.filter(item => {
       // Filter out items that are not actual tasks
-      return item.task && item.task.type
+      if (!item.task || !item.task.type) return false
+      // Filter out async-wait and break items
+      const taskType = item.task.type as string
+      return taskType !== 'async-wait' && taskType !== 'break'
     })
 
     // Calculate time span
@@ -166,17 +169,17 @@ export class ScheduleFormatter {
       }))
     }
 
-    // Add blocks if provided (without date since blocks don't have date context)
+    // Add blocks if provided
     if (blocks && blocks.length > 0) {
       output.blocks = blocks.map(block => ({
         id: block.id,
-        date: '', // Blocks don't have date context when passed separately
+        date: (block as any).date || '', // Use date if provided
         type: block.type as string,
         startTime: block.startTime,
         endTime: block.endTime,
-        capacity: block.capacity?.focusMinutes || 0,
-        utilization: 0,
-        items: 0,
+        capacity: (block as any).capacity || block.capacity?.focusMinutes || 0,
+        utilization: (block as any).utilization || 0,
+        items: (block as any).items || 0,
       }))
     }
 
@@ -252,17 +255,20 @@ export class ScheduleFormatter {
   static formatDebugInfo(debugInfo: SchedulingDebugInfo): ScheduleLogOutput {
     // Calculate unused capacity from block utilization
     const unusedFocus = debugInfo.blockUtilization?.reduce((sum, block) =>
-      sum + (block.focusTotal - block.focusUsed), 0) || 0
+        sum + ((block.focusTotal || 0) - (block.focusUsed || 0)), 0) ?? 0
     const unusedAdmin = debugInfo.blockUtilization?.reduce((sum, block) =>
-      sum + (block.adminTotal - block.adminUsed), 0) || 0
+        sum + ((block.adminTotal || 0) - (block.adminUsed || 0)), 0) ?? 0
+
+    const totalScheduled = debugInfo.totalScheduled ?? 0
+    const totalUnscheduled = debugInfo.totalUnscheduled ?? 0
 
     return {
       timestamp: new Date().toISOString(),
       type: 'debug_info',
       schedulerUsed: 'flexible', // Debug info usually comes from flexible scheduler
       summary: {
-        totalTasks: debugInfo.totalScheduled + debugInfo.totalUnscheduled,
-        scheduledTasks: debugInfo.totalScheduled,
+        totalTasks: totalScheduled + totalUnscheduled,
+        scheduledTasks: totalScheduled,
         unscheduledTasks: debugInfo.unscheduledItems?.length || 0,
         totalDuration: debugInfo.totalDuration || 0,
         timeSpan: {
@@ -345,9 +351,25 @@ export class ScheduleFormatter {
 
     if (output.blocks && output.blocks.length > 0) {
       lines.push('📅 Work Blocks:')
+      // Group blocks by date
+      const blocksByDate = new Map<string, typeof output.blocks>()
       output.blocks.forEach(block => {
-        const utilization = block.utilization !== undefined ? ` (${Math.round(block.utilization)}% used)` : ''
-        lines.push(`  • ${block.type} ${block.startTime}-${block.endTime}: ${block.items} items${utilization}`)
+        const date = block.date || ''
+        if (!blocksByDate.has(date)) {
+          blocksByDate.set(date, [])
+        }
+        blocksByDate.get(date)!.push(block)
+      })
+
+      blocksByDate.forEach((blocks, date) => {
+        if (date) {
+          lines.push(`  ${date}:`)
+        }
+        blocks.forEach(block => {
+          const utilization = block.utilization !== undefined ? ` (${Math.round(block.utilization)}% used)` : ''
+          const prefix = date ? '    •' : '  •'
+          lines.push(`${prefix} ${block.type} ${block.startTime}-${block.endTime}: ${block.items} items${utilization}`)
+        })
       })
     }
 

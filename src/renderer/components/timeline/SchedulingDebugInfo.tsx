@@ -119,6 +119,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   Unscheduled Items ({debugInfo.unscheduledItems.length})
                 </Title>
                 <Table
+                  rowKey="id"
                   columns={[
                     { title: 'Task', dataIndex: 'name' },
                     { title: 'Type', dataIndex: 'type' },
@@ -163,6 +164,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   Scheduled Items Priority Analysis (First 10 by Schedule Order)
                 </Title>
                 <Table
+                  rowKey="id"
                   columns={[
                     { title: 'Task', dataIndex: 'name' },
                     { title: 'Type', dataIndex: 'type' },
@@ -204,6 +206,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                 Block Utilization (Current & Next Day)
               </Title>
               <Table
+                rowKey={(record) => `${record.date}-${record.blockId || record.blockStart}`}
                 columns={[
                   { title: 'Date', dataIndex: 'date' },
                   { title: 'Block', dataIndex: 'blockId' },
@@ -269,7 +272,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                       // Check if block is actually utilized
                       const totalUsed = (record.focusUsed || 0) + (record.adminUsed || 0) + (record.personalUsed || 0)
                       const totalCapacity = (record.focusTotal || 0) + (record.adminTotal || 0) + (record.personalTotal || 0)
-                      
+
                       if (totalUsed === 0 && totalCapacity > 0) {
                         return <Tag color="yellow">Not utilized</Tag>
                       }

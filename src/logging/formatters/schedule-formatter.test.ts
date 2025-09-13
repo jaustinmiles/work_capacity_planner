@@ -5,6 +5,7 @@ import type { Task } from '../../shared/types'
 import type { SequencedTask } from '../../shared/sequencing-types'
 import type { ScheduledItem } from '../../shared/unified-scheduler-adapter'
 import type { DailyWorkPattern } from '../../shared/work-blocks-types'
+import type { SchedulingDebugInfo } from '../../shared/unified-scheduler'
 
 describe('ScheduleFormatter', () => {
   const mockTasks: Task[] = [
@@ -92,9 +93,9 @@ describe('ScheduleFormatter', () => {
     },
   ]
 
-  const mockDebugInfo = {
-    totalItems: 3,
-    scheduledCount: 2,
+  const mockDebugInfo: Partial<SchedulingDebugInfo> = {
+    totalScheduled: 2,
+    totalUnscheduled: 1,
     unscheduledItems: [
       {
         id: 'task-3',
@@ -104,20 +105,23 @@ describe('ScheduleFormatter', () => {
         reason: 'No available time blocks',
       },
     ],
-    unusedFocusCapacity: 60,
-    unusedAdminCapacity: 90,
     blockUtilization: [
       {
         date: '2024-01-01',
-        blockStart: '09:00',
-        blockEnd: '12:00',
-        capacity: 180,
-        used: 120,
-        utilizationPercent: 66.67,
+        blockId: 'block-1',
+        startTime: '09:00',
+        endTime: '12:00',
+        focusUsed: 120,
+        focusTotal: 180,
+        adminUsed: 0,
+        adminTotal: 0,
+        personalUsed: 0,
+        personalTotal: 0,
+        utilization: 66.67,
       },
     ],
-    criticalPath: ['task-1', 'task-2'],
-    asyncParallelTime: 30,
+    warnings: [],
+    scheduleEfficiency: 75,
   }
 
   describe('formatScheduleGeneration', () => {
@@ -129,7 +133,7 @@ describe('ScheduleFormatter', () => {
         mockScheduledItems,
         mockWorkPatterns,
         undefined,
-        mockDebugInfo,
+        mockDebugInfo as SchedulingDebugInfo,
       )
 
       expect(output).toMatchObject({
@@ -257,7 +261,7 @@ describe('ScheduleFormatter', () => {
         viewWindow,
         mockTasks,
         mockWorkflows,
-        mockDebugInfo,
+        mockDebugInfo as SchedulingDebugInfo,
       )
 
       expect(output.type).toBe('gantt_display')
@@ -268,13 +272,13 @@ describe('ScheduleFormatter', () => {
 
   describe('formatDebugInfo', () => {
     it('formats debug information', () => {
-      const output = ScheduleFormatter.formatDebugInfo(mockDebugInfo)
+      const output = ScheduleFormatter.formatDebugInfo(mockDebugInfo as SchedulingDebugInfo)
 
       expect(output).toMatchObject({
         type: 'debug_info',
         schedulerUsed: 'flexible',
         summary: {
-          totalTasks: 3,
+          totalTasks: 3, // totalScheduled (2) + totalUnscheduled (1)
           scheduledTasks: 2,
           unscheduledTasks: 1,
         },
@@ -289,9 +293,9 @@ describe('ScheduleFormatter', () => {
         ],
         debugInfo: {
           unusedCapacity: {
-            focus: 60,
-            admin: 90,
-            total: 150,
+            focus: 60, // 180 - 120
+            admin: 0, // 0 - 0
+            total: 60,
           },
         },
       })
@@ -299,13 +303,14 @@ describe('ScheduleFormatter', () => {
 
     it('handles missing debug info fields', () => {
       const minimalDebugInfo = {
-        totalItems: 1,
+        totalScheduled: 1,
+        totalUnscheduled: 0,
       }
 
-      const output = ScheduleFormatter.formatDebugInfo(minimalDebugInfo)
+      const output = ScheduleFormatter.formatDebugInfo(minimalDebugInfo as any)
 
       expect(output.summary.totalTasks).toBe(1)
-      expect(output.summary.scheduledTasks).toBe(0)
+      expect(output.summary.scheduledTasks).toBe(1)
       expect(output.summary.unscheduledTasks).toBe(0)
       expect(output.debugInfo?.unusedCapacity.total).toBe(0)
     })
@@ -320,7 +325,7 @@ describe('ScheduleFormatter', () => {
         mockScheduledItems,
         mockWorkPatterns,
         undefined,
-        mockDebugInfo,
+        mockDebugInfo as SchedulingDebugInfo,
       )
 
       const summary = ScheduleFormatter.createReadableSummary(output)
@@ -378,7 +383,7 @@ describe('ScheduleFormatter', () => {
 
       expect(summary).toContain('Work Blocks:')
       expect(summary).toContain('2024-01-01:')
-      expect(summary).toContain('0 items (67% used)')
+      expect(summary).toContain('2 items (67% used)')
     })
   })
 
@@ -396,7 +401,7 @@ describe('ScheduleFormatter', () => {
         mockScheduledItems,
         mockWorkPatterns,
         undefined,
-        mockDebugInfo,
+        mockDebugInfo as SchedulingDebugInfo,
         ['Test warning'],
       )
 
@@ -432,7 +437,7 @@ describe('ScheduleFormatter', () => {
         viewWindow,
         mockTasks,
         mockWorkflows,
-        mockDebugInfo,
+        mockDebugInfo as SchedulingDebugInfo,
       )
 
       expect(mockLogger.info).toHaveBeenCalledTimes(2)

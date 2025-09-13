@@ -1170,8 +1170,8 @@ export class UnifiedScheduler {
             // Schedule the full item
             const scheduledItem = this.scheduleItemInBlock(item, fitResult, false)
             scheduled.push(scheduledItem)
-            
-            
+
+
             remaining.splice(itemIndex, 1)
             scheduledItemsToday = true
             madeProgress = true
@@ -1700,7 +1700,7 @@ export class UnifiedScheduler {
     const startTime = this.parseTimeOnDate(date, block.startTime)
     const endTime = this.parseTimeOnDate(date, block.endTime)
     const totalMinutes = (endTime.getTime() - startTime.getTime()) / 60000
-    
+
 
     // Handle flexible blocks specially - they can accept any task type
     if (block.type === 'flexible') {
@@ -1812,7 +1812,7 @@ export class UnifiedScheduler {
       s.startTime < block.endTime &&
       s.endTime > block.startTime,
     )
-    
+
 
     // Find available time slot within the block
     const availableMinutes = Math.min(availableCapacity,
@@ -1820,12 +1820,12 @@ export class UnifiedScheduler {
 
     // Find when we can start in this block
     const potentialStartTime = this.findNextAvailableTime(block, blockScheduled, currentTime)
-    
+
     // Check if we're past the block or can't fit
     if (potentialStartTime.getTime() >= block.endTime.getTime()) {
       return { canFit: false, canPartiallyFit: false }
     }
-    
+
     // Calculate how much time is actually available from the start time
     const timeFromStart = Math.floor((block.endTime.getTime() - potentialStartTime.getTime()) / 60000)
     const actualAvailableMinutes = Math.min(availableMinutes, timeFromStart)
@@ -1870,7 +1870,7 @@ export class UnifiedScheduler {
     }
 
     const endTime = new Date(startTime.getTime() + duration * 60000)
-    
+
 
     return {
       ...item,
@@ -1906,9 +1906,6 @@ export class UnifiedScheduler {
   private updateBlockCapacity(block: BlockCapacity | undefined, item: UnifiedScheduleItem): void {
     if (!block) return
 
-    const beforeFocus = block.focusMinutesUsed
-    const beforeAdmin = block.adminMinutesUsed
-    
     // Update the appropriate capacity based on task type
     if (block.blockType === 'flexible') {
       // Flexible blocks track both focus and admin usage separately
@@ -1929,7 +1926,7 @@ export class UnifiedScheduler {
         block.personalMinutesUsed = (block.personalMinutesUsed || 0) + item.duration
       }
     }
-    
+
   }
 
   /**
@@ -1937,7 +1934,7 @@ export class UnifiedScheduler {
    */
   private parseTimeOnDate(date: Date, timeStr: string): Date {
     const [hours, minutes] = timeStr.split(':').map(Number)
-    // Create a new date in local time - the time strings like "09:00" 
+    // Create a new date in local time - the time strings like "09:00"
     // represent local time for the user, not UTC
     const result = new Date(date)
     result.setHours(hours, minutes, 0, 0)
@@ -1966,21 +1963,21 @@ export class UnifiedScheduler {
     // If no current time constraint, start from block start
     if (!currentTime) {
       const effectiveStartTime = block.startTime
-      
+
       // If no items scheduled in this block, return the block start time
       if (scheduledInBlock.length === 0) {
         return effectiveStartTime
       }
-      
+
       // Find gaps between scheduled items
       const sortedItems = scheduledInBlock
         .filter(item => item.startTime && item.endTime)
         .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime())
-      
+
       if (sortedItems.length === 0) {
         return effectiveStartTime
       }
-      
+
       let candidateTime = effectiveStartTime
       for (const item of sortedItems) {
         if (item.startTime! > candidateTime) {
@@ -1988,19 +1985,19 @@ export class UnifiedScheduler {
         }
         candidateTime = new Date(item.endTime!.getTime())
       }
-      
+
       return candidateTime
     }
-    
+
     // With current time constraint, ensure we don't schedule in the past
     const now = currentTime
-    
+
     // If current time is past the block end, we can't use this block
     if (now.getTime() >= block.endTime.getTime()) {
       // Return block end time to indicate block is full/past
       return block.endTime
     }
-    
+
     const effectiveStartTime = new Date(Math.max(block.startTime.getTime(), now.getTime()))
 
     // If no items scheduled in this block, return the effective start time
@@ -2571,7 +2568,7 @@ export class UnifiedScheduler {
         let focusTotal = 0
         let adminTotal = 0
         let personalTotal = 0
-        
+
         if (block.type === 'flexible') {
           // Flexible blocks have a shared pool - report it as focus capacity
           focusTotal = totalMinutes

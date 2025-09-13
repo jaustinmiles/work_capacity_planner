@@ -421,7 +421,7 @@ export class UnifiedSchedulerAdapter {
    */
   private calculateUtilizationRate(scheduledDuration: number, workPatterns: DailyWorkPattern[]): number {
     if (!workPatterns || workPatterns.length === 0) return 0
-    
+
     const totalCapacity = workPatterns.reduce((sum, pattern) => {
       const blocks = pattern.blocks || []
       return sum + blocks.reduce((blockSum, block) => {
@@ -429,7 +429,7 @@ export class UnifiedSchedulerAdapter {
         return blockSum + (capacity.focusMinutes || 0) + (capacity.adminMinutes || 0) + (capacity.personalMinutes || 0)
       }, 0)
     }, 0)
-    
+
     return totalCapacity > 0 ? scheduledDuration / totalCapacity : 0
   }
 
