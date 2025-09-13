@@ -194,7 +194,7 @@ describe('constants', () => {
       // Max task duration should be greater than daily limits
       expect(CAPACITY_LIMITS.MAX_TASK_DURATION).toBeGreaterThan(CAPACITY_LIMITS.DAILY_FOCUS_MINUTES)
       expect(CAPACITY_LIMITS.MAX_TASK_DURATION).toBeGreaterThan(CAPACITY_LIMITS.DAILY_ADMIN_MINUTES)
-      
+
       // Min should be less than daily limits
       expect(CAPACITY_LIMITS.MIN_TASK_DURATION).toBeLessThan(CAPACITY_LIMITS.DAILY_FOCUS_MINUTES)
       expect(CAPACITY_LIMITS.MIN_TASK_DURATION).toBeLessThan(CAPACITY_LIMITS.DAILY_ADMIN_MINUTES)
@@ -234,11 +234,11 @@ describe('constants', () => {
       // Debounce should be quick but not too quick
       expect(UI_CONSTANTS.DEBOUNCE_DELAY).toBeGreaterThanOrEqual(100)
       expect(UI_CONSTANTS.DEBOUNCE_DELAY).toBeLessThanOrEqual(1000)
-      
+
       // Toast should be visible but not annoying
       expect(UI_CONSTANTS.TOAST_DURATION).toBeGreaterThanOrEqual(1000)
       expect(UI_CONSTANTS.TOAST_DURATION).toBeLessThanOrEqual(10000)
-      
+
       // Animations should be snappy
       expect(UI_CONSTANTS.MODAL_ANIMATION).toBeLessThanOrEqual(500)
     })
@@ -274,10 +274,10 @@ describe('constants', () => {
     it('should follow standard date format conventions', () => {
       // ISO format should follow standard
       expect(DATE_FORMATS.ISO_DATE).toMatch(/YYYY-MM-DD/)
-      
+
       // 24H time format
       expect(DATE_FORMATS.TIME_24H).toMatch(/HH:mm/)
-      
+
       // 12H time format with AM/PM
       expect(DATE_FORMATS.DISPLAY_TIME).toContain('A')
     })
@@ -316,7 +316,7 @@ describe('constants', () => {
     it('should maintain reasonable capacity relationships', () => {
       // A single task shouldn't exceed daily capacity
       expect(CAPACITY_LIMITS.MAX_TASK_DURATION).toBeLessThanOrEqual(
-        CAPACITY_LIMITS.DAILY_FOCUS_MINUTES + CAPACITY_LIMITS.DAILY_ADMIN_MINUTES + 60 // Allow some buffer
+        CAPACITY_LIMITS.DAILY_FOCUS_MINUTES + CAPACITY_LIMITS.DAILY_ADMIN_MINUTES + 60, // Allow some buffer
       )
     })
   })

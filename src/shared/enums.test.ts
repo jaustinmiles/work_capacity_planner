@@ -27,7 +27,7 @@ describe('enums', () => {
     it('should be usable in switch statements', () => {
       const status: TaskStatus = TaskStatus.InProgress
       let result = ''
-      
+
       switch (status) {
         case TaskStatus.NotStarted:
           result = 'not started'
@@ -42,7 +42,7 @@ describe('enums', () => {
           result = 'completed'
           break
       }
-      
+
       expect(result).toBe('in progress')
     })
 
@@ -108,7 +108,7 @@ describe('enums', () => {
     it('should support type categorization', () => {
       const workTypes = [TaskType.Focused, TaskType.Admin]
       const personalType = TaskType.Personal
-      
+
       expect(workTypes).toContain(TaskType.Focused)
       expect(workTypes).toContain(TaskType.Admin)
       expect(workTypes).not.toContain(personalType)
@@ -153,7 +153,7 @@ describe('enums', () => {
       const timeAmendments = [AmendmentType.TimeLog, AmendmentType.DurationChange, AmendmentType.DeadlineChange]
       const structuralAmendments = [AmendmentType.StepAddition, AmendmentType.StepRemoval, AmendmentType.DependencyChange]
       const creationAmendments = [AmendmentType.TaskCreation, AmendmentType.WorkflowCreation]
-      
+
       expect(statusAmendments).toHaveLength(1)
       expect(timeAmendments).toHaveLength(3)
       expect(structuralAmendments).toHaveLength(3)
@@ -185,7 +185,7 @@ describe('enums', () => {
         ...Object.values(TaskType),
         ...Object.values(AmendmentType),
       ]
-      
+
       allValues.forEach(value => {
         expect(typeof value).toBe('string')
         expect(value).toMatch(/^[a-z_]+$/)
@@ -196,15 +196,15 @@ describe('enums', () => {
       // TaskStatus and StepStatus share some values but have distinct purposes
       const taskStatuses = Object.values(TaskStatus)
       const stepStatuses = Object.values(StepStatus)
-      
+
       // Common statuses
       expect(taskStatuses).toContain('in_progress')
       expect(stepStatuses).toContain('in_progress')
-      
+
       // Unique to each
       expect(taskStatuses).toContain('not_started')
       expect(stepStatuses).not.toContain('not_started')
-      
+
       expect(stepStatuses).toContain('skipped')
       expect(taskStatuses).not.toContain('skipped')
     })
@@ -224,7 +224,7 @@ describe('enums', () => {
           // TypeScript will error if we miss a case
         }
       }
-      
+
       expect(getStatusLabel(TaskStatus.NotStarted)).toBe('Not Started')
       expect(getStatusLabel(TaskStatus.Completed)).toBe('Completed')
     })
