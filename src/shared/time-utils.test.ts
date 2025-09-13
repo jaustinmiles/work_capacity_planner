@@ -47,7 +47,7 @@ describe('time-utils', () => {
       const [h1, m1] = parseTimeString('abc:def', 7, 30)
       expect(isNaN(h1)).toBe(true)
       expect(isNaN(m1)).toBe(true)
-      
+
       const [h2, m2] = parseTimeString('12:xyz', 0, 0)
       expect(h2).toBe(12)
       expect(isNaN(m2)).toBe(true)
@@ -159,12 +159,12 @@ describe('time-utils', () => {
     it('should work together for time calculations', () => {
       const start = '09:30'
       const end = '14:45'
-      
+
       const startMinutes = timeStringToMinutes(start)
       const endMinutes = timeStringToMinutes(end)
       const duration = endMinutes - startMinutes
       const formatted = formatMinutes(duration)
-      
+
       expect(formatted).toBe('5h 15m')
     })
 
@@ -173,11 +173,11 @@ describe('time-utils', () => {
       const lunchStart = '12:00'
       const lunchEnd = '13:00'
       const workEnd = '17:00'
-      
+
       const morningDuration = calculateDuration(workStart, lunchStart)
       const afternoonDuration = calculateDuration(lunchEnd, workEnd)
       const totalWorkMinutes = morningDuration + afternoonDuration
-      
+
       expect(formatMinutes(morningDuration)).toBe('3h')
       expect(formatMinutes(afternoonDuration)).toBe('4h')
       expect(formatMinutes(totalWorkMinutes)).toBe('7h')
@@ -189,11 +189,11 @@ describe('time-utils', () => {
         { start: '10:00', end: '11:00' },
         { start: '14:00', end: '14:45' },
       ]
-      
+
       const totalMeetingTime = meetings.reduce((total, meeting) => {
         return total + calculateDuration(meeting.start, meeting.end)
       }, 0)
-      
+
       expect(totalMeetingTime).toBe(135) // 30 + 60 + 45
       expect(formatMinutes(totalMeetingTime)).toBe('2h 15m')
     })

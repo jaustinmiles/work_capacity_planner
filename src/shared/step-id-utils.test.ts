@@ -82,10 +82,10 @@ describe('step-id-utils', () => {
       const before = Date.now()
       const id = generateRandomStepId()
       const after = Date.now()
-      
+
       const parts = id.split('-')
       const timestamp = parseInt(parts[1], 36)
-      
+
       expect(timestamp).toBeGreaterThanOrEqual(before)
       expect(timestamp).toBeLessThanOrEqual(after)
     })
@@ -106,7 +106,7 @@ describe('step-id-utils', () => {
       ]
 
       const result = mapDependenciesToIds(stepsWithDeps)
-      
+
       expect(result[0].dependsOn).toEqual([])
       expect(result[1].dependsOn).toEqual(['step-1'])
       expect(result[2].dependsOn).toEqual(['step-1', 'step-2'])
@@ -288,7 +288,7 @@ describe('step-id-utils', () => {
       ]
 
       const result = validateDependencies(steps)
-      
+
       expect(result.valid).toBe(true)
       expect(result.errors).toHaveLength(0)
     })
@@ -300,7 +300,7 @@ describe('step-id-utils', () => {
       ]
 
       const result = validateDependencies(steps)
-      
+
       expect(result.valid).toBe(false)
       expect(result.errors).toContain('Step "Step B" has invalid dependency "step-99"')
     })
@@ -312,14 +312,14 @@ describe('step-id-utils', () => {
       ]
 
       const result = validateDependencies(steps)
-      
+
       expect(result.valid).toBe(false)
       expect(result.errors).toHaveLength(3)
     })
 
     it('should handle empty steps array', () => {
       const result = validateDependencies([])
-      
+
       expect(result.valid).toBe(true)
       expect(result.errors).toHaveLength(0)
     })
@@ -331,7 +331,7 @@ describe('step-id-utils', () => {
       ]
 
       const result = validateDependencies(steps)
-      
+
       expect(result.valid).toBe(true)
       expect(result.errors).toHaveLength(0)
     })
@@ -345,7 +345,7 @@ describe('step-id-utils', () => {
       ]
 
       const result = fixBrokenDependencies(steps)
-      
+
       expect(result[0].dependsOn).toEqual([])
       expect(result[1].dependsOn).toEqual(['step-1'])
     })
@@ -358,7 +358,7 @@ describe('step-id-utils', () => {
       ]
 
       const result = fixBrokenDependencies(steps)
-      
+
       expect(result[0].dependsOn).toEqual([])
       expect(result[1].dependsOn).toEqual(['step-1'])
       expect(result[2].dependsOn).toEqual(['step-1', 'step-2'])
@@ -370,15 +370,15 @@ describe('step-id-utils', () => {
       ]
 
       const result = fixBrokenDependencies(steps)
-      
+
       expect(result[0].dependsOn).toEqual([])
     })
 
     it('should preserve all other fields', () => {
       const steps = [
-        { 
-          id: 'step-1', 
-          name: 'Step A', 
+        {
+          id: 'step-1',
+          name: 'Step A',
           dependsOn: ['step-99'],
           duration: 60,
           type: 'task',
@@ -386,7 +386,7 @@ describe('step-id-utils', () => {
       ]
 
       const result = fixBrokenDependencies(steps)
-      
+
       expect(result[0]).toMatchObject({
         id: 'step-1',
         name: 'Step A',
@@ -403,15 +403,15 @@ describe('step-id-utils', () => {
 
     it('should log warnings for removed dependencies', async () => {
       const { logger } = await import('./logger')
-      
+
       const steps = [
         { id: 'step-1', name: 'Step A', dependsOn: ['step-99'] },
       ]
 
       fixBrokenDependencies(steps)
-      
+
       expect(logger.scheduler.warn).toHaveBeenCalledWith(
-        'Removing invalid dependency "step-99" from step "Step A"'
+        'Removing invalid dependency "step-99" from step "Step A"',
       )
     })
   })
