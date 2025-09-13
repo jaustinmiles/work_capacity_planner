@@ -178,7 +178,10 @@ export class UnifiedSchedulerAdapter {
     return {
       scheduledTasks,
       unscheduledTasks,
-      conflicts: (result.conflicts || []).map(c => c.description),
+      conflicts: [
+        ...(result.conflicts || []).map(c => c.description),
+        ...(result.debugInfo?.warnings || []),
+      ],
       totalDuration: scheduledTasks.reduce((sum, item) => sum + item.task.duration, 0),
       debugInfo: result.debugInfo, // Preserve debug info from UnifiedScheduler
     }
@@ -409,8 +412,25 @@ export class UnifiedSchedulerAdapter {
       unscheduledTasks: result.unscheduledTasks.length,
       totalDuration: result.totalDuration,
       averagePriority: avgPriority,
-      utilizationRate: result.scheduledTasks.length / Math.max(tasks.length, 1),
+      utilizationRate: this.calculateUtilizationRate(result.totalDuration, workPatterns),
     }
+  }
+
+  /**
+   * Calculate utilization rate as scheduled duration / total capacity
+   */
+  private calculateUtilizationRate(scheduledDuration: number, workPatterns: DailyWorkPattern[]): number {
+    if (!workPatterns || workPatterns.length === 0) return 0
+    
+    const totalCapacity = workPatterns.reduce((sum, pattern) => {
+      const blocks = pattern.blocks || []
+      return sum + blocks.reduce((blockSum, block) => {
+        const capacity = block.capacity || {}
+        return blockSum + (capacity.focusMinutes || 0) + (capacity.adminMinutes || 0) + (capacity.personalMinutes || 0)
+      }, 0)
+    }, 0)
+    
+    return totalCapacity > 0 ? scheduledDuration / totalCapacity : 0
   }
 
   /**

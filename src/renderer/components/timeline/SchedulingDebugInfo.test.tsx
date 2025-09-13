@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SchedulingDebugInfo } from './SchedulingDebugInfo'
 import '@testing-library/jest-dom'
@@ -109,27 +109,27 @@ describe('SchedulingDebugInfo', () => {
 
   it('displays warnings in alert', () => {
     render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
-    
+
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
     fireEvent.click(header.parentElement!)
-    
+
     expect(screen.getByText('Some tasks exceed available capacity')).toBeInTheDocument()
     expect(screen.getByText('Consider redistributing workload')).toBeInTheDocument()
   })
 
   it('shows unscheduled items table with priority breakdown', () => {
     render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
-    
+
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
     fireEvent.click(header.parentElement!)
-    
+
     expect(screen.getByText('Unscheduled Items (2)')).toBeInTheDocument()
     expect(screen.getByText('Unscheduled Task 1')).toBeInTheDocument()
     expect(screen.getByText('No available capacity')).toBeInTheDocument()
     expect(screen.getByText('Dependencies not met')).toBeInTheDocument()
-    
+
     // Check priority breakdown rendering
     expect(screen.getByText(/Total: 85/)).toBeInTheDocument()
     expect(screen.getByText(/E:50/)).toBeInTheDocument()
@@ -137,11 +137,11 @@ describe('SchedulingDebugInfo', () => {
 
   it('shows scheduled items table', () => {
     render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
-    
+
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
     fireEvent.click(header.parentElement!)
-    
+
     expect(screen.getByText('Scheduled Items Priority Analysis (First 10 by Schedule Order)')).toBeInTheDocument()
     expect(screen.getByText('Scheduled Task 1')).toBeInTheDocument()
     expect(screen.getByText('Scheduled Task 2')).toBeInTheDocument()
@@ -149,11 +149,11 @@ describe('SchedulingDebugInfo', () => {
 
   it('shows block utilization table', () => {
     render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
-    
+
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
     fireEvent.click(header.parentElement!)
-    
+
     expect(screen.getByText('Block Utilization (Current & Next Day)')).toBeInTheDocument()
     expect(screen.getByText('120/180')).toBeInTheDocument() // Focus usage
     expect(screen.getByText('60/240')).toBeInTheDocument() // Admin usage
@@ -162,7 +162,7 @@ describe('SchedulingDebugInfo', () => {
   it('filters block utilization to current and next day only', () => {
     const pastDate = new Date()
     pastDate.setDate(pastDate.getDate() - 2)
-    
+
     const debugInfoWithPastBlocks = {
       ...mockDebugInfo,
       blockUtilization: [
@@ -184,13 +184,13 @@ describe('SchedulingDebugInfo', () => {
         },
       ],
     }
-    
+
     render(<SchedulingDebugInfo debugInfo={debugInfoWithPastBlocks} />)
-    
+
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
     fireEvent.click(header.parentElement!)
-    
+
     // Past block should not be shown
     expect(screen.queryByText('past-block')).not.toBeInTheDocument()
   })
@@ -204,9 +204,9 @@ describe('SchedulingDebugInfo', () => {
       unusedAdminCapacity: 0,
       blockUtilization: [],
     }
-    
+
     render(<SchedulingDebugInfo debugInfo={emptyDebugInfo} />)
-    
+
     // Should still render but not be expanded by default
     expect(screen.getByText('Scheduling Debug Info')).toBeInTheDocument()
   })
@@ -241,17 +241,17 @@ describe('SchedulingDebugInfo', () => {
         },
       ],
     }
-    
+
     render(<SchedulingDebugInfo debugInfo={debugInfoWithPriorities} />)
-    
+
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
     fireEvent.click(header.parentElement!)
-    
-    const taskNames = screen.getAllByRole('cell').filter(cell => 
-      ['High Priority', 'Medium Priority', 'Low Priority'].includes(cell.textContent || '')
+
+    const taskNames = screen.getAllByRole('cell').filter(cell =>
+      ['High Priority', 'Medium Priority', 'Low Priority'].includes(cell.textContent || ''),
     )
-    
+
     expect(taskNames[0].textContent).toBe('High Priority')
     expect(taskNames[1].textContent).toBe('Medium Priority')
     expect(taskNames[2].textContent).toBe('Low Priority')
@@ -307,13 +307,13 @@ describe('SchedulingDebugInfo', () => {
         },
       ],
     }
-    
+
     render(<SchedulingDebugInfo debugInfo={debugInfoWithStatuses} />)
-    
+
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
     fireEvent.click(header.parentElement!)
-    
+
     expect(screen.getByText('Fully utilized')).toBeInTheDocument()
     expect(screen.getByText('Block is in the past')).toBeInTheDocument()
     expect(screen.getByText('Block started at 14:00')).toBeInTheDocument()
@@ -342,17 +342,17 @@ describe('SchedulingDebugInfo', () => {
         },
       ],
     }
-    
+
     render(<SchedulingDebugInfo debugInfo={debugInfoNoPriority} />)
-    
+
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
     fireEvent.click(header.parentElement!)
-    
+
     // Should show dash for unscheduled items without priority - use getAllByText since there might be multiple
     const dashes = screen.getAllByText('-')
     expect(dashes.length).toBeGreaterThan(0)
-    
+
     // Should show simple priority tag for scheduled items without breakdown
     expect(screen.getByText('Priority: 75')).toBeInTheDocument()
   })
@@ -379,13 +379,13 @@ describe('SchedulingDebugInfo', () => {
         },
       ],
     }
-    
+
     render(<SchedulingDebugInfo debugInfo={debugInfoWithPersonal} />)
-    
+
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
     fireEvent.click(header.parentElement!)
-    
+
     // Should show personal utilization
     expect(screen.getByText('30/60')).toBeInTheDocument()
   })

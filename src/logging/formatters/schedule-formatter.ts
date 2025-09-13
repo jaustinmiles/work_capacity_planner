@@ -183,11 +183,11 @@ export class ScheduleFormatter {
     // Add debug info if provided
     if (debugInfo) {
       // Calculate unused capacity from block utilization
-      const unusedFocus = debugInfo.blockUtilization?.reduce((sum, block) => 
+      const unusedFocus = debugInfo.blockUtilization?.reduce((sum, block) =>
         sum + (block.focusTotal - block.focusUsed), 0) || 0
-      const unusedAdmin = debugInfo.blockUtilization?.reduce((sum, block) => 
+      const unusedAdmin = debugInfo.blockUtilization?.reduce((sum, block) =>
         sum + (block.adminTotal - block.adminUsed), 0) || 0
-      
+
       output.debugInfo = {
         unusedCapacity: {
           focus: unusedFocus,
@@ -251,11 +251,11 @@ export class ScheduleFormatter {
    */
   static formatDebugInfo(debugInfo: SchedulingDebugInfo): ScheduleLogOutput {
     // Calculate unused capacity from block utilization
-    const unusedFocus = debugInfo.blockUtilization?.reduce((sum, block) => 
+    const unusedFocus = debugInfo.blockUtilization?.reduce((sum, block) =>
       sum + (block.focusTotal - block.focusUsed), 0) || 0
-    const unusedAdmin = debugInfo.blockUtilization?.reduce((sum, block) => 
+    const unusedAdmin = debugInfo.blockUtilization?.reduce((sum, block) =>
       sum + (block.adminTotal - block.adminUsed), 0) || 0
-    
+
     return {
       timestamp: new Date().toISOString(),
       type: 'debug_info',

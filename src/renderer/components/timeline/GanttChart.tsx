@@ -1935,9 +1935,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             priorityBreakdown: item.priorityBreakdown,
           })),
           warnings: debugInfo.warnings,
-          unusedFocusCapacity: debugInfo.blockUtilization?.reduce((sum, block) => 
+          unusedFocusCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
             sum + (block.focusTotal - block.focusUsed), 0) || 0,
-          unusedAdminCapacity: debugInfo.blockUtilization?.reduce((sum, block) => 
+          unusedAdminCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
             sum + (block.adminTotal - block.adminUsed), 0) || 0,
           blockUtilization: debugInfo.blockUtilization?.map(block => ({
             date: block.date,

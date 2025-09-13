@@ -3,7 +3,7 @@ import { UnifiedSchedulerAdapter } from './unified-scheduler-adapter'
 import { Task } from './types'
 import { SequencedTask } from './sequencing-types'
 import { DailyWorkPattern } from './work-blocks-types'
-import { TaskType, TaskStatus } from './enums'
+import { TaskType } from './enums'
 import * as UnifiedSchedulerModule from './unified-scheduler'
 
 // Mock the UnifiedScheduler
@@ -22,7 +22,12 @@ vi.mock('./unified-scheduler', () => ({
         blockUtilization: [],
       },
     }),
-    calculatePriority: vi.fn().mockReturnValue(25),
+    calculatePriority: vi.fn().mockImplementation((task) => {
+      // Simple priority calculation based on importance and urgency
+      const importance = task.importance || 3
+      const urgency = task.urgency || 3
+      return importance * urgency
+    }),
     validateDependencies: vi.fn().mockReturnValue({
       isValid: true,
       errors: [],
@@ -120,7 +125,7 @@ describe('UnifiedSchedulerAdapter', () => {
     it('schedules tasks and returns adapted result', () => {
       const tasks = [createMockTask()]
       const workPatterns = [createMockWorkPattern('2024-01-01')]
-      
+
       // Set up mock return value
       mockScheduler.scheduleForDisplay.mockReturnValue({
         scheduled: [
@@ -162,7 +167,7 @@ describe('UnifiedSchedulerAdapter', () => {
       const workPatterns = [createMockWorkPattern('2024-01-01')]
 
       mockScheduler.scheduleForDisplay.mockReturnValue({
-        scheduledItems: [
+        scheduled: [
           {
             id: 'step-1',
             name: 'Step 1',
@@ -174,6 +179,13 @@ describe('UnifiedSchedulerAdapter', () => {
             dependencies: [],
             workflowId: 'seq-1',
             workflowName: 'Sequenced Task',
+            originalItem: {
+              id: 'step-1',
+              name: 'Step 1',
+              taskId: 'seq-1',
+              duration: 45,
+              status: 'not_started',
+            },
           },
         ],
         unscheduled: [],
@@ -188,11 +200,11 @@ describe('UnifiedSchedulerAdapter', () => {
         },
       })
 
-      const result = adapter.scheduleTasks(tasks, workPatterns, { startDate: '2024-01-01' }, sequencedTasks)
+      adapter.scheduleTasks(tasks, workPatterns, { startDate: '2024-01-01' }, sequencedTasks)
 
       expect(mockScheduler.scheduleForDisplay).toHaveBeenCalled()
       const callArgs = mockScheduler.scheduleForDisplay.mock.calls[0]
-      expect(callArgs[1]).toHaveLength(3) // 1 task + 2 workflow steps
+      expect(callArgs[0]).toHaveLength(2) // 1 task + 1 workflow (workflows are expanded internally)
     })
 
     it('handles options correctly', () => {
@@ -212,12 +224,14 @@ describe('UnifiedSchedulerAdapter', () => {
         expect.anything(),
         expect.anything(),
         expect.objectContaining({
-          startDate: new Date('2024-01-01'),
-          endDate: new Date('2024-01-07'),
-          respectDeadlines: true,
+          startDate: '2024-01-01',
+          endDate: '2024-01-07',
           allowTaskSplitting: true,
-          enableDebugInfo: true,
-        })
+          debugMode: true,
+          respectMeetings: true,
+          includeWeekends: false,
+          optimizationMode: 'realistic',
+        }),
       )
     })
 
@@ -231,8 +245,8 @@ describe('UnifiedSchedulerAdapter', () => {
       adapter.scheduleTasks(tasks, workPatterns, { startDate: '2024-01-01' })
 
       const callArgs = mockScheduler.scheduleForDisplay.mock.calls[0]
-      expect(callArgs[1]).toHaveLength(1) // Only incomplete task
-      expect(callArgs[1][0].id).toBe('task-1')
+      expect(callArgs[0]).toHaveLength(1) // Only incomplete task (allItems is first arg)
+      expect(callArgs[0][0].id).toBe('task-1')
     })
 
     it('handles unscheduled tasks', () => {
@@ -243,7 +257,7 @@ describe('UnifiedSchedulerAdapter', () => {
       const workPatterns = [createMockWorkPattern('2024-01-01')]
 
       mockScheduler.scheduleForDisplay.mockReturnValue({
-        scheduledItems: [
+        scheduled: [
           {
             id: 'task-1',
             name: 'Test Task',
@@ -253,6 +267,12 @@ describe('UnifiedSchedulerAdapter', () => {
             endTime: new Date('2024-01-01T10:00:00'),
             priority: 25,
             dependencies: [],
+            originalItem: {
+              id: 'task-1',
+              name: 'Test Task',
+              type: TaskType.Focused,
+              duration: 60,
+            },
           },
         ],
         unscheduled: [
@@ -262,6 +282,12 @@ describe('UnifiedSchedulerAdapter', () => {
             type: TaskType.Focused,
             duration: 60,
             reason: 'No available capacity',
+            originalItem: {
+              id: 'task-2',
+              name: 'Test Task',
+              type: TaskType.Focused,
+              duration: 60,
+            },
           },
         ],
         debugInfo: {
@@ -290,16 +316,17 @@ describe('UnifiedSchedulerAdapter', () => {
       const workPatterns = [createMockWorkPattern('2024-01-01')]
 
       mockScheduler.scheduleForDisplay.mockReturnValue({
-        scheduledItems: [
+        scheduled: [
           {
             id: 'task-1',
             name: 'Test Task',
             type: TaskType.Focused,
             duration: 60,
-            startTime: new Date('2024-01-01T09:00:00'),
-            endTime: new Date('2024-01-01T10:00:00'),
+            startTime: new Date(Date.now() + 3600000), // 1 hour from now
+            endTime: new Date(Date.now() + 7200000), // 2 hours from now
             priority: 25,
             dependencies: [],
+            originalItem: createMockTask(),
           },
         ],
         unscheduled: [],
@@ -317,7 +344,7 @@ describe('UnifiedSchedulerAdapter', () => {
       const workPatterns = []
 
       mockScheduler.scheduleForDisplay.mockReturnValue({
-        scheduledItems: [],
+        scheduled: [],
         unscheduled: [],
         debugInfo: null,
       })
@@ -402,7 +429,7 @@ describe('UnifiedSchedulerAdapter', () => {
   describe('calculateTaskPriority', () => {
     it('delegates to UnifiedScheduler calculatePriority', () => {
       const task = createMockTask({ importance: 5, urgency: 5 })
-      
+
       mockScheduler.calculatePriority.mockReturnValue(42)
       const priority = adapter.calculateTaskPriority(task)
 
@@ -413,7 +440,7 @@ describe('UnifiedSchedulerAdapter', () => {
     it('applies deadline boost', () => {
       const tomorrow = new Date()
       tomorrow.setDate(tomorrow.getDate() + 1)
-      
+
       const task = createMockTask({
         importance: 5,
         urgency: 5,
@@ -429,7 +456,7 @@ describe('UnifiedSchedulerAdapter', () => {
     it('handles overdue tasks', () => {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      
+
       const task = createMockTask({
         importance: 5,
         urgency: 5,
@@ -465,7 +492,7 @@ describe('UnifiedSchedulerAdapter', () => {
       const workPatterns = [createMockWorkPattern('2024-01-01')]
 
       mockScheduler.scheduleForDisplay.mockReturnValue({
-        scheduledItems: [
+        scheduled: [
           {
             id: 'task-1',
             name: 'Test Task',
@@ -475,6 +502,7 @@ describe('UnifiedSchedulerAdapter', () => {
             endTime: new Date('2024-01-01T10:00:00'),
             priority: 25,
             dependencies: [],
+            originalItem: createMockTask({ id: 'task-1', importance: 5, urgency: 5 }),
           },
         ],
         unscheduled: [
@@ -484,6 +512,7 @@ describe('UnifiedSchedulerAdapter', () => {
             type: TaskType.Focused,
             duration: 60,
             reason: 'No capacity',
+            originalItem: createMockTask({ id: 'task-2', importance: 3, urgency: 4 }),
           },
         ],
         debugInfo: null,
@@ -515,7 +544,7 @@ describe('UnifiedSchedulerAdapter', () => {
       const workPatterns = [createMockWorkPattern('2024-01-01')] // 420 minutes total
 
       mockScheduler.scheduleForDisplay.mockReturnValue({
-        scheduledItems: [
+        scheduled: [
           {
             id: 'task-1',
             name: 'Test Task',
@@ -525,6 +554,7 @@ describe('UnifiedSchedulerAdapter', () => {
             endTime: new Date('2024-01-01T12:00:00'),
             priority: 25,
             dependencies: [],
+            originalItem: createMockTask({ duration: 180 }),
           },
         ],
         unscheduled: [],
