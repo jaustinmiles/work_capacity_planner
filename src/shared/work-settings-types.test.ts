@@ -53,7 +53,7 @@ describe('work-settings-types', () => {
         lunchStart: '12:30',
         lunchDuration: 45,
       }
-      
+
       expect(workHours.startTime).toBe('08:30')
       expect(workHours.endTime).toBe('17:30')
       expect(workHours.lunchStart).toBe('12:30')
@@ -65,7 +65,7 @@ describe('work-settings-types', () => {
         startTime: '09:00',
         endTime: '17:00',
       }
-      
+
       expect(workHours.lunchStart).toBeUndefined()
       expect(workHours.lunchDuration).toBeUndefined()
     })
@@ -81,10 +81,10 @@ describe('work-settings-types', () => {
             startTime: '10:00',
             endTime: '10:30',
             recurring: 'daily',
-          }
+          },
         ],
       }
-      
+
       expect(capacity.maxFocusHours).toBe(6)
       expect(capacity.maxAdminHours).toBe(2)
       expect(capacity.blockedTimes).toHaveLength(1)
@@ -99,7 +99,7 @@ describe('work-settings-types', () => {
         recurring: 'weekly',
         daysOfWeek: [1, 3, 5], // Monday, Wednesday, Friday
       }
-      
+
       expect(blockedTime.id).toBe('block-1')
       expect(blockedTime.name).toBe('Team Meeting')
       expect(blockedTime.recurring).toBe('weekly')
@@ -114,7 +114,7 @@ describe('work-settings-types', () => {
         endTime: '11:00',
         recurring: 'none',
       }
-      
+
       const dailyRecurring: BlockedTime = {
         id: '2',
         name: 'Daily standup',
@@ -122,7 +122,7 @@ describe('work-settings-types', () => {
         endTime: '09:15',
         recurring: 'daily',
       }
-      
+
       const weeklyRecurring: BlockedTime = {
         id: '3',
         name: 'Weekly review',
@@ -131,7 +131,7 @@ describe('work-settings-types', () => {
         recurring: 'weekly',
         daysOfWeek: [5], // Friday
       }
-      
+
       const customRecurring: BlockedTime = {
         id: '4',
         name: 'Custom schedule',
@@ -140,7 +140,7 @@ describe('work-settings-types', () => {
         recurring: 'custom',
         daysOfWeek: [1, 2, 4],
       }
-      
+
       expect(noneRecurring.recurring).toBe('none')
       expect(dailyRecurring.recurring).toBe('daily')
       expect(weeklyRecurring.recurring).toBe('weekly')
@@ -156,7 +156,7 @@ describe('work-settings-types', () => {
           6: { startTime: '10:00', endTime: '14:00' }, // Saturday
         },
       }
-      
+
       expect(settings.customWorkHours[0]).toBeDefined()
       expect(settings.customWorkHours[5]).toBeDefined()
       expect(settings.customWorkHours[6]).toBeDefined()
@@ -180,7 +180,7 @@ describe('work-settings-types', () => {
           },
         },
       }
-      
+
       expect(settings.customCapacity['2025-01-01']).toBeDefined()
       expect(settings.customCapacity['2025-01-01'].maxFocusHours).toBe(2)
       expect(settings.customCapacity['2025-12-25'].maxFocusHours).toBe(0)
@@ -197,7 +197,7 @@ describe('work-settings-types', () => {
         recurring: 'custom',
         daysOfWeek: [0, 1, 2, 3, 4, 5, 6], // All days
       }
-      
+
       expect(blockedTime.daysOfWeek).toHaveLength(7)
       expect(blockedTime.daysOfWeek).toContain(0) // Sunday
       expect(blockedTime.daysOfWeek).toContain(6) // Saturday
@@ -209,7 +209,7 @@ describe('work-settings-types', () => {
         maxAdminHours: 0,
         blockedTimes: [],
       }
-      
+
       expect(capacity.blockedTimes).toEqual([])
       expect(capacity.blockedTimes).toHaveLength(0)
     })
@@ -219,14 +219,14 @@ describe('work-settings-types', () => {
         ...DEFAULT_WORK_SETTINGS,
         timeZone: 'America/New_York',
       }
-      
+
       expect(settings.timeZone).toBe('America/New_York')
-      
+
       const settings2: WorkSettings = {
         ...DEFAULT_WORK_SETTINGS,
         timeZone: 'Europe/London',
       }
-      
+
       expect(settings2.timeZone).toBe('Europe/London')
     })
 
@@ -236,7 +236,7 @@ describe('work-settings-types', () => {
         maxAdminHours: 0,
         blockedTimes: [],
       }
-      
+
       expect(capacity.maxFocusHours).toBe(0)
       expect(capacity.maxAdminHours).toBe(0)
     })
@@ -262,7 +262,7 @@ describe('work-settings-types', () => {
           },
         ],
       }
-      
+
       expect(capacity.blockedTimes).toHaveLength(2)
       // The types don't enforce non-overlapping, just store the data
     })

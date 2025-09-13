@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { createMockTask, createMockSequencedTask } from './test-utils'
-import { TaskType, TaskStatus, StepStatus } from './enums'
+import { TaskStatus, StepStatus } from './enums'
 
 describe('test-utils', () => {
   describe('createMockTask', () => {
     it('should create a default task with all required fields', () => {
       const task = createMockTask()
-      
+
       expect(task).toMatchObject({
         id: 'task-1',
         name: 'Test Task',
@@ -23,7 +23,7 @@ describe('test-utils', () => {
         criticalPathDuration: 60,
         worstCaseDuration: 60,
       })
-      
+
       expect(task.createdAt).toBeInstanceOf(Date)
       expect(task.updatedAt).toBeInstanceOf(Date)
     })
@@ -40,7 +40,7 @@ describe('test-utils', () => {
         completed: true,
         createdAt: customDate,
       })
-      
+
       expect(task.id).toBe('custom-id')
       expect(task.name).toBe('Custom Task')
       expect(task.duration).toBe(120)
@@ -49,7 +49,7 @@ describe('test-utils', () => {
       expect(task.type).toBe('admin')
       expect(task.completed).toBe(true)
       expect(task.createdAt).toBe(customDate)
-      
+
       // Defaults should still be present
       expect(task.asyncWaitTime).toBe(0)
       expect(task.dependencies).toEqual([])
@@ -58,7 +58,7 @@ describe('test-utils', () => {
 
     it('should allow partial overrides', () => {
       const task = createMockTask({ name: 'Partial Override' })
-      
+
       expect(task.name).toBe('Partial Override')
       expect(task.id).toBe('task-1') // Default
       expect(task.duration).toBe(60) // Default
@@ -68,7 +68,7 @@ describe('test-utils', () => {
       const focusedTask = createMockTask({ type: 'focused' })
       const adminTask = createMockTask({ type: 'admin' })
       const breakTask = createMockTask({ type: 'break' })
-      
+
       expect(focusedTask.type).toBe('focused')
       expect(adminTask.type).toBe('admin')
       expect(breakTask.type).toBe('break')
@@ -78,7 +78,7 @@ describe('test-utils', () => {
       const notStarted = createMockTask({ overallStatus: TaskStatus.NotStarted })
       const inProgress = createMockTask({ overallStatus: TaskStatus.InProgress })
       const completed = createMockTask({ overallStatus: TaskStatus.Completed })
-      
+
       expect(notStarted.overallStatus).toBe('not_started')
       expect(inProgress.overallStatus).toBe('in_progress')
       expect(completed.overallStatus).toBe('completed')
@@ -86,9 +86,9 @@ describe('test-utils', () => {
 
     it('should handle dependencies', () => {
       const task = createMockTask({
-        dependencies: ['dep-1', 'dep-2', 'dep-3']
+        dependencies: ['dep-1', 'dep-2', 'dep-3'],
       })
-      
+
       expect(task.dependencies).toHaveLength(3)
       expect(task.dependencies).toEqual(['dep-1', 'dep-2', 'dep-3'])
     })
@@ -100,7 +100,7 @@ describe('test-utils', () => {
         criticalPathDuration: 90,
         worstCaseDuration: 120,
       })
-      
+
       expect(task.asyncWaitTime).toBe(30)
       expect(task.criticalPathDuration).toBe(90)
       expect(task.worstCaseDuration).toBe(120)
@@ -111,7 +111,7 @@ describe('test-utils', () => {
         notes: 'Test notes',
         deadline: new Date('2025-12-31'),
       })
-      
+
       expect(task.notes).toBe('Test notes')
       expect(task.deadline).toEqual(new Date('2025-12-31'))
     })
@@ -120,7 +120,7 @@ describe('test-utils', () => {
   describe('createMockSequencedTask', () => {
     it('should create a default workflow with steps', () => {
       const workflow = createMockSequencedTask()
-      
+
       expect(workflow).toMatchObject({
         id: 'workflow-1',
         name: 'Test Workflow',
@@ -137,7 +137,7 @@ describe('test-utils', () => {
         criticalPathDuration: 60,
         worstCaseDuration: 90, // 60 * 1.5
       })
-      
+
       expect(workflow.steps).toHaveLength(2)
       expect(workflow.createdAt).toBeInstanceOf(Date)
       expect(workflow.updatedAt).toBeInstanceOf(Date)
@@ -145,11 +145,11 @@ describe('test-utils', () => {
 
     it('should create default steps when not provided', () => {
       const workflow = createMockSequencedTask()
-      
+
       expect(workflow.steps).toHaveLength(2)
-      
+
       const [step1, step2] = workflow.steps!
-      
+
       expect(step1).toMatchObject({
         id: 'step-1',
         taskId: 'task-1', // Default task ID, not workflow ID
@@ -162,7 +162,7 @@ describe('test-utils', () => {
         stepIndex: 0,
         percentComplete: 0,
       })
-      
+
       expect(step2).toMatchObject({
         id: 'step-2',
         taskId: 'task-1', // Default task ID, not workflow ID
@@ -190,14 +190,14 @@ describe('test-utils', () => {
           status: StepStatus.InProgress,
           stepIndex: 0,
           percentComplete: 50,
-        }
+        },
       ]
-      
+
       const workflow = createMockSequencedTask({
         id: 'workflow-2',
         steps: customSteps,
       })
-      
+
       expect(workflow.steps).toHaveLength(1)
       expect(workflow.steps![0]).toMatchObject(customSteps[0])
       expect(workflow.duration).toBe(45)
@@ -242,14 +242,14 @@ describe('test-utils', () => {
           status: StepStatus.Pending,
           stepIndex: 2,
           percentComplete: 0,
-        }
+        },
       ]
-      
+
       const workflow = createMockSequencedTask({
         id: 'workflow-3',
         steps,
       })
-      
+
       expect(workflow.duration).toBe(75) // 20 + 40 + 15
       expect(workflow.criticalPathDuration).toBe(110) // 20 + 10 + 40 + 20 + 15 + 5
       expect(workflow.worstCaseDuration).toBe(165) // 110 * 1.5
@@ -266,7 +266,7 @@ describe('test-utils', () => {
         notes: 'Custom notes',
         createdAt: customDate,
       })
-      
+
       expect(workflow.id).toBe('custom-workflow')
       expect(workflow.name).toBe('Custom Workflow')
       expect(workflow.importance).toBe(10)
@@ -274,7 +274,7 @@ describe('test-utils', () => {
       expect(workflow.completed).toBe(true)
       expect(workflow.notes).toBe('Custom notes')
       expect(workflow.createdAt).toBe(customDate)
-      
+
       // Should still have default steps
       expect(workflow.steps).toHaveLength(2)
       expect(workflow.hasSteps).toBe(true)
@@ -284,7 +284,7 @@ describe('test-utils', () => {
       const workflow = createMockSequencedTask({
         id: 'my-workflow-id',
       })
-      
+
       workflow.steps!.forEach(step => {
         expect(step.taskId).toBe('my-workflow-id')
       })
@@ -294,7 +294,7 @@ describe('test-utils', () => {
       const workflow = createMockSequencedTask({
         steps: [],
       })
-      
+
       expect(workflow.steps).toHaveLength(0)
       expect(workflow.duration).toBe(0)
       expect(workflow.criticalPathDuration).toBe(0)
@@ -306,7 +306,7 @@ describe('test-utils', () => {
       const workflow = createMockSequencedTask({
         deadline,
       })
-      
+
       expect(workflow.deadline).toBe(deadline)
     })
 
@@ -347,14 +347,14 @@ describe('test-utils', () => {
           status: StepStatus.Pending,
           stepIndex: 2,
           percentComplete: 0,
-        }
+        },
       ]
-      
+
       const workflow = createMockSequencedTask({
         id: 'workflow-4',
         steps,
       })
-      
+
       expect(workflow.steps![2].dependsOn).toEqual(['parallel-1', 'parallel-2'])
     })
 
@@ -395,15 +395,15 @@ describe('test-utils', () => {
           status: StepStatus.Pending,
           stepIndex: 2,
           percentComplete: 0,
-        }
+        },
       ]
-      
+
       const workflow = createMockSequencedTask({
         id: 'workflow-5',
         steps,
         overallStatus: TaskStatus.InProgress,
       })
-      
+
       expect(workflow.steps![0].status).toBe('completed')
       expect(workflow.steps![0].percentComplete).toBe(100)
       expect(workflow.steps![1].status).toBe('in_progress')
