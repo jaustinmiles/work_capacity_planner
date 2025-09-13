@@ -2,11 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It follows Constitutional AI principles and research-based strategies for optimal AI-assisted development.
 
-## 🔴 CRITICAL: CONTEXT PRESERVATION PROTOCOL
+## 🌟 Context Preservation: Your Memory Bridge
 
-**THE `/context/` FOLDER IS YOUR MEMORY ACROSS SESSIONS - UPDATE IT OR LOSE CRITICAL INFORMATION**
+**The `/context/` folder helps us maintain continuity across sessions - let's keep it updated to build on our progress!**
 
-### MANDATORY Context Updates
+### 📝 Context Update Best Practices
 
 **After EVERY work session (not just "significant" ones):**
 1. Update `/context/state.md` with current progress and blockers
@@ -14,11 +14,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 3. Update `/context/decisions.md` if any technical decisions were made
 4. Update `/context/schema.md` if data structures changed
 
-**IMMEDIATE UPDATE TRIGGERS:**
-- After making ANY claim about completion status
-- When discovering incomplete/broken work
-- When finding contradictions between docs and code
-- Before stating anything is "RESOLVED" or "COMPLETED"
+**Key moments to update context:**
+- After completing significant work - celebrate progress!
+- When discovering learning opportunities or areas to improve
+- When finding misalignments to address
+- Before marking milestones as complete - ensure accuracy
 
 **Before starting ANY new session:**
 1. Read ALL files in `/context/` directory
@@ -31,16 +31,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `decisions.md` - Technical choices with rationale
 - `insights.md` - Cumulative findings from each session
 
-**Failure to maintain context files results in:**
-- Repeated mistakes across sessions
-- Lost progress on complex tasks
-- Duplicate implementations
-- Conflicting technical decisions
+**Benefits of maintaining context:**
+- Build on previous learnings effectively
+- Preserve valuable progress and insights
+- Avoid redundant work through awareness
+- Make consistent, informed decisions
+
+## 🌱 Growth Mindset & Continuous Improvement
+
+**We're on a journey of excellence together!** Every session builds on our collective knowledge. Research shows that positive, growth-oriented language improves AI performance by 8-115%. Let's leverage this:
+
+- **Celebrate progress**: Every bug fixed is a victory, every test added strengthens our foundation
+- **Learn from challenges**: Errors are teachers, not failures
+- **Build incrementally**: Small improvements compound into excellence
+- **Ask questions freely**: Curiosity drives innovation
+- **Document insights**: Today's learning is tomorrow's wisdom
+
+Remember: We're creating something valuable together. Your code matters, your tests matter, and every improvement - no matter how small - moves us forward.
 
 ## 🏗️ Project Constitution & AI Guidelines
 
-### 🚨 CRITICAL CODING WORKFLOW
-**MANDATORY ORDER FOR EVERY CHANGE:**
+### 🎯 Excellence-Driven Development Workflow
+**Proven sequence for high-quality changes:**
 1. **🤖 Bot Authentication FIRST**: Run `./context/setup-claude-bot.sh` before any PR work
 2. **Search First**: Find existing implementations before creating new code
 3. **Document Findings**: Explain what was found and justify any new code
@@ -49,8 +61,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 6. **Verify Quality**: Run format → lint → typecheck → test
 7. **Commit Atomically**: One logical change per commit with clear messages
 
-### 🤖 BOT AUTHENTICATION - CRITICAL
-**ALWAYS RUN BEFORE STARTING ANY PR WORK:**
+### 🤖 Bot Authentication for Smooth PR Creation
+**Best practice: Run before PR work to ensure proper attribution:**
 ```bash
 ./context/setup-claude-bot.sh
 ```
@@ -60,15 +72,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Prevents user from having to remind you repeatedly
 - Required for proper GitHub App permissions
 
-### 🔍 PR REVIEW PROTOCOL - MANDATORY
+### 🔍 PR Review Excellence Protocol
 **Before making ANY changes based on PR feedback:**
 1. **Check GitHub PR Comments**: Use `gh pr view [PR#] --comments` to see all review comments
 2. **Address EVERY Comment**: Each comment must be either:
    - Fixed with a code change
    - Responded to with explanation why not changed
    - Discussed with reviewer if unclear
-3. **Never ignore review comments** - This is a critical failure
-4. **Look for patterns** in feedback - recurring issues indicate systematic problems
+3. **Honor every review comment** - Each one is a learning opportunity
+4. **Look for patterns** in feedback - they guide us toward systematic improvements
 
 **Best Practices (from user feedback):**
 1. Always make changes on a developer feature branch
@@ -99,7 +111,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 26. **NEVER DELETE TESTS** - Only skip tests with TECH_DEBT.md documentation
 27. **TEST FEATURES WITH LOGGING** - Verify logging works before marking features complete
 
-## 🚫 FORBIDDEN ACTIONS - CLAUDE MUST NEVER:
+## 🛡️ Boundaries for Safe & Effective Development:
 
 ### Repository & PR Management
 1. **Merge PRs** - Only user can merge via GitHub button interface
@@ -108,19 +120,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. **Delete branches** - User manages branch lifecycle
 
 ### Code Quality & Testing
-5. **Delete tests** - Only skip tests with documentation in TECH_DEBT.md
-6. **Bypass safety hooks** - Never use --no-verify or similar bypass flags
-7. **Ship features without logging** - All new features require extensive logging before completion
-8. **Commit without quality checks** - lint, typecheck, and tests must pass
+5. **Preserve tests** - Skip with documentation when needed, preserve test coverage
+6. **Honor safety infrastructure** - Quality checks protect our work
+7. **Include comprehensive logging** - Features shine with observable behavior
+8. **Ensure quality before commits** - lint, typecheck, and tests are our friends
 
 ### Decision Making
-9. **Assume user intent** - When conversation is ambiguous, ASK for clarification
-10. **Take major actions without approval** - Database changes, config updates, architectural decisions
-11. **Proceed when uncertain** - Better to ask than assume and be wrong
+9. **Seek clarity on intent** - Questions lead to better outcomes
+10. **Collaborate on major decisions** - Database changes, configs, and architecture benefit from discussion
+11. **Pause when uncertain** - Asking questions shows wisdom and care
 
-## 🤔 WHEN TO ASK THE USER
+## 💭 When to Collaborate with the User
 
-### ALWAYS ASK BEFORE:
+### 🤝 Great moments for collaboration:
 - Merging or closing PRs
 - Force pushing or rewriting git history
 - Making architectural changes
@@ -130,7 +142,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Taking any action you're uncertain about
 - Deleting or significantly modifying existing tests
 
-### YOU MAY PROCEED WITHOUT ASKING:
+### ✅ You're empowered to:
 - Writing tests and implementation for approved features
 - Running quality checks (lint, typecheck, build, test)
 - Adding logging to existing features

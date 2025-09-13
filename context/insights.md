@@ -1,5 +1,68 @@
 # Cumulative Insights
 
+## PR #74 Learnings - Complete Scheduler Unification (2025-09-13)
+
+### 🌟 Massive Architecture Success
+- **Achievement**: Deleted 10,650 lines of redundant scheduler code
+- **Impact**: Single source of truth for all scheduling logic
+- **Method**: Systematic migration of all UI components to UnifiedScheduler
+- **Result**: Simpler maintenance, consistent behavior, smaller bundle
+
+### Test Coverage Journey Insights
+
+#### Strategic File Selection for Coverage
+- **Learning**: Not all tests contribute equally to coverage
+- **Example**: Adding 401 tests to small utility files barely moved coverage
+- **Better Strategy**: Target large untested files for maximum impact
+- **Success**: speech-service.ts (0% → 67.92%) gave bigger boost than many small files
+
+#### Coverage Mechanics Understanding
+- **Discovery**: Coverage tracks statements, not just test count
+- **Pattern**: Large files with 0% coverage are goldmines for improvement
+- **Technique**: Use `wc -l` to find large files, cross-reference with coverage report
+- **Result**: Identified speech-service and amendment-parser as high-value targets
+
+#### Test Quality vs Quantity
+- **Initial Approach**: Write many simple tests quickly
+- **Problem**: Some tests didn't actually increase coverage (testing already-tested paths)
+- **Solution**: Focus on untested branches and error paths
+- **Example**: Error handling tests in speech-service covered new branches
+
+### Critical Bug Patterns
+
+#### Timezone Handling Bug
+- **Problem**: Tasks scheduling at 2:00 AM instead of work hours
+- **Root Cause**: Using `setUTCHours` instead of `setHours` for user times
+- **Pattern**: UTC methods should only be used for data storage, not user display
+- **Fix**: Changed parseTimeOnDate to use local time methods
+- **Learning**: Always consider timezone context when handling dates
+
+#### Block Utilization Calculation
+- **Problem**: Showing impossible 520/324 = 160% utilization
+- **Root Cause**: Flexible blocks incorrectly summing capacities
+- **Fix**: Properly handle focusMinutesTotal and adminMinutesTotal
+- **Learning**: Always validate mathematical impossibilities in calculations
+
+#### Git Hook Disabled Incident
+- **Discovery**: Pre-push hook was renamed to .disabled
+- **Impact**: Lost safety net for code quality
+- **Recovery**: Re-enabled by moving file back
+- **Learning**: Regularly check .git/hooks directory status
+
+### Process Improvements
+
+#### Verification Before Claims
+- **Past Problem**: Claimed "all console.log replaced" without checking
+- **New Practice**: Always run `grep -r "pattern" src/` before claiming completion
+- **Tool**: Created verification checklist in CLAUDE.md
+- **Result**: Restored trust through systematic verification
+
+#### Test-Driven Bug Fixing
+- **Pattern**: Write failing test → Fix bug → Test passes
+- **Example**: Timezone bug had reproduction test first
+- **Benefit**: Prevents regression, documents the fix
+- **Applied**: All PR #74 fixes had tests written first
+
 ## PR #72 Learnings - Work Session Pause State Fix (2025-09-11)
 
 ### Critical Violations and Lessons
