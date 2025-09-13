@@ -129,7 +129,7 @@ export class RingBuffer {
     const lowerQuery = query.toLowerCase()
     return this.getAll().filter(entry =>
       entry.message.toLowerCase().includes(lowerQuery) ||
-      JSON.stringify(entry.data).toLowerCase().includes(lowerQuery),
+      (entry.data ? JSON.stringify(entry.data).toLowerCase().includes(lowerQuery) : false),
     )
   }
 }
