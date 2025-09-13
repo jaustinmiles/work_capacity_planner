@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { UnifiedSchedulerAdapter, SchedulingOptions, ScheduleResult } from '@shared/unified-scheduler-adapter'
+import { UnifiedSchedulerAdapter, SchedulingOptions, ScheduleResult, ScheduledItem } from '@shared/unified-scheduler-adapter'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
@@ -11,10 +11,17 @@ import { logger } from '../utils/logger'
  */
 export function useUnifiedScheduler(): {
   scheduleForGantt: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => ScheduleResult
-  getNextScheduledTask: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => any
+  getNextScheduledTask: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => ScheduledItem | null
   validateDependencies: (tasks: Task[]) => { isValid: boolean; errors: string[] }
   calculateTaskPriority: (task: Task) => number
-  getSchedulingMetrics: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => any
+  getSchedulingMetrics: (tasks: Task[], workPatterns: DailyWorkPattern[], options?: SchedulingOptions, sequencedTasks?: SequencedTask[]) => {
+    totalTasks: number
+    scheduledTasks: number
+    unscheduledTasks: number
+    totalDuration: number
+    utilizationRate: number
+    averagePriority: number
+  }
   adapter: UnifiedSchedulerAdapter
 } {
   const adapter = useMemo(() => {

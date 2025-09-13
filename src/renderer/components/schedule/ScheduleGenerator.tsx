@@ -155,25 +155,11 @@ export function ScheduleGenerator({
         'optimal',
         tasks.filter(t => !t.completed),
         sequencedTasks.filter(w => !w.completed),
-        optimalResult.scheduledTasks.map(item => ({
-          id: item.task.id,
-          name: item.task.name,
-          type: 'task',
-          priority: item.priority || 0,
-          duration: item.task.duration,
-          startTime: item.startTime,
-          endTime: item.endTime,
-          color: '#1890ff',
-          deadline: item.task.deadline,
-          originalItem: item.task,
-        })),
+        optimalResult.scheduledTasks,
         baseWorkPatterns,
-        undefined, // blocks parameter removed as it's derived from work patterns
-        {
-          unscheduledItems: optimalResult.unscheduledTasks,
-          warnings: optimalResult.conflicts,
-        },
-        optimalResult.conflicts,
+        undefined, // blocks parameter
+        optimalResult.debugInfo, // debugInfo from the result
+        optimalResult.conflicts, // warnings
       )
 
       options.push({

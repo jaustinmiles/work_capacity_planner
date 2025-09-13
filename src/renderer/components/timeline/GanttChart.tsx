@@ -557,15 +557,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     }
     // Convert GanttItems to ScheduledItem format for logging
     const scheduledItems = ganttItems.map(item => ({
-      task: {
-        ...item.originalItem,
-        id: item.id,
-        name: item.name,
-        type: item.type as any,
-        duration: item.duration,
-        priority: item.priority,
-        deadline: item.deadline,
-      } as any,
+      task: item.originalItem as Task,
       startTime: item.startTime,
       endTime: item.endTime,
       blockId: item.blockId,
@@ -1925,10 +1917,47 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       {/* Scheduling Debug Info */}
       {showDebugInfo && debugInfo && (
         <DebugInfoComponent debugInfo={{
-          ...debugInfo,
-          unusedFocusCapacity: (debugInfo as any).unusedCapacity?.focus || 0,
-          unusedAdminCapacity: (debugInfo as any).unusedCapacity?.admin || 0,
-        } as any} />
+          unscheduledItems: debugInfo.unscheduledItems.map(item => ({
+            id: item.id || '',
+            name: item.name,
+            duration: item.duration,
+            type: item.type,
+            reason: item.reason,
+            priorityBreakdown: item.priorityBreakdown,
+          })),
+          scheduledItems: debugInfo.scheduledItems?.map(item => ({
+            id: item.id || '',
+            name: item.name,
+            type: item.type,
+            startTime: item.startTime || '',
+            duration: item.duration,
+            priority: item.priority,
+            priorityBreakdown: item.priorityBreakdown,
+          })),
+          warnings: debugInfo.warnings,
+          unusedFocusCapacity: debugInfo.blockUtilization?.reduce((sum, block) => 
+            sum + (block.focusTotal - block.focusUsed), 0) || 0,
+          unusedAdminCapacity: debugInfo.blockUtilization?.reduce((sum, block) => 
+            sum + (block.adminTotal - block.adminUsed), 0) || 0,
+          blockUtilization: debugInfo.blockUtilization?.map(block => ({
+            date: block.date,
+            blockId: block.blockId,
+            blockStart: block.startTime,
+            blockEnd: block.endTime,
+            startTime: block.startTime,
+            endTime: block.endTime,
+            type: 'mixed',
+            capacity: block.focusTotal + block.adminTotal,
+            used: block.focusUsed + block.adminUsed,
+            utilizationPercent: block.utilization,
+            focusUsed: block.focusUsed,
+            focusTotal: block.focusTotal,
+            adminUsed: block.adminUsed,
+            adminTotal: block.adminTotal,
+            personalUsed: block.personalUsed,
+            personalTotal: block.personalTotal,
+          })) || [],
+        }} />
       )}
     </Space>
   )
