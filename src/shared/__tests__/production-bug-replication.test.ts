@@ -28,8 +28,11 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
   // EXACT production data from database
   // Using PDT time directly for consistency
   // This represents 3:10 PM PDT
-  const CURRENT_TIME = new Date('2025-09-10T15:10:00-07:00') // 3:10 PM PDT
-  const TODAY = '2025-09-10'
+  // Use today's date to ensure tests work regardless of when they run
+  const now = new Date()
+  now.setHours(15, 10, 0, 0) // Set to 3:10 PM local time
+  const CURRENT_TIME = now
+  const TODAY = now.toISOString().split('T')[0]
 
   // EXACT work patterns from production database
   const productionWorkPatterns: DailyWorkPattern[] = [
@@ -77,8 +80,8 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
     importance: 9, // HIGH
     urgency: 8, // HIGH
     sessionId: 'f6e1813f-b087-45dc-964f-aeb5c34d2afa',
-    createdAt: new Date('2025-09-10T10:00:00-07:00'),
-    updatedAt: new Date('2025-09-10T14:00:00-07:00'),
+    createdAt: new Date(now.getTime() - 5 * 60 * 60 * 1000), // 5 hours ago
+    updatedAt: new Date(now.getTime() - 1 * 60 * 60 * 1000), // 1 hour ago
     steps: [
       {
         id: 'step-001',
@@ -131,8 +134,8 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
     dependencies: [],
     completed: false,
     sessionId: 'f6e1813f-b087-45dc-964f-aeb5c34d2afa',
-    createdAt: new Date('2025-09-10T11:00:00-07:00'),
-    updatedAt: new Date('2025-09-10T11:00:00-07:00'),
+    createdAt: new Date(now.getTime() - 4 * 60 * 60 * 1000), // 4 hours ago
+    updatedAt: new Date(now.getTime() - 4 * 60 * 60 * 1000), // 4 hours ago
   }
 
   beforeEach(() => {

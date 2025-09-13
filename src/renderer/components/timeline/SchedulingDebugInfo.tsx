@@ -1,7 +1,65 @@
 import React from 'react'
 import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
-import { SchedulingDebugInfo as DebugInfo } from '../../utils/flexible-scheduler'
+
+// Local type definition for debug info
+interface DebugInfo {
+  unscheduledItems: Array<{
+    id: string
+    name: string
+    duration: number
+    type: string
+    reason: string
+    priorityBreakdown?: {
+      total: number
+      eisenhower: number
+      deadlineBoost?: number
+      asyncBoost?: number
+      cognitiveMatch?: number
+      contextSwitchPenalty?: number
+      workflowDepthBonus?: number
+    }
+  }>
+  scheduledItems?: Array<{
+    id: string
+    name: string
+    type: string
+    startTime: string
+    duration: number
+    priority?: number
+    priorityBreakdown?: {
+      total: number
+      eisenhower: number
+      deadlineBoost?: number
+      asyncBoost?: number
+      cognitiveMatch?: number
+      contextSwitchPenalty?: number
+      workflowDepthBonus?: number
+    }
+  }>
+  warnings: string[]
+  unusedFocusCapacity: number
+  unusedAdminCapacity: number
+  blockUtilization: Array<{
+    date: string
+    blockId?: string
+    blockStart: string
+    blockEnd: string
+    startTime?: string
+    endTime?: string
+    type: string
+    capacity: number
+    used: number
+    utilizationPercent: number
+    focusUsed?: number
+    focusTotal?: number
+    adminUsed?: number
+    adminTotal?: number
+    personalUsed?: number
+    personalTotal?: number
+    unusedReason?: string
+  }>
+}
 
 const { Title, Text } = Typography
 
@@ -61,6 +119,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   Unscheduled Items ({debugInfo.unscheduledItems.length})
                 </Title>
                 <Table
+                  rowKey="id"
                   columns={[
                     { title: 'Task', dataIndex: 'name' },
                     { title: 'Type', dataIndex: 'type' },
@@ -105,6 +164,7 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   Scheduled Items Priority Analysis (First 10 by Schedule Order)
                 </Title>
                 <Table
+                  rowKey="id"
                   columns={[
                     { title: 'Task', dataIndex: 'name' },
                     { title: 'Type', dataIndex: 'type' },
@@ -146,22 +206,26 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                 Block Utilization (Current & Next Day)
               </Title>
               <Table
+                rowKey={(record) => `${record.date}-${record.blockId || record.blockStart}`}
                 columns={[
                   { title: 'Date', dataIndex: 'date' },
                   { title: 'Block', dataIndex: 'blockId' },
                   {
                     title: 'Time',
-                    render: (_, record) => `${record.startTime} - ${record.endTime}`,
+                    render: (_, record) => `${record.startTime || record.blockStart} - ${record.endTime || record.blockEnd}`,
                   },
                   {
                     title: 'Focus',
                     render: (_, record) => {
-                      const isFullyUsed = record.focusUsed === record.focusTotal
-                      const color = isFullyUsed ? 'green' : record.focusUsed > 0 ? 'blue' : 'gray'
+                      const focusUsed = record.focusUsed ?? 0
+                      const focusTotal = record.focusTotal ?? 0
+                      if (focusTotal === 0) return '-'
+                      const isFullyUsed = focusUsed === focusTotal
+                      const color = isFullyUsed ? 'green' : focusUsed > 0 ? 'blue' : 'gray'
                       return (
                         <Space>
                           <Tag color={color} size="small">
-                            {record.focusUsed}/{record.focusTotal}
+                            {focusUsed}/{focusTotal}
                           </Tag>
                         </Space>
                       )
@@ -170,12 +234,15 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   {
                     title: 'Admin',
                     render: (_, record) => {
-                      const isFullyUsed = record.adminUsed === record.adminTotal
-                      const color = isFullyUsed ? 'green' : record.adminUsed > 0 ? 'blue' : 'gray'
+                      const adminUsed = record.adminUsed ?? 0
+                      const adminTotal = record.adminTotal ?? 0
+                      if (adminTotal === 0) return '-'
+                      const isFullyUsed = adminUsed === adminTotal
+                      const color = isFullyUsed ? 'green' : adminUsed > 0 ? 'blue' : 'gray'
                       return (
                         <Space>
                           <Tag color={color} size="small">
-                            {record.adminUsed}/{record.adminTotal}
+                            {adminUsed}/{adminTotal}
                           </Tag>
                         </Space>
                       )
@@ -184,14 +251,15 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   {
                     title: 'Personal',
                     render: (_, record) => {
-                      if (!record.personalTotal || record.personalTotal === 0) return '-'
-                      const personalUsed = record.personalUsed || 0
-                      const isFullyUsed = personalUsed === record.personalTotal
+                      const personalUsed = record.personalUsed ?? 0
+                      const personalTotal = record.personalTotal ?? 0
+                      if (personalTotal === 0) return '-'
+                      const isFullyUsed = personalUsed === personalTotal
                       const color = isFullyUsed ? 'green' : personalUsed > 0 ? 'purple' : 'gray'
                       return (
                         <Space>
                           <Tag color={color} size="small">
-                            {personalUsed}/{record.personalTotal}
+                            {personalUsed}/{personalTotal}
                           </Tag>
                         </Space>
                       )
@@ -200,11 +268,23 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                   {
                     title: 'Status',
                     dataIndex: 'unusedReason',
-                    render: (val) => {
-                      if (!val) return <Tag color="green">Fully utilized</Tag>
-                      if (val.includes('in the past')) return <Tag color="gray">{val}</Tag>
-                      if (val.includes('started at')) return <Tag color="blue">{val}</Tag>
-                      return <Tag color="orange">{val}</Tag>
+                    render: (val, record) => {
+                      // Check if block is actually utilized
+                      const totalUsed = (record.focusUsed || 0) + (record.adminUsed || 0) + (record.personalUsed || 0)
+                      const totalCapacity = (record.focusTotal || 0) + (record.adminTotal || 0) + (record.personalTotal || 0)
+
+                      if (totalUsed === 0 && totalCapacity > 0) {
+                        return <Tag color="yellow">Not utilized</Tag>
+                      }
+                      if (totalUsed >= totalCapacity && totalCapacity > 0) {
+                        return <Tag color="green">Fully utilized</Tag>
+                      }
+                      if (!val && totalUsed > 0) {
+                        return <Tag color="green">Partially utilized</Tag>
+                      }
+                      if (val?.includes('in the past')) return <Tag color="gray">{val}</Tag>
+                      if (val?.includes('started at')) return <Tag color="blue">{val}</Tag>
+                      return <Tag color="orange">{val || 'Available'}</Tag>
                     },
                   },
                 ]}

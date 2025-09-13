@@ -1,25 +1,25 @@
 /**
- * UnifiedSchedulerAdapter - Type conversion utilities for migrating from legacy schedulers
- * Provides compatibility layer between old scheduling interfaces and UnifiedScheduler
+ * UnifiedSchedulerAdapter - Type conversion utilities for UI components
+ * Provides compatibility layer between existing UI interfaces and UnifiedScheduler
  */
 
-import { UnifiedScheduler, ScheduleContext, ScheduleConfig, ScheduleResult, SchedulingDebugInfo } from './unified-scheduler'
+import { UnifiedScheduler, ScheduleContext, ScheduleConfig, ScheduleResult as UnifiedScheduleResult, SchedulingDebugInfo } from './unified-scheduler'
 import { UnifiedScheduleItem } from './unified-scheduler'
 import { Task, TaskStep } from './types'
 import { SequencedTask } from './sequencing-types'
 import { TaskStatus } from './enums'
 import { DailyWorkPattern } from './work-blocks-types'
 
-// Legacy types that might exist in the codebase
-export interface LegacyScheduleResult {
-  scheduledTasks: LegacyScheduledItem[]
+// Adapter types for backward compatibility with existing UI components
+export interface ScheduleResult {
+  scheduledTasks: ScheduledItem[]
   unscheduledTasks: Task[]
   conflicts: string[]
   totalDuration: number
   debugInfo?: SchedulingDebugInfo // Preserve debug info from UnifiedScheduler
 }
 
-export interface LegacyScheduledItem {
+export interface ScheduledItem {
   task: Task
   startTime: Date
   endTime: Date
@@ -27,7 +27,7 @@ export interface LegacyScheduledItem {
   priority?: number
 }
 
-export interface LegacySchedulingOptions {
+export interface SchedulingOptions {
   startDate?: string | Date
   endDate?: string | Date
   respectDeadlines?: boolean
@@ -35,8 +35,17 @@ export interface LegacySchedulingOptions {
   debug?: boolean
 }
 
+export interface SchedulingMetrics {
+  totalTasks: number
+  scheduledTasks: number
+  unscheduledTasks: number
+  totalDuration: number
+  averagePriority: number
+  utilizationRate: number
+}
+
 /**
- * Adapter class to bridge legacy scheduling interfaces with UnifiedScheduler
+ * Adapter class to bridge existing UI components with UnifiedScheduler
  */
 export class UnifiedSchedulerAdapter {
   private scheduler: UnifiedScheduler
@@ -46,9 +55,9 @@ export class UnifiedSchedulerAdapter {
   }
 
   /**
-   * Convert legacy scheduling options to ScheduleConfig
+   * Convert scheduling options to ScheduleConfig
    */
-  adaptLegacyOptions(options: LegacySchedulingOptions): ScheduleConfig {
+  adaptOptions(options: SchedulingOptions): ScheduleConfig {
     return {
       startDate: options.startDate || new Date().toISOString().split('T')[0],
       endDate: options.endDate,
@@ -61,10 +70,10 @@ export class UnifiedSchedulerAdapter {
   }
 
   /**
-   * Convert UnifiedScheduler result to legacy format
+   * Convert UnifiedScheduler result to adapter format for UI components
    */
-  adaptUnifiedResult(result: ScheduleResult): LegacyScheduleResult {
-    const scheduledTasks: LegacyScheduledItem[] = []
+  adaptUnifiedResult(result: UnifiedScheduleResult): ScheduleResult {
+    const scheduledTasks: ScheduledItem[] = []
     const unscheduledTasks: Task[] = []
 
     // Convert scheduled items
@@ -169,21 +178,24 @@ export class UnifiedSchedulerAdapter {
     return {
       scheduledTasks,
       unscheduledTasks,
-      conflicts: (result.conflicts || []).map(c => c.description),
+      conflicts: [
+        ...(result.conflicts || []).map(c => c.description),
+        ...(result.debugInfo?.warnings || []),
+      ],
       totalDuration: scheduledTasks.reduce((sum, item) => sum + item.task.duration, 0),
       debugInfo: result.debugInfo, // Preserve debug info from UnifiedScheduler
     }
   }
 
   /**
-   * Legacy-compatible scheduling method
+   * Main scheduling method for UI components
    */
   scheduleTasks(
     tasks: Task[],
     workPatterns: DailyWorkPattern[],
-    options: LegacySchedulingOptions = {},
+    options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
-  ): LegacyScheduleResult {
+  ): ScheduleResult {
     // Filter out completed tasks to reduce processing
     const incompleteTasks = tasks.filter(t => !t.completed)
     const incompleteWorkflows = sequencedTasks.filter(w => w.overallStatus !== 'completed')
@@ -205,7 +217,7 @@ export class UnifiedSchedulerAdapter {
       },
     })
 
-    const config = this.adaptLegacyOptions(options)
+    const config = this.adaptOptions(options)
 
     // Ensure we have a valid Date for currentTime
     let currentTime: Date
@@ -253,20 +265,20 @@ export class UnifiedSchedulerAdapter {
     ]
 
     const result = this.scheduler.scheduleForDisplay(allItems, context, config)
-    const legacyResult = this.adaptUnifiedResult(result)
+    const adapterResult = this.adaptUnifiedResult(result)
 
     // Log comprehensive data flow result
     console.info('[UnifiedSchedulerAdapter] ✅ DATA FLOW COMPLETE:', {
       output: {
-        scheduled: legacyResult.scheduledTasks.length,
-        unscheduled: legacyResult.unscheduledTasks.length,
-        conflicts: legacyResult.conflicts.length,
-        totalDuration: legacyResult.totalDuration,
-        hasDebugInfo: !!legacyResult.debugInfo,
+        scheduled: adapterResult.scheduledTasks.length,
+        unscheduled: adapterResult.unscheduledTasks.length,
+        conflicts: adapterResult.conflicts.length,
+        totalDuration: adapterResult.totalDuration,
+        hasDebugInfo: !!adapterResult.debugInfo,
       },
       efficiency: {
-        schedulingRate: `${Math.round((legacyResult.scheduledTasks.length / Math.max(1, incompleteTasks.length + incompleteWorkflows.length)) * 100)}%`,
-        capacityUsed: `${Math.round((legacyResult.totalDuration / Math.max(1, workPatterns.reduce((sum, p) => sum + p.blocks.reduce((bs, b) => {
+        schedulingRate: `${Math.round((adapterResult.scheduledTasks.length / Math.max(1, incompleteTasks.length + incompleteWorkflows.length)) * 100)}%`,
+        capacityUsed: `${Math.round((adapterResult.totalDuration / Math.max(1, workPatterns.reduce((sum, p) => sum + p.blocks.reduce((bs, b) => {
           const [sh, sm] = b.startTime.split(':').map(Number)
           const [eh, em] = b.endTime.split(':').map(Number)
           return bs + (eh * 60 + em) - (sh * 60 + sm)
@@ -274,7 +286,7 @@ export class UnifiedSchedulerAdapter {
       },
     })
 
-    return legacyResult
+    return adapterResult
   }
 
   /**
@@ -283,9 +295,9 @@ export class UnifiedSchedulerAdapter {
   getNextScheduledTask(
     tasks: Task[],
     workPatterns: DailyWorkPattern[],
-    options: LegacySchedulingOptions = {},
+    options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
-  ): LegacyScheduledItem | null {
+  ): ScheduledItem | null {
     const result = this.scheduleTasks(tasks, workPatterns, options, sequencedTasks)
 
     if (result.scheduledTasks.length === 0) {
@@ -373,29 +385,22 @@ export class UnifiedSchedulerAdapter {
    * Batch schedule multiple task sets (useful for workflow processing)
    */
   batchSchedule(
-    taskSets: { tasks: Task[]; workPatterns: DailyWorkPattern[]; options?: LegacySchedulingOptions }[],
-  ): LegacyScheduleResult[] {
+    taskSets: { tasks: Task[]; workPatterns: DailyWorkPattern[]; options?: SchedulingOptions }[],
+  ): ScheduleResult[] {
     return taskSets.map(({ tasks, workPatterns, options }) =>
       this.scheduleTasks(tasks, workPatterns, options),
     )
   }
 
   /**
-   * Get scheduling metrics in legacy format
+   * Get scheduling metrics
    */
   getSchedulingMetrics(
     tasks: Task[],
     workPatterns: DailyWorkPattern[],
-    options: LegacySchedulingOptions = {},
+    options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
-  ): {
-    totalTasks: number
-    scheduledTasks: number
-    unscheduledTasks: number
-    totalDuration: number
-    averagePriority: number
-    utilizationRate: number
-  } {
+  ): SchedulingMetrics {
     const result = this.scheduleTasks(tasks, workPatterns, options, sequencedTasks)
     const avgPriority = tasks.length > 0
       ? tasks.reduce((sum, task) => sum + this.calculateTaskPriority(task), 0) / tasks.length
@@ -407,8 +412,25 @@ export class UnifiedSchedulerAdapter {
       unscheduledTasks: result.unscheduledTasks.length,
       totalDuration: result.totalDuration,
       averagePriority: avgPriority,
-      utilizationRate: result.scheduledTasks.length / Math.max(tasks.length, 1),
+      utilizationRate: this.calculateUtilizationRate(result.totalDuration, workPatterns),
     }
+  }
+
+  /**
+   * Calculate utilization rate as scheduled duration / total capacity
+   */
+  private calculateUtilizationRate(scheduledDuration: number, workPatterns: DailyWorkPattern[]): number {
+    if (!workPatterns || workPatterns.length === 0) return 0
+
+    const totalCapacity = workPatterns.reduce((sum, pattern) => {
+      const blocks = pattern.blocks || []
+      return sum + blocks.reduce((blockSum, block) => {
+        const capacity = block.capacity || {}
+        return blockSum + (capacity.focusMinutes || 0) + (capacity.adminMinutes || 0) + (capacity.personalMinutes || 0)
+      }, 0)
+    }, 0)
+
+    return totalCapacity > 0 ? scheduledDuration / totalCapacity : 0
   }
 
   /**

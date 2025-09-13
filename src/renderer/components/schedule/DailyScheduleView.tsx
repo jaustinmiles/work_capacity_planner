@@ -2,8 +2,25 @@ import { useState, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
 import { Card, Space, Typography, Tag, Empty, Timeline, Badge } from '@arco-design/web-react'
 import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar, IconMoon } from '@arco-design/web-react/icon'
-import { ScheduledItem } from '../../utils/flexible-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
+
+// UI representation of a scheduled item - different from the adapter's ScheduledItem
+// which wraps a Task object. This is a flattened structure for UI components.
+interface ScheduledItem {
+  id: string
+  name: string
+  type: 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break'
+  priority: number
+  duration: number
+  startTime: Date
+  endTime: Date
+  color: string
+  workflowId?: string
+  workflowName?: string
+  stepIndex?: number
+  deadline?: Date
+  originalItem?: any
+}
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
