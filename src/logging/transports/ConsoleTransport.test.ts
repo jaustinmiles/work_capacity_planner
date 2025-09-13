@@ -31,14 +31,14 @@ describe('ConsoleTransport', () => {
   describe('constructor', () => {
     it('should use default options', () => {
       const transport = new ConsoleTransport()
-      
+
       const entry: LogEntry = {
         level: LogLevel.INFO,
         message: 'Test message',
         data: {},
         context: { timestamp: new Date().toISOString(), source: 'test' },
       }
-      
+
       transport.write([entry])
       expect(consoleLogSpy).toHaveBeenCalled()
     })
@@ -48,14 +48,14 @@ describe('ConsoleTransport', () => {
         enabled: false,
         minLevel: LogLevel.ERROR,
       })
-      
+
       const entry: LogEntry = {
         level: LogLevel.INFO,
         message: 'Test message',
         data: {},
         context: { timestamp: new Date().toISOString(), source: 'test' },
       }
-      
+
       transport.write([entry])
       expect(consoleLogSpy).not.toHaveBeenCalled()
     })
@@ -64,17 +64,19 @@ describe('ConsoleTransport', () => {
       const originalWindow = global.window
       // @ts-expect-error - Deleting window for test
       delete global.window
-      
-      const transport = new ConsoleTransport()
+
+      // Creating transport triggers constructor
+      new ConsoleTransport()
       expect(StructuredLogger).toHaveBeenCalledWith('main')
-      
+
       global.window = originalWindow
     })
 
     it('should detect renderer process environment', () => {
       global.window = {} as any
-      
-      const transport = new ConsoleTransport()
+
+      // Creating transport triggers constructor
+      new ConsoleTransport()
       expect(StructuredLogger).toHaveBeenCalledWith('renderer')
     })
   })
@@ -82,16 +84,16 @@ describe('ConsoleTransport', () => {
   describe('write', () => {
     it('should write INFO logs to console.log', () => {
       const transport = new ConsoleTransport()
-      
+
       const entry: LogEntry = {
         level: LogLevel.INFO,
         message: 'Info message',
         data: {},
         context: { timestamp: new Date().toISOString(), source: 'test' },
       }
-      
+
       transport.write([entry])
-      
+
       expect(consoleLogSpy).toHaveBeenCalledWith('[2] Info message')
       expect(consoleWarnSpy).not.toHaveBeenCalled()
       expect(consoleErrorSpy).not.toHaveBeenCalled()
@@ -99,16 +101,16 @@ describe('ConsoleTransport', () => {
 
     it('should write WARN logs to console.warn', () => {
       const transport = new ConsoleTransport()
-      
+
       const entry: LogEntry = {
         level: LogLevel.WARN,
         message: 'Warning message',
         data: {},
         context: { timestamp: new Date().toISOString(), source: 'test' },
       }
-      
+
       transport.write([entry])
-      
+
       expect(consoleWarnSpy).toHaveBeenCalledWith('[1] Warning message')
       expect(consoleLogSpy).not.toHaveBeenCalled()
       expect(consoleErrorSpy).not.toHaveBeenCalled()
@@ -116,16 +118,16 @@ describe('ConsoleTransport', () => {
 
     it('should write ERROR logs to console.error', () => {
       const transport = new ConsoleTransport()
-      
+
       const entry: LogEntry = {
         level: LogLevel.ERROR,
         message: 'Error message',
         data: {},
         context: { timestamp: new Date().toISOString(), source: 'test' },
       }
-      
+
       transport.write([entry])
-      
+
       expect(consoleErrorSpy).toHaveBeenCalledWith('[0] Error message')
       expect(consoleLogSpy).not.toHaveBeenCalled()
       expect(consoleWarnSpy).not.toHaveBeenCalled()
@@ -133,46 +135,46 @@ describe('ConsoleTransport', () => {
 
     it('should write DEBUG logs to console.log', () => {
       const transport = new ConsoleTransport()
-      
+
       const entry: LogEntry = {
         level: LogLevel.DEBUG,
         message: 'Debug message',
         data: {},
         context: { timestamp: new Date().toISOString(), source: 'test' },
       }
-      
+
       transport.write([entry])
-      
+
       expect(consoleLogSpy).toHaveBeenCalledWith('[3] Debug message')
     })
 
     it('should write TRACE logs to console.log', () => {
       const transport = new ConsoleTransport()
-      
+
       const entry: LogEntry = {
         level: LogLevel.TRACE,
         message: 'Trace message',
         data: {},
         context: { timestamp: new Date().toISOString(), source: 'test' },
       }
-      
+
       transport.write([entry])
-      
+
       expect(consoleLogSpy).toHaveBeenCalledWith('[4] Trace message')
     })
 
     it('should not write when disabled', () => {
       const transport = new ConsoleTransport({ enabled: false })
-      
+
       const entry: LogEntry = {
         level: LogLevel.INFO,
         message: 'Test message',
         data: {},
         context: { timestamp: new Date().toISOString(), source: 'test' },
       }
-      
+
       transport.write([entry])
-      
+
       expect(consoleLogSpy).not.toHaveBeenCalled()
       expect(consoleWarnSpy).not.toHaveBeenCalled()
       expect(consoleErrorSpy).not.toHaveBeenCalled()
@@ -180,7 +182,7 @@ describe('ConsoleTransport', () => {
 
     it('should respect minimum log level', () => {
       const transport = new ConsoleTransport({ minLevel: LogLevel.WARN })
-      
+
       const entries: LogEntry[] = [
         {
           level: LogLevel.DEBUG,
@@ -207,9 +209,9 @@ describe('ConsoleTransport', () => {
           context: { timestamp: new Date().toISOString(), source: 'test' },
         },
       ]
-      
+
       transport.write(entries)
-      
+
       expect(consoleLogSpy).not.toHaveBeenCalled()
       expect(consoleWarnSpy).toHaveBeenCalledTimes(1)
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
@@ -217,7 +219,7 @@ describe('ConsoleTransport', () => {
 
     it('should handle multiple entries', () => {
       const transport = new ConsoleTransport()
-      
+
       const entries: LogEntry[] = [
         {
           level: LogLevel.INFO,
@@ -238,9 +240,9 @@ describe('ConsoleTransport', () => {
           context: { timestamp: new Date().toISOString(), source: 'test' },
         },
       ]
-      
+
       transport.write(entries)
-      
+
       expect(consoleLogSpy).toHaveBeenCalledTimes(1)
       expect(consoleWarnSpy).toHaveBeenCalledTimes(1)
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
@@ -251,18 +253,18 @@ describe('ConsoleTransport', () => {
       vi.mocked(StructuredLogger).mockImplementation(() => ({
         toConsole: mockToConsole,
       }) as any)
-      
+
       const transport = new ConsoleTransport()
-      
+
       const entry: LogEntry = {
         level: LogLevel.INFO,
         message: 'Test message',
         data: { key: 'value' },
         context: { timestamp: new Date().toISOString(), source: 'test' },
       }
-      
+
       transport.write([entry])
-      
+
       expect(mockToConsole).toHaveBeenCalledWith(entry)
       expect(consoleLogSpy).toHaveBeenCalledWith('Formatted output')
     })
@@ -271,7 +273,7 @@ describe('ConsoleTransport', () => {
   describe('close', () => {
     it('should do nothing when closed', () => {
       const transport = new ConsoleTransport()
-      
+
       // Should not throw
       expect(() => transport.close()).not.toThrow()
     })
