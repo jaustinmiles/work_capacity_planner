@@ -40,6 +40,11 @@ out/
 # Test coverage
 coverage/
 
+# Debug and diagnostic output
+debug-output/
+logs_*.json
+test-*.ts
+
 # Playwright test artifacts
 playwright-report/
 test-results/
