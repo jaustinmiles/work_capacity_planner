@@ -106,7 +106,7 @@ async function main() {
   console.log(`  Date: ${pattern.date}`)
   console.log(`  Block: ${pattern.blocks[0].start} - ${pattern.blocks[0].end}`)
   console.log(`  Type: ${pattern.blocks[0].type}`)
-  console.log(`  Effective Capacity:`, pattern.effectiveCapacity)
+  console.log('  Effective Capacity:', pattern.effectiveCapacity)
 
   console.log('\n🚀 Running Scheduler...')
   console.log('=' .repeat(40))
@@ -159,7 +159,7 @@ async function main() {
     log.includes('capacity') ||
     log.includes('Capacity') ||
     log.includes('available') ||
-    log.includes('canFit')
+    log.includes('canFit'),
   )
 
   if (capacityLogs.length > 0) {
@@ -182,7 +182,7 @@ async function main() {
     const lastScheduled = result.scheduled[result.scheduled.length - 1]
     if (lastScheduled.endTime) {
       console.log(`  - Last task ends at: ${lastScheduled.endTime.toLocaleTimeString()}`)
-      const blockEnd = new Date(`2025-09-14T23:55:00`)
+      const blockEnd = new Date('2025-09-14T23:55:00')
       const remainingMinutes = Math.floor((blockEnd.getTime() - lastScheduled.endTime.getTime()) / 60000)
       console.log(`  - Remaining time in block: ${remainingMinutes} minutes`)
     }

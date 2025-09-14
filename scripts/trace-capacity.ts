@@ -5,7 +5,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
-import { getTotalCapacity, getBlockCapacity as getBlockCapacityFromTypes } from '../src/shared/work-blocks-types'
+import { getTotalCapacity } from '../src/shared/work-blocks-types'
 import { calculateDuration } from '../src/shared/time-utils'
 
 const prisma = new PrismaClient()
@@ -42,7 +42,7 @@ async function main() {
   // Get pattern for Sep 14
   const pattern = await prisma.workPattern.findFirst({
     where: { date: '2025-09-14' },
-    include: { WorkBlock: true }
+    include: { WorkBlock: true },
   })
 
   if (!pattern) {
@@ -83,9 +83,9 @@ async function main() {
       where: {
         startTime: {
           gte: new Date('2025-09-14T00:00:00'),
-          lt: new Date('2025-09-15T00:00:00')
-        }
-      }
+          lt: new Date('2025-09-15T00:00:00'),
+        },
+      },
     })
 
     const totalAccumulated = accumulated.reduce((sum, s) => {
@@ -111,19 +111,6 @@ async function main() {
     }
   }
 
-    console.log('\n' + '=' .repeat(80))
-    console.log('DIAGNOSIS:')
-    if (totalCapacity.focusMinutes === 57) {
-      console.log('❌ getTotalCapacity is returning 57 - the fix is not applied!')
-    } else if (widgetCapacity.focusMinutes === 57) {
-      console.log('❌ WorkStatusWidget calculation is returning 57 - widget code not updated!')
-    } else {
-      console.log('✅ Calculation methods return correct values (895 minutes)')
-      console.log('🤔 The 57 minutes in logs might be coming from:')
-      console.log('  - Old cached values before the fix')
-      console.log('  - A different code path we haven\'t found')
-      console.log('  - The app needs a full restart to load new code')
-    }
 }
 
 main()
