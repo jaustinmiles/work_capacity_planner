@@ -583,7 +583,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         rendererLogger.warn('[TaskStore] No work patterns available, cannot generate schedule')
         set({
           schedulingError: 'No work patterns available. Please set up your work schedule.',
-          isScheduling: false
+          isScheduling: false,
         })
         return
       }
