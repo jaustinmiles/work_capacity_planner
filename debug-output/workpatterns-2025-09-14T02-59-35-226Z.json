@@ -1,0 +1,121 @@
+{
+  "session": {
+    "id": "c909770d-ebce-43a9-a32b-25d5bd8bcbea",
+    "name": "Haleigh 9/13",
+    "isActive": true,
+    "createdAt": "2025-09-13T20:26:57.102Z"
+  },
+  "currentTime": {
+    "localDate": "2025-09-13",
+    "utcDate": "2025-09-14",
+    "localTime": "19:59",
+    "isoTime": "2025-09-14T02:59:35.217Z"
+  },
+  "patterns": [
+    {
+      "id": "3984a46b-439f-496d-82f1-61c4b37c93bd",
+      "date": "2025-09-13",
+      "isTemplate": false,
+      "templateName": null,
+      "blocks": [
+        {
+          "id": "3667a1b4-1782-4ac1-bcc0-9113fc562bd8",
+          "startTime": "09:00",
+          "endTime": "23:45",
+          "type": "flexible",
+          "capacity": {
+            "focusMinutes": 447,
+            "adminMinutes": 447
+          },
+          "focusCapacity": null,
+          "adminCapacity": null
+        }
+      ],
+      "meetings": [],
+      "sessions": 0
+    },
+    {
+      "id": "6e4048ac-da12-4a7a-8299-2e75b33668f4",
+      "date": "2025-09-14",
+      "isTemplate": false,
+      "templateName": null,
+      "blocks": [
+        {
+          "id": "7e95c247-ede7-4444-967e-969e8527ab36",
+          "startTime": "00:05",
+          "endTime": "02:00",
+          "type": "flexible",
+          "capacity": {
+            "focusMinutes": 57,
+            "adminMinutes": 57
+          },
+          "focusCapacity": null,
+          "adminCapacity": null
+        }
+      ],
+      "meetings": [],
+      "sessions": 0
+    }
+  ],
+  "analysis": {
+    "totalPatterns": 2,
+    "patternsWithBlocks": 2,
+    "patternsWithMeetings": 0,
+    "emptyPatterns": 0,
+    "todayPattern": {
+      "id": "3984a46b-439f-496d-82f1-61c4b37c93bd",
+      "date": "2025-09-13",
+      "isTemplate": false,
+      "templateName": null,
+      "blocks": [
+        {
+          "id": "3667a1b4-1782-4ac1-bcc0-9113fc562bd8",
+          "startTime": "09:00",
+          "endTime": "23:45",
+          "type": "flexible",
+          "capacity": {
+            "focusMinutes": 447,
+            "adminMinutes": 447
+          },
+          "focusCapacity": null,
+          "adminCapacity": null
+        }
+      ],
+      "meetings": [],
+      "sessions": 0
+    },
+    "tomorrowPattern": {
+      "id": "6e4048ac-da12-4a7a-8299-2e75b33668f4",
+      "date": "2025-09-14",
+      "isTemplate": false,
+      "templateName": null,
+      "blocks": [
+        {
+          "id": "7e95c247-ede7-4444-967e-969e8527ab36",
+          "startTime": "00:05",
+          "endTime": "02:00",
+          "type": "flexible",
+          "capacity": {
+            "focusMinutes": 57,
+            "adminMinutes": 57
+          },
+          "focusCapacity": null,
+          "adminCapacity": null
+        }
+      ],
+      "meetings": [],
+      "sessions": 0
+    },
+    "currentBlock": {
+      "id": "3667a1b4-1782-4ac1-bcc0-9113fc562bd8",
+      "patternId": "3984a46b-439f-496d-82f1-61c4b37c93bd",
+      "startTime": "09:00",
+      "endTime": "23:45",
+      "type": "flexible",
+      "focusCapacity": null,
+      "adminCapacity": null,
+      "capacity": "{\"focusMinutes\":447,\"adminMinutes\":447}",
+      "remainingMinutes": 226
+    }
+  }
+}

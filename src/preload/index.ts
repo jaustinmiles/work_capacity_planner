@@ -100,6 +100,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send('log:message', { level, scope, message, data }),
   sendLog: (channel: string, payload: any) =>
     ipcRenderer.send(channel, payload),
+  persistLog: (logEntry: any) =>
+    ipcRenderer.invoke('log:persist', logEntry),
+  persistLogs: (logs: any[]) =>
+    ipcRenderer.invoke('log:persistBatch', logs),
 
   // Feedback operations
   saveFeedback: (feedback: any) => ipcRenderer.invoke('feedback:save', feedback),

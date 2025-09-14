@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, DatePicker, Alert, Dropdown, Menu } from '@arco-design/web-react'
+import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, DatePicker, Alert, Dropdown, Menu, Spin } from '@arco-design/web-react'
 import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconRefresh, IconClockCircle, IconUp, IconDown } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
-import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
 import { useUnifiedScheduler, ScheduleResult } from '../../hooks/useUnifiedScheduler'
 import { ScheduledItem } from '@shared/unified-scheduler-adapter'
@@ -13,7 +13,6 @@ import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
-import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
@@ -40,15 +39,17 @@ interface GanttItemWorkflowMetadata {
 interface GanttItem extends GanttItemWorkflowMetadata {
   id: string
   name: string
-  type: 'task' | 'workflow-step'
+  type: 'task' | 'workflow-step' | 'meeting' | 'blocked-time'
   priority: number
   duration: number
   startTime: Date
   endTime: Date
   color: string
   deadline?: Date
-  originalItem: Task | SequencedTask
+  originalItem: Task | SequencedTask | WorkMeeting
   blockId?: string
+  isBlocked?: boolean
+  isWaitTime?: boolean
 }
 
 // Zoom presets
@@ -61,13 +62,12 @@ const ZOOM_PRESETS = [
 ]
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
-  const { updateTask, updateSequencedTask } = useTaskStore()
+  const { updateTask, updateSequencedTask, workPatterns, workPatternsLoading, loadWorkPatterns } = useTaskStore()
   const { scheduleForGantt } = useUnifiedScheduler()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showMultiDayEditor, setShowMultiDayEditor] = useState(false)
-  const [workPatterns, setWorkPatterns] = useState<DailyWorkPattern[]>([])
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
   const [showDebugInfo, setShowDebugInfo] = useState(false)
@@ -83,7 +83,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Listen for time override changes
   useEffect(() => {
     const handleTimeChange = () => {
-      logger.ui.info('Time override changed, refreshing Gantt chart')
+      logger.ui.info('Time override changed, reloading patterns and refreshing')
+      // CRITICAL: Reload patterns with new time context
+      loadWorkPatterns()
       // Clear any saved schedule when time changes
       setOptimalSchedule([])
       // Force re-render by incrementing key
@@ -94,7 +96,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     return () => {
       appEvents.off(EVENTS.TIME_OVERRIDE_CHANGED, handleTimeChange)
     }
-  }, [setOptimalSchedule])
+  }, [setOptimalSchedule, loadWorkPatterns])
 
   // Zoom controls
   const handleZoomIn = useCallback(() => {
@@ -246,66 +248,18 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     }
   }, [pixelsPerHour, setIsPinching])
 
-  // Load work patterns for the next 30 days
+  // Reload work patterns when WorkScheduleModal closes or data changes
   useEffect(() => {
-    loadWorkPatterns()
-  }, [])
-
-  const loadWorkPatterns = async () => {
-    const db = getDatabase()
-    const patterns: DailyWorkPattern[] = []
-    const today = dayjs().startOf('day')
-    console.log('[GanttChart] loadWorkPatterns - Starting to load patterns for next 30 days')
-
-    // Load patterns for the next 30 days
-    for (let i = 0; i < 30; i++) {
-      const date = today.add(i, 'day')
-      const dateStr = date.format('YYYY-MM-DD')
-      const dayOfWeek = date.day()
-
-      const pattern = await db.getWorkPattern(dateStr)
-
-      // Only use patterns that have actual blocks or meetings
-      if (pattern && ((pattern.blocks && pattern.blocks.length > 0) || (pattern.meetings && pattern.meetings.length > 0))) {
-        console.log('[GanttChart] loadWorkPatterns - Found pattern for:', dateStr, 'with', pattern.blocks?.length || 0, 'blocks')
-        patterns.push({
-          date: dateStr,
-          blocks: pattern.blocks,
-          meetings: pattern.meetings,
-          accumulated: { focusMinutes: 0, adminMinutes: 0 },
-        })
-      } else if (!pattern) {
-        logger.ui.debug('[GanttChart] loadWorkPatterns - No pattern for day:', { date: dateStr, dayOfWeek })
-        // If no pattern exists, create a default pattern
-        // This allows scheduling on any day even without explicit patterns
-        patterns.push({
-          date: dateStr,
-          blocks: [
-            {
-              id: `default-morning-${dateStr}`,
-              startTime: '09:00',
-              endTime: '12:00',
-              type: 'mixed',
-              capacity: { focusMinutes: 120, adminMinutes: 60 },
-            },
-            {
-              id: `default-afternoon-${dateStr}`,
-              startTime: '13:00',
-              endTime: '17:00',
-              type: 'mixed',
-              capacity: { focusMinutes: 180, adminMinutes: 60 },
-            },
-          ],
-          meetings: [],
-          accumulated: { focusMinutes: 0, adminMinutes: 0 },
-        })
-      }
-
+    const handleDataRefresh = () => {
+      logger.ui.info('[GanttChart] Data refresh event, reloading work patterns')
+      loadWorkPatterns()
     }
-
-    console.log('[GanttChart] loadWorkPatterns - Total patterns loaded:', patterns.length, '(real:', patterns.filter(p => !p.date.includes('default')).length, ')')
-    setWorkPatterns(patterns)
-  }
+    
+    appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
+    return () => {
+      appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
+    }
+  }, [loadWorkPatterns])
 
   // Helper function to convert UnifiedScheduler results to GanttChart format
   const convertUnifiedToGanttItems = useCallback((result: ScheduleResult): GanttItem[] => {
@@ -363,8 +317,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   }, [])
 
   // Helper function to convert meetings from workPatterns to ScheduledItem format
-  const getMeetingScheduledItems = useCallback((workPatterns: DailyWorkPattern[]): any[] => {
-    const meetingItems: any[] = []
+  const getMeetingScheduledItems = useCallback((workPatterns: DailyWorkPattern[]): GanttItem[] => {
+    const meetingItems: GanttItem[] = []
     const meetingMap = new Map<string, number>()
 
     workPatterns.forEach(pattern => {
@@ -482,7 +436,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Use the scheduler to get properly ordered items
   // Include refreshKey in dependencies to force recalculation when time changes
   const scheduledItems = useMemo(() => {
-    logger.ui.info('🏗️ [GANTT] Starting schedule calculation', {
+    logger.ui.info('[WorkPatternLifeCycle] GanttChart.scheduledItems - Computing schedule', {
+      workPatternsLoading,
       workPatternsCount: workPatterns.length,
       tasksCount: tasks.length,
       sequencedTasksCount: sequencedTasks.length,
@@ -490,8 +445,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       currentTime: getCurrentTime().toISOString(),
     })
 
+    // Don't try to schedule if patterns are still loading
+    if (workPatternsLoading) {
+      logger.ui.info('[WorkPatternLifeCycle] GanttChart - Patterns still loading, waiting...')
+      return []
+    }
+
     if (workPatterns.length === 0) {
-      logger.ui.warn('⚠️ [GANTT] No work patterns available, returning empty schedule')
+      logger.ui.warn('[WorkPatternLifeCycle] GanttChart - No work patterns available after loading, returning empty schedule')
       return []
     }
 
@@ -604,7 +565,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const allItems = [...meetingItems, ...ganttItems]
 
     return allItems
-  }, [tasks, sequencedTasks, workPatterns, refreshKey, scheduleForGantt, convertUnifiedToGanttItems, getMeetingScheduledItems])
+  }, [tasks, sequencedTasks, workPatterns, workPatternsLoading, refreshKey, scheduleForGantt, convertUnifiedToGanttItems, getMeetingScheduledItems])
 
   // Calculate chart dimensions
   const now = getCurrentTime()
@@ -617,13 +578,22 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     ? new Date(Math.min(scheduledItems[0].startTime.getTime(), todayStart.getTime()))
     : todayStart
 
-  // End at end of day (or last scheduled item if later)
-  const todayEnd = new Date(now)
-  todayEnd.setHours(23, 59, 59, 999)
+  // Calculate end time based on work patterns AND scheduled items
+  // Always show at least 7 days ahead or to the last work pattern
+  const sevenDaysFromNow = new Date(now)
+  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
+  
+  // Find the last work pattern date
+  const lastPatternDate = workPatterns.length > 0 
+    ? new Date(workPatterns[workPatterns.length - 1].date + 'T23:59:59')
+    : sevenDaysFromNow
 
+  // Use the latest of: last scheduled item, 7 days from now, or last work pattern
+  const minimumEndTime = new Date(Math.max(sevenDaysFromNow.getTime(), lastPatternDate.getTime()))
+  
   const chartEndTime = scheduledItems.length > 0
-    ? new Date(Math.max(...scheduledItems.map((item: any) => item.endTime.getTime()), todayEnd.getTime()))
-    : todayEnd
+    ? new Date(Math.max(...scheduledItems.map((item: any) => item.endTime.getTime()), minimumEndTime.getTime()))
+    : minimumEndTime
 
   const totalDuration = chartEndTime.getTime() - chartStartTime.getTime()
   const totalHours = totalDuration / (1000 * 60 * 60)
@@ -824,14 +794,24 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
+      {/* Loading state for work patterns */}
+      {workPatternsLoading && (
+        <Card>
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: '40px 0' }}>
+            <Spin size={32} />
+            <Text type="secondary">Loading work patterns...</Text>
+          </Space>
+        </Card>
+      )}
+
       {/* Info about default patterns */}
-      {workPatterns.some(p => p.blocks.some((b: any) => b.id.startsWith('default-'))) && (
+      {!workPatternsLoading && workPatterns.some(p => p.blocks.some((b: any) => b.id.startsWith('default-'))) && (
         <Alert
           type="info"
           content={
             <Space>
               <Text>
-                Using default work schedule (9AM-12PM, 1PM-5PM) for future weekdays without custom patterns.
+                Days without defined work blocks will have no tasks scheduled.
               </Text>
               <Button
                 type="text"
@@ -877,9 +857,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         />
       )}
 
-      {/* Summary */}
-      <Card
-        title="Schedule Summary"
+      {/* Summary - Only show when patterns are loaded */}
+      {!workPatternsLoading && (
+        <Card
+          title="Schedule Summary"
         bordered={false}
         style={{ marginBottom: 16 }}
         extra={
@@ -995,10 +976,12 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         </Row>
         )}
       </Card>
+      )}
 
-      {/* Gantt Chart */}
-      <Card
-        title="Scheduled Tasks (Priority Order)"
+      {/* Gantt Chart - Only show when patterns are loaded */}
+      {!workPatternsLoading && (
+        <Card
+          title="Scheduled Tasks (Priority Order)"
         style={{ position: 'relative' }}
       >
         {/* Pinch indicator */}
@@ -1891,6 +1874,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           </Space>
         </div>
       </Card>
+      )}
 
       {/* Work Schedule Modal */}
       <WorkScheduleModal

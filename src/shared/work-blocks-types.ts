@@ -148,15 +148,33 @@ export function getCurrentBlock(blocks: WorkBlock[], time: Date = new Date()): W
   const timeStr = time.toTimeString().slice(0, 5) // "HH:MM"
 
   return blocks.find(block => {
-    return timeStr >= block.startTime && timeStr < block.endTime
+    // Handle blocks that cross midnight (e.g., 23:00 to 02:00)
+    if (block.endTime < block.startTime) {
+      // Block crosses midnight
+      // We're in this block if we're after start OR before end
+      return timeStr >= block.startTime || timeStr < block.endTime
+    } else {
+      // Normal block within same day
+      return timeStr >= block.startTime && timeStr < block.endTime
+    }
   }) || null
 }
 
 export function getNextBlock(blocks: WorkBlock[], time: Date = new Date()): WorkBlock | null {
   const timeStr = time.toTimeString().slice(0, 5) // "HH:MM"
 
+  // Filter blocks that haven't started yet
   const futureBlocks = blocks
-    .filter(block => block.startTime > timeStr)
+    .filter(block => {
+      // For midnight-crossing blocks, be more careful
+      if (block.endTime < block.startTime) {
+        // If we're before the end time (early morning), this block is current, not next
+        if (timeStr < block.endTime) {
+          return false
+        }
+      }
+      return block.startTime > timeStr
+    })
     .sort((a, b) => a.startTime.localeCompare(b.startTime))
 
   return futureBlocks[0] || null

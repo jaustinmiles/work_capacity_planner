@@ -328,3 +328,17 @@ model LogMetric {
   @@index([processType])
   @@index([createdAt])
 }
+
+model AppLog {
+  id        String   @id @default(cuid())
+  level     String   // ERROR, WARN, INFO, DEBUG
+  message   String
+  source    String   // main, renderer, worker
+  context   String   // JSON string of context data
+  sessionId String?
+  createdAt DateTime @default(now())
+  
+  @@index([createdAt])
+  @@index([level])
+  @@index([source])
+}

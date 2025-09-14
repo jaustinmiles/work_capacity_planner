@@ -59,7 +59,7 @@ export class DatabaseService {
 
     try {
       this.activeSessionId = await this.sessionInitPromise
-      console.log('[DB] getActiveSession - Initialized new sessionId:', this.activeSessionId)
+      mainLogger.info('[DB] getActiveSession - Initialized new sessionId', { sessionId: this.activeSessionId })
       return this.activeSessionId
     } finally {
       this.sessionInitPromise = null
@@ -105,12 +105,15 @@ export class DatabaseService {
       orderBy: { updatedAt: 'desc' },
     })
 
-    console.log('[DB] Found sessions:', sessions.length, sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })))
+    mainLogger.debug('[DB] Found sessions', {
+      count: sessions.length,
+      sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive }))
+    })
 
     // Log if we detect duplicates but don't filter them - let the UI show the actual state
     const uniqueIds = new Set(sessions.map(s => s.id))
     if (uniqueIds.size !== sessions.length) {
-      console.error('[DB] WARNING: Duplicate session IDs detected in database!', {
+      mainLogger.error('[DB] WARNING: Duplicate session IDs detected in database!', {
         totalSessions: sessions.length,
         uniqueIds: uniqueIds.size,
         duplicates: sessions.length - uniqueIds.size,
@@ -142,8 +145,10 @@ export class DatabaseService {
   }
 
   async switchSession(sessionId: string): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
-    console.log('[DB] Switching session to:', sessionId)
-    console.log('[DB] Previous activeSessionId:', this.activeSessionId)
+    mainLogger.info('[DB] Switching session', {
+      newSessionId: sessionId,
+      previousSessionId: this.activeSessionId
+    })
 
     // Clear the cached session ID to force re-fetch
     this.activeSessionId = null
@@ -161,7 +166,7 @@ export class DatabaseService {
     })
 
     this.activeSessionId = session.id
-    console.log('[DB] Session switched successfully to:', session.id)
+    mainLogger.info('[DB] Session switched successfully', { sessionId: session.id })
     return session
   }
 
@@ -182,19 +187,19 @@ export class DatabaseService {
   }
 
   async deleteSession(id: string): Promise<void> {
-    console.log('[DB] Attempting to delete session:', id)
+    mainLogger.info('[DB] Attempting to delete session', { sessionId: id })
 
     const session = await this.client.session.findUnique({
       where: { id },
     })
 
     if (!session) {
-      console.warn('[DB] Session not found for deletion:', id)
+      mainLogger.warn('[DB] Session not found for deletion', { sessionId: id })
       throw new Error(`Session ${id} not found`)
     }
 
     if (session?.isActive) {
-      console.warn('[DB] Cannot delete active session:', id)
+      mainLogger.warn('[DB] Cannot delete active session', { sessionId: id })
       throw new Error('Cannot delete the active session')
     }
 
@@ -202,9 +207,9 @@ export class DatabaseService {
       await this.client.session.delete({
         where: { id },
       })
-      console.log('[DB] Session deleted successfully:', id)
+      mainLogger.info('[DB] Session deleted successfully', { sessionId: id })
     } catch (error) {
-      console.error('[DB] Failed to delete session:', id, error)
+      mainLogger.error('[DB] Failed to delete session', { sessionId: id, error })
       throw error
     }
   }
@@ -244,7 +249,7 @@ export class DatabaseService {
   // Tasks
   async getTasks(): Promise<Task[]> {
     const sessionId = await this.getActiveSession()
-    console.log('[DB] getTasks - Using sessionId:', sessionId)
+    mainLogger.debug('[DB] getTasks - Using sessionId', { sessionId })
 
     const tasks = await this.client.task.findMany({
       where: { sessionId },
@@ -254,9 +259,14 @@ export class DatabaseService {
       orderBy: { createdAt: 'desc' },
     })
 
-    console.log(`[DB] getTasks - Found ${tasks.length} tasks for session ${sessionId}`)
+    mainLogger.debug('[DB] getTasks - Found tasks', { 
+      tasksCount: tasks.length, 
+      sessionId 
+    })
     const formattedTasks = tasks.map(task => this.formatTask(task))
-    console.log(`[DB] getTasks - Returning ${formattedTasks.length} formatted tasks`)
+    mainLogger.debug('[DB] getTasks - Returning formatted tasks', { 
+      formattedCount: formattedTasks.length 
+    })
     return formattedTasks
   }
 
@@ -966,7 +976,7 @@ export class DatabaseService {
   // Work patterns
   async getWorkPatterns(): Promise<any[]> {
     const sessionId = await this.getActiveSession()
-    console.log('[DB] getWorkPatterns - Looking for patterns with sessionId:', sessionId)
+    mainLogger.debug('[DB] getWorkPatterns - Looking for patterns', { sessionId })
     let patterns = await this.client.workPattern.findMany({
       where: {
         sessionId,
@@ -981,7 +991,7 @@ export class DatabaseService {
 
     // If no patterns found for current session, get ALL patterns as fallback
     if (patterns.length === 0) {
-      console.log('[DB] getWorkPatterns - No patterns for current session, fetching ALL patterns')
+      mainLogger.debug('[DB] getWorkPatterns - No patterns for current session, fetching ALL patterns')
       patterns = await this.client.workPattern.findMany({
         where: {
           isTemplate: false,
@@ -993,10 +1003,10 @@ export class DatabaseService {
         orderBy: { date: 'desc' },
       })
       if (patterns.length > 0) {
-        console.log('[DB] getWorkPatterns - Found', patterns.length, 'patterns from other sessions')
+        mainLogger.debug('[DB] getWorkPatterns - Found patterns from other sessions', { count: patterns.length })
       }
     } else {
-      console.log('[DB] getWorkPatterns - Found', patterns.length, 'patterns for current session')
+      mainLogger.debug('[DB] getWorkPatterns - Found patterns for current session', { count: patterns.length })
     }
 
     return patterns.map(pattern => ({
@@ -1014,7 +1024,12 @@ export class DatabaseService {
 
   async getWorkPattern(date: string): Promise<any | null> {
     const sessionId = await this.getActiveSession()
-    console.log('[DB] getWorkPattern - Looking for pattern:', { date, sessionId })
+    mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Query', { 
+      date, 
+      sessionId,
+      timestamp: new Date().toISOString(),
+      localTime: new Date().toLocaleTimeString('en-US', { hour12: false })
+    })
     const pattern = await this.client.workPattern.findUnique({
       where: {
         sessionId_date: {
@@ -1032,11 +1047,26 @@ export class DatabaseService {
     // Use only the current session's pattern - no fallback to other sessions
     if (!pattern) {
       // No pattern found for current session - return null instead of checking other sessions
+      mainLogger.debug('[WorkPatternLifeCycle] getWorkPattern - No pattern found', { 
+        date, 
+        sessionId,
+        searchKey: `${sessionId}_${date}`
+      })
       return null
     }
 
     // Pattern found, process it
-    console.log('[DB] getWorkPattern - Returning pattern for:', { date, patternId: pattern.id })
+    mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Found pattern', { 
+      date, 
+      patternId: pattern.id,
+      blocks: pattern.WorkBlock.length,
+      blockDetails: pattern.WorkBlock.map((b: any) => ({
+        start: b.startTime,
+        end: b.endTime,
+        type: b.type
+      })),
+      meetings: pattern.WorkMeeting.length
+    })
 
     return {
       ...pattern,
@@ -1109,6 +1139,20 @@ export class DatabaseService {
     recurring?: 'none' | 'daily' | 'weekly'
   }): Promise<any> {
     const sessionId = await this.getActiveSession()
+    
+    // [WorkPatternLifeCycle] START: Creating work pattern
+    mainLogger.info('[WorkPatternLifeCycle] createWorkPattern - START', {
+      date: data.date,
+      sessionId,
+      isTemplate: data.isTemplate || false,
+      templateName: data.templateName || null,
+      blocksCount: data.blocks?.length || 0,
+      meetingsCount: data.meetings?.length || 0,
+      recurring: data.recurring || null,
+      timestamp: new Date().toISOString(),
+      localTime: new Date().toLocaleTimeString('en-US', { hour12: false })
+    })
+    
     mainLogger.info('[DB] createWorkPattern - Creating pattern', { date: data.date, sessionId, blocksCount: data.blocks?.length || 0 })
     const { blocks, meetings, recurring, ...patternData } = data
 
@@ -1213,11 +1257,14 @@ export class DatabaseService {
           }
         }
 
-        console.log(`Created daily sleep patterns for next 30 days from ${data.date}`)
+        mainLogger.info('[DB] Created daily sleep patterns', { 
+          startDate: data.date, 
+          daysCreated: 30 
+        })
       }
     }
 
-    return {
+    const formattedPattern = {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => ({
         ...b,
@@ -1228,6 +1275,17 @@ export class DatabaseService {
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
       })),
     }
+    
+    mainLogger.info('[WorkPatternLifeCycle] createWorkPattern - COMPLETE', {
+      patternId: pattern.id,
+      date: pattern.date,
+      sessionId: pattern.sessionId,
+      totalBlocks: pattern.WorkBlock.length,
+      totalMeetings: pattern.WorkMeeting.length,
+      timestamp: new Date().toISOString()
+    })
+    
+    return formattedPattern
   }
 
   async createWorkPatternFromTemplate(date: string, templateName: string): Promise<any> {
@@ -1301,12 +1359,30 @@ export class DatabaseService {
     blocks?: any[]
     meetings?: any[]
   }): Promise<any> {
+    // [WorkPatternLifeCycle] START: Updating work pattern
+    mainLogger.info('[WorkPatternLifeCycle] updateWorkPattern - START', {
+      patternId: id,
+      hasBlocks: !!updates.blocks,
+      hasMeetings: !!updates.meetings,
+      blocksCount: updates.blocks?.length || 0,
+      meetingsCount: updates.meetings?.length || 0,
+      timestamp: new Date().toISOString(),
+      localTime: new Date().toLocaleTimeString('en-US', { hour12: false })
+    })
+    
     // Delete existing blocks and meetings
-    await this.client.workBlock.deleteMany({
+    const deletedBlocks = await this.client.workBlock.deleteMany({
       where: { patternId: id },
     })
-    await this.client.workMeeting.deleteMany({
+    const deletedMeetings = await this.client.workMeeting.deleteMany({
       where: { patternId: id },
+    })
+    
+    mainLogger.debug('[WorkPatternLifeCycle] updateWorkPattern - Deleted existing', {
+      patternId: id,
+      deletedBlocks: deletedBlocks.count,
+      deletedMeetings: deletedMeetings.count,
+      timestamp: new Date().toISOString()
     })
 
     // Update with new data
@@ -1340,8 +1416,29 @@ export class DatabaseService {
         WorkMeeting: true,
       },
     })
+    
+    mainLogger.debug('[WorkPatternLifeCycle] updateWorkPattern - Pattern updated', {
+      patternId: id,
+      date: pattern.date,
+      sessionId: pattern.sessionId,
+      blocksCount: pattern.WorkBlock.length,
+      meetingsCount: pattern.WorkMeeting.length,
+      blocks: pattern.WorkBlock.map(b => ({
+        startTime: b.startTime,
+        endTime: b.endTime,
+        type: b.type,
+        capacity: b.capacity ? JSON.parse(b.capacity as string) : null
+      })),
+      meetings: pattern.WorkMeeting.map(m => ({
+        name: m.name,
+        startTime: m.startTime,
+        endTime: m.endTime,
+        type: m.type
+      })),
+      timestamp: new Date().toISOString()
+    })
 
-    return {
+    const formattedPattern = {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => ({
         ...b,
@@ -1352,11 +1449,55 @@ export class DatabaseService {
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
       })),
     }
+    
+    mainLogger.info('[WorkPatternLifeCycle] updateWorkPattern - COMPLETE', {
+      patternId: id,
+      date: pattern.date,
+      sessionId: pattern.sessionId,
+      totalBlocks: pattern.WorkBlock.length,
+      totalMeetings: pattern.WorkMeeting.length,
+      timestamp: new Date().toISOString()
+    })
+    
+    return formattedPattern
   }
 
   async deleteWorkPattern(id: string): Promise<void> {
+    // [WorkPatternLifeCycle] START: Deleting work pattern
+    mainLogger.info('[WorkPatternLifeCycle] deleteWorkPattern - START', {
+      patternId: id,
+      timestamp: new Date().toISOString(),
+      localTime: new Date().toLocaleTimeString('en-US', { hour12: false })
+    })
+    
+    // Get pattern details before deletion for logging
+    const pattern = await this.client.workPattern.findUnique({
+      where: { id },
+      include: {
+        WorkBlock: true,
+        WorkMeeting: true,
+      },
+    })
+    
+    if (pattern) {
+      mainLogger.debug('[WorkPatternLifeCycle] deleteWorkPattern - Pattern to delete', {
+        patternId: id,
+        date: pattern.date,
+        sessionId: pattern.sessionId,
+        blocksCount: pattern.WorkBlock.length,
+        meetingsCount: pattern.WorkMeeting.length,
+        isTemplate: pattern.isTemplate,
+        timestamp: new Date().toISOString()
+      })
+    }
+    
     await this.client.workPattern.delete({
       where: { id },
+    })
+    
+    mainLogger.info('[WorkPatternLifeCycle] deleteWorkPattern - COMPLETE', {
+      patternId: id,
+      timestamp: new Date().toISOString()
     })
   }
 
@@ -1593,6 +1734,67 @@ export class DatabaseService {
       totalEstimates: estimates.length,
       overestimateCount,
       underestimateCount,
+    }
+  }
+
+  // Log persistence (dev mode only)
+  async persistLog(logEntry: {
+    level: string
+    message: string
+    source: string
+    context: any
+    sessionId?: string
+  }): Promise<void> {
+    // Only persist in development mode or when not in production
+    if (process.env.NODE_ENV === 'production') {
+      return
+    }
+
+    console.log('[Database] Persisting log:', logEntry.level, logEntry.message)
+
+    try {
+      await this.client.appLog.create({
+        data: {
+          level: logEntry.level,
+          message: logEntry.message,
+          source: logEntry.source,
+          context: JSON.stringify(logEntry.context || {}),
+          sessionId: logEntry.sessionId || (await this.getActiveSession()),
+        },
+      })
+    } catch (error) {
+      // Don't let logging errors crash the app
+      console.error('[Database] Failed to persist log:', error)
+    }
+  }
+
+  // Batch persist logs for performance
+  async persistLogs(logs: Array<{
+    level: string
+    message: string
+    source: string
+    context: any
+    sessionId?: string
+  }>): Promise<void> {
+    // Only persist in development mode or when not in production
+    if (process.env.NODE_ENV === 'production') {
+      return
+    }
+
+    try {
+      const sessionId = await this.getActiveSession()
+      await this.client.appLog.createMany({
+        data: logs.map(log => ({
+          level: log.level,
+          message: log.message,
+          source: log.source,
+          context: JSON.stringify(log.context || {}),
+          sessionId: log.sessionId || sessionId,
+        })),
+      })
+    } catch (error) {
+      // Don't let logging errors crash the app
+      console.error('[Database] Failed to persist logs:', error)
     }
   }
 

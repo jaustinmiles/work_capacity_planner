@@ -118,15 +118,17 @@ export function SwimLaneTimeline({
     return () => clearInterval(interval)
   }, [])
 
-  // Convert minutes to pixels
+  // Convert minutes to pixels (positioned in "Today" section - middle of 3-day view)
   const minutesToPixels = (minutes: number): number => {
     const hours = minutes / 60 - START_HOUR
-    return hours * hourWidth + TIME_LABEL_WIDTH
+    // Add one day's worth of hours to position in "Today" (middle section)
+    return (hours + HOURS_PER_DAY) * hourWidth + TIME_LABEL_WIDTH
   }
 
-  // Convert pixels to minutes
+  // Convert pixels to minutes (accounting for day offset in 3-day view)
   const pixelsToMinutes = (pixels: number): number => {
-    const hours = (pixels - TIME_LABEL_WIDTH) / hourWidth + START_HOUR
+    // Subtract the day offset to get back to today's minutes
+    const hours = (pixels - TIME_LABEL_WIDTH) / hourWidth - HOURS_PER_DAY + START_HOUR
     return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, hours * 60))
   }
 
@@ -877,7 +879,8 @@ if (!checkOverlap(newSession, laneSessions)) {
               {/* Sessions */}
               {lane.sessions.map((session, sessionIndex) => {
                 const left = minutesToPixels(session.startMinutes)
-                const width = (session.endMinutes - session.startMinutes) / 60 * hourWidth
+                const actualWidth = (session.endMinutes - session.startMinutes) / 60 * hourWidth
+                const width = Math.max(actualWidth, 30)  // Minimum width of 30px for visibility
                 const isSelected = session.id === selectedSessionId
                 const isHovered = session.id === hoveredSession
                 const isMeetingSession = session.id.startsWith('meeting-')
@@ -960,7 +963,15 @@ if (!checkOverlap(newSession, laneSessions)) {
                           <div>
                             {minutesToTime(session.startMinutes)} - {minutesToTime(session.endMinutes)}
                           </div>
-                          <div>{session.endMinutes - session.startMinutes} minutes</div>
+                          <div style={{ fontWeight: 'bold' }}>
+                            {session.endMinutes - session.startMinutes} minutes 
+                            ({Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10} hours)
+                          </div>
+                          {actualWidth < width && (
+                            <div style={{ color: '#ff7875', marginTop: 4 }}>
+                              ⚠️ Expanded from {Math.round(actualWidth)}px for visibility
+                            </div>
+                          )}
                           {isMeetingSession && <div style={{ marginTop: 4, fontStyle: 'italic' }}>Meeting/Event</div>}
                         </div>
                       }
@@ -982,10 +993,14 @@ if (!checkOverlap(newSession, laneSessions)) {
                           <>
                             {width > 80 && session.taskName}
                             {width > 50 && width <= 80 && `${session.taskName.substring(0, 8)}...`}
-                            {width <= 50 && `${Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10}h`}
+                            {width <= 50 && `${session.endMinutes - session.startMinutes}m`}
                           </>
                         ) : (
-                          width > 60 && `${Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10}h`
+                          <>
+                            {width > 100 && session.taskName}
+                            {width > 60 && width <= 100 && `${session.endMinutes - session.startMinutes}m`}
+                            {width <= 60 && `${session.endMinutes - session.startMinutes}m`}
+                          </>
                         )}
                       </Text>
                     </Tooltip>

@@ -6,6 +6,7 @@ import { LoggerConfig, LogLevel } from '../types'
 import { Logger } from '../core/Logger'
 import { ConsoleTransport } from '../transports/ConsoleTransport'
 import { IPCTransport } from '../transports/IPCTransport'
+import { DatabaseTransport } from '../transports/DatabaseTransport'
 
 export class RendererLogger extends Logger {
   private static instance: RendererLogger
@@ -57,6 +58,16 @@ export class RendererLogger extends Logger {
       isRenderer: true,
     })
     this.transports.push(ipcTransport)
+
+    // Database transport for development (persists logs to SQLite)
+    if (this.config.environment !== 'production') {
+      console.log('[RendererLogger] Adding DatabaseTransport for non-production mode')
+      const dbTransport = new DatabaseTransport()
+      this.transports.push(dbTransport)
+      console.log('[RendererLogger] DatabaseTransport added to transports')
+    } else {
+      console.log('[RendererLogger] Skipping DatabaseTransport - production mode')
+    }
   }
 
   private setupWindowHandlers(): void {

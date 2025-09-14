@@ -617,7 +617,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             </Card>
 
             {/* Circular clock */}
-            <Card title="Clock View - 12-Hour Workday Focus (8am-8pm)">
+            <Card title="Clock View - 24-Hour Day View" style={{ minHeight: 500 }}>
               <CircularClock
                 sessions={sessions}
                 collapsedWorkflows={new Set(filteredTasks

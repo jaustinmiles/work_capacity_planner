@@ -35,10 +35,10 @@ interface DragState {
   initialEndMinutes: number
 }
 
-const BASE_CLOCK_SIZE = 240
-const BASE_OUTER_RADIUS = 100
-const BASE_INNER_RADIUS = 70
-const BASE_HOUR_LABEL_RADIUS = 110
+const BASE_CLOCK_SIZE = 400
+const BASE_OUTER_RADIUS = 170
+const BASE_INNER_RADIUS = 120
+const BASE_HOUR_LABEL_RADIUS = 185
 
 // Clock configuration - Show full 24 hours
 const WORKDAY_START = 0 // 12 AM (midnight)
@@ -79,10 +79,10 @@ export function CircularClock({
     const maxSize = Math.min(
       containerWidth || BASE_CLOCK_SIZE,
       containerHeight || BASE_CLOCK_SIZE,
-      isMobile ? 320 : 400,
+      isMobile ? 360 : 600,  // Increased from 320/400 to 360/600
     ) - 40 // 40px padding
 
-    const size = Math.max(200, maxSize) // Minimum size of 200px
+    const size = Math.max(300, maxSize) // Increased minimum from 200px to 300px
     const scale = size / BASE_CLOCK_SIZE
 
     return {
@@ -323,7 +323,7 @@ export function CircularClock({
   }, [dragState, creatingSession, onSessionUpdate, onSessionCreate])
 
   return (
-    <div ref={clockContainerRef} className="circular-clock" style={{ display: 'flex', justifyContent: 'center', padding: 16, width: '100%', minHeight: 240 }}>
+    <div ref={clockContainerRef} className="circular-clock" style={{ display: 'flex', justifyContent: 'center', padding: 16, width: '100%', minHeight: 400 }}>
       <svg
         ref={svgRef}
         width={clockSize}
@@ -480,7 +480,7 @@ export function CircularClock({
                   d={path}
                   fill={session.color + (isSelected ? '44' : '33')}
                   stroke={session.color}
-                  strokeWidth={isSelected ? 3 : 2}
+                  strokeWidth={isSelected ? 5 : isHovered ? 4 : 3}  // Increased from 3:2 to 5:4:3
                   strokeDasharray={isCollapsed ? '4 2' : undefined}
                   style={{
                     cursor: 'move',
@@ -504,10 +504,10 @@ export function CircularClock({
                   <circle
                     cx={center + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos(minutesToAngle(session.startMinutes) * Math.PI / 180)}
                     cy={center + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin(minutesToAngle(session.startMinutes) * Math.PI / 180)}
-                    r={6}
+                    r={10}  // Increased from 6 to 10
                     fill="white"
                     stroke={session.color}
-                    strokeWidth={2}
+                    strokeWidth={3}  // Increased from 2 to 3
                     style={{ cursor: 'ew-resize' }}
                     onMouseDown={(e) => handleArcMouseDown(e, session.id, 'start')}
                   />
@@ -516,10 +516,10 @@ export function CircularClock({
                   <circle
                     cx={center + ((arcInnerRadius + arcOuterRadius) / 2) * Math.cos(minutesToAngle(session.endMinutes) * Math.PI / 180)}
                     cy={center + ((arcInnerRadius + arcOuterRadius) / 2) * Math.sin(minutesToAngle(session.endMinutes) * Math.PI / 180)}
-                    r={6}
+                    r={10}  // Increased from 6 to 10
                     fill="white"
                     stroke={session.color}
-                    strokeWidth={2}
+                    strokeWidth={3}  // Increased from 2 to 3
                     style={{ cursor: 'ew-resize' }}
                     onMouseDown={(e) => handleArcMouseDown(e, session.id, 'end')}
                   />
