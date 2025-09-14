@@ -8,6 +8,7 @@ import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { WorkSession as ImportedWorkSession } from '@shared/workflow-progress-types'
 import { UnifiedWorkSession, fromLocalWorkSession } from '@shared/unified-work-session-types'
+import { UnifiedSchedulerAdapter } from '@shared/unified-scheduler-adapter'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
 import { logger } from '../utils/logger'
@@ -118,6 +119,8 @@ interface TaskStore {
 const schedulingService = new SchedulingService({
   getWorkPattern: (date: string) => getDatabase().getWorkPattern(date),
 })
+// Create UnifiedSchedulerAdapter instance for direct scheduling
+const unifiedSchedulerAdapter = new UnifiedSchedulerAdapter()
 
 // Get logger instance for state change logging
 const rendererLogger = getRendererLogger()
@@ -568,25 +571,92 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     set({ isScheduling: true, schedulingError: null })
     try {
       const state = get()
-      rendererLogger.info('[TaskStore] Generating schedule', {
+      rendererLogger.info('[TaskStore] Generating schedule using UnifiedSchedulerAdapter', {
         taskCount: state.tasks.filter(t => !t.completed).length,
         workflowCount: state.sequencedTasks.filter(st => st.overallStatus !== 'completed').length,
+        workPatternsCount: state.workPatterns.length,
         options,
       })
 
-      rendererLogger.info('[TaskStore] About to call schedulingService.createSchedule...')
-      const schedule = await schedulingService.createSchedule(
+      // Check if we have work patterns loaded
+      if (!state.workPatterns || state.workPatterns.length === 0) {
+        rendererLogger.warn('[TaskStore] No work patterns available, cannot generate schedule')
+        set({
+          schedulingError: 'No work patterns available. Please set up your work schedule.',
+          isScheduling: false
+        })
+        return
+      }
+
+      // Use UnifiedSchedulerAdapter directly - same as Gantt chart
+      const schedulingOptions = {
+        startDate: options.startDate || getCurrentTime(),
+        endDate: options.endDate,
+        respectDeadlines: true,
+        allowSplitting: true,
+        debug: true,
+      }
+
+      rendererLogger.info('[TaskStore] Calling unifiedSchedulerAdapter.scheduleTasks...')
+      const result = unifiedSchedulerAdapter.scheduleTasks(
         state.tasks,
+        state.workPatterns,
+        schedulingOptions,
         state.sequencedTasks,
-        options,
       )
 
-      rendererLogger.info('[TaskStore] Schedule generated successfully', {
-        scheduledItemCount: schedule.scheduledItems.length,
-        hasConflicts: schedule.conflicts.length > 0,
+      rendererLogger.info('[TaskStore] UnifiedScheduler completed', {
+        scheduledCount: result.scheduledTasks.length,
+        unscheduledCount: result.unscheduledTasks.length,
+        totalDuration: result.totalDuration,
+        conflicts: result.conflicts.length,
       })
+
+      // Convert to SchedulingResult format that the store expects
+      // This matches what SchedulingService.convertFromSchedulingResult does
+      const schedule: SchedulingResult = {
+        scheduledItems: result.scheduledTasks.map(item => ({
+          id: item.task.id,
+          name: item.task.name,
+          type: item.task.type,
+          duration: item.task.duration,
+          importance: item.task.importance,
+          urgency: item.task.urgency,
+          cognitiveComplexity: item.task.cognitiveComplexity || 3,
+          dependsOn: item.task.dependencies || [],
+          asyncWaitTime: item.task.asyncWaitTime || 0,
+          isAsyncTrigger: false,
+          deadline: item.task.deadline,
+          deadlineType: item.task.deadlineType,
+          sourceType: 'simple_task' as const,
+          sourceId: item.task.id,
+          status: 'scheduled' as const,
+          scheduledDate: new Date(item.startTime.toDateString()),
+          scheduledStartTime: item.startTime,
+          scheduledEndTime: item.endTime,
+          timeSlotId: item.blockId || 'unknown',
+          consumesFocusedTime: item.task.type === 'focused',
+          consumesAdminTime: item.task.type === 'admin',
+          isOptimallyPlaced: true,
+          wasRescheduled: false,
+        })),
+        unscheduledItems: result.unscheduledTasks,
+        conflicts: result.conflicts,
+        overCapacityDays: [],
+        underUtilizedDays: [],
+        optimizationScore: result.totalDuration > 0 ? 0.8 : 0,
+        timeline: [],
+        schedulingMetadata: {
+          totalTasksScheduled: result.scheduledTasks.length,
+          totalMinutesScheduled: result.totalDuration,
+          averageUtilization: 0,
+          peakUtilizationDay: null,
+          schedulingDurationMs: 0,
+        },
+      }
+
       set({ currentSchedule: schedule, isScheduling: false })
-      rendererLogger.info('[TaskStore] Schedule set in state')
+      rendererLogger.info('[TaskStore] Schedule set in state using UnifiedSchedulerAdapter')
     } catch (error) {
       rendererLogger.error('[TaskStore] Failed to generate schedule', error as Error)
       rendererLogger.error('[TaskStore] Error details:', {

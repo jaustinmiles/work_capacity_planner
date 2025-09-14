@@ -2153,6 +2153,19 @@ export class UnifiedScheduler {
    * Parse time string on specific date
    */
   private parseTimeOnDate(date: Date, timeStr: string): Date {
+    // Handle missing or invalid time strings
+    if (!timeStr || typeof timeStr !== 'string') {
+      logger.error('[UnifiedScheduler] Invalid timeStr provided to parseTimeOnDate', {
+        timeStr,
+        date: date.toISOString(),
+        type: typeof timeStr,
+      })
+      // Return start of day as fallback
+      const result = new Date(date)
+      result.setHours(0, 0, 0, 0)
+      return result
+    }
+
     const [hours, minutes] = timeStr.split(':').map(Number)
     // Create a new date in local time - the time strings like "09:00"
     // represent local time for the user, not UTC

@@ -540,6 +540,19 @@ export class UnifiedSchedulerAdapter {
     return workPatterns.map(pattern => ({
       ...pattern,
       blocks: pattern.blocks.map(block => {
+        // Check if block has required time properties
+        if (!block.startTime || !block.endTime) {
+          logger.warn('[WorkPatternLifeCycle] Block missing startTime or endTime', {
+            date: pattern.date,
+            blockType: block.type,
+            hasStartTime: !!block.startTime,
+            hasEndTime: !!block.endTime,
+            blockData: block,
+          })
+          // Return block as-is, let downstream handle the missing properties
+          return block
+        }
+
         if (block.capacity) {
           logger.debug('[WorkPatternLifeCycle] Block already has capacity', {
             date: pattern.date,
