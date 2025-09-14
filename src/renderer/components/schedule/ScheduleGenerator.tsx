@@ -106,7 +106,7 @@ export function ScheduleGenerator({
 
         // Check if this day has work hours configured
         // Use custom hours for this day if configured, otherwise use default hours
-        const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] || workSettings?.defaultWorkHours
+        const dayWorkHours = workSettings?.customWorkHours?.[_dayOfWeek] || workSettings?.defaultWorkHours
 
         // Create work pattern for each day (even if empty, so weekends are included)
         const blocks: any[] = []

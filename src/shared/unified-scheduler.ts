@@ -1856,7 +1856,7 @@ export class UnifiedScheduler {
 
     // Handle flexible blocks specially - they can accept any task type
     if (block.type === 'flexible') {
-      const result = {
+      const result: BlockCapacity = {
         blockId: block.id,
         blockType: 'flexible',
         startTime,
@@ -1869,15 +1869,6 @@ export class UnifiedScheduler {
         personalMinutesTotal: block.capacity?.personalMinutes || 0,
         personalMinutesUsed: 0,
       }
-      console.log('🔍 [CAPACITY DEBUG] Creating flexible BlockCapacity:', {
-        blockId: block.id,
-        startTime: block.startTime,
-        endTime: block.endTime,
-        totalMinutes,
-        explicitCapacity: block.capacity,
-        resultFocusTotal: result.focusMinutesTotal,
-        resultAdminTotal: result.adminMinutesTotal,
-      })
       return result
     }
 
@@ -1999,14 +1990,6 @@ export class UnifiedScheduler {
       const totalCapacity = block.focusMinutesTotal + block.adminMinutesTotal
       const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed
       availableCapacity = totalCapacity - totalUsed
-      console.log('🔍 [CAPACITY DEBUG] Flexible block calculation:', {
-        blockId: block.blockId,
-        focusTotal: block.focusMinutesTotal,
-        adminTotal: block.adminMinutesTotal,
-        totalCapacity,
-        totalUsed,
-        availableCapacity,
-      })
     } else if (item.taskType === TaskType.Focused) {
       availableCapacity = block.focusMinutesTotal - block.focusMinutesUsed
     } else if (item.taskType === TaskType.Admin) {
