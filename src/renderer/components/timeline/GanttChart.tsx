@@ -982,8 +982,25 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       {!workPatternsLoading && (
         <Card
           title="Scheduled Tasks (Priority Order)"
-        style={{ position: 'relative' }}
-      >
+          style={{ position: 'relative' }}
+          extra={
+            <Space>
+              <Button
+                size="small"
+                type="primary"
+                icon={<IconRefresh />}
+                onClick={() => {
+                  logger.ui.info('[GanttChart] Manual refresh triggered')
+                  setRefreshKey(prev => prev + 1)
+                  loadWorkPatterns()
+                  setOptimalSchedule([])
+                }}
+              >
+                Refresh
+              </Button>
+            </Space>
+          }
+        >
         {/* Pinch indicator */}
         {isPinching && (
           <div style={{

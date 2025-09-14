@@ -350,8 +350,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       return { focusMinutes: duration, adminMinutes: 0 }
     } else if (block.type === 'admin') {
       return { focusMinutes: 0, adminMinutes: duration }
-    } else {
+    } else if (block.type === 'mixed') {
       return { focusMinutes: duration / 2, adminMinutes: duration / 2 }
+    } else {
+      // flexible and universal blocks - full duration available for either type
+      return { focusMinutes: duration, adminMinutes: duration }
     }
   }
 

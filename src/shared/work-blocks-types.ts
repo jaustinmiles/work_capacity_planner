@@ -123,9 +123,10 @@ export function getTotalCapacity(blocks: WorkBlock[]): { focusMinutes: number; a
       acc.adminMinutes += durationMinutes / 2
     } else if (block.type === 'flexible' || block.type === 'universal') {
       // flexible and universal blocks can be used for any task type
-      // we'll split capacity evenly for estimation purposes
-      acc.focusMinutes += durationMinutes / 2
-      acc.adminMinutes += durationMinutes / 2
+      // Full duration is available for EITHER focus OR admin work
+      // Set both to full duration to indicate either can use the full time
+      acc.focusMinutes += durationMinutes
+      acc.adminMinutes += durationMinutes
     }
 
     return acc
