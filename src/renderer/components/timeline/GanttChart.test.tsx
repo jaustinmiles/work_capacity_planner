@@ -107,11 +107,11 @@ describe('GanttChart', () => {
             id: 'block-1',
             start: '09:00',
             end: '17:00',
-            type: 'flexible'
+            type: 'flexible',
           }],
           meetings: [],
-          effectiveCapacity: { focusMinutes: 480, adminMinutes: 480, personalMinutes: 0 }
-        }
+          effectiveCapacity: { focusMinutes: 480, adminMinutes: 480, personalMinutes: 0 },
+        },
       ],
       workPatternsLoading: false,
       loadWorkPatterns: vi.fn(),
@@ -150,11 +150,11 @@ describe('GanttChart', () => {
             id: 'block-1',
             start: '09:00',
             end: '17:00',
-            type: 'flexible'
+            type: 'flexible',
           }],
           meetings: [],
-          effectiveCapacity: { focusMinutes: 480, adminMinutes: 480, personalMinutes: 0 }
-        }
+          effectiveCapacity: { focusMinutes: 480, adminMinutes: 480, personalMinutes: 0 },
+        },
       ],
       workPatternsLoading: false,
       loadWorkPatterns: vi.fn(),
