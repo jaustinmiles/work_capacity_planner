@@ -105,8 +105,8 @@ describe('GanttChart', () => {
           isWorkday: true,
           blocks: [{
             id: 'block-1',
-            start: '09:00',
-            end: '17:00',
+            startTime: '09:00',
+            endTime: '17:00',
             type: 'flexible',
           }],
           meetings: [],
@@ -148,8 +148,8 @@ describe('GanttChart', () => {
           isWorkday: true,
           blocks: [{
             id: 'block-1',
-            start: '09:00',
-            end: '17:00',
+            startTime: '09:00',
+            endTime: '17:00',
             type: 'flexible',
           }],
           meetings: [],
