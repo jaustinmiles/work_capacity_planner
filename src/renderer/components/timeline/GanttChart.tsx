@@ -62,7 +62,7 @@ const ZOOM_PRESETS = [
 ]
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
-  const { updateTask, updateSequencedTask, workPatterns, workPatternsLoading, loadWorkPatterns } = useTaskStore()
+  const { updateTask, updateSequencedTask, workPatterns = [], workPatternsLoading, loadWorkPatterns } = useTaskStore()
   const { scheduleForGantt } = useUnifiedScheduler()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
