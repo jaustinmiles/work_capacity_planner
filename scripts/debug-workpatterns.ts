@@ -2,7 +2,7 @@
 /**
  * Script to debug work patterns and blocks for a specific session
  * Usage: npx tsx scripts/debug-workpatterns.ts [session-name]
- * 
+ *
  * This script will:
  * 1. Find the session by name
  * 2. Query all WorkPatterns for that session
@@ -20,7 +20,7 @@ const prisma = new PrismaClient()
 async function main() {
   const sessionNameSearch = process.argv[2] || 'Haleigh 9/13'
   const outputDir = path.join(process.cwd(), 'debug-output')
-  
+
   // Create output directory if it doesn't exist
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true })
@@ -44,18 +44,18 @@ async function main() {
 
     if (!session) {
       console.error(`❌ No session found matching "${sessionNameSearch}"`)
-      
+
       // Show available sessions
       const allSessions = await prisma.session.findMany({
         take: 10,
         orderBy: { createdAt: 'desc' },
       })
-      
+
       console.log('\n📋 Available sessions:')
       allSessions.forEach(s => {
         console.log(`  - ${s.name} (ID: ${s.id}, Active: ${s.isActive})`)
       })
-      
+
       process.exit(1)
     }
 
@@ -85,7 +85,7 @@ async function main() {
     const todayLocal = now.toLocaleDateString('en-CA') // YYYY-MM-DD in local time
     const todayUTC = now.toISOString().split('T')[0]
     const currentTimeLocal = now.toLocaleTimeString('en-US', { hour12: false }).slice(0, 5)
-    
+
     console.log('\n🕐 Current Time Info:')
     console.log(`  Local Date: ${todayLocal}`)
     console.log(`  UTC Date: ${todayUTC}`)
@@ -158,7 +158,7 @@ async function main() {
       // Check if this is today's or tomorrow's pattern
       if (pattern.date === todayLocal) {
         analysisData.analysis.todayPattern = patternData
-        
+
         // Check if we're currently in a work block
         pattern.WorkBlock.forEach(block => {
           if (currentTimeLocal >= block.startTime && currentTimeLocal < block.endTime) {
@@ -169,7 +169,7 @@ async function main() {
           }
         })
       }
-      
+
       const tomorrow = new Date(now)
       tomorrow.setDate(tomorrow.getDate() + 1)
       const tomorrowStr = tomorrow.toLocaleDateString('en-CA')
@@ -193,7 +193,7 @@ async function main() {
       date.setDate(date.getDate() + i)
       const dateStr = date.toLocaleDateString('en-CA')
       upcomingDates.push(dateStr)
-      
+
       const pattern = patterns.find(p => p.date === dateStr)
       if (pattern) {
         console.log(`  ${dateStr}: ${pattern.WorkBlock.length} blocks, ${pattern.WorkMeeting.length} meetings`)
@@ -209,7 +209,7 @@ async function main() {
     console.log('\n🎯 September 13-14 Analysis:')
     const sept13 = patterns.find(p => p.date === '2025-09-13')
     const sept14 = patterns.find(p => p.date === '2025-09-14')
-    
+
     if (sept13) {
       console.log('  Sept 13 pattern found:')
       sept13.WorkBlock.forEach(block => {
@@ -218,7 +218,7 @@ async function main() {
     } else {
       console.log('  Sept 13: No pattern found')
     }
-    
+
     if (sept14) {
       console.log('  Sept 14 pattern found:')
       sept14.WorkBlock.forEach(block => {
@@ -258,7 +258,7 @@ async function main() {
           Session: true,
         },
       })
-      
+
       if (otherPatterns.length > 0) {
         console.log(`  ⚠️ ${dateStr}: Found ${otherPatterns.length} patterns from other sessions:`)
         otherPatterns.forEach(p => {
@@ -278,10 +278,10 @@ async function main() {
 function calculateRemainingMinutes(currentTime: string, endTime: string): number {
   const [currentHour, currentMin] = currentTime.split(':').map(Number)
   const [endHour, endMin] = endTime.split(':').map(Number)
-  
+
   const currentMinutes = currentHour * 60 + currentMin
   const endMinutes = endHour * 60 + endMin
-  
+
   return endMinutes - currentMinutes
 }
 

@@ -964,7 +964,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                             {minutesToTime(session.startMinutes)} - {minutesToTime(session.endMinutes)}
                           </div>
                           <div style={{ fontWeight: 'bold' }}>
-                            {session.endMinutes - session.startMinutes} minutes 
+                            {session.endMinutes - session.startMinutes} minutes
                             ({Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10} hours)
                           </div>
                           {actualWidth < width && (

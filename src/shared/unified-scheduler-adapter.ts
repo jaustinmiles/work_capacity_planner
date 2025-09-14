@@ -71,7 +71,7 @@ export class UnifiedSchedulerAdapter {
       // Default to current date string (for compatibility)
       startDate = getCurrentTime().toISOString().split('T')[0]
     }
-    
+
     return {
       startDate,
       endDate: options.endDate,
@@ -233,8 +233,8 @@ export class UnifiedSchedulerAdapter {
       workPatternDetails: workPatterns.map(p => ({
         date: p.date,
         blockCount: p.blocks.length,
-        totalCapacity: p.blocks.reduce((sum, b) => sum + (b.capacity?.focusMinutes || 0) + (b.capacity?.adminMinutes || 0), 0)
-      }))
+        totalCapacity: p.blocks.reduce((sum, b) => sum + (b.capacity?.focusMinutes || 0) + (b.capacity?.adminMinutes || 0), 0),
+      })),
     })
 
     // Ensure we have a valid Date for currentTime
@@ -243,7 +243,7 @@ export class UnifiedSchedulerAdapter {
       currentTime = options.startDate
       logger.info('🕒 [ADAPTER] Using Date startDate as currentTime', {
         currentTime: currentTime.toISOString(),
-        localTime: currentTime.toLocaleString()
+        localTime: currentTime.toLocaleString(),
       })
     } else if (typeof options.startDate === 'string') {
       currentTime = new Date(options.startDate)
@@ -253,13 +253,13 @@ export class UnifiedSchedulerAdapter {
       logger.info('🕒 [ADAPTER] Using string startDate as currentTime', {
         originalString: options.startDate,
         currentTime: currentTime.toISOString(),
-        localTime: currentTime.toLocaleString()
+        localTime: currentTime.toLocaleString(),
       })
     } else {
       currentTime = getCurrentTime() // Default to now if no startDate provided
       logger.info('🕒 [ADAPTER] No startDate, using getCurrentTime', {
         currentTime: currentTime.toISOString(),
-        localTime: currentTime.toLocaleString()
+        localTime: currentTime.toLocaleString(),
       })
     }
 
@@ -267,20 +267,20 @@ export class UnifiedSchedulerAdapter {
     const config = this.adaptOptions(options)
     // CRITICAL FIX: Pass currentTime to the scheduler config
     const configWithCurrentTime = { ...config, currentTime }
-    
+
     logger.info('[WorkPatternLifeCycle] Scheduler config with currentTime', {
       currentTime: currentTime.toISOString(),
       localTime: currentTime.toLocaleTimeString('en-US', { hour12: false }),
       startDate: config.startDate,
-      hasCurrentTime: !!configWithCurrentTime.currentTime
+      hasCurrentTime: !!configWithCurrentTime.currentTime,
     })
 
     const context: ScheduleContext = {
       // For startDate in context, we need the date string for pattern matching
       // But we preserve currentTime with full time info
-      startDate: typeof config.startDate === 'string' 
-        ? config.startDate 
-        : config.startDate instanceof Date 
+      startDate: typeof config.startDate === 'string'
+        ? config.startDate
+        : config.startDate instanceof Date
           ? config.startDate.toISOString().split('T')[0]
           : getCurrentTime().toISOString().split('T')[0],
       currentTime,
@@ -534,9 +534,9 @@ export class UnifiedSchedulerAdapter {
   private fixWorkPatternCapacities(workPatterns: DailyWorkPattern[]): DailyWorkPattern[] {
     logger.debug('[WorkPatternLifeCycle] fixWorkPatternCapacities - Processing patterns', {
       patternCount: workPatterns.length,
-      dates: workPatterns.map(p => p.date)
+      dates: workPatterns.map(p => p.date),
     })
-    
+
     return workPatterns.map(pattern => ({
       ...pattern,
       blocks: pattern.blocks.map(block => {
@@ -545,7 +545,7 @@ export class UnifiedSchedulerAdapter {
             date: pattern.date,
             blockTime: `${block.startTime}-${block.endTime}`,
             type: block.type,
-            existingCapacity: block.capacity
+            existingCapacity: block.capacity,
           })
           return block // Already has capacity, keep as is
         }

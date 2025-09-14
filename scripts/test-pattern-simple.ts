@@ -33,8 +33,8 @@ function testPatternLoading() {
   // Test 3: UTC conversion check
   console.log('\n3. UTC Conversion Check:')
   console.log(`   Sep 13 9pm PST = ${overrideTime.toISOString()}`)
-  console.log(`   That's Sep 14 4am UTC (next day in UTC)`)
-  console.log(`   But dayjs().startOf('day') uses LOCAL time, so it's still Sep 13`)
+  console.log('   That\'s Sep 14 4am UTC (next day in UTC)')
+  console.log('   But dayjs().startOf(\'day\') uses LOCAL time, so it\'s still Sep 13')
 
   // Test 4: What the scheduler sees
   console.log('\n4. What happens in the scheduler:')
@@ -42,8 +42,8 @@ function testPatternLoading() {
   const patternDate = overrideToday.format('YYYY-MM-DD') // Sep 13
   console.log(`   Scheduler currentTime: ${schedulerCurrentTime.toISOString()}`)
   console.log(`   Pattern date needed: ${patternDate}`)
-  console.log(`   With our fix: Pattern IS loaded ✅`)
-  console.log(`   Without fix: Pattern NOT loaded ❌`)
+  console.log('   With our fix: Pattern IS loaded ✅')
+  console.log('   Without fix: Pattern NOT loaded ❌')
 }
 
 testPatternLoading()

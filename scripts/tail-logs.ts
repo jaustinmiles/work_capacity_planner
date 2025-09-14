@@ -67,7 +67,7 @@ function formatLog(log: any): void {
   const timestamp = format(new Date(log.createdAt), 'HH:mm:ss.SSS')
   const level = formatLevel(log.level.padEnd(5))
   const source = chalk.magenta(`[${log.source}]`)
-  
+
   let context = ''
   try {
     const contextObj = JSON.parse(log.context)

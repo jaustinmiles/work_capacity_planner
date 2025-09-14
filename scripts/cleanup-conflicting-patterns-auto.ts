@@ -10,7 +10,7 @@ const prisma = new PrismaClient()
 
 async function main() {
   const shouldDelete = process.argv.includes('--delete')
-  
+
   console.log('================================================================================')
   console.log('WORK PATTERN CONFLICT CLEANUP')
   console.log('================================================================================\n')
@@ -87,7 +87,7 @@ async function main() {
 
     if (shouldDelete) {
       console.log('🗑️  Deleting conflicting patterns...')
-      
+
       const result = await prisma.workPattern.deleteMany({
         where: {
           date: { in: activeDates },
@@ -96,7 +96,7 @@ async function main() {
       })
 
       console.log(`✅ Deleted ${result.count} conflicting patterns!`)
-      
+
       // Verify the cleanup
       const remainingConflicts = await prisma.workPattern.count({
         where: {
@@ -104,7 +104,7 @@ async function main() {
           sessionId: { not: activeSession.id },
         },
       })
-      
+
       if (remainingConflicts === 0) {
         console.log('✅ All conflicts have been resolved!')
       } else {

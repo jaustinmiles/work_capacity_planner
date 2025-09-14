@@ -240,23 +240,23 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       rendererLogger.info('[DEBUG] loadWorkPatterns getCurrentTime:', {
         time: currentTime.toISOString(),
         localDate: currentTime.toLocaleDateString(),
-        localTime: currentTime.toLocaleTimeString()
+        localTime: currentTime.toLocaleTimeString(),
       })
 
       const today = dayjs(currentTime).startOf('day')
       rendererLogger.info('[DEBUG] loadWorkPatterns date range:', {
         startDate: today.add(-1, 'day').format('YYYY-MM-DD'),
         endDate: today.add(7, 'day').format('YYYY-MM-DD'),
-        todayDate: today.format('YYYY-MM-DD')
+        todayDate: today.format('YYYY-MM-DD'),
       })
 
       // Load patterns from yesterday to next 7 days (to handle late-night overrides)
       for (let i = -1; i < 8; i++) {
         const date = today.add(i, 'day')
         const dateStr = date.format('YYYY-MM-DD')
-        
+
         const pattern = await db.getWorkPattern(dateStr)
-        
+
         if (pattern && ((pattern.blocks && pattern.blocks.length > 0) || (pattern.meetings && pattern.meetings.length > 0))) {
           patterns.push({
             date: dateStr,
@@ -274,22 +274,22 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           })
         }
       }
-      
+
       rendererLogger.info('[WorkPatternLifeCycle] TaskStore.loadWorkPatterns - COMPLETE', {
         total: patterns.length,
         withBlocks: patterns.filter(p => p.blocks && p.blocks.length > 0).length,
         dates: patterns.map(p => p.date),
         currentTime: getCurrentTime().toISOString(),
-        realTime: new Date().toISOString()
+        realTime: new Date().toISOString(),
       })
-      
+
       set({ workPatterns: patterns, workPatternsLoading: false })
     } catch (error) {
       rendererLogger.error('[TaskStore] Failed to load work patterns', error as Error)
-      set({ 
+      set({
         workPatterns: [],
         workPatternsLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to load work patterns' 
+        error: error instanceof Error ? error.message : 'Failed to load work patterns',
       })
     }
   },
@@ -330,7 +330,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         getDatabase().getTasks(),
         getDatabase().getSequencedTasks(),
       ])
-      
+
       // Load work patterns separately (it's async and sets its own state)
       await get().loadWorkPatterns()
 
@@ -573,14 +573,14 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         workflowCount: state.sequencedTasks.filter(st => st.overallStatus !== 'completed').length,
         options,
       })
-      
+
       rendererLogger.info('[TaskStore] About to call schedulingService.createSchedule...')
       const schedule = await schedulingService.createSchedule(
         state.tasks,
         state.sequencedTasks,
         options,
       )
-      
+
       rendererLogger.info('[TaskStore] Schedule generated successfully', {
         scheduledItemCount: schedule.scheduledItems.length,
         hasConflicts: schedule.conflicts.length > 0,

@@ -254,7 +254,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       logger.ui.info('[GanttChart] Data refresh event, reloading work patterns')
       loadWorkPatterns()
     }
-    
+
     appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
     return () => {
       appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
@@ -582,15 +582,15 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Always show at least 7 days ahead or to the last work pattern
   const sevenDaysFromNow = new Date(now)
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
-  
+
   // Find the last work pattern date
-  const lastPatternDate = workPatterns.length > 0 
+  const lastPatternDate = workPatterns.length > 0
     ? new Date(workPatterns[workPatterns.length - 1].date + 'T23:59:59')
     : sevenDaysFromNow
 
   // Use the latest of: last scheduled item, 7 days from now, or last work pattern
   const minimumEndTime = new Date(Math.max(sevenDaysFromNow.getTime(), lastPatternDate.getTime()))
-  
+
   const chartEndTime = scheduledItems.length > 0
     ? new Date(Math.max(...scheduledItems.map((item: any) => item.endTime.getTime()), minimumEndTime.getTime()))
     : minimumEndTime

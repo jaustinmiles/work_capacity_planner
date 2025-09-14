@@ -35,14 +35,14 @@ const todayPattern: DailyWorkPattern = {
       focusMinutes: 240,
       adminMinutes: 120,
       personalMinutes: 60,
-    }
+    },
   }],
   meetings: [],
   effectiveCapacity: {
     focusMinutes: 240,
     adminMinutes: 120,
     personalMinutes: 60,
-  }
+  },
 }
 
 // Create work pattern for tomorrow (Sep 14)
@@ -58,14 +58,14 @@ const tomorrowPattern: DailyWorkPattern = {
       focusMinutes: 240,
       adminMinutes: 120,
       personalMinutes: 60,
-    }
+    },
   }],
   meetings: [],
   effectiveCapacity: {
     focusMinutes: 240,
     adminMinutes: 120,
     personalMinutes: 60,
-  }
+  },
 }
 
 // Test scheduling with current time (Sep 13, 10:50pm)
@@ -93,14 +93,14 @@ if (result.scheduled.length > 0) {
   console.log('- Start time:', scheduled.startTime?.toISOString())
   console.log('- End time:', scheduled.endTime?.toISOString())
   console.log('- Date:', scheduled.startTime?.toISOString().split('T')[0])
-  
+
   // Check if it's scheduled today (Sep 13) at 10:50pm or later
   if (scheduled.startTime) {
     const isToday = scheduled.startTime.toISOString().startsWith('2025-09-13')
     const isAfterCurrentTime = scheduled.startTime >= currentTime
     console.log('\n✓ Scheduled on Sep 13?', isToday)
     console.log('✓ Scheduled after current time (22:50)?', isAfterCurrentTime)
-    
+
     if (isToday && isAfterCurrentTime) {
       console.log('\n✅ SUCCESS: Task correctly scheduled in current work block!')
     } else if (!isToday) {

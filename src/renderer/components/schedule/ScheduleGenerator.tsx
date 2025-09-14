@@ -101,7 +101,7 @@ export function ScheduleGenerator({
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
         date.setDate(date.getDate() + i)
-        const dayOfWeek = date.getDay()
+        const _dayOfWeek = date.getDay()
         const dateStr = date.toISOString().split('T')[0]
 
         // Check if this day has work hours configured
@@ -360,7 +360,7 @@ export function ScheduleGenerator({
       for (const dateStr of Array.from(allDates).sort()) {
         const items = itemsByDate.get(dateStr) || []
         const date = new Date(dateStr)
-        const dayOfWeek = date.getDay()
+        const _dayOfWeek = date.getDay()
         const blocks: any[] = []
         const isOptimalSchedule = selected.name.includes('Optimal')
 

@@ -1,6 +1,5 @@
 import * as fs from 'fs'
 import * as readline from 'readline'
-import * as path from 'path'
 
 interface LogIssue {
   noPatternForOverride: string[]
@@ -18,7 +17,7 @@ async function parseSchedulerLogs(logFile: string) {
     emptyBlockAllocation: [],
     timeConstraintViolations: [],
     criticalErrors: [],
-    sep13Patterns: []
+    sep13Patterns: [],
   }
 
   // Check if file exists
@@ -32,7 +31,7 @@ async function parseSchedulerLogs(logFile: string) {
 
   const rl = readline.createInterface({
     input: fs.createReadStream(logFile),
-    crlfDelay: Infinity
+    crlfDelay: Infinity,
   })
 
   let lineNumber = 0

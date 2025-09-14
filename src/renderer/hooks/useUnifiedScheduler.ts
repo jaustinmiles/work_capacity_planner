@@ -50,7 +50,7 @@ export function useUnifiedScheduler(): {
         allowSplitting: options.allowSplitting,
       },
       timestamp: getCurrentTime().toISOString(),
-      localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false })
+      localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
     })
 
     logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {
@@ -70,7 +70,7 @@ export function useUnifiedScheduler(): {
       // Pass currentTime explicitly if startDate is a Date
       const enhancedOptions = {
         ...options,
-        currentTime: options.startDate instanceof Date ? options.startDate : undefined
+        currentTime: options.startDate instanceof Date ? options.startDate : undefined,
       }
       const result = adapter.scheduleTasks(tasks, workPatterns, enhancedOptions, sequencedTasks)
 
@@ -85,7 +85,7 @@ export function useUnifiedScheduler(): {
         performanceMs: Math.round(duration * 100) / 100,
         blockUtilization: result.debugInfo?.blockUtilization || [],
         warnings: result.debugInfo?.warnings || [],
-        timestamp: getCurrentTime().toISOString()
+        timestamp: getCurrentTime().toISOString(),
       })
 
       logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {
@@ -118,11 +118,11 @@ export function useUnifiedScheduler(): {
             name: task.name,
             duration: task.duration,
             type: task.type,
-            priority: task.importance * task.urgency
+            priority: task.importance * task.urgency,
           })),
-          timestamp: getCurrentTime().toISOString()
+          timestamp: getCurrentTime().toISOString(),
         })
-        
+
         result.unscheduledTasks.forEach(task => {
           logger.ui.debug('⚠️ [GANTT] Task unscheduled', {
             taskId: task.id,

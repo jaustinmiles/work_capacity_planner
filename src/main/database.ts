@@ -107,7 +107,7 @@ export class DatabaseService {
 
     mainLogger.debug('[DB] Found sessions', {
       count: sessions.length,
-      sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive }))
+      sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })),
     })
 
     // Log if we detect duplicates but don't filter them - let the UI show the actual state
@@ -147,7 +147,7 @@ export class DatabaseService {
   async switchSession(sessionId: string): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
     mainLogger.info('[DB] Switching session', {
       newSessionId: sessionId,
-      previousSessionId: this.activeSessionId
+      previousSessionId: this.activeSessionId,
     })
 
     // Clear the cached session ID to force re-fetch
@@ -259,13 +259,13 @@ export class DatabaseService {
       orderBy: { createdAt: 'desc' },
     })
 
-    mainLogger.debug('[DB] getTasks - Found tasks', { 
-      tasksCount: tasks.length, 
-      sessionId 
+    mainLogger.debug('[DB] getTasks - Found tasks', {
+      tasksCount: tasks.length,
+      sessionId,
     })
     const formattedTasks = tasks.map(task => this.formatTask(task))
-    mainLogger.debug('[DB] getTasks - Returning formatted tasks', { 
-      formattedCount: formattedTasks.length 
+    mainLogger.debug('[DB] getTasks - Returning formatted tasks', {
+      formattedCount: formattedTasks.length,
     })
     return formattedTasks
   }
@@ -1024,11 +1024,11 @@ export class DatabaseService {
 
   async getWorkPattern(date: string): Promise<any | null> {
     const sessionId = await this.getActiveSession()
-    mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Query', { 
-      date, 
+    mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Query', {
+      date,
       sessionId,
       timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false })
+      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
     })
     const pattern = await this.client.workPattern.findUnique({
       where: {
@@ -1047,25 +1047,25 @@ export class DatabaseService {
     // Use only the current session's pattern - no fallback to other sessions
     if (!pattern) {
       // No pattern found for current session - return null instead of checking other sessions
-      mainLogger.debug('[WorkPatternLifeCycle] getWorkPattern - No pattern found', { 
-        date, 
+      mainLogger.debug('[WorkPatternLifeCycle] getWorkPattern - No pattern found', {
+        date,
         sessionId,
-        searchKey: `${sessionId}_${date}`
+        searchKey: `${sessionId}_${date}`,
       })
       return null
     }
 
     // Pattern found, process it
-    mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Found pattern', { 
-      date, 
+    mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Found pattern', {
+      date,
       patternId: pattern.id,
       blocks: pattern.WorkBlock.length,
       blockDetails: pattern.WorkBlock.map((b: any) => ({
         start: b.startTime,
         end: b.endTime,
-        type: b.type
+        type: b.type,
       })),
-      meetings: pattern.WorkMeeting.length
+      meetings: pattern.WorkMeeting.length,
     })
 
     return {
@@ -1139,7 +1139,7 @@ export class DatabaseService {
     recurring?: 'none' | 'daily' | 'weekly'
   }): Promise<any> {
     const sessionId = await this.getActiveSession()
-    
+
     // [WorkPatternLifeCycle] START: Creating work pattern
     mainLogger.info('[WorkPatternLifeCycle] createWorkPattern - START', {
       date: data.date,
@@ -1150,9 +1150,9 @@ export class DatabaseService {
       meetingsCount: data.meetings?.length || 0,
       recurring: data.recurring || null,
       timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false })
+      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
     })
-    
+
     mainLogger.info('[DB] createWorkPattern - Creating pattern', { date: data.date, sessionId, blocksCount: data.blocks?.length || 0 })
     const { blocks, meetings, recurring, ...patternData } = data
 
@@ -1257,9 +1257,9 @@ export class DatabaseService {
           }
         }
 
-        mainLogger.info('[DB] Created daily sleep patterns', { 
-          startDate: data.date, 
-          daysCreated: 30 
+        mainLogger.info('[DB] Created daily sleep patterns', {
+          startDate: data.date,
+          daysCreated: 30,
         })
       }
     }
@@ -1275,16 +1275,16 @@ export class DatabaseService {
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
       })),
     }
-    
+
     mainLogger.info('[WorkPatternLifeCycle] createWorkPattern - COMPLETE', {
       patternId: pattern.id,
       date: pattern.date,
       sessionId: pattern.sessionId,
       totalBlocks: pattern.WorkBlock.length,
       totalMeetings: pattern.WorkMeeting.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
-    
+
     return formattedPattern
   }
 
@@ -1367,9 +1367,9 @@ export class DatabaseService {
       blocksCount: updates.blocks?.length || 0,
       meetingsCount: updates.meetings?.length || 0,
       timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false })
+      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
     })
-    
+
     // Delete existing blocks and meetings
     const deletedBlocks = await this.client.workBlock.deleteMany({
       where: { patternId: id },
@@ -1377,12 +1377,12 @@ export class DatabaseService {
     const deletedMeetings = await this.client.workMeeting.deleteMany({
       where: { patternId: id },
     })
-    
+
     mainLogger.debug('[WorkPatternLifeCycle] updateWorkPattern - Deleted existing', {
       patternId: id,
       deletedBlocks: deletedBlocks.count,
       deletedMeetings: deletedMeetings.count,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
 
     // Update with new data
@@ -1416,7 +1416,7 @@ export class DatabaseService {
         WorkMeeting: true,
       },
     })
-    
+
     mainLogger.debug('[WorkPatternLifeCycle] updateWorkPattern - Pattern updated', {
       patternId: id,
       date: pattern.date,
@@ -1427,15 +1427,15 @@ export class DatabaseService {
         startTime: b.startTime,
         endTime: b.endTime,
         type: b.type,
-        capacity: b.capacity ? JSON.parse(b.capacity as string) : null
+        capacity: b.capacity ? JSON.parse(b.capacity as string) : null,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
         name: m.name,
         startTime: m.startTime,
         endTime: m.endTime,
-        type: m.type
+        type: m.type,
       })),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
 
     const formattedPattern = {
@@ -1449,16 +1449,16 @@ export class DatabaseService {
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
       })),
     }
-    
+
     mainLogger.info('[WorkPatternLifeCycle] updateWorkPattern - COMPLETE', {
       patternId: id,
       date: pattern.date,
       sessionId: pattern.sessionId,
       totalBlocks: pattern.WorkBlock.length,
       totalMeetings: pattern.WorkMeeting.length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
-    
+
     return formattedPattern
   }
 
@@ -1467,9 +1467,9 @@ export class DatabaseService {
     mainLogger.info('[WorkPatternLifeCycle] deleteWorkPattern - START', {
       patternId: id,
       timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false })
+      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
     })
-    
+
     // Get pattern details before deletion for logging
     const pattern = await this.client.workPattern.findUnique({
       where: { id },
@@ -1478,7 +1478,7 @@ export class DatabaseService {
         WorkMeeting: true,
       },
     })
-    
+
     if (pattern) {
       mainLogger.debug('[WorkPatternLifeCycle] deleteWorkPattern - Pattern to delete', {
         patternId: id,
@@ -1487,17 +1487,17 @@ export class DatabaseService {
         blocksCount: pattern.WorkBlock.length,
         meetingsCount: pattern.WorkMeeting.length,
         isTemplate: pattern.isTemplate,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
     }
-    
+
     await this.client.workPattern.delete({
       where: { id },
     })
-    
+
     mainLogger.info('[WorkPatternLifeCycle] deleteWorkPattern - COMPLETE', {
       patternId: id,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 

@@ -56,8 +56,8 @@ async function testPatternLoading() {
 
   // Test 4: Check if pattern dates would include override date
   console.log('\n5. Pattern loading validation:')
-  const overrideDateStr = overrideToday.format('YYYY-MM-DD')
-  const wouldLoadOverrideDate = false
+  const _overrideDateStr = overrideToday.format('YYYY-MM-DD')
+  const _wouldLoadOverrideDate = false
 
   for (let i = -1; i < 8; i++) {
     const date = overrideToday.add(i, 'day').format('YYYY-MM-DD')

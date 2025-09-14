@@ -229,15 +229,15 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - START', {
         currentDate,
         timestamp: new Date().toISOString(),
-        localTime: new Date().toLocaleTimeString('en-US', { hour12: false })
+        localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
       })
-      
+
       const db = getDatabase()
       const [patternData, accumulatedData] = await Promise.all([
         db.getWorkPattern(currentDate),
         db.getTodayAccumulated(currentDate),
       ])
-      
+
       // [WorkPatternLifeCycle] Log pattern retrieval result
       logger.ui.debug('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - Pattern loaded', {
         currentDate,
@@ -248,10 +248,10 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
           startTime: b.startTime,
           endTime: b.endTime,
           type: b.type,
-          capacity: b.capacity
+          capacity: b.capacity,
         })) || [],
         meetingsCount: patternData?.meetings?.length || 0,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
 
       // Load next task separately (updates UI state)
@@ -263,25 +263,25 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         admin: accumulatedData.admin || 0,
         personal: accumulatedData.personal || 0,
       })
-      
+
       // [WorkPatternLifeCycle] Log current block detection
       const currentTime = new Date()
       const currentBlockData = patternData ? getCurrentBlock(patternData.blocks, currentTime) : null
       const nextBlockData = patternData ? getNextBlock(patternData.blocks, currentTime) : null
-      
+
       logger.ui.debug('[WorkPatternLifeCycle] WorkStatusWidget - Block detection', {
         currentTime: currentTime.toTimeString().slice(0, 5),
         currentBlock: currentBlockData ? {
           startTime: currentBlockData.startTime,
           endTime: currentBlockData.endTime,
-          type: currentBlockData.type
+          type: currentBlockData.type,
         } : null,
         nextBlock: nextBlockData ? {
           startTime: nextBlockData.startTime,
           endTime: nextBlockData.endTime,
-          type: nextBlockData.type
+          type: nextBlockData.type,
         } : null,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
 
       // Calculate meeting time from work sessions
@@ -299,7 +299,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         })
       }
       setMeetingMinutes(totalMeetingMinutes)
-      
+
       // [WorkPatternLifeCycle] COMPLETE: WorkStatusWidget finished loading
       logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - COMPLETE', {
         currentDate,
@@ -309,16 +309,16 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         accumulated: {
           focused: accumulatedData.focused || 0,
           admin: accumulatedData.admin || 0,
-          personal: accumulatedData.personal || 0
+          personal: accumulatedData.personal || 0,
         },
         meetingMinutes: totalMeetingMinutes,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
     } catch (error) {
       logger.ui.error('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - ERROR', {
         currentDate,
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
       logger.ui.error('Failed to load work data:', error)
     }
