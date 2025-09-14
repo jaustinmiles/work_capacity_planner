@@ -86,10 +86,37 @@ describe('GanttChart', () => {
       updateSequencedTask: vi.fn(),
       generateSchedule: vi.fn(),
       getOptimalSchedule: vi.fn(),
+      workPatterns: [],
+      workPatternsLoading: false,
+      loadWorkPatterns: vi.fn(),
     } as any)
   })
 
   it('should show message to add tasks when work patterns exist but no tasks', async () => {
+    // Update mock to have work patterns
+    vi.mocked(useTaskStore).mockReturnValue({
+      updateTask: vi.fn(),
+      updateSequencedTask: vi.fn(),
+      generateSchedule: vi.fn(),
+      getOptimalSchedule: vi.fn(),
+      workPatterns: [
+        {
+          date: '2025-08-30',
+          isWorkday: true,
+          blocks: [{
+            id: 'block-1',
+            start: '09:00',
+            end: '17:00',
+            type: 'flexible'
+          }],
+          meetings: [],
+          effectiveCapacity: { focusMinutes: 480, adminMinutes: 480, personalMinutes: 0 }
+        }
+      ],
+      workPatternsLoading: false,
+      loadWorkPatterns: vi.fn(),
+    } as any)
+
     const mockTasks: Task[] = []
     const mockSequencedTasks: SequencedTask[] = []
 
@@ -109,6 +136,30 @@ describe('GanttChart', () => {
   })
 
   it('should render tasks when provided', async () => {
+    // Update mock to have work patterns for this test too
+    vi.mocked(useTaskStore).mockReturnValue({
+      updateTask: vi.fn(),
+      updateSequencedTask: vi.fn(),
+      generateSchedule: vi.fn(),
+      getOptimalSchedule: vi.fn(),
+      workPatterns: [
+        {
+          date: '2025-08-30',
+          isWorkday: true,
+          blocks: [{
+            id: 'block-1',
+            start: '09:00',
+            end: '17:00',
+            type: 'flexible'
+          }],
+          meetings: [],
+          effectiveCapacity: { focusMinutes: 480, adminMinutes: 480, personalMinutes: 0 }
+        }
+      ],
+      workPatternsLoading: false,
+      loadWorkPatterns: vi.fn(),
+    } as any)
+
     const mockTasks: Task[] = [
       {
         id: 'task-1',
