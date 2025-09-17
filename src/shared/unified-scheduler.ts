@@ -1236,7 +1236,9 @@ export class UnifiedScheduler {
       }
 
       // Schedule meetings and breaks first (for time blocking only)
-      this.scheduleMeetings(pattern.meetings || [], blockDate)
+      const meetingItems = this.scheduleMeetings(pattern.meetings || [], blockDate)
+      // Add meetings to scheduled array so they block time
+      scheduled.push(...meetingItems)
 
       // Log block availability for current time
       logger.scheduler.info('📅 [SCHEDULER] Processing work blocks for day', {
