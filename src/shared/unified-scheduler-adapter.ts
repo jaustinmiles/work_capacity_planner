@@ -90,8 +90,13 @@ export class UnifiedSchedulerAdapter {
     const scheduledTasks: ScheduledItem[] = []
     const unscheduledTasks: Task[] = []
 
-    // Convert scheduled items
+    // Convert scheduled items (excluding meetings)
     for (const item of result.scheduled) {
+      // Skip meeting items - they should not appear in scheduledTasks
+      if (item.type === 'meeting') {
+        continue
+      }
+
       if (item.originalItem && 'type' in item.originalItem && item.startTime && item.endTime) {
         // Handle both Task and TaskStep items
         const originalItem = item.originalItem as Task | TaskStep
