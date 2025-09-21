@@ -18,7 +18,12 @@ import * as path from 'path'
 const prisma = new PrismaClient()
 
 async function main() {
-  const sessionNameSearch = process.argv[2] || 'Haleigh 9/13'
+  const sessionNameSearch = process.argv[2]
+  if (!sessionNameSearch) {
+    console.log('Usage: npx tsx debug-workpatterns.ts <session-name>')
+    console.log('Example: npx tsx debug-workpatterns.ts "My Session"')
+    process.exit(1)
+  }
   const outputDir = path.join(process.cwd(), 'debug-output')
 
   // Create output directory if it doesn't exist

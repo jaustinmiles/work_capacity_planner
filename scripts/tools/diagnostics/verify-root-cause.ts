@@ -22,20 +22,26 @@ async function main() {
     console.log('  ❌ No stale session found')
   }
 
-  // 2. Simulate what happens if we fix hasSteps
-  const haleighTasks = await prisma.task.findMany({
-    where: {
-      sessionId: 'c909770d-ebce-43a9-a32b-25d5bd8bcbea',
-      completed: false,
-    },
-  })
+  // 2. Check hasSteps filtering for a session (if provided)
+  const sessionId = process.argv[2]
+  if (sessionId) {
+    const sessionTasks = await prisma.task.findMany({
+      where: {
+        sessionId: sessionId,
+        completed: false,
+      },
+    })
 
-  console.log('\n2️⃣ HASSTEPS FILTERING:')
-  const withSteps = haleighTasks.filter(t => t.hasSteps)
-  const withoutSteps = haleighTasks.filter(t => !t.hasSteps)
-  console.log(`  Tasks with hasSteps=true: ${withSteps.length} (${withSteps.reduce((sum, t) => sum + t.duration, 0)} min)`)
-  console.log(`  Tasks with hasSteps=false: ${withoutSteps.length} (${withoutSteps.reduce((sum, t) => sum + t.duration, 0)} min)`)
-  console.log('  If adapter filters by hasSteps, only', withoutSteps.length, 'tasks would be scheduled')
+    console.log('\n2️⃣ HASSTEPS FILTERING:')
+    const withSteps = sessionTasks.filter(t => t.hasSteps)
+    const withoutSteps = sessionTasks.filter(t => !t.hasSteps)
+    console.log(`  Tasks with hasSteps=true: ${withSteps.length} (${withSteps.reduce((sum, t) => sum + t.duration, 0)} min)`)
+    console.log(`  Tasks with hasSteps=false: ${withoutSteps.length} (${withoutSteps.reduce((sum, t) => sum + t.duration, 0)} min)`)
+    console.log('  If adapter filters by hasSteps, only', withoutSteps.length, 'tasks would be scheduled')
+  } else {
+    console.log('\n2️⃣ HASSTEPS FILTERING:')
+    console.log('  No session ID provided. Pass session ID as argument to analyze specific session.')
+  }
 
   // 3. Check if any scheduled tasks exist in database
   console.log('\n3️⃣ SCHEDULED TASKS TABLE:')

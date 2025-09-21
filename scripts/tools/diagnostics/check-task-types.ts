@@ -53,37 +53,40 @@ async function main() {
     })
   })
 
-  // Check Haleigh session specifically
-  console.log('\n📅 HALEIGH SESSION ANALYSIS:')
-  console.log('-'.repeat(40))
+  // Check specific session if provided as argument
+  const sessionNameFilter = process.argv[2]
+  if (sessionNameFilter) {
+    console.log(`\n📅 SESSION ANALYSIS: ${sessionNameFilter}`)
+    console.log('-'.repeat(40))
 
-  const haleighSessions = await prisma.session.findMany({
-    where: {
-      name: { contains: 'Haleigh' },
-    },
-    include: {
-      Task: {
-        select: {
-          name: true,
-          type: true,
-          createdAt: true,
+    const sessions = await prisma.session.findMany({
+      where: {
+        name: { contains: sessionNameFilter },
+      },
+      include: {
+        Task: {
+          select: {
+            name: true,
+            type: true,
+            createdAt: true,
+          },
         },
       },
-    },
-  })
-
-  haleighSessions.forEach(session => {
-    console.log(`\nSession: ${session.name}`)
-    console.log(`ID: ${session.id}`)
-    console.log(`Created: ${session.createdAt.toISOString()}`)
-    console.log(`Tasks: ${session.Task.length}`)
-
-    session.Task.forEach(task => {
-      const isValid = validTypes.includes(task.type)
-      const marker = isValid ? '✅' : '❌'
-      console.log(`  ${marker} ${task.name}: type="${task.type}"`)
     })
-  })
+
+    sessions.forEach(session => {
+      console.log(`\nSession: ${session.name}`)
+      console.log(`ID: ${session.id}`)
+      console.log(`Created: ${session.createdAt.toISOString()}`)
+      console.log(`Tasks: ${session.Task.length}`)
+
+      session.Task.forEach(task => {
+        const isValid = validTypes.includes(task.type)
+        const marker = isValid ? '✅' : '❌'
+        console.log(`  ${marker} ${task.name}: type="${task.type}"`)
+      })
+    })
+  }
 
   // Check where these types might be coming from
   console.log('\n🔍 CHECKING FOR TYPE PATTERNS:')
