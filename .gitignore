@@ -34,6 +34,11 @@ dist-ssr
 prisma/*.db
 prisma/*.db-journal
 
+# Logs and temporary files
+*.log
+logs_*.json
+/scripts/temp/
+
 # Electron
 out/
 

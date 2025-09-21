@@ -72,7 +72,8 @@
       "Bash(./scripts/dev/dev-timer.sh:*)",
       "Bash(npx playwright test:*)",
       "Read(//Users/austinmiles/Downloads/**)",
-      "Bash(/dev/null)"
+      "Bash(/dev/null)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

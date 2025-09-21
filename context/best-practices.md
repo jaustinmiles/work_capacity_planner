@@ -1,6 +1,6 @@
 # Development Best Practices
 
-*Last Updated: 2025-09-02*
+*Last Updated: 2025-09-21*
 
 ## What Makes a "Perfect" PR
 
@@ -238,3 +238,62 @@ Therefore:
 - Follow existing patterns consistently
 - Keep functions small and focused
 - Make dependencies explicit
+
+## PR Documentation Standards
+
+Based on the exemplary documentation in PR #fix-time-override-scheduling, every significant PR should include:
+
+### Essential Sections
+1. **Overview** - Branch, issue, root cause, solution, impact
+2. **Statistics** - Files changed, lines added/removed, test impact
+3. **Primary Objectives** - What was fixed/added with clear before/after
+4. **Major Changes by Category** - Organized table of file changes
+5. **Testing** - Coverage before/after, new tests added
+6. **Technical Debt** - What was added that needs cleanup
+
+### Example Structure (from docs/PR-fix-time-override-scheduling.md):
+
+```markdown
+# PR Documentation: [Feature/Fix Name]
+
+## 📊 PR Summary
+- Overview with branch, issue, stats
+- Primary objectives with ✅ checkmarks
+- Impact analysis
+
+## 📁 Major Changes by Category
+| File | Changes | Key Updates |
+|------|---------|-------------|
+| `file.ts` | +100 | Description of changes |
+
+## 🐛 Bugs Fixed
+- Critical bugs with root causes
+- Test failures resolved
+
+## 🔍 Investigation Process
+- Debugging methodology used
+- Key discoveries made
+
+## ⚠️ Technical Debt Added
+- Temporary code added
+- Known issues to address later
+
+## ✅ Testing
+- Test coverage before/after
+- Manual testing performed
+
+## 📝 Lessons Learned
+- What worked well
+- What could be improved
+```
+
+### Why Document PRs?
+1. **Future Reference** - Understand why changes were made months later
+2. **Onboarding** - New developers can understand system evolution
+3. **Debugging** - Trace when/why bugs were introduced or fixed
+4. **Knowledge Sharing** - Team learns from investigation process
+
+### Documentation Location
+- Create `docs/PR-[branch-name].md` for significant PRs
+- Link from PR description on GitHub
+- Update after PR review if significant changes made
