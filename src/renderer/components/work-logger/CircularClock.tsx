@@ -82,7 +82,7 @@ export function CircularClock({
       isMobile ? 360 : 600,  // Increased from 320/400 to 360/600
     ) - 40 // 40px padding
 
-    const size = Math.max(300, maxSize) // Increased minimum from 200px to 300px
+    const size = Math.max(200, maxSize) // Minimum 200px to fit small mobile viewports
     const scale = size / BASE_CLOCK_SIZE
 
     return {
