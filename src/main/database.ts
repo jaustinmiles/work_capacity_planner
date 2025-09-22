@@ -68,32 +68,61 @@ export class DatabaseService {
   }
 
   private async initializeActiveSession(): Promise<string> {
+    mainLogger.info('[DB] Initializing active session...')
+
     // Find the active session or create one if none exists
     let session = await this.client.session.findFirst({
       where: { isActive: true },
     })
 
-    if (!session) {
+    if (session) {
+      mainLogger.info('[DB] Found existing active session', {
+        sessionId: session.id,
+        name: session.name,
+        createdAt: session.createdAt.toISOString()
+      })
+    } else {
+      mainLogger.warn('[DB] No active session found, checking for existing sessions to reactivate...')
+
       // Check again for any existing session to reuse before creating a new one
       const existingSession = await this.client.session.findFirst({
         orderBy: { createdAt: 'desc' },
       })
 
       if (existingSession) {
+        mainLogger.info('[DB] Reactivating existing session', {
+          sessionId: existingSession.id,
+          name: existingSession.name,
+          wasCreated: existingSession.createdAt.toISOString()
+        })
+
         // Reactivate the most recent session instead of creating a duplicate
         session = await this.client.session.update({
           where: { id: existingSession.id },
           data: { isActive: true },
         })
       } else {
+        mainLogger.warn('[DB] No sessions found in database, creating new session...')
+
+        // Create a new session with a date-based name
+        const today = new Date()
+        const dayName = today.toLocaleDateString('en-US', { weekday: 'short' })
+        const monthDay = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        const sessionName = `${dayName} ${monthDay}`
+
         // Create a default session only if truly none exists
         session = await this.client.session.create({
           data: {
             id: crypto.randomUUID(),
-            name: 'Default Session',
+            name: sessionName,
             description: 'Initial work session',
             isActive: true,
           },
+        })
+
+        mainLogger.info('[DB] Created new session', {
+          sessionId: session.id,
+          name: session.name
         })
       }
     }
