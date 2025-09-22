@@ -1296,7 +1296,14 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
         // Return the first incomplete item
         if (!isCompleted && itemDetails) {
-          rendererLogger.info('[TaskStore] Found next scheduled item', itemDetails)
+          // Convert Date to ISO string for proper logging
+          const loggableDetails = {
+            ...itemDetails,
+            scheduledStartTime: itemDetails.scheduledStartTime instanceof Date
+              ? itemDetails.scheduledStartTime.toISOString()
+              : itemDetails.scheduledStartTime
+          }
+          rendererLogger.info('[TaskStore] Found next scheduled item', loggableDetails)
           return itemDetails
         }
       }

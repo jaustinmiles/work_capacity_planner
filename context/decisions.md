@@ -1,5 +1,41 @@
 # Technical Decisions & Rationale
 
+## PR #75: Time Override and Script Privacy (2025-09-21)
+
+### Decision: Parameterize All Diagnostic Scripts
+- **What**: Remove all hardcoded data from diagnostic scripts, require parameters
+- **Rationale**:
+  - Privacy protection - no personal information in git history
+  - Reusability - scripts work for any session/user
+  - Professional standards - never commit user data
+- **Implementation**:
+  - Deleted 5 user-specific scripts entirely
+  - Modified 3 scripts to accept CLI parameters
+  - Created comprehensive README documentation
+- **Pattern**:
+  ```bash
+  # Bad: Hardcoded data
+  const sessionName = "Haleigh 9/13"
+
+  # Good: Parameter-driven
+  const sessionName = process.argv[2]
+  if (!sessionName) {
+    console.log('Usage: script.ts <session-name>')
+    process.exit(1)
+  }
+  ```
+
+### Decision: Keep CircularClock Responsive Improvements
+- **What**: Increased max sizes but reduced minimum for mobile compatibility
+- **Rationale**:
+  - Larger max sizes (360px mobile, 600px desktop) improve visibility
+  - But minimum must support smallest viewport (320x480)
+  - E2E test constraint: height ≤ viewport.height * 0.6
+- **Final Values**:
+  - Min: 200px (was briefly 300px, reverted)
+  - Max Mobile: 360px (was 320px)
+  - Max Desktop: 600px (was 400px)
+
 ## PR #74: Complete Scheduler Unification (2025-09-13)
 
 ### Decision: Delete All Legacy Schedulers

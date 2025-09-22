@@ -488,6 +488,29 @@ const item = scheduledItem as ScheduledItemWithWorkflow
 **Prevention**: ALWAYS use `context.currentTime` for scheduler calculations
 **Why**: Schedulers need to work with simulated time for testing and planning
 
+## 🚨 Diagnostic Script Best Practices (PR #75 Lessons)
+
+### NEVER Hardcode Personal Information
+**Problem**: Scripts with hardcoded user names and sessions expose privacy
+**Prevention**: ALL scripts must accept parameters, never hardcode data
+```bash
+# ❌ BAD - Hardcoded user data
+const sessionName = "Haleigh 9/13"
+
+# ✅ GOOD - Parameter-driven
+const sessionName = process.argv[2]
+if (!sessionName) {
+  console.log('Usage: script.ts <session-name>')
+  process.exit(1)
+}
+```
+
+### Script Reusability Requirements
+- **Every script must be reusable** for future debugging
+- **Document usage** in scripts/tools/diagnostics/README.md
+- **Test with different inputs** before committing
+- **No temporal hardcoding** - accept dates as parameters
+
 ## 🚨 MANDATORY VERIFICATION PROTOCOL
 
 ### Before Making ANY Claims

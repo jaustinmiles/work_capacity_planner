@@ -1,14 +1,33 @@
 # Current State
 
-## Latest Status (2025-09-13, PR #74 Scheduling Issues FIXED)
+## Latest Status (2025-09-21, PR #75 MERGED)
 
-### ✅ Current Session: Fixed Scheduling Timezone and Test Issues
+### ✅ Current Session: Completed Time Override Scheduler Fix
 
-**Branch**: feature/unified-scheduler-complete  
-**Recent Achievement**: Fixed timezone bugs, block utilization calculation, and all failing tests  
-**Status**: ✅ ALL TESTS PASSING (653 passed, 49 skipped)
+**Branch**: main (PR #75 merged)
+**Recent Achievement**: Fixed scheduler to use context time, removed personal info from scripts, fixed e2e tests
+**Status**: ✅ ALL TESTS PASSING, PR MERGED
 
-### 🔧 Issues Fixed This Session (PR #74)
+### 🔧 Issues Fixed in PR #75
+
+1. **Scheduler Time Override Bug** ✅
+   - **Problem**: Scheduler always used "now" instead of context.currentTime
+   - **Impact**: When overriding time, tasks wouldn't use full block capacity
+   - **Fix**: Changed allocateToWorkBlocks to consistently use context.currentTime
+   - **Result**: Full capacity available when time is overridden
+
+2. **Personal Information in Scripts** ✅
+   - **Problem**: Hardcoded "Haleigh" and "9/13 session" in diagnostic scripts
+   - **Solution**: Deleted 5 user-specific scripts, generalized 3 to accept parameters
+   - **Created**: README.md documenting proper script usage
+   - **Result**: No personal information in codebase
+
+3. **E2E Test Failure** ✅
+   - **Problem**: CircularClock minimum size too large for mobile viewports
+   - **Fix**: Reduced minimum from 300px to 200px
+   - **Result**: All responsive tests passing
+
+### 🔧 Previous Issues Fixed (PR #74)
 
 1. **Timezone Bug in UnifiedScheduler** ✅
    - **Problem**: Tasks scheduling at 2:00 AM instead of 09:00-18:00 work blocks
@@ -61,8 +80,17 @@
 
 ### 🚀 Recent PR Work
 
-#### PR #74: Fixing Scheduling Issues (Current)
-- **Status**: In Progress
+#### PR #75: Time Override Scheduler Fix (Merged)
+- **Status**: MERGED
+- **Issues Fixed**:
+  - Scheduler respecting context time override
+  - Personal information removed from scripts
+  - E2E responsive test failure
+- **Method**: Systematic debugging, parameterized scripts, responsive fixes
+- **Result**: Full functionality restored, privacy protected
+
+#### PR #74: Fixing Scheduling Issues (Merged)
+- **Status**: Merged
 - **Issues Fixed**: 
   - Timezone bug causing 2:00 AM scheduling
   - Impossible utilization percentages (160%)
@@ -106,8 +134,8 @@
 ### 🎯 Next Priorities
 
 1. **Immediate**
-   - Push PR #74 changes
-   - Address any remaining PR review comments
+   - Ready for next task assignment
+   - All current work complete and merged
    
 2. **Short Term**
    - Continue migration of ScheduleGenerator to UnifiedScheduler
@@ -136,7 +164,7 @@ Updated this session:
 - Component files fixed for proper functionality
 
 ---
-*Last Updated: 2025-09-13*
-*Session: PR #74 Fixing Scheduling Issues*
-*Achievement: Fixed timezone bug, block utilization, all tests passing*
-*Status: Ready to push changes and continue scheduler work*
+*Last Updated: 2025-09-21*
+*Session: PR #75 Time Override Scheduler Fix*
+*Achievement: Fixed context time usage, removed personal info, fixed e2e tests*
+*Status: PR merged, ready for next work*

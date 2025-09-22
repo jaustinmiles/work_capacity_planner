@@ -204,10 +204,53 @@ export class DatabaseService {
     }
 
     try {
-      await this.client.session.delete({
-        where: { id },
+      // Delete all related records first to avoid foreign key constraints
+      // Use transaction to ensure atomicity
+      await this.client.$transaction(async (tx) => {
+        // Delete WorkPatterns and their related WorkBlocks/WorkMeetings (cascade handled by schema)
+        await tx.workPattern.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Delete Tasks and their WorkSessions/TaskSteps (cascade handled by schema)
+        await tx.task.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Delete SequencedTasks
+        await tx.sequencedTask.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Delete other related records
+        await tx.timeEstimateAccuracy.deleteMany({
+          where: { sessionId: id },
+        })
+
+        await tx.productivityPattern.deleteMany({
+          where: { sessionId: id },
+        })
+
+        await tx.jobContext.deleteMany({
+          where: { sessionId: id },
+        })
+
+        await tx.jargonEntry.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Delete SchedulingPreferences if exists
+        await tx.schedulingPreferences.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Finally delete the session itself
+        await tx.session.delete({
+          where: { id },
+        })
       })
-      mainLogger.info('[DB] Session deleted successfully', { sessionId: id })
+
+      mainLogger.info('[DB] Session and all related data deleted successfully', { sessionId: id })
     } catch (error) {
       mainLogger.error('[DB] Failed to delete session', { sessionId: id, error })
       throw error
