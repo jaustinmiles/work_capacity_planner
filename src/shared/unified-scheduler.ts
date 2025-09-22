@@ -178,6 +178,9 @@ interface BlockCapacity {
   adminMinutesUsed: number
   personalMinutesTotal: number
   personalMinutesUsed: number
+  // For flexible blocks to track total usage across all types
+  flexibleMinutesTotal?: number
+  flexibleMinutesUsed?: number
 }
 
 interface FitResult {
@@ -1853,38 +1856,44 @@ export class UnifiedScheduler {
   private createBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
     const startTime = this.parseTimeOnDate(date, block.startTime)
     const endTime = this.parseTimeOnDate(date, block.endTime)
-    const totalMinutes = (endTime.getTime() - startTime.getTime()) / 60000
 
+    // Use the capacity already calculated by capacity-calculator in getWorkPattern
+    const capacity = block.capacity
 
-    // Handle flexible blocks specially - they can accept any task type
+    // Handle flexible blocks specially - they track total capacity that can be allocated dynamically
     if (block.type === 'flexible') {
+      const totalMinutes = capacity?.total || ((endTime.getTime() - startTime.getTime()) / 60000)
       const result: BlockCapacity = {
         blockId: block.id,
         blockType: 'flexible',
         startTime,
         endTime,
-        // Flexible blocks can handle both focus and admin work
-        focusMinutesTotal: block.capacity?.focusMinutes || totalMinutes,
+        // For flexible blocks, start with all capacity available for any type
+        // The scheduler will allocate as needed
+        focusMinutesTotal: totalMinutes,
         focusMinutesUsed: 0,
-        adminMinutesTotal: block.capacity?.adminMinutes || totalMinutes,
+        adminMinutesTotal: totalMinutes,
         adminMinutesUsed: 0,
-        personalMinutesTotal: block.capacity?.personalMinutes || 0,
+        personalMinutesTotal: totalMinutes,
         personalMinutesUsed: 0,
+        // Track the total flexible capacity to avoid double-counting
+        flexibleMinutesTotal: totalMinutes,
+        flexibleMinutesUsed: 0,
       }
       return result
     }
 
-    // Handle other block types
+    // For non-flexible blocks, use the pre-calculated capacity
     return {
       blockId: block.id,
-      blockType: block.type === 'personal' ? 'personal' : block.type,
+      blockType: block.type,
       startTime,
       endTime,
-      focusMinutesTotal: block.capacity?.focusMinutes || (block.type === TaskType.Focused ? totalMinutes : 0),
+      focusMinutesTotal: capacity?.focus || 0,
       focusMinutesUsed: 0,
-      adminMinutesTotal: block.capacity?.adminMinutes || (block.type === TaskType.Admin ? totalMinutes : 0),
+      adminMinutesTotal: capacity?.admin || 0,
       adminMinutesUsed: 0,
-      personalMinutesTotal: block.capacity?.personalMinutes || (block.type === 'personal' ? totalMinutes : 0),
+      personalMinutesTotal: capacity?.personal || 0,
       personalMinutesUsed: 0,
     }
   }
@@ -1985,13 +1994,15 @@ export class UnifiedScheduler {
       // Universal blocks can accept ANY task type
       availableCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal -
                          (block.focusMinutesUsed + block.adminMinutesUsed + block.personalMinutesUsed)
-    } else if (block.blockType === 'flexible' && item.taskType !== TaskType.Personal) {
-      // Flexible blocks have a shared pool - total capacity minus what's been used
-      // For flexible blocks, BOTH focusMinutesTotal and adminMinutesTotal should be considered
-      // as the total available capacity that can be used for either type of work
-      const totalCapacity = block.focusMinutesTotal + block.adminMinutesTotal
-      const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed
-      availableCapacity = totalCapacity - totalUsed
+    } else if (block.blockType === 'flexible') {
+      // Flexible blocks have a single shared pool tracked separately
+      // Use the flexible tracking to avoid double-counting
+      if (block.flexibleMinutesTotal !== undefined && block.flexibleMinutesUsed !== undefined) {
+        availableCapacity = block.flexibleMinutesTotal - block.flexibleMinutesUsed
+      } else {
+        // Fallback for blocks without flexible tracking
+        availableCapacity = 0
+      }
     } else if (item.taskType === TaskType.Focused) {
       availableCapacity = block.focusMinutesTotal - block.focusMinutesUsed
     } else if (item.taskType === TaskType.Admin) {
@@ -2130,7 +2141,13 @@ export class UnifiedScheduler {
 
     // Update the appropriate capacity based on task type
     if (block.blockType === 'flexible') {
-      // Flexible blocks track both focus and admin usage separately
+      // Flexible blocks track total usage to prevent double-counting
+      // Update the flexible usage tracker
+      if (block.flexibleMinutesUsed !== undefined) {
+        block.flexibleMinutesUsed += item.duration
+      }
+
+      // Also track which type of task used the capacity for reporting
       if (item.taskType === TaskType.Admin) {
         block.adminMinutesUsed = (block.adminMinutesUsed || 0) + item.duration
       } else if (item.taskType === TaskType.Focused) {

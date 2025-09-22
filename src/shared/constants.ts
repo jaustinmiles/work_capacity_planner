@@ -42,6 +42,8 @@ export enum WorkBlockType {
   FOCUSED = 'focused',
   ADMIN = 'admin',
   MIXED = 'mixed',
+  FLEXIBLE = 'flexible',
+  PERSONAL = 'personal',
   BLOCKED = 'blocked',
   SLEEP = 'sleep',
 }
