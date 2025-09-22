@@ -324,6 +324,18 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       rendererLogger.info('[TaskStore] Loading last used session...')
       await getDatabase().loadLastUsedSession()
 
+      // Get and log the current active session after loading
+      const currentSession = await getDatabase().getCurrentSession()
+      if (currentSession) {
+        rendererLogger.info('[TaskStore] Active session after initialization', {
+          id: currentSession.id,
+          name: currentSession.name,
+          isActive: currentSession.isActive
+        })
+      } else {
+        rendererLogger.warn('[TaskStore] No active session after initialization - this should not happen!')
+      }
+
       rendererLogger.info('[TaskStore] Initializing default data...')
       await getDatabase().initializeDefaultData()
 

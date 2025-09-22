@@ -251,7 +251,16 @@ export class RendererDatabaseService {
 
   // Session management
   async getSessions(): Promise<Session[]> {
-    return await window.electronAPI.db.getSessions()
+    const sessions = await window.electronAPI.db.getSessions()
+    logger.ui.info('[Database] Retrieved sessions from database', {
+      count: sessions.length,
+      sessions: sessions.map(s => ({
+        id: s.id,
+        name: s.name,
+        isActive: s.isActive
+      }))
+    })
+    return sessions
   }
 
   async createSession(name: string, description?: string): Promise<Session> {
@@ -277,28 +286,66 @@ export class RendererDatabaseService {
   }
 
   async getCurrentSession(): Promise<any> {
-    return await window.electronAPI.db.getCurrentSession()
+    const session = await window.electronAPI.db.getCurrentSession()
+    if (session) {
+      logger.ui.info('[Database] Current active session', {
+        id: session.id,
+        name: session.name,
+        isActive: session.isActive
+      })
+    } else {
+      logger.ui.warn('[Database] No current session found')
+    }
+    return session
   }
 
   async loadLastUsedSession(): Promise<void> {
+    logger.ui.info('[Database] Checking for last used session...')
     const lastUsedSessionId = window.localStorage.getItem('lastUsedSessionId')
+
     if (lastUsedSessionId) {
+      logger.ui.info('[Database] Found stored session ID in localStorage', { sessionId: lastUsedSessionId })
       try {
         // Check if the session still exists
         const sessions = await this.getSessions()
-        const sessionExists = sessions.some(s => s.id === lastUsedSessionId)
+        const session = sessions.find(s => s.id === lastUsedSessionId)
 
-        if (sessionExists) {
+        if (session) {
           // Switch to the last used session
           await this.switchSession(lastUsedSessionId)
-          logger.ui.info('Loaded last used session', { sessionId: lastUsedSessionId })
+          logger.ui.info('[Database] Successfully loaded last used session', {
+            sessionId: lastUsedSessionId,
+            sessionName: session.name
+          })
         } else {
           // Session no longer exists, clear the stored ID
+          logger.ui.warn('[Database] Last used session no longer exists in database', {
+            sessionId: lastUsedSessionId
+          })
           window.localStorage.removeItem('lastUsedSessionId')
+
+          // Log what sessions ARE available
+          logger.ui.info('[Database] Available sessions after last used not found', {
+            count: sessions.length,
+            sessions: sessions.map(s => ({ id: s.id, name: s.name }))
+          })
         }
       } catch (error) {
-        logger.ui.error('Failed to load last used session', error)
+        logger.ui.error('[Database] Failed to load last used session', error)
         window.localStorage.removeItem('lastUsedSessionId')
+      }
+    } else {
+      logger.ui.info('[Database] No last used session stored in localStorage')
+
+      // Get and log current sessions
+      const sessions = await this.getSessions()
+      if (sessions.length > 0) {
+        logger.ui.info('[Database] Sessions available but none marked as last used', {
+          count: sessions.length,
+          sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive }))
+        })
+      } else {
+        logger.ui.warn('[Database] No sessions exist in database')
       }
     }
   }
