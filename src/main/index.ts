@@ -237,6 +237,15 @@ ipcMain.handle('db:deleteAllUserData', async () => {
   return await db.deleteAllUserData()
 })
 
+// Log persistence handlers (dev mode only)
+ipcMain.handle('log:persist', async (_event: IpcMainInvokeEvent, logEntry: any) => {
+  return await db.persistLog(logEntry)
+})
+
+ipcMain.handle('log:persistBatch', async (_event: IpcMainInvokeEvent, logs: any[]) => {
+  return await db.persistLogs(logs)
+})
+
 // Work pattern handlers
 ipcMain.handle('db:getWorkPattern', async (_event: IpcMainInvokeEvent, date: string) => {
   return await db.getWorkPattern(date)

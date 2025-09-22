@@ -36,6 +36,12 @@ export function roundToQuarter(minutes: number): number {
   return Math.round(minutes / 15) * 15
 }
 
+// Round minutes to nearest 5-minute interval
+export function roundToFiveMinutes(minutes: number): number {
+  // Round to nearest 5-minute interval
+  return Math.round(minutes / 5) * 5
+}
+
 // Get color for task type
 export function getTypeColor(type: TaskType): string {
   return type === TaskType.Focused ? '#165DFF' : '#00B42A'

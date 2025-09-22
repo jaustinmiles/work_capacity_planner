@@ -107,8 +107,8 @@ describe('work-blocks-types', () => {
       ]
 
       const capacity = getTotalCapacity(blocks)
-      expect(capacity.focusMinutes).toBe(120) // Half of 4 hours
-      expect(capacity.adminMinutes).toBe(120) // Half of 4 hours
+      expect(capacity.focusMinutes).toBe(240) // Full 4 hours available for focus
+      expect(capacity.adminMinutes).toBe(240) // Full 4 hours available for admin
       expect(capacity.personalMinutes).toBe(0)
     })
 

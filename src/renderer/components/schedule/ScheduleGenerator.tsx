@@ -101,12 +101,12 @@ export function ScheduleGenerator({
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
         date.setDate(date.getDate() + i)
-        const dayOfWeek = date.getDay()
+        const _dayOfWeek = date.getDay()
         const dateStr = date.toISOString().split('T')[0]
 
         // Check if this day has work hours configured
         // Use custom hours for this day if configured, otherwise use default hours
-        const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] || workSettings?.defaultWorkHours
+        const dayWorkHours = workSettings?.customWorkHours?.[_dayOfWeek] || workSettings?.defaultWorkHours
 
         // Create work pattern for each day (even if empty, so weekends are included)
         const blocks: any[] = []
@@ -360,7 +360,7 @@ export function ScheduleGenerator({
       for (const dateStr of Array.from(allDates).sort()) {
         const items = itemsByDate.get(dateStr) || []
         const date = new Date(dateStr)
-        const dayOfWeek = date.getDay()
+        const _dayOfWeek = date.getDay()
         const blocks: any[] = []
         const isOptimalSchedule = selected.name.includes('Optimal')
 
@@ -419,34 +419,8 @@ export function ScheduleGenerator({
           })
         }
 
-        // For days without scheduled items, create default work blocks
-        // This is especially important for optimal schedules to have future capacity
-        if (blocks.length === 0) {
-          // Use configured work hours or default to 9-5
-          const dayWorkHours = workSettings?.customWorkHours?.[dayOfWeek] ||
-                               workSettings?.defaultWorkHours ||
-                               { startTime: '09:00', endTime: '17:00' }
-
-          if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
-            // For optimal schedules, provide generous capacity for future scheduling
-            // For other schedules, use reasonable defaults
-            const startHour = parseInt(dayWorkHours.startTime.split(':')[0])
-            const endHour = parseInt(dayWorkHours.endTime.split(':')[0])
-            const totalHours = endHour - startHour
-            const totalMinutes = totalHours * 60
-
-            blocks.push({
-              id: `block-${dateStr}-default`,
-              startTime: dayWorkHours.startTime,
-              endTime: dayWorkHours.endTime,
-              type: 'flexible',
-              capacity: {
-                focusMinutes: isOptimalSchedule ? Math.floor(totalMinutes * 0.6) : 240, // 60% for optimal, 4h for others
-                adminMinutes: isOptimalSchedule ? Math.floor(totalMinutes * 0.4) : 180, // 40% for optimal, 3h for others
-              },
-            })
-          }
-        }
+        // NO DEFAULT BLOCKS! Days without patterns have no work scheduled
+        // User must explicitly define work blocks for each day
 
         // Save work pattern (preserve existing meetings like sleep blocks)
         await db.createWorkPattern({

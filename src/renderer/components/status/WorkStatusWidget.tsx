@@ -225,11 +225,34 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
   const loadWorkData = async () => {
     try {
+      // [WorkPatternLifeCycle] START: WorkStatusWidget loading work data
+      logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - START', {
+        currentDate,
+        timestamp: new Date().toISOString(),
+        localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      })
+
       const db = getDatabase()
       const [patternData, accumulatedData] = await Promise.all([
         db.getWorkPattern(currentDate),
         db.getTodayAccumulated(currentDate),
       ])
+
+      // [WorkPatternLifeCycle] Log pattern retrieval result
+      logger.ui.debug('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - Pattern loaded', {
+        currentDate,
+        patternFound: !!patternData,
+        patternId: patternData?.id || null,
+        blocksCount: patternData?.blocks?.length || 0,
+        blocks: patternData?.blocks?.map((b: any) => ({
+          startTime: b.startTime,
+          endTime: b.endTime,
+          type: b.type,
+          capacity: b.capacity,
+        })) || [],
+        meetingsCount: patternData?.meetings?.length || 0,
+        timestamp: new Date().toISOString(),
+      })
 
       // Load next task separately (updates UI state)
       await loadNextTask()
@@ -239,6 +262,26 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         focused: accumulatedData.focused || 0,
         admin: accumulatedData.admin || 0,
         personal: accumulatedData.personal || 0,
+      })
+
+      // [WorkPatternLifeCycle] Log current block detection
+      const currentTime = new Date()
+      const currentBlockData = patternData ? getCurrentBlock(patternData.blocks, currentTime) : null
+      const nextBlockData = patternData ? getNextBlock(patternData.blocks, currentTime) : null
+
+      logger.ui.debug('[WorkPatternLifeCycle] WorkStatusWidget - Block detection', {
+        currentTime: currentTime.toTimeString().slice(0, 5),
+        currentBlock: currentBlockData ? {
+          startTime: currentBlockData.startTime,
+          endTime: currentBlockData.endTime,
+          type: currentBlockData.type,
+        } : null,
+        nextBlock: nextBlockData ? {
+          startTime: nextBlockData.startTime,
+          endTime: nextBlockData.endTime,
+          type: nextBlockData.type,
+        } : null,
+        timestamp: new Date().toISOString(),
       })
 
       // Calculate meeting time from work sessions
@@ -256,7 +299,27 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         })
       }
       setMeetingMinutes(totalMeetingMinutes)
+
+      // [WorkPatternLifeCycle] COMPLETE: WorkStatusWidget finished loading
+      logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - COMPLETE', {
+        currentDate,
+        patternLoaded: !!patternData,
+        currentBlockFound: !!currentBlockData,
+        nextBlockFound: !!nextBlockData,
+        accumulated: {
+          focused: accumulatedData.focused || 0,
+          admin: accumulatedData.admin || 0,
+          personal: accumulatedData.personal || 0,
+        },
+        meetingMinutes: totalMeetingMinutes,
+        timestamp: new Date().toISOString(),
+      })
     } catch (error) {
+      logger.ui.error('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - ERROR', {
+        currentDate,
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      })
       logger.ui.error('Failed to load work data:', error)
     }
   }
@@ -287,8 +350,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       return { focusMinutes: duration, adminMinutes: 0 }
     } else if (block.type === 'admin') {
       return { focusMinutes: 0, adminMinutes: duration }
-    } else {
+    } else if (block.type === 'mixed') {
       return { focusMinutes: duration / 2, adminMinutes: duration / 2 }
+    } else {
+      // flexible and universal blocks - full duration available for either type
+      return { focusMinutes: duration, adminMinutes: duration }
     }
   }
 

@@ -31,6 +31,7 @@ import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { logger } from '../../utils/logger'
 import { appEvents, EVENTS } from '../../utils/events'
+import { getCurrentTime } from '@shared/time-provider'
 
 
 dayjs.extend(isSameOrBefore)
@@ -46,11 +47,12 @@ interface MultiDayScheduleEditorProps {
 }
 
 export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDayScheduleEditorProps) {
+  const currentTime = getCurrentTime()
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs(),
-    dayjs().add(6, 'day'),
+    dayjs(currentTime),
+    dayjs(currentTime).add(6, 'day'),
   ])
-  const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'))
+  const [selectedDate, setSelectedDate] = useState<string>(dayjs(currentTime).format('YYYY-MM-DD'))
   const [patterns, setPatterns] = useState<Map<string, DailyWorkPattern>>(new Map())
   const [loading, setLoading] = useState(false)
   const [copiedPattern, setCopiedPattern] = useState<{
@@ -72,8 +74,9 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       const db = getDatabase()
       const patternsMap = new Map<string, DailyWorkPattern>()
 
-      const startDate = dateRange[0]
-      const endDate = dateRange[1]
+      // Ensure we're working with dayjs objects
+      const startDate = dayjs(dateRange[0])
+      const endDate = dayjs(dateRange[1])
       let currentDate = startDate
 
       while (currentDate.isSameOrBefore(endDate, 'day')) {

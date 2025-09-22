@@ -72,6 +72,9 @@ declare global {
         recordTimeEstimate: (data: any) => Promise<any>
         getTimeAccuracyStats: (__filters?: any) => Promise<any>
       }
+      // Log persistence
+      persistLog?: (logEntry: any) => Promise<void>
+      persistLogs?: (logs: any[]) => Promise<void>
       ai: {
         extractTasksFromBrainstorm: (brainstormText: string) => Promise<{
           tasks: Array<{

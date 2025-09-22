@@ -66,25 +66,11 @@ export function WeeklyCalendar() {
             accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
           })
         } else {
-          // Weekday with no pattern - create a default pattern
+          // No pattern - NO DEFAULT BLOCKS!
+          // User must explicitly define work blocks
           patterns.push({
             date: dateStr,
-            blocks: [
-              {
-                id: `default-morning-${dateStr}`,
-                startTime: '09:00',
-                endTime: '12:00',
-                type: 'mixed',
-                capacity: { focusMinutes: 120, adminMinutes: 60 },
-              },
-              {
-                id: `default-afternoon-${dateStr}`,
-                startTime: '13:00',
-                endTime: '17:00',
-                type: 'mixed',
-                capacity: { focusMinutes: 180, adminMinutes: 60 },
-              },
-            ],
+            blocks: [],
             meetings: [],
             accumulated: { focusMinutes: 0, adminMinutes: 0 },
           })
@@ -432,7 +418,7 @@ export function WeeklyCalendar() {
                     <Text type="secondary">
                       Tasks are automatically scheduled based on priority, deadlines, and available capacity.
                       {workPatterns.some(p => p.blocks.some(b => b.id.startsWith('default-'))) && (
-                        <> Using default schedule (9-12, 1-5) for days without custom patterns.</>
+                        <> Days without defined work blocks will have no schedule.</>
                       )}
                     </Text>
                   </Space>

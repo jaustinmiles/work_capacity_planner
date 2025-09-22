@@ -55,9 +55,13 @@ class TimeProvider {
    */
   now(): Date {
     if (this.overrideTime) {
-      return new Date(this.overrideTime)
+      const overriddenTime = new Date(this.overrideTime)
+      logger.info(`⏰ [TimeProvider] Using OVERRIDE time: ${overriddenTime.toISOString()} (${overriddenTime.toLocaleString()})`)
+      return overriddenTime
     }
-    return new Date()
+    const realTime = new Date()
+    logger.debug(`⏰ [TimeProvider] Using REAL time: ${realTime.toISOString()}`)
+    return realTime
   }
 
   /**

@@ -1,7 +1,6 @@
 #!/usr/bin/env npx tsx
 import { PrismaClient } from '@prisma/client'
 import { format } from 'date-fns'
-
 const prisma = new PrismaClient()
 
 async function inspectSession(sessionName?: string) {

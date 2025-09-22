@@ -9,6 +9,8 @@ import { Task, TaskStep } from './types'
 import { SequencedTask } from './sequencing-types'
 import { TaskStatus } from './enums'
 import { DailyWorkPattern } from './work-blocks-types'
+import { logger } from './logger'
+import { getCurrentTime } from './time-provider'
 
 // Adapter types for backward compatibility with existing UI components
 export interface ScheduleResult {
@@ -58,8 +60,20 @@ export class UnifiedSchedulerAdapter {
    * Convert scheduling options to ScheduleConfig
    */
   adaptOptions(options: SchedulingOptions): ScheduleConfig {
+    // Keep the full date/time if provided, otherwise use current date string
+    let startDate: string | Date
+    if (options.startDate instanceof Date) {
+      // Keep as Date object to preserve time
+      startDate = options.startDate
+    } else if (typeof options.startDate === 'string') {
+      startDate = options.startDate
+    } else {
+      // Default to current date string (for compatibility)
+      startDate = getCurrentTime().toISOString().split('T')[0]
+    }
+
     return {
-      startDate: options.startDate || new Date().toISOString().split('T')[0],
+      startDate,
       endDate: options.endDate,
       allowTaskSplitting: options.allowSplitting,
       respectMeetings: true,
@@ -76,8 +90,13 @@ export class UnifiedSchedulerAdapter {
     const scheduledTasks: ScheduledItem[] = []
     const unscheduledTasks: Task[] = []
 
-    // Convert scheduled items
+    // Convert scheduled items (excluding meetings)
     for (const item of result.scheduled) {
+      // Skip meeting items - they should not appear in scheduledTasks
+      if (item.type === 'meeting') {
+        continue
+      }
+
       if (item.originalItem && 'type' in item.originalItem && item.startTime && item.endTime) {
         // Handle both Task and TaskStep items
         const originalItem = item.originalItem as Task | TaskStep
@@ -101,8 +120,8 @@ export class UnifiedSchedulerAdapter {
             cognitiveComplexity: taskStep.cognitiveComplexity || 3,
             // Required Task properties
             sessionId: taskStep.taskId, // Use parent task ID as session ID
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            createdAt: getCurrentTime(),
+            updatedAt: getCurrentTime(),
             hasSteps: false, // TaskStep is a leaf item
             overallStatus: taskStep.status === 'completed' ? TaskStatus.Completed :
                          taskStep.status === 'in_progress' ? TaskStatus.InProgress :
@@ -158,8 +177,8 @@ export class UnifiedSchedulerAdapter {
             cognitiveComplexity: taskStep.cognitiveComplexity || 3,
             // Required Task properties
             sessionId: taskStep.taskId, // Use parent task ID as session ID
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            createdAt: getCurrentTime(),
+            updatedAt: getCurrentTime(),
             hasSteps: false, // TaskStep is a leaf item
             overallStatus: taskStep.status === 'completed' ? TaskStatus.Completed :
                          taskStep.status === 'in_progress' ? TaskStatus.InProgress :
@@ -201,7 +220,7 @@ export class UnifiedSchedulerAdapter {
     const incompleteWorkflows = sequencedTasks.filter(w => w.overallStatus !== 'completed')
 
     // Log comprehensive data flow
-    console.info('[UnifiedSchedulerAdapter] 📊 DATA FLOW START:', {
+    logger.info('[UnifiedSchedulerAdapter] 📊 DATA FLOW START:', {
       input: {
         totalTasks: tasks.length,
         incompleteTasks: incompleteTasks.length,
@@ -212,28 +231,63 @@ export class UnifiedSchedulerAdapter {
       },
       options: {
         startDate: options.startDate,
+        startDateType: typeof options.startDate,
         respectDeadlines: options.respectDeadlines,
         allowSplitting: options.allowSplitting,
       },
+      workPatternDetails: workPatterns.map(p => ({
+        date: p.date,
+        blockCount: p.blocks.length,
+        totalCapacity: p.blocks.reduce((sum, b) => sum + (b.capacity?.focusMinutes || 0) + (b.capacity?.adminMinutes || 0), 0),
+      })),
     })
-
-    const config = this.adaptOptions(options)
 
     // Ensure we have a valid Date for currentTime
     let currentTime: Date
     if (options.startDate instanceof Date) {
       currentTime = options.startDate
+      logger.info('🕒 [ADAPTER] Using Date startDate as currentTime', {
+        currentTime: currentTime.toISOString(),
+        localTime: currentTime.toLocaleString(),
+      })
     } else if (typeof options.startDate === 'string') {
       currentTime = new Date(options.startDate)
       if (isNaN(currentTime.getTime())) {
         throw new Error(`Invalid startDate string: ${options.startDate}`)
       }
+      logger.info('🕒 [ADAPTER] Using string startDate as currentTime', {
+        originalString: options.startDate,
+        currentTime: currentTime.toISOString(),
+        localTime: currentTime.toLocaleString(),
+      })
     } else {
-      throw new Error(`Invalid startDate type: expected Date or string, got ${typeof options.startDate}`)
+      currentTime = getCurrentTime() // Default to now if no startDate provided
+      logger.info('🕒 [ADAPTER] No startDate, using getCurrentTime', {
+        currentTime: currentTime.toISOString(),
+        localTime: currentTime.toLocaleString(),
+      })
     }
 
+    // Create config WITH currentTime
+    const config = this.adaptOptions(options)
+    // CRITICAL FIX: Pass currentTime to the scheduler config
+    const configWithCurrentTime = { ...config, currentTime }
+
+    logger.info('[WorkPatternLifeCycle] Scheduler config with currentTime', {
+      currentTime: currentTime.toISOString(),
+      localTime: currentTime.toLocaleTimeString('en-US', { hour12: false }),
+      startDate: config.startDate,
+      hasCurrentTime: !!configWithCurrentTime.currentTime,
+    })
+
     const context: ScheduleContext = {
-      startDate: typeof config.startDate === 'string' ? config.startDate : config.startDate.toISOString(),
+      // For startDate in context, we need the date string for pattern matching
+      // But we preserve currentTime with full time info
+      startDate: typeof config.startDate === 'string'
+        ? config.startDate
+        : config.startDate instanceof Date
+          ? config.startDate.toISOString().split('T')[0]
+          : getCurrentTime().toISOString().split('T')[0],
       currentTime,
       tasks: [],
       workflows: incompleteWorkflows,
@@ -264,11 +318,11 @@ export class UnifiedSchedulerAdapter {
       ...incompleteWorkflows,
     ]
 
-    const result = this.scheduler.scheduleForDisplay(allItems, context, config)
+    const result = this.scheduler.scheduleForDisplay(allItems, context, configWithCurrentTime)
     const adapterResult = this.adaptUnifiedResult(result)
 
     // Log comprehensive data flow result
-    console.info('[UnifiedSchedulerAdapter] ✅ DATA FLOW COMPLETE:', {
+    logger.info('[UnifiedSchedulerAdapter] ✅ DATA FLOW COMPLETE:', {
       output: {
         scheduled: adapterResult.scheduledTasks.length,
         unscheduled: adapterResult.unscheduledTasks.length,
@@ -305,7 +359,7 @@ export class UnifiedSchedulerAdapter {
     }
 
     // Find the next task that hasn't started yet
-    const now = new Date()
+    const now = getCurrentTime()
     const nextTasks = result.scheduledTasks
       .filter(item => item.startTime > now)
       .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
@@ -318,8 +372,8 @@ export class UnifiedSchedulerAdapter {
    */
   calculateTaskPriority(task: Task, context?: Partial<ScheduleContext>): number {
     const fullContext: ScheduleContext = {
-      startDate: new Date().toISOString().split('T')[0],
-      currentTime: new Date(),
+      startDate: getCurrentTime().toISOString().split('T')[0],
+      currentTime: getCurrentTime(),
       tasks: [],
       workflows: [],
       workPatterns: [],
@@ -443,8 +497,8 @@ export class UnifiedSchedulerAdapter {
     workflows: SequencedTask[] = [],
   ): ScheduleContext {
     return {
-      startDate: typeof startDate === 'string' ? startDate : startDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-      currentTime: new Date(),
+      startDate: typeof startDate === 'string' ? startDate : startDate?.toISOString().split('T')[0] || getCurrentTime().toISOString().split('T')[0],
+      currentTime: getCurrentTime(),
       tasks,
       workflows,
       workPatterns,
@@ -455,8 +509,8 @@ export class UnifiedSchedulerAdapter {
         weekendPenalty: 0.8,
         contextSwitchPenalty: 5,
         asyncParallelizationBonus: 10,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: getCurrentTime(),
+        updatedAt: getCurrentTime(),
       },
       workSettings: {
         defaultWorkHours: {
@@ -483,10 +537,34 @@ export class UnifiedSchedulerAdapter {
    * Calculate sensible defaults based on block type and duration
    */
   private fixWorkPatternCapacities(workPatterns: DailyWorkPattern[]): DailyWorkPattern[] {
+    logger.debug('[WorkPatternLifeCycle] fixWorkPatternCapacities - Processing patterns', {
+      patternCount: workPatterns.length,
+      dates: workPatterns.map(p => p.date),
+    })
+
     return workPatterns.map(pattern => ({
       ...pattern,
       blocks: pattern.blocks.map(block => {
+        // Check if block has required time properties
+        if (!block.startTime || !block.endTime) {
+          logger.warn('[WorkPatternLifeCycle] Block missing startTime or endTime', {
+            date: pattern.date,
+            blockType: block.type,
+            hasStartTime: !!block.startTime,
+            hasEndTime: !!block.endTime,
+            blockData: block,
+          })
+          // Return block as-is, let downstream handle the missing properties
+          return block
+        }
+
         if (block.capacity) {
+          logger.debug('[WorkPatternLifeCycle] Block already has capacity', {
+            date: pattern.date,
+            blockTime: `${block.startTime}-${block.endTime}`,
+            type: block.type,
+            existingCapacity: block.capacity,
+          })
           return block // Already has capacity, keep as is
         }
 

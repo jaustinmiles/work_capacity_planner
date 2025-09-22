@@ -4,6 +4,7 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { logger } from '../utils/logger'
+import { getCurrentTime } from '@shared/time-provider'
 
 /**
  * React hook for using UnifiedScheduler in UI components
@@ -30,6 +31,28 @@ export function useUnifiedScheduler(): {
   ): ScheduleResult => {
     const startTime = globalThis.performance.now()
 
+    // [WorkPatternLifeCycle] START: UnifiedScheduler scheduling tasks
+    logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - START', {
+      tasksCount: tasks.length,
+      sequencedTasksCount: sequencedTasks.length,
+      workPatternsCount: workPatterns.length,
+      patternsWithBlocks: workPatterns.filter(p => p.blocks && p.blocks.length > 0).length,
+      totalCapacityMinutes: workPatterns.reduce((sum, p) => {
+        return sum + (p.blocks || []).reduce((blockSum: number, b: any) => {
+          const capacity = b.capacity || {}
+          return blockSum + (capacity.focusMinutes || 0) + (capacity.adminMinutes || 0)
+        }, 0)
+      }, 0),
+      options: {
+        startDate: options.startDate instanceof Date ? options.startDate.toISOString() : options.startDate,
+        endDate: options.endDate instanceof Date ? options.endDate.toISOString() : options.endDate,
+        respectDeadlines: options.respectDeadlines,
+        allowSplitting: options.allowSplitting,
+      },
+      timestamp: getCurrentTime().toISOString(),
+      localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
+    })
+
     logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {
       tasksCount: tasks.length,
       sequencedTasksCount: sequencedTasks.length,
@@ -44,9 +67,26 @@ export function useUnifiedScheduler(): {
     })
 
     try {
-      const result = adapter.scheduleTasks(tasks, workPatterns, options, sequencedTasks)
+      // Pass currentTime explicitly if startDate is a Date
+      const enhancedOptions = {
+        ...options,
+        currentTime: options.startDate instanceof Date ? options.startDate : undefined,
+      }
+      const result = adapter.scheduleTasks(tasks, workPatterns, enhancedOptions, sequencedTasks)
 
       const duration = globalThis.performance.now() - startTime
+
+      // [WorkPatternLifeCycle] COMPLETE: UnifiedScheduler finished scheduling
+      logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - COMPLETE', {
+        scheduledCount: result.scheduledTasks.length,
+        unscheduledCount: result.unscheduledTasks.length,
+        conflicts: result.conflicts.length,
+        totalDuration: result.totalDuration,
+        performanceMs: Math.round(duration * 100) / 100,
+        blockUtilization: result.debugInfo?.blockUtilization || [],
+        warnings: result.debugInfo?.warnings || [],
+        timestamp: getCurrentTime().toISOString(),
+      })
 
       logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {
         scheduledCount: result.scheduledTasks.length,
@@ -70,6 +110,19 @@ export function useUnifiedScheduler(): {
 
       // Log unscheduled tasks for debugging
       if (result.unscheduledTasks.length > 0) {
+        // [WorkPatternLifeCycle] Log unscheduled tasks
+        logger.ui.debug('[WorkPatternLifeCycle] useUnifiedScheduler - Unscheduled tasks', {
+          count: result.unscheduledTasks.length,
+          tasks: result.unscheduledTasks.map(task => ({
+            id: task.id,
+            name: task.name,
+            duration: task.duration,
+            type: task.type,
+            priority: task.importance * task.urgency,
+          })),
+          timestamp: getCurrentTime().toISOString(),
+        })
+
         result.unscheduledTasks.forEach(task => {
           logger.ui.debug('⚠️ [GANTT] Task unscheduled', {
             taskId: task.id,

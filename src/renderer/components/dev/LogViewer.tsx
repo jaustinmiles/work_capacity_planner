@@ -513,7 +513,7 @@ export function LogViewer(_props: LogViewerProps) {
         }}
         scroll={{ y: 400 }}
         size="small"
-        rowKey={(record) => `${record.context.timestamp}-${record.message.substring(0, 10)}`}
+        rowKey={(record: any) => `${record.context.timestamp}-${record.message.substring(0, 20)}`}
         style={{ minHeight: 400 }}
       />
     </Space>
