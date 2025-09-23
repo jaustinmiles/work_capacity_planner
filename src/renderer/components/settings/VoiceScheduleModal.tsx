@@ -218,9 +218,9 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
         blocks: result.blocks.map((block: any) => ({
           ...block,
           capacity: block.capacity ? {
-            focusMinutes: block.capacity.focusMinutes || block.capacity.focused || 0,
-            adminMinutes: block.capacity.adminMinutes || block.capacity.admin || 0,
-            personalMinutes: block.capacity.personalMinutes || 0,
+            focusMinutes: block.capacity.focus || 0,
+            adminMinutes: block.capacity.admin || 0,
+            personalMinutes: block.capacity.personal || 0,
           } : undefined,
         })),
       }))

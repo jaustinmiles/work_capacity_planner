@@ -1084,11 +1084,16 @@ export class DatabaseService {
 
     return patterns.map(pattern => ({
       ...pattern,
-      blocks: pattern.WorkBlock.map(b => ({
-        ...b,
-        capacity: calculateBlockCapacity(b.type, b.startTime, b.endTime, b.splitRatio),
-        totalCapacity: b.totalCapacity,
-      })),
+      blocks: pattern.WorkBlock.map(b => {
+        // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
+        const capacity = calculateBlockCapacity(b.type, b.startTime, b.endTime, b.splitRatio)
+
+        return {
+          ...b,
+          capacity,
+          totalCapacity: b.totalCapacity,
+        }
+      }),
       meetings: pattern.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -1145,13 +1150,12 @@ export class DatabaseService {
     return {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => {
-        // Use the unified capacity calculator
+        // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
         const capacity = calculateBlockCapacity(b.type, b.startTime, b.endTime, b.splitRatio)
 
         return {
           ...b,
           capacity,
-          // Include totalCapacity for backward compatibility
           totalCapacity: b.totalCapacity,
         }
       }),
@@ -1205,11 +1209,31 @@ export class DatabaseService {
         sessionId,
         WorkBlock: {
           create: (blocks || []).map((b: any) => {
-            const { patternId: _patternId, id: _id, ...blockData } = b
+            const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
+
+            // Parse capacity if it exists and convert to new schema
+            let totalCapacity = 0
+            let splitRatio = null
+
+            if (b.capacity) {
+              const cap = typeof b.capacity === 'string' ? JSON.parse(b.capacity) : b.capacity
+              totalCapacity = (cap.focusMinutes || 0) + (cap.adminMinutes || 0) + (cap.personalMinutes || 0)
+
+              // For mixed blocks, create split ratio
+              if (b.type === 'mixed' && totalCapacity > 0) {
+                splitRatio = JSON.stringify({
+                  focus: (cap.focusMinutes || 0) / totalCapacity,
+                  admin: (cap.adminMinutes || 0) / totalCapacity,
+                  personal: (cap.personalMinutes || 0) / totalCapacity
+                })
+              }
+            }
+
             return {
               id: crypto.randomUUID(),
               ...blockData,
-              capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+              totalCapacity,
+              splitRatio,
             }
           }),
         },
@@ -1352,9 +1376,8 @@ export class DatabaseService {
             startTime: b.startTime,
             endTime: b.endTime,
             type: b.type,
-            focusCapacity: b.focusCapacity,
-            adminCapacity: b.adminCapacity,
-            capacity: b.capacity,
+            totalCapacity: b.totalCapacity || 0,
+            splitRatio: b.splitRatio || null,
           })),
         },
         WorkMeeting: {

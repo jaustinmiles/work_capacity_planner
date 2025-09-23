@@ -2011,6 +2011,50 @@ export class UnifiedScheduler {
       availableCapacity = block.personalMinutesTotal - block.personalMinutesUsed
     }
 
+    // CRITICAL FIX: Account for time already passed in current block
+    // If we have a current time constraint and it's within this block,
+    // we need to reduce available capacity by the time that's already passed
+    let effectiveAvailableCapacity = availableCapacity
+    if (currentTime && currentTime > block.startTime && currentTime < block.endTime) {
+      const minutesPassed = Math.floor((currentTime.getTime() - block.startTime.getTime()) / 60000)
+      const blockDuration = Math.floor((block.endTime.getTime() - block.startTime.getTime()) / 60000)
+
+      // Calculate what proportion of the block's capacity has already passed
+      // This ensures we properly account for time already elapsed
+      const proportionPassed = minutesPassed / blockDuration
+
+      // Reduce available capacity proportionally
+      if (block.blockType === 'universal' || block.blockType === 'flexible') {
+        // For universal/flexible blocks, reduce total available capacity
+        const totalOriginalCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal
+        const capacityAlreadyPassed = Math.floor(totalOriginalCapacity * proportionPassed)
+        effectiveAvailableCapacity = Math.max(0, availableCapacity - capacityAlreadyPassed)
+      } else {
+        // For typed blocks, reduce the specific type's capacity
+        let typeOriginalCapacity = 0
+        if (item.taskType === TaskType.Focused) {
+          typeOriginalCapacity = block.focusMinutesTotal
+        } else if (item.taskType === TaskType.Admin) {
+          typeOriginalCapacity = block.adminMinutesTotal
+        } else if (item.taskType === TaskType.Personal) {
+          typeOriginalCapacity = block.personalMinutesTotal
+        }
+        const capacityAlreadyPassed = Math.floor(typeOriginalCapacity * proportionPassed)
+        effectiveAvailableCapacity = Math.max(0, availableCapacity - capacityAlreadyPassed)
+      }
+
+      logger.scheduler.debug('⏰ [SCHEDULER] Adjusting for past time in current block', {
+        blockId: block.blockId,
+        currentTime: currentTime.toISOString(),
+        blockStart: block.startTime.toISOString(),
+        blockEnd: block.endTime.toISOString(),
+        minutesPassed,
+        proportionPassed: Math.round(proportionPassed * 100) + '%',
+        originalAvailable: availableCapacity,
+        effectiveAvailable: effectiveAvailableCapacity,
+      })
+    }
+
     logger.scheduler.debug('📊 [SCHEDULER] Block capacity calculation', {
       blockId: block.blockId,
       blockType: block.blockType,
@@ -2022,9 +2066,11 @@ export class UnifiedScheduler {
       personalTotal: block.personalMinutesTotal,
       personalUsed: block.personalMinutesUsed,
       calculatedCapacity: availableCapacity,
+      effectiveCapacity: effectiveAvailableCapacity,
+      hasTimePassed: currentTime && currentTime > block.startTime && currentTime < block.endTime,
     })
 
-    if (availableCapacity <= 0) {
+    if (effectiveAvailableCapacity <= 0) {
       logger.scheduler.debug('🚫 [SCHEDULER] No capacity available in block')
       return { canFit: false, canPartiallyFit: false }
     }
@@ -2038,7 +2084,7 @@ export class UnifiedScheduler {
 
 
     // Find available time slot within the block
-    const availableMinutes = Math.min(availableCapacity,
+    const availableMinutes = Math.min(effectiveAvailableCapacity,
       this.calculateAvailableTimeInBlock(block, blockScheduled))
 
     // Find when we can start in this block

@@ -40,7 +40,7 @@ export function useUnifiedScheduler(): {
       totalCapacityMinutes: workPatterns.reduce((sum, p) => {
         return sum + (p.blocks || []).reduce((blockSum: number, b: any) => {
           const capacity = b.capacity || {}
-          return blockSum + (capacity.focusMinutes || 0) + (capacity.adminMinutes || 0)
+          return blockSum + (capacity.focus || 0) + (capacity.admin || 0)
         }, 0)
       }, 0),
       options: {

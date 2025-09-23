@@ -343,8 +343,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
     if (block.capacity) {
       return {
-        focusMinutes: block.capacity.focusMinutes || 0,
-        adminMinutes: block.capacity.adminMinutes || 0,
+        focusMinutes: block.capacity.focus || 0,
+        adminMinutes: block.capacity.admin || 0,
       }
     } else if (block.type === 'focused') {
       return { focusMinutes: duration, adminMinutes: 0 }
