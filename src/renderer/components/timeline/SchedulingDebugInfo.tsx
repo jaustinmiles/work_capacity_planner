@@ -1,6 +1,8 @@
 import React from 'react'
 import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
+import { getCurrentTime } from '@shared/time-provider'
+import dayjs from 'dayjs'
 
 // Local type definition for debug info
 interface DebugInfo {
@@ -213,13 +215,39 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                       const used = record.used ?? 0
                       const total = record.capacity ?? 0
                       if (total === 0) return '-'
-                      const utilizationPercent = Math.round((used / total) * 100)
-                      const isFullyUsed = used === total
-                      const color = isFullyUsed ? 'green' : used > 0 ? 'blue' : 'gray'
+
+                      // Check if block is in progress
+                      const currentTime = getCurrentTime()
+                      const now = dayjs(currentTime)
+                      const blockDate = dayjs(record.date)
+                      const blockStart = blockDate.hour(parseInt(record.blockStart.split(':')[0])).minute(parseInt(record.blockStart.split(':')[1]))
+                      const blockEnd = blockDate.hour(parseInt(record.blockEnd.split(':')[0])).minute(parseInt(record.blockEnd.split(':')[1]))
+
+                      let effectiveUsed = used
+                      let effectiveTotal = total
+                      let isInProgress = false
+
+                      // If we're in the middle of the block, calculate based on remaining time
+                      if (now.isAfter(blockStart) && now.isBefore(blockEnd)) {
+                        isInProgress = true
+                        const totalMinutes = blockEnd.diff(blockStart, 'minute')
+                        const remainingMinutes = blockEnd.diff(now, 'minute')
+                        const remainingCapacity = Math.floor((remainingMinutes / totalMinutes) * total)
+
+                        // For in-progress blocks, show as 100% if remaining capacity is fully used
+                        effectiveTotal = remainingCapacity
+                        effectiveUsed = Math.min(used, remainingCapacity)
+                      }
+
+                      const utilizationPercent = effectiveTotal > 0 ? Math.round((effectiveUsed / effectiveTotal) * 100) : 0
+                      const isFullyUsed = effectiveUsed === effectiveTotal
+                      const color = isFullyUsed ? 'green' : effectiveUsed > 0 ? 'blue' : 'gray'
+                      const progressLabel = isInProgress ? '🕐 ' : ''
+
                       return (
                         <Space>
                           <Tag color={color} size="small">
-                            {used}/{total} ({utilizationPercent}%)
+                            {progressLabel}{effectiveUsed}/{effectiveTotal} ({utilizationPercent}%)
                           </Tag>
                         </Space>
                       )

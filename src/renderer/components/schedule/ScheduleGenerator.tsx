@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { TaskType } from '@shared/enums'
+import { WorkBlockType } from '@shared/constants'
 import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, Tabs } from '@arco-design/web-react'
 import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -118,7 +119,7 @@ export function ScheduleGenerator({
             id: `block-${dateStr}-work`,
             startTime: dayWorkHours.startTime,
             endTime: dayWorkHours.endTime,
-            type: 'flexible',
+            type: WorkBlockType.FLEXIBLE,
             capacity: calculateBlockCapacity('flexible', dayWorkHours.startTime, dayWorkHours.endTime),
           })
         }
@@ -406,7 +407,7 @@ export function ScheduleGenerator({
             id: `block-${dateStr}-work`,
             startTime: earliestStart,
             endTime: latestEndStr,
-            type: personal > 0 && focus === 0 && admin === 0 ? 'personal' : 'flexible',
+            type: personal > 0 && focus === 0 && admin === 0 ? WorkBlockType.PERSONAL : WorkBlockType.FLEXIBLE,
             capacity: {
               // For optimal schedules, set capacity to total available time
               // For other schedules, set to what was actually used
