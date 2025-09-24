@@ -4,10 +4,11 @@
  */
 
 import { WorkBlockType } from './constants'
+import { TaskType } from './enums'
 
 export interface BlockCapacity {
   totalMinutes: number
-  type: string  // 'focused' | 'admin' | 'personal' | 'flexible' | 'mixed'
+  type: WorkBlockType
   splitRatio?: SplitRatio  // Only for mixed blocks
 }
 
@@ -30,10 +31,10 @@ function calculateDuration(startTime: string, endTime: string): number {
  * This is the single source of truth for all capacity calculations
  */
 export function calculateBlockCapacity(
-  type: string,
+  type: WorkBlockType,
   startTime: string,
   endTime: string,
-  splitRatio?: string | null,
+  splitRatio?: SplitRatio | string | null,
 ): BlockCapacity {
   const totalMinutes = calculateDuration(startTime, endTime)
 
@@ -50,7 +51,7 @@ export function calculateBlockCapacity(
     case WorkBlockType.MIXED: {
       // Parse custom split ratio or use default (70% focus, 30% admin)
       const ratio: SplitRatio = splitRatio
-        ? JSON.parse(splitRatio)
+        ? (typeof splitRatio === 'string' ? JSON.parse(splitRatio) : splitRatio)
         : { focus: 0.7, admin: 0.3 }
 
       return {
@@ -82,7 +83,7 @@ export function calculateBlockCapacity(
  */
 export function getAvailableCapacityForTaskType(
   block: BlockCapacity,
-  taskType: 'focused' | 'admin' | 'personal',
+  taskType: TaskType,
 ): number {
   // Flexible blocks work with any task type
   if (block.type === WorkBlockType.FLEXIBLE) {
@@ -92,22 +93,22 @@ export function getAvailableCapacityForTaskType(
   // Block type must match task type (except for mixed)
   if (block.type === WorkBlockType.MIXED && block.splitRatio) {
     // Mixed blocks split between focus and admin only
-    if (taskType === 'focused') {
+    if (taskType === TaskType.Focused) {
       return Math.floor(block.totalMinutes * block.splitRatio.focus)
-    } else if (taskType === 'admin') {
+    } else if (taskType === TaskType.Admin) {
       return Math.floor(block.totalMinutes * block.splitRatio.admin)
     }
     return 0  // Mixed blocks don't support personal tasks
   }
 
   // For single-type blocks, must match exactly
-  if (block.type === WorkBlockType.FOCUSED && taskType === 'focused') {
+  if (block.type === WorkBlockType.FOCUSED && taskType === TaskType.Focused) {
     return block.totalMinutes
   }
-  if (block.type === WorkBlockType.ADMIN && taskType === 'admin') {
+  if (block.type === WorkBlockType.ADMIN && taskType === TaskType.Admin) {
     return block.totalMinutes
   }
-  if (block.type === WorkBlockType.PERSONAL && taskType === 'personal') {
+  if (block.type === WorkBlockType.PERSONAL && taskType === TaskType.Personal) {
     return block.totalMinutes
   }
 
@@ -121,7 +122,7 @@ export function getAvailableCapacityForTaskType(
 export function allocateFlexibleCapacity(
   remainingCapacity: number,
   requestedAmount: number,
-  _taskType: 'focused' | 'admin' | 'personal',
+  _taskType: TaskType,
 ): { allocated: number; remaining: number } {
   const allocated = Math.min(remainingCapacity, requestedAmount)
   return {

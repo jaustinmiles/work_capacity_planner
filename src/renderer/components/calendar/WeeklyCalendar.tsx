@@ -8,6 +8,7 @@ import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
+import { WorkBlockType } from '@shared/constants'
 import { getDatabase } from '../../services/database'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
@@ -60,7 +61,7 @@ export function WeeklyCalendar() {
                 startTime: '10:00',
                 endTime: '14:00',
                 type: 'personal',
-                capacity: { totalMinutes: 240, type: 'personal' },
+                capacity: { totalMinutes: 240, type: WorkBlockType.PERSONAL },
               },
             ],
             meetings: [],

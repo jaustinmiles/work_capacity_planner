@@ -8,6 +8,7 @@ import { UnifiedScheduleItem } from './unified-scheduler'
 import { Task, TaskStep } from './types'
 import { SequencedTask } from './sequencing-types'
 import { TaskStatus } from './enums'
+import { WorkBlockType } from './constants'
 import { DailyWorkPattern } from './work-blocks-types'
 import { calculateBlockCapacity } from './capacity-calculator'
 import { logger } from './logger'
@@ -569,7 +570,7 @@ export class UnifiedSchedulerAdapter {
         }
 
         // Use the unified capacity calculator
-        const capacity = calculateBlockCapacity(block.type, block.startTime, block.endTime)
+        const capacity = calculateBlockCapacity(block.type as WorkBlockType, block.startTime, block.endTime)
 
         return {
           ...block,

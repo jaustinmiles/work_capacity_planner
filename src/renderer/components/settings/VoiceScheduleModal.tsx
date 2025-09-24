@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
+import { WorkBlockType } from '@shared/constants'
 import { Modal, Button, Typography, Alert, Space, Card, Tag, Divider, Upload, Input } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconUpload, IconFile, IconCheckCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
@@ -221,7 +222,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
           ...block,
           capacity: block.capacity ? {
             totalMinutes: (block.capacity.focusMinutes || 0) + (block.capacity.admin || 0) + (block.capacity.personalMinutes || 0),
-            type: block.type,
+            type: block.type as WorkBlockType,
             splitRatio: block.type === 'mixed' && block.capacity.focusMinutes && block.capacity.admin ? {
               focus: block.capacity.focusMinutes / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0)),
               admin: block.capacity.admin / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0))
@@ -455,12 +456,12 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                                 </Tag>
                                 {block.type === 'mixed' && block.capacity && (
                                   <Text type="secondary">
-                                    {getAvailableCapacityForTaskType(block.capacity, 'focused')}min focus / {getAvailableCapacityForTaskType(block.capacity, 'admin')}min admin
+                                    {getAvailableCapacityForTaskType(block.capacity, TaskType.Focused)}min focus / {getAvailableCapacityForTaskType(block.capacity, TaskType.Admin)}min admin
                                   </Text>
                                 )}
                                 {block.type === 'personal' && block.capacity && (
                                   <Text type="secondary">
-                                    {getAvailableCapacityForTaskType(block.capacity, 'personal')}min personal
+                                    {getAvailableCapacityForTaskType(block.capacity, TaskType.Personal)}min personal
                                   </Text>
                                 )}
                               </Space>

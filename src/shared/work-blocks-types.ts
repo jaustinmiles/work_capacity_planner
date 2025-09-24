@@ -1,6 +1,7 @@
 // Types for flexible work blocks system
 
 import { calculateDuration } from './time-utils'
+import { WorkBlockType } from './constants'
 
 export interface WorkBlock {
   id: string
@@ -9,7 +10,7 @@ export interface WorkBlock {
   type: 'focused' | 'admin' | 'mixed' | 'personal' | 'flexible' | 'universal'
   capacity?: {
     totalMinutes: number
-    type: string
+    type: WorkBlockType
     splitRatio?: { focus: number; admin: number }
   }
 }

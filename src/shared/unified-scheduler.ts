@@ -18,6 +18,7 @@
 
 import { Task } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
+import { WorkBlockType } from './constants'
 import { getAvailableCapacityForTaskType, SplitRatio } from './capacity-calculator'
 import { TaskType } from './enums'
 import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
@@ -167,7 +168,7 @@ export interface SchedulingWarning {
 
 interface BlockCapacity {
   blockId: string
-  blockType: string  // 'focused' | 'admin' | 'personal' | 'mixed' | 'flexible' | 'universal'
+  blockType: WorkBlockType
   startTime: Date
   endTime: Date
   totalMinutes: number
@@ -1904,7 +1905,7 @@ export class UnifiedScheduler {
     // Simple unified structure
     return {
       blockId: block.id,
-      blockType: block.type,
+      blockType: block.type as WorkBlockType,
       startTime,
       endTime,
       totalMinutes,
@@ -1976,9 +1977,9 @@ export class UnifiedScheduler {
     currentDate: Date,
     currentTime?: Date,
   ): FitResult {
-    // Get the task type as a simple string
-    const taskType = item.taskType === TaskType.Focused ? 'focused' :
-                     item.taskType === TaskType.Admin ? 'admin' : 'personal'
+    // Get the task type
+    const taskType = item.taskType === TaskType.Focused ? TaskType.Focused :
+                     item.taskType === TaskType.Admin ? TaskType.Admin : TaskType.Personal
 
     logger.scheduler.debug('🎯 [SCHEDULER] Checking block compatibility', {
       itemId: item.id,
@@ -1991,7 +1992,7 @@ export class UnifiedScheduler {
 
     // Calculate available capacity using the helper function
     const totalCapacityForTaskType = getAvailableCapacityForTaskType(
-      { totalMinutes: block.totalMinutes, type: block.blockType, splitRatio: block.splitRatio },
+      { totalMinutes: block.totalMinutes, type: block.blockType as WorkBlockType, splitRatio: block.splitRatio },
       taskType,
     )
 

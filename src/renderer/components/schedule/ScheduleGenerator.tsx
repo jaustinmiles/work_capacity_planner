@@ -120,7 +120,7 @@ export function ScheduleGenerator({
             startTime: dayWorkHours.startTime,
             endTime: dayWorkHours.endTime,
             type: WorkBlockType.FLEXIBLE,
-            capacity: calculateBlockCapacity('flexible', dayWorkHours.startTime, dayWorkHours.endTime),
+            capacity: calculateBlockCapacity(WorkBlockType.FLEXIBLE, dayWorkHours.startTime, dayWorkHours.endTime),
           })
         }
         // Removed hardcoded weekend personal blocks - users should configure their own patterns
