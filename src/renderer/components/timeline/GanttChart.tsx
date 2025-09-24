@@ -1943,8 +1943,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             blockId: block.blockId,
             blockStart: block.startTime,
             blockEnd: block.endTime,
-            startTime: block.startTime,
-            endTime: block.endTime,
             type: block.blockType,
             capacity: block.capacity,
             used: block.used,
