@@ -38,7 +38,6 @@ import {
   timeToMinutes,
   minutesToTime,
   getTypeColor,
-  roundToQuarter,
 } from './SessionState'
 
 const { Text } = Typography
@@ -118,12 +117,17 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         setMeetings([])
       }
 
-      const formattedSessions: WorkSessionData[] = dbSessions.map(session => {
+      const formattedSessions: WorkSessionData[] = dbSessions
+        .filter(session => {
+          // Hide paused sessions from the work logger view
+          return !session.isPaused
+        })
+        .map(session => {
         const startTime = dayjs(session.startTime)
-        // For active sessions without endTime, just use startTime (will show as in-progress)
+        // For active sessions without endTime, use current time to show actual duration
         const endTime = session.endTime
           ? dayjs(session.endTime)
-          : startTime
+          : dayjs() // Use current time for active sessions
 
         // Find task and step details
         const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
@@ -173,8 +177,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       session.id === id
         ? {
             ...session,
-            startMinutes: roundToQuarter(startMinutes),
-            endMinutes: roundToQuarter(endMinutes),
+            startMinutes: startMinutes,
+            endMinutes: endMinutes,
             isDirty: true,
           }
         : session,
@@ -206,8 +210,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       taskName: task?.name || 'Unknown Task',
       stepId,
       stepName,
-      startMinutes: roundToQuarter(startMinutes),
-      endMinutes: roundToQuarter(endMinutes),
+      startMinutes: startMinutes,
+      endMinutes: endMinutes,
       type,
       color: getTypeColor(type),
       isNew: true,
@@ -221,8 +225,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   // Handle session creation from clock (needs task assignment)
   const handleClockSessionCreate = useCallback((startMinutes: number, endMinutes: number) => {
     setPendingSession({
-      startMinutes: roundToQuarter(startMinutes),
-      endMinutes: roundToQuarter(endMinutes),
+      startMinutes: startMinutes,
+      endMinutes: endMinutes,
     })
     setShowAssignModal(true)
   }, [])
