@@ -79,7 +79,7 @@ export class DatabaseService {
       mainLogger.info('[DB] Found existing active session', {
         sessionId: session.id,
         name: session.name,
-        createdAt: session.createdAt.toISOString(),
+        createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
       })
     } else {
       mainLogger.warn('[DB] No active session found, checking for existing sessions to reactivate...')

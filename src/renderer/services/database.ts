@@ -337,15 +337,19 @@ export class RendererDatabaseService {
     } else {
       logger.ui.info('[Database] No last used session stored in localStorage')
 
-      // Get and log current sessions
-      const sessions = await this.getSessions()
-      if (sessions.length > 0) {
-        logger.ui.info('[Database] Sessions available but none marked as last used', {
-          count: sessions.length,
-          sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })),
-        })
-      } else {
-        logger.ui.warn('[Database] No sessions exist in database')
+      try {
+        // Get and log current sessions
+        const sessions = await this.getSessions()
+        if (sessions.length > 0) {
+          logger.ui.info('[Database] Sessions available but none marked as last used', {
+            count: sessions.length,
+            sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })),
+          })
+        } else {
+          logger.ui.warn('[Database] No sessions exist in database')
+        }
+      } catch (error) {
+        logger.ui.error('[Database] Failed to get sessions in loadLastUsedSession', error)
       }
     }
   }

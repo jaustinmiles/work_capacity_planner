@@ -96,8 +96,7 @@ describe('Database Validation Tests', () => {
                 startTime: '09:00',
                 endTime: '17:00',
                 type: 'focused',
-                focusCapacity: 240,
-                adminCapacity: 0,
+                totalCapacity: 240,
               },
             ],
           },
@@ -142,9 +141,8 @@ describe('Database Validation Tests', () => {
                 startTime: '06:00',
                 endTime: '14:00',
                 type: 'mixed',
-                focusCapacity: 180,
-                adminCapacity: 120,
-                capacity: JSON.stringify({ focus: 180, admin: 120 }),
+                totalCapacity: 300, // 180 + 120
+                splitRatio: JSON.stringify({ focus: 0.6, admin: 0.4 }), // 180/300 = 0.6, 120/300 = 0.4
               },
             ],
           },
