@@ -1937,7 +1937,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           })),
           warnings: debugInfo.warnings,
           unusedCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
-            sum + (block.totalCapacity - block.usedCapacity), 0) || 0,
+            sum + (block.capacity - block.used), 0) || 0,
           blockUtilization: debugInfo.blockUtilization?.map(block => ({
             date: block.date,
             blockId: block.blockId,
@@ -1946,8 +1946,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             startTime: block.startTime,
             endTime: block.endTime,
             type: block.blockType,
-            capacity: block.totalCapacity,
-            used: block.usedCapacity,
+            capacity: block.capacity,
+            used: block.used,
             utilizationPercent: block.utilization,
           })) || [],
         }} />

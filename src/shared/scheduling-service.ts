@@ -341,8 +341,8 @@ export class SchedulingService {
     debugInfo.blockUtilization.forEach(block => {
       const existing = dayUtilization.get(block.date) || { totalUsed: 0, totalCapacity: 0 }
 
-      const used = block.usedCapacity
-      const capacity = block.totalCapacity
+      const used = block.used
+      const capacity = block.capacity
 
       dayUtilization.set(block.date, {
         totalUsed: existing.totalUsed + used,

@@ -2788,8 +2788,8 @@ export class UnifiedScheduler {
     blockId: string
     startTime: string
     endTime: string
-    totalCapacity: number
-    usedCapacity: number
+    capacity: number
+    used: number
     blockType: string
     utilization: number
   }> {
@@ -2836,8 +2836,8 @@ export class UnifiedScheduler {
           blockId: block.id,
           startTime: block.startTime,
           endTime: block.endTime,
-          totalCapacity: totalCapacity,
-          usedCapacity: usedCapacity,
+          capacity: totalCapacity,
+          used: usedCapacity,
           blockType: block.type,
           utilization: Math.round(utilizationPercent),
         })
