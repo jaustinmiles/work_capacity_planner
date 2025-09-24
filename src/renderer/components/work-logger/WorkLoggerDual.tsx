@@ -450,8 +450,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         {/* Current Work Indicator for Dogfooding */}
         {(() => {
-          // Find any active work session
+          // Find any active work session that is not paused
           const activeSessionEntries = Array.from(activeWorkSessions.entries())
+            .filter(([_key, session]) => !session.isPaused) // Filter out paused sessions
+
           if (activeSessionEntries.length === 0) {
             return (
               <Card style={{ background: '#f7f8fa', border: '1px dashed #d9d9d9' }}>
@@ -463,7 +465,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             )
           }
 
-          const [_sessionKey, session] = activeSessionEntries[0] // Get first active session
+          const [_sessionKey, session] = activeSessionEntries[0] // Get first non-paused active session
 
           // Determine if this is a workflow step or regular task
           let itemName = ''
