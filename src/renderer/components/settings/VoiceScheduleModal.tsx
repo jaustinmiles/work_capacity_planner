@@ -213,15 +213,19 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
         scheduleText.trim(),
         targetDate || dayjs().format('YYYY-MM-DD'),
       )
-      // Convert capacity format if needed for all results
+      // TODO: Remove this conversion once AI service is updated to return new format
+      // For now, convert from old format to new format
       const convertedResults = results.map((result: any) => ({
         ...result,
         blocks: result.blocks.map((block: any) => ({
           ...block,
           capacity: block.capacity ? {
-            focus: block.capacity.focus || 0,
-            admin: block.capacity.admin || 0,
-            personal: block.capacity.personal || 0,
+            totalMinutes: (block.capacity.focusMinutes || 0) + (block.capacity.admin || 0) + (block.capacity.personalMinutes || 0),
+            type: block.type,
+            splitRatio: block.type === 'mixed' && block.capacity.focusMinutes && block.capacity.admin ? {
+              focus: block.capacity.focusMinutes / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0)),
+              admin: block.capacity.admin / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0))
+            } : undefined
           } : undefined,
         })),
       }))
