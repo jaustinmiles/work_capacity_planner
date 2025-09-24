@@ -120,9 +120,12 @@ describe('work-blocks-types', () => {
           endTime: '11:00',
           type: 'mixed',
           capacity: {
-            focus: 90,
-            admin: 30,
-            personal: 0,
+            totalMinutes: 120,
+            type: 'mixed',
+            splitRatio: {
+              focus: 0.75, // 75% focus = 90 minutes
+              admin: 0.25, // 25% admin = 30 minutes
+            },
           },
         },
       ]

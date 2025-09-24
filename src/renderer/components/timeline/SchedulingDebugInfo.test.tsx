@@ -166,9 +166,7 @@ describe('SchedulingDebugInfo', () => {
     expect(table).toHaveTextContent('Date')
     expect(table).toHaveTextContent('Block')
     expect(table).toHaveTextContent('Time')
-    expect(table).toHaveTextContent('Focus')
-    expect(table).toHaveTextContent('Admin')
-    expect(table).toHaveTextContent('Personal')
+    expect(table).toHaveTextContent('Capacity Used')
     expect(table).toHaveTextContent('Status')
   })
 
@@ -310,9 +308,7 @@ describe('SchedulingDebugInfo', () => {
     expect(table).toHaveTextContent('Date')
     expect(table).toHaveTextContent('Block')
     expect(table).toHaveTextContent('Time')
-    expect(table).toHaveTextContent('Focus')
-    expect(table).toHaveTextContent('Admin')
-    expect(table).toHaveTextContent('Personal')
+    expect(table).toHaveTextContent('Capacity Used')
     expect(table).toHaveTextContent('Status')
 
     // The old date should be filtered out, so no data rows will appear
@@ -393,8 +389,8 @@ describe('SchedulingDebugInfo', () => {
     const table = heading.parentElement?.querySelector('table')
     expect(table).toBeTruthy()
 
-    // Check that the table has Personal column for personal blocks
-    expect(table).toHaveTextContent('Personal')
+    // Check that the table has Capacity Used column for personal blocks
+    expect(table).toHaveTextContent('Capacity Used')
 
     // The old date will be filtered out, verifying filtering works
   })

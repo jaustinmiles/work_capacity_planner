@@ -99,8 +99,8 @@ describe('UnifiedSchedulerAdapter', () => {
         startTime: '09:00',
         endTime: '12:00',
         capacity: {
-          focus: 180,
-          admin: 0,
+          totalMinutes: 180,
+          type: 'focused',
         },
       },
       {
@@ -109,8 +109,8 @@ describe('UnifiedSchedulerAdapter', () => {
         startTime: '13:00',
         endTime: '17:00',
         capacity: {
-          focus: 0,
-          admin: 240,
+          totalMinutes: 240,
+          type: 'admin',
         },
       },
     ],
