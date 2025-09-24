@@ -111,8 +111,6 @@ describe('ScheduleFormatter', () => {
         blockId: 'block-1',
         blockStart: '09:00',
         blockEnd: '12:00',
-        startTime: '09:00',
-        endTime: '12:00',
         type: 'focused',
         capacity: 180,
         used: 120,
