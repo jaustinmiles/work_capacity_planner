@@ -577,6 +577,51 @@ You are successful when:
 - Changes tested incrementally
 - Documentation kept up-to-date
 
+### 🛠️ Development Tools
+
+**Professional debugging and analysis tools in `/scripts/dev/`:**
+
+#### When Claude Should Use These Tools:
+
+**For Scheduling/Capacity Issues:**
+```bash
+# Check scheduler logs for capacity problems
+npx tsx scripts/dev/log-viewer.ts --grep "scheduler|capacity" --since 30m
+
+# Inspect work pattern capacity allocation
+npx tsx scripts/dev/db-inspector.ts capacity 2024-01-15
+
+# Check current session state
+npx tsx scripts/dev/db-inspector.ts session
+```
+
+**For Database/State Issues:**
+```bash
+# Get database overview
+npx tsx scripts/dev/db-inspector.ts stats
+
+# Check recent tasks
+npx tsx scripts/dev/db-inspector.ts tasks 20
+
+# Find error patterns in logs
+npx tsx scripts/dev/log-viewer.ts --level error --since 1h
+```
+
+**For Performance Debugging:**
+```bash
+# Monitor real-time logs
+npx tsx scripts/dev/tail-logs.ts --since 5m
+
+# Check log statistics
+npx tsx scripts/dev/log-viewer.ts --stats
+```
+
+**Tool Selection Guidelines:**
+- Use `log-viewer.ts` for analyzing application behavior and finding patterns
+- Use `db-inspector.ts` for verifying data integrity and state
+- Use `tail-logs.ts` for real-time monitoring during development
+- Always prefer these tools over ad-hoc grep/cat commands
+
 ---
 
 **Remember**: Good engineering is about thoughtful, systematic approaches—not speed. Take time to understand existing patterns, write comprehensive tests, and maintain code quality. This codebase values correctness and maintainability over quick fixes.

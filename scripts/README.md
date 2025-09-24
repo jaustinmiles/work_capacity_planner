@@ -34,6 +34,9 @@ Database management and migration scripts:
 
 ### `/dev`
 Development and testing utilities:
+- `log-viewer.ts` - Professional log viewer with filtering (--level, --grep, --since, --module)
+- `db-inspector.ts` - Database inspection tool (session, tasks, pattern, capacity, stats commands)
+- `tail-logs.ts` - Real-time log tailing with time filtering
 - `dev-no-watch.sh` - Run dev server without file watching
 - `dev-with-logging.sh` - Run dev server with verbose logging
 - `setup-git-hooks.sh` - Configure git hooks
