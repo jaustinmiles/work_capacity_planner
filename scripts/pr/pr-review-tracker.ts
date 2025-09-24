@@ -231,45 +231,42 @@ async function main(): Promise<void> {
   const repoInfo = runCommand('gh repo view --json owner,name')
   const { owner, name } = JSON.parse(repoInfo)
 
-  // Use GraphQL to get review threads with resolved status
-  const graphqlQuery = `
-    query($owner: String!, $repo: String!, $pr: Int!) {
-      repository(owner: $owner, name: $repo) {
-        pullRequest(number: $pr) {
-          reviewThreads(first: 100) {
-            nodes {
-              id
-              isResolved
-              isOutdated
-              isCollapsed
-              path
-              line
-              comments(first: 10) {
-                nodes {
-                  id
-                  body
-                  author {
-                    login
-                  }
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }
+  // Use REST API to get inline comments (more reliable than GraphQL)
+  const commentsResult = runCommand(`gh api repos/${owner.login}/${name}/pulls/${pr}/comments`)
+  const rawComments = JSON.parse(commentsResult)
+
+  // Convert REST API comments to ReviewThread format for compatibility
+  const commentMap = new Map<string, any[]>()
+
+  // Group comments by file and line
+  rawComments.forEach((comment: any) => {
+    const key = `${comment.path}:${comment.line || comment.original_line || 0}`
+    if (!commentMap.has(key)) {
+      commentMap.set(key, [])
     }
-  `
+    commentMap.get(key)!.push({
+      id: comment.id.toString(),
+      body: comment.body,
+      author: { login: comment.user.login },
+      createdAt: comment.created_at,
+    })
+  })
 
-  const graphqlResult = runCommand(
-    `gh api graphql -f query='${graphqlQuery}' -F owner="${owner.login}" -F repo="${name}" -F pr=${pr}`,
-  )
+  // Convert to ReviewThread format
+  const allThreads: ReviewThread[] = Array.from(commentMap.entries()).map(([key, comments]) => {
+    const [path, lineStr] = key.split(':')
+    return {
+      id: `thread-${key}`,
+      isResolved: false, // REST API doesn't provide resolved status, assume unresolved
+      isOutdated: false, // REST API doesn't provide outdated status
+      isCollapsed: false, // REST API doesn't provide collapsed status
+      path,
+      line: parseInt(lineStr),
+      comments,
+    }
+  })
 
-  const graphqlData = JSON.parse(graphqlResult)
-  const allThreads: ReviewThread[] = graphqlData.data.repository.pullRequest.reviewThreads.nodes
-
-  // Filter out threads without comments
-  const threads = allThreads.filter(t => t.comments && t.comments.length > 0)
+  const threads = allThreads
 
   // Filter threads based on flags
   let filteredThreads = threads
