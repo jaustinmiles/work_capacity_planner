@@ -6,17 +6,14 @@
 import { WorkBlockType } from './constants'
 
 export interface BlockCapacity {
-  focus?: number
-  admin?: number
-  personal?: number
-  total?: number  // For flexible blocks
-  flexible?: boolean
+  totalMinutes: number
+  type: string  // 'focused' | 'admin' | 'personal' | 'flexible' | 'mixed'
+  splitRatio?: SplitRatio  // Only for mixed blocks
 }
 
 export interface SplitRatio {
-  focus?: number
-  admin?: number
-  personal?: number
+  focus: number
+  admin: number
 }
 
 /**
@@ -42,73 +39,79 @@ export function calculateBlockCapacity(
 
   switch (type) {
     case WorkBlockType.FOCUSED:
-      return {
-        focus: totalMinutes,
-        admin: 0,
-        personal: 0,
-        flexible: false,
-      }
-
     case WorkBlockType.ADMIN:
+    case WorkBlockType.PERSONAL:
+    case WorkBlockType.FLEXIBLE:
       return {
-        focus: 0,
-        admin: totalMinutes,
-        personal: 0,
-        flexible: false,
+        totalMinutes,
+        type,
       }
 
     case WorkBlockType.MIXED: {
-      // Parse custom split ratio or use default
+      // Parse custom split ratio or use default (70% focus, 30% admin)
       const ratio: SplitRatio = splitRatio
         ? JSON.parse(splitRatio)
         : { focus: 0.7, admin: 0.3 }
 
       return {
-        focus: Math.floor(totalMinutes * (ratio.focus || 0)),
-        admin: Math.floor(totalMinutes * (ratio.admin || 0)),
-        personal: Math.floor(totalMinutes * (ratio.personal || 0)),
-        flexible: false,
+        totalMinutes,
+        type,
+        splitRatio: ratio,
       }
     }
-
-    case WorkBlockType.FLEXIBLE:
-      // Flexible blocks can be allocated to any task type
-      return {
-        total: totalMinutes,
-        flexible: true,
-        // Don't pre-allocate to specific types
-        focus: 0,
-        admin: 0,
-        personal: 0,
-      }
-
-    case WorkBlockType.PERSONAL:
-      return {
-        focus: 0,
-        admin: 0,
-        personal: totalMinutes,
-        flexible: false,
-      }
 
     case WorkBlockType.BLOCKED:
     case WorkBlockType.SLEEP:
       // Blocked and sleep blocks have no capacity
       return {
-        focus: 0,
-        admin: 0,
-        personal: 0,
-        flexible: false,
+        totalMinutes: 0,
+        type,
       }
 
     default:
       console.warn(`Unknown block type: ${type}`)
       return {
-        focus: 0,
-        admin: 0,
-        personal: 0,
-        flexible: false,
+        totalMinutes: 0,
+        type,
       }
   }
+}
+
+/**
+ * Get available capacity for a specific task type from a block
+ */
+export function getAvailableCapacityForTaskType(
+  block: BlockCapacity,
+  taskType: 'focused' | 'admin' | 'personal',
+): number {
+  // Flexible blocks work with any task type
+  if (block.type === WorkBlockType.FLEXIBLE) {
+    return block.totalMinutes
+  }
+
+  // Block type must match task type (except for mixed)
+  if (block.type === WorkBlockType.MIXED && block.splitRatio) {
+    // Mixed blocks split between focus and admin only
+    if (taskType === 'focused') {
+      return Math.floor(block.totalMinutes * block.splitRatio.focus)
+    } else if (taskType === 'admin') {
+      return Math.floor(block.totalMinutes * block.splitRatio.admin)
+    }
+    return 0  // Mixed blocks don't support personal tasks
+  }
+
+  // For single-type blocks, must match exactly
+  if (block.type === WorkBlockType.FOCUSED && taskType === 'focused') {
+    return block.totalMinutes
+  }
+  if (block.type === WorkBlockType.ADMIN && taskType === 'admin') {
+    return block.totalMinutes
+  }
+  if (block.type === WorkBlockType.PERSONAL && taskType === 'personal') {
+    return block.totalMinutes
+  }
+
+  return 0
 }
 
 /**
@@ -118,7 +121,7 @@ export function calculateBlockCapacity(
 export function allocateFlexibleCapacity(
   remainingCapacity: number,
   requestedAmount: number,
-  _taskType: 'focus' | 'admin' | 'personal',
+  _taskType: 'focused' | 'admin' | 'personal',
 ): { allocated: number; remaining: number } {
   const allocated = Math.min(remainingCapacity, requestedAmount)
   return {

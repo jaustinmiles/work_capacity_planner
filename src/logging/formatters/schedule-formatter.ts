@@ -58,8 +58,6 @@ interface ScheduleLogOutput {
   warnings?: string[]
   debugInfo?: {
     unusedCapacity: {
-      focus: number
-      admin: number
       total: number
     }
     blockUtilization: Array<{
@@ -177,7 +175,7 @@ export class ScheduleFormatter {
         type: block.type as string,
         startTime: block.startTime,
         endTime: block.endTime,
-        capacity: (block as any).capacity || block.capacity?.focus || 0,
+        capacity: block.capacity?.totalMinutes || 0,
         utilization: (block as any).utilization || 0,
         items: (block as any).items || 0,
       }))
@@ -186,23 +184,19 @@ export class ScheduleFormatter {
     // Add debug info if provided
     if (debugInfo) {
       // Calculate unused capacity from block utilization
-      const unusedFocus = debugInfo.blockUtilization?.reduce((sum, block) =>
-        sum + (block.focusTotal - block.focusUsed), 0) || 0
-      const unusedAdmin = debugInfo.blockUtilization?.reduce((sum, block) =>
-        sum + (block.adminTotal - block.adminUsed), 0) || 0
+      const unusedCapacity = debugInfo.blockUtilization?.reduce((sum, block) =>
+        sum + (block.totalCapacity - block.usedCapacity), 0) || 0
 
       output.debugInfo = {
         unusedCapacity: {
-          focus: unusedFocus,
-          admin: unusedAdmin,
-          total: unusedFocus + unusedAdmin,
+          total: unusedCapacity,
         },
         blockUtilization: debugInfo.blockUtilization?.map(block => ({
           date: block.date,
           blockStart: block.startTime,
           blockEnd: block.endTime,
-          capacity: block.focusTotal + block.adminTotal,
-          used: block.focusUsed + block.adminUsed,
+          capacity: block.totalCapacity,
+          used: block.usedCapacity,
           utilizationPercent: block.utilization,
         })) || [],
         criticalPath: [],
@@ -254,10 +248,8 @@ export class ScheduleFormatter {
    */
   static formatDebugInfo(debugInfo: SchedulingDebugInfo): ScheduleLogOutput {
     // Calculate unused capacity from block utilization
-    const unusedFocus = debugInfo.blockUtilization?.reduce((sum, block) =>
-        sum + ((block.focusTotal || 0) - (block.focusUsed || 0)), 0) ?? 0
-    const unusedAdmin = debugInfo.blockUtilization?.reduce((sum, block) =>
-        sum + ((block.adminTotal || 0) - (block.adminUsed || 0)), 0) ?? 0
+    const unusedCapacity = debugInfo.blockUtilization?.reduce((sum, block) =>
+        sum + ((block.totalCapacity || 0) - (block.usedCapacity || 0)), 0) ?? 0
 
     const totalScheduled = debugInfo.totalScheduled ?? 0
     const totalUnscheduled = debugInfo.totalUnscheduled ?? 0
@@ -289,16 +281,14 @@ export class ScheduleFormatter {
       warnings: debugInfo.warnings,
       debugInfo: {
         unusedCapacity: {
-          focus: unusedFocus,
-          admin: unusedAdmin,
-          total: unusedFocus + unusedAdmin,
+          total: unusedCapacity,
         },
         blockUtilization: debugInfo.blockUtilization?.map(block => ({
           date: block.date,
           blockStart: block.startTime,
           blockEnd: block.endTime,
-          capacity: block.focusTotal + block.adminTotal,
-          used: block.focusUsed + block.adminUsed,
+          capacity: block.totalCapacity,
+          used: block.usedCapacity,
           utilizationPercent: block.utilization,
         })) || [],
       },
@@ -335,8 +325,6 @@ export class ScheduleFormatter {
     if (output.debugInfo?.unusedCapacity) {
       const unused = output.debugInfo.unusedCapacity
       lines.push('💡 Unused Capacity:')
-      lines.push(`  • Focus: ${unused.focus} minutes`)
-      lines.push(`  • Admin: ${unused.admin} minutes`)
       lines.push(`  • Total: ${unused.total} minutes`)
       lines.push('')
     }

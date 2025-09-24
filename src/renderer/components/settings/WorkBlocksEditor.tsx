@@ -30,6 +30,7 @@ import {
   getTotalCapacity,
   getRemainingCapacity,
 } from '@shared/work-blocks-types'
+import { calculateBlockCapacity, getAvailableCapacityForTaskType } from '@shared/capacity-calculator'
 import { Message } from '../common/Message'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
@@ -414,18 +415,9 @@ export function WorkBlocksEditor({
                       onChange={(value) => {
                         // When changing to mixed, automatically split capacity 50/50
                         if (value === 'mixed' && block.type !== 'mixed') {
-                          const startTime = dayjs(`2000-01-01 ${block.startTime}`)
-                          const endTime = dayjs(`2000-01-01 ${block.endTime}`)
-                          const totalMinutes = endTime.diff(startTime, 'minute')
-                          const halfMinutes = Math.floor(totalMinutes / 2)
-
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: {
-                              focus: halfMinutes,
-                              admin: halfMinutes,
-                              personal: 0,
-                            },
+                            capacity: calculateBlockCapacity('mixed', block.startTime, block.endTime, JSON.stringify({ focus: 0.5, admin: 0.5 })),
                           })
                         } else if (value === 'flexible') {
                           // Flexible blocks don't have predetermined capacity split
@@ -434,40 +426,19 @@ export function WorkBlocksEditor({
                             capacity: undefined, // No preset capacity for flexible blocks
                           })
                         } else if (value === 'personal') {
-                          const startTime = dayjs(`2000-01-01 ${block.startTime}`)
-                          const endTime = dayjs(`2000-01-01 ${block.endTime}`)
-                          const totalMinutes = endTime.diff(startTime, 'minute')
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: {
-                              focus: 0,
-                              admin: 0,
-                              personal: totalMinutes,
-                            },
+                            capacity: calculateBlockCapacity('personal', block.startTime, block.endTime),
                           })
                         } else if (value === TaskType.Focused) {
-                          const startTime = dayjs(`2000-01-01 ${block.startTime}`)
-                          const endTime = dayjs(`2000-01-01 ${block.endTime}`)
-                          const totalMinutes = endTime.diff(startTime, 'minute')
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: {
-                              focus: totalMinutes,
-                              admin: 0,
-                              personal: 0,
-                            },
+                            capacity: calculateBlockCapacity('focused', block.startTime, block.endTime),
                           })
                         } else if (value === TaskType.Admin) {
-                          const startTime = dayjs(`2000-01-01 ${block.startTime}`)
-                          const endTime = dayjs(`2000-01-01 ${block.endTime}`)
-                          const totalMinutes = endTime.diff(startTime, 'minute')
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: {
-                              focus: 0,
-                              admin: totalMinutes,
-                              personal: 0,
-                            },
+                            capacity: calculateBlockCapacity('admin', block.startTime, block.endTime),
                           })
                         }
                       }}
@@ -493,7 +464,7 @@ export function WorkBlocksEditor({
                         <Space>
                           <InputNumber
                             placeholder="Focus mins"
-                            value={block.capacity?.focus}
+                            value={block.capacity ? getAvailableCapacityForTaskType(block.capacity, 'focused') : 0}
                             onChange={(value) => {
                               // Calculate total block duration
                               const startTime = dayjs(`2000-01-01 ${block.startTime}`)
@@ -505,12 +476,7 @@ export function WorkBlocksEditor({
                             const admin = Math.max(0, totalMinutes - focus)
 
                             handleUpdateBlock(block.id, {
-                              capacity: {
-                                ...block.capacity,
-                                focus: focus,
-                                admin: admin,
-                                personal: 0,
-                              },
+                              capacity: calculateBlockCapacity('mixed', block.startTime, block.endTime, JSON.stringify({ focus: focus / totalMinutes, admin: admin / totalMinutes })),
                             })
                           }}
                           min={0}
@@ -518,7 +484,7 @@ export function WorkBlocksEditor({
                         />
                         <InputNumber
                           placeholder="Admin mins"
-                          value={block.capacity?.admin}
+                          value={block.capacity ? getAvailableCapacityForTaskType(block.capacity, 'admin') : 0}
                           onChange={(value) => {
                             // Calculate total block duration
                             const startTime = dayjs(`2000-01-01 ${block.startTime}`)
@@ -530,12 +496,7 @@ export function WorkBlocksEditor({
                             const focus = Math.max(0, totalMinutes - admin)
 
                             handleUpdateBlock(block.id, {
-                              capacity: {
-                                ...block.capacity,
-                                focus: focus,
-                                admin: admin,
-                                personal: 0,
-                              },
+                              capacity: calculateBlockCapacity('mixed', block.startTime, block.endTime, JSON.stringify({ focus: focus / totalMinutes, admin: admin / totalMinutes })),
                             })
                           }}
                           min={0}

@@ -247,7 +247,17 @@ export class WorkTrackingService {
 
       // Set final end time and calculate actual duration
       session.endTime = new Date()
-      session.actualMinutes = Math.floor((session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60))
+
+      // Ensure startTime is a Date object
+      const startTime = session.startTime instanceof Date ? session.startTime : new Date(session.startTime)
+      const endTime = session.endTime
+
+      session.actualMinutes = Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60))
+
+      // Ensure we have at least 1 minute if any time has passed
+      if (session.actualMinutes === 0 && endTime.getTime() > startTime.getTime()) {
+        session.actualMinutes = 1
+      }
 
       // Remove from active sessions
       const sessionKey = this.getSessionKey(session)

@@ -59,7 +59,7 @@ export function WeeklyCalendar() {
                 startTime: '10:00',
                 endTime: '14:00',
                 type: 'personal',
-                capacity: { personal: 240 },
+                capacity: { totalMinutes: 240, type: 'personal' },
               },
             ],
             meetings: [],

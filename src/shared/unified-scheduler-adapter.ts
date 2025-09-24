@@ -9,6 +9,7 @@ import { Task, TaskStep } from './types'
 import { SequencedTask } from './sequencing-types'
 import { TaskStatus } from './enums'
 import { DailyWorkPattern } from './work-blocks-types'
+import { calculateBlockCapacity } from './capacity-calculator'
 import { logger } from './logger'
 import { getCurrentTime } from './time-provider'
 
@@ -238,7 +239,7 @@ export class UnifiedSchedulerAdapter {
       workPatternDetails: workPatterns.map(p => ({
         date: p.date,
         blockCount: p.blocks.length,
-        totalCapacity: p.blocks.reduce((sum, b) => sum + (b.capacity?.focus || 0) + (b.capacity?.admin || 0), 0),
+        totalCapacity: p.blocks.reduce((sum, b) => sum + (b.capacity?.totalMinutes || 0), 0),
       })),
     })
 
@@ -479,8 +480,7 @@ export class UnifiedSchedulerAdapter {
     const totalCapacity = workPatterns.reduce((sum, pattern) => {
       const blocks = pattern.blocks || []
       return sum + blocks.reduce((blockSum, block) => {
-        const capacity = block.capacity || {}
-        return blockSum + (capacity.focus || 0) + (capacity.admin || 0) + (capacity.personal || 0)
+        return blockSum + (block.capacity?.totalMinutes || 0)
       }, 0)
     }, 0)
 
@@ -568,56 +568,8 @@ export class UnifiedSchedulerAdapter {
           return block // Already has capacity, keep as is
         }
 
-        // Calculate total minutes in the block
-        const [startHour, startMin] = block.startTime.split(':').map(Number)
-        const [endHour, endMin] = block.endTime.split(':').map(Number)
-        const startMinutes = startHour * 60 + startMin
-        const endMinutes = endHour * 60 + endMin
-        const totalMinutes = endMinutes - startMinutes
-
-        // Calculate capacity based on block type
-        let capacity: { focus?: number; admin?: number; personal?: number }
-
-        switch (block.type) {
-          case 'focused':
-            capacity = {
-              focus: totalMinutes,
-              admin: 0,
-              personal: 0,
-            }
-            break
-          case 'admin':
-            capacity = {
-              focus: 0,
-              admin: totalMinutes,
-              personal: 0,
-            }
-            break
-          case 'personal':
-            capacity = {
-              focus: 0,
-              admin: 0,
-              personal: totalMinutes,
-            }
-            break
-          case 'mixed':
-            // Split 60% focus, 40% admin for mixed blocks
-            capacity = {
-              focus: Math.floor(totalMinutes * 0.6),
-              admin: Math.floor(totalMinutes * 0.4),
-              personal: 0,
-            }
-            break
-          case 'flexible':
-          default:
-            // For flexible blocks, allow both types of work
-            capacity = {
-              focus: Math.floor(totalMinutes * 0.7),
-              admin: Math.floor(totalMinutes * 0.3),
-              personal: 0,
-            }
-            break
-        }
+        // Use the unified capacity calculator
+        const capacity = calculateBlockCapacity(block.type, block.startTime, block.endTime)
 
         return {
           ...block,

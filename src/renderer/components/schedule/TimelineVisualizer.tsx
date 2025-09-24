@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
 import { Card } from '@arco-design/web-react'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
+import { getAvailableCapacityForTaskType } from '@shared/capacity-calculator'
 import dayjs from 'dayjs'
 
 interface TimelineVisualizerProps {
@@ -344,8 +345,8 @@ export function TimelineVisualizer({
           </div>
           {isBlock && (item as WorkBlock).capacity && (
             <div style={{ fontSize: 10, marginTop: 4, opacity: 0.9 }}>
-              Focus: {(item as WorkBlock).capacity?.focus || 0}m,
-              Admin: {(item as WorkBlock).capacity?.admin || 0}m
+              Focus: {(item as WorkBlock).capacity ? getAvailableCapacityForTaskType((item as WorkBlock).capacity!, 'focused') : 0}m,
+              Admin: {(item as WorkBlock).capacity ? getAvailableCapacityForTaskType((item as WorkBlock).capacity!, 'admin') : 0}m
             </div>
           )}
         </div>

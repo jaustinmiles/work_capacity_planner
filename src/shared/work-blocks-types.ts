@@ -8,9 +8,9 @@ export interface WorkBlock {
   endTime: string // "12:00"
   type: 'focused' | 'admin' | 'mixed' | 'personal' | 'flexible' | 'universal'
   capacity?: {
-    focus?: number
-    admin?: number
-    personal?: number
+    totalMinutes: number
+    type: string
+    splitRatio?: { focus: number; admin: number }
   }
 }
 
@@ -109,9 +109,21 @@ export function getTotalCapacity(blocks: WorkBlock[]): { focus: number; admin: n
     const durationMinutes = calculateDuration(block.startTime, block.endTime)
 
     if (block.capacity) {
-      acc.focus += block.capacity.focus || 0
-      acc.admin += block.capacity.admin || 0
-      acc.personal += block.capacity.personal || 0
+      // New capacity format
+      if (block.capacity.type === 'focused') {
+        acc.focus += block.capacity.totalMinutes
+      } else if (block.capacity.type === 'admin') {
+        acc.admin += block.capacity.totalMinutes
+      } else if (block.capacity.type === 'personal') {
+        acc.personal += block.capacity.totalMinutes
+      } else if (block.capacity.type === 'mixed' && block.capacity.splitRatio) {
+        acc.focus += Math.floor(block.capacity.totalMinutes * block.capacity.splitRatio.focus)
+        acc.admin += Math.floor(block.capacity.totalMinutes * block.capacity.splitRatio.admin)
+      } else if (block.capacity.type === 'flexible') {
+        // Flexible blocks can be used for any type
+        acc.focus += block.capacity.totalMinutes
+        acc.admin += block.capacity.totalMinutes
+      }
     } else if (block.type === 'focused') {
       acc.focus += durationMinutes
     } else if (block.type === 'admin') {

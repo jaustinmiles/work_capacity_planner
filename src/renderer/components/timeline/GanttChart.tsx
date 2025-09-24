@@ -1936,10 +1936,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             priorityBreakdown: item.priorityBreakdown,
           })),
           warnings: debugInfo.warnings,
-          unusedFocusCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
-            sum + (block.focusTotal - block.focusUsed), 0) || 0,
-          unusedAdminCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
-            sum + (block.adminTotal - block.adminUsed), 0) || 0,
+          unusedCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
+            sum + (block.totalCapacity - block.usedCapacity), 0) || 0,
           blockUtilization: debugInfo.blockUtilization?.map(block => ({
             date: block.date,
             blockId: block.blockId,
@@ -1947,16 +1945,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             blockEnd: block.endTime,
             startTime: block.startTime,
             endTime: block.endTime,
-            type: 'mixed',
-            capacity: block.focusTotal + block.adminTotal,
-            used: block.focusUsed + block.adminUsed,
+            type: block.blockType,
+            capacity: block.totalCapacity,
+            used: block.usedCapacity,
             utilizationPercent: block.utilization,
-            focusUsed: block.focusUsed,
-            focusTotal: block.focusTotal,
-            adminUsed: block.adminUsed,
-            adminTotal: block.adminTotal,
-            personalUsed: block.personalUsed,
-            personalTotal: block.personalTotal,
           })) || [],
         }} />
       )}
