@@ -224,9 +224,24 @@ function replyToComment(prNumber: string, commentId: string, replyText: string) 
   console.log(`\n${colors.cyan}Replying to comment ${commentId} on PR #${prNumber}...${colors.reset}\n`)
 
   try {
-    // Get the comment details first
-    const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/comments/${commentId}`)
-    const comment = JSON.parse(commentJson)
+    let comment: any
+    let isReviewComment = false
+
+    // Try PR comment endpoint first
+    try {
+      const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/comments/${commentId}`)
+      comment = JSON.parse(commentJson)
+    } catch (error: any) {
+      // If PR comment fails, try review comment endpoint
+      try {
+        const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/${prNumber}/reviews/comments/${commentId}`)
+        comment = JSON.parse(commentJson)
+        isReviewComment = true
+      } catch (reviewError: any) {
+        console.error(`${colors.red}Could not find comment ${commentId} as either PR comment or review comment${colors.reset}`)
+        throw reviewError
+      }
+    }
 
     // Create a reply to this specific comment
     const result = exec(
@@ -243,7 +258,7 @@ function replyToComment(prNumber: string, commentId: string, replyText: string) 
     console.log(`${colors.green}✅ Reply posted successfully!${colors.reset}`)
     const replyData = JSON.parse(result)
     console.log(`\n${colors.bright}Reply URL:${colors.reset} ${replyData.html_url}`)
-    console.log(`${colors.bright}Reply posted as reply to comment ${commentId}${colors.reset}`)
+    console.log(`${colors.bright}Reply posted as reply to ${isReviewComment ? 'review' : 'PR'} comment ${commentId}${colors.reset}`)
 
   } catch (error: any) {
     console.error(`${colors.red}Failed to post reply:${colors.reset}`, error.message)
