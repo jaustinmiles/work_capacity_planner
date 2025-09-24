@@ -24,8 +24,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             endTime: '17:00',
             type: 'flexible',
             capacity: {
-              focusMinutes: 480,
-              adminMinutes: 480,
+              focus: 480,
+              admin: 480,
             },
           } as WorkBlock,
         ],
@@ -39,7 +39,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focus: 0, admin: 0 },
       }
 
       const task: UnifiedScheduleItem = {
@@ -109,8 +109,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             endTime: '17:00',
             type: 'flexible',
             capacity: {
-              focusMinutes: 480,
-              adminMinutes: 480,
+              focus: 480,
+              admin: 480,
             },
           } as WorkBlock,
         ],
@@ -140,7 +140,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focus: 0, admin: 0 },
       }
 
       // Create three 30-minute tasks
@@ -237,8 +237,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             endTime: '12:00',
             type: 'flexible',
             capacity: {
-              focusMinutes: 180,
-              adminMinutes: 180,
+              focus: 180,
+              admin: 180,
             },
           } as WorkBlock,
         ],
@@ -260,7 +260,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focus: 0, admin: 0 },
       }
 
       // Task is 45 minutes, only has 30-minute gaps
@@ -348,8 +348,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             endTime: '17:00',
             type: 'flexible',
             capacity: {
-              focusMinutes: 480,
-              adminMinutes: 480,
+              focus: 480,
+              admin: 480,
             },
           } as WorkBlock,
         ],
@@ -363,7 +363,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focus: 0, admin: 0 },
       }
 
       const task: UnifiedScheduleItem = {
@@ -422,8 +422,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             endTime: '17:00',
             type: 'flexible',
             capacity: {
-              focusMinutes: 480,
-              adminMinutes: 480,
+              focus: 480,
+              admin: 480,
             },
           } as WorkBlock,
         ],
@@ -437,7 +437,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focus: 0, admin: 0 },
       }
 
       const tasks: UnifiedScheduleItem[] = [

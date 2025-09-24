@@ -177,7 +177,7 @@ export class ScheduleFormatter {
         type: block.type as string,
         startTime: block.startTime,
         endTime: block.endTime,
-        capacity: (block as any).capacity || block.capacity?.focusMinutes || 0,
+        capacity: (block as any).capacity || block.capacity?.focus || 0,
         utilization: (block as any).utilization || 0,
         items: (block as any).items || 0,
       }))

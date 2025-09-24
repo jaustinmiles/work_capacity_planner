@@ -73,7 +73,8 @@
       "Bash(npx playwright test:*)",
       "Read(//Users/austinmiles/Downloads/**)",
       "Bash(/dev/null)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Read(//Users/austinmiles/Library/**)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

@@ -8,9 +8,9 @@ export interface WorkBlock {
   endTime: string // "12:00"
   type: 'focused' | 'admin' | 'mixed' | 'personal' | 'flexible' | 'universal'
   capacity?: {
-    focusMinutes?: number
-    adminMinutes?: number
-    personalMinutes?: number
+    focus?: number
+    admin?: number
+    personal?: number
   }
 }
 
@@ -18,9 +18,9 @@ export interface DailyWorkPattern {
   date: string // "2025-08-07"
   blocks: WorkBlock[]
   accumulated: {
-    focusMinutes: number
-    adminMinutes: number
-    personalMinutes?: number
+    focus: number
+    admin: number
+    personal?: number
   }
   meetings: Meeting[]
 }
@@ -104,44 +104,44 @@ export const DEFAULT_WORK_TEMPLATES: WorkTemplate[] = [
 ]
 
 // Helper functions
-export function getTotalCapacity(blocks: WorkBlock[]): { focusMinutes: number; adminMinutes: number; personalMinutes: number } {
+export function getTotalCapacity(blocks: WorkBlock[]): { focus: number; admin: number; personal: number } {
   return blocks.reduce((acc, block) => {
     const durationMinutes = calculateDuration(block.startTime, block.endTime)
 
     if (block.capacity) {
-      acc.focusMinutes += block.capacity.focusMinutes || 0
-      acc.adminMinutes += block.capacity.adminMinutes || 0
-      acc.personalMinutes += block.capacity.personalMinutes || 0
+      acc.focus += block.capacity.focus || 0
+      acc.admin += block.capacity.admin || 0
+      acc.personal += block.capacity.personal || 0
     } else if (block.type === 'focused') {
-      acc.focusMinutes += durationMinutes
+      acc.focus += durationMinutes
     } else if (block.type === 'admin') {
-      acc.adminMinutes += durationMinutes
+      acc.admin += durationMinutes
     } else if (block.type === 'personal') {
-      acc.personalMinutes += durationMinutes
+      acc.personal += durationMinutes
     } else if (block.type === 'mixed') {
-      acc.focusMinutes += durationMinutes / 2
-      acc.adminMinutes += durationMinutes / 2
+      acc.focus += durationMinutes / 2
+      acc.admin += durationMinutes / 2
     } else if (block.type === 'flexible' || block.type === 'universal') {
       // flexible and universal blocks can be used for any task type
       // Full duration is available for EITHER focus OR admin work
       // Set both to full duration to indicate either can use the full time
-      acc.focusMinutes += durationMinutes
-      acc.adminMinutes += durationMinutes
+      acc.focus += durationMinutes
+      acc.admin += durationMinutes
     }
 
     return acc
-  }, { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 })
+  }, { focus: 0, admin: 0, personal: 0 })
 }
 
 export function getRemainingCapacity(
   blocks: WorkBlock[],
-  accumulated: { focusMinutes: number; adminMinutes: number; personalMinutes?: number },
-): { focusMinutes: number; adminMinutes: number; personalMinutes: number } {
+  accumulated: { focus: number; admin: number; personal?: number },
+): { focus: number; admin: number; personal: number } {
   const total = getTotalCapacity(blocks)
   return {
-    focusMinutes: Math.max(0, total.focusMinutes - accumulated.focusMinutes),
-    adminMinutes: Math.max(0, total.adminMinutes - accumulated.adminMinutes),
-    personalMinutes: Math.max(0, total.personalMinutes - (accumulated.personalMinutes || 0)),
+    focus: Math.max(0, total.focus - accumulated.focus),
+    admin: Math.max(0, total.admin - accumulated.admin),
+    personal: Math.max(0, total.personal - (accumulated.personal || 0)),
   }
 }
 

@@ -558,7 +558,7 @@ Make questions specific to their apparent work patterns. Prioritize questions th
       type: TaskType | TaskType.Mixed | 'personal'
       capacity?: {
         focusMinutes?: number
-        adminMinutes?: number
+        admin?: number
         personalMinutes?: number
       }
     }>
@@ -600,7 +600,7 @@ Return as JSON array with one object per day:
         "type": "mixed",
         "capacity": {
           "focusMinutes": 240,
-          "adminMinutes": 180
+          "admin": 180
         }
       }
     ],
@@ -672,7 +672,7 @@ Important:
       type: TaskType | TaskType.Mixed
       capacity?: {
         focusMinutes: number
-        adminMinutes: number
+        admin: number
       }
     }>
     meetings: Array<{
@@ -723,7 +723,7 @@ Return as JSON:
       "type": "mixed",
       "capacity": {
         "focusMinutes": 120,
-        "adminMinutes": 60
+        "admin": 60
       }
     }
   ],

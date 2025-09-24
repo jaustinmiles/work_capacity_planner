@@ -33,9 +33,9 @@ describe('UnifiedScheduler - Core Functionality', () => {
       },
     ],
     accumulated: {
-      focusMinutes: 0,
-      adminMinutes: 0,
-      personalMinutes: 0,
+      focus: 0,
+      admin: 0,
+      personal: 0,
     },
     meetings: [],
   }

@@ -47,7 +47,7 @@ export function WeeklyCalendar() {
             date: dateStr,
             blocks: pattern.blocks,
             meetings: pattern.meetings,
-            accumulated: { focusMinutes: 0, adminMinutes: 0 },
+            accumulated: { focus: 0, admin: 0 },
           })
         } else if (dayOfWeek === 0 || dayOfWeek === 6) {
           // Weekend with no pattern - show personal time
@@ -59,11 +59,11 @@ export function WeeklyCalendar() {
                 startTime: '10:00',
                 endTime: '14:00',
                 type: 'personal',
-                capacity: { personalMinutes: 240 },
+                capacity: { personal: 240 },
               },
             ],
             meetings: [],
-            accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
+            accumulated: { focus: 0, admin: 0, personal: 0 },
           })
         } else {
           // No pattern - NO DEFAULT BLOCKS!
@@ -72,7 +72,7 @@ export function WeeklyCalendar() {
             date: dateStr,
             blocks: [],
             meetings: [],
-            accumulated: { focusMinutes: 0, adminMinutes: 0 },
+            accumulated: { focus: 0, admin: 0 },
           })
         }
       }
@@ -206,7 +206,7 @@ export function WeeklyCalendar() {
         return sum + duration
       }, 0)
 
-    const adminMinutes = daySchedule
+    const admin = daySchedule
       .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === 'admin')
       .reduce((sum, item) => {
         const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
@@ -241,9 +241,9 @@ export function WeeklyCalendar() {
                 {Math.floor(focusedMinutes / 60)}h {focusedMinutes % 60 > 0 ? `${focusedMinutes % 60}m` : ''}
               </Tag>
             )}
-            {adminMinutes > 0 && (
+            {admin > 0 && (
               <Tag size="small" color="green" style={{ margin: 0 }}>
-                {Math.floor(adminMinutes / 60)}h {adminMinutes % 60 > 0 ? `${adminMinutes % 60}m` : ''}
+                {Math.floor(admin / 60)}h {admin % 60 > 0 ? `${admin % 60}m` : ''}
               </Tag>
             )}
           </Space>

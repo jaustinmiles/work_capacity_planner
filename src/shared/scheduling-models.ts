@@ -200,13 +200,13 @@ export interface WeeklySchedule {
   workDays: WorkDayConfiguration[]
   scheduledItems: ScheduledWorkItem[]
   totalCapacity: {
-    focusedMinutes: number
-    adminMinutes: number
+    focus: number
+    admin: number
   }
   utilization: {
-    focusedMinutesUsed: number
-    adminMinutesUsed: number
-    focusedPercentage: number
+    focusUsed: number
+    adminUsed: number
+    focusPercentage: number
     adminPercentage: number
   }
   asyncWaitPeriods: AsyncWaitPeriod[]

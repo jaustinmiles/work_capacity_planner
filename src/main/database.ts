@@ -1213,18 +1213,18 @@ export class DatabaseService {
 
             // Parse capacity if it exists and convert to new schema
             let totalCapacity = 0
-            let splitRatio = null
+            let splitRatio: string | null = null
 
             if (b.capacity) {
               const cap = typeof b.capacity === 'string' ? JSON.parse(b.capacity) : b.capacity
-              totalCapacity = (cap.focusMinutes || 0) + (cap.adminMinutes || 0) + (cap.personalMinutes || 0)
+              totalCapacity = (cap.focus || 0) + (cap.admin || 0) + (cap.personal || 0)
 
               // For mixed blocks, create split ratio
               if (b.type === 'mixed' && totalCapacity > 0) {
                 splitRatio = JSON.stringify({
-                  focus: (cap.focusMinutes || 0) / totalCapacity,
-                  admin: (cap.adminMinutes || 0) / totalCapacity,
-                  personal: (cap.personalMinutes || 0) / totalCapacity
+                  focus: (cap.focus || 0) / totalCapacity,
+                  admin: (cap.admin || 0) / totalCapacity,
+                  personal: (cap.personal || 0) / totalCapacity
                 })
               }
             }

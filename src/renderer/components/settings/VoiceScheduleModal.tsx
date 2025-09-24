@@ -218,9 +218,9 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
         blocks: result.blocks.map((block: any) => ({
           ...block,
           capacity: block.capacity ? {
-            focusMinutes: block.capacity.focus || 0,
-            adminMinutes: block.capacity.admin || 0,
-            personalMinutes: block.capacity.personal || 0,
+            focus: block.capacity.focus || 0,
+            admin: block.capacity.admin || 0,
+            personal: block.capacity.personal || 0,
           } : undefined,
         })),
       }))
@@ -450,12 +450,12 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                                 </Tag>
                                 {block.type === 'mixed' && block.capacity && (
                                   <Text type="secondary">
-                                    {block.capacity.focusMinutes}min focus / {block.capacity.adminMinutes}min admin
+                                    {block.capacity.focus}min focus / {block.capacity.admin}min admin
                                   </Text>
                                 )}
                                 {block.type === 'personal' && block.capacity && (
                                   <Text type="secondary">
-                                    {block.capacity.personalMinutes}min personal
+                                    {block.capacity.personal}min personal
                                   </Text>
                                 )}
                               </Space>

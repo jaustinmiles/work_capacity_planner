@@ -50,8 +50,8 @@ interface WorkBlocksEditorProps {
     templateName?: string
   }
   accumulated?: {
-    focusMinutes: number
-    adminMinutes: number
+    focus: number
+    admin: number
   }
   onSave: (__blocks: WorkBlock[], meetings: WorkMeeting[]) => void | Promise<void>
   onClose?: () => void
@@ -60,7 +60,7 @@ interface WorkBlocksEditorProps {
 export function WorkBlocksEditor({
   date,
   pattern,
-  accumulated = { focusMinutes: 0, adminMinutes: 0 },
+  accumulated = { focus: 0, admin: 0 },
   onSave,
   onClose,
 }: WorkBlocksEditorProps) {
@@ -325,26 +325,26 @@ export function WorkBlocksEditor({
           <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Focus Time</Text>
-              <Title heading={5}>{formatMinutes(totalCapacity.focusMinutes)}</Title>
+              <Title heading={5}>{formatMinutes(totalCapacity.focus)}</Title>
             </Space>
           </Col>
           <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Admin Time</Text>
-              <Title heading={5}>{formatMinutes(totalCapacity.adminMinutes)}</Title>
+              <Title heading={5}>{formatMinutes(totalCapacity.admin)}</Title>
             </Space>
           </Col>
           <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Personal Time</Text>
-              <Title heading={5}>{formatMinutes(totalCapacity.personalMinutes)}</Title>
+              <Title heading={5}>{formatMinutes(totalCapacity.personal)}</Title>
             </Space>
           </Col>
           <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Used Today</Text>
               <Title heading={5}>
-                {formatMinutes(accumulated.focusMinutes)} / {formatMinutes(accumulated.adminMinutes)}
+                {formatMinutes(accumulated.focus)} / {formatMinutes(accumulated.admin)}
               </Title>
             </Space>
           </Col>
@@ -352,14 +352,14 @@ export function WorkBlocksEditor({
             <Space direction="vertical">
               <Text type="secondary">Remaining</Text>
               <Space wrap>
-                <Tag color={remainingCapacity.focusMinutes > 0 ? 'green' : 'red'}>
-                  {formatMinutes(remainingCapacity.focusMinutes)} focus
+                <Tag color={remainingCapacity.focus > 0 ? 'green' : 'red'}>
+                  {formatMinutes(remainingCapacity.focus)} focus
                 </Tag>
-                <Tag color={remainingCapacity.adminMinutes > 0 ? 'green' : 'red'}>
-                  {formatMinutes(remainingCapacity.adminMinutes)} admin
+                <Tag color={remainingCapacity.admin > 0 ? 'green' : 'red'}>
+                  {formatMinutes(remainingCapacity.admin)} admin
                 </Tag>
-                <Tag color={remainingCapacity.personalMinutes > 0 ? 'purple' : 'red'}>
-                  {formatMinutes(remainingCapacity.personalMinutes)} personal
+                <Tag color={remainingCapacity.personal > 0 ? 'purple' : 'red'}>
+                  {formatMinutes(remainingCapacity.personal)} personal
                 </Tag>
               </Space>
             </Space>
@@ -422,9 +422,9 @@ export function WorkBlocksEditor({
                           handleUpdateBlock(block.id, {
                             type: value,
                             capacity: {
-                              focusMinutes: halfMinutes,
-                              adminMinutes: halfMinutes,
-                              personalMinutes: 0,
+                              focus: halfMinutes,
+                              admin: halfMinutes,
+                              personal: 0,
                             },
                           })
                         } else if (value === 'flexible') {
@@ -440,9 +440,9 @@ export function WorkBlocksEditor({
                           handleUpdateBlock(block.id, {
                             type: value,
                             capacity: {
-                              focusMinutes: 0,
-                              adminMinutes: 0,
-                              personalMinutes: totalMinutes,
+                              focus: 0,
+                              admin: 0,
+                              personal: totalMinutes,
                             },
                           })
                         } else if (value === TaskType.Focused) {
@@ -452,9 +452,9 @@ export function WorkBlocksEditor({
                           handleUpdateBlock(block.id, {
                             type: value,
                             capacity: {
-                              focusMinutes: totalMinutes,
-                              adminMinutes: 0,
-                              personalMinutes: 0,
+                              focus: totalMinutes,
+                              admin: 0,
+                              personal: 0,
                             },
                           })
                         } else if (value === TaskType.Admin) {
@@ -464,9 +464,9 @@ export function WorkBlocksEditor({
                           handleUpdateBlock(block.id, {
                             type: value,
                             capacity: {
-                              focusMinutes: 0,
-                              adminMinutes: totalMinutes,
-                              personalMinutes: 0,
+                              focus: 0,
+                              admin: totalMinutes,
+                              personal: 0,
                             },
                           })
                         }
@@ -493,7 +493,7 @@ export function WorkBlocksEditor({
                         <Space>
                           <InputNumber
                             placeholder="Focus mins"
-                            value={block.capacity?.focusMinutes}
+                            value={block.capacity?.focus}
                             onChange={(value) => {
                               // Calculate total block duration
                               const startTime = dayjs(`2000-01-01 ${block.startTime}`)
@@ -501,15 +501,15 @@ export function WorkBlocksEditor({
                               const totalMinutes = endTime.diff(startTime, 'minute')
 
                             // Automatically adjust admin time to fill the rest
-                            const focusMinutes = Math.min(value || 0, totalMinutes)
-                            const adminMinutes = Math.max(0, totalMinutes - focusMinutes)
+                            const focus = Math.min(value || 0, totalMinutes)
+                            const admin = Math.max(0, totalMinutes - focus)
 
                             handleUpdateBlock(block.id, {
                               capacity: {
                                 ...block.capacity,
-                                focusMinutes: focusMinutes,
-                                adminMinutes: adminMinutes,
-                                personalMinutes: 0,
+                                focus: focus,
+                                admin: admin,
+                                personal: 0,
                               },
                             })
                           }}
@@ -518,7 +518,7 @@ export function WorkBlocksEditor({
                         />
                         <InputNumber
                           placeholder="Admin mins"
-                          value={block.capacity?.adminMinutes}
+                          value={block.capacity?.admin}
                           onChange={(value) => {
                             // Calculate total block duration
                             const startTime = dayjs(`2000-01-01 ${block.startTime}`)
@@ -526,15 +526,15 @@ export function WorkBlocksEditor({
                             const totalMinutes = endTime.diff(startTime, 'minute')
 
                             // Automatically adjust focus time to fill the rest
-                            const adminMinutes = Math.min(value || 0, totalMinutes)
-                            const focusMinutes = Math.max(0, totalMinutes - adminMinutes)
+                            const admin = Math.min(value || 0, totalMinutes)
+                            const focus = Math.max(0, totalMinutes - admin)
 
                             handleUpdateBlock(block.id, {
                               capacity: {
                                 ...block.capacity,
-                                focusMinutes: focusMinutes,
-                                adminMinutes: adminMinutes,
-                                personalMinutes: 0,
+                                focus: focus,
+                                admin: admin,
+                                personal: 0,
                               },
                             })
                           }}

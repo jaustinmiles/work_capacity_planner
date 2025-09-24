@@ -119,8 +119,8 @@ export function ScheduleGenerator({
             endTime: dayWorkHours.endTime,
             type: 'flexible',
             capacity: {
-              focusMinutes: 240, // 4 hours
-              adminMinutes: 180, // 3 hours
+              focus: 240, // 4 hours
+              admin: 180, // 3 hours
             },
           })
         }
@@ -131,7 +131,7 @@ export function ScheduleGenerator({
           date: dateStr,
           blocks,
           meetings: [],
-          accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
+          accumulated: { focus: 0, admin: 0, personal: 0 },
         })
       }
 
@@ -385,18 +385,18 @@ export function ScheduleGenerator({
           const latestEndStr = dayjs(latestEnd).format('HH:mm')
 
           // Calculate total capacity used
-          let focusMinutes = 0
-          let adminMinutes = 0
-          let personalMinutes = 0
+          let focus = 0
+          let admin = 0
+          let personal = 0
 
           for (const item of items) {
             const task = item.task
             if (task.type === TaskType.Focused) {
-              focusMinutes += task.duration
+              focus += task.duration
             } else if (task.type === TaskType.Personal) {
-              personalMinutes += task.duration
+              personal += task.duration
             } else {
-              adminMinutes += task.duration
+              admin += task.duration
             }
           }
 
@@ -408,13 +408,13 @@ export function ScheduleGenerator({
             id: `block-${dateStr}-work`,
             startTime: earliestStart,
             endTime: latestEndStr,
-            type: personalMinutes > 0 && focusMinutes === 0 && adminMinutes === 0 ? 'personal' : 'flexible',
+            type: personal > 0 && focus === 0 && admin === 0 ? 'personal' : 'flexible',
             capacity: {
               // For optimal schedules, set capacity to total available time
               // For other schedules, set to what was actually used
-              focusMinutes: isOptimalSchedule ? Math.max(focusMinutes, Math.floor(totalMinutes * 0.6)) : focusMinutes,
-              adminMinutes: isOptimalSchedule ? Math.max(adminMinutes, Math.floor(totalMinutes * 0.4)) : adminMinutes,
-              ...(personalMinutes > 0 ? { personalMinutes } : {}),
+              focus: isOptimalSchedule ? Math.max(focus, Math.floor(totalMinutes * 0.6)) : focus,
+              admin: isOptimalSchedule ? Math.max(admin, Math.floor(totalMinutes * 0.4)) : admin,
+              ...(personal > 0 ? { personal } : {}),
             },
           })
         }

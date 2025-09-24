@@ -344,8 +344,8 @@ export function TimelineVisualizer({
           </div>
           {isBlock && (item as WorkBlock).capacity && (
             <div style={{ fontSize: 10, marginTop: 4, opacity: 0.9 }}>
-              Focus: {(item as WorkBlock).capacity?.focusMinutes || 0}m,
-              Admin: {(item as WorkBlock).capacity?.adminMinutes || 0}m
+              Focus: {(item as WorkBlock).capacity?.focus || 0}m,
+              Admin: {(item as WorkBlock).capacity?.admin || 0}m
             </div>
           )}
         </div>

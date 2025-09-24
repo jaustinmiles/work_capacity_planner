@@ -54,9 +54,9 @@ describe('Personal Workflow Step Inheritance', () => {
         type: 'personal',
         blockType: 'personal',
         capacity: {
-          personalMinutes: 240,
-          focusedMinutes: 0,
-          adminMinutes: 0,
+          personal: 240,
+          focus: 0,
+          admin: 0,
         },
       }
 

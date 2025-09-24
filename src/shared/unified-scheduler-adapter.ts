@@ -238,7 +238,7 @@ export class UnifiedSchedulerAdapter {
       workPatternDetails: workPatterns.map(p => ({
         date: p.date,
         blockCount: p.blocks.length,
-        totalCapacity: p.blocks.reduce((sum, b) => sum + (b.capacity?.focusMinutes || 0) + (b.capacity?.adminMinutes || 0), 0),
+        totalCapacity: p.blocks.reduce((sum, b) => sum + (b.capacity?.focus || 0) + (b.capacity?.admin || 0), 0),
       })),
     })
 
@@ -480,7 +480,7 @@ export class UnifiedSchedulerAdapter {
       const blocks = pattern.blocks || []
       return sum + blocks.reduce((blockSum, block) => {
         const capacity = block.capacity || {}
-        return blockSum + (capacity.focusMinutes || 0) + (capacity.adminMinutes || 0) + (capacity.personalMinutes || 0)
+        return blockSum + (capacity.focus || 0) + (capacity.admin || 0) + (capacity.personal || 0)
       }, 0)
     }, 0)
 
@@ -576,45 +576,45 @@ export class UnifiedSchedulerAdapter {
         const totalMinutes = endMinutes - startMinutes
 
         // Calculate capacity based on block type
-        let capacity: { focusMinutes?: number; adminMinutes?: number; personalMinutes?: number }
+        let capacity: { focus?: number; admin?: number; personal?: number }
 
         switch (block.type) {
           case 'focused':
             capacity = {
-              focusMinutes: totalMinutes,
-              adminMinutes: 0,
-              personalMinutes: 0,
+              focus: totalMinutes,
+              admin: 0,
+              personal: 0,
             }
             break
           case 'admin':
             capacity = {
-              focusMinutes: 0,
-              adminMinutes: totalMinutes,
-              personalMinutes: 0,
+              focus: 0,
+              admin: totalMinutes,
+              personal: 0,
             }
             break
           case 'personal':
             capacity = {
-              focusMinutes: 0,
-              adminMinutes: 0,
-              personalMinutes: totalMinutes,
+              focus: 0,
+              admin: 0,
+              personal: totalMinutes,
             }
             break
           case 'mixed':
             // Split 60% focus, 40% admin for mixed blocks
             capacity = {
-              focusMinutes: Math.floor(totalMinutes * 0.6),
-              adminMinutes: Math.floor(totalMinutes * 0.4),
-              personalMinutes: 0,
+              focus: Math.floor(totalMinutes * 0.6),
+              admin: Math.floor(totalMinutes * 0.4),
+              personal: 0,
             }
             break
           case 'flexible':
           default:
             // For flexible blocks, allow both types of work
             capacity = {
-              focusMinutes: Math.floor(totalMinutes * 0.7),
-              adminMinutes: Math.floor(totalMinutes * 0.3),
-              personalMinutes: 0,
+              focus: Math.floor(totalMinutes * 0.7),
+              admin: Math.floor(totalMinutes * 0.3),
+              personal: 0,
             }
             break
         }

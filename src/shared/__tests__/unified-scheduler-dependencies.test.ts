@@ -9,7 +9,7 @@ import { TaskType, TaskStatus, StepStatus } from '../enums'
 // Helper to create a simple work pattern
 const createMockWorkPattern = () => ({
   date: '2024-01-01',
-  accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
+  accumulated: { focus: 0, admin: 0, personal: 0 },
   blocks: [
     {
       id: 'block-1',
@@ -17,9 +17,9 @@ const createMockWorkPattern = () => ({
       endTime: '17:00',
       type: 'focused' as const,
       capacity: {
-        focusMinutes: 480,
-        adminMinutes: 0,
-        personalMinutes: 0,
+        focus: 480,
+        admin: 0,
+        personal: 0,
       },
     },
   ],

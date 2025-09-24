@@ -61,9 +61,9 @@ describe('work-blocks-types', () => {
       ]
 
       const capacity = getTotalCapacity(blocks)
-      expect(capacity.focusMinutes).toBe(240) // 2 + 2 hours
-      expect(capacity.adminMinutes).toBe(0)
-      expect(capacity.personalMinutes).toBe(0)
+      expect(capacity.focus).toBe(240) // 2 + 2 hours
+      expect(capacity.admin).toBe(0)
+      expect(capacity.personal).toBe(0)
     })
 
     it('should calculate capacity for admin blocks', () => {
@@ -73,9 +73,9 @@ describe('work-blocks-types', () => {
       ]
 
       const capacity = getTotalCapacity(blocks)
-      expect(capacity.focusMinutes).toBe(0)
-      expect(capacity.adminMinutes).toBe(150) // 1.5 + 1 hours
-      expect(capacity.personalMinutes).toBe(0)
+      expect(capacity.focus).toBe(0)
+      expect(capacity.admin).toBe(150) // 1.5 + 1 hours
+      expect(capacity.personal).toBe(0)
     })
 
     it('should calculate capacity for mixed blocks', () => {
@@ -84,9 +84,9 @@ describe('work-blocks-types', () => {
       ]
 
       const capacity = getTotalCapacity(blocks)
-      expect(capacity.focusMinutes).toBe(60) // Half of 2 hours
-      expect(capacity.adminMinutes).toBe(60) // Half of 2 hours
-      expect(capacity.personalMinutes).toBe(0)
+      expect(capacity.focus).toBe(60) // Half of 2 hours
+      expect(capacity.admin).toBe(60) // Half of 2 hours
+      expect(capacity.personal).toBe(0)
     })
 
     it('should calculate capacity for personal blocks', () => {
@@ -95,9 +95,9 @@ describe('work-blocks-types', () => {
       ]
 
       const capacity = getTotalCapacity(blocks)
-      expect(capacity.focusMinutes).toBe(0)
-      expect(capacity.adminMinutes).toBe(0)
-      expect(capacity.personalMinutes).toBe(60)
+      expect(capacity.focus).toBe(0)
+      expect(capacity.admin).toBe(0)
+      expect(capacity.personal).toBe(60)
     })
 
     it('should calculate capacity for flexible/universal blocks', () => {
@@ -107,9 +107,9 @@ describe('work-blocks-types', () => {
       ]
 
       const capacity = getTotalCapacity(blocks)
-      expect(capacity.focusMinutes).toBe(240) // Full 4 hours available for focus
-      expect(capacity.adminMinutes).toBe(240) // Full 4 hours available for admin
-      expect(capacity.personalMinutes).toBe(0)
+      expect(capacity.focus).toBe(240) // Full 4 hours available for focus
+      expect(capacity.admin).toBe(240) // Full 4 hours available for admin
+      expect(capacity.personal).toBe(0)
     })
 
     it('should use custom capacity when provided', () => {
@@ -120,24 +120,24 @@ describe('work-blocks-types', () => {
           endTime: '11:00',
           type: 'mixed',
           capacity: {
-            focusMinutes: 90,
-            adminMinutes: 30,
-            personalMinutes: 0,
+            focus: 90,
+            admin: 30,
+            personal: 0,
           },
         },
       ]
 
       const capacity = getTotalCapacity(blocks)
-      expect(capacity.focusMinutes).toBe(90)
-      expect(capacity.adminMinutes).toBe(30)
-      expect(capacity.personalMinutes).toBe(0)
+      expect(capacity.focus).toBe(90)
+      expect(capacity.admin).toBe(30)
+      expect(capacity.personal).toBe(0)
     })
 
     it('should handle empty blocks array', () => {
       const capacity = getTotalCapacity([])
-      expect(capacity.focusMinutes).toBe(0)
-      expect(capacity.adminMinutes).toBe(0)
-      expect(capacity.personalMinutes).toBe(0)
+      expect(capacity.focus).toBe(0)
+      expect(capacity.admin).toBe(0)
+      expect(capacity.personal).toBe(0)
     })
 
     it('should handle blocks spanning midnight', () => {
@@ -148,7 +148,7 @@ describe('work-blocks-types', () => {
       // This would need special handling in real implementation
       const capacity = getTotalCapacity(blocks)
       // For now it calculates negative duration
-      expect(capacity.focusMinutes).toBeLessThan(0)
+      expect(capacity.focus).toBeLessThan(0)
     })
   })
 
@@ -160,59 +160,59 @@ describe('work-blocks-types', () => {
 
     it('should calculate remaining capacity with no accumulation', () => {
       const remaining = getRemainingCapacity(blocks, {
-        focusMinutes: 0,
-        adminMinutes: 0,
-        personalMinutes: 0,
+        focus: 0,
+        admin: 0,
+        personal: 0,
       })
 
-      expect(remaining.focusMinutes).toBe(180) // 3 hours
-      expect(remaining.adminMinutes).toBe(240) // 4 hours
-      expect(remaining.personalMinutes).toBe(0)
+      expect(remaining.focus).toBe(180) // 3 hours
+      expect(remaining.admin).toBe(240) // 4 hours
+      expect(remaining.personal).toBe(0)
     })
 
     it('should calculate remaining capacity with partial accumulation', () => {
       const remaining = getRemainingCapacity(blocks, {
-        focusMinutes: 60,
-        adminMinutes: 120,
-        personalMinutes: 0,
+        focus: 60,
+        admin: 120,
+        personal: 0,
       })
 
-      expect(remaining.focusMinutes).toBe(120)
-      expect(remaining.adminMinutes).toBe(120)
-      expect(remaining.personalMinutes).toBe(0)
+      expect(remaining.focus).toBe(120)
+      expect(remaining.admin).toBe(120)
+      expect(remaining.personal).toBe(0)
     })
 
     it('should return 0 when fully accumulated', () => {
       const remaining = getRemainingCapacity(blocks, {
-        focusMinutes: 180,
-        adminMinutes: 240,
-        personalMinutes: 0,
+        focus: 180,
+        admin: 240,
+        personal: 0,
       })
 
-      expect(remaining.focusMinutes).toBe(0)
-      expect(remaining.adminMinutes).toBe(0)
-      expect(remaining.personalMinutes).toBe(0)
+      expect(remaining.focus).toBe(0)
+      expect(remaining.admin).toBe(0)
+      expect(remaining.personal).toBe(0)
     })
 
     it('should return 0 when over-accumulated', () => {
       const remaining = getRemainingCapacity(blocks, {
-        focusMinutes: 300,
-        adminMinutes: 500,
-        personalMinutes: 100,
+        focus: 300,
+        admin: 500,
+        personal: 100,
       })
 
-      expect(remaining.focusMinutes).toBe(0)
-      expect(remaining.adminMinutes).toBe(0)
-      expect(remaining.personalMinutes).toBe(0)
+      expect(remaining.focus).toBe(0)
+      expect(remaining.admin).toBe(0)
+      expect(remaining.personal).toBe(0)
     })
 
-    it('should handle undefined personalMinutes in accumulated', () => {
+    it('should handle undefined personal in accumulated', () => {
       const remaining = getRemainingCapacity(blocks, {
-        focusMinutes: 0,
-        adminMinutes: 0,
+        focus: 0,
+        admin: 0,
       })
 
-      expect(remaining.personalMinutes).toBe(0)
+      expect(remaining.personal).toBe(0)
     })
   })
 
@@ -375,9 +375,9 @@ describe('work-blocks-types', () => {
         endTime: '11:00',
         type: 'focused',
         capacity: {
-          focusMinutes: 120,
-          adminMinutes: 0,
-          personalMinutes: 0,
+          focus: 120,
+          admin: 0,
+          personal: 0,
         },
       }
 
@@ -390,9 +390,9 @@ describe('work-blocks-types', () => {
         date: '2025-01-15',
         blocks: [],
         accumulated: {
-          focusMinutes: 0,
-          adminMinutes: 0,
-          personalMinutes: 0,
+          focus: 0,
+          admin: 0,
+          personal: 0,
         },
         meetings: [],
       }

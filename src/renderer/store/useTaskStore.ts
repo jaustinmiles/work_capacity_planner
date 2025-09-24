@@ -265,7 +265,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             date: dateStr,
             blocks: pattern.blocks,
             meetings: pattern.meetings,
-            accumulated: { focusMinutes: 0, adminMinutes: 0 },
+            accumulated: { focus: 0, admin: 0 },
           })
         } else {
           // No pattern found - no default blocks
@@ -273,7 +273,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             date: dateStr,
             blocks: [],
             meetings: [],
-            accumulated: { focusMinutes: 0, adminMinutes: 0 },
+            accumulated: { focus: 0, admin: 0 },
           })
         }
       }

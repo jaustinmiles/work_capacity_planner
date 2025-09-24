@@ -144,7 +144,7 @@ describe('Database Validation Tests', () => {
                 type: 'mixed',
                 focusCapacity: 180,
                 adminCapacity: 120,
-                capacity: JSON.stringify({ focusMinutes: 180, adminMinutes: 120 }),
+                capacity: JSON.stringify({ focus: 180, admin: 120 }),
               },
             ],
           },
