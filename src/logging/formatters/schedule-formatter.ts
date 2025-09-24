@@ -184,8 +184,7 @@ export class ScheduleFormatter {
     // Add debug info if provided
     if (debugInfo) {
       // Calculate unused capacity from block utilization
-      const unusedCapacity = debugInfo.blockUtilization?.reduce((sum, block) =>
-        sum + (block.capacity - block.used), 0) || 0
+      const unusedCapacity = this.calculateUnusedCapacity(debugInfo.blockUtilization)
 
       output.debugInfo = {
         unusedCapacity: {
@@ -244,12 +243,19 @@ export class ScheduleFormatter {
   }
 
   /**
+   * Calculate total unused capacity from block utilization data
+   */
+  private static calculateUnusedCapacity(blockUtilization?: Array<{capacity: number, used: number}>): number {
+    return blockUtilization?.reduce((sum, block) =>
+      sum + ((block.capacity || 0) - (block.used || 0)), 0) ?? 0
+  }
+
+  /**
    * Format debug info for logging
    */
   static formatDebugInfo(debugInfo: SchedulingDebugInfo): ScheduleLogOutput {
     // Calculate unused capacity from block utilization
-    const unusedCapacity = debugInfo.blockUtilization?.reduce((sum, block) =>
-        sum + ((block.capacity || 0) - (block.used || 0)), 0) ?? 0
+    const unusedCapacity = this.calculateUnusedCapacity(debugInfo.blockUtilization)
 
     const totalScheduled = debugInfo.totalScheduled ?? 0
     const totalUnscheduled = debugInfo.totalUnscheduled ?? 0
@@ -356,7 +362,17 @@ export class ScheduleFormatter {
         blocks.forEach(block => {
           const utilization = block.utilization !== undefined ? ` (${Math.round(block.utilization)}% used)` : ''
           const prefix = date ? '    •' : '  •'
-          lines.push(`${prefix} ${block.type} ${block.startTime}-${block.endTime}: ${block.items} items${utilization}`)
+
+          // For mixed blocks, show focus/admin breakdown if available
+          let typeDetails = block.type
+          if (block.type === 'mixed' && block.capacity && block.capacity > 0) {
+            // Estimate focus/admin split for mixed blocks (assuming 60/40 split if not specified)
+            const focusMinutes = Math.floor(block.capacity * 0.6)
+            const adminMinutes = Math.floor(block.capacity * 0.4)
+            typeDetails = `mixed (${focusMinutes}m focus, ${adminMinutes}m admin)`
+          }
+
+          lines.push(`${prefix} ${typeDetails} ${block.startTime}-${block.endTime}: ${block.items} items${utilization}`)
         })
       })
     }

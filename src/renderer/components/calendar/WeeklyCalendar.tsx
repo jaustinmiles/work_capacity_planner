@@ -7,6 +7,7 @@ import { useUnifiedScheduler } from '../../hooks/useUnifiedScheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
+import { TaskType } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
@@ -207,7 +208,7 @@ export function WeeklyCalendar() {
       }, 0)
 
     const admin = daySchedule
-      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === 'admin')
+      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === TaskType.Admin)
       .reduce((sum, item) => {
         const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
         return sum + duration

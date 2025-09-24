@@ -13,6 +13,7 @@ import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
 import { logSchedule } from '../../../logging/formatters/schedule-formatter'
+import { calculateBlockCapacity } from '@shared/capacity-calculator'
 
 
 const { Title, Text } = Typography
@@ -118,10 +119,7 @@ export function ScheduleGenerator({
             startTime: dayWorkHours.startTime,
             endTime: dayWorkHours.endTime,
             type: 'flexible',
-            capacity: {
-              focus: 240, // 4 hours
-              admin: 180, // 3 hours
-            },
+            capacity: calculateBlockCapacity('flexible', dayWorkHours.startTime, dayWorkHours.endTime),
           })
         }
         // Removed hardcoded weekend personal blocks - users should configure their own patterns

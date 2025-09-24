@@ -1211,29 +1211,14 @@ export class DatabaseService {
           create: (blocks || []).map((b: any) => {
             const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
 
-            // Parse capacity if it exists and convert to new schema
-            let totalCapacity = 0
-            let splitRatio: string | null = null
-
-            if (b.capacity) {
-              const cap = typeof b.capacity === 'string' ? JSON.parse(b.capacity) : b.capacity
-              totalCapacity = (cap.focus || 0) + (cap.admin || 0) + (cap.personal || 0)
-
-              // For mixed blocks, create split ratio
-              if (b.type === 'mixed' && totalCapacity > 0) {
-                splitRatio = JSON.stringify({
-                  focus: (cap.focus || 0) / totalCapacity,
-                  admin: (cap.admin || 0) / totalCapacity,
-                  personal: (cap.personal || 0) / totalCapacity,
-                })
-              }
-            }
+            // Use our unified capacity calculator - much simpler!
+            const blockCapacity = calculateBlockCapacity(b.type, b.startTime, b.endTime, b.splitRatio)
 
             return {
               id: crypto.randomUUID(),
               ...blockData,
-              totalCapacity,
-              splitRatio,
+              totalCapacity: blockCapacity.totalMinutes,
+              splitRatio: blockCapacity.splitRatio ? JSON.stringify(blockCapacity.splitRatio) : null,
             }
           }),
         },
