@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { getCurrentTime } from '@shared/time-provider'
 import {
   Modal,
   Space,
@@ -49,7 +50,7 @@ interface WorkLoggerDualProps {
 }
 
 export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
-  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'))
+  const [selectedDate, setSelectedDate] = useState(dayjs(getCurrentTime()).format('YYYY-MM-DD'))
   const [sessions, setSessions] = useState<WorkSessionData[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [showAssignModal, setShowAssignModal] = useState(false)
@@ -127,7 +128,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         // For active sessions without endTime, use current time to show actual duration
         const endTime = session.endTime
           ? dayjs(session.endTime)
-          : dayjs() // Use current time for active sessions
+          : dayjs(getCurrentTime()) // Use time provider for active sessions
 
         // Find task and step details
         const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
@@ -553,8 +554,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 icon={<IconRight />}
                 onClick={() => setSelectedDate(dayjs(selectedDate).add(1, 'day').format('YYYY-MM-DD'))}
               />
-              {selectedDate !== dayjs().format('YYYY-MM-DD') && (
-                <Button onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))}>
+              {selectedDate !== dayjs(getCurrentTime()).format('YYYY-MM-DD') && (
+                <Button onClick={() => setSelectedDate(dayjs(getCurrentTime()).format('YYYY-MM-DD'))}>
                   Today
                 </Button>
               )}
