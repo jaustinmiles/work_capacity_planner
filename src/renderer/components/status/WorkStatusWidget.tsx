@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { TaskType } from '@shared/enums'
+import { WorkBlockType } from '@shared/constants'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
 import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconRefresh, IconPause } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -344,14 +346,14 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
     if (block.capacity) {
       return {
-        focusMinutes: getAvailableCapacityForTaskType(block.capacity, 'focused'),
-        adminMinutes: getAvailableCapacityForTaskType(block.capacity, 'admin'),
+        focusMinutes: getAvailableCapacityForTaskType(block.capacity, TaskType.Focused),
+        adminMinutes: getAvailableCapacityForTaskType(block.capacity, TaskType.Admin),
       }
-    } else if (block.type === 'focused') {
+    } else if (block.type === TaskType.Focused) {
       return { focusMinutes: duration, adminMinutes: 0 }
-    } else if (block.type === 'admin') {
+    } else if (block.type === TaskType.Admin) {
       return { focusMinutes: 0, adminMinutes: duration }
-    } else if (block.type === 'mixed') {
+    } else if (block.type === WorkBlockType.MIXED) {
       return { focusMinutes: duration / 2, adminMinutes: duration / 2 }
     } else {
       // flexible and universal blocks - full duration available for either type
