@@ -185,7 +185,7 @@ export class ScheduleFormatter {
     if (debugInfo) {
       // Calculate unused capacity from block utilization
       const unusedCapacity = debugInfo.blockUtilization?.reduce((sum, block) =>
-        sum + (block.totalCapacity - block.usedCapacity), 0) || 0
+        sum + (block.capacity - block.used), 0) || 0
 
       output.debugInfo = {
         unusedCapacity: {
@@ -195,8 +195,8 @@ export class ScheduleFormatter {
           date: block.date,
           blockStart: block.startTime,
           blockEnd: block.endTime,
-          capacity: block.totalCapacity,
-          used: block.usedCapacity,
+          capacity: block.capacity,
+          used: block.used,
           utilizationPercent: block.utilization,
         })) || [],
         criticalPath: [],
@@ -249,7 +249,7 @@ export class ScheduleFormatter {
   static formatDebugInfo(debugInfo: SchedulingDebugInfo): ScheduleLogOutput {
     // Calculate unused capacity from block utilization
     const unusedCapacity = debugInfo.blockUtilization?.reduce((sum, block) =>
-        sum + ((block.totalCapacity || 0) - (block.usedCapacity || 0)), 0) ?? 0
+        sum + ((block.capacity || 0) - (block.used || 0)), 0) ?? 0
 
     const totalScheduled = debugInfo.totalScheduled ?? 0
     const totalUnscheduled = debugInfo.totalUnscheduled ?? 0
@@ -287,8 +287,8 @@ export class ScheduleFormatter {
           date: block.date,
           blockStart: block.startTime,
           blockEnd: block.endTime,
-          capacity: block.totalCapacity,
-          used: block.usedCapacity,
+          capacity: block.capacity,
+          used: block.used,
           utilizationPercent: block.utilization,
         })) || [],
       },

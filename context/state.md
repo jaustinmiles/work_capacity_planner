@@ -1,12 +1,53 @@
 # Current State
 
-## Latest Status (2025-09-21, PR #75 MERGED)
+## Latest Status (2025-09-24, PR #76 IN REVIEW)
 
-### ✅ Current Session: Completed Time Override Scheduler Fix
+### ✅ Current Session: Unified Capacity System and Precise Work Tracking
 
-**Branch**: main (PR #75 merged)
-**Recent Achievement**: Fixed scheduler to use context time, removed personal info from scripts, fixed e2e tests
-**Status**: ✅ ALL TESTS PASSING, PR MERGED
+**Branch**: feature/unified-capacity-system (PR #76 created)
+**Recent Achievement**: Fixed critical scheduling bug, unified capacity system, implemented precise work timing
+**Status**: ✅ ALL TESTS PASSING (1130 passed, 0 failed), PR ready for review
+
+### 🔧 Major Issues Fixed in PR #76
+
+1. **Critical Scheduling Bug** ✅
+   - **Problem**: 36 items couldn't be scheduled despite 297 minutes of available capacity
+   - **Root Cause**: Incompatible capacity formats between old `{focus, admin, personal}` and new systems
+   - **Solution**: Created unified `BlockCapacity` interface with `{totalMinutes, type, splitRatio?}` format
+   - **Impact**: All 36 items now schedule correctly in Birthday session
+
+2. **Imprecise Work Timing** ✅
+   - **Problem**: Work logger rounded times to nearest 15-minute intervals using `roundToQuarter()`
+   - **Solution**: Removed all time rounding for exact minute-level tracking
+   - **Impact**: Work sessions show precise accumulated time
+
+3. **Work Duration Shows 0 Minutes** ✅
+   - **Problem**: Active sessions showed 0m because endTime = startTime
+   - **Solution**: Use current time (`dayjs()`) for active sessions to show real duration
+   - **Impact**: Users see accurate work progress in real-time
+
+4. **Paused Sessions Still Active** ✅
+   - **Problem**: Paused work items still showed as "Currently Working: 3m elapsed"
+   - **Solution**: Filter paused sessions from "Currently Working" display
+   - **Impact**: Clean UI state synchronization
+
+### 🏗️ Capacity System Unification
+
+**Technical Migration:**
+- **Old Format**: `{focus?: number, admin?: number, personal?: number, total?: number, flexible?: number}`
+- **New Format**: `{totalMinutes: number, type: string, splitRatio?: {focus: number, admin: number}}`
+- **Backward Compatibility**: `createBlockCapacity()` handles both formats seamlessly
+
+**Database Schema Updates:**
+- WorkBlock table: `totalCapacity: Int, splitRatio: String?`
+- Removed deprecated: `focusCapacity`, `adminCapacity`
+- All 40 originally failing tests updated to new format
+
+**Files Updated:**
+- `src/shared/capacity-calculator.ts` - Core capacity calculation logic
+- `src/shared/unified-scheduler.ts` - Backward compatibility layer
+- `src/shared/work-blocks-types.ts` - Schema interface updates
+- All test files updated to new capacity format
 
 ### 🔧 Issues Fixed in PR #75
 
@@ -164,7 +205,7 @@ Updated this session:
 - Component files fixed for proper functionality
 
 ---
-*Last Updated: 2025-09-21*
-*Session: PR #75 Time Override Scheduler Fix*
-*Achievement: Fixed context time usage, removed personal info, fixed e2e tests*
-*Status: PR merged, ready for next work*
+*Last Updated: 2025-09-24*
+*Session: PR #76 Unified Capacity System and Precise Work Tracking*
+*Achievement: Fixed critical scheduling bug (36 items), unified capacity system, precise work timing*
+*Status: PR #76 in review, addressing review comments*

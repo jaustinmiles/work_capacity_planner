@@ -113,8 +113,8 @@ export interface SchedulingDebugInfo {
     blockId: string
     startTime: string
     endTime: string
-    totalCapacity: number
-    usedCapacity: number
+    capacity: number
+    used: number
     blockType: string
     utilization: number
   }>

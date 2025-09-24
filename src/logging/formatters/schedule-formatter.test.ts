@@ -117,8 +117,6 @@ describe('ScheduleFormatter', () => {
         capacity: 180,
         used: 120,
         utilizationPercent: 66.67,
-        totalCapacity: 180,
-        usedCapacity: 120,
       },
     ],
     warnings: [],
