@@ -335,21 +335,27 @@ export function TimelineVisualizer({
             {item.startTime} - {item.endTime}
           </div>
           <div>
-            {isBlock ? (
-              `${(item as WorkBlock).type === TaskType.Focused ? '🎯 Focused' :
-                (item as WorkBlock).type === TaskType.Admin ? '📋 Admin' :
-                (item as WorkBlock).type === WorkBlockType.PERSONAL ? '👤 Personal' :
-                (item as WorkBlock).type === WorkBlockType.FLEXIBLE ? '🔀 Flexible' : '🔄 Mixed'} Work`
-            ) : (
-              `${(item as WorkMeeting).name || (item as WorkMeeting).type}`
-            )}
+            {isBlock ? (() => {
+              const block = item as WorkBlock
+              return `${block.type === TaskType.Focused ? '🎯 Focused' :
+                block.type === TaskType.Admin ? '📋 Admin' :
+                block.type === WorkBlockType.PERSONAL ? '👤 Personal' :
+                block.type === WorkBlockType.FLEXIBLE ? '🔀 Flexible' : '🔄 Mixed'} Work`
+            })() : (() => {
+              const meeting = item as WorkMeeting
+              return meeting.name || meeting.type
+            })()}
           </div>
-          {isBlock && (item as WorkBlock).capacity && (
-            <div style={{ fontSize: 10, marginTop: 4, opacity: 0.9 }}>
-              Focus: {(item as WorkBlock).capacity ? getAvailableCapacityForTaskType((item as WorkBlock).capacity!, TaskType.Focused) : 0}m,
-              Admin: {(item as WorkBlock).capacity ? getAvailableCapacityForTaskType((item as WorkBlock).capacity!, TaskType.Admin) : 0}m
-            </div>
-          )}
+          {isBlock && (() => {
+            const block = item as WorkBlock
+            if (!block.capacity) return null
+            return (
+              <div style={{ fontSize: 10, marginTop: 4, opacity: 0.9 }}>
+                Focus: {getAvailableCapacityForTaskType(block.capacity, TaskType.Focused)}m,
+                Admin: {getAvailableCapacityForTaskType(block.capacity, TaskType.Admin)}m
+              </div>
+            )
+          })()}
         </div>
 
         {/* Drag handle for end time */}
