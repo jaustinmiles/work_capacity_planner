@@ -330,7 +330,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         rendererLogger.info('[TaskStore] Active session after initialization', {
           id: currentSession.id,
           name: currentSession.name,
-          isActive: currentSession.isActive
+          isActive: currentSession.isActive,
         })
       } else {
         rendererLogger.warn('[TaskStore] No active session after initialization - this should not happen!')
@@ -1313,7 +1313,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             ...itemDetails,
             scheduledStartTime: itemDetails.scheduledStartTime instanceof Date
               ? itemDetails.scheduledStartTime.toISOString()
-              : itemDetails.scheduledStartTime
+              : itemDetails.scheduledStartTime,
           }
           rendererLogger.info('[TaskStore] Found next scheduled item', loggableDetails)
           return itemDetails

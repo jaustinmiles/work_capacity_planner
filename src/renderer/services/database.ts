@@ -257,8 +257,8 @@ export class RendererDatabaseService {
       sessions: sessions.map(s => ({
         id: s.id,
         name: s.name,
-        isActive: s.isActive
-      }))
+        isActive: s.isActive,
+      })),
     })
     return sessions
   }
@@ -291,7 +291,7 @@ export class RendererDatabaseService {
       logger.ui.info('[Database] Current active session', {
         id: session.id,
         name: session.name,
-        isActive: session.isActive
+        isActive: session.isActive,
       })
     } else {
       logger.ui.warn('[Database] No current session found')
@@ -315,19 +315,19 @@ export class RendererDatabaseService {
           await this.switchSession(lastUsedSessionId)
           logger.ui.info('[Database] Successfully loaded last used session', {
             sessionId: lastUsedSessionId,
-            sessionName: session.name
+            sessionName: session.name,
           })
         } else {
           // Session no longer exists, clear the stored ID
           logger.ui.warn('[Database] Last used session no longer exists in database', {
-            sessionId: lastUsedSessionId
+            sessionId: lastUsedSessionId,
           })
           window.localStorage.removeItem('lastUsedSessionId')
 
           // Log what sessions ARE available
           logger.ui.info('[Database] Available sessions after last used not found', {
             count: sessions.length,
-            sessions: sessions.map(s => ({ id: s.id, name: s.name }))
+            sessions: sessions.map(s => ({ id: s.id, name: s.name })),
           })
         }
       } catch (error) {
@@ -342,7 +342,7 @@ export class RendererDatabaseService {
       if (sessions.length > 0) {
         logger.ui.info('[Database] Sessions available but none marked as last used', {
           count: sessions.length,
-          sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive }))
+          sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })),
         })
       } else {
         logger.ui.warn('[Database] No sessions exist in database')

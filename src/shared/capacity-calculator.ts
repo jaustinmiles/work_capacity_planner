@@ -36,7 +36,7 @@ export function calculateBlockCapacity(
   type: string,
   startTime: string,
   endTime: string,
-  splitRatio?: string | null
+  splitRatio?: string | null,
 ): BlockCapacity {
   const totalMinutes = calculateDuration(startTime, endTime)
 
@@ -46,7 +46,7 @@ export function calculateBlockCapacity(
         focus: totalMinutes,
         admin: 0,
         personal: 0,
-        flexible: false
+        flexible: false,
       }
 
     case WorkBlockType.ADMIN:
@@ -54,7 +54,7 @@ export function calculateBlockCapacity(
         focus: 0,
         admin: totalMinutes,
         personal: 0,
-        flexible: false
+        flexible: false,
       }
 
     case WorkBlockType.MIXED: {
@@ -67,7 +67,7 @@ export function calculateBlockCapacity(
         focus: Math.floor(totalMinutes * (ratio.focus || 0)),
         admin: Math.floor(totalMinutes * (ratio.admin || 0)),
         personal: Math.floor(totalMinutes * (ratio.personal || 0)),
-        flexible: false
+        flexible: false,
       }
     }
 
@@ -79,7 +79,7 @@ export function calculateBlockCapacity(
         // Don't pre-allocate to specific types
         focus: 0,
         admin: 0,
-        personal: 0
+        personal: 0,
       }
 
     case WorkBlockType.PERSONAL:
@@ -87,7 +87,7 @@ export function calculateBlockCapacity(
         focus: 0,
         admin: 0,
         personal: totalMinutes,
-        flexible: false
+        flexible: false,
       }
 
     case WorkBlockType.BLOCKED:
@@ -97,7 +97,7 @@ export function calculateBlockCapacity(
         focus: 0,
         admin: 0,
         personal: 0,
-        flexible: false
+        flexible: false,
       }
 
     default:
@@ -106,7 +106,7 @@ export function calculateBlockCapacity(
         focus: 0,
         admin: 0,
         personal: 0,
-        flexible: false
+        flexible: false,
       }
   }
 }
@@ -118,11 +118,11 @@ export function calculateBlockCapacity(
 export function allocateFlexibleCapacity(
   remainingCapacity: number,
   requestedAmount: number,
-  taskType: 'focus' | 'admin' | 'personal'
+  _taskType: 'focus' | 'admin' | 'personal',
 ): { allocated: number; remaining: number } {
   const allocated = Math.min(remainingCapacity, requestedAmount)
   return {
     allocated,
-    remaining: remainingCapacity - allocated
+    remaining: remainingCapacity - allocated,
   }
 }

@@ -79,7 +79,7 @@ export class DatabaseService {
       mainLogger.info('[DB] Found existing active session', {
         sessionId: session.id,
         name: session.name,
-        createdAt: session.createdAt.toISOString()
+        createdAt: session.createdAt.toISOString(),
       })
     } else {
       mainLogger.warn('[DB] No active session found, checking for existing sessions to reactivate...')
@@ -93,7 +93,7 @@ export class DatabaseService {
         mainLogger.info('[DB] Reactivating existing session', {
           sessionId: existingSession.id,
           name: existingSession.name,
-          wasCreated: existingSession.createdAt.toISOString()
+          wasCreated: existingSession.createdAt.toISOString(),
         })
 
         // Reactivate the most recent session instead of creating a duplicate
@@ -122,7 +122,7 @@ export class DatabaseService {
 
         mainLogger.info('[DB] Created new session', {
           sessionId: session.id,
-          name: session.name
+          name: session.name,
         })
       }
     }
@@ -1224,7 +1224,7 @@ export class DatabaseService {
                 splitRatio = JSON.stringify({
                   focus: (cap.focus || 0) / totalCapacity,
                   admin: (cap.admin || 0) / totalCapacity,
-                  personal: (cap.personal || 0) / totalCapacity
+                  personal: (cap.personal || 0) / totalCapacity,
                 })
               }
             }

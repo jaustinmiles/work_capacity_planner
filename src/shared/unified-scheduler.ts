@@ -1860,9 +1860,19 @@ export class UnifiedScheduler {
     // Use the capacity already calculated by capacity-calculator in getWorkPattern
     const capacity = block.capacity
 
+    logger.scheduler.debug('🔧 [SCHEDULER] Converting block to capacity', {
+      blockId: block.id,
+      blockType: block.type,
+      startTime: block.startTime,
+      endTime: block.endTime,
+      capacity: capacity,
+      date: date.toISOString(),
+    })
+
     // Handle flexible blocks specially - they track total capacity that can be allocated dynamically
     if (block.type === 'flexible') {
-      const totalMinutes = ((capacity?.focus || 0) + (capacity?.admin || 0) + (capacity?.personal || 0)) || ((endTime.getTime() - startTime.getTime()) / 60000)
+      // For flexible blocks, capacity calculator returns { total: X, flexible: true, focus: 0, admin: 0, personal: 0 }
+      const totalMinutes = (capacity as any)?.total || ((endTime.getTime() - startTime.getTime()) / 60000)
       const result: BlockCapacity = {
         blockId: block.id,
         blockType: 'flexible',
@@ -2059,6 +2069,10 @@ export class UnifiedScheduler {
       blockId: block.blockId,
       blockType: block.blockType,
       taskType: item.taskType,
+      itemName: item.name,
+      itemDuration: item.duration,
+      blockStartTime: block.startTime.toISOString(),
+      blockEndTime: block.endTime.toISOString(),
       focusTotal: block.focusTotal,
       focusUsed: block.focusUsed,
       adminTotal: block.adminTotal,
@@ -2068,6 +2082,7 @@ export class UnifiedScheduler {
       calculatedCapacity: availableCapacity,
       effectiveCapacity: effectiveAvailableCapacity,
       hasTimePassed: currentTime && currentTime > block.startTime && currentTime < block.endTime,
+      currentTime: currentTime?.toISOString(),
     })
 
     if (effectiveAvailableCapacity <= 0) {

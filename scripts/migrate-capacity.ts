@@ -23,10 +23,10 @@ async function main() {
       include: {
         WorkPattern: {
           include: {
-            Session: true
-          }
-        }
-      }
+            Session: true,
+          },
+        },
+      },
     })
 
     console.log(`Found ${blocks.length} work blocks to migrate`)
@@ -43,7 +43,7 @@ async function main() {
           const total = (block as any).focusCapacity + (block as any).adminCapacity
           splitRatio = JSON.stringify({
             focus: (block as any).focusCapacity / total,
-            admin: (block as any).adminCapacity / total
+            admin: (block as any).adminCapacity / total,
           })
         } else {
           // Default 70/30 split for mixed blocks
@@ -56,8 +56,8 @@ async function main() {
         where: { id: block.id },
         data: {
           totalCapacity: totalMinutes,
-          splitRatio: splitRatio
-        }
+          splitRatio: splitRatio,
+        },
       })
 
       console.log(`Updated block ${block.id}: ${block.type} - ${totalMinutes} minutes`)
@@ -67,9 +67,9 @@ async function main() {
     const sessionsToKeep = await prisma.session.findMany({
       where: {
         name: {
-          contains: 'Sun Sep 21'
-        }
-      }
+          contains: 'Sun Sep 21',
+        },
+      },
     })
 
     if (sessionsToKeep.length > 0) {
@@ -79,9 +79,9 @@ async function main() {
       await prisma.session.deleteMany({
         where: {
           id: {
-            notIn: sessionsToKeep.map(s => s.id)
-          }
-        }
+            notIn: sessionsToKeep.map(s => s.id),
+          },
+        },
       })
     }
 
