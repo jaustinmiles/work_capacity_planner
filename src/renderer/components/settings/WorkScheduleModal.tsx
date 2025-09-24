@@ -45,9 +45,12 @@ export function WorkScheduleModal({
       ])
 
       setPattern(patternData)
+
+      // Type the accumulated data properly
+      const typedAccumulated = accumulatedData as { focused: number; admin: number; personal: number; total: number }
       setAccumulated({
-        focus: (accumulatedData as any).focus || (accumulatedData as any).focused || 0,
-        admin: (accumulatedData as any).admin || (accumulatedData as any).admin || 0,
+        focus: typedAccumulated.focused || 0,
+        admin: typedAccumulated.admin || 0,
       })
     } catch (error) {
       logger.ui.error('Failed to load work pattern:', error)
