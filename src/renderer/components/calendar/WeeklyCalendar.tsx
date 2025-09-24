@@ -117,7 +117,7 @@ export function WeeklyCalendar() {
       startTime: item.startTime,
       endTime: item.endTime,
       color: item.task.type === 'focused' ? '#165DFF' :
-             item.task.type === 'admin' ? '#00B42A' : '#F77234',
+             item.task.type === TaskType.Admin ? '#00B42A' : '#F77234',
       originalItem: item.task,
       deadline: item.task.deadline,
     }))
@@ -145,7 +145,7 @@ export function WeeklyCalendar() {
     .reduce((sum, task) => sum + task.duration, 0)
 
   const totalAdminMinutes = incompleteTasks
-    .filter(task => task.type === 'admin')
+    .filter(task => task.type === TaskType.Admin)
     .reduce((sum, task) => sum + task.duration, 0)
 
   const focusedHours = Math.floor(totalFocusedMinutes / 60)
