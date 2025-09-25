@@ -115,19 +115,3 @@ export function getTotalCapacityForTaskType(
 
   return 0
 }
-
-/**
- * Allocate flexible capacity to a specific task type
- * Returns the amount allocated (may be less than requested if insufficient capacity)
- */
-export function allocateFlexibleCapacity(
-  remainingCapacity: number,
-  requestedAmount: number,
-  _taskType: TaskType,
-): { allocated: number; remaining: number } {
-  const allocated = Math.min(remainingCapacity, requestedAmount)
-  return {
-    allocated,
-    remaining: remainingCapacity - allocated,
-  }
-}
