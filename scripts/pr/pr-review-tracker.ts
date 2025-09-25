@@ -116,6 +116,7 @@ async function main(): Promise<void> {
   const showAll = args.includes('--all')
   const showReviews = !args.includes('--no-reviews')
   const verbose = args.includes('--verbose')
+  const todoMode = args.includes('--todo')
 
   if (!prNumber) {
     // Try to get PR number from current branch
@@ -129,6 +130,7 @@ async function main(): Promise<void> {
       console.error('  --all             Show all comments including resolved and collapsed')
       console.error('  --no-reviews      Hide review summaries (only show inline comments)')
       console.error('  --verbose         Show full review bodies without truncation')
+      console.error('  --todo            Only show comments without bot replies (unaddressed)')
       process.exit(1)
     }
     const detectedPr = prList[0].number
@@ -138,7 +140,7 @@ async function main(): Promise<void> {
   const pr = prNumber || runCommand('gh pr list --head $(git branch --show-current) --json number --limit 1 | jq -r ".[0].number"')
 
   console.log('═══════════════════════════════════════════════════════════')
-  console.log(`   PR #${pr} - REVIEW FEEDBACK TRACKER`)
+  console.log(`   PR #${pr} - REVIEW FEEDBACK TRACKER${todoMode ? ' (TODO MODE)' : ''}`)
   console.log('═══════════════════════════════════════════════════════════')
   console.log()
 
@@ -235,11 +237,29 @@ async function main(): Promise<void> {
   const commentsResult = runCommand(`gh api repos/${owner.login}/${name}/pulls/${pr}/comments`)
   const rawComments = JSON.parse(commentsResult)
 
+  // In todo mode, filter out comments with bot replies
+  const botUsernames = ['wcp-claude-dev-buddy', 'claude-code[bot]']
+  const commentsWithBotReplies = new Set<number>()
+
+  if (todoMode) {
+    // Find all comment IDs that have bot replies
+    rawComments.forEach((comment: any) => {
+      if (comment.in_reply_to_id && botUsernames.includes(comment.user.login)) {
+        commentsWithBotReplies.add(comment.in_reply_to_id)
+      }
+    })
+  }
+
   // Convert REST API comments to ReviewThread format for compatibility
   const commentMap = new Map<string, any[]>()
 
   // Group comments by file and line
   rawComments.forEach((comment: any) => {
+    // In todo mode, skip comments that have bot replies
+    if (todoMode && commentsWithBotReplies.has(comment.id)) {
+      return
+    }
+
     const key = `${comment.path}:${comment.line || comment.original_line || 0}`
     if (!commentMap.has(key)) {
       commentMap.set(key, [])
@@ -292,8 +312,12 @@ async function main(): Promise<void> {
 
   // Show statistics
   console.log('📊 STATISTICS')
-  console.log(`Total: ${stats.total} | Unresolved: ${stats.unresolved} | Resolved: ${stats.resolved}`)
-  console.log(`Outdated: ${stats.outdated} | Collapsed: ${stats.collapsed}`)
+  if (todoMode) {
+    console.log(`Showing ${filteredThreads.length} comments without bot replies (${stats.total} total)`)
+  } else {
+    console.log(`Total: ${stats.total} | Unresolved: ${stats.unresolved} | Resolved: ${stats.resolved}`)
+    console.log(`Outdated: ${stats.outdated} | Collapsed: ${stats.collapsed}`)
+  }
 
   if (!showAll && stats.resolved > 0) {
     console.log(`\n💡 Hiding ${stats.resolved} resolved comments (use --show-resolved or --all to see them)`)
