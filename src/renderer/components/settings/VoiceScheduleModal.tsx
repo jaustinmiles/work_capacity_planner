@@ -225,8 +225,8 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
             type: block.type as WorkBlockType,
             splitRatio: block.type === 'mixed' && block.capacity.focusMinutes && block.capacity.admin ? {
               focus: block.capacity.focusMinutes / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0)),
-              admin: block.capacity.admin / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0))
-            } : undefined
+              admin: block.capacity.admin / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0)),
+            } : undefined,
           } : undefined,
         })),
       }))

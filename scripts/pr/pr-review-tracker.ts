@@ -233,60 +233,70 @@ async function main(): Promise<void> {
   const repoInfo = runCommand('gh repo view --json owner,name')
   const { owner, name } = JSON.parse(repoInfo)
 
-  // Use REST API to get inline comments (more reliable than GraphQL)
-  const commentsResult = runCommand(`gh api repos/${owner.login}/${name}/pulls/${pr}/comments`)
-  const rawComments = JSON.parse(commentsResult)
-
-  // In todo mode, filter out comments with bot replies
-  const botUsernames = ['wcp-claude-dev-buddy', 'claude-code[bot]']
-  const commentsWithBotReplies = new Set<number>()
-
-  if (todoMode) {
-    // Find all comment IDs that have bot replies
-    rawComments.forEach((comment: any) => {
-      if (comment.in_reply_to_id && botUsernames.includes(comment.user.login)) {
-        commentsWithBotReplies.add(comment.in_reply_to_id)
+  // Use GraphQL API to get conversation threads with resolved status
+  const graphqlQuery = `
+    query {
+      repository(owner: "${owner.login}", name: "${name}") {
+        pullRequest(number: ${pr}) {
+          reviewThreads(first: 100) {
+            nodes {
+              id
+              isResolved
+              isOutdated
+              isCollapsed
+              path
+              line
+              comments(first: 20) {
+                nodes {
+                  id
+                  body
+                  author {
+                    login
+                  }
+                  createdAt
+                }
+              }
+            }
+          }
+        }
       }
+    }
+  `
+
+  const threadsResult = runCommand(`gh api graphql -f query='${graphqlQuery}'`)
+  const threadsData = JSON.parse(threadsResult)
+
+  // Convert GraphQL threads to our ReviewThread format
+  const allThreads: ReviewThread[] = threadsData.data.repository.pullRequest.reviewThreads.nodes.map((thread: any) => ({
+    id: thread.id,
+    isResolved: thread.isResolved,
+    isOutdated: thread.isOutdated,
+    isCollapsed: thread.isCollapsed,
+    path: thread.path || 'Unknown',
+    line: thread.line || 0,
+    comments: thread.comments.nodes.map((comment: any) => ({
+      id: comment.id,
+      body: comment.body,
+      author: { login: comment.author.login },
+      createdAt: comment.createdAt,
+    })),
+  }))
+
+  // In todo mode, filter out threads that have bot replies
+  // Note: GraphQL returns usernames without [bot] suffix, REST API includes it
+  const botUsernames = ['wcp-claude-dev-buddy', 'Claude Code']
+
+  let threads = allThreads
+  if (todoMode) {
+    threads = allThreads.filter(thread => {
+      // Check if any comment in the thread is from a bot
+      const hasBotReply = thread.comments.some(comment =>
+        botUsernames.includes(comment.author.login),
+      )
+      // Only show threads without bot replies
+      return !hasBotReply
     })
   }
-
-  // Convert REST API comments to ReviewThread format for compatibility
-  const commentMap = new Map<string, any[]>()
-
-  // Group comments by file and line
-  rawComments.forEach((comment: any) => {
-    // In todo mode, skip comments that have bot replies
-    if (todoMode && commentsWithBotReplies.has(comment.id)) {
-      return
-    }
-
-    const key = `${comment.path}:${comment.line || comment.original_line || 0}`
-    if (!commentMap.has(key)) {
-      commentMap.set(key, [])
-    }
-    commentMap.get(key)!.push({
-      id: comment.id.toString(),
-      body: comment.body,
-      author: { login: comment.user.login },
-      createdAt: comment.created_at,
-    })
-  })
-
-  // Convert to ReviewThread format
-  const allThreads: ReviewThread[] = Array.from(commentMap.entries()).map(([key, comments]) => {
-    const [path, lineStr] = key.split(':')
-    return {
-      id: `thread-${key}`,
-      isResolved: false, // REST API doesn't provide resolved status, assume unresolved
-      isOutdated: false, // REST API doesn't provide outdated status
-      isCollapsed: false, // REST API doesn't provide collapsed status
-      path,
-      line: parseInt(lineStr),
-      comments,
-    }
-  })
-
-  const threads = allThreads
 
   // Filter threads based on flags
   let filteredThreads = threads
@@ -313,7 +323,8 @@ async function main(): Promise<void> {
   // Show statistics
   console.log('📊 STATISTICS')
   if (todoMode) {
-    console.log(`Showing ${filteredThreads.length} comments without bot replies (${stats.total} total)`)
+    const totalUnresolved = allThreads.filter(t => !t.isResolved).length
+    console.log(`Showing ${filteredThreads.length} unresolved threads without bot replies (${totalUnresolved} total unresolved)`)
   } else {
     console.log(`Total: ${stats.total} | Unresolved: ${stats.unresolved} | Resolved: ${stats.resolved}`)
     console.log(`Outdated: ${stats.outdated} | Collapsed: ${stats.collapsed}`)

@@ -231,7 +231,7 @@ function replyToComment(prNumber: string, commentId: string, replyText: string) 
     try {
       const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/comments/${commentId}`)
       comment = JSON.parse(commentJson)
-    } catch (error: any) {
+    } catch (_error: any) {
       // If PR comment fails, try review comment endpoint
       try {
         const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/${prNumber}/reviews/comments/${commentId}`)
