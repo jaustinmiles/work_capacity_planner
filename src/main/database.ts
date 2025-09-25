@@ -1,7 +1,9 @@
 import { PrismaClient } from '@prisma/client'
 import { Task, TaskStep } from '../shared/types'
 import { TaskType } from '../shared/enums'
+import { WorkBlockType } from '../shared/constants'
 import { getMainLogger } from '../logging/index.main'
+import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
 import * as crypto from 'crypto'
 
 // Create Prisma client instance
@@ -67,32 +69,61 @@ export class DatabaseService {
   }
 
   private async initializeActiveSession(): Promise<string> {
+    mainLogger.info('[DB] Initializing active session...')
+
     // Find the active session or create one if none exists
     let session = await this.client.session.findFirst({
       where: { isActive: true },
     })
 
-    if (!session) {
+    if (session) {
+      mainLogger.info('[DB] Found existing active session', {
+        sessionId: session.id,
+        name: session.name,
+        createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
+      })
+    } else {
+      mainLogger.warn('[DB] No active session found, checking for existing sessions to reactivate...')
+
       // Check again for any existing session to reuse before creating a new one
       const existingSession = await this.client.session.findFirst({
         orderBy: { createdAt: 'desc' },
       })
 
       if (existingSession) {
+        mainLogger.info('[DB] Reactivating existing session', {
+          sessionId: existingSession.id,
+          name: existingSession.name,
+          wasCreated: existingSession.createdAt.toISOString(),
+        })
+
         // Reactivate the most recent session instead of creating a duplicate
         session = await this.client.session.update({
           where: { id: existingSession.id },
           data: { isActive: true },
         })
       } else {
+        mainLogger.warn('[DB] No sessions found in database, creating new session...')
+
+        // Create a new session with a date-based name
+        const today = new Date()
+        const dayName = today.toLocaleDateString('en-US', { weekday: 'short' })
+        const monthDay = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        const sessionName = `${dayName} ${monthDay}`
+
         // Create a default session only if truly none exists
         session = await this.client.session.create({
           data: {
             id: crypto.randomUUID(),
-            name: 'Default Session',
+            name: sessionName,
             description: 'Initial work session',
             isActive: true,
           },
+        })
+
+        mainLogger.info('[DB] Created new session', {
+          sessionId: session.id,
+          name: session.name,
         })
       }
     }
@@ -204,10 +235,53 @@ export class DatabaseService {
     }
 
     try {
-      await this.client.session.delete({
-        where: { id },
+      // Delete all related records first to avoid foreign key constraints
+      // Use transaction to ensure atomicity
+      await this.client.$transaction(async (tx) => {
+        // Delete WorkPatterns and their related WorkBlocks/WorkMeetings (cascade handled by schema)
+        await tx.workPattern.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Delete Tasks and their WorkSessions/TaskSteps (cascade handled by schema)
+        await tx.task.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Delete SequencedTasks
+        await tx.sequencedTask.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Delete other related records
+        await tx.timeEstimateAccuracy.deleteMany({
+          where: { sessionId: id },
+        })
+
+        await tx.productivityPattern.deleteMany({
+          where: { sessionId: id },
+        })
+
+        await tx.jobContext.deleteMany({
+          where: { sessionId: id },
+        })
+
+        await tx.jargonEntry.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Delete SchedulingPreferences if exists
+        await tx.schedulingPreferences.deleteMany({
+          where: { sessionId: id },
+        })
+
+        // Finally delete the session itself
+        await tx.session.delete({
+          where: { id },
+        })
       })
-      mainLogger.info('[DB] Session deleted successfully', { sessionId: id })
+
+      mainLogger.info('[DB] Session and all related data deleted successfully', { sessionId: id })
     } catch (error) {
       mainLogger.error('[DB] Failed to delete session', { sessionId: id, error })
       throw error
@@ -1011,10 +1085,21 @@ export class DatabaseService {
 
     return patterns.map(pattern => ({
       ...pattern,
-      blocks: pattern.WorkBlock.map(b => ({
-        ...b,
-        capacity: b.capacity ? JSON.parse(b.capacity) : null,
-      })),
+      blocks: pattern.WorkBlock.map(b => {
+        // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
+        const capacity = calculateBlockCapacity(
+          b.type as WorkBlockType,
+          b.startTime,
+          b.endTime,
+          b.splitRatio as unknown as SplitRatio | null,
+        )
+
+        return {
+          ...b,
+          capacity,
+          totalCapacity: b.totalCapacity,
+        }
+      }),
       meetings: pattern.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -1071,56 +1156,18 @@ export class DatabaseService {
     return {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => {
-        // Convert database structure to WorkBlock type structure
-        let capacity: { focusMinutes: number; adminMinutes: number } | null = null
-
-        // Try to parse JSON capacity field first
-        if (b.capacity) {
-          try {
-            capacity = JSON.parse(b.capacity)
-          } catch (_e) {
-            // If not JSON, try to use individual fields
-            capacity = null
-          }
-        }
-
-        // If no capacity object, build from individual fields or calculate defaults
-        if (!capacity && (b.focusCapacity !== null || b.adminCapacity !== null)) {
-          capacity = {
-            focusMinutes: b.focusCapacity || 0,
-            adminMinutes: b.adminCapacity || 0,
-          }
-        } else if (!capacity) {
-          // Calculate default capacity based on block type and duration
-          const [startHour, startMin] = b.startTime.split(':').map(Number)
-          const [endHour, endMin] = b.endTime.split(':').map(Number)
-          const totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin)
-
-          // Set capacity based on block type
-          switch (b.type) {
-            case 'focused':
-              capacity = { focusMinutes: totalMinutes, adminMinutes: 0 }
-              break
-            case 'admin':
-              capacity = { focusMinutes: 0, adminMinutes: totalMinutes }
-              break
-            case 'mixed':
-              // Use user-specified capacity values if available, otherwise default to 70/30 split
-              capacity = (b.focusCapacity && b.adminCapacity)
-                ? { focusMinutes: b.focusCapacity, adminMinutes: b.adminCapacity }
-                : { focusMinutes: Math.floor(totalMinutes * 0.7), adminMinutes: Math.floor(totalMinutes * 0.3) }
-              break
-            case 'flexible':
-              capacity = { focusMinutes: Math.floor(totalMinutes * 0.5), adminMinutes: Math.floor(totalMinutes * 0.5) }
-              break
-            default:
-              capacity = { focusMinutes: 0, adminMinutes: 0 }
-          }
-        }
+        // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
+        const capacity = calculateBlockCapacity(
+          b.type as WorkBlockType,
+          b.startTime,
+          b.endTime,
+          b.splitRatio as unknown as SplitRatio | null,
+        )
 
         return {
           ...b,
           capacity,
+          totalCapacity: b.totalCapacity,
         }
       }),
       meetings: pattern.WorkMeeting.map(m => ({
@@ -1173,11 +1220,16 @@ export class DatabaseService {
         sessionId,
         WorkBlock: {
           create: (blocks || []).map((b: any) => {
-            const { patternId: _patternId, id: _id, ...blockData } = b
+            const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
+
+            // Use our unified capacity calculator - much simpler!
+            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null)
+
             return {
               id: crypto.randomUUID(),
               ...blockData,
-              capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+              totalCapacity: blockCapacity.totalMinutes,
+              splitRatio: blockCapacity.splitRatio || null,
             }
           }),
         },
@@ -1268,7 +1320,8 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => ({
         ...b,
-        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
+        totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
         ...m,
@@ -1319,9 +1372,8 @@ export class DatabaseService {
             startTime: b.startTime,
             endTime: b.endTime,
             type: b.type,
-            focusCapacity: b.focusCapacity,
-            adminCapacity: b.adminCapacity,
-            capacity: b.capacity,
+            totalCapacity: b.totalCapacity || 0,
+            splitRatio: b.splitRatio || null,
           })),
         },
         WorkMeeting: {
@@ -1346,7 +1398,8 @@ export class DatabaseService {
       ...template,
       blocks: template.WorkBlock.map(b => ({
         ...b,
-        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
+        totalCapacity: b.totalCapacity,
       })),
       meetings: template.WorkMeeting.map(m => ({
         ...m,
@@ -1427,7 +1480,8 @@ export class DatabaseService {
         startTime: b.startTime,
         endTime: b.endTime,
         type: b.type,
-        capacity: b.capacity ? JSON.parse(b.capacity as string) : null,
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
+        totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
         name: m.name,
@@ -1442,7 +1496,8 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => ({
         ...b,
-        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
+        totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
         ...m,
@@ -1519,7 +1574,8 @@ export class DatabaseService {
       ...t,
       blocks: t.WorkBlock.map(b => ({
         ...b,
-        capacity: b.capacity ? JSON.parse(b.capacity) : null,
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
+        totalCapacity: b.totalCapacity,
       })),
       meetings: t.WorkMeeting.map(m => ({
         ...m,

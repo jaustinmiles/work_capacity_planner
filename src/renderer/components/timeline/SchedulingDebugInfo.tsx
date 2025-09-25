@@ -1,6 +1,8 @@
 import React from 'react'
 import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
+import { getCurrentTime } from '@shared/time-provider'
+import dayjs from 'dayjs'
 
 // Local type definition for debug info
 interface DebugInfo {
@@ -38,8 +40,7 @@ interface DebugInfo {
     }
   }>
   warnings: string[]
-  unusedFocusCapacity: number
-  unusedAdminCapacity: number
+  unusedCapacity: number
   blockUtilization: Array<{
     date: string
     blockId?: string
@@ -51,12 +52,6 @@ interface DebugInfo {
     capacity: number
     used: number
     utilizationPercent: number
-    focusUsed?: number
-    focusTotal?: number
-    adminUsed?: number
-    adminTotal?: number
-    personalUsed?: number
-    personalTotal?: number
     unusedReason?: string
   }>
 }
@@ -215,51 +210,44 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                     render: (_, record) => `${record.startTime || record.blockStart} - ${record.endTime || record.blockEnd}`,
                   },
                   {
-                    title: 'Focus',
+                    title: 'Capacity Used',
                     render: (_, record) => {
-                      const focusUsed = record.focusUsed ?? 0
-                      const focusTotal = record.focusTotal ?? 0
-                      if (focusTotal === 0) return '-'
-                      const isFullyUsed = focusUsed === focusTotal
-                      const color = isFullyUsed ? 'green' : focusUsed > 0 ? 'blue' : 'gray'
+                      const used = record.used ?? 0
+                      const total = record.capacity ?? 0
+                      if (total === 0) return '-'
+
+                      // Check if block is in progress
+                      const currentTime = getCurrentTime()
+                      const now = dayjs(currentTime)
+                      const blockDate = dayjs(record.date)
+                      const blockStart = blockDate.hour(parseInt(record.blockStart.split(':')[0])).minute(parseInt(record.blockStart.split(':')[1]))
+                      const blockEnd = blockDate.hour(parseInt(record.blockEnd.split(':')[0])).minute(parseInt(record.blockEnd.split(':')[1]))
+
+                      let effectiveUsed = used
+                      let effectiveTotal = total
+                      let isInProgress = false
+
+                      // If we're in the middle of the block, calculate based on remaining time
+                      if (now.isAfter(blockStart) && now.isBefore(blockEnd)) {
+                        isInProgress = true
+                        const totalMinutes = blockEnd.diff(blockStart, 'minute')
+                        const remainingMinutes = blockEnd.diff(now, 'minute')
+                        const remainingCapacity = Math.floor((remainingMinutes / totalMinutes) * total)
+
+                        // For in-progress blocks, show as 100% if remaining capacity is fully used
+                        effectiveTotal = remainingCapacity
+                        effectiveUsed = Math.min(used, remainingCapacity)
+                      }
+
+                      const utilizationPercent = effectiveTotal > 0 ? Math.round((effectiveUsed / effectiveTotal) * 100) : 0
+                      const isFullyUsed = effectiveUsed === effectiveTotal
+                      const color = isFullyUsed ? 'green' : effectiveUsed > 0 ? 'blue' : 'gray'
+                      const progressLabel = isInProgress ? '🕐 ' : ''
+
                       return (
                         <Space>
                           <Tag color={color} size="small">
-                            {focusUsed}/{focusTotal}
-                          </Tag>
-                        </Space>
-                      )
-                    },
-                  },
-                  {
-                    title: 'Admin',
-                    render: (_, record) => {
-                      const adminUsed = record.adminUsed ?? 0
-                      const adminTotal = record.adminTotal ?? 0
-                      if (adminTotal === 0) return '-'
-                      const isFullyUsed = adminUsed === adminTotal
-                      const color = isFullyUsed ? 'green' : adminUsed > 0 ? 'blue' : 'gray'
-                      return (
-                        <Space>
-                          <Tag color={color} size="small">
-                            {adminUsed}/{adminTotal}
-                          </Tag>
-                        </Space>
-                      )
-                    },
-                  },
-                  {
-                    title: 'Personal',
-                    render: (_, record) => {
-                      const personalUsed = record.personalUsed ?? 0
-                      const personalTotal = record.personalTotal ?? 0
-                      if (personalTotal === 0) return '-'
-                      const isFullyUsed = personalUsed === personalTotal
-                      const color = isFullyUsed ? 'green' : personalUsed > 0 ? 'purple' : 'gray'
-                      return (
-                        <Space>
-                          <Tag color={color} size="small">
-                            {personalUsed}/{personalTotal}
+                            {progressLabel}{effectiveUsed}/{effectiveTotal} ({utilizationPercent}%)
                           </Tag>
                         </Space>
                       )
@@ -270,8 +258,8 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                     dataIndex: 'unusedReason',
                     render: (val, record) => {
                       // Check if block is actually utilized
-                      const totalUsed = (record.focusUsed || 0) + (record.adminUsed || 0) + (record.personalUsed || 0)
-                      const totalCapacity = (record.focusTotal || 0) + (record.adminTotal || 0) + (record.personalTotal || 0)
+                      const totalUsed = record.used || 0
+                      const totalCapacity = record.capacity || 0
 
                       if (totalUsed === 0 && totalCapacity > 0) {
                         return <Tag color="yellow">Not utilized</Tag>

@@ -1,5 +1,35 @@
 # Cumulative Insights
 
+## PR #75 Learnings - Time Override Scheduler Fix (2025-09-21)
+
+### Scheduling Time Override Success
+- **Achievement**: Fixed scheduler to respect current time override instead of always using "now"
+- **Impact**: Tasks now properly schedule from the provided time context
+- **Method**: Changed allocateToWorkBlocks to use context.currentTime throughout
+- **Result**: Full block capacity now available when overriding time
+
+### Diagnostic Script Privacy Incident
+- **Problem**: Personal user information ("Haleigh", "9/13 session") hardcoded in scripts
+- **Impact**: Privacy violation in git history
+- **Solution**: Deleted user-specific scripts, generalized remaining ones to accept parameters
+- **Pattern**: ALL diagnostic scripts must be parameterized, never hardcode data
+
+### E2E Responsive Test Debugging
+- **Issue**: CircularClock minimum size (300px) exceeded Mobile Small viewport constraint (288px)
+- **Discovery**: Test expected height ≤ 288px (480 * 0.6), but minimum was 300px
+- **Fix**: Reverted minimum from 300px to 200px while keeping improved maximums
+- **Lesson**: Always consider smallest supported viewport when setting minimum sizes
+
+### PR Review Script Effectiveness
+- **Success**: pr-review-tracker.ts clearly showed unresolved comments
+- **Pattern**: Use tracker first, then address each item systematically
+- **Note**: General PR comments work better than trying to reply to review IDs
+
+### Git Push Success Recognition
+- **Issue**: Confused about whether push succeeded when pre-push hook ran
+- **Reality**: If hook completes without error, push succeeded
+- **Lesson**: Trust the process - hook running means push is happening
+
 ## PR #74 Learnings - Complete Scheduler Unification (2025-09-13)
 
 ### 🌟 Massive Architecture Success

@@ -109,15 +109,12 @@ describe('ScheduleFormatter', () => {
       {
         date: '2024-01-01',
         blockId: 'block-1',
-        startTime: '09:00',
-        endTime: '12:00',
-        focusUsed: 120,
-        focusTotal: 180,
-        adminUsed: 0,
-        adminTotal: 0,
-        personalUsed: 0,
-        personalTotal: 0,
-        utilization: 66.67,
+        blockStart: '09:00',
+        blockEnd: '12:00',
+        type: 'focused',
+        capacity: 180,
+        used: 120,
+        utilizationPercent: 66.67,
       },
     ],
     warnings: [],
@@ -293,9 +290,7 @@ describe('ScheduleFormatter', () => {
         ],
         debugInfo: {
           unusedCapacity: {
-            focus: 60, // 180 - 120
-            admin: 0, // 0 - 0
-            total: 60,
+            total: 60, // 180 - 120
           },
         },
       })

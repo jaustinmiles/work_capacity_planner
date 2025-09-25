@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
+import { WorkBlockType } from '@shared/constants'
 import { Modal, Button, Typography, Alert, Space, Card, Tag, Divider, Upload, Input } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconUpload, IconFile, IconCheckCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
+import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
 
@@ -212,15 +214,19 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
         scheduleText.trim(),
         targetDate || dayjs().format('YYYY-MM-DD'),
       )
-      // Convert capacity format if needed for all results
+      // TODO: Remove this conversion once AI service is updated to return new format
+      // For now, convert from old format to new format
       const convertedResults = results.map((result: any) => ({
         ...result,
         blocks: result.blocks.map((block: any) => ({
           ...block,
           capacity: block.capacity ? {
-            focusMinutes: block.capacity.focusMinutes || block.capacity.focused || 0,
-            adminMinutes: block.capacity.adminMinutes || block.capacity.admin || 0,
-            personalMinutes: block.capacity.personalMinutes || 0,
+            totalMinutes: (block.capacity.focusMinutes || 0) + (block.capacity.admin || 0) + (block.capacity.personalMinutes || 0),
+            type: block.type as WorkBlockType,
+            splitRatio: block.type === 'mixed' && block.capacity.focusMinutes && block.capacity.admin ? {
+              focus: block.capacity.focusMinutes / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0)),
+              admin: block.capacity.admin / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0)),
+            } : undefined,
           } : undefined,
         })),
       }))
@@ -450,12 +456,12 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                                 </Tag>
                                 {block.type === 'mixed' && block.capacity && (
                                   <Text type="secondary">
-                                    {block.capacity.focusMinutes}min focus / {block.capacity.adminMinutes}min admin
+                                    {getTotalCapacityForTaskType(block.capacity, TaskType.Focused)}min focus / {getTotalCapacityForTaskType(block.capacity, TaskType.Admin)}min admin
                                   </Text>
                                 )}
                                 {block.type === 'personal' && block.capacity && (
                                   <Text type="secondary">
-                                    {block.capacity.personalMinutes}min personal
+                                    {getTotalCapacityForTaskType(block.capacity, TaskType.Personal)}min personal
                                   </Text>
                                 )}
                               </Space>

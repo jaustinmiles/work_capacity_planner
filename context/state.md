@@ -1,14 +1,74 @@
 # Current State
 
-## Latest Status (2025-09-13, PR #74 Scheduling Issues FIXED)
+## Latest Status (2025-09-24, PR #76 IN REVIEW)
 
-### ✅ Current Session: Fixed Scheduling Timezone and Test Issues
+### ✅ Current Session: Unified Capacity System and Precise Work Tracking
 
-**Branch**: feature/unified-scheduler-complete  
-**Recent Achievement**: Fixed timezone bugs, block utilization calculation, and all failing tests  
-**Status**: ✅ ALL TESTS PASSING (653 passed, 49 skipped)
+**Branch**: feature/unified-capacity-system (PR #76 created)
+**Recent Achievement**: Fixed critical scheduling bug, unified capacity system, implemented precise work timing
+**Status**: ✅ ALL TESTS PASSING (1130 passed, 0 failed), PR ready for review
 
-### 🔧 Issues Fixed This Session (PR #74)
+### 🔧 Major Issues Fixed in PR #76
+
+1. **Critical Scheduling Bug** ✅
+   - **Problem**: 36 items couldn't be scheduled despite 297 minutes of available capacity
+   - **Root Cause**: Incompatible capacity formats between old `{focus, admin, personal}` and new systems
+   - **Solution**: Created unified `BlockCapacity` interface with `{totalMinutes, type, splitRatio?}` format
+   - **Impact**: All 36 items now schedule correctly in Birthday session
+
+2. **Imprecise Work Timing** ✅
+   - **Problem**: Work logger rounded times to nearest 15-minute intervals using `roundToQuarter()`
+   - **Solution**: Removed all time rounding for exact minute-level tracking
+   - **Impact**: Work sessions show precise accumulated time
+
+3. **Work Duration Shows 0 Minutes** ✅
+   - **Problem**: Active sessions showed 0m because endTime = startTime
+   - **Solution**: Use current time (`dayjs()`) for active sessions to show real duration
+   - **Impact**: Users see accurate work progress in real-time
+
+4. **Paused Sessions Still Active** ✅
+   - **Problem**: Paused work items still showed as "Currently Working: 3m elapsed"
+   - **Solution**: Filter paused sessions from "Currently Working" display
+   - **Impact**: Clean UI state synchronization
+
+### 🏗️ Capacity System Unification
+
+**Technical Migration:**
+- **Old Format**: `{focus?: number, admin?: number, personal?: number, total?: number, flexible?: number}`
+- **New Format**: `{totalMinutes: number, type: string, splitRatio?: {focus: number, admin: number}}`
+- **Backward Compatibility**: `createBlockCapacity()` handles both formats seamlessly
+
+**Database Schema Updates:**
+- WorkBlock table: `totalCapacity: Int, splitRatio: String?`
+- Removed deprecated: `focusCapacity`, `adminCapacity`
+- All 40 originally failing tests updated to new format
+
+**Files Updated:**
+- `src/shared/capacity-calculator.ts` - Core capacity calculation logic
+- `src/shared/unified-scheduler.ts` - Backward compatibility layer
+- `src/shared/work-blocks-types.ts` - Schema interface updates
+- All test files updated to new capacity format
+
+### 🔧 Issues Fixed in PR #75
+
+1. **Scheduler Time Override Bug** ✅
+   - **Problem**: Scheduler always used "now" instead of context.currentTime
+   - **Impact**: When overriding time, tasks wouldn't use full block capacity
+   - **Fix**: Changed allocateToWorkBlocks to consistently use context.currentTime
+   - **Result**: Full capacity available when time is overridden
+
+2. **Personal Information in Scripts** ✅
+   - **Problem**: Hardcoded "Haleigh" and "9/13 session" in diagnostic scripts
+   - **Solution**: Deleted 5 user-specific scripts, generalized 3 to accept parameters
+   - **Created**: README.md documenting proper script usage
+   - **Result**: No personal information in codebase
+
+3. **E2E Test Failure** ✅
+   - **Problem**: CircularClock minimum size too large for mobile viewports
+   - **Fix**: Reduced minimum from 300px to 200px
+   - **Result**: All responsive tests passing
+
+### 🔧 Previous Issues Fixed (PR #74)
 
 1. **Timezone Bug in UnifiedScheduler** ✅
    - **Problem**: Tasks scheduling at 2:00 AM instead of 09:00-18:00 work blocks
@@ -61,8 +121,17 @@
 
 ### 🚀 Recent PR Work
 
-#### PR #74: Fixing Scheduling Issues (Current)
-- **Status**: In Progress
+#### PR #75: Time Override Scheduler Fix (Merged)
+- **Status**: MERGED
+- **Issues Fixed**:
+  - Scheduler respecting context time override
+  - Personal information removed from scripts
+  - E2E responsive test failure
+- **Method**: Systematic debugging, parameterized scripts, responsive fixes
+- **Result**: Full functionality restored, privacy protected
+
+#### PR #74: Fixing Scheduling Issues (Merged)
+- **Status**: Merged
 - **Issues Fixed**: 
   - Timezone bug causing 2:00 AM scheduling
   - Impossible utilization percentages (160%)
@@ -106,8 +175,8 @@
 ### 🎯 Next Priorities
 
 1. **Immediate**
-   - Push PR #74 changes
-   - Address any remaining PR review comments
+   - Ready for next task assignment
+   - All current work complete and merged
    
 2. **Short Term**
    - Continue migration of ScheduleGenerator to UnifiedScheduler
@@ -136,7 +205,7 @@ Updated this session:
 - Component files fixed for proper functionality
 
 ---
-*Last Updated: 2025-09-13*
-*Session: PR #74 Fixing Scheduling Issues*
-*Achievement: Fixed timezone bug, block utilization, all tests passing*
-*Status: Ready to push changes and continue scheduler work*
+*Last Updated: 2025-09-24*
+*Session: PR #76 Unified Capacity System and Precise Work Tracking*
+*Achievement: Fixed critical scheduling bug (36 items), unified capacity system, precise work timing*
+*Status: PR #76 in review, addressing review comments*

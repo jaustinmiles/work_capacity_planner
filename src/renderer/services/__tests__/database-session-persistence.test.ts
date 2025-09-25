@@ -164,11 +164,12 @@ describe('Database Session Persistence', () => {
     it('should do nothing if no last used session is stored', async () => {
       // localStorage returns null for missing keys
       localStorageMock.getItem.mockReturnValue(null)
+      mockGetSessions.mockResolvedValue([]) // Mock empty sessions list for logging
 
       await db.loadLastUsedSession()
 
       expect(localStorageMock.getItem).toHaveBeenCalledWith('lastUsedSessionId')
-      expect(mockGetSessions).not.toHaveBeenCalled()
+      expect(mockGetSessions).toHaveBeenCalled() // Now expects getSessions to be called for logging
       expect(mockSwitchSession).not.toHaveBeenCalled()
     })
 

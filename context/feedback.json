@@ -1498,5 +1498,16 @@
     "expected": "Log time should only happen when we pause an active work session not when we start one",
     "timestamp": "2025-09-11T21:30:20.471Z",
     "sessionId": "session-1757626220464-bf51c781"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Show meetings on dual view clock",
+    "description": "meetings should be displayed on the dual view clock alongside logged work sessions. ",
+    "timestamp": "2025-09-23T20:00:18.663Z",
+    "sessionId": "session-1758657618655-5df415fb"
   }
 ]

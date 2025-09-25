@@ -25,7 +25,7 @@ export function WorkScheduleModal({
   onSave,
 }: WorkScheduleModalProps) {
   const [pattern, setPattern] = useState<any>(null)
-  const [accumulated, setAccumulated] = useState({ focusMinutes: 0, adminMinutes: 0 })
+  const [accumulated, setAccumulated] = useState({ focus: 0, admin: 0, personal: 0 })
   const [loading, setLoading] = useState(false)
   const [showVoiceModal, setShowVoiceModal] = useState(false)
 
@@ -45,9 +45,13 @@ export function WorkScheduleModal({
       ])
 
       setPattern(patternData)
+
+      // Type the accumulated data properly
+      const typedAccumulated = accumulatedData as { focused: number; admin: number; personal: number; total: number }
       setAccumulated({
-        focusMinutes: (accumulatedData as any).focusMinutes || (accumulatedData as any).focused || 0,
-        adminMinutes: (accumulatedData as any).adminMinutes || (accumulatedData as any).admin || 0,
+        focus: typedAccumulated.focused || 0,
+        admin: typedAccumulated.admin || 0,
+        personal: typedAccumulated.personal || 0,
       })
     } catch (error) {
       logger.ui.error('Failed to load work pattern:', error)

@@ -116,6 +116,7 @@ async function main(): Promise<void> {
   const showAll = args.includes('--all')
   const showReviews = !args.includes('--no-reviews')
   const verbose = args.includes('--verbose')
+  const todoMode = args.includes('--todo')
 
   if (!prNumber) {
     // Try to get PR number from current branch
@@ -129,6 +130,7 @@ async function main(): Promise<void> {
       console.error('  --all             Show all comments including resolved and collapsed')
       console.error('  --no-reviews      Hide review summaries (only show inline comments)')
       console.error('  --verbose         Show full review bodies without truncation')
+      console.error('  --todo            Only show comments without bot replies (unaddressed)')
       process.exit(1)
     }
     const detectedPr = prList[0].number
@@ -138,7 +140,7 @@ async function main(): Promise<void> {
   const pr = prNumber || runCommand('gh pr list --head $(git branch --show-current) --json number --limit 1 | jq -r ".[0].number"')
 
   console.log('═══════════════════════════════════════════════════════════')
-  console.log(`   PR #${pr} - REVIEW FEEDBACK TRACKER`)
+  console.log(`   PR #${pr} - REVIEW FEEDBACK TRACKER${todoMode ? ' (TODO MODE)' : ''}`)
   console.log('═══════════════════════════════════════════════════════════')
   console.log()
 
@@ -231,11 +233,11 @@ async function main(): Promise<void> {
   const repoInfo = runCommand('gh repo view --json owner,name')
   const { owner, name } = JSON.parse(repoInfo)
 
-  // Use GraphQL to get review threads with resolved status
+  // Use GraphQL API to get conversation threads with resolved status
   const graphqlQuery = `
-    query($owner: String!, $repo: String!, $pr: Int!) {
-      repository(owner: $owner, name: $repo) {
-        pullRequest(number: $pr) {
+    query {
+      repository(owner: "${owner.login}", name: "${name}") {
+        pullRequest(number: ${pr}) {
           reviewThreads(first: 100) {
             nodes {
               id
@@ -244,7 +246,7 @@ async function main(): Promise<void> {
               isCollapsed
               path
               line
-              comments(first: 10) {
+              comments(first: 20) {
                 nodes {
                   id
                   body
@@ -261,15 +263,40 @@ async function main(): Promise<void> {
     }
   `
 
-  const graphqlResult = runCommand(
-    `gh api graphql -f query='${graphqlQuery}' -F owner="${owner.login}" -F repo="${name}" -F pr=${pr}`,
-  )
+  const threadsResult = runCommand(`gh api graphql -f query='${graphqlQuery}'`)
+  const threadsData = JSON.parse(threadsResult)
 
-  const graphqlData = JSON.parse(graphqlResult)
-  const allThreads: ReviewThread[] = graphqlData.data.repository.pullRequest.reviewThreads.nodes
+  // Convert GraphQL threads to our ReviewThread format
+  const allThreads: ReviewThread[] = threadsData.data.repository.pullRequest.reviewThreads.nodes.map((thread: any) => ({
+    id: thread.id,
+    isResolved: thread.isResolved,
+    isOutdated: thread.isOutdated,
+    isCollapsed: thread.isCollapsed,
+    path: thread.path || 'Unknown',
+    line: thread.line || 0,
+    comments: thread.comments.nodes.map((comment: any) => ({
+      id: comment.id,
+      body: comment.body,
+      author: { login: comment.author.login },
+      createdAt: comment.createdAt,
+    })),
+  }))
 
-  // Filter out threads without comments
-  const threads = allThreads.filter(t => t.comments && t.comments.length > 0)
+  // In todo mode, filter out threads that have bot replies
+  // Note: GraphQL returns usernames without [bot] suffix, REST API includes it
+  const botUsernames = ['wcp-claude-dev-buddy', 'Claude Code']
+
+  let threads = allThreads
+  if (todoMode) {
+    threads = allThreads.filter(thread => {
+      // Check if any comment in the thread is from a bot
+      const hasBotReply = thread.comments.some(comment =>
+        botUsernames.includes(comment.author.login),
+      )
+      // Only show threads without bot replies
+      return !hasBotReply
+    })
+  }
 
   // Filter threads based on flags
   let filteredThreads = threads
@@ -295,8 +322,13 @@ async function main(): Promise<void> {
 
   // Show statistics
   console.log('📊 STATISTICS')
-  console.log(`Total: ${stats.total} | Unresolved: ${stats.unresolved} | Resolved: ${stats.resolved}`)
-  console.log(`Outdated: ${stats.outdated} | Collapsed: ${stats.collapsed}`)
+  if (todoMode) {
+    const totalUnresolved = allThreads.filter(t => !t.isResolved).length
+    console.log(`Showing ${filteredThreads.length} unresolved threads without bot replies (${totalUnresolved} total unresolved)`)
+  } else {
+    console.log(`Total: ${stats.total} | Unresolved: ${stats.unresolved} | Resolved: ${stats.resolved}`)
+    console.log(`Outdated: ${stats.outdated} | Collapsed: ${stats.collapsed}`)
+  }
 
   if (!showAll && stats.resolved > 0) {
     console.log(`\n💡 Hiding ${stats.resolved} resolved comments (use --show-resolved or --all to see them)`)

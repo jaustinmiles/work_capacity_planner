@@ -298,8 +298,8 @@ describe('workflow-progress-types', () => {
       const summary: DailyWorkSummary = {
         date: '2025-01-15',
         totalMinutesWorked: 420,
-        focusedMinutes: 240,
-        adminMinutes: 180,
+        focus: 240,
+        admin: 180,
         completedSteps: 5,
         workflowsProgressed: ['workflow-1', 'workflow-2'],
       }

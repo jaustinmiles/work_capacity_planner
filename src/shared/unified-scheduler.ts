@@ -18,6 +18,8 @@
 
 import { Task } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
+import { WorkBlockType } from './constants'
+import { getTotalCapacityForTaskType, SplitRatio } from './capacity-calculator'
 import { TaskType } from './enums'
 import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
 import { WorkSettings } from './work-settings-types'
@@ -112,12 +114,9 @@ export interface SchedulingDebugInfo {
     blockId: string
     startTime: string
     endTime: string
-    focusUsed: number
-    focusTotal: number
-    adminUsed: number
-    adminTotal: number
-    personalUsed: number
-    personalTotal: number
+    capacity: number
+    used: number
+    blockType: WorkBlockType
     utilization: number
   }>
   warnings: string[]
@@ -169,15 +168,12 @@ export interface SchedulingWarning {
 
 interface BlockCapacity {
   blockId: string
-  blockType: 'focused' | 'admin' | 'personal' | 'mixed' | 'flexible' | 'universal'
+  blockType: WorkBlockType
   startTime: Date
   endTime: Date
-  focusMinutesTotal: number
-  focusMinutesUsed: number
-  adminMinutesTotal: number
-  adminMinutesUsed: number
-  personalMinutesTotal: number
-  personalMinutesUsed: number
+  totalMinutes: number
+  usedMinutes: number
+  splitRatio?: { focus: number; admin: number }  // Only for mixed blocks
 }
 
 interface FitResult {
@@ -1228,10 +1224,9 @@ export class UnifiedScheduler {
         logger.scheduler.debug(`🔧 [UnifiedScheduler] Day ${dayIndex} blocks:`, dayBlocks.map(b => ({
           id: b.blockId,
           type: b.blockType,
-          focusTotal: b.focusMinutesTotal,
-          focusUsed: b.focusMinutesUsed,
-          adminTotal: b.adminMinutesTotal,
-          adminUsed: b.adminMinutesUsed,
+          totalMinutes: b.totalMinutes,
+          usedMinutes: b.usedMinutes,
+          availableMinutes: b.totalMinutes - b.usedMinutes,
         })))
       }
 
@@ -1246,8 +1241,8 @@ export class UnifiedScheduler {
         dateStr,
         currentDate: currentDate.toISOString(),
         blockCount: dayBlocks.length,
-        totalFocusMinutes: dayBlocks.reduce((sum, b) => sum + b.focusMinutesTotal, 0),
-        totalAdminMinutes: dayBlocks.reduce((sum, b) => sum + b.adminMinutesTotal, 0),
+        totalMinutes: dayBlocks.reduce((sum, b) => sum + b.totalMinutes, 0),
+        totalUsedMinutes: dayBlocks.reduce((sum, b) => sum + b.usedMinutes, 0),
         isFirstDay: dayIndex === 0,
         hasCurrentTimeConstraint: dayIndex === 0 && !!config.currentTime,
         currentTimeConstraint: config.currentTime?.toISOString(),
@@ -1853,39 +1848,53 @@ export class UnifiedScheduler {
   private createBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
     const startTime = this.parseTimeOnDate(date, block.startTime)
     const endTime = this.parseTimeOnDate(date, block.endTime)
-    const totalMinutes = (endTime.getTime() - startTime.getTime()) / 60000
 
+    // Use the capacity already calculated by capacity-calculator in getWorkPattern
+    const capacity = block.capacity
 
-    // Handle flexible blocks specially - they can accept any task type
-    if (block.type === 'flexible') {
-      const result: BlockCapacity = {
-        blockId: block.id,
-        blockType: 'flexible',
-        startTime,
-        endTime,
-        // Flexible blocks can handle both focus and admin work
-        focusMinutesTotal: block.capacity?.focusMinutes || totalMinutes,
-        focusMinutesUsed: 0,
-        adminMinutesTotal: block.capacity?.adminMinutes || totalMinutes,
-        adminMinutesUsed: 0,
-        personalMinutesTotal: block.capacity?.personalMinutes || 0,
-        personalMinutesUsed: 0,
-      }
-      return result
+    // Handle both old and new capacity formats
+    let totalMinutes = 0
+    let splitRatio: SplitRatio | undefined = undefined
+
+    if (capacity && 'totalMinutes' in capacity) {
+      totalMinutes = capacity.totalMinutes || 0
+      splitRatio = capacity.splitRatio
     }
 
-    // Handle other block types
+    // Fallback: calculate from time difference if still 0
+    if (totalMinutes === 0) {
+      const [startHour, startMin] = block.startTime.split(':').map(Number)
+      const [endHour, endMin] = block.endTime.split(':').map(Number)
+      totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin)
+
+      logger.scheduler.warn('⚠️ [SCHEDULER] Block capacity was 0, calculated from time', {
+        blockId: block.id,
+        blockType: block.type,
+        startTime: block.startTime,
+        endTime: block.endTime,
+        calculatedMinutes: totalMinutes,
+      })
+    }
+
+    logger.scheduler.debug('🔧 [SCHEDULER] Converting block to capacity', {
+      blockId: block.id,
+      blockType: block.type,
+      startTime: block.startTime,
+      endTime: block.endTime,
+      originalCapacity: capacity,
+      totalMinutes,
+      date: date.toISOString(),
+    })
+
+    // Simple unified structure
     return {
       blockId: block.id,
-      blockType: block.type === 'personal' ? 'personal' : block.type,
+      blockType: block.type as WorkBlockType,
       startTime,
       endTime,
-      focusMinutesTotal: block.capacity?.focusMinutes || (block.type === TaskType.Focused ? totalMinutes : 0),
-      focusMinutesUsed: 0,
-      adminMinutesTotal: block.capacity?.adminMinutes || (block.type === TaskType.Admin ? totalMinutes : 0),
-      adminMinutesUsed: 0,
-      personalMinutesTotal: block.capacity?.personalMinutes || (block.type === 'personal' ? totalMinutes : 0),
-      personalMinutesUsed: 0,
+      totalMinutes,
+      usedMinutes: 0,
+      splitRatio,
     }
   }
 
@@ -1910,8 +1919,9 @@ export class UnifiedScheduler {
         type: b.blockType,
         start: b.startTime.toISOString(),
         end: b.endTime.toISOString(),
-        focusAvailable: b.focusMinutesTotal - b.focusMinutesUsed,
-        adminAvailable: b.adminMinutesTotal - b.adminMinutesUsed,
+        totalMinutes: b.totalMinutes,
+        usedMinutes: b.usedMinutes,
+        availableMinutes: b.totalMinutes - b.usedMinutes,
       })),
     })
 
@@ -1951,69 +1961,70 @@ export class UnifiedScheduler {
     currentDate: Date,
     currentTime?: Date,
   ): FitResult {
-    // Check type compatibility
-    const isPersonalTask = item.taskType === TaskType.Personal
-    const isPersonalBlock = block.blockType === 'personal'
-    const isUniversalBlock = block.blockType === 'universal'
+    // Get the task type
+    const taskType = item.taskType === TaskType.Focused ? TaskType.Focused :
+                     item.taskType === TaskType.Admin ? TaskType.Admin : TaskType.Personal
 
     logger.scheduler.debug('🎯 [SCHEDULER] Checking block compatibility', {
       itemId: item.id,
       blockId: block.blockId,
-      isPersonalTask,
-      isPersonalBlock,
-      isUniversalBlock,
       blockType: block.blockType,
-      taskType: item.taskType,
+      taskType: taskType,
+      totalMinutes: block.totalMinutes,
+      usedMinutes: block.usedMinutes,
     })
 
-    // Universal blocks accept any task type
-    if (!isUniversalBlock) {
-      if (isPersonalTask && !isPersonalBlock) {
-        logger.scheduler.debug('🚫 [SCHEDULER] Personal task rejected by non-personal block')
-        return { canFit: false, canPartiallyFit: false }
-      }
+    // Calculate available capacity using the helper function
+    const totalCapacityForTaskType = getTotalCapacityForTaskType(
+      { totalMinutes: block.totalMinutes, type: block.blockType as WorkBlockType, splitRatio: block.splitRatio },
+      taskType,
+    )
 
-      if (!isPersonalTask && isPersonalBlock) {
-        logger.scheduler.debug('🚫 [SCHEDULER] Non-personal task rejected by personal block')
-        return { canFit: false, canPartiallyFit: false }
-      }
+    // If this block type doesn't support this task type, capacity will be 0
+    if (totalCapacityForTaskType === 0) {
+      logger.scheduler.debug('🚫 [SCHEDULER] Block type incompatible with task type')
+      return { canFit: false, canPartiallyFit: false }
     }
 
-    // Calculate available capacity
-    let availableCapacity = 0
-    if (block.blockType === 'universal') {
-      // Universal blocks can accept ANY task type
-      availableCapacity = block.focusMinutesTotal + block.adminMinutesTotal + block.personalMinutesTotal -
-                         (block.focusMinutesUsed + block.adminMinutesUsed + block.personalMinutesUsed)
-    } else if (block.blockType === 'flexible' && item.taskType !== TaskType.Personal) {
-      // Flexible blocks have a shared pool - total capacity minus what's been used
-      // For flexible blocks, BOTH focusMinutesTotal and adminMinutesTotal should be considered
-      // as the total available capacity that can be used for either type of work
-      const totalCapacity = block.focusMinutesTotal + block.adminMinutesTotal
-      const totalUsed = block.focusMinutesUsed + block.adminMinutesUsed
-      availableCapacity = totalCapacity - totalUsed
-    } else if (item.taskType === TaskType.Focused) {
-      availableCapacity = block.focusMinutesTotal - block.focusMinutesUsed
-    } else if (item.taskType === TaskType.Admin) {
-      availableCapacity = block.adminMinutesTotal - block.adminMinutesUsed
-    } else if (item.taskType === TaskType.Personal) {
-      availableCapacity = block.personalMinutesTotal - block.personalMinutesUsed
+    // Calculate available capacity (total for this task type minus what's used)
+    const availableCapacity = totalCapacityForTaskType - block.usedMinutes
+
+    // Account for time already passed in current block
+    let effectiveAvailableCapacity = availableCapacity
+    if (currentTime && currentTime > block.startTime && currentTime < block.endTime) {
+      const minutesPassed = Math.floor((currentTime.getTime() - block.startTime.getTime()) / 60000)
+
+      // Simply reduce available by time already passed
+      effectiveAvailableCapacity = Math.max(0, availableCapacity - minutesPassed)
+
+      logger.scheduler.debug('⏰ [SCHEDULER] Adjusting for past time in current block', {
+        blockId: block.blockId,
+        currentTime: currentTime.toISOString(),
+        blockStart: block.startTime.toISOString(),
+        blockEnd: block.endTime.toISOString(),
+        minutesPassed,
+        originalAvailable: availableCapacity,
+        effectiveAvailable: effectiveAvailableCapacity,
+      })
     }
 
     logger.scheduler.debug('📊 [SCHEDULER] Block capacity calculation', {
       blockId: block.blockId,
       blockType: block.blockType,
-      taskType: item.taskType,
-      focusTotal: block.focusMinutesTotal,
-      focusUsed: block.focusMinutesUsed,
-      adminTotal: block.adminMinutesTotal,
-      adminUsed: block.adminMinutesUsed,
-      personalTotal: block.personalMinutesTotal,
-      personalUsed: block.personalMinutesUsed,
+      taskType: taskType,
+      itemName: item.name,
+      itemDuration: item.duration,
+      blockStartTime: block.startTime.toISOString(),
+      blockEndTime: block.endTime.toISOString(),
+      totalMinutes: block.totalMinutes,
+      usedMinutes: block.usedMinutes,
       calculatedCapacity: availableCapacity,
+      effectiveCapacity: effectiveAvailableCapacity,
+      hasTimePassed: currentTime && currentTime > block.startTime && currentTime < block.endTime,
+      currentTime: currentTime?.toISOString(),
     })
 
-    if (availableCapacity <= 0) {
+    if (effectiveAvailableCapacity <= 0) {
       logger.scheduler.debug('🚫 [SCHEDULER] No capacity available in block')
       return { canFit: false, canPartiallyFit: false }
     }
@@ -2027,7 +2038,7 @@ export class UnifiedScheduler {
 
 
     // Find available time slot within the block
-    const availableMinutes = Math.min(availableCapacity,
+    const availableMinutes = Math.min(effectiveAvailableCapacity,
       this.calculateAvailableTimeInBlock(block, blockScheduled))
 
     // Find when we can start in this block
@@ -2128,27 +2139,17 @@ export class UnifiedScheduler {
   private updateBlockCapacity(block: BlockCapacity | undefined, item: UnifiedScheduleItem): void {
     if (!block) return
 
-    // Update the appropriate capacity based on task type
-    if (block.blockType === 'flexible') {
-      // Flexible blocks track both focus and admin usage separately
-      if (item.taskType === TaskType.Admin) {
-        block.adminMinutesUsed = (block.adminMinutesUsed || 0) + item.duration
-      } else if (item.taskType === TaskType.Focused) {
-        block.focusMinutesUsed = (block.focusMinutesUsed || 0) + item.duration
-      } else if (item.taskType === TaskType.Personal) {
-        block.personalMinutesUsed = (block.personalMinutesUsed || 0) + item.duration
-      }
-    } else {
-      // Type-specific blocks update their corresponding capacity
-      if (item.taskType === TaskType.Admin) {
-        block.adminMinutesUsed = (block.adminMinutesUsed || 0) + item.duration
-      } else if (item.taskType === TaskType.Focused) {
-        block.focusMinutesUsed = (block.focusMinutesUsed || 0) + item.duration
-      } else if (item.taskType === TaskType.Personal) {
-        block.personalMinutesUsed = (block.personalMinutesUsed || 0) + item.duration
-      }
-    }
+    // Simply update used minutes - works for all block types
+    block.usedMinutes = (block.usedMinutes || 0) + item.duration
 
+    logger.scheduler.debug('📝 [SCHEDULER] Updated block capacity', {
+      blockId: block.blockId,
+      blockType: block.blockType,
+      totalMinutes: block.totalMinutes,
+      usedBefore: block.usedMinutes - item.duration,
+      usedAfter: block.usedMinutes,
+      itemDuration: item.duration,
+    })
   }
 
   /**
@@ -2772,12 +2773,9 @@ export class UnifiedScheduler {
     blockId: string
     startTime: string
     endTime: string
-    focusUsed: number
-    focusTotal: number
-    adminUsed: number
-    adminTotal: number
-    personalUsed: number
-    personalTotal: number
+    capacity: number
+    used: number
+    blockType: WorkBlockType
     utilization: number
   }> {
     const utilization: Array<any> = []
@@ -2809,53 +2807,23 @@ export class UnifiedScheduler {
           return item.startTime >= blockStart && item.endTime <= blockEnd
         })
 
-        const focusMinutesUsed = itemsInBlock
-          .filter(item => item.taskType === TaskType.Focused)
-          .reduce((sum, item) => sum + item.duration, 0)
+        // Calculate total used capacity (all task types)
+        const usedCapacity = itemsInBlock.reduce((sum, item) => sum + item.duration, 0)
 
-        const adminMinutesUsed = itemsInBlock
-          .filter(item => item.taskType === TaskType.Admin)
-          .reduce((sum, item) => sum + item.duration, 0)
+        // Get total capacity from the block
+        const totalCapacity = block.capacity?.totalMinutes || totalMinutes
 
-        const totalUsed = focusMinutesUsed + adminMinutesUsed
-        const utilizationPercent = totalMinutes > 0 ? (totalUsed / totalMinutes) * 100 : 0
-
-        // Calculate capacity from block
-        // For flexible blocks, the total capacity is the block duration
-        // For typed blocks, use the specified capacity or block duration
-        let focusTotal = 0
-        let adminTotal = 0
-        let personalTotal = 0
-
-        if (block.type === 'flexible') {
-          // Flexible blocks can handle both focus and admin work
-          // Use the actual capacity values from the block
-          focusTotal = block.capacity?.focusMinutes || totalMinutes
-          adminTotal = block.capacity?.adminMinutes || totalMinutes
-        } else if (block.type === 'focused') {
-          focusTotal = block.capacity?.focusMinutes || totalMinutes
-        } else if (block.type === 'admin') {
-          adminTotal = block.capacity?.adminMinutes || totalMinutes
-        } else if (block.type === 'personal') {
-          personalTotal = block.capacity?.personalMinutes || totalMinutes
-        } else if (block.type === 'mixed') {
-          // Mixed blocks should have explicit capacity
-          focusTotal = block.capacity?.focusMinutes || 0
-          adminTotal = block.capacity?.adminMinutes || 0
-          personalTotal = block.capacity?.personalMinutes || 0
-        }
+        // Calculate utilization percentage
+        const utilizationPercent = totalCapacity > 0 ? (usedCapacity / totalCapacity) * 100 : 0
 
         utilization.push({
           date: pattern.date,
           blockId: block.id,
           startTime: block.startTime,
           endTime: block.endTime,
-          focusUsed: focusMinutesUsed,
-          focusTotal: focusTotal,
-          adminUsed: adminMinutesUsed,
-          adminTotal: adminTotal,
-          personalUsed: 0,  // Not tracking personal time yet
-          personalTotal: personalTotal,
+          capacity: totalCapacity,
+          used: usedCapacity,
+          blockType: block.type,
           utilization: Math.round(utilizationPercent),
         })
       })

@@ -265,7 +265,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             date: dateStr,
             blocks: pattern.blocks,
             meetings: pattern.meetings,
-            accumulated: { focusMinutes: 0, adminMinutes: 0 },
+            accumulated: { focus: 0, admin: 0, personal: 0 },
           })
         } else {
           // No pattern found - no default blocks
@@ -273,7 +273,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             date: dateStr,
             blocks: [],
             meetings: [],
-            accumulated: { focusMinutes: 0, adminMinutes: 0 },
+            accumulated: { focus: 0, admin: 0, personal: 0 },
           })
         }
       }
@@ -323,9 +323,6 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Load last used session first to prevent default session flash
       rendererLogger.info('[TaskStore] Loading last used session...')
       await getDatabase().loadLastUsedSession()
-
-      rendererLogger.info('[TaskStore] Initializing default data...')
-      await getDatabase().initializeDefaultData()
 
       // Loading all data from database
       rendererLogger.info('[TaskStore] Loading tasks, workflows, and work patterns from database...')
@@ -1296,7 +1293,14 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
         // Return the first incomplete item
         if (!isCompleted && itemDetails) {
-          rendererLogger.info('[TaskStore] Found next scheduled item', itemDetails)
+          // Convert Date to ISO string for proper logging
+          const loggableDetails = {
+            ...itemDetails,
+            scheduledStartTime: itemDetails.scheduledStartTime instanceof Date
+              ? itemDetails.scheduledStartTime.toISOString()
+              : itemDetails.scheduledStartTime,
+          }
+          rendererLogger.info('[TaskStore] Found next scheduled item', loggableDetails)
           return itemDetails
         }
       }

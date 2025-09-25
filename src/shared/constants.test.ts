@@ -126,10 +126,12 @@ describe('constants', () => {
 
     it('should have all expected keys', () => {
       const keys = Object.keys(WorkBlockType)
-      expect(keys).toHaveLength(5)
+      expect(keys).toHaveLength(7)
       expect(keys).toContain('FOCUSED')
       expect(keys).toContain('ADMIN')
       expect(keys).toContain('MIXED')
+      expect(keys).toContain('FLEXIBLE')
+      expect(keys).toContain('PERSONAL')
       expect(keys).toContain('BLOCKED')
       expect(keys).toContain('SLEEP')
     })

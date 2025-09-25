@@ -128,13 +128,13 @@ describe('useTaskStore Scheduling Integration', () => {
             endTime: '17:00',
             type: 'flexible',
             capacity: {
-              focusMinutes: 480,
-              adminMinutes: 480,
+              focus: 480,
+              admin: 480,
             },
           },
         ],
         meetings: [],
-        accumulated: { focusMinutes: 0, adminMinutes: 0 },
+        accumulated: { focus: 0, admin: 0 },
       },
     ]
 

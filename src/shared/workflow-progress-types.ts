@@ -145,8 +145,8 @@ export interface WorkflowAnalytics {
 export interface DailyWorkSummary {
   date: string;
   totalMinutesWorked: number;
-  focusedMinutes: number;
-  adminMinutes: number;
+  focus: number;
+  admin: number;
   completedSteps: number;
   workflowsProgressed: string[];
 }

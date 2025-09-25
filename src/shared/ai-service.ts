@@ -557,9 +557,12 @@ Make questions specific to their apparent work patterns. Prioritize questions th
       endTime: string
       type: TaskType | TaskType.Mixed | 'personal'
       capacity?: {
-        focusMinutes?: number
-        adminMinutes?: number
-        personalMinutes?: number
+        totalMinutes: number
+        type: string
+        splitRatio?: {
+          focus: number
+          admin: number
+        }
       }
     }>
     meetings: Array<{
@@ -599,8 +602,12 @@ Return as JSON array with one object per day:
         "endTime": "17:00",
         "type": "mixed",
         "capacity": {
-          "focusMinutes": 240,
-          "adminMinutes": 180
+          "totalMinutes": 420,
+          "type": "mixed",
+          "splitRatio": {
+            "focus": 0.57,
+            "admin": 0.43
+          }
         }
       }
     ],
@@ -616,7 +623,8 @@ For personal blocks on weekends, use:
   "endTime": "HH:MM",
   "type": "personal",
   "capacity": {
-    "personalMinutes": MINUTES
+    "totalMinutes": MINUTES,
+    "type": "personal"
   }
 }
 
@@ -671,8 +679,12 @@ Important:
       endTime: string
       type: TaskType | TaskType.Mixed
       capacity?: {
-        focusMinutes: number
-        adminMinutes: number
+        totalMinutes: number
+        type: string
+        splitRatio?: {
+          focus: number
+          admin: number
+        }
       }
     }>
     meetings: Array<{
@@ -722,8 +734,12 @@ Return as JSON:
       "endTime": "12:00",
       "type": "mixed",
       "capacity": {
-        "focusMinutes": 120,
-        "adminMinutes": 60
+        "totalMinutes": 180,
+        "type": "mixed",
+        "splitRatio": {
+          "focus": 0.67,
+          "admin": 0.33
+        }
       }
     }
   ],

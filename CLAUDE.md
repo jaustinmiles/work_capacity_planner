@@ -488,6 +488,29 @@ const item = scheduledItem as ScheduledItemWithWorkflow
 **Prevention**: ALWAYS use `context.currentTime` for scheduler calculations
 **Why**: Schedulers need to work with simulated time for testing and planning
 
+## 🚨 Diagnostic Script Best Practices (PR #75 Lessons)
+
+### NEVER Hardcode Personal Information
+**Problem**: Scripts with hardcoded user names and sessions expose privacy
+**Prevention**: ALL scripts must accept parameters, never hardcode data
+```bash
+# ❌ BAD - Hardcoded user data
+const sessionName = "Haleigh 9/13"
+
+# ✅ GOOD - Parameter-driven
+const sessionName = process.argv[2]
+if (!sessionName) {
+  console.log('Usage: script.ts <session-name>')
+  process.exit(1)
+}
+```
+
+### Script Reusability Requirements
+- **Every script must be reusable** for future debugging
+- **Document usage** in scripts/tools/diagnostics/README.md
+- **Test with different inputs** before committing
+- **No temporal hardcoding** - accept dates as parameters
+
 ## 🚨 MANDATORY VERIFICATION PROTOCOL
 
 ### Before Making ANY Claims
@@ -553,6 +576,51 @@ You are successful when:
 - Existing patterns followed
 - Changes tested incrementally
 - Documentation kept up-to-date
+
+### 🛠️ Development Tools
+
+**Professional debugging and analysis tools in `/scripts/dev/`:**
+
+#### When Claude Should Use These Tools:
+
+**For Scheduling/Capacity Issues:**
+```bash
+# Check scheduler logs for capacity problems
+npx tsx scripts/dev/log-viewer.ts --grep "scheduler|capacity" --since 30m
+
+# Inspect work pattern capacity allocation
+npx tsx scripts/dev/db-inspector.ts capacity 2024-01-15
+
+# Check current session state
+npx tsx scripts/dev/db-inspector.ts session
+```
+
+**For Database/State Issues:**
+```bash
+# Get database overview
+npx tsx scripts/dev/db-inspector.ts stats
+
+# Check recent tasks
+npx tsx scripts/dev/db-inspector.ts tasks 20
+
+# Find error patterns in logs
+npx tsx scripts/dev/log-viewer.ts --level error --since 1h
+```
+
+**For Performance Debugging:**
+```bash
+# Monitor real-time logs
+npx tsx scripts/dev/tail-logs.ts --since 5m
+
+# Check log statistics
+npx tsx scripts/dev/log-viewer.ts --stats
+```
+
+**Tool Selection Guidelines:**
+- Use `log-viewer.ts` for analyzing application behavior and finding patterns
+- Use `db-inspector.ts` for verifying data integrity and state
+- Use `tail-logs.ts` for real-time monitoring during development
+- Always prefer these tools over ad-hoc grep/cat commands
 
 ---
 

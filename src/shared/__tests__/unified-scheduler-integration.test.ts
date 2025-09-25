@@ -47,9 +47,9 @@ describe('UnifiedScheduler - Integration', () => {
           },
         ],
         accumulated: {
-          focusMinutes: 0,
-          adminMinutes: 0,
-          personalMinutes: 0,
+          focus: 0,
+          admin: 0,
+          personal: 0,
         },
         meetings: [],
       })
@@ -401,7 +401,7 @@ describe('UnifiedScheduler - Integration', () => {
             endTime: '10:00',
             type: 'focused',
           }],
-          accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
+          accumulated: { focus: 0, admin: 0, personal: 0 },
           meetings: [],
         }],
       }

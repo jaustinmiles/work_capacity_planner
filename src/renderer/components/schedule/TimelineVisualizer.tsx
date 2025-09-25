@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
+import { WorkBlockType } from '@shared/constants'
 import { Card } from '@arco-design/web-react'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
+import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 import dayjs from 'dayjs'
 
 interface TimelineVisualizerProps {
@@ -280,7 +282,7 @@ export function TimelineVisualizer({
     const itemHeight = bottom - top
 
     // Determine if it's a block or meeting for different rendering
-    const isBlock = 'capacity' in item || 'focusCapacity' in item
+    const isBlock = 'capacity' in item
 
     return (
       <div
@@ -333,21 +335,27 @@ export function TimelineVisualizer({
             {item.startTime} - {item.endTime}
           </div>
           <div>
-            {isBlock ? (
-              `${(item as WorkBlock).type === TaskType.Focused ? '🎯 Focused' :
-                (item as WorkBlock).type === TaskType.Admin ? '📋 Admin' :
-                (item as WorkBlock).type === 'personal' ? '👤 Personal' :
-                (item as WorkBlock).type === 'flexible' ? '🔀 Flexible' : '🔄 Mixed'} Work`
-            ) : (
-              `${(item as WorkMeeting).name || (item as WorkMeeting).type}`
-            )}
+            {isBlock ? (() => {
+              const block = item as WorkBlock
+              return `${block.type === WorkBlockType.FOCUSED ? '🎯 Focused' :
+                block.type === WorkBlockType.ADMIN ? '📋 Admin' :
+                block.type === WorkBlockType.PERSONAL ? '👤 Personal' :
+                block.type === WorkBlockType.FLEXIBLE ? '🔀 Flexible' : '🔄 Mixed'} Work`
+            })() : (() => {
+              const meeting = item as WorkMeeting
+              return meeting.name || meeting.type
+            })()}
           </div>
-          {isBlock && (item as WorkBlock).capacity && (
-            <div style={{ fontSize: 10, marginTop: 4, opacity: 0.9 }}>
-              Focus: {(item as WorkBlock).capacity?.focusMinutes || 0}m,
-              Admin: {(item as WorkBlock).capacity?.adminMinutes || 0}m
-            </div>
-          )}
+          {isBlock && (() => {
+            const block = item as WorkBlock
+            if (!block.capacity) return null
+            return (
+              <div style={{ fontSize: 10, marginTop: 4, opacity: 0.9 }}>
+                Focus: {getTotalCapacityForTaskType(block.capacity, TaskType.Focused)}m,
+                Admin: {getTotalCapacityForTaskType(block.capacity, TaskType.Admin)}m
+              </div>
+            )
+          })()}
         </div>
 
         {/* Drag handle for end time */}

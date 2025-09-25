@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { TaskType } from '@shared/enums'
+import { WorkBlockType } from '@shared/constants'
 import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, Tabs } from '@arco-design/web-react'
 import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -13,6 +14,7 @@ import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
 import { logSchedule } from '../../../logging/formatters/schedule-formatter'
+import { calculateBlockCapacity } from '@shared/capacity-calculator'
 
 
 const { Title, Text } = Typography
@@ -117,11 +119,8 @@ export function ScheduleGenerator({
             id: `block-${dateStr}-work`,
             startTime: dayWorkHours.startTime,
             endTime: dayWorkHours.endTime,
-            type: 'flexible',
-            capacity: {
-              focusMinutes: 240, // 4 hours
-              adminMinutes: 180, // 3 hours
-            },
+            type: WorkBlockType.FLEXIBLE,
+            capacity: calculateBlockCapacity(WorkBlockType.FLEXIBLE, dayWorkHours.startTime, dayWorkHours.endTime),
           })
         }
         // Removed hardcoded weekend personal blocks - users should configure their own patterns
@@ -131,7 +130,7 @@ export function ScheduleGenerator({
           date: dateStr,
           blocks,
           meetings: [],
-          accumulated: { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0 },
+          accumulated: { focus: 0, admin: 0, personal: 0 },
         })
       }
 
@@ -385,36 +384,36 @@ export function ScheduleGenerator({
           const latestEndStr = dayjs(latestEnd).format('HH:mm')
 
           // Calculate total capacity used
-          let focusMinutes = 0
-          let adminMinutes = 0
-          let personalMinutes = 0
+          let focus = 0
+          let admin = 0
+          let personal = 0
 
           for (const item of items) {
             const task = item.task
             if (task.type === TaskType.Focused) {
-              focusMinutes += task.duration
+              focus += task.duration
             } else if (task.type === TaskType.Personal) {
-              personalMinutes += task.duration
+              personal += task.duration
             } else {
-              adminMinutes += task.duration
+              admin += task.duration
             }
           }
 
           // For optimal schedules, create blocks with AVAILABLE capacity, not just used capacity
           // The optimal scheduler can schedule ALL DAY (7am-11pm = 16 hours = 960 minutes)
-          const totalMinutes = dayjs(latestEnd).diff(dayjs(sortedItems[0].startTime), 'minute')
+          const _totalMinutes = dayjs(latestEnd).diff(dayjs(sortedItems[0].startTime), 'minute')
 
           blocks.push({
             id: `block-${dateStr}-work`,
             startTime: earliestStart,
             endTime: latestEndStr,
-            type: personalMinutes > 0 && focusMinutes === 0 && adminMinutes === 0 ? 'personal' : 'flexible',
+            type: personal > 0 && focus === 0 && admin === 0 ? WorkBlockType.PERSONAL : WorkBlockType.FLEXIBLE,
             capacity: {
-              // For optimal schedules, set capacity to total available time
-              // For other schedules, set to what was actually used
-              focusMinutes: isOptimalSchedule ? Math.max(focusMinutes, Math.floor(totalMinutes * 0.6)) : focusMinutes,
-              adminMinutes: isOptimalSchedule ? Math.max(adminMinutes, Math.floor(totalMinutes * 0.4)) : adminMinutes,
-              ...(personalMinutes > 0 ? { personalMinutes } : {}),
+              // For optimal schedules, use actual capacity if tasks are scheduled
+              // Otherwise show what was actually used
+              focus: isOptimalSchedule ? Math.max(focus, 0) : focus,
+              admin: isOptimalSchedule ? Math.max(admin, 0) : admin,
+              ...(personal > 0 ? { personal } : {}),
             },
           })
         }

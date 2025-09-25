@@ -210,10 +210,9 @@ model WorkBlock {
   patternId     String
   startTime     String
   endTime       String
-  type          String
-  focusCapacity Int?
-  adminCapacity Int?
-  capacity      String?
+  type          String      // WorkBlockType enum: focused, admin, mixed, flexible, personal, blocked, sleep
+  totalCapacity Int         @default(0) // Total minutes available in this block
+  splitRatio    Json?       // JSON for mixed blocks: {focus: 0.7, admin: 0.3} etc
   WorkPattern   WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
 
   @@index([patternId])

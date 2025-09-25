@@ -65,7 +65,7 @@ export class SchedulingService {
               date: dateStr,
               blocks: pattern.blocks,
               meetings: pattern.meetings || [],
-              accumulated: { focusMinutes: 0, adminMinutes: 0 },
+              accumulated: { focus: 0, admin: 0, personal: 0 },
             })
             logger.scheduler.debug('Loaded user work pattern', { date: dateStr, blocks: pattern.blocks.length })
           }
@@ -341,8 +341,8 @@ export class SchedulingService {
     debugInfo.blockUtilization.forEach(block => {
       const existing = dayUtilization.get(block.date) || { totalUsed: 0, totalCapacity: 0 }
 
-      const used = block.focusUsed + block.adminUsed + block.personalUsed
-      const capacity = block.focusTotal + block.adminTotal + block.personalTotal
+      const used = block.used
+      const capacity = block.capacity
 
       dayUtilization.set(block.date, {
         totalUsed: existing.totalUsed + used,
@@ -458,30 +458,30 @@ export class SchedulingService {
     const totalCapacity = workDayConfigs.reduce((total, config) => {
       if (config.isWorkingDay) {
         return {
-          focusedMinutes: total.focusedMinutes + config.maxFocusedMinutes,
-          adminMinutes: total.adminMinutes + config.maxAdminMinutes,
+          focus: total.focus + config.maxFocusedMinutes,
+          admin: total.admin + config.maxAdminMinutes,
         }
       }
       return total
-    }, { focusedMinutes: 0, adminMinutes: 0 })
+    }, { focus: 0, admin: 0 })
 
     // Calculate utilization
-    const focusedMinutesUsed = schedulingResult.scheduledItems
+    const focusUsed = schedulingResult.scheduledItems
       .filter(item => item.type === TaskType.Focused)
       .reduce((total, item) => total + item.duration, 0)
 
-    const adminMinutesUsed = schedulingResult.scheduledItems
+    const adminUsed = schedulingResult.scheduledItems
       .filter(item => item.type === TaskType.Admin)
       .reduce((total, item) => total + item.duration, 0)
 
     const utilization = {
-      focusedMinutesUsed,
-      adminMinutesUsed,
-      focusedPercentage: totalCapacity.focusedMinutes > 0
-        ? (focusedMinutesUsed / totalCapacity.focusedMinutes) * 100
+      focusUsed,
+      adminUsed,
+      focusPercentage: totalCapacity.focus > 0
+        ? (focusUsed / totalCapacity.focus) * 100
         : 0,
-      adminPercentage: totalCapacity.adminMinutes > 0
-        ? (adminMinutesUsed / totalCapacity.adminMinutes) * 100
+      adminPercentage: totalCapacity.admin > 0
+        ? (adminUsed / totalCapacity.admin) * 100
         : 0,
     }
 

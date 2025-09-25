@@ -45,8 +45,8 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
           endTime: '17:15', // Using PDT time directly
           type: 'mixed',
           capacity: {
-            focusMinutes: 73, // 70% of 105 minutes
-            adminMinutes: 32, // 30% of 105 minutes
+            focus: 73, // 70% of 105 minutes
+            admin: 32, // 30% of 105 minutes
           },
         },
         {
@@ -55,12 +55,12 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
           endTime: '21:45', // Using PDT time directly
           type: 'flexible',
           capacity: {
-            focusMinutes: 67, // 50% of 135 minutes
-            adminMinutes: 68, // 50% of 135 minutes
+            focus: 67, // 50% of 135 minutes
+            admin: 68, // 50% of 135 minutes
           },
         },
       ],
-      accumulated: { focusMinutes: 0, adminMinutes: 0 },
+      accumulated: { focus: 0, admin: 0 },
       meetings: [],
     },
   ]

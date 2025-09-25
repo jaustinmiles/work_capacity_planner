@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { getCurrentTime } from '@shared/time-provider'
 import {
   Modal,
   Space,
@@ -38,7 +39,6 @@ import {
   timeToMinutes,
   minutesToTime,
   getTypeColor,
-  roundToQuarter,
 } from './SessionState'
 
 const { Text } = Typography
@@ -49,8 +49,18 @@ interface WorkLoggerDualProps {
   onClose: () => void
 }
 
+// Helper function to filter out paused sessions from arrays
+const filterActiveSessions = <T extends { isPaused?: boolean }>(sessions: T[]): T[] => {
+  return sessions.filter(session => !session.isPaused)
+}
+
+// Helper function to filter out paused sessions from Map entries
+const filterActiveSessionEntries = <K, V extends { isPaused?: boolean }>(entries: [K, V][]): [K, V][] => {
+  return entries.filter(([_key, session]) => !session.isPaused)
+}
+
 export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
-  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'))
+  const [selectedDate, setSelectedDate] = useState(dayjs(getCurrentTime()).format('YYYY-MM-DD'))
   const [sessions, setSessions] = useState<WorkSessionData[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [showAssignModal, setShowAssignModal] = useState(false)
@@ -118,12 +128,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         setMeetings([])
       }
 
-      const formattedSessions: WorkSessionData[] = dbSessions.map(session => {
+      const formattedSessions: WorkSessionData[] = filterActiveSessions(dbSessions)
+        .map(session => {
         const startTime = dayjs(session.startTime)
-        // For active sessions without endTime, just use startTime (will show as in-progress)
+        // For active sessions without endTime, use current time to show actual duration
         const endTime = session.endTime
           ? dayjs(session.endTime)
-          : startTime
+          : dayjs(getCurrentTime()) // Use time provider for active sessions
 
         // Find task and step details
         const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
@@ -173,8 +184,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       session.id === id
         ? {
             ...session,
-            startMinutes: roundToQuarter(startMinutes),
-            endMinutes: roundToQuarter(endMinutes),
+            startMinutes: startMinutes,
+            endMinutes: endMinutes,
             isDirty: true,
           }
         : session,
@@ -201,13 +212,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     }
 
     const newSession: WorkSessionData = {
-      id: `temp-${Date.now()}`,
+      id: `temp-${new Date(getCurrentTime()).getTime()}`,
       taskId,
       taskName: task?.name || 'Unknown Task',
       stepId,
       stepName,
-      startMinutes: roundToQuarter(startMinutes),
-      endMinutes: roundToQuarter(endMinutes),
+      startMinutes: startMinutes,
+      endMinutes: endMinutes,
       type,
       color: getTypeColor(type),
       isNew: true,
@@ -221,8 +232,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   // Handle session creation from clock (needs task assignment)
   const handleClockSessionCreate = useCallback((startMinutes: number, endMinutes: number) => {
     setPendingSession({
-      startMinutes: roundToQuarter(startMinutes),
-      endMinutes: roundToQuarter(endMinutes),
+      startMinutes: startMinutes,
+      endMinutes: endMinutes,
     })
     setShowAssignModal(true)
   }, [])
@@ -446,8 +457,11 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         {/* Current Work Indicator for Dogfooding */}
         {(() => {
-          // Find any active work session
-          const activeSessionEntries = Array.from(activeWorkSessions.entries())
+          // Find any active work session that is not paused
+          const activeSessionEntries = filterActiveSessionEntries(
+            Array.from(activeWorkSessions.entries()),
+          )
+
           if (activeSessionEntries.length === 0) {
             return (
               <Card style={{ background: '#f7f8fa', border: '1px dashed #d9d9d9' }}>
@@ -459,7 +473,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             )
           }
 
-          const [_sessionKey, session] = activeSessionEntries[0] // Get first active session
+          const [_sessionKey, session] = activeSessionEntries[0] // Get first non-paused active session
 
           // Determine if this is a workflow step or regular task
           let itemName = ''
@@ -501,7 +515,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           }
 
           // Calculate elapsed time
-          const elapsedMinutes = Math.floor((Date.now() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
+          const elapsedMinutes = Math.floor((new Date(getCurrentTime()).getTime() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
           const elapsedHours = Math.floor(elapsedMinutes / 60)
           const elapsedMins = elapsedMinutes % 60
           const elapsedText = elapsedHours > 0 ? `${elapsedHours}h ${elapsedMins}m` : `${elapsedMins}m`
@@ -547,8 +561,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 icon={<IconRight />}
                 onClick={() => setSelectedDate(dayjs(selectedDate).add(1, 'day').format('YYYY-MM-DD'))}
               />
-              {selectedDate !== dayjs().format('YYYY-MM-DD') && (
-                <Button onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))}>
+              {selectedDate !== dayjs(getCurrentTime()).format('YYYY-MM-DD') && (
+                <Button onClick={() => setSelectedDate(dayjs(getCurrentTime()).format('YYYY-MM-DD'))}>
                   Today
                 </Button>
               )}
