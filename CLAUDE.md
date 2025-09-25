@@ -151,6 +151,164 @@ Remember: We're creating something valuable together. Your code matters, your te
 - Committing code changes to feature branches
 - Regular pushes to feature branches
 
+## 📏 PR Size and Scope Management (PR #76 Lessons)
+
+### Maximum PR Size Rules
+**Hard Limits to Prevent Complexity Overload:**
+- **Architectural Changes**: Maximum 15 files
+- **Refactoring**: Maximum 20 files
+- **Bug Fixes**: Maximum 10 files
+- **New Features**: Maximum 25 files (including tests)
+
+### Scope Creep Stop Signs
+**When to STOP and split the PR:**
+- TypeScript errors cascading to unrelated files
+- "While I'm here" thoughts appearing frequently
+- Review comments revealing systemic issues
+- Context switching between >3 different subsystems
+- Commit message getting hard to write concisely
+
+### PR Splitting Strategy
+**How to break down large changes:**
+1. **Phase 1 - Type Definitions**: Create interfaces, enums, types
+2. **Phase 2 - Schema/Infrastructure**: Database, configuration changes
+3. **Phase 3 - Core Implementation**: Business logic with tests
+4. **Phase 4 - UI Integration**: Connect to user interface
+5. **Phase 5 - Polish**: Logging, documentation, cleanup
+
+**Each phase is a separate PR that can be reviewed independently.**
+
+## 🔍 The Systematic Search Protocol
+
+### Pattern Fix Workflow - NO EXCEPTIONS
+When fixing ANY pattern issue (e.g., string literals, type assertions):
+
+```bash
+# 1. IDENTIFY - Find ALL instances
+grep -r "pattern" src/ > /tmp/pattern-instances.txt
+rg "pattern" --type ts --type tsx  # If ripgrep available
+
+# 2. DOCUMENT - Record what you found
+echo "Found $(wc -l < /tmp/pattern-instances.txt) instances"
+
+# 3. FIX - Update ALL instances in one commit
+# Fix systematically, not randomly
+
+# 4. VERIFY - Ensure none remain
+grep -r "pattern" src/ | grep -v test
+# Should return EMPTY
+
+# 5. COMMIT - Document the systematic fix
+git commit -m "fix: Replace all X with Y
+
+Found N instances across M files using:
+  grep -r 'pattern' src/
+
+All instances replaced with [new pattern].
+Verified with second search - 0 remaining."
+```
+
+### Global Search Requirements
+**Before claiming "all fixed" or "none remain":**
+1. Run global search with results saved to file
+2. Verify search found expected instances
+3. Fix all instances
+4. Run verification search
+5. Include search commands in commit message
+
+**NEVER claim completion without verification search showing 0 results.**
+
+## ⛔ Type System Discipline
+
+### Absolutely Banned Practices
+**These require immediate refactoring, NO EXCEPTIONS:**
+
+```typescript
+// ❌ BANNED - Never use
+item as any
+data as unknown as SomeType
+// @ts-ignore
+// @ts-expect-error (without user approval)
+obj?.method?.()  // When method should exist
+```
+
+### Type Assertion Accountability
+**If you MUST use a type assertion:**
+
+```typescript
+// Document WHY it's necessary
+// TODO: Remove when [specific condition]
+const data = apiResponse as KnownType // API doesn't provide types
+```
+
+### Proper Type Definition Process
+1. **Define types BEFORE implementation**
+2. **Use discriminated unions for variants**
+3. **Create specific error types**
+4. **Never use catch-all types**
+
+```typescript
+// ✅ GOOD - Specific types
+type ScheduleResult =
+  | { status: 'success'; items: ScheduledItem[] }
+  | { status: 'error'; error: ScheduleError }
+  | { status: 'partial'; items: ScheduledItem[]; warnings: string[] }
+
+// ❌ BAD - Lazy typing
+type ScheduleResult = any
+type ScheduleResult = unknown
+type ScheduleResult = object
+```
+
+## 📋 The Three-Pass Review Response Protocol
+
+### Pass 1: Understand (READ ALL, FIX NONE)
+1. Run `npx tsx scripts/pr/pr-review-tracker.ts [PR#]`
+2. Read EVERY comment without fixing anything
+3. Identify patterns (multiple comments about same issue)
+4. Group related feedback
+5. Create mental model of what reviewer is really asking for
+
+### Pass 2: Plan (ORGANIZE, DON'T CODE)
+1. Create grouped fix list:
+   ```
+   Pattern Issues:
+   - Use enums instead of strings (5 instances)
+   - Remove type assertions (3 instances)
+
+   Specific Fixes:
+   - Line 123: Remove duplicate logging
+   - Line 456: Fix calculation error
+   ```
+2. Determine fix order (patterns first, specifics second)
+3. Identify which fixes might affect others
+
+### Pass 3: Execute (SYSTEMATIC FIXES)
+1. Fix pattern issues globally
+2. Fix specific issues individually
+3. After EACH fix:
+   - Run quality checks
+   - Post reply to comment
+   - Update TodoWrite
+4. Never mark complete until verified
+
+### PR Review Reply Template
+```markdown
+Fixed! [Specific description of what was changed]
+
+**Verification:**
+```bash
+[Exact command used to verify]
+[Output showing fix is complete]
+```
+
+**Files changed:**
+- path/to/file.ts (lines X-Y)
+- path/to/other.ts (line Z)
+
+Commit: [commit hash]
+```
+
 ### 🚨 PR Workflow (MANDATORY - PR #51 Lessons)
 
 **Starting a PR:**
@@ -510,6 +668,117 @@ if (!sessionName) {
 - **Document usage** in scripts/tools/diagnostics/README.md
 - **Test with different inputs** before committing
 - **No temporal hardcoding** - accept dates as parameters
+
+## 🧠 Cognitive Load Management (PR #76 Lessons)
+
+### The Whack-a-Mole Anti-Pattern
+**PROBLEM**: Fixing errors as they appear without systematic analysis
+**SYMPTOMS**:
+- Same error fixed in multiple commits
+- Reviewer finds more instances after "fix"
+- "Fixed typo" appears 5+ times in git log
+
+**PREVENTION**:
+```bash
+# DON'T: Fix one error at a time
+# Fix error in file1.ts
+# Commit
+# Fix same error in file2.ts
+# Commit
+# Reviewer: "You missed file3.ts"
+
+# DO: Fix ALL instances systematically
+grep -r "error_pattern" src/ > all_instances.txt
+# Fix ALL instances
+# Verify: grep -r "error_pattern" src/ # Returns nothing
+# Commit once with "Fixed all N instances"
+```
+
+### Context Switching Minimization
+**Maximum 3 files open at once rule:**
+1. Close files before opening new ones
+2. Complete all changes in one subsystem before moving
+3. Commit before switching contexts
+
+**Context Switch Penalty Formula:**
+- 1-3 files: 0% overhead
+- 4-6 files: 20% overhead
+- 7-10 files: 40% overhead
+- 10+ files: 60% overhead (STOP and refactor approach)
+
+### Decision Fatigue Prevention
+**Quality Checkpoints:**
+- Every 2 hours: Full quality check (lint, typecheck, test)
+- Every 4 hours: Context documentation update
+- Every 6 hours: STOP - Review and plan next session
+
+**When you notice these symptoms, STOP:**
+- Using `any` type "just this once"
+- Skipping tests "for now"
+- Commit messages becoming vague
+- "Let me just fix this one more thing"
+
+## 🚫 Production vs Test Reality (PR #67 & #76 Lessons)
+
+### The "Green Tests False Confidence" Trap
+**NEVER trust tests alone. Always verify:**
+
+```typescript
+// ❌ WRONG - Test passes but production fails
+class MockDatabase {
+  async saveSchedule(data: any) { return { success: true } }
+}
+
+// Production code using optional chaining
+const result = await db?.saveSchedule?.(data)
+// Tests pass because mock has method
+// Production fails because method doesn't exist
+
+// ✅ RIGHT - Test and production aligned
+class Database {
+  async saveSchedule(data: ScheduleData) {
+    // Real implementation that tests verify
+  }
+}
+```
+
+### Production Verification Checklist
+Before claiming "it works":
+- [ ] Feature works in dev mode (not just tests)
+- [ ] Database actually persists data
+- [ ] UI actually updates
+- [ ] Logs appear in console
+- [ ] No optional chaining hiding missing methods
+
+## 🔄 The Quick Fix Cascade (PR #76 Lesson)
+
+### How Quick Fixes Compound Into Disasters
+```
+Hour 1: any type to bypass error
+  ↓ Creates type safety hole
+Hour 2: Type assertion to fix hole
+  ↓ Creates runtime risk
+Hour 3: Optional chaining to prevent crash
+  ↓ Creates logic bug
+Hour 4: Hardcoded value to fix logic
+  ↓ Creates maintenance debt
+Hour 8: Complete refactor required
+```
+
+### The Fix-It-Right Protocol
+1. **STOP when tempted to use quick fix**
+2. **UNDERSTAND why the error exists**
+3. **FIX the root cause, not symptom**
+4. **VERIFY fix doesn't create new issues**
+
+### Quick Fix Detection Patterns
+```bash
+# Find all quick fixes that need cleanup
+grep -r "as any" src/
+grep -r "as unknown as" src/
+grep -r "@ts-ignore" src/
+grep -r "?\\." src/ | grep -v "test"  # Optional chaining in production
+```
 
 ## 🚨 MANDATORY VERIFICATION PROTOCOL
 

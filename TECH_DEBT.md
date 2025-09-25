@@ -129,6 +129,82 @@ grep -r "console\.log" scripts/
 - Added proper null/undefined checks throughout
 - Tests passing, typecheck clean
 
+## 🚨 PR Process Debt (Added from PR #76 Retrospective)
+
+### The 48-Hour PR Problem
+**Status**: 🔴 CRITICAL - Process improvements needed
+**Evidence**: PR #76 took 48+ hours with 40+ files, 3 review rounds, 29+ comments
+**Root Causes**:
+- No PR size limits enforced
+- No systematic pattern fix workflow
+- Reactive debugging ("whack-a-mole")
+- Type safety shortcuts (as any, optional chaining)
+- Missing verification protocols
+
+### Process Improvements Implemented
+**Status**: ✅ DOCUMENTED - Implementation ongoing
+**New Documentation**:
+- `/context/PR_TEMPLATE.md` - PR management template
+- `/context/workflows/PR_WORKFLOW.md` - Step-by-step workflow
+- `/docs/PR_DISASTERS.md` - Case study of PR #76
+- `/scripts/dev/pr-health-check.ts` - Automated PR health checks
+- `/scripts/dev/pattern-finder.ts` - Anti-pattern detection
+
+### Systematic Issues to Address
+**Status**: 🟡 TRACKING NEEDED
+
+#### 1. Pattern Fix Debt
+**Issue**: Multiple instances of same patterns across codebase
+**Examples**:
+- String literals instead of enums
+- Type assertions (as any, as unknown as)
+- Console.log instead of logger
+- Duplicate code blocks
+**Resolution**: Use pattern-finder.ts before every PR
+
+#### 2. Review Response Debt
+**Issue**: PR comments not systematically tracked and addressed
+**Current State**: Manual tracking leads to missed comments
+**Resolution**: Use pr-review-tracker.ts and pr-comment-reply.ts scripts
+
+#### 3. Cognitive Load Management
+**Issue**: Large PRs cause context switching overload
+**Symptoms**: Same issues fixed multiple times, false claims of completion
+**Resolution**: Hard limits on PR size (15-20 files max)
+
+#### 4. Verification Protocol Gaps
+**Issue**: Claims made without verification
+**Example**: "All console.log replaced" without running grep
+**Resolution**: Mandatory verification commands before claims
+
+### PR Anti-Patterns to Monitor
+```bash
+# Run these before EVERY PR push
+npx tsx scripts/dev/pattern-finder.ts
+npx tsx scripts/dev/pr-health-check.ts
+
+# Check for these specific issues
+grep -r "as any" src/                    # Should be 0
+grep -r "as unknown as" src/             # Should be 0
+grep -r "@ts-ignore" src/                # Should be 0
+grep -r "console\." src/ | grep -v test  # Should be 0
+```
+
+### Metrics from PR #76 Disaster
+- **Files Changed**: 40+ (should have been <20)
+- **Time Spent**: 48 hours (should have been <10)
+- **Review Rounds**: 3 (should have been 1)
+- **Comments**: 29+ (should have been <10)
+- **Type Errors Introduced**: 15+ (should have been 0)
+- **Pattern Instances Missed**: 20+ (should have been 0)
+
+### Recovery Actions Required
+1. **Enforce PR size limits** - Split large changes
+2. **Pattern fix first** - Find ALL instances before fixing
+3. **Type safety always** - Never use any or unknown casts
+4. **Verify everything** - Run commands, don't assume
+5. **Track systematically** - Use PR scripts for review
+
 ## 🎯 High Priority Issues
 
 ### 1. Multiple Schedulers Still Exist
