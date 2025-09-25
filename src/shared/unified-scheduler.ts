@@ -116,7 +116,7 @@ export interface SchedulingDebugInfo {
     endTime: string
     capacity: number
     used: number
-    blockType: string
+    blockType: WorkBlockType
     utilization: number
   }>
   warnings: string[]
@@ -1856,25 +1856,9 @@ export class UnifiedScheduler {
     let totalMinutes = 0
     let splitRatio: SplitRatio | undefined = undefined
 
-    if (capacity) {
-      if ('totalMinutes' in capacity) {
-        // New format
-        totalMinutes = capacity.totalMinutes || 0
-        splitRatio = capacity.splitRatio
-      } else if ('focus' in (capacity as any) || 'admin' in (capacity as any) || 'personal' in (capacity as any)) {
-        // Old format - sum all capacities
-        const oldCapacity = capacity as any
-        totalMinutes = (oldCapacity.focus || 0) + (oldCapacity.admin || 0) + (oldCapacity.personal || 0)
-
-        // If mixed type, create split ratio from old format
-        if (block.type === 'mixed' && oldCapacity.focus && oldCapacity.admin) {
-          const total = oldCapacity.focus + oldCapacity.admin
-          splitRatio = {
-            focus: oldCapacity.focus / total,
-            admin: oldCapacity.admin / total,
-          }
-        }
-      }
+    if (capacity && 'totalMinutes' in capacity) {
+      totalMinutes = capacity.totalMinutes || 0
+      splitRatio = capacity.splitRatio
     }
 
     // Fallback: calculate from time difference if still 0
@@ -2791,7 +2775,7 @@ export class UnifiedScheduler {
     endTime: string
     capacity: number
     used: number
-    blockType: string
+    blockType: WorkBlockType
     utilization: number
   }> {
     const utilization: Array<any> = []

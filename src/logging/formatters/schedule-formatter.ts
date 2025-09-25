@@ -5,6 +5,7 @@
 
 import { ScheduledItem } from '../../shared/unified-scheduler-adapter'
 import { DailyWorkPattern, WorkBlock } from '../../shared/work-blocks-types'
+import { WorkBlockType } from '../../shared/constants'
 import { Task } from '../../shared/types'
 import { SequencedTask } from '../../shared/sequencing-types'
 import { SchedulingDebugInfo } from '../../shared/unified-scheduler'
@@ -365,11 +366,10 @@ export class ScheduleFormatter {
 
           // For mixed blocks, show focus/admin breakdown if available
           let typeDetails = block.type
-          if (block.type === 'mixed' && block.capacity && block.capacity > 0) {
-            // Estimate focus/admin split for mixed blocks (assuming 60/40 split if not specified)
-            const focusMinutes = Math.floor(block.capacity * 0.6)
-            const adminMinutes = Math.floor(block.capacity * 0.4)
-            typeDetails = `mixed (${focusMinutes}m focus, ${adminMinutes}m admin)`
+          if (block.type === WorkBlockType.MIXED && block.capacity && block.capacity > 0) {
+            // Mixed blocks should have explicit split ratios from configuration
+            // Don't default to any specific split
+            typeDetails = `mixed (${block.capacity}m total)`
           }
 
           lines.push(`${prefix} ${typeDetails} ${block.startTime}-${block.endTime}: ${block.items} items${utilization}`)

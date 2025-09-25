@@ -401,7 +401,7 @@ export function ScheduleGenerator({
 
           // For optimal schedules, create blocks with AVAILABLE capacity, not just used capacity
           // The optimal scheduler can schedule ALL DAY (7am-11pm = 16 hours = 960 minutes)
-          const totalMinutes = dayjs(latestEnd).diff(dayjs(sortedItems[0].startTime), 'minute')
+          const _totalMinutes = dayjs(latestEnd).diff(dayjs(sortedItems[0].startTime), 'minute')
 
           blocks.push({
             id: `block-${dateStr}-work`,
@@ -409,10 +409,10 @@ export function ScheduleGenerator({
             endTime: latestEndStr,
             type: personal > 0 && focus === 0 && admin === 0 ? WorkBlockType.PERSONAL : WorkBlockType.FLEXIBLE,
             capacity: {
-              // For optimal schedules, set capacity to total available time
-              // For other schedules, set to what was actually used
-              focus: isOptimalSchedule ? Math.max(focus, Math.floor(totalMinutes * 0.6)) : focus,
-              admin: isOptimalSchedule ? Math.max(admin, Math.floor(totalMinutes * 0.4)) : admin,
+              // For optimal schedules, use actual capacity if tasks are scheduled
+              // Otherwise show what was actually used
+              focus: isOptimalSchedule ? Math.max(focus, 0) : focus,
+              admin: isOptimalSchedule ? Math.max(admin, 0) : admin,
               ...(personal > 0 ? { personal } : {}),
             },
           })

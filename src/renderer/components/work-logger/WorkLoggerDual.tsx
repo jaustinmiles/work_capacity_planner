@@ -49,6 +49,16 @@ interface WorkLoggerDualProps {
   onClose: () => void
 }
 
+// Helper function to filter out paused sessions from arrays
+const filterActiveSessions = <T extends { isPaused?: boolean }>(sessions: T[]): T[] => {
+  return sessions.filter(session => !session.isPaused)
+}
+
+// Helper function to filter out paused sessions from Map entries
+const filterActiveSessionEntries = <K, V extends { isPaused?: boolean }>(entries: [K, V][]): [K, V][] => {
+  return entries.filter(([_key, session]) => !session.isPaused)
+}
+
 export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [selectedDate, setSelectedDate] = useState(dayjs(getCurrentTime()).format('YYYY-MM-DD'))
   const [sessions, setSessions] = useState<WorkSessionData[]>([])
@@ -118,11 +128,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         setMeetings([])
       }
 
-      const formattedSessions: WorkSessionData[] = dbSessions
-        .filter(session => {
-          // Hide paused sessions from the work logger view
-          return !session.isPaused
-        })
+      const formattedSessions: WorkSessionData[] = filterActiveSessions(dbSessions)
         .map(session => {
         const startTime = dayjs(session.startTime)
         // For active sessions without endTime, use current time to show actual duration
@@ -206,7 +212,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     }
 
     const newSession: WorkSessionData = {
-      id: `temp-${Date.now()}`,
+      id: `temp-${new Date(getCurrentTime()).getTime()}`,
       taskId,
       taskName: task?.name || 'Unknown Task',
       stepId,
@@ -452,8 +458,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         {/* Current Work Indicator for Dogfooding */}
         {(() => {
           // Find any active work session that is not paused
-          const activeSessionEntries = Array.from(activeWorkSessions.entries())
-            .filter(([_key, session]) => !session.isPaused) // Filter out paused sessions
+          const activeSessionEntries = filterActiveSessionEntries(
+            Array.from(activeWorkSessions.entries()),
+          )
 
           if (activeSessionEntries.length === 0) {
             return (
@@ -508,7 +515,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           }
 
           // Calculate elapsed time
-          const elapsedMinutes = Math.floor((Date.now() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
+          const elapsedMinutes = Math.floor((new Date(getCurrentTime()).getTime() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
           const elapsedHours = Math.floor(elapsedMinutes / 60)
           const elapsedMins = elapsedMinutes % 60
           const elapsedText = elapsedHours > 0 ? `${elapsedHours}h ${elapsedMins}m` : `${elapsedMins}m`

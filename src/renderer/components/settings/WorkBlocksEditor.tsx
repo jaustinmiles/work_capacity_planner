@@ -54,6 +54,7 @@ interface WorkBlocksEditorProps {
   accumulated?: {
     focus: number
     admin: number
+    personal: number
   }
   onSave: (__blocks: WorkBlock[], meetings: WorkMeeting[]) => void | Promise<void>
   onClose?: () => void
@@ -62,7 +63,7 @@ interface WorkBlocksEditorProps {
 export function WorkBlocksEditor({
   date,
   pattern,
-  accumulated = { focus: 0, admin: 0 },
+  accumulated = { focus: 0, admin: 0, personal: 0 },
   onSave,
   onClose,
 }: WorkBlocksEditorProps) {
@@ -418,7 +419,7 @@ export function WorkBlocksEditor({
                         if (value === 'mixed' && block.type !== 'mixed') {
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.MIXED, block.startTime, block.endTime, JSON.stringify({ focus: 0.5, admin: 0.5 })),
+                            capacity: calculateBlockCapacity(WorkBlockType.MIXED, block.startTime, block.endTime, { focus: 0.5, admin: 0.5 }),
                           })
                         } else if (value === 'flexible') {
                           // Flexible blocks don't have predetermined capacity split
@@ -477,7 +478,7 @@ export function WorkBlocksEditor({
                             const admin = Math.max(0, totalMinutes - focus)
 
                             handleUpdateBlock(block.id, {
-                              capacity: calculateBlockCapacity(WorkBlockType.MIXED, block.startTime, block.endTime, JSON.stringify({ focus: focus / totalMinutes, admin: admin / totalMinutes })),
+                              capacity: calculateBlockCapacity(WorkBlockType.MIXED, block.startTime, block.endTime, { focus: focus / totalMinutes, admin: admin / totalMinutes }),
                             })
                           }}
                           min={0}
@@ -497,7 +498,7 @@ export function WorkBlocksEditor({
                             const focus = Math.max(0, totalMinutes - admin)
 
                             handleUpdateBlock(block.id, {
-                              capacity: calculateBlockCapacity(WorkBlockType.MIXED, block.startTime, block.endTime, JSON.stringify({ focus: focus / totalMinutes, admin: admin / totalMinutes })),
+                              capacity: calculateBlockCapacity(WorkBlockType.MIXED, block.startTime, block.endTime, { focus: focus / totalMinutes, admin: admin / totalMinutes }),
                             })
                           }}
                           min={0}

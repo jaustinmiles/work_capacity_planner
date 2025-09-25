@@ -49,7 +49,7 @@ export function WeeklyCalendar() {
             date: dateStr,
             blocks: pattern.blocks,
             meetings: pattern.meetings,
-            accumulated: { focus: 0, admin: 0 },
+            accumulated: { focus: 0, admin: 0, personal: 0 },
           })
         } else if (dayOfWeek === 0 || dayOfWeek === 6) {
           // Weekend with no pattern - show personal time
@@ -74,7 +74,7 @@ export function WeeklyCalendar() {
             date: dateStr,
             blocks: [],
             meetings: [],
-            accumulated: { focus: 0, admin: 0 },
+            accumulated: { focus: 0, admin: 0, personal: 0 },
           })
         }
       }

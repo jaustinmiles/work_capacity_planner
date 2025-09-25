@@ -282,7 +282,7 @@ export function TimelineVisualizer({
     const itemHeight = bottom - top
 
     // Determine if it's a block or meeting for different rendering
-    const isBlock = 'capacity' in item || 'focusCapacity' in item
+    const isBlock = 'capacity' in item
 
     return (
       <div
@@ -337,8 +337,8 @@ export function TimelineVisualizer({
           <div>
             {isBlock ? (() => {
               const block = item as WorkBlock
-              return `${block.type === TaskType.Focused ? '🎯 Focused' :
-                block.type === TaskType.Admin ? '📋 Admin' :
+              return `${block.type === WorkBlockType.FOCUSED ? '🎯 Focused' :
+                block.type === WorkBlockType.ADMIN ? '📋 Admin' :
                 block.type === WorkBlockType.PERSONAL ? '👤 Personal' :
                 block.type === WorkBlockType.FLEXIBLE ? '🔀 Flexible' : '🔄 Mixed'} Work`
             })() : (() => {

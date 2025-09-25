@@ -142,7 +142,7 @@ describe('Database Validation Tests', () => {
                 endTime: '14:00',
                 type: 'mixed',
                 totalCapacity: 300, // 180 + 120
-                splitRatio: JSON.stringify({ focus: 0.6, admin: 0.4 }), // 180/300 = 0.6, 120/300 = 0.4
+                splitRatio: { focus: 0.6, admin: 0.4 }, // 180/300 = 0.6, 120/300 = 0.4
               },
             ],
           },

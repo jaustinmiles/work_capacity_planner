@@ -34,7 +34,7 @@ export function calculateBlockCapacity(
   type: WorkBlockType,
   startTime: string,
   endTime: string,
-  splitRatio?: SplitRatio | string | null,
+  splitRatio?: SplitRatio | null,
 ): BlockCapacity {
   const totalMinutes = calculateDuration(startTime, endTime)
 
@@ -50,9 +50,7 @@ export function calculateBlockCapacity(
 
     case WorkBlockType.MIXED: {
       // Parse custom split ratio or use default (70% focus, 30% admin)
-      const ratio: SplitRatio = splitRatio
-        ? (typeof splitRatio === 'string' ? JSON.parse(splitRatio) : splitRatio)
-        : { focus: 0.7, admin: 0.3 }
+      const ratio: SplitRatio = splitRatio || { focus: 0.7, admin: 0.3 }
 
       return {
         totalMinutes,

@@ -3,7 +3,7 @@ import { Task, TaskStep } from '../shared/types'
 import { TaskType } from '../shared/enums'
 import { WorkBlockType } from '../shared/constants'
 import { getMainLogger } from '../logging/index.main'
-import { calculateBlockCapacity } from '../shared/capacity-calculator'
+import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
 import * as crypto from 'crypto'
 
 // Create Prisma client instance
@@ -1087,7 +1087,7 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => {
         // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
-        const capacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio)
+        const capacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null)
 
         return {
           ...b,
@@ -1152,7 +1152,7 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => {
         // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
-        const capacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio)
+        const capacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null)
 
         return {
           ...b,
@@ -1213,13 +1213,13 @@ export class DatabaseService {
             const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
 
             // Use our unified capacity calculator - much simpler!
-            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio)
+            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null)
 
             return {
               id: crypto.randomUUID(),
               ...blockData,
               totalCapacity: blockCapacity.totalMinutes,
-              splitRatio: blockCapacity.splitRatio ? JSON.stringify(blockCapacity.splitRatio) : null,
+              splitRatio: blockCapacity.splitRatio || null,
             }
           }),
         },
@@ -1310,7 +1310,7 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => ({
         ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
@@ -1388,7 +1388,7 @@ export class DatabaseService {
       ...template,
       blocks: template.WorkBlock.map(b => ({
         ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: template.WorkMeeting.map(m => ({
@@ -1470,7 +1470,7 @@ export class DatabaseService {
         startTime: b.startTime,
         endTime: b.endTime,
         type: b.type,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
@@ -1486,7 +1486,7 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => ({
         ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
@@ -1564,7 +1564,7 @@ export class DatabaseService {
       ...t,
       blocks: t.WorkBlock.map(b => ({
         ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: t.WorkMeeting.map(m => ({

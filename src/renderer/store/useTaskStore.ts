@@ -265,7 +265,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             date: dateStr,
             blocks: pattern.blocks,
             meetings: pattern.meetings,
-            accumulated: { focus: 0, admin: 0 },
+            accumulated: { focus: 0, admin: 0, personal: 0 },
           })
         } else {
           // No pattern found - no default blocks
@@ -273,7 +273,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             date: dateStr,
             blocks: [],
             meetings: [],
-            accumulated: { focus: 0, admin: 0 },
+            accumulated: { focus: 0, admin: 0, personal: 0 },
           })
         }
       }
@@ -323,21 +323,6 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Load last used session first to prevent default session flash
       rendererLogger.info('[TaskStore] Loading last used session...')
       await getDatabase().loadLastUsedSession()
-
-      // Get and log the current active session after loading
-      const currentSession = await getDatabase().getCurrentSession()
-      if (currentSession) {
-        rendererLogger.info('[TaskStore] Active session after initialization', {
-          id: currentSession.id,
-          name: currentSession.name,
-          isActive: currentSession.isActive,
-        })
-      } else {
-        rendererLogger.warn('[TaskStore] No active session after initialization - this should not happen!')
-      }
-
-      rendererLogger.info('[TaskStore] Initializing default data...')
-      await getDatabase().initializeDefaultData()
 
       // Loading all data from database
       rendererLogger.info('[TaskStore] Loading tasks, workflows, and work patterns from database...')

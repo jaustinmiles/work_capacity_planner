@@ -65,7 +65,7 @@ export class SchedulingService {
               date: dateStr,
               blocks: pattern.blocks,
               meetings: pattern.meetings || [],
-              accumulated: { focus: 0, admin: 0 },
+              accumulated: { focus: 0, admin: 0, personal: 0 },
             })
             logger.scheduler.debug('Loaded user work pattern', { date: dateStr, blocks: pattern.blocks.length })
           }
