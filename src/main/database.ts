@@ -1087,7 +1087,12 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => {
         // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
-        const capacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null)
+        const capacity = calculateBlockCapacity(
+          b.type as WorkBlockType,
+          b.startTime,
+          b.endTime,
+          b.splitRatio as unknown as SplitRatio | null
+        )
 
         return {
           ...b,
@@ -1152,7 +1157,12 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => {
         // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
-        const capacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null)
+        const capacity = calculateBlockCapacity(
+          b.type as WorkBlockType,
+          b.startTime,
+          b.endTime,
+          b.splitRatio as unknown as SplitRatio | null
+        )
 
         return {
           ...b,
@@ -1213,7 +1223,7 @@ export class DatabaseService {
             const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
 
             // Use our unified capacity calculator - much simpler!
-            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null)
+            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null)
 
             return {
               id: crypto.randomUUID(),
@@ -1310,7 +1320,7 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => ({
         ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
@@ -1388,7 +1398,7 @@ export class DatabaseService {
       ...template,
       blocks: template.WorkBlock.map(b => ({
         ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: template.WorkMeeting.map(m => ({
@@ -1470,7 +1480,7 @@ export class DatabaseService {
         startTime: b.startTime,
         endTime: b.endTime,
         type: b.type,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
@@ -1486,7 +1496,7 @@ export class DatabaseService {
       ...pattern,
       blocks: pattern.WorkBlock.map(b => ({
         ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
@@ -1564,7 +1574,7 @@ export class DatabaseService {
       ...t,
       blocks: t.WorkBlock.map(b => ({
         ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as SplitRatio | null),
+        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
         totalCapacity: b.totalCapacity,
       })),
       meetings: t.WorkMeeting.map(m => ({
