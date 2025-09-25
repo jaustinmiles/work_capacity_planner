@@ -5,7 +5,7 @@ import { Modal, Button, Typography, Alert, Space, Card, Tag, Divider, Upload, In
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconUpload, IconFile, IconCheckCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
-import { getAvailableCapacityForTaskType } from '@shared/capacity-calculator'
+import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
 
@@ -456,12 +456,12 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                                 </Tag>
                                 {block.type === 'mixed' && block.capacity && (
                                   <Text type="secondary">
-                                    {getAvailableCapacityForTaskType(block.capacity, TaskType.Focused)}min focus / {getAvailableCapacityForTaskType(block.capacity, TaskType.Admin)}min admin
+                                    {getTotalCapacityForTaskType(block.capacity, TaskType.Focused)}min focus / {getTotalCapacityForTaskType(block.capacity, TaskType.Admin)}min admin
                                   </Text>
                                 )}
                                 {block.type === 'personal' && block.capacity && (
                                   <Text type="secondary">
-                                    {getAvailableCapacityForTaskType(block.capacity, TaskType.Personal)}min personal
+                                    {getTotalCapacityForTaskType(block.capacity, TaskType.Personal)}min personal
                                   </Text>
                                 )}
                               </Space>

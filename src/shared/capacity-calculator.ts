@@ -79,9 +79,10 @@ export function calculateBlockCapacity(
 }
 
 /**
- * Get available capacity for a specific task type from a block
+ * Get total capacity for a specific task type from a block
+ * Note: This returns TOTAL capacity, not remaining available capacity
  */
-export function getAvailableCapacityForTaskType(
+export function getTotalCapacityForTaskType(
   block: BlockCapacity,
   taskType: TaskType,
 ): number {

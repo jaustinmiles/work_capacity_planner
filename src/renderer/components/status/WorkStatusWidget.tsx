@@ -9,7 +9,7 @@ import { NextScheduledItem } from '@shared/types'
 import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
-import { getAvailableCapacityForTaskType } from '@shared/capacity-calculator'
+import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 import dayjs from 'dayjs'
 import { logger } from '../../utils/logger'
 import { Message } from '../common/Message'
@@ -346,8 +346,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
     if (block.capacity) {
       return {
-        focusMinutes: getAvailableCapacityForTaskType(block.capacity, TaskType.Focused),
-        adminMinutes: getAvailableCapacityForTaskType(block.capacity, TaskType.Admin),
+        focusMinutes: getTotalCapacityForTaskType(block.capacity, TaskType.Focused),
+        adminMinutes: getTotalCapacityForTaskType(block.capacity, TaskType.Admin),
       }
     } else if (block.type === TaskType.Focused) {
       return { focusMinutes: duration, adminMinutes: 0 }

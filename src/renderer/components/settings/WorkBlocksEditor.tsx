@@ -31,7 +31,7 @@ import {
   getTotalCapacity,
   getRemainingCapacity,
 } from '@shared/work-blocks-types'
-import { calculateBlockCapacity, getAvailableCapacityForTaskType } from '@shared/capacity-calculator'
+import { calculateBlockCapacity, getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 import { Message } from '../common/Message'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
@@ -465,7 +465,7 @@ export function WorkBlocksEditor({
                         <Space>
                           <InputNumber
                             placeholder="Focus mins"
-                            value={block.capacity ? getAvailableCapacityForTaskType(block.capacity, TaskType.Focused) : 0}
+                            value={block.capacity ? getTotalCapacityForTaskType(block.capacity, TaskType.Focused) : 0}
                             onChange={(value) => {
                               // Calculate total block duration
                               const startTime = dayjs(`2000-01-01 ${block.startTime}`)
@@ -485,7 +485,7 @@ export function WorkBlocksEditor({
                         />
                         <InputNumber
                           placeholder="Admin mins"
-                          value={block.capacity ? getAvailableCapacityForTaskType(block.capacity, TaskType.Admin) : 0}
+                          value={block.capacity ? getTotalCapacityForTaskType(block.capacity, TaskType.Admin) : 0}
                           onChange={(value) => {
                             // Calculate total block duration
                             const startTime = dayjs(`2000-01-01 ${block.startTime}`)

@@ -19,7 +19,7 @@
 import { Task } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
 import { WorkBlockType } from './constants'
-import { getAvailableCapacityForTaskType, SplitRatio } from './capacity-calculator'
+import { getTotalCapacityForTaskType, SplitRatio } from './capacity-calculator'
 import { TaskType } from './enums'
 import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
 import { WorkSettings } from './work-settings-types'
@@ -1991,7 +1991,7 @@ export class UnifiedScheduler {
     })
 
     // Calculate available capacity using the helper function
-    const totalCapacityForTaskType = getAvailableCapacityForTaskType(
+    const totalCapacityForTaskType = getTotalCapacityForTaskType(
       { totalMinutes: block.totalMinutes, type: block.blockType as WorkBlockType, splitRatio: block.splitRatio },
       taskType,
     )
