@@ -1091,7 +1091,7 @@ export class DatabaseService {
           b.type as WorkBlockType,
           b.startTime,
           b.endTime,
-          b.splitRatio as unknown as SplitRatio | null
+          b.splitRatio as unknown as SplitRatio | null,
         )
 
         return {
@@ -1161,7 +1161,7 @@ export class DatabaseService {
           b.type as WorkBlockType,
           b.startTime,
           b.endTime,
-          b.splitRatio as unknown as SplitRatio | null
+          b.splitRatio as unknown as SplitRatio | null,
         )
 
         return {
