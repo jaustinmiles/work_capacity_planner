@@ -74,7 +74,8 @@
       "Read(//Users/austinmiles/Downloads/**)",
       "Bash(/dev/null)",
       "Bash(awk:*)",
-      "Read(//Users/austinmiles/Library/**)"
+      "Read(//Users/austinmiles/Library/**)",
+      "mcp__git__commit_changes"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
@@ -82,5 +83,9 @@
       "/tmp"
     ]
   },
+  "enabledMcpjsonServers": [
+    "diagnostic",
+    "git"
+  ],
   "outputStyle": "Learning"
 }

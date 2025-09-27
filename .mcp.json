@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "diagnostic": {
+      "command": "node",
+      "args": ["/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/dist/diagnostic-wrapper.js"]
+    },
+    "git": {
+      "command": "node",
+      "args": ["/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/dist/git-wrapper.js"]
+    }
+  }
+}
