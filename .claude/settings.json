@@ -56,11 +56,11 @@
   "mcpServers": {
     "diagnostic": {
       "command": "npx",
-      "args": ["tsx", "./scripts/mcp/diagnostic-wrapper.ts"]
+      "args": ["tsx", "/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/diagnostic-wrapper.ts"]
     },
     "git": {
       "command": "npx",
-      "args": ["tsx", "./scripts/mcp/git-wrapper.ts"]
+      "args": ["tsx", "/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/git-wrapper.ts"]
     }
   },
 
