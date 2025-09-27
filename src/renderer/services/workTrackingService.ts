@@ -54,41 +54,6 @@ export class WorkTrackingService {
       // DO NOT restore sessions - always start with clean slate
       // This prevents stale sessions from blocking new work
       logger.ui.info('[WorkTrackingService] Initialization complete - starting with no active sessions')
-
-      // Old restoration code commented out to prevent issues
-      /*
-      // Restore last active session by looking for work sessions without endTime from today
-      const today = new Date().toISOString().split('T')[0]
-      const todaysSessions = await this.database.getWorkSessions(today)
-      const activeSessions = todaysSessions.filter((session: any) => !session.endTime)
-
-      if (activeSessions.length > 0) {
-        const lastSession = activeSessions[activeSessions.length - 1]
-        if (this.isValidSession(lastSession)) {
-          // Check if session is stale
-          const sessionAge = Date.now() - new Date(lastSession.startTime).getTime()
-          const maxAgeMs = this.options.maxSessionAgeHours * 60 * 60 * 1000
-
-          if (sessionAge > maxAgeMs && this.options.clearStaleSessionsOnStartup) {
-            logger.ui.info('Deleting stale session', { sessionId: lastSession.id })
-            await this.database.deleteWorkSession(lastSession.id)
-          } else {
-            // Convert database session to unified format
-            const workSession = fromDatabaseWorkSession(lastSession)
-            workSession.isPaused = lastSession.isPaused || false
-
-            const sessionKey = this.getSessionKey(workSession)
-            this.activeSessions.set(sessionKey, workSession)
-            logger.ui.info('Restored active work session', {
-              sessionId: workSession.id,
-              sessionKey,
-              taskId: workSession.taskId,
-              stepId: workSession.stepId,
-            })
-          }
-        }
-      }
-      */
     } catch (error) {
       logger.ui.error('Failed to initialize WorkTrackingService', error)
       throw error
