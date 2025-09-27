@@ -35,7 +35,7 @@ vi.mock('../../services/database', () => {
 })
 
 // Mock the logger
-vi.mock('../../utils/logger', () => ({
+vi.mock('@/shared/logger', () => ({
   logger: {
     ui: {
       info: vi.fn(),
@@ -590,8 +590,8 @@ describe('Workflow Time Tracking', () => {
       expect(mockEmit).toHaveBeenCalledWith('time-logged')
 
       // Verify logger was called
-      const loggerModule = await import('../../utils/logger')
-      expect(loggerModule.logger.store.info).toHaveBeenCalledWith(
+      const loggerModule = await import('@/shared/logger')
+      expect(loggerModule.logger.ui.info).toHaveBeenCalledWith(
         'Logged 20 minutes for step step-7 on pause',
       )
     })

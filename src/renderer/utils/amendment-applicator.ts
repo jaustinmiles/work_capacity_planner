@@ -24,7 +24,7 @@ import {
 import { assertNever, StepStatus } from '@shared/enums'
 import { getDatabase } from '../services/database'
 import { Message } from '../components/common/Message'
-import { logger } from './logger'
+import { logger } from '@/shared/logger'
 import { appEvents, EVENTS } from './events'
 import {
   applyForwardDependencyChanges,

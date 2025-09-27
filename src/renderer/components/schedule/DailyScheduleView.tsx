@@ -23,7 +23,7 @@ interface ScheduledItem {
 }
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 const { Title, Text } = Typography

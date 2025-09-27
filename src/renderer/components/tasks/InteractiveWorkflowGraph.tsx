@@ -17,7 +17,7 @@ import ReactFlow, {
 import { Tag, Space, Typography, Switch, Button } from '@arco-design/web-react'
 import { IconFullscreen, IconFullscreenExit } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 import 'reactflow/dist/style.css'
 

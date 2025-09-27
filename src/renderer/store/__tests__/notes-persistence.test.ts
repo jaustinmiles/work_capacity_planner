@@ -25,7 +25,7 @@ vi.mock('../../services/database', () => {
 })
 
 // Mock the logger
-vi.mock('../../utils/logger', () => ({
+vi.mock('@/shared/logger', () => ({
   logger: {
     progress: {
       info: vi.fn(),

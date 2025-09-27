@@ -1,7 +1,7 @@
 import { Task, Session } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
-import { logger } from '../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 // Type for the Electron API exposed by preload script

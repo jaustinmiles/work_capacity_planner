@@ -21,7 +21,7 @@ vi.mock('../utils/events', () => ({
   EVENTS: { TIME_LOGGED: 'timeLogged' },
 }))
 
-vi.mock('../utils/logger', () => ({
+vi.mock('@/shared/logger', () => ({
   logger: { ui: { warn: vi.fn(), error: vi.fn() }, store: { info: vi.fn() } },
 }))
 

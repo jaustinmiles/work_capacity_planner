@@ -9,7 +9,7 @@ import { WorkflowVisualization } from './WorkflowVisualization'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { WorkflowMinimap } from './WorkflowMinimap'
 import { getDatabase } from '../../services/database'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 import { useTaskStore } from '../../store/useTaskStore'
 
 

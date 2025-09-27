@@ -4,7 +4,7 @@ import { IconQuestionCircle, IconCheckCircle } from '@arco-design/web-react/icon
 import { TaskType, TaskStatus } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 const { TextArea } = Input

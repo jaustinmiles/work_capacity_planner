@@ -12,7 +12,7 @@ import { getDatabase } from '../../services/database'
 import { SequencedTask } from '@shared/sequencing-types'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 import { useLoggerContext } from '../../../logging/index.renderer'
 import { RendererLogger } from '../../../logging/renderer/RendererLogger'
 

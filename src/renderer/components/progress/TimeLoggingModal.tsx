@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { TaskStep } from '@shared/sequencing-types'
 import { Form, Input, Button, Space, Typography, Grid, Tag, Alert, Modal } from '@arco-design/web-react'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 const FormItem = Form.Item

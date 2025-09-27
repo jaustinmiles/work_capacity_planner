@@ -163,9 +163,9 @@ describe('logger', () => {
       })
     })
 
-    describe('logger.store', () => {
+    describe('logger.ui', () => {
       it('should log store scope messages', () => {
-        logger.store.debug('State updated', { action: 'ADD_TASK' })
+        logger.ui.debug('State updated', { action: 'ADD_TASK' })
 
         expect(mockNewLogger.debug).toHaveBeenCalledWith(
           '[STORE] State updated',

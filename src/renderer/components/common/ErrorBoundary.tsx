@@ -1,7 +1,7 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
 import { Result, Button, Typography, Space } from '@arco-design/web-react'
 import { IconRefresh, IconBug } from '@arco-design/web-react/icon'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 const { Paragraph, Text } = Typography

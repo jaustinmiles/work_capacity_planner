@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Form, Input, Button, Radio, Typography, Space, Alert, Checkbox } from '@arco-design/web-react'
 import { IconMessage, IconSave } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 const FormItem = Form.Item
 const TextArea = Input.TextArea

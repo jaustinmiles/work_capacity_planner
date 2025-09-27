@@ -226,7 +226,7 @@ describe('Logger Integration', () => {
   describe('Legacy logger compatibility', () => {
     it('should capture logs from legacy logger', async () => {
       // Dynamic import to avoid circular dependency issues
-      const { logger: legacyLogger } = await import('../../renderer/utils/logger')
+      const { logger: legacyLogger } = await import('@/shared/logger')
 
       // Use legacy logger
       legacyLogger.ui.info('Legacy UI message', { component: 'Button' })

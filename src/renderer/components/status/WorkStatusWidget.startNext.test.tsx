@@ -35,7 +35,7 @@ vi.mock('../../utils/events', () => ({
   EVENTS: { TIME_LOGGED: 'timeLogged', WORKFLOW_UPDATED: 'workflowUpdated', SESSION_CHANGED: 'sessionChanged', DATA_REFRESH_NEEDED: 'dataRefresh' },
 }))
 
-vi.mock('../../utils/logger', () => ({
+vi.mock('@/shared/logger', () => ({
   logger: { ui: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
 }))
 

@@ -13,7 +13,7 @@ import {
 import { IconScissor } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid

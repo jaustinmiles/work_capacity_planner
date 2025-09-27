@@ -22,7 +22,7 @@ import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { formatDuration } from '../../utils/dateUtils'
 import dayjs from 'dayjs'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 const { Text } = Typography

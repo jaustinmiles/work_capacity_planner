@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Space, Typography, Select, Divider, Tag, Alert } from '@arco-design/web-react'
 import { DependencyChange } from '@shared/amendment-types'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 const { Text } = Typography
 

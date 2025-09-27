@@ -84,7 +84,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm test -- --findRelatedTests ${file} --passWithNoTests",
+            "command": "npm test -- --related ${file}",
             "timeout": 30000
           }
         ]

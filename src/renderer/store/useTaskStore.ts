@@ -11,7 +11,7 @@ import { UnifiedWorkSession, fromLocalWorkSession } from '@shared/unified-work-s
 import { UnifiedSchedulerAdapter } from '@shared/unified-scheduler-adapter'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
-import { logger } from '../utils/logger'
+import { logger } from '@/shared/logger'
 import { getRendererLogger } from '../../logging/index.renderer'
 import { WorkTrackingService } from '../services/workTrackingService'
 import dayjs from 'dayjs'
@@ -499,14 +499,14 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const task = get().tasks.find(t => t.id === id)
       if (!task) return
 
-      logger.store.info('[TaskStore] Toggling task completion', {
+      logger.ui.info('[TaskStore] Toggling task completion', {
         taskId: id,
         taskName: task.name,
         currentStatus: task.completed,
         newStatus: !task.completed,
       })
 
-      logger.store.info('Toggling task completion', {
+      logger.ui.info('Toggling task completion', {
         taskId: id,
         taskName: task.name,
         currentStatus: task.completed,
@@ -534,19 +534,19 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             newSessions.delete(id)
             set({ activeWorkSessions: newSessions })
 
-            logger.store.info('Stopped work session for completed task', { taskId: id, sessionId: activeSession.id })
+            logger.ui.info('Stopped work session for completed task', { taskId: id, sessionId: activeSession.id })
           } catch (error) {
-            logger.store.warn('Failed to stop work session for completed task', error)
+            logger.ui.warn('Failed to stop work session for completed task', error)
           }
         }
       }
 
-      logger.store.info('Task completion toggled successfully', {
+      logger.ui.info('Task completion toggled successfully', {
         taskId: id,
         isNowCompleted: !task.completed,
       })
     } catch (error) {
-      logger.store.error('[TaskStore] Failed to toggle task completion', error, { taskId: id })
+      logger.ui.error('[TaskStore] Failed to toggle task completion', error, { taskId: id })
       set({
         error: error instanceof Error ? error.message : 'Failed to toggle task completion',
       })
@@ -555,7 +555,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   selectTask: (id) => {
     const task = id ? get().tasks.find(t => t.id === id) : null
-    logger.store.debug('[TaskStore] Task selection changed', {
+    logger.ui.debug('[TaskStore] Task selection changed', {
       taskId: id,
       taskName: task?.name,
     })
@@ -872,7 +872,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         overallStatus: TaskStatus.InProgress,
       })
 
-      logger.store.info('[TaskStore] Started work on task', {
+      logger.ui.info('[TaskStore] Started work on task', {
         taskId,
         sessionId: workSession.id,
         activeSessionsInStore: get().activeWorkSessions.size,
@@ -971,9 +971,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
           // Emit event to update other components
           appEvents.emit(EVENTS.TIME_LOGGED)
-          logger.store.info(`Logged ${minutesWorked} minutes for step ${stepId} on pause`)
+          logger.ui.info(`Logged ${minutesWorked} minutes for step ${stepId} on pause`)
         } catch (error) {
-          logger.store.error('Failed to create work session on pause:', error)
+          logger.ui.error('Failed to create work session on pause:', error)
         }
       }
 
@@ -1042,7 +1042,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }
 
       if (notes) {
-        logger.store.info(`Saving notes to step ${stepId}: "${notes}"`)
+        logger.ui.info(`Saving notes to step ${stepId}: "${notes}"`)
       }
 
       await getDatabase().updateTaskStepProgress(stepId, updateData)
@@ -1118,7 +1118,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           updatedNotes = step.notes
             ? `${step.notes}\n\n${new Date().toLocaleString()}: ${notes}`
             : `${new Date().toLocaleString()}: ${notes}`
-          logger.store.info(`Appending notes to step ${stepId}: "${notes}"`)
+          logger.ui.info(`Appending notes to step ${stepId}: "${notes}"`)
         }
 
         await getDatabase().updateTaskStepProgress(stepId, {

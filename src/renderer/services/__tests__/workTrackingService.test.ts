@@ -17,7 +17,7 @@ vi.mock('../database', () => ({
 }))
 
 // Mock logger
-vi.mock('../../utils/logger', () => ({
+vi.mock('@/shared/logger', () => ({
   logger: {
     store: {
       info: vi.fn(),
