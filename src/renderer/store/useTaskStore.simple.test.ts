@@ -22,7 +22,24 @@ vi.mock('../utils/events', () => ({
 }))
 
 vi.mock('@/shared/logger', () => ({
-  logger: { ui: { warn: vi.fn(), error: vi.fn() }, store: { info: vi.fn() } },
+  logger: {
+    ui: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    },
+    main: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    },
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }))
 
 vi.mock('../../logging/index.renderer', () => ({
