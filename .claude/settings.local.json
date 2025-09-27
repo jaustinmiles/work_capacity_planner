@@ -76,7 +76,9 @@
       "Bash(awk:*)",
       "Read(//Users/austinmiles/Library/**)",
       "mcp__git__commit_changes",
-      "mcp__git__push_changes"
+      "mcp__git__push_changes",
+      "mcp__git__get_pr_reviews",
+      "mcp__git__reply_to_comment"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
