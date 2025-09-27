@@ -1,0 +1,119 @@
+{
+  "permissions": {
+    "deny": [
+      "_comment_dangerous_git": "Block dangerous git operations",
+      "Bash(git push --force)",
+      "Bash(git push -f)",
+      "Bash(git commit --amend)",
+      "Bash(git rebase -i*)",
+      "Bash(git reset --hard*)",
+      "Bash(*--no-verify*)",
+
+      "_comment_block_adhoc_pr": "Force use of Git MCP for PR operations",
+      "Bash(gh pr create*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr comment*)",
+      "Bash(gh api*)",
+
+      "_comment_block_adhoc_search": "Force use of systematic search/debug",
+      "Bash(grep -r*)",
+      "Bash(find * -name*)",
+      "Bash(rg *)",
+      "Bash(cat logs/*)",
+      "Bash(tail -f*)",
+
+      "_comment_block_adhoc_db": "Force structured database access",
+      "Bash(sqlite3*)",
+      "Bash(npx prisma studio*)",
+
+      "_comment_security": "Security protections",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Bash(rm -rf*)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+
+    "allow": [
+      "_comment_approved_dev": "Approved development operations",
+      "Bash(npm run test*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run typecheck*)",
+      "Bash(npm run build*)",
+      "Bash(npm start*)",
+      "Bash(npm run dev*)",
+
+      "_comment_approved_git": "Safe git operations",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git checkout main)",
+      "Bash(git checkout -b feature/*)",
+      "Bash(git add*)",
+      "Bash(git commit -m*)",
+      "Bash(git push origin feature/*)",
+      "Bash(git pull origin main)",
+
+      "_comment_approved_files": "File operations",
+      "Read(./src/**)",
+      "Read(./scripts/**)",
+      "Read(./docs/**)",
+      "Read(./context/**)",
+      "Read(./*.md)",
+      "Read(./*.json)",
+      "Read(./*.ts)",
+      "Read(./*.js)",
+
+      "_comment_approved_scripts": "Approved diagnostic scripts via MCP only",
+      "Bash(npx tsx scripts/mcp/diagnostic-wrapper.ts)",
+      "Bash(npx tsx scripts/mcp/git-wrapper.ts)"
+    ]
+  },
+
+  "mcpServers": {
+    "diagnostic": {
+      "command": "npx",
+      "args": ["tsx", "./scripts/mcp/diagnostic-wrapper.ts"]
+    },
+    "git": {
+      "command": "npx",
+      "args": ["tsx", "./scripts/mcp/git-wrapper.ts"]
+    }
+  },
+
+  "hooks": {
+    "Edit": [
+      {
+        "matcher": "\\.(js|ts|jsx|tsx)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run lint -- --fix ${file}",
+            "timeout": 10000
+          },
+          {
+            "type": "command",
+            "command": "npm test -- --findRelatedTests ${file} --passWithNoTests",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run typecheck",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  },
+
+  "defaultModel": "claude-sonnet-4-20250514",
+  "maxOutputTokens": 4096
+}
