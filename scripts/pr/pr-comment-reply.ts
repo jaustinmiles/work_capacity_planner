@@ -264,6 +264,7 @@ function replyToComment(prNumber: string, commentId: string, replyText: string) 
     console.error(`${colors.red}Failed to post reply:${colors.reset}`, error.message)
     console.error(`${colors.red}Error details:${colors.reset}`, error.stderr || error.stdout)
     console.log(`\n${colors.yellow}Make sure the comment ID ${commentId} is correct.${colors.reset}`)
+    process.exit(1)
   }
 }
 

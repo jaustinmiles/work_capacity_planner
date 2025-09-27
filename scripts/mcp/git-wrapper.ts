@@ -326,21 +326,33 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
 
   private async replyToComment(prNumber: number, commentId: string, reply: string) {
     const scriptPath = path.join(process.cwd(), 'scripts/pr/pr-comment-reply.ts')
-    const output = await this.runScript('npx', [
-      'tsx',
-      scriptPath,
-      prNumber.toString(),
-      commentId,
-      reply,
-    ])
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `✅ **Reply Posted**\n\nPR #${prNumber}, Comment ID: ${commentId}\n\n\`\`\`\n${output}\n\`\`\``,
-        },
-      ],
+    try {
+      const output = await this.runScript('npx', [
+        'tsx',
+        scriptPath,
+        prNumber.toString(),
+        commentId,
+        reply,
+      ])
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `✅ **Reply Posted**\n\nPR #${prNumber}, Comment ID: ${commentId}\n\n\`\`\`\n${output}\n\`\`\``,
+          },
+        ],
+      }
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ **Failed to Post Reply**\n\nPR #${prNumber}, Comment ID: ${commentId}\n\n**Error:** ${error.message}\n\n\`\`\`\n${error.toString()}\n\`\`\``,
+          },
+        ],
+      }
     }
   }
 
