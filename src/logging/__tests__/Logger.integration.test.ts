@@ -223,32 +223,4 @@ describe('Logger Integration', () => {
     })
   })
 
-  describe.skip('Legacy logger compatibility', () => {
-    it('should capture logs from legacy logger', async () => {
-      // Dynamic import to avoid circular dependency issues
-      const { logger: legacyLogger } = await import('@/shared/logger')
-
-      // Use legacy logger
-      legacyLogger.ui.info('Legacy UI message', { component: 'Button' })
-      legacyLogger.ui.debug('Legacy store message', { action: 'UPDATE' })
-      legacyLogger.scheduler.warn('Legacy scheduler warning')
-      legacyLogger.ai.error('Legacy AI error', new Error('AI failed'))
-
-      // Check that logs were captured in the new logger
-      const entries = logger.dumpBuffer()
-      const messages = entries.map(e => e.message)
-
-      expect(messages).toContain('[UI] Legacy UI message')
-      expect(messages).toContain('[STORE] Legacy store message')
-      expect(messages).toContain('[SCHEDULER] Legacy scheduler warning')
-      expect(messages).toContain('[AI] Legacy AI error')
-
-      // Check that scope is included in context
-      const uiEntry = entries.find(e => e.message.includes('Legacy UI message'))
-      expect(uiEntry?.data).toMatchObject({
-        scope: 'ui',
-        component: 'Button',
-      })
-    })
-  })
 })
