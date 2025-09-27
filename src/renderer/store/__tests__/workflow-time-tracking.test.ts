@@ -41,11 +41,12 @@ vi.mock('@/shared/logger', () => ({
       info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
+      debug: vi.fn(),
     },
-    store: {
-      info: vi.fn(),
-      error: vi.fn(),
-    },
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   },
 }))
 

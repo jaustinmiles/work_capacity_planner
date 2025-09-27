@@ -31,7 +31,7 @@ vi.mock('@/shared/logger', () => ({
       info: vi.fn(),
       error: vi.fn(),
     },
-    store: {
+    ui: {
       info: vi.fn(),
       error: vi.fn(),
     },
