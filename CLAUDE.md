@@ -64,6 +64,27 @@ Use `feedback.json` for prioritized work items. Always check for next priority f
 - Small atomic commits with clear messages
 - Systematic pattern fixing (find ALL instances first)
 
+## MCP Infrastructure
+
+The project includes Model Context Protocol (MCP) servers for systematic development workflows:
+
+### Diagnostic Server (`scripts/mcp/diagnostic-wrapper.ts`)
+- `mcp__diagnostic__get_next_feedback` - Get prioritized feedback from feedback.json
+- `mcp__diagnostic__inspect_database` - Query database using db-inspector.ts
+- `mcp__diagnostic__view_logs` - View application logs using log-viewer.ts
+
+### Git Server (`scripts/mcp/git-wrapper.ts`)
+- `mcp__git__setup_bot_auth` - Set up Claude bot authentication for GitHub
+- `mcp__git__create_feature_branch` - Create and switch to new feature branch
+- `mcp__git__commit_changes` - Add and commit changes with proper message
+- `mcp__git__push_and_create_pr` - Push branch and create PR using bot auth
+- `mcp__git__get_pr_reviews` - Get PR review comments for systematic addressing
+- `mcp__git__reply_to_comment` - Reply to specific PR review comments
+- `mcp__git__health_check` - Run PR health check using pr-health-check.ts
+- `mcp__git__push_changes` - Push committed changes to current branch
+
+These servers enable systematic, automated development workflows through Claude Code.
+
 ---
 
 *The goal is systematic, enforceable practices through infrastructure, not extensive documentation.*
