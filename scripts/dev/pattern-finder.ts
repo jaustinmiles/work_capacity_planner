@@ -8,7 +8,6 @@
 
 import { execSync } from 'child_process'
 import * as fs from 'fs'
-import * as path from 'path'
 
 interface AntiPattern {
   name: string
@@ -72,7 +71,7 @@ class PatternFinder {
       {
         name: 'string-literals',
         description: 'String literals that might need to be enums',
-        searchCommand: 'grep -rn "\\(focused\\|admin\\|mixed\\|personal\\|flexible\\|universal\\)" src/ --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v "enum\\|type\\|interface" || true',
+        searchCommand: 'grep -rn "(focused|admin|mixed|personal|flexible|universal)" src/ --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v "enum\\|type\\|interface" || true',
         severity: 'warning',
         autoFixable: false,
         parseResults: (output: string) => this.parseGrepResults(output),
@@ -115,7 +114,7 @@ class PatternFinder {
       {
         name: 'duplicate-imports',
         description: 'Duplicate or redundant import statements',
-        searchCommand: 'find src -name "*.ts" -o -name "*.tsx" | xargs -I {} sh -c "grep -h \"^import\" {} | sort | uniq -d | head -20" 2>/dev/null || true',
+        searchCommand: 'find src -name "*.ts" -o -name "*.tsx" | xargs -I {} sh -c "grep -h \\"^import\\" {} | sort | uniq -d | head -20" 2>/dev/null || true',
         severity: 'info',
         autoFixable: false,
         parseResults: (output: string) => {
@@ -204,7 +203,7 @@ class PatternFinder {
             }
           }
         })
-      } catch (error) {
+      } catch (_error) {
         // Skip files that can't be read
       }
     }
@@ -223,7 +222,7 @@ class PatternFinder {
       fileGroups.get(instance.file)!.push(instance)
     })
 
-    for (const [file, fileInstances] of fileGroups) {
+    for (const [file, _fileInstances] of fileGroups) {
       try {
         let content = fs.readFileSync(file, 'utf8')
         const lines = content.split('\n')
