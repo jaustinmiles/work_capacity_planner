@@ -35,9 +35,20 @@ npx tsx scripts/dev/db-inspector.ts capacity 2024-01-15
 ```
 
 ## 5. Use MCP Diagnostic Tools
-Access these tools through the diagnostic MCP server:
-- `get_next_feedback` - Get next issue to work on
-- `view_logs` - View recent or tailed logs
-- `inspect_database` - Safe database queries
+Access these tools through the diagnostic MCP server (`scripts/mcp/diagnostic-wrapper.ts`):
+
+### Available MCP Diagnostic Tools:
+- **`mcp__diagnostic__get_next_feedback`** - Get prioritized feedback from feedback.json
+  - Filters: `high`, `unresolved`, `summary`
+  - Types: `bug`, `feature`, `improvement`
+- **`mcp__diagnostic__view_logs`** - View application logs using log-viewer.ts
+  - Actions: `recent`, `tail`, `search`
+  - Supports level filtering and time ranges
+- **`mcp__diagnostic__inspect_database`** - Query database using db-inspector.ts
+  - Operations: `tasks`, `sessions`, `capacity`, `stats`, `patterns`
+  - Safe read-only database access
+
+### MCP Server Configuration
+The diagnostic server is configured in `.claude/settings.json` and automatically compiles to JavaScript for Claude Code integration. This provides systematic, tool-based debugging through the Model Context Protocol instead of scattered ad-hoc scripts.
 
 This approach provides systematic debugging without scattered ad-hoc tools.
