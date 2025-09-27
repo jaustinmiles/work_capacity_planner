@@ -4,42 +4,40 @@
       "Bash(git push --force)",
       "Bash(git push -f)",
       "Bash(git commit --amend)",
-      "Bash(git rebase -i*)",
-      "Bash(git reset --hard*)",
-      "Bash(*--no-verify*)",
-      "Bash(gh pr create*)",
-      "Bash(gh pr view*)",
-      "Bash(gh pr comment*)",
-      "Bash(gh api*)",
-      "Bash(grep -r*)",
-      "Bash(find * -name*)",
-      "Bash(rg *)",
-      "Bash(cat logs/*)",
-      "Bash(tail -f*)",
-      "Bash(sqlite3*)",
-      "Bash(npx prisma studio*)",
+      "Bash(git rebase -i:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh api:*)",
+      "Bash(grep -r:*)",
+      "Bash(find:*)",
+      "Bash(rg:*)",
+      "Bash(tail -f:*)",
+      "Bash(sqlite3:*)",
+      "Bash(npx prisma studio:*)",
       "Read(./.env)",
       "Read(./.env.*)",
       "Read(./secrets/**)",
-      "Bash(rm -rf*)",
-      "Bash(curl *)",
-      "Bash(wget *)"
+      "Bash(rm -rf:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)"
     ],
 
     "allow": [
-      "Bash(npm run test*)",
-      "Bash(npm run lint*)",
-      "Bash(npm run typecheck*)",
-      "Bash(npm run build*)",
-      "Bash(npm start*)",
-      "Bash(npm run dev*)",
-      "Bash(git status*)",
-      "Bash(git diff*)",
-      "Bash(git log*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm start:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
       "Bash(git checkout main)",
       "Bash(git checkout -b feature/*)",
-      "Bash(git add*)",
-      "Bash(git commit -m*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m:*)",
       "Bash(git push origin feature/*)",
       "Bash(git pull origin main)",
       "Read(./src/**)",
@@ -67,15 +65,23 @@
   },
 
   "hooks": {
-    "Edit": [
+    "PreToolUse": [
       {
-        "matcher": "\\.(js|ts|jsx|tsx)$",
+        "matcher": "Edit",
         "hooks": [
           {
             "type": "command",
             "command": "npm run lint -- --fix ${file}",
             "timeout": 10000
-          },
+          }
+        ]
+      }
+    ],
+
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
           {
             "type": "command",
             "command": "npm test -- --findRelatedTests ${file} --passWithNoTests",
