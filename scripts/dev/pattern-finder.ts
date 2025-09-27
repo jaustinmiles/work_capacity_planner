@@ -72,7 +72,7 @@ class PatternFinder {
       {
         name: 'string-literals',
         description: 'String literals that might need to be enums',
-        searchCommand: 'grep -rn "['\"]\\(focused\\|admin\\|mixed\\|personal\\|flexible\\|universal\\)['\"]" src/ --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v "enum\\|type\\|interface" || true',
+        searchCommand: 'grep -rn "\\(focused\\|admin\\|mixed\\|personal\\|flexible\\|universal\\)" src/ --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v "enum\\|type\\|interface" || true',
         severity: 'warning',
         autoFixable: false,
         parseResults: (output: string) => this.parseGrepResults(output),
@@ -171,7 +171,7 @@ class PatternFinder {
 
     for (const file of files) {
       if (file.includes('.test.')) continue
-      
+
       try {
         const content = fs.readFileSync(file, 'utf8')
         const lines = content.split('\n')
@@ -182,7 +182,7 @@ class PatternFinder {
 
         lines.forEach((line, index) => {
           const funcMatch = line.match(/^\s*(async\s+)?(?:function\s+)?(\w+)\s*\(|^\s*(?:const|let|var)\s+(\w+)\s*=.*=>|^\s*(\w+)\s*\(.*\)\s*\{/)
-          
+
           if (funcMatch && !inFunction) {
             inFunction = true
             functionStart = index + 1
@@ -190,7 +190,7 @@ class PatternFinder {
             braceCount = (line.match(/{/g) || []).length - (line.match(/}/g) || []).length
           } else if (inFunction) {
             braceCount += (line.match(/{/g) || []).length - (line.match(/}/g) || []).length
-            
+
             if (braceCount === 0) {
               const functionLength = index - functionStart + 1
               if (functionLength > 100) {
@@ -214,7 +214,7 @@ class PatternFinder {
 
   private fixConsoleLogs(instances: PatternInstance[]): void {
     console.log(`\n🔧 Attempting to fix ${instances.length} console.log statements...`)
-    
+
     const fileGroups = new Map<string, PatternInstance[]>()
     instances.forEach(instance => {
       if (!fileGroups.has(instance.file)) {
@@ -227,10 +227,10 @@ class PatternFinder {
       try {
         let content = fs.readFileSync(file, 'utf8')
         const lines = content.split('\n')
-        
+
         // Check if logger is already imported
-        const hasLoggerImport = lines.some(line => 
-          line.includes('import') && line.includes('logger') && line.includes('from')
+        const hasLoggerImport = lines.some(line =>
+          line.includes('import') && line.includes('logger') && line.includes('from'),
         )
 
         if (!hasLoggerImport) {
@@ -251,7 +251,7 @@ class PatternFinder {
         // Replace console.log with logger.info
         content = lines.join('\n')
         content = content.replace(/console\.log\(/g, 'logger.info(')
-        
+
         fs.writeFileSync(file, content)
         console.log(`  Fixed console.log statements in ${file}`)
       } catch (error) {
@@ -262,14 +262,14 @@ class PatternFinder {
 
   private runPattern(pattern: AntiPattern): void {
     process.stdout.write(`\n🔍 Checking ${pattern.name}... `)
-    
+
     let output = ''
     if (pattern.searchCommand) {
       output = execSync(pattern.searchCommand, { encoding: 'utf8' })
     }
-    
+
     const instances = pattern.parseResults(output)
-    
+
     if (instances.length === 0) {
       console.log('✅')
       return
@@ -277,9 +277,9 @@ class PatternFinder {
 
     const emoji = pattern.severity === 'error' ? '❌' : pattern.severity === 'warning' ? '⚠️' : 'ℹ️'
     console.log(`${emoji} Found ${instances.length} instances`)
-    
+
     this.results.set(pattern.name, instances)
-    
+
     // Show first few instances
     instances.slice(0, 5).forEach(instance => {
       console.log(`   ${instance.file}:${instance.line}`)
@@ -289,7 +289,7 @@ class PatternFinder {
         console.log(`     ${instance.content}`)
       }
     })
-    
+
     if (instances.length > 5) {
       console.log(`   ... and ${instances.length - 5} more`)
     }
@@ -328,11 +328,11 @@ class PatternFinder {
 
     // Summary
     console.log('\n' + '═'.repeat(60))
-    
+
     let errorCount = 0
     let warningCount = 0
     let infoCount = 0
-    
+
     for (const [patternName, instances] of this.results) {
       const pattern = this.patterns.find(p => p.name === patternName)!
       if (pattern.severity === 'error') {
@@ -403,7 +403,7 @@ if (require.main === module) {
     PatternFinder.showHelp()
     process.exit(0)
   }
-  
+
   const finder = new PatternFinder()
   finder.run()
 }

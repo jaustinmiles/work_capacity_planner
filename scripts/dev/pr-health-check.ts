@@ -42,10 +42,10 @@ class PRHealthChecker {
             return {
               passed: false,
               details: `Found ${errorCount} TypeScript errors`,
-              fixable: false
+              fixable: false,
             }
           }
-        }
+        },
       },
       {
         name: 'ESLint Errors',
@@ -62,7 +62,7 @@ class PRHealthChecker {
             return {
               passed: false,
               details: `Found ${errorCount} ESLint errors`,
-              fixable: true
+              fixable: true,
             }
           } catch {
             return { passed: false, details: 'ESLint check failed', fixable: false }
@@ -71,7 +71,7 @@ class PRHealthChecker {
         fix: () => {
           console.log('  Running ESLint with --fix...')
           execSync('npm run lint -- --fix', { stdio: 'inherit' })
-        }
+        },
       },
       {
         name: 'Any Type Usage',
@@ -86,9 +86,9 @@ class PRHealthChecker {
           return {
             passed: false,
             details: `Found ${lines.length} instances of "as any":\n${lines.slice(0, 5).join('\n')}`,
-            fixable: false
+            fixable: false,
           }
-        }
+        },
       },
       {
         name: 'Type Assertions',
@@ -103,9 +103,9 @@ class PRHealthChecker {
           return {
             passed: false,
             details: `Found ${lines.length} instances of "as unknown as":\n${lines.slice(0, 5).join('\n')}`,
-            fixable: false
+            fixable: false,
           }
-        }
+        },
       },
       {
         name: 'Console Logs',
@@ -120,9 +120,9 @@ class PRHealthChecker {
           return {
             passed: false,
             details: `Found ${lines.length} console.log statements:\n${lines.slice(0, 5).join('\n')}`,
-            fixable: false
+            fixable: false,
           }
-        }
+        },
       },
       {
         name: 'TypeScript Ignore',
@@ -137,9 +137,9 @@ class PRHealthChecker {
           return {
             passed: false,
             details: `Found ${lines.length} @ts-ignore directives:\n${lines.slice(0, 5).join('\n')}`,
-            fixable: false
+            fixable: false,
           }
-        }
+        },
       },
       {
         name: 'Optional Chaining Misuse',
@@ -154,9 +154,9 @@ class PRHealthChecker {
           return {
             passed: false,
             details: `Found ${lines.length} instances of multiple optional chaining:\n${lines.slice(0, 5).join('\n')}`,
-            fixable: false
+            fixable: false,
           }
-        }
+        },
       },
       {
         name: 'TODO Comments',
@@ -184,16 +184,16 @@ class PRHealthChecker {
             return {
               passed: false,
               details: `Found ${undocumented.length} undocumented TODOs:\n${undocumented.slice(0, 3).join('\n')}`,
-              fixable: false
+              fixable: false,
             }
           }
 
           return {
             passed: false,
             details: `Found ${todoLines.length} TODOs but TECH_DEBT.md not found`,
-            fixable: false
+            fixable: false,
           }
-        }
+        },
       },
       {
         name: 'File Count',
@@ -208,9 +208,9 @@ class PRHealthChecker {
           return {
             passed: false,
             details: `${files.length} files changed (exceeds limit of 20). Consider splitting the PR.`,
-            fixable: false
+            fixable: false,
           }
-        }
+        },
       },
       {
         name: 'Test Coverage',
@@ -226,9 +226,9 @@ class PRHealthChecker {
           return {
             passed: false,
             details: `${srcFiles.length} source files changed but no test files included`,
-            fixable: false
+            fixable: false,
           }
-        }
+        },
       },
       {
         name: 'Commit Size',
@@ -249,7 +249,7 @@ class PRHealthChecker {
             return {
               passed: false,
               details: `${commits.length} commits (consider squashing). Recent:\n${commits.slice(0, 5).join('\n')}`,
-              fixable: true
+              fixable: true,
             }
           } catch {
             return { passed: true, details: 'Unable to check commit count' }
@@ -258,8 +258,8 @@ class PRHealthChecker {
         fix: () => {
           console.log('  Consider running: git rebase -i origin/main')
           console.log('  Then mark commits as "squash" except the first')
-        }
-      }
+        },
+      },
     ]
   }
 
@@ -279,7 +279,7 @@ class PRHealthChecker {
       this.issues.push({
         check: check.name,
         details: result.details,
-        fixable: result.fixable || false
+        fixable: result.fixable || false,
       })
 
       if (this.fixMode && result.fixable && check.fix) {

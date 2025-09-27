@@ -81,5 +81,6 @@
     "additionalDirectories": [
       "/tmp"
     ]
-  }
+  },
+  "outputStyle": "Learning"
 }

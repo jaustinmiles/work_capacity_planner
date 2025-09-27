@@ -29,7 +29,7 @@ class DiagnosticWrapper {
         capabilities: {
           tools: {},
         },
-      }
+      },
     )
 
     this.setupHandlers()
@@ -48,15 +48,15 @@ class DiagnosticWrapper {
                 filter: {
                   type: 'string',
                   enum: ['high', 'unresolved', 'summary'],
-                  description: 'Type of feedback query'
+                  description: 'Type of feedback query',
                 },
                 type: {
                   type: 'string',
                   enum: ['bug', 'feature', 'improvement'],
-                  description: 'Filter by feedback type'
-                }
-              }
-            }
+                  description: 'Filter by feedback type',
+                },
+              },
+            },
           },
           {
             name: 'inspect_database',
@@ -67,15 +67,15 @@ class DiagnosticWrapper {
                 operation: {
                   type: 'string',
                   enum: ['tasks', 'sessions', 'capacity', 'stats', 'patterns'],
-                  description: 'Database inspection operation'
+                  description: 'Database inspection operation',
                 },
                 params: {
                   type: 'string',
-                  description: 'Additional parameters (e.g., session name, date)'
-                }
+                  description: 'Additional parameters (e.g., session name, date)',
+                },
               },
-              required: ['operation']
-            }
+              required: ['operation'],
+            },
           },
           {
             name: 'view_logs',
@@ -86,33 +86,33 @@ class DiagnosticWrapper {
                 action: {
                   type: 'string',
                   enum: ['recent', 'tail', 'search'],
-                  description: 'Log viewing action'
+                  description: 'Log viewing action',
                 },
                 filter: {
                   type: 'string',
-                  description: 'Filter pattern for logs'
+                  description: 'Filter pattern for logs',
                 },
                 level: {
                   type: 'string',
                   enum: ['error', 'warn', 'info', 'debug'],
-                  description: 'Log level filter'
+                  description: 'Log level filter',
                 },
                 since: {
                   type: 'string',
-                  description: 'Time filter (e.g., "1h", "30m")'
+                  description: 'Time filter (e.g., "1h", "30m")',
                 },
                 limit: {
                   type: 'number',
-                  description: 'Number of log entries to show'
-                }
+                  description: 'Number of log entries to show',
+                },
               },
-              required: ['action']
-            }
-          }
+              required: ['action'],
+            },
+          },
           // TODO(human): Add more MCP tools that wrap your existing scripts
           // Consider which diagnostic scripts from scripts/tools/diagnostics/
           // would be most useful as MCP tools
-        ] satisfies Tool[]
+        ] satisfies Tool[],
       }
     })
 
@@ -140,9 +140,9 @@ class DiagnosticWrapper {
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`
-            }
-          ]
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
         }
       }
     })
@@ -163,9 +163,9 @@ class DiagnosticWrapper {
       content: [
         {
           type: 'text',
-          text: `**Feedback Query Results**\n\n\`\`\`\n${output}\n\`\`\``
-        }
-      ]
+          text: `**Feedback Query Results**\n\n\`\`\`\n${output}\n\`\`\``,
+        },
+      ],
     }
   }
 
@@ -173,7 +173,7 @@ class DiagnosticWrapper {
     const { operation, params } = args
     const scriptPath = path.join(process.cwd(), 'scripts/dev/db-inspector.ts')
 
-    let command = ['tsx', scriptPath, operation]
+    const command = ['tsx', scriptPath, operation]
     if (params) {
       command.push(params)
     }
@@ -184,9 +184,9 @@ class DiagnosticWrapper {
       content: [
         {
           type: 'text',
-          text: `**Database Inspection: ${operation}**\n\n\`\`\`\n${output}\n\`\`\``
-        }
-      ]
+          text: `**Database Inspection: ${operation}**\n\n\`\`\`\n${output}\n\`\`\``,
+        },
+      ],
     }
   }
 
@@ -226,9 +226,9 @@ class DiagnosticWrapper {
       content: [
         {
           type: 'text',
-          text: `**Logs (${action})**\n\n\`\`\`\n${output}\n\`\`\``
-        }
-      ]
+          text: `**Logs (${action})**\n\n\`\`\`\n${output}\n\`\`\``,
+        },
+      ],
     }
   }
 
@@ -242,7 +242,7 @@ class DiagnosticWrapper {
     return new Promise((resolve, reject) => {
       const process = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        cwd: process.cwd(),
       })
 
       let stdout = ''

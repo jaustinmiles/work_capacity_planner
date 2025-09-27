@@ -29,7 +29,7 @@ class GitWrapper {
         capabilities: {
           tools: {},
         },
-      }
+      },
     )
 
     this.setupHandlers()
@@ -44,8 +44,8 @@ class GitWrapper {
             description: 'Set up Claude bot authentication for GitHub operations',
             inputSchema: {
               type: 'object',
-              properties: {}
-            }
+              properties: {},
+            },
           },
           {
             name: 'create_feature_branch',
@@ -55,11 +55,11 @@ class GitWrapper {
               properties: {
                 name: {
                   type: 'string',
-                  description: 'Feature branch name (without feature/ prefix)'
-                }
+                  description: 'Feature branch name (without feature/ prefix)',
+                },
               },
-              required: ['name']
-            }
+              required: ['name'],
+            },
           },
           {
             name: 'commit_changes',
@@ -69,16 +69,16 @@ class GitWrapper {
               properties: {
                 message: {
                   type: 'string',
-                  description: 'Commit message'
+                  description: 'Commit message',
                 },
                 files: {
                   type: 'array',
                   items: { type: 'string' },
-                  description: 'Specific files to commit (optional, commits all if not specified)'
-                }
+                  description: 'Specific files to commit (optional, commits all if not specified)',
+                },
               },
-              required: ['message']
-            }
+              required: ['message'],
+            },
           },
           {
             name: 'push_and_create_pr',
@@ -88,15 +88,15 @@ class GitWrapper {
               properties: {
                 title: {
                   type: 'string',
-                  description: 'PR title'
+                  description: 'PR title',
                 },
                 body: {
                   type: 'string',
-                  description: 'PR description'
-                }
+                  description: 'PR description',
+                },
               },
-              required: ['title', 'body']
-            }
+              required: ['title', 'body'],
+            },
           },
           {
             name: 'get_pr_reviews',
@@ -106,11 +106,11 @@ class GitWrapper {
               properties: {
                 prNumber: {
                   type: 'number',
-                  description: 'PR number to check reviews for'
-                }
+                  description: 'PR number to check reviews for',
+                },
               },
-              required: ['prNumber']
-            }
+              required: ['prNumber'],
+            },
           },
           {
             name: 'reply_to_comment',
@@ -120,19 +120,19 @@ class GitWrapper {
               properties: {
                 prNumber: {
                   type: 'number',
-                  description: 'PR number'
+                  description: 'PR number',
                 },
                 commentId: {
                   type: 'string',
-                  description: 'Comment ID to reply to'
+                  description: 'Comment ID to reply to',
                 },
                 reply: {
                   type: 'string',
-                  description: 'Reply message'
-                }
+                  description: 'Reply message',
+                },
               },
-              required: ['prNumber', 'commentId', 'reply']
-            }
+              required: ['prNumber', 'commentId', 'reply'],
+            },
           },
           {
             name: 'health_check',
@@ -143,10 +143,10 @@ class GitWrapper {
                 fix: {
                   type: 'boolean',
                   description: 'Whether to auto-fix issues',
-                  default: false
-                }
-              }
-            }
+                  default: false,
+                },
+              },
+            },
           },
           {
             name: 'push_changes',
@@ -157,12 +157,12 @@ class GitWrapper {
                 force: {
                   type: 'boolean',
                   description: 'Use force push (discouraged)',
-                  default: false
-                }
-              }
-            }
-          }
-        ] satisfies Tool[]
+                  default: false,
+                },
+              },
+            },
+          },
+        ] satisfies Tool[],
       }
     })
 
@@ -203,9 +203,9 @@ class GitWrapper {
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`
-            }
-          ]
+              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            },
+          ],
         }
       }
     })
@@ -219,9 +219,9 @@ class GitWrapper {
       content: [
         {
           type: 'text',
-          text: `**Bot Authentication Setup**\n\n\`\`\`\n${output}\n\`\`\`\n\n✅ Ready for GitHub operations`
-        }
-      ]
+          text: `**Bot Authentication Setup**\n\n\`\`\`\n${output}\n\`\`\`\n\n✅ Ready for GitHub operations`,
+        },
+      ],
     }
   }
 
@@ -237,9 +237,9 @@ class GitWrapper {
       content: [
         {
           type: 'text',
-          text: `✅ Created and switched to branch: **${branchName}**\n\nReady to start development.`
-        }
-      ]
+          text: `✅ Created and switched to branch: **${branchName}**\n\nReady to start development.`,
+        },
+      ],
     }
   }
 
@@ -269,9 +269,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
       content: [
         {
           type: 'text',
-          text: `✅ Committed changes:\n\n\`\`\`\n${commitInfo}\n\`\`\`\n\nMessage: "${message}"`
-        }
-      ]
+          text: `✅ Committed changes:\n\n\`\`\`\n${commitInfo}\n\`\`\`\n\nMessage: "${message}"`,
+        },
+      ],
     }
   }
 
@@ -293,7 +293,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
     const output = await this.runScript('gh', [
       'pr', 'create',
       '--title', title,
-      '--body', prBody
+      '--body', prBody,
     ])
 
     // Extract PR number from output
@@ -304,9 +304,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
       content: [
         {
           type: 'text',
-          text: `✅ **PR Created Successfully**\n\n**Branch:** ${currentBranch}\n**Title:** ${title}\n**PR #:** ${prNumber}\n\n${output}`
-        }
-      ]
+          text: `✅ **PR Created Successfully**\n\n**Branch:** ${currentBranch}\n**Title:** ${title}\n**PR #:** ${prNumber}\n\n${output}`,
+        },
+      ],
     }
   }
 
@@ -318,9 +318,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
       content: [
         {
           type: 'text',
-          text: `**PR #${prNumber} Review Status**\n\n\`\`\`\n${output}\n\`\`\``
-        }
-      ]
+          text: `**PR #${prNumber} Review Status**\n\n\`\`\`\n${output}\n\`\`\``,
+        },
+      ],
     }
   }
 
@@ -331,16 +331,16 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
       scriptPath,
       prNumber.toString(),
       commentId,
-      reply
+      reply,
     ])
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ **Reply Posted**\n\nPR #${prNumber}, Comment ID: ${commentId}\n\n\`\`\`\n${output}\n\`\`\``
-        }
-      ]
+          text: `✅ **Reply Posted**\n\nPR #${prNumber}, Comment ID: ${commentId}\n\n\`\`\`\n${output}\n\`\`\``,
+        },
+      ],
     }
   }
 
@@ -357,9 +357,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
       content: [
         {
           type: 'text',
-          text: `**PR Health Check${fix ? ' (with auto-fix)' : ''}**\n\n\`\`\`\n${output}\n\`\`\``
-        }
-      ]
+          text: `**PR Health Check${fix ? ' (with auto-fix)' : ''}**\n\n\`\`\`\n${output}\n\`\`\``,
+        },
+      ],
     }
   }
 
@@ -375,9 +375,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
       content: [
         {
           type: 'text',
-          text: `✅ **Changes Pushed**${force ? ' (with force)' : ''}\n\n\`\`\`\n${output}\n\`\`\``
-        }
-      ]
+          text: `✅ **Changes Pushed**${force ? ' (with force)' : ''}\n\n\`\`\`\n${output}\n\`\`\``,
+        },
+      ],
     }
   }
 
@@ -385,7 +385,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
     return new Promise((resolve, reject) => {
       const process = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
-        cwd: process.cwd()
+        cwd: process.cwd(),
       })
 
       let stdout = ''
