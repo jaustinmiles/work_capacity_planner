@@ -55,12 +55,12 @@
 
   "mcpServers": {
     "diagnostic": {
-      "command": "npx",
-      "args": ["tsx", "/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/diagnostic-wrapper.ts"]
+      "command": "node",
+      "args": ["/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/dist/diagnostic-wrapper.js"]
     },
     "git": {
-      "command": "npx",
-      "args": ["tsx", "/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/git-wrapper.ts"]
+      "command": "node",
+      "args": ["/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/dist/git-wrapper.js"]
     }
   },
 

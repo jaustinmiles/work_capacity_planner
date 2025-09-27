@@ -175,25 +175,25 @@ class GitWrapper {
             return await this.setupBotAuth()
 
           case 'create_feature_branch':
-            return await this.createFeatureBranch(args.name)
+            return await this.createFeatureBranch(args.name as string)
 
           case 'commit_changes':
-            return await this.commitChanges(args.message, args.files)
+            return await this.commitChanges(args.message as string, args.files as string[])
 
           case 'push_and_create_pr':
-            return await this.pushAndCreatePR(args.title, args.body)
+            return await this.pushAndCreatePR(args.title as string, args.body as string)
 
           case 'get_pr_reviews':
-            return await this.getPRReviews(args.prNumber)
+            return await this.getPRReviews(args.prNumber as number)
 
           case 'reply_to_comment':
-            return await this.replyToComment(args.prNumber, args.commentId, args.reply)
+            return await this.replyToComment(args.prNumber as number, args.commentId as string, args.reply as string)
 
           case 'health_check':
-            return await this.healthCheck(args.fix)
+            return await this.healthCheck(args.fix as boolean)
 
           case 'push_changes':
-            return await this.pushChanges(args.force)
+            return await this.pushChanges(args.force as boolean)
 
           default:
             throw new Error(`Unknown tool: ${name}`)
@@ -383,7 +383,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
 
   private async runScript(command: string, args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
-      const process = spawn(command, args, {
+      const childProcess = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         cwd: process.cwd(),
       })
@@ -391,15 +391,15 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
       let stdout = ''
       let stderr = ''
 
-      process.stdout.on('data', (data) => {
+      childProcess.stdout.on('data', (data) => {
         stdout += data.toString()
       })
 
-      process.stderr.on('data', (data) => {
+      childProcess.stderr.on('data', (data) => {
         stderr += data.toString()
       })
 
-      process.on('close', (code) => {
+      childProcess.on('close', (code) => {
         if (code === 0) {
           resolve(stdout)
         } else {
@@ -407,7 +407,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
         }
       })
 
-      process.on('error', (error) => {
+      childProcess.on('error', (error) => {
         reject(error)
       })
     })

@@ -240,7 +240,7 @@ class DiagnosticWrapper {
 
   private async runScript(command: string, args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
-      const process = spawn(command, args, {
+      const childProcess = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         cwd: process.cwd(),
       })
@@ -248,15 +248,15 @@ class DiagnosticWrapper {
       let stdout = ''
       let stderr = ''
 
-      process.stdout.on('data', (data) => {
+      childProcess.stdout.on('data', (data) => {
         stdout += data.toString()
       })
 
-      process.stderr.on('data', (data) => {
+      childProcess.stderr.on('data', (data) => {
         stderr += data.toString()
       })
 
-      process.on('close', (code) => {
+      childProcess.on('close', (code) => {
         if (code === 0) {
           resolve(stdout)
         } else {
@@ -264,7 +264,7 @@ class DiagnosticWrapper {
         }
       })
 
-      process.on('error', (error) => {
+      childProcess.on('error', (error) => {
         reject(error)
       })
     })
