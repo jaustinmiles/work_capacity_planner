@@ -1,29 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run test:*)",
-      "Bash(npm run lint:*)",
-      "Bash(npm run typecheck:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm start:*)",
-      "Bash(npm run dev:*)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
-      "Bash(git checkout main)",
-      "Bash(git checkout -b feature/*)",
-      "Bash(git add:*)",
-      "Bash(git commit -m:*)",
-      "Bash(git push origin feature/*)",
-      "Bash(git pull origin main)",
-      "Read(./src/**)",
-      "Read(./scripts/**)",
-      "Read(./docs/**)",
-      "Read(./context/**)",
-      "Read(./*.md)",
-      "Read(./*.json)",
-      "Read(./*.ts)",
-      "Read(./*.js)"
     ],
     "deny": [
       "Bash(git push --force)",
@@ -75,21 +52,5 @@
         ]
       }
     ]
-  },
-  "mcpServers": {
-    "diagnostic": {
-      "command": "node",
-      "args": [
-        "./scripts/mcp/dist/diagnostic-wrapper.js"
-      ]
-    },
-    "git": {
-      "command": "node",
-      "args": [
-        "./scripts/mcp/dist/git-wrapper.js "
-      ]
-    }
-  },
-  "defaultModel": "claude-opus-4-1-20250805",
-  "maxOutputTokens": 8192
+  }
 }

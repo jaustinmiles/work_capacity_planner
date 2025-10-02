@@ -6,8 +6,7 @@ import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { SchedulingService } from '@shared/scheduling-service'
 import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
-import { WorkSession as ImportedWorkSession } from '@shared/workflow-progress-types'
-import { UnifiedWorkSession, fromLocalWorkSession } from '@shared/unified-work-session-types'
+import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 import { UnifiedSchedulerAdapter } from '@shared/unified-scheduler-adapter'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
@@ -37,7 +36,7 @@ interface TaskStore {
 
   // Progress tracking state
   activeWorkSessions: Map<string, UnifiedWorkSession>
-  workSessionHistory: ImportedWorkSession[]
+  workSessionHistory: UnifiedWorkSession[]
 
   // Data loading actions
   loadTasks: () => Promise<void>
