@@ -35,18 +35,6 @@ interface WorkSessionsModalProps {
   onSessionsUpdated?: () => void
 }
 
-interface WorkSession {
-  id: string
-  taskId: string
-  stepId?: string
-  type: string
-  startTime: Date
-  endTime?: Date
-  plannedMinutes: number
-  actualMinutes?: number
-  notes?: string
-}
-
 export function WorkSessionsModal({
   visible,
   onClose,

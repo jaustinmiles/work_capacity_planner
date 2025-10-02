@@ -29,21 +29,6 @@ import dayjs from 'dayjs'
 
 const { Text } = Typography
 
-interface WorkSession {
-  id: string
-  taskId: string
-  stepId?: string
-  taskName?: string
-  stepName?: string
-  type: TaskType
-  startTime: string // HH:mm format
-  endTime: string // HH:mm format
-  duration: number // minutes
-  notes?: string
-  isNew?: boolean
-  isDirty?: boolean
-}
-
 interface DragState {
   sessionId: string
   edge: 'start' | 'end' | 'move'

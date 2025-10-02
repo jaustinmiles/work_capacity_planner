@@ -17,29 +17,6 @@ import { WorkTrackingService } from '../services/workTrackingService'
 import dayjs from 'dayjs'
 import { getCurrentTime } from '../../shared/time-provider'
 
-// Legacy interface for backward compatibility during migration
-export interface LocalWorkSession {
-  id?: string
-  taskId?: string
-  stepId?: string
-  workflowId?: string
-  startTime: Date
-  endTime?: Date
-  isPaused: boolean
-  duration: number
-  pausedAt?: Date
-  type?: 'focused' | 'admin'
-  plannedDuration?: number
-  actualDuration?: number
-}
-
-// Migration function to convert legacy LocalWorkSession to UnifiedWorkSession
-// Currently unused but kept for potential future migration needs
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function migrateLocalSession(session: LocalWorkSession): UnifiedWorkSession {
-  return fromLocalWorkSession(session)
-}
-
 
 interface TaskStore {
   tasks: Task[]

@@ -2,17 +2,6 @@
  * Types for workflow progress tracking and time management
  */
 
-export interface WorkSession {
-  id: string;
-  taskStepId: string;
-  startTime: Date;
-  endTime?: Date;
-  duration: number; // minutes
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface TimeEstimateAccuracy {
   id: string;
   sessionId: string;
