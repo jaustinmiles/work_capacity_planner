@@ -87,7 +87,7 @@
     "git": {
       "command": "node",
       "args": [
-        "./scripts/mcp/dist/git-wrapper.js"
+        "./scripts/mcp/dist/git-wrapper.js "
       ]
     }
   },
