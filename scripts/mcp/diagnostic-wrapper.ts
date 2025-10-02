@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env npx tsx
 /**
  * Diagnostic MCP Wrapper
  *
@@ -66,12 +66,12 @@ class DiagnosticWrapper {
               properties: {
                 operation: {
                   type: 'string',
-                  enum: ['tasks', 'sessions', 'capacity', 'stats', 'patterns'],
+                  enum: ['tasks', 'session', 'capacity', 'stats', 'pattern'],
                   description: 'Database inspection operation',
                 },
                 params: {
                   type: 'string',
-                  description: 'Additional parameters (e.g., session name, date)',
+                  description: 'Additional parameters (e.g., session ID for session, date for pattern, --all for all sessions)',
                 },
               },
               required: ['operation'],
@@ -175,7 +175,8 @@ class DiagnosticWrapper {
 
     const command = ['tsx', scriptPath, operation]
     if (params) {
-      command.push(params)
+      // Split params by whitespace to handle multiple arguments
+      command.push(...params.split(/\s+/))
     }
 
     const output = await this.runScript('npx', command)
@@ -260,7 +261,10 @@ class DiagnosticWrapper {
         if (code === 0) {
           resolve(stdout)
         } else {
-          reject(new Error(`Script failed with code ${code}: ${stderr}`))
+          // Include both stdout and stderr in error message
+          // (db-inspector uses console.log for errors, which goes to stdout)
+          const errorMsg = stderr || stdout || 'No output'
+          reject(new Error(`Script failed with code ${code}: ${errorMsg}`))
         }
       })
 

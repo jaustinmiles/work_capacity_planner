@@ -8,7 +8,7 @@ import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
 import { useUnifiedScheduler, ScheduleResult } from '../../hooks/useUnifiedScheduler'
 import { ScheduledItem } from '@shared/unified-scheduler-adapter'
-import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
+import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
@@ -1936,18 +1936,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             priorityBreakdown: item.priorityBreakdown,
           })),
           warnings: debugInfo.warnings,
-          unusedCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
-            sum + (block.capacity - block.used), 0) || 0,
-          blockUtilization: debugInfo.blockUtilization?.map(block => ({
-            date: block.date,
-            blockId: block.blockId,
-            blockStart: block.startTime,
-            blockEnd: block.endTime,
-            type: block.blockType,
-            capacity: block.capacity,
-            used: block.used,
-            utilizationPercent: block.utilization,
-          })) || [],
+          blockUtilization: debugInfo.blockUtilization || [],
+          totalScheduled: debugInfo.totalScheduled,
+          totalUnscheduled: debugInfo.totalUnscheduled,
+          scheduleEfficiency: debugInfo.scheduleEfficiency,
         }} />
       )}
     </Space>
