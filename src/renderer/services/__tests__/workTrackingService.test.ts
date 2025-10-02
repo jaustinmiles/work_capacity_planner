@@ -13,6 +13,7 @@ vi.mock('../database', () => ({
     getWorkSessions: vi.fn(),
     getWorkSessionsForTask: vi.fn(),
     getCurrentSession: vi.fn(),
+    getTaskById: vi.fn(),
   })),
 }))
 
@@ -79,11 +80,13 @@ describe('WorkTrackingService', () => {
     it('should start a work session for a task', async () => {
       const taskId = 'task-123'
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
+      mockDatabase.getTaskById.mockResolvedValue({ id: taskId, name: 'Test Task' })
 
       const session = await service.startWorkSession(taskId)
 
       expect(session).toBeDefined()
       expect(session.taskId).toBe(taskId)
+      expect(session.taskName).toBe('Test Task')
       expect(session.startTime).toBeInstanceOf(Date)
       expect(session.plannedMinutes).toBe(60) // UnifiedWorkSession has default 60 minutes
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith(
@@ -99,21 +102,30 @@ describe('WorkTrackingService', () => {
       const stepId = 'step-456'
       const workflowId = 'workflow-789'
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
+      mockDatabase.getTaskById.mockResolvedValue({
+        id: workflowId,
+        name: 'Test Workflow',
+        steps: [{ id: stepId, name: 'Test Step' }],
+      })
 
       const session = await service.startWorkSession(undefined, stepId, workflowId)
 
       expect(session.stepId).toBe(stepId)
       expect(session.workflowId).toBe(workflowId)
       expect(session.taskId).toBe(workflowId) // For workflows, taskId = workflowId
+      expect(session.stepName).toBe('Test Step')
+      expect(session.taskName).toBe('Test Workflow')
     })
 
     it('should prevent starting multiple sessions simultaneously', async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
+      mockDatabase.getTaskById.mockResolvedValue({ id: 'task-1', name: 'Task 1' })
 
       // Start first session
       await service.startWorkSession('task-1')
 
       // Attempt to start second session should throw
+      mockDatabase.getTaskById.mockResolvedValue({ id: 'task-2', name: 'Task 2' })
       await expect(
         service.startWorkSession('task-2'),
       ).rejects.toThrow('Cannot start new work session: another session is already active')
@@ -239,6 +251,7 @@ describe('WorkTrackingService', () => {
   describe('Session State Management', () => {
     beforeEach(async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
+      mockDatabase.getTaskById.mockResolvedValue({ id: 'task-123', name: 'Test Task' })
       await service.startWorkSession('task-123')
     })
 
@@ -327,6 +340,7 @@ describe('WorkTrackingService', () => {
 
     it('should track current active task session', async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
+      mockDatabase.getTaskById.mockResolvedValue({ id: 'task-123', name: 'Test Task' })
 
       await service.startWorkSession('task-123')
 
@@ -337,6 +351,11 @@ describe('WorkTrackingService', () => {
 
     it('should track current active step session', async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
+      mockDatabase.getTaskById.mockResolvedValue({
+        id: 'workflow-789',
+        name: 'Test Workflow',
+        steps: [{ id: 'step-456', name: 'Test Step' }],
+      })
 
       await service.startWorkSession(undefined, 'step-456', 'workflow-789')
 
@@ -347,6 +366,7 @@ describe('WorkTrackingService', () => {
 
     it('should calculate elapsed time correctly', async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
+      mockDatabase.getTaskById.mockResolvedValue({ id: 'task-123', name: 'Test Task' })
 
       // Mock timers to control time progression
       vi.useFakeTimers()
@@ -376,6 +396,8 @@ describe('WorkTrackingService', () => {
     })
 
     it('should handle database connection failures', async () => {
+      mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
+      mockDatabase.getTaskById.mockResolvedValue({ id: 'task-123', name: 'Test Task' })
       mockDatabase.createWorkSession.mockRejectedValue(
         new Error('Database connection lost'),
       )
