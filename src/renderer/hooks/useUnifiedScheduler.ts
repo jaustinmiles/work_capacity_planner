@@ -3,7 +3,7 @@ import { UnifiedSchedulerAdapter, SchedulingOptions, ScheduleResult, ScheduledIt
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
-import { logger } from '../utils/logger'
+import { logger } from '@/shared/logger'
 import { getCurrentTime } from '@shared/time-provider'
 
 /**

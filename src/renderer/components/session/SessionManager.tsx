@@ -24,7 +24,7 @@ import { Session } from '@shared/types'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 import { appEvents, EVENTS } from '../../utils/events'
 
 

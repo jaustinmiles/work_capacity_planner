@@ -4,7 +4,7 @@ import { IconMindMapping, IconEdit } from '@arco-design/web-react/icon'
 import { SequencedTask } from '@shared/sequencing-types'
 import { InteractiveWorkflowGraph } from './InteractiveWorkflowGraph'
 import { useTaskStore } from '../../store/useTaskStore'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 // Typography components

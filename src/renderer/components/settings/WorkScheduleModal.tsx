@@ -8,7 +8,7 @@ import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 interface WorkScheduleModalProps {

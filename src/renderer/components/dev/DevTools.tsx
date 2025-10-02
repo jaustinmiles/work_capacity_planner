@@ -3,7 +3,7 @@ import { Modal, Button, Space, Typography, Alert, Tabs } from '@arco-design/web-
 import { IconDelete, IconTool, IconMessage, IconList, IconFile, IconClockCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 import { FeedbackForm } from './FeedbackForm'
 import { FeedbackViewer } from './FeedbackViewer'
 import { LogViewer } from './LogViewer'

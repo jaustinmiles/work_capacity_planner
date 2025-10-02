@@ -29,7 +29,7 @@ import { VoiceScheduleModal } from './VoiceScheduleModal'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 import { appEvents, EVENTS } from '../../utils/events'
 import { getCurrentTime } from '@shared/time-provider'
 

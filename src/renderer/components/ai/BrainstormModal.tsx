@@ -4,7 +4,7 @@ import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, I
 import { TaskType, AIProcessingMode } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 const { TextArea } = Input

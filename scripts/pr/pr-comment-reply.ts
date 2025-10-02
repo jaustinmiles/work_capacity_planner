@@ -224,46 +224,83 @@ function replyToComment(prNumber: string, commentId: string, replyText: string) 
   console.log(`\n${colors.cyan}Replying to comment ${commentId} on PR #${prNumber}...${colors.reset}\n`)
 
   try {
-    let comment: any
-    let isReviewComment = false
-
-    // Try PR comment endpoint first
-    try {
-      const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/comments/${commentId}`)
-      comment = JSON.parse(commentJson)
-    } catch (_error: any) {
-      // If PR comment fails, try review comment endpoint
-      try {
-        const commentJson = exec(`gh api repos/{owner}/{repo}/pulls/${prNumber}/reviews/comments/${commentId}`)
-        comment = JSON.parse(commentJson)
-        isReviewComment = true
-      } catch (reviewError: any) {
-        console.error(`${colors.red}Could not find comment ${commentId} as either PR comment or review comment${colors.reset}`)
-        throw reviewError
+    // First, find the thread ID that contains this comment using GraphQL
+    const findThreadQuery = `query {
+      repository(owner:"jaustinmiles", name:"work_capacity_planner") {
+        pullRequest(number: ${prNumber}) {
+          reviewThreads(first: 100) {
+            nodes {
+              id
+              comments(first: 100) {
+                nodes {
+                  id
+                }
+              }
+            }
+          }
+        }
       }
+    }`
+
+    const queryFile = '/tmp/pr-find-thread.graphql'
+    require('fs').writeFileSync(queryFile, findThreadQuery)
+    const searchResult = exec(`gh api graphql -F query=@${queryFile}`)
+    exec(`rm -f ${queryFile}`)
+
+    const searchData = JSON.parse(searchResult)
+    let threadId: string | null = null
+
+    // Find the thread that contains our comment
+    for (const thread of searchData.data.repository.pullRequest.reviewThreads.nodes) {
+      for (const comment of thread.comments.nodes) {
+        if (comment.id === commentId) {
+          threadId = thread.id
+          break
+        }
+      }
+      if (threadId) break
     }
 
-    // Create a reply to this specific comment
-    const result = exec(
-      `gh api repos/{owner}/{repo}/pulls/${prNumber}/comments \
-       --method POST \
-       --field body="${replyText.replace(/"/g, '\\"')}" \
-       --field commit_id="${comment.commit_id}" \
-       --field path="${comment.path}" \
-       --field line=${comment.line || comment.original_line} \
-       --field side="${comment.side || 'RIGHT'}" \
-       --field in_reply_to=${commentId}`,
-    )
+    if (!threadId) {
+      throw new Error(`Could not find thread for comment ${commentId}`)
+    }
+
+    // Use GraphQL mutation to add reply to the thread
+    const replyMutation = `mutation {
+      addPullRequestReviewThreadReply(input: {
+        pullRequestReviewThreadId: "${threadId}"
+        body: "${replyText.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"
+      }) {
+        comment {
+          id
+          body
+          url
+        }
+      }
+    }`
+
+    const mutationFile = '/tmp/pr-reply-mutation.graphql'
+    require('fs').writeFileSync(mutationFile, replyMutation)
+    const result = exec(`gh api graphql -F query=@${mutationFile}`)
+    exec(`rm -f ${mutationFile}`)
+
+    const response = JSON.parse(result)
+
+    if (response.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(response.errors)}`)
+    }
 
     console.log(`${colors.green}✅ Reply posted successfully!${colors.reset}`)
-    const replyData = JSON.parse(result)
-    console.log(`\n${colors.bright}Reply URL:${colors.reset} ${replyData.html_url}`)
-    console.log(`${colors.bright}Reply posted as reply to ${isReviewComment ? 'review' : 'PR'} comment ${commentId}${colors.reset}`)
+    if (response.data?.addPullRequestReviewThreadReply?.comment?.url) {
+      console.log(`\n${colors.bright}Reply URL:${colors.reset} ${response.data.addPullRequestReviewThreadReply.comment.url}`)
+    }
+    console.log(`${colors.bright}Reply posted to thread containing comment ${commentId}${colors.reset}`)
 
   } catch (error: any) {
     console.error(`${colors.red}Failed to post reply:${colors.reset}`, error.message)
     console.error(`${colors.red}Error details:${colors.reset}`, error.stderr || error.stdout)
     console.log(`\n${colors.yellow}Make sure the comment ID ${commentId} is correct.${colors.reset}`)
+    process.exit(1)
   }
 }
 

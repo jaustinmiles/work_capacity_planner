@@ -21,7 +21,7 @@ import {
   TaskType,
 } from '../../../shared/amendment-types'
 import { useTaskStore } from '../../store/useTaskStore'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 import { DependencyEditor } from '../shared/DependencyEditor'
 
 

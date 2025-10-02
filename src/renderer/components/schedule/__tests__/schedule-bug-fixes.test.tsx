@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, fireEvent, waitFor } from '@testing-library/react'
 import { ScheduleGenerator } from '../ScheduleGenerator'
 import { getDatabase } from '../../../services/database'
-import { logger } from '../../../utils/logger'
+import { logger } from '@/shared/logger'
 
 // Mock dependencies
 vi.mock('../../../services/database')
-vi.mock('../../../utils/logger', () => ({
+vi.mock('@/shared/logger', () => ({
   logger: {
     ui: {
       info: vi.fn(),

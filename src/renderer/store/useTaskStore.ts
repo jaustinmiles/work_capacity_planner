@@ -11,7 +11,7 @@ import { UnifiedWorkSession, fromLocalWorkSession } from '@shared/unified-work-s
 import { UnifiedSchedulerAdapter } from '@shared/unified-scheduler-adapter'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
-import { logger } from '../utils/logger'
+import { logger } from '@/shared/logger'
 import { getRendererLogger } from '../../logging/index.renderer'
 import { WorkTrackingService } from '../services/workTrackingService'
 import dayjs from 'dayjs'
@@ -93,6 +93,7 @@ interface TaskStore {
   startWorkOnStep: (stepId: string, __workflowId: string) => Promise<void>
   startWorkOnTask: (taskId: string) => Promise<void>
   pauseWorkOnStep: (stepId: string) => Promise<void>
+  pauseWorkOnTask: (taskId: string) => Promise<void>
   completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
   updateStepProgress: (stepId: string, __percentComplete: number) => Promise<void>
   logWorkSession: (stepId: string, __minutes: number, notes?: string) => Promise<void>
@@ -107,6 +108,12 @@ interface TaskStore {
   getCompletedSequencedTasks: () => SequencedTask[]
   getActiveWorkSession: (stepId: string) => UnifiedWorkSession | undefined
   isStepActivelyWorkedOn: (stepId: string) => boolean
+  getWorkSessionProgress: (itemId: string) => {
+    session: UnifiedWorkSession | null
+    isActive: boolean
+    isPaused: boolean
+    elapsedMinutes: number
+  }
   getNextScheduledItem: () => Promise<NextScheduledItem | null>
   startNextTask: () => Promise<void>
 }
@@ -499,14 +506,14 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const task = get().tasks.find(t => t.id === id)
       if (!task) return
 
-      logger.store.info('[TaskStore] Toggling task completion', {
+      logger.ui.info('[TaskStore] Toggling task completion', {
         taskId: id,
         taskName: task.name,
         currentStatus: task.completed,
         newStatus: !task.completed,
       })
 
-      logger.store.info('Toggling task completion', {
+      logger.ui.info('Toggling task completion', {
         taskId: id,
         taskName: task.name,
         currentStatus: task.completed,
@@ -534,19 +541,19 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             newSessions.delete(id)
             set({ activeWorkSessions: newSessions })
 
-            logger.store.info('Stopped work session for completed task', { taskId: id, sessionId: activeSession.id })
+            logger.ui.info('Stopped work session for completed task', { taskId: id, sessionId: activeSession.id })
           } catch (error) {
-            logger.store.warn('Failed to stop work session for completed task', error)
+            logger.ui.warn('Failed to stop work session for completed task', error)
           }
         }
       }
 
-      logger.store.info('Task completion toggled successfully', {
+      logger.ui.info('Task completion toggled successfully', {
         taskId: id,
         isNowCompleted: !task.completed,
       })
     } catch (error) {
-      logger.store.error('[TaskStore] Failed to toggle task completion', error, { taskId: id })
+      logger.ui.error('[TaskStore] Failed to toggle task completion', error, { taskId: id })
       set({
         error: error instanceof Error ? error.message : 'Failed to toggle task completion',
       })
@@ -555,7 +562,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   selectTask: (id) => {
     const task = id ? get().tasks.find(t => t.id === id) : null
-    logger.store.debug('[TaskStore] Task selection changed', {
+    logger.ui.debug('[TaskStore] Task selection changed', {
       taskId: id,
       taskName: task?.name,
     })
@@ -872,7 +879,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         overallStatus: TaskStatus.InProgress,
       })
 
-      logger.store.info('[TaskStore] Started work on task', {
+      logger.ui.info('[TaskStore] Started work on task', {
         taskId,
         sessionId: workSession.id,
         activeSessionsInStore: get().activeWorkSessions.size,
@@ -971,9 +978,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
           // Emit event to update other components
           appEvents.emit(EVENTS.TIME_LOGGED)
-          logger.store.info(`Logged ${minutesWorked} minutes for step ${stepId} on pause`)
+          logger.ui.info(`Logged ${minutesWorked} minutes for step ${stepId} on pause`)
         } catch (error) {
-          logger.store.error('Failed to create work session on pause:', error)
+          logger.ui.error('Failed to create work session on pause:', error)
         }
       }
 
@@ -993,6 +1000,60 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       appEvents.emit(EVENTS.SESSION_CHANGED)
     } catch (error) {
       logger.ui.error('Failed to pause work on step:', error)
+    }
+  },
+
+  pauseWorkOnTask: async (taskId: string) => {
+    rendererLogger.info('[TaskStore] 🛑 pauseWorkOnTask called', { taskId })
+
+    const state = get()
+    const session = state.activeWorkSessions.get(taskId)
+
+    if (!session) {
+      logger.ui.warn(`No active work session for task ${taskId}`, {
+        allKeys: Array.from(state.activeWorkSessions.keys()),
+      })
+      return
+    }
+
+    try {
+      // Stop session through WorkTrackingService
+      const service = getWorkTrackingService()
+      const activeWorkSession = service.getCurrentActiveSession()
+
+      rendererLogger.info('[TaskStore] 🔍 Stopping session via WorkTrackingService', {
+        taskId,
+        sessionId: activeWorkSession?.id,
+        matchesTask: activeWorkSession?.taskId === taskId,
+      })
+
+      if (activeWorkSession && activeWorkSession.taskId === taskId) {
+        await service.stopWorkSession(activeWorkSession.id)
+        logger.ui.info('[TaskStore] ✅ Session stopped in WorkTrackingService', {
+          sessionId: activeWorkSession.id,
+        })
+      } else {
+        logger.ui.warn('[TaskStore] ⚠️ No matching session in WorkTrackingService', {
+          requestedTaskId: taskId,
+          foundSessionTaskId: activeWorkSession?.taskId,
+        })
+      }
+
+      // Remove from store
+      const newSessions = new Map(state.activeWorkSessions)
+      newSessions.delete(taskId)
+      set({ activeWorkSessions: newSessions })
+
+      // Emit event to trigger UI updates
+      appEvents.emit(EVENTS.SESSION_CHANGED)
+
+      logger.ui.info('[TaskStore] ✅ Stopped work on task', {
+        taskId,
+        remainingSessions: newSessions.size,
+      })
+    } catch (error) {
+      logger.ui.error('Failed to stop work on task:', error)
+      throw error
     }
   },
 
@@ -1042,7 +1103,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }
 
       if (notes) {
-        logger.store.info(`Saving notes to step ${stepId}: "${notes}"`)
+        logger.ui.info(`Saving notes to step ${stepId}: "${notes}"`)
       }
 
       await getDatabase().updateTaskStepProgress(stepId, updateData)
@@ -1118,7 +1179,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           updatedNotes = step.notes
             ? `${step.notes}\n\n${new Date().toLocaleString()}: ${notes}`
             : `${new Date().toLocaleString()}: ${notes}`
-          logger.store.info(`Appending notes to step ${stepId}: "${notes}"`)
+          logger.ui.info(`Appending notes to step ${stepId}: "${notes}"`)
         }
 
         await getDatabase().updateTaskStepProgress(stepId, {
@@ -1188,6 +1249,53 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     }
 
     return false
+  },
+
+  getWorkSessionProgress: (itemId: string) => {
+    // UNIFIED work session accessor - all components should use this
+    // Returns consistent data regardless of whether itemId is a task or step
+
+    const state = get()
+    let session: UnifiedWorkSession | null = null
+
+    // Get session from WorkTrackingService first (authoritative source)
+    const activeWorkSession = getWorkTrackingService().getCurrentActiveSession()
+
+    // Check if current active session matches our itemId (could be taskId or stepId)
+    if (activeWorkSession) {
+      if (activeWorkSession.taskId === itemId || activeWorkSession.stepId === itemId) {
+        session = activeWorkSession
+      }
+    }
+
+    // Fallback: check store's activeWorkSessions Map
+    if (!session) {
+      session = state.activeWorkSessions.get(itemId) || null
+
+      // If not found by key, search by stepId (for workflow steps)
+      if (!session) {
+        for (const sess of state.activeWorkSessions.values()) {
+          if (sess.stepId === itemId || sess.taskId === itemId) {
+            session = sess
+            break
+          }
+        }
+      }
+    }
+
+    // Calculate elapsed time consistently
+    let elapsedMinutes = 0
+    if (session) {
+      const elapsed = session.isPaused ? 0 : Date.now() - new Date(session.startTime).getTime()
+      elapsedMinutes = (session.actualMinutes || 0) + Math.floor(elapsed / 60000)
+    }
+
+    return {
+      session,
+      isActive: !!session && !session.isPaused,
+      isPaused: !!session?.isPaused,
+      elapsedMinutes,
+    }
   },
 
   getNextScheduledItem: async () => {

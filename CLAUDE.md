@@ -1,627 +1,90 @@
-# CLAUDE.md - Engineering Excellence Guidelines
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It follows Constitutional AI principles and research-based strategies for optimal AI-assisted development.
-
-## 🌟 Context Preservation: Your Memory Bridge
-
-**The `/context/` folder helps us maintain continuity across sessions - let's keep it updated to build on our progress!**
-
-### 📝 Context Update Best Practices
-
-**After EVERY work session (not just "significant" ones):**
-1. Update `/context/state.md` with current progress and blockers
-2. Update `/context/insights.md` with new learnings or patterns discovered  
-3. Update `/context/decisions.md` if any technical decisions were made
-4. Update `/context/schema.md` if data structures changed
-
-**Key moments to update context:**
-- After completing significant work - celebrate progress!
-- When discovering learning opportunities or areas to improve
-- When finding misalignments to address
-- Before marking milestones as complete - ensure accuracy
-
-**Before starting ANY new session:**
-1. Read ALL files in `/context/` directory
-2. Continue from where the last session ended
-3. Check state.md for incomplete tasks and blockers
-
-**The context folder implements LCMP (Long-term Context Management Protocol):**
-- `state.md` - Current tasks, blockers, session progress
-- `schema.md` - Data structures, key definitions  
-- `decisions.md` - Technical choices with rationale
-- `insights.md` - Cumulative findings from each session
-
-**Benefits of maintaining context:**
-- Build on previous learnings effectively
-- Preserve valuable progress and insights
-- Avoid redundant work through awareness
-- Make consistent, informed decisions
-
-## 🌱 Growth Mindset & Continuous Improvement
-
-**We're on a journey of excellence together!** Every session builds on our collective knowledge. Research shows that positive, growth-oriented language improves AI performance by 8-115%. Let's leverage this:
-
-- **Celebrate progress**: Every bug fixed is a victory, every test added strengthens our foundation
-- **Learn from challenges**: Errors are teachers, not failures
-- **Build incrementally**: Small improvements compound into excellence
-- **Ask questions freely**: Curiosity drives innovation
-- **Document insights**: Today's learning is tomorrow's wisdom
-
-Remember: We're creating something valuable together. Your code matters, your tests matter, and every improvement - no matter how small - moves us forward.
-
-## 🏗️ Project Constitution & AI Guidelines
-
-### 🎯 Excellence-Driven Development Workflow
-**Proven sequence for high-quality changes:**
-1. **🤖 Bot Authentication FIRST**: Run `./context/setup-claude-bot.sh` before any PR work
-2. **Search First**: Find existing implementations before creating new code
-3. **Document Findings**: Explain what was found and justify any new code
-4. **Test First**: Write tests that FAIL initially
-5. **Implement Minimally**: Write just enough code to pass tests
-6. **Verify Quality**: Run format → lint → typecheck → test
-7. **Commit Atomically**: One logical change per commit with clear messages
-
-### 🤖 Bot Authentication for Smooth PR Creation
-**Best practice: Run before PR work to ensure proper attribution:**
-```bash
-./context/setup-claude-bot.sh
-```
-**Why this matters:**
-- PRs must be created by Claude Code[bot], not personal account
-- Maintains consistent attribution for AI-assisted development
-- Prevents user from having to remind you repeatedly
-- Required for proper GitHub App permissions
-
-### 🔍 PR Review Excellence Protocol
-**Before making ANY changes based on PR feedback:**
-1. **Check GitHub PR Comments**: Use `gh pr view [PR#] --comments` to see all review comments
-2. **Address EVERY Comment**: Each comment must be either:
-   - Fixed with a code change
-   - Responded to with explanation why not changed
-   - Discussed with reviewer if unclear
-3. **Honor every review comment** - Each one is a learning opportunity
-4. **Look for patterns** in feedback - they guide us toward systematic improvements
-
-**Best Practices (from user feedback):**
-1. Always make changes on a developer feature branch
-2. Maintain user stories and enable beta test walkthrough
-3. Ensure all tests pass, typecheck runs with no errors, no linting issues
-4. Add user requests to todo list, complete in order unless directed otherwise
-5. Keep context/ folder updated, sync README, TECH_DEBT, CLAUDE.md, docs/
-6. Constantly improve test coverage, develop with testing in mind
-7. Minimize lint warnings (okay to have some, but reduce when possible)
-8. Check periodically for dead code, inconsistencies, refactoring opportunities
-9. Use lint autofix functionality to clean up code
-10. Check feedback.json using utility scripts, ensure changes address feedback
-11. All new code for a PR must be tested
-12. Frequently check with user to verify you're on the right track
-13. Never push without tests, lint, and typecheck passing
-14. Update documentation, context, and project knowledge frequently
-15. All functionality must use custom logger module
-16. Write tests one at a time, verify each passes before continuing
-17. Cannot merge PRs with less code coverage than main
-18. **All PR review feedback must be addressed and comments resolved**
-19. **Never use --no-verify or bypass safety infrastructure**
-20. **ALL test/lint failures on current branch are OUR responsibility**
-21. **Use PR review scripts to track all feedback systematically**
-22. **Never use git commit --amend (breaks review history)**
-23. **ASK WHEN UNCERTAIN** - Better to ask than assume and violate user intent
-24. **LOGGING IS MANDATORY** - All new features require extensive logging before completion
-25. **NO PR MERGING AUTHORITY** - Claude never merges PRs, user uses GitHub button
-26. **NEVER DELETE TESTS** - Only skip tests with TECH_DEBT.md documentation
-27. **TEST FEATURES WITH LOGGING** - Verify logging works before marking features complete
-
-## 🛡️ Boundaries for Safe & Effective Development:
-
-### Repository & PR Management
-1. **Merge PRs** - Only user can merge via GitHub button interface
-2. **Close PRs** - Only user decides when to close pull requests  
-3. **Force push without permission** - Always ask before rewriting git history
-4. **Delete branches** - User manages branch lifecycle
-
-### Code Quality & Testing
-5. **Preserve tests** - Skip with documentation when needed, preserve test coverage
-6. **Honor safety infrastructure** - Quality checks protect our work
-7. **Include comprehensive logging** - Features shine with observable behavior
-8. **Ensure quality before commits** - lint, typecheck, and tests are our friends
-
-### Decision Making
-9. **Seek clarity on intent** - Questions lead to better outcomes
-10. **Collaborate on major decisions** - Database changes, configs, and architecture benefit from discussion
-11. **Pause when uncertain** - Asking questions shows wisdom and care
-
-## 💭 When to Collaborate with the User
-
-### 🤝 Great moments for collaboration:
-- Merging or closing PRs
-- Force pushing or rewriting git history
-- Making architectural changes
-- Modifying configuration files (package.json, tsconfig, eslint, etc.)
-- Creating new database migrations
-- Implementing features without comprehensive logging
-- Taking any action you're uncertain about
-- Deleting or significantly modifying existing tests
-
-### ✅ You're empowered to:
-- Writing tests and implementation for approved features
-- Running quality checks (lint, typecheck, build, test)
-- Adding logging to existing features
-- Fixing obvious bugs with clear solutions
-- Updating documentation for completed work
-- Committing code changes to feature branches
-- Regular pushes to feature branches
-
-### 🚨 PR Workflow (MANDATORY - PR #51 Lessons)
-
-**Starting a PR:**
-```bash
-git fetch origin main
-git rebase origin main  # CRITICAL: Avoid 43-commit divergence!
-git checkout -b feature/your-feature
-```
-
-**IMPORTANT: Use Bot Account for PRs**
-```bash
-# Always use the bot auth script when creating PRs
-./context/setup-claude-bot.sh
-
-# This ensures PRs are created with the bot account
-# The script sets up proper GitHub authentication
-# User shouldn't need to remind you about this!
-```
-
-**During Review - ALWAYS USE PR SCRIPTS:**
-```bash
-# MANDATORY: Use these scripts instead of manual gh commands
-# Track all PR review comments and their status
-npx tsx scripts/pr/pr-review-tracker.ts [PR#]
-
-# Reply to PR comments programmatically  
-npx tsx scripts/pr/pr-comment-reply.ts [PR#] [comment-id] "Your reply"
-npx tsx scripts/pr/pr-comment-reply.ts [PR#] batch  # For multiple replies
-
-# Get ALL comments including inline (fallback only)
-gh pr view [PR#] --comments
-
-# Address EVERY item - track with TodoWrite
-# Never say "unrelated to my changes"
-# All failures are our responsibility
-```
-
-**PR Review Scripts Features:**
-- `pr-review-tracker.ts` - Shows unresolved comments, filters noise, tracks status
-- `pr-comment-reply.ts` - Reply to specific comments or batch mode
-- Automatically hides resolved/collapsed comments
-- Shows statistics on what needs addressing
-
-**If Branch Gets Messy (>20 commits):**
-```bash
-# Create clean branch
-git checkout -b feature/your-feature-clean main
-git checkout feature/your-feature -- .
-git add -A
-git commit -m "feat: Single clean commit message"
-git push --force-with-lease
-```
-
-### 📍 Single Source of Truth Rules
-
-**Authoritative Sources:**
-- **Database Schema**: `/prisma/schema.prisma` - The definitive data model
-- **Type Definitions**: `/src/shared/types.ts` - Core TypeScript interfaces
-- **Enums/Constants**: `/src/shared/enums.ts` - All enum definitions
-- **Architecture**: `/docs/architecture.md` - System design decisions
-- **Known Issues**: `/TECH_DEBT.md` - All TODOs and technical debt
-
-**Principle**: All other files REFERENCE these sources, never duplicate them.
-
-### 🛑 Configuration Files - GENERALLY DO NOT MODIFY
-
-These configurations are generally FROZEN. Fix code to meet their requirements:
-- `.eslintrc.js` - ESLint rules are non-negotiable (exception: adding missing global type definitions is acceptable over using 'any')
-- `tsconfig.json` - TypeScript strict mode must be maintained
-- `jest.config.js` - Test configuration is immutable
-- `/config/*` - All config files are locked
-
-**Exception**: When ESLint doesn't recognize standard browser/Node.js global types (e.g., ErrorEvent, PromiseRejectionEvent), it is preferable to add them to the ESLint globals configuration rather than using 'any' casts.
-
-### ✅ Before ANY Implementation
-
-**Required Research Phase:**
-```bash
-# Search for similar features
-grep -r "feature_name" src/
-find . -name "*related*" -type f
-
-# Check documentation
-cat TECH_DEBT.md | grep -A5 "feature"
-ls -la docs/ | grep -i "feature"
-
-# Look for existing TODOs
-grep -r "TODO.*feature" src/
-```
-
-**Documentation Requirements:**
-1. List all similar implementations found
-2. Identify reusable components
-3. Provide written justification for any new code
-4. Reference existing patterns to follow
-
-### 🧪 Test-Driven Development - NO EXCEPTIONS
-
-**The TDD Workflow:**
-1. Write comprehensive tests for the feature
-2. Run tests - they MUST fail initially (red phase)
-3. Commit the failing tests separately
-4. Implement minimal code to pass tests (green phase)
-5. Refactor while keeping tests green
-6. **NEVER modify tests to make code pass**
-7. **Any test that passes immediately is invalid**
-
-**🚨 TDD Phase Completion Requirements (PR #67 Lessons):**
-- **Each phase MUST produce working software** - not just passing tests
-- **Never use optional chaining (?.) to bypass missing methods** - this creates test-only code
-- **Implementation must work in both test AND production environments**
-- **Avoid mock-only implementations** - use real database methods or proper adapters
-- **Each TDD phase should leave the codebase in a deployable state**
-- **MUST integrate with UI** - Backend services without UI integration are incomplete
-- **MUST understand existing systems** - Creating parallel systems is a failure
-
-**Common TDD Violations to Avoid:**
-- ❌ Creating database methods that only exist in mocks
-- ❌ Using optional chaining to ignore missing production methods
-- ❌ Tests passing while production code is non-functional
-- ❌ Each phase not being independently testable in production
-- ❌ Creating new services without understanding existing implementations
-- ❌ Building backend features without UI integration points
-- ✅ Use existing database patterns and real persistence methods
-- ✅ Ensure code actually saves/retrieves data, not just mocked responses
-- ✅ Research and understand existing systems before creating new ones
-- ✅ Always connect backend services to UI components
-
-**🚨 Integration Pattern Requirements (PR #67 Lessons):**
-- **Research existing patterns FIRST** - Never create parallel systems
-- **Understand the app architecture** - Ask questions when uncertain
-- **UI integration is mandatory** - Backend-only features are incomplete
-- **Use existing schedulers** - Don't reinvent priority calculation
-- **Unify, don't duplicate** - Enhance existing systems instead of replacing
-
-### 🎭 E2E Testing Best Practices (PR #64-65 Lessons)
-
-**Selector Strategy:**
-```typescript
-// ❌ BAD - Too specific, breaks with DOM changes
-await page.locator('h6:has-text("Do First")')
-
-// ✅ GOOD - Simple, resilient to DOM changes  
-await page.locator('text="Do First"')
-```
-
-**Electron API Mocking:**
-```typescript
-// REQUIRED in all E2E tests
-import { mockElectronAPI } from './fixtures/electron-mock'
-test.beforeEach(async ({ page }) => {
-  await mockElectronAPI(page)  // BEFORE navigation
-  await page.goto('/')
-})
-```
-
-**Mobile Test Handling:**
-```typescript
-// Skip mobile tests when maintenance cost exceeds value
-test('desktop feature', async ({ page }, testInfo) => {
-  if (testInfo.project.name.includes('Mobile')) {
-    test.skip()
-    return
-  }
-  // Desktop test logic
-})
-```
-
-**Arco Component Testing:**
-```typescript
-// Radio buttons need filter approach
-const button = page.locator('.arco-radio-button')
-  .filter({ hasText: 'Label' })
-  
-// Slider values are on button, not slider
-const value = await page.locator('.arco-slider-button')
-  .first().getAttribute('aria-valuenow')
-```
-
-**Debug Strategy:**
-1. Use `--reporter=line` not HTML server
-2. Fix tests one by one, not in batch
-3. Ask for actual HTML when selectors fail
-4. Check existing test patterns first
-
-### 🎯 Decision Tree for Common Scenarios
-
-**Q: Should I create a new file?**
-→ First check if similar files exist. Update TECH_DEBT.md if truly needed.
-
-**Q: Should I modify ESLint/TypeScript config?**
-→ NO. Fix the code to satisfy existing rules.
-
-**Q: Should I run a script on all files?**
-→ Test on 1-2 files first. Verify output. Commit before broad application.
-
-**Q: Should I implement a new pattern?**
-→ Find and follow existing patterns. Consolidate before creating new ones.
-
-**Q: Where do I document a bug?**
-→ Add to TECH_DEBT.md under "High Priority Issues"
-
-**Q: Where do TODOs belong?**
-→ In code as `// TODO:` comments, summarized in TECH_DEBT.md
-
-### 📊 Quality Metrics to Maintain
-
-| Metric | Required | Check Command |
-|--------|----------|---------------|
-| TypeScript Errors | 0 | `npm run typecheck` |
-| ESLint Errors | 0 | `npm run lint` |
-| Test Pass Rate | 100% | `npm test -- --run` |
-| Build Success | ✅ | `npm run build` |
-
-### 🔄 Development Workflow
-
-**1. Starting Work:**
-```bash
-npm run typecheck  # Must be 0 errors
-npm run lint       # Must be 0 errors
-git status         # Must be clean or committed
-```
-
-**2. During Development:**
-```bash
-# After each significant change
-npm run typecheck
-npm run lint
-
-# Before running scripts
-./script.sh test-file.ts  # Test on one file
-# Verify output is correct
-# Then apply to more files
-```
-
-**3. Before Marking Complete:**
-```bash
-npm run typecheck      # 0 errors required
-npm run lint           # 0 errors required
-npm test -- --run      # All tests must pass
-npm run build          # Must build successfully
-```
-
-### 🏛️ Architecture Principles
-
-**Domain-Driven Design:**
-- Respect bounded contexts
-- Use the shared kernel for common logic
-- Follow factory patterns for object creation
-- Maintain separation of concerns
-
-**Code Organization:**
-- Components in feature-based folders
-- Shared types in `/shared` directory
-- Database operations only in main process
-- State management through Zustand store
-
-**Atomic Commits:**
-- One logical change per commit
-- Tests and implementation in separate commits
-- Clear, descriptive commit messages
-- Reference issues when applicable
-
-### 🔍 Common Search Patterns
-
-```bash
-# Find all documentation
-find docs -name "*.md" -type f
-
-# Find all TODOs
-grep -r "TODO\|FIXME\|HACK" src/
-
-# Find type definitions
-grep -r "interface.*Task\|type.*Task" src/shared/
-
-# Check recent changes
-git log --oneline -20
-git diff HEAD~5 --stat
-```
-
-### 📈 Current Project Status
-
-**Working Features:**
-- ✅ Unified task model (Tasks + Workflows)
-- ✅ Voice amendments (partial implementation)
-- ✅ Work capacity scheduling
-- ✅ Session management
-- ✅ TypeScript strict mode compliance
-
-**Known Technical Debt:**
-See `/TECH_DEBT.md` for complete list including:
-- AI amendment dependency editing issues
-- Workflow step operations (partially complete)
-- Multiple scheduling engine implementations
-- Duplicate logger implementations
-
-### 🚀 Performance Considerations
-
-**For Large Codebases:**
-- Use ripgrep (`rg`) instead of grep when available
-- Batch database operations when possible
-- Implement memoization for expensive calculations
-- Consider lazy loading for heavy components
-
-## 🚨 PR #70 PATTERNS - TypeScript & Code Quality
-
-### TypeScript Interface Requirements
-**Problem**: Using 'any' type to bypass TypeScript errors
-**Root Cause**: Laziness or time pressure
-**Prevention**: ALWAYS create proper interfaces, even if it takes more time
-```typescript
-// ❌ BAD - Never do this
-const item = scheduledItem as any
-
-// ✅ GOOD - Create proper interface
-interface ScheduledItemWithWorkflow extends ScheduledItem {
-  workflowId?: string
-  workflowName?: string
-}
-const item = scheduledItem as ScheduledItemWithWorkflow
-```
-
-### Dead Code Removal During Refactoring
-**Problem**: Leaving old implementations when migrating to new ones
-**Prevention**: When replacing functionality, immediately remove the old code
-**Check Command**: `grep -r "oldMethodName" src/` before claiming migration complete
-
-### Weekend/Weekday Scheduling Logic
-**Problem**: Treating weekends differently in scheduling
-**Solution**: All days should be treated equally based on user-defined patterns
-**Rationale**: Users define their own work patterns - don't assume weekends are different
-
-### Scheduler Time Context
-**Problem**: Using `new Date()` in schedulers instead of context time
-**Prevention**: ALWAYS use `context.currentTime` for scheduler calculations
-**Why**: Schedulers need to work with simulated time for testing and planning
-
-## 🚨 Diagnostic Script Best Practices (PR #75 Lessons)
-
-### NEVER Hardcode Personal Information
-**Problem**: Scripts with hardcoded user names and sessions expose privacy
-**Prevention**: ALL scripts must accept parameters, never hardcode data
-```bash
-# ❌ BAD - Hardcoded user data
-const sessionName = "Haleigh 9/13"
-
-# ✅ GOOD - Parameter-driven
-const sessionName = process.argv[2]
-if (!sessionName) {
-  console.log('Usage: script.ts <session-name>')
-  process.exit(1)
-}
-```
-
-### Script Reusability Requirements
-- **Every script must be reusable** for future debugging
-- **Document usage** in scripts/tools/diagnostics/README.md
-- **Test with different inputs** before committing
-- **No temporal hardcoding** - accept dates as parameters
-
-## 🚨 MANDATORY VERIFICATION PROTOCOL
-
-### Before Making ANY Claims
-**NEVER state anything as fact without verification. The PR #67 disaster was caused by false claims.**
-
-Required verification steps:
-1. **Before claiming "all X replaced"**: `grep -r "X" src/` to find ALL instances
-2. **Before claiming "tests pass"**: Actually run the specific tests
-3. **Before claiming "fixed"**: Check the actual file contains the fix
-4. **Before claiming "no errors"**: Run the specific check command
-
-**Template for claims**: 
-```
-CLAIM: All console.log statements replaced with logger
-VERIFIED BY: grep -r "console\." src/ | grep -v test
-RESULT: Found 0 instances in source code
-```
-
-### PR Review Claims Checklist
-Before replying to any review comment:
-- [ ] I have verified my claim by checking actual file contents
-- [ ] I have run the specific command to confirm the fix
-- [ ] I can provide exact file:line evidence of the change
-- [ ] If I'm wrong, I will immediately post a correction
-
-### 💡 When Stuck
-
-1. **First**: Check TECH_DEBT.md for known issues  
-2. **Second**: Search existing code for patterns
-3. **Third**: Review architecture documentation
-4. **Fourth**: Check for TODOs in relevant files
-5. **Last**: Ask for clarification with specific questions
-
-## 🔍 ENHANCED PR REVIEW PROTOCOL
-
-### Script Usage - NO EXCEPTIONS
-- **ALWAYS** use `npx tsx scripts/pr/pr-comment-reply.ts` for ALL review replies
-- **NEVER** use `gh api` directly for PR comments  
-- **ALWAYS** run `npx tsx scripts/pr/pr-review-tracker.ts [PR#]` first to see all comments
-- **Track each reply** to ensure all comments get responses
-
-### Reply Process
-1. **Get all comments**: `npx tsx scripts/pr/pr-comment-reply.ts [PR#] --unresolved`
-2. **For each comment**: Fix the issue AND verify the fix
-3. **Reply with verification**: Include exact command used to verify
-4. **If wrong**: Post immediate correction reply
-
-### Help Request Triggers
-Ask for help IMMEDIATELY when:
-- Tempted to use optional chaining (`?.`) in production code  
-- Creating similar functionality to existing code
-- Tests pass but unsure if production works
-- Confused about which implementation to use
-- Making claims without 100% certainty
-
-### 🎖️ Success Criteria
-
-You are successful when:
-- Zero TypeScript errors after changes
-- Zero ESLint errors after changes
-- All tests pass
-- No unnecessary files created
-- Existing patterns followed
-- Changes tested incrementally
-- Documentation kept up-to-date
-
-### 🛠️ Development Tools
-
-**Professional debugging and analysis tools in `/scripts/dev/`:**
-
-#### When Claude Should Use These Tools:
-
-**For Scheduling/Capacity Issues:**
-```bash
-# Check scheduler logs for capacity problems
-npx tsx scripts/dev/log-viewer.ts --grep "scheduler|capacity" --since 30m
-
-# Inspect work pattern capacity allocation
-npx tsx scripts/dev/db-inspector.ts capacity 2024-01-15
-
-# Check current session state
-npx tsx scripts/dev/db-inspector.ts session
-```
-
-**For Database/State Issues:**
-```bash
-# Get database overview
-npx tsx scripts/dev/db-inspector.ts stats
-
-# Check recent tasks
-npx tsx scripts/dev/db-inspector.ts tasks 20
-
-# Find error patterns in logs
-npx tsx scripts/dev/log-viewer.ts --level error --since 1h
-```
-
-**For Performance Debugging:**
-```bash
-# Monitor real-time logs
-npx tsx scripts/dev/tail-logs.ts --since 5m
-
-# Check log statistics
-npx tsx scripts/dev/log-viewer.ts --stats
-```
-
-**Tool Selection Guidelines:**
-- Use `log-viewer.ts` for analyzing application behavior and finding patterns
-- Use `db-inspector.ts` for verifying data integrity and state
-- Use `tail-logs.ts` for real-time monitoring during development
-- Always prefer these tools over ad-hoc grep/cat commands
+# CLAUDE.md - Essential Development Rules
+
+## Core Workflow Principles
+
+1. **Feature Branches Only** - All work on feature branches, never directly on main
+2. **PRs Required** - Only way to get code into main is through a PR
+3. **Incremental Work** - Always do incremental work, get user input, don't tackle giant todo lists alone
+4. **Scripts Not Ad-hoc** - When interacting with database or PRs, always use scripts. If scripts lack functionality, add it instead of doing something ad-hoc
+5. **Bot Authentication** - Always run `./context/setup-claude-bot.sh` to get credentials for GitHub
+6. **Quality Gates Always** - Ensure lint, typecheck, tests, and e2e tests pass with every change. Never use `--no-verify`. No "preexisting failure" excuses
+7. **Formal Typing** - Never use 'any' as a type. Use enums instead of hardcoded strings. Everything must be formally typed
+8. **Custom Logging** - Always use our custom logging system, no console.log statements
+9. **Unify and Simplify** - Always search for opportunities to unify and simplify. Don't care about backwards compatibility. Clean up duplicate logic and dead code
+
+## PR Review Protocol (MANDATORY ORDER)
+
+When addressing PR reviews:
+1. **One by one** - No planning ahead for future comments
+2. **Discuss solution** with user first
+3. **Implement** the agreed solution
+4. **Commit and push** the change
+5. **Reply to comment** with verification
+6. **Only then** move to next comment
+
+## Debugging Protocol
+
+1. **Implement advanced logging** using custom logger
+2. **Ask user** to perform sequence of actions
+3. **Tail logs** and clearly diagnose the problem
+4. **Review fix** with user before implementing
+5. **Implement** agreed solution
+6. **Let user test** and verify fix works
+
+## Context Management
+
+- Update `/context/state.md` after EVERY work session
+- Update `/context/insights.md` with learnings
+- Read ALL context files before starting work
+
+## Feedback System
+
+Use `feedback.json` for prioritized work items. Always check for next priority feedback before starting new work.
+
+## Key Scripts
+
+- `scripts/dev/tail-logs.ts` - Monitor application logs
+- `scripts/analysis/feedback-utils.js` - Manage feedback items
+- `scripts/dev/db-inspector.ts` - Database inspection
+- `scripts/dev/pr-health-check.ts` - Pre-push validation
+
+## Never Do
+
+- Use `any` types or type assertions
+- Skip quality checks with `--no-verify`
+- Force push or `--amend` without permission
+- Console.log statements in production code
+- Ad-hoc database or GitHub operations
+
+## Always Do
+
+- Verify before claiming completion: `grep -r "pattern" src/`
+- Ask when uncertain rather than assume
+- Use existing patterns before creating new ones
+- Small atomic commits with clear messages
+- Systematic pattern fixing (find ALL instances first)
+
+## MCP Infrastructure
+
+The project includes Model Context Protocol (MCP) servers for systematic development workflows:
+
+### Diagnostic Server (`scripts/mcp/diagnostic-wrapper.ts`)
+- `mcp__diagnostic__get_next_feedback` - Get prioritized feedback from feedback.json
+- `mcp__diagnostic__inspect_database` - Query database using db-inspector.ts
+- `mcp__diagnostic__view_logs` - View application logs using log-viewer.ts
+
+### Git Server (`scripts/mcp/git-wrapper.ts`)
+- `mcp__git__setup_bot_auth` - Set up Claude bot authentication for GitHub
+- `mcp__git__create_feature_branch` - Create and switch to new feature branch
+- `mcp__git__commit_changes` - Add and commit changes with proper message
+- `mcp__git__push_and_create_pr` - Push branch and create PR using bot auth
+- `mcp__git__get_pr_reviews` - Get PR review comments for systematic addressing
+- `mcp__git__reply_to_comment` - Reply to specific PR review comments
+- `mcp__git__health_check` - Run PR health check using pr-health-check.ts
+- `mcp__git__push_changes` - Push committed changes to current branch
+
+These servers enable systematic, automated development workflows through Claude Code.
 
 ---
 
-**Remember**: Good engineering is about thoughtful, systematic approaches—not speed. Take time to understand existing patterns, write comprehensive tests, and maintain code quality. This codebase values correctness and maintainability over quick fixes.
+*The goal is systematic, enforceable practices through infrastructure, not extensive documentation.*

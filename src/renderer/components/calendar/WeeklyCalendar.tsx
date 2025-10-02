@@ -12,7 +12,7 @@ import { WorkBlockType } from '@shared/constants'
 import { getDatabase } from '../../services/database'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 const { Title, Text } = Typography

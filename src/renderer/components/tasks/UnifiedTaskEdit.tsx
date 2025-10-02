@@ -39,7 +39,7 @@ import { DependencyEditor } from '../shared/DependencyEditor'
 import { Message } from '../common/Message'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 const { Title, Text } = Typography
 const { TextArea } = Input

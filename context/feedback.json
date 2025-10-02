@@ -1242,7 +1242,8 @@
     "description": "Tests written for old deadline-scheduler don't match new SchedulingEngine behavior. Entire deadline-scheduling.test.ts suite skipped. One test in dependency-scheduling.test.ts skipped. Need to write new test suite for unified SchedulingEngine testing deadline pressure, async urgency, and priority calculations in context.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:00.722Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1268,7 +1269,8 @@
     "description": "1386+ ESLint warnings from scripts using console.log extensively. Consider unified CLI tool instead of 30+ individual scripts. Missing TypeScript types in some scripts. Duplicate functionality across scripts. Need to create unified CLI with subcommands and add proper .eslintrc for scripts directory.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:00.922Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1460,7 +1462,8 @@
     "title": "Should be able to 'start next task' from the home page. ",
     "description": "The app should support the ability to start work from the home screen. What I mean by this is that the next scheduled task or the next scheduled workflow should be able to be started, meaning a work session that logs work should be attached to it, from multiple locations, including the task list page and the dual view work logger. Basically a user should be able to click start next task and then the next task according to scheduling priority, which accounts for all of the stuff that we use on the Gantt chart view, should be actively tracking work. We already show what task is actively tracking work in the dual work logger but it's kind of buggy. Here are a few of the things that I've noticed: first, when a workflow is started, we usually can complete the step that we are currently working on by pressing complete step on the progress tracking page. This doesn't stop the workflow in terms of progress tracking (like the start stop workflow button that also influences whether we see a current task being logged in the dual view work log) and it also doesn't start the next step of the workflow - instead it just shows that we are currently working on the workflow, but not a specific step of the workflow. Second, I think the current task is being worked on it stored in the browser, local storage or something, but it seems that if I close out the app and then restart it while working on a task, the actual work logging is broken and if I click on the dual view work log, I no longer see that I'm currently working on a task, but if I go back to the workflow page, I will still see that the start button has been pressed and that it is now a pause button and it appears as if I'm working on the workflow, but no time is being logged. So basically I just need to make sure that we can start and stop time on tasks and workflow, and that when the app is started or stopped and restarted, but if there is a currently tracked task, that it still is being tracked, and that on the door of your work longer, and on the task list page, we should have a button to start the next task which starts the next task in the priority order, determined by the scheduler",
     "timestamp": "2025-09-08T22:22:01.702Z",
-    "sessionId": "session-1757370121692-4nckvwtwa"
+    "sessionId": "session-1757370121692-4nckvwtwa",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -1509,5 +1512,16 @@
     "description": "meetings should be displayed on the dual view clock alongside logged work sessions. ",
     "timestamp": "2025-09-23T20:00:18.663Z",
     "sessionId": "session-1758657618655-5df415fb"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Swim lane rows cut off and no vertical scroll",
+    "description": "can't see some tasks/workflow steps in the swim lane view because they don't fit on the page. Also, view is still buggy for sections of the swim lanes that the user must scroll to (initial view is fine, but if scroll to the right, the boxes and stuff are weird. Additionally. when a workflow is expanded into steps, the vertical ticks on the chart are misaligned with the regular tasks causing difficulty",
+    "timestamp": "2025-09-27T19:12:41.914Z",
+    "sessionId": "session-1759000361895-92292971"
   }
 ]

@@ -15,7 +15,7 @@ vi.mock('../../../services/database', () => ({
 }))
 
 // Mock the logger
-vi.mock('../../../utils/logger', () => ({
+vi.mock('@/shared/logger', () => ({
   logger: {
     ui: {
       error: vi.fn(),

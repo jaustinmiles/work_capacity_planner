@@ -289,7 +289,7 @@ describe('SwimLaneTimeline', () => {
       }
     })
 
-    it('should never show vertical scrollbar', () => {
+    it('should allow vertical scrollbar when needed', () => {
       const { container } = renderWithProvider(
         <SwimLaneTimeline
           sessions={mockSessions}
@@ -307,7 +307,7 @@ describe('SwimLaneTimeline', () => {
       if (timelineContainer) {
         // Check the inline style directly since getComputedStyle may not work in test env
         const style = (timelineContainer as HTMLElement).style
-        expect(style.overflowY).toBe('hidden')
+        expect(style.overflowY).toBe('auto')
       }
     })
 

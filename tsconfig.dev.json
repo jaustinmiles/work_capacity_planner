@@ -34,7 +34,8 @@
     "src/shared/work-blocks-types.ts",
     "src/shared/work-settings-types.ts",
     "src/shared/workflow-progress-types.ts",
-    "src/shared/time-utils.ts"
+    "src/shared/time-utils.ts",
+    "src/shared/logger.ts"
   ],
   "exclude": [
     "node_modules",

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
 import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Modal } from '@arco-design/web-react'
-import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping } from '@arco-design/web-react/icon'
+import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping, IconPlayArrow } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
@@ -12,7 +12,7 @@ import { getDatabase } from '../../services/database'
 import { SequencedTask } from '@shared/sequencing-types'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 import { useLoggerContext } from '../../../logging/index.renderer'
 import { RendererLogger } from '../../../logging/renderer/RendererLogger'
 
@@ -264,6 +264,33 @@ export function TaskItem({ task }: TaskItemProps) {
         <Space>
           {!task.completed && (
             <>
+              <Tooltip content="Start work on this task">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<IconPlayArrow />}
+                  onClick={async () => {
+                    rendererLogger.interaction('Start work button clicked', {
+                      component: 'TaskItem',
+                      taskId: task.id,
+                      taskName: task.name,
+                    })
+
+                    try {
+                      await useTaskStore.getState().startWorkOnTask(task.id)
+                      logger.ui.info('Started work on task from task list', {
+                        taskId: task.id,
+                        taskName: task.name,
+                      })
+                      // TODO(human): Add user-facing success message here
+                    } catch (error) {
+                      logger.ui.error('Failed to start work on task:', error)
+                      // TODO(human): Add user-facing error message here
+                    }
+                  }}
+                />
+              </Tooltip>
+
               <Tooltip content="Log time">
                 <Button
                   type="text"

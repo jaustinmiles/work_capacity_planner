@@ -6,7 +6,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 
 
 const { Text } = Typography

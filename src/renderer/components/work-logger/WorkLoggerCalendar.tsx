@@ -23,7 +23,7 @@ import { TaskType } from '@shared/enums'
 import { TaskStep } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
 

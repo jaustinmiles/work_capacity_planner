@@ -12,7 +12,7 @@ import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
-import { logger } from '../../utils/logger'
+import { logger } from '@/shared/logger'
 import { logSchedule } from '../../../logging/formatters/schedule-formatter'
 import { calculateBlockCapacity } from '@shared/capacity-calculator'
 

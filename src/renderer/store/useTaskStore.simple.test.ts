@@ -21,8 +21,25 @@ vi.mock('../utils/events', () => ({
   EVENTS: { TIME_LOGGED: 'timeLogged' },
 }))
 
-vi.mock('../utils/logger', () => ({
-  logger: { ui: { warn: vi.fn(), error: vi.fn() }, store: { info: vi.fn() } },
+vi.mock('@/shared/logger', () => ({
+  logger: {
+    ui: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    },
+    main: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    },
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }))
 
 vi.mock('../../logging/index.renderer', () => ({
