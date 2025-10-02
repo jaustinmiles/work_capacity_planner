@@ -370,7 +370,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
   }
 
   private async pushChanges() {
-    const args = ['push', '-u']
+    const args = ['push', '-u', 'origin', 'HEAD']
     const output = await this.runScript('git', args)
 
     return {
