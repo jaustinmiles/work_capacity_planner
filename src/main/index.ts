@@ -37,6 +37,9 @@ async function createWindow(): Promise<void> {
     },
   })
 
+  // Set main window for logger to forward logs to renderer
+  logger.setMainWindow(mainWindow)
+
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
       throw new Error('"mainWindow" is not defined')

@@ -203,10 +203,24 @@ export abstract class Logger implements ILogger {
     const entries = [...this.logQueue]
     this.logQueue = []
 
-    // Send to all transports
+    // Deduplicate entries before sending to transports
+    // React StrictMode causes intentional double-renders in development
+    const seen = new Map<string, LogEntry>()
+    const deduplicated: LogEntry[] = []
+
+    for (const entry of entries) {
+      // Use timestamp + message as unique key
+      const key = `${entry.context.timestamp}-${entry.message}`
+      if (!seen.has(key)) {
+        seen.set(key, entry)
+        deduplicated.push(entry)
+      }
+    }
+
+    // Send deduplicated entries to all transports
     for (const transport of this.transports) {
       try {
-        transport.write(entries)
+        transport.write(deduplicated)
       } catch (error) {
         // Don't log transport errors to avoid infinite loop
         console.error('Transport error:', error)

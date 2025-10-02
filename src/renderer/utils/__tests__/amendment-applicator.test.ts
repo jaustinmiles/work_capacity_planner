@@ -17,6 +17,7 @@ import {
   DeadlineType,
 } from '../../../shared/amendment-types'
 import { Message } from '../../components/common/Message'
+import { appEvents } from '../events'
 
 // Mock the database service
 const mockDatabase = {
@@ -46,6 +47,21 @@ vi.mock('../../components/common/Message', () => ({
     error: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
+  },
+}))
+
+// Mock the events module
+vi.mock('../events', () => ({
+  appEvents: {
+    emit: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+  },
+  EVENTS: {
+    DATA_REFRESH_NEEDED: 'DATA_REFRESH_NEEDED',
+    TASK_UPDATED: 'TASK_UPDATED',
+    WORKFLOW_UPDATED: 'WORKFLOW_UPDATED',
+    SESSION_CHANGED: 'SESSION_CHANGED',
   },
 }))
 
@@ -1171,6 +1187,49 @@ describe('Amendment Applicator', () => {
 
       expect(mockDatabase.updateSequencedTask).not.toHaveBeenCalled()
       expect(Message.warning).toHaveBeenCalledWith('Workflow not found or has no steps')
+    })
+  })
+
+  describe('Event Emissions', () => {
+    it('should emit refresh events after successful amendments', async () => {
+      const amendment: StatusUpdate = {
+        type: 'status_update',
+        target: {
+          type: 'task',
+          id: 'task-1',
+          name: 'Test Task',
+          confidence: 0.9,
+        },
+        newStatus: 'completed',
+      }
+
+      mockDatabase.updateTask.mockResolvedValue(true)
+
+      await applyAmendments([amendment])
+
+      // Verify all three refresh events were emitted
+      expect(appEvents.emit).toHaveBeenCalledWith('DATA_REFRESH_NEEDED')
+      expect(appEvents.emit).toHaveBeenCalledWith('TASK_UPDATED')
+      expect(appEvents.emit).toHaveBeenCalledWith('WORKFLOW_UPDATED')
+      expect(appEvents.emit).toHaveBeenCalledTimes(3)
+    })
+
+    it('should not emit events when all amendments fail', async () => {
+      const amendment: StatusUpdate = {
+        type: 'status_update',
+        target: {
+          type: 'task',
+          name: 'Unknown Task',
+          confidence: 0.5,
+        },
+        newStatus: 'completed',
+      }
+
+      await applyAmendments([amendment])
+
+      // No events should be emitted on complete failure
+      expect(appEvents.emit).not.toHaveBeenCalled()
+      expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
     })
   })
 })

@@ -38,7 +38,7 @@
     "typecheck:count:windows": "npx tsc --noEmit -p tsconfig.prod.json 2>&1 | findstr /C:\"error TS\" | find /c /v \"\"",
     "typecheck:all": "tsc --noEmit",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
-    "lint": "eslint .",
+    "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix --quiet",
     "check": "npm run typecheck && npm run lint",
     "preview": "vite preview",

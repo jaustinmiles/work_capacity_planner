@@ -1,5 +1,17 @@
 import { TaskType, TaskStatus, StepStatus, DeadlineType } from './enums'
 
+/**
+ * Interface for entities that support time logging
+ * Ensures type safety for time tracking operations
+ */
+export interface TimeLoggable {
+  id: string
+  name: string
+  duration: number // estimated duration in minutes
+  actualDuration?: number // actual logged time in minutes
+  type: TaskType
+}
+
 export interface Session {
   id: string
   name: string
@@ -9,13 +21,10 @@ export interface Session {
   updatedAt: Date
 }
 
-export interface Task {
-  id: string
-  name: string
-  duration: number // minutes
+export interface Task extends TimeLoggable {
+  // Inherited from TimeLoggable: id, name, duration, actualDuration, type
   importance: number // 1-10
   urgency: number // 1-10
-  type: TaskType
   asyncWaitTime: number // minutes
   dependencies: string[] // task IDs
   completed: boolean
@@ -28,7 +37,6 @@ export interface Task {
   sessionId: string
   createdAt: Date
   updatedAt: Date
-  actualDuration?: number // for time tracking
   notes?: string
   projectId?: string // for grouping
 
@@ -44,17 +52,13 @@ export interface Task {
   isAsyncTrigger?: boolean
 }
 
-export interface TaskStep {
-  id: string
+export interface TaskStep extends TimeLoggable {
+  // Inherited from TimeLoggable: id, name, duration, actualDuration, type
   taskId: string
-  name: string
-  duration: number
-  type: TaskType
   dependsOn: string[] // step IDs
   asyncWaitTime: number
   status: StepStatus
   stepIndex: number
-  actualDuration?: number
   startedAt?: Date
   completedAt?: Date
   percentComplete: number
@@ -138,4 +142,24 @@ export interface SchedulingPreferences {
   asyncParallelizationBonus: number // priority bonus for async work
   createdAt: Date
   updatedAt: Date
+}
+
+/**
+ * Type guard to check if an entity supports time logging
+ * @param entity - The entity to check
+ * @returns true if the entity implements TimeLoggable interface
+ */
+export function isTimeLoggable(entity: unknown): entity is TimeLoggable {
+  return (
+    typeof entity === 'object' &&
+    entity !== null &&
+    'id' in entity &&
+    'name' in entity &&
+    'duration' in entity &&
+    'type' in entity &&
+    typeof (entity as any).id === 'string' &&
+    typeof (entity as any).name === 'string' &&
+    typeof (entity as any).duration === 'number' &&
+    typeof (entity as any).type === 'string'
+  )
 }

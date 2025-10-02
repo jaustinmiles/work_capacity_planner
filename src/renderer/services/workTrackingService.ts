@@ -11,6 +11,7 @@ import {
   createUnifiedWorkSession,
 } from '../../shared/unified-work-session-types'
 import { TaskType } from '../../shared/enums'
+import { generateUniqueId } from '../../shared/step-id-utils'
 
 /**
  * WorkTrackingService - Manages active work sessions with database persistence
@@ -25,10 +26,12 @@ export class WorkTrackingService {
   private instanceId: string
 
   constructor(options: WorkSessionPersistenceOptions = {}, database?: ReturnType<typeof getDatabase>) {
-    this.instanceId = `WTS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    logger.ui.warn(`[WorkTrackingService] 🔴 NEW INSTANCE CREATED: ${this.instanceId}`, {
+    // Generate unique instance ID for tracking multiple instances in development
+    this.instanceId = generateUniqueId('WTS')
+    logger.ui.debug(`[WorkTrackingService] Instance created: ${this.instanceId}`, {
       instanceId: this.instanceId,
-      stackTrace: new Error().stack,
+      // Capture call stack (first 5 lines) to debug why multiple instances are created
+      stackTrace: this.getCallerStackTrace(),
     })
 
     this.options = {
@@ -37,6 +40,14 @@ export class WorkTrackingService {
       ...options,
     }
     this.database = database || getDatabase()
+  }
+
+  /**
+   * Get abbreviated call stack for debugging instance creation
+   * Returns first 5 lines of stack trace to identify where service was instantiated
+   */
+  private getCallerStackTrace(): string {
+    return new Error().stack?.split('\n').slice(0, 5).join('\n') || 'No stack trace available'
   }
 
   async initialize(): Promise<void> {

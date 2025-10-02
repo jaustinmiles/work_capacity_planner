@@ -875,18 +875,6 @@ function App() {
         <VoiceAmendmentModal
           visible={voiceAmendmentVisible}
           onClose={() => setVoiceAmendmentVisible(false)}
-          onAmendmentsApplied={async (amendments) => {
-            // Apply amendments from voice input
-            try {
-              const { applyAmendments } = await import('./utils/amendment-applicator')
-              await applyAmendments(amendments)
-              // Refresh data to show changes
-              await initializeData()
-            } catch (error) {
-              logger.error('Failed to apply amendments', { error })
-              Message.error('Failed to apply amendments')
-            }
-          }}
         />
 
         <TaskCreationFlow

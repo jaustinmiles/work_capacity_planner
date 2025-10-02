@@ -82,7 +82,8 @@
       "mcp__diagnostic__get_next_feedback",
       "mcp__diagnostic__inspect_database",
       "mcp__git__health_check",
-      "Read(//Users/austinmiles/.claude-code/**)"
+      "Read(//Users/austinmiles/.claude-code/**)",
+      "mcp__git__setup_bot_auth"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
@@ -94,7 +95,6 @@
     "diagnostic",
     "git"
   ],
-  "outputStyle": "Learning",
   "hooks": {
     "PreToolUse": [
       {
@@ -107,5 +107,6 @@
         ]
       }
     ]
-  }
+  },
+  "outputStyle": "Learning"
 }

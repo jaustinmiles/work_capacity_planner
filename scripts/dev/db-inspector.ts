@@ -319,6 +319,74 @@ program
     await prisma.$disconnect()
   })
 
+// Work session inspection
+program
+  .command('work-sessions')
+  .description('Inspect work sessions')
+  .option('-t, --task <id>', 'Filter by task ID')
+  .option('-s, --step <id>', 'Filter by step ID')
+  .option('-l, --limit <n>', 'Limit results', '10')
+  .action(async (options) => {
+    const limit = parseInt(options.limit)
+
+    const where: any = {}
+    if (options.task) {
+      where.taskId = options.task
+    }
+    if (options.step) {
+      where.stepId = options.step
+    }
+
+    const workSessions = await prisma.workSession.findMany({
+      where,
+      orderBy: { startTime: 'desc' },
+      take: limit,
+      include: {
+        Task: { select: { name: true } },
+      },
+    })
+
+    console.log('\n⏱️  Work Sessions')
+    console.log('================')
+
+    if (workSessions.length === 0) {
+      console.log('No work sessions found')
+    } else {
+      console.log(`Found ${workSessions.length} work session(s)\n`)
+      for (const ws of workSessions) {
+        console.log(`ID: ${ws.id}`)
+        if (ws.Task) {
+          console.log(`Task: ${ws.Task.name} (${ws.taskId})`)
+        }
+        if (ws.stepId) {
+          // Fetch step name separately since there's no direct relation
+          const step = await prisma.taskStep.findUnique({
+            where: { id: ws.stepId },
+            select: { name: true },
+          })
+          if (step) {
+            console.log(`Step: ${step.name} (${ws.stepId})`)
+          }
+        }
+        console.log(`Type: ${ws.type}`)
+        console.log(`Start Time: ${ws.startTime.toISOString()}`)
+        if (ws.endTime) {
+          console.log(`End Time: ${ws.endTime.toISOString()}`)
+        }
+        console.log(`Planned: ${ws.plannedMinutes} minutes`)
+        if (ws.actualMinutes) {
+          console.log(`Actual: ${ws.actualMinutes} minutes`)
+        }
+        if (ws.notes) {
+          console.log(`Notes: ${ws.notes}`)
+        }
+        console.log('---')
+      }
+    }
+
+    await prisma.$disconnect()
+  })
+
 // Stats command
 program
   .command('stats')

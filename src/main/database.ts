@@ -4,6 +4,7 @@ import { TaskType } from '../shared/enums'
 import { WorkBlockType } from '../shared/constants'
 import { getMainLogger } from '../logging/index.main'
 import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
+import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import * as crypto from 'crypto'
 
 // Create Prisma client instance
@@ -47,7 +48,6 @@ export class DatabaseService {
   async getActiveSession(): Promise<string> {
     // If already cached, return it
     if (this.activeSessionId) {
-      mainLogger.info('[DB] getActiveSession - Using cached sessionId', { sessionId: this.activeSessionId })
       return this.activeSessionId
     }
 
@@ -963,10 +963,25 @@ export class DatabaseService {
     asyncWaitTime?: number
   }): Promise<any> {
 
+    mainLogger.debug('[Database] addStepToWorkflow called', {
+      workflowId,
+      stepName: stepData.name,
+      duration: stepData.duration,
+      afterStep: stepData.afterStep,
+      beforeStep: stepData.beforeStep,
+      dependencies: stepData.dependencies,
+    })
+
     // Get existing steps to determine order
     const existingSteps = await this.client.taskStep.findMany({
       where: { taskId: workflowId },
       orderBy: { stepIndex: 'asc' },
+    })
+
+    mainLogger.debug('[Database] Existing steps in workflow', {
+      existingStepCount: existingSteps.length,
+      existingStepNames: existingSteps.map(s => s.name),
+      existingStepIds: existingSteps.map(s => s.id),
     })
 
     // Determine the index for the new step
@@ -976,16 +991,42 @@ export class DatabaseService {
       const afterIndex = existingSteps.findIndex(s => s.name === stepData.afterStep)
       if (afterIndex !== -1) {
         newStepIndex = afterIndex + 1
+        mainLogger.debug('[Database] Inserting after step', {
+          afterStep: stepData.afterStep,
+          afterIndex,
+          newStepIndex,
+        })
+      } else {
+        mainLogger.warn('[Database] afterStep not found, appending to end', {
+          afterStep: stepData.afterStep,
+        })
       }
     } else if (stepData.beforeStep) {
       const beforeIndex = existingSteps.findIndex(s => s.name === stepData.beforeStep)
       if (beforeIndex !== -1) {
         newStepIndex = beforeIndex
+        mainLogger.debug('[Database] Inserting before step', {
+          beforeStep: stepData.beforeStep,
+          beforeIndex,
+          newStepIndex,
+        })
+      } else {
+        mainLogger.warn('[Database] beforeStep not found, appending to end', {
+          beforeStep: stepData.beforeStep,
+        })
       }
+    } else {
+      mainLogger.debug('[Database] No position specified, appending to end', {
+        newStepIndex,
+      })
     }
 
     // Shift existing steps if inserting in the middle
     if (newStepIndex < existingSteps.length) {
+      mainLogger.debug('[Database] Shifting existing steps', {
+        shiftStartIndex: newStepIndex,
+        numberOfStepsToShift: existingSteps.length - newStepIndex,
+      })
       for (let i = newStepIndex; i < existingSteps.length; i++) {
         await this.client.taskStep.update({
           where: { id: existingSteps[i].id },
@@ -994,20 +1035,38 @@ export class DatabaseService {
       }
     }
 
+    // CRITICAL: Dependencies are provided as step NAMES but need to be stored as step IDs
+    // Currently storing names directly which causes the dependency wiring bug
+    const dependenciesToStore = stepData.dependencies || []
+    mainLogger.debug('[Database] About to create step with dependencies', {
+      stepName: stepData.name,
+      dependenciesProvided: stepData.dependencies,
+      willStoreAs: dependenciesToStore,
+      note: 'BUG: These should be step IDs but are currently step names',
+    })
+
     // Create the new step
+    const newStepId = generateRandomStepId()
     await this.client.taskStep.create({
       data: {
-        id: `step_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: newStepId,
         taskId: workflowId,
         name: stepData.name,
         duration: stepData.duration,
         type: stepData.type,
         stepIndex: newStepIndex,
-        dependsOn: JSON.stringify(stepData.dependencies || []),
+        dependsOn: JSON.stringify(dependenciesToStore),
         asyncWaitTime: stepData.asyncWaitTime || 0,
         status: 'pending',
         percentComplete: 0,
       },
+    })
+
+    mainLogger.debug('[Database] Step created in database', {
+      newStepId,
+      stepName: stepData.name,
+      stepIndex: newStepIndex,
+      storedDependsOn: JSON.stringify(dependenciesToStore),
     })
 
     // Update the workflow's total duration
@@ -1026,6 +1085,12 @@ export class DatabaseService {
         where: { id: workflowId },
         data: { duration: totalDuration },
       })
+      mainLogger.debug('[Database] Updated workflow duration', {
+        workflowId,
+        oldDuration: updatedTask.duration,
+        newDuration: totalDuration,
+        totalSteps: updatedTask.TaskStep.length,
+      })
     }
 
 
@@ -1037,6 +1102,12 @@ export class DatabaseService {
           orderBy: { stepIndex: 'asc' },
         },
       },
+    })
+
+    mainLogger.debug('[Database] addStepToWorkflow completed', {
+      workflowId,
+      totalStepsNow: finalTask?.TaskStep.length,
+      stepNames: finalTask?.TaskStep.map(s => s.name),
     })
 
     return this.formatTask(finalTask!)
@@ -1609,9 +1680,22 @@ export class DatabaseService {
       throw new Error('startTime is required for creating a work session')
     }
 
+    const sessionId = crypto.randomUUID()
+
+    mainLogger.debug('[WorkLogging] Creating work session in database', {
+      sessionId,
+      taskId: data.taskId,
+      stepId: data.stepId,
+      type: data.type,
+      startTime: data.startTime.toISOString(),
+      plannedMinutes: data.plannedMinutes,
+      actualMinutes: data.actualMinutes,
+      hasNotes: !!data.notes,
+    })
+
     const session = await this.client.workSession.create({
       data: {
-        id: crypto.randomUUID(),
+        id: sessionId,
         taskId: data.taskId,
         stepId: data.stepId ?? null,
         type: data.type,
@@ -1622,6 +1706,15 @@ export class DatabaseService {
         notes: data.notes ?? null,
       },
     })
+
+    mainLogger.debug('[WorkLogging] Work session created successfully', {
+      sessionId: session.id,
+      taskId: session.taskId,
+      plannedMinutes: session.plannedMinutes,
+      actualMinutes: session.actualMinutes,
+      session: session,
+    })
+
     return session
   }
 
@@ -1722,13 +1815,32 @@ export class DatabaseService {
   }
 
   async getTaskTotalLoggedTime(taskId: string): Promise<number> {
+    mainLogger.debug('[WorkLogging] Fetching work sessions for task', { taskId })
+
     const workSessions = await this.client.workSession.findMany({
       where: { taskId },
+    })
+
+    mainLogger.debug('[WorkLogging] Found work sessions', {
+      taskId,
+      sessionCount: workSessions.length,
+      sessions: workSessions.map(s => ({
+        id: s.id,
+        plannedMinutes: s.plannedMinutes,
+        actualMinutes: s.actualMinutes,
+        startTime: s.startTime,
+      })),
     })
 
     const total = workSessions.reduce((total, session) => {
       return total + (session.actualMinutes || session.plannedMinutes || 0)
     }, 0)
+
+    mainLogger.debug('[WorkLogging] Calculated total logged time', {
+      taskId,
+      totalMinutes: total,
+      sessionCount: workSessions.length,
+    })
 
     return total
   }
@@ -1892,7 +2004,7 @@ export class DatabaseService {
       // Create new entry if it doesn't exist
       await this.client.jargonEntry.create({
         data: {
-          id: `jargon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: generateUniqueId('jargon'),
           term,
           definition,
           sessionId,
