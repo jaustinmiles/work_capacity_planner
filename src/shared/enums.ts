@@ -31,6 +31,7 @@ export enum TaskType {
   Admin = 'admin',
   Personal = 'personal',
   Mixed = 'mixed', // Only used for work blocks in scheduling, not for individual tasks
+  Flexible = 'flexible', // For flexible capacity that can be used by any task type
 }
 
 // Amendment types for voice amendments

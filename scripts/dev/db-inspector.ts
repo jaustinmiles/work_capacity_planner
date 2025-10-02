@@ -263,11 +263,7 @@ program
       totalFocus += getTotalCapacityForTaskType(capacity, TaskType.Focused)
       totalAdmin += getTotalCapacityForTaskType(capacity, TaskType.Admin)
       totalPersonal += getTotalCapacityForTaskType(capacity, TaskType.Personal)
-
-      // Flexible blocks add to a separate total
-      if (block.type === 'flexible') {
-        totalFlexible += capacity.totalMinutes
-      }
+      totalFlexible += getTotalCapacityForTaskType(capacity, TaskType.Flexible)
     })
 
     console.log('\n💪 Capacity Summary')
