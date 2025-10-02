@@ -98,8 +98,10 @@ export class DatabaseTransport implements LogTransport {
 
     try {
       // In renderer process, use IPC to persist
-      if (typeof window !== 'undefined' && window.electronAPI?.persistLogs) {
-        await window.electronAPI.persistLogs(logsToFlush)
+      // Type assertion needed because main process build doesn't have renderer type declarations
+      const win = typeof window !== 'undefined' ? (window as any) : null
+      if (win?.electronAPI?.persistLogs) {
+        await win.electronAPI.persistLogs(logsToFlush)
       }
       // In main process, could directly use database (but we don't log from main currently)
     } catch (error) {
