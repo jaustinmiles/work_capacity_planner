@@ -93,11 +93,12 @@ describe('enums', () => {
 
     it('should have all expected keys', () => {
       const keys = Object.keys(TaskType)
-      expect(keys).toHaveLength(4)
+      expect(keys).toHaveLength(5)
       expect(keys).toContain('Focused')
       expect(keys).toContain('Admin')
       expect(keys).toContain('Personal')
       expect(keys).toContain('Mixed')
+      expect(keys).toContain('Flexible')
     })
 
     it('should include Mixed type for work blocks', () => {
