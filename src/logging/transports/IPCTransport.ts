@@ -3,7 +3,7 @@
  */
 
 import { LogEntry, IPCLogPayload } from '../types'
-import { generateLogId } from '@shared/step-id-utils'
+import { generateLogId } from '../../shared/step-id-utils'
 
 // Conditionally import electron based on environment
 let ipcRenderer: any
