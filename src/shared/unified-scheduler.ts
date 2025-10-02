@@ -125,7 +125,7 @@ export interface PriorityBreakdown {
 }
 
 export interface SchedulingDebugInfo {
-  scheduledItems?: Array<{
+  scheduledItems: Array<{
     id: string                              // Always present from UnifiedScheduleItem
     name: string                            // Always present
     type: string                            // Always present
@@ -133,7 +133,7 @@ export interface SchedulingDebugInfo {
     priority: number                        // Always present
     startTime?: string | undefined          // Optional - not all items scheduled yet
     priorityBreakdown?: PriorityBreakdown | undefined  // Optional - only when originalItem exists
-  }> | undefined
+  }>
   unscheduledItems: Array<{
     id: string                              // Always present
     name: string                            // Always present
@@ -220,7 +220,7 @@ interface FitResult {
 export interface ScheduleResult {
   scheduled: UnifiedScheduleItem[]
   unscheduled: UnifiedScheduleItem[]
-  debugInfo?: SchedulingDebugInfo | undefined
+  debugInfo: SchedulingDebugInfo
   metrics?: SchedulingMetrics | undefined
   conflicts?: SchedulingConflict[] | undefined
   warnings?: SchedulingWarning[] | undefined
@@ -304,11 +304,13 @@ export class UnifiedScheduler {
     }
 
     if (dependencyResult.conflicts.length > 0) {
+      const warningMessages = dependencyResult.warnings.map(w => w.message)
       return {
         scheduled: [],
         unscheduled: unifiedItems,
         conflicts: dependencyResult.conflicts,
         warnings: dependencyResult.warnings,
+        debugInfo: this.generateDebugInfo([], unifiedItems, context, warningMessages),
       }
     }
 
@@ -348,12 +350,10 @@ export class UnifiedScheduler {
       logger.scheduler.debug(' [UnifiedScheduler] Allocated items:', allocated.map(i => ({ id: i.id, name: i.name, startTime: i.startTime, endTime: i.endTime })))
     }
 
-    // Generate debug info if requested
+    // Generate debug info (always - it's mandatory)
     const allocatedIds = new Set(allocated.map(item => item.id))
     const actuallyUnscheduled = unifiedItems.filter(item => !allocatedIds.has(item.id))
-    const debugInfo = config.debugMode
-      ? this.generateDebugInfo(allocated, actuallyUnscheduled, context)
-      : undefined
+    const debugInfo = this.generateDebugInfo(allocated, actuallyUnscheduled, context)
 
     // Generate metrics
     const metrics = this.calculateMetrics(allocated, context)
@@ -429,15 +429,9 @@ export class UnifiedScheduler {
       ...baseResult,
       metrics: enhancedMetrics,
       warnings: [],
-      // Add capacity and scenario info to debug data
+      // Augment debug info with optimization data
       debugInfo: {
-        ...(baseResult.debugInfo || {}),
-        unscheduledItems: baseResult.debugInfo?.unscheduledItems || [],
-        blockUtilization: baseResult.debugInfo?.blockUtilization || [],
-        warnings: baseResult.debugInfo?.warnings || [],
-        totalScheduled: baseResult.debugInfo?.totalScheduled || 0,
-        totalUnscheduled: baseResult.debugInfo?.totalUnscheduled || 0,
-        scheduleEfficiency: baseResult.debugInfo?.scheduleEfficiency || 100,
+        ...baseResult.debugInfo,
         capacityModel,
         alternativeScenarios: alternativeScenarios.slice(0, 3), // Top 3 alternatives
         deadlineAnalysis,
@@ -1743,6 +1737,7 @@ export class UnifiedScheduler {
         criticalPathLength: this.calculateCriticalPath(scheduled),
       },
       debugInfo: {
+        scheduledItems: [],
         unscheduledItems: [],
         blockUtilization: [],
         warnings: [],
@@ -2709,12 +2704,14 @@ export class UnifiedScheduler {
   }
 
   /**
-   * Generate debug information for unscheduled items
+   * Generate debug information for scheduled and unscheduled items
+   * Always called - debug info is mandatory in ScheduleResult
    */
   private generateDebugInfo(
     scheduled: UnifiedScheduleItem[],
     unscheduled: UnifiedScheduleItem[],
     context: ScheduleContext,
+    warnings: string[] = [],
   ): SchedulingDebugInfo {
     // Add priority breakdown for both scheduled and unscheduled items
     const scheduledItems = scheduled.slice(0, 10).map(item => ({
@@ -2750,7 +2747,7 @@ export class UnifiedScheduler {
       scheduledItems,  // Add scheduled items with priority breakdown
       unscheduledItems,
       blockUtilization,
-      warnings: [],
+      warnings,
       totalScheduled: scheduled.length,
       totalUnscheduled: unscheduled.length,
       scheduleEfficiency: efficiency,
