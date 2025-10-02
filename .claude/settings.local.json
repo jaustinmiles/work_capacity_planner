@@ -8,7 +8,9 @@
       "mcp__diagnostic__get_next_feedback",
       "mcp__diagnostic__inspect_database",
       "mcp__git__health_check",
-      "mcp__git__setup_bot_auth"
+      "mcp__git__setup_bot_auth",
+      "mcp__diagnostic__run_lint",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

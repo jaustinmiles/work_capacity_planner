@@ -132,7 +132,9 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
   }
 
   const timeToMinutes = (timeStr: string): number => {
-    const [hours, minutes] = timeStr.split(':').map(Number)
+    const parts = timeStr.split(':').map(Number)
+    const hours = parts[0] ?? 0
+    const minutes = parts[1] ?? 0
     return hours * 60 + minutes
   }
 
@@ -147,7 +149,10 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     const startMin = Math.floor(now.minute() / 15) * 15
 
     // Create Date objects for the selected date
-    const [year, month, day] = selectedDate.split('-').map(Number)
+    const dateParts = selectedDate.split('-').map(Number)
+    const year = dateParts[0] ?? new Date().getFullYear()
+    const month = dateParts[1] ?? 1
+    const day = dateParts[2] ?? 1
     const startTime = new Date(year, month - 1, day, startHour, startMin, 0, 0)
     const endTime = new Date(year, month - 1, day, startHour + 1, startMin, 0, 0)
 
@@ -253,7 +258,10 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         const newEndTimeStr = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
         // Convert to Date objects
-        const [year, month, day] = selectedDate.split('-').map(Number)
+        const dateParts = selectedDate.split('-').map(Number)
+        const year = dateParts[0] ?? new Date().getFullYear()
+        const month = dateParts[1] ?? 1
+        const day = dateParts[2] ?? 1
         const newStartTime = new Date(year, month - 1, day, startHours, startMins, 0, 0)
         const newEndTime = new Date(year, month - 1, day, endHours, endMins, 0, 0)
 
@@ -296,10 +304,15 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         logger.ui.debug('Edge resize calculation:', debugInfo)
 
         const newTimeStr = pixelsToTime(relativeY)
-        const [newHours, newMins] = newTimeStr.split(':').map(Number)
+        const timeParts = newTimeStr.split(':').map(Number)
+        const newHours = timeParts[0] ?? 0
+        const newMins = timeParts[1] ?? 0
 
         // Convert to Date object
-        const [year, month, day] = selectedDate.split('-').map(Number)
+        const dateParts = selectedDate.split('-').map(Number)
+        const year = dateParts[0] ?? new Date().getFullYear()
+        const month = dateParts[1] ?? 1
+        const day = dateParts[2] ?? 1
         const newTimeDate = new Date(year, month - 1, day, newHours, newMins, 0, 0)
 
         if (dragState.edge === 'start' && newTimeDate < session.startTime) {
@@ -343,6 +356,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
+    return undefined
   }, [dragState, sessions])
 
   // Save sessions to database

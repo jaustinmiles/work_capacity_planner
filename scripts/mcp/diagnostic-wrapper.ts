@@ -109,6 +109,25 @@ class DiagnosticWrapper {
               required: ['action'],
             },
           },
+          {
+            name: 'run_lint',
+            description: 'Run ESLint to check code quality',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                quiet: {
+                  type: 'boolean',
+                  description: 'Only show errors, no warnings (default: true)',
+                  default: true,
+                },
+                fix: {
+                  type: 'boolean',
+                  description: 'Automatically fix problems (default: false)',
+                  default: false,
+                },
+              },
+            },
+          },
           // TODO(human): Add more MCP tools that wrap your existing scripts
           // Consider which diagnostic scripts from scripts/tools/diagnostics/
           // would be most useful as MCP tools
@@ -129,6 +148,9 @@ class DiagnosticWrapper {
 
           case 'view_logs':
             return await this.callLogViewer(args)
+
+          case 'run_lint':
+            return await this.runLint(args)
 
           // TODO(human): Add cases for additional diagnostic tools
 
@@ -230,6 +252,40 @@ class DiagnosticWrapper {
           text: `**Logs (${action})**\n\n\`\`\`\n${output}\n\`\`\``,
         },
       ],
+    }
+  }
+
+  private async runLint(args: any) {
+    const { quiet = true, fix = false } = args
+
+    const command = ['eslint', '.']
+    if (quiet) {
+      command.push('--quiet')
+    }
+    if (fix) {
+      command.push('--fix')
+    }
+
+    try {
+      const output = await this.runScript('npx', command)
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `**Lint Results**\n\n✅ No errors found!\n\n\`\`\`\n${output || '(no output)'}\n\`\`\``,
+          },
+        ],
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `**Lint Results**\n\n❌ Errors found:\n\n\`\`\`\n${errorMsg}\n\`\`\``,
+          },
+        ],
+      }
     }
   }
 
