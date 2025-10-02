@@ -249,8 +249,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         const endHours = Math.floor(clampedEndMinutes / 60)
         const endMins = clampedEndMinutes % 60
 
-        const newStartTimeStr = getExactTime(`${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`)
-        const newEndTimeStr = getExactTime(`${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`)
+        const newStartTimeStr = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`
+        const newEndTimeStr = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
         // Convert to Date objects
         const [year, month, day] = selectedDate.split('-').map(Number)
@@ -295,7 +295,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         }
         logger.ui.debug('Edge resize calculation:', debugInfo)
 
-        const newTimeStr = getExactTime(pixelsToTime(relativeY))
+        const newTimeStr = pixelsToTime(relativeY)
         const [newHours, newMins] = newTimeStr.split(':').map(Number)
 
         // Convert to Date object
