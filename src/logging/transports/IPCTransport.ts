@@ -3,6 +3,7 @@
  */
 
 import { LogEntry, IPCLogPayload } from '../types'
+import { generateLogId } from '@shared/step-id-utils'
 
 // Conditionally import electron based on environment
 let ipcRenderer: any
@@ -118,8 +119,8 @@ export class IPCTransport {
         continue
       }
 
-      // Create unique ID for deduplication
-      const logId = `${entry.context.timestamp}-${entry.message}-${entry.level}`
+      // Create unique ID for deduplication (prevents sending same log multiple times)
+      const logId = generateLogId(entry.context.timestamp, entry.message, entry.level)
 
       // Skip if already sent
       if (this.sentLogIds.has(logId)) {

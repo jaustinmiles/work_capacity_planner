@@ -1,5 +1,11 @@
 /**
- * Utilities for managing stable step IDs across workflow updates
+ * Utilities for managing stable IDs across the application
+ *
+ * This file provides consistent ID generation for:
+ * - Workflow steps (deterministic and random)
+ * - Service instances (for tracking and debugging)
+ * - Log deduplication (composite keys)
+ * - General unique IDs (jargon entries, sessions, etc.)
  */
 import { logger } from './logger'
 
@@ -33,9 +39,37 @@ function simpleHash(str: string): string {
  * Used when we need to ensure uniqueness
  */
 export function generateRandomStepId(): string {
+  return generateUniqueId('step')
+}
+
+/**
+ * Generate a unique ID with a given prefix
+ * Format: prefix-timestamp-random
+ * Example: "WTS-1759443199835-3ejbx2mvh"
+ *
+ * @param prefix - The prefix to use for the ID (e.g., 'WTS', 'jargon', 'session')
+ * @returns A unique ID string
+ */
+export function generateUniqueId(prefix: string): string {
   const timestamp = Date.now().toString(36)
-  const random = Math.random().toString(36).substr(2, 9)
-  return `step-${timestamp}-${random}`
+  const random = Math.random().toString(36).substring(2, 11)
+  return `${prefix}-${timestamp}-${random}`
+}
+
+/**
+ * Generate a composite log ID for deduplication
+ * Format: timestamp-message-level
+ * Example: "2025-10-02T22:13:19.875Z-Main process initialized-INFO"
+ *
+ * Used by IPCTransport to prevent sending duplicate logs between processes
+ *
+ * @param timestamp - ISO timestamp of the log entry
+ * @param message - The log message
+ * @param level - The log level (e.g., INFO, DEBUG, ERROR)
+ * @returns A composite ID string for deduplication
+ */
+export function generateLogId(timestamp: string, message: string, level: string | number): string {
+  return `${timestamp}-${message}-${level}`
 }
 
 /**

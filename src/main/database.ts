@@ -4,7 +4,7 @@ import { TaskType } from '../shared/enums'
 import { WorkBlockType } from '../shared/constants'
 import { getMainLogger } from '../logging/index.main'
 import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
-import { generateRandomStepId } from '../shared/step-id-utils'
+import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import * as crypto from 'crypto'
 
 // Create Prisma client instance
@@ -2004,7 +2004,7 @@ export class DatabaseService {
       // Create new entry if it doesn't exist
       await this.client.jargonEntry.create({
         data: {
-          id: `jargon-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+          id: generateUniqueId('jargon'),
           term,
           definition,
           sessionId,
