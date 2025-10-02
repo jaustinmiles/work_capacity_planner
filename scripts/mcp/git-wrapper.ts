@@ -153,13 +153,7 @@ class GitWrapper {
             description: 'Push committed changes to current branch',
             inputSchema: {
               type: 'object',
-              properties: {
-                force: {
-                  type: 'boolean',
-                  description: 'Use force push (discouraged)',
-                  default: false,
-                },
-              },
+              properties: {},
             },
           },
         ] satisfies Tool[],
@@ -193,7 +187,7 @@ class GitWrapper {
             return await this.healthCheck(args.fix as boolean)
 
           case 'push_changes':
-            return await this.pushChanges(args.force as boolean)
+            return await this.pushChanges()
 
           default:
             throw new Error(`Unknown tool: ${name}`)
@@ -375,19 +369,15 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
     }
   }
 
-  private async pushChanges(force: boolean = false) {
-    const args = ['push']
-    if (force) {
-      args.push('--force-with-lease')
-    }
-
+  private async pushChanges() {
+    const args = ['push', '-u']
     const output = await this.runScript('git', args)
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ **Changes Pushed**${force ? ' (with force)' : ''}\n\n\`\`\`\n${output}\n\`\`\``,
+          text: `✅ **Changes Pushed**\n\n\`\`\`\n${output}\n\`\`\``,
         },
       ],
     }
