@@ -396,9 +396,11 @@ export class SchedulingEngine {
           durationMinutes: availableMinutes,
           availableForFocused: true,
           availableForAdmin: true,
+          availableForPersonal: true,
           allocatedItems: [],
           remainingFocusedMinutes: focusedCapacity,
           remainingAdminMinutes: adminCapacity,
+          remainingPersonalMinutes: 0, // Personal tasks not yet implemented
           slotType: 'work',
           isBlocked: false,
         })
