@@ -17,6 +17,7 @@ import {
   DeadlineType,
 } from '../../../shared/amendment-types'
 import { Message } from '../../components/common/Message'
+import { appEvents } from '../events'
 
 // Mock the database service
 const mockDatabase = {
@@ -50,14 +51,12 @@ vi.mock('../../components/common/Message', () => ({
 }))
 
 // Mock the events module
-const mockAppEvents = {
-  emit: vi.fn(),
-  on: vi.fn(),
-  off: vi.fn(),
-}
-
 vi.mock('../events', () => ({
-  appEvents: mockAppEvents,
+  appEvents: {
+    emit: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+  },
   EVENTS: {
     DATA_REFRESH_NEEDED: 'DATA_REFRESH_NEEDED',
     TASK_UPDATED: 'TASK_UPDATED',
@@ -74,10 +73,6 @@ describe('Amendment Applicator', () => {
     // Re-set default return values for getTasks and getSequencedTasks after reset
     mockDatabase.getTasks.mockResolvedValue([])
     mockDatabase.getSequencedTasks.mockResolvedValue([])
-    // Reset event mocks
-    mockAppEvents.emit.mockClear()
-    mockAppEvents.on.mockClear()
-    mockAppEvents.off.mockClear()
   })
 
   describe('Status Updates', () => {
@@ -1213,10 +1208,10 @@ describe('Amendment Applicator', () => {
       await applyAmendments([amendment])
 
       // Verify all three refresh events were emitted
-      expect(mockAppEvents.emit).toHaveBeenCalledWith('DATA_REFRESH_NEEDED')
-      expect(mockAppEvents.emit).toHaveBeenCalledWith('TASK_UPDATED')
-      expect(mockAppEvents.emit).toHaveBeenCalledWith('WORKFLOW_UPDATED')
-      expect(mockAppEvents.emit).toHaveBeenCalledTimes(3)
+      expect(appEvents.emit).toHaveBeenCalledWith('DATA_REFRESH_NEEDED')
+      expect(appEvents.emit).toHaveBeenCalledWith('TASK_UPDATED')
+      expect(appEvents.emit).toHaveBeenCalledWith('WORKFLOW_UPDATED')
+      expect(appEvents.emit).toHaveBeenCalledTimes(3)
     })
 
     it('should not emit events when all amendments fail', async () => {
@@ -1233,7 +1228,7 @@ describe('Amendment Applicator', () => {
       await applyAmendments([amendment])
 
       // No events should be emitted on complete failure
-      expect(mockAppEvents.emit).not.toHaveBeenCalled()
+      expect(appEvents.emit).not.toHaveBeenCalled()
       expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
     })
   })

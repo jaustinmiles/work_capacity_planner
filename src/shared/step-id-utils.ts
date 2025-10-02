@@ -102,7 +102,7 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
       }
 
       // Try partial match as last resort - check if any step name is contained in the dependency
-      for (const [stepName, stepId] of nameToId.entries()) {
+      for (const [stepName, stepId] of Array.from(nameToId.entries())) {
         if (dep.includes(stepName) || stepName.includes(dep)) {
           logger.scheduler.warn(`Fuzzy matching dependency "${dep}" to step "${stepName}"`)
           return stepId
