@@ -49,6 +49,23 @@ vi.mock('../../components/common/Message', () => ({
   },
 }))
 
+// Mock the events module
+const mockAppEvents = {
+  emit: vi.fn(),
+  on: vi.fn(),
+  off: vi.fn(),
+}
+
+vi.mock('../events', () => ({
+  appEvents: mockAppEvents,
+  EVENTS: {
+    DATA_REFRESH_NEEDED: 'DATA_REFRESH_NEEDED',
+    TASK_UPDATED: 'TASK_UPDATED',
+    WORKFLOW_UPDATED: 'WORKFLOW_UPDATED',
+    SESSION_CHANGED: 'SESSION_CHANGED',
+  },
+}))
+
 describe('Amendment Applicator', () => {
   beforeEach(() => {
     // Reset all mocks
@@ -57,6 +74,10 @@ describe('Amendment Applicator', () => {
     // Re-set default return values for getTasks and getSequencedTasks after reset
     mockDatabase.getTasks.mockResolvedValue([])
     mockDatabase.getSequencedTasks.mockResolvedValue([])
+    // Reset event mocks
+    mockAppEvents.emit.mockClear()
+    mockAppEvents.on.mockClear()
+    mockAppEvents.off.mockClear()
   })
 
   describe('Status Updates', () => {
@@ -1171,6 +1192,49 @@ describe('Amendment Applicator', () => {
 
       expect(mockDatabase.updateSequencedTask).not.toHaveBeenCalled()
       expect(Message.warning).toHaveBeenCalledWith('Workflow not found or has no steps')
+    })
+  })
+
+  describe('Event Emissions', () => {
+    it('should emit refresh events after successful amendments', async () => {
+      const amendment: StatusUpdate = {
+        type: 'status_update',
+        target: {
+          type: 'task',
+          id: 'task-1',
+          name: 'Test Task',
+          confidence: 0.9,
+        },
+        newStatus: 'completed',
+      }
+
+      mockDatabase.updateTask.mockResolvedValue(true)
+
+      await applyAmendments([amendment])
+
+      // Verify all three refresh events were emitted
+      expect(mockAppEvents.emit).toHaveBeenCalledWith('DATA_REFRESH_NEEDED')
+      expect(mockAppEvents.emit).toHaveBeenCalledWith('TASK_UPDATED')
+      expect(mockAppEvents.emit).toHaveBeenCalledWith('WORKFLOW_UPDATED')
+      expect(mockAppEvents.emit).toHaveBeenCalledTimes(3)
+    })
+
+    it('should not emit events when all amendments fail', async () => {
+      const amendment: StatusUpdate = {
+        type: 'status_update',
+        target: {
+          type: 'task',
+          name: 'Unknown Task',
+          confidence: 0.5,
+        },
+        newStatus: 'completed',
+      }
+
+      await applyAmendments([amendment])
+
+      // No events should be emitted on complete failure
+      expect(mockAppEvents.emit).not.toHaveBeenCalled()
+      expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
     })
   })
 })

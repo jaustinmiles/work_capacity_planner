@@ -875,14 +875,6 @@ function App() {
         <VoiceAmendmentModal
           visible={voiceAmendmentVisible}
           onClose={() => setVoiceAmendmentVisible(false)}
-          onAmendmentsApplied={(amendments) => {
-            // Amendments already applied by VoiceAmendmentModal
-            // Just log for visibility
-            logger.info('[AmendmentApplicator] Amendments applied from voice input', {
-              count: amendments.length,
-              types: amendments.map(a => a.type),
-            })
-          }}
         />
 
         <TaskCreationFlow

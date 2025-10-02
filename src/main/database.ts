@@ -4,6 +4,7 @@ import { TaskType } from '../shared/enums'
 import { WorkBlockType } from '../shared/constants'
 import { getMainLogger } from '../logging/index.main'
 import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
+import { generateRandomStepId } from '../shared/step-id-utils'
 import * as crypto from 'crypto'
 
 // Create Prisma client instance
@@ -1041,13 +1042,12 @@ export class DatabaseService {
     mainLogger.debug('[Database] About to create step with dependencies', {
       stepName: stepData.name,
       dependenciesProvided: stepData.dependencies,
-      dependenciesType: Array.isArray(dependenciesToStore) ? 'array' : typeof dependenciesToStore,
       willStoreAs: dependenciesToStore,
       note: 'BUG: These should be step IDs but are currently step names',
     })
 
     // Create the new step
-    const newStepId = `step_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const newStepId = generateRandomStepId()
     await this.client.taskStep.create({
       data: {
         id: newStepId,
