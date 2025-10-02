@@ -378,15 +378,36 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
   private async pushChanges() {
     const args = ['push', '-u', 'origin', 'HEAD']
     const output = await this.runScript('git', args)
+    const truncatedOutput = this.truncateOutput(output, 5000)
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ **Changes Pushed**\n\n\`\`\`\n${output}\n\`\`\``,
+          text: `✅ **Changes Pushed**\n\n\`\`\`\n${truncatedOutput}\n\`\`\``,
         },
       ],
     }
+  }
+
+  private truncateOutput(output: string, maxChars: number = 10000): string {
+    if (output.length <= maxChars) {
+      return output
+    }
+
+    const lines = output.split('\n')
+    const headLines = 50
+    const tailLines = 20
+
+    if (lines.length <= headLines + tailLines) {
+      return output
+    }
+
+    const head = lines.slice(0, headLines).join('\n')
+    const tail = lines.slice(-tailLines).join('\n')
+    const omitted = lines.length - headLines - tailLines
+
+    return `${head}\n\n... [${omitted} lines truncated] ...\n\n${tail}`
   }
 
   private async runScript(command: string, args: string[]): Promise<string> {
