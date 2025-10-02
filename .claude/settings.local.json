@@ -94,5 +94,18 @@
     "diagnostic",
     "git"
   ],
-  "outputStyle": "Learning"
+  "outputStyle": "Learning",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__git__commit_changes",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BRANCH=$(git branch --show-current); if [ \"$BRANCH\" = \"main\" ]; then echo \"❌ Cannot commit directly to main branch. Please create a feature branch first.\"; exit 1; fi"
+          }
+        ]
+      }
+    ]
+  }
 }
