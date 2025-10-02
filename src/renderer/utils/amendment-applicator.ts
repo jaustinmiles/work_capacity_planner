@@ -37,6 +37,22 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
   let successCount = 0
   let errorCount = 0
 
+  logger.ui.debug('[AmendmentApplicator] applyAmendments called', {
+    totalAmendments: amendments.length,
+    amendmentTypes: amendments.map(a => a.type),
+    stepAdditions: amendments.filter(a => a.type === AmendmentType.StepAddition).map(a => {
+      const sa = a as StepAddition
+      return {
+        workflowName: sa.workflowTarget.name,
+        stepName: sa.stepName,
+        afterStep: sa.afterStep,
+        beforeStep: sa.beforeStep,
+        dependencies: sa.dependencies,
+      }
+    }),
+    stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
+  })
+
   // Track newly created task IDs to resolve placeholders
   const createdTaskMap = new Map<string, string>() // placeholder -> actual ID
 
@@ -261,7 +277,15 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           const addition = amendment as StepAddition
           if (addition.workflowTarget.id) {
             try {
-              // logger.ui.debug('[AmendmentApplicator] Adding step to workflow:', addition)
+              logger.ui.debug('[AmendmentApplicator] Adding step to workflow:', {
+                workflowId: addition.workflowTarget.id,
+                workflowName: addition.workflowTarget.name,
+                stepName: addition.stepName,
+                duration: addition.duration,
+                afterStep: addition.afterStep,
+                beforeStep: addition.beforeStep,
+                dependencies: addition.dependencies,
+              })
               const __updatedWorkflow = await db.addStepToWorkflow(addition.workflowTarget.id, {
                 name: addition.stepName,
                 duration: addition.duration,
@@ -271,14 +295,9 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 dependencies: addition.dependencies,
                 asyncWaitTime: addition.asyncWaitTime || 0,
               })
-              // logger.ui.debug('[AmendmentApplicator] Step added successfully, updated workflow:', updatedWorkflow)
+              logger.ui.debug('[AmendmentApplicator] Step added successfully')
               successCount++
-
-              // Trigger UI refresh by updating the store
-              const { useTaskStore } = await import('../store/useTaskStore')
-              const store = useTaskStore.getState()
-              await store.loadTasks()
-              await store.loadSequencedTasks()
+              // UI refresh will be triggered by DATA_REFRESH_NEEDED event at end of applyAmendments
             } catch (error) {
               logger.ui.error('Failed to add step to workflow:', error)
               Message.error(`Failed to add step "${addition.stepName}" to workflow`)

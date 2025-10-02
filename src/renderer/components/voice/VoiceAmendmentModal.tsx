@@ -23,6 +23,7 @@ import {
 import { useTaskStore } from '../../store/useTaskStore'
 import { logger } from '@/shared/logger'
 import { DependencyEditor } from '../shared/DependencyEditor'
+import { applyAmendments } from '../../utils/amendment-applicator'
 
 
 const { Title, Text, Paragraph } = Typography
@@ -314,16 +315,12 @@ export function VoiceAmendmentModal({
 
     try {
       // Apply the amendments using the amendment applicator
-      const { applyAmendments } = await import('../../utils/amendment-applicator')
       await applyAmendments(amendmentsToApply)
 
       // Notify parent if needed
       onAmendmentsApplied?.(amendmentsToApply)
 
-      // Refresh the task store to show updates
-      const store = useTaskStore.getState()
-      await store.loadTasks()
-      await store.loadSequencedTasks()
+      // UI refresh will be triggered automatically by DATA_REFRESH_NEEDED event from applyAmendments
 
       handleClose()
     } catch (err) {
