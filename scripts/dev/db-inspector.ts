@@ -6,6 +6,8 @@
 
 import { Command } from 'commander'
 import { PrismaClient } from '@prisma/client'
+import { calculateBlockCapacity, getTotalCapacityForTaskType } from '../../src/shared/capacity-calculator'
+import { TaskType } from '../../src/shared/enums'
 
 const prisma = new PrismaClient()
 
@@ -244,8 +246,6 @@ program
     }
 
     // Calculate capacity using the actual capacity calculator
-    const { calculateBlockCapacity } = await import('../../src/shared/capacity-calculator')
-
     let totalFocus = 0
     let totalAdmin = 0
     let totalPersonal = 0
@@ -259,10 +259,11 @@ program
         block.splitRatio,
       )
 
-      totalFocus += capacity.focus || 0
-      totalAdmin += capacity.admin || 0
-      totalPersonal += capacity.personal || 0
-      totalFlexible += (capacity as any).total || 0
+      // Extract type-specific capacities using the helper function
+      totalFocus += getTotalCapacityForTaskType(capacity, TaskType.Focused)
+      totalAdmin += getTotalCapacityForTaskType(capacity, TaskType.Admin)
+      totalPersonal += getTotalCapacityForTaskType(capacity, TaskType.Personal)
+      totalFlexible += getTotalCapacityForTaskType(capacity, TaskType.Flexible)
     })
 
     console.log('\n💪 Capacity Summary')

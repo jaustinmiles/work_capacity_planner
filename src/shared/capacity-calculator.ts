@@ -84,6 +84,11 @@ export function getTotalCapacityForTaskType(
   block: BlockCapacity,
   taskType: TaskType,
 ): number {
+  // When querying for Flexible task type, return total if block is flexible
+  if (taskType === TaskType.Flexible) {
+    return block.type === WorkBlockType.FLEXIBLE ? block.totalMinutes : 0
+  }
+
   // Flexible blocks work with any task type
   if (block.type === WorkBlockType.FLEXIBLE) {
     return block.totalMinutes

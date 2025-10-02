@@ -12,5 +12,6 @@ declare global {
         error: (scope: string, message: string, error?: any, data?: any) => void
       }
     }
+    // Note: electronAPI is declared in src/renderer/services/database.ts
   }
 }

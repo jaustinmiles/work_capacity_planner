@@ -170,6 +170,19 @@ export const setTimeOverride = (date: Date | string | null) => timeProvider.setO
 export const isTimeOverridden = () => timeProvider.isOverridden()
 export const subscribeToTimeChanges = (listener: (time: Date) => void) => timeProvider.subscribe(listener)
 
+/**
+ * Extract local date string in YYYY-MM-DD format from a Date object
+ * IMPORTANT: Uses LOCAL date components, not UTC
+ * @param date - Date object to extract from
+ * @returns Date string in YYYY-MM-DD format
+ */
+export const getLocalDateString = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // Make it available globally for console access
 if (typeof window !== 'undefined') {
   const win = window as any

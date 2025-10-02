@@ -9,6 +9,7 @@
     "build:main": "tsc src/main/index.ts --outDir dist --module commonjs --esModuleInterop --skipLibCheck",
     "build:preload": "tsc src/preload/index.ts --outDir dist --module commonjs --esModuleInterop --skipLibCheck",
     "build:renderer": "vite build",
+    "build:mcp": "tsc scripts/mcp/*.ts --outDir scripts/mcp/dist --module commonjs --esModuleInterop --skipLibCheck --resolveJsonModule",
     "electron": "electron .",
     "electron:dev": "cross-env NODE_ENV=development electron .",
     "start": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"wait-on http://localhost:5174 && npm run electron:dev\"",

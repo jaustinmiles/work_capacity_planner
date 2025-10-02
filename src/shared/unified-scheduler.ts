@@ -25,7 +25,7 @@ import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
 import { WorkSettings } from './work-settings-types'
 import { ProductivityPattern, SchedulingPreferences } from './types'
 import { logger } from './logger'
-import { getCurrentTime, timeProvider } from './time-provider'
+import { getCurrentTime, getLocalDateString, timeProvider } from './time-provider'
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -1149,8 +1149,7 @@ export class UnifiedScheduler {
     let startDateValue = config.startDate
     if (!startDateValue) {
       logger.scheduler.warn('No startDate provided to allocateToWorkBlocks, using today')
-      const isoString = getCurrentTime().toISOString()
-      startDateValue = isoString.substring(0, 10) // Extract YYYY-MM-DD
+      startDateValue = getLocalDateString(getCurrentTime())
     }
 
     // CRITICAL: Use currentTime as the starting point if provided
@@ -1159,11 +1158,13 @@ export class UnifiedScheduler {
     // to check the whole day's patterns
     let currentDate: Date
     if (config.currentTime) {
-      // Start from the DATE of currentTime (at midnight) to check full day patterns
-      const dateStr = config.currentTime.toISOString().split('T')[0]
+      // Start from the LOCAL DATE of currentTime (at midnight) to check full day patterns
+      // CRITICAL: Use local date, NOT UTC date
+      const dateStr = getLocalDateString(config.currentTime)
       currentDate = new Date(dateStr + 'T00:00:00')
-      logger.scheduler.info(' [UnifiedScheduler] Using currentTime date for start', {
+      logger.scheduler.info(' [UnifiedScheduler] Using currentTime LOCAL date for start', {
         currentTime: config.currentTime.toISOString(),
+        localDateTime: config.currentTime.toString(),
         startingDate: currentDate.toISOString(),
         dateStr,
       })
@@ -2772,6 +2773,12 @@ export class UnifiedScheduler {
   }> {
     const utilization: Array<any> = []
 
+    logger.scheduler.info('🔍 [BlockUtilization] Starting calculation', {
+      scheduledCount: scheduled.length,
+      patternCount: workPatterns.length,
+      patternDates: workPatterns.map(p => p.date),
+    })
+
     // Group scheduled items by date
     const itemsByDate = new Map<string, UnifiedScheduleItem[]>()
     scheduled.forEach(item => {
@@ -2789,8 +2796,21 @@ export class UnifiedScheduler {
       }
     })
 
+    logger.scheduler.info('🔍 [BlockUtilization] Grouped scheduled items', {
+      dates: Array.from(itemsByDate.keys()),
+      itemsPerDate: Array.from(itemsByDate.entries()).map(([date, items]) => ({
+        date,
+        count: items.length,
+      })),
+    })
+
     // Calculate utilization for each work pattern
     workPatterns.forEach(pattern => {
+      logger.scheduler.info('🔍 [BlockUtilization] Processing pattern', {
+        date: pattern.date,
+        blockCount: pattern.blocks?.length || 0,
+        hasBlocks: !!pattern.blocks,
+      })
       const dateItems = itemsByDate.get(pattern.date) || []
 
       pattern.blocks.forEach(block => {
@@ -2813,7 +2833,7 @@ export class UnifiedScheduler {
         // Calculate utilization percentage
         const utilizationPercent = totalCapacity > 0 ? (usedCapacity / totalCapacity) * 100 : 0
 
-        utilization.push({
+        const blockUtil = {
           date: pattern.date,
           blockId: block.id,
           startTime: block.startTime,
@@ -2822,8 +2842,16 @@ export class UnifiedScheduler {
           used: usedCapacity,
           blockType: block.type,
           utilization: Math.round(utilizationPercent),
-        })
+        }
+
+        logger.scheduler.info('🔍 [BlockUtilization] Added block', blockUtil)
+        utilization.push(blockUtil)
       })
+    })
+
+    logger.scheduler.info('🔍 [BlockUtilization] Final result', {
+      utilizationCount: utilization.length,
+      utilizationBlocks: utilization,
     })
 
     return utilization

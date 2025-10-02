@@ -153,13 +153,7 @@ class GitWrapper {
             description: 'Push committed changes to current branch',
             inputSchema: {
               type: 'object',
-              properties: {
-                force: {
-                  type: 'boolean',
-                  description: 'Use force push (discouraged)',
-                  default: false,
-                },
-              },
+              properties: {},
             },
           },
         ] satisfies Tool[],
@@ -193,19 +187,25 @@ class GitWrapper {
             return await this.healthCheck(args.fix as boolean)
 
           case 'push_changes':
-            return await this.pushChanges(args.force as boolean)
+            return await this.pushChanges()
 
           default:
             throw new Error(`Unknown tool: ${name}`)
         }
       } catch (error) {
+        // Show full error including stack for git command failures
+        const errorText = error instanceof Error
+          ? error.message
+          : String(error)
+
         return {
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: `Error: ${errorText}`,
             },
           ],
+          isError: true,
         }
       }
     })
@@ -375,22 +375,39 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
     }
   }
 
-  private async pushChanges(force: boolean = false) {
-    const args = ['push']
-    if (force) {
-      args.push('--force-with-lease')
-    }
-
+  private async pushChanges() {
+    const args = ['push', '-u', 'origin', 'HEAD']
     const output = await this.runScript('git', args)
+    const truncatedOutput = this.truncateOutput(output, 5000)
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ **Changes Pushed**${force ? ' (with force)' : ''}\n\n\`\`\`\n${output}\n\`\`\``,
+          text: `✅ **Changes Pushed**\n\n\`\`\`\n${truncatedOutput}\n\`\`\``,
         },
       ],
     }
+  }
+
+  private truncateOutput(output: string, maxChars: number = 10000): string {
+    if (output.length <= maxChars) {
+      return output
+    }
+
+    const lines = output.split('\n')
+    const headLines = 50
+    const tailLines = 20
+
+    if (lines.length <= headLines + tailLines) {
+      return output
+    }
+
+    const head = lines.slice(0, headLines).join('\n')
+    const tail = lines.slice(-tailLines).join('\n')
+    const omitted = lines.length - headLines - tailLines
+
+    return `${head}\n\n... [${omitted} lines truncated] ...\n\n${tail}`
   }
 
   private async runScript(command: string, args: string[]): Promise<string> {
@@ -415,7 +432,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
         if (code === 0) {
           resolve(stdout)
         } else {
-          reject(new Error(`Command failed with code ${code}: ${stderr}`))
+          // Include both stdout and stderr for better error context
+          const errorOutput = [stderr, stdout].filter(Boolean).join('\n')
+          reject(new Error(`Command failed with code ${code}:\n${errorOutput}`))
         }
       })
 
