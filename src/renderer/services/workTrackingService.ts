@@ -88,6 +88,28 @@ export class WorkTrackingService {
       // Get current session info from database
       const currentSession = await this.database.getCurrentSession()
 
+      // Fetch task and step names for display
+      let taskName: string | undefined
+      let stepName: string | undefined
+
+      if (workflowId && stepId) {
+        // For workflow steps, get the workflow task and find the specific step
+        const workflow = await this.database.getTaskById(workflowId)
+        if (workflow?.steps) {
+          const step = workflow.steps.find((s: any) => s.id === stepId)
+          if (step) {
+            stepName = step.name
+            taskName = workflow.name // Also include workflow name for context
+          }
+        }
+      } else if (taskId) {
+        // For regular tasks, just get the task name
+        const task = await this.database.getTaskById(taskId)
+        if (task) {
+          taskName = task.name
+        }
+      }
+
       // Create new unified work session
       const workSession = createUnifiedWorkSession({
         taskId: workflowId || taskId || '',
@@ -95,6 +117,8 @@ export class WorkTrackingService {
         type: TaskType.Focused,
         plannedMinutes: 60, // Default 1 hour
         workflowId,
+        taskName,
+        stepName,
       })
 
       // Set runtime state
