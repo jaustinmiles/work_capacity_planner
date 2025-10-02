@@ -103,6 +103,7 @@ function formatThread(thread: ReviewThread): string {
   return `
 📍 ${thread.path}:${thread.line}${status}
 ────────────────────────────────────────────
+Comment ID: ${firstComment.id}
 ${firstComment.author.login}: ${firstComment.body}
 ${thread.comments.length > 1 ? `(+${thread.comments.length - 1} replies)` : ''}
 Created: ${new Date(firstComment.createdAt).toLocaleString()}

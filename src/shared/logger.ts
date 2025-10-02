@@ -1,6 +1,8 @@
 // Unified logger for shared files
 // Routes to the appropriate ring buffer logger based on environment
 
+import { getRendererLogger } from '../logging/renderer/RendererLogger'
+
 let loggerInstance: any
 
 // Check environment
@@ -25,18 +27,20 @@ if (isMainProcess) {
   }
 } else if (isRenderer) {
   // Renderer process - use RendererLogger from the unified system
-  // Import dynamically to avoid issues with different environments
+  // Use ES module import (imported at top of file)
   try {
-    const { getRendererLogger } = require('../logging/renderer/RendererLogger')
     loggerInstance = getRendererLogger()
-  } catch (_e) {
-    // If we can't get the renderer logger, create a no-op logger
-    // This prevents crashes but doesn't spam console
+    console.log('[SharedLogger] Successfully initialized RendererLogger in renderer process')
+  } catch (e) {
+    // Log the error so we can see what went wrong
+    console.error('[SharedLogger] Failed to initialize RendererLogger:', e)
+    // If we can't get the renderer logger, fall back to console
+    // Use console instead of no-op so we can at least see the logs
     loggerInstance = {
-      debug: () => {},
-      info: () => {},
-      warn: () => {},
-      error: () => {},
+      debug: (msg: string, ...args: any[]) => console.debug(`[SHARED-DEBUG] ${msg}`, ...args),
+      info: (msg: string, ...args: any[]) => console.info(`[SHARED-INFO] ${msg}`, ...args),
+      warn: (msg: string, ...args: any[]) => console.warn(`[SHARED-WARN] ${msg}`, ...args),
+      error: (msg: string, ...args: any[]) => console.error(`[SHARED-ERROR] ${msg}`, ...args),
     }
   }
 } else {
