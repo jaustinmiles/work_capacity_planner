@@ -78,7 +78,10 @@
       "mcp__git__commit_changes",
       "mcp__git__push_changes",
       "mcp__git__get_pr_reviews",
-      "mcp__git__reply_to_comment"
+      "mcp__git__reply_to_comment",
+      "mcp__diagnostic__get_next_feedback",
+      "mcp__diagnostic__inspect_database",
+      "mcp__git__health_check"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

@@ -90,11 +90,13 @@ export interface TimeSlot {
   // Capacity information
   availableForFocused: boolean
   availableForAdmin: boolean
+  availableForPersonal: boolean
 
   // Current allocation
   allocatedItems: ScheduledWorkItem[]
   remainingFocusedMinutes: number
   remainingAdminMinutes: number
+  remainingPersonalMinutes: number
 
   // Slot type
   slotType: 'work' | 'break' | 'meeting' | 'async_wait'

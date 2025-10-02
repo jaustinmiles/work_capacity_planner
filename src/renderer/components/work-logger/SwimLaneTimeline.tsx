@@ -7,7 +7,6 @@ import { TaskType } from '@shared/enums'
 import {
   WorkSessionData,
   minutesToTime,
-  roundToQuarter,
   checkOverlap,
 } from './SessionState'
 import { useContainerQuery } from '../../hooks/useContainerQuery'
@@ -93,16 +92,8 @@ export function SwimLaneTimeline({
   const { ref: timelineRef, width: _containerWidth } = useContainerQuery<HTMLDivElement>()
   const { isCompact: _isCompact } = useResponsive()
 
-  // Calculate hour width based on zoom level - let it overflow!
-  const calculateHourWidth = () => {
-    // Simple calculation: base zoom factor applied to minimum width
-    const zoomFactor = baseHourWidth / 80 // 80 = default zoom baseline
-
-    // Return zoomed width - NO CONSTRAINTS! Let it overflow and scroll!
-    return Math.max(MIN_HOUR_WIDTH, MIN_HOUR_WIDTH * zoomFactor)
-  }
-
-  const hourWidth = calculateHourWidth()
+  // Hour width is simply the baseHourWidth - no complex calculations needed
+  const hourWidth = baseHourWidth
 
 
   // Use external state if provided, otherwise use internal
@@ -370,8 +361,8 @@ export function SwimLaneTimeline({
         const deltaMinutes = (deltaX / hourWidth) * 60
 
         if (dragState.edge === 'move') {
-          const newStart = roundToQuarter(dragState.initialStartMinutes + deltaMinutes)
-          const newEnd = roundToQuarter(dragState.initialEndMinutes + deltaMinutes)
+          const newStart = dragState.initialStartMinutes + deltaMinutes
+          const newEnd = dragState.initialEndMinutes + deltaMinutes
 
           if (newStart >= START_HOUR * 60 && newEnd <= END_HOUR * 60) {
             // Check for overlaps
@@ -390,7 +381,7 @@ export function SwimLaneTimeline({
             }
           }
         } else if (dragState.edge === 'start') {
-          const newStart = roundToQuarter(dragState.initialStartMinutes + deltaMinutes)
+          const newStart = dragState.initialStartMinutes + deltaMinutes
           if (newStart >= START_HOUR * 60 && newStart < dragState.initialEndMinutes) {
             const resizedSession: WorkSessionData = {
               id: dragState.sessionId,
@@ -407,7 +398,7 @@ export function SwimLaneTimeline({
             }
           }
         } else if (dragState.edge === 'end') {
-          const newEnd = roundToQuarter(dragState.initialEndMinutes + deltaMinutes)
+          const newEnd = dragState.initialEndMinutes + deltaMinutes
           if (newEnd <= END_HOUR * 60 && newEnd > dragState.initialStartMinutes) {
             const resizedSession: WorkSessionData = {
               id: dragState.sessionId,
@@ -445,8 +436,8 @@ export function SwimLaneTimeline({
 
     const handleMouseUp = () => {
       if (creatingSession) {
-        const startMinutes = roundToQuarter(pixelsToMinutes(Math.min(creatingSession.startX, creatingSession.currentX)))
-        const endMinutes = roundToQuarter(pixelsToMinutes(Math.max(creatingSession.startX, creatingSession.currentX)))
+        const startMinutes = pixelsToMinutes(Math.min(creatingSession.startX, creatingSession.currentX))
+        const endMinutes = pixelsToMinutes(Math.max(creatingSession.startX, creatingSession.currentX))
 
 if (endMinutes - startMinutes >= 15) {
           // Check for overlaps with existing sessions
@@ -544,7 +535,7 @@ if (!checkOverlap(newSession, laneSessions)) {
         style={{
           position: 'relative',
           overflowX: 'auto', // Allow horizontal scroll for 3-day timeline
-          overflowY: 'hidden', // Never show vertical scrollbar
+          overflowY: 'auto', // Allow vertical scroll when many swim lanes
           background: '#fafbfc',
           borderRadius: 8,
           height: '100%',
@@ -880,7 +871,9 @@ if (!checkOverlap(newSession, laneSessions)) {
               {lane.sessions.map((session, sessionIndex) => {
                 const left = minutesToPixels(session.startMinutes)
                 const actualWidth = (session.endMinutes - session.startMinutes) / 60 * hourWidth
-                const width = Math.max(actualWidth, 30)  // Minimum width of 30px for visibility
+                // Use minimum visual width of 20px for very short sessions (for clickability)
+                // But don't mislead - the tooltip shows the accurate time
+                const width = Math.max(actualWidth, 20)
                 const isSelected = session.id === selectedSessionId
                 const isHovered = session.id === hoveredSession
                 const isMeetingSession = session.id.startsWith('meeting-')
@@ -967,9 +960,9 @@ if (!checkOverlap(newSession, laneSessions)) {
                             {session.endMinutes - session.startMinutes} minutes
                             ({Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10} hours)
                           </div>
-                          {actualWidth < width && (
-                            <div style={{ color: '#ff7875', marginTop: 4 }}>
-                              ⚠️ Expanded from {Math.round(actualWidth)}px for visibility
+                          {width > actualWidth && (
+                            <div style={{ color: '#faad14', marginTop: 4, fontSize: 11 }}>
+                              ℹ️ Expanded for visibility (zoom in to see actual size)
                             </div>
                           )}
                           {isMeetingSession && <div style={{ marginTop: 4, fontStyle: 'italic' }}>Meeting/Event</div>}
