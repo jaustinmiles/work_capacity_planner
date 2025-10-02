@@ -159,7 +159,7 @@ export class IPCTransport {
       (window as any).electronAPI.onMainLog((entry: LogEntry) => {
         // Emit an event that the renderer logger can listen to
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('main-log', { detail: entry }))
+          window.dispatchEvent(new (window as any).CustomEvent('main-log', { detail: entry }))
         }
       })
       IPCTransport.rendererHandlerSetup = true

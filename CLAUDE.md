@@ -87,4 +87,7 @@ These servers enable systematic, automated development workflows through Claude 
 
 ---
 
+### General Tips
+- please always run lint with the --quiet flag. 
+
 *The goal is systematic, enforceable practices through infrastructure, not extensive documentation.*

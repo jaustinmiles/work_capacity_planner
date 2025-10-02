@@ -105,11 +105,11 @@ export class RendererLogger extends Logger {
     })
 
     // Listen for logs from main process
-    window.addEventListener('main-log', ((event: CustomEvent) => {
-      const entry = event.detail
+    window.addEventListener('main-log', (event: Event) => {
+      const entry = (event as any).detail
       // Add main process log to our ring buffer
       this.ringBuffer.push(entry)
-    }) as EventListener)
+    })
 
     // Track storage quota
     if ('storage' in navigator && 'estimate' in navigator.storage) {

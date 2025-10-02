@@ -23,13 +23,12 @@
       "Read(./*.md)",
       "Read(./*.json)",
       "Read(./*.ts)",
-      "Read(./*.js)",
-      "Bash(npx tsx scripts/mcp/diagnostic-wrapper.ts)",
-      "Bash(npx tsx scripts/mcp/git-wrapper.ts)"
+      "Read(./*.js)"
     ],
     "deny": [
       "Bash(git push --force)",
       "Bash(git push -f)",
+      "Bash(git push:*)",
       "Bash(git commit --amend)",
       "Bash(git rebase -i:*)",
       "Bash(git reset --hard:*)",
@@ -58,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm run lint -- --fix ${file}",
+            "command": "npm run lint -- --fix ${file} --quiet",
             "timeout": 10000
           }
         ]

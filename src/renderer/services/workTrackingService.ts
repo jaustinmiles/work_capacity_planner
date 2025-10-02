@@ -316,11 +316,11 @@ export class WorkTrackingService {
       const clearedCount = 0
       for (const date of dates) {
         const sessions = await this.database.getWorkSessions(date)
-        const staleSessions = sessions.filter((session: any) =>
+        const _staleSessions = sessions.filter((session: any) =>
           !session.endTime && new Date(session.startTime) < cutoffDate,
         )
 
-        // for (const session of staleSessions) {
+        // for (const session of _staleSessions) {
         //   await this.database.deleteWorkSession(session.id)
         //   clearedCount++
         // }
