@@ -405,7 +405,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
         if (code === 0) {
           resolve(stdout)
         } else {
-          reject(new Error(`Command failed with code ${code}: ${stderr}`))
+          // Include both stdout and stderr for better error context
+          const errorOutput = [stderr, stdout].filter(Boolean).join('\n')
+          reject(new Error(`Command failed with code ${code}:\n${errorOutput}`))
         }
       })
 
