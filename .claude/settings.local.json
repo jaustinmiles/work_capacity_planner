@@ -81,7 +81,8 @@
       "mcp__git__reply_to_comment",
       "mcp__diagnostic__get_next_feedback",
       "mcp__diagnostic__inspect_database",
-      "mcp__git__health_check"
+      "mcp__git__health_check",
+      "Read(//Users/austinmiles/.claude-code/**)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

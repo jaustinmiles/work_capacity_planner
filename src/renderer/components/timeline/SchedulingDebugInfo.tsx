@@ -2,67 +2,16 @@ import React from 'react'
 import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
 import { getCurrentTime } from '@shared/time-provider'
+import type { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import dayjs from 'dayjs'
-
-// Local type definition for debug info
-interface DebugInfo {
-  unscheduledItems: Array<{
-    id: string
-    name: string
-    duration: number
-    type: string
-    reason: string
-    priorityBreakdown?: {
-      total: number
-      eisenhower: number
-      deadlineBoost?: number
-      asyncBoost?: number
-      cognitiveMatch?: number
-      contextSwitchPenalty?: number
-      workflowDepthBonus?: number
-    }
-  }>
-  scheduledItems?: Array<{
-    id: string
-    name: string
-    type: string
-    startTime: string
-    duration: number
-    priority?: number
-    priorityBreakdown?: {
-      total: number
-      eisenhower: number
-      deadlineBoost?: number
-      asyncBoost?: number
-      cognitiveMatch?: number
-      contextSwitchPenalty?: number
-      workflowDepthBonus?: number
-    }
-  }>
-  warnings: string[]
-  unusedCapacity: number
-  blockUtilization: Array<{
-    date: string
-    blockId?: string
-    blockStart: string
-    blockEnd: string
-    startTime?: string
-    endTime?: string
-    type: string
-    capacity: number
-    used: number
-    utilizationPercent: number
-    unusedReason?: string
-  }>
-}
 
 const { Title, Text } = Typography
 
-interface SchedulingDebugInfoProps {
-  debugInfo: DebugInfo | null
+interface SchedulingDebugPanelProps {
+  debugInfo: SchedulingDebugInfo | null
 }
 
-export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugInfo }) => {
+export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debugInfo }) => {
   if (!debugInfo) return null
 
   const hasIssues = debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0
@@ -201,13 +150,13 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                 Block Utilization (Current & Next Day)
               </Title>
               <Table
-                rowKey={(record) => `${record.date}-${record.blockId || record.blockStart}`}
+                rowKey={(record) => `${record.date}-${record.blockId}`}
                 columns={[
                   { title: 'Date', dataIndex: 'date' },
                   { title: 'Block', dataIndex: 'blockId' },
                   {
                     title: 'Time',
-                    render: (_, record) => `${record.startTime || record.blockStart} - ${record.endTime || record.blockEnd}`,
+                    render: (_, record) => `${record.startTime} - ${record.endTime}`,
                   },
                   {
                     title: 'Capacity Used',
@@ -217,11 +166,22 @@ export const SchedulingDebugInfo: React.FC<SchedulingDebugInfoProps> = ({ debugI
                       if (total === 0) return '-'
 
                       // Check if block is in progress
+                      if (!record.startTime || !record.endTime) return <Tag color="gray">Invalid time</Tag>
+
                       const currentTime = getCurrentTime()
                       const now = dayjs(currentTime)
                       const blockDate = dayjs(record.date)
-                      const blockStart = blockDate.hour(parseInt(record.blockStart.split(':')[0])).minute(parseInt(record.blockStart.split(':')[1]))
-                      const blockEnd = blockDate.hour(parseInt(record.blockEnd.split(':')[0])).minute(parseInt(record.blockEnd.split(':')[1]))
+                      const startParts = record.startTime.split(':')
+                      const endParts = record.endTime.split(':')
+                      if (startParts.length !== 2 || endParts.length !== 2) {
+                        return <Tag color="gray">Invalid time format</Tag>
+                      }
+                      const startHour = parseInt(startParts[0] || '0', 10)
+                      const startMin = parseInt(startParts[1] || '0', 10)
+                      const endHour = parseInt(endParts[0] || '0', 10)
+                      const endMin = parseInt(endParts[1] || '0', 10)
+                      const blockStart = blockDate.hour(startHour).minute(startMin)
+                      const blockEnd = blockDate.hour(endHour).minute(endMin)
 
                       let effectiveUsed = used
                       let effectiveTotal = total

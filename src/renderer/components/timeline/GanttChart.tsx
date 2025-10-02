@@ -8,7 +8,7 @@ import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
 import { useUnifiedScheduler, ScheduleResult } from '../../hooks/useUnifiedScheduler'
 import { ScheduledItem } from '@shared/unified-scheduler-adapter'
-import { SchedulingDebugInfo as DebugInfoComponent } from './SchedulingDebugInfo'
+import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
@@ -492,65 +492,55 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const ganttItems = convertUnifiedToGanttItems(unifiedScheduleResult)
 
     // Use real debug info from UnifiedScheduler if available
-    const unifiedDebugInfo = unifiedScheduleResult.debugInfo || {
-      // Fallback to basic info if debug info not available
-      unscheduledItems: unifiedScheduleResult.unscheduledTasks.map(task => ({
-        id: task.id,
-        name: task.name,
-        type: 'task',
-        duration: task.duration,
-        reason: 'No available capacity or constraints not met',
-      })),
-      warnings: unifiedScheduleResult.conflicts,
-      blockUtilization: [],
-      totalScheduled: unifiedScheduleResult.scheduledTasks.length,
-      totalUnscheduled: unifiedScheduleResult.unscheduledTasks.length,
-      scheduleEfficiency: unifiedScheduleResult.scheduledTasks.length / Math.max(1, unifiedScheduleResult.scheduledTasks.length + unifiedScheduleResult.unscheduledTasks.length),
+    // Debug info should always be defined (scheduler always generates it)
+    // For now, handle cases where it might be undefined (e.g., hooks/adapters not updated yet)
+    const debugInfo = unifiedScheduleResult.debugInfo
+    if (debugInfo) {
+      setDebugInfo(debugInfo)
+
+      // Auto-show debug info if there are issues
+      if (debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0) {
+        setShowDebugInfo(true)
+      }
+
+      // Log the Gantt chart data for AI debugging
+      const viewWindow = {
+        start: ganttItems.length > 0 ? ganttItems[0].startTime : getCurrentTime(),
+        end: ganttItems.length > 0 ?
+          ganttItems[ganttItems.length - 1].endTime :
+          new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
+      }
+      // Convert GanttItems to ScheduledItem format for logging
+      const scheduledItems = ganttItems.map(item => ({
+        task: item.originalItem as Task,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        blockId: item.blockId,
+        priority: item.priority,
+      }))
+      logGanttChart(logger.ui, scheduledItems, workPatterns, viewWindow, tasks, sequencedTasks, debugInfo)
+
+      // Log final schedule results with deadline analysis
+      const finalItemsWithDeadlines = ganttItems.filter(item => item.deadline)
+      const violatedDeadlines = finalItemsWithDeadlines.filter(item =>
+        dayjs(item.endTime).isAfter(dayjs(item.deadline)),
+      )
+
+      logger.ui.info('✅ [GANTT] UnifiedScheduler calculation complete', {
+        totalScheduledItems: ganttItems.length,
+        itemsWithDeadlines: finalItemsWithDeadlines.length,
+        violatedDeadlines: violatedDeadlines.length,
+        unscheduledItems: debugInfo.unscheduledItems.length,
+        warnings: debugInfo.warnings.length,
+        violationDetails: violatedDeadlines.map(item => ({
+          name: item.name,
+          deadline: dayjs(item.deadline).format('YYYY-MM-DD HH:mm'),
+          actualEnd: dayjs(item.endTime).format('YYYY-MM-DD HH:mm'),
+          delayMinutes: dayjs(item.endTime).diff(dayjs(item.deadline), 'minutes'),
+          isWorkflow: !!item.workflowId,
+        })),
+      })
     }
-    setDebugInfo(unifiedDebugInfo)
-
-    // Log the Gantt chart data for AI debugging
-    const viewWindow = {
-      start: ganttItems.length > 0 ? ganttItems[0].startTime : getCurrentTime(),
-      end: ganttItems.length > 0 ?
-        ganttItems[ganttItems.length - 1].endTime :
-        new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
-    }
-    // Convert GanttItems to ScheduledItem format for logging
-    const scheduledItems = ganttItems.map(item => ({
-      task: item.originalItem as Task,
-      startTime: item.startTime,
-      endTime: item.endTime,
-      blockId: item.blockId,
-      priority: item.priority,
-    }))
-    logGanttChart(logger.ui, scheduledItems, workPatterns, viewWindow, tasks, sequencedTasks, unifiedDebugInfo)
-
-    // Auto-show debug info if there are issues
-    if (unifiedDebugInfo.unscheduledItems.length > 0 || unifiedDebugInfo.warnings.length > 0) {
-      setShowDebugInfo(true)
-    }
-
-    // Log final schedule results with deadline analysis
-    const finalItemsWithDeadlines = ganttItems.filter(item => item.deadline)
-    const violatedDeadlines = finalItemsWithDeadlines.filter(item =>
-      dayjs(item.endTime).isAfter(dayjs(item.deadline)),
-    )
-
-    logger.ui.info('✅ [GANTT] UnifiedScheduler calculation complete', {
-      totalScheduledItems: ganttItems.length,
-      itemsWithDeadlines: finalItemsWithDeadlines.length,
-      violatedDeadlines: violatedDeadlines.length,
-      unscheduledItems: unifiedDebugInfo.unscheduledItems.length,
-      warnings: unifiedDebugInfo.warnings.length,
-      violationDetails: violatedDeadlines.map(item => ({
-        name: item.name,
-        deadline: dayjs(item.deadline).format('YYYY-MM-DD HH:mm'),
-        actualEnd: dayjs(item.endTime).format('YYYY-MM-DD HH:mm'),
-        delayMinutes: dayjs(item.endTime).diff(dayjs(item.deadline), 'minutes'),
-        isWorkflow: !!item.workflowId,
-      })),
-    })
 
     // Add meeting items from work patterns
     const meetingItems = getMeetingScheduledItems(workPatterns)
@@ -1926,7 +1916,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             reason: item.reason,
             priorityBreakdown: item.priorityBreakdown,
           })),
-          scheduledItems: debugInfo.scheduledItems?.map(item => ({
+          scheduledItems: debugInfo.scheduledItems.map(item => ({
             id: item.id || '',
             name: item.name,
             type: item.type,
@@ -1936,18 +1926,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             priorityBreakdown: item.priorityBreakdown,
           })),
           warnings: debugInfo.warnings,
-          unusedCapacity: debugInfo.blockUtilization?.reduce((sum, block) =>
-            sum + (block.capacity - block.used), 0) || 0,
-          blockUtilization: debugInfo.blockUtilization?.map(block => ({
-            date: block.date,
-            blockId: block.blockId,
-            blockStart: block.startTime,
-            blockEnd: block.endTime,
-            type: block.blockType,
-            capacity: block.capacity,
-            used: block.used,
-            utilizationPercent: block.utilization,
-          })) || [],
+          blockUtilization: debugInfo.blockUtilization,
+          totalScheduled: debugInfo.totalScheduled,
+          totalUnscheduled: debugInfo.totalUnscheduled,
+          scheduleEfficiency: debugInfo.scheduleEfficiency,
         }} />
       )}
     </Space>

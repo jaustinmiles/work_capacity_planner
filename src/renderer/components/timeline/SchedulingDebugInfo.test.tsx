@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { SchedulingDebugInfo } from './SchedulingDebugInfo'
+import { SchedulingDebugPanel } from './SchedulingDebugInfo'
 import '@testing-library/jest-dom'
 
-describe('SchedulingDebugInfo', () => {
+describe('SchedulingDebugPanel', () => {
   const mockDebugInfo = {
     unscheduledItems: [
       {
@@ -42,6 +42,9 @@ describe('SchedulingDebugInfo', () => {
           total: 90,
           eisenhower: 60,
           deadlineBoost: 30,
+          asyncBoost: 0,
+          cognitiveMatch: 0,
+          contextSwitchPenalty: 0,
         },
       },
       {
@@ -90,25 +93,28 @@ describe('SchedulingDebugInfo', () => {
         unusedReason: 'Partially utilized',
       },
     ],
+    totalScheduled: 2,
+    totalUnscheduled: 2,
+    scheduleEfficiency: 50,
   }
 
   it('renders nothing when debugInfo is null', () => {
-    const { container } = render(<SchedulingDebugInfo debugInfo={null} />)
+    const { container } = render(<SchedulingDebugPanel debugInfo={null} />)
     expect(container.firstChild).toBeNull()
   })
 
   it('renders debug info card when provided', () => {
-    render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
+    render(<SchedulingDebugPanel debugInfo={mockDebugInfo} />)
     expect(screen.getByText('Scheduling Debug Info')).toBeInTheDocument()
   })
 
   it('shows warning icon and count when there are issues', () => {
-    render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
+    render(<SchedulingDebugPanel debugInfo={mockDebugInfo} />)
     expect(screen.getByText('2 unscheduled items')).toBeInTheDocument()
   })
 
   it('displays warnings in alert', () => {
-    render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
+    render(<SchedulingDebugPanel debugInfo={mockDebugInfo} />)
 
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
@@ -119,7 +125,7 @@ describe('SchedulingDebugInfo', () => {
   })
 
   it('shows unscheduled items table with priority breakdown', () => {
-    render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
+    render(<SchedulingDebugPanel debugInfo={mockDebugInfo} />)
 
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
@@ -136,7 +142,7 @@ describe('SchedulingDebugInfo', () => {
   })
 
   it('shows scheduled items table', () => {
-    render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
+    render(<SchedulingDebugPanel debugInfo={mockDebugInfo} />)
 
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
@@ -148,7 +154,7 @@ describe('SchedulingDebugInfo', () => {
   })
 
   it('shows block utilization table', () => {
-    render(<SchedulingDebugInfo debugInfo={mockDebugInfo} />)
+    render(<SchedulingDebugPanel debugInfo={mockDebugInfo} />)
 
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
@@ -196,7 +202,7 @@ describe('SchedulingDebugInfo', () => {
       ],
     }
 
-    render(<SchedulingDebugInfo debugInfo={debugInfoWithPastBlocks} />)
+    render(<SchedulingDebugPanel debugInfo={debugInfoWithPastBlocks} />)
 
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
@@ -216,7 +222,7 @@ describe('SchedulingDebugInfo', () => {
       blockUtilization: [],
     }
 
-    render(<SchedulingDebugInfo debugInfo={emptyDebugInfo} />)
+    render(<SchedulingDebugPanel debugInfo={emptyDebugInfo} />)
 
     // Should still render but not be expanded by default
     expect(screen.getByText('Scheduling Debug Info')).toBeInTheDocument()
@@ -253,7 +259,7 @@ describe('SchedulingDebugInfo', () => {
       ],
     }
 
-    render(<SchedulingDebugInfo debugInfo={debugInfoWithPriorities} />)
+    render(<SchedulingDebugPanel debugInfo={debugInfoWithPriorities} />)
 
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
@@ -293,7 +299,7 @@ describe('SchedulingDebugInfo', () => {
       ],
     }
 
-    render(<SchedulingDebugInfo debugInfo={debugInfoWithStatuses} />)
+    render(<SchedulingDebugPanel debugInfo={debugInfoWithStatuses} />)
 
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
@@ -339,7 +345,7 @@ describe('SchedulingDebugInfo', () => {
       ],
     }
 
-    render(<SchedulingDebugInfo debugInfo={debugInfoNoPriority} />)
+    render(<SchedulingDebugPanel debugInfo={debugInfoNoPriority} />)
 
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
@@ -378,7 +384,7 @@ describe('SchedulingDebugInfo', () => {
       ],
     }
 
-    render(<SchedulingDebugInfo debugInfo={debugInfoWithPersonal} />)
+    render(<SchedulingDebugPanel debugInfo={debugInfoWithPersonal} />)
 
     // Click to expand the collapse panel
     const header = screen.getByText('Scheduling Debug Info')
