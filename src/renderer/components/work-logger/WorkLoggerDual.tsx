@@ -51,7 +51,7 @@ interface WorkLoggerDualProps {
 
 // Helper function to filter out paused sessions from arrays
 const filterActiveSessions = <T extends { isPaused?: boolean }>(sessions: T[]): T[] => {
-  return sessions.filter(session => !session.isPaused)
+  return sessions.filter((session): session is T => !session.isPaused)
 }
 
 // Helper function to filter out paused sessions from Map entries
