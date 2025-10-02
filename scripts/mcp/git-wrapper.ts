@@ -193,13 +193,19 @@ class GitWrapper {
             throw new Error(`Unknown tool: ${name}`)
         }
       } catch (error) {
+        // Show full error including stack for git command failures
+        const errorText = error instanceof Error
+          ? error.message
+          : String(error)
+
         return {
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: `Error: ${errorText}`,
             },
           ],
+          isError: true,
         }
       }
     })
