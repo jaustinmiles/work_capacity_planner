@@ -34,7 +34,7 @@ export class RendererLogger extends Logger {
           { type: 'console', enabled: false }, // Disabled to prevent console spam
           { type: 'ipc', enabled: true },
         ],
-        ringBufferSize: 1000,
+        ringBufferSize: 5000,
         flushInterval: 100,
         environment: process.env.NODE_ENV as any || 'development',
       }
@@ -103,6 +103,13 @@ export class RendererLogger extends Logger {
     window.addEventListener('offline', () => {
       this.warn('Connection lost')
     })
+
+    // Listen for logs from main process
+    window.addEventListener('main-log', ((event: CustomEvent) => {
+      const entry = event.detail
+      // Add main process log to our ring buffer
+      this.ringBuffer.push(entry)
+    }) as EventListener)
 
     // Track storage quota
     if ('storage' in navigator && 'estimate' in navigator.storage) {

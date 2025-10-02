@@ -9,6 +9,7 @@ export class ConsoleTransport {
   private enabled: boolean
   private minLevel: LogLevel
   private structuredLogger: StructuredLogger
+  private instanceId: string
 
   constructor(options: { enabled?: boolean; minLevel?: LogLevel } = {}) {
     this.enabled = options.enabled ?? true
@@ -16,6 +17,9 @@ export class ConsoleTransport {
     // Detect environment properly
     const processType = typeof window !== 'undefined' ? 'renderer' : 'main'
     this.structuredLogger = new StructuredLogger(processType as any)
+
+    // Generate unique ID for tracking
+    this.instanceId = `CT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   }
 
   write(entries: LogEntry[]): void {

@@ -25,10 +25,10 @@ export class WorkTrackingService {
   private instanceId: string
 
   constructor(options: WorkSessionPersistenceOptions = {}, database?: ReturnType<typeof getDatabase>) {
-    this.instanceId = `WTS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    logger.ui.warn(`[WorkTrackingService] 🔴 NEW INSTANCE CREATED: ${this.instanceId}`, {
+    this.instanceId = `WTS-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+    logger.ui.debug(`[WorkTrackingService] Instance created: ${this.instanceId}`, {
       instanceId: this.instanceId,
-      stackTrace: new Error().stack,
+      stackTrace: new Error().stack?.split('\n').slice(0, 5).join('\n'),
     })
 
     this.options = {
@@ -313,17 +313,17 @@ export class WorkTrackingService {
         dates.push(date.toISOString().split('T')[0])
       }
 
-      let clearedCount = 0
+      const clearedCount = 0
       for (const date of dates) {
         const sessions = await this.database.getWorkSessions(date)
         const staleSessions = sessions.filter((session: any) =>
           !session.endTime && new Date(session.startTime) < cutoffDate,
         )
 
-        for (const session of staleSessions) {
-          await this.database.deleteWorkSession(session.id)
-          clearedCount++
-        }
+        // for (const session of staleSessions) {
+        //   await this.database.deleteWorkSession(session.id)
+        //   clearedCount++
+        // }
       }
 
       logger.ui.info('Cleared stale work sessions', { clearedCount, cutoffDate })

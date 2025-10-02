@@ -16,6 +16,7 @@ const asyncLocalStorage = new AsyncLocalStorage<Record<string, any>>()
 export class MainLogger extends Logger {
   private static instance: MainLogger
   private prismaTransport?: PrismaTransport
+  private ipcTransport?: IPCTransport
 
   private constructor(config: LoggerConfig) {
     super(config, 'main')
@@ -66,12 +67,12 @@ export class MainLogger extends Logger {
     })
     this.transports.push(this.prismaTransport)
 
-    // IPC transport (to receive from renderer)
-    const ipcTransport = new IPCTransport({
+    // IPC transport (to receive from renderer and send to renderer)
+    this.ipcTransport = new IPCTransport({
       enabled: true,
       isRenderer: false,
     })
-    this.transports.push(ipcTransport)
+    this.transports.push(this.ipcTransport)
   }
 
   /**
@@ -80,6 +81,15 @@ export class MainLogger extends Logger {
   setPrisma(prisma: PrismaClient): void {
     if (this.prismaTransport) {
       this.prismaTransport.setPrisma(prisma)
+    }
+  }
+
+  /**
+   * Set main window for forwarding logs to renderer
+   */
+  setMainWindow(window: any): void {
+    if (this.ipcTransport) {
+      this.ipcTransport.setMainWindow(window)
     }
   }
 

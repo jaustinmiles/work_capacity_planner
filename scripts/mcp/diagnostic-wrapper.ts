@@ -66,12 +66,12 @@ class DiagnosticWrapper {
               properties: {
                 operation: {
                   type: 'string',
-                  enum: ['tasks', 'session', 'capacity', 'stats', 'pattern'],
+                  enum: ['tasks', 'session', 'capacity', 'stats', 'pattern', 'work-sessions'],
                   description: 'Database inspection operation',
                 },
                 params: {
                   type: 'string',
-                  description: 'Additional parameters (e.g., session ID for session, date for pattern, --all for all sessions)',
+                  description: 'Additional parameters (e.g., session ID for session, date for pattern, --task <id> for work sessions, --all for all sessions)',
                 },
               },
               required: ['operation'],

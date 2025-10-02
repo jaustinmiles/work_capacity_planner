@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { TaskType } from '@shared/enums'
-import { Modal, Form, InputNumber, Typography, Space, Message, DatePicker, Input } from '@arco-design/web-react'
+import { Modal, Form, InputNumber, Typography, Space, DatePicker, Input } from '@arco-design/web-react'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
+import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '@/shared/logger'
 
@@ -50,14 +51,17 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       const startTime = new Date(workDate)
       startTime.setHours(12, 0, 0, 0) // Default to noon if not specified
 
-      logger.ui.info('Creating work session', {
+      logger.ui.info('[WorkLogging] Creating work session', {
         taskId: task.id,
         taskName: task.name,
+        taskType: task.type,
         timeSpent,
         date: workDate.toISOString(),
+        startTime: startTime.toISOString(),
+        notes: values.notes || '',
       })
 
-      await getDatabase().createWorkSession({
+      const workSessionResult = await getDatabase().createWorkSession({
         taskId: task.id,
         type: task.type as TaskType,
         startTime: startTime,
@@ -66,10 +70,28 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
         notes: values.notes || '',
       })
 
+      logger.ui.info('[WorkLogging] Work session created', {
+        taskId: task.id,
+        workSessionId: workSessionResult?.id,
+        success: !!workSessionResult,
+      })
+
       // Update the task with the new actual duration
       const currentLoggedTime = await getDatabase().getTaskTotalLoggedTime(task.id)
 
+      logger.ui.info('[WorkLogging] Retrieved total logged time', {
+        taskId: task.id,
+        currentLoggedTime,
+        previousLoggedTime: task.actualDuration,
+        estimatedDuration: task.duration,
+      })
+
       await updateTask(task.id, {
+        actualDuration: currentLoggedTime,
+      })
+
+      logger.ui.info('[WorkLogging] Task updated with new logged time', {
+        taskId: task.id,
         actualDuration: currentLoggedTime,
       })
 
@@ -77,23 +99,31 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       appEvents.emit(EVENTS.TIME_LOGGED)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
 
+      logger.ui.info('[WorkLogging] Events emitted', {
+        events: ['TIME_LOGGED', 'DATA_REFRESH_NEEDED'],
+        taskId: task.id,
+      })
+
       // Check if we need to prompt for re-estimation
       if (currentLoggedTime >= task.duration && !task.completed) {
-        Message.warning({
-          content: `You've logged ${currentLoggedTime} minutes on a ${task.duration} minute task. Consider re-estimating the remaining time.`,
-          duration: 5000,
-        })
+        Message.warning(
+          `You've logged ${currentLoggedTime} minutes on a ${task.duration} minute task. Consider re-estimating the remaining time.`,
+          5000,
+        )
       }
 
       Message.success('Time logged successfully')
-      logger.ui.info('Time logged successfully', {
+      logger.ui.info('[WorkLogging] Time logging complete', {
         taskId: task.id,
+        taskName: task.name,
         totalLogged: currentLoggedTime,
+        estimatedDuration: task.duration,
+        percentComplete: Math.round((currentLoggedTime / task.duration) * 100),
       })
       form.resetFields()
       onClose()
     } catch (error) {
-      logger.ui.error('Error logging time:', error, {
+      logger.ui.error('[WorkLogging] Error logging time:', error, {
         taskId: task.id,
         taskName: task.name,
         errorMessage: error instanceof Error ? error.message : String(error),

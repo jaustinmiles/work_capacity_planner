@@ -48,7 +48,6 @@ export class DatabaseService {
   async getActiveSession(): Promise<string> {
     // If already cached, return it
     if (this.activeSessionId) {
-      mainLogger.info('[DB] getActiveSession - Using cached sessionId', { sessionId: this.activeSessionId })
       return this.activeSessionId
     }
 
@@ -1681,9 +1680,22 @@ export class DatabaseService {
       throw new Error('startTime is required for creating a work session')
     }
 
+    const sessionId = crypto.randomUUID()
+
+    mainLogger.debug('[WorkLogging] Creating work session in database', {
+      sessionId,
+      taskId: data.taskId,
+      stepId: data.stepId,
+      type: data.type,
+      startTime: data.startTime.toISOString(),
+      plannedMinutes: data.plannedMinutes,
+      actualMinutes: data.actualMinutes,
+      hasNotes: !!data.notes,
+    })
+
     const session = await this.client.workSession.create({
       data: {
-        id: crypto.randomUUID(),
+        id: sessionId,
         taskId: data.taskId,
         stepId: data.stepId ?? null,
         type: data.type,
@@ -1694,6 +1706,15 @@ export class DatabaseService {
         notes: data.notes ?? null,
       },
     })
+
+    mainLogger.debug('[WorkLogging] Work session created successfully', {
+      sessionId: session.id,
+      taskId: session.taskId,
+      plannedMinutes: session.plannedMinutes,
+      actualMinutes: session.actualMinutes,
+      session: session,
+    })
+
     return session
   }
 
@@ -1794,13 +1815,32 @@ export class DatabaseService {
   }
 
   async getTaskTotalLoggedTime(taskId: string): Promise<number> {
+    mainLogger.debug('[WorkLogging] Fetching work sessions for task', { taskId })
+
     const workSessions = await this.client.workSession.findMany({
       where: { taskId },
+    })
+
+    mainLogger.debug('[WorkLogging] Found work sessions', {
+      taskId,
+      sessionCount: workSessions.length,
+      sessions: workSessions.map(s => ({
+        id: s.id,
+        plannedMinutes: s.plannedMinutes,
+        actualMinutes: s.actualMinutes,
+        startTime: s.startTime,
+      })),
     })
 
     const total = workSessions.reduce((total, session) => {
       return total + (session.actualMinutes || session.plannedMinutes || 0)
     }, 0)
+
+    mainLogger.debug('[WorkLogging] Calculated total logged time', {
+      taskId,
+      totalMinutes: total,
+      sessionCount: workSessions.length,
+    })
 
     return total
   }
@@ -1964,7 +2004,7 @@ export class DatabaseService {
       // Create new entry if it doesn't exist
       await this.client.jargonEntry.create({
         data: {
-          id: `jargon-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `jargon-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           term,
           definition,
           sessionId,
