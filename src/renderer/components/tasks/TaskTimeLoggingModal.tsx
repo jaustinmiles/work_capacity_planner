@@ -51,6 +51,10 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       const startTime = new Date(workDate)
       startTime.setHours(12, 0, 0, 0) // Default to noon if not specified
 
+      // Calculate endTime for completed work session
+      const endTime = new Date(startTime)
+      endTime.setMinutes(endTime.getMinutes() + timeSpent)
+
       logger.ui.info('[WorkLogging] Creating work session', {
         taskId: task.id,
         taskName: task.name,
@@ -58,6 +62,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
         timeSpent,
         date: workDate.toISOString(),
         startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
         notes: values.notes || '',
       })
 
@@ -65,6 +70,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
         taskId: task.id,
         type: task.type as TaskType,
         startTime: startTime,
+        endTime: endTime,
         plannedMinutes: timeSpent,
         actualMinutes: timeSpent,
         notes: values.notes || '',
