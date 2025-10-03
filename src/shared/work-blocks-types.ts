@@ -41,18 +41,6 @@ export interface Meeting {
 // Alias for compatibility
 export type WorkMeeting = Meeting
 
-export interface WorkSession {
-  id: string
-  taskId?: string
-  workflowId?: string
-  startTime: Date
-  endTime?: Date
-  type: 'focused' | 'admin'
-  plannedDuration: number
-  actualDuration?: number
-  notes?: string
-}
-
 export interface WorkTemplate {
   id: string
   name: string

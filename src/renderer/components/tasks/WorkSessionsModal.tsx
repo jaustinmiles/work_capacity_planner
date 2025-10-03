@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
+import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 import {
   Modal,
   Table,
@@ -35,18 +36,6 @@ interface WorkSessionsModalProps {
   onSessionsUpdated?: () => void
 }
 
-interface WorkSession {
-  id: string
-  taskId: string
-  stepId?: string
-  type: string
-  startTime: Date
-  endTime?: Date
-  plannedMinutes: number
-  actualMinutes?: number
-  notes?: string
-}
-
 export function WorkSessionsModal({
   visible,
   onClose,
@@ -54,9 +43,9 @@ export function WorkSessionsModal({
   taskName,
   onSessionsUpdated,
 }: WorkSessionsModalProps) {
-  const [sessions, setSessions] = useState<WorkSession[]>([])
+  const [sessions, setSessions] = useState<UnifiedWorkSession[]>([])
   const [loading, setLoading] = useState(false)
-  const [editingSession, setEditingSession] = useState<WorkSession | null>(null)
+  const [editingSession, setEditingSession] = useState<UnifiedWorkSession | null>(null)
   const [form] = Form.useForm()
 
   const loadSessions = async () => {
@@ -90,7 +79,7 @@ export function WorkSessionsModal({
     }
   }
 
-  const handleEdit = (session: WorkSession) => {
+  const handleEdit = (session: UnifiedWorkSession) => {
     setEditingSession(session)
     form.setFieldsValue({
       plannedMinutes: session.plannedMinutes,
@@ -126,7 +115,7 @@ export function WorkSessionsModal({
     {
       title: 'Date',
       dataIndex: 'startTime',
-      render: (time: string | Date) => dayjs(time).format('MMM D, h:mm A'),
+      render: (time: Date) => dayjs(time).format('MMM D, h:mm A'),
       width: 150,
     },
     {
@@ -158,7 +147,7 @@ export function WorkSessionsModal({
     },
     {
       title: 'Actions',
-      render: (_: any, record: WorkSession) => (
+      render: (_: any, record: UnifiedWorkSession) => (
         <Space>
           <Button
             type="text"

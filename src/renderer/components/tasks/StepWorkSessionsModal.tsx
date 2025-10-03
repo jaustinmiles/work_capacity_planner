@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
+import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 import {
   Modal,
   Table,
@@ -36,18 +37,6 @@ interface StepWorkSessionsModalProps {
   onSessionsUpdated?: () => void
 }
 
-interface WorkSession {
-  id: string
-  taskId: string
-  stepId?: string
-  type: string
-  startTime: Date
-  endTime?: Date
-  plannedMinutes: number
-  actualMinutes?: number
-  notes?: string
-}
-
 export function StepWorkSessionsModal({
   visible,
   onClose,
@@ -56,9 +45,9 @@ export function StepWorkSessionsModal({
   taskId,
   onSessionsUpdated,
 }: StepWorkSessionsModalProps) {
-  const [sessions, setSessions] = useState<WorkSession[]>([])
+  const [sessions, setSessions] = useState<UnifiedWorkSession[]>([])
   const [loading, setLoading] = useState(false)
-  const [editingSession, setEditingSession] = useState<WorkSession | null>(null)
+  const [editingSession, setEditingSession] = useState<UnifiedWorkSession | null>(null)
   const [form] = Form.useForm()
 
   const loadSessions = async () => {
@@ -92,7 +81,7 @@ export function StepWorkSessionsModal({
     }
   }
 
-  const handleEdit = (session: WorkSession) => {
+  const handleEdit = (session: UnifiedWorkSession) => {
     setEditingSession(session)
     form.setFieldsValue({
       plannedMinutes: session.plannedMinutes,
@@ -188,7 +177,7 @@ export function StepWorkSessionsModal({
     },
     {
       title: 'Actions',
-      render: (_: any, record: WorkSession) => (
+      render: (_: any, record: UnifiedWorkSession) => (
         <Space>
           <Button
             type="text"
@@ -239,7 +228,7 @@ export function StepWorkSessionsModal({
                   plannedMinutes: 30,
                   notes: '',
                 })
-                setEditingSession({} as WorkSession) // Signal new session
+                setEditingSession({} as UnifiedWorkSession) // Signal new session
               }}
             >
               Add Session

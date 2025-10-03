@@ -2,16 +2,7 @@
  * Types for workflow progress tracking and time management
  */
 
-export interface WorkSession {
-  id: string;
-  taskStepId: string;
-  startTime: Date;
-  endTime?: Date;
-  duration: number; // minutes
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { UnifiedWorkSession } from './unified-work-session-types'
 
 export interface TimeEstimateAccuracy {
   id: string;
@@ -41,7 +32,7 @@ export interface StepProgress {
   stepId: string;
   percentComplete: number; // 0-100
   actualDuration?: number;
-  workSessions: WorkSession[];
+  workSessions: UnifiedWorkSession[];
   lastWorkedAt?: Date;
 }
 
@@ -156,7 +147,7 @@ export function isCompletedStep(step: { status: string }): boolean {
   return step.status === 'completed'
 }
 
-export function isActiveWorkSession(session: WorkSession): boolean {
+export function isActiveWorkSession(session: UnifiedWorkSession): boolean {
   return !session.endTime
 }
 

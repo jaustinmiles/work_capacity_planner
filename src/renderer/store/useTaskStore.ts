@@ -6,8 +6,7 @@ import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { SchedulingService } from '@shared/scheduling-service'
 import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
-import { WorkSession as ImportedWorkSession } from '@shared/workflow-progress-types'
-import { UnifiedWorkSession, fromLocalWorkSession } from '@shared/unified-work-session-types'
+import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 import { UnifiedSchedulerAdapter } from '@shared/unified-scheduler-adapter'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
@@ -16,29 +15,6 @@ import { getRendererLogger } from '../../logging/index.renderer'
 import { WorkTrackingService } from '../services/workTrackingService'
 import dayjs from 'dayjs'
 import { getCurrentTime } from '../../shared/time-provider'
-
-// Legacy interface for backward compatibility during migration
-export interface LocalWorkSession {
-  id?: string
-  taskId?: string
-  stepId?: string
-  workflowId?: string
-  startTime: Date
-  endTime?: Date
-  isPaused: boolean
-  duration: number
-  pausedAt?: Date
-  type?: 'focused' | 'admin'
-  plannedDuration?: number
-  actualDuration?: number
-}
-
-// Migration function to convert legacy LocalWorkSession to UnifiedWorkSession
-// Currently unused but kept for potential future migration needs
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function migrateLocalSession(session: LocalWorkSession): UnifiedWorkSession {
-  return fromLocalWorkSession(session)
-}
 
 
 interface TaskStore {
@@ -60,7 +36,7 @@ interface TaskStore {
 
   // Progress tracking state
   activeWorkSessions: Map<string, UnifiedWorkSession>
-  workSessionHistory: ImportedWorkSession[]
+  workSessionHistory: UnifiedWorkSession[]
 
   // Data loading actions
   loadTasks: () => Promise<void>

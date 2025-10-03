@@ -20,7 +20,16 @@ import {
   IconSave,
 } from '@arco-design/web-react/icon'
 import { TaskType } from '@shared/enums'
-import { TaskStep } from '@shared/types'
+import { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import {
+  parseDateString,
+  parseTimeString,
+  timeStringToMinutes,
+  calculateDuration as calculateDurationFromTimeStrings,
+  formatTimeHHMM,
+  formatTimeFromParts,
+} from '@shared/time-utils'
+import { timeProvider } from '@shared/time-provider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/shared/logger'
@@ -28,21 +37,6 @@ import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
 
 const { Text } = Typography
-
-interface WorkSession {
-  id: string
-  taskId: string
-  stepId?: string
-  taskName?: string
-  stepName?: string
-  type: TaskType
-  startTime: string // HH:mm format
-  endTime: string // HH:mm format
-  duration: number // minutes
-  notes?: string
-  isNew?: boolean
-  isDirty?: boolean
-}
 
 interface DragState {
   sessionId: string
@@ -60,14 +54,16 @@ interface WorkLoggerCalendarProps {
 const HOUR_HEIGHT = 60 // pixels per hour
 const TIME_LABELS_WIDTH = 60
 const CONTENT_WIDTH = 400
-const START_HOUR = 6
-const END_HOUR = 22
+const START_HOUR = 0
+const END_HOUR = 24
 
 export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'))
-  const [sessions, setSessions] = useState<WorkSession[]>([])
+  const [sessions, setSessions] = useState<UnifiedWorkSession[]>([])
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set())
+  const [newIds, setNewIds] = useState<Set<string>>(new Set())
   const [dragState, setDragState] = useState<DragState | null>(null)
-  const [selectedSession, setSelectedSession] = useState<WorkSession | null>(null)
+  const [selectedSession, setSelectedSession] = useState<UnifiedWorkSession | null>(null)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -86,62 +82,17 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     try {
       logger.ui.info('Loading work sessions for date:', selectedDate)
       const db = getDatabase()
-      // Load pattern if it exists (for display purposes), but don't require it
-      const pattern = await db.getWorkPattern(selectedDate)
-      logger.ui.debug('Work pattern:', pattern)
 
-      // Always load work sessions, even if no pattern exists
+      // Load work sessions directly - they're already UnifiedWorkSession format
       const dbSessions = await db.getWorkSessions(selectedDate)
-      logger.ui.info('Loaded work sessions from DB:', { count: dbSessions.length, sessions: dbSessions })
+      logger.ui.info('Loaded work sessions from DB:', { count: dbSessions.length })
 
-      // Convert database sessions to our format
-      const formattedSessions: WorkSession[] = dbSessions.map(session => {
-        const startTime = dayjs(session.startTime)
-        // For active sessions without endTime, just use startTime (will show as in-progress)
-        const endTime = session.endTime ? dayjs(session.endTime) : startTime
+      // Use sessions directly, no transformation
+      setSessions(dbSessions)
 
-        // Find task/step names
-        const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
-
-        // For steps, we need to search across all tasks' steps
-        let step: TaskStep | undefined = undefined
-        let parentTask = task
-        if (session.stepId) {
-          // Search in all sequenced tasks for the step
-          for (const seqTask of sequencedTasks) {
-            const foundStep = seqTask.steps?.find(s => s.id === session.stepId)
-            if (foundStep) {
-              step = foundStep
-              parentTask = seqTask
-              break
-            }
-          }
-          // Also check if the task itself has steps
-          if (!step && task?.steps) {
-            step = task.steps.find(s => s.id === session.stepId)
-          }
-        }
-
-        const formatted = {
-          id: session.id,
-          taskId: session.taskId,
-          stepId: session.stepId,
-          taskName: parentTask?.name || task?.name || 'Unknown Task',
-          stepName: step?.name,
-          type: session.type as TaskType,
-          startTime: startTime.format('HH:mm'),
-          endTime: endTime.format('HH:mm'),
-          duration: session.actualMinutes || 0, // Only show actual logged time, not planned
-          notes: session.notes,
-          isNew: false,
-          isDirty: false,
-        }
-
-        return formatted
-      })
-
-      logger.ui.info('Setting formatted sessions:', formattedSessions.length)
-      setSessions(formattedSessions)
+      // Clear UI state - these are fresh from DB
+      setDirtyIds(new Set())
+      setNewIds(new Set())
     } catch (error) {
       logger.ui.error('Failed to load work sessions:', error)
     }
@@ -149,7 +100,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
   // Convert time string (HH:mm) to pixels from top
   const timeToPixels = (timeStr: string): number => {
-    const [hours, minutes] = timeStr.split(':').map(Number)
+    const [hours, minutes] = parseTimeString(timeStr)
     const totalMinutes = (hours - START_HOUR) * 60 + minutes
     const pixels = (totalMinutes / 60) * HOUR_HEIGHT
     return pixels
@@ -170,71 +121,50 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     return result
   }
 
-  // Return time as-is without modification
-  const getExactTime = (timeStr: string): string => {
-    return timeStr
-  }
-
   // Check for overlapping sessions
-  const checkOverlap = (session: WorkSession, excludeId?: string): boolean => {
-    return sessions.some(s => {
-      if (s.id === excludeId || s.id === session.id) return false
+  const checkOverlap = (session: UnifiedWorkSession, excludeId?: string): boolean => {
+    return sessions.some(otherSession => {
+      if (otherSession.id === excludeId || otherSession.id === session.id) return false
 
-      const sessionStart = timeToMinutes(session.startTime)
-      const sessionEnd = timeToMinutes(session.endTime)
-      const sStart = timeToMinutes(s.startTime)
-      const sEnd = timeToMinutes(s.endTime)
+      const sessionStart = timeStringToMinutes(formatTimeHHMM(session.startTime))
+      const sessionEnd = session.endTime ? timeStringToMinutes(formatTimeHHMM(session.endTime)) : sessionStart
+      const otherSessionStart = timeStringToMinutes(formatTimeHHMM(otherSession.startTime))
+      const otherSessionEnd = otherSession.endTime ? timeStringToMinutes(formatTimeHHMM(otherSession.endTime)) : otherSessionStart
 
-      return (sessionStart < sEnd && sessionEnd > sStart)
+      return (sessionStart < otherSessionEnd && sessionEnd > otherSessionStart)
     })
-  }
-
-  const timeToMinutes = (timeStr: string): number => {
-    const [hours, minutes] = timeStr.split(':').map(Number)
-    return hours * 60 + minutes
-  }
-
-  const calculateDuration = (startTime: string, endTime: string): number => {
-    return timeToMinutes(endTime) - timeToMinutes(startTime)
   }
 
   // Create a new work session
   const createNewSession = () => {
-    // Find the next available time slot
-    const now = dayjs()
-    const currentHour = now.hour()
-    const currentMinute = Math.floor(now.minute() / 15) * 15
+    const now = timeProvider.now()
+    const startHour = now.getHours()
+    const startMin = now.getMinutes()
 
-    let startTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`
-    let endTime = dayjs(`2000-01-01 ${startTime}`).add(60, 'minute').format('HH:mm')
+    // Create Date objects for the selected date using shared utility
+    const [year, month, day] = parseDateString(selectedDate)
+    const startTime = new Date(year, month - 1, day, startHour, startMin, 0, 0)
+    const endTime = new Date(year, month - 1, day, startHour + 1, startMin, 0, 0)
 
-    // Check if current time is outside work hours
-    if (currentHour < START_HOUR) {
-      startTime = `${START_HOUR.toString().padStart(2, '0')}:00`
-      endTime = `${(START_HOUR + 1).toString().padStart(2, '0')}:00`
-    } else if (currentHour >= END_HOUR) {
-      startTime = `${(END_HOUR - 1).toString().padStart(2, '0')}:00`
-      endTime = `${END_HOUR.toString().padStart(2, '0')}:00`
-    }
-
-    const newSession: WorkSession = {
+    const newSession: UnifiedWorkSession = {
       id: `temp-${Date.now()}`,
       taskId: '',
       type: TaskType.Focused,
       startTime,
       endTime,
-      duration: 60,
-      isNew: true,
-      isDirty: true,
+      plannedMinutes: 0,
+      actualMinutes: 0,
     }
 
     if (checkOverlap(newSession)) {
       logger.ui.warn('This time slot overlaps with an existing session')
-      // Still show visual feedback - could use a notification or state-based warning
       return
     }
 
+    const newId = newSession.id
     setSessions([...sessions, newSession])
+    setNewIds(new Set([...newIds, newId]))
+    setDirtyIds(new Set([...dirtyIds, newId]))
     setSelectedSession(newSession)
     setShowAssignModal(true)
   }
@@ -263,8 +193,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       sessionId,
       edge,
       initialY: e.clientY,
-      initialStartTime: session.startTime,
-      initialEndTime: session.endTime,
+      initialStartTime: formatTimeHHMM(session.startTime),
+      initialEndTime: session.endTime ? formatTimeHHMM(session.endTime) : formatTimeHHMM(session.startTime),
     })
   }
 
@@ -297,16 +227,16 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         // Moving the entire block
         const deltaMinutes = Math.round((deltaY / HOUR_HEIGHT) * 60)
 
-        const startMinutes = timeToMinutes(dragState.initialStartTime) + deltaMinutes
-        const endMinutes = timeToMinutes(dragState.initialEndTime) + deltaMinutes
+        const startMinutes = timeStringToMinutes(dragState.initialStartTime) + deltaMinutes
+        const endMinutes = timeStringToMinutes(dragState.initialEndTime) + deltaMinutes
 
         // Check bounds - allow some flexibility
         const minStartMinutes = START_HOUR * 60
         const maxEndMinutes = END_HOUR * 60
 
-        // Clamp to valid range instead of rejecting
-        const clampedStartMinutes = Math.max(minStartMinutes, Math.min(startMinutes, maxEndMinutes - 15))
-        const clampedEndMinutes = Math.min(maxEndMinutes, Math.max(endMinutes, minStartMinutes + 15))
+        // Clamp to valid range (no minimum duration)
+        const clampedStartMinutes = Math.max(minStartMinutes, Math.min(startMinutes, maxEndMinutes))
+        const clampedEndMinutes = Math.min(maxEndMinutes, Math.max(endMinutes, minStartMinutes))
 
         // Convert minutes directly to time without going through pixels
         const startHours = Math.floor(clampedStartMinutes / 60)
@@ -314,15 +244,19 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         const endHours = Math.floor(clampedEndMinutes / 60)
         const endMins = clampedEndMinutes % 60
 
-        const newStartTime = getExactTime(`${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`)
-        const newEndTime = getExactTime(`${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`)
+        const newStartTimeStr = formatTimeFromParts(startHours, startMins)
+        const newEndTimeStr = formatTimeFromParts(endHours, endMins)
+
+        // Convert to Date objects using shared utility
+        const [year, month, day] = parseDateString(selectedDate)
+        const newStartTime = new Date(year, month - 1, day, startHours, startMins, 0, 0)
+        const newEndTime = new Date(year, month - 1, day, endHours, endMins, 0, 0)
 
         const updatedSession = {
           ...session,
           startTime: newStartTime,
           endTime: newEndTime,
-          duration: calculateDuration(newStartTime, newEndTime),
-          isDirty: true,
+          actualMinutes: calculateDurationFromTimeStrings(newStartTimeStr, newEndTimeStr),
         }
 
         logger.ui.debug('Updating session position:', {
@@ -330,14 +264,11 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           newStart: newStartTime,
           oldEnd: session.endTime,
           newEnd: newEndTime,
-          startMinutes,
-          endMinutes,
-          clampedStartMinutes,
-          clampedEndMinutes,
         })
 
         if (!checkOverlap(updatedSession, session.id)) {
           setSessions(sessions.map(s => s.id === session.id ? updatedSession : s))
+          setDirtyIds(new Set([...dirtyIds, session.id]))
         } else {
           logger.ui.warn('Overlap detected, not updating position')
         }
@@ -359,29 +290,36 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         }
         logger.ui.debug('Edge resize calculation:', debugInfo)
 
-        const newTime = getExactTime(pixelsToTime(relativeY))
+        const newTimeStr = pixelsToTime(relativeY)
+        const [newHours, newMins] = parseTimeString(newTimeStr)
 
-        if (dragState.edge === 'start' && newTime < session.endTime) {
+        // Convert to Date object using shared utility
+        const [year, month, day] = parseDateString(selectedDate)
+        const newTimeDate = new Date(year, month - 1, day, newHours, newMins, 0, 0)
+
+        if (dragState.edge === 'start' && newTimeDate < session.startTime) {
+          const endTimeStr = session.endTime ? formatTimeHHMM(session.endTime) : formatTimeHHMM(session.startTime)
           const updatedSession = {
             ...session,
-            startTime: newTime,
-            duration: calculateDuration(newTime, session.endTime),
-            isDirty: true,
+            startTime: newTimeDate,
+            actualMinutes: calculateDurationFromTimeStrings(newTimeStr, endTimeStr),
           }
 
           if (!checkOverlap(updatedSession, session.id)) {
             setSessions(sessions.map(s => s.id === session.id ? updatedSession : s))
+            setDirtyIds(new Set([...dirtyIds, session.id]))
           }
-        } else if (dragState.edge === 'end' && newTime > session.startTime) {
+        } else if (dragState.edge === 'end' && session.endTime && newTimeDate > session.endTime) {
+          const startTimeStr = formatTimeHHMM(session.startTime)
           const updatedSession = {
             ...session,
-            endTime: newTime,
-            duration: calculateDuration(session.startTime, newTime),
-            isDirty: true,
+            endTime: newTimeDate,
+            actualMinutes: calculateDurationFromTimeStrings(startTimeStr, newTimeStr),
           }
 
           if (!checkOverlap(updatedSession, session.id)) {
             setSessions(sessions.map(s => s.id === session.id ? updatedSession : s))
+            setDirtyIds(new Set([...dirtyIds, session.id]))
           }
         }
       }
@@ -400,12 +338,13 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
+    return undefined
   }, [dragState, sessions])
 
   // Save sessions to database
   const saveSessions = async () => {
     setIsSaving(true)
-    logger.ui.info('Starting save of sessions:', sessions.filter(s => s.isDirty))
+    logger.ui.info('Starting save of sessions:', { dirtyCount: dirtyIds.size })
 
     try {
       const db = getDatabase()
@@ -422,47 +361,37 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       }
 
       // Save dirty sessions
-      const dirtySessionsToSave = sessions.filter(s => s.isDirty && s.taskId)
-      const unassignedSessions = sessions.filter(s => s.isDirty && !s.taskId)
+      const dirtySessionsToSave = sessions.filter(s => dirtyIds.has(s.id) && s.taskId)
+      const unassignedSessions = sessions.filter(s => dirtyIds.has(s.id) && !s.taskId)
 
       if (unassignedSessions.length > 0) {
-        logger.ui.warn('Skipping unassigned sessions:', unassignedSessions)
+        logger.ui.warn('Skipping unassigned sessions:', unassignedSessions.length)
       }
 
       logger.ui.info('Saving dirty sessions:', dirtySessionsToSave.length)
 
       for (const session of dirtySessionsToSave) {
-
-        // Parse the date properly to avoid timezone issues
-        // Use the date string directly to create Date objects in local time
-        const [year, month, day] = selectedDate.split('-').map(Number)
-        const [startHour, startMin] = session.startTime.split(':').map(Number)
-        const [endHour, endMin] = session.endTime.split(':').map(Number)
-
-        const startDateTime = new Date(year, month - 1, day, startHour, startMin, 0, 0)
-        const endDateTime = new Date(year, month - 1, day, endHour, endMin, 0, 0)
-
         logger.ui.debug('Saving session:', {
           id: session.id,
           taskId: session.taskId,
           stepId: session.stepId,
           type: session.type,
-          startTime: startDateTime.toISOString(),
-          endTime: endDateTime.toISOString(),
-          duration: session.duration,
-          isNew: session.isNew,
+          startTime: session.startTime.toISOString(),
+          endTime: session.endTime?.toISOString(),
+          actualMinutes: session.actualMinutes,
+          isNew: newIds.has(session.id),
         })
 
-        if (session.isNew) {
+        if (newIds.has(session.id)) {
           // Create new session
           const createData = {
             taskId: session.taskId,
             stepId: session.stepId,
             type: session.type,
-            startTime: startDateTime,
-            endTime: endDateTime,
-            plannedMinutes: session.duration,
-            actualMinutes: session.duration,
+            startTime: session.startTime,
+            endTime: session.endTime || session.startTime,
+            plannedMinutes: session.plannedMinutes,
+            actualMinutes: session.actualMinutes || session.plannedMinutes,
             notes: session.notes,
           }
           logger.ui.debug('Creating new work session:', createData)
@@ -473,9 +402,9 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
             taskId: session.taskId,
             stepId: session.stepId,
             type: session.type,
-            startTime: startDateTime,
-            endTime: endDateTime,
-            actualMinutes: session.duration,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            actualMinutes: session.actualMinutes,
             notes: session.notes,
           })
         }
@@ -501,18 +430,26 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       const session = sessions.find(s => s.id === sessionId)
       if (!session) return
 
-      if (!session.isNew) {
+      if (!newIds.has(sessionId)) {
         const db = getDatabase()
         await db.deleteWorkSession(sessionId)
       }
 
       setSessions(sessions.filter(s => s.id !== sessionId))
-      // Use logger instead of ArcoMessage to avoid React 19 compatibility issue
+
+      // Clean up Sets
+      const newDirtyIds = new Set(dirtyIds)
+      newDirtyIds.delete(sessionId)
+      setDirtyIds(newDirtyIds)
+
+      const newNewIds = new Set(newIds)
+      newNewIds.delete(sessionId)
+      setNewIds(newNewIds)
+
       logger.ui.info('Session deleted successfully')
       await loadTasks() // Reload tasks to update cumulative time
     } catch (error) {
       logger.ui.error('Failed to delete session:', error)
-      // Use console.error as fallback
       console.error('Failed to delete session:', error)
     }
   }
@@ -619,10 +556,34 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
         {/* Work sessions */}
         {sessions.map(session => {
-          const top = timeToPixels(session.startTime)
-          const height = Math.max((session.duration / 60) * HOUR_HEIGHT, 30) // Minimum height for visibility
+          // Format Date to string for display using shared utility
+          const startTimeStr = formatTimeHHMM(session.startTime)
+          const endTimeStr = session.endTime ? formatTimeHHMM(session.endTime) : startTimeStr
+
+          // Use actualMinutes for display (duration since work was actually done)
+          // Height represents the actual time logged, not the planned time
+          const displayMinutes = session.actualMinutes ?? 0
+
+          const top = timeToPixels(startTimeStr)
+          const height = Math.max((displayMinutes / 60) * HOUR_HEIGHT, 30) // Minimum height for visibility
           const color = session.type === TaskType.Focused ? '#165DFF' : '#00B42A'
 
+          // Look up task/step names if not in session
+          let taskName = session.taskName || 'Unassigned'
+          let stepName = session.stepName
+          if (session.taskId && !taskName) {
+            const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId)
+            taskName = task?.name || 'Unknown Task'
+          }
+          if (session.stepId && !stepName) {
+            for (const task of [...tasks, ...sequencedTasks]) {
+              const step = task.steps?.find(s => s.id === session.stepId)
+              if (step) {
+                stepName = step.name
+                break
+              }
+            }
+          }
 
           return (
             <div
@@ -633,7 +594,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
                 left: TIME_LABELS_WIDTH + 10,
                 width: CONTENT_WIDTH - 20,
                 height,
-                background: session.isDirty ? `${color}22` : `${color}11`,
+                background: dirtyIds.has(session.id) ? `${color}22` : `${color}11`,
                 border: `2px solid ${color}`,
                 borderRadius: 6,
                 padding: '4px 8px',
@@ -651,7 +612,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
                 // Show delete confirmation on right-click
                 Modal.confirm({
                   title: 'Delete this work session?',
-                  content: `${session.taskName} ${session.stepName ? '- ' + session.stepName : ''} (${session.duration} min)`,
+                  content: `${taskName} ${stepName ? '- ' + stepName : ''} (${displayMinutes} min)`,
                   onOk: () => deleteSession(session.id),
                   okText: 'Delete',
                   okButtonProps: { status: 'danger' },
@@ -685,16 +646,16 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
               {/* Content */}
               <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {session.taskName || 'Unassigned'}
+                  {taskName}
                 </div>
-                {session.stepName && (
+                {stepName && (
                   <div style={{ fontSize: 10, color: '#86909c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {session.stepName}
+                    {stepName}
                   </div>
                 )}
                 {height > 50 && ( // Only show time if there's space
                   <div style={{ fontSize: 9, color: '#86909c', marginTop: 2 }}>
-                    {session.startTime} - {session.endTime} ({session.duration}m)
+                    {startTimeStr} - {endTimeStr} ({displayMinutes}m)
                   </div>
                 )}
               </div>
@@ -781,7 +742,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
               icon={<IconSave />}
               loading={isSaving}
               onClick={saveSessions}
-              disabled={!sessions.some(s => s.isDirty)}
+              disabled={dirtyIds.size === 0}
             >
               Save Changes
             </Button>
@@ -809,10 +770,10 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           <Space>
             <Text>Total logged today:</Text>
             <Tag color="blue">
-              Focused: {sessions.filter(s => s.type === TaskType.Focused).reduce((sum, s) => sum + s.duration, 0)} min
+              Focused: {sessions.filter(s => s.type === TaskType.Focused).reduce((sum, s) => sum + (s.actualMinutes ?? 0), 0)} min
             </Tag>
             <Tag color="green">
-              Admin: {sessions.filter(s => s.type === TaskType.Admin).reduce((sum, s) => sum + s.duration, 0)} min
+              Admin: {sessions.filter(s => s.type === TaskType.Admin).reduce((sum, s) => sum + (s.actualMinutes ?? 0), 0)} min
             </Tag>
           </Space>
         </Card>
@@ -839,39 +800,39 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
             <Select
               placeholder="Select task or workflow step"
               style={{ width: '100%' }}
-              value={
-                selectedSession.stepId
-                  ? `step:${selectedSession.stepId}:${selectedSession.taskId}`
-                  : selectedSession.taskId
-                  ? `task:${selectedSession.taskId}`
-                  : undefined
-              }
+              {...(selectedSession.stepId
+                ? { value: `step:${selectedSession.stepId}:${selectedSession.taskId}` }
+                : selectedSession.taskId
+                ? { value: `task:${selectedSession.taskId}` }
+                : {})}
               onChange={(value) => {
                 if (value.startsWith('step:')) {
                   const [, stepId, taskId] = value.split(':')
                   const task = [...tasks, ...sequencedTasks].find(t => t.id === taskId)
                   const step = task?.steps?.find(s => s.id === stepId)
-                  setSelectedSession({
+                  const updatedSession: UnifiedWorkSession = {
                     ...selectedSession,
                     taskId,
                     stepId,
-                    taskName: task?.name,
-                    stepName: step?.name,
+                    ...(task?.name && { taskName: task.name }),
+                    ...(step?.name && { stepName: step.name }),
                     type: step?.type as TaskType || TaskType.Focused,
-                    isDirty: true,
-                  })
+                  }
+                  setSelectedSession(updatedSession)
+                  setDirtyIds(new Set([...dirtyIds, updatedSession.id]))
                 } else if (value.startsWith('task:')) {
                   const taskId = value.substring(5)
                   const task = [...tasks, ...sequencedTasks].find(t => t.id === taskId)
-                  setSelectedSession({
+                  const updatedSession: UnifiedWorkSession = {
                     ...selectedSession,
                     taskId,
                     stepId: undefined,
-                    taskName: task?.name,
+                    ...(task?.name && { taskName: task.name }),
                     stepName: undefined,
                     type: task?.type as TaskType || TaskType.Focused,
-                    isDirty: true,
-                  })
+                  }
+                  setSelectedSession(updatedSession)
+                  setDirtyIds(new Set([...dirtyIds, updatedSession.id]))
                 }
               }}
               showSearch
@@ -891,12 +852,15 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
             <Input.TextArea
               placeholder="Notes (optional)"
-              value={selectedSession.notes}
-              onChange={(value) => setSelectedSession({
-                ...selectedSession,
-                notes: value,
-                isDirty: true,
-              })}
+              value={selectedSession.notes ?? ''}
+              onChange={(value) => {
+                const updatedSession = {
+                  ...selectedSession,
+                  notes: value,
+                }
+                setSelectedSession(updatedSession)
+                setDirtyIds(new Set([...dirtyIds, updatedSession.id]))
+              }}
               rows={3}
             />
           </Space>

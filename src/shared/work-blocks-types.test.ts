@@ -3,7 +3,6 @@ import {
   WorkBlock,
   DailyWorkPattern,
   Meeting,
-  WorkSession,
   WorkTemplate,
   DEFAULT_WORK_TEMPLATES,
   getTotalCapacity,
@@ -11,6 +10,8 @@ import {
   getCurrentBlock,
   getNextBlock,
 } from './work-blocks-types'
+import { UnifiedWorkSession } from './unified-work-session-types'
+import { TaskType } from './enums'
 
 describe('work-blocks-types', () => {
   describe('DEFAULT_WORK_TEMPLATES', () => {
@@ -418,17 +419,17 @@ describe('work-blocks-types', () => {
       expect(meeting.recurring).toBe('daily')
     })
 
-    it('should create valid WorkSession', () => {
-      const session: WorkSession = {
+    it('should create valid UnifiedWorkSession', () => {
+      const session: UnifiedWorkSession = {
         id: 'session-1',
         taskId: 'task-1',
         startTime: new Date(),
-        type: 'focused',
-        plannedDuration: 60,
+        type: TaskType.Focused,
+        plannedMinutes: 60,
       }
 
       expect(session.taskId).toBe('task-1')
-      expect(session.actualDuration).toBeUndefined()
+      expect(session.actualMinutes).toBeUndefined()
     })
 
     it('should create valid WorkTemplate', () => {

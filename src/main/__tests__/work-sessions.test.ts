@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { DatabaseService } from '../database'
+import { TaskType } from '@shared/enums'
 // import { PrismaClient } from '@prisma/client' // Not needed for mocked tests
 
 // Mock Prisma Client
@@ -71,7 +72,7 @@ describe('Work Session Management', () => {
     it('should create a work session with required fields', async () => {
       const workSessionData = {
         taskId: 'task-123',
-        type: 'focused' as const,
+        type: TaskType.Focused,
         startTime: new Date('2024-01-15T09:00:00'),
         plannedMinutes: 60,
       }
@@ -244,7 +245,7 @@ describe('Work Session Management', () => {
 
   describe('updateWorkSessionTypesForStep', () => {
     it('should update all work session types for a step', async () => {
-      await db.updateWorkSessionTypesForStep('step-123', 'admin')
+      await db.updateWorkSessionTypesForStep('step-123', TaskType.Admin)
 
       expect(mockPrisma.workSession.updateMany).toHaveBeenCalledWith({
         where: { stepId: 'step-123' },
