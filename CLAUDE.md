@@ -14,12 +14,17 @@
 
 ## PR Review Protocol (MANDATORY ORDER)
 
-When addressing PR reviews:
+**BEFORE starting review:**
+0. **ALWAYS run `mcp__git__setup_bot_auth`** first - Required for fetching PR reviews
+1. **Run `mcp__git__get_pr_reviews`** with PR number to fetch all comments
+2. **If empty/fails** - Troubleshoot auth, NEVER ask user or try other tools
+
+When addressing PR review comments:
 1. **One by one** - No planning ahead for future comments
 2. **Discuss solution** with user first
 3. **Implement** the agreed solution
-4. **Commit and push** the change
-5. **Reply to comment** with verification
+4. **Commit and push** the change using `mcp__git__commit_changes` and `mcp__git__push_changes`
+5. **Reply to comment** with verification using `mcp__git__reply_to_comment`
 6. **Only then** move to next comment
 
 ## Debugging Protocol
@@ -55,6 +60,9 @@ Use `feedback.json` for prioritized work items. Always check for next priority f
 - Force push or `--amend` without permission
 - Console.log statements in production code
 - Ad-hoc database or GitHub operations
+- Ask user for information that MCP tools can fetch
+- Give up on MCP tools after one failed attempt without troubleshooting
+- Use WebFetch, Bash, or gh CLI for GitHub data when MCP tools exist (`mcp__git__*`)
 
 ## Always Do
 
