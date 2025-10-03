@@ -31,7 +31,7 @@ export interface UnifiedWorkSession {
   // Core identification
   id: string
   taskId: string
-  stepId?: string        // For workflow step tracking
+  stepId?: string  | undefined;       // For workflow step tracking
 
   // Time tracking (aligns with database schema)
   startTime: Date
@@ -41,18 +41,18 @@ export interface UnifiedWorkSession {
 
   // Type and context
   type: TaskType         // 'focused' | 'admin'
-  notes?: string
+  notes?: string | undefined
 
   // Metadata (from database)
   createdAt?: Date
   updatedAt?: Date
 
   // Computed/UI fields (not persisted, calculated at runtime)
-  workflowId?: string    // Computed from stepId relationship
-  taskName?: string      // Loaded from task relation
-  stepName?: string      // Loaded from step relation
-  isPaused?: boolean     // Runtime state for active sessions
-  color?: string         // UI color computed from type
+  workflowId?: string | undefined    // Computed from stepId relationship
+  taskName?: string | undefined      // Loaded from task relation
+  stepName?: string | undefined     // Loaded from step relation
+  isPaused?: boolean | undefined     // Runtime state for active sessions
+  color?: string | undefined         // UI color computed from type
 }
 
 /**

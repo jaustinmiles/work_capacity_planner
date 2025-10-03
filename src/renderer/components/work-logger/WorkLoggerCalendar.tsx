@@ -852,7 +852,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
             <Input.TextArea
               placeholder="Notes (optional)"
-              value={selectedSession.notes}
+              value={selectedSession.notes ?? ''}
               onChange={(value) => {
                 const updatedSession = {
                   ...selectedSession,
