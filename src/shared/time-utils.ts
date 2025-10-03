@@ -57,3 +57,10 @@ export function formatTimeHHMM(date: Date): string {
   const minutes = date.getMinutes().toString().padStart(2, '0')
   return `${hours}:${minutes}`
 }
+
+/**
+ * Format hours and minutes into HH:mm string
+ */
+export function formatTimeFromParts(hours: number, minutes: number): string {
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+}

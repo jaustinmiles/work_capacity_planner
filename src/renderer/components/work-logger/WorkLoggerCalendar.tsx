@@ -27,6 +27,7 @@ import {
   timeStringToMinutes,
   calculateDuration as calculateDurationFromTimeStrings,
   formatTimeHHMM,
+  formatTimeFromParts,
 } from '@shared/time-utils'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
@@ -242,8 +243,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         const endHours = Math.floor(clampedEndMinutes / 60)
         const endMins = clampedEndMinutes % 60
 
-        const newStartTimeStr = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`
-        const newEndTimeStr = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
+        const newStartTimeStr = formatTimeFromParts(startHours, startMins)
+        const newEndTimeStr = formatTimeFromParts(endHours, endMins)
 
         // Convert to Date objects using shared utility
         const [year, month, day] = parseDateString(selectedDate)
