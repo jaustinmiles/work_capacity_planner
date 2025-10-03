@@ -108,6 +108,10 @@ class GitWrapper {
                   type: 'number',
                   description: 'PR number to check reviews for',
                 },
+                showReplies: {
+                  type: 'boolean',
+                  description: 'Show full comment threads with all replies (default: false)',
+                },
               },
               required: ['prNumber'],
             },
@@ -178,7 +182,7 @@ class GitWrapper {
             return await this.pushAndCreatePR(args.title as string, args.body as string)
 
           case 'get_pr_reviews':
-            return await this.getPRReviews(args.prNumber as number)
+            return await this.getPRReviews(args.prNumber as number, args.showReplies as boolean)
 
           case 'reply_to_comment':
             return await this.replyToComment(args.prNumber as number, args.commentId as string, args.reply as string)
@@ -310,9 +314,13 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
     }
   }
 
-  private async getPRReviews(prNumber: number) {
+  private async getPRReviews(prNumber: number, showReplies?: boolean) {
     const scriptPath = path.join(process.cwd(), 'scripts/pr/pr-review-tracker.ts')
-    const output = await this.runScript('npx', ['tsx', scriptPath, prNumber.toString()])
+    const args = [prNumber.toString()]
+    if (showReplies) {
+      args.push('--show-replies')
+    }
+    const output = await this.runScript('npx', ['tsx', scriptPath, ...args])
 
     return {
       content: [

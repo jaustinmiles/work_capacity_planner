@@ -84,7 +84,7 @@ Submitted: ${new Date(review.submitted_at).toLocaleString()}
 ════════════════════════════════════════════════`
 }
 
-function formatThread(thread: ReviewThread): string {
+function formatThread(thread: ReviewThread, showReplies: boolean = false): string {
   if (!thread.comments || thread.comments.length === 0) {
     return `
 📍 ${thread.path}:${thread.line} [Empty thread]
@@ -93,21 +93,32 @@ function formatThread(thread: ReviewThread): string {
 ────────────────────────────────────────────`
   }
 
-  const firstComment = thread.comments[0]
+  const firstComment = thread.comments[0]!
   const statusIcons = []
   if (thread.isResolved) statusIcons.push('✓')
   if (thread.isOutdated) statusIcons.push('⚠')
   if (thread.isCollapsed) statusIcons.push('▼')
   const status = statusIcons.length > 0 ? ` [${statusIcons.join('')}]` : ''
 
-  return `
+  let output = `
 📍 ${thread.path}:${thread.line}${status}
 ────────────────────────────────────────────
 Comment ID: ${firstComment.id}
 ${firstComment.author.login}: ${firstComment.body}
-${thread.comments.length > 1 ? `(+${thread.comments.length - 1} replies)` : ''}
-Created: ${new Date(firstComment.createdAt).toLocaleString()}
-────────────────────────────────────────────`
+Created: ${new Date(firstComment.createdAt).toLocaleString()}`
+
+  // Show all replies if requested
+  if (showReplies && thread.comments.length > 1) {
+    output += '\n\n💬 Replies:'
+    thread.comments.slice(1).forEach((comment, idx) => {
+      output += `\n  ${idx + 1}. ${comment.author.login} (${new Date(comment.createdAt).toLocaleString()}):\n     ${comment.body.split('\n').join('\n     ')}`
+    })
+  } else if (thread.comments.length > 1) {
+    output += `\n(+${thread.comments.length - 1} replies)`
+  }
+
+  output += '\n────────────────────────────────────────────'
+  return output
 }
 
 async function main(): Promise<void> {
@@ -118,6 +129,7 @@ async function main(): Promise<void> {
   const showReviews = !args.includes('--no-reviews')
   const verbose = args.includes('--verbose')
   const todoMode = args.includes('--todo')
+  const showReplies = args.includes('--show-replies')
 
   if (!prNumber) {
     // Try to get PR number from current branch
@@ -128,6 +140,7 @@ async function main(): Promise<void> {
       console.error('Usage: npx tsx scripts/pr/pr-review-tracker.ts [pr-number] [options]')
       console.error('Options:')
       console.error('  --show-resolved   Include resolved comments')
+      console.error('  --show-replies    Show full comment threads with all replies')
       console.error('  --all             Show all comments including resolved and collapsed')
       console.error('  --no-reviews      Hide review summaries (only show inline comments)')
       console.error('  --verbose         Show full review bodies without truncation')
@@ -342,7 +355,7 @@ async function main(): Promise<void> {
     console.log('No active comments to address! 🎉')
   } else {
     filteredThreads.forEach((thread) => {
-      console.log(formatThread(thread))
+      console.log(formatThread(thread, showReplies))
     })
   }
 
