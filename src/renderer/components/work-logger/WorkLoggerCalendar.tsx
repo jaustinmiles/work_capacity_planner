@@ -21,6 +21,13 @@ import {
 } from '@arco-design/web-react/icon'
 import { TaskType } from '@shared/enums'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import {
+  parseDateString,
+  parseTimeString,
+  timeStringToMinutes,
+  calculateDuration as calculateDurationFromTimeStrings,
+  formatTimeHHMM,
+} from '@shared/time-utils'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/shared/logger'
@@ -89,14 +96,9 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     }
   }
 
-  // Helper to format Date to HH:mm string
-  const formatTime = (date: Date): string => dayjs(date).format('HH:mm')
-
   // Convert time string (HH:mm) to pixels from top
   const timeToPixels = (timeStr: string): number => {
-    const parts = timeStr.split(':').map(Number)
-    const hours = parts[0] ?? 0
-    const minutes = parts[1] ?? 0
+    const [hours, minutes] = parseTimeString(timeStr)
     const totalMinutes = (hours - START_HOUR) * 60 + minutes
     const pixels = (totalMinutes / 60) * HOUR_HEIGHT
     return pixels
@@ -119,40 +121,26 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
   // Check for overlapping sessions
   const checkOverlap = (session: UnifiedWorkSession, excludeId?: string): boolean => {
-    return sessions.some(s => {
-      if (s.id === excludeId || s.id === session.id) return false
+    return sessions.some(otherSession => {
+      if (otherSession.id === excludeId || otherSession.id === session.id) return false
 
-      const sessionStart = timeToMinutes(formatTime(session.startTime))
-      const sessionEnd = session.endTime ? timeToMinutes(formatTime(session.endTime)) : sessionStart
-      const sStart = timeToMinutes(formatTime(s.startTime))
-      const sEnd = s.endTime ? timeToMinutes(formatTime(s.endTime)) : sStart
+      const sessionStart = timeStringToMinutes(formatTimeHHMM(session.startTime))
+      const sessionEnd = session.endTime ? timeStringToMinutes(formatTimeHHMM(session.endTime)) : sessionStart
+      const otherSessionStart = timeStringToMinutes(formatTimeHHMM(otherSession.startTime))
+      const otherSessionEnd = otherSession.endTime ? timeStringToMinutes(formatTimeHHMM(otherSession.endTime)) : otherSessionStart
 
-      return (sessionStart < sEnd && sessionEnd > sStart)
+      return (sessionStart < otherSessionEnd && sessionEnd > otherSessionStart)
     })
-  }
-
-  const timeToMinutes = (timeStr: string): number => {
-    const parts = timeStr.split(':').map(Number)
-    const hours = parts[0] ?? 0
-    const minutes = parts[1] ?? 0
-    return hours * 60 + minutes
-  }
-
-  const calculateDuration = (startTime: string, endTime: string): number => {
-    return timeToMinutes(endTime) - timeToMinutes(startTime)
   }
 
   // Create a new work session
   const createNewSession = () => {
     const now = dayjs()
     const startHour = now.hour()
-    const startMin = Math.floor(now.minute() / 15) * 15
+    const startMin = now.minute()
 
-    // Create Date objects for the selected date
-    const dateParts = selectedDate.split('-').map(Number)
-    const year = dateParts[0] ?? new Date().getFullYear()
-    const month = dateParts[1] ?? 1
-    const day = dateParts[2] ?? 1
+    // Create Date objects for the selected date using shared utility
+    const [year, month, day] = parseDateString(selectedDate)
     const startTime = new Date(year, month - 1, day, startHour, startMin, 0, 0)
     const endTime = new Date(year, month - 1, day, startHour + 1, startMin, 0, 0)
 
@@ -203,8 +191,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       sessionId,
       edge,
       initialY: e.clientY,
-      initialStartTime: formatTime(session.startTime),
-      initialEndTime: session.endTime ? formatTime(session.endTime) : formatTime(session.startTime),
+      initialStartTime: formatTimeHHMM(session.startTime),
+      initialEndTime: session.endTime ? formatTimeHHMM(session.endTime) : formatTimeHHMM(session.startTime),
     })
   }
 
@@ -237,8 +225,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         // Moving the entire block
         const deltaMinutes = Math.round((deltaY / HOUR_HEIGHT) * 60)
 
-        const startMinutes = timeToMinutes(dragState.initialStartTime) + deltaMinutes
-        const endMinutes = timeToMinutes(dragState.initialEndTime) + deltaMinutes
+        const startMinutes = timeStringToMinutes(dragState.initialStartTime) + deltaMinutes
+        const endMinutes = timeStringToMinutes(dragState.initialEndTime) + deltaMinutes
 
         // Check bounds - allow some flexibility
         const minStartMinutes = START_HOUR * 60
@@ -257,11 +245,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         const newStartTimeStr = `${startHours.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`
         const newEndTimeStr = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
 
-        // Convert to Date objects
-        const dateParts = selectedDate.split('-').map(Number)
-        const year = dateParts[0] ?? new Date().getFullYear()
-        const month = dateParts[1] ?? 1
-        const day = dateParts[2] ?? 1
+        // Convert to Date objects using shared utility
+        const [year, month, day] = parseDateString(selectedDate)
         const newStartTime = new Date(year, month - 1, day, startHours, startMins, 0, 0)
         const newEndTime = new Date(year, month - 1, day, endHours, endMins, 0, 0)
 
@@ -269,7 +254,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           ...session,
           startTime: newStartTime,
           endTime: newEndTime,
-          actualMinutes: calculateDuration(newStartTimeStr, newEndTimeStr),
+          actualMinutes: calculateDurationFromTimeStrings(newStartTimeStr, newEndTimeStr),
         }
 
         logger.ui.debug('Updating session position:', {
@@ -304,23 +289,18 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         logger.ui.debug('Edge resize calculation:', debugInfo)
 
         const newTimeStr = pixelsToTime(relativeY)
-        const timeParts = newTimeStr.split(':').map(Number)
-        const newHours = timeParts[0] ?? 0
-        const newMins = timeParts[1] ?? 0
+        const [newHours, newMins] = parseTimeString(newTimeStr)
 
-        // Convert to Date object
-        const dateParts = selectedDate.split('-').map(Number)
-        const year = dateParts[0] ?? new Date().getFullYear()
-        const month = dateParts[1] ?? 1
-        const day = dateParts[2] ?? 1
+        // Convert to Date object using shared utility
+        const [year, month, day] = parseDateString(selectedDate)
         const newTimeDate = new Date(year, month - 1, day, newHours, newMins, 0, 0)
 
         if (dragState.edge === 'start' && newTimeDate < session.startTime) {
-          const endTimeStr = session.endTime ? formatTime(session.endTime) : formatTime(session.startTime)
+          const endTimeStr = session.endTime ? formatTimeHHMM(session.endTime) : formatTimeHHMM(session.startTime)
           const updatedSession = {
             ...session,
             startTime: newTimeDate,
-            actualMinutes: calculateDuration(newTimeStr, endTimeStr),
+            actualMinutes: calculateDurationFromTimeStrings(newTimeStr, endTimeStr),
           }
 
           if (!checkOverlap(updatedSession, session.id)) {
@@ -328,11 +308,11 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
             setDirtyIds(new Set([...dirtyIds, session.id]))
           }
         } else if (dragState.edge === 'end' && session.endTime && newTimeDate > session.endTime) {
-          const startTimeStr = formatTime(session.startTime)
+          const startTimeStr = formatTimeHHMM(session.startTime)
           const updatedSession = {
             ...session,
             endTime: newTimeDate,
-            actualMinutes: calculateDuration(startTimeStr, newTimeStr),
+            actualMinutes: calculateDurationFromTimeStrings(startTimeStr, newTimeStr),
           }
 
           if (!checkOverlap(updatedSession, session.id)) {
@@ -574,13 +554,16 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
         {/* Work sessions */}
         {sessions.map(session => {
-          // Format Date to string for display
-          const startTimeStr = formatTime(session.startTime)
-          const endTimeStr = session.endTime ? formatTime(session.endTime) : startTimeStr
-          const minutes = session.actualMinutes || session.plannedMinutes || 0
+          // Format Date to string for display using shared utility
+          const startTimeStr = formatTimeHHMM(session.startTime)
+          const endTimeStr = session.endTime ? formatTimeHHMM(session.endTime) : startTimeStr
+
+          // Use actualMinutes for display (duration since work was actually done)
+          // Height represents the actual time logged, not the planned time
+          const displayMinutes = session.actualMinutes ?? 0
 
           const top = timeToPixels(startTimeStr)
-          const height = Math.max((minutes / 60) * HOUR_HEIGHT, 30) // Minimum height for visibility
+          const height = Math.max((displayMinutes / 60) * HOUR_HEIGHT, 30) // Minimum height for visibility
           const color = session.type === TaskType.Focused ? '#165DFF' : '#00B42A'
 
           // Look up task/step names if not in session
@@ -627,7 +610,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
                 // Show delete confirmation on right-click
                 Modal.confirm({
                   title: 'Delete this work session?',
-                  content: `${taskName} ${stepName ? '- ' + stepName : ''} (${minutes} min)`,
+                  content: `${taskName} ${stepName ? '- ' + stepName : ''} (${displayMinutes} min)`,
                   onOk: () => deleteSession(session.id),
                   okText: 'Delete',
                   okButtonProps: { status: 'danger' },
@@ -670,7 +653,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
                 )}
                 {height > 50 && ( // Only show time if there's space
                   <div style={{ fontSize: 9, color: '#86909c', marginTop: 2 }}>
-                    {startTimeStr} - {endTimeStr} ({minutes}m)
+                    {startTimeStr} - {endTimeStr} ({displayMinutes}m)
                   </div>
                 )}
               </div>
@@ -785,10 +768,10 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           <Space>
             <Text>Total logged today:</Text>
             <Tag color="blue">
-              Focused: {sessions.filter(s => s.type === TaskType.Focused).reduce((sum, s) => sum + (s.actualMinutes || s.plannedMinutes || 0), 0)} min
+              Focused: {sessions.filter(s => s.type === TaskType.Focused).reduce((sum, s) => sum + (s.actualMinutes ?? 0), 0)} min
             </Tag>
             <Tag color="green">
-              Admin: {sessions.filter(s => s.type === TaskType.Admin).reduce((sum, s) => sum + (s.actualMinutes || s.plannedMinutes || 0), 0)} min
+              Admin: {sessions.filter(s => s.type === TaskType.Admin).reduce((sum, s) => sum + (s.actualMinutes ?? 0), 0)} min
             </Tag>
           </Space>
         </Card>

@@ -35,3 +35,25 @@ export function formatMinutes(minutes: number): string {
   const mins = minutes % 60
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
 }
+
+/**
+ * Safely parse date string in "YYYY-MM-DD" format
+ * Returns [year, month, day] with defaults if parsing fails
+ */
+export function parseDateString(dateStr: string): [number, number, number] {
+  const parts = dateStr.split('-').map(Number)
+  return [
+    parts[0] ?? new Date().getFullYear(),
+    parts[1] ?? 1,
+    parts[2] ?? 1,
+  ]
+}
+
+/**
+ * Format Date to HH:mm string
+ */
+export function formatTimeHHMM(date: Date): string {
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
+}
