@@ -29,6 +29,7 @@ import {
   formatTimeHHMM,
   formatTimeFromParts,
 } from '@shared/time-utils'
+import { timeProvider } from '@shared/time-provider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/shared/logger'
@@ -136,9 +137,9 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
   // Create a new work session
   const createNewSession = () => {
-    const now = dayjs()
-    const startHour = now.hour()
-    const startMin = now.minute()
+    const now = timeProvider.now()
+    const startHour = now.getHours()
+    const startMin = now.getMinutes()
 
     // Create Date objects for the selected date using shared utility
     const [year, month, day] = parseDateString(selectedDate)
@@ -151,8 +152,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       type: TaskType.Focused,
       startTime,
       endTime,
-      plannedMinutes: 60,
-      actualMinutes: 60,
+      plannedMinutes: 0,
+      actualMinutes: 0,
     }
 
     if (checkOverlap(newSession)) {
@@ -233,9 +234,9 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         const minStartMinutes = START_HOUR * 60
         const maxEndMinutes = END_HOUR * 60
 
-        // Clamp to valid range instead of rejecting
-        const clampedStartMinutes = Math.max(minStartMinutes, Math.min(startMinutes, maxEndMinutes - 15))
-        const clampedEndMinutes = Math.min(maxEndMinutes, Math.max(endMinutes, minStartMinutes + 15))
+        // Clamp to valid range (no minimum duration)
+        const clampedStartMinutes = Math.max(minStartMinutes, Math.min(startMinutes, maxEndMinutes))
+        const clampedEndMinutes = Math.min(maxEndMinutes, Math.max(endMinutes, minStartMinutes))
 
         // Convert minutes directly to time without going through pixels
         const startHours = Math.floor(clampedStartMinutes / 60)
@@ -799,24 +800,22 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
             <Select
               placeholder="Select task or workflow step"
               style={{ width: '100%' }}
-              value={
-                selectedSession.stepId
-                  ? `step:${selectedSession.stepId}:${selectedSession.taskId}`
-                  : selectedSession.taskId
-                  ? `task:${selectedSession.taskId}`
-                  : undefined
-              }
+              {...(selectedSession.stepId
+                ? { value: `step:${selectedSession.stepId}:${selectedSession.taskId}` }
+                : selectedSession.taskId
+                ? { value: `task:${selectedSession.taskId}` }
+                : {})}
               onChange={(value) => {
                 if (value.startsWith('step:')) {
                   const [, stepId, taskId] = value.split(':')
                   const task = [...tasks, ...sequencedTasks].find(t => t.id === taskId)
                   const step = task?.steps?.find(s => s.id === stepId)
-                  const updatedSession = {
+                  const updatedSession: UnifiedWorkSession = {
                     ...selectedSession,
                     taskId,
                     stepId,
-                    taskName: task?.name,
-                    stepName: step?.name,
+                    ...(task?.name && { taskName: task.name }),
+                    ...(step?.name && { stepName: step.name }),
                     type: step?.type as TaskType || TaskType.Focused,
                   }
                   setSelectedSession(updatedSession)
@@ -824,11 +823,11 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
                 } else if (value.startsWith('task:')) {
                   const taskId = value.substring(5)
                   const task = [...tasks, ...sequencedTasks].find(t => t.id === taskId)
-                  const updatedSession = {
+                  const updatedSession: UnifiedWorkSession = {
                     ...selectedSession,
                     taskId,
                     stepId: undefined,
-                    taskName: task?.name,
+                    ...(task?.name && { taskName: task.name }),
                     stepName: undefined,
                     type: task?.type as TaskType || TaskType.Focused,
                   }
