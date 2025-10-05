@@ -260,6 +260,19 @@ class GitWrapper {
   }
 
   private async commitChanges(message: string, files?: string[]) {
+    // Check if on protected branch
+    const currentBranch = (await this.runScript('git', ['branch', '--show-current'])).trim()
+    const protectedBranches = ['main', 'master']
+
+    if (protectedBranches.includes(currentBranch)) {
+      throw new Error(`❌ Cannot commit directly to protected branch "${currentBranch}".\n\n` +
+        'REQUIRED WORKFLOW:\n' +
+        '1. Create a feature branch: mcp__git__create_feature_branch\n' +
+        '2. Commit your changes to that branch\n' +
+        '3. Create a PR: mcp__git__push_and_create_pr\n\n' +
+        'This enforces the "Feature Branches Only" and "PRs Required" rules from CLAUDE.md')
+    }
+
     if (files && files.length > 0) {
       // Add specific files
       for (const file of files) {
@@ -396,6 +409,19 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
   }
 
   private async pushChanges() {
+    // Check if on protected branch
+    const currentBranch = (await this.runScript('git', ['branch', '--show-current'])).trim()
+    const protectedBranches = ['main', 'master']
+
+    if (protectedBranches.includes(currentBranch)) {
+      throw new Error(`❌ Cannot push directly to protected branch "${currentBranch}".\n\n` +
+        'REQUIRED WORKFLOW:\n' +
+        '1. Create a feature branch: mcp__git__create_feature_branch\n' +
+        '2. Commit and push to that branch\n' +
+        '3. Create a PR: mcp__git__push_and_create_pr\n\n' +
+        'This enforces the "Feature Branches Only" and "PRs Required" rules from CLAUDE.md')
+    }
+
     const args = ['push', '-u', 'origin', 'HEAD']
     const output = await this.runScript('git', args)
     const truncatedOutput = this.truncateOutput(output, 5000)
