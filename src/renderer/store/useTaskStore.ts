@@ -942,55 +942,23 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         })
       }
 
-      // Calculate duration since last start
-      const elapsed = Date.now() - session.startTime.getTime()
-      const minutesWorked = Math.floor(elapsed / 60000) // Convert to minutes
-      const newDuration = (session.actualMinutes || 0) + minutesWorked
+      // WorkTrackingService.pauseWorkSession already closed the session in the database
+      // No need to create a duplicate work session record here
 
-      // Create a WorkSession record for the time just worked
-      if (minutesWorked > 0) {
-        try {
-          // Create work session that ENDS at now and extends backward
-          await getDatabase().createStepWorkSession({
-            taskStepId: stepId,
-            startTime: session.startTime,
-            duration: minutesWorked,
-          })
-
-          // Update step's actual duration
-          const step = state.sequencedTasks
-            .flatMap(t => t.steps)
-            .find(s => s.id === stepId)
-
-          if (step) {
-            const newActualDuration = (step.actualDuration || 0) + minutesWorked
-            await getDatabase().updateTaskStepProgress(stepId, {
-              actualDuration: newActualDuration,
-            })
-          }
-
-          // Emit event to update other components
-          appEvents.emit(EVENTS.TIME_LOGGED)
-          logger.ui.info(`Logged ${minutesWorked} minutes for step ${stepId} on pause`)
-        } catch (error) {
-          logger.ui.error('Failed to create work session on pause:', error)
-        }
-      }
-
-      const updatedSession: UnifiedWorkSession = {
-        ...session,
-        isPaused: true,
-        actualMinutes: newDuration,
-      }
-
+      // Remove the session from activeWorkSessions since it's now paused (closed in database)
       const newSessions = new Map(state.activeWorkSessions)
-      // Use the correct key that we found earlier
-      newSessions.set(sessionKey!, updatedSession)
+      newSessions.delete(sessionKey!)
 
       set({ activeWorkSessions: newSessions })
 
-      // Emit event to trigger UI updates
+      logger.ui.info('[TaskStore] Removed paused session from activeWorkSessions', {
+        sessionKey,
+        remainingActiveSessions: newSessions.size,
+      })
+
+      // Emit events to trigger UI updates
       appEvents.emit(EVENTS.SESSION_CHANGED)
+      appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {
       logger.ui.error('Failed to pause work on step:', error)
     }

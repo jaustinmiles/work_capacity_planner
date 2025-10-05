@@ -214,17 +214,24 @@ export class WorkTrackingService {
         throw new Error(`No active session found with ID: ${sessionId}`)
       }
 
-      // Add isPaused property for test compatibility
-      ;(session as any).isPaused = true
-      ;(session as any).pausedAt = new Date()
+      // Calculate actual minutes worked
+      const now = getCurrentTime()
+      const elapsedMinutes = Math.floor((now.getTime() - session.startTime.getTime()) / (1000 * 60))
 
-      // Update database with pause state
+      // Close the session in database by setting endTime
       await this.database.updateWorkSession(session.id, {
-        isPaused: true,
-        pausedAt: new Date(),
+        endTime: now,
+        actualMinutes: Math.max(elapsedMinutes, 1), // Ensure at least 1 minute
       })
 
-      logger.ui.info('Paused work session', { sessionId })
+      // Remove from active sessions (it's now closed)
+      const sessionKey = this.getSessionKey(session)
+      this.activeSessions.delete(sessionKey)
+
+      logger.ui.info('Paused work session (closed in database)', {
+        sessionId,
+        actualMinutes: Math.max(elapsedMinutes, 1),
+      })
     } catch (error) {
       this.handleSessionError(error as Error, 'pausing work session')
       throw error
