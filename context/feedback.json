@@ -1539,7 +1539,8 @@
     "expected": "only one session should be running at a time",
     "actual": "two or more sessions can have active time tracking, but only one is displayed. ",
     "timestamp": "2025-10-05T03:11:44.950Z",
-    "sessionId": "session-1759633904922-f80ff5d5"
+    "sessionId": "session-1759633904922-f80ff5d5",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1552,5 +1553,16 @@
     "description": "This should use the work tracking system everything else uses. Why is it even advancing by an hour in some weird hardcoded way? bizarre. ",
     "timestamp": "2025-10-05T03:12:52.018Z",
     "sessionId": "session-1759633971988-f3516478"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Expanding workflows into children causes bugs in rendering",
+    "description": "I expanded a workflow into steps, and the two work sessions logged on it disappeared. I think we somehow started work on the overall workflow instead of a step somehow? ",
+    "timestamp": "2025-10-05T04:48:22.712Z",
+    "sessionId": "session-1759639702683-18f087c6"
   }
 ]
