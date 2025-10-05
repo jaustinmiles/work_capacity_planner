@@ -267,7 +267,11 @@ export function SwimLaneTimeline({
       // Step lanes
       if (task.steps) {
         task.steps.forEach(step => {
-          const stepSessions = sessions.filter(s => s.stepId === step.id)
+          // Filter sessions that belong to this specific step AND workflow
+          // Sessions for workflow steps have taskId=workflowId and stepId=stepId
+          const stepSessions = sessions.filter(s =>
+            s.stepId === step.id && s.taskId === task.id,
+          )
           swimLanes.push({
             id: `${task.id}-${step.id}`,
             name: step.name,

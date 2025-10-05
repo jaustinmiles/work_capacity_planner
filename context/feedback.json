@@ -1500,7 +1500,8 @@
     "steps": "Create a task or a workflow that can fit into a schedule block in your schedule and then click start next task button on the work status widget. Observe the message that appears that shows that one hour of work is logged and then click the log button on the top right of the screen to open the swim line view and observed that there is an hour of log time.",
     "expected": "Log time should only happen when we pause an active work session not when we start one",
     "timestamp": "2025-09-11T21:30:20.471Z",
-    "sessionId": "session-1757626220464-bf51c781"
+    "sessionId": "session-1757626220464-bf51c781",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1552,7 +1553,8 @@
     "title": "Focus time completed today in sidebar navigation advances by 1 hour whenever a task is started",
     "description": "This should use the work tracking system everything else uses. Why is it even advancing by an hour in some weird hardcoded way? bizarre. ",
     "timestamp": "2025-10-05T03:12:52.018Z",
-    "sessionId": "session-1759633971988-f3516478"
+    "sessionId": "session-1759633971988-f3516478",
+    "resolved": true
   },
   {
     "type": "bug",
