@@ -245,7 +245,7 @@ class GitWrapper {
     // Restore stashed changes
     try {
       await this.runScript('git', ['stash', 'pop'])
-    } catch (error) {
+    } catch (_error) {
       // If stash pop fails (e.g., no stash), that's okay - continue
     }
 
