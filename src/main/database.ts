@@ -5,6 +5,7 @@ import { WorkBlockType } from '../shared/constants'
 import { getMainLogger } from '../logging/index.main'
 import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
+import { getCurrentTime } from '../shared/time-provider'
 import * as crypto from 'crypto'
 
 // Create Prisma client instance
@@ -1680,6 +1681,43 @@ export class DatabaseService {
       throw new Error('startTime is required for creating a work session')
     }
 
+    // SINGLE ACTIVE SESSION ENFORCEMENT
+    // Check for any existing active work sessions (sessions without endTime)
+    const activeSession = await this.client.workSession.findFirst({
+      where: {
+        endTime: null,
+      },
+      orderBy: {
+        startTime: 'desc',
+      },
+    })
+
+    if (activeSession) {
+      mainLogger.warn('[WorkLogging] Found existing active session - auto-closing before creating new session', {
+        existingSessionId: activeSession.id,
+        existingTaskId: activeSession.taskId,
+        existingStepId: activeSession.stepId,
+        existingStartTime: activeSession.startTime.toISOString(),
+      })
+
+      // Auto-close the existing session using time provider
+      const now = getCurrentTime()
+      const elapsedMinutes = Math.floor((now.getTime() - activeSession.startTime.getTime()) / (1000 * 60))
+
+      await this.client.workSession.update({
+        where: { id: activeSession.id },
+        data: {
+          endTime: now,
+          actualMinutes: Math.max(elapsedMinutes, 1), // Ensure at least 1 minute
+        },
+      })
+
+      mainLogger.info('[WorkLogging] Auto-closed stale session', {
+        sessionId: activeSession.id,
+        actualMinutes: Math.max(elapsedMinutes, 1),
+      })
+    }
+
     const sessionId = crypto.randomUUID()
 
     mainLogger.debug('[WorkLogging] Creating work session in database', {
@@ -2180,6 +2218,52 @@ export class DatabaseService {
     })
 
     return sessions
+  }
+
+  async getActiveWorkSession(): Promise<any | null> {
+    // Get any active work session (no endTime) regardless of date
+    // This is used for session restoration on app startup
+    const session = await this.client.workSession.findFirst({
+      where: {
+        endTime: null,
+      },
+      include: {
+        Task: {
+          include: {
+            TaskStep: true, // Include task steps so we can get step names
+          },
+        },
+      },
+      orderBy: {
+        startTime: 'desc',
+      },
+    })
+
+    if (!session) {
+      return null
+    }
+
+    // Enrich with step name and workflowId if it's a step session
+    const enriched = {
+      ...session,
+      taskName: session.Task?.name,
+      stepName: session.stepId && session.Task?.TaskStep
+        ? session.Task.TaskStep.find((s: any) => s.id === session.stepId)?.name
+        : undefined,
+      // If there's a stepId, this is a workflow step session, so taskId is actually the workflowId
+      workflowId: session.stepId ? session.taskId : undefined,
+    }
+
+    mainLogger.info('[DB] getActiveWorkSession returning enriched session', {
+      sessionId: enriched.id,
+      taskId: enriched.taskId,
+      stepId: enriched.stepId,
+      workflowId: enriched.workflowId,
+      taskName: enriched.taskName,
+      stepName: enriched.stepName,
+    })
+
+    return enriched
   }
 
   async createStepWorkSession(data: any): Promise<any> {

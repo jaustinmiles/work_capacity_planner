@@ -12,6 +12,7 @@ import {
 } from '../../shared/unified-work-session-types'
 import { TaskType } from '../../shared/enums'
 import { generateUniqueId } from '../../shared/step-id-utils'
+import { getCurrentTime } from '@/shared/time-provider'
 
 /**
  * WorkTrackingService - Manages active work sessions with database persistence
@@ -52,19 +53,36 @@ export class WorkTrackingService {
 
   async initialize(): Promise<void> {
     try {
-      // Clear local state first - ALWAYS start fresh
+      // Clear local state first
       this.activeSessions.clear()
       logger.ui.info('[WorkTrackingService] Cleared all local active sessions on initialization')
 
-      // Clear stale sessions if enabled
+      // Clear stale sessions if enabled (older than maxSessionAgeHours)
       if (this.options.clearStaleSessionsOnStartup) {
         const cutoffDate = new Date(Date.now() - this.options.maxSessionAgeHours * 60 * 60 * 1000)
         await this.clearStaleSessionsBeforeDate(cutoffDate)
       }
 
-      // DO NOT restore sessions - always start with clean slate
-      // This prevents stale sessions from blocking new work
-      logger.ui.info('[WorkTrackingService] Initialization complete - starting with no active sessions')
+      // Restore any active session from database (within 24 hours)
+      const activeSession = await this.getLastActiveWorkSession()
+      if (activeSession) {
+        // Restore to memory so UI can show it
+        const sessionKey = this.getSessionKey(activeSession)
+        this.activeSessions.set(sessionKey, activeSession)
+
+        logger.ui.info('[WorkTrackingService] Restored active session from database', {
+          sessionId: activeSession.id,
+          taskId: activeSession.taskId,
+          stepId: activeSession.stepId,
+          startTime: activeSession.startTime.toISOString(),
+        })
+      } else {
+        logger.ui.info('[WorkTrackingService] No active sessions to restore')
+      }
+
+      logger.ui.info('[WorkTrackingService] Initialization complete', {
+        activeSessionCount: this.activeSessions.size,
+      })
     } catch (error) {
       logger.ui.error('Failed to initialize WorkTrackingService', error)
       throw error
@@ -196,17 +214,24 @@ export class WorkTrackingService {
         throw new Error(`No active session found with ID: ${sessionId}`)
       }
 
-      // Add isPaused property for test compatibility
-      ;(session as any).isPaused = true
-      ;(session as any).pausedAt = new Date()
+      // Calculate actual minutes worked
+      const now = getCurrentTime()
+      const elapsedMinutes = Math.floor((now.getTime() - session.startTime.getTime()) / (1000 * 60))
 
-      // Update database with pause state
+      // Close the session in database by setting endTime
       await this.database.updateWorkSession(session.id, {
-        isPaused: true,
-        pausedAt: new Date(),
+        endTime: now,
+        actualMinutes: Math.max(elapsedMinutes, 1), // Ensure at least 1 minute
       })
 
-      logger.ui.info('Paused work session', { sessionId })
+      // Remove from active sessions (it's now closed)
+      const sessionKey = this.getSessionKey(session)
+      this.activeSessions.delete(sessionKey)
+
+      logger.ui.info('Paused work session (closed in database)', {
+        sessionId,
+        actualMinutes: Math.max(elapsedMinutes, 1),
+      })
     } catch (error) {
       this.handleSessionError(error as Error, 'pausing work session')
       throw error
@@ -291,23 +316,32 @@ export class WorkTrackingService {
 
   async getLastActiveWorkSession(): Promise<UnifiedWorkSession | null> {
     try {
-      // Get today's work sessions and find active ones (no endTime)
-      const today = new Date().toISOString().split('T')[0]
-      const sessions = await this.database.getWorkSessions(today)
-      const activeSessions = sessions.filter((session: any) => !session.endTime)
+      // Get any active work session from database (regardless of date)
+      const activeSession = await this.database.getActiveWorkSession()
 
-      if (activeSessions.length === 0) {
+      if (!activeSession) {
+        logger.ui.info('[WorkTrackingService] No active work session found in database')
         return null
       }
 
-      // Get the most recent active session
-      const lastSession = activeSessions[activeSessions.length - 1]
-      if (!this.isValidSession(lastSession)) {
+      if (!this.isValidSession(activeSession)) {
+        logger.ui.warn('[WorkTrackingService] Active session found but invalid', { activeSession })
         return null
       }
 
       // Convert to unified format
-      return fromDatabaseWorkSession(lastSession)
+      const unified = fromDatabaseWorkSession(activeSession)
+
+      logger.ui.info('[WorkTrackingService] Found active work session', {
+        sessionId: unified.id,
+        taskId: unified.taskId,
+        stepId: unified.stepId,
+        workflowId: unified.workflowId,
+        taskName: unified.taskName,
+        stepName: unified.stepName,
+      })
+
+      return unified
     } catch (error) {
       this.handleSessionError(error as Error, 'getting last active work session')
       return null
@@ -321,10 +355,11 @@ export class WorkTrackingService {
       for (let i = 0; i < 7; i++) {
         const date = new Date(cutoffDate)
         date.setDate(date.getDate() - i)
+        // TODO: use a utility function here. We shouldn't do date parsing hardcoded.
         dates.push(date.toISOString().split('T')[0])
       }
 
-      let clearedCount = 0
+      let cleanedCount = 0
       for (const date of dates) {
         const sessions = await this.database.getWorkSessions(date)
         const staleSessions = sessions.filter((session: any) =>
@@ -332,13 +367,19 @@ export class WorkTrackingService {
         )
 
         for (const session of staleSessions) {
-          await this.database.deleteWorkSession(session.id)
-          clearedCount++
+          const now = getCurrentTime()
+          const elapsedMinutes = Math.floor((now.getTime() - new Date(session.startTime).getTime()) / (1000 * 60))
+
+          await this.database.updateWorkSession(session.id, {
+            endTime: now,
+            actualMinutes: Math.max(elapsedMinutes, 1), // Ensure at least 1 minute
+          })
+          cleanedCount++
         }
       }
 
-      logger.ui.info('Cleared stale work sessions', { clearedCount, cutoffDate })
-      return clearedCount
+      logger.ui.info('Cleaned up stale work sessions', { cleanedCount, cutoffDate })
+      return cleanedCount
     } catch (error) {
       this.handleSessionError(error as Error, 'clearing stale sessions')
       throw new Error(`Failed to clear stale sessions: ${(error as Error).message}`)

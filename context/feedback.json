@@ -1473,7 +1473,7 @@
       "other"
     ],
     "title": "REST API for Claude Code workflow automation",
-    "description": "Create a REST API server in the main process that allows Claude Code to programmatically interact with the task planner app. This would include: 1) POST /api/workflows/{id}/advance - to advance workflow steps automatically, 2) GET /api/work-sessions/active - to see currently active work sessions, 3) GET /api/workflows/active - to see current workflows in progress, 4) GET /api/schedule/planned - to get planned schedules and upcoming tasks, 5) POST /api/tasks/{id}/start - to start working on a specific task, 6) POST /api/tasks/{id}/complete - to mark tasks as completed. This would enable Claude Code to help users manage their workflows more efficiently by automating routine task progression and providing better visibility into current work state without requiring manual app navigation.",
+    "description": "Create a REST API server in the main process that allows Claude Code to programmatically interact with the task planner app. This would include: 1) POST /api/workflows/{id}/advance - to advance workflow steps automatically, 2) GET /api/work-sessions/active - to see currently active work sessions, 3) GET /api/workflows/active - to see current workflows in progress, 4) GET /api/schedule/planned - to get planned schedules and upcoming tasks, 5) POST /api/tasks/{id}/start - to start working on a specific task, 6) POST /api/tasks/{id}/complete - to mark tasks as completed. This would enable Claude Code to help users manage their workflows more efficiently by automating routine task progression and providing better visibility into current work state without requiring manual app navigation.\n\nShould also include integration through MCP. Claude code should never be able to use the api except through mcp protocols",
     "timestamp": "2025-09-10T10:00:00.000Z",
     "sessionId": "session-unified-scheduler-dev"
   },
@@ -1522,6 +1522,35 @@
     "title": "Swim lane rows cut off and no vertical scroll",
     "description": "can't see some tasks/workflow steps in the swim lane view because they don't fit on the page. Also, view is still buggy for sections of the swim lanes that the user must scroll to (initial view is fine, but if scroll to the right, the boxes and stuff are weird. Additionally. when a workflow is expanded into steps, the vertical ticks on the chart are misaligned with the regular tasks causing difficulty",
     "timestamp": "2025-09-27T19:12:41.914Z",
-    "sessionId": "session-1759000361895-92292971"
+    "sessionId": "session-1759000361895-92292971",
+    "resolved": true
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "layout/Navigation",
+      "other",
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Multiple work sessions running concurrently",
+    "description": "If the app restarts or the currently active session that we are working on gets interrupted (like by quitting the app), when it restarts, we can have 2 sessions running concurrently (the current time we are working on is going to two different tasks!). If we were working on one when the app quit, we should resume it on startup. Only one should ever be allowed to be active anyway. And we should add tests that enforce this (try to mark 2 as active, observe error). ",
+    "steps": "start work with start next task button or by clicking the start button on a task or workflow. \nquit the app\nreopen the app.\nobserve that there is no session running (but if you are keen and open the swim lanes view, the time block for the most recently worked on session is still expanding)\nstart another work session\nopen swim lanes\nwait a minute\nobserve two work sessions have expanded more than a minute",
+    "expected": "only one session should be running at a time",
+    "actual": "two or more sessions can have active time tracking, but only one is displayed. ",
+    "timestamp": "2025-10-05T03:11:44.950Z",
+    "sessionId": "session-1759633904922-f80ff5d5"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "layout/Navigation",
+      "other"
+    ],
+    "title": "Focus time completed today in sidebar navigation advances by 1 hour whenever a task is started",
+    "description": "This should use the work tracking system everything else uses. Why is it even advancing by an hour in some weird hardcoded way? bizarre. ",
+    "timestamp": "2025-10-05T03:12:52.018Z",
+    "sessionId": "session-1759633971988-f3516478"
   }
 ]

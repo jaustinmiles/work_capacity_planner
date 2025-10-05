@@ -299,6 +299,10 @@ ipcMain.handle('db:getWorkSessions', async (_event: IpcMainInvokeEvent, date: st
   return await db.getWorkSessions(date)
 })
 
+ipcMain.handle('db:getActiveWorkSession', async () => {
+  return await db.getActiveWorkSession()
+})
+
 ipcMain.handle('db:getTaskTotalLoggedTime', async (_event: IpcMainInvokeEvent, taskId: string) => {
   return await db.getTaskTotalLoggedTime(taskId)
 })

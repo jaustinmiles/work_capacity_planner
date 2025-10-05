@@ -229,18 +229,23 @@ class DiagnosticWrapper {
       command = ['tsx', scriptPath]
     }
 
-    // Add filters as arguments
+    // Add filters as arguments (using --key=value format for tail-logs.ts)
     if (filter) {
-      command.push('--grep', filter)
+      command.push(`--grep=${filter}`)
     }
     if (level) {
-      command.push('--level', level)
+      command.push(`--level=${level}`)
     }
     if (since) {
-      command.push('--since', since)
+      command.push(`--since=${since}`)
     }
     if (limit) {
-      command.push('--limit', limit.toString())
+      command.push(`--limit=${limit}`)
+    }
+
+    // For tail action, add --no-follow to prevent hanging
+    if (action === 'tail') {
+      command.push('--no-follow')
     }
 
     const output = await this.runScript('npx', command)
