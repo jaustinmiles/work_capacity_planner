@@ -597,6 +597,10 @@ export class RendererDatabaseService {
     return await window.electronAPI.db.getWorkSessions(date)
   }
 
+  async getActiveWorkSession() {
+    return await window.electronAPI.db.getActiveWorkSession()
+  }
+
   async getWorkSessionsForTask(taskId: string) {
     return await window.electronAPI.db.getWorkSessionsForTask(taskId)
   }

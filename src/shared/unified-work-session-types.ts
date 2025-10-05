@@ -91,6 +91,10 @@ export function fromDatabaseWorkSession(dbSession: any): UnifiedWorkSession {
     notes: dbSession.notes,
     createdAt: new Date(dbSession.createdAt),
     updatedAt: new Date(dbSession.updatedAt),
+    // Preserve computed fields if present
+    workflowId: dbSession.workflowId,
+    taskName: dbSession.taskName,
+    stepName: dbSession.stepName,
   }
 }
 

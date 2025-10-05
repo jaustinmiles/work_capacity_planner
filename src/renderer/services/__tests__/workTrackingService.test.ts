@@ -11,6 +11,7 @@ vi.mock('../database', () => ({
     updateWorkSession: vi.fn(),
     deleteWorkSession: vi.fn(),
     getWorkSessions: vi.fn(),
+    getActiveWorkSession: vi.fn(),
     getWorkSessionsForTask: vi.fn(),
     getCurrentSession: vi.fn(),
     getTaskById: vi.fn(),
@@ -182,9 +183,11 @@ describe('WorkTrackingService', () => {
         plannedMinutes: 60,
         actualMinutes: 30,
         type: 'focused' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }
 
-      mockDatabase.getWorkSessions.mockResolvedValue([mockSession])
+      mockDatabase.getActiveWorkSession.mockResolvedValue(mockSession)
 
       const lastSession = await service.getLastActiveWorkSession()
 
@@ -242,8 +245,11 @@ describe('WorkTrackingService', () => {
       }, mockDatabase)
       await newService.initialize()
 
-      // Should clear stale sessions even though restoration is disabled
-      expect(mockDatabase.deleteWorkSession).toHaveBeenCalledWith('old-session')
+      // Should close stale sessions (update with endTime) instead of deleting them
+      expect(mockDatabase.updateWorkSession).toHaveBeenCalledWith('old-session', expect.objectContaining({
+        endTime: expect.any(Date),
+        actualMinutes: expect.any(Number),
+      }))
       expect(mockDatabase.getWorkSessions).toHaveBeenCalled()
     })
   })
@@ -414,7 +420,7 @@ describe('WorkTrackingService', () => {
         startTime: 'not-a-date',
       }
 
-      mockDatabase.getWorkSessions.mockResolvedValue([malformedSession])
+      mockDatabase.getActiveWorkSession.mockResolvedValue(malformedSession)
 
       const lastSession = await service.getLastActiveWorkSession()
 
@@ -440,9 +446,19 @@ describe('WorkTrackingService', () => {
       const clearedCount = await service.clearStaleSessionsBeforeDate(cutoffDate)
 
       expect(clearedCount).toBe(3)
-      expect(mockDatabase.deleteWorkSession).toHaveBeenCalledWith('stale-1')
-      expect(mockDatabase.deleteWorkSession).toHaveBeenCalledWith('stale-2')
-      expect(mockDatabase.deleteWorkSession).toHaveBeenCalledWith('stale-3')
+      // Should close sessions (update with endTime) instead of deleting them
+      expect(mockDatabase.updateWorkSession).toHaveBeenCalledWith('stale-1', expect.objectContaining({
+        endTime: expect.any(Date),
+        actualMinutes: expect.any(Number),
+      }))
+      expect(mockDatabase.updateWorkSession).toHaveBeenCalledWith('stale-2', expect.objectContaining({
+        endTime: expect.any(Date),
+        actualMinutes: expect.any(Number),
+      }))
+      expect(mockDatabase.updateWorkSession).toHaveBeenCalledWith('stale-3', expect.objectContaining({
+        endTime: expect.any(Date),
+        actualMinutes: expect.any(Number),
+      }))
     })
 
     it('should handle cleanup errors gracefully', async () => {

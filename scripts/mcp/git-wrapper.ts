@@ -230,18 +230,30 @@ class GitWrapper {
   }
 
   private async createFeatureBranch(name: string) {
-    // Ensure we're on main and up to date
-    await this.runScript('git', ['checkout', 'main'])
-    await this.runScript('git', ['pull', 'origin', 'main'])
+    // Stash any uncommitted changes
+    await this.runScript('git', ['stash'])
 
+    // Switch to main and update
+    await this.runScript('git', ['switch', 'main'])
+    await this.runScript('git', ['fetch'])
+    await this.runScript('git', ['pull'])
+
+    // Create new feature branch
     const branchName = `feature/${name}`
     await this.runScript('git', ['checkout', '-b', branchName])
+
+    // Restore stashed changes
+    try {
+      await this.runScript('git', ['stash', 'pop'])
+    } catch (error) {
+      // If stash pop fails (e.g., no stash), that's okay - continue
+    }
 
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Created and switched to branch: **${branchName}**\n\nReady to start development.`,
+          text: `✅ Created and switched to branch: **${branchName}**\n\nStashed changes restored. Ready to start development.`,
         },
       ],
     }

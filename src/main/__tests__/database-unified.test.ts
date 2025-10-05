@@ -27,6 +27,7 @@ vi.mock('@prisma/client', () => {
       delete: vi.fn(),
     },
     workSession: {
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -57,6 +58,9 @@ describe('Database - Unified Task Model', () => {
 
     // Mock active session
     mockPrisma.session.findFirst.mockResolvedValue({ id: 'session-1' })
+
+    // Mock no active work sessions by default (for single session enforcement)
+    mockPrisma.workSession.findFirst.mockResolvedValue(null)
   })
 
   afterEach(() => {

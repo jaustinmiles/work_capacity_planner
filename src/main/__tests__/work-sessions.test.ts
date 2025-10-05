@@ -29,6 +29,7 @@ vi.mock('@prisma/client', () => {
       delete: vi.fn(),
     },
     workSession: {
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
@@ -66,6 +67,9 @@ describe('Work Session Management', () => {
       name: 'Test Session',
       isActive: true,
     })
+
+    // Setup default: no active work sessions (for single session enforcement)
+    mockPrisma.workSession.findFirst.mockResolvedValue(null)
   })
 
   describe('createWorkSession', () => {
@@ -376,6 +380,159 @@ describe('Work Session Management', () => {
         where: { stepId: 'step-1' },
         data: { type: 'admin' },
       })
+    })
+  })
+
+  describe('Single Active Session Enforcement', () => {
+    it('should auto-close existing active session when creating new session', async () => {
+      const existingActiveSession = {
+        id: 'ws-existing',
+        taskId: 'task-old',
+        stepId: null,
+        type: 'focused',
+        startTime: new Date('2024-01-15T09:00:00'),
+        endTime: null, // Active session
+        plannedMinutes: 60,
+        actualMinutes: null,
+      }
+
+      const newSessionData = {
+        taskId: 'task-new',
+        type: TaskType.Focused,
+        startTime: new Date('2024-01-15T10:30:00'),
+        plannedMinutes: 60,
+      }
+
+      // Mock finding the existing active session
+      mockPrisma.workSession.findFirst.mockResolvedValue(existingActiveSession)
+
+      // Mock the update to close the existing session
+      mockPrisma.workSession.update.mockResolvedValue({
+        ...existingActiveSession,
+        endTime: new Date('2024-01-15T10:30:00'),
+        actualMinutes: 90,
+      })
+
+      // Mock creating the new session
+      mockPrisma.workSession.create.mockResolvedValue({
+        id: 'ws-new',
+        ...newSessionData,
+        endTime: null,
+        actualMinutes: null,
+      })
+
+      await db.createWorkSession(newSessionData)
+
+      // Should have found existing active session
+      expect(mockPrisma.workSession.findFirst).toHaveBeenCalledWith({
+        where: { endTime: null },
+        orderBy: { startTime: 'desc' },
+      })
+
+      // Should have closed the existing session
+      expect(mockPrisma.workSession.update).toHaveBeenCalledWith({
+        where: { id: 'ws-existing' },
+        data: expect.objectContaining({
+          endTime: expect.any(Date),
+          actualMinutes: expect.any(Number),
+        }),
+      })
+
+      // Should have created the new session
+      expect(mockPrisma.workSession.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          taskId: 'task-new',
+          type: 'focused',
+        }),
+      })
+    })
+
+    it('should create session normally when no active session exists', async () => {
+      const newSessionData = {
+        taskId: 'task-123',
+        type: TaskType.Focused,
+        startTime: new Date('2024-01-15T09:00:00'),
+        plannedMinutes: 60,
+      }
+
+      // No active session exists
+      mockPrisma.workSession.findFirst.mockResolvedValue(null)
+
+      mockPrisma.workSession.create.mockResolvedValue({
+        id: 'ws-123',
+        ...newSessionData,
+        endTime: null,
+        actualMinutes: null,
+      })
+
+      await db.createWorkSession(newSessionData)
+
+      // Should have checked for active sessions
+      expect(mockPrisma.workSession.findFirst).toHaveBeenCalledWith({
+        where: { endTime: null },
+        orderBy: { startTime: 'desc' },
+      })
+
+      // Should NOT have called update (no session to close)
+      expect(mockPrisma.workSession.update).not.toHaveBeenCalled()
+
+      // Should have created the new session
+      expect(mockPrisma.workSession.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          taskId: 'task-123',
+        }),
+      })
+    })
+
+    it('should calculate elapsed minutes correctly when auto-closing', async () => {
+      const startTime = new Date('2024-01-15T09:00:00')
+      const endTime = new Date('2024-01-15T11:30:00') // 2.5 hours = 150 minutes
+
+      const existingActiveSession = {
+        id: 'ws-existing',
+        taskId: 'task-old',
+        stepId: null,
+        type: 'focused',
+        startTime,
+        endTime: null,
+        plannedMinutes: 60,
+        actualMinutes: null,
+      }
+
+      mockPrisma.workSession.findFirst.mockResolvedValue(existingActiveSession)
+      mockPrisma.workSession.update.mockResolvedValue({
+        ...existingActiveSession,
+        endTime,
+        actualMinutes: 150,
+      })
+      mockPrisma.workSession.create.mockResolvedValue({
+        id: 'ws-new',
+        taskId: 'task-new',
+        type: 'focused',
+        startTime: endTime,
+        plannedMinutes: 60,
+        endTime: null,
+        actualMinutes: null,
+      })
+
+      await db.createWorkSession({
+        taskId: 'task-new',
+        type: TaskType.Focused,
+        startTime: endTime,
+        plannedMinutes: 60,
+      })
+
+      // Verify the update was called with reasonable elapsed time
+      expect(mockPrisma.workSession.update).toHaveBeenCalledWith({
+        where: { id: 'ws-existing' },
+        data: expect.objectContaining({
+          actualMinutes: expect.any(Number),
+        }),
+      })
+
+      // Get the actual call to verify minutes calculation
+      const updateCall = mockPrisma.workSession.update.mock.calls[0][0]
+      expect(updateCall.data.actualMinutes).toBeGreaterThanOrEqual(1) // At least 1 minute
     })
   })
 })

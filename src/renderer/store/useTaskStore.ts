@@ -298,6 +298,23 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         rendererLogger.info('[TaskStore] Initializing WorkTrackingService...')
         await getWorkTrackingService().initialize()
         rendererLogger.info('[TaskStore] WorkTrackingService initialized successfully')
+
+        // Sync any restored active session to task store
+        const restoredSession = getWorkTrackingService().getCurrentActiveSession()
+        if (restoredSession) {
+          rendererLogger.info('[TaskStore] Syncing restored session to store', {
+            sessionId: restoredSession.id,
+            taskId: restoredSession.taskId,
+            stepId: restoredSession.stepId,
+          })
+
+          const sessionKey = restoredSession.workflowId || restoredSession.taskId
+          const newSessions = new Map()
+          newSessions.set(sessionKey, restoredSession)
+          set({ activeWorkSessions: newSessions })
+
+          rendererLogger.info('[TaskStore] Restored session synced to store')
+        }
       } catch (error) {
         rendererLogger.error('[TaskStore] Failed to initialize WorkTrackingService:', error)
         // Don't fail the whole initialization if work tracking fails
