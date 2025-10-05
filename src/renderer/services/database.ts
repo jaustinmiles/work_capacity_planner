@@ -62,6 +62,7 @@ declare global {
         updateWorkSession: (__id: string, data: any) => Promise<any>
         deleteWorkSession: (__id: string) => Promise<void>
         getWorkSessions: (date: string) => Promise<any[]>
+        getActiveWorkSession: () => Promise<any | null>
         getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
         getTaskTotalLoggedTime: (taskId: string) => Promise<number>
         getTodayAccumulated: (__date: string) => Promise<{ focused: number; admin: number; personal?: number; total?: number }>
