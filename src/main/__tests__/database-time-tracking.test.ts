@@ -68,17 +68,17 @@ describe('Database - Time Tracking', () => {
       mockPrisma.workSession.findMany.mockResolvedValue([
         { type: 'focused', actualMinutes: 30, plannedMinutes: 25, Task: { sessionId: 'session-1' } },
         { type: 'admin', actualMinutes: 45, plannedMinutes: 40, Task: { sessionId: 'session-1' } },
-        { type: 'focused', actualMinutes: null, plannedMinutes: 20, Task: { sessionId: 'session-1' } },
+        { type: 'focused', actualMinutes: null, plannedMinutes: 20, Task: { sessionId: 'session-1' } }, // Active session - should not count
       ])
       mockPrisma.taskStep.findMany.mockResolvedValue([])
 
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focused: 50, // 30 + 20
+        focused: 30, // Only 30 (actualMinutes), not plannedMinutes
         admin: 45,
         personal: 0,
-        total: 95, // 50 + 45
+        total: 75, // 30 + 45
       })
     })
 

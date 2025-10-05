@@ -264,7 +264,7 @@ describe('Work Session Management', () => {
 
       mockPrisma.workSession.findMany.mockResolvedValue([
         { type: 'focused', actualMinutes: 120, plannedMinutes: 100 },
-        { type: 'admin', actualMinutes: null, plannedMinutes: 60 },
+        { type: 'admin', actualMinutes: null, plannedMinutes: 60 }, // Active - should not count
         { type: 'focused', actualMinutes: 90, plannedMinutes: 90 },
         { type: 'admin', actualMinutes: 30, plannedMinutes: 45 },
       ])
@@ -274,9 +274,9 @@ describe('Work Session Management', () => {
 
       expect(result).toEqual({
         focused: 210, // 120 + 90
-        admin: 90,    // 60 + 30
+        admin: 30,    // Only 30 (actualMinutes)
         personal: 0,  // no personal time
-        total: 300,   // 210 + 90
+        total: 240,   // 210 + 30
       })
     })
 
