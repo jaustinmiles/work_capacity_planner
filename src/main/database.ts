@@ -1818,7 +1818,20 @@ export class DatabaseService {
 
     // Accumulate from work sessions
     const accumulated = workSessions.reduce((acc, session) => {
-      const minutes = session.actualMinutes || session.plannedMinutes || 0
+      // FIXED: Only count actualMinutes (completed work), not plannedMinutes (estimates)
+      // This prevents active/planned sessions from being counted as completed time
+      const minutes = session.actualMinutes || 0
+
+      // DEBUG: Log each session's contribution to accumulated time
+      this.logger.info('[getTodayAccumulated] Processing work session', {
+        sessionId: session.id,
+        type: session.type,
+        actualMinutes: session.actualMinutes,
+        plannedMinutes: session.plannedMinutes,
+        minutesCounted: minutes,
+        hasEndTime: !!session.endTime,
+      })
+
       if (session.type === TaskType.Focused) {
         acc.focused += minutes
       } else if (session.type === TaskType.Admin) {
@@ -1829,6 +1842,13 @@ export class DatabaseService {
       acc.total += minutes
       return acc
     }, { focused: 0, admin: 0, personal: 0, total: 0 })
+
+    // DEBUG: Log final accumulated totals
+    this.logger.info('[getTodayAccumulated] Final accumulated time', {
+      date,
+      totalSessions: workSessions.length,
+      accumulated,
+    })
 
     // Add time from completed steps (if not already in work sessions)
     completedSteps.forEach(step => {

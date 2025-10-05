@@ -428,17 +428,17 @@ describe('Database - Unified Task Model', () => {
         mockPrisma.workSession.findMany.mockResolvedValue([
           { type: 'focused', actualMinutes: 30, plannedMinutes: 30, Task: { sessionId: 'session-1' } },
           { type: 'admin', actualMinutes: 45, plannedMinutes: 40, Task: { sessionId: 'session-1' } },
-          { type: 'focused', actualMinutes: null, plannedMinutes: 20, Task: { sessionId: 'session-1' } },
+          { type: 'focused', actualMinutes: null, plannedMinutes: 20, Task: { sessionId: 'session-1' } }, // Active - should not count
           { type: 'admin', actualMinutes: 15, plannedMinutes: 15, Task: { sessionId: 'session-1' } }])
         mockPrisma.taskStep.findMany.mockResolvedValue([])
 
         const result = await db.getTodayAccumulated(testDate)
 
         expect(result).toEqual({
-          focused: 50, // 30 + 20
+          focused: 30, // Only 30 (actualMinutes)
           admin: 60,  // 45 + 15
           personal: 0,
-          total: 110, // 50 + 60
+          total: 90, // 30 + 60
         })
       })
 
@@ -459,12 +459,12 @@ describe('Database - Unified Task Model', () => {
       it('should use actualMinutes when available', async () => {
         mockPrisma.workSession.findMany.mockResolvedValue([
           { type: 'focused', actualMinutes: 45, plannedMinutes: 30, Task: { sessionId: 'session-1' } },
-          { type: 'focused', actualMinutes: null, plannedMinutes: 30, Task: { sessionId: 'session-1' } }])
+          { type: 'focused', actualMinutes: null, plannedMinutes: 30, Task: { sessionId: 'session-1' } }]) // Active - should not count
         mockPrisma.taskStep.findMany.mockResolvedValue([])
 
         const result = await db.getTodayAccumulated(testDate)
 
-        expect(result?.focused).toBe(75) // 45 (actual) + 30 (planned)
+        expect(result?.focused).toBe(45) // Only 45 (actualMinutes), not plannedMinutes
       })
     })
 
