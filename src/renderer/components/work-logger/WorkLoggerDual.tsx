@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getCurrentTime } from '@shared/time-provider'
 import {
   Modal,
@@ -34,6 +34,7 @@ import { appEvents, EVENTS } from '../../utils/events'
 import { SwimLaneTimeline } from './SwimLaneTimeline'
 import { CircularClock } from './CircularClock'
 import { ClockTimePicker } from '../common/ClockTimePicker'
+import { useResponsive } from '../../providers/ResponsiveProvider'
 import {
   WorkSessionData,
   timeToMinutes,
@@ -76,6 +77,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [showCircadianSettings, setShowCircadianSettings] = useState(false)
 
   const { tasks, sequencedTasks, loadTasks, activeWorkSessions } = useTaskStore()
+  const { isCompact, isMobile, isDesktop } = useResponsive()
 
   // Real-time timer for active work sessions (updates every 10 seconds for dogfooding)
   const [, forceUpdate] = useState({})
@@ -445,8 +447,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       onCancel={onClose}
       footer={null}
       style={{
-        width: isFullscreen ? '100vw' : '95vw',
-        maxWidth: isFullscreen ? '100vw' : 1400,
+        width: isFullscreen ? '100vw' : (isCompact ? '98vw' : isMobile ? '95vw' : '90vw'),
+        maxWidth: isFullscreen ? '100vw' : (isCompact ? undefined : isMobile ? 1200 : isDesktop ? 1600 : 1800),
         height: isFullscreen ? '100vh' : undefined,
         margin: isFullscreen ? 0 : undefined,
         top: isFullscreen ? 0 : undefined,
@@ -608,10 +610,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               }
               style={{ marginBottom: 16 }}>
               <div style={{
-                height: 400,
-                overflow: 'hidden',
+                height: isCompact ? 300 : isMobile ? 350 : 400,
                 width: '100%',
-                maxWidth: '100%',
+                overflow: 'auto', // Allow scrolling within timeline
               }}>
                 <SwimLaneTimeline
                   sessions={sessions}

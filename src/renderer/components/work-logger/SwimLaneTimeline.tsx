@@ -35,12 +35,12 @@ interface SwimLaneTimelineProps {
   wakeTimeHour?: number
 }
 
-const TIME_LABEL_WIDTH = 80
-const START_HOUR = 6
-const END_HOUR = 22
-const HOURS_PER_DAY = END_HOUR - START_HOUR
+const TIME_LABEL_WIDTH = 120
+const START_HOUR = 0
+const END_HOUR = 24
+const HOURS_PER_DAY = 24
 const TOTAL_DAYS = 3 // Show yesterday, today, tomorrow
-const TOTAL_HOURS = HOURS_PER_DAY * TOTAL_DAYS
+const TOTAL_HOURS = HOURS_PER_DAY * TOTAL_DAYS // 72 hours total
 // Removed unused: MIN_LANE_HEIGHT, MAX_LANE_HEIGHT
 const MIN_HOUR_WIDTH = 40
 const MAX_HOUR_WIDTH = 200
@@ -76,15 +76,15 @@ export function SwimLaneTimeline({
   } | null>(null)
   const [hoveredSession, setHoveredSession] = useState<string | null>(null)
   const [internalExpandedWorkflows, setInternalExpandedWorkflows] = useState<Set<string>>(new Set())
-  const [baseLaneHeight] = useState(30)
   const [baseHourWidth, setBaseHourWidth] = useState(80)
 
   // Calculate zoom-responsive visual elements
-  const zoomFactor = baseHourWidth / 80 // 80 = baseline
-  const laneHeight = Math.max(20, Math.min(50, baseLaneHeight * zoomFactor))
-  const headerFontSize = Math.max(10, Math.min(14, 12 * zoomFactor))
-  const timeFontSize = Math.max(9, Math.min(12, 10 * zoomFactor))
-  const sessionFontSize = Math.max(9, Math.min(13, 11 * zoomFactor))
+  const zoomFactor = baseHourWidth / 80 // 80 = baseline (used for horizontal scaling only)
+  // Keep lane height fixed - no vertical zoom coupling
+  const laneHeight = 32
+  const headerFontSize = Math.max(10, Math.min(14, 12 * Math.sqrt(zoomFactor))) // Gentle font scaling
+  const timeFontSize = Math.max(9, Math.min(12, 10 * Math.sqrt(zoomFactor)))
+  const sessionFontSize = Math.max(9, Math.min(13, 11 * Math.sqrt(zoomFactor)))
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
 
@@ -108,6 +108,23 @@ export function SwimLaneTimeline({
 
     return () => clearInterval(interval)
   }, [])
+
+  // Auto-scroll to "now" on mount if viewing today
+  useEffect(() => {
+    if (!timelineRef.current) return
+
+    const nowHours = currentTime.getHours() + currentTime.getMinutes() / 60
+    if (nowHours >= START_HOUR && nowHours <= END_HOUR) {
+      const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
+      const nowLeft = minutesToPixels(nowMinutes)
+
+      // Center the current time in the viewport
+      const viewportWidth = timelineRef.current.clientWidth
+      const scrollPosition = nowLeft - viewportWidth / 2
+
+      timelineRef.current.scrollLeft = Math.max(0, scrollPosition)
+    }
+  }, []) // Only run on mount
 
   // Convert minutes to pixels (positioned in "Today" section - middle of 3-day view)
   const minutesToPixels = (minutes: number): number => {
@@ -500,22 +517,22 @@ if (!checkOverlap(newSession, laneSessions)) {
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
       }}>
         {/* Compact zoom controls */}
-        <Tooltip content="Zoom Out">
+        <Tooltip content="Zoom Out (Horizontal)">
           <Button
             size="mini"
             icon={<IconZoomOut />}
-            onClick={() => setBaseHourWidth(Math.max(MIN_HOUR_WIDTH, baseHourWidth - 20))}
+            onClick={() => setBaseHourWidth(Math.max(MIN_HOUR_WIDTH, baseHourWidth - 40))}
             disabled={baseHourWidth <= MIN_HOUR_WIDTH}
           />
         </Tooltip>
         <Text style={{ fontSize: 11, color: '#86909c' }}>
-          Zoom: {Math.round(zoomFactor * 100)}% | H:{laneHeight}px | W:{Math.round(hourWidth)}px
+          Zoom: {Math.round(zoomFactor * 100)}% | W:{Math.round(hourWidth)}px
         </Text>
-        <Tooltip content="Zoom In">
+        <Tooltip content="Zoom In (Horizontal)">
           <Button
             size="mini"
             icon={<IconZoomIn />}
-            onClick={() => setBaseHourWidth(Math.min(MAX_HOUR_WIDTH, baseHourWidth + 20))}
+            onClick={() => setBaseHourWidth(Math.min(MAX_HOUR_WIDTH, baseHourWidth + 40))}
             disabled={baseHourWidth >= MAX_HOUR_WIDTH}
           />
         </Tooltip>
@@ -558,20 +575,22 @@ if (!checkOverlap(newSession, laneSessions)) {
         <div
           style={{
             width: TIME_LABEL_WIDTH,
+            minWidth: TIME_LABEL_WIDTH,
             borderRight: '1px solid #e5e6eb',
             display: 'flex',
             alignItems: 'center',
             paddingLeft: 8,
+            flexShrink: 0,
           }}
         >
-          <Text style={{ fontWeight: 'bold' }}>Tasks</Text>
+          <Text style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Tasks</Text>
         </div>
         <div style={{
-          flex: 1,
           position: 'relative',
           width: TOTAL_HOURS * hourWidth, // Let timeline be its natural width
           minWidth: TOTAL_HOURS * hourWidth,
           overflow: 'visible', // Allow content to be visible for scrolling
+          flexShrink: 0, // Prevent flex from shrinking the timeline
         }}>
           {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => {
             const dayIndex = Math.floor(i / HOURS_PER_DAY) // 0 = yesterday, 1 = today, 2 = tomorrow
@@ -619,20 +638,61 @@ if (!checkOverlap(newSession, laneSessions)) {
 
       {/* Swim lanes */}
       <div style={{ position: 'relative' }}>
+        {/* Now marker - continuous overlay across all lanes */}
+        {(() => {
+          const nowHours = currentTime.getHours() + currentTime.getMinutes() / 60
+          if (nowHours >= START_HOUR && nowHours <= END_HOUR) {
+            const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
+            const nowLeft = minutesToPixels(nowMinutes) - TIME_LABEL_WIDTH
+            return (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: TIME_LABEL_WIDTH + nowLeft,
+                  top: 0,
+                  bottom: 0,
+                  width: 2,
+                  backgroundColor: '#ff4d4f',
+                  zIndex: 20,
+                  pointerEvents: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    left: -4,
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    backgroundColor: '#ff4d4f',
+                  }}
+                />
+              </div>
+            )
+          }
+          return null
+        })()}
+
         {swimLanes.map((lane) => (
           <div
             key={lane.id}
             style={{
               height: laneHeight,
+              minHeight: laneHeight,
+              maxHeight: laneHeight,
               borderBottom: '1px solid #e5e6eb',
               display: 'flex',
               position: 'relative',
+              width: TIME_LABEL_WIDTH + TOTAL_HOURS * hourWidth,
+              minWidth: TIME_LABEL_WIDTH + TOTAL_HOURS * hourWidth,
             }}
           >
             {/* Task name */}
             <div
               style={{
                 width: TIME_LABEL_WIDTH,
+                minWidth: TIME_LABEL_WIDTH,
                 borderRight: '1px solid #e5e6eb',
                 padding: '4px',
                 display: 'flex',
@@ -642,6 +702,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                 left: 0,
                 zIndex: 5,
                 paddingLeft: lane.indent ? 24 : 4,
+                flexShrink: 0,
               }}
             >
               {lane.isWorkflow && (
@@ -683,6 +744,7 @@ if (!checkOverlap(newSession, laneSessions)) {
                 position: 'relative',
                 cursor: 'crosshair',
                 overflow: 'visible', // Allow content to be visible for scrolling
+                flexShrink: 0, // Prevent flex container from shrinking this
               }}
               onMouseDown={(e) => {
                 // Don't allow creating on meetings lane
@@ -823,49 +885,14 @@ if (!checkOverlap(newSession, laneSessions)) {
                   key={i}
                   style={{
                     position: 'absolute',
-                    left: TIME_LABEL_WIDTH + i * hourWidth,
+                    left: i * hourWidth,
                     top: 0,
                     bottom: 0,
+                    width: 0,
                     borderLeft: '1px solid #f0f0f0',
                   }}
                 />
               ))}
-
-              {/* Now marker - only show if current time is within the timeline range */}
-              {(() => {
-                const nowHours = currentTime.getHours() + currentTime.getMinutes() / 60
-                if (nowHours >= START_HOUR && nowHours <= END_HOUR) {
-                  const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
-                  const nowLeft = minutesToPixels(nowMinutes) - TIME_LABEL_WIDTH
-                  return (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        left: nowLeft,
-                        top: 0,
-                        bottom: 0,
-                        width: 2,
-                        backgroundColor: '#ff4d4f',
-                        zIndex: 15,
-                        pointerEvents: 'none',
-                      }}
-                    >
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: -8,
-                          left: -4,
-                          width: 10,
-                          height: 10,
-                          borderRadius: '50%',
-                          backgroundColor: '#ff4d4f',
-                        }}
-                      />
-                    </div>
-                  )
-                }
-                return null
-              })()}
 
               {/* Sessions */}
               {lane.sessions.map((session, sessionIndex) => {
