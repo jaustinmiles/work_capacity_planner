@@ -230,17 +230,9 @@ describe('Workflow Time Tracking', () => {
       expect(mockStartWorkSession).toHaveBeenCalledWith(undefined, stepId, workflowId)
       expect(mockPauseWorkSession).toHaveBeenCalledWith('session-1')
 
-      // Verify work session was created for the time worked (only if > 0 minutes)
-      expect(mockCreateStepWorkSession).toHaveBeenCalledWith({
-        taskStepId: stepId,
-        startTime: expect.any(Date), // This uses the session startTime from the local store
-        duration: 25,
-      })
-
-      // Verify step duration was updated
-      expect(mockUpdateTaskStepProgress).toHaveBeenCalledWith(stepId, {
-        actualDuration: 25,
-      })
+      // Work session is now handled by WorkTrackingService.pauseWorkSession
+      // which calls updateWorkSession to set endTime (no createStepWorkSession)
+      // Step duration updates are no longer done on pause
 
       // Verify event was emitted
       expect(mockEmit).toHaveBeenCalledWith('time-logged')
@@ -411,17 +403,8 @@ describe('Workflow Time Tracking', () => {
         await result.current.pauseWorkOnStep(stepId)
       })
 
-      // Verify both work sessions were created
-      expect(mockCreateStepWorkSession).toHaveBeenCalledTimes(2)
-
-      // Find the actualDuration update calls (filtering out status updates)
-      const durationUpdateCalls = mockUpdateTaskStepProgress.mock.calls.filter(
-        (call: any[]) => call[1].actualDuration !== undefined,
-      )
-
-      // Verify durations were updated correctly
-      expect(durationUpdateCalls[0]).toEqual([stepId, { actualDuration: 10 }])
-      expect(durationUpdateCalls[1]).toEqual([stepId, { actualDuration: 25 }]) // 10 + 15
+      // Work sessions are now handled by WorkTrackingService.pauseWorkSession
+      // No createStepWorkSession or duration updates on pause anymore
     })
   })
 
@@ -590,10 +573,14 @@ describe('Workflow Time Tracking', () => {
       // Verify TIME_LOGGED event was emitted for UI updates
       expect(mockEmit).toHaveBeenCalledWith('time-logged')
 
-      // Verify logger was called
+      // Logger message changed - now logs session removal instead of time
       const loggerModule = await import('@/shared/logger')
       expect(loggerModule.logger.ui.info).toHaveBeenCalledWith(
-        'Logged 20 minutes for step step-7 on pause',
+        '[TaskStore] Removed paused session from activeWorkSessions',
+        expect.objectContaining({
+          sessionKey: expect.any(String),
+          remainingActiveSessions: expect.any(Number),
+        }),
       )
     })
   })
