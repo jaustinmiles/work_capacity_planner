@@ -524,6 +524,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
             overallStatus: TaskStatus.NotStarted,
             criticalPathDuration: creation.duration,
             worstCaseDuration: creation.duration,
+            archived: false,
           }
 
           const newTask = await db.createTask(taskData)
@@ -575,6 +576,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
             })),
             hasSteps: true as const,
             overallStatus: TaskStatus.NotStarted,
+            archived: false,
           }
 
           await db.createSequencedTask(workflowData)

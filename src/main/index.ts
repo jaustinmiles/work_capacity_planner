@@ -161,6 +161,14 @@ ipcMain.handle('db:deleteTask', async (_event: IpcMainInvokeEvent, id: string) =
   return await db.deleteTask(id)
 })
 
+ipcMain.handle('db:archiveTask', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.archiveTask(id)
+})
+
+ipcMain.handle('db:unarchiveTask', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.unarchiveTask(id)
+})
+
 ipcMain.handle('db:deleteSequencedTask', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteSequencedTask(id)
 })

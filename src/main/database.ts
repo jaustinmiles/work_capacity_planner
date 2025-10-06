@@ -322,12 +322,15 @@ export class DatabaseService {
   }
 
   // Tasks
-  async getTasks(): Promise<Task[]> {
+  async getTasks(includeArchived = false): Promise<Task[]> {
     const sessionId = await this.getActiveSession()
-    mainLogger.debug('[DB] getTasks - Using sessionId', { sessionId })
+    mainLogger.debug('[DB] getTasks - Using sessionId', { sessionId, includeArchived })
 
     const tasks = await this.client.task.findMany({
-      where: { sessionId },
+      where: {
+        sessionId,
+        ...(includeArchived ? {} : { archived: false }),
+      },
       include: {
         TaskStep: true, // Include steps for workflows
       },
@@ -537,6 +540,32 @@ export class DatabaseService {
     await this.client.task.delete({
       where: { id },
     })
+  }
+
+  async archiveTask(id: string): Promise<Task> {
+    const task = await this.client.task.update({
+      where: { id },
+      data: { archived: true },
+      include: {
+        TaskStep: {
+          orderBy: { stepIndex: 'asc' },
+        },
+      },
+    })
+    return this.formatTask(task)
+  }
+
+  async unarchiveTask(id: string): Promise<Task> {
+    const task = await this.client.task.update({
+      where: { id },
+      data: { archived: false },
+      include: {
+        TaskStep: {
+          orderBy: { stepIndex: 'asc' },
+        },
+      },
+    })
+    return this.formatTask(task)
   }
 
   async completeTask(id: string, actualDuration?: number): Promise<Task> {

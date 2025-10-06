@@ -130,6 +130,7 @@ export class UnifiedSchedulerAdapter {
                          taskStep.status === 'waiting' ? TaskStatus.Waiting : TaskStatus.NotStarted,
             criticalPathDuration: taskStep.duration,
             worstCaseDuration: taskStep.duration,
+            archived: false,
           }
         } else {
           // This is already a Task
@@ -187,6 +188,7 @@ export class UnifiedSchedulerAdapter {
                          taskStep.status === 'waiting' ? TaskStatus.Waiting : TaskStatus.NotStarted,
             criticalPathDuration: taskStep.duration,
             worstCaseDuration: taskStep.duration,
+            archived: false,
           }
           unscheduledTasks.push(taskItem)
         } else {

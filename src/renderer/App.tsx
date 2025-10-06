@@ -282,6 +282,7 @@ function App() {
           worstCaseDuration: (workflow.totalDuration || 0) * 1.5, // Estimate
           overallStatus: TaskStatus.NotStarted,
           steps: completeSteps,
+          archived: false,
         }
 
         // Use addOrUpdateSequencedTask which handles the logic
@@ -305,6 +306,7 @@ function App() {
           overallStatus: TaskStatus.NotStarted,
           criticalPathDuration: task.estimatedDuration,
           worstCaseDuration: task.estimatedDuration,
+          archived: false,
         })
       }
 

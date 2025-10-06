@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Tag, Button, Alert, Statistic, Grid, Progress, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
-import { IconClockCircle, IconCalendar, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory, IconBook } from '@arco-design/web-react/icon'
+import { IconClockCircle, IconCalendar, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory, IconBook, IconArchive, IconUndo } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { TaskType, StepStatus } from '@shared/enums'
 import { TaskStepItem } from './TaskStepItem'
@@ -130,6 +130,24 @@ export function SequencedTaskView({
     }
   }
 
+  const handleToggleArchive = async () => {
+    try {
+      const db = getDatabase()
+      if (task.archived) {
+        await db.unarchiveTask(task.id)
+        logger.ui.info(`Unarchived workflow: ${task.name}`)
+      } else {
+        await db.archiveTask(task.id)
+        logger.ui.info(`Archived workflow: ${task.name}`)
+      }
+      // Refresh tasks to update UI
+      const { loadTasks } = useTaskStore.getState()
+      await loadTasks()
+    } catch (error) {
+      logger.ui.error('Failed to toggle archive status:', error)
+    }
+  }
+
   if (showEditView) {
     return (
       <UnifiedTaskEdit
@@ -222,6 +240,15 @@ export function SequencedTaskView({
                 onClick={() => setShowEditView(true)}
               >
                 Edit
+              </Button>
+
+              <Button
+                type="text"
+                icon={task.archived ? <IconUndo /> : <IconArchive />}
+                onClick={handleToggleArchive}
+                title={task.archived ? 'Unarchive workflow' : 'Archive workflow'}
+              >
+                {task.archived ? 'Unarchive' : 'Archive'}
               </Button>
 
               {onDelete && (
