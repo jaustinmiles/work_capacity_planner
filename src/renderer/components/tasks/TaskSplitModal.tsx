@@ -69,6 +69,7 @@ export function TaskSplitModal({ task, visible, onClose, onSplit }: TaskSplitMod
         overallStatus: task.overallStatus,
         criticalPathDuration: task.criticalPathDuration,
         worstCaseDuration: task.worstCaseDuration,
+        archived: false,
       }
 
       // Update the original task

@@ -158,6 +158,7 @@ model Task {
   overallStatus        String          @default("not_started")
   criticalPathDuration Int             @default(0)
   worstCaseDuration    Int             @default(0)
+  archived             Boolean         @default(false)
   ScheduledTask        ScheduledTask[]
   Project              Project?        @relation(fields: [projectId], references: [id])
   Session              Session?        @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)

@@ -26,6 +26,8 @@ declare global {
         updateTask: (__id: string, updates: Partial<Task>) => Promise<Task>
         updateSequencedTask: (__id: string, updates: Partial<SequencedTask>) => Promise<SequencedTask>
         deleteTask: (__id: string) => Promise<void>
+        archiveTask: (id: string) => Promise<Task>
+        unarchiveTask: (id: string) => Promise<Task>
         deleteSequencedTask: (id: string) => Promise<void>
         addStepToWorkflow: (__workflowId: string, stepData: any) => Promise<SequencedTask>
         initializeDefaultData: () => Promise<void>
@@ -382,6 +384,14 @@ export class RendererDatabaseService {
 
   async deleteTask(id: string): Promise<void> {
     return await window.electronAPI.db.deleteTask(id)
+  }
+
+  async archiveTask(id: string): Promise<Task> {
+    return await window.electronAPI.db.archiveTask(id)
+  }
+
+  async unarchiveTask(id: string): Promise<Task> {
+    return await window.electronAPI.db.unarchiveTask(id)
   }
 
   // Sequenced task operations

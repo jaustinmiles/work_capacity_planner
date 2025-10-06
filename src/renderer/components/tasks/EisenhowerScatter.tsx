@@ -418,6 +418,7 @@ export function EisenhowerScatter({
                 worstCaseDuration: task.worstCaseDuration,
                 steps: task.steps,
                 isAsyncTrigger: task.isAsyncTrigger,
+                archived: task.archived,
             }
 
             const newTasks = [...prev, taskToAdd]

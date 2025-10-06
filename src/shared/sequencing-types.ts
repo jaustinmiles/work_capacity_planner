@@ -80,6 +80,7 @@ export function createWorkflowTask(params: {
     criticalPathDuration,
     worstCaseDuration,
     steps,
+    archived: false,
   }
 }
 
@@ -119,6 +120,7 @@ export const exampleSequencedTask: SequencedTask = {
   overallStatus: TaskStatus.NotStarted,
   criticalPathDuration: 425,
   worstCaseDuration: 1200,
+  archived: false,
   steps: [
     {
       id: 'step-1',

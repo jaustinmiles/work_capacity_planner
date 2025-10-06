@@ -22,6 +22,7 @@ export function TestWorkflowCreator() {
       sessionId: 'default',  // Add required sessionId
       asyncWaitTime: 0,
       hasSteps: true,
+      archived: false,
       steps: [
         {
           id: 'step-test-1',

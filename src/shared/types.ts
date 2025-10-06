@@ -47,6 +47,7 @@ export interface Task extends TimeLoggable {
   criticalPathDuration: number
   worstCaseDuration: number
   steps?: TaskStep[] // Optional - populated when needed
+  archived: boolean // whether task/workflow is archived
 
   // For async optimization (computed, not stored)
   isAsyncTrigger?: boolean
