@@ -5,7 +5,7 @@ import { TaskItem } from './TaskItem'
 import { TaskGridView } from './TaskGridView'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ScheduleGenerator } from '../schedule/ScheduleGenerator'
 import { TaskQuickEditModal } from './TaskQuickEditModal'
 import { logger } from '@/shared/logger'
@@ -37,13 +37,6 @@ export function TaskList({ onAddTask }: TaskListProps) {
 
   const { logger: newLogger } = useLoggerContext()
   const rendererLogger = newLogger as RendererLogger
-
-  // Load tasks with correct includeArchived setting on mount
-  useEffect(() => {
-    if (showArchived) {
-      loadTasks(true)
-    }
-  }, []) // Only run once on mount
 
   // Handle show archived toggle
   const handleShowArchivedToggle = async (checked: boolean) => {
