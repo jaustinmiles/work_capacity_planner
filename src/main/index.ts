@@ -122,10 +122,10 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
   return await db.deleteSession(id)
 })
 
-ipcMain.handle('db:getTasks', async () => {
-  logger.info('[ipc] Getting tasks from database...')
+ipcMain.handle('db:getTasks', async (_event, includeArchived = false) => {
+  logger.info('[ipc] Getting tasks from database...', { includeArchived })
   try {
-    const tasks = await db.getTasks()
+    const tasks = await db.getTasks(includeArchived)
     logger.info(`[ipc] Found ${tasks.length} tasks`)
     return tasks
   } catch (error) {

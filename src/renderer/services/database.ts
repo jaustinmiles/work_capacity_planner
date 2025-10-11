@@ -19,7 +19,7 @@ declare global {
         getCurrentSession: () => Promise<any>
         updateSchedulingPreferences: (sessionId: string, updates: any) => Promise<any>
         // Task operations
-        getTasks: () => Promise<Task[]>
+        getTasks: (includeArchived?: boolean) => Promise<Task[]>
         getSequencedTasks: () => Promise<SequencedTask[]>
         createTask: (__taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<Task>
         createSequencedTask: (taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<SequencedTask>
@@ -362,10 +362,10 @@ export class RendererDatabaseService {
   }
 
   // Task operations
-  async getTasks(): Promise<Task[]> {
-    logger.ui.debug('RendererDB: Calling getTasks via IPC...')
+  async getTasks(includeArchived = false): Promise<Task[]> {
+    logger.ui.debug('RendererDB: Calling getTasks via IPC...', { includeArchived })
     try {
-      const tasks = await window.electronAPI.db.getTasks()
+      const tasks = await window.electronAPI.db.getTasks(includeArchived)
       logger.ui.debug(`RendererDB: Received ${tasks.length} tasks from IPC`)
       return tasks
     } catch (error) {

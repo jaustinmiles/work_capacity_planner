@@ -39,7 +39,7 @@ interface TaskStore {
   workSessionHistory: UnifiedWorkSession[]
 
   // Data loading actions
-  loadTasks: () => Promise<void>
+  loadTasks: (includeArchived?: boolean) => Promise<void>
   loadSequencedTasks: () => Promise<void>
   loadWorkPatterns: () => Promise<void>
   initializeData: () => Promise<void>
@@ -170,16 +170,17 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     workSessionHistory: [],
 
   // Data loading actions
-  loadTasks: async () => {
+  loadTasks: async (includeArchived = false) => {
     try {
-      rendererLogger.info('[TaskStore] Loading tasks from database')
+      rendererLogger.info('[TaskStore] Loading tasks from database', { includeArchived })
       // Loading tasks from database
       set({ isLoading: true, error: null })
-      const tasks = await getDatabase().getTasks()
+      const tasks = await getDatabase().getTasks(includeArchived)
       // Tasks loaded successfully
       rendererLogger.info('[TaskStore] Tasks loaded successfully', {
         taskCount: tasks.length,
         incompleteCount: tasks.filter(t => !t.completed).length,
+        archivedCount: tasks.filter(t => t.archived).length,
       })
       set({ tasks, isLoading: false })
     } catch (error) {
