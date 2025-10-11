@@ -5,7 +5,7 @@ import { TaskItem } from './TaskItem'
 import { TaskGridView } from './TaskGridView'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ScheduleGenerator } from '../schedule/ScheduleGenerator'
 import { TaskQuickEditModal } from './TaskQuickEditModal'
 import { logger } from '@/shared/logger'
@@ -28,13 +28,27 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20) // Show 20 tasks per page
-  const [showArchived, setShowArchived] = useState(false)
+
+  // Initialize showArchived from localStorage
+  const [showArchived, setShowArchived] = useState(() => {
+    const saved = window.localStorage.getItem('taskList_showArchived')
+    return saved === 'true'
+  })
+
   const { logger: newLogger } = useLoggerContext()
   const rendererLogger = newLogger as RendererLogger
+
+  // Load tasks with correct includeArchived setting on mount
+  useEffect(() => {
+    if (showArchived) {
+      loadTasks(true)
+    }
+  }, []) // Only run once on mount
 
   // Handle show archived toggle
   const handleShowArchivedToggle = async (checked: boolean) => {
     setShowArchived(checked)
+    window.localStorage.setItem('taskList_showArchived', String(checked))
     await loadTasks(checked)
     setCurrentPage(1) // Reset to first page
   }
