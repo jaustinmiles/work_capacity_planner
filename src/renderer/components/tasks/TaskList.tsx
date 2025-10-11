@@ -39,20 +39,16 @@ export function TaskList({ onAddTask }: TaskListProps) {
     setCurrentPage(1) // Reset to first page
   }
 
-  // Apply task type filter - exclude archived unless showArchived is true
-  let filteredTasks = taskTypeFilter === 'all'
+  // Apply task type filter
+  const filteredTasks = taskTypeFilter === 'all'
     ? tasks
     : taskTypeFilter === 'work'
     ? tasks.filter(task => task.type === TaskType.Focused || task.type === TaskType.Admin)
     : tasks.filter(task => task.type === taskTypeFilter)
 
-  // Filter out archived tasks unless showArchived is true
-  if (!showArchived) {
-    filteredTasks = filteredTasks.filter(task => !task.archived)
-  }
-
-  const incompleteTasks = filteredTasks.filter(task => !task.completed)
-  const completedTasks = filteredTasks.filter(task => task.completed)
+  // Separate tasks by status
+  const incompleteTasks = filteredTasks.filter(task => !task.completed && !task.archived)
+  const completedTasks = filteredTasks.filter(task => task.completed && !task.archived)
   const archivedTasks = filteredTasks.filter(task => task.archived)
 
   // Apply pagination
