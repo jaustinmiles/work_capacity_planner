@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { TaskType } from '@shared/enums'
 import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Modal } from '@arco-design/web-react'
-import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping, IconPlayArrow } from '@arco-design/web-react/icon'
+import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping, IconPlayArrow, IconUndo } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
@@ -9,6 +9,7 @@ import { TaskTimeLoggingModal } from './TaskTimeLoggingModal'
 import { WorkSessionsModal } from './WorkSessionsModal'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { getDatabase } from '../../services/database'
+import { Message } from '../common/Message'
 import { SequencedTask } from '@shared/sequencing-types'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -23,10 +24,11 @@ const { Text } = Typography
 
 interface TaskItemProps {
   task: Task
+  showUnarchive?: boolean
 }
 
-export function TaskItem({ task }: TaskItemProps) {
-  const { toggleTaskComplete, deleteTask, selectTask, updateTask } = useTaskStore()
+export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
+  const { toggleTaskComplete, deleteTask, selectTask, updateTask, loadTasks } = useTaskStore()
   const { logger: newLogger } = useLoggerContext()
   const rendererLogger = newLogger as RendererLogger
   const [isEditing, setIsEditing] = useState(false)
@@ -74,6 +76,19 @@ export function TaskItem({ task }: TaskItemProps) {
   const handleCancel = () => {
     setEditedName(task.name)
     setIsEditing(false)
+  }
+
+  const handleUnarchive = async () => {
+    try {
+      await getDatabase().unarchiveTask(task.id)
+      Message.success(`Unarchived: ${task.name}`)
+      logger.ui.info('Task unarchived', { taskId: task.id, taskName: task.name })
+      // Reload tasks with archived included to update the UI
+      await loadTasks(true)
+    } catch (error) {
+      Message.error('Failed to unarchive task')
+      logger.ui.error('Failed to unarchive task:', error)
+    }
   }
 
   const formatDuration = (minutes: number) => {
@@ -340,6 +355,26 @@ export function TaskItem({ task }: TaskItemProps) {
                 />
               </Tooltip>
             </>
+          )}
+
+          {showUnarchive && task.archived && (
+            <Tooltip content="Unarchive task">
+              <Button
+                type="primary"
+                size="small"
+                icon={<IconUndo />}
+                onClick={() => {
+                  rendererLogger.interaction('Unarchive button clicked', {
+                    component: 'TaskItem',
+                    taskId: task.id,
+                    taskName: task.name,
+                  })
+                  handleUnarchive()
+                }}
+              >
+                Unarchive
+              </Button>
+            </Tooltip>
           )}
 
           <Popconfirm

@@ -19,13 +19,15 @@ declare global {
         getCurrentSession: () => Promise<any>
         updateSchedulingPreferences: (sessionId: string, updates: any) => Promise<any>
         // Task operations
-        getTasks: () => Promise<Task[]>
+        getTasks: (includeArchived?: boolean) => Promise<Task[]>
         getSequencedTasks: () => Promise<SequencedTask[]>
         createTask: (__taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<Task>
         createSequencedTask: (taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<SequencedTask>
         updateTask: (__id: string, updates: Partial<Task>) => Promise<Task>
         updateSequencedTask: (__id: string, updates: Partial<SequencedTask>) => Promise<SequencedTask>
         deleteTask: (__id: string) => Promise<void>
+        archiveTask: (id: string) => Promise<Task>
+        unarchiveTask: (id: string) => Promise<Task>
         deleteSequencedTask: (id: string) => Promise<void>
         addStepToWorkflow: (__workflowId: string, stepData: any) => Promise<SequencedTask>
         initializeDefaultData: () => Promise<void>
@@ -360,10 +362,10 @@ export class RendererDatabaseService {
   }
 
   // Task operations
-  async getTasks(): Promise<Task[]> {
-    logger.ui.debug('RendererDB: Calling getTasks via IPC...')
+  async getTasks(includeArchived = false): Promise<Task[]> {
+    logger.ui.debug('RendererDB: Calling getTasks via IPC...', { includeArchived })
     try {
-      const tasks = await window.electronAPI.db.getTasks()
+      const tasks = await window.electronAPI.db.getTasks(includeArchived)
       logger.ui.debug(`RendererDB: Received ${tasks.length} tasks from IPC`)
       return tasks
     } catch (error) {
@@ -382,6 +384,14 @@ export class RendererDatabaseService {
 
   async deleteTask(id: string): Promise<void> {
     return await window.electronAPI.db.deleteTask(id)
+  }
+
+  async archiveTask(id: string): Promise<Task> {
+    return await window.electronAPI.db.archiveTask(id)
+  }
+
+  async unarchiveTask(id: string): Promise<Task> {
+    return await window.electronAPI.db.unarchiveTask(id)
   }
 
   // Sequenced task operations

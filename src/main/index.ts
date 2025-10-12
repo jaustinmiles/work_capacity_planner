@@ -122,10 +122,10 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
   return await db.deleteSession(id)
 })
 
-ipcMain.handle('db:getTasks', async () => {
-  logger.info('[ipc] Getting tasks from database...')
+ipcMain.handle('db:getTasks', async (_event, includeArchived = false) => {
+  logger.info('[ipc] Getting tasks from database...', { includeArchived })
   try {
-    const tasks = await db.getTasks()
+    const tasks = await db.getTasks(includeArchived)
     logger.info(`[ipc] Found ${tasks.length} tasks`)
     return tasks
   } catch (error) {
@@ -159,6 +159,14 @@ ipcMain.handle('db:addStepToWorkflow', async (_event: IpcMainInvokeEvent, workfl
 
 ipcMain.handle('db:deleteTask', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteTask(id)
+})
+
+ipcMain.handle('db:archiveTask', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.archiveTask(id)
+})
+
+ipcMain.handle('db:unarchiveTask', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.unarchiveTask(id)
 })
 
 ipcMain.handle('db:deleteSequencedTask', async (_event: IpcMainInvokeEvent, id: string) => {

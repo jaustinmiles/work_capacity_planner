@@ -5,6 +5,7 @@ import { TaskType, AIProcessingMode } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { logger } from '@/shared/logger'
+import { deleteWorkflow, deleteTask, deleteStep } from '../../utils/brainstorm-utils'
 
 
 const { TextArea } = Input
@@ -830,6 +831,30 @@ Only include terms that are likely industry-specific or technical jargon, not co
     setEditableResult(newResult)
   }
 
+  const handleDeleteWorkflow = (index: number) => {
+    const newResult = deleteWorkflow(editableResult, index)
+    if (newResult) {
+      setEditableResult(newResult)
+      logger.ai.info(`Deleted workflow at index ${index}`)
+    }
+  }
+
+  const handleDeleteTask = (index: number) => {
+    const newResult = deleteTask(editableResult, index)
+    if (newResult) {
+      setEditableResult(newResult)
+      logger.ai.info(`Deleted task at index ${index}`)
+    }
+  }
+
+  const handleDeleteStep = (workflowIndex: number, stepIndex: number) => {
+    const newResult = deleteStep(editableResult, workflowIndex, stepIndex)
+    if (newResult) {
+      setEditableResult(newResult)
+      logger.ai.info(`Deleted step at index ${stepIndex} from workflow at index ${workflowIndex}`)
+    }
+  }
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -1342,6 +1367,20 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               <Tag color="purple" size="small">
                                 {displayWorkflow.steps.length} steps
                               </Tag>
+                              {showClarificationMode && (
+                                <Button
+                                  size="mini"
+                                  type="text"
+                                  status="danger"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteWorkflow(index)
+                                  }}
+                                  title="Delete this workflow"
+                                >
+                                  ✕
+                                </Button>
+                              )}
                             </Space>
                           </Space>
                         }
@@ -1389,6 +1428,20 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                         <Tag size="small" color="red">
                                           +{step.asyncWaitTime}min wait
                                         </Tag>
+                                      )}
+                                      {showClarificationMode && (
+                                        <Button
+                                          size="mini"
+                                          type="text"
+                                          status="danger"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleDeleteStep(index, stepIndex)
+                                          }}
+                                          title="Delete this step"
+                                        >
+                                          ✕
+                                        </Button>
                                       )}
                                     </Space>
                                   </Space>
@@ -1719,6 +1772,20 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               <Tag color={task.type === 'focused' ? 'blue' : 'green'} size="small">
                                 {task.type === 'focused' ? 'Focused' : 'Admin'}
                               </Tag>
+                              {showClarificationMode && (
+                                <Button
+                                  size="mini"
+                                  type="text"
+                                  status="danger"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteTask(index)
+                                  }}
+                                  title="Delete this task"
+                                >
+                                  ✕
+                                </Button>
+                              )}
                             </Space>
                           </Space>
                         }

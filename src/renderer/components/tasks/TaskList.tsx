@@ -1,5 +1,5 @@
-import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select, Radio, Pagination } from '@arco-design/web-react'
-import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter, IconList, IconApps } from '@arco-design/web-react/icon'
+import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select, Radio, Pagination, Switch } from '@arco-design/web-react'
+import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter, IconList, IconApps, IconEye, IconEyeInvisible } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskItem } from './TaskItem'
 import { TaskGridView } from './TaskGridView'
@@ -28,8 +28,23 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20) // Show 20 tasks per page
+
+  // Initialize showArchived from localStorage
+  const [showArchived, setShowArchived] = useState(() => {
+    const saved = window.localStorage.getItem('taskList_showArchived')
+    return saved === 'true'
+  })
+
   const { logger: newLogger } = useLoggerContext()
   const rendererLogger = newLogger as RendererLogger
+
+  // Handle show archived toggle
+  const handleShowArchivedToggle = async (checked: boolean) => {
+    setShowArchived(checked)
+    window.localStorage.setItem('taskList_showArchived', String(checked))
+    await loadTasks(checked)
+    setCurrentPage(1) // Reset to first page
+  }
 
   // Apply task type filter
   const filteredTasks = taskTypeFilter === 'all'
@@ -38,8 +53,10 @@ export function TaskList({ onAddTask }: TaskListProps) {
     ? tasks.filter(task => task.type === TaskType.Focused || task.type === TaskType.Admin)
     : tasks.filter(task => task.type === taskTypeFilter)
 
-  const incompleteTasks = filteredTasks.filter(task => !task.completed)
-  const completedTasks = filteredTasks.filter(task => task.completed)
+  // Separate tasks by status
+  const incompleteTasks = filteredTasks.filter(task => !task.completed && !task.archived)
+  const completedTasks = filteredTasks.filter(task => task.completed && !task.archived)
+  const archivedTasks = filteredTasks.filter(task => task.archived)
 
   // Apply pagination
   const startIndex = (currentPage - 1) * pageSize
@@ -141,6 +158,15 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 Showing {filteredTasks.length} of {tasks.length} tasks
               </Text>
             )}
+            <Space style={{ alignItems: 'center', marginLeft: 16 }}>
+              <Switch
+                checked={showArchived}
+                onChange={handleShowArchivedToggle}
+                checkedIcon={<IconEye />}
+                uncheckedIcon={<IconEyeInvisible />}
+              />
+              <Text>Show Archived</Text>
+            </Space>
           </Space>
           <Radio.Group
             type="button"
@@ -289,6 +315,32 @@ export function TaskList({ onAddTask }: TaskListProps) {
             hideOnSinglePage={false}
           />
         </div>
+      )}
+
+      {/* Archived Tasks */}
+      {showArchived && archivedTasks.length > 0 && (
+        <Card
+          title={
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Title heading={5} style={{ margin: 0, color: '#F7BA1E' }}>
+                Archived Tasks ({archivedTasks.length})
+              </Title>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Click a task to view details or unarchive it
+              </Text>
+            </Space>
+          }
+          style={{ background: '#FFFBF0', borderColor: '#F7BA1E' }}
+        >
+          <List
+            dataSource={archivedTasks}
+            render={(task) => (
+              <List.Item key={task.id}>
+                <TaskItem task={task} showUnarchive={true} />
+              </List.Item>
+            )}
+          />
+        </Card>
       )}
 
       {/* Completed Tasks */}

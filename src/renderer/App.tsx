@@ -147,12 +147,14 @@ function App() {
   useEffect(() => {
     const handleDataRefresh = () => {
       logger.debug('Data refresh event received')
-      initializeData()
+      // Call initializeData directly from store to avoid dependency issues
+      useTaskStore.getState().initializeData()
     }
 
     const handleSessionChanged = () => {
       logger.debug('Session change event received')
-      initializeData()
+      // Call initializeData directly from store to avoid dependency issues
+      useTaskStore.getState().initializeData()
     }
 
     appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
@@ -162,7 +164,7 @@ function App() {
       appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
       appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
     }
-  }, [initializeData])
+  }, [logger]) // Only depend on logger which is stable
 
   // Log view changes
   useEffect(() => {
@@ -282,6 +284,7 @@ function App() {
           worstCaseDuration: (workflow.totalDuration || 0) * 1.5, // Estimate
           overallStatus: TaskStatus.NotStarted,
           steps: completeSteps,
+          archived: false,
         }
 
         // Use addOrUpdateSequencedTask which handles the logic
@@ -305,6 +308,7 @@ function App() {
           overallStatus: TaskStatus.NotStarted,
           criticalPathDuration: task.estimatedDuration,
           worstCaseDuration: task.estimatedDuration,
+          archived: false,
         })
       }
 
