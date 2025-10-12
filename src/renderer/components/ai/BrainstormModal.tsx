@@ -5,6 +5,7 @@ import { TaskType, AIProcessingMode } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { logger } from '@/shared/logger'
+import { deleteWorkflow, deleteTask, deleteStep } from '../../utils/brainstorm-utils'
 
 
 const { TextArea } = Input
@@ -831,41 +832,27 @@ Only include terms that are likely industry-specific or technical jargon, not co
   }
 
   const handleDeleteWorkflow = (index: number) => {
-    if (!editableResult || !editableResult.workflows) return
-
-    const newResult = { ...editableResult }
-    if (newResult.workflows) {
-      newResult.workflows = newResult.workflows.filter((_w, i) => i !== index)
+    const newResult = deleteWorkflow(editableResult, index)
+    if (newResult) {
+      setEditableResult(newResult)
+      logger.ai.info(`Deleted workflow at index ${index}`)
     }
-    setEditableResult(newResult)
-    logger.ai.info(`Deleted workflow at index ${index}`)
   }
 
   const handleDeleteTask = (index: number) => {
-    if (!editableResult || !editableResult.tasks) return
-
-    const newResult = { ...editableResult }
-    if (newResult.tasks) {
-      newResult.tasks = newResult.tasks.filter((_t, i) => i !== index)
+    const newResult = deleteTask(editableResult, index)
+    if (newResult) {
+      setEditableResult(newResult)
+      logger.ai.info(`Deleted task at index ${index}`)
     }
-    setEditableResult(newResult)
-    logger.ai.info(`Deleted task at index ${index}`)
   }
 
   const handleDeleteStep = (workflowIndex: number, stepIndex: number) => {
-    if (!editableResult || !editableResult.workflows) return
-
-    const newResult = { ...editableResult }
-    if (newResult.workflows) {
-      const workflow = newResult.workflows[workflowIndex]
-      if (workflow && workflow.steps) {
-        workflow.steps = workflow.steps.filter((_s, i) => i !== stepIndex)
-        // Recalculate workflow duration
-        workflow.totalDuration = workflow.steps.reduce((sum, step) => sum + step.duration + (step.asyncWaitTime || 0), 0)
-      }
+    const newResult = deleteStep(editableResult, workflowIndex, stepIndex)
+    if (newResult) {
+      setEditableResult(newResult)
+      logger.ai.info(`Deleted step at index ${stepIndex} from workflow at index ${workflowIndex}`)
     }
-    setEditableResult(newResult)
-    logger.ai.info(`Deleted step at index ${stepIndex} from workflow at index ${workflowIndex}`)
   }
 
   const formatDuration = (seconds: number) => {
