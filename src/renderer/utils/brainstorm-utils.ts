@@ -3,6 +3,8 @@
  * Extracted for testability and reusability
  */
 
+import { TaskType } from '@shared/enums'
+
 interface BrainstormResult {
   summary: string
   tasks?: ExtractedTask[]
@@ -16,7 +18,7 @@ interface ExtractedTask {
   estimatedDuration: number
   importance: number
   urgency: number
-  type: string
+  type: TaskType
   needsMoreInfo?: boolean
   clarificationRequest?: string
   userClarification?: string
@@ -27,7 +29,7 @@ interface ExtractedWorkflow {
   description: string
   importance: number
   urgency: number
-  type: string
+  type: TaskType
   steps: any[]
   duration?: number
   totalDuration: number
