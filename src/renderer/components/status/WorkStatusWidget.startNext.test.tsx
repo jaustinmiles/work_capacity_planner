@@ -57,7 +57,7 @@ describe('WorkStatusWidget Start Next Task Button', () => {
     // Act
     render(<WorkStatusWidget />)
 
-    // Assert - This should FAIL since button doesn't exist yet
+    // Assert
     expect(screen.getByText('Start Next Task')).toBeInTheDocument()
   })
 

@@ -214,7 +214,10 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   }
 
   const handleRefreshNextTask = async () => {
-    logger.ui.info('[WorkStatusWidget] Manual refresh requested')
+    logger.ui.info('[WorkStatusWidget] Manual refresh requested - incrementing skip index')
+    // Increment the skip index to show the next task in priority order
+    useTaskStore.getState().incrementNextTaskSkipIndex()
+    // Reload the next task with the new skip index
     await loadNextTask()
   }
 
