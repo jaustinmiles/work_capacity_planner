@@ -610,7 +610,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               }
               style={{ marginBottom: 16 }}>
               <div style={{
-                height: isCompact ? 300 : isMobile ? 350 : 400,
+                height: isCompact ? 500 : isMobile ? 600 : 700,
                 width: '100%',
                 overflow: 'auto', // Allow scrolling within timeline
               }}>
