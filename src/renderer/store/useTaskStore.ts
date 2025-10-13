@@ -95,7 +95,7 @@ interface TaskStore {
     isPaused: boolean
     elapsedMinutes: number
   }
-  getNextScheduledItem: (skipIndex?: number) => Promise<NextScheduledItem | null>
+  getNextScheduledItem: () => Promise<NextScheduledItem | null>
   startNextTask: () => Promise<void>
 }
 
@@ -188,12 +188,10 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
     resetNextTaskSkipIndex: () => {
       const currentIndex = get().nextTaskSkipIndex
-      if (currentIndex !== 0) {
-        rendererLogger.info('[TaskStore] Resetting next task skip index', {
-          previousIndex: currentIndex,
-        })
-        set({ nextTaskSkipIndex: 0 })
-      }
+      rendererLogger.info('[TaskStore] Resetting next task skip index', {
+        previousIndex: currentIndex,
+      })
+      set({ nextTaskSkipIndex: 0 })
     },
 
   // Data loading actions
@@ -577,7 +575,8 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       })
 
       // Reset skip index when task is completed (to show the actual next task)
-      if (!task.completed) { // Task is now completed
+      // Note: task.completed is the OLD value before toggle, so !task.completed means "now completed"
+      if (!task.completed) {
         get().resetNextTaskSkipIndex()
       }
     } catch (error) {
@@ -1297,13 +1296,13 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     }
   },
 
-  getNextScheduledItem: async (skipIndex?: number) => {
+  getNextScheduledItem: async () => {
     try {
-      const effectiveSkipIndex = skipIndex ?? get().nextTaskSkipIndex
-      rendererLogger.info('[TaskStore] Getting next scheduled item...', {
-        skipIndex: effectiveSkipIndex,
-      })
       const state = get()
+      const skipIndex = state.nextTaskSkipIndex
+      rendererLogger.info('[TaskStore] Getting next scheduled item...', {
+        skipIndex,
+      })
 
       // First, check if we have a current schedule
       // If not, generate one (but avoid if already scheduling)
@@ -1336,12 +1335,12 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       })
 
       // Find incomplete scheduled items, then skip to the requested index
-      const incompleteItems: any[] = []
+      const incompleteItems: NextScheduledItem[] = []
 
       for (const scheduledItem of schedule.scheduledItems) {
         // Parse the item ID to determine type and find the actual item
         let isCompleted = false
-        let itemDetails: any = null
+        let itemDetails: NextScheduledItem | null = null
 
         // Check if it's a workflow step
         const isWorkflowStep = sequencedTasks.some(seq =>
@@ -1414,8 +1413,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         return null
       }
 
-      // If skipIndex is beyond available items, wrap around or return last item
-      const targetIndex = Math.min(effectiveSkipIndex, incompleteItems.length - 1)
+      // Cap skipIndex at last item - prevents going beyond available tasks
+      // If user keeps clicking refresh past the end, they'll keep seeing the last task
+      const targetIndex = Math.min(skipIndex, incompleteItems.length - 1)
       const selectedItem = incompleteItems[targetIndex]
 
       // Convert Date to ISO string for proper logging
@@ -1427,7 +1427,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }
       rendererLogger.info('[TaskStore] Found next scheduled item', {
         ...loggableDetails,
-        skipIndex: effectiveSkipIndex,
+        skipIndex,
         targetIndex,
         totalIncompleteItems: incompleteItems.length,
       })

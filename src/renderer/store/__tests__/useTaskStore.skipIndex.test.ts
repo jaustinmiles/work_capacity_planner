@@ -132,8 +132,8 @@ describe('useTaskStore - nextTaskSkipIndex', () => {
     })
   })
 
-  describe('getNextScheduledItem with skipIndex', () => {
-    it('should use the stored skipIndex when no parameter provided', async () => {
+  describe('getNextScheduledItem', () => {
+    it('should use the stored skipIndex from state', async () => {
       // Arrange
       const store = useTaskStore.getState()
 
@@ -183,7 +183,7 @@ describe('useTaskStore - nextTaskSkipIndex', () => {
       expect(secondResult?.id).toBe('task-2')
     })
 
-    it('should use explicit skipIndex parameter when provided', async () => {
+    it('should advance through tasks as skipIndex increments', async () => {
       // Arrange
       const store = useTaskStore.getState()
 
@@ -216,12 +216,19 @@ describe('useTaskStore - nextTaskSkipIndex', () => {
         nextTaskSkipIndex: 0,
       })
 
-      // Act - Explicitly request task at index 2
-      const result = await store.getNextScheduledItem(2)
+      // Act - Get task at index 0
+      const firstResult = await store.getNextScheduledItem()
+      expect(firstResult?.id).toBe('task-1')
 
-      // Assert
-      expect(result).toBeDefined()
-      expect(result?.id).toBe('task-3')
+      // Increment and get task at index 1
+      store.incrementNextTaskSkipIndex()
+      const secondResult = await store.getNextScheduledItem()
+      expect(secondResult?.id).toBe('task-2')
+
+      // Increment and get task at index 2
+      store.incrementNextTaskSkipIndex()
+      const thirdResult = await store.getNextScheduledItem()
+      expect(thirdResult?.id).toBe('task-3')
     })
 
     it('should cap skipIndex at last available item', async () => {
@@ -252,11 +259,11 @@ describe('useTaskStore - nextTaskSkipIndex', () => {
         ] as any,
         sequencedTasks: [],
         isScheduling: false,
-        nextTaskSkipIndex: 0,
+        nextTaskSkipIndex: 10, // Way beyond available items
       })
 
-      // Act - Request index 10 (way beyond available items)
-      const result = await store.getNextScheduledItem(10)
+      // Act - skipIndex is 10 but only 2 items exist
+      const result = await store.getNextScheduledItem()
 
       // Assert - Should return last item (index 1)
       expect(result).toBeDefined()
@@ -297,14 +304,15 @@ describe('useTaskStore - nextTaskSkipIndex', () => {
       })
 
       // Act - Get first incomplete task (should be task-2, not task-1)
-      const firstResult = await store.getNextScheduledItem(0)
+      const firstResult = await store.getNextScheduledItem()
 
       // Assert
       expect(firstResult).toBeDefined()
       expect(firstResult?.id).toBe('task-2')
 
-      // Act - Get second incomplete task
-      const secondResult = await store.getNextScheduledItem(1)
+      // Act - Increment and get second incomplete task
+      store.incrementNextTaskSkipIndex()
+      const secondResult = await store.getNextScheduledItem()
 
       // Assert
       expect(secondResult).toBeDefined()
