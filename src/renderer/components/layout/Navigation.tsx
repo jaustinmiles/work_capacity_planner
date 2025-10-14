@@ -49,10 +49,10 @@ export function Navigation({ activeView, onViewChange }: NavigationProps) {
               key={item.id}
               onClick={() => {
                 // LOGGER_REMOVED: rendererLogger.interaction(`Navigation: Clicked ${item.label}`, {
-                  from: activeView,
-                  to: item.id,
-                  component: 'Navigation',
-                })
+                //   from: activeView,
+                //   to: item.id,
+                //   component: 'Navigation',
+                // })
                 onViewChange(item.id)
               }}
               className={`

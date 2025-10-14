@@ -72,14 +72,14 @@ export function trackedAsync(options: AsyncTrackingOptions = {}) {
         args: args.length > 0 ? args : undefined,
       }, methodTag)
 
-      const startTime = performance.now()
+      const startTime = globalThis.performance.now()
       let warnTimeout: NodeJS.Timeout | undefined
       let errorTimeout: NodeJS.Timeout | undefined
 
       // Set up warning timer
       if (warnAfterMs) {
         warnTimeout = setTimeout(() => {
-          const elapsed = performance.now() - startTime
+          const elapsed = globalThis.performance.now() - startTime
           scopedLogger.warn(`⚠️ ${propertyKey} slow`, {
             method: propertyKey,
             correlationId,
@@ -92,7 +92,7 @@ export function trackedAsync(options: AsyncTrackingOptions = {}) {
       // Set up error timer
       if (errorAfterMs) {
         errorTimeout = setTimeout(() => {
-          const elapsed = performance.now() - startTime
+          const elapsed = globalThis.performance.now() - startTime
           scopedLogger.error(`⏰ ${propertyKey} timeout exceeded`, {
             method: propertyKey,
             correlationId,
@@ -109,7 +109,7 @@ export function trackedAsync(options: AsyncTrackingOptions = {}) {
         clearTimeout(warnTimeout)
         clearTimeout(errorTimeout)
 
-        const duration = performance.now() - startTime
+        const duration = globalThis.performance.now() - startTime
         scopedLogger.info(`✓ ${propertyKey} completed`, {
           method: propertyKey,
           correlationId,
@@ -121,7 +121,7 @@ export function trackedAsync(options: AsyncTrackingOptions = {}) {
         clearTimeout(warnTimeout)
         clearTimeout(errorTimeout)
 
-        const duration = performance.now() - startTime
+        const duration = globalThis.performance.now() - startTime
         scopedLogger.error(`✗ ${propertyKey} failed`, {
           method: propertyKey,
           correlationId,
