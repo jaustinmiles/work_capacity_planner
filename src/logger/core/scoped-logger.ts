@@ -2,7 +2,7 @@
  * Scoped logger implementation - handles logging for a specific scope
  */
 
-import { LogLevel, LogScope, LogContext, LogEntry, IScopedLogger } from '../types'
+import { LogLevel, LogScope, LogEntry, IScopedLogger } from '../types'
 import { ContextExtractor } from '../context-extractor'
 
 export class ScopedLogger implements IScopedLogger {

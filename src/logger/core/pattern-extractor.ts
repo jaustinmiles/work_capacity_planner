@@ -46,10 +46,10 @@ export class PatternExtractor {
 
     // Remove file paths (keep just the filename)
     normalized = normalized.replace(
-      /([\/\\][\w\-\.]+)+\.(tsx?|jsx?|json|css|scss)/g,
+      /([\\/][\w\-.]+)+\.(tsx?|jsx?|json|css|scss)/g,
       (match) => {
-        const parts = match.split(/[\/\\]/)
-        return parts[parts.length - 1] // Keep just filename
+        const parts = match.split(/[\\/]/)
+        return parts[parts.length - 1] || match // Keep just filename
       },
     )
 
