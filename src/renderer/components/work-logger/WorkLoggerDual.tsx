@@ -112,7 +112,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         setWakeTimeHour(session.SchedulingPreferences.wakeTimeHour || 6)
       }
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to load preferences:', error)
+      logger.ui.error('Failed to load preferences', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'prefs-load-error')
     }
   }
 
@@ -174,7 +176,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
       setSessions(formattedSessions)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to load work sessions:', error)
+      logger.ui.error('Failed to load work sessions', {
+        error: error instanceof Error ? error.message : String(error),
+        date: selectedDate,
+      }, 'sessions-load-error')
     } finally {
       setIsLoading(false)
     }
@@ -250,7 +255,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         const db = getDatabase()
         await db.deleteWorkSession(id)
       } catch (error) {
-        // LOGGER_REMOVED: logger.ui.error('Failed to delete session:', error)
+        logger.ui.error('Failed to delete session', {
+          error: error instanceof Error ? error.message : String(error),
+          sessionId: id,
+        }, 'session-delete-error')
         return
       }
     }
@@ -295,11 +303,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       )
 
       if (sessionsWithInvalidTask.length > 0) {
-        // LOGGER_REMOVED: logger.ui.error('Invalid task IDs found:', sessionsWithInvalidTask.map(s => ({
-        //   sessionId: s.id,
-        //   taskId: s.taskId,
-        //   taskName: s.taskName,
-        // })))
+        logger.ui.warn('Invalid task IDs found', {
+          invalidSessions: sessionsWithInvalidTask.map(s => ({
+            sessionId: s.id,
+            taskId: s.taskId,
+            taskName: s.taskName,
+          })),
+        }, 'session-invalid-tasks')
         Notification.error({
           title: 'Validation Error',
           content: 'Some sessions have invalid task references. Please reassign tasks.',
@@ -321,15 +331,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         const endDateTime = new Date(year, month - 1, day, endHour, endMin, 0, 0)
 
         if (session.isNew) {
-          // LOGGER_REMOVED: logger.ui.debug('Creating work session:', {
-          //   taskId: session.taskId,
-          //   stepId: session.stepId,
-          //   taskName: session.taskName,
-          //   stepName: session.stepName,
-          //   type: session.type,
-          //   startTime: startDateTime.toISOString(),
-          //   endTime: endDateTime.toISOString(),
-          // })
+          logger.db.debug('Creating work session', {
+            taskId: session.taskId,
+            stepId: session.stepId,
+            type: session.type,
+            startTime: startDateTime.toISOString(),
+            endTime: endDateTime.toISOString(),
+          }, 'session-create')
 
           await db.createWorkSession({
             taskId: session.taskId,
@@ -360,7 +368,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       // Emit event to update WorkStatusWidget and other components
       appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to save work sessions:', error)
+      logger.db.error('Failed to save work sessions', {
+        error: error instanceof Error ? error.message : String(error),
+        date: selectedDate,
+      }, 'sessions-save-error')
     } finally {
       setIsSaving(false)
     }
@@ -733,16 +744,23 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               placeholder="Select task or workflow step"
               style={{ width: '100%' }}
               onChange={(value) => {
-                // LOGGER_REMOVED: logger.ui.debug('Task assignment selected:', value)
+                logger.ui.debug('Task assignment selected', {
+                  selection: value,
+                }, 'session-assign')
 
                 if (value.startsWith('step:')) {
                   const [, stepId, taskId] = value.split(':')
-                  // LOGGER_REMOVED: logger.ui.debug('Creating session for workflow step:', { stepId, taskId })
+                  logger.ui.debug('Creating session for workflow step', {
+                    stepId,
+                    taskId,
+                  }, 'session-workflow-step')
 
                   // Verify the taskId exists
                   const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
                   if (!taskExists) {
-                    // LOGGER_REMOVED: logger.ui.error('Task not found in database:', taskId)
+                    logger.ui.error('Task not found in database', {
+                      taskId,
+                    }, 'task-not-found')
                     Notification.error({
                       title: 'Invalid Task',
                       content: 'Selected task not found. Please try again.',
@@ -758,12 +776,16 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                   )
                 } else if (value.startsWith('task:')) {
                   const taskId = value.substring(5)
-                  // LOGGER_REMOVED: logger.ui.debug('Creating session for task:', { taskId })
+                  logger.ui.debug('Creating session for task', {
+                    taskId,
+                  }, 'session-task')
 
                   // Verify the taskId exists
                   const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
                   if (!taskExists) {
-                    // LOGGER_REMOVED: logger.ui.error('Task not found in database:', taskId)
+                    logger.ui.error('Task not found in database', {
+                      taskId,
+                    }, 'task-not-found')
                     Notification.error({
                       title: 'Invalid Task',
                       content: 'Selected task not found. Please try again.',
@@ -810,7 +832,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 bedtimeHour,
                 wakeTimeHour,
               })
-              // LOGGER_REMOVED: logger.ui.info('Updated circadian settings', { bedtimeHour, wakeTimeHour })
+              logger.ui.info('Updated circadian settings', {
+                bedtimeHour,
+                wakeTimeHour,
+              }, 'circadian-update')
               Notification.success({
                 title: 'Settings Saved',
                 content: 'Your circadian rhythm settings have been updated.',
@@ -818,7 +843,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             }
             setShowCircadianSettings(false)
           } catch (error) {
-            // LOGGER_REMOVED: logger.ui.error('Failed to save circadian settings:', error)
+            logger.ui.error('Failed to save circadian settings', {
+              error: error instanceof Error ? error.message : String(error),
+            }, 'circadian-save-error')
             Notification.error({
               title: 'Save Failed',
               content: 'Failed to save circadian settings.',

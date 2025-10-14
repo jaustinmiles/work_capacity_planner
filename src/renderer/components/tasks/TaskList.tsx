@@ -8,9 +8,7 @@ import { Message } from '../common/Message'
 import { useState } from 'react'
 import { ScheduleGenerator } from '../schedule/ScheduleGenerator'
 import { TaskQuickEditModal } from './TaskQuickEditModal'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
-// LOGGER_REMOVED: import { useLoggerContext } from '../../../logging/index.renderer'
-// LOGGER_REMOVED: import { RendererLogger } from '../../../logging/renderer/RendererLogger'
+import { logger } from '@/logger'
 import { TaskType } from '@shared/enums'
 
 
@@ -34,9 +32,6 @@ export function TaskList({ onAddTask }: TaskListProps) {
     const saved = window.localStorage.getItem('taskList_showArchived')
     return saved === 'true'
   })
-
-  // LOGGER_REMOVED: const { logger: newLogger } = useLoggerContext()
-  // LOGGER_REMOVED: const rendererLogger = newLogger as RendererLogger
 
   // Handle show archived toggle
   const handleShowArchivedToggle = async (checked: boolean) => {
@@ -65,18 +60,20 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const paginatedCompletedTasks = completedTasks.slice(0, 5) // Always show just 5 completed tasks
 
   const handleDeleteAllTasks = async () => {
-    // LOGGER_REMOVED: rendererLogger.interaction('Delete All Tasks Confirmed', {
-    //   component: 'TaskList',
-    //   taskCount: tasks.length,
-    // })
+    logger.ui.info('Delete all tasks confirmed', {
+      taskCount: tasks.length,
+    }, 'task-delete-all')
     try {
       await getDatabase().deleteAllTasks()
       await loadTasks() // Reload tasks to update UI
       Message.success('All tasks deleted successfully')
-      // LOGGER_REMOVED: newLogger.info('[TaskList] All tasks deleted', { previousCount: tasks.length })
+      logger.ui.info('All tasks deleted', {
+        previousCount: tasks.length,
+      }, 'task-delete-all-success')
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Error deleting all tasks:', error)
-      // LOGGER_REMOVED: newLogger.error('[TaskList] Failed to delete all tasks', error as Error)
+      logger.ui.error('Failed to delete all tasks', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'task-delete-all-error')
       Message.error('Failed to delete all tasks')
     }
   }
@@ -139,10 +136,9 @@ export function TaskList({ onAddTask }: TaskListProps) {
               onChange={(value) => {
                 setTaskTypeFilter(value)
                 setCurrentPage(1) // Reset to first page when changing filter
-                // LOGGER_REMOVED: rendererLogger.interaction('Task Type Filter Changed', {
-                  // component: 'TaskList',
-                  // filterType: value,
-                // })
+                logger.ui.info('Task type filter changed', {
+                  filterType: value,
+                }, 'task-filter-change')
               }}
               style={{ width: 200 }}
               placeholder="Select task type"
@@ -173,10 +169,9 @@ export function TaskList({ onAddTask }: TaskListProps) {
             value={viewMode}
             onChange={(value) => {
               setViewMode(value)
-              // LOGGER_REMOVED: rendererLogger.interaction('View Mode Changed', {
-                // component: 'TaskList',
-                // viewMode: value,
-              // })
+              logger.ui.info('View mode changed', {
+                viewMode: value,
+              }, 'view-mode-change')
             }}
           >
             <Radio value="list">
@@ -201,10 +196,9 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 size="small"
                 icon={<IconEdit />}
                 onClick={() => {
-                  // LOGGER_REMOVED: rendererLogger.interaction('Quick Edit clicked', {
-                    // component: 'TaskList',
-                    // taskCount: incompleteTasks.length,
-                  // })
+                  logger.ui.info('Quick edit opened', {
+                    taskCount: incompleteTasks.length,
+                  }, 'quick-edit-open')
                   setQuickEditVisible(true)
                 }}
               >
@@ -215,10 +209,9 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 size="small"
                 icon={<IconCalendarClock />}
                 onClick={() => {
-                  // LOGGER_REMOVED: rendererLogger.interaction('Generate Schedule clicked', {
-                    // component: 'TaskList',
-                    // incompleteTaskCount: incompleteTasks.length,
-                  // })
+                  logger.ui.info('Generate schedule opened', {
+                    incompleteTaskCount: incompleteTasks.length,
+                  }, 'schedule-generate')
                   setScheduleGeneratorVisible(true)
                 }}
                 disabled={incompleteTasks.length === 0}
@@ -230,10 +223,9 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 size="small"
                 icon={<IconPlus />}
                 onClick={() => {
-                  // LOGGER_REMOVED: rendererLogger.interaction('Add Task clicked', {
-                    // component: 'TaskList',
-                    // currentTaskCount: tasks.length,
-                  // })
+                  logger.ui.info('Add task clicked', {
+                    currentTaskCount: tasks.length,
+                  }, 'task-add')
                   onAddTask()
                 }}
               >
@@ -271,10 +263,9 @@ export function TaskList({ onAddTask }: TaskListProps) {
                   type="primary"
                   icon={<IconPlus />}
                   onClick={() => {
-                    // LOGGER_REMOVED: rendererLogger.interaction('Create First Task clicked', {
-                      // component: 'TaskList',
-                      // isEmpty: true,
-                    // })
+                    logger.ui.info('Create first task clicked', {
+                      isEmpty: true,
+                    }, 'task-create-first')
                     onAddTask()
                   }}
                 >

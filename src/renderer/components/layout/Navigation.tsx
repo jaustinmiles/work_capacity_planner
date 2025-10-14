@@ -1,5 +1,4 @@
-// LOGGER_REMOVED: import { useLoggerContext } from '../../../logging/index.renderer'
-// LOGGER_REMOVED: import { RendererLogger } from '../../../logging/renderer/RendererLogger'
+import { logger } from '@/logger'
 
 interface NavigationProps {
   activeView: 'tasks' | 'matrix' | 'calendar'
@@ -7,9 +6,6 @@ interface NavigationProps {
 }
 
 export function Navigation({ activeView, onViewChange }: NavigationProps) {
-  // LOGGER_REMOVED: const { logger } = useLoggerContext()
-  // LOGGER_REMOVED: const rendererLogger = logger as RendererLogger
-
   const navItems = [
     {
       id: 'tasks' as const,
@@ -48,11 +44,11 @@ export function Navigation({ activeView, onViewChange }: NavigationProps) {
             <button
               key={item.id}
               onClick={() => {
-                // LOGGER_REMOVED: rendererLogger.interaction(`Navigation: Clicked ${item.label}`, {
-                //   from: activeView,
-                //   to: item.id,
-                //   component: 'Navigation',
-                // })
+                logger.ui.info('Navigation clicked', {
+                  from: activeView,
+                  to: item.id,
+                  label: item.label,
+                }, 'nav-change')
                 onViewChange(item.id)
               }}
               className={`
