@@ -23,7 +23,7 @@ interface ScheduledItem {
 }
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 const { Title, Text } = Typography
@@ -58,7 +58,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
         setMeetings(pattern.meetings || [])
       }
     } catch (error) {
-      logger.ui.error('Failed to load work pattern:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to load work pattern:', error)
     }
   }
 

@@ -12,7 +12,7 @@ import { WorkBlockType } from '@shared/constants'
 import { getDatabase } from '../../services/database'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 const { Title, Text } = Typography
@@ -81,7 +81,7 @@ export function WeeklyCalendar() {
 
       setWorkPatterns(patterns)
     } catch (error) {
-      logger.ui.error('Failed to load work patterns:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to load work patterns:', error)
     } finally {
       setLoading(false)
     }

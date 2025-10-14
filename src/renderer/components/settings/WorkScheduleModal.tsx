@@ -8,7 +8,7 @@ import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 interface WorkScheduleModalProps {
@@ -54,7 +54,7 @@ export function WorkScheduleModal({
         personal: typedAccumulated.personal || 0,
       })
     } catch (error) {
-      logger.ui.error('Failed to load work pattern:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to load work pattern:', error)
     } finally {
       setLoading(false)
     }
@@ -99,7 +99,7 @@ export function WorkScheduleModal({
       // Reload pattern to ensure we have the latest data
       await loadPattern()
     } catch (error) {
-      logger.ui.error('Failed to save work pattern:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to save work pattern:', error)
       Message.error('Failed to save work schedule')
     }
   }

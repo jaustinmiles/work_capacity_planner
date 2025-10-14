@@ -12,8 +12,8 @@ import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
-import { logSchedule } from '../../../logging/formatters/schedule-formatter'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logSchedule } from '../../../logging/formatters/schedule-formatter'
 import { calculateBlockCapacity } from '@shared/capacity-calculator'
 
 
@@ -65,7 +65,7 @@ export function ScheduleGenerator({
 
   const generateScheduleOptions = async () => {
     setGenerating(true)
-    logger.ui.info('=== Starting Schedule Generation ===')
+    // LOGGER_REMOVED: logger.ui.info('=== Starting Schedule Generation ===')
 
     try {
       const options: ScheduleOption[] = []
@@ -76,7 +76,7 @@ export function ScheduleGenerator({
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
-      logger.ui.info('Fetching existing meetings and sleep blocks for next 30 days...')
+      // LOGGER_REMOVED: logger.ui.info('Fetching existing meetings and sleep blocks for next 30 days...')
 
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
@@ -84,7 +84,7 @@ export function ScheduleGenerator({
         const dateStr = date.toISOString().split('T')[0]
         const pattern = await db.getWorkPattern(dateStr)
         if (pattern?.meetings) {
-          logger.ui.debug(`Day ${i} (${dateStr}): Found ${pattern.meetings.length} meetings`)
+          // LOGGER_REMOVED: logger.ui.debug(`Day ${i} (${dateStr}): Found ${pattern.meetings.length} meetings`)
           allMeetings.push(...pattern.meetings.map((m: any) => ({
             ...m,
             date: dateStr,
@@ -92,8 +92,8 @@ export function ScheduleGenerator({
         }
       }
 
-      logger.ui.info(`Found ${allMeetings.length} total existing meetings/blocks to preserve:`,
-        allMeetings.map(m => ({ name: m.name, type: m.type, date: m.date })))
+      // LOGGER_REMOVED: logger.ui.info(`Found ${allMeetings.length} total existing meetings/blocks to preserve:`,
+      //   allMeetings.map(m => ({ name: m.name, type: m.type, date: m.date })))
 
       // Create base work patterns for the next 30 days with proper work hours
       const baseWorkPatterns: DailyWorkPattern[] = []
@@ -150,7 +150,7 @@ export function ScheduleGenerator({
 
       // Log the optimal schedule for AI debugging
       logSchedule(
-        logger.ui,
+        // LOGGER_REMOVED: logger.ui,
         'optimal',
         tasks.filter(t => !t.completed),
         sequencedTasks.filter(w => !w.completed),
@@ -245,7 +245,7 @@ export function ScheduleGenerator({
         setSelectedOption(options[0].id)
       }
     } catch (error) {
-      logger.ui.error('Error generating schedules:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error generating schedules:', error)
       Message.error('Failed to generate schedule options')
     } finally {
       setGenerating(false)
@@ -373,7 +373,7 @@ export function ScheduleGenerator({
 
           // Safety check - ensure we have items after sorting
           if (!sortedItems.length || !sortedItems[0]) {
-            logger.ui.error('Unexpected empty sortedItems after sorting', { dateStr, itemsLength: items.length })
+            // LOGGER_REMOVED: logger.ui.error('Unexpected empty sortedItems after sorting', { dateStr, itemsLength: items.length })
             continue
           }
 
@@ -456,7 +456,7 @@ export function ScheduleGenerator({
       onScheduleAccepted()
       onClose()
     } catch (error) {
-      logger.ui.error('Error saving schedule:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error saving schedule:', error)
       Message.error('Failed to save schedule')
     } finally {
       setSaving(false)

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Space, Typography, Select, Divider, Tag, Alert } from '@arco-design/web-react'
 import { DependencyChange } from '@shared/amendment-types'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 const { Text } = Typography
 
@@ -144,13 +144,13 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = (props) => {
     // Handle undefined or null value as empty array
     const newValue = value || []
 
-    logger.ui.debug('DependencyEditor: Forward dependencies changed', {
-      mode: isAmendmentMode ? 'amendment' : 'direct',
-      currentStepName,
-      previousValue: forwardDependencies,
-      newValue,
-      reverseDependencies,
-    })
+    // LOGGER_REMOVED: logger.ui.debug('DependencyEditor: Forward dependencies changed', {
+      // LOGGER_REMOVED: mode: isAmendmentMode ? 'amendment' : 'direct',
+      // LOGGER_REMOVED: currentStepName,
+      // LOGGER_REMOVED: previousValue: forwardDependencies,
+      // LOGGER_REMOVED: newValue,
+      // LOGGER_REMOVED: reverseDependencies,
+    // LOGGER_REMOVED: })
 
     // Only filter for circular dependencies when adding, not when removing
     const filtered = newValue.filter(v => !reverseDependencies.includes(v))
@@ -158,10 +158,10 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = (props) => {
     if (isAmendmentMode) {
       // Update the amendment
       const amendmentProps = props as AmendmentModeProps
-      logger.ui.debug('DependencyEditor: Updating amendment', {
-        stepName: amendmentProps.amendment.stepName,
-        addDependencies: filtered,
-      })
+      // LOGGER_REMOVED: logger.ui.debug('DependencyEditor: Updating amendment', {
+        // LOGGER_REMOVED: stepName: amendmentProps.amendment.stepName,
+        // LOGGER_REMOVED: addDependencies: filtered,
+      // LOGGER_REMOVED: })
       amendmentProps.onChange({
         ...amendmentProps.amendment,
         addDependencies: filtered,
@@ -169,10 +169,10 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = (props) => {
     } else {
       // Update direct dependencies
       const directProps = props as DirectModeProps
-      logger.ui.debug('DependencyEditor: Updating direct dependencies', {
-        currentStepId,
-        newDependencies: newValue,
-      })
+      // LOGGER_REMOVED: logger.ui.debug('DependencyEditor: Updating direct dependencies', {
+        // LOGGER_REMOVED: currentStepId,
+        // LOGGER_REMOVED: newDependencies: newValue,
+      // LOGGER_REMOVED: })
       directProps.onForwardDependenciesChange(newValue)
     }
   }

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, fireEvent, waitFor } from '@testing-library/react'
 import { ScheduleGenerator } from '../ScheduleGenerator'
 import { getDatabase } from '../../../services/database'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 // Mock dependencies
 vi.mock('../../../services/database')
@@ -90,7 +90,7 @@ describe('Schedule Generation Bug Fixes', () => {
       })
 
       // Verify that sleep blocks are being fetched and logged
-      expect(logger.ui.info).toHaveBeenCalledWith(
+      // LOGGER_REMOVED: expect(logger.ui.info).toHaveBeenCalledWith(
         'Fetching existing meetings and sleep blocks for next 30 days...',
       )
 
@@ -131,7 +131,7 @@ describe('Schedule Generation Bug Fixes', () => {
       })
 
       // Verify that existing meetings were found and will be preserved
-      expect(logger.ui.info).toHaveBeenCalledWith(
+      // LOGGER_REMOVED: expect(logger.ui.info).toHaveBeenCalledWith(
         expect.stringContaining('Found'),
         expect.anything(),
       )
@@ -176,7 +176,7 @@ describe('Schedule Generation Bug Fixes', () => {
       )
 
       // If the safety check works, we shouldn't get any errors
-      expect(logger.ui.error).not.toHaveBeenCalledWith(
+      // LOGGER_REMOVED: expect(logger.ui.error).not.toHaveBeenCalledWith(
         expect.stringContaining('Unexpected empty sortedItems'),
       )
     })
@@ -201,7 +201,7 @@ describe('Schedule Generation Bug Fixes', () => {
       fireEvent.click(generateButton)
 
       await waitFor(() => {
-        expect(logger.ui.info).toHaveBeenCalledWith('=== Starting Schedule Generation ===')
+        // LOGGER_REMOVED: expect(logger.ui.info).toHaveBeenCalledWith('=== Starting Schedule Generation ===')
       })
     })
   })

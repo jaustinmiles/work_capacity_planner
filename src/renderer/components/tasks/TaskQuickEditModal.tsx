@@ -30,7 +30,7 @@ import { Task, TaskStep } from '@shared/types'
 import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
-import { useLogger } from '../../../logging/index.renderer'
+// LOGGER_REMOVED: import { useLogger } from '../../../logging/index.renderer'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -84,7 +84,7 @@ export function TaskQuickEditModal({
   includeWorkflowSteps: initialIncludeSteps = true,
 }: TaskQuickEditModalProps) {
   const { tasks, updateTask } = useTaskStore()
-  const logger = useLogger({ component: 'TaskQuickEditModal' })
+  // LOGGER_REMOVED: const logger = useLogger({ component: 'TaskQuickEditModal' })
   const [filter, setFilter] = useState(initialFilter)
   const [includeWorkflowSteps] = useState(initialIncludeSteps)
 
@@ -247,7 +247,7 @@ export function TaskQuickEditModal({
     setUnsavedChanges(true)
 
     const itemName = currentItem.type === 'step' ? currentItem.data.name : currentItem.data.name
-    logger.debug(`Updated ${field} for ${currentItem.type} ${itemName}`, { field, value })
+    // LOGGER_REMOVED: logger.debug(`Updated ${field} for ${currentItem.type} ${itemName}`, { field, value })
   }
 
   const saveCurrentItem = async () => {
@@ -285,9 +285,9 @@ export function TaskQuickEditModal({
 
       const itemName = currentItem.type === 'step' ? currentItem.data.name : currentItem.data.name
       Message.success(`Updated "${itemName}"`)
-      logger.info(`Saved changes for ${currentItem.type} ${itemName}`, currentChanges)
+      // LOGGER_REMOVED: logger.info(`Saved changes for ${currentItem.type} ${itemName}`, currentChanges)
     } catch (error) {
-      logger.error(`Failed to save ${currentItem.type}`, error)
+      // LOGGER_REMOVED: logger.error(`Failed to save ${currentItem.type}`, error)
       Message.error(`Failed to save ${currentItem.type}`)
     }
   }
@@ -303,7 +303,7 @@ export function TaskQuickEditModal({
     }
 
     setIsSaving(true)
-    logger.info(`Saving ${taskChanges.length} tasks and ${stepChanges.length} steps`)
+    // LOGGER_REMOVED: logger.info(`Saving ${taskChanges.length} tasks and ${stepChanges.length} steps`)
 
     try {
       // Save all changes in parallel
@@ -342,9 +342,9 @@ export function TaskQuickEditModal({
       Message.success(`Updated ${totalChanges} items`)
       setChanges({ tasks: {}, steps: {} })
       setUnsavedChanges(false)
-      logger.info('All changes saved successfully')
+      // LOGGER_REMOVED: logger.info('All changes saved successfully')
     } catch (error) {
-      logger.error('Failed to save changes', error)
+      // LOGGER_REMOVED: logger.error('Failed to save changes', error)
       Message.error('Failed to save some changes')
     } finally {
       setIsSaving(false)

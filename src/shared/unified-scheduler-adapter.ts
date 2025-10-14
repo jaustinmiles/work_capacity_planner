@@ -11,7 +11,7 @@ import { TaskStatus } from './enums'
 import { WorkBlockType } from './constants'
 import { DailyWorkPattern } from './work-blocks-types'
 import { calculateBlockCapacity } from './capacity-calculator'
-import { logger } from './logger'
+// LOGGER_REMOVED: import { logger } from './logger'
 import { getCurrentTime } from './time-provider'
 
 // Adapter types for backward compatibility with existing UI components
@@ -224,52 +224,52 @@ export class UnifiedSchedulerAdapter {
     const incompleteWorkflows = sequencedTasks.filter(w => w.overallStatus !== 'completed')
 
     // Log comprehensive data flow
-    logger.info('[UnifiedSchedulerAdapter] 📊 DATA FLOW START:', {
-      input: {
-        totalTasks: tasks.length,
-        incompleteTasks: incompleteTasks.length,
-        totalWorkflows: sequencedTasks.length,
-        incompleteWorkflows: incompleteWorkflows.length,
-        workPatterns: workPatterns.length,
-        totalWorkflowSteps: incompleteWorkflows.reduce((sum, w) => sum + w.steps.length, 0),
-      },
-      options: {
-        startDate: options.startDate,
-        startDateType: typeof options.startDate,
-        respectDeadlines: options.respectDeadlines,
-        allowSplitting: options.allowSplitting,
-      },
-      workPatternDetails: workPatterns.map(p => ({
-        date: p.date,
-        blockCount: p.blocks.length,
-        totalCapacity: p.blocks.reduce((sum, b) => sum + (b.capacity?.totalMinutes || 0), 0),
-      })),
-    })
+    // LOGGER_REMOVED: logger.info('[UnifiedSchedulerAdapter] 📊 DATA FLOW START:', {
+      // input: {
+        // totalTasks: tasks.length,
+        // incompleteTasks: incompleteTasks.length,
+        // totalWorkflows: sequencedTasks.length,
+        // incompleteWorkflows: incompleteWorkflows.length,
+        // workPatterns: workPatterns.length,
+        // totalWorkflowSteps: incompleteWorkflows.reduce((sum, w) => sum + w.steps.length, 0),
+      // },
+      // options: {
+        // startDate: options.startDate,
+        // startDateType: typeof options.startDate,
+        // respectDeadlines: options.respectDeadlines,
+        // allowSplitting: options.allowSplitting,
+      // },
+      // workPatternDetails: workPatterns.map(p => ({
+        // date: p.date,
+        // blockCount: p.blocks.length,
+        // totalCapacity: p.blocks.reduce((sum, b) => sum + (b.capacity?.totalMinutes || 0), 0),
+      // })),
+    // })
 
     // Ensure we have a valid Date for currentTime
     let currentTime: Date
     if (options.startDate instanceof Date) {
       currentTime = options.startDate
-      logger.info('🕒 [ADAPTER] Using Date startDate as currentTime', {
-        currentTime: currentTime.toISOString(),
-        localTime: currentTime.toLocaleString(),
-      })
+      // LOGGER_REMOVED: logger.info('🕒 [ADAPTER] Using Date startDate as currentTime', {
+        // currentTime: currentTime.toISOString(),
+        // localTime: currentTime.toLocaleString(),
+      // })
     } else if (typeof options.startDate === 'string') {
       currentTime = new Date(options.startDate)
       if (isNaN(currentTime.getTime())) {
         throw new Error(`Invalid startDate string: ${options.startDate}`)
       }
-      logger.info('🕒 [ADAPTER] Using string startDate as currentTime', {
-        originalString: options.startDate,
-        currentTime: currentTime.toISOString(),
-        localTime: currentTime.toLocaleString(),
-      })
+      // LOGGER_REMOVED: logger.info('🕒 [ADAPTER] Using string startDate as currentTime', {
+        // originalString: options.startDate,
+        // currentTime: currentTime.toISOString(),
+        // localTime: currentTime.toLocaleString(),
+      // })
     } else {
       currentTime = getCurrentTime() // Default to now if no startDate provided
-      logger.info('🕒 [ADAPTER] No startDate, using getCurrentTime', {
-        currentTime: currentTime.toISOString(),
-        localTime: currentTime.toLocaleString(),
-      })
+      // LOGGER_REMOVED: logger.info('🕒 [ADAPTER] No startDate, using getCurrentTime', {
+        // currentTime: currentTime.toISOString(),
+        // localTime: currentTime.toLocaleString(),
+      // })
     }
 
     // Create config WITH currentTime
@@ -277,12 +277,12 @@ export class UnifiedSchedulerAdapter {
     // CRITICAL FIX: Pass currentTime to the scheduler config
     const configWithCurrentTime = { ...config, currentTime }
 
-    logger.info('[WorkPatternLifeCycle] Scheduler config with currentTime', {
-      currentTime: currentTime.toISOString(),
-      localTime: currentTime.toLocaleTimeString('en-US', { hour12: false }),
-      startDate: config.startDate,
-      hasCurrentTime: !!configWithCurrentTime.currentTime,
-    })
+    // LOGGER_REMOVED: logger.info('[WorkPatternLifeCycle] Scheduler config with currentTime', {
+      // currentTime: currentTime.toISOString(),
+      // localTime: currentTime.toLocaleTimeString('en-US', { hour12: false }),
+      // startDate: config.startDate,
+      // hasCurrentTime: !!configWithCurrentTime.currentTime,
+    // })
 
     const context: ScheduleContext = {
       // For startDate in context, we need the date string for pattern matching
@@ -326,23 +326,23 @@ export class UnifiedSchedulerAdapter {
     const adapterResult = this.adaptUnifiedResult(result)
 
     // Log comprehensive data flow result
-    logger.info('[UnifiedSchedulerAdapter] ✅ DATA FLOW COMPLETE:', {
-      output: {
-        scheduled: adapterResult.scheduledTasks.length,
-        unscheduled: adapterResult.unscheduledTasks.length,
-        conflicts: adapterResult.conflicts.length,
-        totalDuration: adapterResult.totalDuration,
-        hasDebugInfo: !!adapterResult.debugInfo,
-      },
-      efficiency: {
-        schedulingRate: `${Math.round((adapterResult.scheduledTasks.length / Math.max(1, incompleteTasks.length + incompleteWorkflows.length)) * 100)}%`,
-        capacityUsed: `${Math.round((adapterResult.totalDuration / Math.max(1, workPatterns.reduce((sum, p) => sum + p.blocks.reduce((bs, b) => {
-          const [sh, sm] = b.startTime.split(':').map(Number)
-          const [eh, em] = b.endTime.split(':').map(Number)
-          return bs + (eh * 60 + em) - (sh * 60 + sm)
-        }, 0), 0))) * 100)}%`,
-      },
-    })
+    // LOGGER_REMOVED: logger.info('[UnifiedSchedulerAdapter] ✅ DATA FLOW COMPLETE:', {
+      // output: {
+        // scheduled: adapterResult.scheduledTasks.length,
+        // unscheduled: adapterResult.unscheduledTasks.length,
+        // conflicts: adapterResult.conflicts.length,
+        // totalDuration: adapterResult.totalDuration,
+        // hasDebugInfo: !!adapterResult.debugInfo,
+      // },
+      // efficiency: {
+        // schedulingRate: `${Math.round((adapterResult.scheduledTasks.length / Math.max(1, incompleteTasks.length + incompleteWorkflows.length)) * 100)}%`,
+        // capacityUsed: `${Math.round((adapterResult.totalDuration / Math.max(1, workPatterns.reduce((sum, p) => sum + p.blocks.reduce((bs, b) => {
+          // const [sh, sm] = b.startTime.split(':').map(Number)
+          // const [eh, em] = b.endTime.split(':').map(Number)
+          // return bs + (eh * 60 + em) - (sh * 60 + sm)
+        // }, 0), 0))) * 100)}%`,
+      // },
+    // })
 
     return adapterResult
   }
@@ -540,34 +540,34 @@ export class UnifiedSchedulerAdapter {
    * Calculate sensible defaults based on block type and duration
    */
   private fixWorkPatternCapacities(workPatterns: DailyWorkPattern[]): DailyWorkPattern[] {
-    logger.debug('[WorkPatternLifeCycle] fixWorkPatternCapacities - Processing patterns', {
-      patternCount: workPatterns.length,
-      dates: workPatterns.map(p => p.date),
-    })
+    // LOGGER_REMOVED: logger.debug('[WorkPatternLifeCycle] fixWorkPatternCapacities - Processing patterns', {
+      // patternCount: workPatterns.length,
+      // dates: workPatterns.map(p => p.date),
+    // })
 
     return workPatterns.map(pattern => ({
       ...pattern,
       blocks: pattern.blocks.map(block => {
         // Check if block has required time properties
         if (!block.startTime || !block.endTime) {
-          logger.warn('[WorkPatternLifeCycle] Block missing startTime or endTime', {
-            date: pattern.date,
-            blockType: block.type,
-            hasStartTime: !!block.startTime,
-            hasEndTime: !!block.endTime,
-            blockData: block,
-          })
+          // LOGGER_REMOVED: logger.warn('[WorkPatternLifeCycle] Block missing startTime or endTime', {
+            // LOGGER_REMOVED: date: pattern.date,
+            // LOGGER_REMOVED: blockType: block.type,
+            // LOGGER_REMOVED: hasStartTime: !!block.startTime,
+            // LOGGER_REMOVED: hasEndTime: !!block.endTime,
+            // LOGGER_REMOVED: blockData: block,
+          // LOGGER_REMOVED: })
           // Return block as-is, let downstream handle the missing properties
           return block
         }
 
         if (block.capacity) {
-          logger.debug('[WorkPatternLifeCycle] Block already has capacity', {
-            date: pattern.date,
-            blockTime: `${block.startTime}-${block.endTime}`,
-            type: block.type,
-            existingCapacity: block.capacity,
-          })
+          // LOGGER_REMOVED: logger.debug('[WorkPatternLifeCycle] Block already has capacity', {
+            // LOGGER_REMOVED: date: pattern.date,
+            // LOGGER_REMOVED: blockTime: `${block.startTime}-${block.endTime}`,
+            // LOGGER_REMOVED: type: block.type,
+            // LOGGER_REMOVED: existingCapacity: block.capacity,
+          // LOGGER_REMOVED: })
           return block // Already has capacity, keep as is
         }
 

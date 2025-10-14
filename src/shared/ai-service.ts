@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { TaskType } from '../shared/enums'
 import { TaskStep } from './sequencing-types'
-import { logger } from './logger'
+// LOGGER_REMOVED: import { logger } from './logger'
 
 /**
  * Service for AI-powered task creation and workflow generation
@@ -105,7 +105,7 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
 
       return JSON.parse(jsonText)
     } catch (error) {
-      logger.ai.error('Error extracting tasks from brainstorm:', error)
+      // LOGGER_REMOVED: logger.ai.error('Error extracting tasks from brainstorm:', error)
       if (error instanceof SyntaxError) {
         throw new Error(`Failed to parse AI response as JSON: ${error instanceof Error ? error.message : String(error)}`)
       }
@@ -256,7 +256,7 @@ Focus on understanding the async nature described in natural language. Be realis
 
       return JSON.parse(jsonText)
     } catch (error) {
-      logger.ai.error('Error extracting workflows from brainstorm:', error)
+      // LOGGER_REMOVED: logger.ai.error('Error extracting workflows from brainstorm:', error)
       if (error instanceof SyntaxError) {
         throw new Error(`Failed to parse AI response as JSON: ${error instanceof Error ? error.message : String(error)}`)
       }
@@ -296,7 +296,7 @@ Limit to the 15 most important/frequently mentioned terms.`
 
       return content.text.trim()
     } catch (error) {
-      logger.ai.error('Error extracting jargon terms:', error)
+      // LOGGER_REMOVED: logger.ai.error('Error extracting jargon terms:', error)
       // Return empty array on error
       return '[]'
     }
@@ -374,7 +374,7 @@ Make steps actionable and specific. Consider real-world constraints like review 
 
       return JSON.parse(content.text)
     } catch (error) {
-      logger.ai.error('Error generating workflow steps:', error)
+      // LOGGER_REMOVED: logger.ai.error('Error generating workflow steps:', error)
       throw new Error('Failed to generate workflow steps')
     }
   }
@@ -453,7 +453,7 @@ Confidence is 0-100 based on how clear and specific the original task was.
 
       return JSON.parse(content.text)
     } catch (error) {
-      logger.ai.error('Error enhancing task details:', error)
+      // LOGGER_REMOVED: logger.ai.error('Error enhancing task details:', error)
       throw new Error('Failed to enhance task details')
     }
   }
@@ -541,7 +541,7 @@ Make questions specific to their apparent work patterns. Prioritize questions th
 
       return JSON.parse(jsonText)
     } catch (error) {
-      logger.ai.error('Error getting job contextual questions:', error)
+      // LOGGER_REMOVED: logger.ai.error('Error getting job contextual questions:', error)
       throw new Error('Failed to generate job contextual questions')
     }
   }
@@ -661,7 +661,7 @@ Important:
         meetings: schedule.meetings || [],
       }))
     } catch (error) {
-      logger.ai.error('Error extracting multi-day schedule:', error)
+      // LOGGER_REMOVED: logger.ai.error('Error extracting multi-day schedule:', error)
       // Fall back to single day if multi-day extraction fails
       const singleDay = await this.extractScheduleFromVoice(voiceText, startDate)
       return [singleDay]
@@ -797,7 +797,7 @@ Important:
 
       return JSON.parse(jsonText)
     } catch (error) {
-      logger.ai.error('Error extracting schedule from voice:', error)
+      // LOGGER_REMOVED: logger.ai.error('Error extracting schedule from voice:', error)
       throw new Error('Failed to extract schedule from voice description')
     }
   }
@@ -864,7 +864,7 @@ Make questions specific and actionable. Avoid generic questions.
 
       return JSON.parse(content.text)
     } catch (error) {
-      logger.ai.error('Error getting contextual questions:', error)
+      // LOGGER_REMOVED: logger.ai.error('Error getting contextual questions:', error)
       throw new Error('Failed to generate contextual questions')
     }
   }

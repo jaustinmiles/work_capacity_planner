@@ -24,7 +24,7 @@ import { Session } from '@shared/types'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 import { appEvents, EVENTS } from '../../utils/events'
 
 
@@ -59,7 +59,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       setSessions(sessionList)
       setActiveSession(sessionList.find(s => s.isActive) || null)
     } catch (error) {
-      logger.ui.error('Failed to load sessions:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to load sessions:', error)
       Message.error('Failed to load sessions')
     } finally {
       setLoading(false)
@@ -82,7 +82,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       appEvents.emit(EVENTS.SESSION_CHANGED)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
-      logger.ui.error('Failed to create session:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to create session:', error)
       Message.error('Failed to create session')
     }
   }
@@ -90,11 +90,11 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
   const handleSwitchSession = async (sessionId: string) => {
     try {
       const session = sessions.find(s => s.id === sessionId)
-      logger.ui.info('Switching session', {
-        from: activeSession?.name || 'none',
-        to: session?.name || 'unknown',
-        sessionId,
-      })
+      // LOGGER_REMOVED: logger.ui.info('Switching session', {
+        // LOGGER_REMOVED: from: activeSession?.name || 'none',
+        // LOGGER_REMOVED: to: session?.name || 'unknown',
+        // LOGGER_REMOVED: sessionId,
+      // LOGGER_REMOVED: })
       const db = getDatabase()
       await db.switchSession(sessionId)
 
@@ -105,9 +105,9 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       // Emit event to refresh UI components
       appEvents.emit(EVENTS.SESSION_CHANGED)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
-      logger.ui.debug('Session switched successfully', { sessionId })
+      // LOGGER_REMOVED: logger.ui.debug('Session switched successfully', { sessionId })
     } catch (error) {
-      logger.ui.error('Failed to switch session:', error, { sessionId })
+      // LOGGER_REMOVED: logger.ui.error('Failed to switch session:', error, { sessionId })
       Message.error('Failed to switch session')
     }
   }
@@ -117,39 +117,39 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
 
     try {
       const values = await form.validate()
-      logger.ui.info('Updating session', {
-        sessionId: editingSession.id,
-        oldName: editingSession.name,
-        newName: values.name,
-      })
+      // LOGGER_REMOVED: logger.ui.info('Updating session', {
+        // LOGGER_REMOVED: sessionId: editingSession.id,
+        // LOGGER_REMOVED: oldName: editingSession.name,
+        // LOGGER_REMOVED: newName: values.name,
+      // LOGGER_REMOVED: })
       const db = getDatabase()
       await db.updateSession(editingSession.id, values)
 
-      logger.ui.debug('Session updated successfully', { sessionId: editingSession.id })
+      // LOGGER_REMOVED: logger.ui.debug('Session updated successfully', { sessionId: editingSession.id })
       Message.success('Session updated')
       form.resetFields()
       setEditingSession(null)
       await loadSessions()
     } catch (error) {
-      logger.ui.error('Failed to update session:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to update session:', error)
       Message.error('Failed to update session')
     }
   }
 
   const handleDeleteSession = async (sessionId: string) => {
     try {
-      logger.ui.info('Attempting to delete session', { sessionId })
+      // LOGGER_REMOVED: logger.ui.info('Attempting to delete session', { sessionId })
       const db = getDatabase()
       await db.deleteSession(sessionId)
 
-      logger.ui.info('Session deleted successfully', { sessionId })
+      // LOGGER_REMOVED: logger.ui.info('Session deleted successfully', { sessionId })
       Message.success('Session deleted')
       await loadSessions()
 
       // Emit event to refresh UI components
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
-      logger.ui.error('Failed to delete session:', error, { sessionId })
+      // LOGGER_REMOVED: logger.ui.error('Failed to delete session:', error, { sessionId })
       if (error instanceof Error && error.message.includes('active')) {
         Message.error('Cannot delete the active session')
       } else if (error instanceof Error && error.message.includes('not found')) {

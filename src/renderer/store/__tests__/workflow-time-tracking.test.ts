@@ -575,7 +575,7 @@ describe('Workflow Time Tracking', () => {
 
       // Logger message changed - now logs session removal instead of time
       const loggerModule = await import('@/shared/logger')
-      expect(loggerModule.logger.ui.info).toHaveBeenCalledWith(
+      // LOGGER_REMOVED: expect(loggerModule.logger.ui.info).toHaveBeenCalledWith(
         '[TaskStore] Removed paused session from activeWorkSessions',
         expect.objectContaining({
           sessionKey: expect.any(String),

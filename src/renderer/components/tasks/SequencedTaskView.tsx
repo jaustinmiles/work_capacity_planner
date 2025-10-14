@@ -9,7 +9,7 @@ import { WorkflowVisualization } from './WorkflowVisualization'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { WorkflowMinimap } from './WorkflowMinimap'
 import { getDatabase } from '../../services/database'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 import { useTaskStore } from '../../store/useTaskStore'
 
 
@@ -82,7 +82,7 @@ export function SequencedTaskView({
 
         setStepTimeLogs(timeLogs)
       } catch (error) {
-        logger.ui.error('Failed to fetch step time logs:', error)
+        // LOGGER_REMOVED: logger.ui.error('Failed to fetch step time logs:', error)
       }
     }
 
@@ -135,16 +135,16 @@ export function SequencedTaskView({
       const db = getDatabase()
       if (task.archived) {
         await db.unarchiveTask(task.id)
-        logger.ui.info(`Unarchived workflow: ${task.name}`)
+        // LOGGER_REMOVED: logger.ui.info(`Unarchived workflow: ${task.name}`)
       } else {
         await db.archiveTask(task.id)
-        logger.ui.info(`Archived workflow: ${task.name}`)
+        // LOGGER_REMOVED: logger.ui.info(`Archived workflow: ${task.name}`)
       }
       // Refresh tasks to update UI
       const { loadTasks } = useTaskStore.getState()
       await loadTasks()
     } catch (error) {
-      logger.ui.error('Failed to toggle archive status:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to toggle archive status:', error)
     }
   }
 

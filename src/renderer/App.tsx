@@ -25,7 +25,8 @@ import { exampleSequencedTask } from '@shared/sequencing-types'
 import type { TaskStep } from '@shared/types'
 import { getDatabase } from './services/database'
 import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
-import { useLogger, useLoggerContext } from '../logging/index.renderer'
+// LOGGER_REMOVED: import { useLogger, useLoggerContext } from '../logging/index.renderer'
+import { logger } from '@/logger'
 import { appEvents, EVENTS } from './utils/events'
 
 
@@ -46,21 +47,13 @@ interface ExtractedTask {
 }
 
 function App() {
-  const logger = useLogger({ component: 'App' })
-  const loggerContext = useLoggerContext()
-
-  // Expose logger to DevTools for debugging
+  // Initialize app logging
   useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
-      (window as any).__logger = logger;
-      (window as any).__dumpLogs = () => {
-        const entries = loggerContext.dumpBuffer()
-        console.log('📝 Ring Buffer Contents:', entries)
-        return entries
-      }
-      console.info('📝 Logger exposed to DevTools. Use __dumpLogs() to see ring buffer contents.')
-    }
-  }, [logger, loggerContext])
+    logger.system.info('Application initialized', {
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+    }, 'app-init')
+  }, [])
 
   // Session loading is now handled in useTaskStore.initializeData()
   // to prevent flash of default session
@@ -139,20 +132,20 @@ function App() {
 
   // Initialize data when app starts
   useEffect(() => {
-    logger.info('App initialization started - loading data from database')
+    // LOGGER_REMOVED: logger.info('App initialization started - loading data from database')
     initializeData()
   }, []) // Empty dependency array - run once on mount. We omit initializeData to avoid infinite re-renders.
 
   // Listen for data refresh events
   useEffect(() => {
     const handleDataRefresh = () => {
-      logger.debug('Data refresh event received')
+      // LOGGER_REMOVED: logger.debug('Data refresh event received')
       // Call initializeData directly from store to avoid dependency issues
       useTaskStore.getState().initializeData()
     }
 
     const handleSessionChanged = () => {
-      logger.debug('Session change event received')
+      // LOGGER_REMOVED: logger.debug('Session change event received')
       // Call initializeData directly from store to avoid dependency issues
       useTaskStore.getState().initializeData()
     }
@@ -164,11 +157,13 @@ function App() {
       appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
       appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
     }
-  }, [logger]) // Only depend on logger which is stable
+  }, []) // LOGGER_REMOVED: Only depend on logger which is stable
 
   // Log view changes
   useEffect(() => {
-    logger.debug('View changed', { view: activeView })
+    logger.ui.info('View changed', {
+      view: activeView,
+    }, 'view-change')
   }, [activeView])
 
   // Keyboard shortcuts
@@ -177,7 +172,7 @@ function App() {
       // Cmd/Ctrl + Shift + D for DevTools
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
         e.preventDefault()
-        logger.debug('DevTools opened via keyboard shortcut')
+        // LOGGER_REMOVED: logger.debug('DevTools opened via keyboard shortcut')
         setShowDevTools(true)
       }
     }
@@ -197,7 +192,7 @@ function App() {
   }, [activeView, currentWeeklySchedule, isScheduling, generateWeeklySchedule])
 
   const handleTasksExtracted = (tasks: ExtractedTask[]): void => {
-    logger.info('Tasks extracted from brainstorm', { count: tasks.length })
+    // LOGGER_REMOVED: logger.info('Tasks extracted from brainstorm', { count: tasks.length })
     setExtractedTasks(tasks)
     setBrainstormModalVisible(false)
     setTaskCreationFlowVisible(true)
@@ -205,10 +200,10 @@ function App() {
 
   const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]): Promise<void> => {
     try {
-      logger.info('Workflows extracted from brainstorm', {
-        workflowCount: workflows.length,
-        standaloneTaskCount: standaloneTasks.length,
-      })
+      // LOGGER_REMOVED: logger.info('Workflows extracted from brainstorm', {
+        // LOGGER_REMOVED: workflowCount: workflows.length,
+        // LOGGER_REMOVED: standaloneTaskCount: standaloneTasks.length,
+      // LOGGER_REMOVED: })
       // Create workflows
       for (const workflow of workflows) {
         // Combine description and notes
@@ -323,7 +318,7 @@ function App() {
         setActiveView('workflows')
       }
     } catch (error) {
-      logger.error('Error creating workflows', { error })
+      // LOGGER_REMOVED: logger.error('Error creating workflows', { error })
       Message.error('Failed to create workflows and tasks')
     }
   }
@@ -338,7 +333,7 @@ function App() {
       await deleteSequencedTask(taskId)
       Message.success('Workflow deleted successfully')
     } catch (error) {
-      logger.error('Error deleting workflow', { error })
+      // LOGGER_REMOVED: logger.error('Error deleting workflow', { error })
       Message.error('Failed to delete workflow')
     }
   }
@@ -375,9 +370,9 @@ function App() {
       })
 
       Message.success('Workflow started - time tracking active')
-      logger.info(`Started time tracking for step: ${stepToStart.name}`)
+      // LOGGER_REMOVED: logger.info(`Started time tracking for step: ${stepToStart.name}`)
     } catch (error) {
-      logger.error('Failed to start workflow', { error })
+      // LOGGER_REMOVED: logger.error('Failed to start workflow', { error })
       Message.error('Failed to start workflow')
     }
   }
@@ -393,7 +388,7 @@ function App() {
       // Pause time tracking if there's an active step
       if (inProgressStep) {
         await pauseWorkOnStep(inProgressStep.id)
-        logger.info(`Paused time tracking for step: ${inProgressStep.name}`)
+        // LOGGER_REMOVED: logger.info(`Paused time tracking for step: ${inProgressStep.name}`)
       }
 
       // Update the workflow and step statuses
@@ -411,7 +406,7 @@ function App() {
 
       Message.success('Workflow paused - time logged')
     } catch (error) {
-      logger.error('Failed to pause workflow', { error })
+      // LOGGER_REMOVED: logger.error('Failed to pause workflow', { error })
       Message.error('Failed to pause workflow')
     }
   }
@@ -423,7 +418,7 @@ function App() {
       await loadSequencedTasks()
       Message.success('Step updated successfully')
     } catch (error) {
-      logger.error('Failed to update step', { error })
+      // LOGGER_REMOVED: logger.error('Failed to update step', { error })
       Message.error('Failed to update step')
     }
   }
@@ -458,7 +453,7 @@ function App() {
 
       Message.success('Workflow reset to initial state')
     } catch (error) {
-      logger.error('Failed to reset workflow', { error })
+      // LOGGER_REMOVED: logger.error('Failed to reset workflow', { error })
       Message.error('Failed to reset workflow')
     }
   }
@@ -469,7 +464,7 @@ function App() {
       await initializeData() // Reload all data
       Message.success('All workflows deleted successfully')
     } catch (error) {
-      logger.error('Error deleting all workflows', { error })
+      // LOGGER_REMOVED: logger.error('Error deleting all workflows', { error })
       Message.error('Failed to delete all workflows')
     }
   }

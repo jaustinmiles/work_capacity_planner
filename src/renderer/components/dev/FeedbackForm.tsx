@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Form, Input, Button, Radio, Typography, Space, Alert, Checkbox } from '@arco-design/web-react'
 import { IconMessage, IconSave } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 const FormItem = Form.Item
 const TextArea = Input.TextArea
@@ -88,12 +88,12 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
       await saveFeedback(feedback)
 
       Message.success('Feedback saved successfully!')
-      logger.ui.info('Feedback submitted:', feedback)
+      // LOGGER_REMOVED: logger.ui.info('Feedback submitted:', feedback)
 
       form.resetFields()
       onClose?.()
     } catch (error) {
-      logger.ui.error('Failed to submit feedback:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to submit feedback:', error)
       Message.error('Failed to save feedback')
     } finally {
       setLoading(false)
@@ -118,7 +118,7 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
       window.localStorage.setItem('app_feedback', JSON.stringify(existing))
 
       // Also write to context folder if possible
-      logger.ui.info('Feedback saved to localStorage:', feedback)
+      // LOGGER_REMOVED: logger.ui.info('Feedback saved to localStorage:', feedback)
     }
   }
 

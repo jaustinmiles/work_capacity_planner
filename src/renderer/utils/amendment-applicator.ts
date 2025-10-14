@@ -24,7 +24,7 @@ import {
 import { assertNever, StepStatus } from '@shared/enums'
 import { getDatabase } from '../services/database'
 import { Message } from '../components/common/Message'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 import { appEvents, EVENTS } from './events'
 import {
   applyForwardDependencyChanges,
@@ -37,21 +37,21 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
   let successCount = 0
   let errorCount = 0
 
-  logger.ui.debug('[AmendmentApplicator] applyAmendments called', {
-    totalAmendments: amendments.length,
-    amendmentTypes: amendments.map(a => a.type),
-    stepAdditions: amendments.filter(a => a.type === AmendmentType.StepAddition).map(a => {
-      const sa = a as StepAddition
-      return {
-        workflowName: sa.workflowTarget.name,
-        stepName: sa.stepName,
-        afterStep: sa.afterStep,
-        beforeStep: sa.beforeStep,
-        dependencies: sa.dependencies,
-      }
-    }),
-    stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
-  })
+  // LOGGER_REMOVED: logger.ui.debug('[AmendmentApplicator] applyAmendments called', {
+    // totalAmendments: amendments.length,
+    // amendmentTypes: amendments.map(a => a.type),
+    // stepAdditions: amendments.filter(a => a.type === AmendmentType.StepAddition).map(a => {
+      // const sa = a as StepAddition
+      // return {
+        // workflowName: sa.workflowTarget.name,
+        // stepName: sa.stepName,
+        // afterStep: sa.afterStep,
+        // beforeStep: sa.beforeStep,
+        // dependencies: sa.dependencies,
+      // }
+    // }),
+    // stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
+  // })
 
   // Track newly created task IDs to resolve placeholders
   const createdTaskMap = new Map<string, string>() // placeholder -> actual ID
@@ -76,7 +76,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                     status: update.newStatus,
                   })
                   successCount++
-                  logger.ui.debug('Updated workflow step status', { stepName: update.stepName, status: update.newStatus })
+                  // LOGGER_REMOVED: logger.ui.debug('Updated workflow step status', { stepName: update.stepName, status: update.newStatus })
                 } else {
                   Message.warning(`Step "${update.stepName}" not found in workflow`)
                   errorCount++
@@ -129,7 +129,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                     type: step.type as any,
                   })
                   successCount++
-                  logger.ui.info(`Logged ${log.duration} minutes for step "${log.stepName}"`)
+                  // LOGGER_REMOVED: logger.ui.info(`Logged ${log.duration} minutes for step "${log.stepName}"`)
                 } else {
                   Message.warning(`Step "${log.stepName}" not found in workflow`)
                   errorCount++
@@ -178,7 +178,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                     notes: newNotes,
                   })
                   successCount++
-                  logger.ui.info(`Added note to step "${note.stepName}"`)
+                  // LOGGER_REMOVED: logger.ui.info(`Added note to step "${note.stepName}"`)
                 } else {
                   Message.warning(`Step "${note.stepName}" not found in workflow`)
                   errorCount++
@@ -244,7 +244,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                   }
 
                   successCount++
-                  logger.ui.info(`Updated duration for step "${change.stepName}" to ${change.newDuration} minutes`)
+                  // LOGGER_REMOVED: logger.ui.info(`Updated duration for step "${change.stepName}" to ${change.newDuration} minutes`)
                 } else {
                   Message.warning(`Step "${change.stepName}" not found in workflow`)
                   errorCount++
@@ -277,15 +277,15 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           const addition = amendment as StepAddition
           if (addition.workflowTarget.id) {
             try {
-              logger.ui.debug('[AmendmentApplicator] Adding step to workflow:', {
-                workflowId: addition.workflowTarget.id,
-                workflowName: addition.workflowTarget.name,
-                stepName: addition.stepName,
-                duration: addition.duration,
-                afterStep: addition.afterStep,
-                beforeStep: addition.beforeStep,
-                dependencies: addition.dependencies,
-              })
+              // LOGGER_REMOVED: logger.ui.debug('[AmendmentApplicator] Adding step to workflow:', {
+                // LOGGER_REMOVED: workflowId: addition.workflowTarget.id,
+                // LOGGER_REMOVED: workflowName: addition.workflowTarget.name,
+                // LOGGER_REMOVED: stepName: addition.stepName,
+                // LOGGER_REMOVED: duration: addition.duration,
+                // LOGGER_REMOVED: afterStep: addition.afterStep,
+                // LOGGER_REMOVED: beforeStep: addition.beforeStep,
+                // LOGGER_REMOVED: dependencies: addition.dependencies,
+              // LOGGER_REMOVED: })
               const __updatedWorkflow = await db.addStepToWorkflow(addition.workflowTarget.id, {
                 name: addition.stepName,
                 duration: addition.duration,
@@ -295,11 +295,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 dependencies: addition.dependencies,
                 asyncWaitTime: addition.asyncWaitTime || 0,
               })
-              logger.ui.debug('[AmendmentApplicator] Step added successfully')
+              // LOGGER_REMOVED: logger.ui.debug('[AmendmentApplicator] Step added successfully')
               successCount++
               // UI refresh will be triggered by DATA_REFRESH_NEEDED event at end of applyAmendments
             } catch (error) {
-              logger.ui.error('Failed to add step to workflow:', error)
+              // LOGGER_REMOVED: logger.ui.error('Failed to add step to workflow:', error)
               Message.error(`Failed to add step "${addition.stepName}" to workflow`)
               errorCount++
             }
@@ -347,7 +347,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                   })
 
                   successCount++
-                  logger.ui.info(`Removed step "${removal.stepName}" from workflow`)
+                  // LOGGER_REMOVED: logger.ui.info(`Removed step "${removal.stepName}" from workflow`)
                   Message.success(`Removed step "${removal.stepName}"`)
                 } else {
                   Message.warning(`Step "${removal.stepName}" not found in workflow`)
@@ -358,7 +358,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 errorCount++
               }
             } catch (error) {
-              logger.ui.error('Failed to remove step:', error)
+              // LOGGER_REMOVED: logger.ui.error('Failed to remove step:', error)
               Message.error(`Failed to remove step "${removal.stepName}"`)
               errorCount++
             }
@@ -371,13 +371,13 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
         case AmendmentType.DependencyChange: {
           const change = amendment as DependencyChange
-          logger.ui.info('Processing dependency change:', change)
+          // LOGGER_REMOVED: logger.ui.info('Processing dependency change:', change)
 
           if (change.target.id) {
             try {
               if (change.stepName) {
                 // This is a workflow step dependency change
-                logger.ui.info(`Updating dependencies for workflow step: ${change.stepName}`)
+                // LOGGER_REMOVED: logger.ui.info(`Updating dependencies for workflow step: ${change.stepName}`)
 
                 // Get the workflow
                 const workflow = await db.getSequencedTaskById(change.target.id)
@@ -403,7 +403,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                     await db.updateSequencedTask(change.target.id, { steps: workflow.steps })
 
                     successCount++
-                    logger.ui.info(`Successfully updated dependencies for step ${step.name}`)
+                    // LOGGER_REMOVED: logger.ui.info(`Successfully updated dependencies for step ${step.name}`)
                   } else {
                     Message.warning(`Step "${change.stepName}" not found in workflow`)
                     errorCount++
@@ -427,12 +427,12 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                       )
                       const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
                       currentDeps = [...currentDeps, ...toAdd]
-                      logger.ui.info('Adding dependencies to workflow:', toAdd)
+                      // LOGGER_REMOVED: logger.ui.info('Adding dependencies to workflow:', toAdd)
                     }
 
                     if (change.removeDependencies && change.removeDependencies.length > 0) {
                       currentDeps = currentDeps.filter(d => !change.removeDependencies!.includes(d))
-                      logger.ui.info('Removing dependencies from workflow:', change.removeDependencies)
+                      // LOGGER_REMOVED: logger.ui.info('Removing dependencies from workflow:', change.removeDependencies)
                     }
 
                     await db.updateSequencedTask(change.target.id, { dependencies: currentDeps })
@@ -451,12 +451,12 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                       )
                       const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
                       currentDeps = [...currentDeps, ...toAdd]
-                      logger.ui.info('Adding dependencies to task:', toAdd)
+                      // LOGGER_REMOVED: logger.ui.info('Adding dependencies to task:', toAdd)
                     }
 
                     if (change.removeDependencies && change.removeDependencies.length > 0) {
                       currentDeps = currentDeps.filter(d => !change.removeDependencies!.includes(d))
-                      logger.ui.info('Removing dependencies from task:', change.removeDependencies)
+                      // LOGGER_REMOVED: logger.ui.info('Removing dependencies from task:', change.removeDependencies)
                     }
 
                     await db.updateTask(change.target.id, { dependencies: currentDeps })
@@ -465,7 +465,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 }
               }
             } catch (error) {
-              logger.ui.error('Failed to update dependencies:', error)
+              // LOGGER_REMOVED: logger.ui.error('Failed to update dependencies:', error)
               Message.error(`Failed to update dependencies for ${change.target.name}`)
               errorCount++
             }
@@ -478,7 +478,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
         case AmendmentType.TaskCreation: {
           const creation = amendment as TaskCreation
-          logger.ui.info('Creating task from amendment:', creation)
+          // LOGGER_REMOVED: logger.ui.info('Creating task from amendment:', creation)
 
           // Check if this might be a workflow step that was misidentified
           // Look for patterns that suggest this should be a workflow step
@@ -487,7 +487,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                                        (creation.description && creation.description.toLowerCase().includes('workflow'))
 
           if (isLikelyWorkflowStep) {
-            logger.ui.warn('Task creation might be a workflow step - consider using step_addition instead')
+            // LOGGER_REMOVED: logger.ui.warn('Task creation might be a workflow step - consider using step_addition instead')
           }
 
           // Check for duplicate task names to prevent creating duplicates
@@ -499,7 +499,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
           )
 
           if (duplicateTask) {
-            logger.ui.warn(`Task "${creation.name}" already exists - skipping duplicate creation`)
+            // LOGGER_REMOVED: logger.ui.warn(`Task "${creation.name}" already exists - skipping duplicate creation`)
             Message.warning(`Task "${creation.name}" already exists`)
             // Track the existing task ID for dependency resolution
             const placeholderIndex = amendments.findIndex(a =>
@@ -529,7 +529,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
           const newTask = await db.createTask(taskData)
           successCount++
-          logger.ui.info('Task created successfully:', creation.name)
+          // LOGGER_REMOVED: logger.ui.info('Task created successfully:', creation.name)
 
           // Track the created task ID for resolving placeholders
           // Look for task-new-N pattern in amendments
@@ -543,7 +543,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
         case AmendmentType.WorkflowCreation: {
           const creation = amendment as WorkflowCreation
-          logger.ui.info('Creating workflow from amendment:', creation)
+          // LOGGER_REMOVED: logger.ui.info('Creating workflow from amendment:', creation)
 
           // Create the workflow with steps - use notes field since description doesn't exist
           const totalDuration = creation.steps.reduce((sum, step) => sum + step.duration, 0)
@@ -581,7 +581,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
           await db.createSequencedTask(workflowData)
           successCount++
-          logger.ui.info('Workflow created successfully:', creation.name)
+          // LOGGER_REMOVED: logger.ui.info('Workflow created successfully:', creation.name)
           break
         }
 
@@ -594,7 +594,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
               if (change.stepName) {
                 // Changing deadline for a workflow step
-                logger.ui.warn('Step-level deadlines not yet supported in database schema')
+                // LOGGER_REMOVED: logger.ui.warn('Step-level deadlines not yet supported in database schema')
                 Message.warning('Step deadlines are not yet supported')
                 errorCount++
               } else if (change.target.type === EntityType.Workflow) {
@@ -604,7 +604,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                   deadlineType: deadlineType,
                 })
                 successCount++
-                logger.ui.info(`Updated workflow deadline to ${deadline.toISOString()}`)
+                // LOGGER_REMOVED: logger.ui.info(`Updated workflow deadline to ${deadline.toISOString()}`)
                 Message.success(`Deadline updated to ${change.newDeadline.toLocaleString()}`)
               } else {
                 // Update task deadline
@@ -613,11 +613,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                   deadlineType: deadlineType,
                 })
                 successCount++
-                logger.ui.info(`Updated task deadline to ${deadline.toISOString()}`)
+                // LOGGER_REMOVED: logger.ui.info(`Updated task deadline to ${deadline.toISOString()}`)
                 Message.success(`Deadline updated to ${change.newDeadline.toLocaleString()}`)
               }
             } catch (error) {
-              logger.ui.error('Failed to update deadline:', error)
+              // LOGGER_REMOVED: logger.ui.error('Failed to update deadline:', error)
               Message.error(`Failed to update deadline for ${change.target.name}`)
               errorCount++
             }
@@ -664,12 +664,12 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
                     await db.updateSequencedTask(change.target.id, { steps: updatedSteps })
                     successCount++
-                    logger.ui.info('Updated step priority:', {
-                      step: change.stepName,
-                      importance: change.importance,
-                      urgency: change.urgency,
-                      cognitiveComplexity: change.cognitiveComplexity,
-                    })
+                    // LOGGER_REMOVED: logger.ui.info('Updated step priority:', {
+                      // LOGGER_REMOVED: step: change.stepName,
+                      // LOGGER_REMOVED: importance: change.importance,
+                      // LOGGER_REMOVED: urgency: change.urgency,
+                      // LOGGER_REMOVED: cognitiveComplexity: change.cognitiveComplexity,
+                    // LOGGER_REMOVED: })
                     Message.success(`Updated priority for step "${change.stepName}"`)
                   } else {
                     Message.warning(`Step "${change.stepName}" not found`)
@@ -680,17 +680,17 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 // Update workflow priority
                 await db.updateSequencedTask(change.target.id, updates)
                 successCount++
-                logger.ui.info('Updated workflow priority:', updates)
+                // LOGGER_REMOVED: logger.ui.info('Updated workflow priority:', updates)
                 Message.success('Priority updated successfully')
               } else {
                 // Update task priority
                 await db.updateTask(change.target.id, updates)
                 successCount++
-                logger.ui.info('Updated task priority:', updates)
+                // LOGGER_REMOVED: logger.ui.info('Updated task priority:', updates)
                 Message.success('Priority updated successfully')
               }
             } catch (error) {
-              logger.ui.error('Failed to update priority:', error)
+              // LOGGER_REMOVED: logger.ui.error('Failed to update priority:', error)
               Message.error(`Failed to update priority for ${change.target.name}`)
               errorCount++
             }
@@ -723,7 +723,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
                     await db.updateSequencedTask(change.target.id, { steps: updatedSteps })
                     successCount++
-                    logger.ui.info(`Updated step type to ${change.newType}`)
+                    // LOGGER_REMOVED: logger.ui.info(`Updated step type to ${change.newType}`)
                     Message.success(`Step type changed to ${change.newType}`)
                   } else {
                     Message.warning(`Step "${change.stepName}" not found`)
@@ -734,17 +734,17 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 // Update workflow type
                 await db.updateSequencedTask(change.target.id, { type: change.newType })
                 successCount++
-                logger.ui.info(`Updated workflow type to ${change.newType}`)
+                // LOGGER_REMOVED: logger.ui.info(`Updated workflow type to ${change.newType}`)
                 Message.success(`Type changed to ${change.newType}`)
               } else {
                 // Update task type
                 await db.updateTask(change.target.id, { type: change.newType })
                 successCount++
-                logger.ui.info(`Updated task type to ${change.newType}`)
+                // LOGGER_REMOVED: logger.ui.info(`Updated task type to ${change.newType}`)
                 Message.success(`Type changed to ${change.newType}`)
               }
             } catch (error) {
-              logger.ui.error('Failed to update type:', error)
+              // LOGGER_REMOVED: logger.ui.error('Failed to update type:', error)
               Message.error(`Failed to update type for ${change.target.name}`)
               errorCount++
             }
@@ -762,7 +762,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
         }
       }
     } catch (error) {
-      logger.ui.error('Error applying amendment:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error applying amendment:', error)
       errorCount++
     }
   }

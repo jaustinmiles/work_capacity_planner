@@ -21,7 +21,7 @@ import {
   TaskType,
 } from '../../../shared/amendment-types'
 import { useTaskStore } from '../../store/useTaskStore'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 import { DependencyEditor } from '../shared/DependencyEditor'
 import { applyAmendments } from '../../utils/amendment-applicator'
 
@@ -152,7 +152,7 @@ export function VoiceAmendmentModal({
 
     } catch (err) {
       setError('Failed to start recording. Please check your microphone permissions.')
-      logger.ui.error('Error starting recording:', err)
+      // LOGGER_REMOVED: logger.ui.error('Error starting recording:', err)
     }
   }
 
@@ -188,7 +188,7 @@ export function VoiceAmendmentModal({
 
     } catch (err) {
       setError('Failed to process audio. Please try again.')
-      logger.ui.error('Error processing audio:', err)
+      // LOGGER_REMOVED: logger.ui.error('Error processing audio:', err)
     } finally {
       setIsTranscribing(false)
     }
@@ -235,7 +235,7 @@ export function VoiceAmendmentModal({
 
     } catch (err) {
       setError('Failed to parse amendments. Please try rephrasing.')
-      logger.ui.error('Error parsing transcription:', err)
+      // LOGGER_REMOVED: logger.ui.error('Error parsing transcription:', err)
     } finally {
       setIsParsing(false)
     }
@@ -325,7 +325,7 @@ export function VoiceAmendmentModal({
       handleClose()
     } catch (err) {
       setError('Failed to apply amendments')
-      logger.ui.error('Error applying amendments:', err)
+      // LOGGER_REMOVED: logger.ui.error('Error applying amendments:', err)
     }
   }
 
@@ -368,7 +368,7 @@ export function VoiceAmendmentModal({
       await parseTranscription(transcriptionResult.text)
     } catch (err) {
       setError('Failed to process audio file. Please try again.')
-      logger.ui.error('Error processing uploaded audio file:', err)
+      // LOGGER_REMOVED: logger.ui.error('Error processing uploaded audio file:', err)
     } finally {
       setIsProcessingAudioFile(false)
     }
@@ -410,7 +410,7 @@ export function VoiceAmendmentModal({
       case AmendmentType.WorkflowCreation:
         return <IconBranch />
       default:
-        logger.ui.warn('[VoiceAmendmentModal] Unknown amendment type in icon:', type)
+        // LOGGER_REMOVED: logger.ui.warn('[VoiceAmendmentModal] Unknown amendment type in icon:', type)
         return <IconEdit />
     }
   }
@@ -669,7 +669,7 @@ export function VoiceAmendmentModal({
         )
       }
       default:
-        logger.ui.error(`[VoiceAmendmentModal] Unknown amendment type: ${amendment.type}`, undefined, { fullAmendment: amendment })
+        // LOGGER_REMOVED: logger.ui.error(`[VoiceAmendmentModal] Unknown amendment type: ${amendment.type}`, undefined, { fullAmendment: amendment })
         return <Text>Unknown amendment type: {String(amendment.type)}</Text>
     }
   }

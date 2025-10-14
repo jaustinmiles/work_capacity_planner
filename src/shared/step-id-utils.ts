@@ -7,7 +7,7 @@
  * - Log deduplication (composite keys)
  * - General unique IDs (jargon entries, sessions, etc.)
  */
-import { logger } from './logger'
+// LOGGER_REMOVED: import { logger } from './logger'
 
 /**
  * Generate a stable step ID that won't change between updates
@@ -101,7 +101,7 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
           return dep
         }
         // If not, try to find by name
-        logger.scheduler.warn(`Dependency ID "${dep}" not found, attempting to resolve by name`)
+        // LOGGER_REMOVED: logger.scheduler.warn(`Dependency ID "${dep}" not found, attempting to resolve by name`)
       }
 
       // Try exact name match
@@ -138,12 +138,12 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
       // Try partial match as last resort - check if any step name is contained in the dependency
       for (const [stepName, stepId] of Array.from(nameToId.entries())) {
         if (dep.includes(stepName) || stepName.includes(dep)) {
-          logger.scheduler.warn(`Fuzzy matching dependency "${dep}" to step "${stepName}"`)
+          // LOGGER_REMOVED: logger.scheduler.warn(`Fuzzy matching dependency "${dep}" to step "${stepName}"`)
           return stepId
         }
       }
 
-      logger.scheduler.warn(`Could not resolve dependency "${dep}" to an ID`)
+      // LOGGER_REMOVED: logger.scheduler.warn(`Could not resolve dependency "${dep}" to an ID`)
       // Return empty array to prevent blocking - dependencies will be ignored
       return null
     }).filter(id => id !== null) as string[],
@@ -222,7 +222,7 @@ export function fixBrokenDependencies(
     dependsOn: step.dependsOn.filter(depId => {
       const isValid = validIds.has(depId)
       if (!isValid) {
-        logger.scheduler.warn(`Removing invalid dependency "${depId}" from step "${step.name}"`)
+        // LOGGER_REMOVED: logger.scheduler.warn(`Removing invalid dependency "${depId}" from step "${step.name}"`)
       }
       return isValid
     }),

@@ -3,7 +3,7 @@ import { UnifiedSchedulerAdapter, SchedulingOptions, ScheduleResult, ScheduledIt
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 import { getCurrentTime } from '@shared/time-provider'
 
 /**
@@ -19,7 +19,7 @@ export function useUnifiedScheduler(): {
   adapter: UnifiedSchedulerAdapter
 } {
   const adapter = useMemo(() => {
-    logger.ui.info('🔄 Creating UnifiedScheduler adapter instance')
+    // LOGGER_REMOVED: logger.ui.info('🔄 Creating UnifiedScheduler adapter instance')
     return new UnifiedSchedulerAdapter()
   }, [])
 
@@ -32,39 +32,39 @@ export function useUnifiedScheduler(): {
     const startTime = globalThis.performance.now()
 
     // [WorkPatternLifeCycle] START: UnifiedScheduler scheduling tasks
-    logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - START', {
-      tasksCount: tasks.length,
-      sequencedTasksCount: sequencedTasks.length,
-      workPatternsCount: workPatterns.length,
-      patternsWithBlocks: workPatterns.filter(p => p.blocks && p.blocks.length > 0).length,
-      totalCapacityMinutes: workPatterns.reduce((sum, p) => {
-        return sum + (p.blocks || []).reduce((blockSum: number, b: any) => {
-          const capacity = b.capacity || {}
-          return blockSum + (capacity.focus || 0) + (capacity.admin || 0)
-        }, 0)
-      }, 0),
-      options: {
-        startDate: options.startDate instanceof Date ? options.startDate.toISOString() : options.startDate,
-        endDate: options.endDate instanceof Date ? options.endDate.toISOString() : options.endDate,
-        respectDeadlines: options.respectDeadlines,
-        allowSplitting: options.allowSplitting,
-      },
-      timestamp: getCurrentTime().toISOString(),
-      localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
-    })
+    // LOGGER_REMOVED: logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - START', {
+    //   tasksCount: tasks.length,
+    //   sequencedTasksCount: sequencedTasks.length,
+    //   workPatternsCount: workPatterns.length,
+    //   patternsWithBlocks: workPatterns.filter(p => p.blocks && p.blocks.length > 0).length,
+    //   totalCapacityMinutes: workPatterns.reduce((sum, p) => {
+    //     return sum + (p.blocks || []).reduce((blockSum: number, b: any) => {
+    //       const capacity = b.capacity || {}
+    //       return blockSum + (capacity.focus || 0) + (capacity.admin || 0)
+    //     }, 0)
+    //   }, 0),
+    //   options: {
+    //     startDate: options.startDate instanceof Date ? options.startDate.toISOString() : options.startDate,
+    //     endDate: options.endDate instanceof Date ? options.endDate.toISOString() : options.endDate,
+    //     respectDeadlines: options.respectDeadlines,
+    //     allowSplitting: options.allowSplitting,
+    //   },
+    //   timestamp: getCurrentTime().toISOString(),
+    //   localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
+    // })
 
-    logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {
-      tasksCount: tasks.length,
-      sequencedTasksCount: sequencedTasks.length,
-      workPatternsCount: workPatterns.length,
-      options: {
-        startDate: options.startDate,
-        endDate: options.endDate,
-        respectDeadlines: options.respectDeadlines,
-        allowSplitting: options.allowSplitting,
-        debug: true, // Always enable debug for now
-      },
-    })
+    // LOGGER_REMOVED: logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {
+      // LOGGER_REMOVED: tasksCount: tasks.length,
+      // LOGGER_REMOVED: sequencedTasksCount: sequencedTasks.length,
+      // LOGGER_REMOVED: workPatternsCount: workPatterns.length,
+      // LOGGER_REMOVED: options: {
+        // LOGGER_REMOVED: startDate: options.startDate,
+        // LOGGER_REMOVED: endDate: options.endDate,
+        // LOGGER_REMOVED: respectDeadlines: options.respectDeadlines,
+        // LOGGER_REMOVED: allowSplitting: options.allowSplitting,
+        // LOGGER_REMOVED: debug: true, // Always enable debug for now
+      // LOGGER_REMOVED: },
+    // LOGGER_REMOVED: })
 
     try {
       // Pass currentTime explicitly if startDate is a Date
@@ -77,76 +77,76 @@ export function useUnifiedScheduler(): {
       const duration = globalThis.performance.now() - startTime
 
       // [WorkPatternLifeCycle] COMPLETE: UnifiedScheduler finished scheduling
-      logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - COMPLETE', {
-        scheduledCount: result.scheduledTasks.length,
-        unscheduledCount: result.unscheduledTasks.length,
-        conflicts: result.conflicts.length,
-        totalDuration: result.totalDuration,
-        performanceMs: Math.round(duration * 100) / 100,
-        blockUtilization: result.debugInfo?.blockUtilization || [],
-        warnings: result.debugInfo?.warnings || [],
-        timestamp: getCurrentTime().toISOString(),
-      })
+      // LOGGER_REMOVED: logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - COMPLETE', {
+      //   scheduledCount: result.scheduledTasks.length,
+      //   unscheduledCount: result.unscheduledTasks.length,
+      //   conflicts: result.conflicts.length,
+      //   totalDuration: result.totalDuration,
+      //   performanceMs: Math.round(duration * 100) / 100,
+      //   blockUtilization: result.debugInfo?.blockUtilization || [],
+      //   warnings: result.debugInfo?.warnings || [],
+      //   timestamp: getCurrentTime().toISOString(),
+      // })
 
-      logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {
-        scheduledCount: result.scheduledTasks.length,
-        unscheduledCount: result.unscheduledTasks.length,
-        conflicts: result.conflicts.length,
-        totalDuration: result.totalDuration,
-        performanceMs: Math.round(duration * 100) / 100,
-      })
+      // LOGGER_REMOVED: logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {
+      //   scheduledCount: result.scheduledTasks.length,
+      //   unscheduledCount: result.unscheduledTasks.length,
+      //   conflicts: result.conflicts.length,
+      //   totalDuration: result.totalDuration,
+      //   performanceMs: Math.round(duration * 100) / 100,
+      // })
 
       // Log debug info if available (from the result we already have)
       if (result.debugInfo) {
-        logger.ui.debug('🔍 [GANTT] Debug Info', {
-          unscheduledItems: result.debugInfo.unscheduledItems,
-          blockUtilization: result.debugInfo.blockUtilization,
-          warnings: result.debugInfo.warnings,
-          totalScheduled: result.debugInfo.totalScheduled,
-          totalUnscheduled: result.debugInfo.totalUnscheduled,
-          scheduleEfficiency: result.debugInfo.scheduleEfficiency,
-        })
+        // LOGGER_REMOVED: logger.ui.debug('🔍 [GANTT] Debug Info', {
+          // LOGGER_REMOVED: unscheduledItems: result.debugInfo.unscheduledItems,
+          // LOGGER_REMOVED: blockUtilization: result.debugInfo.blockUtilization,
+          // LOGGER_REMOVED: warnings: result.debugInfo.warnings,
+          // LOGGER_REMOVED: totalScheduled: result.debugInfo.totalScheduled,
+          // LOGGER_REMOVED: totalUnscheduled: result.debugInfo.totalUnscheduled,
+          // LOGGER_REMOVED: scheduleEfficiency: result.debugInfo.scheduleEfficiency,
+        // LOGGER_REMOVED: })
       }
 
       // Log unscheduled tasks for debugging
       if (result.unscheduledTasks.length > 0) {
         // [WorkPatternLifeCycle] Log unscheduled tasks
-        logger.ui.debug('[WorkPatternLifeCycle] useUnifiedScheduler - Unscheduled tasks', {
-          count: result.unscheduledTasks.length,
-          tasks: result.unscheduledTasks.map(task => ({
-            id: task.id,
-            name: task.name,
-            duration: task.duration,
-            type: task.type,
-            priority: task.importance * task.urgency,
-          })),
-          timestamp: getCurrentTime().toISOString(),
-        })
+        // LOGGER_REMOVED: logger.ui.debug('[WorkPatternLifeCycle] useUnifiedScheduler - Unscheduled tasks', {
+          // count: result.unscheduledTasks.length,
+          // tasks: result.unscheduledTasks.map(task => ({
+            // id: task.id,
+            // name: task.name,
+            // duration: task.duration,
+            // type: task.type,
+            // priority: task.importance * task.urgency,
+          // })),
+          // timestamp: getCurrentTime().toISOString(),
+        // })
 
         result.unscheduledTasks.forEach(task => {
-          logger.ui.debug('⚠️ [GANTT] Task unscheduled', {
-            taskId: task.id,
-            taskName: task.name,
-            duration: task.duration,
-            taskType: task.type,
-            importance: task.importance,
-            urgency: task.urgency,
-            reason: 'No available capacity or constraints not met',
-          })
+          // LOGGER_REMOVED: logger.ui.debug('⚠️ [GANTT] Task unscheduled', {
+            // LOGGER_REMOVED: taskId: task.id,
+            // LOGGER_REMOVED: taskName: task.name,
+            // LOGGER_REMOVED: duration: task.duration,
+            // LOGGER_REMOVED: taskType: task.type,
+            // LOGGER_REMOVED: importance: task.importance,
+            // LOGGER_REMOVED: urgency: task.urgency,
+            // LOGGER_REMOVED: reason: 'No available capacity or constraints not met',
+          // LOGGER_REMOVED: })
         })
       }
 
       // Log conflicts if any
       if (result.conflicts.length > 0) {
-        logger.ui.warn('🚨 [GANTT] Scheduling conflicts detected', {
-          conflictCount: result.conflicts.length,
-          conflicts: result.conflicts,
-        })
+        // LOGGER_REMOVED: logger.ui.warn('🚨 [GANTT] Scheduling conflicts detected', {
+          // LOGGER_REMOVED: conflictCount: result.conflicts.length,
+          // LOGGER_REMOVED: conflicts: result.conflicts,
+        // LOGGER_REMOVED: })
       }
 
       return result
     } catch (error) {
-      logger.ui.error('❌ [GANTT] UnifiedScheduler failed', error)
+      // LOGGER_REMOVED: logger.ui.error('❌ [GANTT] UnifiedScheduler failed', error)
 
       // Return empty result on error to prevent UI crashes
       return {
@@ -164,43 +164,43 @@ export function useUnifiedScheduler(): {
     options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
   ) => {
-    logger.ui.debug('🎯 [GANTT] Getting next scheduled task')
+    // LOGGER_REMOVED: logger.ui.debug('🎯 [GANTT] Getting next scheduled task')
 
     try {
       const nextTask = adapter.getNextScheduledTask(tasks, workPatterns, options, sequencedTasks)
 
       if (nextTask) {
-        logger.ui.info('📋 [GANTT] Next task identified', {
-          taskId: nextTask.task.id,
-          taskName: nextTask.task.name,
-          startTime: nextTask.startTime.toISOString(),
-          endTime: nextTask.endTime.toISOString(),
-          priority: nextTask.priority,
-        })
+        // LOGGER_REMOVED: logger.ui.info('📋 [GANTT] Next task identified', {
+          // taskId: nextTask.task.id,
+          // taskName: nextTask.task.name,
+          // startTime: nextTask.startTime.toISOString(),
+          // endTime: nextTask.endTime.toISOString(),
+          // priority: nextTask.priority,
+        // })
       } else {
-        logger.ui.debug('🔍 [GANTT] No next task found')
+        // LOGGER_REMOVED: logger.ui.debug('🔍 [GANTT] No next task found')
       }
 
       return nextTask
     } catch (error) {
-      logger.ui.error('❌ [GANTT] Failed to get next scheduled task', error)
+      // LOGGER_REMOVED: logger.ui.error('❌ [GANTT] Failed to get next scheduled task', error)
       return null
     }
   }, [adapter])
 
   const validateDependencies = useCallback((tasks: Task[]) => {
-    logger.ui.debug('🔗 [GANTT] Validating task dependencies', {
-      tasksCount: tasks.length,
-    })
+    // LOGGER_REMOVED: logger.ui.debug('🔗 [GANTT] Validating task dependencies', {
+      // LOGGER_REMOVED: tasksCount: tasks.length,
+    // LOGGER_REMOVED: })
 
     const validation = adapter.validateDependencies(tasks)
 
     if (!validation.isValid) {
-      logger.ui.warn('⚠️ [GANTT] Dependency validation failed', {
-        errors: validation.errors,
-      })
+      // LOGGER_REMOVED: logger.ui.warn('⚠️ [GANTT] Dependency validation failed', {
+        // LOGGER_REMOVED: errors: validation.errors,
+      // LOGGER_REMOVED: })
     } else {
-      logger.ui.debug('✅ [GANTT] Dependencies validated successfully')
+      // LOGGER_REMOVED: logger.ui.debug('✅ [GANTT] Dependencies validated successfully')
     }
 
     return validation
@@ -209,14 +209,14 @@ export function useUnifiedScheduler(): {
   const calculateTaskPriority = useCallback((task: Task) => {
     const priority = adapter.calculateTaskPriority(task)
 
-    logger.ui.debug('📊 [GANTT] Task priority calculated', {
-      taskId: task.id,
-      taskName: task.name,
-      priority: Math.round(priority * 100) / 100,
-      importance: task.importance,
-      urgency: task.urgency,
-      deadline: task.deadline?.toISOString(),
-    })
+    // LOGGER_REMOVED: logger.ui.debug('📊 [GANTT] Task priority calculated', {
+      // taskId: task.id,
+      // taskName: task.name,
+      // priority: Math.round(priority * 100) / 100,
+      // importance: task.importance,
+      // urgency: task.urgency,
+      // deadline: task.deadline?.toISOString(),
+    // })
 
     return priority
   }, [adapter])
@@ -227,18 +227,18 @@ export function useUnifiedScheduler(): {
     options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
   ) => {
-    logger.ui.debug('📈 [GANTT] Calculating scheduling metrics')
+    // LOGGER_REMOVED: logger.ui.debug('📈 [GANTT] Calculating scheduling metrics')
 
     const metrics = adapter.getSchedulingMetrics(tasks, workPatterns, options, sequencedTasks)
 
-    logger.ui.info('📊 [GANTT] Scheduling metrics calculated', {
-      totalTasks: metrics.totalTasks,
-      scheduledTasks: metrics.scheduledTasks,
-      unscheduledTasks: metrics.unscheduledTasks,
-      utilizationRate: Math.round(metrics.utilizationRate * 1000) / 10, // Convert to percentage
-      averagePriority: Math.round(metrics.averagePriority * 100) / 100,
-      totalDurationHours: Math.round(metrics.totalDuration / 60 * 100) / 100,
-    })
+    // LOGGER_REMOVED: logger.ui.info('📊 [GANTT] Scheduling metrics calculated', {
+      // totalTasks: metrics.totalTasks,
+      // scheduledTasks: metrics.scheduledTasks,
+      // unscheduledTasks: metrics.unscheduledTasks,
+      // utilizationRate: Math.round(metrics.utilizationRate * 1000) / 10, // Convert to percentage
+      // averagePriority: Math.round(metrics.averagePriority * 100) / 100,
+      // totalDurationHours: Math.round(metrics.totalDuration / 60 * 100) / 100,
+    // })
 
     return metrics
   }, [adapter])

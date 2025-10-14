@@ -12,7 +12,7 @@ import {
 import { UnifiedSchedulerAdapter, ScheduleResult as AdapterScheduleResult } from './unified-scheduler-adapter'
 import { SchedulingDebugInfo } from './unified-scheduler'
 import { DailyWorkPattern } from './work-blocks-types'
-import { logger } from './logger'
+// LOGGER_REMOVED: import { logger } from './logger'
 import { timeProvider } from './time-provider'
 import dayjs from 'dayjs'
 
@@ -44,7 +44,7 @@ export class SchedulingService {
    */
   private async loadUserWorkPatterns(startDate: Date, days: number = 30): Promise<DailyWorkPattern[]> {
     if (!this.db) {
-      logger.scheduler.warn('No database available, no work patterns to load')
+      // LOGGER_REMOVED: logger.scheduler.warn('No database available, no work patterns to load')
       return []
     }
 
@@ -67,23 +67,23 @@ export class SchedulingService {
               meetings: pattern.meetings || [],
               accumulated: { focus: 0, admin: 0, personal: 0 },
             })
-            logger.scheduler.debug('Loaded user work pattern', { date: dateStr, blocks: pattern.blocks.length })
+            // LOGGER_REMOVED: logger.scheduler.debug('Loaded user work pattern', { date: dateStr, blocks: pattern.blocks.length })
           }
           // No pattern for this date - skip it
         } catch (patternError) {
-          logger.scheduler.warn('Failed to load pattern for date, skipping', { date: dateStr, error: patternError })
+          // LOGGER_REMOVED: logger.scheduler.warn('Failed to load pattern for date, skipping', { date: dateStr, error: patternError })
           // Skip this date if pattern load fails
         }
       }
 
-      logger.scheduler.info('Loaded user work patterns from database', {
-        totalPatterns: patterns.length,
-        dateRange: `${patterns[0]?.date || 'none'} to ${patterns[patterns.length - 1]?.date || 'none'}`,
-      })
+      // LOGGER_REMOVED: logger.scheduler.info('Loaded user work patterns from database', {
+        // LOGGER_REMOVED: totalPatterns: patterns.length,
+        // LOGGER_REMOVED: dateRange: `${patterns[0]?.date || 'none'} to ${patterns[patterns.length - 1]?.date || 'none'}`,
+      // LOGGER_REMOVED: })
 
       return patterns
     } catch (error) {
-      logger.scheduler.error('Failed to load user work patterns', error)
+      // LOGGER_REMOVED: logger.scheduler.error('Failed to load user work patterns', error)
       return []
     }
   }
@@ -116,11 +116,11 @@ export class SchedulingService {
 
         // If we're currently within this block, use current time
         if (currentTime >= blockStart && currentTime < blockEnd) {
-          logger.scheduler.debug('Current time is within work block', {
-            currentTime: now.toISOString(),
-            block: `${block.startTime}-${block.endTime}`,
-            blockType: block.type,
-          })
+          // LOGGER_REMOVED: logger.scheduler.debug('Current time is within work block', {
+            // currentTime: now.toISOString(),
+            // block: `${block.startTime}-${block.endTime}`,
+            // blockType: block.type,
+          // })
           return now
         }
       }
@@ -129,10 +129,10 @@ export class SchedulingService {
     // Current time is outside work hours, find next available work block
     const nextWorkTime = this.findNextWorkBlockStart(now, workPatterns)
 
-    logger.scheduler.info('Current time outside work hours, using next work block', {
-      currentTime: now.toISOString(),
-      nextWorkTime: nextWorkTime.toISOString(),
-    })
+    // LOGGER_REMOVED: logger.scheduler.info('Current time outside work hours, using next work block', {
+      // currentTime: now.toISOString(),
+      // nextWorkTime: nextWorkTime.toISOString(),
+    // })
 
     return nextWorkTime
   }
@@ -180,7 +180,7 @@ export class SchedulingService {
     }
 
     // No work blocks found - return current time as fallback
-    logger.scheduler.warn('No work blocks found in next 7 days, returning current time')
+    // LOGGER_REMOVED: logger.scheduler.warn('No work blocks found in next 7 days, returning current time')
     return currentDate
   }
 
@@ -381,27 +381,27 @@ export class SchedulingService {
   ): Promise<SchedulingResult> {
     const startDate = options.startDate || this.timeProvider.now()
 
-    logger.scheduler.info('🔄 [SchedulingService] Creating schedule with UnifiedScheduler', {
-      taskCount: tasks.length,
-      workflowCount: sequencedTasks.length,
-      startDate: startDate.toISOString(),
-      debug: options.debug || false,
-    })
+    // LOGGER_REMOVED: logger.scheduler.info('🔄 [SchedulingService] Creating schedule with UnifiedScheduler', {
+      // taskCount: tasks.length,
+      // workflowCount: sequencedTasks.length,
+      // startDate: startDate.toISOString(),
+      // debug: options.debug || false,
+    // })
 
     // Load work patterns if not provided
     let workPatterns = options.workPatterns
     if (!workPatterns || workPatterns.length === 0) {
-      logger.scheduler.info('🏗️ [SchedulingService] Loading user work patterns from database')
+      // LOGGER_REMOVED: logger.scheduler.info('🏗️ [SchedulingService] Loading user work patterns from database')
       workPatterns = await this.loadUserWorkPatterns(startDate, 30)
     }
 
-    logger.scheduler.info('📅 [SchedulingService] Work patterns loaded', {
-      patternsCount: workPatterns.length,
-      dateRange: {
-        start: workPatterns[0]?.date || 'none',
-        end: workPatterns[workPatterns.length - 1]?.date || 'none',
-      },
-    })
+    // LOGGER_REMOVED: logger.scheduler.info('📅 [SchedulingService] Work patterns loaded', {
+      // LOGGER_REMOVED: patternsCount: workPatterns.length,
+      // LOGGER_REMOVED: dateRange: {
+        // LOGGER_REMOVED: start: workPatterns[0]?.date || 'none',
+        // LOGGER_REMOVED: end: workPatterns[workPatterns.length - 1]?.date || 'none',
+      // LOGGER_REMOVED: },
+    // LOGGER_REMOVED: })
 
     // Use UnifiedSchedulerAdapter for scheduling
     const legacyOptions = {
@@ -419,12 +419,12 @@ export class SchedulingService {
       sequencedTasks,
     )
 
-    logger.scheduler.info('✅ [SchedulingService] UnifiedScheduler completed', {
-      scheduledCount: result.scheduledTasks.length,
-      unscheduledCount: result.unscheduledTasks.length,
-      totalDuration: result.totalDuration,
-      conflicts: result.conflicts.length,
-    })
+    // LOGGER_REMOVED: logger.scheduler.info('✅ [SchedulingService] UnifiedScheduler completed', {
+      // LOGGER_REMOVED: scheduledCount: result.scheduledTasks.length,
+      // LOGGER_REMOVED: unscheduledCount: result.unscheduledTasks.length,
+      // LOGGER_REMOVED: totalDuration: result.totalDuration,
+      // LOGGER_REMOVED: conflicts: result.conflicts.length,
+    // LOGGER_REMOVED: })
 
     // Convert back to legacy SchedulingResult format
     return this.convertFromSchedulingResult(result, tasks, sequencedTasks)
@@ -627,34 +627,34 @@ export class SchedulingService {
     estimatedDuration: number
     scheduledStartTime?: Date
   } | null> {
-    logger.scheduler.debug('getNextScheduledItem called', {
-      tasksLength: tasks?.length,
-      sequencedTasksLength: sequencedTasks?.length,
-      tasksType: typeof tasks,
-      sequencedTasksType: typeof sequencedTasks,
-    })
+    // LOGGER_REMOVED: logger.scheduler.debug('getNextScheduledItem called', {
+      // LOGGER_REMOVED: tasksLength: tasks?.length,
+      // LOGGER_REMOVED: sequencedTasksLength: sequencedTasks?.length,
+      // LOGGER_REMOVED: tasksType: typeof tasks,
+      // LOGGER_REMOVED: sequencedTasksType: typeof sequencedTasks,
+    // LOGGER_REMOVED: })
 
     try {
-      logger.scheduler.info('Getting next scheduled item', {
-        totalTasks: tasks.length,
-        totalSequenced: sequencedTasks.length,
-      })
+      // LOGGER_REMOVED: logger.scheduler.info('Getting next scheduled item', {
+        // LOGGER_REMOVED: totalTasks: tasks.length,
+        // LOGGER_REMOVED: totalSequenced: sequencedTasks.length,
+      // LOGGER_REMOVED: })
 
       // Filter out completed tasks (Task uses 'completed' boolean)
       const incompleteTasks = tasks.filter(task => !task.completed)
 
-      logger.scheduler.info('Filtered incomplete tasks', {
-        originalTasks: tasks.length,
-        incompleteTasks: incompleteTasks.length,
-      })
+      // LOGGER_REMOVED: logger.scheduler.info('Filtered incomplete tasks', {
+        // LOGGER_REMOVED: originalTasks: tasks.length,
+        // LOGGER_REMOVED: incompleteTasks: incompleteTasks.length,
+      // LOGGER_REMOVED: })
 
       // Debug: Check what steps look like
       if (sequencedTasks.length > 0 && sequencedTasks[0].steps?.length > 0) {
-        logger.scheduler.debug('Sample step data', {
-          firstStep: sequencedTasks[0].steps[0],
-          stepStatus: sequencedTasks[0].steps[0].status,
-          statusType: typeof sequencedTasks[0].steps[0].status,
-        })
+        // LOGGER_REMOVED: logger.scheduler.debug('Sample step data', {
+          // LOGGER_REMOVED: firstStep: sequencedTasks[0].steps[0],
+          // LOGGER_REMOVED: stepStatus: sequencedTasks[0].steps[0].status,
+          // LOGGER_REMOVED: statusType: typeof sequencedTasks[0].steps[0].status,
+        // LOGGER_REMOVED: })
       }
 
       // Filter out completed workflow steps (TaskStep uses StepStatus enum)
@@ -665,45 +665,45 @@ export class SchedulingService {
           ...seq,
           steps: seq.steps.filter(step => {
             // Log what we're seeing
-            logger.scheduler.debug('Step status check', {
-              stepId: step.id,
-              status: step.status,
-              statusType: typeof step.status,
-              isPending: step.status === 'pending',
-              isInProgress: step.status === 'in_progress',
-              isCompleted: step.status === 'completed',
-            })
+            // LOGGER_REMOVED: logger.scheduler.debug('Step status check', {
+              // LOGGER_REMOVED: stepId: step.id,
+              // LOGGER_REMOVED: status: step.status,
+              // LOGGER_REMOVED: statusType: typeof step.status,
+              // LOGGER_REMOVED: isPending: step.status === 'pending',
+              // LOGGER_REMOVED: isInProgress: step.status === 'in_progress',
+              // LOGGER_REMOVED: isCompleted: step.status === 'completed',
+            // LOGGER_REMOVED: })
             // Be more lenient with status checking
             return step.status !== 'completed' && step.status !== 'skipped'
           }),
         }))
         .filter(seq => seq.steps.length > 0)
 
-      logger.scheduler.info('Filtered incomplete workflows', {
-        originalWorkflows: sequencedTasks.length,
-        incompleteWorkflows: incompleteSequenced.length,
-        totalIncompleteSteps: incompleteSequenced.reduce((sum, seq) => sum + seq.steps.length, 0),
-      })
+      // LOGGER_REMOVED: logger.scheduler.info('Filtered incomplete workflows', {
+        // originalWorkflows: sequencedTasks.length,
+        // incompleteWorkflows: incompleteSequenced.length,
+        // totalIncompleteSteps: incompleteSequenced.reduce((sum, seq) => sum + seq.steps.length, 0),
+      // })
 
       // If no incomplete items, return null
       if (incompleteTasks.length === 0 && incompleteSequenced.length === 0) {
-        logger.scheduler.info('No incomplete items found, returning null')
+        // LOGGER_REMOVED: logger.scheduler.info('No incomplete items found, returning null')
         return null
       }
 
       // Load user work patterns and determine next available time
-      logger.scheduler.info('Loading user work patterns for next scheduled item...')
+      // LOGGER_REMOVED: logger.scheduler.info('Loading user work patterns for next scheduled item...')
       const workPatterns = await this.loadUserWorkPatterns(this.timeProvider.now(), 7)
       const nextAvailableTime = await this.getNextAvailableTime(workPatterns)
 
-      logger.scheduler.info('Using next available time for scheduling', {
-        currentTime: this.timeProvider.now().toISOString(),
-        nextAvailableTime: nextAvailableTime.toISOString(),
-        isCurrentTime: nextAvailableTime.getTime() === this.timeProvider.now().getTime(),
-      })
+      // LOGGER_REMOVED: logger.scheduler.info('Using next available time for scheduling', {
+        // currentTime: this.timeProvider.now().toISOString(),
+        // nextAvailableTime: nextAvailableTime.toISOString(),
+        // isCurrentTime: nextAvailableTime.getTime() === this.timeProvider.now().getTime(),
+      // })
 
       // Use the scheduling engine to determine priorities
-      logger.scheduler.info('Creating schedule with UnifiedScheduler...')
+      // LOGGER_REMOVED: logger.scheduler.info('Creating schedule with UnifiedScheduler...')
       const schedulingResult = await this.createSchedule(
         incompleteTasks,
         incompleteSequenced,
@@ -716,15 +716,15 @@ export class SchedulingService {
         },
       )
 
-      logger.scheduler.info('Schedule created', {
-        totalScheduledItems: schedulingResult.scheduledItems.length,
-        firstItemId: schedulingResult.scheduledItems[0]?.id || 'none',
-      })
+      // LOGGER_REMOVED: logger.scheduler.info('Schedule created', {
+        // LOGGER_REMOVED: totalScheduledItems: schedulingResult.scheduledItems.length,
+        // LOGGER_REMOVED: firstItemId: schedulingResult.scheduledItems[0]?.id || 'none',
+      // LOGGER_REMOVED: })
 
       // Get the first scheduled item (highest priority)
       const firstItem = schedulingResult.scheduledItems[0]
       if (!firstItem) {
-        logger.scheduler.info('No items in schedule, returning null')
+        // LOGGER_REMOVED: logger.scheduler.info('No items in schedule, returning null')
         return null
       }
 
@@ -746,12 +746,12 @@ export class SchedulingService {
         taskIdToFind = firstItem.id.slice(5)
       }
 
-      logger.scheduler.debug('ID parsing:', {
-        originalId: firstItem.id,
-        stepIdToFind,
-        taskIdToFind,
-        hasWorkflowStepFormat: firstItem.id.includes('_step_'),
-      })
+      // LOGGER_REMOVED: logger.scheduler.debug('ID parsing:', {
+        // originalId: firstItem.id,
+        // stepIdToFind,
+        // taskIdToFind,
+        // hasWorkflowStepFormat: firstItem.id.includes('_step_'),
+      // })
 
       // Determine if it's a task or workflow step (check both original and cleaned IDs)
       const isWorkflowStep = incompleteSequenced.some(seq =>
@@ -775,7 +775,7 @@ export class SchedulingService {
             estimatedDuration: step.duration, // TaskStep uses 'duration'
             scheduledStartTime: firstItem.scheduledStartTime,
           }
-          logger.scheduler.info('Returning workflow step', result)
+          // LOGGER_REMOVED: logger.scheduler.info('Returning workflow step', result)
           return result
         }
       } else {
@@ -790,15 +790,15 @@ export class SchedulingService {
             estimatedDuration: task.duration, // Task uses 'duration'
             scheduledStartTime: firstItem.scheduledStartTime,
           }
-          logger.scheduler.info('Returning regular task', result)
+          // LOGGER_REMOVED: logger.scheduler.info('Returning regular task', result)
           return result
         }
       }
 
-      logger.scheduler.warn('Could not find matching task or step, returning null')
+      // LOGGER_REMOVED: logger.scheduler.warn('Could not find matching task or step, returning null')
       return null
     } catch (error) {
-      logger.scheduler.error('Failed to get next scheduled item:', error)
+      // LOGGER_REMOVED: logger.scheduler.error('Failed to get next scheduled item:', error)
       return null
     }
   }

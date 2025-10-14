@@ -4,7 +4,7 @@ import { IconQuestionCircle, IconCheckCircle } from '@arco-design/web-react/icon
 import { TaskType, TaskStatus } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 const { TextArea } = Input
@@ -90,7 +90,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
           : t,
       ))
     } catch (error) {
-      logger.ui.error('Error getting contextual questions:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error getting contextual questions:', error)
     } finally {
       setIsProcessing(false)
     }
@@ -114,7 +114,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
           : t,
       ))
     } catch (error) {
-      logger.ui.error('Error enhancing task:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error enhancing task:', error)
     } finally {
       setIsProcessing(false)
     }
@@ -171,7 +171,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
         t.id === task.id ? { ...t, status: 'created' } : t,
       ))
     } catch (error) {
-      logger.ui.error('Error creating task:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error creating task:', error)
     } finally {
       setIsProcessing(false)
     }
@@ -188,7 +188,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
 
       onClose()
     } catch (error) {
-      logger.ui.error('Error creating tasks:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error creating tasks:', error)
     } finally {
       setIsProcessing(false)
     }

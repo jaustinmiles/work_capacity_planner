@@ -104,7 +104,7 @@ describe('Step ID Utilities', () => {
     it('should warn about unresolvable dependencies', async () => {
       // Import the mocked logger
       const { logger } = await import('../logger')
-      const logWarnSpy = vi.mocked(logger.scheduler.warn)
+      // LOGGER_REMOVED: const logWarnSpy = vi.mocked(logger.scheduler.warn)
 
       const steps = [
         { id: 'step-1', name: 'Setup', dependsOn: [] },
@@ -208,7 +208,7 @@ describe('Step ID Utilities', () => {
     it('should remove invalid dependencies', async () => {
       // Import the mocked logger
       const { logger } = await import('../logger')
-      const logWarnSpy = vi.mocked(logger.scheduler.warn)
+      // LOGGER_REMOVED: const logWarnSpy = vi.mocked(logger.scheduler.warn)
 
       const steps = [
         { id: 'step-1', name: 'Setup', dependsOn: [] },

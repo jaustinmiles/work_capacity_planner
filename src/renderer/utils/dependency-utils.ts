@@ -1,6 +1,6 @@
 import { TaskStep } from '@shared/sequencing-types'
 import { DependencyChange } from '@shared/amendment-types'
-import { logger } from '@shared/logger'
+// LOGGER_REMOVED: import { logger } from '@shared/logger'
 
 /**
  * Utility functions for managing task dependencies across the application
@@ -23,10 +23,10 @@ export function applyForwardDependencyChanges(
       )
       if (depStep && !step.dependsOn.includes(depStep.id)) {
         step.dependsOn.push(depStep.id)
-        logger.ui.info('Added forward dependency', {
-          step: step.name,
-          dependsOn: depName,
-        })
+        // LOGGER_REMOVED: logger.ui.info('Added forward dependency', {
+          // LOGGER_REMOVED: step: step.name,
+          // LOGGER_REMOVED: dependsOn: depName,
+        // LOGGER_REMOVED: })
       }
     }
   }
@@ -39,10 +39,10 @@ export function applyForwardDependencyChanges(
       )
       if (depStep) {
         step.dependsOn = step.dependsOn.filter(id => id !== depStep.id)
-        logger.ui.info('Removed forward dependency', {
-          step: step.name,
-          removed: depName,
-        })
+        // LOGGER_REMOVED: logger.ui.info('Removed forward dependency', {
+          // LOGGER_REMOVED: step: step.name,
+          // LOGGER_REMOVED: removed: depName,
+        // LOGGER_REMOVED: })
       }
     }
   }
@@ -64,10 +64,10 @@ export function applyReverseDependencyChanges(
       )
       if (dependentStep && !dependentStep.dependsOn.includes(targetStep.id)) {
         dependentStep.dependsOn.push(targetStep.id)
-        logger.ui.info('Added reverse dependency', {
-          dependent: dependentName,
-          dependsOn: targetStep.name,
-        })
+        // LOGGER_REMOVED: logger.ui.info('Added reverse dependency', {
+          // LOGGER_REMOVED: dependent: dependentName,
+          // LOGGER_REMOVED: dependsOn: targetStep.name,
+        // LOGGER_REMOVED: })
       }
     }
   }
@@ -82,10 +82,10 @@ export function applyReverseDependencyChanges(
         dependentStep.dependsOn = dependentStep.dependsOn.filter(
           id => id !== targetStep.id,
         )
-        logger.ui.info('Removed reverse dependency', {
-          dependent: dependentName,
-          noDependsOn: targetStep.name,
-        })
+        // LOGGER_REMOVED: logger.ui.info('Removed reverse dependency', {
+          // LOGGER_REMOVED: dependent: dependentName,
+          // LOGGER_REMOVED: noDependsOn: targetStep.name,
+        // LOGGER_REMOVED: })
       }
     }
   }

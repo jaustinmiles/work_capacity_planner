@@ -3,12 +3,9 @@ import path from 'node:path'
 import { DatabaseService } from './database'
 import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
-import { getMainLogger } from '../logging/index.main'
+// import { logger } from '@/logger'
 import type { Task } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
-
-// Initialize logger
-const logger = getMainLogger()
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -38,7 +35,7 @@ async function createWindow(): Promise<void> {
   })
 
   // Set main window for logger to forward logs to renderer
-  logger.setMainWindow(mainWindow)
+  // LOGGER_REMOVED: logger.setMainWindow(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
@@ -70,9 +67,9 @@ app.whenReady().then(() => {
 
   // Log database path for debugging
   const dbPath = process.env.DATABASE_URL || 'file:./dev.db'
-  logger.info(`[main] Database path: ${dbPath}`)
-  logger.info(`[main] Working directory: ${process.cwd()}`)
-  logger.info('[main] Main process initialized successfully')
+  // LOGGER_REMOVED: logger.info(`[main] Database path: ${dbPath}`)
+  // LOGGER_REMOVED: logger.info(`[main] Working directory: ${process.cwd()}`)
+  // LOGGER_REMOVED: logger.info('[main] Main process initialized successfully')
 
   createWindow()
 
@@ -93,7 +90,7 @@ app.on('window-all-closed', () => {
 // IPC handlers for database operations
 // Session management handlers
 ipcMain.handle('db:getSessions', async () => {
-  logger.info('[ipc] Getting sessions...')
+  // LOGGER_REMOVED: logger.info('[ipc] Getting sessions...')
   if (!db) db = DatabaseService.getInstance()
   return await db.getSessions()
 })
@@ -123,13 +120,13 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
 })
 
 ipcMain.handle('db:getTasks', async (_event, includeArchived = false) => {
-  logger.info('[ipc] Getting tasks from database...', { includeArchived })
+  // LOGGER_REMOVED: logger.info('[ipc] Getting tasks from database...', { includeArchived })
   try {
     const tasks = await db.getTasks(includeArchived)
-    logger.info(`[ipc] Found ${tasks.length} tasks`)
+    // LOGGER_REMOVED: logger.info(`[ipc] Found ${tasks.length} tasks`)
     return tasks
   } catch (error) {
-    logger.error('[ipc] Error getting tasks', { error })
+    // LOGGER_REMOVED: logger.error('[ipc] Error getting tasks', { error })
     throw error
   }
 })
@@ -394,10 +391,10 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
     const jobContexts = await db.getJobContexts()
     if (jobContexts && jobContexts.length > 0) {
       (context as any).jobContexts = jobContexts
-      logger.debug('[IPC] Including job contexts in amendment parsing', { count: jobContexts.length })
+      // LOGGER_REMOVED: logger.debug('[IPC] Including job contexts in amendment parsing', { count: jobContexts.length })
     }
   } catch (error) {
-    logger.error('[ipc] Failed to fetch job contexts:', { error })
+    // LOGGER_REMOVED: logger.error('[ipc] Failed to fetch job contexts:', { error })
   }
 
   const parser = new AmendmentParser({ useAI: true })
@@ -443,7 +440,7 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
     const projectRoot = process.cwd()
     const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
 
-    logger.info('Saving feedback', { path: feedbackPath })
+    // LOGGER_REMOVED: logger.info('Saving feedback', { path: feedbackPath })
 
     // Ensure directory exists
     await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
@@ -505,10 +502,10 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
     // Save all feedback (flat array only)
     await fs.writeFile(feedbackPath, JSON.stringify(allFeedback, null, 2))
 
-    logger.info('Feedback saved to context folder')
+    // LOGGER_REMOVED: logger.info('Feedback saved to context folder')
     return true
   } catch (error) {
-    logger.error('Failed to save feedback', { error })
+    // LOGGER_REMOVED: logger.error('Failed to save feedback', { error })
     throw error
   }
 })
@@ -547,7 +544,7 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
     const projectRoot = process.cwd()
     const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
 
-    logger.info('Updating feedback', { path: feedbackPath })
+    // LOGGER_REMOVED: logger.info('Updating feedback', { path: feedbackPath })
 
     // Ensure directory exists
     await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
@@ -582,10 +579,10 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
     // Save updated feedback (ensure it's a flat, deduplicated array)
     await fs.writeFile(feedbackPath, JSON.stringify(uniqueFeedback, null, 2))
 
-    logger.info('Feedback updated in context folder')
+    // LOGGER_REMOVED: logger.info('Feedback updated in context folder')
     return true
   } catch (error) {
-    logger.error('Failed to update feedback', { error })
+    // LOGGER_REMOVED: logger.error('Failed to update feedback', { error })
     throw error
   }
 })
@@ -603,18 +600,18 @@ ipcMain.on('log:message', (_event, { level, scope, message, data }) => {
   // Use the appropriate logger based on level
   switch (level) {
     case 'debug':
-      logger.debug(message, contextData)
+      // LOGGER_REMOVED: logger.debug(message, contextData)
       break
     case 'info':
-      logger.info(message, contextData)
+      // LOGGER_REMOVED: logger.info(message, contextData)
       break
     case 'warn':
-      logger.warn(message, contextData)
+      // LOGGER_REMOVED: logger.warn(message, contextData)
       break
     case 'error':
-      logger.error(message, contextData)
+      // LOGGER_REMOVED: logger.error(message, contextData)
       break
     default:
-      logger.info(message, contextData)
+      // LOGGER_REMOVED: logger.info(message, contextData)
   }
 })

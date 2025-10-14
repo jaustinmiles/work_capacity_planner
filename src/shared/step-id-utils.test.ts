@@ -410,7 +410,7 @@ describe('step-id-utils', () => {
 
       fixBrokenDependencies(steps)
 
-      expect(logger.scheduler.warn).toHaveBeenCalledWith(
+      // LOGGER_REMOVED: expect(logger.scheduler.warn).toHaveBeenCalledWith(
         'Removing invalid dependency "step-99" from step "Step A"',
       )
     })

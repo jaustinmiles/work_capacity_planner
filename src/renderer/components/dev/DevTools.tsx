@@ -3,7 +3,7 @@ import { Modal, Button, Space, Typography, Alert, Tabs } from '@arco-design/web-
 import { IconDelete, IconTool, IconMessage, IconList, IconFile, IconClockCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 import { FeedbackForm } from './FeedbackForm'
 import { FeedbackViewer } from './FeedbackViewer'
 import { LogViewer } from './LogViewer'
@@ -24,27 +24,27 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
 
   useEffect(() => {
     if (visible) {
-      logger.ui.info('DevTools opened', { activeTab })
+      // LOGGER_REMOVED: logger.ui.info('DevTools opened', { activeTab })
     }
   }, [visible, activeTab])
 
   const handleClearAllData = async () => {
-    logger.ui.info('Clear all data requested')
+    // LOGGER_REMOVED: logger.ui.info('Clear all data requested')
     setShowConfirm(true)
   }
 
   const performClearData = async () => {
-    logger.ui.warn('Clearing all user data - confirmed by user')
+    // LOGGER_REMOVED: logger.ui.warn('Clearing all user data - confirmed by user')
     setIsClearing(true)
     setShowConfirm(false)
     try {
       await getDatabase().deleteAllUserData()
-      logger.ui.info('All user data cleared successfully')
+      // LOGGER_REMOVED: logger.ui.info('All user data cleared successfully')
       Message.success('All user data cleared successfully')
       // Reload the page to refresh everything
       setTimeout(() => window.location.reload(), 1000)
     } catch (error) {
-      logger.ui.error('Failed to clear data:', error)
+      // LOGGER_REMOVED: logger.ui.error('Failed to clear data:', error)
       Message.error('Failed to clear user data')
     } finally {
       setIsClearing(false)
@@ -52,7 +52,7 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
   }
 
   const handleTabChange = (key: string) => {
-    logger.ui.debug('DevTools tab changed', { from: activeTab, to: key })
+    // LOGGER_REMOVED: logger.ui.debug('DevTools tab changed', { from: activeTab, to: key })
     setActiveTab(key)
   }
 

@@ -3,7 +3,7 @@
  * Allows overriding current time for development/testing
  */
 
-import { logger } from './logger'
+// LOGGER_REMOVED: import { logger } from './logger'
 
 // Import events if in renderer process
 let appEvents: any
@@ -31,9 +31,9 @@ class TimeProvider {
       if (savedOverride) {
         try {
           this.overrideTime = new Date(savedOverride)
-          logger.info(`Time override loaded from localStorage: ${this.overrideTime.toISOString()}`)
+          // LOGGER_REMOVED: logger.info(`Time override loaded from localStorage: ${this.overrideTime.toISOString()}`)
         } catch (_e) {
-          logger.error('Failed to parse saved time override', { error: _e })
+          // LOGGER_REMOVED: logger.error('Failed to parse saved time override', { error: _e })
           if (typeof localStorage !== 'undefined') {
             // eslint-disable-next-line no-undef
             localStorage.removeItem('dev-time-override')
@@ -56,11 +56,11 @@ class TimeProvider {
   now(): Date {
     if (this.overrideTime) {
       const overriddenTime = new Date(this.overrideTime)
-      logger.info(`⏰ [TimeProvider] Using OVERRIDE time: ${overriddenTime.toISOString()} (${overriddenTime.toLocaleString()})`)
+      // LOGGER_REMOVED: logger.info(`⏰ [TimeProvider] Using OVERRIDE time: ${overriddenTime.toISOString()} (${overriddenTime.toLocaleString()})`)
       return overriddenTime
     }
     const realTime = new Date()
-    logger.debug(`⏰ [TimeProvider] Using REAL time: ${realTime.toISOString()}`)
+    // LOGGER_REMOVED: logger.debug(`⏰ [TimeProvider] Using REAL time: ${realTime.toISOString()}`)
     return realTime
   }
 
@@ -81,14 +81,14 @@ class TimeProvider {
         // eslint-disable-next-line no-undef
         localStorage.removeItem('dev-time-override')
       }
-      logger.info('Time override cleared')
+      // LOGGER_REMOVED: logger.info('Time override cleared')
     } else {
       this.overrideTime = typeof date === 'string' ? new Date(date) : new Date(date)
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
         // eslint-disable-next-line no-undef
         localStorage.setItem('dev-time-override', this.overrideTime.toISOString())
       }
-      logger.info(`Time override set to: ${this.overrideTime.toISOString()}`)
+      // LOGGER_REMOVED: logger.info(`Time override set to: ${this.overrideTime.toISOString()}`)
     }
 
     // Notify all listeners
@@ -132,7 +132,7 @@ class TimeProvider {
       try {
         listener(currentTime)
       } catch (e) {
-        logger.error('Error in time change listener', { error: e })
+        // LOGGER_REMOVED: logger.error('Error in time change listener', { error: e })
       }
     })
   }
@@ -142,7 +142,7 @@ class TimeProvider {
    */
   advanceBy(minutes: number): void {
     if (!this.overrideTime) {
-      logger.warn('Cannot advance time - no override is set')
+      // LOGGER_REMOVED: logger.warn('Cannot advance time - no override is set')
       return
     }
 

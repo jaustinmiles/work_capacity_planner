@@ -15,8 +15,8 @@ import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
 import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
-import { logGanttChart } from '../../../logging/formatters/schedule-formatter'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logGanttChart } from '../../../logging/formatters/schedule-formatter'
 import { getCurrentTime, isTimeOverridden } from '@shared/time-provider'
 import { appEvents, EVENTS } from '../../utils/events'
 
@@ -83,7 +83,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Listen for time override changes
   useEffect(() => {
     const handleTimeChange = () => {
-      logger.ui.info('Time override changed, reloading patterns and refreshing')
+      // LOGGER_REMOVED: logger.ui.info('Time override changed, reloading patterns and refreshing')
       // CRITICAL: Reload patterns with new time context
       loadWorkPatterns()
       // Clear any saved schedule when time changes
@@ -251,7 +251,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Reload work patterns when WorkScheduleModal closes or data changes
   useEffect(() => {
     const handleDataRefresh = () => {
-      logger.ui.info('[GanttChart] Data refresh event, reloading work patterns')
+      // LOGGER_REMOVED: logger.ui.info('[GanttChart] Data refresh event, reloading work patterns')
       loadWorkPatterns()
     }
 
@@ -263,10 +263,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Helper function to convert UnifiedScheduler results to GanttChart format
   const convertUnifiedToGanttItems = useCallback((result: ScheduleResult): GanttItem[] => {
-    logger.ui.debug('🔄 [GANTT] Converting UnifiedScheduler results to Gantt format', {
-      scheduledCount: result.scheduledTasks.length,
-      unscheduledCount: result.unscheduledTasks.length,
-    })
+    // LOGGER_REMOVED: logger.ui.debug('🔄 [GANTT] Converting UnifiedScheduler results to Gantt format', {
+      // LOGGER_REMOVED: scheduledCount: result.scheduledTasks.length,
+      // LOGGER_REMOVED: unscheduledCount: result.unscheduledTasks.length,
+    // LOGGER_REMOVED: })
 
     return result.scheduledTasks.map((item) => {
       // Get task color based on type
@@ -436,23 +436,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Use the scheduler to get properly ordered items
   // Include refreshKey in dependencies to force recalculation when time changes
   const scheduledItems = useMemo(() => {
-    logger.ui.info('[WorkPatternLifeCycle] GanttChart.scheduledItems - Computing schedule', {
-      workPatternsLoading,
-      workPatternsCount: workPatterns.length,
-      tasksCount: tasks.length,
-      sequencedTasksCount: sequencedTasks.length,
-      refreshKey,
-      currentTime: getCurrentTime().toISOString(),
-    })
+    // LOGGER_REMOVED: logger.ui.info('[WorkPatternLifeCycle] GanttChart.scheduledItems - Computing schedule', {
+      // workPatternsLoading,
+      // workPatternsCount: workPatterns.length,
+      // tasksCount: tasks.length,
+      // sequencedTasksCount: sequencedTasks.length,
+      // refreshKey,
+      // currentTime: getCurrentTime().toISOString(),
+    // })
 
     // Don't try to schedule if patterns are still loading
     if (workPatternsLoading) {
-      logger.ui.info('[WorkPatternLifeCycle] GanttChart - Patterns still loading, waiting...')
+      // LOGGER_REMOVED: logger.ui.info('[WorkPatternLifeCycle] GanttChart - Patterns still loading, waiting...')
       return []
     }
 
     if (workPatterns.length === 0) {
-      logger.ui.warn('[WorkPatternLifeCycle] GanttChart - No work patterns available after loading, returning empty schedule')
+      // LOGGER_REMOVED: logger.ui.warn('[WorkPatternLifeCycle] GanttChart - No work patterns available after loading, returning empty schedule')
       return []
     }
 
@@ -460,25 +460,25 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const tasksWithDeadlines = tasks.filter(task => task.deadline)
     const workflowsWithDeadlines = sequencedTasks.filter(workflow => workflow.deadline)
 
-    logger.ui.info('📋 [GANTT] Input data analysis', {
-      totalTasks: tasks.length,
-      tasksWithDeadlines: tasksWithDeadlines.length,
-      totalWorkflows: sequencedTasks.length,
-      workflowsWithDeadlines: workflowsWithDeadlines.length,
-      deadlineTaskNames: tasksWithDeadlines.map(t => ({ name: t.name, deadline: t.deadline })),
-      deadlineWorkflowNames: workflowsWithDeadlines.map(w => ({ name: w.name, deadline: w.deadline })),
-    })
+    // LOGGER_REMOVED: logger.ui.info('📋 [GANTT] Input data analysis', {
+      // totalTasks: tasks.length,
+      // tasksWithDeadlines: tasksWithDeadlines.length,
+      // totalWorkflows: sequencedTasks.length,
+      // workflowsWithDeadlines: workflowsWithDeadlines.length,
+      // deadlineTaskNames: tasksWithDeadlines.map(t => ({ name: t.name, deadline: t.deadline })),
+      // deadlineWorkflowNames: workflowsWithDeadlines.map(w => ({ name: w.name, deadline: w.deadline })),
+    // })
 
     // Always use UnifiedScheduler for scheduling - no saved schedules
 
     // IMPORTANT: Pass all tasks to UnifiedScheduler - it will handle deduplication
     // The scheduler handles removing any tasks that are also in sequencedTasks
-    logger.ui.info('🏗️ [GANTT] Using UnifiedScheduler for calculation', {
-      schedulerType: 'unified',
-      tasksCount: tasks.length,
-      sequencedTasksCount: sequencedTasks.length,
-      currentTime: getCurrentTime().toISOString(),
-    })
+    // LOGGER_REMOVED: logger.ui.info('🏗️ [GANTT] Using UnifiedScheduler for calculation', {
+      // schedulerType: 'unified',
+      // tasksCount: tasks.length,
+      // sequencedTasksCount: sequencedTasks.length,
+      // currentTime: getCurrentTime().toISOString(),
+    // })
 
     // Call UnifiedScheduler via hook with proper options
     const unifiedScheduleResult = scheduleForGantt(tasks, workPatterns, {
@@ -518,7 +518,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         blockId: item.blockId,
         priority: item.priority,
       }))
-      logGanttChart(logger.ui, scheduledItems, workPatterns, viewWindow, tasks, sequencedTasks, debugInfo)
+      // LOGGER_REMOVED: logGanttChart(logger.ui, scheduledItems, workPatterns, viewWindow, tasks, sequencedTasks, debugInfo)
 
       // Log final schedule results with deadline analysis
       const finalItemsWithDeadlines = ganttItems.filter(item => item.deadline)
@@ -526,30 +526,30 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         dayjs(item.endTime).isAfter(dayjs(item.deadline)),
       )
 
-      logger.ui.info('✅ [GANTT] UnifiedScheduler calculation complete', {
-        totalScheduledItems: ganttItems.length,
-        itemsWithDeadlines: finalItemsWithDeadlines.length,
-        violatedDeadlines: violatedDeadlines.length,
-        unscheduledItems: debugInfo.unscheduledItems.length,
-        warnings: debugInfo.warnings.length,
-        violationDetails: violatedDeadlines.map(item => ({
-          name: item.name,
-          deadline: dayjs(item.deadline).format('YYYY-MM-DD HH:mm'),
-          actualEnd: dayjs(item.endTime).format('YYYY-MM-DD HH:mm'),
-          delayMinutes: dayjs(item.endTime).diff(dayjs(item.deadline), 'minutes'),
-          isWorkflow: !!item.workflowId,
-        })),
-      })
+      // LOGGER_REMOVED: logger.ui.info('✅ [GANTT] UnifiedScheduler calculation complete', {
+        // totalScheduledItems: ganttItems.length,
+        // itemsWithDeadlines: finalItemsWithDeadlines.length,
+        // violatedDeadlines: violatedDeadlines.length,
+        // unscheduledItems: debugInfo.unscheduledItems.length,
+        // warnings: debugInfo.warnings.length,
+        // violationDetails: violatedDeadlines.map(item => ({
+          // name: item.name,
+          // deadline: dayjs(item.deadline).format('YYYY-MM-DD HH:mm'),
+          // actualEnd: dayjs(item.endTime).format('YYYY-MM-DD HH:mm'),
+          // delayMinutes: dayjs(item.endTime).diff(dayjs(item.deadline), 'minutes'),
+          // isWorkflow: !!item.workflowId,
+        // })),
+      // })
     }
 
     // Add meeting items from work patterns
     const meetingItems = getMeetingScheduledItems(workPatterns)
 
-    logger.ui.info('🏗️ [GANTT] Merging UnifiedScheduler results with meetings', {
-      taskItems: ganttItems.length,
-      meetingItems: meetingItems.length,
-      totalItems: ganttItems.length + meetingItems.length,
-    })
+    // LOGGER_REMOVED: logger.ui.info('🏗️ [GANTT] Merging UnifiedScheduler results with meetings', {
+      // LOGGER_REMOVED: taskItems: ganttItems.length,
+      // LOGGER_REMOVED: meetingItems: meetingItems.length,
+      // LOGGER_REMOVED: totalItems: ganttItems.length + meetingItems.length,
+    // LOGGER_REMOVED: })
 
     // Combine task items and meeting items
     const allItems = [...meetingItems, ...ganttItems]
@@ -835,7 +835,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 size="small"
                 icon={<IconRefresh />}
                 onClick={() => {
-                  logger.ui.info('Manual refresh triggered')
+                  // LOGGER_REMOVED: logger.ui.info('Manual refresh triggered')
                   setOptimalSchedule([])
                   setRefreshKey(prev => prev + 1)
                 }}
@@ -980,7 +980,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 type="primary"
                 icon={<IconRefresh />}
                 onClick={() => {
-                  logger.ui.info('[GanttChart] Manual refresh triggered')
+                  // LOGGER_REMOVED: logger.ui.info('[GanttChart] Manual refresh triggered')
                   setRefreshKey(prev => prev + 1)
                   loadWorkPatterns()
                   setOptimalSchedule([])
@@ -1248,7 +1248,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   setRefreshKey(prev => prev + 1) // Force refresh to respect new deadline
                   Message.info('Schedule updated to respect the new deadline')
                 } catch (error) {
-                  logger.ui.error('Failed to set deadline:', error)
+                  // LOGGER_REMOVED: logger.ui.error('Failed to set deadline:', error)
                   Message.error('Failed to set deadline')
                 } finally {
                   setDraggedItem(null)
@@ -1601,46 +1601,46 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   const delayMinutes = endTimeDate.diff(deadlineDate, 'minutes')
                   const isInheritedDeadline = !item.deadline && !!effectiveDeadline
 
-                  logger.ui.info('📅 [DEADLINE] Item has deadline', {
-                    itemId: item.id,
-                    itemName: item.name,
-                    deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
-                    endTime: endTimeDate.format('YYYY-MM-DD HH:mm'),
-                    isViolated: isDeadlineViolated,
-                    delayMinutes: isDeadlineViolated ? delayMinutes : 0,
-                    delayHours: isDeadlineViolated ? Math.floor(delayMinutes / 60) : 0,
-                    isWorkflow: !!item.workflowId,
-                    workflowName: item.workflowName,
-                    deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
-                  })
+                  // LOGGER_REMOVED: logger.ui.info('📅 [DEADLINE] Item has deadline', {
+                    // itemId: item.id,
+                    // itemName: item.name,
+                    // deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
+                    // endTime: endTimeDate.format('YYYY-MM-DD HH:mm'),
+                    // isViolated: isDeadlineViolated,
+                    // delayMinutes: isDeadlineViolated ? delayMinutes : 0,
+                    // delayHours: isDeadlineViolated ? Math.floor(delayMinutes / 60) : 0,
+                    // isWorkflow: !!item.workflowId,
+                    // workflowName: item.workflowName,
+                    // deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
+                  // })
 
                   if (isDeadlineViolated) {
-                    logger.ui.warn('🚨 [DEADLINE] VIOLATION DETECTED!', {
-                      itemId: item.id,
-                      itemName: item.name,
-                      deadline: deadlineDate.format('YYYY-MM-DD HH:mm:ss'),
-                      actualEnd: endTimeDate.format('YYYY-MM-DD HH:mm:ss'),
-                      delayMinutes,
-                      delayHours: Math.floor(delayMinutes / 60),
-                      delayText: delayMinutes >= 60
-                        ? `${Math.floor(delayMinutes / 60)}h ${delayMinutes % 60}m`
-                        : `${delayMinutes}m`,
-                      isWorkflow: !!item.workflowId,
-                      workflowName: item.workflowName,
-                      deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
-                      violationType: item.workflowId
-                        ? (isInheritedDeadline ? 'WORKFLOW_STEP_DEADLINE' : 'WORKFLOW_DEADLINE')
-                        : 'TASK_DEADLINE',
-                    })
+                    // LOGGER_REMOVED: logger.ui.warn('🚨 [DEADLINE] VIOLATION DETECTED!', {
+                      // itemId: item.id,
+                      // itemName: item.name,
+                      // deadline: deadlineDate.format('YYYY-MM-DD HH:mm:ss'),
+                      // actualEnd: endTimeDate.format('YYYY-MM-DD HH:mm:ss'),
+                      // delayMinutes,
+                      // delayHours: Math.floor(delayMinutes / 60),
+                      // delayText: delayMinutes >= 60
+                        // ? `${Math.floor(delayMinutes / 60)}h ${delayMinutes % 60}m`
+                        // : `${delayMinutes}m`,
+                      // isWorkflow: !!item.workflowId,
+                      // workflowName: item.workflowName,
+                      // deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
+                      // violationType: item.workflowId
+                        // ? (isInheritedDeadline ? 'WORKFLOW_STEP_DEADLINE' : 'WORKFLOW_DEADLINE')
+                        // : 'TASK_DEADLINE',
+                    // })
                   } else {
-                    logger.ui.debug('✅ [DEADLINE] On time', {
-                      itemId: item.id,
-                      itemName: item.name,
-                      deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
-                      endTime: endTimeDate.format('YYYY-MM-DD HH:mm'),
-                      marginMinutes: deadlineDate.diff(endTimeDate, 'minutes'),
-                      deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
-                    })
+                    // LOGGER_REMOVED: logger.ui.debug('✅ [DEADLINE] On time', {
+                      // itemId: item.id,
+                      // itemName: item.name,
+                      // deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
+                      // endTime: endTimeDate.format('YYYY-MM-DD HH:mm'),
+                      // marginMinutes: deadlineDate.diff(endTimeDate, 'minutes'),
+                      // deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
+                    // })
                   }
                 }
 

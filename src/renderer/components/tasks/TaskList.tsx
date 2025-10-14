@@ -8,9 +8,9 @@ import { Message } from '../common/Message'
 import { useState } from 'react'
 import { ScheduleGenerator } from '../schedule/ScheduleGenerator'
 import { TaskQuickEditModal } from './TaskQuickEditModal'
-import { logger } from '@/shared/logger'
-import { useLoggerContext } from '../../../logging/index.renderer'
-import { RendererLogger } from '../../../logging/renderer/RendererLogger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { useLoggerContext } from '../../../logging/index.renderer'
+// LOGGER_REMOVED: import { RendererLogger } from '../../../logging/renderer/RendererLogger'
 import { TaskType } from '@shared/enums'
 
 
@@ -35,8 +35,8 @@ export function TaskList({ onAddTask }: TaskListProps) {
     return saved === 'true'
   })
 
-  const { logger: newLogger } = useLoggerContext()
-  const rendererLogger = newLogger as RendererLogger
+  // LOGGER_REMOVED: const { logger: newLogger } = useLoggerContext()
+  // LOGGER_REMOVED: const rendererLogger = newLogger as RendererLogger
 
   // Handle show archived toggle
   const handleShowArchivedToggle = async (checked: boolean) => {
@@ -65,18 +65,18 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const paginatedCompletedTasks = completedTasks.slice(0, 5) // Always show just 5 completed tasks
 
   const handleDeleteAllTasks = async () => {
-    rendererLogger.interaction('Delete All Tasks Confirmed', {
-      component: 'TaskList',
-      taskCount: tasks.length,
-    })
+    // LOGGER_REMOVED: rendererLogger.interaction('Delete All Tasks Confirmed', {
+    //   component: 'TaskList',
+    //   taskCount: tasks.length,
+    // })
     try {
       await getDatabase().deleteAllTasks()
       await loadTasks() // Reload tasks to update UI
       Message.success('All tasks deleted successfully')
-      newLogger.info('[TaskList] All tasks deleted', { previousCount: tasks.length })
+      // LOGGER_REMOVED: newLogger.info('[TaskList] All tasks deleted', { previousCount: tasks.length })
     } catch (error) {
-      logger.ui.error('Error deleting all tasks:', error)
-      newLogger.error('[TaskList] Failed to delete all tasks', error as Error)
+      // LOGGER_REMOVED: logger.ui.error('Error deleting all tasks:', error)
+      // LOGGER_REMOVED: newLogger.error('[TaskList] Failed to delete all tasks', error as Error)
       Message.error('Failed to delete all tasks')
     }
   }
@@ -139,10 +139,10 @@ export function TaskList({ onAddTask }: TaskListProps) {
               onChange={(value) => {
                 setTaskTypeFilter(value)
                 setCurrentPage(1) // Reset to first page when changing filter
-                rendererLogger.interaction('Task Type Filter Changed', {
-                  component: 'TaskList',
-                  filterType: value,
-                })
+                // LOGGER_REMOVED: rendererLogger.interaction('Task Type Filter Changed', {
+                  // component: 'TaskList',
+                  // filterType: value,
+                // })
               }}
               style={{ width: 200 }}
               placeholder="Select task type"
@@ -173,10 +173,10 @@ export function TaskList({ onAddTask }: TaskListProps) {
             value={viewMode}
             onChange={(value) => {
               setViewMode(value)
-              rendererLogger.interaction('View Mode Changed', {
-                component: 'TaskList',
-                viewMode: value,
-              })
+              // LOGGER_REMOVED: rendererLogger.interaction('View Mode Changed', {
+                // component: 'TaskList',
+                // viewMode: value,
+              // })
             }}
           >
             <Radio value="list">
@@ -201,10 +201,10 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 size="small"
                 icon={<IconEdit />}
                 onClick={() => {
-                  rendererLogger.interaction('Quick Edit clicked', {
-                    component: 'TaskList',
-                    taskCount: incompleteTasks.length,
-                  })
+                  // LOGGER_REMOVED: rendererLogger.interaction('Quick Edit clicked', {
+                    // component: 'TaskList',
+                    // taskCount: incompleteTasks.length,
+                  // })
                   setQuickEditVisible(true)
                 }}
               >
@@ -215,10 +215,10 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 size="small"
                 icon={<IconCalendarClock />}
                 onClick={() => {
-                  rendererLogger.interaction('Generate Schedule clicked', {
-                    component: 'TaskList',
-                    incompleteTaskCount: incompleteTasks.length,
-                  })
+                  // LOGGER_REMOVED: rendererLogger.interaction('Generate Schedule clicked', {
+                    // component: 'TaskList',
+                    // incompleteTaskCount: incompleteTasks.length,
+                  // })
                   setScheduleGeneratorVisible(true)
                 }}
                 disabled={incompleteTasks.length === 0}
@@ -230,10 +230,10 @@ export function TaskList({ onAddTask }: TaskListProps) {
                 size="small"
                 icon={<IconPlus />}
                 onClick={() => {
-                  rendererLogger.interaction('Add Task clicked', {
-                    component: 'TaskList',
-                    currentTaskCount: tasks.length,
-                  })
+                  // LOGGER_REMOVED: rendererLogger.interaction('Add Task clicked', {
+                    // component: 'TaskList',
+                    // currentTaskCount: tasks.length,
+                  // })
                   onAddTask()
                 }}
               >
@@ -271,10 +271,10 @@ export function TaskList({ onAddTask }: TaskListProps) {
                   type="primary"
                   icon={<IconPlus />}
                   onClick={() => {
-                    rendererLogger.interaction('Create First Task clicked', {
-                      component: 'TaskList',
-                      isEmpty: true,
-                    })
+                    // LOGGER_REMOVED: rendererLogger.interaction('Create First Task clicked', {
+                      // component: 'TaskList',
+                      // isEmpty: true,
+                    // })
                     onAddTask()
                   }}
                 >

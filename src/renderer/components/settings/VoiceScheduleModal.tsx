@@ -7,7 +7,7 @@ import { getDatabase } from '../../services/database'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 const { TextArea } = Input
@@ -130,7 +130,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       }
 
       mediaRecorder.onerror = (event) => {
-        logger.ui.error('MediaRecorder error:', event)
+        // LOGGER_REMOVED: logger.ui.error('MediaRecorder error:', event)
         setError('Recording error occurred')
         setRecordingState('idle')
       }
@@ -140,7 +140,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       setError(null)
       setRecordingState('recording')
     } catch (error) {
-      logger.ui.error('Error starting recording:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error starting recording:', error)
       setError('Failed to access microphone. Please check your permissions.')
       setRecordingState('idle')
     }
@@ -176,7 +176,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       setScheduleText(prev => prev + (prev ? ' ' : '') + result.text)
       setError(null)
     } catch (error) {
-      logger.ui.error('Error transcribing audio:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error transcribing audio:', error)
       setError('Failed to transcribe audio. Please try again.')
     } finally {
       setIsTranscribing(false)
@@ -192,7 +192,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       await transcribeAudio(blob, file.name)
       setUploadedAudioFile(file)
     } catch (error) {
-      logger.ui.error('Error processing uploaded audio:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error processing uploaded audio:', error)
       setError('Failed to process uploaded audio file.')
     } finally {
       setIsProcessingAudioFile(false)
@@ -232,7 +232,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       }))
       setScheduleResult(convertedResults)
     } catch (error) {
-      logger.ui.error('Error processing schedule:', error)
+      // LOGGER_REMOVED: logger.ui.error('Error processing schedule:', error)
       setError('Failed to process schedule with AI. Please try again.')
     } finally {
       setIsProcessing(false)
