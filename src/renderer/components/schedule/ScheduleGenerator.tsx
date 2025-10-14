@@ -149,17 +149,17 @@ export function ScheduleGenerator({
       )
 
       // Log the optimal schedule for AI debugging
-      logSchedule(
-        // LOGGER_REMOVED: logger.ui,
-        'optimal',
-        tasks.filter(t => !t.completed),
-        sequencedTasks.filter(w => !w.completed),
-        optimalResult.scheduledTasks,
-        baseWorkPatterns,
-        undefined, // blocks parameter
-        optimalResult.debugInfo, // debugInfo from the result
-        optimalResult.conflicts, // warnings
-      )
+      // LOGGER_REMOVED: logSchedule(
+      //   logger.ui,
+      //   'optimal',
+      //   tasks.filter(t => !t.completed),
+      //   sequencedTasks.filter(w => !w.completed),
+      //   optimalResult.scheduledTasks,
+      //   baseWorkPatterns,
+      //   undefined, // blocks parameter
+      //   optimalResult.debugInfo, // debugInfo from the result
+      //   optimalResult.conflicts, // warnings
+      // )
 
       options.push({
         id: 'optimal',

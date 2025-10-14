@@ -68,7 +68,7 @@ export function logged(options: { scope?: LogScope; tag?: string } = {}) {
       }
     }
 
-    return descriptor
+    return descriptor as any
   }
 }
 
@@ -164,6 +164,6 @@ export function loggedVerbose(options: VerboseLogOptions = {}) {
       }
     }
 
-    return descriptor
+    return descriptor as any
   }
 }

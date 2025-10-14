@@ -2,7 +2,7 @@ import { Task, Session } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 // LOGGER_REMOVED: import { logger } from '@/shared/logger'
-import { logged, loggedVerbose, LogScope } from '@/logger'
+// import { logged, loggedVerbose, LogScope } from '@/logger' // Decorators commented out due to TypeScript issues
 
 
 // Type for the Electron API exposed by preload script
@@ -254,7 +254,7 @@ export class RendererDatabaseService {
   }
 
   // Session management
-  @logged({ scope: LogScope.Database })
+  // @logged({ scope: LogScope.Database })
   async getSessions(): Promise<Session[]> {
     const sessions = await window.electronAPI.db.getSessions()
     // LOGGER_REMOVED: logger.ui.info('[Database] Retrieved sessions from database', {
@@ -364,11 +364,11 @@ export class RendererDatabaseService {
   }
 
   // Task operations
-  @loggedVerbose({
-    scope: LogScope.Database,
-    logArgs: true,
-    logResult: false,  // Don't log all tasks, just the count
-  })
+  // @loggedVerbose({
+  //   scope: LogScope.Database,
+  //   logArgs: true,
+  //   logResult: false,  // Don't log all tasks, just the count
+  // })
   async getTasks(includeArchived = false): Promise<Task[]> {
     // LOGGER_REMOVED: logger.ui.debug('RendererDB: Calling getTasks via IPC...', { includeArchived })
     try {
@@ -381,11 +381,11 @@ export class RendererDatabaseService {
     }
   }
 
-  @loggedVerbose({
-    scope: LogScope.Database,
-    logArgs: true,
-    logResult: true,
-  })
+  // @loggedVerbose({
+  //   scope: LogScope.Database,
+  //   logArgs: true,
+  //   logResult: true,
+  // })
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
     return await window.electronAPI.db.createTask(taskData)
   }

@@ -2,8 +2,8 @@
  * Async-specific decorators for tracking async operations, promises, and streams
  */
 
-import { logger } from './index'
 import { LogScope } from './types'
+import { getScopedLogger } from './scope-helper'
 
 /**
  * DECORATOR #5: Async Operation Tracker
@@ -61,7 +61,7 @@ export function trackedAsync(options: AsyncTrackingOptions = {}) {
     const className = target.constructor.name
 
     descriptor.value = async function (...args: any[]) {
-      const scopedLogger = logger[scope.toLowerCase() as keyof typeof logger]
+      const scopedLogger = getScopedLogger(scope)
       const methodTag = tag || `${className}.${propertyKey}`
       const correlationId = `${propertyKey}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 
@@ -175,7 +175,7 @@ export function promiseChain(options: { scope?: LogScope; tag?: string } = {}) {
     const className = target.constructor.name
 
     descriptor.value = function (...args: any[]) {
-      const scopedLogger = logger[scope.toLowerCase() as keyof typeof logger]
+      const scopedLogger = getScopedLogger(scope)
       const methodTag = tag || `${className}.${propertyKey}`
       const chainId = `chain-${Date.now()}`
       let stepCount = 0
@@ -270,7 +270,7 @@ export function retryable(options: RetryOptions = {}) {
     const className = target.constructor.name
 
     descriptor.value = async function (...args: any[]) {
-      const scopedLogger = logger[scope.toLowerCase() as keyof typeof logger]
+      const scopedLogger = getScopedLogger(scope)
       const methodTag = tag || `${className}.${propertyKey}`
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {

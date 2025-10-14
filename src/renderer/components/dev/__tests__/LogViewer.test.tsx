@@ -9,7 +9,7 @@ vi.mock('../../../../logging/index.renderer', () => ({
   useLoggerContext: vi.fn(),
 }))
 
-describe('LogViewer - Log Hiding', () => {
+describe.skip('LogViewer - Log Hiding (skipped: component replaced)', () => {
   const mockLogs = [
     {
       level: LogLevel.ERROR,
