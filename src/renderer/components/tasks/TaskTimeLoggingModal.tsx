@@ -55,41 +55,10 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       const endTime = new Date(startTime)
       endTime.setMinutes(endTime.getMinutes() + timeSpent)
 
-      logger.ui.info('[WorkLogging] Creating work session', {})
-        // taskId: task.id,
-        // taskName: task.name,
-        // taskType: task.type,
-        // timeSpent,
-        // date: workDate.toISOString(),
-        // startTime: startTime.toISOString(),
-        // endTime: endTime.toISOString(),
-        // notes: values.notes || '',
-      // })
-
-      const _workSessionResult = await getDatabase().createWorkSession({
-        taskId: task.id,
-        type: task.type as TaskType,
-        startTime: startTime,
-        endTime: endTime,
-        plannedMinutes: timeSpent,
-        actualMinutes: timeSpent,
-        notes: values.notes || '',
+      logger.ui.info('[WorkLogging] Creating work session', {    notes: values.notes || '',
       })
 
-      logger.ui.info('[WorkLogging] Work session created', {})
-
-
-
-
-
-      // Update the task with the new actual duration
-      const currentLoggedTime = await getDatabase().getTaskTotalLoggedTime(task.id)
-
-      logger.ui.info('[WorkLogging] Retrieved total logged time', {
-    LOGGER_REMOVED: undefined
-
-      await updateTask(task.id, {})
-        actualDuration: currentLoggedTime,
+      logger.ui.info('[WorkLogging] Work session created', {    actualDuration: currentLoggedTime,
       })
 
       logger.ui.info('[WorkLogging] Task updated with new logged time', {})

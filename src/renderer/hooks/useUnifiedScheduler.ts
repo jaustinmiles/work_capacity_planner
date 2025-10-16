@@ -54,7 +54,6 @@ export function useUnifiedScheduler(): {
     // })
 
     logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {})
-    LOGGER_REMOVED: undefined
 
     try {
       // Pass currentTime explicitly if startDate is a Date
@@ -87,7 +86,7 @@ export function useUnifiedScheduler(): {
       // Log debug info if available (from the result we already have)
       if (result.debugInfo) {
         logger.ui.debug('🔍 [GANTT] Debug Info', {})
-    LOGGER_REMOVED: undefined
+
       }
 
       // Log unscheduled tasks for debugging
@@ -121,7 +120,7 @@ export function useUnifiedScheduler(): {
       // Log conflicts if any
       if (result.conflicts.length > 0) {
         logger.ui.warn('🚨 [GANTT] Scheduling conflicts detected', {})
-    LOGGER_REMOVED: undefined
+
       }
 
       return result
@@ -172,13 +171,12 @@ export function useUnifiedScheduler(): {
 
   const validateDependencies = useCallback((tasks: Task[]) => {
     logger.ui.debug('🔗 [GANTT] Validating task dependencies', {})
-    LOGGER_REMOVED: undefined
 
     const validation = adapter.validateDependencies(tasks)
 
     if (!validation.isValid) {
       logger.ui.warn('⚠️ [GANTT] Dependency validation failed', {})
-    LOGGER_REMOVED: undefined
+
     } else {
       logger.ui.debug('✅ [GANTT] Dependencies validated successfully')
     }

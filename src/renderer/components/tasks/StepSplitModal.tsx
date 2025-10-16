@@ -76,7 +76,6 @@ export function StepSplitModal({
       }
 
       logger.ui.info('Step split successfully', {})
-    LOGGER_REMOVED: undefined
 
       Message.success('Step split successfully')
       onSplit(step1, step2)

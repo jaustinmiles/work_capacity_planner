@@ -38,7 +38,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       })
       const _newStatus = !task.completed ? 'completed' : 'incomplete'
       logger.ui.info('Task completion toggled', {})
-    LOGGER_REMOVED: undefined
+
       Message.success(task.completed ? 'Task marked as incomplete' : 'Task completed!')
     } catch (_error) {
       logger.ui.error('Failed to toggle task completion', _error)
@@ -66,7 +66,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
 
   const handleEdit = (task: Task) => {
     logger.ui.info('Task edit modal opened', {})
-    LOGGER_REMOVED: undefined
+
     setSelectedTask(task)
     setEditModalVisible(true)
   }
@@ -185,7 +185,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onChange={(newValue) => {
                 if (newValue !== value) {
                   logger.ui.info('Task importance updated inline', {})
-    LOGGER_REMOVED: undefined
+
                   updateTask(record.id, { importance: newValue })
                 }
                 setEditingCell(null)
@@ -230,7 +230,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onChange={(newValue) => {
                 if (newValue !== value) {
                   logger.ui.info('Task urgency updated inline', {})
-    LOGGER_REMOVED: undefined
+
                   updateTask(record.id, { urgency: newValue })
                 }
                 setEditingCell(null)
@@ -276,7 +276,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onChange={(newValue) => {
                 if (newValue !== displayValue) {
                   logger.ui.info('Task cognitive complexity updated inline', {})
-    LOGGER_REMOVED: undefined
+
                   updateTask(record.id, { cognitiveComplexity: newValue })
                 }
                 setEditingCell(null)

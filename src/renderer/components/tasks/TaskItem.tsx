@@ -128,7 +128,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
           <Checkbox
             checked={task.completed}
             onChange={() => {
-              logger.ui.info('Task completion toggled', {})
+              logger.ui.info('Task completion toggled', {
                 taskId: task.id,
                 taskName: task.name,
                 completed: !task.completed,
@@ -276,18 +276,18 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                   size="small"
                   icon={<IconPlayArrow />}
                   onClick={async () => {
-                    logger.ui.interaction('Start work button clicked', {})
-                      // component: 'TaskItem',
-                      // taskId: task.id,
-                      // taskName: task.name,
-                    // })
+                    logger.ui.interaction('Start work button clicked', {
+                      component: 'TaskItem',
+                      taskId: task.id,
+                      taskName: task.name,
+                    })
 
                     try {
                       await useTaskStore.getState().startWorkOnTask(task.id)
-                      logger.ui.info('Started work on task from task list', {})
-                        // taskId: task.id,
-                        // taskName: task.name,
-                      // })
+                      logger.ui.info('Started work on task from task list', {
+                        taskId: task.id,
+                        taskName: task.name,
+                      })
                       // TODO(human): Add user-facing success message here
                     } catch {
                       // TODO(human): Add user-facing error message here
@@ -302,12 +302,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                   size="small"
                   icon={<IconClockCircle />}
                   onClick={() => {
-                    logger.ui.interaction('Time logging button clicked', {})
-                      // component: 'TaskItem',
-                      // taskId: task.id,
-                      // taskName: task.name,
-                      // hasSteps: task.hasSteps,
-                    // })
+                    logger.ui.debug('Time logging button clicked', {})
                     logger.ui.info('Time logging modal opened', {})
                       // taskId: task.id,
                       // taskName: task.name,
@@ -329,12 +324,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                   size="small"
                   icon={<IconEdit />}
                   onClick={() => {
-                    logger.ui.interaction('Edit task button clicked', {})
-                      // component: 'TaskItem',
-                      // taskId: task.id,
-                      // taskName: task.name,
-                      // hasSteps: task.hasSteps,
-                    // })
+                    logger.ui.debug('Edit task button clicked', {})
                     logger.ui.info('Task edit modal opened', {})
                       // taskId: task.id,
                       // taskName: task.name,
@@ -354,11 +344,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                 size="small"
                 icon={<IconUndo />}
                 onClick={() => {
-                  logger.ui.interaction('Unarchive button clicked', {})
-                    // component: 'TaskItem',
-                    // taskId: task.id,
-                    // taskName: task.name,
-                  // })
+                  logger.ui.debug('Unarchive button clicked', {})
                   handleUnarchive()
                 }}
               >
@@ -371,11 +357,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
             title="Delete Task"
             content="Are you sure you want to delete this task?"
             onOk={() => {
-              logger.ui.interaction('Delete task confirmed', {})
-                // component: 'TaskItem',
-                // taskId: task.id,
-                // taskName: task.name,
-              // })
+              logger.ui.debug('Delete task confirmed', {})
               logger.ui.warn('Task deleted', { taskId: task.id, taskName: task.name })
               deleteTask(task.id).catch(console.error)
             }}

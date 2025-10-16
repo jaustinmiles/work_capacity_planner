@@ -80,7 +80,6 @@ export function TaskSplitModal({ task, visible, onClose, onSplit }: TaskSplitMod
       await addTask(task2)
 
       logger.ui.info('Task split successfully', {})
-    LOGGER_REMOVED: undefined
 
       Message.success('Task split successfully')
 
