@@ -2,18 +2,19 @@ import { PrismaClient } from '@prisma/client'
 import { Task, TaskStep } from '../shared/types'
 import { TaskType } from '../shared/enums'
 import { WorkBlockType } from '../shared/constants'
-// import { getMainLogger } from '../logging/index.main'
 import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime } from '../shared/time-provider'
 import * as crypto from 'crypto'
+import { logger, LogScope } from '../logger'
+import { LogMethod, AsyncTracker, CacheHint, PerformanceMonitor } from '../logger/decorators'
+import { PromiseChain } from '../logger/decorators-async'
 
 // Create Prisma client instance
 const prisma = new PrismaClient()
 
-// Initialize main logger with Prisma
-// const mainLogger = getMainLogger()
-// mainLogger.setPrisma(prisma)
+// Get scoped logger for database operations
+const dbLogger = logger.getScope(LogScope.Database)
 
 // Database service for managing tasks (including workflows)
 export class DatabaseService {
@@ -46,6 +47,8 @@ export class DatabaseService {
   private activeSessionId: string | null = null
   private sessionInitPromise: Promise<string> | null = null
 
+  @CacheHint('session')
+  @AsyncTracker(LogScope.Database, 'getActiveSession')
   async getActiveSession(): Promise<string> {
     // If already cached, return it
     if (this.activeSessionId) {
@@ -62,7 +65,7 @@ export class DatabaseService {
 
     try {
       this.activeSessionId = await this.sessionInitPromise
-      // mainLogger.info('[DB] getActiveSession - Initialized new sessionId', { sessionId: this.activeSessionId })
+      dbLogger.info('Initialized new sessionId', { sessionId: this.activeSessionId })
       return this.activeSessionId
     } finally {
       this.sessionInitPromise = null
@@ -317,9 +320,11 @@ export class DatabaseService {
   }
 
   // Tasks
+  @PerformanceMonitor(LogScope.Database, 'getTasks', { warnThreshold: 500 })
+  @CacheHint('frequently accessed')
   async getTasks(includeArchived = false): Promise<Task[]> {
     const sessionId = await this.getActiveSession()
-    // mainLogger.debug('[DB] getTasks - Using sessionId', { sessionId, includeArchived })
+    dbLogger.debug('Getting tasks', { sessionId, includeArchived })
 
     const tasks = await this.client.task.findMany({
       where: {
@@ -332,17 +337,19 @@ export class DatabaseService {
       orderBy: { createdAt: 'desc' },
     })
 
-    // mainLogger.debug('[DB] getTasks - Found tasks', {
-      // tasksCount: tasks.length,
-      // sessionId,
-    // })
+    dbLogger.debug('Found tasks', {
+      tasksCount: tasks.length,
+      sessionId,
+    })
     const formattedTasks = tasks.map(task => this.formatTask(task))
-    // mainLogger.debug('[DB] getTasks - Returning formatted tasks', {
-      // formattedCount: formattedTasks.length,
-    // })
+    dbLogger.debug('Returning formatted tasks', {
+      formattedCount: formattedTasks.length,
+    })
     return formattedTasks
   }
 
+  @LogMethod(LogScope.Database, { logArgs: true, logResult: false })
+  @AsyncTracker(LogScope.Database, 'createTask')
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
     const sessionId = await this.getActiveSession()
     const { steps, ...coreTaskData } = taskData as any

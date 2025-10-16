@@ -77,6 +77,8 @@ export class Logger implements ILogger {
 
     // Check if pattern is ignored
     // Patterns are added via logger.ignorePattern(pattern) to suppress repetitive logs
+    // This is currently unused but ready for future dev tools integration where
+    // developers can dynamically suppress noisy patterns during debugging
     if (this.ignoredPatterns.has(pattern)) {
       return
     }
