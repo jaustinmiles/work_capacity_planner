@@ -65,6 +65,9 @@ export class Logger implements ILogger {
 
   private handleLog(entry: LogEntry): void {
     // Check if we should log based on level
+    // LogLevel: ERROR=0, WARN=1, INFO=2, DEBUG=3, TRACE=4
+    // Example: If config.level=INFO(2), we log ERROR(0), WARN(1), INFO(2)
+    //          but skip DEBUG(3) and TRACE(4) since they are > 2
     if (entry.level > this.config.level) {
       return
     }
