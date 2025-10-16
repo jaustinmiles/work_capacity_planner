@@ -131,7 +131,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       const db = getDatabase()
       await db.updateSession(editingSession.id, values)
 
-      // LOGGER_REMOVED: logger.ui.debug('Session updated successfully', { sessionId: editingSession.id })
+      logger.ui.debug('Session updated successfully', { sessionId: editingSession.id })
       Message.success('Session updated')
       form.resetFields()
       setEditingSession(null)
@@ -147,18 +147,21 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
 
   const handleDeleteSession = async (sessionId: string) => {
     try {
-      // LOGGER_REMOVED: logger.ui.info('Attempting to delete session', { sessionId })
+      logger.ui.info('Attempting to delete session', { sessionId })
       const db = getDatabase()
       await db.deleteSession(sessionId)
 
-      // LOGGER_REMOVED: logger.ui.info('Session deleted successfully', { sessionId })
+      logger.ui.info('Session deleted successfully', { sessionId })
       Message.success('Session deleted')
       await loadSessions()
 
       // Emit event to refresh UI components
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to delete session:', error, { sessionId })
+      logger.ui.error('Failed to delete session', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+      })
       if (error instanceof Error && error.message.includes('active')) {
         Message.error('Cannot delete the active session')
       } else if (error instanceof Error && error.message.includes('not found')) {

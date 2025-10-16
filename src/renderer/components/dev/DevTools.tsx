@@ -24,27 +24,27 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
 
   useEffect(() => {
     if (visible) {
-      // LOGGER_REMOVED: logger.ui.info('DevTools opened', { activeTab })
+      logger.ui.info('DevTools opened', { activeTab })
     }
   }, [visible, activeTab])
 
   const handleClearAllData = async () => {
-    // LOGGER_REMOVED: logger.ui.info('Clear all data requested')
+    logger.ui.info('Clear all data requested')
     setShowConfirm(true)
   }
 
   const performClearData = async () => {
-    // LOGGER_REMOVED: logger.ui.warn('Clearing all user data - confirmed by user')
+    logger.ui.warn('Clearing all user data - confirmed by user')
     setIsClearing(true)
     setShowConfirm(false)
     try {
       await getDatabase().deleteAllUserData()
-      // LOGGER_REMOVED: logger.ui.info('All user data cleared successfully')
+      logger.ui.info('All user data cleared successfully')
       Message.success('All user data cleared successfully')
       // Reload the page to refresh everything
       setTimeout(() => window.location.reload(), 1000)
     } catch (error) {
-      logger.system.error('Failed to clear data', {
+      logger.ui.error('Failed to clear data', {
         error: error instanceof Error ? error.message : String(error),
       }, 'data-clear-error')
       Message.error('Failed to clear user data')
@@ -54,7 +54,7 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
   }
 
   const handleTabChange = (key: string) => {
-    // LOGGER_REMOVED: logger.ui.debug('DevTools tab changed', { from: activeTab, to: key })
+    logger.ui.debug('DevTools tab changed', { from: activeTab, to: key })
     setActiveTab(key)
   }
 

@@ -7,7 +7,7 @@ import { Message } from '../common/Message'
 import { useState, useEffect } from 'react'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@shared/logger'
+
 
 const { Text } = Typography
 
@@ -37,14 +37,11 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
         completed: !task.completed,
       })
       const _newStatus = !task.completed ? 'completed' : 'incomplete'
-      // LOGGER_REMOVED: logger.ui.info('Task completion toggled', {
-        // LOGGER_REMOVED: taskId: task.id,
-        // LOGGER_REMOVED: taskName: task.name,
-        // LOGGER_REMOVED: newStatus: _newStatus,
-      // LOGGER_REMOVED: })
+      logger.ui.info('Task completion toggled', {})
+    LOGGER_REMOVED: undefined
       Message.success(task.completed ? 'Task marked as incomplete' : 'Task completed!')
     } catch (_error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to toggle task completion', _error)
+      logger.ui.error('Failed to toggle task completion', _error)
       Message.error('Failed to update task')
     }
   }
@@ -53,13 +50,13 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
     try {
       const task = tasks.find(t => t.id === taskId)
       await deleteTask(taskId)
-      logger.ui.info('Task deleted', {
+      logger.ui.info('Task deleted', {})
         taskId,
         taskName: task?.name || 'Unknown',
       }, 'task-delete-success')
       Message.success('Task deleted')
     } catch (error) {
-      logger.ui.error('Failed to delete task', {
+      logger.ui.error('Failed to delete task', {})
         error: error instanceof Error ? error.message : String(error),
         taskId,
       }, 'task-delete-error')
@@ -68,10 +65,8 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
   }
 
   const handleEdit = (task: Task) => {
-    // LOGGER_REMOVED: logger.ui.info('Task edit modal opened', {
-      // LOGGER_REMOVED: taskId: task.id,
-      // LOGGER_REMOVED: taskName: task.name,
-    // LOGGER_REMOVED: })
+    logger.ui.info('Task edit modal opened', {})
+    LOGGER_REMOVED: undefined
     setSelectedTask(task)
     setEditModalVisible(true)
   }
@@ -189,12 +184,8 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onBlur={() => setEditingCell(null)}
               onChange={(newValue) => {
                 if (newValue !== value) {
-                  // LOGGER_REMOVED: logger.ui.info('Task importance updated inline', {
-                    // LOGGER_REMOVED: taskId: record.id,
-                    // LOGGER_REMOVED: taskName: record.name,
-                    // LOGGER_REMOVED: oldValue: value,
-                    // LOGGER_REMOVED: newValue,
-                  // LOGGER_REMOVED: })
+                  logger.ui.info('Task importance updated inline', {})
+    LOGGER_REMOVED: undefined
                   updateTask(record.id, { importance: newValue })
                 }
                 setEditingCell(null)
@@ -238,12 +229,8 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onBlur={() => setEditingCell(null)}
               onChange={(newValue) => {
                 if (newValue !== value) {
-                  // LOGGER_REMOVED: logger.ui.info('Task urgency updated inline', {
-                    // LOGGER_REMOVED: taskId: record.id,
-                    // LOGGER_REMOVED: taskName: record.name,
-                    // LOGGER_REMOVED: oldValue: value,
-                    // LOGGER_REMOVED: newValue,
-                  // LOGGER_REMOVED: })
+                  logger.ui.info('Task urgency updated inline', {})
+    LOGGER_REMOVED: undefined
                   updateTask(record.id, { urgency: newValue })
                 }
                 setEditingCell(null)
@@ -288,12 +275,8 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onBlur={() => setEditingCell(null)}
               onChange={(newValue) => {
                 if (newValue !== displayValue) {
-                  // LOGGER_REMOVED: logger.ui.info('Task cognitive complexity updated inline', {
-                    // LOGGER_REMOVED: taskId: record.id,
-                    // LOGGER_REMOVED: taskName: record.name,
-                    // LOGGER_REMOVED: oldValue: displayValue,
-                    // LOGGER_REMOVED: newValue,
-                  // LOGGER_REMOVED: })
+                  logger.ui.info('Task cognitive complexity updated inline', {})
+    LOGGER_REMOVED: undefined
                   updateTask(record.id, { cognitiveComplexity: newValue })
                 }
                 setEditingCell(null)

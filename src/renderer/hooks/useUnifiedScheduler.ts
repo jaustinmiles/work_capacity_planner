@@ -19,7 +19,7 @@ export function useUnifiedScheduler(): {
   adapter: UnifiedSchedulerAdapter
 } {
   const adapter = useMemo(() => {
-    // LOGGER_REMOVED: logger.ui.info('🔄 Creating UnifiedScheduler adapter instance')
+    logger.ui.info('🔄 Creating UnifiedScheduler adapter instance')
     return new UnifiedSchedulerAdapter()
   }, [])
 
@@ -32,7 +32,7 @@ export function useUnifiedScheduler(): {
     const startTime = globalThis.performance.now()
 
     // [WorkPatternLifeCycle] START: UnifiedScheduler scheduling tasks
-    // LOGGER_REMOVED: logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - START', {
+    logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - START', {})
     //   tasksCount: tasks.length,
     //   sequencedTasksCount: sequencedTasks.length,
     //   workPatternsCount: workPatterns.length,
@@ -53,18 +53,8 @@ export function useUnifiedScheduler(): {
     //   localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
     // })
 
-    // LOGGER_REMOVED: logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {
-      // LOGGER_REMOVED: tasksCount: tasks.length,
-      // LOGGER_REMOVED: sequencedTasksCount: sequencedTasks.length,
-      // LOGGER_REMOVED: workPatternsCount: workPatterns.length,
-      // LOGGER_REMOVED: options: {
-        // LOGGER_REMOVED: startDate: options.startDate,
-        // LOGGER_REMOVED: endDate: options.endDate,
-        // LOGGER_REMOVED: respectDeadlines: options.respectDeadlines,
-        // LOGGER_REMOVED: allowSplitting: options.allowSplitting,
-        // LOGGER_REMOVED: debug: true, // Always enable debug for now
-      // LOGGER_REMOVED: },
-    // LOGGER_REMOVED: })
+    logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {})
+    LOGGER_REMOVED: undefined
 
     try {
       // Pass currentTime explicitly if startDate is a Date
@@ -77,7 +67,7 @@ export function useUnifiedScheduler(): {
       const duration = globalThis.performance.now() - startTime
 
       // [WorkPatternLifeCycle] COMPLETE: UnifiedScheduler finished scheduling
-      logger.ui.debug('useUnifiedScheduler.scheduleForGantt - COMPLETE', {
+      logger.ui.debug('useUnifiedScheduler.scheduleForGantt - COMPLETE', {})
         scheduledCount: result.scheduledTasks.length,
         unscheduledCount: result.unscheduledTasks.length,
         conflicts: result.conflicts.length,
@@ -86,7 +76,7 @@ export function useUnifiedScheduler(): {
         timestamp: _getCurrentTime().toISOString(),
       }, 'gantt-schedule-complete')
 
-      // LOGGER_REMOVED: logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {
+      logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {})
       //   scheduledCount: result.scheduledTasks.length,
       //   unscheduledCount: result.unscheduledTasks.length,
       //   conflicts: result.conflicts.length,
@@ -96,20 +86,14 @@ export function useUnifiedScheduler(): {
 
       // Log debug info if available (from the result we already have)
       if (result.debugInfo) {
-        // LOGGER_REMOVED: logger.ui.debug('🔍 [GANTT] Debug Info', {
-          // LOGGER_REMOVED: unscheduledItems: result.debugInfo.unscheduledItems,
-          // LOGGER_REMOVED: blockUtilization: result.debugInfo.blockUtilization,
-          // LOGGER_REMOVED: warnings: result.debugInfo.warnings,
-          // LOGGER_REMOVED: totalScheduled: result.debugInfo.totalScheduled,
-          // LOGGER_REMOVED: totalUnscheduled: result.debugInfo.totalUnscheduled,
-          // LOGGER_REMOVED: scheduleEfficiency: result.debugInfo.scheduleEfficiency,
-        // LOGGER_REMOVED: })
+        logger.ui.debug('🔍 [GANTT] Debug Info', {})
+    LOGGER_REMOVED: undefined
       }
 
       // Log unscheduled tasks for debugging
       if (result.unscheduledTasks.length > 0) {
         // [WorkPatternLifeCycle] Log unscheduled tasks
-        // LOGGER_REMOVED: logger.ui.debug('[WorkPatternLifeCycle] useUnifiedScheduler - Unscheduled tasks', {
+        logger.ui.debug('[WorkPatternLifeCycle] useUnifiedScheduler - Unscheduled tasks', {})
           // count: result.unscheduledTasks.length,
           // tasks: result.unscheduledTasks.map(task => ({
             // id: task.id,
@@ -122,7 +106,7 @@ export function useUnifiedScheduler(): {
         // })
 
         result.unscheduledTasks.forEach(task => {
-          logger.ui.debug('Task unscheduled', {
+          logger.ui.debug('Task unscheduled', {})
             taskId: task.id,
             taskName: task.name,
             duration: task.duration,
@@ -136,15 +120,13 @@ export function useUnifiedScheduler(): {
 
       // Log conflicts if any
       if (result.conflicts.length > 0) {
-        // LOGGER_REMOVED: logger.ui.warn('🚨 [GANTT] Scheduling conflicts detected', {
-          // LOGGER_REMOVED: conflictCount: result.conflicts.length,
-          // LOGGER_REMOVED: conflicts: result.conflicts,
-        // LOGGER_REMOVED: })
+        logger.ui.warn('🚨 [GANTT] Scheduling conflicts detected', {})
+    LOGGER_REMOVED: undefined
       }
 
       return result
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('❌ [GANTT] UnifiedScheduler failed', error)
+      logger.ui.error('❌ [GANTT] UnifiedScheduler failed', error)
 
       // Return empty result on error to prevent UI crashes
       return {
@@ -162,13 +144,13 @@ export function useUnifiedScheduler(): {
     options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
   ) => {
-    // LOGGER_REMOVED: logger.ui.debug('🎯 [GANTT] Getting next scheduled task')
+    logger.ui.debug('🎯 [GANTT] Getting next scheduled task')
 
     try {
       const nextTask = adapter.getNextScheduledTask(tasks, workPatterns, options, sequencedTasks)
 
       if (nextTask) {
-        // LOGGER_REMOVED: logger.ui.info('📋 [GANTT] Next task identified', {
+        logger.ui.info('📋 [GANTT] Next task identified', {})
           // taskId: nextTask.task.id,
           // taskName: nextTask.task.name,
           // startTime: nextTask.startTime.toISOString(),
@@ -176,12 +158,12 @@ export function useUnifiedScheduler(): {
           // priority: nextTask.priority,
         // })
       } else {
-        // LOGGER_REMOVED: logger.ui.debug('🔍 [GANTT] No next task found')
+        logger.ui.debug('🔍 [GANTT] No next task found')
       }
 
       return nextTask
     } catch (error) {
-      logger.ui.error('Failed to get next scheduled task', {
+      logger.ui.error('Failed to get next scheduled task', {})
         error: error instanceof Error ? error.message : String(error),
       }, 'gantt-next-task-error')
       return null
@@ -189,18 +171,16 @@ export function useUnifiedScheduler(): {
   }, [adapter])
 
   const validateDependencies = useCallback((tasks: Task[]) => {
-    // LOGGER_REMOVED: logger.ui.debug('🔗 [GANTT] Validating task dependencies', {
-      // LOGGER_REMOVED: tasksCount: tasks.length,
-    // LOGGER_REMOVED: })
+    logger.ui.debug('🔗 [GANTT] Validating task dependencies', {})
+    LOGGER_REMOVED: undefined
 
     const validation = adapter.validateDependencies(tasks)
 
     if (!validation.isValid) {
-      // LOGGER_REMOVED: logger.ui.warn('⚠️ [GANTT] Dependency validation failed', {
-        // LOGGER_REMOVED: errors: validation.errors,
-      // LOGGER_REMOVED: })
+      logger.ui.warn('⚠️ [GANTT] Dependency validation failed', {})
+    LOGGER_REMOVED: undefined
     } else {
-      // LOGGER_REMOVED: logger.ui.debug('✅ [GANTT] Dependencies validated successfully')
+      logger.ui.debug('✅ [GANTT] Dependencies validated successfully')
     }
 
     return validation
@@ -209,7 +189,7 @@ export function useUnifiedScheduler(): {
   const calculateTaskPriority = useCallback((task: Task) => {
     const priority = adapter.calculateTaskPriority(task)
 
-    // LOGGER_REMOVED: logger.ui.debug('📊 [GANTT] Task priority calculated', {
+    logger.ui.debug('📊 [GANTT] Task priority calculated', {})
       // taskId: task.id,
       // taskName: task.name,
       // priority: Math.round(priority * 100) / 100,
@@ -227,11 +207,11 @@ export function useUnifiedScheduler(): {
     options: SchedulingOptions = {},
     sequencedTasks: SequencedTask[] = [],
   ) => {
-    // LOGGER_REMOVED: logger.ui.debug('📈 [GANTT] Calculating scheduling metrics')
+    logger.ui.debug('📈 [GANTT] Calculating scheduling metrics')
 
     const metrics = adapter.getSchedulingMetrics(tasks, workPatterns, options, sequencedTasks)
 
-    // LOGGER_REMOVED: logger.ui.info('📊 [GANTT] Scheduling metrics calculated', {
+    logger.ui.info('📊 [GANTT] Scheduling metrics calculated', {})
       // totalTasks: metrics.totalTasks,
       // scheduledTasks: metrics.scheduledTasks,
       // unscheduledTasks: metrics.unscheduledTasks,

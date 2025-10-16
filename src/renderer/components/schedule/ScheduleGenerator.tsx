@@ -153,18 +153,14 @@ export function ScheduleGenerator({
         sequencedTasks.filter(w => !w.completed),
       )
 
-      // Log the optimal schedule for AI debugging
-      // LOGGER_REMOVED: logSchedule(
-      //   logger.ui,
-      //   'optimal',
-      //   tasks.filter(t => !t.completed),
-      //   sequencedTasks.filter(w => !w.completed),
-      //   optimalResult.scheduledTasks,
-      //   baseWorkPatterns,
-      //   undefined, // blocks parameter
-      //   optimalResult.debugInfo, // debugInfo from the result
-      //   optimalResult.conflicts, // warnings
-      // )
+      // Log the optimal schedule for debugging
+      logger.ui.debug('Generated optimal schedule', {
+        incompleteTasks: tasks.filter(t => !t.completed).length,
+        incompleteWorkflows: sequencedTasks.filter(w => !w.completed).length,
+        scheduledTasks: optimalResult.scheduledTasks.length,
+        workPatterns: baseWorkPatterns.length,
+        conflicts: optimalResult.conflicts?.length || 0,
+      })
 
       options.push({
         id: 'optimal',

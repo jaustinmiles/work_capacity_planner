@@ -99,7 +99,7 @@ app.on('window-all-closed', () => {
 // IPC handlers for database operations
 // Session management handlers
 ipcMain.handle('db:getSessions', async () => {
-  // LOGGER_REMOVED: logger.info('[ipc] Getting sessions...')
+  mainLogger.info('Getting sessions...')
   if (!db) db = DatabaseService.getInstance()
   return await db.getSessions()
 })
@@ -129,9 +129,9 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
 })
 
 ipcMain.handle('db:getTasks', async (_event, includeArchived = false) => {
-  // LOGGER_REMOVED: logger.info('[ipc] Getting tasks from database...', { includeArchived })
+  mainLogger.info('Getting tasks from database...', { includeArchived })
   const tasks = await db.getTasks(includeArchived)
-  // LOGGER_REMOVED: logger.info(`[ipc] Found ${tasks.length} tasks`)
+  mainLogger.info(`Found ${tasks.length} tasks`)
   return tasks
 })
 
@@ -395,10 +395,10 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
     const jobContexts = await db.getJobContexts()
     if (jobContexts && jobContexts.length > 0) {
       (context as any).jobContexts = jobContexts
-      // LOGGER_REMOVED: logger.debug('[IPC] Including job contexts in amendment parsing', { count: jobContexts.length })
+      mainLogger.debug('Including job contexts in amendment parsing', { count: jobContexts.length })
     }
-  } catch (_error) {
-    // LOGGER_REMOVED: logger.error('[ipc] Failed to fetch job contexts:', { error: _error })
+  } catch (error) {
+    mainLogger.error('Failed to fetch job contexts', { error: error instanceof Error ? error.message : String(error) })
   }
 
   const parser = new AmendmentParser({ useAI: true })
@@ -443,7 +443,7 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
   const projectRoot = process.cwd()
   const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
 
-  // LOGGER_REMOVED: logger.info('Saving feedback', { path: feedbackPath })
+  mainLogger.info('Saving feedback', { path: feedbackPath })
 
   // Ensure directory exists
   await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
@@ -505,7 +505,7 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
   // Save all feedback (flat array only)
   await fs.writeFile(feedbackPath, JSON.stringify(allFeedback, null, 2))
 
-  // LOGGER_REMOVED: logger.info('Feedback saved to context folder')
+  mainLogger.info('Feedback saved to context folder')
   return true
 })
 
@@ -542,7 +542,7 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
   const projectRoot = process.cwd()
   const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
 
-  // LOGGER_REMOVED: logger.info('Updating feedback', { path: feedbackPath })
+  mainLogger.info('Updating feedback', { path: feedbackPath })
 
   // Ensure directory exists
   await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
@@ -577,7 +577,7 @@ ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
   // Save updated feedback (ensure it's a flat, deduplicated array)
   await fs.writeFile(feedbackPath, JSON.stringify(uniqueFeedback, null, 2))
 
-  // LOGGER_REMOVED: logger.info('Feedback updated in context folder')
+  mainLogger.info('Feedback updated in context folder')
   return true
 })
 
@@ -587,25 +587,25 @@ ipcMain.handle('app:getSessionId', () => {
 })
 
 // Logging handler - forward renderer logs
-ipcMain.on('log:message', (_event, { level, scope, _message, data }) => {
+ipcMain.on('log:message', (_event, { level, scope, message, data }) => {
   // Add scope to context if provided
-  const _contextData = scope ? { ...data, scope } : data
+  const contextData = scope ? { ...data, scope } : data
 
   // Use the appropriate logger based on level
   switch (level) {
     case 'debug':
-      // LOGGER_REMOVED: logger.debug(_message, _contextData)
+      mainLogger.debug(message, contextData)
       break
     case 'info':
-      // LOGGER_REMOVED: logger.info(_message, _contextData)
+      mainLogger.info(message, contextData)
       break
     case 'warn':
-      // LOGGER_REMOVED: logger.warn(_message, _contextData)
+      mainLogger.warn(message, contextData)
       break
     case 'error':
-      // LOGGER_REMOVED: logger.error(_message, _contextData)
+      mainLogger.error(message, contextData)
       break
     default:
-      // LOGGER_REMOVED: logger.info(_message, _contextData)
+      mainLogger.info(message, contextData)
   }
 })

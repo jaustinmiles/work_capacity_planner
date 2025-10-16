@@ -131,7 +131,7 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
       }
 
       mediaRecorder.onerror = (_event) => {
-        // LOGGER_REMOVED: logger.ui.error('MediaRecorder error:', _event)
+        logger.ui.error('MediaRecorder error:', _event)
         setError('Recording error occurred')
         setRecordingState('idle')
       }

@@ -17,7 +17,8 @@ import ReactFlow, {
 import { Tag, Space, Typography, Switch, Button } from '@arco-design/web-react'
 import { IconFullscreen, IconFullscreenExit } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
+
 
 import 'reactflow/dist/style.css'
 
@@ -336,7 +337,7 @@ export function InteractiveWorkflowGraph({
   const onConnect = useCallback(
     (params: Connection) => {
       if (!isValidConnection(params)) {
-        // LOGGER_REMOVED: logger.ui.error('Invalid connection: Would create a circular dependency')
+        logger.ui.error('Invalid connection: Would create a circular dependency')
         return
       }
 

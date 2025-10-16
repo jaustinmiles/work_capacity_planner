@@ -14,7 +14,7 @@ import { IconScissor } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -79,11 +79,8 @@ export function TaskSplitModal({ task, visible, onClose, onSplit }: TaskSplitMod
       // Add the new task
       await addTask(task2)
 
-      // LOGGER_REMOVED: logger.ui.info('Task split successfully', {
-        // LOGGER_REMOVED: originalTaskId: task.id,
-        // LOGGER_REMOVED: newTaskId: task2.id,
-        // LOGGER_REMOVED: splitRatio,
-      // LOGGER_REMOVED: })
+      logger.ui.info('Task split successfully', {})
+    LOGGER_REMOVED: undefined
 
       Message.success('Task split successfully')
 
@@ -95,7 +92,7 @@ export function TaskSplitModal({ task, visible, onClose, onSplit }: TaskSplitMod
       form.resetFields()
       onClose()
     } catch (error) {
-      logger.ui.error('Failed to split task', {
+      logger.ui.error('Failed to split task', {})
         error: error instanceof Error ? error.message : String(error),
         taskId: task.id,
         taskName: task.name,

@@ -13,9 +13,7 @@ import { Message } from '../common/Message'
 import { SequencedTask } from '@shared/sequencing-types'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-// import { logger } from '@/shared/logger'
-// import { useLoggerContext } from '../../../logging/index.renderer'
-// import { RendererLogger } from '../../../logging/renderer/RendererLogger'
+import { logger } from '@/logger'
 
 
 dayjs.extend(relativeTime)
@@ -29,8 +27,6 @@ interface TaskItemProps {
 
 export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
   const { toggleTaskComplete, deleteTask, selectTask, updateTask, loadTasks } = useTaskStore()
-  // const { logger: newLogger } = useLoggerContext()
-  // const rendererLogger = newLogger as RendererLogger
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState(task.name)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -43,8 +39,11 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
     // Fetch logged time for this task
     getDatabase().getTaskTotalLoggedTime(task.id).then(time => {
       setLoggedTime(time)
-    }).catch(_err => {
-      // logger.ui.error('Failed to fetch logged time:', _err)
+    }).catch(err => {
+      logger.ui.error('Failed to fetch logged time', {
+        error: err instanceof Error ? err.message : String(err),
+        taskId: task.id,
+      })
     })
   }, [task.id, task.actualDuration]) // Re-fetch when actualDuration changes
 
@@ -60,11 +59,11 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
   const handleSave = async () => {
     if (editedName.trim()) {
       try {
-        // logger.ui.info('Task name updated', {
-          // taskId: task.id,
-          // oldName: task.name,
-          // newName: editedName.trim(),
-        // })
+        logger.ui.info('Task name updated', {
+          taskId: task.id,
+          oldName: task.name,
+          newName: editedName.trim(),
+        })
         await updateTask(task.id, { name: editedName.trim() })
         setIsEditing(false)
       } catch (__error) {
@@ -82,12 +81,15 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
     try {
       await getDatabase().unarchiveTask(task.id)
       Message.success(`Unarchived: ${task.name}`)
-      // logger.ui.info('Task unarchived', { taskId: task.id, taskName: task.name })
+      logger.ui.info('Task unarchived', { taskId: task.id, taskName: task.name })
       // Reload tasks with archived included to update the UI
       await loadTasks(true)
-    } catch (_error) {
+    } catch (error) {
       Message.error('Failed to unarchive task')
-      // logger.ui.error('Failed to unarchive task:', _error)
+      logger.ui.error('Failed to unarchive task', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: task.id,
+      })
     }
   }
 
@@ -126,17 +128,11 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
           <Checkbox
             checked={task.completed}
             onChange={() => {
-              // rendererLogger.interaction('Task checkbox clicked', {
-                // component: 'TaskItem',
-                // taskId: task.id,
-                // taskName: task.name,
-                // newCompletedState: !task.completed,
-              // })
-              // logger.ui.info('Task completion toggled', {
-                // taskId: task.id,
-                // taskName: task.name,
-                // completed: !task.completed,
-              // })
+              logger.ui.info('Task completion toggled', {})
+                taskId: task.id,
+                taskName: task.name,
+                completed: !task.completed,
+              })
               toggleTaskComplete(task.id).catch(console.error)
             }}
             style={{ marginTop: 2 }}
@@ -169,12 +165,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                     textDecoration: task.completed ? 'line-through' : 'none',
                   }}
                   onClick={() => {
-                    // rendererLogger.interaction('Task name clicked', {
-                      // component: 'TaskItem',
-                      // taskId: task.id,
-                      // taskName: task.name,
-                    // })
-                    // logger.ui.debug('Task selected', { taskId: task.id, taskName: task.name })
+                    logger.ui.debug('Task selected', { taskId: task.id, taskName: task.name })
                     selectTask(task.id)
                   }}
                   className="hover:text-blue-600"
@@ -199,7 +190,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                         size="small"
                         style={{ cursor: 'pointer' }}
                         onClick={() => {
-                          // logger.ui.debug('Work sessions modal opened', { taskId: task.id })
+                          logger.ui.debug('Work sessions modal opened', { taskId: task.id })
                           setShowSessionsModal(true)
                         }}
                       >
@@ -285,7 +276,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                   size="small"
                   icon={<IconPlayArrow />}
                   onClick={async () => {
-                    // rendererLogger.interaction('Start work button clicked', {
+                    logger.ui.interaction('Start work button clicked', {})
                       // component: 'TaskItem',
                       // taskId: task.id,
                       // taskName: task.name,
@@ -293,7 +284,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
 
                     try {
                       await useTaskStore.getState().startWorkOnTask(task.id)
-                      // logger.ui.info('Started work on task from task list', {
+                      logger.ui.info('Started work on task from task list', {})
                         // taskId: task.id,
                         // taskName: task.name,
                       // })
@@ -311,13 +302,13 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                   size="small"
                   icon={<IconClockCircle />}
                   onClick={() => {
-                    // rendererLogger.interaction('Time logging button clicked', {
+                    logger.ui.interaction('Time logging button clicked', {})
                       // component: 'TaskItem',
                       // taskId: task.id,
                       // taskName: task.name,
                       // hasSteps: task.hasSteps,
                     // })
-                    // logger.ui.info('Time logging modal opened', {
+                    logger.ui.info('Time logging modal opened', {})
                       // taskId: task.id,
                       // taskName: task.name,
                       // hasSteps: task.hasSteps,
@@ -338,13 +329,13 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                   size="small"
                   icon={<IconEdit />}
                   onClick={() => {
-                    // rendererLogger.interaction('Edit task button clicked', {
+                    logger.ui.interaction('Edit task button clicked', {})
                       // component: 'TaskItem',
                       // taskId: task.id,
                       // taskName: task.name,
                       // hasSteps: task.hasSteps,
                     // })
-                    // logger.ui.info('Task edit modal opened', {
+                    logger.ui.info('Task edit modal opened', {})
                       // taskId: task.id,
                       // taskName: task.name,
                       // hasSteps: task.hasSteps,
@@ -363,7 +354,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                 size="small"
                 icon={<IconUndo />}
                 onClick={() => {
-                  // rendererLogger.interaction('Unarchive button clicked', {
+                  logger.ui.interaction('Unarchive button clicked', {})
                     // component: 'TaskItem',
                     // taskId: task.id,
                     // taskName: task.name,
@@ -380,12 +371,12 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
             title="Delete Task"
             content="Are you sure you want to delete this task?"
             onOk={() => {
-              // rendererLogger.interaction('Delete task confirmed', {
+              logger.ui.interaction('Delete task confirmed', {})
                 // component: 'TaskItem',
                 // taskId: task.id,
                 // taskName: task.name,
               // })
-              // logger.ui.warn('Task deleted', { taskId: task.id, taskName: task.name })
+              logger.ui.warn('Task deleted', { taskId: task.id, taskName: task.name })
               deleteTask(task.id).catch(console.error)
             }}
             okText="Delete"

@@ -88,7 +88,7 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
       await saveFeedback(feedback)
 
       Message.success('Feedback saved successfully!')
-      // LOGGER_REMOVED: logger.ui.info('Feedback submitted:', feedback)
+      logger.ui.info('Feedback submitted:', feedback)
 
       form.resetFields()
       onClose?.()
@@ -120,7 +120,7 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
       window.localStorage.setItem('app_feedback', JSON.stringify(existing))
 
       // Also write to context folder if possible
-      // LOGGER_REMOVED: logger.ui.info('Feedback saved to localStorage:', feedback)
+      logger.ui.info('Feedback saved to localStorage:', feedback)
     }
   }
 

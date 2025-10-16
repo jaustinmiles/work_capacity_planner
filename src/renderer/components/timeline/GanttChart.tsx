@@ -82,7 +82,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Listen for time override changes
   useEffect(() => {
     const handleTimeChange = () => {
-      logger.system.info('Time override changed, reloading patterns', {}, 'time-override-change')
+      logger.ui.info('Time override changed, reloading patterns', {}, 'time-override-change')
       // CRITICAL: Reload patterns with new time context
       loadWorkPatterns()
       // Clear any saved schedule when time changes
@@ -262,7 +262,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Helper function to convert UnifiedScheduler results to GanttChart format
   const convertUnifiedToGanttItems = useCallback((result: ScheduleResult): GanttItem[] => {
-    logger.ui.debug('Converting UnifiedScheduler results to Gantt format', {
+    logger.ui.debug('Converting UnifiedScheduler results to Gantt format', {})
       scheduledCount: result.scheduledTasks.length,
       unscheduledCount: result.unscheduledTasks.length,
     }, 'gantt-convert-results')
@@ -435,7 +435,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Use the scheduler to get properly ordered items
   // Include refreshKey in dependencies to force recalculation when time changes
   const scheduledItems = useMemo(() => {
-    logger.ui.info('Computing schedule', {
+    logger.ui.info('Computing schedule', {})
       workPatternsLoading,
       workPatternsCount: workPatterns.length,
       tasksCount: tasks.length,
@@ -459,7 +459,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const tasksWithDeadlines = tasks.filter(task => task.deadline)
     const workflowsWithDeadlines = sequencedTasks.filter(workflow => workflow.deadline)
 
-    logger.ui.info('Input data analysis', {
+    logger.ui.info('Input data analysis', {})
       totalTasks: tasks.length,
       tasksWithDeadlines: tasksWithDeadlines.length,
       totalWorkflows: sequencedTasks.length,
@@ -472,7 +472,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
     // IMPORTANT: Pass all tasks to UnifiedScheduler - it will handle deduplication
     // The scheduler handles removing any tasks that are also in sequencedTasks
-    logger.ui.info('Using UnifiedScheduler for calculation', {
+    logger.ui.info('Using UnifiedScheduler for calculation', {})
       schedulerType: 'unified',
       tasksCount: tasks.length,
       sequencedTasksCount: sequencedTasks.length,
@@ -517,7 +517,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         blockId: item.blockId,
         priority: item.priority,
       }))
-      // LOGGER_REMOVED: logGanttChart(logger.ui, scheduledItems, workPatterns, viewWindow, tasks, sequencedTasks, debugInfo)
+
 
       // Log final schedule results with deadline analysis
       const finalItemsWithDeadlines = ganttItems.filter(item => item.deadline)
@@ -525,7 +525,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         dayjs(item.endTime).isAfter(dayjs(item.deadline)),
       )
 
-      logger.ui.info('UnifiedScheduler calculation complete', {
+      logger.ui.info('UnifiedScheduler calculation complete', {})
         totalScheduledItems: ganttItems.length,
         itemsWithDeadlines: finalItemsWithDeadlines.length,
         violatedDeadlines: violatedDeadlines.length,
@@ -544,7 +544,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     // Add meeting items from work patterns
     const meetingItems = getMeetingScheduledItems(workPatterns)
 
-    logger.ui.info('Merging UnifiedScheduler results with meetings', {
+    logger.ui.info('Merging UnifiedScheduler results with meetings', {})
       taskItems: ganttItems.length,
       meetingItems: meetingItems.length,
       totalItems: ganttItems.length + meetingItems.length,
@@ -1247,7 +1247,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   setRefreshKey(prev => prev + 1) // Force refresh to respect new deadline
                   Message.info('Schedule updated to respect the new deadline')
                 } catch (error) {
-                  logger.db.error('Failed to set deadline', {
+                  logger.db.error('Failed to set deadline', {})
                     error: error instanceof Error ? error.message : String(error),
                     itemId: draggedItem?.taskId || draggedItem?.workflowId,
                   }, 'deadline-set-error')
@@ -1582,7 +1582,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 const effectiveDeadline = item.deadline || (parentWorkflow?.deadline ? parentWorkflow.deadline : null)
 
                 // Commented out to reduce log spam - this was running for EVERY item on EVERY render
-                // logger.ui.debug('🔍 [DEADLINE] Checking deadline for item', {
+                logger.ui.debug('🔍 [DEADLINE] Checking deadline for item', {})
                 //   itemId: item.id,
                 //   itemName: item.name,
                 //   hasOwnDeadline: !!item.deadline,
@@ -1603,7 +1603,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   const delayMinutes = endTimeDate.diff(deadlineDate, 'minutes')
                   const isInheritedDeadline = !item.deadline && !!effectiveDeadline
 
-                  logger.ui.debug('Item has deadline', {
+                  logger.ui.debug('Item has deadline', {})
                     itemId: item.id,
                     itemName: item.name,
                     deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
@@ -1617,7 +1617,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   }, 'deadline-check')
 
                   if (isDeadlineViolated) {
-                    logger.ui.warn('Deadline violation detected', {
+                    logger.ui.warn('Deadline violation detected', {})
                       itemId: item.id,
                       itemName: item.name,
                       deadline: deadlineDate.format('YYYY-MM-DD HH:mm:ss'),
@@ -1635,7 +1635,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         : 'TASK_DEADLINE',
                     }, 'deadline-violation')
                   } else {
-                    logger.ui.trace('Deadline on time', {
+                    logger.ui.trace('Deadline on time', {})
                       itemId: item.id,
                       itemName: item.name,
                       deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),

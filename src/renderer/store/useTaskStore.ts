@@ -11,8 +11,8 @@ import { UnifiedSchedulerAdapter } from '@shared/unified-scheduler-adapter'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
-// LOGGER_REMOVED: import { getRendererLogger } from '../../logging/index.renderer'
+
+
 import { WorkTrackingService } from '../services/workTrackingService'
 import dayjs from 'dayjs'
 import { getCurrentTime } from '../../shared/time-provider'
@@ -139,7 +139,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     // Lazy creation of singleton - only create when first needed
     if (!workTrackingServiceSingleton) {
       workTrackingServiceSingleton = new WorkTrackingService()
-      // rendererLogger.info('[TaskStore] Created WorkTrackingService singleton (lazy)', {
+      logger.ui.info('[TaskStore] Created WorkTrackingService singleton (lazy)', {
         // instanceId: (workTrackingServiceSingleton as any).instanceId,
       // })
     }
@@ -180,7 +180,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
     incrementNextTaskSkipIndex: () => {
       const currentIndex = get().nextTaskSkipIndex
-      // rendererLogger.info('[TaskStore] Incrementing next task skip index', {
+      logger.ui.info('[TaskStore] Incrementing next task skip index', {})
         // currentIndex,
         // newIndex: currentIndex + 1,
       // })
@@ -189,7 +189,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
     resetNextTaskSkipIndex: () => {
       const _currentIndex = get().nextTaskSkipIndex
-      // rendererLogger.info('[TaskStore] Resetting next task skip index', {
+      logger.ui.info('[TaskStore] Resetting next task skip index', {})
         // previousIndex: _currentIndex,
       // })
       set({ nextTaskSkipIndex: 0 })
@@ -198,20 +198,20 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   // Data loading actions
   loadTasks: async (includeArchived = false) => {
     try {
-      // rendererLogger.info('[TaskStore] Loading tasks from database', { includeArchived })
+      logger.ui.info('[TaskStore] Loading tasks from database', { includeArchived })
       // Loading tasks from database
       set({ isLoading: true, error: null })
       const tasks = await getDatabase().getTasks(includeArchived)
       // Tasks loaded successfully
-      // rendererLogger.info('[TaskStore] Tasks loaded successfully', {
+      logger.ui.info('[TaskStore] Tasks loaded successfully', {})
         // taskCount: tasks.length,
         // incompleteCount: tasks.filter(t => !t.completed).length,
         // archivedCount: tasks.filter(t => t.archived).length,
       // })
       set({ tasks, isLoading: false })
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Store: Error loading tasks:', error)
-      // rendererLogger.error('[TaskStore] Failed to load tasks', error as Error)
+      logger.ui.error('Store: Error loading tasks:', error)
+      logger.ui.error('[TaskStore] Failed to load tasks', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to load tasks',
         isLoading: false,
@@ -221,18 +221,18 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   loadSequencedTasks: async () => {
     try {
-      // rendererLogger.info('[TaskStore] Loading sequenced tasks from database')
+      logger.ui.info('[TaskStore] Loading sequenced tasks from database')
       set({ isLoading: true, error: null })
       const sequencedTasks = await getDatabase().getSequencedTasks()
       // Sequenced tasks loaded successfully
-      // rendererLogger.info('[TaskStore] Sequenced tasks loaded successfully', {
+      logger.ui.info('[TaskStore] Sequenced tasks loaded successfully', {})
         // workflowCount: sequencedTasks.length,
         // totalSteps: sequencedTasks.reduce((sum, st) => sum + st.steps.length, 0),
       // })
       set({ sequencedTasks, isLoading: false })
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Store: Error loading sequenced tasks:', error)
-      // rendererLogger.error('[TaskStore] Failed to load sequenced tasks', error as Error)
+      logger.ui.error('Store: Error loading sequenced tasks:', error)
+      logger.ui.error('[TaskStore] Failed to load sequenced tasks', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to load sequenced tasks',
         isLoading: false,
@@ -242,7 +242,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   loadWorkPatterns: async () => {
     try {
-      // rendererLogger.info('[WorkPatternLifeCycle] TaskStore.loadWorkPatterns - START')
+      logger.ui.info('[WorkPatternLifeCycle] TaskStore.loadWorkPatterns - START')
       set({ workPatternsLoading: true })
 
       const db = getDatabase()
@@ -250,14 +250,14 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // DEBUG: Log what getCurrentTime returns
       const currentTime = getCurrentTime()
-      // rendererLogger.info('[DEBUG] loadWorkPatterns getCurrentTime:', {
+      logger.ui.info('[DEBUG] loadWorkPatterns getCurrentTime:', {})
         // time: currentTime.toISOString(),
         // localDate: currentTime.toLocaleDateString(),
         // localTime: currentTime.toLocaleTimeString(),
       // })
 
       const today = dayjs(currentTime).startOf('day')
-      // rendererLogger.info('[DEBUG] loadWorkPatterns date range:', {
+      logger.ui.info('[DEBUG] loadWorkPatterns date range:', {})
         // startDate: today.add(-1, 'day').format('YYYY-MM-DD'),
         // endDate: today.add(7, 'day').format('YYYY-MM-DD'),
         // todayDate: today.format('YYYY-MM-DD'),
@@ -288,7 +288,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         }
       }
 
-      // rendererLogger.info('[WorkPatternLifeCycle] TaskStore.loadWorkPatterns - COMPLETE', {
+      logger.ui.info('[WorkPatternLifeCycle] TaskStore.loadWorkPatterns - COMPLETE', {})
         // total: patterns.length,
         // withBlocks: patterns.filter(p => p.blocks && p.blocks.length > 0).length,
         // dates: patterns.map(p => p.date),
@@ -298,7 +298,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       set({ workPatterns: patterns, workPatternsLoading: false })
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to load work patterns', error as Error)
+      logger.ui.error('[TaskStore] Failed to load work patterns', error as Error)
       set({
         workPatterns: [],
         workPatternsLoading: false,
@@ -309,7 +309,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   initializeData: async () => {
     try {
-      // rendererLogger.info('[TaskStore] Starting data initialization...')
+      logger.ui.info('[TaskStore] Starting data initialization...')
       // Clear existing data first to prevent stale data from showing
       // Reset skip index on app restart
       set({
@@ -324,14 +324,14 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // Initialize WorkTrackingService first to restore active sessions
       try {
-        // rendererLogger.info('[TaskStore] Initializing WorkTrackingService...')
+        logger.ui.info('[TaskStore] Initializing WorkTrackingService...')
         await getWorkTrackingService().initialize()
-        // rendererLogger.info('[TaskStore] WorkTrackingService initialized successfully')
+        logger.ui.info('[TaskStore] WorkTrackingService initialized successfully')
 
         // Sync any restored active session to task store
         const restoredSession = getWorkTrackingService().getCurrentActiveSession()
         if (restoredSession) {
-          // rendererLogger.info('[TaskStore] Syncing restored session to store', {
+          logger.ui.info('[TaskStore] Syncing restored session to store', {})
             // sessionId: restoredSession.id,
             // taskId: restoredSession.taskId,
             // stepId: restoredSession.stepId,
@@ -342,21 +342,21 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           newSessions.set(sessionKey, restoredSession)
           set({ activeWorkSessions: newSessions })
 
-          // rendererLogger.info('[TaskStore] Restored session synced to store')
+          logger.ui.info('[TaskStore] Restored session synced to store')
         }
       } catch (error) {
-        logger.system.error('Failed to initialize WorkTrackingService', {
+        logger.system.error('Failed to initialize WorkTrackingService', {})
           error: error instanceof Error ? error.message : String(error),
         }, 'work-tracking-init-error')
         // Don't fail the whole initialization if work tracking fails
       }
 
       // Load last used session first to prevent default session flash
-      // rendererLogger.info('[TaskStore] Loading last used session...')
+      logger.ui.info('[TaskStore] Loading last used session...')
       await getDatabase().loadLastUsedSession()
 
       // Loading all data from database
-      // rendererLogger.info('[TaskStore] Loading tasks, workflows, and work patterns from database...')
+      logger.ui.info('[TaskStore] Loading tasks, workflows, and work patterns from database...')
       const [tasks, sequencedTasks] = await Promise.all([
         getDatabase().getTasks(),
         getDatabase().getSequencedTasks(),
@@ -365,7 +365,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Load work patterns separately (it's async and sets its own state)
       await get().loadWorkPatterns()
 
-      // rendererLogger.info('[TaskStore] Data loaded successfully', {
+      logger.ui.info('[TaskStore] Data loaded successfully', {})
         // taskCount: tasks.length,
         // workflowCount: sequencedTasks.length,
         // totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0),
@@ -375,9 +375,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Store initialized successfully
       set({ tasks, sequencedTasks, isLoading: false })
 
-      // rendererLogger.info('[TaskStore] Store initialization completed successfully')
+      logger.ui.info('[TaskStore] Store initialization completed successfully')
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to initialize data:', error)
+      logger.ui.error('[TaskStore] Failed to initialize data:', error)
       set({
         error: error instanceof Error ? error.message : 'Failed to initialize data',
         isLoading: false,
@@ -387,7 +387,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   addTask: async (taskData) => {
     try {
-      // rendererLogger.info('[TaskStore] Creating new task', {
+      logger.ui.info('[TaskStore] Creating new task', {})
         // taskName: taskData.name,
         // type: taskData.type,
         // duration: taskData.duration,
@@ -399,12 +399,12 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         tasks: [...state.tasks, task],
         error: null,
       }))
-      // rendererLogger.info('[TaskStore] Task created successfully', {
+      logger.ui.info('[TaskStore] Task created successfully', {})
         // taskId: task.id,
         // taskName: task.name,
       // })
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to create task', error as Error)
+      logger.ui.error('[TaskStore] Failed to create task', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to create task',
       })
@@ -439,7 +439,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           ),
           error: null,
         }))
-        // LOGGER_REMOVED: logger.ui.info('Updated existing workflow', { workflowName: taskData.name })
+        logger.ui.info('Updated existing workflow', { workflowName: taskData.name })
       } else {
         // Create new workflow
         const sequencedTask = await getDatabase().createSequencedTask(taskData)
@@ -447,7 +447,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           sequencedTasks: [...state.sequencedTasks, sequencedTask],
           error: null,
         }))
-        // LOGGER_REMOVED: logger.ui.info('Created new workflow', { workflowName: taskData.name })
+        logger.ui.info('Created new workflow', { workflowName: taskData.name })
       }
     } catch (error) {
       set({
@@ -491,7 +491,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   deleteTask: async (id) => {
     try {
       const task = get().tasks.find(t => t.id === id)
-      logger.ui.info('Deleting task', {
+      logger.ui.info('Deleting task', {})
         taskId: id,
         taskName: task?.name,
       }, 'task-delete')
@@ -501,9 +501,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         selectedTaskId: state.selectedTaskId === id ? null : state.selectedTaskId,
         error: null,
       }))
-      // rendererLogger.info('[TaskStore] Task deleted successfully', { taskId: id })
+      logger.ui.info('[TaskStore] Task deleted successfully', { taskId: id })
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to delete task', error as Error, { taskId: id })
+      logger.ui.error('[TaskStore] Failed to delete task', error as Error, { taskId: id })
       set({
         error: error instanceof Error ? error.message : 'Failed to delete task',
       })
@@ -530,19 +530,11 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const task = get().tasks.find(t => t.id === id)
       if (!task) return
 
-      // LOGGER_REMOVED: logger.ui.info('[TaskStore] Toggling task completion', {
-        // LOGGER_REMOVED: taskId: id,
-        // LOGGER_REMOVED: taskName: task.name,
-        // LOGGER_REMOVED: currentStatus: task.completed,
-        // LOGGER_REMOVED: newStatus: !task.completed,
-      // LOGGER_REMOVED: })
+      logger.ui.info('[TaskStore] Toggling task completion', {
+    LOGGER_REMOVED: undefined
 
-      // LOGGER_REMOVED: logger.ui.info('Toggling task completion', {
-        // LOGGER_REMOVED: taskId: id,
-        // LOGGER_REMOVED: taskName: task.name,
-        // LOGGER_REMOVED: currentStatus: task.completed,
-        // LOGGER_REMOVED: newStatus: !task.completed,
-      // LOGGER_REMOVED: })
+      logger.ui.info('Toggling task completion', {})
+    LOGGER_REMOVED: undefined
 
       const updates = {
         completed: !task.completed,
@@ -566,7 +558,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             set({ activeWorkSessions: newSessions })
 
           } catch (error) {
-            logger.ui.warn('Failed to stop work session for completed task', {
+            logger.ui.warn('Failed to stop work session for completed task', {})
               error: error instanceof Error ? error.message : String(error),
               taskId: id,
             }, 'work-session-stop-warn')
@@ -574,18 +566,13 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         }
       }
 
-      // LOGGER_REMOVED: logger.ui.info('Task completion toggled successfully', {
-        // LOGGER_REMOVED: taskId: id,
-        // LOGGER_REMOVED: isNowCompleted: !task.completed,
-      // LOGGER_REMOVED: })
-
-      // Reset skip index when task is completed (to show the actual next task)
-      // Note: task.completed is the OLD value before toggle, so !task.completed means "now completed"
+      logger.ui.info('Task completion toggled successfully', {})
+    Note: undefined
       if (!task.completed) {
         get().resetNextTaskSkipIndex()
       }
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('[TaskStore] Failed to toggle task completion', error, { taskId: id })
+      logger.ui.error('[TaskStore] Failed to toggle task completion', error, { taskId: id })
       set({
         error: error instanceof Error ? error.message : 'Failed to toggle task completion',
       })
@@ -594,7 +581,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   selectTask: (id) => {
     const task = id ? get().tasks.find(t => t.id === id) : null
-    logger.ui.debug('Task selection changed', {
+    logger.ui.debug('Task selection changed', {})
       taskId: id,
       taskName: task?.name,
     }, 'task-select')
@@ -603,11 +590,11 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   // Scheduling actions
   generateSchedule: async (options = {}) => {
-    // rendererLogger.info('[TaskStore] generateSchedule called with options:', options)
+    logger.ui.info('[TaskStore] generateSchedule called with options:', options)
     set({ isScheduling: true, schedulingError: null })
     try {
       const state = get()
-      // rendererLogger.info('[TaskStore] Generating schedule using UnifiedSchedulerAdapter', {
+      logger.ui.info('[TaskStore] Generating schedule using UnifiedSchedulerAdapter', {})
         // taskCount: state.tasks.filter(t => !t.completed).length,
         // workflowCount: state.sequencedTasks.filter(st => st.overallStatus !== 'completed').length,
         // workPatternsCount: state.workPatterns.length,
@@ -616,7 +603,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // Check if we have work patterns loaded
       if (!state.workPatterns || state.workPatterns.length === 0) {
-        // rendererLogger.warn('[TaskStore] No work patterns available, cannot generate schedule')
+        logger.ui.warn('[TaskStore] No work patterns available, cannot generate schedule')
         set({
           schedulingError: 'No work patterns available. Please set up your work schedule.',
           isScheduling: false,
@@ -632,7 +619,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         debug: true,
       }
 
-      // rendererLogger.info('[TaskStore] Calling unifiedSchedulerAdapter.scheduleTasks...')
+      logger.ui.info('[TaskStore] Calling unifiedSchedulerAdapter.scheduleTasks...')
       const result = unifiedSchedulerAdapter.scheduleTasks(
         state.tasks,
         state.workPatterns,
@@ -640,7 +627,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         state.sequencedTasks,
       )
 
-      // rendererLogger.info('[TaskStore] UnifiedScheduler completed', {
+      logger.ui.info('[TaskStore] UnifiedScheduler completed', {})
         // scheduledCount: result.scheduledTasks.length,
         // unscheduledCount: result.unscheduledTasks.length,
         // totalDuration: result.totalDuration,
@@ -719,10 +706,10 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }
 
       set({ currentSchedule: schedule, isScheduling: false })
-      // rendererLogger.info('[TaskStore] Schedule set in state using UnifiedSchedulerAdapter')
+      logger.ui.info('[TaskStore] Schedule set in state using UnifiedSchedulerAdapter')
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to generate schedule', error as Error)
-      // rendererLogger.error('[TaskStore] Error details:', {
+      logger.ui.error('[TaskStore] Failed to generate schedule', error as Error)
+      logger.ui.error('[TaskStore] Error details:', {})
         // message: (error as Error).message,
         // stack: (error as Error).stack,
       // })
@@ -759,7 +746,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   }),
 
   setOptimalSchedule: (schedule: any) => {
-    // rendererLogger.info('[TaskStore] Setting optimal schedule', {
+    logger.ui.info('[TaskStore] Setting optimal schedule', {})
       // scheduledItemCount: schedule?.length || 0,
     // })
     set({ optimalSchedule: schedule })
@@ -796,12 +783,12 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
     // Check if any work is active globally via WorkTrackingService
     if (getWorkTrackingService().isAnyWorkActive()) {
-      // LOGGER_REMOVED: logger.ui.warn('Cannot start work: another work session is already active')
+      logger.ui.warn('Cannot start work: another work session is already active')
       return
     }
 
     if (activeSession && !activeSession.isPaused) {
-      // LOGGER_REMOVED: logger.ui.warn(`Work session for step ${stepId} is already active`)
+      logger.ui.warn(`Work session for step ${stepId} is already active`)
       return
     }
 
@@ -819,7 +806,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Use workflowId as key to match WorkTrackingService's getSessionKey
       newSessions.set(sessionKey, localSession)
 
-      // rendererLogger.info('[TaskStore] Syncing workflow step session to store state', {
+      logger.ui.info('[TaskStore] Syncing workflow step session to store state', {})
         // stepId,
         // workflowId,
         // sessionKey,
@@ -832,7 +819,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       set({ activeWorkSessions: newSessions })
 
       // Log after state update to verify
-      // rendererLogger.info('[TaskStore] State updated, verifying activeWorkSessions', {
+      logger.ui.info('[TaskStore] State updated, verifying activeWorkSessions', {})
         // currentActiveSessionsSize: get().activeWorkSessions.size,
         // hasSession: get().activeWorkSessions.has(stepId),
         // sessionIsPaused: get().activeWorkSessions.get(stepId)?.isPaused,
@@ -844,7 +831,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         startedAt: activeSession ? undefined : new Date(),
       })
 
-      // rendererLogger.info('[TaskStore] Started work on step', {
+      logger.ui.info('[TaskStore] Started work on step', {})
         // stepId,
         // workflowId,
       // })
@@ -852,7 +839,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Emit event to trigger UI updates
       appEvents.emit(EVENTS.SESSION_CHANGED)
     } catch (error) {
-      logger.ui.error('Failed to start work on step', {
+      logger.ui.error('Failed to start work on step', {})
         error: error instanceof Error ? error.message : String(error),
         stepId,
         workflowId,
@@ -864,7 +851,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   startWorkOnTask: async (taskId: string) => {
     // Check if any work is active globally via WorkTrackingService
     if (getWorkTrackingService().isAnyWorkActive()) {
-      // LOGGER_REMOVED: logger.ui.warn('Cannot start work: another work session is already active')
+      logger.ui.warn('Cannot start work: another work session is already active')
       return
     }
 
@@ -886,7 +873,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const newSessions = new Map(get().activeWorkSessions)
       newSessions.set(taskId, localSession)
 
-      // rendererLogger.info('[TaskStore] Syncing session to store state', {
+      logger.ui.info('[TaskStore] Syncing session to store state', {})
         // taskId,
         // sessionId: workSession.id,
         // isPaused: localSession.isPaused,
@@ -897,7 +884,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       set({ activeWorkSessions: newSessions })
 
       // State updated with new work session
-      // rendererLogger.debug('[TaskStore] State updated for task', {
+      logger.ui.debug('[TaskStore] State updated for task', {})
         // taskId,
         // currentActiveSessionsSize: get().activeWorkSessions.size,
         // hasSession: get().activeWorkSessions.has(taskId),
@@ -915,7 +902,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         overallStatus: TaskStatus.InProgress,
       })
 
-      // LOGGER_REMOVED: logger.ui.info('[TaskStore] Started work on task', {
+      logger.ui.info('[TaskStore] Started work on task', {})
       //   taskId,
       //   sessionId: workSession.id,
       //   activeSessionsInStore: get().activeWorkSessions.size,
@@ -924,7 +911,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Emit event to trigger UI updates
       appEvents.emit(EVENTS.SESSION_CHANGED)
     } catch (error) {
-      logger.ui.error('Failed to start work on task', {
+      logger.ui.error('Failed to start work on task', {})
         error: error instanceof Error ? error.message : String(error),
         taskId,
       }, 'task-work-start-error')
@@ -933,7 +920,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   },
 
   pauseWorkOnStep: async (stepId: string) => {
-    // rendererLogger.warn('[TaskStore] ⏸️ pauseWorkOnStep called', { stepId })
+    logger.ui.warn('[TaskStore] ⏸️ pauseWorkOnStep called', { stepId })
 
     const state = get()
     // Find session by checking all sessions for matching stepId
@@ -949,7 +936,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     }
 
     if (!session || !sessionKey || session.isPaused) {
-      // LOGGER_REMOVED: logger.ui.warn(`No active work session for step ${stepId}`, {
+      logger.ui.warn(`No active work session for step ${stepId}`, {})
       //   sessionFound: !!session,
       //   sessionKey,
       //   allKeys: Array.from(state.activeWorkSessions.keys()),
@@ -960,13 +947,13 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     try {
       // Get current active session from WorkTrackingService
       const service = getWorkTrackingService()
-      // rendererLogger.warn('[TaskStore] 🔍 Looking for active session', {
+      logger.ui.warn('[TaskStore] 🔍 Looking for active session', {})
         // stepId,
         // serviceInstanceId: (service as any).instanceId,
       // })
 
       const activeWorkSession = service.getCurrentActiveSession()
-      // rendererLogger.warn('[TaskStore] 🎯 Active session result', {
+      logger.ui.warn('[TaskStore] 🎯 Active session result', {})
         // foundActiveSession: !!activeWorkSession,
         // activeSessionId: activeWorkSession?.id,
         // activeSessionStepId: activeWorkSession?.stepId,
@@ -976,13 +963,13 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       if (activeWorkSession && activeWorkSession.stepId === stepId) {
         // Pause via WorkTrackingService
-        // rendererLogger.warn('[TaskStore] ⏸️ Attempting to pause session', {
+        logger.ui.warn('[TaskStore] ⏸️ Attempting to pause session', {})
           // sessionId: activeWorkSession.id,
           // serviceInstanceId: (service as any).instanceId,
         // })
         await service.pauseWorkSession(activeWorkSession.id)
       } else {
-        // rendererLogger.error('[TaskStore] ❌ Cannot pause - no matching session found', {
+        logger.ui.error('[TaskStore] ❌ Cannot pause - no matching session found', {})
           // requestedStepId: stepId,
           // foundSessionStepId: activeWorkSession?.stepId,
         // })
@@ -997,16 +984,16 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       set({ activeWorkSessions: newSessions })
 
-      // LOGGER_REMOVED: logger.ui.info('[TaskStore] Removed paused session from activeWorkSessions', {
-        // LOGGER_REMOVED: sessionKey,
-        // LOGGER_REMOVED: remainingActiveSessions: newSessions.size,
-      // LOGGER_REMOVED: })
+      logger.ui.info('[TaskStore] Removed paused session from activeWorkSessions', {})
+
+
+
 
       // Emit events to trigger UI updates
       appEvents.emit(EVENTS.SESSION_CHANGED)
       appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {
-      logger.ui.error('Failed to pause work on step', {
+      logger.ui.error('Failed to pause work on step', {})
         error: error instanceof Error ? error.message : String(error),
         stepId,
       }, 'step-work-pause-error')
@@ -1014,13 +1001,13 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   },
 
   pauseWorkOnTask: async (taskId: string) => {
-    // rendererLogger.info('[TaskStore] 🛑 pauseWorkOnTask called', { taskId })
+    logger.ui.info('[TaskStore] 🛑 pauseWorkOnTask called', { taskId })
 
     const state = get()
     const session = state.activeWorkSessions.get(taskId)
 
     if (!session) {
-      // LOGGER_REMOVED: logger.ui.warn(`No active work session for task ${taskId}`, {
+      logger.ui.warn(`No active work session for task ${taskId}`, {})
       //   allKeys: Array.from(state.activeWorkSessions.keys()),
       // })
       return
@@ -1031,7 +1018,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const service = getWorkTrackingService()
       const activeWorkSession = service.getCurrentActiveSession()
 
-      // rendererLogger.info('[TaskStore] 🔍 Stopping session via WorkTrackingService', {
+      logger.ui.info('[TaskStore] 🔍 Stopping session via WorkTrackingService', {})
         // taskId,
         // sessionId: activeWorkSession?.id,
         // matchesTask: activeWorkSession?.taskId === taskId,
@@ -1039,14 +1026,11 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       if (activeWorkSession && activeWorkSession.taskId === taskId) {
         await service.stopWorkSession(activeWorkSession.id)
-        // LOGGER_REMOVED: logger.ui.info('[TaskStore] ✅ Session stopped in WorkTrackingService', {
-          // LOGGER_REMOVED: sessionId: activeWorkSession.id,
-        // LOGGER_REMOVED: })
+        logger.ui.info('[TaskStore] ✅ Session stopped in WorkTrackingService', {
+    LOGGER_REMOVED: undefined
       } else {
-        // LOGGER_REMOVED: logger.ui.warn('[TaskStore] ⚠️ No matching session in WorkTrackingService', {
-          // LOGGER_REMOVED: requestedTaskId: taskId,
-          // LOGGER_REMOVED: foundSessionTaskId: activeWorkSession?.taskId,
-        // LOGGER_REMOVED: })
+        logger.ui.warn('[TaskStore] ⚠️ No matching session in WorkTrackingService', {})
+    LOGGER_REMOVED: undefined
       }
 
       // Remove from store
@@ -1057,12 +1041,10 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Emit event to trigger UI updates
       appEvents.emit(EVENTS.SESSION_CHANGED)
 
-      // LOGGER_REMOVED: logger.ui.info('[TaskStore] ✅ Stopped work on task', {
-        // LOGGER_REMOVED: taskId,
-        // LOGGER_REMOVED: remainingSessions: newSessions.size,
-      // LOGGER_REMOVED: })
+      logger.ui.info('[TaskStore] ✅ Stopped work on task', {})
+    LOGGER_REMOVED: undefined
     } catch (error) {
-      logger.ui.error('Failed to stop work on task', {
+      logger.ui.error('Failed to stop work on task', {})
         error: error instanceof Error ? error.message : String(error),
         taskId,
       }, 'task-work-stop-error')
@@ -1116,7 +1098,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }
 
       if (notes) {
-        // LOGGER_REMOVED: logger.ui.info(`Saving notes to step ${stepId}: "${notes}"`)
+        logger.ui.info(`Saving notes to step ${stepId}: "${notes}"`)
       }
 
       await getDatabase().updateTaskStepProgress(stepId, updateData)
@@ -1195,7 +1177,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           updatedNotes = step.notes
             ? `${step.notes}\n\n${new Date().toLocaleString()}: ${notes}`
             : `${new Date().toLocaleString()}: ${notes}`
-          // LOGGER_REMOVED: logger.ui.info(`Appending notes to step ${stepId}: "${notes}"`)
+          logger.ui.info(`Appending notes to step ${stepId}: "${notes}"`)
         }
 
         await getDatabase().updateTaskStepProgress(stepId, {
@@ -1318,17 +1300,17 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     try {
       const state = get()
       const skipIndex = state.nextTaskSkipIndex
-      // rendererLogger.info('[TaskStore] Getting next scheduled item...', {
+      logger.ui.info('[TaskStore] Getting next scheduled item...', {})
         // skipIndex,
       // })
 
       // First, check if we have a current schedule
       // If not, generate one (but avoid if already scheduling)
       if (!state.currentSchedule && !state.isScheduling) {
-        // rendererLogger.info('[TaskStore] No current schedule, generating one...')
+        logger.ui.info('[TaskStore] No current schedule, generating one...')
         await get().generateSchedule()
       } else if (state.isScheduling) {
-        // rendererLogger.info('[TaskStore] Schedule generation already in progress, waiting...')
+        logger.ui.info('[TaskStore] Schedule generation already in progress, waiting...')
         // Return null if still scheduling to avoid infinite loop
         return null
       }
@@ -1338,7 +1320,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const schedule = updatedState.currentSchedule
 
       if (!schedule || !schedule.scheduledItems || schedule.scheduledItems.length === 0) {
-        // rendererLogger.info('[TaskStore] No scheduled items available')
+        logger.ui.info('[TaskStore] No scheduled items available')
         return null
       }
 
@@ -1346,7 +1328,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const tasks = updatedState.tasks
       const sequencedTasks = updatedState.sequencedTasks
 
-      // rendererLogger.info('[TaskStore] Using existing schedule', {
+      logger.ui.info('[TaskStore] Using existing schedule', {})
         // totalScheduledItems: schedule.scheduledItems.length,
         // incompleteTasks: tasks.filter(t => !t.completed).length,
         // incompleteWorkflows: sequencedTasks.filter(w => w.overallStatus !== 'completed').length,
@@ -1427,7 +1409,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // Return the item at the skip index (or null if out of bounds)
       if (incompleteItems.length === 0) {
-        // rendererLogger.info('[TaskStore] No incomplete scheduled items found')
+        logger.ui.info('[TaskStore] No incomplete scheduled items found')
         return null
       }
 
@@ -1443,7 +1425,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           ? selectedItem.scheduledStartTime.toISOString()
           : selectedItem.scheduledStartTime,
       }
-      logger.ui.info('Found next scheduled item', {
+      logger.ui.info('Found next scheduled item', {})
         ...loggableDetails,
         skipIndex,
         targetIndex,
@@ -1451,7 +1433,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }, 'next-scheduled-item')
       return selectedItem
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to get next scheduled item', error as Error)
+      logger.ui.error('[TaskStore] Failed to get next scheduled item', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to get next scheduled item',
       })
@@ -1463,7 +1445,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     try {
       // Check if any work is already active
       if (getWorkTrackingService().isAnyWorkActive()) {
-        // rendererLogger.warn('[TaskStore] Cannot start next task: work session already active')
+        logger.ui.warn('[TaskStore] Cannot start next task: work session already active')
         return
       }
 
@@ -1471,11 +1453,11 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const nextItem = await get().getNextScheduledItem()
 
       if (!nextItem) {
-        // rendererLogger.info('[TaskStore] No next task available to start')
+        logger.ui.info('[TaskStore] No next task available to start')
         return
       }
 
-      // rendererLogger.info('[TaskStore] Starting next task', {
+      logger.ui.info('[TaskStore] Starting next task', {})
         // type: nextItem.type,
         // id: nextItem.id,
         // title: nextItem.title,
@@ -1493,7 +1475,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Reset skip index after starting a task (to show actual next task when they finish)
       get().resetNextTaskSkipIndex()
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to start next task', error as Error)
+      logger.ui.error('[TaskStore] Failed to start next task', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to start next task',
       })

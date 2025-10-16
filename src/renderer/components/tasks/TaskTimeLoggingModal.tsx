@@ -7,7 +7,7 @@ import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+
 
 
 const { Text } = Typography
@@ -55,7 +55,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       const endTime = new Date(startTime)
       endTime.setMinutes(endTime.getMinutes() + timeSpent)
 
-      // LOGGER_REMOVED: logger.ui.info('[WorkLogging] Creating work session', {
+      logger.ui.info('[WorkLogging] Creating work session', {})
         // taskId: task.id,
         // taskName: task.name,
         // taskType: task.type,
@@ -76,39 +76,35 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
         notes: values.notes || '',
       })
 
-      // LOGGER_REMOVED: logger.ui.info('[WorkLogging] Work session created', {
-        // LOGGER_REMOVED: taskId: task.id,
-        // LOGGER_REMOVED: workSessionId: workSessionResult?.id,
-        // LOGGER_REMOVED: success: !!workSessionResult,
-      // LOGGER_REMOVED: })
+      logger.ui.info('[WorkLogging] Work session created', {})
+
+
+
+
 
       // Update the task with the new actual duration
       const currentLoggedTime = await getDatabase().getTaskTotalLoggedTime(task.id)
 
-      // LOGGER_REMOVED: logger.ui.info('[WorkLogging] Retrieved total logged time', {
-        // LOGGER_REMOVED: taskId: task.id,
-        // LOGGER_REMOVED: currentLoggedTime,
-        // LOGGER_REMOVED: previousLoggedTime: task.actualDuration,
-        // LOGGER_REMOVED: estimatedDuration: task.duration,
-      // LOGGER_REMOVED: })
+      logger.ui.info('[WorkLogging] Retrieved total logged time', {
+    LOGGER_REMOVED: undefined
 
-      await updateTask(task.id, {
+      await updateTask(task.id, {})
         actualDuration: currentLoggedTime,
       })
 
-      // LOGGER_REMOVED: logger.ui.info('[WorkLogging] Task updated with new logged time', {
-        // LOGGER_REMOVED: taskId: task.id,
-        // LOGGER_REMOVED: actualDuration: currentLoggedTime,
-      // LOGGER_REMOVED: })
+      logger.ui.info('[WorkLogging] Task updated with new logged time', {})
+
+
+
 
       // Emit events to update other components
       appEvents.emit(EVENTS.TIME_LOGGED)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
 
-      // LOGGER_REMOVED: logger.ui.info('[WorkLogging] Events emitted', {
-        // LOGGER_REMOVED: events: ['TIME_LOGGED', 'DATA_REFRESH_NEEDED'],
-        // LOGGER_REMOVED: taskId: task.id,
-      // LOGGER_REMOVED: })
+      logger.ui.info('[WorkLogging] Events emitted', {})
+
+
+
 
       // Check if we need to prompt for re-estimation
       if (currentLoggedTime >= task.duration && !task.completed) {
@@ -119,7 +115,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       }
 
       Message.success('Time logged successfully')
-      // LOGGER_REMOVED: logger.ui.info('[WorkLogging] Time logging complete', {
+      logger.ui.info('[WorkLogging] Time logging complete', {})
         // taskId: task.id,
         // taskName: task.name,
         // totalLogged: currentLoggedTime,
@@ -129,7 +125,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       form.resetFields()
       onClose()
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('[WorkLogging] Error logging time:', error, {
+      logger.ui.error('[WorkLogging] Error logging time:', error, {})
         // taskId: task.id,
         // taskName: task.name,
         // errorMessage: error instanceof Error ? error.message : String(error),

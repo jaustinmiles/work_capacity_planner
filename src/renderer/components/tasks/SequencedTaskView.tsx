@@ -139,10 +139,10 @@ export function SequencedTaskView({
       const db = getDatabase()
       if (task.archived) {
         await db.unarchiveTask(task.id)
-        // LOGGER_REMOVED: logger.ui.info(`Unarchived workflow: ${task.name}`)
+        logger.ui.info(`Unarchived workflow: ${task.name}`)
       } else {
         await db.archiveTask(task.id)
-        // LOGGER_REMOVED: logger.ui.info(`Archived workflow: ${task.name}`)
+        logger.ui.info(`Archived workflow: ${task.name}`)
       }
       // Refresh tasks to update UI
       const { loadTasks } = useTaskStore.getState()

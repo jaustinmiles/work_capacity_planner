@@ -33,7 +33,7 @@ import { timeProvider } from '@shared/time-provider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+
 import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
 
@@ -81,12 +81,12 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
   const loadWorkSessions = async () => {
     try {
-      // LOGGER_REMOVED: logger.ui.info('Loading work sessions for date:', selectedDate)
+      logger.ui.info('Loading work sessions for date:', selectedDate)
       const db = getDatabase()
 
       // Load work sessions directly - they're already UnifiedWorkSession format
       const dbSessions = await db.getWorkSessions(selectedDate)
-      // LOGGER_REMOVED: logger.ui.info('Loaded work sessions from DB:', { count: dbSessions.length })
+      logger.ui.info('Loaded work sessions from DB:', { count: dbSessions.length })
 
       // Use sessions directly, no transformation
       setSessions(dbSessions)
@@ -95,7 +95,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       setDirtyIds(new Set())
       setNewIds(new Set())
     } catch (error) {
-      logger.ui.error('Failed to load work sessions', {
+      logger.ui.error('Failed to load work sessions', {})
         error: error instanceof Error ? error.message : String(error),
         date: selectedDate,
       }, 'work-sessions-load-error')
@@ -161,7 +161,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     }
 
     if (checkOverlap(newSession)) {
-      // LOGGER_REMOVED: logger.ui.warn('This time slot overlaps with an existing session')
+      logger.ui.warn('This time slot overlaps with an existing session')
       return
     }
 
@@ -178,20 +178,16 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     e.preventDefault()
     e.stopPropagation()
 
-    // LOGGER_REMOVED: logger.ui.debug('MouseDown on session:', { sessionId, edge, clientY: e.clientY })
+    logger.ui.debug('MouseDown on session:', { sessionId, edge, clientY: e.clientY })
 
     const session = sessions.find(s => s.id === sessionId)
     if (!session) {
-      // LOGGER_REMOVED: logger.ui.error('Session not found for drag:', sessionId)
+      logger.ui.error('Session not found for drag:', sessionId)
       return
     }
 
-    // LOGGER_REMOVED: logger.ui.debug('Starting drag for session:', {
-      // LOGGER_REMOVED: sessionId,
-      // LOGGER_REMOVED: edge,
-      // LOGGER_REMOVED: startTime: session.startTime,
-      // LOGGER_REMOVED: endTime: session.endTime,
-    // LOGGER_REMOVED: })
+    logger.ui.debug('Starting drag for session:', {})
+    LOGGER_REMOVED: undefined
 
     setDragState({
       sessionId,
@@ -209,7 +205,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
       const session = sessions.find(s => s.id === dragState.sessionId)
       if (!session) {
-        // LOGGER_REMOVED: logger.ui.error('Session lost during drag:', dragState.sessionId)
+        logger.ui.error('Session lost during drag:', dragState.sessionId)
         return
       }
 
@@ -219,13 +215,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         return // Ignore tiny movements
       }
 
-      // LOGGER_REMOVED: logger.ui.debug('Dragging session:', {
-        // LOGGER_REMOVED: sessionId: dragState.sessionId,
-        // LOGGER_REMOVED: deltaY,
-        // LOGGER_REMOVED: edge: dragState.edge,
-        // LOGGER_REMOVED: clientY: e.clientY,
-        // LOGGER_REMOVED: initialY: dragState.initialY,
-      // LOGGER_REMOVED: })
+      logger.ui.debug('Dragging session:', {})
+    LOGGER_REMOVED: undefined
 
       if (dragState.edge === 'move') {
         // Moving the entire block
@@ -263,18 +254,14 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           actualMinutes: calculateDurationFromTimeStrings(newStartTimeStr, newEndTimeStr),
         }
 
-        // LOGGER_REMOVED: logger.ui.debug('Updating session position:', {
-          // LOGGER_REMOVED: oldStart: session.startTime,
-          // LOGGER_REMOVED: newStart: newStartTime,
-          // LOGGER_REMOVED: oldEnd: session.endTime,
-          // LOGGER_REMOVED: newEnd: newEndTime,
-        // LOGGER_REMOVED: })
+        logger.ui.debug('Updating session position:', {})
+    LOGGER_REMOVED: undefined
 
         if (!checkOverlap(updatedSession, session.id)) {
           setSessions(sessions.map(s => s.id === session.id ? updatedSession : s))
           setDirtyIds(new Set([...dirtyIds, session.id]))
         } else {
-          // LOGGER_REMOVED: logger.ui.warn('Overlap detected, not updating position')
+          logger.ui.warn('Overlap detected, not updating position')
         }
       } else {
         // Resizing edges - calculate position relative to timeline container
@@ -292,7 +279,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           calculatedHours: Math.floor((relativeY / HOUR_HEIGHT)) + START_HOUR,
           expectedHours: Math.floor(e.clientY / HOUR_HEIGHT),
         }
-        // LOGGER_REMOVED: logger.ui.debug('Edge resize calculation:', debugInfo)
+        logger.ui.debug('Edge resize calculation:', debugInfo)
 
         const newTimeStr = pixelsToTime(relativeY)
         const [newHours, newMins] = parseTimeString(newTimeStr)
@@ -348,7 +335,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
   // Save sessions to database
   const saveSessions = async () => {
     setIsSaving(true)
-    // LOGGER_REMOVED: logger.ui.info('Starting save of sessions:', { dirtyCount: dirtyIds.size })
+    logger.ui.info('Starting save of sessions:', { dirtyCount: dirtyIds.size })
 
     try {
       const db = getDatabase()
@@ -356,7 +343,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       // Get or create work pattern for this date
       let pattern = await db.getWorkPattern(selectedDate)
       if (!pattern) {
-        // LOGGER_REMOVED: logger.ui.debug('Creating new work pattern for date:', selectedDate)
+        logger.ui.debug('Creating new work pattern for date:', selectedDate)
         pattern = await db.createWorkPattern({
           date: selectedDate,
           blocks: [],
@@ -369,13 +356,13 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       const unassignedSessions = sessions.filter(s => dirtyIds.has(s.id) && !s.taskId)
 
       if (unassignedSessions.length > 0) {
-        // LOGGER_REMOVED: logger.ui.warn('Skipping unassigned sessions:', unassignedSessions.length)
+        logger.ui.warn('Skipping unassigned sessions:', unassignedSessions.length)
       }
 
-      // LOGGER_REMOVED: logger.ui.info('Saving dirty sessions:', dirtySessionsToSave.length)
+      logger.ui.info('Saving dirty sessions:', dirtySessionsToSave.length)
 
       for (const session of dirtySessionsToSave) {
-        // LOGGER_REMOVED: logger.ui.debug('Saving session:', {
+        logger.ui.debug('Saving session:', {})
           // id: session.id,
           // taskId: session.taskId,
           // stepId: session.stepId,
@@ -398,7 +385,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
             actualMinutes: session.actualMinutes || session.plannedMinutes,
             notes: session.notes,
           }
-          // LOGGER_REMOVED: logger.ui.debug('Creating new work session:', createData)
+          logger.ui.debug('Creating new work session:', createData)
           await db.createWorkSession(createData)
         } else {
           // Update existing session
@@ -414,14 +401,14 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         }
       }
 
-      // LOGGER_REMOVED: logger.ui.info('Work sessions saved successfully')
+      logger.ui.info('Work sessions saved successfully')
       await loadWorkSessions() // Reload to get proper IDs
       await loadTasks() // Reload tasks to update cumulative time
 
       // Emit event to update WorkStatusWidget and other components
       appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to save work sessions:', error)
+      logger.ui.error('Failed to save work sessions:', error)
       console.error('Failed to save work sessions:', error)
     } finally {
       setIsSaving(false)
@@ -450,10 +437,10 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       newNewIds.delete(sessionId)
       setNewIds(newNewIds)
 
-      // LOGGER_REMOVED: logger.ui.info('Session deleted successfully')
+      logger.ui.info('Session deleted successfully')
       await loadTasks() // Reload tasks to update cumulative time
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to delete session:', error)
+      logger.ui.error('Failed to delete session:', error)
       console.error('Failed to delete session:', error)
     }
   }

@@ -97,7 +97,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
 
       setPatterns(patternsMap)
     } catch (error) {
-      logger.system.error('Failed to load patterns', {
+      logger.ui.error('Failed to load patterns', {
         error: error instanceof Error ? error.message : String(error),
       }, 'patterns-load-error')
       Message.error('Failed to load schedules')
@@ -109,7 +109,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
   const handleSavePattern = async (date: string, blocks: WorkBlock[], meetings: WorkMeeting[]) => {
     try {
       const db = getDatabase()
-      // LOGGER_REMOVED: logger.ui.info('[MultiDayScheduleEditor] handleSavePattern - Saving pattern', { date, blockCount: blocks.length })
+      logger.ui.info('[MultiDayScheduleEditor] handleSavePattern - Saving pattern', { date, blockCount: blocks.length })
       const existingPattern = patterns.get(date)
 
       if (existingPattern && 'id' in existingPattern) {
@@ -228,22 +228,22 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       const today = dayjs().format('YYYY-MM-DD')
       const allPatterns = await db.getWorkPatterns()
 
-      // LOGGER_REMOVED: logger.ui.info('Clear All Schedules - Found patterns:', {
+      logger.ui.info('Clear All Schedules - Found patterns:', {
       //   totalPatterns: allPatterns.length,
       //   today,
       //   patterns: allPatterns.map(p => ({ id: p.id, date: p.date })),
       // })
 
       let clearedCount = 0
-      // LOGGER_REMOVED: logger.ui.info('[MultiDayScheduleEditor] Starting delete of future patterns', {
-        // LOGGER_REMOVED: totalPatterns: allPatterns.length,
-        // LOGGER_REMOVED: todayDate: today,
-      // LOGGER_REMOVED: })
+      logger.ui.info('[MultiDayScheduleEditor] Starting delete of future patterns', {
+        totalPatterns: allPatterns.length,
+        todayDate: today
+      })
 
       for (const pattern of allPatterns) {
         // Clear today and all future dates
         if (pattern.date >= today) {
-          // LOGGER_REMOVED: logger.ui.info('[MultiDayScheduleEditor] Deleting pattern', {
+          logger.ui.info('[MultiDayScheduleEditor] Deleting pattern', {
             // LOGGER_REMOVED: id: pattern.id,
             // LOGGER_REMOVED: date: pattern.date,
             // LOGGER_REMOVED: comparison: `${pattern.date} >= ${today}`,
@@ -259,14 +259,14 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
             }, 'pattern-delete-error')
           }
         } else {
-          // LOGGER_REMOVED: logger.ui.debug('[MultiDayScheduleEditor] Skipping past pattern', {
+          logger.ui.debug('[MultiDayScheduleEditor] Skipping past pattern', {
             // LOGGER_REMOVED: date: pattern.date,
             // LOGGER_REMOVED: comparison: `${pattern.date} < ${today}`,
           // LOGGER_REMOVED: })
         }
       }
 
-      // LOGGER_REMOVED: logger.ui.info('[MultiDayScheduleEditor] Completed delete operation', {
+      logger.ui.info('[MultiDayScheduleEditor] Completed delete operation', {
         // LOGGER_REMOVED: clearedCount,
         // LOGGER_REMOVED: totalProcessed: allPatterns.length,
       // LOGGER_REMOVED: })

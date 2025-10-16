@@ -1,7 +1,7 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
 import { Result, Button, Typography, Space } from '@arco-design/web-react'
 import { IconRefresh, IconBug } from '@arco-design/web-react/icon'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 
 
 const { Paragraph, Text } = Typography
@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // LOGGER_REMOVED: logger.ui.error('Error caught by boundary:', error, errorInfo)
+    logger.ui.error('Error caught by boundary:', error, errorInfo)
     this.setState({ errorInfo })
   }
 

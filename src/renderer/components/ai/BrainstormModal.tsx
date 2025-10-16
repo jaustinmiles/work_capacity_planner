@@ -197,7 +197,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           setJobContext(activeContext.context)
         }
       } catch (error) {
-        logger.system.error('Error loading job context', {
+        logger.ui.error('Error loading job context', {
           error: error instanceof Error ? error.message : String(error),
         }, 'job-context-load-error')
       }
@@ -208,7 +208,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         const dictionary = await getDatabase().getJargonDictionary()
         setJargonDictionary(dictionary)
       } catch (error) {
-        logger.system.error('Error loading jargon dictionary', {
+        logger.ui.error('Error loading jargon dictionary', {
           error: error instanceof Error ? error.message : String(error),
         }, 'jargon-dictionary-load-error')
       }
@@ -285,7 +285,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           mediaRecorderRef.current.stop()
           mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
         } catch (error) {
-          logger.system.error('Error cleaning up recording', {
+          logger.ui.error('Error cleaning up recording', {
             error: error instanceof Error ? error.message : String(error),
           }, 'recording-cleanup-error')
         }
@@ -339,7 +339,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       }
 
       mediaRecorder.onerror = (_event) => {
-        logger.system.error('MediaRecorder error', {}, 'mediarecorder-error')
+        logger.ui.error('MediaRecorder error', {}, 'mediarecorder-error')
         setError('Recording error occurred')
         setRecordingState('idle')
       }
@@ -351,7 +351,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setError(null)
       setRecordingState('recording')
     } catch (error) {
-      logger.system.error('Error starting recording', {
+      logger.ui.error('Error starting recording', {
         error: error instanceof Error ? error.message : String(error),
       }, 'recording-start-error')
       setError('Failed to access microphone. Please check your permissions.')
@@ -433,7 +433,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setUploadedAudioFile(file)
       Message.success(`Successfully processed ${file.name}`)
     } catch (error) {
-      logger.system.error('Error processing uploaded audio', {
+      logger.ui.error('Error processing uploaded audio', {
         error: error instanceof Error ? error.message : String(error),
       }, 'uploaded-audio-error')
       const errorMessage = error instanceof Error ? error.message : 'Failed to process uploaded audio file.'
@@ -486,7 +486,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       Message.success(`Successfully processed context from ${file.name}`)
     } catch (error) {
-      logger.system.error('Error processing context audio', {
+      logger.ui.error('Error processing context audio', {
         error: error instanceof Error ? error.message : String(error),
       }, 'context-audio-error')
       const errorMessage = error instanceof Error ? error.message : 'Failed to process context audio file.'
@@ -536,12 +536,12 @@ Only include terms that are likely industry-specific or technical jargon, not co
           }
         }
       } catch (parseError) {
-        logger.system.error('Failed to parse jargon terms', {
+        logger.ui.error('Failed to parse jargon terms', {
           error: parseError instanceof Error ? parseError.message : String(parseError),
         }, 'jargon-parse-error')
       }
     } catch (error) {
-      logger.system.error('Error extracting jargon terms', {
+      logger.ui.error('Error extracting jargon terms', {
         error: error instanceof Error ? error.message : String(error),
       }, 'jargon-extract-error')
       // Non-critical error, don't show to user
@@ -571,7 +571,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
         })
       }
     } catch (error) {
-      logger.system.error('Error saving job context', {
+      logger.ui.error('Error saving job context', {
         error: error instanceof Error ? error.message : String(error),
       }, 'job-context-save-error')
     }
@@ -596,7 +596,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
       setNewJargonDefinition('')
       setShowJargonInput(false)
     } catch (error) {
-      logger.system.error('Error adding jargon entry', {
+      logger.ui.error('Error adding jargon entry', {
         error: error instanceof Error ? error.message : String(error),
       }, 'jargon-entry-add-error')
       setError('Failed to add jargon entry. Term might already exist.')
@@ -656,7 +656,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
         })
       }
     } catch (error) {
-      logger.system.error('Error processing brainstorm', {
+      logger.ui.error('Error processing brainstorm', {
         error: error instanceof Error ? error.message : String(error),
       }, 'brainstorm-process-error')
       setError('Failed to process brainstorm with AI. Please try again.')
@@ -1115,7 +1115,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               }
                             }
                           } catch (error) {
-                            logger.system.error('Failed to extract jargon', {
+                            logger.ui.error('Failed to extract jargon', {
                               error: error instanceof Error ? error.message : String(error),
                             }, 'jargon-auto-extract-error')
                             Message.error('Failed to extract jargon terms')
@@ -1174,7 +1174,7 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                 try {
                                   await getDatabase().updateJargonDefinition(term, definition)
                                 } catch (error) {
-                                  logger.system.error('Error updating jargon definition', {
+                                  logger.ui.error('Error updating jargon definition', {
                                     error: error instanceof Error ? error.message : String(error),
                                     term,
                                   }, 'jargon-definition-update-error')

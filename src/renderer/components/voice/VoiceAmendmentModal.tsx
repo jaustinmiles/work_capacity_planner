@@ -221,9 +221,9 @@ export function VoiceAmendmentModal({
 
       // Parse with AI via IPC, including any additional context
       const fullText = contextText ? `${text}\n\nAdditional context: ${contextText}` : text
-      // logger.ui.debug('[VoiceAmendmentModal] Sending to parse:', fullText, 'Context:', context)
+      logger.ui.debug('[VoiceAmendmentModal] Sending to parse:', fullText, 'Context:', context)
       const result = await window.electronAPI.ai.parseAmendment(fullText, context)
-      // logger.ui.debug('[VoiceAmendmentModal] Received parse result:', result)
+      logger.ui.debug('[VoiceAmendmentModal] Received parse result:', result)
       setAmendmentResult(result)
 
       // Auto-select all amendments with high confidence
