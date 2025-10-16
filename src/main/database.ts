@@ -6,15 +6,16 @@ import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculato
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime } from '../shared/time-provider'
 import * as crypto from 'crypto'
-import { logger, LogScope } from '../logger'
-import { LogMethod, AsyncTracker, CacheHint, PerformanceMonitor } from '../logger/decorators'
-import { PromiseChain } from '../logger/decorators-async'
+import { LogScope } from '../logger'
+import { getScopedLogger } from '../logger/scope-helper'
+import { logged, loggedVerbose } from '../logger/decorators'
+import { trackedAsync } from '../logger/decorators-async'
 
 // Create Prisma client instance
 const prisma = new PrismaClient()
 
 // Get scoped logger for database operations
-const dbLogger = logger.getScope(LogScope.Database)
+const dbLogger = getScopedLogger(LogScope.Database)
 
 // Database service for managing tasks (including workflows)
 export class DatabaseService {
@@ -47,8 +48,7 @@ export class DatabaseService {
   private activeSessionId: string | null = null
   private sessionInitPromise: Promise<string> | null = null
 
-  @CacheHint('session')
-  @AsyncTracker(LogScope.Database, 'getActiveSession')
+  @trackedAsync({ scope: LogScope.Database, tag: 'getActiveSession' })
   async getActiveSession(): Promise<string> {
     // If already cached, return it
     if (this.activeSessionId) {
@@ -320,8 +320,7 @@ export class DatabaseService {
   }
 
   // Tasks
-  @PerformanceMonitor(LogScope.Database, 'getTasks', { warnThreshold: 500 })
-  @CacheHint('frequently accessed')
+  @logged({ scope: LogScope.Database, tag: 'getTasks' })
   async getTasks(includeArchived = false): Promise<Task[]> {
     const sessionId = await this.getActiveSession()
     dbLogger.debug('Getting tasks', { sessionId, includeArchived })
@@ -348,8 +347,8 @@ export class DatabaseService {
     return formattedTasks
   }
 
-  @LogMethod(LogScope.Database, { logArgs: true, logResult: false })
-  @AsyncTracker(LogScope.Database, 'createTask')
+  @loggedVerbose({ scope: LogScope.Database, logArgs: true, logResult: false, tag: 'createTask' })
+  @trackedAsync({ scope: LogScope.Database, tag: 'createTask' })
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
     const sessionId = await this.getActiveSession()
     const { steps, ...coreTaskData } = taskData as any

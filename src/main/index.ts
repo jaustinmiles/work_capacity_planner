@@ -3,9 +3,13 @@ import path from 'node:path'
 import { DatabaseService } from './database'
 import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
-// import { logger } from '@/logger'
+import { LogScope } from '../logger'
+import { getScopedLogger } from '../logger/scope-helper'
 import type { Task } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
+
+// Get scoped logger for main process
+const mainLogger = getScopedLogger(LogScope.System)
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -66,10 +70,10 @@ app.whenReady().then(() => {
   db = DatabaseService.getInstance()
 
   // Log database path for debugging
-  const _dbPath = process.env.DATABASE_URL || 'file:./dev.db'
-  // LOGGER_REMOVED: logger.info(`[main] Database path: ${_dbPath}`)
-  // LOGGER_REMOVED: logger.info(`[main] Working directory: ${process.cwd()}`)
-  // LOGGER_REMOVED: logger.info('[main] Main process initialized successfully')
+  const dbPath = process.env.DATABASE_URL || 'file:./dev.db'
+  mainLogger.info('Database path', { path: dbPath })
+  mainLogger.info('Working directory', { cwd: process.cwd() })
+  mainLogger.info('Main process initialized successfully')
 
   createWindow()
 

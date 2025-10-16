@@ -5,6 +5,12 @@
 import { LogScope } from './types'
 import { getScopedLogger } from './scope-helper'
 
+// Re-export common decorators with better names
+export { trackedAsync as AsyncTracker } from './decorators-async'
+export { promiseChain as PromiseChain } from './decorators-async'
+export { retryable as Retryable } from './decorators-async'
+
+
 /**
  * DECORATOR #1: Basic Method Logger
  *
