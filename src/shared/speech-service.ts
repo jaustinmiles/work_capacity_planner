@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import { toFile } from 'openai/uploads'
 import fs from 'fs'
 import path from 'path'
+// TODO(human): Activate logging for audio transcription debugging - errors and file operations are important to track
 // LOGGER_REMOVED: import { logger } from './logger'
 
 /**

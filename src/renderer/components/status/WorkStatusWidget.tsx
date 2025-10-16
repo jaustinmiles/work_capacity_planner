@@ -38,7 +38,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   useEffect(() => {
     logger.ui.debug('[WorkStatusWidget] activeWorkSessions changed', {
       count: activeWorkSessions.size,
-      sessionIds: Array.from(activeWorkSessions.keys())
+      sessionIds: Array.from(activeWorkSessions.keys()),
     })
   }, [activeWorkSessions])
 

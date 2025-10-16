@@ -377,11 +377,12 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
     setIsTranscribing(true)
     try {
       // Log audio blob details for debugging
-        // filename,
-        // size: audioBlob.size,
-        // type: audioBlob.type,
-        // sizeInMB: (audioBlob.size / (1024 * 1024)).toFixed(2) + 'MB',
-      // })
+      logger.ui.debug('Transcribing audio', {
+        filename,
+        size: audioBlob.size,
+        type: audioBlob.type,
+        sizeInMB: (audioBlob.size / (1024 * 1024)).toFixed(2) + 'MB',
+      })
 
       const arrayBuffer = await audioBlob.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)

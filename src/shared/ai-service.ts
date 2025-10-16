@@ -105,7 +105,7 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
 
       return JSON.parse(jsonText)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ai.error('Error extracting tasks from brainstorm:', error)
+      logger.ai.error('Error extracting tasks from brainstorm:', error)
       if (error instanceof SyntaxError) {
         throw new Error(`Failed to parse AI response as JSON: ${error instanceof Error ? error.message : String(error)}`)
       }
@@ -256,7 +256,7 @@ Focus on understanding the async nature described in natural language. Be realis
 
       return JSON.parse(jsonText)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ai.error('Error extracting workflows from brainstorm:', error)
+      logger.ai.error('Error extracting workflows from brainstorm:', error)
       if (error instanceof SyntaxError) {
         throw new Error(`Failed to parse AI response as JSON: ${error instanceof Error ? error.message : String(error)}`)
       }
