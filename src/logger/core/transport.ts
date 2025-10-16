@@ -167,7 +167,7 @@ export class ElectronTransport extends Transport {
         data: entry.data,
         timestamp: entry.timestamp.toISOString(),
       })
-    } catch (error) {
+    } catch (_error) {
       // Fail silently if window is destroyed
     }
   }

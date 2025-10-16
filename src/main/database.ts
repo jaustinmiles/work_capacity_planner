@@ -9,7 +9,6 @@ import * as crypto from 'crypto'
 import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
 import { logged, loggedVerbose } from '../logger/decorators'
-import { trackedAsync } from '../logger/decorators-async'
 
 // Create Prisma client instance
 const prisma = new PrismaClient()
