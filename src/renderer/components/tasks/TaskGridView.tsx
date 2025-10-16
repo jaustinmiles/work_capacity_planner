@@ -46,17 +46,18 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
     }
   }
 
+  // TODO(human): This method could benefit from @logged decorator to automatically log entry/exit
   const handleDelete = async (taskId: string) => {
     try {
       const task = tasks.find(t => t.id === taskId)
       await deleteTask(taskId)
-      logger.ui.info('Task deleted', {})
+      logger.ui.info('Task deleted', {
         taskId,
         taskName: task?.name || 'Unknown',
       }, 'task-delete-success')
       Message.success('Task deleted')
     } catch (error) {
-      logger.ui.error('Failed to delete task', {})
+      logger.ui.error('Failed to delete task', {
         error: error instanceof Error ? error.message : String(error),
         taskId,
       }, 'task-delete-error')

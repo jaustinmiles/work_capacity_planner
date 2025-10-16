@@ -76,21 +76,21 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       setMeetingMinutes(totalMeetingMinutes)
 
       // [WorkPatternLifeCycle] COMPLETE: WorkStatusWidget finished loading
-      logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - COMPLETE', {})
-        // currentDate,
-        // patternLoaded: !!patternData,
-        // currentBlockFound: !!currentBlockData,
-        // nextBlockFound: !!nextBlockData,
-        // accumulated: {
-          // focused: accumulatedData.focused || 0,
-          // admin: accumulatedData.admin || 0,
-          // personal: accumulatedData.personal || 0,
-        // },
-        // meetingMinutes: totalMeetingMinutes,
-        // timestamp: new Date().toISOString(),
-      // })
+      logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - COMPLETE', {
+        currentDate,
+        patternLoaded: !!patternData,
+        currentBlockFound: !!currentBlockData,
+        nextBlockFound: !!nextBlockData,
+        accumulated: {
+          focused: accumulatedData.focused || 0,
+          admin: accumulatedData.admin || 0,
+          personal: accumulatedData.personal || 0,
+        },
+        meetingMinutes: totalMeetingMinutes,
+        timestamp: new Date().toISOString(),
+      })
     } catch (error) {
-      logger.ui.error('Failed to load work data', {})
+      logger.ui.error('Failed to load work data', {
         error: error instanceof Error ? error.message : String(error),
         currentDate,
       }, 'work-data-load-error')

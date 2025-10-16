@@ -229,10 +229,10 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       const allPatterns = await db.getWorkPatterns()
 
       logger.ui.info('Clear All Schedules - Found patterns:', {
-      //   totalPatterns: allPatterns.length,
-      //   today,
-      //   patterns: allPatterns.map(p => ({ id: p.id, date: p.date })),
-      // })
+        totalPatterns: allPatterns.length,
+        today,
+        patterns: allPatterns.map(p => ({ id: p.id, date: p.date })),
+      })
 
       let clearedCount = 0
       logger.ui.info('[MultiDayScheduleEditor] Starting delete of future patterns', {
