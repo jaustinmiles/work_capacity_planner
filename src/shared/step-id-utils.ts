@@ -7,7 +7,7 @@
  * - Log deduplication (composite keys)
  * - General unique IDs (jargon entries, sessions, etc.)
  */
-import { logger } from '@/logger'
+import { logger } from '../logger'
 
 /**
  * Generate a stable step ID that won't change between updates

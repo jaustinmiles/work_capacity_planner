@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { TaskType } from '../shared/enums'
 import { TaskStep } from './sequencing-types'
-import { logger } from '@/logger'
+import { logger } from '../logger'
 
 /**
  * Service for AI-powered task creation and workflow generation

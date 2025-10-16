@@ -48,7 +48,7 @@ export class DatabaseService {
   private activeSessionId: string | null = null
   private sessionInitPromise: Promise<string> | null = null
 
-  @trackedAsync({ scope: LogScope.Database, tag: 'getActiveSession' })
+  @logged({ scope: LogScope.Database })
   async getActiveSession(): Promise<string> {
     // If already cached, return it
     if (this.activeSessionId) {
@@ -320,7 +320,6 @@ export class DatabaseService {
   }
 
   // Tasks
-  @logged({ scope: LogScope.Database, tag: 'getTasks' })
   async getTasks(includeArchived = false): Promise<Task[]> {
     const sessionId = await this.getActiveSession()
     dbLogger.debug('Getting tasks', { sessionId, includeArchived })
@@ -347,8 +346,7 @@ export class DatabaseService {
     return formattedTasks
   }
 
-  @loggedVerbose({ scope: LogScope.Database, logArgs: true, logResult: false, tag: 'createTask' })
-  @trackedAsync({ scope: LogScope.Database, tag: 'createTask' })
+  @loggedVerbose({ scope: LogScope.Database, logArgs: true, tag: 'createTask' })
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
     const sessionId = await this.getActiveSession()
     const { steps, ...coreTaskData } = taskData as any
@@ -537,6 +535,7 @@ export class DatabaseService {
     return this.formatTask(task)
   }
 
+  @logged({ scope: LogScope.Database, tag: 'deleteTask' })
   async deleteTask(id: string): Promise<void> {
     await this.client.task.delete({
       where: { id },

@@ -12,14 +12,14 @@ export { retryable as Retryable } from './decorators-async'
 
 
 /**
- * DECORATOR #1: Basic Method Logger
+ * DECORATOR #1: Basic Method Logger (Stage 3 Decorators)
  *
  * This decorator wraps a method and logs when it's called.
  *
- * How it works:
- * 1. The decorator receives the class prototype, method name, and descriptor
- * 2. It saves the original method
- * 3. Replaces it with a wrapper that logs, then calls the original
+ * How it works with Stage 3 decorators:
+ * 1. The decorator receives the original method and a context object
+ * 2. It returns a new function that wraps the original
+ * 3. The wrapper logs entry/exit and handles errors
  *
  * @example
  * class TaskService {
@@ -34,38 +34,55 @@ export { retryable as Retryable } from './decorators-async'
 export function logged(options: { scope?: LogScope; tag?: string } = {}) {
   const { scope = LogScope.System, tag } = options
 
-  return function (
-    target: any,           // The prototype of the class
-    propertyKey: string,   // The name of the method
-    descriptor: PropertyDescriptor,  // The method descriptor
+  return function <This, Args extends any[], Return>(
+    originalMethod: (...args: Args) => Return,
+    context: ClassMethodDecoratorContext<This, (...args: Args) => Return>,
   ) {
-    console.log('🎯 DECORATOR APPLIED TO:', propertyKey, 'on class', target.constructor.name)
-    const originalMethod = descriptor.value
-    const className = target.constructor.name
+    const methodName = String(context.name)
 
-    // Replace the method with our wrapper
-    descriptor.value = async function (...args: any[]) {
-      console.log('🔥 DECORATOR WRAPPER CALLED for', propertyKey)
+    // Return a replacement method
+    return function (this: This, ...args: Args): Return {
       const scopedLogger = getScopedLogger(scope)
-      const methodTag = tag || `${className}.${propertyKey}`
+      const className = (this as any).constructor.name
+      const methodTag = tag || `${className}.${methodName}`
 
       // Log method entry
-      scopedLogger.debug(`→ ${propertyKey}`, { method: propertyKey }, methodTag)
+      scopedLogger.debug(`→ ${methodName}`, { method: methodName }, methodTag)
 
       try {
         // Call the original method
-        const result = await originalMethod.apply(this, args)
+        const result = originalMethod.apply(this, args)
 
-        // Log method exit
-        scopedLogger.debug(`← ${propertyKey}`, { method: propertyKey }, methodTag)
+        // Handle both sync and async results
+        if (result && typeof (result as any).then === 'function') {
+          return (result as any).then(
+            (value: any) => {
+              scopedLogger.debug(`← ${methodName}`, { method: methodName }, methodTag)
+              return value
+            },
+            (error: any) => {
+              scopedLogger.error(
+                `✗ ${methodName} failed`,
+                {
+                  method: methodName,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+                methodTag,
+              )
+              throw error
+            },
+          )
+        }
 
+        // Sync result
+        scopedLogger.debug(`← ${methodName}`, { method: methodName }, methodTag)
         return result
       } catch (error) {
-        // Log errors
+        // Log errors for sync methods
         scopedLogger.error(
-          `✗ ${propertyKey} failed`,
+          `✗ ${methodName} failed`,
           {
-            method: propertyKey,
+            method: methodName,
             error: error instanceof Error ? error.message : String(error),
           },
           methodTag,
@@ -73,8 +90,6 @@ export function logged(options: { scope?: LogScope; tag?: string } = {}) {
         throw error
       }
     }
-
-    return descriptor as any
   }
 }
 
@@ -116,25 +131,24 @@ export function loggedVerbose(options: VerboseLogOptions = {}) {
     tag,
   } = options
 
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor,
+  return function <This, Args extends any[], Return>(
+    originalMethod: (...args: Args) => Return,
+    context: ClassMethodDecoratorContext<This, (...args: Args) => Return>,
   ) {
-    const originalMethod = descriptor.value
-    const className = target.constructor.name
+    const methodName = String(context.name)
 
-    descriptor.value = async function (...args: any[]) {
+    return async function (this: This, ...args: Args): Promise<any> {
       const scopedLogger = getScopedLogger(scope)
-      const methodTag = tag || `${className}.${propertyKey}`
+      const className = (this as any).constructor.name
+      const methodTag = tag || `${className}.${methodName}`
 
       // Build entry data with optional args
-      const entryData: any = { method: propertyKey }
+      const entryData: any = { method: methodName }
       if (logArgs && args.length > 0) {
         entryData.args = args
       }
 
-      scopedLogger.debug(`→ ${propertyKey}`, entryData, methodTag)
+      scopedLogger.debug(`→ ${methodName}`, entryData, methodTag)
 
       const startTime = globalThis.performance.now()
 
@@ -144,23 +158,23 @@ export function loggedVerbose(options: VerboseLogOptions = {}) {
         // Build exit data with timing and optional result
         const duration = globalThis.performance.now() - startTime
         const exitData: any = {
-          method: propertyKey,
+          method: methodName,
           duration: `${duration.toFixed(2)}ms`,
         }
         if (logResult && result !== undefined) {
           exitData.result = result
         }
 
-        scopedLogger.debug(`← ${propertyKey}`, exitData, methodTag)
+        scopedLogger.debug(`← ${methodName}`, exitData, methodTag)
 
         return result
       } catch (error) {
         const duration = globalThis.performance.now() - startTime
 
         scopedLogger.error(
-          `✗ ${propertyKey} failed`,
+          `✗ ${methodName} failed`,
           {
-            method: propertyKey,
+            method: methodName,
             duration: `${duration.toFixed(2)}ms`,
             error: error instanceof Error ? error.message : String(error),
           },
@@ -169,7 +183,5 @@ export function loggedVerbose(options: VerboseLogOptions = {}) {
         throw error
       }
     }
-
-    return descriptor as any
   }
 }

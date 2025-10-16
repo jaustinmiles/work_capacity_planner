@@ -3,7 +3,7 @@
  * Allows overriding current time for development/testing
  */
 
-import { logger } from '@/logger'
+import { logger } from '../logger'
 
 // LOGGER_REMOVED: import { logger } from './logger'
 

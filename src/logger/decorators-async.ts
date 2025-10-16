@@ -57,7 +57,7 @@ export function trackedAsync(options: AsyncTrackingOptions = {}) {
     target: any,
     propertyKey: string,
     descriptor: PropertyDescriptor,
-  ) {
+  ): PropertyDescriptor {
     const originalMethod = descriptor.value
     const className = target.constructor.name
 
@@ -171,7 +171,7 @@ export function promiseChain(options: { scope?: LogScope; tag?: string } = {}) {
     target: any,
     propertyKey: string,
     descriptor: PropertyDescriptor,
-  ) {
+  ): PropertyDescriptor {
     const originalMethod = descriptor.value
     const className = target.constructor.name
 
@@ -266,7 +266,7 @@ export function retryable(options: RetryOptions = {}) {
     target: any,
     propertyKey: string,
     descriptor: PropertyDescriptor,
-  ) {
+  ): PropertyDescriptor {
     const originalMethod = descriptor.value
     const className = target.constructor.name
 

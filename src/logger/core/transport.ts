@@ -60,7 +60,8 @@ export class ConsoleTransport extends Transport {
     // Clean old entries to prevent memory leak
     if (this.lastLogTime.size > 1000) {
       const cutoff = now - 10000 // 10 seconds
-      for (const [k, time] of this.lastLogTime.entries()) {
+      const entries = Array.from(this.lastLogTime.entries())
+      for (const [k, time] of entries) {
         if (time < cutoff) {
           this.lastLogTime.delete(k)
         }
