@@ -140,8 +140,8 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     if (!workTrackingServiceSingleton) {
       workTrackingServiceSingleton = new WorkTrackingService()
       logger.ui.info('[TaskStore] Created WorkTrackingService singleton (lazy)', {
-        // instanceId: (workTrackingServiceSingleton as any).instanceId,
-      // })
+        instanceId: (workTrackingServiceSingleton as any).instanceId,
+      })
     }
 
     return workTrackingServiceSingleton
@@ -191,8 +191,13 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       set({ isLoading: true, error: null })
       const sequencedTasks = await getDatabase().getSequencedTasks()
       // Sequenced tasks loaded successfully
-      logger.ui.info('[TaskStore] Sequenced tasks loaded successfully', {    isLoading: false,
+      logger.ui.info('[TaskStore] Sequenced tasks loaded successfully', {
+        count: sequencedTasks.length
       })
+      set({ sequencedTasks, isLoading: false })
+    } catch (error) {
+      logger.ui.error('[TaskStore] Failed to load sequenced tasks', { error })
+      set({ error: 'Failed to load sequenced tasks', isLoading: false })
     }
   },
 

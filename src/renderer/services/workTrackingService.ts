@@ -29,26 +29,45 @@ export class WorkTrackingService {
   constructor(options: WorkSessionPersistenceOptions = {}, database?: ReturnType<typeof getDatabase>) {
     // Generate unique instance ID for tracking multiple instances in development
     this.instanceId = generateUniqueId('WTS')
-    logger.ui.info(`[WorkTrackingService] Instance created: ${this.instanceId}`, {    startTime: activeSession.startTime.toISOString(),
+    logger.ui.debug(`[WorkTrackingService] Instance created: ${this.instanceId}`, {
+      instanceId: this.instanceId
+    })
+
+    this.options = {
+      clearStaleSessionsOnStartup: true,
+      maxSessionAgeHours: 24,
+      ...options,
+    }
+    this.database = database || getDatabase()
+  }
+
+  @logged({ scope: LogScope.UI })
+  async initialize(): Promise<void> {
+    // Clear local state first
+    this.activeSessions.clear()
+    logger.ui.info('[WorkTrackingService] Cleared all local active sessions on initialization')
+
+    // Clear stale sessions if enabled (older than maxSessionAgeHours)
+    if (this.options.clearStaleSessionsOnStartup) {
+      const cutoffDate = new Date(Date.now() - this.options.maxSessionAgeHours * 60 * 60 * 1000)
+      await this.clearStaleSessionsBeforeDate(cutoffDate)
+    }
+
+    // Restore any active session from database (within 24 hours)
+    const activeSession = await this.getLastActiveWorkSession()
+    if (activeSession) {
+      // Restore to memory so UI can show it
+      const sessionKey = this.getSessionKey(activeSession)
+      this.activeSessions.set(sessionKey, activeSession)
+
+      logger.ui.info('[WorkTrackingService] Restored active session from database', {
+        sessionId: activeSession.id,
+        taskId: activeSession.taskId,
+        stepId: activeSession.stepId,
+        startTime: activeSession.startTime.toISOString(),
       })
     } else {
       logger.ui.info('[WorkTrackingService] No active sessions to restore')
-    }
-
-    logger.ui.info('[WorkTrackingService] Initialization complete', {    actualMinutes: Math.max(elapsedMinutes, 1), // Ensure at least 1 minute
-      })
-
-      // Remove from active sessions (it's now closed)
-      const sessionKey = this.getSessionKey(session)
-      this.activeSessions.delete(sessionKey)
-
-      logger.ui.info('Paused work session (closed in database)', {
-        // sessionId,
-        // actualMinutes: Math.max(elapsedMinutes, 1),
-      // })
-    } catch (error) {
-      this.handleSessionError(error as Error, 'pausing work session')
-      throw error
     }
   }
 
