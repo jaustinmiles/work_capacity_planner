@@ -217,6 +217,8 @@ declare global {
       loadFeedback?: () => Promise<any[]>
       updateFeedback?: (updatedFeedback: any) => Promise<boolean>
       getSessionId?: () => Promise<string>
+      // Main process logging
+      onMainLog?: (callback: (entry: any) => void) => void
     }
 
   }
