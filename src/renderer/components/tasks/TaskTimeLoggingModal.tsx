@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { TaskType } from '@shared/enums'
 import { Modal, Form, InputNumber, Typography, Space, DatePicker, Input } from '@arco-design/web-react'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
-import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import { Message } from '../common/Message'
+import { logger } from '@/logger'
 import dayjs from 'dayjs'
 
 
@@ -20,7 +19,6 @@ interface TaskTimeLoggingModalProps {
 
 export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLoggingModalProps) {
   const [form] = Form.useForm()
-  const { updateTask } = useTaskStore()
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
@@ -55,13 +53,26 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       const endTime = new Date(startTime)
       endTime.setMinutes(endTime.getMinutes() + timeSpent)
 
-      logger.ui.info('[WorkLogging] Creating work session', {    notes: values.notes || '',
+      logger.ui.info('[WorkLogging] Creating work session', {
+        taskId: task.id,
+        timeSpent,
+        notes: values.notes || '',
       })
 
-      logger.ui.info('[WorkLogging] Work session created', {    actualDuration: currentLoggedTime,
+      // Update task's actualDuration
+      const currentLoggedTime = (task.actualDuration || 0) + timeSpent
+
+      logger.ui.info('[WorkLogging] Work session created', {
+        taskId: task.id,
+        previousDuration: task.actualDuration || 0,
+        addedDuration: timeSpent,
+        actualDuration: currentLoggedTime,
       })
 
-      logger.ui.info('[WorkLogging] Task updated with new logged time', {})
+      logger.ui.info('[WorkLogging] Task updated with new logged time', {
+        taskId: task.id,
+        newTotalTime: currentLoggedTime,
+      })
 
 
 
@@ -84,13 +95,13 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       }
 
       Message.success('Time logged successfully')
-      logger.ui.info('[WorkLogging] Time logging complete', {})
-        // taskId: task.id,
-        // taskName: task.name,
-        // totalLogged: currentLoggedTime,
-        // estimatedDuration: task.duration,
-        // percentComplete: Math.round((currentLoggedTime / task.duration) * 100),
-      // })
+      logger.ui.info('[WorkLogging] Time logging complete', {
+        taskId: task.id,
+        taskName: task.name,
+        totalLogged: currentLoggedTime,
+        estimatedDuration: task.duration,
+        percentComplete: Math.round((currentLoggedTime / task.duration) * 100),
+      })
       form.resetFields()
       onClose()
     } catch (error) {
