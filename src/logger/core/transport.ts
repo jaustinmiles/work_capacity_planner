@@ -167,8 +167,10 @@ export class ElectronTransport extends Transport {
         data: entry.data,
         timestamp: entry.timestamp.toISOString(),
       })
-    } catch (_error) {
-      // Fail silently if window is destroyed
+    } catch (error) {
+      // Log to console if window communication fails
+      // This happens when window is destroyed or IPC is unavailable
+      console.debug('[ElectronTransport] Failed to send log to renderer:', error)
     }
   }
 }

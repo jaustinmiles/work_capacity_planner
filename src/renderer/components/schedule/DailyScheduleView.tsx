@@ -59,7 +59,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
         setMeetings(pattern.meetings || [])
       }
     } catch (error) {
-      logger.system.error('Failed to load work pattern', {
+      logger.ui.error('Failed to load work pattern', {
         error: error instanceof Error ? error.message : String(error),
         date,
       }, 'work-pattern-load-error')

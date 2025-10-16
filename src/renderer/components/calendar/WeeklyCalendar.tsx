@@ -82,7 +82,7 @@ export function WeeklyCalendar() {
 
       setWorkPatterns(patterns)
     } catch (error) {
-      logger.system.error('Failed to load work patterns', {
+      logger.ui.error('Failed to load work patterns', {
         error: error instanceof Error ? error.message : String(error),
       }, 'work-patterns-load-error')
     } finally {

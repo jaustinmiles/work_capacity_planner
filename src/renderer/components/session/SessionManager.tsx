@@ -59,7 +59,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       setSessions(sessionList)
       setActiveSession(sessionList.find(s => s.isActive) || null)
     } catch (error) {
-      logger.system.error('Failed to load sessions', {
+      logger.ui.error('Failed to load sessions', {
         error: error instanceof Error ? error.message : String(error),
       }, 'sessions-load-error')
       Message.error('Failed to load sessions')
@@ -94,11 +94,11 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
   const handleSwitchSession = async (sessionId: string) => {
     try {
       const _session = sessions.find(s => s.id === sessionId)
-      // LOGGER_REMOVED: logger.ui.info('Switching session', {
-        // LOGGER_REMOVED: from: activeSession?.name || 'none',
-        // LOGGER_REMOVED: to: _session?.name || 'unknown',
-        // LOGGER_REMOVED: sessionId,
-      // LOGGER_REMOVED: })
+      logger.ui.info('Switching session', {
+        from: activeSession?.name || 'none',
+        to: _session?.name || 'unknown',
+        sessionId,
+      })
       const db = getDatabase()
       await db.switchSession(sessionId)
 
@@ -123,11 +123,11 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
 
     try {
       const values = await form.validate()
-      // LOGGER_REMOVED: logger.ui.info('Updating session', {
-        // LOGGER_REMOVED: sessionId: editingSession.id,
-        // LOGGER_REMOVED: oldName: editingSession.name,
-        // LOGGER_REMOVED: newName: values.name,
-      // LOGGER_REMOVED: })
+      logger.ui.info('Updating session', {
+        sessionId: editingSession.id,
+        oldName: editingSession.name,
+        newName: values.name,
+      })
       const db = getDatabase()
       await db.updateSession(editingSession.id, values)
 
