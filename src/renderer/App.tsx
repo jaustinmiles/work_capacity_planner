@@ -25,7 +25,6 @@ import { exampleSequencedTask } from '@shared/sequencing-types'
 import type { TaskStep } from '@shared/types'
 import { getDatabase } from './services/database'
 import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
-// LOGGER_REMOVED: import { useLogger, useLoggerContext } from '../logging/index.renderer'
 import { logger } from '@/logger'
 import { appEvents, EVENTS } from './utils/events'
 
@@ -132,20 +131,20 @@ function App() {
 
   // Initialize data when app starts
   useEffect(() => {
-    // LOGGER_REMOVED: logger.info('App initialization started - loading data from database')
+    logger.system.info('App initialization started - loading data from database', {}, 'app-data-init')
     initializeData()
   }, []) // Empty dependency array - run once on mount. We omit initializeData to avoid infinite re-renders.
 
   // Listen for data refresh events
   useEffect(() => {
     const handleDataRefresh = () => {
-      // LOGGER_REMOVED: logger.debug('Data refresh event received')
+      logger.system.debug('Data refresh event received', {}, 'data-refresh-event')
       // Call initializeData directly from store to avoid dependency issues
       useTaskStore.getState().initializeData()
     }
 
     const handleSessionChanged = () => {
-      // LOGGER_REMOVED: logger.debug('Session change event received')
+      logger.system.debug('Session change event received', {}, 'session-change-event')
       // Call initializeData directly from store to avoid dependency issues
       useTaskStore.getState().initializeData()
     }
@@ -157,7 +156,7 @@ function App() {
       appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
       appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
     }
-  }, []) // LOGGER_REMOVED: Only depend on logger which is stable
+  }, [])
 
   // Log view changes
   useEffect(() => {
@@ -172,7 +171,7 @@ function App() {
       // Cmd/Ctrl + Shift + D for DevTools
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
         e.preventDefault()
-        // LOGGER_REMOVED: logger.debug('DevTools opened via keyboard shortcut')
+        logger.ui.debug('DevTools opened via keyboard shortcut', {}, 'devtools-shortcut')
         setShowDevTools(true)
       }
     }
@@ -192,7 +191,7 @@ function App() {
   }, [activeView, currentWeeklySchedule, isScheduling, generateWeeklySchedule])
 
   const handleTasksExtracted = (tasks: ExtractedTask[]): void => {
-    // LOGGER_REMOVED: logger.info('Tasks extracted from brainstorm', { count: tasks.length })
+    logger.ui.info('Tasks extracted from brainstorm', { count: tasks.length }, 'brainstorm-extract-tasks')
     setExtractedTasks(tasks)
     setBrainstormModalVisible(false)
     setTaskCreationFlowVisible(true)
@@ -200,10 +199,10 @@ function App() {
 
   const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]): Promise<void> => {
     try {
-      // LOGGER_REMOVED: logger.info('Workflows extracted from brainstorm', {
-        // LOGGER_REMOVED: workflowCount: workflows.length,
-        // LOGGER_REMOVED: standaloneTaskCount: standaloneTasks.length,
-      // LOGGER_REMOVED: })
+      logger.ui.info('Workflows extracted from brainstorm', {
+        workflowCount: workflows.length,
+        standaloneTaskCount: standaloneTasks.length,
+      }, 'brainstorm-extract-workflows')
       // Create workflows
       for (const workflow of workflows) {
         // Combine description and notes
@@ -318,7 +317,9 @@ function App() {
         setActiveView('workflows')
       }
     } catch (error) {
-      // LOGGER_REMOVED: logger.error('Error creating workflows', { error })
+      logger.ui.error('Error creating workflows', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'workflow-create-error')
       Message.error('Failed to create workflows and tasks')
     }
   }
@@ -333,7 +334,10 @@ function App() {
       await deleteSequencedTask(taskId)
       Message.success('Workflow deleted successfully')
     } catch (error) {
-      // LOGGER_REMOVED: logger.error('Error deleting workflow', { error })
+      logger.ui.error('Error deleting workflow', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId,
+      }, 'workflow-delete-error')
       Message.error('Failed to delete workflow')
     }
   }
@@ -370,9 +374,12 @@ function App() {
       })
 
       Message.success('Workflow started - time tracking active')
-      // LOGGER_REMOVED: logger.info(`Started time tracking for step: ${stepToStart.name}`)
+      logger.ui.info('Started time tracking for step', { stepName: stepToStart.name, workflowId: id }, 'workflow-step-start')
     } catch (error) {
-      // LOGGER_REMOVED: logger.error('Failed to start workflow', { error })
+      logger.ui.error('Failed to start workflow', {
+        error: error instanceof Error ? error.message : String(error),
+        workflowId: id,
+      }, 'workflow-start-error')
       Message.error('Failed to start workflow')
     }
   }
@@ -388,7 +395,7 @@ function App() {
       // Pause time tracking if there's an active step
       if (inProgressStep) {
         await pauseWorkOnStep(inProgressStep.id)
-        // LOGGER_REMOVED: logger.info(`Paused time tracking for step: ${inProgressStep.name}`)
+        logger.ui.info('Paused time tracking for step', { stepName: inProgressStep.name, workflowId: id }, 'workflow-step-pause')
       }
 
       // Update the workflow and step statuses
@@ -406,7 +413,10 @@ function App() {
 
       Message.success('Workflow paused - time logged')
     } catch (error) {
-      // LOGGER_REMOVED: logger.error('Failed to pause workflow', { error })
+      logger.ui.error('Failed to pause workflow', {
+        error: error instanceof Error ? error.message : String(error),
+        workflowId: id,
+      }, 'workflow-pause-error')
       Message.error('Failed to pause workflow')
     }
   }
@@ -418,7 +428,10 @@ function App() {
       await loadSequencedTasks()
       Message.success('Step updated successfully')
     } catch (error) {
-      // LOGGER_REMOVED: logger.error('Failed to update step', { error })
+      logger.ui.error('Failed to update step', {
+        error: error instanceof Error ? error.message : String(error),
+        stepId,
+      }, 'step-update-error')
       Message.error('Failed to update step')
     }
   }
@@ -453,7 +466,10 @@ function App() {
 
       Message.success('Workflow reset to initial state')
     } catch (error) {
-      // LOGGER_REMOVED: logger.error('Failed to reset workflow', { error })
+      logger.ui.error('Failed to reset workflow', {
+        error: error instanceof Error ? error.message : String(error),
+        workflowId: id,
+      }, 'workflow-reset-error')
       Message.error('Failed to reset workflow')
     }
   }
@@ -464,7 +480,9 @@ function App() {
       await initializeData() // Reload all data
       Message.success('All workflows deleted successfully')
     } catch (error) {
-      // LOGGER_REMOVED: logger.error('Error deleting all workflows', { error })
+      logger.ui.error('Error deleting all workflows', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'workflows-delete-all-error')
       Message.error('Failed to delete all workflows')
     }
   }

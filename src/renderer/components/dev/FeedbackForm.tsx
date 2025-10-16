@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Form, Input, Button, Radio, Typography, Space, Alert, Checkbox } from '@arco-design/web-react'
 import { IconMessage, IconSave } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 
 const FormItem = Form.Item
 const TextArea = Input.TextArea
@@ -93,7 +93,9 @@ export function FeedbackForm({ onClose }: FeedbackFormProps): React.ReactElement
       form.resetFields()
       onClose?.()
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to submit feedback:', error)
+      logger.ui.error('Failed to submit feedback', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'feedback-submit-error')
       Message.error('Failed to save feedback')
     } finally {
       setLoading(false)

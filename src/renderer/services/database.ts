@@ -335,26 +335,9 @@ export class RendererDatabaseService {
           //   sessions: sessions.map(s => ({ id: s.id, name: s.name })),
           // })
         }
-      } catch (error) {
-        // LOGGER_REMOVED: logger.ui.error('[Database] Failed to load last used session', error)
+      } catch (_error) {
+        // LOGGER_REMOVED: logger.ui.error('[Database] Failed to load last used session', _error)
         window.localStorage.removeItem('lastUsedSessionId')
-      }
-    } else {
-      // LOGGER_REMOVED: logger.ui.info('[Database] No last used session stored in localStorage')
-
-      try {
-        // Get and log current sessions
-        const sessions = await this.getSessions()
-        if (sessions.length > 0) {
-          // LOGGER_REMOVED: logger.ui.info('[Database] Sessions available but none marked as last used', {
-            // count: sessions.length,
-            // sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })),
-          // })
-        } else {
-          // LOGGER_REMOVED: logger.ui.warn('[Database] No sessions exist in database')
-        }
-      } catch (error) {
-        // LOGGER_REMOVED: logger.ui.error('[Database] Failed to get sessions in loadLastUsedSession', error)
       }
     }
   }
@@ -370,15 +353,8 @@ export class RendererDatabaseService {
   //   logResult: false,  // Don't log all tasks, just the count
   // })
   async getTasks(includeArchived = false): Promise<Task[]> {
-    // LOGGER_REMOVED: logger.ui.debug('RendererDB: Calling getTasks via IPC...', { includeArchived })
-    try {
-      const tasks = await window.electronAPI.db.getTasks(includeArchived)
-      // LOGGER_REMOVED: logger.ui.debug(`RendererDB: Received ${tasks.length} tasks from IPC`)
-      return tasks
-    } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('RendererDB: Error getting tasks:', error)
-      throw error
-    }
+    const tasks = await window.electronAPI.db.getTasks(includeArchived)
+    return tasks
   }
 
   // @loggedVerbose({

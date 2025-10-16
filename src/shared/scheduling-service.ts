@@ -1,3 +1,4 @@
+import { logger } from '@/logger'
 import { SchedulingEngine } from './scheduling-engine'
 import { Task } from './types'
 import { SequencedTask } from './sequencing-types'
@@ -70,8 +71,8 @@ export class SchedulingService {
             // LOGGER_REMOVED: logger.scheduler.debug('Loaded user work pattern', { date: dateStr, blocks: pattern.blocks.length })
           }
           // No pattern for this date - skip it
-        } catch (patternError) {
-          // LOGGER_REMOVED: logger.scheduler.warn('Failed to load pattern for date, skipping', { date: dateStr, error: patternError })
+        } catch (_patternError) {
+          // LOGGER_REMOVED: logger.scheduler.warn('Failed to load pattern for date, skipping', { date: dateStr, error: _patternError })
           // Skip this date if pattern load fails
         }
       }
@@ -83,7 +84,9 @@ export class SchedulingService {
 
       return patterns
     } catch (error) {
-      // LOGGER_REMOVED: logger.scheduler.error('Failed to load user work patterns', error)
+      logger.system.error('Failed to load user work patterns', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'work-patterns-load-error')
       return []
     }
   }
@@ -798,7 +801,9 @@ export class SchedulingService {
       // LOGGER_REMOVED: logger.scheduler.warn('Could not find matching task or step, returning null')
       return null
     } catch (error) {
-      // LOGGER_REMOVED: logger.scheduler.error('Failed to get next scheduled item:', error)
+      logger.system.error('Failed to get next scheduled item', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'scheduled-item-fetch-error')
       return null
     }
   }

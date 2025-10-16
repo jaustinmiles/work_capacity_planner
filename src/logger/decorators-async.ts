@@ -46,7 +46,7 @@ interface AsyncTrackingOptions {
 export function trackedAsync(options: AsyncTrackingOptions = {}) {
   const {
     scope = LogScope.System,
-    logProgress = false,
+    logProgress: _logProgress = false,
     warnAfterMs,
     errorAfterMs,
     tag,

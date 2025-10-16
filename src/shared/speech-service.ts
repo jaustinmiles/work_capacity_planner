@@ -121,16 +121,10 @@ export class SpeechService {
       fs.writeFileSync(tempFilePath, audioBuffer)
       // LOGGER_REMOVED: logger.ai.debug(`Audio file saved to: ${tempFilePath}`)
 
-      try {
-        const result = await this.transcribeAudio(tempFilePath, options)
-        return {
-          ...result,
-          savedPath: tempFilePath,
-        }
-      } catch (error) {
-        // Keep the file even if transcription fails
-        // LOGGER_REMOVED: logger.ai.error('Transcription failed, but audio file preserved at:', { tempFilePath })
-        throw error
+      const result = await this.transcribeAudio(tempFilePath, options)
+      return {
+        ...result,
+        savedPath: tempFilePath,
       }
     } catch (error) {
       // LOGGER_REMOVED: logger.ai.error('Error transcribing audio buffer:', { error })

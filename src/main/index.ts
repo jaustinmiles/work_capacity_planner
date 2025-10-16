@@ -66,8 +66,8 @@ app.whenReady().then(() => {
   db = DatabaseService.getInstance()
 
   // Log database path for debugging
-  const dbPath = process.env.DATABASE_URL || 'file:./dev.db'
-  // LOGGER_REMOVED: logger.info(`[main] Database path: ${dbPath}`)
+  const _dbPath = process.env.DATABASE_URL || 'file:./dev.db'
+  // LOGGER_REMOVED: logger.info(`[main] Database path: ${_dbPath}`)
   // LOGGER_REMOVED: logger.info(`[main] Working directory: ${process.cwd()}`)
   // LOGGER_REMOVED: logger.info('[main] Main process initialized successfully')
 
@@ -121,14 +121,9 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
 
 ipcMain.handle('db:getTasks', async (_event, includeArchived = false) => {
   // LOGGER_REMOVED: logger.info('[ipc] Getting tasks from database...', { includeArchived })
-  try {
-    const tasks = await db.getTasks(includeArchived)
-    // LOGGER_REMOVED: logger.info(`[ipc] Found ${tasks.length} tasks`)
-    return tasks
-  } catch (error) {
-    // LOGGER_REMOVED: logger.error('[ipc] Error getting tasks', { error })
-    throw error
-  }
+  const tasks = await db.getTasks(includeArchived)
+  // LOGGER_REMOVED: logger.info(`[ipc] Found ${tasks.length} tasks`)
+  return tasks
 })
 
 ipcMain.handle('db:getSequencedTasks', async () => {
@@ -393,8 +388,8 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
       (context as any).jobContexts = jobContexts
       // LOGGER_REMOVED: logger.debug('[IPC] Including job contexts in amendment parsing', { count: jobContexts.length })
     }
-  } catch (error) {
-    // LOGGER_REMOVED: logger.error('[ipc] Failed to fetch job contexts:', { error })
+  } catch (_error) {
+    // LOGGER_REMOVED: logger.error('[ipc] Failed to fetch job contexts:', { error: _error })
   }
 
   const parser = new AmendmentParser({ useAI: true })
@@ -434,80 +429,75 @@ ipcMain.handle('speech:getSchedulingSettings', async () => {
 
 // Feedback handlers
 ipcMain.handle('feedback:save', async (_event, feedback) => {
+  const fs = await import('fs/promises')
+  // Use process.cwd() for development, which should be the project root
+  const projectRoot = process.cwd()
+  const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
+
+  // LOGGER_REMOVED: logger.info('Saving feedback', { path: feedbackPath })
+
+  // Ensure directory exists
+  await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
+
+  // Read existing feedback or create empty array
+  let allFeedback: any[] = []
   try {
-    const fs = await import('fs/promises')
-    // Use process.cwd() for development, which should be the project root
-    const projectRoot = process.cwd()
-    const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
+    const existingData = await fs.readFile(feedbackPath, 'utf-8')
+    const parsed = JSON.parse(existingData)
 
-    // LOGGER_REMOVED: logger.info('Saving feedback', { path: feedbackPath })
-
-    // Ensure directory exists
-    await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
-
-    // Read existing feedback or create empty array
-    let allFeedback: any[] = []
-    try {
-      const existingData = await fs.readFile(feedbackPath, 'utf-8')
-      const parsed = JSON.parse(existingData)
-
-      // Flatten the structure if needed
-      const flattenItems = (items: any): any[] => {
-        const result: any[] = []
-        if (Array.isArray(items)) {
-          items.forEach(item => {
-            if (Array.isArray(item)) {
-              result.push(...flattenItems(item))
-            } else if (item && typeof item === 'object' && 'type' in item) {
-              result.push(item)
-            }
-          })
-        } else if (items && typeof items === 'object' && 'type' in items) {
-          result.push(items)
-        }
-        return result
-      }
-
-      allFeedback = flattenItems(parsed)
-    } catch {
-      // File doesn't exist yet
-    }
-
-    // Append new feedback (ensure it's not an array being appended)
-    if (Array.isArray(feedback)) {
-      // If somehow an array is being saved, flatten it
-      feedback.forEach(item => {
-        if (item && typeof item === 'object' && 'type' in item) {
-          // Check for duplicates before adding
-          const isDuplicate = allFeedback.some(existing =>
-            existing.timestamp === item.timestamp &&
-            existing.sessionId === item.sessionId,
-          )
-          if (!isDuplicate) {
-            allFeedback.push(item)
+    // Flatten the structure if needed
+    const flattenItems = (items: any): any[] => {
+      const result: any[] = []
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          if (Array.isArray(item)) {
+            result.push(...flattenItems(item))
+          } else if (item && typeof item === 'object' && 'type' in item) {
+            result.push(item)
           }
-        }
-      })
-    } else if (feedback && typeof feedback === 'object' && 'type' in feedback) {
-      // Check for duplicates before adding
-      const isDuplicate = allFeedback.some(existing =>
-        existing.timestamp === feedback.timestamp &&
-        existing.sessionId === feedback.sessionId,
-      )
-      if (!isDuplicate) {
-        allFeedback.push(feedback)
+        })
+      } else if (items && typeof items === 'object' && 'type' in items) {
+        result.push(items)
       }
+      return result
     }
 
-    // Save all feedback (flat array only)
-    await fs.writeFile(feedbackPath, JSON.stringify(allFeedback, null, 2))
-
-    // LOGGER_REMOVED: logger.info('Feedback saved to context folder')
-    return true
-  } catch (error) {
-    // LOGGER_REMOVED: logger.error('Failed to save feedback', { error })
-    throw error
+    allFeedback = flattenItems(parsed)
+  } catch {
+    // File doesn't exist yet
   }
+
+  // Append new feedback (ensure it's not an array being appended)
+  if (Array.isArray(feedback)) {
+    // If somehow an array is being saved, flatten it
+    feedback.forEach(item => {
+      if (item && typeof item === 'object' && 'type' in item) {
+        // Check for duplicates before adding
+        const isDuplicate = allFeedback.some(existing =>
+          existing.timestamp === item.timestamp &&
+          existing.sessionId === item.sessionId,
+        )
+        if (!isDuplicate) {
+          allFeedback.push(item)
+        }
+      }
+    })
+  } else if (feedback && typeof feedback === 'object' && 'type' in feedback) {
+    // Check for duplicates before adding
+    const isDuplicate = allFeedback.some(existing =>
+      existing.timestamp === feedback.timestamp &&
+      existing.sessionId === feedback.sessionId,
+    )
+    if (!isDuplicate) {
+      allFeedback.push(feedback)
+    }
+  }
+
+  // Save all feedback (flat array only)
+  await fs.writeFile(feedbackPath, JSON.stringify(allFeedback, null, 2))
+
+  // LOGGER_REMOVED: logger.info('Feedback saved to context folder')
+  return true
 })
 
 ipcMain.handle('feedback:read', async () => {
@@ -539,52 +529,47 @@ ipcMain.handle('feedback:load', async () => {
 })
 
 ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
-  try {
-    const fs = await import('fs/promises')
-    const projectRoot = process.cwd()
-    const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
+  const fs = await import('fs/promises')
+  const projectRoot = process.cwd()
+  const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
 
-    // LOGGER_REMOVED: logger.info('Updating feedback', { path: feedbackPath })
+  // LOGGER_REMOVED: logger.info('Updating feedback', { path: feedbackPath })
 
-    // Ensure directory exists
-    await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
+  // Ensure directory exists
+  await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
 
-    // Flatten the structure if needed before saving
-    const flattenItems = (items: any): any[] => {
-      const result: any[] = []
-      if (Array.isArray(items)) {
-        items.forEach(item => {
-          if (Array.isArray(item)) {
-            result.push(...flattenItems(item))
-          } else if (item && typeof item === 'object' && 'type' in item) {
-            result.push(item)
-          }
-        })
-      } else if (items && typeof items === 'object' && 'type' in items) {
-        result.push(items)
-      }
-      return result
+  // Flatten the structure if needed before saving
+  const flattenItems = (items: any): any[] => {
+    const result: any[] = []
+    if (Array.isArray(items)) {
+      items.forEach(item => {
+        if (Array.isArray(item)) {
+          result.push(...flattenItems(item))
+        } else if (item && typeof item === 'object' && 'type' in item) {
+          result.push(item)
+        }
+      })
+    } else if (items && typeof items === 'object' && 'type' in items) {
+      result.push(items)
     }
-
-    const flatFeedback = flattenItems(updatedFeedback)
-
-    // Deduplicate feedback items based on timestamp and sessionId
-    const uniqueFeedback = flatFeedback.filter((item, index, self) =>
-      index === self.findIndex(f =>
-        f.timestamp === item.timestamp &&
-        f.sessionId === item.sessionId,
-      ),
-    )
-
-    // Save updated feedback (ensure it's a flat, deduplicated array)
-    await fs.writeFile(feedbackPath, JSON.stringify(uniqueFeedback, null, 2))
-
-    // LOGGER_REMOVED: logger.info('Feedback updated in context folder')
-    return true
-  } catch (error) {
-    // LOGGER_REMOVED: logger.error('Failed to update feedback', { error })
-    throw error
+    return result
   }
+
+  const flatFeedback = flattenItems(updatedFeedback)
+
+  // Deduplicate feedback items based on timestamp and sessionId
+  const uniqueFeedback = flatFeedback.filter((item, index, self) =>
+    index === self.findIndex(f =>
+      f.timestamp === item.timestamp &&
+      f.sessionId === item.sessionId,
+    ),
+  )
+
+  // Save updated feedback (ensure it's a flat, deduplicated array)
+  await fs.writeFile(feedbackPath, JSON.stringify(uniqueFeedback, null, 2))
+
+  // LOGGER_REMOVED: logger.info('Feedback updated in context folder')
+  return true
 })
 
 ipcMain.handle('app:getSessionId', () => {
@@ -593,25 +578,25 @@ ipcMain.handle('app:getSessionId', () => {
 })
 
 // Logging handler - forward renderer logs
-ipcMain.on('log:message', (_event, { level, scope, message, data }) => {
+ipcMain.on('log:message', (_event, { level, scope, _message, data }) => {
   // Add scope to context if provided
-  const contextData = scope ? { ...data, scope } : data
+  const _contextData = scope ? { ...data, scope } : data
 
   // Use the appropriate logger based on level
   switch (level) {
     case 'debug':
-      // LOGGER_REMOVED: logger.debug(message, contextData)
+      // LOGGER_REMOVED: logger.debug(_message, _contextData)
       break
     case 'info':
-      // LOGGER_REMOVED: logger.info(message, contextData)
+      // LOGGER_REMOVED: logger.info(_message, _contextData)
       break
     case 'warn':
-      // LOGGER_REMOVED: logger.warn(message, contextData)
+      // LOGGER_REMOVED: logger.warn(_message, _contextData)
       break
     case 'error':
-      // LOGGER_REMOVED: logger.error(message, contextData)
+      // LOGGER_REMOVED: logger.error(_message, _contextData)
       break
     default:
-      // LOGGER_REMOVED: logger.info(message, contextData)
+      // LOGGER_REMOVED: logger.info(_message, _contextData)
   }
 })

@@ -100,7 +100,7 @@ export class ConsoleTransport extends Transport {
   }
 
   private getPrefix(entry: LogEntry): string {
-    const time = entry.timestamp.toISOString().split('T')[1].slice(0, -1)
+    const time = entry.timestamp.toISOString().split('T')[1]?.slice(0, -1) || ''
     const level = ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'][entry.level]
     const { scope, component, tag } = entry.context
 

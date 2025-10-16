@@ -6,6 +6,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import { useState, useEffect } from 'react'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
+import { logger } from '@/logger'
 // LOGGER_REMOVED: import { logger } from '@shared/logger'
 
 const { Text } = Typography
@@ -35,31 +36,33 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       await updateTask(task.id, {
         completed: !task.completed,
       })
-      const newStatus = !task.completed ? 'completed' : 'incomplete'
+      const _newStatus = !task.completed ? 'completed' : 'incomplete'
       // LOGGER_REMOVED: logger.ui.info('Task completion toggled', {
         // LOGGER_REMOVED: taskId: task.id,
         // LOGGER_REMOVED: taskName: task.name,
-        // LOGGER_REMOVED: newStatus,
+        // LOGGER_REMOVED: newStatus: _newStatus,
       // LOGGER_REMOVED: })
       Message.success(task.completed ? 'Task marked as incomplete' : 'Task completed!')
-    } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to toggle task completion', error)
+    } catch (_error) {
+      // LOGGER_REMOVED: logger.ui.error('Failed to toggle task completion', _error)
       Message.error('Failed to update task')
     }
   }
 
   const handleDelete = async (taskId: string) => {
     try {
-      // Find task name for logging
       const task = tasks.find(t => t.id === taskId)
       await deleteTask(taskId)
-      // LOGGER_REMOVED: logger.ui.info('Task deleted', {
-        // LOGGER_REMOVED: taskId,
-        // LOGGER_REMOVED: taskName: task?.name || 'Unknown',
-      // LOGGER_REMOVED: })
+      logger.ui.info('Task deleted', {
+        taskId,
+        taskName: task?.name || 'Unknown',
+      }, 'task-delete-success')
       Message.success('Task deleted')
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to delete task', { taskId, error })
+      logger.ui.error('Failed to delete task', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId,
+      }, 'task-delete-error')
       Message.error('Failed to delete task')
     }
   }

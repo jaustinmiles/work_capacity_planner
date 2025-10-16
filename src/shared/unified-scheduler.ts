@@ -24,8 +24,8 @@ import { TaskType } from './enums'
 import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
 import { WorkSettings } from './work-settings-types'
 import { ProductivityPattern, SchedulingPreferences } from './types'
-// LOGGER_REMOVED: import { logger } from './logger'
-import { getCurrentTime, getLocalDateString, timeProvider } from './time-provider'
+import { logger } from '@/logger'
+import { getCurrentTime, getLocalDateString, timeProvider as _timeProvider } from './time-provider'
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -286,8 +286,8 @@ export class UnifiedScheduler {
 
         // Debug logging for priority calculation
         if (config.debugMode) {
-          const original = item.originalItem as any
-          // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [Priority] ${item.name}: priority=${priority.toFixed(2)}, importance=${original.importance || 5}, urgency=${original.urgency || 5}`)
+          const _original = item.originalItem as any
+          // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [Priority] ${item.name}: priority=${priority.toFixed(2)}, importance=${_original.importance || 5}, urgency=${_original.urgency || 5}`)
         }
       }
     })
@@ -297,9 +297,12 @@ export class UnifiedScheduler {
 
     // Debug logging for sorted order
     if (config.debugMode) {
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] After topological sort:')
+      logger.system.debug('After topological sort', {}, 'unified-scheduler-sort')
       dependencyResult.resolved.forEach((item, index) => {
-        // LOGGER_REMOVED: logger.scheduler.debug(`  ${index + 1}. ${item.name} (priority=${item.priority?.toFixed(2)})`)
+        logger.system.debug(`Sorted item ${index + 1}`, {
+          name: item.name,
+          priority: item.priority?.toFixed(2),
+        }, 'unified-scheduler-sort-item')
       })
     }
 
@@ -1123,21 +1126,18 @@ export class UnifiedScheduler {
     // Enhanced logging for debugging
     const realNow = new Date()
     const providerNow = getCurrentTime()
-    // LOGGER_REMOVED: logger.scheduler.info(' [UnifiedScheduler] allocateToWorkBlocks called', {
-      // itemCount: items.length,
-      // patternCount: workPatterns.length,
-      // configStartDate: config.startDate,
-      // configCurrentTime: config.currentTime?.toISOString(),
-      // realTime: realNow.toISOString(),
-      // providerTime: providerNow.toISOString(),
-      // hasOverride: timeProvider.isOverridden(),
-      // overrideValue: timeProvider.getOverride()?.toISOString(),
-      // firstPattern: workPatterns[0] ? {
-        // date: workPatterns[0].date,
-        // blockCount: workPatterns[0].blocks.length,
-        // firstBlock: workPatterns[0].blocks[0],
-      // } : null,
-    // })
+    logger.system.debug('allocateToWorkBlocks called', {
+      itemCount: items.length,
+      patternCount: workPatterns.length,
+      configStartDate: config.startDate,
+      configCurrentTime: config.currentTime?.toISOString(),
+      realTime: realNow.toISOString(),
+      providerTime: providerNow.toISOString(),
+      hasOverride: _timeProvider.isOverridden(),
+      overrideValue: _timeProvider.getOverride()?.toISOString(),
+      firstPatternDate: workPatterns[0]?.date,
+      firstPatternBlockCount: workPatterns[0]?.blocks.length,
+    }, 'unified-scheduler-allocate')
 
     const scheduled: UnifiedScheduleItem[] = []
     const remaining = [...items]

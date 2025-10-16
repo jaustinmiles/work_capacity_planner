@@ -4,7 +4,7 @@ import { IconQuestionCircle, IconCheckCircle } from '@arco-design/web-react/icon
 import { TaskType, TaskStatus } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 
 
 const { TextArea } = Input
@@ -90,7 +90,10 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
           : t,
       ))
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Error getting contextual questions:', error)
+      logger.ui.error('Error getting contextual questions', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: task.id,
+      }, 'context-questions-error')
     } finally {
       setIsProcessing(false)
     }
@@ -114,7 +117,10 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
           : t,
       ))
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Error enhancing task:', error)
+      logger.ui.error('Error enhancing task', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: task.id,
+      }, 'task-enhance-error')
     } finally {
       setIsProcessing(false)
     }
@@ -171,7 +177,10 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
         t.id === task.id ? { ...t, status: 'created' } : t,
       ))
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Error creating task:', error)
+      logger.ui.error('Error creating task', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: task.id,
+      }, 'task-create-error')
     } finally {
       setIsProcessing(false)
     }
@@ -188,7 +197,9 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
 
       onClose()
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Error creating tasks:', error)
+      logger.ui.error('Error creating tasks', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'tasks-create-all-error')
     } finally {
       setIsProcessing(false)
     }

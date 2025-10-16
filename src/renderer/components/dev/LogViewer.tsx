@@ -6,7 +6,7 @@ interface LogViewerProps {
   onClose: () => void
 }
 
-export function LogViewer({ onClose }: LogViewerProps) {
+export function LogViewer({ onClose: _onClose }: LogViewerProps) {
   return (
     <Card
       title={

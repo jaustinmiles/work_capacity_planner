@@ -11,7 +11,7 @@ import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 import dayjs from 'dayjs'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { Message } from '../common/Message'
 
 
@@ -141,7 +141,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
       setNextTask(nextItem)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('[WorkStatusWidget] Failed to load next task:', error)
+      logger.ui.error('Failed to load next task', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'next-task-load-error')
     } finally {
       setIsLoadingNextTask(false)
       // LOGGER_REMOVED: logger.ui.info('[WorkStatusWidget] Finished loading next task')
@@ -173,7 +175,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
       // Don't reload next task here - UI now shows pause button, not next task
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('[WorkStatusWidget] Failed to start next task:', error)
+      logger.ui.error('Failed to start next task', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'next-task-start-error')
       Message.error('Failed to start work session')
     } finally {
       setIsProcessing(false)
@@ -206,7 +210,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       // Reload next task after stopping current one
       await loadNextTask()
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('[WorkStatusWidget] Failed to pause current task:', error)
+      logger.ui.error('Failed to pause current task', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'current-task-pause-error')
       Message.error('Failed to pause work session')
     } finally {
       setIsProcessing(false)
@@ -264,12 +270,12 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
       // [WorkPatternLifeCycle] Log current block detection
       const currentTime = new Date()
-      const currentBlockData = patternData ? getCurrentBlock(patternData.blocks, currentTime) : null
-      const nextBlockData = patternData ? getNextBlock(patternData.blocks, currentTime) : null
+      const _currentBlockData = patternData ? getCurrentBlock(patternData.blocks, currentTime) : null
+      const _nextBlockData = patternData ? getNextBlock(patternData.blocks, currentTime) : null
 
       // LOGGER_REMOVED: logger.ui.debug('[WorkPatternLifeCycle] WorkStatusWidget - Block detection', {
         // currentTime: currentTime.toTimeString().slice(0, 5),
-        // currentBlock: currentBlockData ? {
+        // currentBlock: _currentBlockData ? {
           // startTime: currentBlockData.startTime,
           // endTime: currentBlockData.endTime,
           // type: currentBlockData.type,
@@ -313,12 +319,10 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         // timestamp: new Date().toISOString(),
       // })
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - ERROR', {
-        // currentDate,
-        // error: error instanceof Error ? error.message : String(error),
-        // timestamp: new Date().toISOString(),
-      // })
-      // LOGGER_REMOVED: logger.ui.error('Failed to load work data:', error)
+      logger.system.error('Failed to load work data', {
+        error: error instanceof Error ? error.message : String(error),
+        currentDate,
+      }, 'work-data-load-error')
     }
   }
 

@@ -45,7 +45,7 @@ export class ContextExtractor {
           functionName = fnName
         }
         const fullPath = match[2]
-        line = parseInt(match[3], 10)
+        line = match[3] ? parseInt(match[3], 10) : undefined
 
         // Extract filename from path
         if (fullPath) {

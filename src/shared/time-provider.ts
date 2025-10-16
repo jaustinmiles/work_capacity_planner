@@ -3,6 +3,8 @@
  * Allows overriding current time for development/testing
  */
 
+import { logger } from '@/logger'
+
 // LOGGER_REMOVED: import { logger } from './logger'
 
 // Import events if in renderer process
@@ -132,7 +134,9 @@ class TimeProvider {
       try {
         listener(currentTime)
       } catch (e) {
-        // LOGGER_REMOVED: logger.error('Error in time change listener', { error: e })
+        logger.system.error('Error in time change listener', {
+          error: e instanceof Error ? e.message : String(e),
+        }, 'time-listener-error')
       }
     })
   }

@@ -3,7 +3,7 @@ import { Modal, Button, Space, Typography, Alert, Tabs } from '@arco-design/web-
 import { IconDelete, IconTool, IconMessage, IconList, IconFile, IconClockCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { FeedbackForm } from './FeedbackForm'
 import { FeedbackViewer } from './FeedbackViewer'
 import { LogViewer } from './LogViewer'
@@ -44,7 +44,9 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
       // Reload the page to refresh everything
       setTimeout(() => window.location.reload(), 1000)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to clear data:', error)
+      logger.system.error('Failed to clear data', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'data-clear-error')
       Message.error('Failed to clear user data')
     } finally {
       setIsClearing(false)

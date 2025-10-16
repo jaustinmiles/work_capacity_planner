@@ -4,6 +4,7 @@ import { IconMindMapping, IconEdit } from '@arco-design/web-react/icon'
 import { SequencedTask } from '@shared/sequencing-types'
 import { InteractiveWorkflowGraph } from './InteractiveWorkflowGraph'
 import { useTaskStore } from '../../store/useTaskStore'
+import { logger } from '@/logger'
 // LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
@@ -43,7 +44,11 @@ export function WorkflowVisualization({ task, visible, onClose }: WorkflowVisual
         steps: updatedSteps,
       })
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to update dependencies:', error)
+      logger.ui.error('Failed to update dependencies', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: currentTask.id,
+        stepId,
+      }, 'dependencies-update-error')
     }
   }
 

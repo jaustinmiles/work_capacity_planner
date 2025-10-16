@@ -414,9 +414,9 @@ IMPORTANT:
 
       // Adjust confidence if we removed duplicates - significant reduction as this indicates misunderstanding
       if (uniqueAmendments.length < result.amendments.length) {
-        const duplicateCount = result.amendments.length - uniqueAmendments.length
+        const _duplicateCount = result.amendments.length - uniqueAmendments.length
         result.confidence = result.confidence * 0.7 // Significant reduction when duplicates were found
-        // LOGGER_REMOVED: logger.ai.warn(`Reduced confidence from ${result.confidence / 0.7} to ${result.confidence} due to ${duplicateCount} duplicate amendments`)
+        // LOGGER_REMOVED: logger.ai.warn(`Reduced confidence from ${result.confidence / 0.7} to ${result.confidence} due to ${_duplicateCount} duplicate amendments`)
       }
 
       return result

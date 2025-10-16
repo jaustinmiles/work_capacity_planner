@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const fs = require('fs')
-const path = require('path')
 const glob = require('glob')
 
 // Find all TypeScript files
@@ -15,18 +14,6 @@ let filesModified = 0
 files.forEach((file) => {
   let content = fs.readFileSync(file, 'utf8')
   let modified = false
-
-  // Replace mainLogger references
-  const patterns = [
-    // Replace mainLogger.info/warn/error/debug/trace with logger.server.info/warn/error/debug/trace
-    /mainLogger\.(info|warn|error|debug|trace)\(/g,
-    // Replace this.logger references with logger.db (for database)
-    /this\.logger\.(info|warn|error|debug|trace)\(/g,
-    // Replace mainLogger.child references
-    /mainLogger\.child\(/g,
-    // Replace mainLogger.setPrisma
-    /mainLogger\.setPrisma\([^)]*\)/g,
-  ]
 
   // Replace mainLogger calls with appropriate scoped logger
   content = content.replace(/mainLogger\.(info|warn|error|debug|trace)\(/g, (match, method) => {

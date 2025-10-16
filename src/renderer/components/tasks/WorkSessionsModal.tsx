@@ -23,6 +23,7 @@ import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { formatDuration } from '../../utils/dateUtils'
 import dayjs from 'dayjs'
+import { logger } from '@/logger'
 // LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
@@ -54,7 +55,10 @@ export function WorkSessionsModal({
       const data = await getDatabase().getWorkSessionsForTask(taskId)
       setSessions(data)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to load work sessions:', error)
+      logger.ui.error('Failed to load work sessions', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId,
+      }, 'task-sessions-load-error')
       Message.error('Failed to load work sessions')
     } finally {
       setLoading(false)
@@ -74,7 +78,11 @@ export function WorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to delete work session:', error)
+      logger.ui.error('Failed to delete work session', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+        taskId,
+      }, 'task-session-delete-error')
       Message.error('Failed to delete work session')
     }
   }
@@ -106,7 +114,11 @@ export function WorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to update work session:', error)
+      logger.ui.error('Failed to update work session', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId: editingSession!.id,
+        taskId,
+      }, 'task-session-update-error')
       Message.error('Failed to update work session')
     }
   }

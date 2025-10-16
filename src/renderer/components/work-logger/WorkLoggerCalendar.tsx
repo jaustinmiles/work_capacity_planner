@@ -32,6 +32,7 @@ import {
 import { timeProvider } from '@shared/time-provider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
+import { logger } from '@/logger'
 // LOGGER_REMOVED: import { logger } from '@/shared/logger'
 import { appEvents, EVENTS } from '../../utils/events'
 import dayjs from 'dayjs'
@@ -94,7 +95,10 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       setDirtyIds(new Set())
       setNewIds(new Set())
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to load work sessions:', error)
+      logger.ui.error('Failed to load work sessions', {
+        error: error instanceof Error ? error.message : String(error),
+        date: selectedDate,
+      }, 'work-sessions-load-error')
     }
   }
 
@@ -279,7 +283,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         const relativeY = e.clientY - rect.top + scrollTop
 
         // Debug the calculation
-        const debugInfo = {
+        const _debugInfo = {
           edge: dragState.edge,
           clientY: e.clientY,
           rectTop: rect.top,

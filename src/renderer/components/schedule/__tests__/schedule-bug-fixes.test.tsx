@@ -91,8 +91,8 @@ describe('Schedule Generation Bug Fixes', () => {
 
       // Verify that sleep blocks are being fetched and logged
       // LOGGER_REMOVED: expect(logger.ui.info).toHaveBeenCalledWith(
-        'Fetching existing meetings and sleep blocks for next 30 days...',
-      )
+      //   'Fetching existing meetings and sleep blocks for next 30 days...',
+      // )
 
       // When createWorkPattern is called, it should include the existing meetings
       // This will happen when the user saves a schedule
@@ -132,9 +132,9 @@ describe('Schedule Generation Bug Fixes', () => {
 
       // Verify that existing meetings were found and will be preserved
       // LOGGER_REMOVED: expect(logger.ui.info).toHaveBeenCalledWith(
-        expect.stringContaining('Found'),
-        expect.anything(),
-      )
+      //   expect.stringContaining('Found'),
+      //   expect.anything(),
+      // )
     })
   })
 
@@ -176,9 +176,7 @@ describe('Schedule Generation Bug Fixes', () => {
       )
 
       // If the safety check works, we shouldn't get any errors
-      // LOGGER_REMOVED: expect(logger.ui.error).not.toHaveBeenCalledWith(
-        expect.stringContaining('Unexpected empty sortedItems'),
-      )
+      // Test for logger call removed since logging implementation changed
     })
   })
 

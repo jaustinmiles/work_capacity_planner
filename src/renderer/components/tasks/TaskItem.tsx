@@ -43,8 +43,8 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
     // Fetch logged time for this task
     getDatabase().getTaskTotalLoggedTime(task.id).then(time => {
       setLoggedTime(time)
-    }).catch(err => {
-      // logger.ui.error('Failed to fetch logged time:', err)
+    }).catch(_err => {
+      // logger.ui.error('Failed to fetch logged time:', _err)
     })
   }, [task.id, task.actualDuration]) // Re-fetch when actualDuration changes
 
@@ -85,9 +85,9 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
       // logger.ui.info('Task unarchived', { taskId: task.id, taskName: task.name })
       // Reload tasks with archived included to update the UI
       await loadTasks(true)
-    } catch (error) {
+    } catch (_error) {
       Message.error('Failed to unarchive task')
-      // logger.ui.error('Failed to unarchive task:', error)
+      // logger.ui.error('Failed to unarchive task:', _error)
     }
   }
 
@@ -298,8 +298,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                         // taskName: task.name,
                       // })
                       // TODO(human): Add user-facing success message here
-                    } catch (error) {
-                      // logger.ui.error('Failed to start work on task:', error)
+                    } catch {
                       // TODO(human): Add user-facing error message here
                     }
                   }}

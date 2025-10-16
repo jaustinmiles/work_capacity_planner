@@ -3,8 +3,8 @@ import { UnifiedSchedulerAdapter, SchedulingOptions, ScheduleResult, ScheduledIt
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
-import { getCurrentTime } from '@shared/time-provider'
+import { logger } from '@/logger'
+import { getCurrentTime as _getCurrentTime } from '@shared/time-provider'
 
 /**
  * React hook for using UnifiedScheduler in UI components
@@ -77,16 +77,14 @@ export function useUnifiedScheduler(): {
       const duration = globalThis.performance.now() - startTime
 
       // [WorkPatternLifeCycle] COMPLETE: UnifiedScheduler finished scheduling
-      // LOGGER_REMOVED: logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - COMPLETE', {
-      //   scheduledCount: result.scheduledTasks.length,
-      //   unscheduledCount: result.unscheduledTasks.length,
-      //   conflicts: result.conflicts.length,
-      //   totalDuration: result.totalDuration,
-      //   performanceMs: Math.round(duration * 100) / 100,
-      //   blockUtilization: result.debugInfo?.blockUtilization || [],
-      //   warnings: result.debugInfo?.warnings || [],
-      //   timestamp: getCurrentTime().toISOString(),
-      // })
+      logger.ui.debug('useUnifiedScheduler.scheduleForGantt - COMPLETE', {
+        scheduledCount: result.scheduledTasks.length,
+        unscheduledCount: result.unscheduledTasks.length,
+        conflicts: result.conflicts.length,
+        totalDuration: result.totalDuration,
+        performanceMs: Math.round(duration * 100) / 100,
+        timestamp: _getCurrentTime().toISOString(),
+      }, 'gantt-schedule-complete')
 
       // LOGGER_REMOVED: logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {
       //   scheduledCount: result.scheduledTasks.length,
@@ -124,15 +122,15 @@ export function useUnifiedScheduler(): {
         // })
 
         result.unscheduledTasks.forEach(task => {
-          // LOGGER_REMOVED: logger.ui.debug('⚠️ [GANTT] Task unscheduled', {
-            // LOGGER_REMOVED: taskId: task.id,
-            // LOGGER_REMOVED: taskName: task.name,
-            // LOGGER_REMOVED: duration: task.duration,
-            // LOGGER_REMOVED: taskType: task.type,
-            // LOGGER_REMOVED: importance: task.importance,
-            // LOGGER_REMOVED: urgency: task.urgency,
-            // LOGGER_REMOVED: reason: 'No available capacity or constraints not met',
-          // LOGGER_REMOVED: })
+          logger.ui.debug('Task unscheduled', {
+            taskId: task.id,
+            taskName: task.name,
+            duration: task.duration,
+            taskType: task.type,
+            importance: task.importance,
+            urgency: task.urgency,
+            reason: 'No available capacity or constraints not met',
+          }, 'gantt-task-unscheduled')
         })
       }
 
@@ -183,7 +181,9 @@ export function useUnifiedScheduler(): {
 
       return nextTask
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('❌ [GANTT] Failed to get next scheduled task', error)
+      logger.ui.error('Failed to get next scheduled task', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'gantt-next-task-error')
       return null
     }
   }, [adapter])

@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { LogViewer } from '../LogViewer'
+import { LogLevel } from '@/logger'
 // LOGGER_REMOVED: import { useLoggerContext } from '../../../../logging/index.renderer'
 // LOGGER_REMOVED: import { LogLevel } from '../../../../logging/types'
+
+// Mock useLoggerContext for backwards compatibility in tests
+const useLoggerContext = vi.fn()
 
 // Mock the logger context
 vi.mock('../../../../logging/index.renderer', () => ({

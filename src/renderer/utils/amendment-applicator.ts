@@ -24,7 +24,7 @@ import {
 import { assertNever, StepStatus } from '@shared/enums'
 import { getDatabase } from '../services/database'
 import { Message } from '../components/common/Message'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { appEvents, EVENTS } from './events'
 import {
   applyForwardDependencyChanges,
@@ -299,7 +299,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
               successCount++
               // UI refresh will be triggered by DATA_REFRESH_NEEDED event at end of applyAmendments
             } catch (error) {
-              // LOGGER_REMOVED: logger.ui.error('Failed to add step to workflow:', error)
+              logger.ui.error('Failed to add step to workflow', {
+                error: error instanceof Error ? error.message : String(error),
+                stepName: addition.stepName,
+              }, 'step-add-error')
               Message.error(`Failed to add step "${addition.stepName}" to workflow`)
               errorCount++
             }
@@ -358,7 +361,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 errorCount++
               }
             } catch (error) {
-              // LOGGER_REMOVED: logger.ui.error('Failed to remove step:', error)
+              logger.ui.error('Failed to remove step', {
+                error: error instanceof Error ? error.message : String(error),
+                stepName: removal.stepName,
+              }, 'step-remove-error')
               Message.error(`Failed to remove step "${removal.stepName}"`)
               errorCount++
             }
@@ -465,7 +471,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 }
               }
             } catch (error) {
-              // LOGGER_REMOVED: logger.ui.error('Failed to update dependencies:', error)
+              logger.ui.error('Failed to update dependencies', {
+                error: error instanceof Error ? error.message : String(error),
+                targetName: change.target.name,
+              }, 'dependencies-update-error')
               Message.error(`Failed to update dependencies for ${change.target.name}`)
               errorCount++
             }
@@ -617,7 +626,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 Message.success(`Deadline updated to ${change.newDeadline.toLocaleString()}`)
               }
             } catch (error) {
-              // LOGGER_REMOVED: logger.ui.error('Failed to update deadline:', error)
+              logger.ui.error('Failed to update deadline', {
+                error: error instanceof Error ? error.message : String(error),
+                targetName: change.target.name,
+              }, 'deadline-update-error')
               Message.error(`Failed to update deadline for ${change.target.name}`)
               errorCount++
             }
@@ -690,7 +702,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 Message.success('Priority updated successfully')
               }
             } catch (error) {
-              // LOGGER_REMOVED: logger.ui.error('Failed to update priority:', error)
+              logger.ui.error('Failed to update priority', {
+                error: error instanceof Error ? error.message : String(error),
+                targetName: change.target.name,
+              }, 'priority-update-error')
               Message.error(`Failed to update priority for ${change.target.name}`)
               errorCount++
             }
@@ -744,7 +759,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
                 Message.success(`Type changed to ${change.newType}`)
               }
             } catch (error) {
-              // LOGGER_REMOVED: logger.ui.error('Failed to update type:', error)
+              logger.ui.error('Failed to update type', {
+                error: error instanceof Error ? error.message : String(error),
+                targetName: change.target.name,
+              }, 'type-update-error')
               Message.error(`Failed to update type for ${change.target.name}`)
               errorCount++
             }
@@ -762,7 +780,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
         }
       }
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Error applying amendment:', error)
+      logger.ui.error('Error applying amendment', {
+        error: error instanceof Error ? error.message : String(error),
+        amendmentType: amendment.type,
+      }, 'amendment-apply-error')
       errorCount++
     }
   }

@@ -225,11 +225,11 @@ export function EisenhowerScatter({
     }
 
     // Start scanning
-    const tasksOnly = allItemsForScatter.filter(item => !item.isStep)
-    const stepsOnly = allItemsForScatter.filter(item => item.isStep)
+    const _tasksOnly = allItemsForScatter.filter(item => !item.isStep)
+    const _stepsOnly = allItemsForScatter.filter(item => item.isStep)
 
     // Calculate and log the threshold that will be used
-    const scanThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
+    const _scanThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
 
     // LOGGER_REMOVED: logger.info('🔍 STARTING DIAGONAL SCAN', {
       // category: 'eisenhower-scan',
@@ -292,7 +292,7 @@ export function EisenhowerScatter({
 
       // Calculate a dynamic threshold - increase to 25% for better detection
       // This gives us a wider band around the diagonal line
-      const dynamicThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
+      const _dynamicThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
 
       // Log threshold calculation on first frame
       if (frameNum === 1) {
@@ -309,7 +309,7 @@ export function EisenhowerScatter({
       type ScatterItem = Task & { isStep?: boolean; parentWorkflow?: string; stepName?: string; stepIndex?: number }
       let closestTask: { task: ScatterItem; distance: number } | null = null
 
-      allItemsForScatter.forEach((task: ScatterItem, taskIndex) => {
+      allItemsForScatter.forEach((task: ScatterItem, _taskIndex) => {
         const xPercent = task.urgency * 10 // Convert 0-10 to 0-100%
         const yPercent = 100 - (task.importance * 10) // Convert 0-10 to 0-100%, inverted
 
@@ -449,7 +449,7 @@ export function EisenhowerScatter({
       // Log closest task at midpoint if nothing found yet
       if (scannedTaskIdsRef.current.size === 0 && progress > 0.5 && progress < 0.55) {
         if (closestTask) {
-          const { task } = closestTask as { task: ScatterItem; distance: number }
+          const { task: _task } = closestTask as { task: ScatterItem; distance: number }
           // LOGGER_REMOVED: logger.warn('📍 No tasks found yet - checking task', {
             // category: 'eisenhower-scan',
             // taskName: task.name,
@@ -474,7 +474,7 @@ export function EisenhowerScatter({
 
       if (progress >= 2.0) {
         // Animation complete - log final results
-        const scannedTasksInfo = Array.from(scannedTaskIdsRef.current).map(taskId => {
+        const _scannedTasksInfo = Array.from(scannedTaskIdsRef.current).map(taskId => {
           const task = allItemsForScatter.find(t => t.id === taskId)
           return task ? {
             name: task.name,
@@ -494,7 +494,7 @@ export function EisenhowerScatter({
         // })
 
         if (scannedTaskIdsRef.current.size === 0) {
-          const threshold = Math.min(containerSize.width, containerSize.height) * 0.15
+          const _threshold = Math.min(containerSize.width, containerSize.height) * 0.15
           // LOGGER_REMOVED: logger.warn('⚠️ No tasks found during diagonal scan', {
             // category: 'eisenhower-scan',
             // message: `No tasks are positioned near the diagonal line (threshold: ${Math.round(threshold)}px)`,

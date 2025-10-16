@@ -8,6 +8,7 @@ import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
+import { logger } from '@/logger'
 import { WorkBlockType } from '@shared/constants'
 import { getDatabase } from '../../services/database'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
@@ -81,7 +82,9 @@ export function WeeklyCalendar() {
 
       setWorkPatterns(patterns)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to load work patterns:', error)
+      logger.system.error('Failed to load work patterns', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'work-patterns-load-error')
     } finally {
       setLoading(false)
     }

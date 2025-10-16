@@ -503,14 +503,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       }
 
       // Log the Gantt chart data for AI debugging
-      const viewWindow = {
+      const _viewWindow = {
         start: ganttItems.length > 0 ? ganttItems[0].startTime : getCurrentTime(),
         end: ganttItems.length > 0 ?
           ganttItems[ganttItems.length - 1].endTime :
           new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
       }
       // Convert GanttItems to ScheduledItem format for logging
-      const scheduledItems = ganttItems.map(item => ({
+      const _scheduledItems = ganttItems.map(item => ({
         task: item.originalItem as Task,
         startTime: item.startTime,
         endTime: item.endTime,

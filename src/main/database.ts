@@ -235,58 +235,53 @@ export class DatabaseService {
       throw new Error('Cannot delete the active session')
     }
 
-    try {
-      // Delete all related records first to avoid foreign key constraints
-      // Use transaction to ensure atomicity
-      await this.client.$transaction(async (tx) => {
-        // Delete WorkPatterns and their related WorkBlocks/WorkMeetings (cascade handled by schema)
-        await tx.workPattern.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Delete Tasks and their WorkSessions/TaskSteps (cascade handled by schema)
-        await tx.task.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Delete SequencedTasks
-        await tx.sequencedTask.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Delete other related records
-        await tx.timeEstimateAccuracy.deleteMany({
-          where: { sessionId: id },
-        })
-
-        await tx.productivityPattern.deleteMany({
-          where: { sessionId: id },
-        })
-
-        await tx.jobContext.deleteMany({
-          where: { sessionId: id },
-        })
-
-        await tx.jargonEntry.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Delete SchedulingPreferences if exists
-        await tx.schedulingPreferences.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Finally delete the session itself
-        await tx.session.delete({
-          where: { id },
-        })
+    // Delete all related records first to avoid foreign key constraints
+    // Use transaction to ensure atomicity
+    await this.client.$transaction(async (tx) => {
+      // Delete WorkPatterns and their related WorkBlocks/WorkMeetings (cascade handled by schema)
+      await tx.workPattern.deleteMany({
+        where: { sessionId: id },
       })
 
-      // mainLogger.info('[DB] Session and all related data deleted successfully', { sessionId: id })
-    } catch (error) {
-      // mainLogger.error('[DB] Failed to delete session', { sessionId: id, error })
-      throw error
-    }
+      // Delete Tasks and their WorkSessions/TaskSteps (cascade handled by schema)
+      await tx.task.deleteMany({
+        where: { sessionId: id },
+      })
+
+      // Delete SequencedTasks
+      await tx.sequencedTask.deleteMany({
+        where: { sessionId: id },
+      })
+
+      // Delete other related records
+      await tx.timeEstimateAccuracy.deleteMany({
+        where: { sessionId: id },
+      })
+
+      await tx.productivityPattern.deleteMany({
+        where: { sessionId: id },
+      })
+
+      await tx.jobContext.deleteMany({
+        where: { sessionId: id },
+      })
+
+      await tx.jargonEntry.deleteMany({
+        where: { sessionId: id },
+      })
+
+      // Delete SchedulingPreferences if exists
+      await tx.schedulingPreferences.deleteMany({
+        where: { sessionId: id },
+      })
+
+      // Finally delete the session itself
+      await tx.session.delete({
+        where: { id },
+      })
+    })
+
+    // mainLogger.info('[DB] Session and all related data deleted successfully', { sessionId: id })
   }
 
   async getCurrentSession(): Promise<any> {
@@ -1525,17 +1520,17 @@ export class DatabaseService {
     // })
 
     // Delete existing blocks and meetings
-    const deletedBlocks = await this.client.workBlock.deleteMany({
+    const _deletedBlocks = await this.client.workBlock.deleteMany({
       where: { patternId: id },
     })
-    const deletedMeetings = await this.client.workMeeting.deleteMany({
+    const _deletedMeetings = await this.client.workMeeting.deleteMany({
       where: { patternId: id },
     })
 
     // mainLogger.debug('[WorkPatternLifeCycle] updateWorkPattern - Deleted existing', {
       // patternId: id,
-      // deletedBlocks: deletedBlocks.count,
-      // deletedMeetings: deletedMeetings.count,
+      // deletedBlocks: _deletedBlocks.count,
+      // deletedMeetings: _deletedMeetings.count,
       // timestamp: new Date().toISOString(),
     // })
 

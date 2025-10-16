@@ -4,7 +4,7 @@ import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, I
 import { TaskType, AIProcessingMode } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-// import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { deleteWorkflow, deleteTask, deleteStep } from '../../utils/brainstorm-utils'
 
 
@@ -162,8 +162,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         stream.getTracks().forEach(track => track.stop())
       }
 
-      mediaRecorder.onerror = (event) => {
-        // logger.ai.error('Context MediaRecorder error:', event)
+      mediaRecorder.onerror = (_event) => {
+        logger.system.error('Context MediaRecorder error', {}, 'context-mediarecorder-error')
         setError('Context recording error occurred')
         setContextRecordingState('idle')
       }
@@ -173,7 +173,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setError(null)
       setContextRecordingState('recording')
     } catch (error) {
-      // logger.ai.error('Error starting context recording:', error)
+      logger.system.error('Error starting context recording', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'context-recording-start-error')
       setError('Failed to access microphone. Please check your permissions.')
       setContextRecordingState('idle')
     }
@@ -195,7 +197,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           setJobContext(activeContext.context)
         }
       } catch (error) {
-        // logger.ai.error('Error loading job context:', error)
+        logger.system.error('Error loading job context', {
+          error: error instanceof Error ? error.message : String(error),
+        }, 'job-context-load-error')
       }
     }
 
@@ -204,7 +208,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         const dictionary = await getDatabase().getJargonDictionary()
         setJargonDictionary(dictionary)
       } catch (error) {
-        // logger.ai.error('Error loading jargon dictionary:', error)
+        logger.system.error('Error loading jargon dictionary', {
+          error: error instanceof Error ? error.message : String(error),
+        }, 'jargon-dictionary-load-error')
       }
     }
 
@@ -279,7 +285,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           mediaRecorderRef.current.stop()
           mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
         } catch (error) {
-          // logger.ai.error('Error cleaning up recording:', error)
+          logger.system.error('Error cleaning up recording', {
+            error: error instanceof Error ? error.message : String(error),
+          }, 'recording-cleanup-error')
         }
       }
     }
@@ -330,8 +338,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         stream.getTracks().forEach(track => track.stop())
       }
 
-      mediaRecorder.onerror = (event) => {
-        // logger.ai.error('MediaRecorder error:', event)
+      mediaRecorder.onerror = (_event) => {
+        logger.system.error('MediaRecorder error', {}, 'mediarecorder-error')
         setError('Recording error occurred')
         setRecordingState('idle')
       }
@@ -343,7 +351,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setError(null)
       setRecordingState('recording')
     } catch (error) {
-      // logger.ai.error('Error starting recording:', error)
+      logger.system.error('Error starting recording', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'recording-start-error')
       setError('Failed to access microphone. Please check your permissions.')
       setRecordingState('idle')
     }
@@ -388,7 +398,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setError(null)
       // logger.ai.debug('Transcription successful, text length:', result.text.length)
     } catch (error) {
-      // logger.ai.error('Error transcribing audio:', error)
+      logger.system.error('Error transcribing audio', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'transcription-error')
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setError(`Failed to transcribe audio: ${errorMessage}`)
     } finally {
@@ -423,7 +435,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setUploadedAudioFile(file)
       Message.success(`Successfully processed ${file.name}`)
     } catch (error) {
-      // logger.ai.error('Error processing uploaded audio:', error)
+      logger.system.error('Error processing uploaded audio', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'uploaded-audio-error')
       const errorMessage = error instanceof Error ? error.message : 'Failed to process uploaded audio file.'
       setError(errorMessage)
       Message.error(errorMessage)
@@ -474,7 +488,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       Message.success(`Successfully processed context from ${file.name}`)
     } catch (error) {
-      // logger.ai.error('Error processing context audio:', error)
+      logger.system.error('Error processing context audio', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'context-audio-error')
       const errorMessage = error instanceof Error ? error.message : 'Failed to process context audio file.'
       setError(errorMessage)
       Message.error(errorMessage)
@@ -522,10 +538,14 @@ Only include terms that are likely industry-specific or technical jargon, not co
           }
         }
       } catch (parseError) {
-        // logger.ai.error('Failed to parse jargon terms:', parseError)
+        logger.system.error('Failed to parse jargon terms', {
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+        }, 'jargon-parse-error')
       }
     } catch (error) {
-      // logger.ai.error('Error extracting jargon terms:', error)
+      logger.system.error('Error extracting jargon terms', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'jargon-extract-error')
       // Non-critical error, don't show to user
     }
   }
@@ -553,7 +573,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
         })
       }
     } catch (error) {
-      // logger.ai.error('Error saving job context:', error)
+      logger.system.error('Error saving job context', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'job-context-save-error')
     }
   }
 
@@ -576,7 +598,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
       setNewJargonDefinition('')
       setShowJargonInput(false)
     } catch (error) {
-      // logger.ai.error('Error adding jargon entry:', error)
+      logger.system.error('Error adding jargon entry', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'jargon-entry-add-error')
       setError('Failed to add jargon entry. Term might already exist.')
     }
   }
@@ -634,7 +658,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
         })
       }
     } catch (error) {
-      // logger.ai.error('Error processing brainstorm:', error)
+      logger.system.error('Error processing brainstorm', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'brainstorm-process-error')
       setError('Failed to process brainstorm with AI. Please try again.')
     } finally {
       setIsProcessing(false)
@@ -808,7 +834,11 @@ Only include terms that are likely industry-specific or technical jargon, not co
         Message.warning('No response from AI. Please try again.')
       }
     } catch (error) {
-      // logger.ai.error(`Error regenerating ${itemType}:`, error)
+      logger.system.error('Error regenerating item', {
+        error: error instanceof Error ? error.message : String(error),
+        itemType,
+        index,
+      }, 'item-regenerate-error')
       setError(`Failed to regenerate ${itemType}. Please try again.`)
     } finally {
       setRegeneratingItems(prev => {
@@ -1099,7 +1129,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               }
                             }
                           } catch (error) {
-                            // logger.ai.error('Failed to extract jargon:', error)
+                            logger.system.error('Failed to extract jargon', {
+                              error: error instanceof Error ? error.message : String(error),
+                            }, 'jargon-auto-extract-error')
                             Message.error('Failed to extract jargon terms')
                           }
                         } else {
@@ -1156,7 +1188,10 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                 try {
                                   await getDatabase().updateJargonDefinition(term, definition)
                                 } catch (error) {
-                                  // logger.ai.error('Error updating jargon definition:', error)
+                                  logger.system.error('Error updating jargon definition', {
+                                    error: error instanceof Error ? error.message : String(error),
+                                    term,
+                                  }, 'jargon-definition-update-error')
                                 }
                               }}
                               style={{ flex: 1 }}

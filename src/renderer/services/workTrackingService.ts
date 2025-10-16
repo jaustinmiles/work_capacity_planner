@@ -1,4 +1,4 @@
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { getDatabase } from './database'
 import type {
   WorkSessionPersistenceOptions,
@@ -52,41 +52,36 @@ export class WorkTrackingService {
   }
 
   async initialize(): Promise<void> {
-    try {
-      // Clear local state first
-      this.activeSessions.clear()
-      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Cleared all local active sessions on initialization')
+    // Clear local state first
+    this.activeSessions.clear()
+    // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Cleared all local active sessions on initialization')
 
-      // Clear stale sessions if enabled (older than maxSessionAgeHours)
-      if (this.options.clearStaleSessionsOnStartup) {
-        const cutoffDate = new Date(Date.now() - this.options.maxSessionAgeHours * 60 * 60 * 1000)
-        await this.clearStaleSessionsBeforeDate(cutoffDate)
-      }
-
-      // Restore any active session from database (within 24 hours)
-      const activeSession = await this.getLastActiveWorkSession()
-      if (activeSession) {
-        // Restore to memory so UI can show it
-        const sessionKey = this.getSessionKey(activeSession)
-        this.activeSessions.set(sessionKey, activeSession)
-
-        // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Restored active session from database', {
-          // sessionId: activeSession.id,
-          // taskId: activeSession.taskId,
-          // stepId: activeSession.stepId,
-          // startTime: activeSession.startTime.toISOString(),
-        // })
-      } else {
-        // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] No active sessions to restore')
-      }
-
-      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Initialization complete', {
-        // LOGGER_REMOVED: activeSessionCount: this.activeSessions.size,
-      // LOGGER_REMOVED: })
-    } catch (error) {
-      // LOGGER_REMOVED: logger.ui.error('Failed to initialize WorkTrackingService', error)
-      throw error
+    // Clear stale sessions if enabled (older than maxSessionAgeHours)
+    if (this.options.clearStaleSessionsOnStartup) {
+      const cutoffDate = new Date(Date.now() - this.options.maxSessionAgeHours * 60 * 60 * 1000)
+      await this.clearStaleSessionsBeforeDate(cutoffDate)
     }
+
+    // Restore any active session from database (within 24 hours)
+    const activeSession = await this.getLastActiveWorkSession()
+    if (activeSession) {
+      // Restore to memory so UI can show it
+      const sessionKey = this.getSessionKey(activeSession)
+      this.activeSessions.set(sessionKey, activeSession)
+
+      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Restored active session from database', {
+        // sessionId: activeSession.id,
+        // taskId: activeSession.taskId,
+        // stepId: activeSession.stepId,
+        // startTime: activeSession.startTime.toISOString(),
+      // })
+    } else {
+      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] No active sessions to restore')
+    }
+
+    // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Initialization complete', {
+      // LOGGER_REMOVED: activeSessionCount: this.activeSessions.size,
+    // LOGGER_REMOVED: })
   }
 
   async startWorkSession(taskId?: string, stepId?: string, workflowId?: string): Promise<UnifiedWorkSession> {
@@ -423,7 +418,10 @@ export class WorkTrackingService {
   }
 
   handleSessionError(error: Error, context: string): void {
-    // LOGGER_REMOVED: logger.ui.error(`WorkTrackingService error in ${context}:`, error)
+    logger.ui.error('WorkTrackingService error', {
+      error: error.message,
+      context,
+    }, 'work-tracking-error')
   }
 
   // Helper methods for testing

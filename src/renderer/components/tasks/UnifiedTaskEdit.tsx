@@ -455,9 +455,12 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
               <DatePicker
                 value={editedTask.deadline ? new Date(editedTask.deadline) : undefined}
                 onChange={(value) => {
+                  const dateValue = value
+                    ? (typeof value === 'string' ? value : (value as Date).toISOString())
+                    : null
                   logger.ui.debug('Deadline changed', {
                     taskId: task.id,
-                    newDeadline: value ? value.toISOString() : null,
+                    newDeadline: dateValue,
                   }, 'deadline-change')
                   setEditedTask({ ...editedTask, deadline: value } as any)
                 }}

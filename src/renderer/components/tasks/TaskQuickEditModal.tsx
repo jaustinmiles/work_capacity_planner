@@ -30,6 +30,7 @@ import { Task, TaskStep } from '@shared/types'
 import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
+import { logger } from '@/logger'
 // LOGGER_REMOVED: import { useLogger } from '../../../logging/index.renderer'
 import dayjs from 'dayjs'
 
@@ -246,8 +247,8 @@ export function TaskQuickEditModal({
     }
     setUnsavedChanges(true)
 
-    const itemName = currentItem.type === 'step' ? currentItem.data.name : currentItem.data.name
-    // LOGGER_REMOVED: logger.debug(`Updated ${field} for ${currentItem.type} ${itemName}`, { field, value })
+    const _itemName = currentItem.type === 'step' ? currentItem.data.name : currentItem.data.name
+    // LOGGER_REMOVED: logger.debug(`Updated ${field} for ${currentItem.type} ${_itemName}`, { field, value })
   }
 
   const saveCurrentItem = async () => {
@@ -287,7 +288,11 @@ export function TaskQuickEditModal({
       Message.success(`Updated "${itemName}"`)
       // LOGGER_REMOVED: logger.info(`Saved changes for ${currentItem.type} ${itemName}`, currentChanges)
     } catch (error) {
-      // LOGGER_REMOVED: logger.error(`Failed to save ${currentItem.type}`, error)
+      logger.ui.error('Failed to save item', {
+        error: error instanceof Error ? error.message : String(error),
+        itemType: currentItem.type,
+        itemId: currentItem.data.id,
+      }, 'quick-edit-save-error')
       Message.error(`Failed to save ${currentItem.type}`)
     }
   }
@@ -344,7 +349,11 @@ export function TaskQuickEditModal({
       setUnsavedChanges(false)
       // LOGGER_REMOVED: logger.info('All changes saved successfully')
     } catch (error) {
-      // LOGGER_REMOVED: logger.error('Failed to save changes', error)
+      logger.ui.error('Failed to save batch changes', {
+        error: error instanceof Error ? error.message : String(error),
+        taskChangesCount: taskChanges.length,
+        stepChangesCount: stepChanges.length,
+      }, 'quick-edit-batch-save-error')
       Message.error('Failed to save some changes')
     } finally {
       setIsSaving(false)

@@ -46,8 +46,8 @@ export class ScopedLogger implements IScopedLogger {
       level,
       context,
       message,
-      data,
-      stack,
+      ...(data && Object.keys(data).length > 0 ? { data } : {}),
+      ...(stack ? { stack } : {}),
     }
 
     // Send to main logger

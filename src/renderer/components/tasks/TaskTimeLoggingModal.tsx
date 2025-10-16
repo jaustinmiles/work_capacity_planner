@@ -66,7 +66,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
         // notes: values.notes || '',
       // })
 
-      const workSessionResult = await getDatabase().createWorkSession({
+      const _workSessionResult = await getDatabase().createWorkSession({
         taskId: task.id,
         type: task.type as TaskType,
         startTime: startTime,
