@@ -24,7 +24,6 @@ export enum StepStatus {
 }
 
 // Task types
-// LOGGER_REMOVED: import { logger } from './logger'
 
 export enum TaskType {
   Focused = 'focused',
@@ -152,6 +151,5 @@ export function parseEnum<T extends Record<string, string>>(
   if (isValidEnumValue(enumObj, value)) {
     return value as T[keyof T]
   }
-  // LOGGER_REMOVED: logger.warn(`Invalid enum value "${value}", using fallback "${fallback}"`)
   return fallback
 }
