@@ -36,30 +36,14 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
   // Debug: Log when activeWorkSessions changes
   useEffect(() => {
-    logger.ui.info('[WorkStatusWidget] activeWorkSessions changed', {    personal: accumulatedData.personal || 0,
-      })
+    logger.ui.debug('[WorkStatusWidget] activeWorkSessions changed', {
+      count: activeWorkSessions.size,
+      sessionIds: Array.from(activeWorkSessions.keys())
+    })
+  }, [activeWorkSessions])
 
-      // [WorkPatternLifeCycle] Log current block detection
-      const currentTime = new Date()
-      const _currentBlockData = patternData ? getCurrentBlock(patternData.blocks, currentTime) : null
-      const _nextBlockData = patternData ? getNextBlock(patternData.blocks, currentTime) : null
-
-      logger.ui.debug('[WorkPatternLifeCycle] WorkStatusWidget - Block detection', {})
-        // currentTime: currentTime.toTimeString().slice(0, 5),
-        // currentBlock: _currentBlockData ? {
-          // startTime: currentBlockData.startTime,
-          // endTime: currentBlockData.endTime,
-          // type: currentBlockData.type,
-        // } : null,
-        // nextBlock: nextBlockData ? {
-          // startTime: nextBlockData.startTime,
-          // endTime: nextBlockData.endTime,
-          // type: nextBlockData.type,
-        // } : null,
-        // timestamp: new Date().toISOString(),
-      // })
-
-      // Calculate meeting time from work sessions
+  const loadWorkData = async () => {
+    try {
       let totalMeetingMinutes = 0
       if (patternData && patternData.meetings) {
         patternData.meetings.forEach((meeting: any) => {
