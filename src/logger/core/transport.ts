@@ -137,3 +137,38 @@ export class ConsoleTransport extends Transport {
     return colors[entry.level] || 'color: #000000'
   }
 }
+
+/**
+ * Electron Transport - forwards logs to the renderer process
+ */
+export class ElectronTransport extends Transport {
+  private window: any // BrowserWindow type from electron
+
+  constructor(window?: any) {
+    super('electron')
+    this.window = window
+  }
+
+  setWindow(window: any): void {
+    this.window = window
+  }
+
+  write(entry: LogEntry): void {
+    if (!this.enabled || !this.window) return
+
+    try {
+      // Send simplified log data to renderer
+      this.window.webContents.send('log:from-main', {
+        level: entry.level,
+        message: entry.message,
+        scope: entry.context.scope,
+        component: entry.context.component,
+        tag: entry.context.tag,
+        data: entry.data,
+        timestamp: entry.timestamp.toISOString(),
+      })
+    } catch (error) {
+      // Fail silently if window is destroyed
+    }
+  }
+}

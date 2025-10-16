@@ -3,13 +3,17 @@ import path from 'node:path'
 import { DatabaseService } from './database'
 import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
-import { LogScope } from '../logger'
+import { LogScope, logger } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
+import { ElectronTransport } from '../logger/core/transport'
 import type { Task } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
 
 // Get scoped logger for main process
 const mainLogger = getScopedLogger(LogScope.System)
+
+// Create electron transport (will be initialized when window is ready)
+const electronTransport = new ElectronTransport()
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -38,8 +42,9 @@ async function createWindow(): Promise<void> {
     },
   })
 
-  // Set main window for logger to forward logs to renderer
-  // LOGGER_REMOVED: logger.setMainWindow(mainWindow)
+  // Set up logger transport to forward logs to renderer
+  electronTransport.setWindow(mainWindow)
+  logger.addTransport(electronTransport)
 
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {

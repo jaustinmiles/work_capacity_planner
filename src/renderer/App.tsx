@@ -52,6 +52,16 @@ function App() {
       environment: process.env.NODE_ENV,
       timestamp: new Date().toISOString(),
     }, 'app-init')
+
+    // Set up listener for main process logs
+    if (window.electronAPI?.onMainLog) {
+      window.electronAPI.onMainLog((entry: any) => {
+        // Forward main process logs to console
+        const levelMap = ['error', 'warn', 'info', 'debug', 'log'] as const
+        const method = levelMap[entry.level] || 'log'
+        console[method](`[Main/${entry.scope || 'System'}]`, entry.message, entry.data || '')
+      })
+    }
   }, [])
 
   // Session loading is now handled in useTaskStore.initializeData()

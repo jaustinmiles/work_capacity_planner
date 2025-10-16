@@ -108,7 +108,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   persistLogs: (logs: any[]) =>
     ipcRenderer.invoke('log:persistBatch', logs),
   onMainLog: (callback: (entry: any) => void) =>
-    ipcRenderer.on('logger:from-main', (_event, entry) => callback(entry)),
+    ipcRenderer.on('log:from-main', (_event, entry) => callback(entry)),
 
   // Feedback operations
   saveFeedback: (feedback: any) => ipcRenderer.invoke('feedback:save', feedback),
