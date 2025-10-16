@@ -42,8 +42,11 @@ export class ConsoleTransport extends Transport {
   write(entry: LogEntry): void {
     if (!this.enabled) return
 
-    // Create a key for duplicate suppression
-    const key = `${entry.context.scope}:${entry.context.component}:${entry.message}`
+    // Create a key for duplicate suppression (trim long messages to 100 chars)
+    const trimmedMessage = entry.message.length > 100
+      ? entry.message.substring(0, 100) + '...'
+      : entry.message
+    const key = `${entry.context.scope}:${entry.context.component}:${trimmedMessage}`
     const now = Date.now()
     const lastTime = this.lastLogTime.get(key)
 

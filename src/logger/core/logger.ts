@@ -76,6 +76,7 @@ export class Logger implements ILogger {
     const pattern = PatternExtractor.extractPattern(entry)
 
     // Check if pattern is ignored
+    // Patterns are added via logger.ignorePattern(pattern) to suppress repetitive logs
     if (this.ignoredPatterns.has(pattern)) {
       return
     }

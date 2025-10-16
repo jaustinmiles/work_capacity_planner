@@ -4,6 +4,7 @@
 
 import { LogScope } from './types'
 import { getScopedLogger } from './scope-helper'
+import { generateCorrelationId } from './utils/id-generator'
 
 /**
  * DECORATOR #5: Async Operation Tracker
@@ -63,7 +64,7 @@ export function trackedAsync(options: AsyncTrackingOptions = {}) {
     descriptor.value = async function (...args: any[]) {
       const scopedLogger = getScopedLogger(scope)
       const methodTag = tag || `${className}.${propertyKey}`
-      const correlationId = `${propertyKey}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      const correlationId = generateCorrelationId(propertyKey as string)
 
       // Log async start
       scopedLogger.info(`⏳ ${propertyKey} started`, {
