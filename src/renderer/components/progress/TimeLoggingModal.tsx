@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { TaskStep } from '@shared/sequencing-types'
 import { Form, Input, Button, Space, Typography, Grid, Tag, Alert, Modal } from '@arco-design/web-react'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 
 
 const FormItem = Form.Item
@@ -53,7 +53,9 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
         await onLogTime(totalMinutes, values.notes ?? null)
       }
     } catch (error) {
-      logger.ui.error('Failed to log time:', error)
+      logger.ui.error('Failed to log time', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'time-log-error')
     } finally {
       setIsSubmitting(false)
     }

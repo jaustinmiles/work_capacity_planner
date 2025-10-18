@@ -1,6 +1,7 @@
 import { TaskStep } from '@shared/sequencing-types'
 import { DependencyChange } from '@shared/amendment-types'
-import { logger } from '@shared/logger'
+import { logger } from '@/logger'
+
 
 /**
  * Utility functions for managing task dependencies across the application
@@ -23,10 +24,7 @@ export function applyForwardDependencyChanges(
       )
       if (depStep && !step.dependsOn.includes(depStep.id)) {
         step.dependsOn.push(depStep.id)
-        logger.ui.info('Added forward dependency', {
-          step: step.name,
-          dependsOn: depName,
-        })
+        logger.ui.info('Added forward dependency', { depStep: depStep.name, step: step.name })
       }
     }
   }
@@ -39,10 +37,7 @@ export function applyForwardDependencyChanges(
       )
       if (depStep) {
         step.dependsOn = step.dependsOn.filter(id => id !== depStep.id)
-        logger.ui.info('Removed forward dependency', {
-          step: step.name,
-          removed: depName,
-        })
+        logger.ui.info('Removed forward dependency', { depStep: depStep.name, step: step.name })
       }
     }
   }
@@ -64,10 +59,7 @@ export function applyReverseDependencyChanges(
       )
       if (dependentStep && !dependentStep.dependsOn.includes(targetStep.id)) {
         dependentStep.dependsOn.push(targetStep.id)
-        logger.ui.info('Added reverse dependency', {
-          dependent: dependentName,
-          dependsOn: targetStep.name,
-        })
+        logger.ui.info('Added reverse dependency', { dependent: dependentStep.name, target: targetStep.name })
       }
     }
   }
@@ -82,10 +74,7 @@ export function applyReverseDependencyChanges(
         dependentStep.dependsOn = dependentStep.dependsOn.filter(
           id => id !== targetStep.id,
         )
-        logger.ui.info('Removed reverse dependency', {
-          dependent: dependentName,
-          noDependsOn: targetStep.name,
-        })
+        logger.ui.info('Removed reverse dependency', { dependent: dependentStep.name, target: targetStep.name })
       }
     }
   }

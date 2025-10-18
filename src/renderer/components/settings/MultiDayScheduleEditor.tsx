@@ -29,7 +29,7 @@ import { VoiceScheduleModal } from './VoiceScheduleModal'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { appEvents, EVENTS } from '../../utils/events'
 import { getCurrentTime } from '@shared/time-provider'
 
@@ -97,7 +97,9 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
 
       setPatterns(patternsMap)
     } catch (error) {
-      logger.ui.error('Failed to load patterns:', error)
+      logger.ui.error('Failed to load patterns', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'patterns-load-error')
       Message.error('Failed to load schedules')
     } finally {
       setLoading(false)
@@ -138,7 +140,10 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       // Emit event to refresh UI components (especially sidebar)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
-      logger.ui.error('Failed to save pattern:', error)
+      logger.ui.error('Failed to save pattern', {
+        error: error instanceof Error ? error.message : String(error),
+        date,
+      }, 'pattern-save-error')
       Message.error('Failed to save schedule')
     }
   }
@@ -245,13 +250,13 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
           })
           try {
             await db.deleteWorkPattern(pattern.id)
-            logger.ui.info('[MultiDayScheduleEditor] Successfully deleted pattern', { id: pattern.id })
+            logger.ui.info('Successfully deleted pattern', { id: pattern.id }, 'pattern-delete-success')
             clearedCount++
           } catch (error) {
-            logger.ui.error('[MultiDayScheduleEditor] Failed to delete pattern', {
-              id: pattern.id,
+            logger.ui.error('Failed to delete pattern', {
               error: error instanceof Error ? error.message : String(error),
-            })
+              id: pattern.id,
+            }, 'pattern-delete-error')
           }
         } else {
           logger.ui.debug('[MultiDayScheduleEditor] Skipping past pattern', {
@@ -286,7 +291,9 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       // Emit event to refresh UI components (especially sidebar)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
-      logger.ui.error('Failed to clear schedules:', error)
+      logger.ui.error('Failed to clear schedules', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'schedules-clear-error')
       Message.error('Failed to clear schedules')
     } finally {
       setLoading(false)

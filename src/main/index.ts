@@ -3,12 +3,17 @@ import path from 'node:path'
 import { DatabaseService } from './database'
 import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
-import { getMainLogger } from '../logging/index.main'
+import { LogScope, logger } from '../logger'
+import { getScopedLogger } from '../logger/scope-helper'
+import { ElectronTransport } from '../logger/core/transport'
 import type { Task } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
 
-// Initialize logger
-const logger = getMainLogger()
+// Get scoped logger for main process
+const mainLogger = getScopedLogger(LogScope.System)
+
+// Create electron transport (will be initialized when window is ready)
+const electronTransport = new ElectronTransport()
 
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -37,8 +42,9 @@ async function createWindow(): Promise<void> {
     },
   })
 
-  // Set main window for logger to forward logs to renderer
-  logger.setMainWindow(mainWindow)
+  // Set up logger transport to forward logs to renderer
+  electronTransport.setWindow(mainWindow)
+  logger.addTransport(electronTransport)
 
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
@@ -70,9 +76,9 @@ app.whenReady().then(() => {
 
   // Log database path for debugging
   const dbPath = process.env.DATABASE_URL || 'file:./dev.db'
-  logger.info(`[main] Database path: ${dbPath}`)
-  logger.info(`[main] Working directory: ${process.cwd()}`)
-  logger.info('[main] Main process initialized successfully')
+  mainLogger.info('Database path', { path: dbPath })
+  mainLogger.info('Working directory', { cwd: process.cwd() })
+  mainLogger.info('Main process initialized successfully')
 
   createWindow()
 
@@ -93,7 +99,7 @@ app.on('window-all-closed', () => {
 // IPC handlers for database operations
 // Session management handlers
 ipcMain.handle('db:getSessions', async () => {
-  logger.info('[ipc] Getting sessions...')
+  mainLogger.info('Getting sessions...')
   if (!db) db = DatabaseService.getInstance()
   return await db.getSessions()
 })
@@ -123,15 +129,10 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
 })
 
 ipcMain.handle('db:getTasks', async (_event, includeArchived = false) => {
-  logger.info('[ipc] Getting tasks from database...', { includeArchived })
-  try {
-    const tasks = await db.getTasks(includeArchived)
-    logger.info(`[ipc] Found ${tasks.length} tasks`)
-    return tasks
-  } catch (error) {
-    logger.error('[ipc] Error getting tasks', { error })
-    throw error
-  }
+  mainLogger.info('Getting tasks from database...', { includeArchived })
+  const tasks = await db.getTasks(includeArchived)
+  mainLogger.info(`Found ${tasks.length} tasks`)
+  return tasks
 })
 
 ipcMain.handle('db:getSequencedTasks', async () => {
@@ -394,10 +395,10 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
     const jobContexts = await db.getJobContexts()
     if (jobContexts && jobContexts.length > 0) {
       (context as any).jobContexts = jobContexts
-      logger.debug('[IPC] Including job contexts in amendment parsing', { count: jobContexts.length })
+      mainLogger.debug('Including job contexts in amendment parsing', { count: jobContexts.length })
     }
   } catch (error) {
-    logger.error('[ipc] Failed to fetch job contexts:', { error })
+    mainLogger.error('Failed to fetch job contexts', { error: error instanceof Error ? error.message : String(error) })
   }
 
   const parser = new AmendmentParser({ useAI: true })
@@ -437,80 +438,75 @@ ipcMain.handle('speech:getSchedulingSettings', async () => {
 
 // Feedback handlers
 ipcMain.handle('feedback:save', async (_event, feedback) => {
+  const fs = await import('fs/promises')
+  // Use process.cwd() for development, which should be the project root
+  const projectRoot = process.cwd()
+  const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
+
+  mainLogger.info('Saving feedback', { path: feedbackPath })
+
+  // Ensure directory exists
+  await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
+
+  // Read existing feedback or create empty array
+  let allFeedback: any[] = []
   try {
-    const fs = await import('fs/promises')
-    // Use process.cwd() for development, which should be the project root
-    const projectRoot = process.cwd()
-    const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
+    const existingData = await fs.readFile(feedbackPath, 'utf-8')
+    const parsed = JSON.parse(existingData)
 
-    logger.info('Saving feedback', { path: feedbackPath })
-
-    // Ensure directory exists
-    await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
-
-    // Read existing feedback or create empty array
-    let allFeedback: any[] = []
-    try {
-      const existingData = await fs.readFile(feedbackPath, 'utf-8')
-      const parsed = JSON.parse(existingData)
-
-      // Flatten the structure if needed
-      const flattenItems = (items: any): any[] => {
-        const result: any[] = []
-        if (Array.isArray(items)) {
-          items.forEach(item => {
-            if (Array.isArray(item)) {
-              result.push(...flattenItems(item))
-            } else if (item && typeof item === 'object' && 'type' in item) {
-              result.push(item)
-            }
-          })
-        } else if (items && typeof items === 'object' && 'type' in items) {
-          result.push(items)
-        }
-        return result
-      }
-
-      allFeedback = flattenItems(parsed)
-    } catch {
-      // File doesn't exist yet
-    }
-
-    // Append new feedback (ensure it's not an array being appended)
-    if (Array.isArray(feedback)) {
-      // If somehow an array is being saved, flatten it
-      feedback.forEach(item => {
-        if (item && typeof item === 'object' && 'type' in item) {
-          // Check for duplicates before adding
-          const isDuplicate = allFeedback.some(existing =>
-            existing.timestamp === item.timestamp &&
-            existing.sessionId === item.sessionId,
-          )
-          if (!isDuplicate) {
-            allFeedback.push(item)
+    // Flatten the structure if needed
+    const flattenItems = (items: any): any[] => {
+      const result: any[] = []
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          if (Array.isArray(item)) {
+            result.push(...flattenItems(item))
+          } else if (item && typeof item === 'object' && 'type' in item) {
+            result.push(item)
           }
-        }
-      })
-    } else if (feedback && typeof feedback === 'object' && 'type' in feedback) {
-      // Check for duplicates before adding
-      const isDuplicate = allFeedback.some(existing =>
-        existing.timestamp === feedback.timestamp &&
-        existing.sessionId === feedback.sessionId,
-      )
-      if (!isDuplicate) {
-        allFeedback.push(feedback)
+        })
+      } else if (items && typeof items === 'object' && 'type' in items) {
+        result.push(items)
       }
+      return result
     }
 
-    // Save all feedback (flat array only)
-    await fs.writeFile(feedbackPath, JSON.stringify(allFeedback, null, 2))
-
-    logger.info('Feedback saved to context folder')
-    return true
-  } catch (error) {
-    logger.error('Failed to save feedback', { error })
-    throw error
+    allFeedback = flattenItems(parsed)
+  } catch {
+    // File doesn't exist yet
   }
+
+  // Append new feedback (ensure it's not an array being appended)
+  if (Array.isArray(feedback)) {
+    // If somehow an array is being saved, flatten it
+    feedback.forEach(item => {
+      if (item && typeof item === 'object' && 'type' in item) {
+        // Check for duplicates before adding
+        const isDuplicate = allFeedback.some(existing =>
+          existing.timestamp === item.timestamp &&
+          existing.sessionId === item.sessionId,
+        )
+        if (!isDuplicate) {
+          allFeedback.push(item)
+        }
+      }
+    })
+  } else if (feedback && typeof feedback === 'object' && 'type' in feedback) {
+    // Check for duplicates before adding
+    const isDuplicate = allFeedback.some(existing =>
+      existing.timestamp === feedback.timestamp &&
+      existing.sessionId === feedback.sessionId,
+    )
+    if (!isDuplicate) {
+      allFeedback.push(feedback)
+    }
+  }
+
+  // Save all feedback (flat array only)
+  await fs.writeFile(feedbackPath, JSON.stringify(allFeedback, null, 2))
+
+  mainLogger.info('Feedback saved to context folder')
+  return true
 })
 
 ipcMain.handle('feedback:read', async () => {
@@ -542,52 +538,47 @@ ipcMain.handle('feedback:load', async () => {
 })
 
 ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
-  try {
-    const fs = await import('fs/promises')
-    const projectRoot = process.cwd()
-    const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
+  const fs = await import('fs/promises')
+  const projectRoot = process.cwd()
+  const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
 
-    logger.info('Updating feedback', { path: feedbackPath })
+  mainLogger.info('Updating feedback', { path: feedbackPath })
 
-    // Ensure directory exists
-    await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
+  // Ensure directory exists
+  await fs.mkdir(path.dirname(feedbackPath), { recursive: true })
 
-    // Flatten the structure if needed before saving
-    const flattenItems = (items: any): any[] => {
-      const result: any[] = []
-      if (Array.isArray(items)) {
-        items.forEach(item => {
-          if (Array.isArray(item)) {
-            result.push(...flattenItems(item))
-          } else if (item && typeof item === 'object' && 'type' in item) {
-            result.push(item)
-          }
-        })
-      } else if (items && typeof items === 'object' && 'type' in items) {
-        result.push(items)
-      }
-      return result
+  // Flatten the structure if needed before saving
+  const flattenItems = (items: any): any[] => {
+    const result: any[] = []
+    if (Array.isArray(items)) {
+      items.forEach(item => {
+        if (Array.isArray(item)) {
+          result.push(...flattenItems(item))
+        } else if (item && typeof item === 'object' && 'type' in item) {
+          result.push(item)
+        }
+      })
+    } else if (items && typeof items === 'object' && 'type' in items) {
+      result.push(items)
     }
-
-    const flatFeedback = flattenItems(updatedFeedback)
-
-    // Deduplicate feedback items based on timestamp and sessionId
-    const uniqueFeedback = flatFeedback.filter((item, index, self) =>
-      index === self.findIndex(f =>
-        f.timestamp === item.timestamp &&
-        f.sessionId === item.sessionId,
-      ),
-    )
-
-    // Save updated feedback (ensure it's a flat, deduplicated array)
-    await fs.writeFile(feedbackPath, JSON.stringify(uniqueFeedback, null, 2))
-
-    logger.info('Feedback updated in context folder')
-    return true
-  } catch (error) {
-    logger.error('Failed to update feedback', { error })
-    throw error
+    return result
   }
+
+  const flatFeedback = flattenItems(updatedFeedback)
+
+  // Deduplicate feedback items based on timestamp and sessionId
+  const uniqueFeedback = flatFeedback.filter((item, index, self) =>
+    index === self.findIndex(f =>
+      f.timestamp === item.timestamp &&
+      f.sessionId === item.sessionId,
+    ),
+  )
+
+  // Save updated feedback (ensure it's a flat, deduplicated array)
+  await fs.writeFile(feedbackPath, JSON.stringify(uniqueFeedback, null, 2))
+
+  mainLogger.info('Feedback updated in context folder')
+  return true
 })
 
 ipcMain.handle('app:getSessionId', () => {
@@ -603,18 +594,18 @@ ipcMain.on('log:message', (_event, { level, scope, message, data }) => {
   // Use the appropriate logger based on level
   switch (level) {
     case 'debug':
-      logger.debug(message, contextData)
+      mainLogger.debug(message, contextData)
       break
     case 'info':
-      logger.info(message, contextData)
+      mainLogger.info(message, contextData)
       break
     case 'warn':
-      logger.warn(message, contextData)
+      mainLogger.warn(message, contextData)
       break
     case 'error':
-      logger.error(message, contextData)
+      mainLogger.error(message, contextData)
       break
     default:
-      logger.info(message, contextData)
+      mainLogger.info(message, contextData)
   }
 })

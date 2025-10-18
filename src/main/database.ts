@@ -2,24 +2,25 @@ import { PrismaClient } from '@prisma/client'
 import { Task, TaskStep } from '../shared/types'
 import { TaskType } from '../shared/enums'
 import { WorkBlockType } from '../shared/constants'
-import { getMainLogger } from '../logging/index.main'
 import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime } from '../shared/time-provider'
 import * as crypto from 'crypto'
+import { LogScope } from '../logger'
+import { getScopedLogger } from '../logger/scope-helper'
+import { logged, loggedVerbose } from '../logger/decorators'
 
 // Create Prisma client instance
 const prisma = new PrismaClient()
 
-// Initialize main logger with Prisma
-const mainLogger = getMainLogger()
-mainLogger.setPrisma(prisma)
+// Get scoped logger for database operations
+const dbLogger = getScopedLogger(LogScope.Database)
 
 // Database service for managing tasks (including workflows)
 export class DatabaseService {
   private static instance: DatabaseService
   private client: PrismaClient
-  private logger = mainLogger.child({ component: 'database' })
+  // private logger = mainLogger.child({ component: 'database' })
 
   private constructor() {
     this.client = prisma
@@ -46,6 +47,7 @@ export class DatabaseService {
   private activeSessionId: string | null = null
   private sessionInitPromise: Promise<string> | null = null
 
+  @logged({ scope: LogScope.Database })
   async getActiveSession(): Promise<string> {
     // If already cached, return it
     if (this.activeSessionId) {
@@ -62,7 +64,7 @@ export class DatabaseService {
 
     try {
       this.activeSessionId = await this.sessionInitPromise
-      mainLogger.info('[DB] getActiveSession - Initialized new sessionId', { sessionId: this.activeSessionId })
+      dbLogger.info('Initialized new sessionId', { sessionId: this.activeSessionId })
       return this.activeSessionId
     } finally {
       this.sessionInitPromise = null
@@ -70,7 +72,7 @@ export class DatabaseService {
   }
 
   private async initializeActiveSession(): Promise<string> {
-    mainLogger.info('[DB] Initializing active session...')
+    // mainLogger.info('[DB] Initializing active session...')
 
     // Find the active session or create one if none exists
     let session = await this.client.session.findFirst({
@@ -78,13 +80,13 @@ export class DatabaseService {
     })
 
     if (session) {
-      mainLogger.info('[DB] Found existing active session', {
-        sessionId: session.id,
-        name: session.name,
-        createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
-      })
+      // mainLogger.info('[DB] Found existing active session', {
+      //   sessionId: session.id,
+      //   name: session.name,
+      //   createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
+      // })
     } else {
-      mainLogger.warn('[DB] No active session found, checking for existing sessions to reactivate...')
+      // mainLogger.warn('[DB] No active session found, checking for existing sessions to reactivate...')
 
       // Check again for any existing session to reuse before creating a new one
       const existingSession = await this.client.session.findFirst({
@@ -92,11 +94,11 @@ export class DatabaseService {
       })
 
       if (existingSession) {
-        mainLogger.info('[DB] Reactivating existing session', {
-          sessionId: existingSession.id,
-          name: existingSession.name,
-          wasCreated: existingSession.createdAt.toISOString(),
-        })
+        // mainLogger.info('[DB] Reactivating existing session', {
+        //   sessionId: existingSession.id,
+        //   name: existingSession.name,
+        //   wasCreated: existingSession.createdAt.toISOString(),
+        // })
 
         // Reactivate the most recent session instead of creating a duplicate
         session = await this.client.session.update({
@@ -104,7 +106,7 @@ export class DatabaseService {
           data: { isActive: true },
         })
       } else {
-        mainLogger.warn('[DB] No sessions found in database, creating new session...')
+        // mainLogger.warn('[DB] No sessions found in database, creating new session...')
 
         // Create a new session with a date-based name
         const today = new Date()
@@ -122,10 +124,10 @@ export class DatabaseService {
           },
         })
 
-        mainLogger.info('[DB] Created new session', {
-          sessionId: session.id,
-          name: session.name,
-        })
+        // mainLogger.info('[DB] Created new session', {
+        //   sessionId: session.id,
+        //   name: session.name,
+        // })
       }
     }
 
@@ -137,19 +139,19 @@ export class DatabaseService {
       orderBy: { updatedAt: 'desc' },
     })
 
-    mainLogger.debug('[DB] Found sessions', {
-      count: sessions.length,
-      sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })),
-    })
+    // mainLogger.debug('[DB] Found sessions', {
+      // count: sessions.length,
+      // sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })),
+    // })
 
     // Log if we detect duplicates but don't filter them - let the UI show the actual state
     const uniqueIds = new Set(sessions.map(s => s.id))
     if (uniqueIds.size !== sessions.length) {
-      mainLogger.error('[DB] WARNING: Duplicate session IDs detected in database!', {
-        totalSessions: sessions.length,
-        uniqueIds: uniqueIds.size,
-        duplicates: sessions.length - uniqueIds.size,
-      })
+      // mainLogger.error('[DB] WARNING: Duplicate session IDs detected in database!', {
+        // totalSessions: sessions.length,
+        // uniqueIds: uniqueIds.size,
+        // duplicates: sessions.length - uniqueIds.size,
+      // })
     }
 
     return sessions
@@ -177,10 +179,10 @@ export class DatabaseService {
   }
 
   async switchSession(sessionId: string): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
-    mainLogger.info('[DB] Switching session', {
-      newSessionId: sessionId,
-      previousSessionId: this.activeSessionId,
-    })
+    // mainLogger.info('[DB] Switching session', {
+      // newSessionId: sessionId,
+      // previousSessionId: this.activeSessionId,
+    // })
 
     // Clear the cached session ID to force re-fetch
     this.activeSessionId = null
@@ -198,7 +200,7 @@ export class DatabaseService {
     })
 
     this.activeSessionId = session.id
-    mainLogger.info('[DB] Session switched successfully', { sessionId: session.id })
+    // mainLogger.info('[DB] Session switched successfully', { sessionId: session.id })
     return session
   }
 
@@ -219,74 +221,69 @@ export class DatabaseService {
   }
 
   async deleteSession(id: string): Promise<void> {
-    mainLogger.info('[DB] Attempting to delete session', { sessionId: id })
+    // mainLogger.info('[DB] Attempting to delete session', { sessionId: id })
 
     const session = await this.client.session.findUnique({
       where: { id },
     })
 
     if (!session) {
-      mainLogger.warn('[DB] Session not found for deletion', { sessionId: id })
+      // mainLogger.warn('[DB] Session not found for deletion', { sessionId: id })
       throw new Error(`Session ${id} not found`)
     }
 
     if (session?.isActive) {
-      mainLogger.warn('[DB] Cannot delete active session', { sessionId: id })
+      // mainLogger.warn('[DB] Cannot delete active session', { sessionId: id })
       throw new Error('Cannot delete the active session')
     }
 
-    try {
-      // Delete all related records first to avoid foreign key constraints
-      // Use transaction to ensure atomicity
-      await this.client.$transaction(async (tx) => {
-        // Delete WorkPatterns and their related WorkBlocks/WorkMeetings (cascade handled by schema)
-        await tx.workPattern.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Delete Tasks and their WorkSessions/TaskSteps (cascade handled by schema)
-        await tx.task.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Delete SequencedTasks
-        await tx.sequencedTask.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Delete other related records
-        await tx.timeEstimateAccuracy.deleteMany({
-          where: { sessionId: id },
-        })
-
-        await tx.productivityPattern.deleteMany({
-          where: { sessionId: id },
-        })
-
-        await tx.jobContext.deleteMany({
-          where: { sessionId: id },
-        })
-
-        await tx.jargonEntry.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Delete SchedulingPreferences if exists
-        await tx.schedulingPreferences.deleteMany({
-          where: { sessionId: id },
-        })
-
-        // Finally delete the session itself
-        await tx.session.delete({
-          where: { id },
-        })
+    // Delete all related records first to avoid foreign key constraints
+    // Use transaction to ensure atomicity
+    await this.client.$transaction(async (tx) => {
+      // Delete WorkPatterns and their related WorkBlocks/WorkMeetings (cascade handled by schema)
+      await tx.workPattern.deleteMany({
+        where: { sessionId: id },
       })
 
-      mainLogger.info('[DB] Session and all related data deleted successfully', { sessionId: id })
-    } catch (error) {
-      mainLogger.error('[DB] Failed to delete session', { sessionId: id, error })
-      throw error
-    }
+      // Delete Tasks and their WorkSessions/TaskSteps (cascade handled by schema)
+      await tx.task.deleteMany({
+        where: { sessionId: id },
+      })
+
+      // Delete SequencedTasks
+      await tx.sequencedTask.deleteMany({
+        where: { sessionId: id },
+      })
+
+      // Delete other related records
+      await tx.timeEstimateAccuracy.deleteMany({
+        where: { sessionId: id },
+      })
+
+      await tx.productivityPattern.deleteMany({
+        where: { sessionId: id },
+      })
+
+      await tx.jobContext.deleteMany({
+        where: { sessionId: id },
+      })
+
+      await tx.jargonEntry.deleteMany({
+        where: { sessionId: id },
+      })
+
+      // Delete SchedulingPreferences if exists
+      await tx.schedulingPreferences.deleteMany({
+        where: { sessionId: id },
+      })
+
+      // Finally delete the session itself
+      await tx.session.delete({
+        where: { id },
+      })
+    })
+
+    // mainLogger.info('[DB] Session and all related data deleted successfully', { sessionId: id })
   }
 
   async getCurrentSession(): Promise<any> {
@@ -324,7 +321,7 @@ export class DatabaseService {
   // Tasks
   async getTasks(includeArchived = false): Promise<Task[]> {
     const sessionId = await this.getActiveSession()
-    mainLogger.debug('[DB] getTasks - Using sessionId', { sessionId, includeArchived })
+    dbLogger.debug('Getting tasks', { sessionId, includeArchived })
 
     const tasks = await this.client.task.findMany({
       where: {
@@ -337,17 +334,18 @@ export class DatabaseService {
       orderBy: { createdAt: 'desc' },
     })
 
-    mainLogger.debug('[DB] getTasks - Found tasks', {
+    dbLogger.debug('Found tasks', {
       tasksCount: tasks.length,
       sessionId,
     })
     const formattedTasks = tasks.map(task => this.formatTask(task))
-    mainLogger.debug('[DB] getTasks - Returning formatted tasks', {
+    dbLogger.debug('Returning formatted tasks', {
       formattedCount: formattedTasks.length,
     })
     return formattedTasks
   }
 
+  @loggedVerbose({ scope: LogScope.Database, logArgs: true, tag: 'createTask' })
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
     const sessionId = await this.getActiveSession()
     const { steps, ...coreTaskData } = taskData as any
@@ -536,6 +534,7 @@ export class DatabaseService {
     return this.formatTask(task)
   }
 
+  @logged({ scope: LogScope.Database, tag: 'deleteTask' })
   async deleteTask(id: string): Promise<void> {
     await this.client.task.delete({
       where: { id },
@@ -993,14 +992,14 @@ export class DatabaseService {
     asyncWaitTime?: number
   }): Promise<any> {
 
-    mainLogger.debug('[Database] addStepToWorkflow called', {
-      workflowId,
-      stepName: stepData.name,
-      duration: stepData.duration,
-      afterStep: stepData.afterStep,
-      beforeStep: stepData.beforeStep,
-      dependencies: stepData.dependencies,
-    })
+    // mainLogger.debug('[Database] addStepToWorkflow called', {
+      // workflowId,
+      // stepName: stepData.name,
+      // duration: stepData.duration,
+      // afterStep: stepData.afterStep,
+      // beforeStep: stepData.beforeStep,
+      // dependencies: stepData.dependencies,
+    // })
 
     // Get existing steps to determine order
     const existingSteps = await this.client.taskStep.findMany({
@@ -1008,11 +1007,11 @@ export class DatabaseService {
       orderBy: { stepIndex: 'asc' },
     })
 
-    mainLogger.debug('[Database] Existing steps in workflow', {
-      existingStepCount: existingSteps.length,
-      existingStepNames: existingSteps.map(s => s.name),
-      existingStepIds: existingSteps.map(s => s.id),
-    })
+    // mainLogger.debug('[Database] Existing steps in workflow', {
+      // existingStepCount: existingSteps.length,
+      // existingStepNames: existingSteps.map(s => s.name),
+      // existingStepIds: existingSteps.map(s => s.id),
+    // })
 
     // Determine the index for the new step
     let newStepIndex = existingSteps.length // Default to end
@@ -1021,42 +1020,42 @@ export class DatabaseService {
       const afterIndex = existingSteps.findIndex(s => s.name === stepData.afterStep)
       if (afterIndex !== -1) {
         newStepIndex = afterIndex + 1
-        mainLogger.debug('[Database] Inserting after step', {
-          afterStep: stepData.afterStep,
-          afterIndex,
-          newStepIndex,
-        })
+        // mainLogger.debug('[Database] Inserting after step', {
+          // afterStep: stepData.afterStep,
+          // afterIndex,
+          // newStepIndex,
+        // })
       } else {
-        mainLogger.warn('[Database] afterStep not found, appending to end', {
-          afterStep: stepData.afterStep,
-        })
+        // mainLogger.warn('[Database] afterStep not found, appending to end', {
+          // afterStep: stepData.afterStep,
+        // })
       }
     } else if (stepData.beforeStep) {
       const beforeIndex = existingSteps.findIndex(s => s.name === stepData.beforeStep)
       if (beforeIndex !== -1) {
         newStepIndex = beforeIndex
-        mainLogger.debug('[Database] Inserting before step', {
-          beforeStep: stepData.beforeStep,
-          beforeIndex,
-          newStepIndex,
-        })
+        // mainLogger.debug('[Database] Inserting before step', {
+          // beforeStep: stepData.beforeStep,
+          // beforeIndex,
+          // newStepIndex,
+        // })
       } else {
-        mainLogger.warn('[Database] beforeStep not found, appending to end', {
-          beforeStep: stepData.beforeStep,
-        })
+        // mainLogger.warn('[Database] beforeStep not found, appending to end', {
+          // beforeStep: stepData.beforeStep,
+        // })
       }
     } else {
-      mainLogger.debug('[Database] No position specified, appending to end', {
-        newStepIndex,
-      })
+      // mainLogger.debug('[Database] No position specified, appending to end', {
+        // newStepIndex,
+      // })
     }
 
     // Shift existing steps if inserting in the middle
     if (newStepIndex < existingSteps.length) {
-      mainLogger.debug('[Database] Shifting existing steps', {
-        shiftStartIndex: newStepIndex,
-        numberOfStepsToShift: existingSteps.length - newStepIndex,
-      })
+      // mainLogger.debug('[Database] Shifting existing steps', {
+        // shiftStartIndex: newStepIndex,
+        // numberOfStepsToShift: existingSteps.length - newStepIndex,
+      // })
       for (let i = newStepIndex; i < existingSteps.length; i++) {
         await this.client.taskStep.update({
           where: { id: existingSteps[i].id },
@@ -1068,12 +1067,12 @@ export class DatabaseService {
     // CRITICAL: Dependencies are provided as step NAMES but need to be stored as step IDs
     // Currently storing names directly which causes the dependency wiring bug
     const dependenciesToStore = stepData.dependencies || []
-    mainLogger.debug('[Database] About to create step with dependencies', {
-      stepName: stepData.name,
-      dependenciesProvided: stepData.dependencies,
-      willStoreAs: dependenciesToStore,
-      note: 'BUG: These should be step IDs but are currently step names',
-    })
+    // mainLogger.debug('[Database] About to create step with dependencies', {
+      // stepName: stepData.name,
+      // dependenciesProvided: stepData.dependencies,
+      // willStoreAs: dependenciesToStore,
+      // note: 'BUG: These should be step IDs but are currently step names',
+    // })
 
     // Create the new step
     const newStepId = generateRandomStepId()
@@ -1092,12 +1091,12 @@ export class DatabaseService {
       },
     })
 
-    mainLogger.debug('[Database] Step created in database', {
-      newStepId,
-      stepName: stepData.name,
-      stepIndex: newStepIndex,
-      storedDependsOn: JSON.stringify(dependenciesToStore),
-    })
+    // mainLogger.debug('[Database] Step created in database', {
+      // newStepId,
+      // stepName: stepData.name,
+      // stepIndex: newStepIndex,
+      // storedDependsOn: JSON.stringify(dependenciesToStore),
+    // })
 
     // Update the workflow's total duration
     const updatedTask = await this.client.task.findUnique({
@@ -1115,12 +1114,12 @@ export class DatabaseService {
         where: { id: workflowId },
         data: { duration: totalDuration },
       })
-      mainLogger.debug('[Database] Updated workflow duration', {
-        workflowId,
-        oldDuration: updatedTask.duration,
-        newDuration: totalDuration,
-        totalSteps: updatedTask.TaskStep.length,
-      })
+      // mainLogger.debug('[Database] Updated workflow duration', {
+        // workflowId,
+        // oldDuration: updatedTask.duration,
+        // newDuration: totalDuration,
+        // totalSteps: updatedTask.TaskStep.length,
+      // })
     }
 
 
@@ -1134,11 +1133,11 @@ export class DatabaseService {
       },
     })
 
-    mainLogger.debug('[Database] addStepToWorkflow completed', {
-      workflowId,
-      totalStepsNow: finalTask?.TaskStep.length,
-      stepNames: finalTask?.TaskStep.map(s => s.name),
-    })
+    // mainLogger.debug('[Database] addStepToWorkflow completed', {
+      // workflowId,
+      // totalStepsNow: finalTask?.TaskStep.length,
+      // stepNames: finalTask?.TaskStep.map(s => s.name),
+    // })
 
     return this.formatTask(finalTask!)
   }
@@ -1151,7 +1150,7 @@ export class DatabaseService {
   // Work patterns
   async getWorkPatterns(): Promise<any[]> {
     const sessionId = await this.getActiveSession()
-    mainLogger.debug('[DB] getWorkPatterns - Looking for patterns', { sessionId })
+    // mainLogger.debug('[DB] getWorkPatterns - Looking for patterns', { sessionId })
     let patterns = await this.client.workPattern.findMany({
       where: {
         sessionId,
@@ -1166,7 +1165,7 @@ export class DatabaseService {
 
     // If no patterns found for current session, get ALL patterns as fallback
     if (patterns.length === 0) {
-      mainLogger.debug('[DB] getWorkPatterns - No patterns for current session, fetching ALL patterns')
+      // mainLogger.debug('[DB] getWorkPatterns - No patterns for current session, fetching ALL patterns')
       patterns = await this.client.workPattern.findMany({
         where: {
           isTemplate: false,
@@ -1178,10 +1177,10 @@ export class DatabaseService {
         orderBy: { date: 'desc' },
       })
       if (patterns.length > 0) {
-        mainLogger.debug('[DB] getWorkPatterns - Found patterns from other sessions', { count: patterns.length })
+        // mainLogger.debug('[DB] getWorkPatterns - Found patterns from other sessions', { count: patterns.length })
       }
     } else {
-      mainLogger.debug('[DB] getWorkPatterns - Found patterns for current session', { count: patterns.length })
+      // mainLogger.debug('[DB] getWorkPatterns - Found patterns for current session', { count: patterns.length })
     }
 
     return patterns.map(pattern => ({
@@ -1210,12 +1209,12 @@ export class DatabaseService {
 
   async getWorkPattern(date: string): Promise<any | null> {
     const sessionId = await this.getActiveSession()
-    mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Query', {
-      date,
-      sessionId,
-      timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
-    })
+    // mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Query', {
+      // date,
+      // sessionId,
+      // timestamp: new Date().toISOString(),
+      // localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+    // })
     const pattern = await this.client.workPattern.findUnique({
       where: {
         sessionId_date: {
@@ -1233,26 +1232,26 @@ export class DatabaseService {
     // Use only the current session's pattern - no fallback to other sessions
     if (!pattern) {
       // No pattern found for current session - return null instead of checking other sessions
-      mainLogger.debug('[WorkPatternLifeCycle] getWorkPattern - No pattern found', {
-        date,
-        sessionId,
-        searchKey: `${sessionId}_${date}`,
-      })
+      // mainLogger.debug('[WorkPatternLifeCycle] getWorkPattern - No pattern found', {
+        // date,
+        // sessionId,
+        // searchKey: `${sessionId}_${date}`,
+      // })
       return null
     }
 
     // Pattern found, process it
-    mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Found pattern', {
-      date,
-      patternId: pattern.id,
-      blocks: pattern.WorkBlock.length,
-      blockDetails: pattern.WorkBlock.map((b: any) => ({
-        start: b.startTime,
-        end: b.endTime,
-        type: b.type,
-      })),
-      meetings: pattern.WorkMeeting.length,
-    })
+    // mainLogger.info('[WorkPatternLifeCycle] getWorkPattern - Found pattern', {
+      // date,
+      // patternId: pattern.id,
+      // blocks: pattern.WorkBlock.length,
+      // blockDetails: pattern.WorkBlock.map((b: any) => ({
+        // start: b.startTime,
+        // end: b.endTime,
+        // type: b.type,
+      // })),
+      // meetings: pattern.WorkMeeting.length,
+    // })
 
     return {
       ...pattern,
@@ -1289,19 +1288,19 @@ export class DatabaseService {
     const sessionId = await this.getActiveSession()
 
     // [WorkPatternLifeCycle] START: Creating work pattern
-    mainLogger.info('[WorkPatternLifeCycle] createWorkPattern - START', {
-      date: data.date,
-      sessionId,
-      isTemplate: data.isTemplate || false,
-      templateName: data.templateName || null,
-      blocksCount: data.blocks?.length || 0,
-      meetingsCount: data.meetings?.length || 0,
-      recurring: data.recurring || null,
-      timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
-    })
+    // mainLogger.info('[WorkPatternLifeCycle] createWorkPattern - START', {
+      // date: data.date,
+      // sessionId,
+      // isTemplate: data.isTemplate || false,
+      // templateName: data.templateName || null,
+      // blocksCount: data.blocks?.length || 0,
+      // meetingsCount: data.meetings?.length || 0,
+      // recurring: data.recurring || null,
+      // timestamp: new Date().toISOString(),
+      // localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+    // })
 
-    mainLogger.info('[DB] createWorkPattern - Creating pattern', { date: data.date, sessionId, blocksCount: data.blocks?.length || 0 })
+    // mainLogger.info('[DB] createWorkPattern - Creating pattern', { date: data.date, sessionId, blocksCount: data.blocks?.length || 0 })
     const { blocks, meetings, recurring, ...patternData } = data
 
     // First, delete existing pattern if it exists (to replace it)
@@ -1410,10 +1409,10 @@ export class DatabaseService {
           }
         }
 
-        mainLogger.info('[DB] Created daily sleep patterns', {
-          startDate: data.date,
-          daysCreated: 30,
-        })
+        // mainLogger.info('[DB] Created daily sleep patterns', {
+          // startDate: data.date,
+          // daysCreated: 30,
+        // })
       }
     }
 
@@ -1430,14 +1429,14 @@ export class DatabaseService {
       })),
     }
 
-    mainLogger.info('[WorkPatternLifeCycle] createWorkPattern - COMPLETE', {
-      patternId: pattern.id,
-      date: pattern.date,
-      sessionId: pattern.sessionId,
-      totalBlocks: pattern.WorkBlock.length,
-      totalMeetings: pattern.WorkMeeting.length,
-      timestamp: new Date().toISOString(),
-    })
+    // mainLogger.info('[WorkPatternLifeCycle] createWorkPattern - COMPLETE', {
+      // patternId: pattern.id,
+      // date: pattern.date,
+      // sessionId: pattern.sessionId,
+      // totalBlocks: pattern.WorkBlock.length,
+      // totalMeetings: pattern.WorkMeeting.length,
+      // timestamp: new Date().toISOString(),
+    // })
 
     return formattedPattern
   }
@@ -1514,30 +1513,30 @@ export class DatabaseService {
     meetings?: any[]
   }): Promise<any> {
     // [WorkPatternLifeCycle] START: Updating work pattern
-    mainLogger.info('[WorkPatternLifeCycle] updateWorkPattern - START', {
-      patternId: id,
-      hasBlocks: !!updates.blocks,
-      hasMeetings: !!updates.meetings,
-      blocksCount: updates.blocks?.length || 0,
-      meetingsCount: updates.meetings?.length || 0,
-      timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
-    })
+    // mainLogger.info('[WorkPatternLifeCycle] updateWorkPattern - START', {
+      // patternId: id,
+      // hasBlocks: !!updates.blocks,
+      // hasMeetings: !!updates.meetings,
+      // blocksCount: updates.blocks?.length || 0,
+      // meetingsCount: updates.meetings?.length || 0,
+      // timestamp: new Date().toISOString(),
+      // localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+    // })
 
     // Delete existing blocks and meetings
-    const deletedBlocks = await this.client.workBlock.deleteMany({
+    const _deletedBlocks = await this.client.workBlock.deleteMany({
       where: { patternId: id },
     })
-    const deletedMeetings = await this.client.workMeeting.deleteMany({
+    const _deletedMeetings = await this.client.workMeeting.deleteMany({
       where: { patternId: id },
     })
 
-    mainLogger.debug('[WorkPatternLifeCycle] updateWorkPattern - Deleted existing', {
-      patternId: id,
-      deletedBlocks: deletedBlocks.count,
-      deletedMeetings: deletedMeetings.count,
-      timestamp: new Date().toISOString(),
-    })
+    // mainLogger.debug('[WorkPatternLifeCycle] updateWorkPattern - Deleted existing', {
+      // patternId: id,
+      // deletedBlocks: _deletedBlocks.count,
+      // deletedMeetings: _deletedMeetings.count,
+      // timestamp: new Date().toISOString(),
+    // })
 
     // Update with new data
     const pattern = await this.client.workPattern.update({
@@ -1571,27 +1570,27 @@ export class DatabaseService {
       },
     })
 
-    mainLogger.debug('[WorkPatternLifeCycle] updateWorkPattern - Pattern updated', {
-      patternId: id,
-      date: pattern.date,
-      sessionId: pattern.sessionId,
-      blocksCount: pattern.WorkBlock.length,
-      meetingsCount: pattern.WorkMeeting.length,
-      blocks: pattern.WorkBlock.map(b => ({
-        startTime: b.startTime,
-        endTime: b.endTime,
-        type: b.type,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
-        totalCapacity: b.totalCapacity,
-      })),
-      meetings: pattern.WorkMeeting.map(m => ({
-        name: m.name,
-        startTime: m.startTime,
-        endTime: m.endTime,
-        type: m.type,
-      })),
-      timestamp: new Date().toISOString(),
-    })
+    // mainLogger.debug('[WorkPatternLifeCycle] updateWorkPattern - Pattern updated', {
+      // patternId: id,
+      // date: pattern.date,
+      // sessionId: pattern.sessionId,
+      // blocksCount: pattern.WorkBlock.length,
+      // meetingsCount: pattern.WorkMeeting.length,
+      // blocks: pattern.WorkBlock.map(b => ({
+        // startTime: b.startTime,
+        // endTime: b.endTime,
+        // type: b.type,
+        // capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
+        // totalCapacity: b.totalCapacity,
+      // })),
+      // meetings: pattern.WorkMeeting.map(m => ({
+        // name: m.name,
+        // startTime: m.startTime,
+        // endTime: m.endTime,
+        // type: m.type,
+      // })),
+      // timestamp: new Date().toISOString(),
+    // })
 
     const formattedPattern = {
       ...pattern,
@@ -1606,25 +1605,25 @@ export class DatabaseService {
       })),
     }
 
-    mainLogger.info('[WorkPatternLifeCycle] updateWorkPattern - COMPLETE', {
-      patternId: id,
-      date: pattern.date,
-      sessionId: pattern.sessionId,
-      totalBlocks: pattern.WorkBlock.length,
-      totalMeetings: pattern.WorkMeeting.length,
-      timestamp: new Date().toISOString(),
-    })
+    // mainLogger.info('[WorkPatternLifeCycle] updateWorkPattern - COMPLETE', {
+      // patternId: id,
+      // date: pattern.date,
+      // sessionId: pattern.sessionId,
+      // totalBlocks: pattern.WorkBlock.length,
+      // totalMeetings: pattern.WorkMeeting.length,
+      // timestamp: new Date().toISOString(),
+    // })
 
     return formattedPattern
   }
 
   async deleteWorkPattern(id: string): Promise<void> {
     // [WorkPatternLifeCycle] START: Deleting work pattern
-    mainLogger.info('[WorkPatternLifeCycle] deleteWorkPattern - START', {
-      patternId: id,
-      timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
-    })
+    // mainLogger.info('[WorkPatternLifeCycle] deleteWorkPattern - START', {
+      // patternId: id,
+      // timestamp: new Date().toISOString(),
+      // localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+    // })
 
     // Get pattern details before deletion for logging
     const pattern = await this.client.workPattern.findUnique({
@@ -1636,25 +1635,25 @@ export class DatabaseService {
     })
 
     if (pattern) {
-      mainLogger.debug('[WorkPatternLifeCycle] deleteWorkPattern - Pattern to delete', {
-        patternId: id,
-        date: pattern.date,
-        sessionId: pattern.sessionId,
-        blocksCount: pattern.WorkBlock.length,
-        meetingsCount: pattern.WorkMeeting.length,
-        isTemplate: pattern.isTemplate,
-        timestamp: new Date().toISOString(),
-      })
+      // mainLogger.debug('[WorkPatternLifeCycle] deleteWorkPattern - Pattern to delete', {
+        // patternId: id,
+        // date: pattern.date,
+        // sessionId: pattern.sessionId,
+        // blocksCount: pattern.WorkBlock.length,
+        // meetingsCount: pattern.WorkMeeting.length,
+        // isTemplate: pattern.isTemplate,
+        // timestamp: new Date().toISOString(),
+      // })
     }
 
     await this.client.workPattern.delete({
       where: { id },
     })
 
-    mainLogger.info('[WorkPatternLifeCycle] deleteWorkPattern - COMPLETE', {
-      patternId: id,
-      timestamp: new Date().toISOString(),
-    })
+    // mainLogger.info('[WorkPatternLifeCycle] deleteWorkPattern - COMPLETE', {
+      // patternId: id,
+      // timestamp: new Date().toISOString(),
+    // })
   }
 
   async getWorkPatternTemplates(): Promise<any[]> {
@@ -1722,12 +1721,12 @@ export class DatabaseService {
     })
 
     if (activeSession) {
-      mainLogger.warn('[WorkLogging] Found existing active session - auto-closing before creating new session', {
-        existingSessionId: activeSession.id,
-        existingTaskId: activeSession.taskId,
-        existingStepId: activeSession.stepId,
-        existingStartTime: activeSession.startTime.toISOString(),
-      })
+      // mainLogger.warn('[WorkLogging] Found existing active session - auto-closing before creating new session', {
+        // existingSessionId: activeSession.id,
+        // existingTaskId: activeSession.taskId,
+        // existingStepId: activeSession.stepId,
+        // existingStartTime: activeSession.startTime.toISOString(),
+      // })
 
       // Auto-close the existing session using time provider
       const now = getCurrentTime()
@@ -1741,24 +1740,24 @@ export class DatabaseService {
         },
       })
 
-      mainLogger.info('[WorkLogging] Auto-closed stale session', {
-        sessionId: activeSession.id,
-        actualMinutes: Math.max(elapsedMinutes, 1),
-      })
+      // mainLogger.info('[WorkLogging] Auto-closed stale session', {
+        // sessionId: activeSession.id,
+        // actualMinutes: Math.max(elapsedMinutes, 1),
+      // })
     }
 
     const sessionId = crypto.randomUUID()
 
-    mainLogger.debug('[WorkLogging] Creating work session in database', {
-      sessionId,
-      taskId: data.taskId,
-      stepId: data.stepId,
-      type: data.type,
-      startTime: data.startTime.toISOString(),
-      plannedMinutes: data.plannedMinutes,
-      actualMinutes: data.actualMinutes,
-      hasNotes: !!data.notes,
-    })
+    // mainLogger.debug('[WorkLogging] Creating work session in database', {
+      // sessionId,
+      // taskId: data.taskId,
+      // stepId: data.stepId,
+      // type: data.type,
+      // startTime: data.startTime.toISOString(),
+      // plannedMinutes: data.plannedMinutes,
+      // actualMinutes: data.actualMinutes,
+      // hasNotes: !!data.notes,
+    // })
 
     const session = await this.client.workSession.create({
       data: {
@@ -1774,13 +1773,13 @@ export class DatabaseService {
       },
     })
 
-    mainLogger.debug('[WorkLogging] Work session created successfully', {
-      sessionId: session.id,
-      taskId: session.taskId,
-      plannedMinutes: session.plannedMinutes,
-      actualMinutes: session.actualMinutes,
-      session: session,
-    })
+    // mainLogger.debug('[WorkLogging] Work session created successfully', {
+      // sessionId: session.id,
+      // taskId: session.taskId,
+      // plannedMinutes: session.plannedMinutes,
+      // actualMinutes: session.actualMinutes,
+      // session: session,
+    // })
 
     return session
   }
@@ -1852,14 +1851,14 @@ export class DatabaseService {
       const minutes = session.actualMinutes || 0
 
       // DEBUG: Log each session's contribution to accumulated time
-      this.logger.info('[getTodayAccumulated] Processing work session', {
-        sessionId: session.id,
-        type: session.type,
-        actualMinutes: session.actualMinutes,
-        plannedMinutes: session.plannedMinutes,
-        minutesCounted: minutes,
-        hasEndTime: !!session.endTime,
-      })
+      // this.logger.info('[getTodayAccumulated] Processing work session', {
+      //   sessionId: session.id,
+      //   type: session.type,
+      //   actualMinutes: session.actualMinutes,
+      //   plannedMinutes: session.plannedMinutes,
+      //   minutesCounted: minutes,
+      //   hasEndTime: !!session.endTime,
+      // })
 
       if (session.type === TaskType.Focused) {
         acc.focused += minutes
@@ -1873,11 +1872,11 @@ export class DatabaseService {
     }, { focused: 0, admin: 0, personal: 0, total: 0 })
 
     // DEBUG: Log final accumulated totals
-    this.logger.info('[getTodayAccumulated] Final accumulated time', {
-      date,
-      totalSessions: workSessions.length,
-      accumulated,
-    })
+    // this.logger.info('[getTodayAccumulated] Final accumulated time', {
+    //   date,
+    //   totalSessions: workSessions.length,
+    //   accumulated,
+    // })
 
     // Add time from completed steps (if not already in work sessions)
     completedSteps.forEach(step => {
@@ -1902,32 +1901,32 @@ export class DatabaseService {
   }
 
   async getTaskTotalLoggedTime(taskId: string): Promise<number> {
-    mainLogger.debug('[WorkLogging] Fetching work sessions for task', { taskId })
+    // mainLogger.debug('[WorkLogging] Fetching work sessions for task', { taskId })
 
     const workSessions = await this.client.workSession.findMany({
       where: { taskId },
     })
 
-    mainLogger.debug('[WorkLogging] Found work sessions', {
-      taskId,
-      sessionCount: workSessions.length,
-      sessions: workSessions.map(s => ({
-        id: s.id,
-        plannedMinutes: s.plannedMinutes,
-        actualMinutes: s.actualMinutes,
-        startTime: s.startTime,
-      })),
-    })
+    // mainLogger.debug('[WorkLogging] Found work sessions', {
+      // taskId,
+      // sessionCount: workSessions.length,
+      // sessions: workSessions.map(s => ({
+        // id: s.id,
+        // plannedMinutes: s.plannedMinutes,
+        // actualMinutes: s.actualMinutes,
+        // startTime: s.startTime,
+      // })),
+    // })
 
     const total = workSessions.reduce((total, session) => {
       return total + (session.actualMinutes || session.plannedMinutes || 0)
     }, 0)
 
-    mainLogger.debug('[WorkLogging] Calculated total logged time', {
-      taskId,
-      totalMinutes: total,
-      sessionCount: workSessions.length,
-    })
+    // mainLogger.debug('[WorkLogging] Calculated total logged time', {
+      // taskId,
+      // totalMinutes: total,
+      // sessionCount: workSessions.length,
+    // })
 
     return total
   }
@@ -2303,14 +2302,14 @@ export class DatabaseService {
       workflowId: session.stepId ? session.taskId : undefined,
     }
 
-    mainLogger.info('[DB] getActiveWorkSession returning enriched session', {
-      sessionId: enriched.id,
-      taskId: enriched.taskId,
-      stepId: enriched.stepId,
-      workflowId: enriched.workflowId,
-      taskName: enriched.taskName,
-      stepName: enriched.stepName,
-    })
+    // mainLogger.info('[DB] getActiveWorkSession returning enriched session', {
+      // sessionId: enriched.id,
+      // taskId: enriched.taskId,
+      // stepId: enriched.stepId,
+      // workflowId: enriched.workflowId,
+      // taskName: enriched.taskName,
+      // stepName: enriched.stepName,
+    // })
 
     return enriched
   }

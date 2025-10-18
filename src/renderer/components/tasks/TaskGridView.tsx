@@ -6,7 +6,8 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import { useState, useEffect } from 'react'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
-import { logger } from '@shared/logger'
+import { logger } from '@/logger'
+
 
 const { Text } = Typography
 
@@ -35,40 +36,38 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       await updateTask(task.id, {
         completed: !task.completed,
       })
-      const newStatus = !task.completed ? 'completed' : 'incomplete'
-      logger.ui.info('Task completion toggled', {
-        taskId: task.id,
-        taskName: task.name,
-        newStatus,
-      })
+      const _newStatus = !task.completed ? 'completed' : 'incomplete'
+      logger.ui.info('Task completion toggled', {})
+
       Message.success(task.completed ? 'Task marked as incomplete' : 'Task completed!')
-    } catch (error) {
-      logger.ui.error('Failed to toggle task completion', error)
+    } catch (_error) {
+      logger.ui.error('Failed to toggle task completion', _error)
       Message.error('Failed to update task')
     }
   }
 
+  // TODO(human): This method could benefit from @logged decorator to automatically log entry/exit
   const handleDelete = async (taskId: string) => {
     try {
-      // Find task name for logging
       const task = tasks.find(t => t.id === taskId)
       await deleteTask(taskId)
       logger.ui.info('Task deleted', {
         taskId,
         taskName: task?.name || 'Unknown',
-      })
+      }, 'task-delete-success')
       Message.success('Task deleted')
     } catch (error) {
-      logger.ui.error('Failed to delete task', { taskId, error })
+      logger.ui.error('Failed to delete task', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId,
+      }, 'task-delete-error')
       Message.error('Failed to delete task')
     }
   }
 
   const handleEdit = (task: Task) => {
-    logger.ui.info('Task edit modal opened', {
-      taskId: task.id,
-      taskName: task.name,
-    })
+    logger.ui.info('Task edit modal opened', {})
+
     setSelectedTask(task)
     setEditModalVisible(true)
   }
@@ -186,12 +185,8 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onBlur={() => setEditingCell(null)}
               onChange={(newValue) => {
                 if (newValue !== value) {
-                  logger.ui.info('Task importance updated inline', {
-                    taskId: record.id,
-                    taskName: record.name,
-                    oldValue: value,
-                    newValue,
-                  })
+                  logger.ui.info('Task importance updated inline', {})
+
                   updateTask(record.id, { importance: newValue })
                 }
                 setEditingCell(null)
@@ -235,12 +230,8 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onBlur={() => setEditingCell(null)}
               onChange={(newValue) => {
                 if (newValue !== value) {
-                  logger.ui.info('Task urgency updated inline', {
-                    taskId: record.id,
-                    taskName: record.name,
-                    oldValue: value,
-                    newValue,
-                  })
+                  logger.ui.info('Task urgency updated inline', {})
+
                   updateTask(record.id, { urgency: newValue })
                 }
                 setEditingCell(null)
@@ -285,12 +276,8 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               onBlur={() => setEditingCell(null)}
               onChange={(newValue) => {
                 if (newValue !== displayValue) {
-                  logger.ui.info('Task cognitive complexity updated inline', {
-                    taskId: record.id,
-                    taskName: record.name,
-                    oldValue: displayValue,
-                    newValue,
-                  })
+                  logger.ui.info('Task cognitive complexity updated inline', {})
+
                   updateTask(record.id, { cognitiveComplexity: newValue })
                 }
                 setEditingCell(null)

@@ -4,7 +4,7 @@ import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, I
 import { TaskType, AIProcessingMode } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { deleteWorkflow, deleteTask, deleteStep } from '../../utils/brainstorm-utils'
 
 
@@ -64,7 +64,7 @@ function toTaskType(type: string): TaskType {
 
   // Log warning for invalid types and default to personal
   // (things like "routine", "relaxation" are more personal than work)
-  logger.ai.warn(`Invalid task type "${type}" received from AI, defaulting to "personal"`)
+  logger.ui.warn(`Invalid task type "${type}" received from AI, defaulting to "personal"`)
   return TaskType.Personal
 }
 
@@ -162,8 +162,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         stream.getTracks().forEach(track => track.stop())
       }
 
-      mediaRecorder.onerror = (event) => {
-        logger.ai.error('Context MediaRecorder error:', event)
+      mediaRecorder.onerror = (_event) => {
+        logger.ui.error('Context MediaRecorder error', {}, 'context-mediarecorder-error')
         setError('Context recording error occurred')
         setContextRecordingState('idle')
       }
@@ -173,7 +173,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setError(null)
       setContextRecordingState('recording')
     } catch (error) {
-      logger.ai.error('Error starting context recording:', error)
+      logger.ui.error('Error starting context recording', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'context-recording-start-error')
       setError('Failed to access microphone. Please check your permissions.')
       setContextRecordingState('idle')
     }
@@ -195,7 +197,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           setJobContext(activeContext.context)
         }
       } catch (error) {
-        logger.ai.error('Error loading job context:', error)
+        logger.ui.error('Error loading job context', {
+          error: error instanceof Error ? error.message : String(error),
+        }, 'job-context-load-error')
       }
     }
 
@@ -204,7 +208,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         const dictionary = await getDatabase().getJargonDictionary()
         setJargonDictionary(dictionary)
       } catch (error) {
-        logger.ai.error('Error loading jargon dictionary:', error)
+        logger.ui.error('Error loading jargon dictionary', {
+          error: error instanceof Error ? error.message : String(error),
+        }, 'jargon-dictionary-load-error')
       }
     }
 
@@ -279,7 +285,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
           mediaRecorderRef.current.stop()
           mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
         } catch (error) {
-          logger.ai.error('Error cleaning up recording:', error)
+          logger.ui.error('Error cleaning up recording', {
+            error: error instanceof Error ? error.message : String(error),
+          }, 'recording-cleanup-error')
         }
       }
     }
@@ -330,8 +338,8 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
         stream.getTracks().forEach(track => track.stop())
       }
 
-      mediaRecorder.onerror = (event) => {
-        logger.ai.error('MediaRecorder error:', event)
+      mediaRecorder.onerror = (_event) => {
+        logger.ui.error('MediaRecorder error', {}, 'mediarecorder-error')
         setError('Recording error occurred')
         setRecordingState('idle')
       }
@@ -343,7 +351,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setError(null)
       setRecordingState('recording')
     } catch (error) {
-      logger.ai.error('Error starting recording:', error)
+      logger.ui.error('Error starting recording', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'recording-start-error')
       setError('Failed to access microphone. Please check your permissions.')
       setRecordingState('idle')
     }
@@ -367,7 +377,7 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
     setIsTranscribing(true)
     try {
       // Log audio blob details for debugging
-      logger.ai.debug('Transcribing audio:', {
+      logger.ui.debug('Transcribing audio', {
         filename,
         size: audioBlob.size,
         type: audioBlob.type,
@@ -386,9 +396,10 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       setBrainstormText(prev => prev + (prev ? ' ' : '') + result.text)
       setError(null)
-      logger.ai.debug('Transcription successful, text length:', result.text.length)
     } catch (error) {
-      logger.ai.error('Error transcribing audio:', error)
+      logger.ui.error('Error transcribing audio', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'transcription-error')
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setError(`Failed to transcribe audio: ${errorMessage}`)
     } finally {
@@ -423,7 +434,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
       setUploadedAudioFile(file)
       Message.success(`Successfully processed ${file.name}`)
     } catch (error) {
-      logger.ai.error('Error processing uploaded audio:', error)
+      logger.ui.error('Error processing uploaded audio', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'uploaded-audio-error')
       const errorMessage = error instanceof Error ? error.message : 'Failed to process uploaded audio file.'
       setError(errorMessage)
       Message.error(errorMessage)
@@ -474,7 +487,9 @@ export function BrainstormModal({ visible, onClose, onTasksExtracted, onWorkflow
 
       Message.success(`Successfully processed context from ${file.name}`)
     } catch (error) {
-      logger.ai.error('Error processing context audio:', error)
+      logger.ui.error('Error processing context audio', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'context-audio-error')
       const errorMessage = error instanceof Error ? error.message : 'Failed to process context audio file.'
       setError(errorMessage)
       Message.error(errorMessage)
@@ -522,10 +537,14 @@ Only include terms that are likely industry-specific or technical jargon, not co
           }
         }
       } catch (parseError) {
-        logger.ai.error('Failed to parse jargon terms:', parseError)
+        logger.ui.error('Failed to parse jargon terms', {
+          error: parseError instanceof Error ? parseError.message : String(parseError),
+        }, 'jargon-parse-error')
       }
     } catch (error) {
-      logger.ai.error('Error extracting jargon terms:', error)
+      logger.ui.error('Error extracting jargon terms', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'jargon-extract-error')
       // Non-critical error, don't show to user
     }
   }
@@ -553,7 +572,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
         })
       }
     } catch (error) {
-      logger.ai.error('Error saving job context:', error)
+      logger.ui.error('Error saving job context', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'job-context-save-error')
     }
   }
 
@@ -576,7 +597,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
       setNewJargonDefinition('')
       setShowJargonInput(false)
     } catch (error) {
-      logger.ai.error('Error adding jargon entry:', error)
+      logger.ui.error('Error adding jargon entry', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'jargon-entry-add-error')
       setError('Failed to add jargon entry. Term might already exist.')
     }
   }
@@ -634,7 +657,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
         })
       }
     } catch (error) {
-      logger.ai.error('Error processing brainstorm:', error)
+      logger.ui.error('Error processing brainstorm', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'brainstorm-process-error')
       setError('Failed to process brainstorm with AI. Please try again.')
     } finally {
       setIsProcessing(false)
@@ -671,7 +696,6 @@ Only include terms that are likely industry-specific or technical jargon, not co
       return
     }
 
-    logger.ai.info('Starting regeneration of all items with clarifications')
 
     // Collect all items that have clarifications
     const itemsToRegenerate: Array<{type: 'workflow' | 'task', index: number}> = []
@@ -703,7 +727,6 @@ Only include terms that are likely industry-specific or technical jargon, not co
     if (!editableResult) return
 
     const itemKey = `${itemType}-${index}`
-    logger.ai.info(`Starting regeneration of ${itemType} at index ${index}`)
     setRegeneratingItems(prev => new Set(prev).add(itemKey))
 
     try {
@@ -711,7 +734,6 @@ Only include terms that are likely industry-specific or technical jargon, not co
       const clarification = clarifications[`${itemType}-${index}`] || ''
 
       if (!clarification.trim()) {
-        logger.ai.warn(`No clarification provided for ${itemType} at index ${index}`)
         Message.warning('Please provide a clarification before regenerating')
         setRegeneratingItems(prev => {
           const next = new Set(prev)
@@ -721,10 +743,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
         return
       }
 
-      logger.ai.debug(`Regenerating ${itemType} with clarification:`, {
-        itemName: item.name,
-        clarification,
-      })
+        // itemName: item.name,
+        // clarification,
+      // })
 
       // Build prompt with clarification
       const prompt = `Regenerate this ${itemType} with the following clarification:\n\nOriginal: ${JSON.stringify(item)}\n\nClarification: ${clarification}\n\nProvide an improved version addressing the clarification.`
@@ -734,12 +755,11 @@ Only include terms that are likely industry-specific or technical jargon, not co
       const response = await db.extractWorkflowsFromBrainstorm(prompt)
 
       if (response) {
-        logger.ai.debug('Received response from AI:', {
-          hasWorkflows: !!response.workflows,
-          workflowCount: response.workflows?.length,
-          hasStandaloneTasks: !!response.standaloneTasks,
-          taskCount: response.standaloneTasks?.length,
-        })
+          // hasWorkflows: !!response.workflows,
+          // workflowCount: response.workflows?.length,
+          // hasStandaloneTasks: !!response.standaloneTasks,
+          // taskCount: response.standaloneTasks?.length,
+        // })
 
         if (itemType === 'workflow' && response && response.workflows && response.workflows[0]) {
           const updatedWorkflow = {
@@ -747,11 +767,10 @@ Only include terms that are likely industry-specific or technical jargon, not co
             type: toTaskType(response.workflows[0].type as any),
           }
 
-          logger.ai.info('Successfully regenerated workflow:', {
-            oldName: editableResult.workflows![index].name,
-            newName: updatedWorkflow.name,
-            index,
-          })
+            // oldName: editableResult.workflows![index].name,
+            // newName: updatedWorkflow.name,
+            // index,
+          // })
 
           // Create a new object to ensure React detects the change
           const newEditableResult = {
@@ -776,11 +795,10 @@ Only include terms that are likely industry-specific or technical jargon, not co
             type: toTaskType(response.standaloneTasks[0].type as any),
           }
 
-          logger.ai.info('Successfully regenerated task:', {
-            oldName: editableResult.tasks![index].name,
-            newName: updatedTask.name,
-            index,
-          })
+            // oldName: editableResult.tasks![index].name,
+            // newName: updatedTask.name,
+            // index,
+          // })
 
           // Create a new object to ensure React detects the change
           const newEditableResult = {
@@ -800,15 +818,17 @@ Only include terms that are likely industry-specific or technical jargon, not co
 
           Message.success(`Task "${updatedTask.name}" regenerated successfully with clarifications applied`)
         } else {
-          logger.ai.warn(`No ${itemType} found in AI response for regeneration at index ${index}`)
           Message.warning(`Could not regenerate ${itemType}. Please try again with more specific clarifications.`)
         }
       } else {
-        logger.ai.warn(`Empty response from AI for ${itemType} regeneration at index ${index}`)
         Message.warning('No response from AI. Please try again.')
       }
     } catch (error) {
-      logger.ai.error(`Error regenerating ${itemType}:`, error)
+      logger.ui.error('Error regenerating item', {
+        error: error instanceof Error ? error.message : String(error),
+        itemType,
+        index,
+      }, 'item-regenerate-error')
       setError(`Failed to regenerate ${itemType}. Please try again.`)
     } finally {
       setRegeneratingItems(prev => {
@@ -835,7 +855,6 @@ Only include terms that are likely industry-specific or technical jargon, not co
     const newResult = deleteWorkflow(editableResult, index)
     if (newResult) {
       setEditableResult(newResult)
-      logger.ai.info(`Deleted workflow at index ${index}`)
     }
   }
 
@@ -843,7 +862,6 @@ Only include terms that are likely industry-specific or technical jargon, not co
     const newResult = deleteTask(editableResult, index)
     if (newResult) {
       setEditableResult(newResult)
-      logger.ai.info(`Deleted task at index ${index}`)
     }
   }
 
@@ -851,7 +869,6 @@ Only include terms that are likely industry-specific or technical jargon, not co
     const newResult = deleteStep(editableResult, workflowIndex, stepIndex)
     if (newResult) {
       setEditableResult(newResult)
-      logger.ai.info(`Deleted step at index ${stepIndex} from workflow at index ${workflowIndex}`)
     }
   }
 
@@ -1099,7 +1116,9 @@ Only include terms that are likely industry-specific or technical jargon, not co
                               }
                             }
                           } catch (error) {
-                            logger.ai.error('Failed to extract jargon:', error)
+                            logger.ui.error('Failed to extract jargon', {
+                              error: error instanceof Error ? error.message : String(error),
+                            }, 'jargon-auto-extract-error')
                             Message.error('Failed to extract jargon terms')
                           }
                         } else {
@@ -1156,7 +1175,10 @@ Only include terms that are likely industry-specific or technical jargon, not co
                                 try {
                                   await getDatabase().updateJargonDefinition(term, definition)
                                 } catch (error) {
-                                  logger.ai.error('Error updating jargon definition:', error)
+                                  logger.ui.error('Error updating jargon definition', {
+                                    error: error instanceof Error ? error.message : String(error),
+                                    term,
+                                  }, 'jargon-definition-update-error')
                                 }
                               }}
                               style={{ flex: 1 }}

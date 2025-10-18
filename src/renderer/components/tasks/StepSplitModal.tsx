@@ -13,7 +13,8 @@ import {
 } from '@arco-design/web-react'
 import { IconScissor } from '@arco-design/web-react/icon'
 import { Message } from '../common/Message'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
+
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -74,18 +75,18 @@ export function StepSplitModal({
         actualDuration: 0,
       }
 
-      logger.ui.info('Step split successfully', {
-        originalStepId: step.id,
-        newStepId: step2.id,
-        splitRatio,
-      })
+      logger.ui.info('Step split successfully', {})
 
       Message.success('Step split successfully')
       onSplit(step1, step2)
       form.resetFields()
       onClose()
     } catch (error) {
-      logger.ui.error('Failed to split step:', error)
+      logger.ui.error('Failed to split step', {
+        error: error instanceof Error ? error.message : String(error),
+        stepId: step.id,
+        stepName: step.name,
+      }, 'step-split-error')
       Message.error('Failed to split step')
     } finally {
       setLoading(false)

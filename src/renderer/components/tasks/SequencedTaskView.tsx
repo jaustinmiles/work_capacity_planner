@@ -9,7 +9,7 @@ import { WorkflowVisualization } from './WorkflowVisualization'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { WorkflowMinimap } from './WorkflowMinimap'
 import { getDatabase } from '../../services/database'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { useTaskStore } from '../../store/useTaskStore'
 
 
@@ -82,7 +82,10 @@ export function SequencedTaskView({
 
         setStepTimeLogs(timeLogs)
       } catch (error) {
-        logger.ui.error('Failed to fetch step time logs:', error)
+        logger.ui.error('Failed to fetch step time logs', {
+          error: error instanceof Error ? error.message : String(error),
+          taskId: task.id,
+        }, 'step-timelogs-fetch-error')
       }
     }
 
@@ -144,7 +147,11 @@ export function SequencedTaskView({
       const { loadTasks } = useTaskStore.getState()
       await loadTasks()
     } catch (error) {
-      logger.ui.error('Failed to toggle archive status:', error)
+      logger.ui.error('Failed to toggle archive status', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: task.id,
+        taskName: task.name,
+      }, 'archive-toggle-error')
     }
   }
 

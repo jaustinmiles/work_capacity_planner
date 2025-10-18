@@ -3,6 +3,7 @@ import { TaskType } from '@shared/enums'
 import { Card, Space, Typography, Tag, Empty, Timeline, Badge } from '@arco-design/web-react'
 import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar, IconMoon } from '@arco-design/web-react/icon'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { logger } from '@/logger'
 
 // UI representation of a scheduled item - different from the adapter's ScheduledItem
 // which wraps a Task object. This is a flattened structure for UI components.
@@ -23,7 +24,6 @@ interface ScheduledItem {
 }
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
 
 
 const { Title, Text } = Typography
@@ -58,7 +58,10 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
         setMeetings(pattern.meetings || [])
       }
     } catch (error) {
-      logger.ui.error('Failed to load work pattern:', error)
+      logger.ui.error('Failed to load work pattern', {
+        error: error instanceof Error ? error.message : String(error),
+        date,
+      }, 'work-pattern-load-error')
     }
   }
 

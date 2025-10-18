@@ -39,7 +39,7 @@ import { DependencyEditor } from '../shared/DependencyEditor'
 import { Message } from '../common/Message'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 
 const { Title, Text } = Typography
 const { TextArea } = Input
@@ -98,7 +98,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
         }
       }
     } catch (error) {
-      logger.ui.error('Failed to load task steps:', error)
+      logger.ui.error('Failed to load task steps', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: sequencedTask?.id,
+      }, 'steps-load-error')
       Message.error('Failed to load workflow steps')
     }
   }
@@ -110,7 +113,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
         taskId: task.id,
         isWorkflow: isWorkflow,
         stepCount: steps.length,
-      })
+      }, 'task-save-start')
 
       if (isWorkflow && sequencedTask) {
         // COPIED working save logic for workflows
@@ -145,13 +148,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           ? (editedTask.deadline instanceof Date ? editedTask.deadline : new Date(editedTask.deadline))
           : null
 
-        logger.ui.info('Saving workflow with deadline', {
+        logger.db.debug('Saving workflow with deadline', {
           workflowId: task.id,
-          deadlineValue: editedTask.deadline,
-          deadlineType: typeof editedTask.deadline,
-          deadlineForSave: deadlineForSave,
           deadlineISO: deadlineForSave ? deadlineForSave.toISOString() : 'null',
-        })
+        }, 'workflow-deadline-save')
 
         await updateSequencedTask(task.id, {
           name: editedTask.name,
@@ -168,19 +168,28 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
         // Emit workflow updated event
         appEvents.emit(EVENTS.WORKFLOW_UPDATED)
-        logger.ui.info('Workflow saved successfully', { workflowId: task.id, stepCount: cleanedSteps.length })
+        logger.db.info('Workflow saved successfully', {
+          workflowId: task.id,
+          stepCount: cleanedSteps.length,
+        }, 'workflow-save-success')
       } else {
         // Regular task save
         await updateTask(task.id, editedTask)
         appEvents.emit(EVENTS.TASK_UPDATED, { taskId: task.id })
-        logger.ui.info('Task saved successfully', { taskId: task.id })
+        logger.db.info('Task saved successfully', {
+          taskId: task.id,
+        }, 'task-save-success')
       }
 
       Message.success(isWorkflow ? 'Workflow updated successfully' : 'Task updated successfully')
       setIsEditing(false)
       onClose?.()
     } catch (error) {
-      logger.ui.error('Failed to save task:', error)
+      logger.db.error('Failed to save task', {
+        error: error instanceof Error ? error.message : String(error),
+        taskId: task.id,
+        isWorkflow,
+      }, 'task-save-error')
       Message.error('Failed to save changes')
     } finally {
       setIsSaving(false)
@@ -212,7 +221,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
         stepId: editingStep.id,
         stepName: values.name,
         isNewStep: editingStep.id === 'new',
-      })
+      }, 'step-save-start')
 
       const updatedStep = {
         ...editingStep,
@@ -233,11 +242,17 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           actualDuration: 0,
         }
         updatedSteps = [...steps, newStep]
-        logger.ui.info('Added new step', { stepId: newStep.id, stepName: newStep.name })
+        logger.ui.info('Added new step', {
+          stepId: newStep.id,
+          stepName: newStep.name,
+        }, 'step-add')
       } else {
         // Update existing step
         updatedSteps = steps.map(s => s.id === editingStep.id ? updatedStep : s)
-        logger.ui.info('Updated existing step', { stepId: editingStep.id, stepName: updatedStep.name })
+        logger.ui.info('Updated existing step', {
+          stepId: editingStep.id,
+          stepName: updatedStep.name,
+        }, 'step-update')
       }
 
       // Update local state
@@ -270,7 +285,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
         })
 
         appEvents.emit(EVENTS.WORKFLOW_UPDATED)
-        logger.ui.info('Step saved to database', { workflowId: task.id, totalSteps: cleanedSteps.length })
+        logger.db.info('Step saved to database', {
+          workflowId: task.id,
+          totalSteps: cleanedSteps.length,
+        }, 'step-save-db')
       }
 
       setShowStepModal(false)
@@ -279,7 +297,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
       Message.success('Step saved successfully')
     } catch (error) {
-      logger.ui.error('Failed to save step:', error)
+      logger.ui.error('Failed to save step', {
+        error: error instanceof Error ? error.message : String(error),
+        stepId: editingStep?.id,
+      }, 'step-save-error')
       Message.error('Failed to save step')
     }
   }
@@ -434,11 +455,13 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
               <DatePicker
                 value={editedTask.deadline ? new Date(editedTask.deadline) : undefined}
                 onChange={(value) => {
-                  logger.ui.info('Deadline changed in editor', {
-                    workflowId: task.id,
-                    oldDeadline: editedTask.deadline,
-                    newDeadline: value,
-                  })
+                  const dateValue = value
+                    ? (typeof value === 'string' ? value : (value as Date).toISOString())
+                    : null
+                  logger.ui.debug('Deadline changed', {
+                    taskId: task.id,
+                    newDeadline: dateValue,
+                  }, 'deadline-change')
                   setEditedTask({ ...editedTask, deadline: value } as any)
                 }}
                 style={{ width: '100%' }}
@@ -781,7 +804,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
                 }))}
                 forwardDependencies={editingStep?.dependsOn || []}
                 onForwardDependenciesChange={(value) => {
-                  logger.ui.info('Updating step dependencies:', { stepId: editingStep?.id, dependencies: value })
+                  logger.ui.debug('Step dependencies changed', {
+                    stepId: editingStep?.id,
+                    dependencies: value,
+                  }, 'step-deps-change')
                   if (editingStep) {
                     setEditingStep({ ...editingStep, dependsOn: value })
                   }
