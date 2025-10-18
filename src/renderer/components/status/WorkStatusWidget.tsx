@@ -174,18 +174,22 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   }
 
   const handleStartNextTask = async () => {
-    if (!nextTask) return
-
-    setIsProcessing(true)
     try {
-      // Start logic would go here - for now just log
-      logger.ui.info('Starting next task', { taskId: nextTask.id })
-      Message.success('Task started')
+      setIsProcessing(true)
+
+      await useTaskStore.getState().startNextTask()
+
+      // Show success notification with task name
+      if (nextTask) {
+        Message.success(`Started work on: ${nextTask.title}`)
+      }
+
+      // Don't reload next task here - UI now shows pause button, not next task
     } catch (error) {
-      logger.ui.error('Failed to start task', {
+      logger.ui.error('Failed to start next task', {
         error: error instanceof Error ? error.message : String(error),
       })
-      Message.error('Failed to start task')
+      Message.error('Failed to start work session')
     } finally {
       setIsProcessing(false)
     }
