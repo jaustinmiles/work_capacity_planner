@@ -276,7 +276,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
                   size="small"
                   icon={<IconPlayArrow />}
                   onClick={async () => {
-                    logger.ui.interaction('Start work button clicked', {
+                    logger.ui.info('Start work button clicked', {
                       component: 'TaskItem',
                       taskId: task.id,
                       taskName: task.name,

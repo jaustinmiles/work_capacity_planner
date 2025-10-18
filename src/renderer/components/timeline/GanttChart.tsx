@@ -82,7 +82,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Listen for time override changes
   useEffect(() => {
     const handleTimeChange = () => {
-      logger.ui.info('Time override changed, reloading patterns', {}, 'time-override-change')
+      logger.system.info('Time override changed, reloading patterns', {}, 'time-override-change')
       // CRITICAL: Reload patterns with new time context
       loadWorkPatterns()
       // Clear any saved schedule when time changes
@@ -262,7 +262,52 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Helper function to convert UnifiedScheduler results to GanttChart format
   const convertUnifiedToGanttItems = useCallback((result: ScheduleResult): GanttItem[] => {
-    logger.ui.info('Converting UnifiedScheduler results to Gantt format', {    isWorkflowStep: itemWithMetadata.isWorkflowStep,
+    logger.ui.debug('Converting UnifiedScheduler results to Gantt format', {
+      scheduledCount: result.scheduledTasks.length,
+      unscheduledCount: result.unscheduledTasks.length,
+    }, 'gantt-convert-results')
+
+    return result.scheduledTasks.map((item) => {
+      // Get task color based on type
+      const getTaskColor = (taskType: TaskType): string => {
+        switch (taskType) {
+          case TaskType.Focused: return '#3b82f6'
+          case TaskType.Admin: return '#f59e0b'
+          case TaskType.Personal: return '#10b981'
+          default: return '#6b7280'
+        }
+      }
+
+      // Type-safe check for workflow metadata
+      // Extend ScheduledItem with optional workflow properties
+      interface ScheduledItemWithWorkflow extends ScheduledItem {
+        workflowId?: string
+        workflowName?: string
+        stepIndex?: number
+        isWorkflowStep?: boolean
+      }
+
+      const itemWithMetadata = item as ScheduledItemWithWorkflow
+      const hasWorkflowMetadata = itemWithMetadata.workflowId !== undefined
+
+      const ganttItem: GanttItem = {
+        id: item.task.id,
+        name: item.task.name,
+        type: itemWithMetadata.isWorkflowStep ? 'workflow-step' : 'task',
+        priority: item.priority || 0,
+        duration: item.task.duration,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        color: getTaskColor(item.task.type),
+        deadline: item.task.deadline,
+        originalItem: item.task,
+        blockId: item.blockId,
+        // Add workflow metadata if present
+        ...(hasWorkflowMetadata && {
+          workflowId: itemWithMetadata.workflowId,
+          workflowName: itemWithMetadata.workflowName,
+          stepIndex: itemWithMetadata.stepIndex,
+          isWorkflowStep: itemWithMetadata.isWorkflowStep,
         }),
       }
 
@@ -390,9 +435,89 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Use the scheduler to get properly ordered items
   // Include refreshKey in dependencies to force recalculation when time changes
   const scheduledItems = useMemo(() => {
-    logger.ui.info('Computing schedule', {    priority: item.priority,
-      }))
+    logger.ui.info('Computing schedule', {
+      workPatternsLoading,
+      workPatternsCount: workPatterns.length,
+      tasksCount: tasks.length,
+      sequencedTasksCount: sequencedTasks.length,
+      refreshKey,
+      currentTime: getCurrentTime().toISOString(),
+    }, 'gantt-compute-schedule')
 
+    // Don't try to schedule if patterns are still loading
+    if (workPatternsLoading) {
+      logger.ui.info('Patterns still loading, waiting', {}, 'gantt-patterns-loading')
+      return []
+    }
+
+    if (workPatterns.length === 0) {
+      logger.ui.warn('No work patterns available after loading', {}, 'gantt-no-patterns')
+      return []
+    }
+
+    // Log all tasks with their deadline status
+    const tasksWithDeadlines = tasks.filter(task => task.deadline)
+    const workflowsWithDeadlines = sequencedTasks.filter(workflow => workflow.deadline)
+
+    logger.ui.info('Input data analysis', {
+      totalTasks: tasks.length,
+      tasksWithDeadlines: tasksWithDeadlines.length,
+      totalWorkflows: sequencedTasks.length,
+      workflowsWithDeadlines: workflowsWithDeadlines.length,
+      deadlineTaskNames: tasksWithDeadlines.map(t => ({ name: t.name, deadline: t.deadline })),
+      deadlineWorkflowNames: workflowsWithDeadlines.map(w => ({ name: w.name, deadline: w.deadline })),
+    }, 'gantt-data-analysis')
+
+    // Always use UnifiedScheduler for scheduling - no saved schedules
+
+    // IMPORTANT: Pass all tasks to UnifiedScheduler - it will handle deduplication
+    // The scheduler handles removing any tasks that are also in sequencedTasks
+    logger.ui.info('Using UnifiedScheduler for calculation', {
+      schedulerType: 'unified',
+      tasksCount: tasks.length,
+      sequencedTasksCount: sequencedTasks.length,
+      currentTime: getCurrentTime().toISOString(),
+    }, 'gantt-scheduler-start')
+
+    // Call UnifiedScheduler via hook with proper options
+    const unifiedScheduleResult = scheduleForGantt(tasks, workPatterns, {
+      startDate: getCurrentTime(),
+      allowSplitting: true,
+      respectDeadlines: true,
+      debug: true,
+    }, sequencedTasks)
+
+    // Convert UnifiedScheduler results to GanttChart format
+    const ganttItems = convertUnifiedToGanttItems(unifiedScheduleResult)
+
+    // Use real debug info from UnifiedScheduler if available
+    // Debug info should always be defined (scheduler always generates it)
+    // For now, handle cases where it might be undefined (e.g., hooks/adapters not updated yet)
+    const debugInfo = unifiedScheduleResult.debugInfo
+    if (debugInfo) {
+      setDebugInfo(debugInfo)
+
+      // Auto-show debug info if there are issues
+      if (debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0) {
+        setShowDebugInfo(true)
+      }
+
+      // Log the Gantt chart data for AI debugging
+      const _viewWindow = {
+        start: ganttItems.length > 0 ? ganttItems[0].startTime : getCurrentTime(),
+        end: ganttItems.length > 0 ?
+          ganttItems[ganttItems.length - 1].endTime :
+          new Date(getCurrentTime().getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days ahead
+      }
+      // Convert GanttItems to ScheduledItem format for logging
+      const _scheduledItems = ganttItems.map(item => ({
+        task: item.originalItem as Task,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        blockId: item.blockId,
+        priority: item.priority,
+      }))
+      // LOGGER_REMOVED: logGanttChart(logger.ui, scheduledItems, workPatterns, viewWindow, tasks, sequencedTasks, debugInfo)
 
       // Log final schedule results with deadline analysis
       const finalItemsWithDeadlines = ganttItems.filter(item => item.deadline)
@@ -400,7 +525,18 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         dayjs(item.endTime).isAfter(dayjs(item.deadline)),
       )
 
-      logger.ui.info('UnifiedScheduler calculation complete', {    isWorkflow: !!item.workflowId,
+      logger.ui.info('UnifiedScheduler calculation complete', {
+        totalScheduledItems: ganttItems.length,
+        itemsWithDeadlines: finalItemsWithDeadlines.length,
+        violatedDeadlines: violatedDeadlines.length,
+        unscheduledItems: debugInfo.unscheduledItems.length,
+        warnings: debugInfo.warnings.length,
+        violationDetails: violatedDeadlines.map(item => ({
+          name: item.name,
+          deadline: dayjs(item.deadline).format('YYYY-MM-DD HH:mm'),
+          actualEnd: dayjs(item.endTime).format('YYYY-MM-DD HH:mm'),
+          delayMinutes: dayjs(item.endTime).diff(dayjs(item.deadline), 'minutes'),
+          isWorkflow: !!item.workflowId,
         })),
       }, 'gantt-schedule-complete')
     }
@@ -408,7 +544,226 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     // Add meeting items from work patterns
     const meetingItems = getMeetingScheduledItems(workPatterns)
 
-    logger.ui.info('Merging UnifiedScheduler results with meetings', {    type: workflow.type,
+    logger.ui.info('Merging UnifiedScheduler results with meetings', {
+      taskItems: ganttItems.length,
+      meetingItems: meetingItems.length,
+      totalItems: ganttItems.length + meetingItems.length,
+    }, 'gantt-merge-meetings')
+
+    // Combine task items and meeting items
+    const allItems = [...meetingItems, ...ganttItems]
+
+    return allItems
+  }, [tasks, sequencedTasks, workPatterns, workPatternsLoading, refreshKey, scheduleForGantt, convertUnifiedToGanttItems, getMeetingScheduledItems])
+
+  // Calculate chart dimensions
+  const now = getCurrentTime()
+
+  // Start at beginning of current day (or first scheduled item if earlier)
+  const todayStart = new Date(now)
+  todayStart.setHours(0, 0, 0, 0)
+
+  const chartStartTime = scheduledItems.length > 0
+    ? new Date(Math.min(scheduledItems[0].startTime.getTime(), todayStart.getTime()))
+    : todayStart
+
+  // Calculate end time based on work patterns AND scheduled items
+  // Always show at least 7 days ahead or to the last work pattern
+  const sevenDaysFromNow = new Date(now)
+  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
+
+  // Find the last work pattern date
+  const lastPatternDate = workPatterns.length > 0
+    ? new Date(workPatterns[workPatterns.length - 1].date + 'T23:59:59')
+    : sevenDaysFromNow
+
+  // Use the latest of: last scheduled item, 7 days from now, or last work pattern
+  const minimumEndTime = new Date(Math.max(sevenDaysFromNow.getTime(), lastPatternDate.getTime()))
+
+  const chartEndTime = scheduledItems.length > 0
+    ? new Date(Math.max(...scheduledItems.map((item: any) => item.endTime.getTime()), minimumEndTime.getTime()))
+    : minimumEndTime
+
+  const totalDuration = chartEndTime.getTime() - chartStartTime.getTime()
+  const totalHours = totalDuration / (1000 * 60 * 60)
+  const totalDays = Math.ceil(totalHours / 8) // Assuming 8-hour workdays
+
+  // Calculate chart width based on pixelsPerHour
+  const chartWidthPx = totalHours * pixelsPerHour
+  const minBlockWidth = 60 // Minimum width for a block in pixels
+
+  // Calculate time markers
+  const timeMarkers = useMemo(() => {
+    const markers: Date[] = []
+    const markerTime = new Date(chartStartTime)
+    markerTime.setMinutes(0, 0, 0)
+
+    while (markerTime <= chartEndTime) {
+      markers.push(new Date(markerTime))
+      markerTime.setHours(markerTime.getHours() + 1)
+    }
+    return markers
+  }, [chartStartTime, chartEndTime])
+
+  // Calculate day boundaries for visual separation
+  const dayBoundaries = useMemo(() => {
+    const boundaries: Date[] = []
+    const dayTime = new Date(chartStartTime)
+    dayTime.setHours(0, 0, 0, 0)
+
+    while (dayTime <= chartEndTime) {
+      boundaries.push(new Date(dayTime))
+      dayTime.setDate(dayTime.getDate() + 1)
+    }
+    return boundaries
+  }, [chartStartTime, chartEndTime])
+
+  const getPositionPx = (date: Date) => {
+    const offsetHours = (date.getTime() - chartStartTime.getTime()) / (1000 * 60 * 60)
+    return offsetHours * pixelsPerHour
+  }
+
+  const getDurationPx = (minutes: number) => {
+    const hours = minutes / 60
+    return Math.max(hours * pixelsPerHour, minBlockWidth)
+  }
+
+  // Snap to current time
+  const handleSnapToNow = useCallback(() => {
+    if (!chartContainerRef.current) return
+
+    const now = getCurrentTime()
+    const nowPosition = getPositionPx(now)
+    const containerWidth = chartContainerRef.current.clientWidth
+
+    // Center the current time in the viewport
+    const scrollPosition = nowPosition - containerWidth / 2
+    chartContainerRef.current.scrollLeft = Math.max(0, scrollPosition)
+  }, [chartStartTime, pixelsPerHour])
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  }
+
+  const getPriorityLabel = (priority: number) => {
+    if (priority >= 64) return 'Critical'
+    if (priority >= 49) return 'High'
+    if (priority >= 36) return 'Medium'
+    return 'Low'
+  }
+
+  const getPriorityColor = (priority: number) => {
+    if (priority >= 64) return '#FF4D4F'
+    if (priority >= 49) return '#FF7A45'
+    if (priority >= 36) return '#FAAD14'
+    return '#52C41A'
+  }
+
+  // Row height based on zoom
+  const rowHeight = 40
+
+  // Calculate row positions for items (group workflow steps together) and meeting time
+  const itemRowPositions = useMemo(() => {
+    const positions = new Map<string, number>()
+    let currentRow = 0
+    const workflowRows = new Map<string, number>()
+    const workflowProgress = new Map<string, { completed: number, total: number }>()
+    let totalMeetingMinutes = 0
+    const unscheduledTasks: Array<{ id: string, name: string, type?: string }> = []
+
+    // Separate items by type
+    const blockedItems = scheduledItems.filter((item: any) => item.isBlocked)
+    const taskItems = scheduledItems.filter((item: any) => !item.isBlocked && !item.isWaitTime)
+    const waitItems = scheduledItems.filter((item: any) => item.isWaitTime)
+
+    // First pass: calculate workflow progress and meeting time
+    scheduledItems.forEach((item: any) => {
+      if (item.workflowId && item.type === 'workflow-step' && !item.isWaitTime) {
+        if (!workflowProgress.has(item.workflowId)) {
+          workflowProgress.set(item.workflowId, { completed: 0, total: 0 })
+        }
+        const progress = workflowProgress.get(item.workflowId)!
+        progress.total++
+        if (item.originalItem && 'status' in item.originalItem && item.originalItem.status === 'completed') {
+          progress.completed++
+        }
+      }
+
+      // Calculate meeting time
+      if (item.isBlocked && item.type === 'meeting' && item.startTime && item.endTime) {
+        const duration = (item.endTime.getTime() - item.startTime.getTime()) / (1000 * 60)
+        totalMeetingMinutes += duration
+      }
+    })
+
+    // Second pass: assign positions to blocked items first (meetings, breaks, etc.)
+    // Put all blocked items on the same row (row 0) since they don't overlap with tasks
+    if (blockedItems.length > 0) {
+      blockedItems.forEach((item: any) => {
+        positions.set(item.id, currentRow)
+      })
+      currentRow++
+    }
+
+    // Third pass: assign positions to tasks and workflows
+    taskItems.forEach((item: any) => {
+      if (item.workflowId) {
+        // This is a workflow step
+        if (!workflowRows.has(item.workflowId)) {
+          workflowRows.set(item.workflowId, currentRow)
+          currentRow++
+        }
+        positions.set(item.id, workflowRows.get(item.workflowId)!)
+      } else {
+        // This is a standalone task
+        positions.set(item.id, currentRow)
+        currentRow++
+      }
+    })
+
+    // Fourth pass: assign wait times to same row as their parent workflow
+    waitItems.forEach((item: any) => {
+      // For workflow async waits, use the workflow row
+      if (item.workflowId && workflowRows.has(item.workflowId)) {
+        positions.set(item.id, workflowRows.get(item.workflowId)!)
+      } else {
+        // Fallback: try to find parent by removing '-wait' suffix
+        const parentId = item.id.replace('-wait', '')
+        const parentPosition = positions.get(parentId)
+        if (parentPosition !== undefined) {
+          positions.set(item.id, parentPosition)
+        } else {
+          // If we can't find parent, put it on its own row
+          positions.set(item.id, currentRow)
+          currentRow++
+        }
+      }
+    })
+
+    // Fifth pass: add unscheduled tasks to display (they don't have scheduled times but need rows)
+    // Check which tasks were not scheduled
+    const scheduledTaskIds = new Set(scheduledItems.map((item: any) => item.id))
+    tasks.forEach(task => {
+      if (!scheduledTaskIds.has(task.id) && !task.completed) {
+        unscheduledTasks.push({ id: task.id, name: task.name, type: task.type })
+        positions.set(task.id, currentRow)
+        currentRow++
+      }
+    })
+
+    // Also check unscheduled workflow steps
+    sequencedTasks.forEach(workflow => {
+      if (workflow.overallStatus !== 'completed') {
+        workflow.steps?.forEach(step => {
+          if (step.status !== 'completed' && !scheduledTaskIds.has(step.id)) {
+            unscheduledTasks.push({
+              id: step.id,
+              name: `[${workflow.name}] ${step.name}`,
+              type: workflow.type,
             })
             if (!workflowRows.has(workflow.id)) {
               workflowRows.set(workflow.id, currentRow)
@@ -892,7 +1247,431 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   setRefreshKey(prev => prev + 1) // Force refresh to respect new deadline
                   Message.info('Schedule updated to respect the new deadline')
                 } catch (error) {
-                  logger.ui.info('Failed to set deadline', {    y: e.clientY - rect.top,
+                  logger.db.error('Failed to set deadline', {
+                    error: error instanceof Error ? error.message : String(error),
+                    itemId: draggedItem?.taskId || draggedItem?.workflowId,
+                  }, 'deadline-set-error')
+                  Message.error('Failed to set deadline')
+                } finally {
+                  setDraggedItem(null)
+                  setDropTarget(null)
+                }
+              }}
+            >
+              {/* Row labels and backgrounds */}
+              <div style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: '100%',
+                zIndex: 1,
+              }}>
+                {Array.from({ length: itemRowPositions.totalRows }).map((_, rowIndex) => {
+                  // Find what's in this row
+                  const rowItems = scheduledItems.filter(item =>
+                    itemRowPositions.positions.get(item.id) === rowIndex,
+                  )
+                  const unscheduledInRow = itemRowPositions.unscheduledTasks.find(t =>
+                    itemRowPositions.positions.get(t.id) === rowIndex,
+                  )
+                  const firstItem = rowItems[0]
+                  const isWorkflowRow = firstItem?.workflowId
+                  const isBlockedRow = rowIndex === 0 && rowItems.some(item => item.isBlocked)
+                  const isUnscheduledRow = !firstItem && unscheduledInRow
+                  const rowLabel = isBlockedRow
+                    ? 'Meetings & Blocked Time'
+                    : isWorkflowRow
+                    ? firstItem.workflowName
+                    : isUnscheduledRow
+                    ? `${unscheduledInRow.name} (Unscheduled${unscheduledInRow.type === TaskType.Personal ? ' - Personal' : ''})`
+                    : firstItem?.name.replace(/\[.*\]\s*/, '')
+
+                  return (
+                    <div
+                      key={rowIndex}
+                      style={{
+                        position: 'absolute',
+                        top: rowIndex * rowHeight,
+                        height: rowHeight,
+                        width: '100%',
+                        background: rowIndex % 2 === 0 ? 'transparent' : '#fafafa',
+                        borderBottom: isWorkflowRow ? '2px solid #e5e5e5' : '1px solid #f0f0f0',
+                      }}
+                    >
+                      {rowLabel && (
+                        <div
+                          style={{
+                            position: 'sticky',
+                            left: 0,
+                            background: isBlockedRow ? '#fff0f0' : isWorkflowRow ? '#f0f0ff' : '#f5f5f5',
+                            padding: '8px 12px',
+                            fontSize: 12,
+                            fontWeight: isBlockedRow || isWorkflowRow ? 600 : 400,
+                            color: isBlockedRow ? '#ff4d4f' : isWorkflowRow ? '#5865f2' : '#666',
+                            borderRight: '2px solid #d0d0d0',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            width: 180,
+                            minWidth: 180,
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            zIndex: 20,
+                            boxShadow: '2px 0 4px rgba(0,0,0,0.1)',
+                          }}
+                        >
+                          {isBlockedRow && (
+                            <>
+                              <span style={{ marginRight: 6 }}>📅</span>
+                              <span style={{ flex: 1 }}>{rowLabel}</span>
+                              <span style={{
+                                marginLeft: 8,
+                                fontSize: 11,
+                                color: '#999',
+                                backgroundColor: 'rgba(0,0,0,0.05)',
+                                padding: '2px 6px',
+                                borderRadius: 10,
+                              }}>
+                                {rowItems.length} items
+                              </span>
+                            </>
+                          )}
+                          {!isBlockedRow && isWorkflowRow && (
+                            <>
+                              <span style={{ marginRight: 6 }}>🔄</span>
+                              <span style={{ flex: 1 }}>{rowLabel}</span>
+                              {firstItem.workflowId && itemRowPositions.workflowProgress.has(firstItem.workflowId) && (
+                                <span style={{
+                                  marginLeft: 8,
+                                  fontSize: 11,
+                                  color: '#999',
+                                  backgroundColor: 'rgba(0,0,0,0.05)',
+                                  padding: '2px 6px',
+                                  borderRadius: 10,
+                                }}>
+                                  {itemRowPositions.workflowProgress.get(firstItem.workflowId!)!.completed}/
+                                  {itemRowPositions.workflowProgress.get(firstItem.workflowId!)!.total}
+                                </span>
+                              )}
+                            </>
+                          )}
+                          {!isBlockedRow && !isWorkflowRow && rowLabel}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              {/* Drop target indicator */}
+              {dropTarget && draggedItem && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${getPositionPx(dropTarget.time)}px`,
+                    top: dropTarget.row * rowHeight + 5,
+                    width: `${getDurationPx(draggedItem.duration)}px`,
+                    height: rowHeight - 10,
+                    background: 'rgba(51, 112, 255, 0.2)',
+                    border: '2px dashed #3370ff',
+                    borderRadius: 4,
+                    pointerEvents: 'none',
+                    zIndex: 100,
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: 11,
+                      color: '#3370ff',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Set deadline: {dayjs(dropTarget.time).format('MMM D, h:mm A')}
+                  </div>
+                </div>
+              )}
+
+              {/* Grid lines */}
+              {timeMarkers
+                .filter(time => {
+                  const hourInterval = pixelsPerHour >= 60 ? 1 : 2
+                  return time.getHours() % hourInterval === 0
+                })
+                .map((time) => (
+                  <div
+                    key={time.getTime()}
+                    style={{
+                      position: 'absolute',
+                      left: `${getPositionPx(time)}px`,
+                      top: 0,
+                      bottom: 0,
+                      width: 1,
+                      background: '#f0f0f0',
+                      zIndex: 0,
+                    }}
+                  />
+                ))
+              }
+
+              {/* Day separators */}
+              {dayBoundaries.slice(1).map((day) => (
+                <div
+                  key={`sep-${day.getTime()}`}
+                  style={{
+                    position: 'absolute',
+                    left: `${getPositionPx(day)}px`,
+                    top: 0,
+                    bottom: 0,
+                    width: 2,
+                    background: '#e0e0e0',
+                    zIndex: 1,
+                  }}
+                />
+              ))}
+
+              {/* Current time indicator */}
+              {getCurrentTime() >= chartStartTime && getCurrentTime() <= chartEndTime && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${getPositionPx(getCurrentTime())}px`,
+                    top: 0,
+                    bottom: 0,
+                    width: 2,
+                    background: '#ff4d4f',
+                    zIndex: 5,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -10,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: '#ff4d4f',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Now
+                  </div>
+                </div>
+              )}
+
+              {/* Dependency arrows - render before bars so they appear behind */}
+              <svg
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }}
+              >
+                {scheduledItems.map((item) => {
+                  if (!item.originalItem || !('dependsOn' in item.originalItem) || !item.originalItem.dependsOn) {
+                    return null
+                  }
+
+                  const dependencies = item.originalItem.dependsOn as string[]
+
+                  return dependencies.map((depId) => {
+                    // Find the dependent item
+                    const dependentItem = scheduledItems.find(si =>
+                      si.originalItem && 'id' in si.originalItem && si.originalItem.id === depId,
+                    )
+
+                    if (!dependentItem || !itemRowPositions.positions.has(dependentItem.id) || !itemRowPositions.positions.has(item.id)) {
+                      return null
+                    }
+
+                    const fromX = getPositionPx(dependentItem.endTime)
+                    const fromY = (itemRowPositions.positions.get(dependentItem.id) || 0) * rowHeight + rowHeight / 2
+                    const toX = getPositionPx(item.startTime)
+                    const toY = (itemRowPositions.positions.get(item.id) || 0) * rowHeight + rowHeight / 2
+
+                    // Calculate control points for a nice curve
+                    const midX = (fromX + toX) / 2
+                    const ctrlX1 = midX
+                    const ctrlX2 = midX
+
+                    return (
+                      <g key={`${dependentItem.id}-${item.id}`}>
+                        {/* Arrow path */}
+                        <path
+                          d={`M ${fromX} ${fromY} C ${ctrlX1} ${fromY}, ${ctrlX2} ${toY}, ${toX} ${toY}`}
+                          stroke={item.color}
+                          strokeWidth="2"
+                          fill="none"
+                          strokeDasharray={item.isWaitTime ? '5,5' : 'none'}
+                          opacity={0.6}
+                        />
+                        {/* Arrow head */}
+                        {!item.isWaitTime && (
+                          <polygon
+                            points={`${toX},${toY} ${toX - 8},${toY - 4} ${toX - 8},${toY + 4}`}
+                            fill={item.color}
+                            opacity={0.8}
+                          />
+                        )}
+                      </g>
+                    )
+                  })
+                })}
+              </svg>
+
+              {/* Empty state message */}
+              {!hasScheduledItems && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    textAlign: 'center',
+                    zIndex: 10,
+                  }}
+                >
+                  <Empty
+                    description={
+                      <Space direction="vertical" align="center">
+                        <Text>No scheduled items to display</Text>
+                        {workPatterns.length === 0 ? (
+                          <>
+                            <Text type="secondary">You need to set up your work schedule first</Text>
+                            <Button
+                              type="primary"
+                              icon={<IconSettings />}
+                              onClick={() => {
+                                setSelectedDate(dayjs().format('YYYY-MM-DD'))
+                                setShowSettings(true)
+                              }}
+                            >
+                              Create Work Schedule
+                            </Button>
+                          </>
+                        ) : (
+                          <Text type="secondary">Add some tasks or workflows to see them scheduled</Text>
+                        )}
+                      </Space>
+                    }
+                  />
+                </div>
+              )}
+
+              {/* Gantt bars */}
+              {scheduledItems.map((item, index) => {
+                const leftPx = getPositionPx(item.startTime)
+                const widthPx = getDurationPx(item.duration)
+                const isWaitTime = item.isWaitTime
+                const isBlocked = item.isBlocked
+                const isSleep = item.type === 'blocked-time' &&
+                  item.originalItem && 'name' in item.originalItem && item.originalItem.name === 'Sleep'
+                const isHovered = hoveredItem === item.id ||
+                  (item.workflowId && hoveredItem?.startsWith(item.workflowId))
+
+                // Check for deadline violation with extensive logging
+                // For workflow steps, inherit deadline from parent workflow ONLY if parent has deadline
+                const parentWorkflow = item.workflowId ? sequencedTasks.find(w => w.id === item.workflowId) : null
+                const effectiveDeadline = item.deadline || (parentWorkflow?.deadline ? parentWorkflow.deadline : null)
+
+                // Commented out to reduce log spam - this was running for EVERY item on EVERY render
+                // logger.ui.debug('🔍 [DEADLINE] Checking deadline for item', {
+                //   itemId: item.id,
+                //   itemName: item.name,
+                //   hasOwnDeadline: !!item.deadline,
+                //   ownDeadline: item.deadline,
+                //   effectiveDeadline: effectiveDeadline,
+                //   endTime: item.endTime,
+                //   isWorkflow: !!item.workflowId,
+                //   workflowName: item.workflowName,
+                //   inheritedFromWorkflow: !item.deadline && !!effectiveDeadline,
+                // })
+
+                const isDeadlineViolated = effectiveDeadline &&
+                  dayjs(item.endTime).isAfter(dayjs(effectiveDeadline))
+
+                if (effectiveDeadline) {
+                  const deadlineDate = dayjs(effectiveDeadline)
+                  const endTimeDate = dayjs(item.endTime)
+                  const delayMinutes = endTimeDate.diff(deadlineDate, 'minutes')
+                  const isInheritedDeadline = !item.deadline && !!effectiveDeadline
+
+                  logger.ui.debug('Item has deadline', {
+                    itemId: item.id,
+                    itemName: item.name,
+                    deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
+                    endTime: endTimeDate.format('YYYY-MM-DD HH:mm'),
+                    isViolated: isDeadlineViolated,
+                    delayMinutes: isDeadlineViolated ? delayMinutes : 0,
+                    delayHours: isDeadlineViolated ? Math.floor(delayMinutes / 60) : 0,
+                    isWorkflow: !!item.workflowId,
+                    workflowName: item.workflowName,
+                    deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
+                  }, 'deadline-check')
+
+                  if (isDeadlineViolated) {
+                    logger.ui.warn('Deadline violation detected', {
+                      itemId: item.id,
+                      itemName: item.name,
+                      deadline: deadlineDate.format('YYYY-MM-DD HH:mm:ss'),
+                      actualEnd: endTimeDate.format('YYYY-MM-DD HH:mm:ss'),
+                      delayMinutes,
+                      delayHours: Math.floor(delayMinutes / 60),
+                      delayText: delayMinutes >= 60
+                        ? `${Math.floor(delayMinutes / 60)}h ${delayMinutes % 60}m`
+                        : `${delayMinutes}m`,
+                      isWorkflow: !!item.workflowId,
+                      workflowName: item.workflowName,
+                      deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
+                      violationType: item.workflowId
+                        ? (isInheritedDeadline ? 'WORKFLOW_STEP_DEADLINE' : 'WORKFLOW_DEADLINE')
+                        : 'TASK_DEADLINE',
+                    }, 'deadline-violation')
+                  } else {
+                    logger.ui.trace('Deadline on time', {
+                      itemId: item.id,
+                      itemName: item.name,
+                      deadline: deadlineDate.format('YYYY-MM-DD HH:mm'),
+                      endTime: endTimeDate.format('YYYY-MM-DD HH:mm'),
+                      marginMinutes: deadlineDate.diff(endTimeDate, 'minutes'),
+                      deadlineSource: isInheritedDeadline ? 'INHERITED_FROM_WORKFLOW' : 'DIRECT_DEADLINE',
+                    }, 'deadline-ok')
+                  }
+                }
+
+                // Calculate proper position for all items including blocked ones
+                const topPosition = (itemRowPositions.positions.get(item.id) || 0) * rowHeight + 5
+
+                return (
+                  <div
+                    key={`${item.id}-${index}`}
+                    draggable={!isWaitTime && !isBlocked}
+                    style={{
+                      position: 'absolute',
+                      top: topPosition,
+                      height: rowHeight - 10,
+                      left: `${leftPx}px`,
+                      width: `${widthPx}px`,
+                      cursor: (!isWaitTime && !isBlocked) ? 'move' : 'pointer',
+                      opacity: draggedItem?.id === item.id ? 0.5 : 1,
+                    }}
+                    onMouseEnter={() => setHoveredItem(item.id)}
+                    onMouseLeave={() => setHoveredItem(null)}
+                    onDragStart={(e) => {
+                      if (isWaitTime || isBlocked) return
+
+                      // Calculate offset from mouse to item start
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setDragOffset({
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top,
                       })
 
                       setDraggedItem(item)

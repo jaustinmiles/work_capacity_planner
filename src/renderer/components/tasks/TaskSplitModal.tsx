@@ -91,7 +91,7 @@ export function TaskSplitModal({ task, visible, onClose, onSplit }: TaskSplitMod
       form.resetFields()
       onClose()
     } catch (error) {
-      logger.ui.error('Failed to split task', {})
+      logger.ui.error('Failed to split task', {
         error: error instanceof Error ? error.message : String(error),
         taskId: task.id,
         taskName: task.name,

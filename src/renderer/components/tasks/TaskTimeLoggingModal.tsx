@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Modal, Form, InputNumber, Typography, Space, DatePicker, Input } from '@arco-design/web-react'
 import { Task } from '@shared/types'
-import { useTaskStore } from '../../store/useTaskStore'
 import { appEvents, EVENTS } from '../../utils/events'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
@@ -105,12 +104,12 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
       form.resetFields()
       onClose()
     } catch (error) {
-      logger.ui.error('[WorkLogging] Error logging time:', error, {})
-        // taskId: task.id,
-        // taskName: task.name,
-        // errorMessage: error instanceof Error ? error.message : String(error),
-        // stack: error instanceof Error ? error.stack : undefined,
-      // })
+      logger.ui.error('[WorkLogging] Error logging time:', {
+        taskId: task.id,
+        taskName: task.name,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       Message.error(`Failed to log time: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)

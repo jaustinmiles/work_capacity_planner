@@ -38,7 +38,6 @@ import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 const { Title, Text } = Typography

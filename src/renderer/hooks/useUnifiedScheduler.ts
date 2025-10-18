@@ -32,28 +32,31 @@ export function useUnifiedScheduler(): {
     const startTime = globalThis.performance.now()
 
     // [WorkPatternLifeCycle] START: UnifiedScheduler scheduling tasks
-    logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - START', {})
-    //   tasksCount: tasks.length,
-    //   sequencedTasksCount: sequencedTasks.length,
-    //   workPatternsCount: workPatterns.length,
-    //   patternsWithBlocks: workPatterns.filter(p => p.blocks && p.blocks.length > 0).length,
-    //   totalCapacityMinutes: workPatterns.reduce((sum, p) => {
-    //     return sum + (p.blocks || []).reduce((blockSum: number, b: any) => {
-    //       const capacity = b.capacity || {}
-    //       return blockSum + (capacity.focus || 0) + (capacity.admin || 0)
-    //     }, 0)
-    //   }, 0),
-    //   options: {
-    //     startDate: options.startDate instanceof Date ? options.startDate.toISOString() : options.startDate,
-    //     endDate: options.endDate instanceof Date ? options.endDate.toISOString() : options.endDate,
-    //     respectDeadlines: options.respectDeadlines,
-    //     allowSplitting: options.allowSplitting,
-    //   },
-    //   timestamp: getCurrentTime().toISOString(),
-    //   localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
-    // })
+    logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - START', {
+      tasksCount: tasks.length,
+      sequencedTasksCount: sequencedTasks.length,
+      workPatternsCount: workPatterns.length,
+      patternsWithBlocks: workPatterns.filter(p => p.blocks && p.blocks.length > 0).length,
+      totalCapacityMinutes: workPatterns.reduce((sum, p) => {
+        return sum + (p.blocks || []).reduce((blockSum: number, b: any) => {
+          const capacity = b.capacity || {}
+          return blockSum + (capacity.focus || 0) + (capacity.admin || 0)
+        }, 0)
+      }, 0),
+      options: {
+        startDate: options.startDate instanceof Date ? options.startDate.toISOString() : options.startDate,
+        endDate: options.endDate instanceof Date ? options.endDate.toISOString() : options.endDate,
+        respectDeadlines: options.respectDeadlines,
+        allowSplitting: options.allowSplitting,
+      },
+      timestamp: _getCurrentTime().toISOString(),
+      localTime: _getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
+    })
 
-    logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {})
+    logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {
+      tasksCount: tasks.length,
+      workPatternsCount: workPatterns.length,
+    })
 
     try {
       // Pass currentTime explicitly if startDate is a Date
@@ -66,7 +69,7 @@ export function useUnifiedScheduler(): {
       const duration = globalThis.performance.now() - startTime
 
       // [WorkPatternLifeCycle] COMPLETE: UnifiedScheduler finished scheduling
-      logger.ui.debug('useUnifiedScheduler.scheduleForGantt - COMPLETE', {})
+      logger.ui.debug('useUnifiedScheduler.scheduleForGantt - COMPLETE', {
         scheduledCount: result.scheduledTasks.length,
         unscheduledCount: result.unscheduledTasks.length,
         conflicts: result.conflicts.length,
@@ -75,37 +78,38 @@ export function useUnifiedScheduler(): {
         timestamp: _getCurrentTime().toISOString(),
       }, 'gantt-schedule-complete')
 
-      logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {})
-      //   scheduledCount: result.scheduledTasks.length,
-      //   unscheduledCount: result.unscheduledTasks.length,
-      //   conflicts: result.conflicts.length,
-      //   totalDuration: result.totalDuration,
-      //   performanceMs: Math.round(duration * 100) / 100,
-      // })
+      logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {
+        scheduledCount: result.scheduledTasks.length,
+        unscheduledCount: result.unscheduledTasks.length,
+        conflicts: result.conflicts.length,
+        totalDuration: result.totalDuration,
+        performanceMs: Math.round(duration * 100) / 100,
+      })
 
       // Log debug info if available (from the result we already have)
       if (result.debugInfo) {
-        logger.ui.debug('🔍 [GANTT] Debug Info', {})
-
+        logger.ui.debug('🔍 [GANTT] Debug Info', {
+          debugInfo: result.debugInfo,
+        })
       }
 
       // Log unscheduled tasks for debugging
       if (result.unscheduledTasks.length > 0) {
         // [WorkPatternLifeCycle] Log unscheduled tasks
-        logger.ui.debug('[WorkPatternLifeCycle] useUnifiedScheduler - Unscheduled tasks', {})
-          // count: result.unscheduledTasks.length,
-          // tasks: result.unscheduledTasks.map(task => ({
-            // id: task.id,
-            // name: task.name,
-            // duration: task.duration,
-            // type: task.type,
-            // priority: task.importance * task.urgency,
-          // })),
-          // timestamp: getCurrentTime().toISOString(),
-        // })
+        logger.ui.debug('[WorkPatternLifeCycle] useUnifiedScheduler - Unscheduled tasks', {
+          count: result.unscheduledTasks.length,
+          tasks: result.unscheduledTasks.map(task => ({
+            id: task.id,
+            name: task.name,
+            duration: task.duration,
+            type: task.type,
+            priority: task.importance * task.urgency,
+          })),
+          timestamp: _getCurrentTime().toISOString(),
+        })
 
         result.unscheduledTasks.forEach(task => {
-          logger.ui.debug('Task unscheduled', {})
+          logger.ui.debug('Task unscheduled', {
             taskId: task.id,
             taskName: task.name,
             duration: task.duration,
@@ -119,8 +123,10 @@ export function useUnifiedScheduler(): {
 
       // Log conflicts if any
       if (result.conflicts.length > 0) {
-        logger.ui.warn('🚨 [GANTT] Scheduling conflicts detected', {})
-
+        logger.ui.warn('🚨 [GANTT] Scheduling conflicts detected', {
+          conflictCount: result.conflicts.length,
+          conflicts: result.conflicts,
+        })
       }
 
       return result
@@ -149,20 +155,20 @@ export function useUnifiedScheduler(): {
       const nextTask = adapter.getNextScheduledTask(tasks, workPatterns, options, sequencedTasks)
 
       if (nextTask) {
-        logger.ui.info('📋 [GANTT] Next task identified', {})
-          // taskId: nextTask.task.id,
-          // taskName: nextTask.task.name,
-          // startTime: nextTask.startTime.toISOString(),
-          // endTime: nextTask.endTime.toISOString(),
-          // priority: nextTask.priority,
-        // })
+        logger.ui.info('📋 [GANTT] Next task identified', {
+          taskId: nextTask.task.id,
+          taskName: nextTask.task.name,
+          startTime: nextTask.startTime.toISOString(),
+          endTime: nextTask.endTime.toISOString(),
+          priority: nextTask.priority,
+        })
       } else {
         logger.ui.debug('🔍 [GANTT] No next task found')
       }
 
       return nextTask
     } catch (error) {
-      logger.ui.error('Failed to get next scheduled task', {})
+      logger.ui.error('Failed to get next scheduled task', {
         error: error instanceof Error ? error.message : String(error),
       }, 'gantt-next-task-error')
       return null
@@ -170,13 +176,16 @@ export function useUnifiedScheduler(): {
   }, [adapter])
 
   const validateDependencies = useCallback((tasks: Task[]) => {
-    logger.ui.debug('🔗 [GANTT] Validating task dependencies', {})
+    logger.ui.debug('🔗 [GANTT] Validating task dependencies', {
+      taskCount: tasks.length,
+    })
 
     const validation = adapter.validateDependencies(tasks)
 
     if (!validation.isValid) {
-      logger.ui.warn('⚠️ [GANTT] Dependency validation failed', {})
-
+      logger.ui.warn('⚠️ [GANTT] Dependency validation failed', {
+        errors: validation.errors,
+      })
     } else {
       logger.ui.debug('✅ [GANTT] Dependencies validated successfully')
     }

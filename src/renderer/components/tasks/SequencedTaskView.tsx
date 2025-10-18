@@ -10,7 +10,6 @@ import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { WorkflowMinimap } from './WorkflowMinimap'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 import { useTaskStore } from '../../store/useTaskStore'
 
 

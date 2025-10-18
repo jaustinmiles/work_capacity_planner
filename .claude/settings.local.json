@@ -11,7 +11,9 @@
       "mcp__git__setup_bot_auth",
       "mcp__diagnostic__run_lint",
       "Bash(npx tsc:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "mcp__diagnostic__typecheck",
+      "mcp__diagnostic__run_tests"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

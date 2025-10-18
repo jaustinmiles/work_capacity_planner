@@ -8,7 +8,6 @@ import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 const { TextArea } = Input

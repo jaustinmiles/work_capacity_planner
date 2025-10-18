@@ -1,8 +1,7 @@
 import { Task, Session } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
-import { logger } from '@/logger'
-import { logged, loggedVerbose, LogScope } from '@/logger'
+import { logged, LogScope } from '@/logger'
 
 
 // Type for the Electron API exposed by preload script
@@ -234,20 +233,13 @@ export class RendererDatabaseService {
   private constructor() {
     // Check if we're in an Electron environment
     if (typeof window === 'undefined') {
-      logger.ui.error('Window object not available')
       throw new Error('Window object not available')
     }
 
     // Wait for electronAPI to be available (it might load asynchronously)
     if (!window.electronAPI) {
-      logger.ui.error('Electron API not available', {
-        electronAPI: window.electronAPI,
-        windowKeys: Object.keys(window),
-      })
       throw new Error('Electron API not available. Make sure the preload script is loaded correctly.')
     }
-
-    logger.ui.debug('RendererDatabaseService initialized successfully')
   }
 
   static getInstance(): RendererDatabaseService {
@@ -260,18 +252,10 @@ export class RendererDatabaseService {
   // Session management
   @logged({ scope: LogScope.Database })
   async getSessions(): Promise<Session[]> {
-    const sessions = await window.electronAPI.db.getSessions()
-    logger.db.info('Retrieved sessions from database', {
-      count: sessions.length,
-      sessions: sessions.map(s => ({
-        id: s.id,
-        name: s.name,
-        isActive: s.isActive,
-      })),
-    })
-    return sessions
+    return await window.electronAPI.db.getSessions()
   }
 
+  @logged({ scope: LogScope.Database })
   async createSession(name: string, description?: string): Promise<Session> {
     const session = await window.electronAPI.db.createSession(name, description)
     // Save the newly created session as last used
@@ -279,6 +263,7 @@ export class RendererDatabaseService {
     return session
   }
 
+  @logged({ scope: LogScope.Database })
   async switchSession(sessionId: string): Promise<Session> {
     const session = await window.electronAPI.db.switchSession(sessionId)
     // Save the last used session ID to localStorage
@@ -286,36 +271,25 @@ export class RendererDatabaseService {
     return session
   }
 
+  @logged({ scope: LogScope.Database })
   async updateSession(id: string, updates: { name?: string; description?: string }): Promise<Session> {
     return await window.electronAPI.db.updateSession(id, updates)
   }
 
+  @logged({ scope: LogScope.Database })
   async deleteSession(id: string): Promise<void> {
     return await window.electronAPI.db.deleteSession(id)
   }
 
   @logged({ scope: LogScope.Database })
   async getCurrentSession(): Promise<any> {
-    const session = await window.electronAPI.db.getCurrentSession()
-    if (session) {
-      logger.db.info('Current active session', {
-        id: session.id,
-        name: session.name,
-        isActive: session.isActive,
-      })
-    } else {
-      logger.db.warn('No current session found')
-    }
-    return session
+    return await window.electronAPI.db.getCurrentSession()
   }
 
-  @logged({ scope: LogScope.Database })
   async loadLastUsedSession(): Promise<void> {
-    logger.db.info('Checking for last used session...')
     const lastUsedSessionId = window.localStorage.getItem('lastUsedSessionId')
 
     if (lastUsedSessionId) {
-      logger.db.info('Found stored session ID in localStorage', { sessionId: lastUsedSessionId })
       try {
         // Check if the session still exists
         const sessions = await this.getSessions()
@@ -324,27 +298,11 @@ export class RendererDatabaseService {
         if (session) {
           // Switch to the last used session
           await this.switchSession(lastUsedSessionId)
-          logger.db.info('Successfully loaded last used session', {
-            sessionId: lastUsedSessionId,
-            sessionName: session.name,
-          })
         } else {
           // Session no longer exists, clear the stored ID
-          logger.db.warn('Last used session no longer exists in database', {
-            sessionId: lastUsedSessionId,
-          })
           window.localStorage.removeItem('lastUsedSessionId')
-
-          // Log what sessions ARE available
-          logger.db.info('Available sessions after last used not found', {
-            count: sessions.length,
-            sessions: sessions.map(s => ({ id: s.id, name: s.name })),
-          })
         }
-      } catch (error) {
-        logger.db.error('Failed to load last used session', {
-          error: error instanceof Error ? error.message : String(error),
-        })
+      } catch (_error) {
         window.localStorage.removeItem('lastUsedSessionId')
       }
     }
@@ -355,54 +313,53 @@ export class RendererDatabaseService {
   }
 
   // Task operations
-  @loggedVerbose({
-    scope: LogScope.Database,
-    logArgs: true,
-    logResult: false,  // Don't log all tasks, just the count
-  })
+  @logged({ scope: LogScope.Database })
   async getTasks(includeArchived = false): Promise<Task[]> {
-    const tasks = await window.electronAPI.db.getTasks(includeArchived)
-    return tasks
+    return await window.electronAPI.db.getTasks(includeArchived)
   }
 
-  @loggedVerbose({
-    scope: LogScope.Database,
-    logArgs: true,
-    logResult: true,
-  })
+  @logged({ scope: LogScope.Database })
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
     return await window.electronAPI.db.createTask(taskData)
   }
 
+  @logged({ scope: LogScope.Database })
   async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
     return await window.electronAPI.db.updateTask(id, updates)
   }
 
+  @logged({ scope: LogScope.Database })
   async deleteTask(id: string): Promise<void> {
     return await window.electronAPI.db.deleteTask(id)
   }
 
+  @logged({ scope: LogScope.Database })
   async archiveTask(id: string): Promise<Task> {
     return await window.electronAPI.db.archiveTask(id)
   }
 
+  @logged({ scope: LogScope.Database })
   async unarchiveTask(id: string): Promise<Task> {
     return await window.electronAPI.db.unarchiveTask(id)
   }
 
   // Sequenced task operations
+  @logged({ scope: LogScope.Database })
   async getSequencedTasks(): Promise<SequencedTask[]> {
     return await window.electronAPI.db.getSequencedTasks()
   }
 
+  @logged({ scope: LogScope.Database })
   async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
     return await window.electronAPI.db.createSequencedTask(taskData)
   }
 
+  @logged({ scope: LogScope.Database })
   async updateSequencedTask(id: string, updates: Partial<SequencedTask>): Promise<SequencedTask> {
     return await window.electronAPI.db.updateSequencedTask(id, updates)
   }
 
+  @logged({ scope: LogScope.Database })
   async deleteSequencedTask(id: string): Promise<void> {
     return await window.electronAPI.db.deleteSequencedTask(id)
   }
@@ -559,22 +516,27 @@ export class RendererDatabaseService {
   }
 
   // Work pattern operations
+  @logged({ scope: LogScope.Database })
   async getWorkPattern(date: string) {
     return await window.electronAPI.db.getWorkPattern(date)
   }
 
+  @logged({ scope: LogScope.Database })
   async createWorkPattern(data: any) {
     return await window.electronAPI.db.createWorkPattern(data)
   }
 
+  @logged({ scope: LogScope.Database })
   async updateWorkPattern(id: string, data: any) {
     return await window.electronAPI.db.updateWorkPattern(id, data)
   }
 
+  @logged({ scope: LogScope.Database })
   async getWorkPatterns() {
     return await window.electronAPI.db.getWorkPatterns()
   }
 
+  @logged({ scope: LogScope.Database })
   async deleteWorkPattern(id: string) {
     return await window.electronAPI.db.deleteWorkPattern(id)
   }
@@ -588,22 +550,27 @@ export class RendererDatabaseService {
   }
 
   // Work session operations
+  @logged({ scope: LogScope.Database })
   async createWorkSession(data: any) {
     return await window.electronAPI.db.createWorkSession(data)
   }
 
+  @logged({ scope: LogScope.Database })
   async updateWorkSession(id: string, data: any) {
     return await window.electronAPI.db.updateWorkSession(id, data)
   }
 
+  @logged({ scope: LogScope.Database })
   async deleteWorkSession(id: string) {
     return await window.electronAPI.db.deleteWorkSession(id)
   }
 
+  @logged({ scope: LogScope.Database })
   async getWorkSessions(date: string) {
     return await window.electronAPI.db.getWorkSessions(date)
   }
 
+  @logged({ scope: LogScope.Database })
   async getActiveWorkSession() {
     return await window.electronAPI.db.getActiveWorkSession()
   }

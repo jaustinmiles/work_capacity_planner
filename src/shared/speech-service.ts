@@ -45,7 +45,7 @@ export class SpeechService {
         const filename = path.basename(audioFilePath)
         const archivePath = path.join(tempDir, `audio_${timestamp}_${filename}`)
         fs.copyFileSync(audioFilePath, archivePath)
-        logger.ai.debug(`Audio file archived to: ${archivePath}`)
+        logger.system.debug(`Audio file archived to: ${archivePath}`)
       }
 
       // Create a proper file object for OpenAI API
@@ -67,7 +67,7 @@ export class SpeechService {
         text: transcription.text,
       }
     } catch (error) {
-      logger.ai.error('Error transcribing audio:', { error })
+      logger.system.error('Error transcribing audio:', { error })
 
       // Provide more specific error messages for common issues
       if (error instanceof Error) {
@@ -119,7 +119,7 @@ export class SpeechService {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const tempFilePath = path.join(tempDir, `audio_${timestamp}_${filename}`)
       fs.writeFileSync(tempFilePath, audioBuffer)
-      logger.ai.debug(`Audio file saved to: ${tempFilePath}`)
+      logger.system.debug(`Audio file saved to: ${tempFilePath}`)
 
       const result = await this.transcribeAudio(tempFilePath, options)
       return {
@@ -127,7 +127,7 @@ export class SpeechService {
         savedPath: tempFilePath,
       }
     } catch (error) {
-      logger.ai.error('Error transcribing audio buffer:', { error })
+      logger.system.error('Error transcribing audio buffer:', { error })
       if (error instanceof Error) {
         throw new Error(`Failed to transcribe audio buffer: ${error.message}`)
       }

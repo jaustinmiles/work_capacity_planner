@@ -24,7 +24,6 @@ interface ScheduledItem {
 }
 import { getDatabase } from '../../services/database'
 import dayjs from 'dayjs'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 const { Title, Text } = Typography

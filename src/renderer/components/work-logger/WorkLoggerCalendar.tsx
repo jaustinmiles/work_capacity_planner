@@ -22,14 +22,9 @@ import {
 import { TaskType } from '@shared/enums'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 import {
-  parseDateString,
-  parseTimeString,
   timeStringToMinutes,
-  calculateDuration as calculateDurationFromTimeStrings,
   formatTimeHHMM,
-  formatTimeFromParts,
 } from '@shared/time-utils'
-import { timeProvider } from '@shared/time-provider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
@@ -45,6 +40,7 @@ interface DragState {
   initialY: number
   initialStartTime: string
   initialEndTime: string
+  initialStartMinutes: number
 }
 
 interface WorkLoggerCalendarProps {
@@ -57,6 +53,22 @@ const TIME_LABELS_WIDTH = 60
 const CONTENT_WIDTH = 400
 const START_HOUR = 0
 const END_HOUR = 24
+
+// Helper functions
+const timeToPixels = (timeStr: string): number => {
+  const minutes = timeStringToMinutes(timeStr)
+  return (minutes / 60) * HOUR_HEIGHT
+}
+
+const startOfDay = (date: Date): Date => {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+const addMinutes = (date: Date, minutes: number): Date => {
+  return new Date(date.getTime() + minutes * 60000)
+}
 
 export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps) {
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'))
@@ -95,8 +107,10 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       setDirtyIds(new Set())
       setNewIds(new Set())
     } catch (error) {
-      logger.ui.info('Failed to load work sessions', {    initialEndTime: session.endTime ? formatTimeHHMM(session.endTime) : formatTimeHHMM(session.startTime),
-    })
+      logger.ui.error('Failed to load work sessions', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
   }
 
   // Handle mouse move for dragging
@@ -116,10 +130,40 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         return // Ignore tiny movements
       }
 
-      logger.ui.info('Dragging session:', {    meetings: [],
-        })
+      // Calculate new time based on dragging
+      const minuteDelta = Math.round(deltaY / (HOUR_HEIGHT / 60))
+      const newStartMinutes = Math.max(0, Math.min(24 * 60, dragState.initialStartMinutes + minuteDelta))
+      const newEndMinutes = newStartMinutes + (session.actualMinutes ?? 60)
+
+      // Update the session times
+      const updatedSession = {
+        ...session,
+        startTime: addMinutes(startOfDay(new Date(selectedDate)), newStartMinutes),
+        endTime: addMinutes(startOfDay(new Date(selectedDate)), newEndMinutes),
       }
 
+      setSessions(sessions.map(s => s.id === session.id ? updatedSession : s))
+      setDirtyIds(new Set([...dirtyIds, session.id]))
+    }
+
+    const handleMouseUp = () => {
+      setDragState(null)
+    }
+
+    if (dragState) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [dragState, sessions, selectedDate, dirtyIds])
+
+  // Save dirty work sessions
+  const saveSessions = async () => {
+    setIsSaving(true)
+    try {
       // Save dirty sessions
       const dirtySessionsToSave = sessions.filter(s => dirtyIds.has(s.id) && s.taskId)
       const unassignedSessions = sessions.filter(s => dirtyIds.has(s.id) && !s.taskId)
@@ -131,7 +175,33 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       logger.ui.info('Saving dirty sessions:', dirtySessionsToSave.length)
 
       for (const session of dirtySessionsToSave) {
-        logger.ui.info('Saving session:', {    notes: session.notes,
+        logger.ui.info('Saving session:', {
+          id: session.id,
+          taskId: session.taskId,
+          startTime: session.startTime.toISOString(),
+          actualMinutes: session.actualMinutes,
+          notes: session.notes,
+        })
+
+        if (newIds.has(session.id)) {
+          // Create new session
+          const db = getDatabase()
+          await db.createWorkSession({
+            taskId: session.taskId!,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            actualMinutes: session.actualMinutes || 60,
+            notes: session.notes || '',
+          })
+        } else {
+          // Update existing session
+          const db = getDatabase()
+          await db.updateWorkSession(session.id, {
+            taskId: session.taskId!,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            actualMinutes: session.actualMinutes || 60,
+            notes: session.notes || '',
           })
         }
       }
@@ -143,7 +213,9 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       // Emit event to update WorkStatusWidget and other components
       appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {
-      logger.ui.error('Failed to save work sessions:', error)
+      logger.ui.error('Failed to save work sessions', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       console.error('Failed to save work sessions:', error)
     } finally {
       setIsSaving(false)
@@ -175,9 +247,58 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       logger.ui.info('Session deleted successfully')
       await loadTasks() // Reload tasks to update cumulative time
     } catch (error) {
-      logger.ui.error('Failed to delete session:', error)
+      logger.ui.error('Failed to delete session', {
+        error: error instanceof Error ? error.message : String(error),
+      })
       console.error('Failed to delete session:', error)
     }
+  }
+
+  // Handle mouse down for drag operations
+  const handleMouseDown = (e: React.MouseEvent, sessionId: string, edge: 'start' | 'end' | 'move') => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const session = sessions.find(s => s.id === sessionId)
+    if (!session) return
+
+    const startTimeStr = formatTimeHHMM(session.startTime)
+    const endTimeStr = session.endTime ? formatTimeHHMM(session.endTime) : startTimeStr
+
+    setDragState({
+      sessionId,
+      edge,
+      initialY: e.clientY,
+      initialStartTime: startTimeStr,
+      initialEndTime: endTimeStr,
+      initialStartMinutes: timeStringToMinutes(startTimeStr),
+    })
+  }
+
+  // Create a new empty session
+  const createNewSession = () => {
+    const now = new Date()
+    const sessionId = `new-${Date.now()}`
+
+    const newSession: UnifiedWorkSession = {
+      id: sessionId,
+      taskId: 'manual-log', // Default taskId for manually created sessions
+      type: TaskType.Focused,
+      plannedMinutes: 60,
+      actualMinutes: 60,
+      startTime: now,
+      endTime: addMinutes(now, 60),
+      notes: '',
+      isPaused: false,
+    }
+
+    setSessions([...sessions, newSession])
+    setNewIds(new Set([...newIds, sessionId]))
+    setDirtyIds(new Set([...dirtyIds, sessionId]))
+
+    // Open assign modal immediately for new session
+    setSelectedSession(newSession)
+    setShowAssignModal(true)
   }
 
   // Get all available tasks and workflow steps

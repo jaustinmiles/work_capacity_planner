@@ -237,17 +237,17 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       let clearedCount = 0
       logger.ui.info('[MultiDayScheduleEditor] Starting delete of future patterns', {
         totalPatterns: allPatterns.length,
-        todayDate: today
+        todayDate: today,
       })
 
       for (const pattern of allPatterns) {
         // Clear today and all future dates
         if (pattern.date >= today) {
           logger.ui.info('[MultiDayScheduleEditor] Deleting pattern', {
-            // LOGGER_REMOVED: id: pattern.id,
-            // LOGGER_REMOVED: date: pattern.date,
-            // LOGGER_REMOVED: comparison: `${pattern.date} >= ${today}`,
-          // LOGGER_REMOVED: })
+            id: pattern.id,
+            date: pattern.date,
+            comparison: `${pattern.date} >= ${today}`,
+          })
           try {
             await db.deleteWorkPattern(pattern.id)
             logger.ui.info('Successfully deleted pattern', { id: pattern.id }, 'pattern-delete-success')
@@ -260,16 +260,16 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
           }
         } else {
           logger.ui.debug('[MultiDayScheduleEditor] Skipping past pattern', {
-            // LOGGER_REMOVED: date: pattern.date,
-            // LOGGER_REMOVED: comparison: `${pattern.date} < ${today}`,
-          // LOGGER_REMOVED: })
+            date: pattern.date,
+            comparison: `${pattern.date} < ${today}`,
+          })
         }
       }
 
       logger.ui.info('[MultiDayScheduleEditor] Completed delete operation', {
-        // LOGGER_REMOVED: clearedCount,
-        // LOGGER_REMOVED: totalProcessed: allPatterns.length,
-      // LOGGER_REMOVED: })
+        clearedCount,
+        totalProcessed: allPatterns.length,
+      })
 
       if (clearedCount === 0) {
         Message.info('No future schedules to clear')

@@ -82,7 +82,7 @@ export function StepSplitModal({
       form.resetFields()
       onClose()
     } catch (error) {
-      logger.ui.error('Failed to split step', {})
+      logger.ui.error('Failed to split step', {
         error: error instanceof Error ? error.message : String(error),
         stepId: step.id,
         stepName: step.name,
