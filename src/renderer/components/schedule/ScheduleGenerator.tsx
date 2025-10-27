@@ -5,8 +5,7 @@ import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, 
 import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { useUnifiedScheduler, ScheduleResult } from '../../hooks/useUnifiedScheduler'
-import { ScheduledItem } from '@shared/unified-scheduler-adapter'
+import { useUnifiedScheduler, ScheduleResult, UnifiedScheduleItem } from '../../hooks/useUnifiedScheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -18,12 +17,6 @@ import { calculateBlockCapacity } from '@shared/capacity-calculator'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
-
-// Extended ScheduledItem type for UI display
-interface ExtendedScheduledItem extends ScheduledItem {
-  isWorkflowStep?: boolean
-  stepIndex?: number
-}
 
 interface ScheduleGeneratorProps {
   visible: boolean
@@ -37,7 +30,7 @@ interface ScheduleOption {
   id: string
   name: string
   description: string
-  schedule: ScheduledItem[]
+  schedule: UnifiedScheduleItem[]
   result: ScheduleResult
   score: {
     deadlinesMet: number
@@ -60,7 +53,33 @@ export function ScheduleGenerator({
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const { workSettings, setOptimalSchedule } = useTaskStore()
-  const { scheduleForGantt } = useUnifiedScheduler()
+  const scheduler = useUnifiedScheduler()
+
+  // Helper to call scheduler with proper context/config
+  const callScheduler = (tasksToSchedule: Task[], workflowsToSchedule: SequencedTask[], workPatterns: DailyWorkPattern[], config: { allowTaskSplitting: boolean; optimizationMode: 'realistic' | 'optimal' | 'conservative' }) => {
+    const currentTime = new Date()
+    const startDateString = currentTime.toISOString().split('T')[0]
+
+    const context = {
+      startDate: startDateString,
+      tasks: tasksToSchedule,
+      workflows: workflowsToSchedule,
+      workPatterns,
+      workSettings,
+      currentTime,
+    }
+
+    const scheduleConfig = {
+      startDate: currentTime,
+      allowTaskSplitting: config.allowTaskSplitting,
+      respectMeetings: true,
+      optimizationMode: config.optimizationMode,
+      debugMode: true,
+    }
+
+    const items = [...tasksToSchedule, ...workflowsToSchedule]
+    return scheduler.scheduleForDisplay(items, context, scheduleConfig)
+  }
 
   const generateScheduleOptions = async () => {
     setGenerating(true)
@@ -140,24 +159,18 @@ export function ScheduleGenerator({
       }
 
       // Option 1: Optimal (Mathematical optimization for earliest completion)
-      // Use UnifiedScheduler with aggressive optimization settings
-      const optimalResult = scheduleForGantt(
-        tasks.filter(t => !t.completed),
-        baseWorkPatterns,
-        {
-          startDate: new Date(),
-          respectDeadlines: true,
-          allowSplitting: true,
-          debug: true,
-        },
-        sequencedTasks.filter(w => !w.completed),
-      )
+      const incompleteTasks = tasks.filter(t => !t.completed)
+      const incompleteWorkflows = sequencedTasks.filter(w => !w.completed)
 
-      // Log the optimal schedule for debugging
+      const optimalResult = callScheduler(incompleteTasks, incompleteWorkflows, baseWorkPatterns, {
+        allowTaskSplitting: true,
+        optimizationMode: 'optimal',
+      })
+
       logger.ui.debug('Generated optimal schedule', {
-        incompleteTasks: tasks.filter(t => !t.completed).length,
-        incompleteWorkflows: sequencedTasks.filter(w => !w.completed).length,
-        scheduledTasks: optimalResult.scheduledTasks.length,
+        incompleteTasks: incompleteTasks.length,
+        incompleteWorkflows: incompleteWorkflows.length,
+        scheduledTasks: optimalResult.scheduled.length,
         workPatterns: baseWorkPatterns.length,
         conflicts: optimalResult.conflicts?.length || 0,
       })
@@ -166,78 +179,60 @@ export function ScheduleGenerator({
         id: 'optimal',
         name: 'Optimal (Fastest Completion)',
         description: 'Mathematically optimized for earliest possible completion',
-        schedule: optimalResult.scheduledTasks,
+        schedule: optimalResult.scheduled,
         result: optimalResult,
         score: {
-          deadlinesMet: optimalResult.unscheduledTasks.length === 0 ? 100 :
-            Math.max(0, 100 - (optimalResult.unscheduledTasks.length * 10)),
-          capacityUtilization: optimalResult.scheduledTasks.length > 0 ? 85 : 0,
+          deadlinesMet: optimalResult.unscheduled.length === 0 ? 100 :
+            Math.max(0, 100 - (optimalResult.unscheduled.length * 10)),
+          capacityUtilization: optimalResult.scheduled.length > 0 ? 85 : 0,
           asyncOptimization: 90,
-          cognitiveMatch: 80, // TODO: Calculate based on task type distribution in time blocks
+          cognitiveMatch: 80,
         },
       })
 
-      // Option 2: Balanced (Balance deadlines with work-life balance)
-      // Use UnifiedScheduler with moderate settings
-      const balancedResult = scheduleForGantt(
-        tasks.filter(t => !t.completed),
-        baseWorkPatterns,
-        {
-          startDate: new Date(),
-          respectDeadlines: true,
-          allowSplitting: false,  // Don't split tasks for better focus
-          debug: true,
-        },
-        sequencedTasks.filter(w => !w.completed),
-      )
+      // Option 2: Balanced
+      const balancedResult = callScheduler(incompleteTasks, incompleteWorkflows, baseWorkPatterns, {
+        allowTaskSplitting: false,
+        optimizationMode: 'realistic',
+      })
 
       options.push({
         id: 'balanced',
         name: 'Balanced',
         description: 'Balances deadline pressure with sustainable work hours',
-        schedule: balancedResult.scheduledTasks,
+        schedule: balancedResult.scheduled,
         result: balancedResult,
         score: {
-          deadlinesMet: balancedResult.conflicts.length === 0 ? 100 : 70,
+          deadlinesMet: (balancedResult.conflicts?.length || 0) === 0 ? 100 : 70,
           capacityUtilization: 85,
           asyncOptimization: 75,
-          cognitiveMatch: 80, // TODO: Calculate based on task type distribution in time blocks
+          cognitiveMatch: 80,
         },
       })
 
-      // Option 3: Async-Optimized (Maximize parallel work)
-      // Use UnifiedScheduler with focus on workflows and async tasks
-      // Sort tasks to prioritize async workflows first
-      const asyncPrioritizedTasks = [...tasks.filter(t => !t.completed)].sort((a, b) => {
-        // Prioritize tasks with async wait times
+      // Option 3: Async-Optimized
+      const asyncPrioritizedTasks = [...incompleteTasks].sort((a, b) => {
         const aAsync = a.asyncWaitTime || 0
         const bAsync = b.asyncWaitTime || 0
         return bAsync - aAsync
       })
 
-      const asyncResult = scheduleForGantt(
-        asyncPrioritizedTasks,
-        baseWorkPatterns,
-        {
-          startDate: new Date(),
-          respectDeadlines: false,  // Focus on async optimization over deadlines
-          allowSplitting: true,
-          debug: true,
-        },
-        sequencedTasks.filter(w => !w.completed),
-      )
+      const asyncResult = callScheduler(asyncPrioritizedTasks, incompleteWorkflows, baseWorkPatterns, {
+        allowTaskSplitting: true,
+        optimizationMode: 'conservative',
+      })
 
       options.push({
-        id: 'async-optimized',
+        id: 'async',
         name: 'Async-Optimized',
-        description: 'Starts async work early to maximize parallel execution',
-        schedule: asyncResult.scheduledTasks,
+        description: 'Maximizes parallel work with async wait times',
+        schedule: asyncResult.scheduled,
         result: asyncResult,
         score: {
-          deadlinesMet: asyncResult.conflicts.length === 0 ? 100 : 60,
+          deadlinesMet: (asyncResult.conflicts?.length || 0) === 0 ? 90 : 60,
           capacityUtilization: 80,
           asyncOptimization: 95,
-          cognitiveMatch: 75, // TODO: Calculate based on task type distribution in time blocks
+          cognitiveMatch: 75,
         },
       })
 
@@ -245,8 +240,12 @@ export function ScheduleGenerator({
       if (options.length > 0) {
         setSelectedOption(options[0].id)
       }
+
+      logger.ui.info('Schedule generation complete', {
+        optionsCount: options.length,
+      }, 'schedule-generate-complete')
     } catch (error) {
-      logger.ui.error('Error generating schedules', {
+      logger.ui.error('Failed to generate schedule options', {
         error: error instanceof Error ? error.message : String(error),
       }, 'schedule-generate-error')
       Message.error('Failed to generate schedule options')
@@ -257,9 +256,10 @@ export function ScheduleGenerator({
 
   const renderSchedulePreview = (option: ScheduleOption) => {
     // Group schedule items by date
-    const itemsByDate = new Map<string, ScheduledItem[]>()
+    const itemsByDate = new Map<string, UnifiedScheduleItem[]>()
 
     for (const item of option.schedule) {
+      if (!item.startTime) continue
       const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
       const existing = itemsByDate.get(dateStr) || []
       existing.push(item)
@@ -282,13 +282,12 @@ export function ScheduleGenerator({
                   {items.length === 0 ? (
                     <Text type="secondary">No tasks scheduled</Text>
                   ) : (
-                    items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime()).map(item => {
-                      const extendedItem = item as ExtendedScheduledItem
-                      const isWorkflowStep = extendedItem.isWorkflowStep
-                      const stepIndex = extendedItem.stepIndex
+                    items.sort((a, b) => (a.startTime || new Date()).getTime() - (b.startTime || new Date()).getTime()).map(item => {
+                      const isWorkflowStep = item.type === 'workflow-step'
+                      const stepIndex = item.stepIndex
                       return (
                         <div
-                          key={item.task.id}
+                          key={item.id}
                           style={{
                             padding: '8px 12px',
                             background: '#f5f5f5',
@@ -298,7 +297,7 @@ export function ScheduleGenerator({
                         >
                           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                             <div>
-                              <Text style={{ fontWeight: 500 }}>{item.task.name}</Text>
+                              <Text style={{ fontWeight: 500 }}>{item.name}</Text>
                               {isWorkflowStep && stepIndex !== undefined && (
                                 <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
                                   (Step {stepIndex + 1})
@@ -306,7 +305,7 @@ export function ScheduleGenerator({
                               )}
                             </div>
                             <Text type="secondary" style={{ fontSize: 12 }}>
-                              {dayjs(item.startTime).format('h:mm A')} - {item.task.duration}m
+                              {dayjs(item.startTime).format('h:mm A')} - {item.duration}m
                             </Text>
                           </Space>
                         </div>
@@ -332,7 +331,7 @@ export function ScheduleGenerator({
       const db = getDatabase()
 
       // Group scheduled items by date
-      const itemsByDate = new Map<string, ScheduledItem[]>()
+      const itemsByDate = new Map<string, UnifiedScheduleItem[]>()
 
       for (const item of selected.schedule) {
         const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
@@ -372,7 +371,9 @@ export function ScheduleGenerator({
 
         if (items.length > 0) {
           // Find the earliest start and latest end time for all items on this day
-          const sortedItems = items.sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
+          const sortedItems = items
+            .filter(item => item.startTime && item.endTime)
+            .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime())
 
           // Safety check - ensure we have items after sorting
           if (!sortedItems.length || !sortedItems[0]) {
@@ -385,8 +386,9 @@ export function ScheduleGenerator({
 
           const earliestStart = dayjs(sortedItems[0].startTime).format('HH:mm')
           const latestEnd = sortedItems.reduce((latest, item) => {
-            return item.endTime > latest ? item.endTime : latest
-          }, sortedItems[0].endTime)
+            const itemEnd = item.endTime!
+            return itemEnd > latest ? itemEnd : latest
+          }, sortedItems[0].endTime!)
           const latestEndStr = dayjs(latestEnd).format('HH:mm')
 
           // Calculate total capacity used
@@ -395,13 +397,12 @@ export function ScheduleGenerator({
           let personal = 0
 
           for (const item of items) {
-            const task = item.task
-            if (task.type === TaskType.Focused) {
-              focus += task.duration
-            } else if (task.type === TaskType.Personal) {
-              personal += task.duration
+            if (item.taskType === TaskType.Focused) {
+              focus += item.duration
+            } else if (item.taskType === TaskType.Personal) {
+              personal += item.duration
             } else {
-              admin += task.duration
+              admin += item.duration
             }
           }
 
@@ -442,18 +443,18 @@ export function ScheduleGenerator({
 
       // Save the schedule to the store if it's an optimal schedule
       if (selected.id === 'optimal') {
-        // Convert ScheduledItem to the format expected by the store
+        // Convert UnifiedScheduleItem to the format expected by the store
         const storeSchedule = selected.schedule.map(item => ({
-          id: item.task.id,
-          name: item.task.name,
-          type: 'task' as const,
+          id: item.id,
+          name: item.name,
+          type: item.type === 'workflow-step' ? 'workflow-step' as const : 'task' as const,
           priority: item.priority || 0,
-          duration: item.task.duration,
-          startTime: item.startTime,
-          endTime: item.endTime,
+          duration: item.duration,
+          startTime: item.startTime || new Date(),
+          endTime: item.endTime || new Date(),
           color: '#1890ff',
-          deadline: item.task.deadline,
-          originalItem: item.task,
+          deadline: item.deadline,
+          originalItem: item.originalItem || item,
         }))
         setOptimalSchedule(storeSchedule)
       }
@@ -543,14 +544,14 @@ export function ScheduleGenerator({
                         <Title heading={6} style={{ margin: 0 }}>
                           {option.name}
                         </Title>
-                        {option.result.unscheduledTasks.length === 0 && option.result.conflicts.length === 0 && (
+                        {option.result.unscheduled.length === 0 && (option.result.conflicts?.length || 0) === 0 && (
                           <Tag color="green">All Tasks Scheduled</Tag>
                         )}
-                        {option.result.unscheduledTasks.length > 0 && (
-                          <Tag color="orange">{option.result.unscheduledTasks.length} Unscheduled</Tag>
+                        {option.result.unscheduled.length > 0 && (
+                          <Tag color="orange">{option.result.unscheduled.length} Unscheduled</Tag>
                         )}
-                        {option.result.conflicts.length > 0 && (
-                          <Tag color="red">{option.result.conflicts.length} Conflicts</Tag>
+                        {(option.result.conflicts?.length || 0) > 0 && (
+                          <Tag color="red">{option.result.conflicts?.length} Conflicts</Tag>
                         )}
                       </Space>
 

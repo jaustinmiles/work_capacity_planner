@@ -472,8 +472,11 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
     }
 
     allFeedback = flattenItems(parsed)
-  } catch {
-    // File doesn't exist yet
+  } catch (error) {
+    // File doesn't exist yet or is invalid - start with empty feedback
+    mainLogger.debug('No existing feedback file found or invalid format', {
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 
   // Append new feedback (ensure it's not an array being appended)

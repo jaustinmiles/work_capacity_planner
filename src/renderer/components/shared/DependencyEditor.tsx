@@ -147,12 +147,6 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = (props) => {
 
     logger.ui.debug('DependencyEditor: Forward dependencies changed', {})
 
-
-
-
-
-
-
     // Only filter for circular dependencies when adding, not when removing
     const filtered = newValue.filter(v => !reverseDependencies.includes(v))
 

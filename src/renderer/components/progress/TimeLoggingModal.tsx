@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { TaskStep } from '@shared/sequencing-types'
 import { Form, Input, Button, Space, Typography, Grid, Tag, Alert, Modal } from '@arco-design/web-react'
-import { logger } from '@/logger'
+import { logger } from '../../../logger'
 
 
 const FormItem = Form.Item
@@ -27,6 +27,14 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Log when modal opens
+  logger.ui.info('TimeLoggingModal opened', {
+    stepId: step.id,
+    stepName: step.name,
+    mode,
+    estimatedDuration: step.duration,
+  })
+
   const handleSubmit = async () => {
     try {
       const values = await form.validate()
@@ -49,8 +57,20 @@ export const TimeLoggingModal: React.FC<TimeLoggingModalProps> = ({
 
       if (mode === 'complete' && onComplete) {
         await onComplete(totalMinutes, values.notes ?? null)
+        logger.ui.info('Step completed with time logged', {
+          stepId: step.id,
+          stepName: step.name,
+          totalMinutes,
+          hasNotes: !!values.notes,
+        })
       } else {
         await onLogTime(totalMinutes, values.notes ?? null)
+        logger.ui.info('Time logged for step', {
+          stepId: step.id,
+          stepName: step.name,
+          totalMinutes,
+          hasNotes: !!values.notes,
+        })
       }
     } catch (error) {
       logger.ui.error('Failed to log time', {

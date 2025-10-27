@@ -4,7 +4,7 @@ import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconBulb, I
 import { TaskType, AIProcessingMode } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { logger } from '@/logger'
+import { logger } from '../../../logger'
 import { deleteWorkflow, deleteTask, deleteStep } from '../../utils/brainstorm-utils'
 
 
@@ -743,9 +743,10 @@ Only include terms that are likely industry-specific or technical jargon, not co
         return
       }
 
-        // itemName: item.name,
-        // clarification,
-      // })
+      logger.ui.info('Regenerating item with clarification', {
+        itemName: item.name,
+        clarification,
+      })
 
       // Build prompt with clarification
       const prompt = `Regenerate this ${itemType} with the following clarification:\n\nOriginal: ${JSON.stringify(item)}\n\nClarification: ${clarification}\n\nProvide an improved version addressing the clarification.`
@@ -755,11 +756,12 @@ Only include terms that are likely industry-specific or technical jargon, not co
       const response = await db.extractWorkflowsFromBrainstorm(prompt)
 
       if (response) {
-          // hasWorkflows: !!response.workflows,
-          // workflowCount: response.workflows?.length,
-          // hasStandaloneTasks: !!response.standaloneTasks,
-          // taskCount: response.standaloneTasks?.length,
-        // })
+        logger.ui.info('AI regeneration response received', {
+          hasWorkflows: !!response.workflows,
+          workflowCount: response.workflows?.length,
+          hasStandaloneTasks: !!response.standaloneTasks,
+          taskCount: response.standaloneTasks?.length,
+        })
 
         if (itemType === 'workflow' && response && response.workflows && response.workflows[0]) {
           const updatedWorkflow = {

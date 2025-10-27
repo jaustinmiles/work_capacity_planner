@@ -15,13 +15,20 @@ vi.mock('../../services/database', () => ({
   })),
 }))
 
+const mockStoreState = {
+  isLoading: false,
+  activeWorkSessions: new Map(),
+  startNextTask: vi.fn(),
+  getNextScheduledItem: vi.fn().mockResolvedValue(null),
+}
+
 vi.mock('../../store/useTaskStore', () => ({
-  useTaskStore: vi.fn(() => ({
-    isLoading: false,
-    activeWorkSessions: new Map(),
-    startNextTask: vi.fn(),
-    getNextScheduledItem: vi.fn().mockResolvedValue(null),
-  })),
+  useTaskStore: vi.fn((selector?: any) => {
+    if (selector) {
+      return selector(mockStoreState)
+    }
+    return mockStoreState
+  }),
 }))
 
 vi.mock('dayjs', () => ({

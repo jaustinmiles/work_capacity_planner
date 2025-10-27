@@ -12,29 +12,26 @@ import '@testing-library/jest-dom'
 vi.mock('../../store/useTaskStore')
 vi.mock('@shared/time-provider')
 
-// Mock the UnifiedScheduler hook with stable functions
-const mockScheduleForGantt = vi.fn(() => ({
-  scheduledTasks: [],
-  unscheduledTasks: [],
-  conflicts: [],
-  totalDuration: 0,
-}))
+// Mock the UnifiedScheduler hook - returns stable scheduler instance
+const mockScheduler = {
+  scheduleForDisplay: vi.fn(() => ({
+    scheduled: [],
+    unscheduled: [],
+    debugInfo: {
+      scheduledItems: [],
+      unscheduledItems: [],
+      blockUtilization: [],
+      warnings: [],
+      totalScheduled: 0,
+      totalUnscheduled: 0,
+      scheduleEfficiency: 0,
+    },
+    conflicts: [],
+  })),
+}
 
 vi.mock('../../hooks/useUnifiedScheduler', () => ({
-  useUnifiedScheduler: () => ({
-    scheduleForGantt: mockScheduleForGantt,
-    getNextScheduledTask: vi.fn(() => null),
-    validateDependencies: vi.fn(() => ({ isValid: true, errors: [] })),
-    calculateTaskPriority: vi.fn(() => 50),
-    getSchedulingMetrics: vi.fn(() => ({
-      totalTasks: 0,
-      scheduledTasks: 0,
-      unscheduledTasks: 0,
-      totalDuration: 0,
-      averagePriority: 0,
-      utilizationRate: 0,
-    })),
-  }),
+  useUnifiedScheduler: () => mockScheduler,
 }))
 
 // Mock the database to return work patterns

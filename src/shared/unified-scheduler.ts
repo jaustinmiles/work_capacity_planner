@@ -1333,6 +1333,23 @@ export class UnifiedScheduler {
             const scheduledItem = this.scheduleItemInBlock(item, fitResult, false)
             scheduled.push(scheduledItem)
 
+            // If item has asyncWaitTime, create a wait time block
+            if (item.asyncWaitTime && item.asyncWaitTime > 0 && scheduledItem.endTime) {
+              const waitTimeItem: UnifiedScheduleItem = {
+                id: `${item.id}-wait`,
+                name: `⏳ Waiting: ${item.name}`,
+                type: 'async-wait',
+                duration: item.asyncWaitTime,
+                priority: 0,
+                startTime: scheduledItem.endTime,
+                endTime: new Date(scheduledItem.endTime.getTime() + item.asyncWaitTime * 60000),
+                isWaitTime: true,
+                ...(item.workflowId && { workflowId: item.workflowId }),
+                ...(item.workflowName && { workflowName: item.workflowName }),
+                ...(item.originalItem && { originalItem: item.originalItem }),
+              }
+              scheduled.push(waitTimeItem)
+            }
 
             remaining.splice(itemIndex, 1)
             scheduledItemsToday = true
@@ -2059,10 +2076,12 @@ export class UnifiedScheduler {
     }
 
     // Check for time conflicts with scheduled items
+    // IMPORTANT: Exclude wait time blocks - they don't consume physical time/capacity
     const blockScheduled = scheduled.filter(s =>
       s.startTime && s.endTime &&
       s.startTime < block.endTime &&
-      s.endTime > block.startTime,
+      s.endTime > block.startTime &&
+      !s.isWaitTime,  // Wait times don't block scheduling
     )
 
 
@@ -2144,6 +2163,7 @@ export class UnifiedScheduler {
 
   /**
    * Get the latest end time of all dependencies for an item
+   * IMPORTANT: If a dependency has async wait time, use the wait time's end time
    */
   private getLatestDependencyEndTime(item: UnifiedScheduleItem): Date | null {
     if (!item.dependencies?.length) return null
@@ -2153,8 +2173,16 @@ export class UnifiedScheduler {
     for (const depId of item.dependencies) {
       const dependency = this.scheduledItemsReference.find(s => s.id === depId)
       if (dependency && dependency.endTime) {
-        if (!latestEnd || dependency.endTime > latestEnd) {
-          latestEnd = dependency.endTime
+        // Check if this dependency has an associated wait time block
+        const waitTimeBlock = this.scheduledItemsReference.find(s =>
+          s.id === `${depId}-wait` && s.isWaitTime,
+        )
+
+        // Use wait time end if it exists, otherwise use dependency end
+        const effectiveEndTime = waitTimeBlock?.endTime || dependency.endTime
+
+        if (!latestEnd || effectiveEndTime > latestEnd) {
+          latestEnd = effectiveEndTime
         }
       }
     }
