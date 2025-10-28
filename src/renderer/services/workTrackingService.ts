@@ -1,4 +1,4 @@
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { getDatabase } from './database'
 import type {
   WorkSessionPersistenceOptions,
@@ -29,11 +29,11 @@ export class WorkTrackingService {
   constructor(options: WorkSessionPersistenceOptions = {}, database?: ReturnType<typeof getDatabase>) {
     // Generate unique instance ID for tracking multiple instances in development
     this.instanceId = generateUniqueId('WTS')
-    logger.ui.debug(`[WorkTrackingService] Instance created: ${this.instanceId}`, {
-      instanceId: this.instanceId,
+    // LOGGER_REMOVED: logger.ui.debug(`[WorkTrackingService] Instance created: ${this.instanceId}`, {
+      // instanceId: this.instanceId,
       // Capture call stack (first 5 lines) to debug why multiple instances are created
-      stackTrace: this.getCallerStackTrace(),
-    })
+      // stackTrace: this.getCallerStackTrace(),
+    // })
 
     this.options = {
       clearStaleSessionsOnStartup: true,
@@ -52,51 +52,46 @@ export class WorkTrackingService {
   }
 
   async initialize(): Promise<void> {
-    try {
-      // Clear local state first
-      this.activeSessions.clear()
-      logger.ui.info('[WorkTrackingService] Cleared all local active sessions on initialization')
+    // Clear local state first
+    this.activeSessions.clear()
+    // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Cleared all local active sessions on initialization')
 
-      // Clear stale sessions if enabled (older than maxSessionAgeHours)
-      if (this.options.clearStaleSessionsOnStartup) {
-        const cutoffDate = new Date(Date.now() - this.options.maxSessionAgeHours * 60 * 60 * 1000)
-        await this.clearStaleSessionsBeforeDate(cutoffDate)
-      }
-
-      // Restore any active session from database (within 24 hours)
-      const activeSession = await this.getLastActiveWorkSession()
-      if (activeSession) {
-        // Restore to memory so UI can show it
-        const sessionKey = this.getSessionKey(activeSession)
-        this.activeSessions.set(sessionKey, activeSession)
-
-        logger.ui.info('[WorkTrackingService] Restored active session from database', {
-          sessionId: activeSession.id,
-          taskId: activeSession.taskId,
-          stepId: activeSession.stepId,
-          startTime: activeSession.startTime.toISOString(),
-        })
-      } else {
-        logger.ui.info('[WorkTrackingService] No active sessions to restore')
-      }
-
-      logger.ui.info('[WorkTrackingService] Initialization complete', {
-        activeSessionCount: this.activeSessions.size,
-      })
-    } catch (error) {
-      logger.ui.error('Failed to initialize WorkTrackingService', error)
-      throw error
+    // Clear stale sessions if enabled (older than maxSessionAgeHours)
+    if (this.options.clearStaleSessionsOnStartup) {
+      const cutoffDate = new Date(Date.now() - this.options.maxSessionAgeHours * 60 * 60 * 1000)
+      await this.clearStaleSessionsBeforeDate(cutoffDate)
     }
+
+    // Restore any active session from database (within 24 hours)
+    const activeSession = await this.getLastActiveWorkSession()
+    if (activeSession) {
+      // Restore to memory so UI can show it
+      const sessionKey = this.getSessionKey(activeSession)
+      this.activeSessions.set(sessionKey, activeSession)
+
+      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Restored active session from database', {
+        // sessionId: activeSession.id,
+        // taskId: activeSession.taskId,
+        // stepId: activeSession.stepId,
+        // startTime: activeSession.startTime.toISOString(),
+      // })
+    } else {
+      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] No active sessions to restore')
+    }
+
+    // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Initialization complete', {
+      // LOGGER_REMOVED: activeSessionCount: this.activeSessions.size,
+    // LOGGER_REMOVED: })
   }
 
   async startWorkSession(taskId?: string, stepId?: string, workflowId?: string): Promise<UnifiedWorkSession> {
     try {
-      logger.ui.warn(`[WorkTrackingService ${this.instanceId}] 🟢 Starting work session`, {
-        instanceId: this.instanceId,
-        taskId, stepId, workflowId,
-        currentActiveSessions: this.activeSessions.size,
-        activeSessionIds: Array.from(this.activeSessions.keys()),
-      })
+      // LOGGER_REMOVED: logger.ui.warn(`[WorkTrackingService ${this.instanceId}] 🟢 Starting work session`, {
+        // instanceId: this.instanceId,
+        // taskId, stepId, workflowId,
+        // currentActiveSessions: this.activeSessions.size,
+        // activeSessionIds: Array.from(this.activeSessions.keys()),
+      // })
 
       // Validate inputs
       if (!taskId && !stepId) {
@@ -108,9 +103,9 @@ export class WorkTrackingService {
 
       // Check for existing active session
       if (this.activeSessions.size > 0) {
-        logger.ui.warn('[WorkTrackingService] Cannot start new session - another session is active', {
-          activeSessionCount: this.activeSessions.size,
-        })
+        // LOGGER_REMOVED: logger.ui.warn('[WorkTrackingService] Cannot start new session - another session is active', {
+          // LOGGER_REMOVED: activeSessionCount: this.activeSessions.size,
+        // LOGGER_REMOVED: })
         throw new Error('Cannot start new work session: another session is already active')
       }
 
@@ -167,12 +162,12 @@ export class WorkTrackingService {
         date: new Date().toISOString().split('T')[0],
       }
 
-      logger.ui.info('[WorkTrackingService] Creating database work session', {
-        dbPayload: {
-          ...dbPayload,
-          startTime: dbPayload.startTime.toISOString(),
-        },
-      })
+      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Creating database work session', {
+        // dbPayload: {
+          // ...dbPayload,
+          // startTime: dbPayload.startTime.toISOString(),
+        // },
+      // })
 
       await this.database.createWorkSession(dbPayload)
 
@@ -180,13 +175,13 @@ export class WorkTrackingService {
       const sessionKey = this.getSessionKey(workSession)
       this.activeSessions.set(sessionKey, workSession)
 
-      logger.ui.info('[WorkTrackingService] Work session started successfully', {
-        sessionId: workSession.id,
-        sessionKey,
-        taskId,
-        stepId,
-        workflowId,
-      })
+      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Work session started successfully', {
+        // LOGGER_REMOVED: sessionId: workSession.id,
+        // LOGGER_REMOVED: sessionKey,
+        // LOGGER_REMOVED: taskId,
+        // LOGGER_REMOVED: stepId,
+        // LOGGER_REMOVED: workflowId,
+      // LOGGER_REMOVED: })
 
       return workSession
     } catch (error) {
@@ -197,20 +192,20 @@ export class WorkTrackingService {
 
   async pauseWorkSession(sessionId: string): Promise<void> {
     try {
-      logger.ui.warn(`[WorkTrackingService ${this.instanceId}] 🟡 Attempting to pause session`, {
-        instanceId: this.instanceId,
-        sessionId,
-        activeSessionsCount: this.activeSessions.size,
-        activeSessionIds: Array.from(this.activeSessions.keys()),
-      })
+      // LOGGER_REMOVED: logger.ui.warn(`[WorkTrackingService ${this.instanceId}] 🟡 Attempting to pause session`, {
+        // instanceId: this.instanceId,
+        // sessionId,
+        // activeSessionsCount: this.activeSessions.size,
+        // activeSessionIds: Array.from(this.activeSessions.keys()),
+      // })
 
       const session = this.findSessionById(sessionId)
       if (!session) {
-        logger.ui.error(`[WorkTrackingService ${this.instanceId}] ❌ PAUSE FAILED: No session found`, {
-          instanceId: this.instanceId,
-          requestedSessionId: sessionId,
-          availableSessions: Array.from(this.activeSessions.values()).map(s => ({ id: s.id, stepId: s.stepId })),
-        })
+        // LOGGER_REMOVED: logger.ui.error(`[WorkTrackingService ${this.instanceId}] ❌ PAUSE FAILED: No session found`, {
+          // instanceId: this.instanceId,
+          // requestedSessionId: sessionId,
+          // availableSessions: Array.from(this.activeSessions.values()).map(s => ({ id: s.id, stepId: s.stepId })),
+        // })
         throw new Error(`No active session found with ID: ${sessionId}`)
       }
 
@@ -228,10 +223,10 @@ export class WorkTrackingService {
       const sessionKey = this.getSessionKey(session)
       this.activeSessions.delete(sessionKey)
 
-      logger.ui.info('Paused work session (closed in database)', {
-        sessionId,
-        actualMinutes: Math.max(elapsedMinutes, 1),
-      })
+      // LOGGER_REMOVED: logger.ui.info('Paused work session (closed in database)', {
+        // sessionId,
+        // actualMinutes: Math.max(elapsedMinutes, 1),
+      // })
     } catch (error) {
       this.handleSessionError(error as Error, 'pausing work session')
       throw error
@@ -256,7 +251,7 @@ export class WorkTrackingService {
         pausedAt: null,
       })
 
-      logger.ui.info('Resumed work session', { sessionId })
+      // LOGGER_REMOVED: logger.ui.info('Resumed work session', { sessionId })
     } catch (error) {
       this.handleSessionError(error as Error, 'resuming work session')
       throw error
@@ -292,10 +287,10 @@ export class WorkTrackingService {
       const dbData = toDatabaseWorkSession(session)
       await this.database.updateWorkSession(session.id, dbData)
 
-      logger.ui.info('Stopped work session', {
-        sessionId,
-        actualMinutes: session.actualMinutes,
-      })
+      // LOGGER_REMOVED: logger.ui.info('Stopped work session', {
+        // LOGGER_REMOVED: sessionId,
+        // LOGGER_REMOVED: actualMinutes: session.actualMinutes,
+      // LOGGER_REMOVED: })
     } catch (error) {
       this.handleSessionError(error as Error, 'stopping work session')
       throw error
@@ -306,7 +301,7 @@ export class WorkTrackingService {
     try {
       const dbData = toDatabaseWorkSession(session)
       const result = await this.database.updateWorkSession(session.id, dbData)
-      logger.ui.debug('Saved active work session', { sessionId: session.id })
+      // LOGGER_REMOVED: logger.ui.debug('Saved active work session', { sessionId: session.id })
       return result
     } catch (error) {
       this.handleSessionError(error as Error, 'saving active session')
@@ -320,26 +315,26 @@ export class WorkTrackingService {
       const activeSession = await this.database.getActiveWorkSession()
 
       if (!activeSession) {
-        logger.ui.info('[WorkTrackingService] No active work session found in database')
+        // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] No active work session found in database')
         return null
       }
 
       if (!this.isValidSession(activeSession)) {
-        logger.ui.warn('[WorkTrackingService] Active session found but invalid', { activeSession })
+        // LOGGER_REMOVED: logger.ui.warn('[WorkTrackingService] Active session found but invalid', { activeSession })
         return null
       }
 
       // Convert to unified format
       const unified = fromDatabaseWorkSession(activeSession)
 
-      logger.ui.info('[WorkTrackingService] Found active work session', {
-        sessionId: unified.id,
-        taskId: unified.taskId,
-        stepId: unified.stepId,
-        workflowId: unified.workflowId,
-        taskName: unified.taskName,
-        stepName: unified.stepName,
-      })
+      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Found active work session', {
+        // LOGGER_REMOVED: sessionId: unified.id,
+        // LOGGER_REMOVED: taskId: unified.taskId,
+        // LOGGER_REMOVED: stepId: unified.stepId,
+        // LOGGER_REMOVED: workflowId: unified.workflowId,
+        // LOGGER_REMOVED: taskName: unified.taskName,
+        // LOGGER_REMOVED: stepName: unified.stepName,
+      // LOGGER_REMOVED: })
 
       return unified
     } catch (error) {
@@ -378,7 +373,7 @@ export class WorkTrackingService {
         }
       }
 
-      logger.ui.info('Cleaned up stale work sessions', { cleanedCount, cutoffDate })
+      // LOGGER_REMOVED: logger.ui.info('Cleaned up stale work sessions', { cleanedCount, cutoffDate })
       return cleanedCount
     } catch (error) {
       this.handleSessionError(error as Error, 'clearing stale sessions')
@@ -388,20 +383,20 @@ export class WorkTrackingService {
 
   getCurrentActiveSession(): UnifiedWorkSession | null {
     const sessions = Array.from(this.activeSessions.values())
-    logger.ui.warn(`[WorkTrackingService ${this.instanceId}] 🔍 Getting current active session`, {
-      instanceId: this.instanceId,
-      activeSessionsCount: this.activeSessions.size,
-      hasActiveSession: sessions.length > 0,
-      sessionIds: sessions.map(s => s.id),
-    })
+    // LOGGER_REMOVED: logger.ui.warn(`[WorkTrackingService ${this.instanceId}] 🔍 Getting current active session`, {
+      // instanceId: this.instanceId,
+      // activeSessionsCount: this.activeSessions.size,
+      // hasActiveSession: sessions.length > 0,
+      // sessionIds: sessions.map(s => s.id),
+    // })
 
     // Filter out sessions that are paused
     const activeSession = sessions.find(s => !s.isPaused) || null
     if (activeSession) {
-      logger.ui.warn(`[WorkTrackingService ${this.instanceId}] Found active (non-paused) session`, {
-        sessionId: activeSession.id,
-        isPaused: activeSession.isPaused,
-      })
+      // LOGGER_REMOVED: logger.ui.warn(`[WorkTrackingService ${this.instanceId}] Found active (non-paused) session`, {
+        // sessionId: activeSession.id,
+        // isPaused: activeSession.isPaused,
+      // })
     }
 
     return activeSession
@@ -423,7 +418,10 @@ export class WorkTrackingService {
   }
 
   handleSessionError(error: Error, context: string): void {
-    logger.ui.error(`WorkTrackingService error in ${context}:`, error)
+    logger.ui.error('WorkTrackingService error', {
+      error: error.message,
+      context,
+    }, 'work-tracking-error')
   }
 
   // Helper methods for testing

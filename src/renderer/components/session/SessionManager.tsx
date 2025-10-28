@@ -24,7 +24,7 @@ import { Session } from '@shared/types'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { appEvents, EVENTS } from '../../utils/events'
 
 
@@ -59,7 +59,9 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       setSessions(sessionList)
       setActiveSession(sessionList.find(s => s.isActive) || null)
     } catch (error) {
-      logger.ui.error('Failed to load sessions:', error)
+      logger.ui.error('Failed to load sessions', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'sessions-load-error')
       Message.error('Failed to load sessions')
     } finally {
       setLoading(false)
@@ -82,17 +84,19 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       appEvents.emit(EVENTS.SESSION_CHANGED)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
-      logger.ui.error('Failed to create session:', error)
+      logger.ui.error('Failed to create session', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'session-create-error')
       Message.error('Failed to create session')
     }
   }
 
   const handleSwitchSession = async (sessionId: string) => {
     try {
-      const session = sessions.find(s => s.id === sessionId)
+      const _session = sessions.find(s => s.id === sessionId)
       logger.ui.info('Switching session', {
         from: activeSession?.name || 'none',
-        to: session?.name || 'unknown',
+        to: _session?.name || 'unknown',
         sessionId,
       })
       const db = getDatabase()
@@ -105,9 +109,11 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       // Emit event to refresh UI components
       appEvents.emit(EVENTS.SESSION_CHANGED)
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
-      logger.ui.debug('Session switched successfully', { sessionId })
     } catch (error) {
-      logger.ui.error('Failed to switch session:', error, { sessionId })
+      logger.ui.error('Failed to switch session', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+      }, 'session-switch-error')
       Message.error('Failed to switch session')
     }
   }
@@ -131,7 +137,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       setEditingSession(null)
       await loadSessions()
     } catch (error) {
-      logger.ui.error('Failed to update session:', error)
+      logger.ui.error('Failed to update session', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId: editingSession?.id,
+      }, 'session-update-error')
       Message.error('Failed to update session')
     }
   }
@@ -149,7 +158,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       // Emit event to refresh UI components
       appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
-      logger.ui.error('Failed to delete session:', error, { sessionId })
+      logger.ui.error('Failed to delete session', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+      })
       if (error instanceof Error && error.message.includes('active')) {
         Message.error('Cannot delete the active session')
       } else if (error instanceof Error && error.message.includes('not found')) {

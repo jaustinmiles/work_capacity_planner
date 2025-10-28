@@ -11,7 +11,7 @@ import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { Message } from '../common/Message'
 
 
@@ -22,7 +22,7 @@ interface WorkStatusWidgetProps {
 }
 
 export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
-  const { isLoading, activeWorkSessions } = useTaskStore()
+  const { activeWorkSessions } = useTaskStore()
   const [currentDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
@@ -32,104 +32,23 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const [nextTask, setNextTask] = useState<NextScheduledItem | null>(null)
   const [isLoadingNextTask, setIsLoadingNextTask] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  // Tracking state removed - handled through time logging modal
 
   // Debug: Log when activeWorkSessions changes
   useEffect(() => {
-    logger.ui.info('[WorkStatusWidget] activeWorkSessions changed', {
-      size: activeWorkSessions.size,
-      sessions: Array.from(activeWorkSessions.entries()).map(([key, session]) => ({
-        key,
-        id: session.id,
-        isPaused: session.isPaused,
-        taskId: session.taskId,
-        stepId: session.stepId,
-      })),
+    logger.ui.debug('[WorkStatusWidget] activeWorkSessions changed', {
+      count: activeWorkSessions.size,
+      sessionIds: Array.from(activeWorkSessions.keys()),
     })
   }, [activeWorkSessions])
-
-  useEffect(() => {
-    loadWorkData()
-    const interval = setInterval(loadWorkData, 60000) // Update every minute
-
-    // Listen for time logging events
-    const handleTimeLogged = () => {
-      loadWorkData()
-    }
-
-    // Listen for workflow updates (which might change step types)
-    const handleWorkflowUpdated = () => {
-      loadWorkData()
-    }
-
-    // Listen for session changes and general refresh events
-    const handleSessionChanged = () => {
-      loadWorkData()
-    }
-
-    const handleDataRefresh = () => {
-      loadWorkData()
-    }
-
-    appEvents.on(EVENTS.TIME_LOGGED, handleTimeLogged)
-    appEvents.on(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
-    appEvents.on(EVENTS.SESSION_CHANGED, handleSessionChanged)
-    appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-
-    return () => {
-      clearInterval(interval)
-      appEvents.off(EVENTS.TIME_LOGGED, handleTimeLogged)
-      appEvents.off(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
-      appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
-      appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-    }
-  }, [currentDate])
-
-  useEffect(() => {
-    if (pattern) {
-      setCurrentBlock(getCurrentBlock(pattern.blocks))
-      setNextBlock(getNextBlock(pattern.blocks))
-    }
-  }, [pattern])
-
-  // Load next task when data finishes loading or when data changes
-  useEffect(() => {
-    // Only load next task if data has finished loading
-    if (!isLoading) {
-      logger.ui.info('[WorkStatusWidget] Data loaded, loading next task')
-      loadNextTask()
-    } else {
-      logger.ui.info('[WorkStatusWidget] Store is loading, waiting for data...')
-    }
-  }, [isLoading]) // Depend on isLoading to run when data finishes loading
-
-  // Listen for data refresh events to reload next task
-  useEffect(() => {
-    const handleDataRefresh = () => {
-      logger.ui.info('[WorkStatusWidget] Data refresh event, reloading next task')
-      loadNextTask()
-    }
-
-    appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-    return () => {
-      appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-    }
-  }, []) // Empty dependency array - run once on mount
 
   const loadNextTask = async () => {
     try {
       logger.ui.debug('[WorkStatusWidget] Loading next task...')
       setIsLoadingNextTask(true)
 
-      // Get current store state for logging
       const state = useTaskStore.getState()
-      logger.ui.debug('[WorkStatusWidget] Store state:', {
-        totalTasks: state.tasks.length,
-        totalWorkflows: state.sequencedTasks.length,
-        isLoading: state.isLoading,
-      })
-
       const nextItem = await state.getNextScheduledItem()
+
       logger.ui.info('[WorkStatusWidget] Next scheduled item result:', {
         nextItem: nextItem ? {
           type: nextItem.type,
@@ -144,90 +63,14 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       logger.ui.error('[WorkStatusWidget] Failed to load next task:', error)
     } finally {
       setIsLoadingNextTask(false)
-      logger.ui.info('[WorkStatusWidget] Finished loading next task')
     }
-  }
-
-  // Check if there's currently an active work session
-  const getActiveSession = () => {
-    const sessions = Array.from(activeWorkSessions.values())
-    const activeSession = sessions.find(session => !session.isPaused) || null
-
-    // Check for active (non-paused) sessions
-
-    return activeSession
-  }
-
-  const handleStartNextTask = async () => {
-    try {
-      // Start button clicked
-
-      setIsProcessing(true)
-
-      await useTaskStore.getState().startNextTask()
-
-      // Show success notification with task name
-      if (nextTask) {
-        Message.success(`Started work on: ${nextTask.title}`)
-      }
-
-      // Don't reload next task here - UI now shows pause button, not next task
-    } catch (error) {
-      logger.ui.error('[WorkStatusWidget] Failed to start next task:', error)
-      Message.error('Failed to start work session')
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  const handlePauseCurrentTask = async () => {
-    try {
-      const activeSession = getActiveSession()
-      if (!activeSession) {
-        logger.ui.warn('[WorkStatusWidget] No active session to pause')
-        return
-      }
-
-      // Pause button clicked
-      setIsProcessing(true)
-
-      const store = useTaskStore.getState()
-
-      // Unified stop logic - both tasks and steps use store methods
-      if (activeSession.stepId) {
-        await store.pauseWorkOnStep(activeSession.stepId)
-        Message.success('Work session paused')
-      } else if (activeSession.taskId) {
-        // Use unified stop method through store
-        await store.pauseWorkOnTask(activeSession.taskId)
-        Message.success('Work session stopped')
-      }
-
-      // Reload next task after stopping current one
-      await loadNextTask()
-    } catch (error) {
-      logger.ui.error('[WorkStatusWidget] Failed to pause current task:', error)
-      Message.error('Failed to pause work session')
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  const handleRefreshNextTask = async () => {
-    logger.ui.info('[WorkStatusWidget] Manual refresh requested - incrementing skip index')
-    // Increment the skip index to show the next task in priority order
-    useTaskStore.getState().incrementNextTaskSkipIndex()
-    // Reload the next task with the new skip index
-    await loadNextTask()
   }
 
   const loadWorkData = async () => {
     try {
-      // [WorkPatternLifeCycle] START: WorkStatusWidget loading work data
       logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - START', {
         currentDate,
         timestamp: new Date().toISOString(),
-        localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
       })
 
       const db = getDatabase()
@@ -236,23 +79,14 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         db.getTodayAccumulated(currentDate),
       ])
 
-      // [WorkPatternLifeCycle] Log pattern retrieval result
       logger.ui.debug('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - Pattern loaded', {
         currentDate,
         patternFound: !!patternData,
         patternId: patternData?.id || null,
         blocksCount: patternData?.blocks?.length || 0,
-        blocks: patternData?.blocks?.map((b: any) => ({
-          startTime: b.startTime,
-          endTime: b.endTime,
-          type: b.type,
-          capacity: b.capacity,
-        })) || [],
-        meetingsCount: patternData?.meetings?.length || 0,
         timestamp: new Date().toISOString(),
       })
 
-      // Load next task separately (updates UI state)
       await loadNextTask()
 
       setPattern(patternData)
@@ -262,27 +96,13 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         personal: accumulatedData.personal || 0,
       })
 
-      // [WorkPatternLifeCycle] Log current block detection
       const currentTime = new Date()
       const currentBlockData = patternData ? getCurrentBlock(patternData.blocks, currentTime) : null
       const nextBlockData = patternData ? getNextBlock(patternData.blocks, currentTime) : null
 
-      logger.ui.debug('[WorkPatternLifeCycle] WorkStatusWidget - Block detection', {
-        currentTime: currentTime.toTimeString().slice(0, 5),
-        currentBlock: currentBlockData ? {
-          startTime: currentBlockData.startTime,
-          endTime: currentBlockData.endTime,
-          type: currentBlockData.type,
-        } : null,
-        nextBlock: nextBlockData ? {
-          startTime: nextBlockData.startTime,
-          endTime: nextBlockData.endTime,
-          type: nextBlockData.type,
-        } : null,
-        timestamp: new Date().toISOString(),
-      })
+      setCurrentBlock(currentBlockData)
+      setNextBlock(nextBlockData)
 
-      // Calculate meeting time from work sessions
       let totalMeetingMinutes = 0
       if (patternData && patternData.meetings) {
         patternData.meetings.forEach((meeting: any) => {
@@ -298,29 +118,45 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       }
       setMeetingMinutes(totalMeetingMinutes)
 
-      // [WorkPatternLifeCycle] COMPLETE: WorkStatusWidget finished loading
       logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - COMPLETE', {
         currentDate,
         patternLoaded: !!patternData,
         currentBlockFound: !!currentBlockData,
         nextBlockFound: !!nextBlockData,
-        accumulated: {
-          focused: accumulatedData.focused || 0,
-          admin: accumulatedData.admin || 0,
-          personal: accumulatedData.personal || 0,
-        },
+        accumulated: accumulatedData,
         meetingMinutes: totalMeetingMinutes,
         timestamp: new Date().toISOString(),
       })
     } catch (error) {
-      logger.ui.error('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - ERROR', {
-        currentDate,
+      logger.ui.error('Failed to load work data', {
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString(),
+        currentDate,
       })
-      logger.ui.error('Failed to load work data:', error)
     }
   }
+
+  useEffect(() => {
+    loadWorkData()
+    const interval = setInterval(loadWorkData, 60000)
+
+    const handleTimeLogged = () => loadWorkData()
+    const handleWorkflowUpdated = () => loadWorkData()
+    const handleSessionChanged = () => loadWorkData()
+    const handleDataRefresh = () => loadWorkData()
+
+    appEvents.on(EVENTS.TIME_LOGGED, handleTimeLogged)
+    appEvents.on(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
+    appEvents.on(EVENTS.SESSION_CHANGED, handleSessionChanged)
+    appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
+
+    return () => {
+      clearInterval(interval)
+      appEvents.off(EVENTS.TIME_LOGGED, handleTimeLogged)
+      appEvents.off(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
+      appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
+      appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
+    }
+  }, [currentDate])
 
   const formatMinutes = (minutes: number) => {
     // Handle NaN or invalid values
@@ -357,6 +193,75 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   }
 
   // Tracking functions removed - functionality handled through time logging modal
+
+  // Helper function to get the active work session
+  const getActiveSession = () => {
+    // Get the first active session from the Map
+    const sessions = Array.from(activeWorkSessions.values())
+    return sessions.length > 0 ? sessions[0] : null
+  }
+
+  // Handler functions for task actions
+  const handleRefreshNextTask = async () => {
+    logger.ui.info('[WorkStatusWidget] Manual refresh requested - incrementing skip index')
+    // Increment the skip index to show the next task in priority order
+    useTaskStore.getState().incrementNextTaskSkipIndex()
+    // Reload the next task with the new skip index
+    await loadNextTask()
+  }
+
+  const handlePauseCurrentTask = async () => {
+    try {
+      const activeSession = getActiveSession()
+      if (!activeSession) {
+        logger.ui.warn('[WorkStatusWidget] No active session to pause')
+        return
+      }
+
+      setIsProcessing(true)
+
+      const store = useTaskStore.getState()
+
+      // Unified stop logic - both tasks and steps use store methods
+      if (activeSession.stepId) {
+        await store.pauseWorkOnStep(activeSession.stepId)
+        Message.success('Work session paused')
+      } else if (activeSession.taskId) {
+        await store.pauseWorkOnTask(activeSession.taskId)
+        Message.success('Work session stopped')
+      }
+
+      // Reload next task after stopping current one
+      await loadNextTask()
+    } catch (error) {
+      logger.ui.error('[WorkStatusWidget] Failed to pause current task:', error)
+      Message.error('Failed to pause work session')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleStartNextTask = async () => {
+    try {
+      setIsProcessing(true)
+
+      await useTaskStore.getState().startNextTask()
+
+      // Show success notification with task name
+      if (nextTask) {
+        Message.success(`Started work on: ${nextTask.title}`)
+      }
+
+      // Don't reload next task here - UI now shows pause button, not next task
+    } catch (error) {
+      logger.ui.error('Failed to start next task', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      Message.error('Failed to start work session')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
 
   if (!pattern) {
     return (

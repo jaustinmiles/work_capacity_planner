@@ -3,8 +3,8 @@ import { UnifiedSchedulerAdapter, SchedulingOptions, ScheduleResult, ScheduledIt
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
-import { logger } from '@/shared/logger'
-import { getCurrentTime } from '@shared/time-provider'
+import { logger } from '@/logger'
+import { getCurrentTime as _getCurrentTime } from '@shared/time-provider'
 
 /**
  * React hook for using UnifiedScheduler in UI components
@@ -49,21 +49,13 @@ export function useUnifiedScheduler(): {
         respectDeadlines: options.respectDeadlines,
         allowSplitting: options.allowSplitting,
       },
-      timestamp: getCurrentTime().toISOString(),
-      localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
+      timestamp: _getCurrentTime().toISOString(),
+      localTime: _getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
     })
 
     logger.ui.info('📊 [GANTT] Starting UnifiedScheduler calculation', {
       tasksCount: tasks.length,
-      sequencedTasksCount: sequencedTasks.length,
       workPatternsCount: workPatterns.length,
-      options: {
-        startDate: options.startDate,
-        endDate: options.endDate,
-        respectDeadlines: options.respectDeadlines,
-        allowSplitting: options.allowSplitting,
-        debug: true, // Always enable debug for now
-      },
     })
 
     try {
@@ -77,16 +69,14 @@ export function useUnifiedScheduler(): {
       const duration = globalThis.performance.now() - startTime
 
       // [WorkPatternLifeCycle] COMPLETE: UnifiedScheduler finished scheduling
-      logger.ui.info('[WorkPatternLifeCycle] useUnifiedScheduler.scheduleForGantt - COMPLETE', {
+      logger.ui.debug('useUnifiedScheduler.scheduleForGantt - COMPLETE', {
         scheduledCount: result.scheduledTasks.length,
         unscheduledCount: result.unscheduledTasks.length,
         conflicts: result.conflicts.length,
         totalDuration: result.totalDuration,
         performanceMs: Math.round(duration * 100) / 100,
-        blockUtilization: result.debugInfo?.blockUtilization || [],
-        warnings: result.debugInfo?.warnings || [],
-        timestamp: getCurrentTime().toISOString(),
-      })
+        timestamp: _getCurrentTime().toISOString(),
+      }, 'gantt-schedule-complete')
 
       logger.ui.info('✅ [GANTT] UnifiedScheduler completed', {
         scheduledCount: result.scheduledTasks.length,
@@ -99,12 +89,7 @@ export function useUnifiedScheduler(): {
       // Log debug info if available (from the result we already have)
       if (result.debugInfo) {
         logger.ui.debug('🔍 [GANTT] Debug Info', {
-          unscheduledItems: result.debugInfo.unscheduledItems,
-          blockUtilization: result.debugInfo.blockUtilization,
-          warnings: result.debugInfo.warnings,
-          totalScheduled: result.debugInfo.totalScheduled,
-          totalUnscheduled: result.debugInfo.totalUnscheduled,
-          scheduleEfficiency: result.debugInfo.scheduleEfficiency,
+          debugInfo: result.debugInfo,
         })
       }
 
@@ -120,11 +105,11 @@ export function useUnifiedScheduler(): {
             type: task.type,
             priority: task.importance * task.urgency,
           })),
-          timestamp: getCurrentTime().toISOString(),
+          timestamp: _getCurrentTime().toISOString(),
         })
 
         result.unscheduledTasks.forEach(task => {
-          logger.ui.debug('⚠️ [GANTT] Task unscheduled', {
+          logger.ui.debug('Task unscheduled', {
             taskId: task.id,
             taskName: task.name,
             duration: task.duration,
@@ -132,7 +117,7 @@ export function useUnifiedScheduler(): {
             importance: task.importance,
             urgency: task.urgency,
             reason: 'No available capacity or constraints not met',
-          })
+          }, 'gantt-task-unscheduled')
         })
       }
 
@@ -183,14 +168,16 @@ export function useUnifiedScheduler(): {
 
       return nextTask
     } catch (error) {
-      logger.ui.error('❌ [GANTT] Failed to get next scheduled task', error)
+      logger.ui.error('Failed to get next scheduled task', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'gantt-next-task-error')
       return null
     }
   }, [adapter])
 
   const validateDependencies = useCallback((tasks: Task[]) => {
     logger.ui.debug('🔗 [GANTT] Validating task dependencies', {
-      tasksCount: tasks.length,
+      taskCount: tasks.length,
     })
 
     const validation = adapter.validateDependencies(tasks)
@@ -209,14 +196,14 @@ export function useUnifiedScheduler(): {
   const calculateTaskPriority = useCallback((task: Task) => {
     const priority = adapter.calculateTaskPriority(task)
 
-    logger.ui.debug('📊 [GANTT] Task priority calculated', {
-      taskId: task.id,
-      taskName: task.name,
-      priority: Math.round(priority * 100) / 100,
-      importance: task.importance,
-      urgency: task.urgency,
-      deadline: task.deadline?.toISOString(),
-    })
+    logger.ui.debug('📊 [GANTT] Task priority calculated', {})
+      // taskId: task.id,
+      // taskName: task.name,
+      // priority: Math.round(priority * 100) / 100,
+      // importance: task.importance,
+      // urgency: task.urgency,
+      // deadline: task.deadline?.toISOString(),
+    // })
 
     return priority
   }, [adapter])
@@ -231,14 +218,14 @@ export function useUnifiedScheduler(): {
 
     const metrics = adapter.getSchedulingMetrics(tasks, workPatterns, options, sequencedTasks)
 
-    logger.ui.info('📊 [GANTT] Scheduling metrics calculated', {
-      totalTasks: metrics.totalTasks,
-      scheduledTasks: metrics.scheduledTasks,
-      unscheduledTasks: metrics.unscheduledTasks,
-      utilizationRate: Math.round(metrics.utilizationRate * 1000) / 10, // Convert to percentage
-      averagePriority: Math.round(metrics.averagePriority * 100) / 100,
-      totalDurationHours: Math.round(metrics.totalDuration / 60 * 100) / 100,
-    })
+    logger.ui.info('📊 [GANTT] Scheduling metrics calculated', {})
+      // totalTasks: metrics.totalTasks,
+      // scheduledTasks: metrics.scheduledTasks,
+      // unscheduledTasks: metrics.unscheduledTasks,
+      // utilizationRate: Math.round(metrics.utilizationRate * 1000) / 10, // Convert to percentage
+      // averagePriority: Math.round(metrics.averagePriority * 100) / 100,
+      // totalDurationHours: Math.round(metrics.totalDuration / 60 * 100) / 100,
+    // })
 
     return metrics
   }, [adapter])

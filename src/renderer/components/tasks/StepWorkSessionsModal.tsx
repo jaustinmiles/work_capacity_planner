@@ -23,7 +23,8 @@ import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { formatDuration } from '../../utils/dateUtils'
 import dayjs from 'dayjs'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
+// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 const { Text } = Typography
@@ -56,7 +57,10 @@ export function StepWorkSessionsModal({
       const data = await getDatabase().getStepWorkSessions(stepId)
       setSessions(data)
     } catch (error) {
-      logger.ui.error('Failed to load work sessions:', error)
+      logger.ui.error('Failed to load work sessions', {
+        error: error instanceof Error ? error.message : String(error),
+        stepId,
+      }, 'step-sessions-load-error')
       Message.error('Failed to load work sessions')
     } finally {
       setLoading(false)
@@ -76,7 +80,11 @@ export function StepWorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      logger.ui.error('Failed to delete work session:', error)
+      logger.ui.error('Failed to delete work session', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+        stepId,
+      }, 'work-session-delete-error')
       Message.error('Failed to delete work session')
     }
   }
@@ -108,7 +116,11 @@ export function StepWorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      logger.ui.error('Failed to update work session:', error)
+      logger.ui.error('Failed to update work session', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId: editingSession!.id,
+        stepId,
+      }, 'work-session-update-error')
       Message.error('Failed to update work session')
     }
   }
@@ -136,7 +148,11 @@ export function StepWorkSessionsModal({
       loadSessions()
       onSessionsUpdated?.()
     } catch (error) {
-      logger.ui.error('Failed to add work session:', error)
+      logger.ui.error('Failed to add work session', {
+        error: error instanceof Error ? error.message : String(error),
+        stepId,
+        taskId,
+      }, 'work-session-add-error')
       Message.error('Failed to add work session')
     }
   }

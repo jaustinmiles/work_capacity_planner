@@ -1,7 +1,6 @@
 import { Task, Session } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
-import { logger } from '@/shared/logger'
 
 
 // Type for the Electron API exposed by preload script
@@ -216,6 +215,8 @@ declare global {
       loadFeedback?: () => Promise<any[]>
       updateFeedback?: (updatedFeedback: any) => Promise<boolean>
       getSessionId?: () => Promise<string>
+      // Main process logging
+      onMainLog?: (callback: (entry: any) => void) => void
     }
 
   }
@@ -231,18 +232,13 @@ export class RendererDatabaseService {
   private constructor() {
     // Check if we're in an Electron environment
     if (typeof window === 'undefined') {
-      logger.ui.error('Window object not available')
       throw new Error('Window object not available')
     }
 
     // Wait for electronAPI to be available (it might load asynchronously)
     if (!window.electronAPI) {
-      logger.ui.error('Electron API not available. window.electronAPI is:', window.electronAPI)
-      logger.ui.error('Available window properties:', Object.keys(window))
       throw new Error('Electron API not available. Make sure the preload script is loaded correctly.')
     }
-
-    logger.ui.debug('RendererDatabaseService: Initialized successfully')
   }
 
   static getInstance(): RendererDatabaseService {
@@ -254,16 +250,7 @@ export class RendererDatabaseService {
 
   // Session management
   async getSessions(): Promise<Session[]> {
-    const sessions = await window.electronAPI.db.getSessions()
-    logger.ui.info('[Database] Retrieved sessions from database', {
-      count: sessions.length,
-      sessions: sessions.map(s => ({
-        id: s.id,
-        name: s.name,
-        isActive: s.isActive,
-      })),
-    })
-    return sessions
+    return await window.electronAPI.db.getSessions()
   }
 
   async createSession(name: string, description?: string): Promise<Session> {
@@ -289,25 +276,13 @@ export class RendererDatabaseService {
   }
 
   async getCurrentSession(): Promise<any> {
-    const session = await window.electronAPI.db.getCurrentSession()
-    if (session) {
-      logger.ui.info('[Database] Current active session', {
-        id: session.id,
-        name: session.name,
-        isActive: session.isActive,
-      })
-    } else {
-      logger.ui.warn('[Database] No current session found')
-    }
-    return session
+    return await window.electronAPI.db.getCurrentSession()
   }
 
   async loadLastUsedSession(): Promise<void> {
-    logger.ui.info('[Database] Checking for last used session...')
     const lastUsedSessionId = window.localStorage.getItem('lastUsedSessionId')
 
     if (lastUsedSessionId) {
-      logger.ui.info('[Database] Found stored session ID in localStorage', { sessionId: lastUsedSessionId })
       try {
         // Check if the session still exists
         const sessions = await this.getSessions()
@@ -316,43 +291,12 @@ export class RendererDatabaseService {
         if (session) {
           // Switch to the last used session
           await this.switchSession(lastUsedSessionId)
-          logger.ui.info('[Database] Successfully loaded last used session', {
-            sessionId: lastUsedSessionId,
-            sessionName: session.name,
-          })
         } else {
           // Session no longer exists, clear the stored ID
-          logger.ui.warn('[Database] Last used session no longer exists in database', {
-            sessionId: lastUsedSessionId,
-          })
           window.localStorage.removeItem('lastUsedSessionId')
-
-          // Log what sessions ARE available
-          logger.ui.info('[Database] Available sessions after last used not found', {
-            count: sessions.length,
-            sessions: sessions.map(s => ({ id: s.id, name: s.name })),
-          })
         }
-      } catch (error) {
-        logger.ui.error('[Database] Failed to load last used session', error)
+      } catch (_error) {
         window.localStorage.removeItem('lastUsedSessionId')
-      }
-    } else {
-      logger.ui.info('[Database] No last used session stored in localStorage')
-
-      try {
-        // Get and log current sessions
-        const sessions = await this.getSessions()
-        if (sessions.length > 0) {
-          logger.ui.info('[Database] Sessions available but none marked as last used', {
-            count: sessions.length,
-            sessions: sessions.map(s => ({ id: s.id, name: s.name, isActive: s.isActive })),
-          })
-        } else {
-          logger.ui.warn('[Database] No sessions exist in database')
-        }
-      } catch (error) {
-        logger.ui.error('[Database] Failed to get sessions in loadLastUsedSession', error)
       }
     }
   }
@@ -363,15 +307,7 @@ export class RendererDatabaseService {
 
   // Task operations
   async getTasks(includeArchived = false): Promise<Task[]> {
-    logger.ui.debug('RendererDB: Calling getTasks via IPC...', { includeArchived })
-    try {
-      const tasks = await window.electronAPI.db.getTasks(includeArchived)
-      logger.ui.debug(`RendererDB: Received ${tasks.length} tasks from IPC`)
-      return tasks
-    } catch (error) {
-      logger.ui.error('RendererDB: Error getting tasks:', error)
-      throw error
-    }
+    return await window.electronAPI.db.getTasks(includeArchived)
   }
 
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {

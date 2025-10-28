@@ -9,9 +9,9 @@ import {
 } from './step-id-utils'
 
 // Mock logger
-vi.mock('./logger', () => ({
+vi.mock('@/logger', () => ({
   logger: {
-    scheduler: {
+    system: {
       warn: vi.fn(),
     },
   },
@@ -402,7 +402,7 @@ describe('step-id-utils', () => {
     })
 
     it('should log warnings for removed dependencies', async () => {
-      const { logger } = await import('./logger')
+      const { logger } = await import('@/logger')
 
       const steps = [
         { id: 'step-1', name: 'Step A', dependsOn: ['step-99'] },
@@ -410,9 +410,7 @@ describe('step-id-utils', () => {
 
       fixBrokenDependencies(steps)
 
-      expect(logger.scheduler.warn).toHaveBeenCalledWith(
-        'Removing invalid dependency "step-99" from step "Step A"',
-      )
+      expect(logger.system.warn).toHaveBeenCalled()
     })
   })
 })

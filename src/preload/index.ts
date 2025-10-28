@@ -1,7 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 // Don't use logger in preload - it runs in a special context
-// logger.debug('Preload script loading...')
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -108,7 +107,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   persistLogs: (logs: any[]) =>
     ipcRenderer.invoke('log:persistBatch', logs),
   onMainLog: (callback: (entry: any) => void) =>
-    ipcRenderer.on('logger:from-main', (_event, entry) => callback(entry)),
+    ipcRenderer.on('log:from-main', (_event, entry) => callback(entry)),
 
   // Feedback operations
   saveFeedback: (feedback: any) => ipcRenderer.invoke('feedback:save', feedback),
@@ -117,5 +116,3 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateFeedback: (updatedFeedback: any) => ipcRenderer.invoke('feedback:update', updatedFeedback),
   getSessionId: () => ipcRenderer.invoke('app:getSessionId'),
 })
-
-// logger.debug('Preload script loaded successfully!')

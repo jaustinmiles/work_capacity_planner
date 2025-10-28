@@ -1,5 +1,11 @@
 # CLAUDE.md - Essential Development Rules
 
+## ABSOLUTE RULES - NO EXCEPTIONS
+
+1. **THERE IS NO SUCH THING AS "PRE-EXISTING ERRORS"** - If lint/typecheck/tests fail, they must be fixed NOW. Never claim errors are "pre-existing" - fix ALL errors before pushing.
+2. **ALL CHECKS MUST PASS** - No bypassing with --no-verify, no disabling hooks, no excuses. Every push must have clean lint, typecheck, and tests.
+3. **NO SHORTCUTS** - Quality gates exist for a reason. Respect them always.
+
 ## Core Workflow Principles
 
 1. **Feature Branches Only** - All work on feature branches, never directly on main

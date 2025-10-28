@@ -21,7 +21,7 @@ import {
   TaskType,
 } from '../../../shared/amendment-types'
 import { useTaskStore } from '../../store/useTaskStore'
-import { logger } from '@/shared/logger'
+import { logger } from '@/logger'
 import { DependencyEditor } from '../shared/DependencyEditor'
 import { applyAmendments } from '../../utils/amendment-applicator'
 
@@ -152,7 +152,9 @@ export function VoiceAmendmentModal({
 
     } catch (err) {
       setError('Failed to start recording. Please check your microphone permissions.')
-      logger.ui.error('Error starting recording:', err)
+      logger.ui.error('Error starting recording', {
+        error: err instanceof Error ? err.message : String(err),
+      }, 'voice-record-error')
     }
   }
 
@@ -188,7 +190,9 @@ export function VoiceAmendmentModal({
 
     } catch (err) {
       setError('Failed to process audio. Please try again.')
-      logger.ui.error('Error processing audio:', err)
+      logger.ui.error('Error processing audio', {
+        error: err instanceof Error ? err.message : String(err),
+      }, 'voice-process-error')
     } finally {
       setIsTranscribing(false)
     }
@@ -217,9 +221,12 @@ export function VoiceAmendmentModal({
 
       // Parse with AI via IPC, including any additional context
       const fullText = contextText ? `${text}\n\nAdditional context: ${contextText}` : text
-      // logger.ui.debug('[VoiceAmendmentModal] Sending to parse:', fullText, 'Context:', context)
+      logger.ui.debug('[VoiceAmendmentModal] Sending to parse:', {
+        fullText,
+        context,
+      })
       const result = await window.electronAPI.ai.parseAmendment(fullText, context)
-      // logger.ui.debug('[VoiceAmendmentModal] Received parse result:', result)
+      logger.ui.debug('[VoiceAmendmentModal] Received parse result:', { result })
       setAmendmentResult(result)
 
       // Auto-select all amendments with high confidence
@@ -235,7 +242,9 @@ export function VoiceAmendmentModal({
 
     } catch (err) {
       setError('Failed to parse amendments. Please try rephrasing.')
-      logger.ui.error('Error parsing transcription:', err)
+      logger.ui.error('Error parsing transcription', {
+        error: err instanceof Error ? err.message : String(err),
+      }, 'voice-parse-error')
     } finally {
       setIsParsing(false)
     }
@@ -325,7 +334,9 @@ export function VoiceAmendmentModal({
       handleClose()
     } catch (err) {
       setError('Failed to apply amendments')
-      logger.ui.error('Error applying amendments:', err)
+      logger.ui.error('Error applying amendments', {
+        error: err instanceof Error ? err.message : String(err),
+      }, 'voice-apply-error')
     }
   }
 
@@ -368,7 +379,9 @@ export function VoiceAmendmentModal({
       await parseTranscription(transcriptionResult.text)
     } catch (err) {
       setError('Failed to process audio file. Please try again.')
-      logger.ui.error('Error processing uploaded audio file:', err)
+      logger.ui.error('Error processing uploaded audio file', {
+        error: err instanceof Error ? err.message : String(err),
+      }, 'voice-upload-error')
     } finally {
       setIsProcessingAudioFile(false)
     }
@@ -410,7 +423,9 @@ export function VoiceAmendmentModal({
       case AmendmentType.WorkflowCreation:
         return <IconBranch />
       default:
-        logger.ui.warn('[VoiceAmendmentModal] Unknown amendment type in icon:', type)
+        logger.ui.warn('Unknown amendment type in icon', {
+          type,
+        }, 'voice-unknown-type')
         return <IconEdit />
     }
   }
@@ -669,7 +684,10 @@ export function VoiceAmendmentModal({
         )
       }
       default:
-        logger.ui.error(`[VoiceAmendmentModal] Unknown amendment type: ${amendment.type}`, undefined, { fullAmendment: amendment })
+        logger.ui.error('Unknown amendment type', {
+          type: amendment.type,
+          fullAmendment: amendment,
+        }, 'voice-unknown-amendment')
         return <Text>Unknown amendment type: {String(amendment.type)}</Text>
     }
   }
