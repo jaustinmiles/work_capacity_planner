@@ -3,16 +3,12 @@ import { Task, NextScheduledItem } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskStatus } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
-import { SchedulingService } from '@shared/scheduling-service'
-import { SchedulingResult, WeeklySchedule } from '@shared/scheduling-models'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
-import { UnifiedSchedulerAdapter } from '@shared/unified-scheduler-adapter'
+import { UnifiedScheduler } from '@shared/unified-scheduler'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
-// LOGGER_REMOVED: import { getRendererLogger } from '../../logging/index.renderer'
 import { WorkTrackingService } from '../services/workTrackingService'
 import dayjs from 'dayjs'
 import { getCurrentTime } from '../../shared/time-provider'
@@ -29,11 +25,7 @@ interface TaskStore {
   workPatternsLoading: boolean
 
   // Scheduling state
-  currentSchedule: SchedulingResult | null
-  currentWeeklySchedule: WeeklySchedule | null
   optimalSchedule: any | null
-  isScheduling: boolean
-  schedulingError: string | null
 
   // Progress tracking state
   activeWorkSessions: Map<string, UnifiedWorkSession>
@@ -62,9 +54,6 @@ interface TaskStore {
   selectTask: (id: string | null) => void
 
   // Scheduling actions
-  generateSchedule: (__options?: { startDate?: Date; tieBreaking?: 'creation_date' | 'duration_shortest' | 'duration_longest' | 'alphabetical' }) => Promise<void>
-  generateWeeklySchedule: (weekStartDate: Date) => Promise<void>
-  clearSchedule: () => void
   setOptimalSchedule: (schedule: any) => void
   getOptimalSchedule: () => any
 
@@ -77,6 +66,7 @@ interface TaskStore {
   pauseWorkOnStep: (stepId: string) => Promise<void>
   pauseWorkOnTask: (taskId: string) => Promise<void>
   completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
+  checkAndCompleteExpiredWaitTimes: () => Promise<void>
   updateStepProgress: (stepId: string, __percentComplete: number) => Promise<void>
   logWorkSession: (stepId: string, __minutes: number, notes?: string) => Promise<void>
   loadWorkSessionHistory: (__stepId: string) => Promise<void>
@@ -104,12 +94,6 @@ interface TaskStore {
 // Helper to generate IDs (will be replaced by database IDs later)
 
 
-// Create scheduling service instance
-const schedulingService = new SchedulingService({
-  getWorkPattern: (date: string) => getDatabase().getWorkPattern(date),
-})
-// Create UnifiedSchedulerAdapter instance for direct scheduling
-const unifiedSchedulerAdapter = new UnifiedSchedulerAdapter()
 
 // Get logger instance for state change logging
 // const rendererLogger = getRendererLogger()
@@ -165,11 +149,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     })(),
 
     // Scheduling state
-    currentSchedule: null,
-    currentWeeklySchedule: null,
     optimalSchedule: null,
-    isScheduling: false,
-    schedulingError: null,
 
     // Progress tracking state
     activeWorkSessions: new Map(),
@@ -602,161 +582,6 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   },
 
   // Scheduling actions
-  generateSchedule: async (options = {}) => {
-    // rendererLogger.info('[TaskStore] generateSchedule called with options:', options)
-    set({ isScheduling: true, schedulingError: null })
-    try {
-      const state = get()
-      // rendererLogger.info('[TaskStore] Generating schedule using UnifiedSchedulerAdapter', {
-        // taskCount: state.tasks.filter(t => !t.completed).length,
-        // workflowCount: state.sequencedTasks.filter(st => st.overallStatus !== 'completed').length,
-        // workPatternsCount: state.workPatterns.length,
-        // options,
-      // })
-
-      // Check if we have work patterns loaded
-      if (!state.workPatterns || state.workPatterns.length === 0) {
-        // rendererLogger.warn('[TaskStore] No work patterns available, cannot generate schedule')
-        set({
-          schedulingError: 'No work patterns available. Please set up your work schedule.',
-          isScheduling: false,
-        })
-        return
-      }
-
-      // Use UnifiedSchedulerAdapter directly - same as Gantt chart
-      const schedulingOptions = {
-        startDate: options.startDate || getCurrentTime(),
-        respectDeadlines: true,
-        allowSplitting: true,
-        debug: true,
-      }
-
-      // rendererLogger.info('[TaskStore] Calling unifiedSchedulerAdapter.scheduleTasks...')
-      const result = unifiedSchedulerAdapter.scheduleTasks(
-        state.tasks,
-        state.workPatterns,
-        schedulingOptions,
-        state.sequencedTasks,
-      )
-
-      // rendererLogger.info('[TaskStore] UnifiedScheduler completed', {
-        // scheduledCount: result.scheduledTasks.length,
-        // unscheduledCount: result.unscheduledTasks.length,
-        // totalDuration: result.totalDuration,
-        // conflicts: result.conflicts.length,
-      // })
-
-      // Convert to SchedulingResult format that the store expects
-      // This matches what SchedulingService.convertFromSchedulingResult does
-      const schedule: SchedulingResult = {
-        scheduledItems: result.scheduledTasks.map(item => ({
-          id: item.task.id,
-          name: item.task.name,
-          type: item.task.type,
-          duration: item.task.duration,
-          importance: item.task.importance,
-          urgency: item.task.urgency,
-          cognitiveComplexity: item.task.cognitiveComplexity || 3,
-          dependsOn: item.task.dependencies || [],
-          asyncWaitTime: item.task.asyncWaitTime || 0,
-          isAsyncTrigger: false,
-          ...(item.task.deadline && { deadline: item.task.deadline }),
-          ...(item.task.deadlineType && { deadlineType: item.task.deadlineType }),
-          sourceType: 'simple_task' as const,
-          sourceId: item.task.id,
-          status: 'scheduled' as const,
-          scheduledDate: new Date(item.startTime.toDateString()),
-          scheduledStartTime: item.startTime,
-          scheduledEndTime: item.endTime,
-          timeSlotId: item.blockId || 'unknown',
-          consumesFocusedTime: item.task.type === 'focused',
-          consumesAdminTime: item.task.type === 'admin',
-          isOptimallyPlaced: true,
-          wasRescheduled: false,
-        })),
-        unscheduledItems: result.unscheduledTasks.map(task => ({
-          id: task.id,
-          name: task.name,
-          type: task.type,
-          duration: task.duration,
-          importance: task.importance,
-          urgency: task.urgency,
-          cognitiveComplexity: task.cognitiveComplexity || 3,
-          dependsOn: task.dependencies || [],
-          asyncWaitTime: task.asyncWaitTime || 0,
-          isAsyncTrigger: false,
-          ...(task.deadline && { deadline: task.deadline }),
-          ...(task.deadlineType && { deadlineType: task.deadlineType }),
-          sourceType: 'simple_task' as const,
-          sourceId: task.id,
-          status: 'pending' as const,
-          scheduledDate: null,
-          scheduledStartTime: null,
-          scheduledEndTime: null,
-          timeSlotId: null,
-          consumesFocusedTime: task.type === 'focused',
-          consumesAdminTime: task.type === 'admin',
-          isOptimallyPlaced: false,
-          wasRescheduled: false,
-        })),
-        conflicts: result.conflicts.map(conflict => ({
-          type: 'capacity_exceeded' as const,
-          affectedItems: [],
-          description: conflict,
-          severity: 'suggestion' as const,
-          suggestedResolution: 'Add more capacity to the schedule',
-        })),
-        overCapacityDays: [],
-        underUtilizedDays: [],
-        suggestions: [],
-        warnings: [],
-        success: true,
-        totalWorkDays: 0,
-        totalFocusedHours: 0,
-        totalAdminHours: 0,
-        projectedCompletionDate: result.totalDuration > 0 ? new Date(result.totalDuration) : new Date(),
-      }
-
-      set({ currentSchedule: schedule, isScheduling: false })
-      // rendererLogger.info('[TaskStore] Schedule set in state using UnifiedSchedulerAdapter')
-    } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to generate schedule', error as Error)
-      // rendererLogger.error('[TaskStore] Error details:', {
-        // message: (error as Error).message,
-        // stack: (error as Error).stack,
-      // })
-      set({
-        schedulingError: error instanceof Error ? error.message : 'Unknown scheduling error',
-        isScheduling: false,
-      })
-    }
-  },
-
-  generateWeeklySchedule: async (weekStartDate: Date) => {
-    set({ isScheduling: true, schedulingError: null })
-    try {
-      const state = get()
-      const weeklySchedule = await schedulingService.createWeeklySchedule(
-        state.tasks,
-        state.sequencedTasks,
-        weekStartDate,
-      )
-      set({ currentWeeklySchedule: weeklySchedule, isScheduling: false })
-    } catch (error) {
-      set({
-        schedulingError: error instanceof Error ? error.message : 'Unknown scheduling error',
-        isScheduling: false,
-      })
-    }
-  },
-
-  clearSchedule: () => set({
-    currentSchedule: null,
-    currentWeeklySchedule: null,
-    optimalSchedule: null,
-    schedulingError: null,
-  }),
 
   setOptimalSchedule: (schedule: any) => {
     // rendererLogger.info('[TaskStore] Setting optimal schedule', {
@@ -1103,10 +928,19 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         appEvents.emit(EVENTS.TIME_LOGGED)
       }
 
+      // Find the step to check if it has async wait time
+      const step = state.sequencedTasks
+        .flatMap(t => t.steps)
+        .find(s => s.id === stepId)
+
+      // If step has asyncWaitTime, transition to 'waiting' instead of 'completed'
+      const hasAsyncWait = step && step.asyncWaitTime && step.asyncWaitTime > 0
+      const finalStatus = hasAsyncWait ? 'waiting' : 'completed'
+
       // Update step progress AND notes
       const updateData = {
-        status: 'completed',
-        completedAt: new Date(),
+        status: finalStatus,
+        completedAt: new Date(), // Mark when active work completed (wait time starts from here)
         actualDuration: totalMinutes,
         percentComplete: 100,
         // If the step was never started, set startedAt to when it was completed minus duration
@@ -1141,10 +975,61 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // Reset skip index when a step is completed (to show the actual next task)
       get().resetNextTaskSkipIndex()
+
+      // Check if any waiting steps have completed their wait time
+      await get().checkAndCompleteExpiredWaitTimes()
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to complete step',
       })
+    }
+  },
+
+  /**
+   * Check for steps in 'waiting' status whose wait time has expired
+   * and transition them to 'completed'
+   */
+  checkAndCompleteExpiredWaitTimes: async () => {
+    const state = get()
+    const now = new Date()
+
+    for (const workflow of state.sequencedTasks) {
+      for (const step of workflow.steps) {
+        // Check if step is waiting and has expired wait time
+        if (
+          step.status === 'waiting' &&
+          step.completedAt &&
+          step.asyncWaitTime &&
+          step.asyncWaitTime > 0
+        ) {
+          const completedTime = new Date(step.completedAt).getTime()
+          const waitEndTime = completedTime + step.asyncWaitTime * 60000
+
+          // If wait time has expired, transition to completed
+          if (now.getTime() >= waitEndTime) {
+            try {
+              await getDatabase().updateTaskStepProgress(step.id, {
+                status: 'completed',
+              })
+
+              // Reload workflow to reflect changes
+              const updatedTask = await getDatabase().getSequencedTaskById(workflow.id)
+              if (updatedTask) {
+                set(state => ({
+                  sequencedTasks: state.sequencedTasks.map(t =>
+                    t.id === workflow.id ? updatedTask : t,
+                  ).filter((t): t is SequencedTask => t !== null),
+                }))
+              }
+            } catch (error) {
+              logger.db.error('Failed to complete expired wait time', {
+                stepId: step.id,
+                error: error instanceof Error ? error.message : String(error),
+              }, 'wait-time-transition-error')
+            }
+          }
+        }
+      }
     }
   },
 
@@ -1318,143 +1203,94 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     try {
       const state = get()
       const skipIndex = state.nextTaskSkipIndex
-      // rendererLogger.info('[TaskStore] Getting next scheduled item...', {
-        // skipIndex,
-      // })
+      const tasks = state.tasks
+      const sequencedTasks = state.sequencedTasks
+      const workPatterns = state.workPatterns
+      const workSettings = state.workSettings
 
-      // First, check if we have a current schedule
-      // If not, generate one (but avoid if already scheduling)
-      if (!state.currentSchedule && !state.isScheduling) {
-        // rendererLogger.info('[TaskStore] No current schedule, generating one...')
-        await get().generateSchedule()
-      } else if (state.isScheduling) {
-        // rendererLogger.info('[TaskStore] Schedule generation already in progress, waiting...')
-        // Return null if still scheduling to avoid infinite loop
+      if (!workPatterns || workPatterns.length === 0) {
         return null
       }
 
-      // Get the updated state after potential schedule generation
-      const updatedState = get()
-      const schedule = updatedState.currentSchedule
+      // Use UnifiedScheduler directly
+      const scheduler = new UnifiedScheduler()
 
-      if (!schedule || !schedule.scheduledItems || schedule.scheduledItems.length === 0) {
-        // rendererLogger.info('[TaskStore] No scheduled items available')
+      const currentTime = getCurrentTime()
+      const startDateString = currentTime.toISOString().split('T')[0]
+
+      // Build context and config for UnifiedScheduler
+      const context = {
+        startDate: startDateString,
+        tasks,
+        workflows: sequencedTasks,
+        workPatterns,
+        workSettings,
+        currentTime,
+      }
+
+      const config = {
+        startDate: currentTime,
+        allowTaskSplitting: true,
+        respectMeetings: true,
+        optimizationMode: 'realistic' as const,
+        debugMode: true,
+      }
+
+      // Combine tasks and workflows into items array
+      const items = [...tasks, ...sequencedTasks]
+
+      // Call scheduler
+      const scheduleResult = scheduler.scheduleForDisplay(items, context, config)
+
+      // Filter out meetings and sort by scheduled start time
+      const sortedByTime = [...scheduleResult.scheduled]
+        .filter(item => item.startTime && item.type !== 'meeting' && item.type !== 'break' && item.type !== 'blocked-time')
+        .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime())
+
+      if (sortedByTime.length === 0) {
         return null
       }
 
-      // Get current tasks and workflows for finding details
-      const tasks = updatedState.tasks
-      const sequencedTasks = updatedState.sequencedTasks
+      const targetIndex = Math.min(skipIndex, sortedByTime.length - 1)
+      const scheduledItem = sortedByTime[targetIndex]
 
-      // rendererLogger.info('[TaskStore] Using existing schedule', {
-        // totalScheduledItems: schedule.scheduledItems.length,
-        // incompleteTasks: tasks.filter(t => !t.completed).length,
-        // incompleteWorkflows: sequencedTasks.filter(w => w.overallStatus !== 'completed').length,
-      // })
+      if (!scheduledItem || !scheduledItem.startTime) {
+        return null
+      }
 
-      // Find incomplete scheduled items, then skip to the requested index
-      const incompleteItems: NextScheduledItem[] = []
+      // Convert to NextScheduledItem format
+      const isWorkflowStep = scheduledItem.type === 'workflow-step'
 
-      for (const scheduledItem of schedule.scheduledItems) {
-        // Parse the item ID to determine type and find the actual item
-        let isCompleted = false
-        let itemDetails: NextScheduledItem | null = null
-
-        // Check if it's a workflow step
-        const isWorkflowStep = sequencedTasks.some(seq =>
-          seq.steps.some(step =>
-            step.id === scheduledItem.id ||
-            scheduledItem.id === `workflow_${seq.id}_step_${step.id}` ||
-            scheduledItem.id === `step_${step.id}`,
-          ),
+      if (isWorkflowStep) {
+        const workflow = sequencedTasks.find(seq =>
+          seq.steps.some(step => step.id === scheduledItem.id),
         )
+        const step = workflow?.steps.find(s => s.id === scheduledItem.id)
 
-        if (isWorkflowStep) {
-          // Find the workflow and step
-          const workflow = sequencedTasks.find(seq =>
-            seq.steps.some(step =>
-              step.id === scheduledItem.id ||
-              scheduledItem.id === `workflow_${seq.id}_step_${step.id}` ||
-              scheduledItem.id === `step_${step.id}`,
-            ),
-          )
-          const step = workflow?.steps.find(s =>
-            s.id === scheduledItem.id ||
-            scheduledItem.id === `workflow_${workflow.id}_step_${s.id}` ||
-            scheduledItem.id === `step_${s.id}`,
-          )
-
-          if (step) {
-            isCompleted = step.status === 'completed' || step.status === 'skipped'
-            if (!isCompleted) {
-              itemDetails = {
-                type: 'step' as const,
-                id: step.id,
-                workflowId: workflow?.id,
-                title: step.name,
-                estimatedDuration: step.duration,
-                scheduledStartTime: scheduledItem.scheduledStartTime,
-              }
-            }
-          }
-        } else {
-          // Regular task - extract ID
-          let taskId = scheduledItem.id
-          if (taskId.startsWith('task_')) {
-            taskId = taskId.slice(5)
-          }
-
-          const task = tasks.find(t => t.id === taskId)
-          if (task) {
-            isCompleted = task.completed
-            if (!isCompleted) {
-              itemDetails = {
-                type: 'task' as const,
-                id: task.id,
-                title: task.name,
-                estimatedDuration: task.duration,
-                scheduledStartTime: scheduledItem.scheduledStartTime,
-              }
-            }
+        if (step && workflow) {
+          return {
+            type: 'step' as const,
+            id: step.id,
+            workflowId: workflow.id,
+            title: step.name,
+            estimatedDuration: step.duration,
+            scheduledStartTime: scheduledItem.startTime,
           }
         }
-
-        // Collect all incomplete items
-        if (!isCompleted && itemDetails) {
-          incompleteItems.push(itemDetails)
-        }
       }
 
-      // Return the item at the skip index (or null if out of bounds)
-      if (incompleteItems.length === 0) {
-        // rendererLogger.info('[TaskStore] No incomplete scheduled items found')
-        return null
+      // Regular task
+      return {
+        type: 'task' as const,
+        id: scheduledItem.id,
+        title: scheduledItem.name,
+        estimatedDuration: scheduledItem.duration,
+        scheduledStartTime: scheduledItem.startTime,
       }
-
-      // Cap skipIndex at last item - prevents going beyond available tasks
-      // If user keeps clicking refresh past the end, they'll keep seeing the last task
-      const targetIndex = Math.min(skipIndex, incompleteItems.length - 1)
-      const selectedItem = incompleteItems[targetIndex]
-
-      // Convert Date to ISO string for proper logging
-      const loggableDetails = {
-        ...selectedItem,
-        scheduledStartTime: selectedItem.scheduledStartTime instanceof Date
-          ? selectedItem.scheduledStartTime.toISOString()
-          : selectedItem.scheduledStartTime,
-      }
-      logger.ui.info('Found next scheduled item', {
-        ...loggableDetails,
-        skipIndex,
-        targetIndex,
-        totalIncompleteItems: incompleteItems.length,
-      }, 'next-scheduled-item')
-      return selectedItem
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to get next scheduled item', error as Error)
-      set({
-        error: error instanceof Error ? error.message : 'Failed to get next scheduled item',
-      })
+      logger.ui.error('Failed to get next scheduled item', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'next-item-error')
       return null
     }
   },

@@ -7,7 +7,6 @@ import { TaskType } from '@shared/enums'
 import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
 import { useUnifiedScheduler, ScheduleResult } from '../../hooks/useUnifiedScheduler'
-import { ScheduledItem } from '@shared/unified-scheduler-adapter'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
@@ -44,11 +43,11 @@ interface GanttItem extends GanttItemWorkflowMetadata {
   startTime: Date
   endTime: Date
   color: string
-  deadline?: Date
+  deadline?: Date | undefined
   originalItem: Task | SequencedTask | WorkMeeting
-  blockId?: string
-  isBlocked?: boolean
-  isWaitTime?: boolean
+  blockId?: string | undefined
+  isBlocked?: boolean | undefined
+  isWaitTime?: boolean | undefined
 }
 
 // Zoom presets
@@ -62,7 +61,7 @@ const ZOOM_PRESETS = [
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const { updateTask, updateSequencedTask, workPatterns = [], workPatternsLoading, loadWorkPatterns } = useTaskStore()
-  const { scheduleForGantt } = useUnifiedScheduler()
+  const scheduler = useUnifiedScheduler()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -263,56 +262,51 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Helper function to convert UnifiedScheduler results to GanttChart format
   const convertUnifiedToGanttItems = useCallback((result: ScheduleResult): GanttItem[] => {
     logger.ui.debug('Converting UnifiedScheduler results to Gantt format', {
-      scheduledCount: result.scheduledTasks.length,
-      unscheduledCount: result.unscheduledTasks.length,
+      scheduledCount: result.scheduled.length,
+      unscheduledCount: result.unscheduled.length,
     }, 'gantt-convert-results')
 
-    return result.scheduledTasks.map((item) => {
-      // Get task color based on type
-      const getTaskColor = (taskType: TaskType): string => {
-        switch (taskType) {
-          case TaskType.Focused: return '#3b82f6'
-          case TaskType.Admin: return '#f59e0b'
-          case TaskType.Personal: return '#10b981'
-          default: return '#6b7280'
+    // Filter out meetings, breaks, and blocked time - they're handled separately by getMeetingScheduledItems
+    return result.scheduled
+      .filter(item => item.type !== 'meeting' && item.type !== 'break' && item.type !== 'blocked-time')
+      .map((item) => {
+        // Get task color based on type
+        const getTaskColor = (taskType: TaskType): string => {
+          switch (taskType) {
+            case TaskType.Focused: return '#3b82f6'
+            case TaskType.Admin: return '#f59e0b'
+            case TaskType.Personal: return '#10b981'
+            default: return '#6b7280'
+          }
         }
-      }
 
-      // Type-safe check for workflow metadata
-      // Extend ScheduledItem with optional workflow properties
-      interface ScheduledItemWithWorkflow extends ScheduledItem {
-        workflowId?: string
-        workflowName?: string
-        stepIndex?: number
-        isWorkflowStep?: boolean
-      }
+        // UnifiedScheduleItem has properties directly, not nested in 'task'
+        const hasWorkflowMetadata = item.workflowId !== undefined
+        const itemType = item.type === 'workflow-step' ? 'workflow-step' : 'task'
 
-      const itemWithMetadata = item as ScheduledItemWithWorkflow
-      const hasWorkflowMetadata = itemWithMetadata.workflowId !== undefined
+        const ganttItem: GanttItem = {
+          id: item.id,
+          name: item.name,
+          type: itemType,
+          priority: item.priority || 0,
+          duration: item.duration,
+          startTime: item.startTime || new Date(),
+          endTime: item.endTime || new Date(),
+          color: getTaskColor(item.taskType || TaskType.Focused),
+          deadline: item.deadline,
+          originalItem: (item.originalItem || item) as Task | SequencedTask | WorkMeeting,
+          blockId: item.blockId,
+          // Add workflow metadata if present
+          ...(hasWorkflowMetadata && {
+            workflowId: item.workflowId,
+            workflowName: item.workflowName,
+            stepIndex: item.stepIndex,
+            isWorkflowStep: true,
+          }),
+        }
 
-      const ganttItem: GanttItem = {
-        id: item.task.id,
-        name: item.task.name,
-        type: itemWithMetadata.isWorkflowStep ? 'workflow-step' : 'task',
-        priority: item.priority || 0,
-        duration: item.task.duration,
-        startTime: item.startTime,
-        endTime: item.endTime,
-        color: getTaskColor(item.task.type),
-        deadline: item.task.deadline,
-        originalItem: item.task,
-        blockId: item.blockId,
-        // Add workflow metadata if present
-        ...(hasWorkflowMetadata && {
-          workflowId: itemWithMetadata.workflowId,
-          workflowName: itemWithMetadata.workflowName,
-          stepIndex: itemWithMetadata.stepIndex,
-          isWorkflowStep: itemWithMetadata.isWorkflowStep,
-        }),
-      }
-
-      return ganttItem
-    })
+        return ganttItem
+      })
   }, [])
 
   // Helper function to convert meetings from workPatterns to ScheduledItem format
@@ -479,13 +473,29 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       currentTime: getCurrentTime().toISOString(),
     }, 'gantt-scheduler-start')
 
-    // Call UnifiedScheduler via hook with proper options
-    const unifiedScheduleResult = scheduleForGantt(tasks, workPatterns, {
-      startDate: getCurrentTime(),
-      allowSplitting: true,
-      respectDeadlines: true,
-      debug: true,
-    }, sequencedTasks)
+    // Call UnifiedScheduler directly
+    const currentTime = getCurrentTime()
+    const startDateString = currentTime.toISOString().split('T')[0] || ''
+
+    const context = {
+      startDate: startDateString,
+      tasks,
+      workflows: sequencedTasks,
+      workPatterns,
+      workSettings,
+      currentTime,
+    }
+
+    const config = {
+      startDate: currentTime,
+      allowTaskSplitting: true,
+      respectMeetings: true,
+      optimizationMode: 'realistic' as const,
+      debugMode: true,
+    }
+
+    const items = [...tasks, ...sequencedTasks]
+    const unifiedScheduleResult = scheduler.scheduleForDisplay(items, context, config)
 
     // Convert UnifiedScheduler results to GanttChart format
     const ganttItems = convertUnifiedToGanttItems(unifiedScheduleResult)
@@ -554,7 +564,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const allItems = [...meetingItems, ...ganttItems]
 
     return allItems
-  }, [tasks, sequencedTasks, workPatterns, workPatternsLoading, refreshKey, scheduleForGantt, convertUnifiedToGanttItems, getMeetingScheduledItems])
+  }, [tasks, sequencedTasks, workPatterns, workPatternsLoading, refreshKey, workSettings, scheduler, convertUnifiedToGanttItems, getMeetingScheduledItems])
 
   // Calculate chart dimensions
   const now = getCurrentTime()
@@ -665,6 +675,33 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Row height based on zoom
   const rowHeight = 40
+
+  // Helper function to calculate remaining wait time for a wait block
+  const calculateRemainingWaitTime = useCallback((waitItem: any): { remaining: number; total: number } | null => {
+    // Extract parent step ID from wait item ID (format: "step-id-wait")
+    const parentStepId = waitItem.id.replace('-wait', '')
+
+    // Find the parent step in sequenced tasks
+    const parentStep = sequencedTasks.flatMap(t => t.steps).find(s => s.id === parentStepId)
+
+    if (!parentStep || !parentStep.completedAt || parentStep.status !== 'completed') {
+      // Not completed yet - show full wait time
+      return null
+    }
+
+    // Calculate elapsed time since completion
+    const elapsedMs = getCurrentTime().getTime() - new Date(parentStep.completedAt).getTime()
+    const elapsedMinutes = Math.floor(elapsedMs / 60000)
+
+    // Calculate remaining wait time
+    const totalWaitMinutes = parentStep.asyncWaitTime || 0
+    const remainingMinutes = Math.max(0, totalWaitMinutes - elapsedMinutes)
+
+    return {
+      remaining: remainingMinutes,
+      total: totalWaitMinutes,
+    }
+  }, [sequencedTasks])
 
   // Calculate row positions for items (group workflow steps together) and meeting time
   const itemRowPositions = useMemo(() => {
@@ -1803,6 +1840,39 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         {isSleep && widthPx > 20 && (
                           <IconMoon style={{ color: '#fff', marginRight: 4, fontSize: 16 }} />
                         )}
+
+                        {/* Wait time countdown overlay */}
+                        {isWaitTime && (() => {
+                          const countdown = calculateRemainingWaitTime(item)
+                          if (countdown && countdown.remaining < countdown.total) {
+                            return (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: '50%',
+                                  left: '50%',
+                                  transform: 'translate(-50%, -50%)',
+                                  background: countdown.remaining > 0 ? 'rgba(255, 255, 255, 0.95)' : 'rgba(76, 175, 80, 0.95)',
+                                  color: countdown.remaining > 0 ? '#333' : '#fff',
+                                  padding: '4px 10px',
+                                  borderRadius: 4,
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  whiteSpace: 'nowrap',
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                                  border: countdown.remaining > 0 ? '1px solid #ddd' : '1px solid #4caf50',
+                                }}
+                              >
+                                {countdown.remaining > 0 ? (
+                                  <>⏱️ {Math.floor(countdown.remaining / 60)}h {countdown.remaining % 60}m left</>
+                                ) : (
+                                  <>✓ Wait complete!</>
+                                )}
+                              </div>
+                            )
+                          }
+                          return null
+                        })()}
 
                         {/* Task name */}
                         {widthPx > 30 && (

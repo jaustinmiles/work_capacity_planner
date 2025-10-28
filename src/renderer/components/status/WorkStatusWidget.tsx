@@ -22,7 +22,9 @@ interface WorkStatusWidgetProps {
 }
 
 export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
-  const { activeWorkSessions } = useTaskStore()
+  const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
+  const workPatternsLoading = useTaskStore(state => state.workPatternsLoading)
+  const isLoading = useTaskStore(state => state.isLoading)
   const [currentDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
@@ -43,24 +45,66 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
   const loadNextTask = async () => {
     try {
-      logger.ui.debug('[WorkStatusWidget] Loading next task...')
+      logger.ui.info('[WorkStatusWidget] 🎯 Loading next task...')
       setIsLoadingNextTask(true)
 
       const state = useTaskStore.getState()
+
+      // CRITICAL: Wait for work patterns to load before calling getNextScheduledItem
+      if (state.workPatternsLoading) {
+        logger.ui.warn('[WorkStatusWidget] ⏳ Work patterns still loading, waiting...', {
+          workPatternsLoading: state.workPatternsLoading,
+          workPatternsCount: state.workPatterns.length,
+        })
+
+        // Wait up to 5 seconds for patterns to load
+        const startTime = Date.now()
+        while (state.workPatternsLoading && Date.now() - startTime < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          // Re-check state
+          const currentState = useTaskStore.getState()
+          if (!currentState.workPatternsLoading) {
+            logger.ui.info('[WorkStatusWidget] ✅ Work patterns loaded, continuing...')
+            break
+          }
+        }
+
+        if (useTaskStore.getState().workPatternsLoading) {
+          logger.ui.error('[WorkStatusWidget] ❌ Timeout waiting for work patterns to load')
+          setNextTask(null)
+          return
+        }
+      }
+
+      logger.ui.info('[WorkStatusWidget] 📊 Calling getNextScheduledItem with loaded patterns', {
+        workPatternsCount: useTaskStore.getState().workPatterns.length,
+        tasksCount: useTaskStore.getState().tasks.length,
+        workflowsCount: useTaskStore.getState().sequencedTasks.length,
+      })
+
       const nextItem = await state.getNextScheduledItem()
 
-      logger.ui.info('[WorkStatusWidget] Next scheduled item result:', {
+      logger.ui.info('[WorkStatusWidget] ✅ Next scheduled item result:', {
         nextItem: nextItem ? {
           type: nextItem.type,
           id: nextItem.id,
           title: nextItem.title,
           estimatedDuration: nextItem.estimatedDuration,
+          scheduledStartTime: nextItem.scheduledStartTime,
+        } : null,
+      })
+
+      logger.ui.info('🚨 [WorkStatusWidget] ABOUT TO CALL setNextTask - THIS IS WHAT WILL DISPLAY:', {
+        nextItem: nextItem ? {
+          type: nextItem.type,
+          id: nextItem.id,
+          title: nextItem.title,
         } : null,
       })
 
       setNextTask(nextItem)
     } catch (error) {
-      logger.ui.error('[WorkStatusWidget] Failed to load next task:', error)
+      logger.ui.error('[WorkStatusWidget] ❌ Failed to load next task:', error)
     } finally {
       setIsLoadingNextTask(false)
     }
@@ -87,7 +131,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         timestamp: new Date().toISOString(),
       })
 
-      await loadNextTask()
+      // DO NOT CALL loadNextTask() HERE - it will run before store.workPatterns are loaded
+      // loadNextTask will be called by the separate useEffect watching workPatternsLoading
 
       setPattern(patternData)
       setAccumulated({
@@ -135,14 +180,42 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     }
   }
 
+  // Separate useEffect to load next task ONLY when BOTH work patterns AND tasks/workflows are loaded
+  useEffect(() => {
+    if (!workPatternsLoading && !isLoading) {
+      logger.ui.info('[WorkStatusWidget] ALL DATA READY, loading next task', {
+        workPatternsLoading,
+        isLoading,
+      })
+      loadNextTask()
+    } else {
+      logger.ui.warn('[WorkStatusWidget] Data still loading, NOT calling loadNextTask', {
+        workPatternsLoading,
+        isLoading,
+      })
+    }
+  }, [workPatternsLoading, isLoading])
+
   useEffect(() => {
     loadWorkData()
     const interval = setInterval(loadWorkData, 60000)
 
-    const handleTimeLogged = () => loadWorkData()
-    const handleWorkflowUpdated = () => loadWorkData()
-    const handleSessionChanged = () => loadWorkData()
-    const handleDataRefresh = () => loadWorkData()
+    const handleTimeLogged = () => {
+      loadWorkData()
+      loadNextTask()  // Reload next task when time is logged
+    }
+    const handleWorkflowUpdated = () => {
+      loadWorkData()
+      loadNextTask()  // Reload next task when workflow is updated
+    }
+    const handleSessionChanged = () => {
+      loadWorkData()
+      loadNextTask()  // Reload next task when session changes
+    }
+    const handleDataRefresh = () => {
+      loadWorkData()
+      loadNextTask()  // Reload next task when data refreshes
+    }
 
     appEvents.on(EVENTS.TIME_LOGGED, handleTimeLogged)
     appEvents.on(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)

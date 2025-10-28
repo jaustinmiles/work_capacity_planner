@@ -126,9 +126,6 @@ function App() {
     loadSequencedTasks,
     updateSequencedTask,
     deleteSequencedTask,
-    currentWeeklySchedule,
-    isScheduling,
-    generateWeeklySchedule,
     initializeData,
     isLoading,
     error,
@@ -190,15 +187,6 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Generate weekly schedule when timeline view is accessed
-  useEffect(() => {
-    if (activeView === 'timeline' && !currentWeeklySchedule && !isScheduling) {
-      const today = new Date()
-      const monday = new Date(today)
-      monday.setDate(today.getDate() - today.getDay() + 1) // Get Monday of current week
-      generateWeeklySchedule(monday)
-    }
-  }, [activeView, currentWeeklySchedule, isScheduling, generateWeeklySchedule])
 
   const handleTasksExtracted = (tasks: ExtractedTask[]): void => {
     logger.ui.info('Tasks extracted from brainstorm', { count: tasks.length }, 'brainstorm-extract-tasks')

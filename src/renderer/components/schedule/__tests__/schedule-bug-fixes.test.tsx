@@ -89,11 +89,6 @@ describe('Schedule Generation Bug Fixes', () => {
         expect(mockDb.getWorkPattern).toHaveBeenCalled()
       })
 
-      // Verify that sleep blocks are being fetched and logged
-      // LOGGER_REMOVED: expect(logger.ui.info).toHaveBeenCalledWith(
-      //   'Fetching existing meetings and sleep blocks for next 30 days...',
-      // )
-
       // When createWorkPattern is called, it should include the existing meetings
       // This will happen when the user saves a schedule
     })

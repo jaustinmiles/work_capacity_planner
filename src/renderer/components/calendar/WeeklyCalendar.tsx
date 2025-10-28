@@ -19,8 +19,8 @@ const { Title, Text } = Typography
 const { Row, Col } = Grid
 
 export function WeeklyCalendar() {
-  const { tasks, sequencedTasks } = useTaskStore()
-  const { scheduleForGantt } = useUnifiedScheduler()
+  const { tasks, sequencedTasks, workSettings } = useTaskStore()
+  const scheduler = useUnifiedScheduler()
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(dayjs())
   const [workPatterns, setWorkPatterns] = useState<DailyWorkPattern[]>([])
   const [loading, setLoading] = useState(false)
@@ -93,38 +93,49 @@ export function WeeklyCalendar() {
   const scheduledItems = useMemo(() => {
     if (workPatterns.length === 0) return []
 
-    // Create typed options object for better type safety
-    const scheduleOptions = {
-      startDate: dayjs().format('YYYY-MM-DD'),
-      endDate: dayjs().add(30, 'day').format('YYYY-MM-DD'),
-      allowSplitting: true,
-      respectDeadlines: true,
+    const currentTime = dayjs().toDate()
+    const startDateString = dayjs().format('YYYY-MM-DD')
+
+    const context = {
+      startDate: startDateString,
+      tasks,
+      workflows: sequencedTasks,
+      workPatterns,
+      workSettings,
+      currentTime,
     }
 
-    const result = scheduleForGantt(
-      tasks,
-      workPatterns,
-      scheduleOptions,
-      sequencedTasks,
-    )
+    const config = {
+      startDate: currentTime,
+      endDate: dayjs().add(30, 'day').toDate(),
+      allowTaskSplitting: true,
+      respectMeetings: true,
+      optimizationMode: 'realistic' as const,
+      debugMode: false,
+    }
 
-    // Convert ScheduledItem to the format expected by the component
+    const items = [...tasks, ...sequencedTasks]
+    const result = scheduler.scheduleForDisplay(items, context, config)
+
+    // Convert UnifiedScheduleItem to the format expected by the component
     type ScheduledItemType = 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break'
 
-    return result.scheduledTasks.map(item => ({
-      id: item.task.id,
-      name: item.task.name,
-      type: ('hasSteps' in item.task && item.task.hasSteps ? 'workflow-step' : 'task') as ScheduledItemType,
-      priority: item.priority || 0,
-      duration: item.task.duration,
-      startTime: item.startTime,
-      endTime: item.endTime,
-      color: item.task.type === 'focused' ? '#165DFF' :
-             item.task.type === TaskType.Admin ? '#00B42A' : '#F77234',
-      originalItem: item.task,
-      deadline: item.task.deadline,
-    }))
-  }, [tasks, sequencedTasks, workPatterns, scheduleForGantt])
+    return result.scheduled
+      .filter(item => item.type === 'task' || item.type === 'workflow-step')
+      .map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type as ScheduledItemType,
+        priority: item.priority || 0,
+        duration: item.duration,
+        startTime: item.startTime || currentTime,
+        endTime: item.endTime || currentTime,
+        color: item.taskType === TaskType.Focused ? '#165DFF' :
+               item.taskType === TaskType.Admin ? '#00B42A' : '#F77234',
+        originalItem: item.originalItem || item,
+        deadline: item.deadline,
+      }))
+  }, [tasks, sequencedTasks, workPatterns, workSettings, scheduler])
 
   // Group scheduled items by date
   const itemsByDate = useMemo(() => {
