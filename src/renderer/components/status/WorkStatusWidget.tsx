@@ -341,9 +341,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       <Card>
         <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }} size="large">
           <Text type="secondary">No work schedule defined for today</Text>
-          <Button type="primary" onClick={onEditSchedule}>
-            Create Schedule
-          </Button>
+          {onEditSchedule && (
+            <Button type="primary" onClick={onEditSchedule}>
+              Create Schedule
+            </Button>
+          )}
 
           {/* Start Next Task section - works even without schedule */}
           <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
@@ -369,7 +371,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                   // Show active session details
                   return (
                     <Space direction="vertical" style={{ width: '100%' }}>
-                      <Text>Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}</Text>
+                      <Text ellipsis={{ rows: 1, showTooltip: true }} style={{ width: '100%' }}>
+                        Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}
+                      </Text>
                       <Space>
                         <Tag color="blue">{formatMinutes(activeSession.plannedMinutes)}</Tag>
                         <Tag color={activeSession.stepId ? 'purple' : 'green'}>
@@ -381,7 +385,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                 } else if (nextTask) {
                   return (
                     <Space direction="vertical" style={{ width: '100%' }}>
-                      <Text>Next: {nextTask.title}</Text>
+                      <Text ellipsis={{ rows: 1, showTooltip: true }} style={{ width: '100%' }}>
+                        Next: {nextTask.title}
+                      </Text>
                       <Space>
                         <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
                         <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
@@ -603,7 +609,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                 // Show active session details
                 return (
                   <Space direction="vertical" style={{ width: '100%' }}>
-                    <Text>Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}</Text>
+                    <Text ellipsis={{ rows: 1, showTooltip: true }} style={{ width: '100%' }}>
+                      Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}
+                    </Text>
                     <Space>
                       <Tag color="blue">{formatMinutes(activeSession.plannedMinutes)}</Tag>
                       <Tag color={activeSession.stepId ? 'purple' : 'green'}>
@@ -615,7 +623,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               } else if (nextTask) {
                 return (
                   <Space direction="vertical" style={{ width: '100%' }}>
-                    <Text>Next: {nextTask.title}</Text>
+                    <Text ellipsis={{ rows: 1, showTooltip: true }} style={{ width: '100%' }}>
+                      Next: {nextTask.title}
+                    </Text>
                     <Space>
                       <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
                       <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
