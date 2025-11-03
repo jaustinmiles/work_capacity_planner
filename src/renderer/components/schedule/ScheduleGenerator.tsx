@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { TaskType } from '@shared/enums'
-import { WorkBlockType } from '@shared/constants'
+import { TaskType, WorkBlockType } from '@shared/enums'
 import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, Tabs } from '@arco-design/web-react'
 import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -143,8 +142,8 @@ export function ScheduleGenerator({
             id: `block-${dateStr}-work`,
             startTime: dayWorkHours.startTime,
             endTime: dayWorkHours.endTime,
-            type: WorkBlockType.FLEXIBLE,
-            capacity: calculateBlockCapacity(WorkBlockType.FLEXIBLE, dayWorkHours.startTime, dayWorkHours.endTime),
+            type: WorkBlockType.Flexible,
+            capacity: calculateBlockCapacity(WorkBlockType.Flexible, dayWorkHours.startTime, dayWorkHours.endTime),
           })
         }
         // Removed hardcoded weekend personal blocks - users should configure their own patterns
@@ -414,7 +413,7 @@ export function ScheduleGenerator({
             id: `block-${dateStr}-work`,
             startTime: earliestStart,
             endTime: latestEndStr,
-            type: personal > 0 && focus === 0 && admin === 0 ? WorkBlockType.PERSONAL : WorkBlockType.FLEXIBLE,
+            type: personal > 0 && focus === 0 && admin === 0 ? WorkBlockType.Personal : WorkBlockType.Flexible,
             capacity: {
               // For optimal schedules, use actual capacity if tasks are scheduled
               // Otherwise show what was actually used

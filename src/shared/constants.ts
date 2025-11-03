@@ -1,52 +1,9 @@
 /**
- * Shared constants and enums used throughout the application
+ * Shared constants used throughout the application
  *
- * CRITICAL: These enums and constants MUST be used instead of hardcoded strings!
- * If ESLint reports these as unused, we have a serious architectural problem.
- * DO NOT disable the lint rule - fix the usage!
+ * Note: Enums have been moved to shared/enums.ts for consistency.
+ * This file now contains only non-enum constants.
  */
-
-export enum TaskType {
-  FOCUSED = 'focused',
-  ADMIN = 'admin',
-  BLOCKED = 'blocked-time',
-  MEETING = 'meeting',
-  ASYNC_WAIT = 'async-wait',
-}
-
-export enum TaskStatus {
-  PENDING = 'pending',
-  NOT_STARTED = 'not_started',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-  BLOCKED = 'blocked',
-  CANCELLED = 'cancelled',
-}
-
-export enum WorkflowStatus {
-  NOT_STARTED = 'not_started',
-  IN_PROGRESS = 'in_progress',
-  PAUSED = 'paused',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-}
-
-export enum StepStatus {
-  PENDING = 'pending',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-  SKIPPED = 'skipped',
-}
-
-export enum WorkBlockType {
-  FOCUSED = 'focused',
-  ADMIN = 'admin',
-  MIXED = 'mixed',
-  FLEXIBLE = 'flexible',
-  PERSONAL = 'personal',
-  BLOCKED = 'blocked',
-  SLEEP = 'sleep',
-}
 
 export const TASK_PRIORITY = {
   URGENT_THRESHOLD_HOURS: 24, // Tasks due within 24 hours get priority boost

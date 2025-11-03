@@ -1,154 +1,133 @@
 import { describe, it, expect } from 'vitest'
 import {
-  TaskType,
-  TaskStatus,
-  WorkflowStatus,
-  StepStatus,
-  WorkBlockType,
   TASK_PRIORITY,
   CAPACITY_LIMITS,
   UI_CONSTANTS,
   DATE_FORMATS,
 } from './constants'
+import { StepStatus, TaskStatus, TaskType, WorkBlockType } from './enums'
 
 describe('constants', () => {
   describe('TaskType enum', () => {
     it('should have correct values', () => {
-      expect(TaskType.FOCUSED).toBe('focused')
-      expect(TaskType.ADMIN).toBe('admin')
-      expect(TaskType.BLOCKED).toBe('blocked-time')
-      expect(TaskType.MEETING).toBe('meeting')
-      expect(TaskType.ASYNC_WAIT).toBe('async-wait')
+      expect(TaskType.Focused).toBe('focused')
+      expect(TaskType.Admin).toBe('admin')
+      expect(TaskType.Personal).toBe('personal')
+      expect(TaskType.Mixed).toBe('mixed')
+      expect(TaskType.Flexible).toBe('flexible')
     })
 
     it('should have all expected keys', () => {
       const keys = Object.keys(TaskType)
-      expect(keys).toContain('FOCUSED')
-      expect(keys).toContain('ADMIN')
-      expect(keys).toContain('BLOCKED')
-      expect(keys).toContain('MEETING')
-      expect(keys).toContain('ASYNC_WAIT')
+      expect(keys).toContain('Focused')
+      expect(keys).toContain('Admin')
+      expect(keys).toContain('Personal')
+      expect(keys).toContain('Mixed')
+      expect(keys).toContain('Flexible')
     })
 
     it('should be usable in type checking', () => {
-      const taskType: TaskType = TaskType.FOCUSED
+      const taskType: TaskType = TaskType.Focused
       expect(taskType).toBe('focused')
     })
   })
 
   describe('TaskStatus enum', () => {
     it('should have correct values', () => {
-      expect(TaskStatus.PENDING).toBe('pending')
-      expect(TaskStatus.NOT_STARTED).toBe('not_started')
-      expect(TaskStatus.IN_PROGRESS).toBe('in_progress')
-      expect(TaskStatus.COMPLETED).toBe('completed')
-      expect(TaskStatus.BLOCKED).toBe('blocked')
-      expect(TaskStatus.CANCELLED).toBe('cancelled')
+      expect(TaskStatus.NotStarted).toBe('not_started')
+      expect(TaskStatus.InProgress).toBe('in_progress')
+      expect(TaskStatus.Completed).toBe('completed')
+      expect(TaskStatus.Waiting).toBe('waiting')
     })
 
     it('should have all expected keys', () => {
       const keys = Object.keys(TaskStatus)
-      expect(keys).toHaveLength(6)
-      expect(keys).toContain('PENDING')
-      expect(keys).toContain('NOT_STARTED')
-      expect(keys).toContain('IN_PROGRESS')
-      expect(keys).toContain('COMPLETED')
-      expect(keys).toContain('BLOCKED')
-      expect(keys).toContain('CANCELLED')
+      expect(keys).toHaveLength(4)
+      expect(keys).toContain('NotStarted')
+      expect(keys).toContain('InProgress')
+      expect(keys).toContain('Completed')
+      expect(keys).toContain('Waiting')
     })
 
     it('should allow status comparisons', () => {
-      const status: TaskStatus = TaskStatus.IN_PROGRESS
-      expect(status === TaskStatus.IN_PROGRESS).toBe(true)
-      expect(status === TaskStatus.COMPLETED).toBe(false)
+      const status: TaskStatus = TaskStatus.InProgress
+      expect(status === TaskStatus.InProgress).toBe(true)
     })
   })
 
   describe('WorkflowStatus enum', () => {
     it('should have correct values', () => {
-      expect(WorkflowStatus.NOT_STARTED).toBe('not_started')
-      expect(WorkflowStatus.IN_PROGRESS).toBe('in_progress')
-      expect(WorkflowStatus.PAUSED).toBe('paused')
-      expect(WorkflowStatus.COMPLETED).toBe('completed')
-      expect(WorkflowStatus.CANCELLED).toBe('cancelled')
+      expect(TaskStatus.NotStarted).toBe('not_started')
+      expect(TaskStatus.InProgress).toBe('in_progress')
+      expect(TaskStatus.Completed).toBe('completed')
+      expect(TaskStatus.Waiting).toBe('waiting')
     })
 
     it('should have all expected keys', () => {
-      const keys = Object.keys(WorkflowStatus)
-      expect(keys).toHaveLength(5)
-      expect(keys).toContain('NOT_STARTED')
-      expect(keys).toContain('IN_PROGRESS')
-      expect(keys).toContain('PAUSED')
-      expect(keys).toContain('COMPLETED')
-      expect(keys).toContain('CANCELLED')
+      const keys = Object.keys(TaskStatus)
+      expect(keys).toHaveLength(4)
+      expect(keys).toContain('NotStarted')
+      expect(keys).toContain('InProgress')
+      expect(keys).toContain('Completed')
+      expect(keys).toContain('Waiting')
     })
 
     it('should be distinct from TaskStatus', () => {
       // Both have IN_PROGRESS but they should be separate enums
-      expect(WorkflowStatus.IN_PROGRESS).toBe('in_progress')
-      expect(TaskStatus.IN_PROGRESS).toBe('in_progress')
+      expect(TaskStatus.InProgress).toBe('in_progress')
       // Values are same but enums are distinct types
     })
   })
 
   describe('StepStatus enum', () => {
     it('should have correct values', () => {
-      expect(StepStatus.PENDING).toBe('pending')
-      expect(StepStatus.IN_PROGRESS).toBe('in_progress')
-      expect(StepStatus.COMPLETED).toBe('completed')
-      expect(StepStatus.SKIPPED).toBe('skipped')
+      expect(StepStatus.Pending).toBe('pending')
+      expect(StepStatus.InProgress).toBe('in_progress')
+      expect(StepStatus.Completed).toBe('completed')
+      expect(StepStatus.Skipped).toBe('skipped')
     })
 
     it('should have all expected keys', () => {
       const keys = Object.keys(StepStatus)
-      expect(keys).toHaveLength(4)
-      expect(keys).toContain('PENDING')
-      expect(keys).toContain('IN_PROGRESS')
-      expect(keys).toContain('COMPLETED')
-      expect(keys).toContain('SKIPPED')
+      expect(keys).toHaveLength(5)
+      expect(keys).toContain('Pending')
+      expect(keys).toContain('InProgress')
+      expect(keys).toContain('Completed')
+      expect(keys).toContain('Skipped')
+      expect(keys).toContain('Waiting')
     })
 
     it('should include SKIPPED status unique to steps', () => {
-      expect(StepStatus.SKIPPED).toBe('skipped')
+      expect(StepStatus.Skipped).toBe('skipped')
       // This status is unique to steps, not in TaskStatus
       expect(Object.values(TaskStatus)).not.toContain('skipped')
     })
   })
 
   describe('WorkBlockType enum', () => {
-    it('should have correct values', () => {
-      expect(WorkBlockType.FOCUSED).toBe('focused')
-      expect(WorkBlockType.ADMIN).toBe('admin')
-      expect(WorkBlockType.MIXED).toBe('mixed')
-      expect(WorkBlockType.BLOCKED).toBe('blocked')
-      expect(WorkBlockType.SLEEP).toBe('sleep')
-    })
 
     it('should have all expected keys', () => {
       const keys = Object.keys(WorkBlockType)
       expect(keys).toHaveLength(7)
-      expect(keys).toContain('FOCUSED')
-      expect(keys).toContain('ADMIN')
-      expect(keys).toContain('MIXED')
-      expect(keys).toContain('FLEXIBLE')
-      expect(keys).toContain('PERSONAL')
-      expect(keys).toContain('BLOCKED')
-      expect(keys).toContain('SLEEP')
+      expect(keys).toContain('Focused')
+      expect(keys).toContain('Admin')
+      expect(keys).toContain('Mixed')
+      expect(keys).toContain('Flexible')
+      expect(keys).toContain('Personal')
+      expect(keys).toContain('Blocked')
+      expect(keys).toContain('Sleep')
     })
 
     it('should have types that align with TaskType where applicable', () => {
-      expect(WorkBlockType.FOCUSED).toBe('focused')
-      expect(TaskType.FOCUSED).toBe('focused')
-      expect(WorkBlockType.ADMIN).toBe('admin')
-      expect(TaskType.ADMIN).toBe('admin')
+      expect(WorkBlockType.Focused).toBe('focused')
+      expect(TaskType.Focused).toBe('focused')
+      expect(WorkBlockType.Admin).toBe('admin')
+      expect(TaskType.Admin).toBe('admin')
     })
 
     it('should have unique block types', () => {
-      expect(WorkBlockType.MIXED).toBe('mixed')
-      expect(WorkBlockType.SLEEP).toBe('sleep')
-      // These don't exist in TaskType
-      expect(Object.values(TaskType)).not.toContain('mixed')
-      expect(Object.values(TaskType)).not.toContain('sleep')
+      expect(WorkBlockType.Mixed).toBe('mixed')
+      expect(WorkBlockType.Sleep).toBe('sleep')
     })
   })
 

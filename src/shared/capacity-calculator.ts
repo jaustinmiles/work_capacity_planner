@@ -3,8 +3,7 @@
  * Single source of truth for capacity calculations
  */
 
-import { WorkBlockType } from './constants'
-import { TaskType } from './enums'
+import { TaskType, WorkBlockType } from './enums'
 
 export interface BlockCapacity {
   totalMinutes: number
@@ -39,16 +38,16 @@ export function calculateBlockCapacity(
   const totalMinutes = calculateDuration(startTime, endTime)
 
   switch (type) {
-    case WorkBlockType.FOCUSED:
-    case WorkBlockType.ADMIN:
-    case WorkBlockType.PERSONAL:
-    case WorkBlockType.FLEXIBLE:
+    case WorkBlockType.Focused:
+    case WorkBlockType.Admin:
+    case WorkBlockType.Personal:
+    case WorkBlockType.Flexible:
       return {
         totalMinutes,
         type,
       }
 
-    case WorkBlockType.MIXED: {
+    case WorkBlockType.Mixed: {
       // Parse custom split ratio or use default (70% focus, 30% admin)
       const ratio: SplitRatio = splitRatio || { focus: 0.7, admin: 0.3 }
 
@@ -59,8 +58,8 @@ export function calculateBlockCapacity(
       }
     }
 
-    case WorkBlockType.BLOCKED:
-    case WorkBlockType.SLEEP:
+    case WorkBlockType.Blocked:
+    case WorkBlockType.Sleep:
       // Blocked and sleep blocks have no capacity
       return {
         totalMinutes: 0,
@@ -86,16 +85,16 @@ export function getTotalCapacityForTaskType(
 ): number {
   // When querying for Flexible task type, return total if block is flexible
   if (taskType === TaskType.Flexible) {
-    return block.type === WorkBlockType.FLEXIBLE ? block.totalMinutes : 0
+    return block.type === WorkBlockType.Flexible ? block.totalMinutes : 0
   }
 
   // Flexible blocks work with any task type
-  if (block.type === WorkBlockType.FLEXIBLE) {
+  if (block.type === WorkBlockType.Flexible) {
     return block.totalMinutes
   }
 
   // Block type must match task type (except for mixed)
-  if (block.type === WorkBlockType.MIXED && block.splitRatio) {
+  if (block.type === WorkBlockType.Mixed && block.splitRatio) {
     // Mixed blocks split between focus and admin only
     if (taskType === TaskType.Focused) {
       return Math.floor(block.totalMinutes * block.splitRatio.focus)
@@ -106,13 +105,13 @@ export function getTotalCapacityForTaskType(
   }
 
   // For single-type blocks, must match exactly
-  if (block.type === WorkBlockType.FOCUSED && taskType === TaskType.Focused) {
+  if (block.type === WorkBlockType.Focused && taskType === TaskType.Focused) {
     return block.totalMinutes
   }
-  if (block.type === WorkBlockType.ADMIN && taskType === TaskType.Admin) {
+  if (block.type === WorkBlockType.Admin && taskType === TaskType.Admin) {
     return block.totalMinutes
   }
-  if (block.type === WorkBlockType.PERSONAL && taskType === TaskType.Personal) {
+  if (block.type === WorkBlockType.Personal && taskType === TaskType.Personal) {
     return block.totalMinutes
   }
 

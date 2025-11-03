@@ -18,9 +18,8 @@
 
 import { Task } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
-import { WorkBlockType } from './constants'
 import { getTotalCapacityForTaskType, SplitRatio } from './capacity-calculator'
-import { TaskType } from './enums'
+import { TaskType, WorkBlockType } from './enums'
 import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
 import { WorkSettings } from './work-settings-types'
 import { ProductivityPattern, SchedulingPreferences } from './types'
