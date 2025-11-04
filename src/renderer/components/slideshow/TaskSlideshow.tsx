@@ -38,6 +38,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const [currentQuestion, setCurrentQuestion] = useState<ComparisonType>(ComparisonType.Priority)
   const [comparisonPairs, setComparisonPairs] = useState<Array<[ItemId, ItemId]>>([])
   const [isShowingMissingPairs, setIsShowingMissingPairs] = useState(false)
+  const [isComplete, setIsComplete] = useState(false)
 
   // Build graph from comparisons using utility
   const graph = useMemo<ComparisonGraph>(() => buildComparisonGraph(comparisons), [comparisons])
@@ -132,10 +133,9 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         setCurrentPairIndex(0)
         setCurrentQuestion(ComparisonType.Priority)
       } else {
-        // Graph is complete
+        // Graph is complete!
         Message.success('All comparisons complete! Graph is fully connected.')
-        setCurrentPairIndex(0)
-        setCurrentQuestion(ComparisonType.Priority)
+        setIsComplete(true)
       }
     } else {
       // Move to next pair
@@ -219,15 +219,37 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [visible, items, currentPairIndex, currentQuestion, comparisons, graph])
 
-  // Reset index when modal opens
+  // Reset function to clear all comparisons
+  const resetComparisons = () => {
+    setComparisons([])
+    setCurrentPairIndex(0)
+    setCurrentQuestion(ComparisonType.Priority)
+    setIsShowingMissingPairs(false)
+    setIsComplete(false)
+    Message.info('All comparisons cleared. Starting fresh!')
+  }
+
+  // Check if comparisons are complete on load
+  useEffect(() => {
+    if (comparisons.length > 0 && comparisonPairs.length === 0 && !isComplete) {
+      const itemIds = items.map(item => item.id)
+      const missingPairs = getMissingComparisons(itemIds, graph)
+      if (missingPairs.length === 0 && items.length > 1) {
+        setIsComplete(true)
+      }
+    }
+  }, [comparisons, comparisonPairs, items, graph, isComplete])
+
+  // Reset navigation when modal opens (but keep comparisons)
   useEffect(() => {
     if (visible) {
-      setCurrentPairIndex(0)
       setCurrentQuestion(ComparisonType.Priority)
-      setComparisons([])
-      setIsShowingMissingPairs(false)
+      // Only reset index if we have pairs to show
+      if (comparisonPairs.length > 0 && !isComplete) {
+        setCurrentPairIndex(0)
+      }
     }
-  }, [visible])
+  }, [visible, comparisonPairs.length, isComplete])
 
   if (items.length === 0) {
     return (
@@ -268,6 +290,93 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     return 'importance' in data && 'urgency' in data
   }
 
+  // Show completion view with graphs if complete or no more pairs
+  if (isComplete || (!currentPair && comparisons.length > 0)) {
+    return (
+      <Modal
+        title={
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <span>Task & Workflow Comparison - Complete!</span>
+            <Tag color="green">✓ All Comparisons Complete</Tag>
+          </Space>
+        }
+        visible={visible}
+        onCancel={onClose}
+        footer={
+          <Space style={{ width: '100%', justifyContent: 'center' }}>
+            <Button type="primary" onClick={resetComparisons}>
+              Start New Comparison Session
+            </Button>
+            <Button onClick={onClose}>
+              Close
+            </Button>
+          </Space>
+        }
+        style={{
+          width: isCompact ? '98vw' : isMobile ? '95vw' : 1200,
+          maxWidth: isCompact ? '98vw' : isMobile ? '95vw' : '90vw',
+        }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <Card style={{ background: '#f0fff0', textAlign: 'center' }}>
+            <Title heading={4} style={{ margin: '8px 0', color: '#52c41a' }}>
+              Graph Complete! 🎉
+            </Title>
+            <Text>
+              All items have been compared and ranked. The graphs below show the complete
+              priority and urgency relationships between all items.
+            </Text>
+            <div style={{ marginTop: 12 }}>
+              <Text type="secondary">
+                {comparisons.length} total comparisons made
+              </Text>
+            </div>
+          </Card>
+
+          {/* Final Graph Visualizations */}
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+            {/* Priority Graph */}
+            <div>
+              <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
+                Priority Rankings
+              </Title>
+              <ComparisonGraphMinimap
+                graph={{ priorityWins: graph.priorityWins, urgencyWins: new Map() }}
+                items={items.map(item => ({
+                  id: item.id,
+                  title: isRegularTask(item.data)
+                    ? (item.data as Task).name
+                    : (item.data as SequencedTask).name,
+                }))}
+                width={isCompact ? 350 : 500}
+                height={300}
+              />
+            </div>
+
+            {/* Urgency Graph */}
+            <div>
+              <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
+                Urgency Rankings
+              </Title>
+              <ComparisonGraphMinimap
+                graph={{ priorityWins: new Map(), urgencyWins: graph.urgencyWins }}
+                items={items.map(item => ({
+                  id: item.id,
+                  title: isRegularTask(item.data)
+                    ? (item.data as Task).name
+                    : (item.data as SequencedTask).name,
+                }))}
+                width={isCompact ? 350 : 500}
+                height={300}
+              />
+            </div>
+          </div>
+        </Space>
+      </Modal>
+    )
+  }
+
+  // Show empty state if no pairs at all
   if (!currentPair) {
     return (
       <Modal
@@ -278,7 +387,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         style={{ width: 800 }}
       >
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Text type="secondary">No more pairs to compare</Text>
+          <Text type="secondary">No items to compare</Text>
         </div>
       </Modal>
     )
