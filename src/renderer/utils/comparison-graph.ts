@@ -250,8 +250,6 @@ export function getMissingComparisons(
   graph: ComparisonGraph,
 ): Array<[ItemId, ItemId]> {
   const missingPairs: Array<[ItemId, ItemId]> = []
-  let knownCount = 0
-  let unknownCount = 0
 
   // Check all possible pairs
   for (let i = 0; i < items.length; i++) {
@@ -282,9 +280,6 @@ export function getMissingComparisons(
       // If either relationship is unknown, we need this comparison
       if (priorityRel === 'unknown' || urgencyRel === 'unknown') {
         missingPairs.push([itemA!, itemB!])
-        unknownCount++
-      } else {
-        knownCount++
       }
     }
   }
