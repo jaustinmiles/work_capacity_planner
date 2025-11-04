@@ -34,9 +34,13 @@ export function ComparisonGraphMinimap({
     // Calculate dominance scores (how many items each node beats)
     const scores = new Map<ItemId, number>()
     items.forEach(item => {
-      // Use priority graph for scoring (could also combine with urgency)
-      const closure = getTransitiveClosure(graph.priorityWins, item.id)
-      scores.set(item.id, closure.size)
+      // Use whichever graph has data (priority or urgency)
+      const priorityClosure = getTransitiveClosure(graph.priorityWins, item.id)
+      const urgencyClosure = getTransitiveClosure(graph.urgencyWins, item.id)
+      // Use the graph that has more data
+      const score = priorityClosure.size > 0 ? priorityClosure.size :
+                   urgencyClosure.size > 0 ? urgencyClosure.size : 0
+      scores.set(item.id, score)
     })
 
     // Sort items by score (most dominant first)

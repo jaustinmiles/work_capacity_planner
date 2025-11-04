@@ -10,7 +10,7 @@ import { ComparisonType } from '@/shared/constants'
 import {
   buildComparisonGraph,
   detectCycle,
-  hasTransitiveRelationship,
+  getMissingComparisons,
   type ComparisonResult,
   type ComparisonGraph,
   type ItemId,
@@ -36,6 +36,8 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const [currentPairIndex, setCurrentPairIndex] = useState(0)
   const [comparisons, setComparisons] = useState<ComparisonResult[]>([])
   const [currentQuestion, setCurrentQuestion] = useState<ComparisonType>(ComparisonType.Priority)
+  const [comparisonPairs, setComparisonPairs] = useState<Array<[ItemId, ItemId]>>([])
+  const [isShowingMissingPairs, setIsShowingMissingPairs] = useState(false)
 
   // Build graph from comparisons using utility
   const graph = useMemo<ComparisonGraph>(() => buildComparisonGraph(comparisons), [comparisons])
@@ -63,14 +65,46 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
 
   }, [tasks, sequencedTasks])
 
+  // Initialize or repopulate comparison pairs
+  const initializeComparisonPairs = useMemo(() => {
+    if (items.length < 2) return []
+
+    // If we're showing missing pairs, use getMissingComparisons
+    if (isShowingMissingPairs) {
+      const itemIds = items.map(item => item.id)
+      return getMissingComparisons(itemIds, graph)
+    }
+
+    // Otherwise, create initial adjacent pairs
+    const pairs: Array<[ItemId, ItemId]> = []
+    for (let i = 0; i < items.length - 1; i += 2) {
+      if (i + 1 < items.length && items[i] && items[i + 1]) {
+        pairs.push([items[i]!.id, items[i + 1]!.id])
+      }
+    }
+    return pairs
+  }, [items, graph, isShowingMissingPairs])
+
+  // Update pairs when they change
+  useEffect(() => {
+    setComparisonPairs(initializeComparisonPairs)
+    if (initializeComparisonPairs.length > 0) {
+      setCurrentPairIndex(0)
+    }
+  }, [initializeComparisonPairs])
+
   // Get current pair of items
   const getCurrentPair = () => {
-    if (items.length < 2) return null
-    const indexA = currentPairIndex * 2
-    const indexB = currentPairIndex * 2 + 1
-    if (indexB >= items.length) return null
-    const itemA = items[indexA]
-    const itemB = items[indexB]
+    if (comparisonPairs.length === 0) return null
+    if (currentPairIndex >= comparisonPairs.length) return null
+
+    const currentPair = comparisonPairs[currentPairIndex]
+    if (!currentPair) return null
+
+    const [idA, idB] = currentPair
+    const itemA = items.find(item => item.id === idA)
+    const itemB = items.find(item => item.id === idB)
+
     if (!itemA || !itemB) return null
     return [itemA, itemB]
   }
@@ -78,51 +112,36 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   // Navigation functions
   const goToPrevious = () => {
     setCurrentPairIndex(prev => {
-      const maxPairs = Math.floor(items.length / 2)
-      return prev > 0 ? prev - 1 : maxPairs - 1
+      return prev > 0 ? prev - 1 : comparisonPairs.length - 1
     })
     setCurrentQuestion(ComparisonType.Priority)
   }
 
   const goToNext = () => {
-    let nextIndex = currentPairIndex
-    const maxPairs = Math.floor(items.length / 2)
-    let skippedCount = 0
+    // Check if we're at the last pair
+    if (currentPairIndex >= comparisonPairs.length - 1) {
+      // Check if graph is complete
+      const itemIds = items.map(item => item.id)
+      const missingPairs = getMissingComparisons(itemIds, graph)
 
-    // Try to find a pair we don't already know through transitivity
-    do {
-      nextIndex = nextIndex < maxPairs - 1 ? nextIndex + 1 : 0
-
-      // Check if we've looped through all pairs
-      if (nextIndex === currentPairIndex) {
-        break
+      if (missingPairs.length > 0) {
+        // Repopulate with missing comparisons
+        Message.info(`Found ${missingPairs.length} more comparison(s) needed to complete the graph`)
+        setComparisonPairs(missingPairs)
+        setIsShowingMissingPairs(true)
+        setCurrentPairIndex(0)
+        setCurrentQuestion(ComparisonType.Priority)
+      } else {
+        // Graph is complete
+        Message.success('All comparisons complete! Graph is fully connected.')
+        setCurrentPairIndex(0)
+        setCurrentQuestion(ComparisonType.Priority)
       }
-
-      const indexA = nextIndex * 2
-      const indexB = nextIndex * 2 + 1
-      if (indexB >= items.length) break
-
-      const itemA = items[indexA]
-      const itemB = items[indexB]
-      if (!itemA || !itemB) break
-
-      // Check if we already know this relationship through transitivity
-      const priorityRel = hasTransitiveRelationship(graph.priorityWins, itemA.id, itemB.id)
-      const urgencyRel = hasTransitiveRelationship(graph.urgencyWins, itemA.id, itemB.id)
-
-      if (priorityRel === 'unknown' || urgencyRel === 'unknown') {
-        // Found a pair we don't fully know - use it!
-        if (skippedCount > 0) {
-          Message.info(`Skipped ${skippedCount} pair(s) already known through transitivity`)
-        }
-        break
-      }
-
-      skippedCount++
-    } while (nextIndex !== currentPairIndex)
-
-    setCurrentPairIndex(nextIndex)
-    setCurrentQuestion(ComparisonType.Priority)
+    } else {
+      // Move to next pair
+      setCurrentPairIndex(prev => prev + 1)
+      setCurrentQuestion(ComparisonType.Priority)
+    }
   }
 
   // Handle comparison selection
@@ -206,6 +225,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
       setCurrentPairIndex(0)
       setCurrentQuestion(ComparisonType.Priority)
       setComparisons([])
+      setIsShowingMissingPairs(false)
     }
   }, [visible])
 
@@ -265,7 +285,6 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   }
 
   const [itemA, itemB] = currentPair
-  const maxPairs = Math.floor(items.length / 2)
   const currentComparison = comparisons.find(
     c => c.itemA === itemA!.id && c.itemB === itemB!.id,
   )
@@ -275,7 +294,10 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
       title={
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <span>Task & Workflow Comparison</span>
-          <Tag>{`Pair ${currentPairIndex + 1} of ${maxPairs}`}</Tag>
+          <Tag color={isShowingMissingPairs ? 'orange' : 'blue'}>
+            {isShowingMissingPairs ? 'Missing Pairs: ' : 'Initial Pairs: '}
+            {`${currentPairIndex + 1} of ${comparisonPairs.length}`}
+          </Tag>
         </Space>
       }
       visible={visible}
@@ -285,14 +307,14 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
           <Button
             icon={<IconLeft />}
             onClick={goToPrevious}
-            disabled={maxPairs <= 1}
+            disabled={comparisonPairs.length <= 1}
           >
             Previous Pair
           </Button>
           <Text type="secondary">Press 1 or 2 to select</Text>
           <Button
             onClick={goToNext}
-            disabled={maxPairs <= 1}
+            disabled={comparisonPairs.length <= 1}
           >
             Next Pair
             <IconRight style={{ marginLeft: 4 }} />
@@ -328,21 +350,49 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
           )}
         </Card>
 
-        {/* Graph Minimap */}
+        {/* Graph Minimaps - Priority and Urgency */}
         {comparisons.length > 0 && (
-          <ComparisonGraphMinimap
-            graph={graph}
-            items={items.map(item => ({
-              id: item.id,
-              title: isRegularTask(item.data)
-                ? (item.data as Task).name
-                : (item.data as SequencedTask).name,
-            }))}
-            currentComparison={itemA && itemB ? [itemA.id, itemB.id] : undefined}
-            currentQuestion={currentQuestion}
-            width={isCompact ? 280 : 320}
-            height={180}
-          />
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+            {/* Priority Graph */}
+            <div>
+              <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
+                Priority Graph
+              </Title>
+              <ComparisonGraphMinimap
+                graph={{ priorityWins: graph.priorityWins, urgencyWins: new Map() }}
+                items={items.map(item => ({
+                  id: item.id,
+                  title: isRegularTask(item.data)
+                    ? (item.data as Task).name
+                    : (item.data as SequencedTask).name,
+                }))}
+                currentComparison={itemA && itemB ? [itemA.id, itemB.id] : undefined}
+                currentQuestion={currentQuestion}
+                width={isCompact ? 280 : 400}
+                height={200}
+              />
+            </div>
+
+            {/* Urgency Graph */}
+            <div>
+              <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
+                Urgency Graph
+              </Title>
+              <ComparisonGraphMinimap
+                graph={{ priorityWins: new Map(), urgencyWins: graph.urgencyWins }}
+                items={items.map(item => ({
+                  id: item.id,
+                  title: isRegularTask(item.data)
+                    ? (item.data as Task).name
+                    : (item.data as SequencedTask).name,
+                }))}
+                currentComparison={itemA && itemB ? [itemA.id, itemB.id] : undefined}
+                currentQuestion={currentQuestion}
+                width={isCompact ? 280 : 400}
+                height={200}
+              />
+            </div>
+          </div>
         )}
 
         {/* Items Comparison */}
