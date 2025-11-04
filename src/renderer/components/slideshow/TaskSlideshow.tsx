@@ -90,11 +90,12 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         // Create tournament-style initial pairs (n/2 pairs)
         const initialPairs: Array<[ItemId, ItemId]> = []
         for (let i = 0; i < shuffled.length - 1; i += 2) {
-          if (shuffled[i] && shuffled[i + 1]) {
+          if (shuffled[i] && shuffled[i + 1] && shuffled[i]!.id !== shuffled[i + 1]!.id) {
             initialPairs.push([shuffled[i]!.id, shuffled[i + 1]!.id])
           }
         }
         if (initialPairs.length > 0) {
+          console.log(`Starting with ${initialPairs.length} tournament pairs from ${shuffled.length} items`)
           setComparisonPairs(initialPairs)
           setCurrentPairIndex(0)
         }
@@ -230,7 +231,17 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         const updatedGraph = buildComparisonGraph(newComparisons)
         const itemsToUse = shuffledItems.length > 0 ? shuffledItems : items
         const itemIds = itemsToUse.map(item => item.id)
+
+        // Calculate total possible pairs for n items
+        const totalPossiblePairs = (itemIds.length * (itemIds.length - 1)) / 2
+
+        // Get pairs still needed
         const stillNeeded = getMissingComparisons(itemIds, updatedGraph)
+
+        // Log transitivity savings
+        const savedByTransitivity = totalPossiblePairs - stillNeeded.length - newComparisons.length
+        console.log(`Transitivity savings: ${savedByTransitivity} pairs inferred automatically`)
+        console.log(`Comparisons made: ${newComparisons.length}, Still needed: ${stillNeeded.length}, Total possible: ${totalPossiblePairs}`)
 
         // Filter out the current pair and any pairs we've already started
         const remainingPairs = stillNeeded.filter(([a, b]) => {
@@ -242,13 +253,15 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         })
 
         if (remainingPairs.length > 0) {
+          Message.info(`${remainingPairs.length} comparisons remaining (${savedByTransitivity} saved by transitivity)`)
           setComparisonPairs(remainingPairs)
           setCurrentPairIndex(0)
           setCurrentQuestion(ComparisonType.Priority)
           setIsShowingMissingPairs(true) // Mark that we're now showing missing pairs
         } else {
           // All comparisons complete!
-          Message.success('All comparisons complete! Graph is fully connected.')
+          const finalSavings = totalPossiblePairs - newComparisons.length
+          Message.success(`Complete! Made ${newComparisons.length} comparisons out of ${totalPossiblePairs} possible (saved ${finalSavings})`)
           setIsComplete(true)
         }
       }, 0)

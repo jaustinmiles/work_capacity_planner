@@ -250,12 +250,20 @@ export function getMissingComparisons(
   graph: ComparisonGraph,
 ): Array<[ItemId, ItemId]> {
   const missingPairs: Array<[ItemId, ItemId]> = []
+  let knownCount = 0
+  let unknownCount = 0
 
   // Check all possible pairs
   for (let i = 0; i < items.length; i++) {
     for (let j = i + 1; j < items.length; j++) {
       const itemA = items[i]
       const itemB = items[j]
+
+      // Skip self-comparisons (shouldn't happen with j = i+1, but safety check)
+      if (itemA === itemB) {
+        console.warn(`Skipping self-comparison for item ${itemA}`)
+        continue
+      }
 
       // Check if we know the priority relationship (including equality)
       const priorityRel = hasTransitiveRelationship(
@@ -275,10 +283,18 @@ export function getMissingComparisons(
       // If either relationship is unknown, we need this comparison
       if (priorityRel === 'unknown' || urgencyRel === 'unknown') {
         missingPairs.push([itemA!, itemB!])
+        unknownCount++
+      } else {
+        knownCount++
+        // Log when we skip a pair due to transitivity
+        if (priorityRel !== 'unknown' && urgencyRel !== 'unknown') {
+          console.log(`Skipping ${itemA} vs ${itemB}: importance=${priorityRel}, urgency=${urgencyRel} (known by transitivity)`)
+        }
       }
     }
   }
 
+  console.log(`getMissingComparisons: ${knownCount} known, ${unknownCount} unknown`)
   return missingPairs
 }
 
