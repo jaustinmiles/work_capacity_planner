@@ -7,15 +7,17 @@ export type ItemId = Task['id']
 export interface ComparisonResult {
   itemA: ItemId
   itemB: ItemId
-  higherPriority: ItemId | null
-  higherUrgency: ItemId | null
+  higherPriority: ItemId | null | 'equal'  // null = not answered, 'equal' = equal, ItemId = winner
+  higherUrgency: ItemId | null | 'equal'
   timestamp: number
 }
 
-// Graph structure for tracking wins/losses
+// Graph structure for tracking wins/losses and equality
 export interface ComparisonGraph {
   priorityWins: Map<ItemId, Set<ItemId>>  // task -> tasks it beats in priority
   urgencyWins: Map<ItemId, Set<ItemId>>   // task -> tasks it beats in urgency
+  priorityEquals: Map<ItemId, Set<ItemId>>  // task -> tasks equal in priority
+  urgencyEquals: Map<ItemId, Set<ItemId>>   // task -> tasks equal in urgency
 }
 
 /**
@@ -24,10 +26,22 @@ export interface ComparisonGraph {
 export function buildComparisonGraph(comparisons: ComparisonResult[]): ComparisonGraph {
   const priorityWins = new Map<ItemId, Set<ItemId>>()
   const urgencyWins = new Map<ItemId, Set<ItemId>>()
+  const priorityEquals = new Map<ItemId, Set<ItemId>>()
+  const urgencyEquals = new Map<ItemId, Set<ItemId>>()
 
   comparisons.forEach(comp => {
     // Build priority graph
-    if (comp.higherPriority) {
+    if (comp.higherPriority === 'equal') {
+      // Add bidirectional equality relationship
+      if (!priorityEquals.has(comp.itemA)) {
+        priorityEquals.set(comp.itemA, new Set())
+      }
+      if (!priorityEquals.has(comp.itemB)) {
+        priorityEquals.set(comp.itemB, new Set())
+      }
+      priorityEquals.get(comp.itemA)!.add(comp.itemB)
+      priorityEquals.get(comp.itemB)!.add(comp.itemA)
+    } else if (comp.higherPriority && comp.higherPriority !== 'equal') {
       if (!priorityWins.has(comp.higherPriority)) {
         priorityWins.set(comp.higherPriority, new Set())
       }
@@ -36,7 +50,17 @@ export function buildComparisonGraph(comparisons: ComparisonResult[]): Compariso
     }
 
     // Build urgency graph
-    if (comp.higherUrgency) {
+    if (comp.higherUrgency === 'equal') {
+      // Add bidirectional equality relationship
+      if (!urgencyEquals.has(comp.itemA)) {
+        urgencyEquals.set(comp.itemA, new Set())
+      }
+      if (!urgencyEquals.has(comp.itemB)) {
+        urgencyEquals.set(comp.itemB, new Set())
+      }
+      urgencyEquals.get(comp.itemA)!.add(comp.itemB)
+      urgencyEquals.get(comp.itemB)!.add(comp.itemA)
+    } else if (comp.higherUrgency && comp.higherUrgency !== 'equal') {
       if (!urgencyWins.has(comp.higherUrgency)) {
         urgencyWins.set(comp.higherUrgency, new Set())
       }
@@ -45,7 +69,7 @@ export function buildComparisonGraph(comparisons: ComparisonResult[]): Compariso
     }
   })
 
-  return { priorityWins, urgencyWins }
+  return { priorityWins, urgencyWins, priorityEquals, urgencyEquals }
 }
 
 /**
@@ -85,27 +109,79 @@ export function detectCycle(
 
 /**
  * Check if there's a known relationship between two items through transitivity
- * @param graph - The comparison graph
+ * Including equality relationships (if A=B and B>C, then A>C)
+ * @param winsGraph - The wins graph
+ * @param equalsGraph - The equality graph
  * @param itemA - First item
  * @param itemB - Second item
- * @returns 'A_wins' if A transitively beats B, 'B_wins' if B beats A, 'unknown' otherwise
+ * @returns 'A_wins', 'B_wins', 'equal', or 'unknown'
  */
 export function hasTransitiveRelationship(
-  graph: Map<ItemId, Set<ItemId>>,
+  winsGraph: Map<ItemId, Set<ItemId>>,
+  equalsGraph: Map<ItemId, Set<ItemId>>,
   itemA: ItemId,
   itemB: ItemId,
-): 'A_wins' | 'B_wins' | 'unknown' {
-  // Check if there's a path from A to B (A beats B transitively)
-  if (hasPath(graph, itemA, itemB)) {
-    return 'A_wins'
+): 'A_wins' | 'B_wins' | 'equal' | 'unknown' {
+  // First check if they're equal (direct or transitive)
+  if (areTransitivelyEqual(equalsGraph, itemA, itemB)) {
+    return 'equal'
   }
 
-  // Check if there's a path from B to A (B beats A transitively)
-  if (hasPath(graph, itemB, itemA)) {
-    return 'B_wins'
+  // Get all items equivalent to A and B
+  const aEquivalents = getEquivalenceClass(equalsGraph, itemA)
+  const bEquivalents = getEquivalenceClass(equalsGraph, itemB)
+
+  // Check if any item in A's equivalence class beats any item in B's
+  for (const aEquiv of aEquivalents) {
+    for (const bEquiv of bEquivalents) {
+      if (hasPath(winsGraph, aEquiv, bEquiv)) {
+        return 'A_wins'
+      }
+      if (hasPath(winsGraph, bEquiv, aEquiv)) {
+        return 'B_wins'
+      }
+    }
   }
 
   return 'unknown'
+}
+
+/**
+ * Get all items transitively equal to the given item
+ */
+function getEquivalenceClass(
+  equalsGraph: Map<ItemId, Set<ItemId>>,
+  item: ItemId,
+): Set<ItemId> {
+  const equivalents = new Set<ItemId>([item])
+  const stack = [item]
+
+  while (stack.length > 0) {
+    const current = stack.pop()!
+    const equals = equalsGraph.get(current)
+    if (equals) {
+      equals.forEach(equal => {
+        if (!equivalents.has(equal)) {
+          equivalents.add(equal)
+          stack.push(equal)
+        }
+      })
+    }
+  }
+
+  return equivalents
+}
+
+/**
+ * Check if two items are transitively equal
+ */
+function areTransitivelyEqual(
+  equalsGraph: Map<ItemId, Set<ItemId>>,
+  itemA: ItemId,
+  itemB: ItemId,
+): boolean {
+  const aClass = getEquivalenceClass(equalsGraph, itemA)
+  return aClass.has(itemB)
 }
 
 /**
@@ -181,14 +257,24 @@ export function getMissingComparisons(
       const itemA = items[i]
       const itemB = items[j]
 
-      // Check if we know the priority relationship
-      const priorityRel = hasTransitiveRelationship(graph.priorityWins, itemA, itemB)
-      // Check if we know the urgency relationship
-      const urgencyRel = hasTransitiveRelationship(graph.urgencyWins, itemA, itemB)
+      // Check if we know the priority relationship (including equality)
+      const priorityRel = hasTransitiveRelationship(
+        graph.priorityWins,
+        graph.priorityEquals || new Map(),
+        itemA!,
+        itemB!,
+      )
+      // Check if we know the urgency relationship (including equality)
+      const urgencyRel = hasTransitiveRelationship(
+        graph.urgencyWins,
+        graph.urgencyEquals || new Map(),
+        itemA!,
+        itemB!,
+      )
 
       // If either relationship is unknown, we need this comparison
       if (priorityRel === 'unknown' || urgencyRel === 'unknown') {
-        missingPairs.push([itemA, itemB])
+        missingPairs.push([itemA!, itemB!])
       }
     }
   }
