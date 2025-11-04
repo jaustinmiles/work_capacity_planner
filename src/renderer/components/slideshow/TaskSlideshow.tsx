@@ -1,13 +1,17 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Modal, Button, Space, Typography, Tag, Card, Badge, Divider } from '@arco-design/web-react'
-import { IconLeft, IconRight, IconClockCircle, IconBranch, IconList, IconCheckCircleFill } from '@arco-design/web-react/icon'
+import { Modal, Button, Space, Typography, Tag, Card, Divider } from '@arco-design/web-react'
+import { IconLeft, IconRight, IconClockCircle } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { EntityType } from '@shared/enums'
+import { ComparisonType } from '@/shared/constants'
 
-const { Title, Text, Paragraph } = Typography
+const { Title, Text } = Typography
+
+// Type alias for item IDs
+type ItemId = Task['id']
 
 interface TaskSlideshowProps {
   visible: boolean
@@ -15,15 +19,25 @@ interface TaskSlideshowProps {
 }
 
 type SlideshowItem = {
-  id: string
+  id: ItemId
   type: EntityType.Task | EntityType.Workflow
   data: Task | SequencedTask
+}
+
+interface ComparisonResult {
+  itemA: ItemId
+  itemB: ItemId
+  higherPriority: ItemId | null
+  higherUrgency: ItemId | null
+  timestamp: number
 }
 
 export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const { tasks, sequencedTasks } = useTaskStore()
   const { isCompact, isMobile } = useResponsive()
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentPairIndex, setCurrentPairIndex] = useState(0)
+  const [comparisons, setComparisons] = useState<ComparisonResult[]>([])
+  const [currentQuestion, setCurrentQuestion] = useState<ComparisonType>(ComparisonType.Priority)
 
   // Combine and filter tasks and workflows (exclude completed and archived)
   const items = useMemo<SlideshowItem[]>(() => {
@@ -48,13 +62,69 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
 
   }, [tasks, sequencedTasks])
 
+  // Get current pair of items
+  const getCurrentPair = () => {
+    if (items.length < 2) return null
+    const indexA = currentPairIndex * 2
+    const indexB = currentPairIndex * 2 + 1
+    if (indexB >= items.length) return null
+    const itemA = items[indexA]
+    const itemB = items[indexB]
+    if (!itemA || !itemB) return null
+    return [itemA, itemB]
+  }
+
   // Navigation functions
   const goToPrevious = () => {
-    setCurrentIndex(prev => (prev > 0 ? prev - 1 : items.length - 1))
+    setCurrentPairIndex(prev => {
+      const maxPairs = Math.floor(items.length / 2)
+      return prev > 0 ? prev - 1 : maxPairs - 1
+    })
+    setCurrentQuestion(ComparisonType.Priority)
   }
 
   const goToNext = () => {
-    setCurrentIndex(prev => (prev < items.length - 1 ? prev + 1 : 0))
+    setCurrentPairIndex(prev => {
+      const maxPairs = Math.floor(items.length / 2)
+      return prev < maxPairs - 1 ? prev + 1 : 0
+    })
+    setCurrentQuestion(ComparisonType.Priority)
+  }
+
+  // Handle comparison selection
+  const handleComparison = (winner: ItemId) => {
+    const pair = getCurrentPair()
+    if (!pair) return
+
+    const existingComparison = comparisons.find(
+      c => c.itemA === pair[0]?.id && c.itemB === pair[1]?.id,
+    )
+
+    if (currentQuestion === ComparisonType.Priority) {
+      if (existingComparison) {
+        setComparisons(prev => prev.map(c =>
+          c.itemA === pair[0]?.id && c.itemB === pair[1]?.id
+            ? { ...c, higherPriority: winner }
+            : c,
+        ))
+      } else {
+        setComparisons(prev => [...prev, {
+          itemA: pair[0]!.id,
+          itemB: pair[1]!.id,
+          higherPriority: winner,
+          higherUrgency: null,
+          timestamp: Date.now(),
+        }])
+      }
+      setCurrentQuestion(ComparisonType.Urgency)
+    } else {
+      setComparisons(prev => prev.map(c =>
+        c.itemA === pair[0]!.id && c.itemB === pair[1]!.id
+          ? { ...c, higherUrgency: winner }
+          : c,
+      ))
+      goToNext()
+    }
   }
 
   // Keyboard navigation
@@ -62,7 +132,13 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     if (!visible) return
 
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') {
+      const pair = getCurrentPair()
+
+      if (e.key === '1' && pair) {
+        handleComparison(pair[0]!.id)
+      } else if (e.key === '2' && pair) {
+        handleComparison(pair[1]!.id)
+      } else if (e.key === 'ArrowLeft') {
         goToPrevious()
       } else if (e.key === 'ArrowRight') {
         goToNext()
@@ -73,12 +149,14 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [visible, items.length])
+  }, [visible, items.length, currentPairIndex, currentQuestion, comparisons])
 
   // Reset index when modal opens
   useEffect(() => {
     if (visible) {
-      setCurrentIndex(0)
+      setCurrentPairIndex(0)
+      setCurrentQuestion(ComparisonType.Priority)
+      setComparisons([])
     }
   }, [visible])
 
@@ -98,28 +176,57 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     )
   }
 
-  const currentItem = items[currentIndex]
-  const isTask = currentItem?.type === EntityType.Task
-  const itemData = currentItem?.data
+  if (items.length < 2) {
+    return (
+      <Modal
+        title="Task & Workflow Comparison"
+        visible={visible}
+        onCancel={onClose}
+        footer={null}
+        style={{ width: 800 }}
+      >
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <Text type="secondary">Need at least 2 items to compare</Text>
+        </div>
+      </Modal>
+    )
+  }
+
+  const currentPair = getCurrentPair()
 
   // Type guards for better type safety
   const isRegularTask = (data: Task | SequencedTask): data is Task => {
     return 'importance' in data && 'urgency' in data
   }
 
-  const isWorkflow = (data: Task | SequencedTask): data is SequencedTask => {
-    return 'steps' in data && Array.isArray(data.steps)
+  if (!currentPair) {
+    return (
+      <Modal
+        title="Task & Workflow Comparison"
+        visible={visible}
+        onCancel={onClose}
+        footer={null}
+        style={{ width: 800 }}
+      >
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <Text type="secondary">No more pairs to compare</Text>
+        </div>
+      </Modal>
+    )
   }
+
+  const [itemA, itemB] = currentPair
+  const maxPairs = Math.floor(items.length / 2)
+  const currentComparison = comparisons.find(
+    c => c.itemA === itemA!.id && c.itemB === itemB!.id,
+  )
 
   return (
     <Modal
       title={
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Space>
-            {isTask ? <IconList /> : <IconBranch />}
-            <span>Task & Workflow Slideshow</span>
-          </Space>
-          <Tag>{`${currentIndex + 1} of ${items.length}`}</Tag>
+          <span>Task & Workflow Comparison</span>
+          <Tag>{`Pair ${currentPairIndex + 1} of ${maxPairs}`}</Tag>
         </Space>
       }
       visible={visible}
@@ -129,101 +236,162 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
           <Button
             icon={<IconLeft />}
             onClick={goToPrevious}
-            disabled={items.length <= 1}
+            disabled={maxPairs <= 1}
           >
-            Previous
+            Previous Pair
           </Button>
-          <Text type="secondary">Use arrow keys to navigate</Text>
+          <Text type="secondary">Press 1 or 2 to select</Text>
           <Button
             onClick={goToNext}
-            disabled={items.length <= 1}
+            disabled={maxPairs <= 1}
           >
-            Next
+            Next Pair
             <IconRight style={{ marginLeft: 4 }} />
           </Button>
         </Space>
       }
       style={{
-        width: isCompact ? '98vw' : isMobile ? '95vw' : 900,
+        width: isCompact ? '98vw' : isMobile ? '95vw' : 1200,
         maxWidth: isCompact ? '98vw' : isMobile ? '95vw' : '90vw',
       }}
       maskClosable={false}
     >
-      {currentItem && itemData && (
-        <Card style={{ minHeight: 400 }}>
-          <Space direction="vertical" style={{ width: '100%' }} size="large">
-            {/* Header */}
-            <div>
-              <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Title heading={4} style={{ margin: 0 }}>
-                  {itemData.name}
-                </Title>
-                <Space>
-                  <Tag color={isTask ? 'arcoblue' : 'purple'}>
-                    {isTask ? 'Task' : 'Workflow'}
-                  </Tag>
-                  {itemData.completed && (
-                    <Tag color="green" icon={<IconCheckCircleFill />}>
-                      Completed
-                    </Tag>
-                  )}
-                </Space>
-              </Space>
-
-              {/* Task-specific details */}
-              {isTask && isRegularTask(itemData) && (
-                <Space style={{ marginTop: 12 }}>
-                  <Badge
-                    color={itemData.importance >= 7 ? 'red' : itemData.importance >= 4 ? 'orange' : 'gray'}
-                    text={`Importance: ${itemData.importance}/10`}
-                  />
-                  <Badge
-                    color={itemData.urgency >= 7 ? 'red' : itemData.urgency >= 4 ? 'orange' : 'gray'}
-                    text={`Urgency: ${itemData.urgency}/10`}
-                  />
-                </Space>
+      <Space direction="vertical" style={{ width: '100%' }} size="large">
+        {/* Current Question */}
+        <Card style={{ background: '#f0f5ff', textAlign: 'center' }}>
+          <Title heading={4} style={{ margin: '8px 0' }}>
+            Which item has higher {currentQuestion === ComparisonType.Priority ? 'PRIORITY' : 'URGENCY'}?
+          </Title>
+          <Text type="secondary">
+            {currentQuestion === ComparisonType.Priority
+              ? 'Priority = Importance × Urgency (which should be done first?)'
+              : 'Urgency = How time-sensitive is this item?'}
+          </Text>
+          {currentComparison && (
+            <div style={{ marginTop: 12 }}>
+              {currentQuestion === ComparisonType.Priority && currentComparison.higherPriority && (
+                <Tag color="green">Priority answered</Tag>
+              )}
+              {currentQuestion === ComparisonType.Urgency && currentComparison.higherUrgency && (
+                <Tag color="green">Urgency answered</Tag>
               )}
             </div>
+          )}
+        </Card>
 
-            <Divider style={{ margin: '12px 0' }} />
+        {/* Items Comparison */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>
+          {/* Item A */}
+          <div style={{ flex: 1 }}>
+            <Button
+              type={
+                (currentQuestion === ComparisonType.Priority && currentComparison?.higherPriority === itemA!.id) ||
+                (currentQuestion === ComparisonType.Urgency && currentComparison?.higherUrgency === itemA!.id)
+                  ? 'primary' : 'default'
+              }
+              onClick={() => handleComparison(itemA!.id)}
+              style={{ width: '100%', marginBottom: 12 }}
+            >
+              Press &quot;1&quot; to select this
+            </Button>
+            <Card style={{ height: '100%' }}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Tag color="blue" style={{ alignSelf: 'center' }}>Item 1</Tag>
+                <Title heading={5} style={{ margin: '8px 0' }}>
+                  {itemA!.data.name}
+                </Title>
+                <Tag color={itemA!.type === EntityType.Task ? 'arcoblue' : 'purple'}>
+                  {itemA!.type === EntityType.Task ? 'Task' : 'Workflow'}
+                </Tag>
 
-            {/* Main content */}
-            <div style={{ flex: 1 }}>
-              {/* Duration */}
-              <Space style={{ marginBottom: 16 }}>
-                <IconClockCircle />
-                <Text>Duration: {itemData.duration || 0} minutes</Text>
-                {isWorkflow(itemData) && itemData.steps && (
-                  <Text type="secondary">
-                    ({itemData.steps.length} steps)
-                  </Text>
+                {isRegularTask(itemA!.data) && (
+                  <>
+                    <Divider style={{ margin: '12px 0' }} />
+                    <Text>Current Importance: {itemA!.data.importance}/10</Text>
+                    <Text>Current Urgency: {itemA!.data.urgency}/10</Text>
+                  </>
+                )}
+
+                <Divider style={{ margin: '12px 0' }} />
+                <Space>
+                  <IconClockCircle />
+                  <Text>{itemA!.data.duration || 0} minutes</Text>
+                </Space>
+
+                {itemA!.data.notes && (
+                  <>
+                    <Divider style={{ margin: '12px 0' }} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {itemA!.data.notes.substring(0, 100)}
+                      {itemA!.data.notes.length > 100 && '...'}
+                    </Text>
+                  </>
                 )}
               </Space>
+            </Card>
+          </div>
 
+          {/* Item B */}
+          <div style={{ flex: 1 }}>
+            <Button
+              type={
+                (currentQuestion === ComparisonType.Priority && currentComparison?.higherPriority === itemB!.id) ||
+                (currentQuestion === ComparisonType.Urgency && currentComparison?.higherUrgency === itemB!.id)
+                  ? 'primary' : 'default'
+              }
+              onClick={() => handleComparison(itemB!.id)}
+              style={{ width: '100%', marginBottom: 12 }}
+            >
+              Press &quot;2&quot; to select this
+            </Button>
+            <Card style={{ height: '100%' }}>
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Tag color="orange" style={{ alignSelf: 'center' }}>Item 2</Tag>
+                <Title heading={5} style={{ margin: '8px 0' }}>
+                  {itemB!.data.name}
+                </Title>
+                <Tag color={itemB!.type === EntityType.Task ? 'arcoblue' : 'purple'}>
+                  {itemB!.type === EntityType.Task ? 'Task' : 'Workflow'}
+                </Tag>
 
-              {/* Notes */}
-              {itemData.notes && (
-                <div style={{ marginTop: 16 }}>
-                  <Text style={{ fontWeight: 600, display: 'block', marginBottom: 8 }}>
-                    Notes:
-                  </Text>
-                  <Paragraph
-                    style={{
-                      background: '#f7f8fa',
-                      padding: 12,
-                      borderRadius: 4,
-                      maxHeight: 100,
-                      overflow: 'auto',
-                    }}
-                  >
-                    {itemData.notes}
-                  </Paragraph>
-                </div>
-              )}
-            </div>
-          </Space>
+                {isRegularTask(itemB!.data) && (
+                  <>
+                    <Divider style={{ margin: '12px 0' }} />
+                    <Text>Current Importance: {itemB!.data.importance}/10</Text>
+                    <Text>Current Urgency: {itemB!.data.urgency}/10</Text>
+                  </>
+                )}
+
+                <Divider style={{ margin: '12px 0' }} />
+                <Space>
+                  <IconClockCircle />
+                  <Text>{itemB!.data.duration || 0} minutes</Text>
+                </Space>
+
+                {itemB!.data.notes && (
+                  <>
+                    <Divider style={{ margin: '12px 0' }} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {itemB!.data.notes.substring(0, 100)}
+                      {itemB!.data.notes.length > 100 && '...'}
+                    </Text>
+                  </>
+                )}
+              </Space>
+            </Card>
+          </div>
+        </div>
+
+        {/* Comparisons Summary */}
+        <Card>
+          <Text style={{ fontWeight: 600 }}>Comparisons Made: </Text>
+          <Text>{comparisons.length} pairs evaluated</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Results stored locally for this session
+          </Text>
         </Card>
-      )}
+      </Space>
     </Modal>
   )
 }

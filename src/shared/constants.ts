@@ -5,6 +5,11 @@
  * This file now contains only non-enum constants.
  */
 
+export enum ComparisonType {
+  Priority = 'priority',
+  Urgency = 'urgency',
+}
+
 export const TASK_PRIORITY = {
   URGENT_THRESHOLD_HOURS: 24, // Tasks due within 24 hours get priority boost
   PRIORITY_MULTIPLIER: 100,   // Boost factor for urgent tasks
