@@ -13,7 +13,6 @@ import {
   ParsedTimePhrase,
   ParsedIntent,
 } from './amendment-types'
-// LOGGER_REMOVED: import { logger } from './logger'
 import { getAIService } from './ai-service'
 
 /**
@@ -85,7 +84,6 @@ export class AmendmentParser {
     try {
       return await this.parseWithAI(transcription, context)
     } catch (error) {
-      // LOGGER_REMOVED: logger.ai.error('AI parsing failed:', error)
       return {
         amendments: [],
         transcription,
@@ -144,15 +142,6 @@ export class AmendmentParser {
         }
       }
     }
-
-    // Log the context for debugging
-    // LOGGER_REMOVED: logger.ai.debug('Amendment Parser Context:', {
-      // LOGGER_REMOVED: transcription,
-      // LOGGER_REMOVED: tasksCount: context.recentTasks.length,
-      // LOGGER_REMOVED: workflowsCount: context.recentWorkflows.length,
-      // LOGGER_REMOVED: activeTaskId: context.activeTaskId,
-      // LOGGER_REMOVED: activeWorkflowId: context.activeWorkflowId,
-    // LOGGER_REMOVED: })
 
     const currentDate = new Date()
     const dateStr = currentDate.toISOString().split('T')[0] // YYYY-MM-DD format
@@ -330,8 +319,6 @@ IMPORTANT:
         throw new Error('Unexpected response type from Claude')
       }
 
-      // LOGGER_REMOVED: logger.ai.debug('Claude raw response:', content.text)
-
       // Extract JSON from response (may be wrapped in ```json...```)
       let jsonText = content.text.trim()
 
@@ -356,16 +343,12 @@ IMPORTANT:
         jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
       }
 
-      // LOGGER_REMOVED: logger.ai.debug('Extracted JSON:', jsonText)
-
       const result = JSON.parse(jsonText) as AmendmentResult
       result.transcription = transcription
 
       // Validate and enhance the result
       if (!result.amendments) result.amendments = []
       if (typeof result.confidence !== 'number') result.confidence = 0.5
-
-      // LOGGER_REMOVED: logger.ai.debug('Parsed amendment result:', result)
 
       // Filter out duplicate amendments
       const seen = new Set<string>()
@@ -393,7 +376,6 @@ IMPORTANT:
           seen.add(key)
           uniqueAmendments.push(amendment)
         } else {
-          // LOGGER_REMOVED: logger.ai.warn('Filtered duplicate amendment:', key)
           if (!result.warnings) result.warnings = []
           result.warnings.push('Duplicate amendment removed')
         }
@@ -416,12 +398,10 @@ IMPORTANT:
       if (uniqueAmendments.length < result.amendments.length) {
         const _duplicateCount = result.amendments.length - uniqueAmendments.length
         result.confidence = result.confidence * 0.7 // Significant reduction when duplicates were found
-        // LOGGER_REMOVED: logger.ai.warn(`Reduced confidence from ${result.confidence / 0.7} to ${result.confidence} due to ${_duplicateCount} duplicate amendments`)
       }
 
       return result
     } catch (error) {
-      // LOGGER_REMOVED: logger.ai.error('Error parsing with AI:', error)
       // Return a more informative error result instead of throwing
       return {
         amendments: [],

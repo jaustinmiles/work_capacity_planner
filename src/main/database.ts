@@ -2002,7 +2002,7 @@ export class DatabaseService {
       return
     }
 
-    console.log('[Database] Persisting log:', logEntry.level, logEntry.message)
+    dbLogger.debug('Persisting log', { level: logEntry.level, message: logEntry.message })
 
     try {
       await this.client.appLog.create({
@@ -2016,7 +2016,7 @@ export class DatabaseService {
       })
     } catch (error) {
       // Don't let logging errors crash the app
-      console.error('[Database] Failed to persist log:', error)
+      dbLogger.error('Failed to persist log', error)
     }
   }
 
@@ -2046,7 +2046,7 @@ export class DatabaseService {
       })
     } catch (error) {
       // Don't let logging errors crash the app
-      console.error('[Database] Failed to persist logs:', error)
+      dbLogger.error('Failed to persist logs', error)
     }
   }
 
