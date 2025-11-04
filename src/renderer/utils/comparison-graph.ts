@@ -261,7 +261,6 @@ export function getMissingComparisons(
 
       // Skip self-comparisons (shouldn't happen with j = i+1, but safety check)
       if (itemA === itemB) {
-        console.warn(`Skipping self-comparison for item ${itemA}`)
         continue
       }
 
@@ -286,15 +285,10 @@ export function getMissingComparisons(
         unknownCount++
       } else {
         knownCount++
-        // Log when we skip a pair due to transitivity
-        if (priorityRel !== 'unknown' && urgencyRel !== 'unknown') {
-          console.log(`Skipping ${itemA} vs ${itemB}: importance=${priorityRel}, urgency=${urgencyRel} (known by transitivity)`)
-        }
       }
     }
   }
 
-  console.log(`getMissingComparisons: ${knownCount} known, ${unknownCount} unknown`)
   return missingPairs
 }
 

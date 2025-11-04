@@ -182,8 +182,8 @@ describe('comparison-graph', () => {
         ['A', new Set(['B'])],
       ])
 
-      expect(hasTransitiveRelationship(graph, 'A', 'B')).toBe('A_wins')
-      expect(hasTransitiveRelationship(graph, 'B', 'A')).toBe('B_wins')
+      expect(hasTransitiveRelationship(graph, new Map(), 'A', 'B')).toBe('A_wins')
+      expect(hasTransitiveRelationship(graph, new Map(), 'B', 'A')).toBe('B_wins')
     })
 
     it('should find transitive relationship through chain', () => {
@@ -194,8 +194,8 @@ describe('comparison-graph', () => {
       ])
 
       // A transitively beats D through B and C
-      expect(hasTransitiveRelationship(graph, 'A', 'D')).toBe('A_wins')
-      expect(hasTransitiveRelationship(graph, 'D', 'A')).toBe('B_wins')
+      expect(hasTransitiveRelationship(graph, new Map(), 'A', 'D')).toBe('A_wins')
+      expect(hasTransitiveRelationship(graph, new Map(), 'D', 'A')).toBe('B_wins')
     })
 
     it('should return unknown for unconnected nodes', () => {
@@ -204,8 +204,8 @@ describe('comparison-graph', () => {
         ['C', new Set(['D'])],
       ])
 
-      expect(hasTransitiveRelationship(graph, 'A', 'C')).toBe('unknown')
-      expect(hasTransitiveRelationship(graph, 'B', 'D')).toBe('unknown')
+      expect(hasTransitiveRelationship(graph, new Map(), 'A', 'C')).toBe('unknown')
+      expect(hasTransitiveRelationship(graph, new Map(), 'B', 'D')).toBe('unknown')
     })
 
     it('should handle complex graph with multiple paths', () => {
@@ -216,13 +216,13 @@ describe('comparison-graph', () => {
       ])
 
       // A beats D through multiple paths (B and C)
-      expect(hasTransitiveRelationship(graph, 'A', 'D')).toBe('A_wins')
-      expect(hasTransitiveRelationship(graph, 'D', 'A')).toBe('B_wins')
+      expect(hasTransitiveRelationship(graph, new Map(), 'A', 'D')).toBe('A_wins')
+      expect(hasTransitiveRelationship(graph, new Map(), 'D', 'A')).toBe('B_wins')
     })
 
     it('should handle empty graph', () => {
       const graph = new Map<ItemId, Set<ItemId>>()
-      expect(hasTransitiveRelationship(graph, 'A', 'B')).toBe('unknown')
+      expect(hasTransitiveRelationship(graph, new Map(), 'A', 'B')).toBe('unknown')
     })
   })
 
@@ -460,11 +460,11 @@ describe('comparison-graph', () => {
       const graph = buildComparisonGraph(comparisons)
 
       // Check priority chain: High > Medium > Low
-      expect(hasTransitiveRelationship(graph.priorityWins, 'HighPriority', 'LowPriority'))
+      expect(hasTransitiveRelationship(graph.priorityWins, graph.priorityEquals, 'HighPriority', 'LowPriority'))
         .toBe('A_wins')
 
       // Check urgency: High > Medium, but Low > Medium
-      expect(hasTransitiveRelationship(graph.urgencyWins, 'HighPriority', 'LowPriority'))
+      expect(hasTransitiveRelationship(graph.urgencyWins, graph.urgencyEquals, 'HighPriority', 'LowPriority'))
         .toBe('unknown') // No transitive relationship
 
       // Check transitive closure

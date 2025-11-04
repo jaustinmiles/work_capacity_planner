@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Modal, Button, Space, Typography, Tag, Card, Divider, Message, Table } from '@arco-design/web-react'
-import { IconLeft, IconRight, IconClockCircle } from '@arco-design/web-react/icon'
+import { IconLeft, IconRight, IconClockCircle, IconCheck } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { Task } from '@shared/types'
@@ -58,8 +58,12 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
 
   // Combine and filter tasks and workflows (exclude completed and archived)
   const items = useMemo<SlideshowItem[]>(() => {
+    // Get workflow IDs to avoid duplicates
+    const workflowIds = new Set(sequencedTasks.map(w => w.id))
+
+    // Filter out tasks that are also in workflows
     const taskItems: SlideshowItem[] = tasks
-      .filter(t => !t.archived && !t.completed)
+      .filter(t => !t.archived && !t.completed && !workflowIds.has(t.id))
       .map(task => ({
         id: task.id,
         type: EntityType.Task,
@@ -95,7 +99,6 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
           }
         }
         if (initialPairs.length > 0) {
-          console.log(`Starting with ${initialPairs.length} tournament pairs from ${shuffled.length} items`)
           setComparisonPairs(initialPairs)
           setCurrentPairIndex(0)
         }
@@ -238,10 +241,8 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         // Get pairs still needed
         const stillNeeded = getMissingComparisons(itemIds, updatedGraph)
 
-        // Log transitivity savings
+        // Calculate transitivity savings for the message
         const savedByTransitivity = totalPossiblePairs - stillNeeded.length - newComparisons.length
-        console.log(`Transitivity savings: ${savedByTransitivity} pairs inferred automatically`)
-        console.log(`Comparisons made: ${newComparisons.length}, Still needed: ${stillNeeded.length}, Total possible: ${totalPossiblePairs}`)
 
         // Filter out the current pair and any pairs we've already started
         const remainingPairs = stillNeeded.filter(([a, b]) => {
@@ -293,6 +294,57 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [visible, items, currentPairIndex, currentQuestion, comparisons, graph])
+
+  // Apply the computed rankings to the database
+  const applyRankings = async () => {
+    const itemsToUse = shuffledItems.length > 0 ? shuffledItems : items
+    const itemIds = itemsToUse.map(item => item.id)
+
+    // Get sorted items using topological sort
+    const prioritySorted = topologicalSort(itemIds, graph.priorityWins) || itemIds
+    const urgencySorted = topologicalSort(itemIds, graph.urgencyWins) || itemIds
+
+    // Convert to 1-10 rankings
+    const priorityRankings = mapToRankings(prioritySorted)
+    const urgencyRankings = mapToRankings(urgencySorted)
+
+    // Create maps for easy lookup
+    const priorityScores = new Map<ItemId, number>()
+    const urgencyScores = new Map<ItemId, number>()
+
+    priorityRankings.forEach(ranking => {
+      priorityScores.set(ranking.id, ranking.score)
+    })
+    urgencyRankings.forEach(ranking => {
+      urgencyScores.set(ranking.id, ranking.score)
+    })
+
+    // Update each task/workflow with new rankings
+    let updateCount = 0
+    const { updateTask, updateSequencedTask } = useTaskStore.getState()
+
+    for (const item of itemsToUse) {
+      const importance = priorityScores.get(item.id) || 5
+      const urgency = urgencyScores.get(item.id) || 5
+
+      try {
+        if (item.type === EntityType.Task) {
+          await updateTask(item.id, { importance, urgency })
+          updateCount++
+        } else if (item.type === EntityType.Workflow) {
+          await updateSequencedTask(item.id, { importance, urgency })
+          updateCount++
+        }
+      } catch (error) {
+        console.error(`Failed to update ${item.id}:`, error)
+      }
+    }
+
+    Message.success(`Updated ${updateCount} items with new importance and urgency rankings!`)
+
+    // Close the modal after applying
+    onClose()
+  }
 
   // Reset function to clear all comparisons
   const resetComparisons = () => {
@@ -410,11 +462,19 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         onCancel={onClose}
         footer={
           <Space style={{ width: '100%', justifyContent: 'center' }}>
-            <Button type="primary" onClick={resetComparisons}>
+            <Button
+              type="primary"
+              onClick={applyRankings}
+              icon={<IconCheck />}
+              size="large"
+            >
+              Apply Rankings to Database
+            </Button>
+            <Button onClick={resetComparisons}>
               Start New Comparison Session
             </Button>
             <Button onClick={onClose}>
-              Close
+              Close Without Applying
             </Button>
           </Space>
         }
@@ -523,7 +583,12 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
                 Importance Rankings
               </Title>
               <ComparisonGraphMinimap
-                graph={{ priorityWins: graph.priorityWins, urgencyWins: new Map() }}
+                graph={{
+                  priorityWins: graph.priorityWins,
+                  urgencyWins: new Map(),
+                  priorityEquals: graph.priorityEquals,
+                  urgencyEquals: new Map(),
+                }}
                 items={items.map(item => ({
                   id: item.id,
                   title: isRegularTask(item.data)
@@ -541,7 +606,12 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
                 Urgency Rankings
               </Title>
               <ComparisonGraphMinimap
-                graph={{ priorityWins: new Map(), urgencyWins: graph.urgencyWins }}
+                graph={{
+                  priorityWins: new Map(),
+                  urgencyWins: graph.urgencyWins,
+                  priorityEquals: new Map(),
+                  urgencyEquals: graph.urgencyEquals,
+                }}
                 items={items.map(item => ({
                   id: item.id,
                   title: isRegularTask(item.data)
@@ -649,7 +719,12 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
                 Importance Graph
               </Title>
               <ComparisonGraphMinimap
-                graph={{ priorityWins: graph.priorityWins, urgencyWins: new Map() }}
+                graph={{
+                  priorityWins: graph.priorityWins,
+                  urgencyWins: new Map(),
+                  priorityEquals: graph.priorityEquals,
+                  urgencyEquals: new Map(),
+                }}
                 items={items.map(item => ({
                   id: item.id,
                   title: isRegularTask(item.data)
@@ -669,7 +744,12 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
                 Urgency Graph
               </Title>
               <ComparisonGraphMinimap
-                graph={{ priorityWins: new Map(), urgencyWins: graph.urgencyWins }}
+                graph={{
+                  priorityWins: new Map(),
+                  urgencyWins: graph.urgencyWins,
+                  priorityEquals: new Map(),
+                  urgencyEquals: graph.urgencyEquals,
+                }}
                 items={items.map(item => ({
                   id: item.id,
                   title: isRegularTask(item.data)
