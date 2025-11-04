@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm, Tooltip } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle, IconMenuFold, IconMenuUnfold } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -19,6 +19,7 @@ import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { SessionManager } from './components/session/SessionManager'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
+import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
 import { DevTools } from './components/dev/DevTools'
 import { useTaskStore } from './store/useTaskStore'
 import { exampleSequencedTask } from '@shared/sequencing-types'
@@ -77,6 +78,7 @@ function App() {
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
   const [showWorkLoggerDual, setShowWorkLoggerDual] = useState(false)
+  const [showTaskSlideshow, setShowTaskSlideshow] = useState(false)
   const [voiceAmendmentVisible, setVoiceAmendmentVisible] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
 
@@ -728,6 +730,13 @@ function App() {
               </Button>
               <Button
                 type="text"
+                icon={<IconEye />}
+                onClick={() => setShowTaskSlideshow(true)}
+              >
+                Slideshow
+              </Button>
+              <Button
+                type="text"
                 icon={<IconUserGroup />}
                 onClick={() => setShowSessionManager(true)}
               >
@@ -910,6 +919,11 @@ function App() {
         <WorkLoggerDual
           visible={showWorkLoggerDual}
           onClose={() => setShowWorkLoggerDual(false)}
+        />
+
+        <TaskSlideshow
+          visible={showTaskSlideshow}
+          onClose={() => setShowTaskSlideshow(false)}
         />
 
         <SessionManager
