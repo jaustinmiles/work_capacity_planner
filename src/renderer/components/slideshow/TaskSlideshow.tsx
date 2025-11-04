@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Modal, Button, Space, Typography, Tag, Card, Divider } from '@arco-design/web-react'
+import { Modal, Button, Space, Typography, Tag, Card, Divider, Message } from '@arco-design/web-react'
 import { IconLeft, IconRight, IconClockCircle } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useResponsive } from '../../providers/ResponsiveProvider'
@@ -7,11 +7,16 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { EntityType } from '@shared/enums'
 import { ComparisonType } from '@/shared/constants'
+import {
+  buildComparisonGraph,
+  detectCycle,
+  hasTransitiveRelationship,
+  type ComparisonResult,
+  type ComparisonGraph,
+  type ItemId,
+} from '../../utils/comparison-graph'
 
 const { Title, Text } = Typography
-
-// Type alias for item IDs
-type ItemId = Task['id']
 
 interface TaskSlideshowProps {
   visible: boolean
@@ -24,20 +29,15 @@ type SlideshowItem = {
   data: Task | SequencedTask
 }
 
-interface ComparisonResult {
-  itemA: ItemId
-  itemB: ItemId
-  higherPriority: ItemId | null
-  higherUrgency: ItemId | null
-  timestamp: number
-}
-
 export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const { tasks, sequencedTasks } = useTaskStore()
   const { isCompact, isMobile } = useResponsive()
   const [currentPairIndex, setCurrentPairIndex] = useState(0)
   const [comparisons, setComparisons] = useState<ComparisonResult[]>([])
   const [currentQuestion, setCurrentQuestion] = useState<ComparisonType>(ComparisonType.Priority)
+
+  // Build graph from comparisons using utility
+  const graph = useMemo<ComparisonGraph>(() => buildComparisonGraph(comparisons), [comparisons])
 
   // Combine and filter tasks and workflows (exclude completed and archived)
   const items = useMemo<SlideshowItem[]>(() => {
@@ -84,10 +84,43 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   }
 
   const goToNext = () => {
-    setCurrentPairIndex(prev => {
-      const maxPairs = Math.floor(items.length / 2)
-      return prev < maxPairs - 1 ? prev + 1 : 0
-    })
+    let nextIndex = currentPairIndex
+    const maxPairs = Math.floor(items.length / 2)
+    let skippedCount = 0
+
+    // Try to find a pair we don't already know through transitivity
+    do {
+      nextIndex = nextIndex < maxPairs - 1 ? nextIndex + 1 : 0
+
+      // Check if we've looped through all pairs
+      if (nextIndex === currentPairIndex) {
+        break
+      }
+
+      const indexA = nextIndex * 2
+      const indexB = nextIndex * 2 + 1
+      if (indexB >= items.length) break
+
+      const itemA = items[indexA]
+      const itemB = items[indexB]
+      if (!itemA || !itemB) break
+
+      // Check if we already know this relationship through transitivity
+      const priorityRel = hasTransitiveRelationship(graph.priorityWins, itemA.id, itemB.id)
+      const urgencyRel = hasTransitiveRelationship(graph.urgencyWins, itemA.id, itemB.id)
+
+      if (priorityRel === 'unknown' || urgencyRel === 'unknown') {
+        // Found a pair we don't fully know - use it!
+        if (skippedCount > 0) {
+          Message.info(`Skipped ${skippedCount} pair(s) already known through transitivity`)
+        }
+        break
+      }
+
+      skippedCount++
+    } while (nextIndex !== currentPairIndex)
+
+    setCurrentPairIndex(nextIndex)
     setCurrentQuestion(ComparisonType.Priority)
   }
 
@@ -95,6 +128,21 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const handleComparison = (winner: ItemId) => {
     const pair = getCurrentPair()
     if (!pair) return
+
+    const loser = winner === pair[0]!.id ? pair[1]!.id : pair[0]!.id
+
+    // Check for cycle before adding comparison
+    if (currentQuestion === ComparisonType.Priority) {
+      // Check if this would create a cycle in priority graph
+      if (detectCycle(graph.priorityWins, winner, loser)) {
+        Message.warning(`Inconsistency detected: This creates a circular priority relationship! (${winner} beats ${loser} but there's already a path from ${loser} to ${winner})`)
+      }
+    } else {
+      // Check if this would create a cycle in urgency graph
+      if (detectCycle(graph.urgencyWins, winner, loser)) {
+        Message.warning(`Inconsistency detected: This creates a circular urgency relationship! (${winner} beats ${loser} but there's already a path from ${loser} to ${winner})`)
+      }
+    }
 
     const existingComparison = comparisons.find(
       c => c.itemA === pair[0]?.id && c.itemB === pair[1]?.id,
@@ -149,7 +197,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [visible, items.length, currentPairIndex, currentQuestion, comparisons])
+  }, [visible, items, currentPairIndex, currentQuestion, comparisons, graph])
 
   // Reset index when modal opens
   useEffect(() => {
