@@ -15,6 +15,7 @@ import {
   type ComparisonGraph,
   type ItemId,
 } from '../../utils/comparison-graph'
+import { ComparisonGraphMinimap } from './ComparisonGraphMinimap'
 
 const { Title, Text } = Typography
 
@@ -326,6 +327,23 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
             </div>
           )}
         </Card>
+
+        {/* Graph Minimap */}
+        {comparisons.length > 0 && (
+          <ComparisonGraphMinimap
+            graph={graph}
+            items={items.map(item => ({
+              id: item.id,
+              title: isRegularTask(item.data)
+                ? (item.data as Task).name
+                : (item.data as SequencedTask).name,
+            }))}
+            currentComparison={itemA && itemB ? [itemA.id, itemB.id] : undefined}
+            currentQuestion={currentQuestion}
+            width={isCompact ? 280 : 320}
+            height={180}
+          />
+        )}
 
         {/* Items Comparison */}
         <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>
