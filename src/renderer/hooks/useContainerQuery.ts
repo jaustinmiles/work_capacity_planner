@@ -1,5 +1,6 @@
 /* global ResizeObserver */
 import { useEffect, useRef, useState, RefObject } from 'react'
+import { logger } from '@/logger'
 
 type ContainerBreakpoint = 'narrow' | 'standard' | 'wide'
 
@@ -101,10 +102,10 @@ export function useContainerQuery<T extends HTMLElement = HTMLDivElement>(
           }
 
           if (opts.debug) {
-            console.log('[useContainerQuery]', {
+            logger.debug('Container query update', {
               element: ref.current?.className,
               ...newSize,
-            })
+            }, 'useContainerQuery')
           }
 
           setSize(newSize)

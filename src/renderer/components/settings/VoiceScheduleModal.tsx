@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { TaskType } from '@shared/enums'
-import { WorkBlockType } from '@shared/constants'
+import { TaskType, WorkBlockType } from '@shared/enums'
 import { Modal, Button, Typography, Alert, Space, Card, Tag, Divider, Upload, Input } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconUpload, IconFile, IconCheckCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'

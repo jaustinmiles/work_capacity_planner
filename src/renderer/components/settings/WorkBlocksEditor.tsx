@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TaskType } from '@shared/enums'
-import { WorkBlockType } from '@shared/constants'
+import { TaskType, WorkBlockType } from '@shared/enums'
 import {
   Card,
   Space,
@@ -425,7 +424,7 @@ export function WorkBlocksEditor({
                         if (value === 'mixed' && block.type !== 'mixed') {
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.MIXED, block.startTime, block.endTime, { focus: 0.5, admin: 0.5 }),
+                            capacity: calculateBlockCapacity(WorkBlockType.Mixed, block.startTime, block.endTime, { focus: 0.5, admin: 0.5 }),
                           })
                         } else if (value === 'flexible') {
                           // Flexible blocks don't have predetermined capacity split
@@ -436,17 +435,17 @@ export function WorkBlocksEditor({
                         } else if (value === 'personal') {
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.PERSONAL, block.startTime, block.endTime),
+                            capacity: calculateBlockCapacity(WorkBlockType.Personal, block.startTime, block.endTime),
                           })
                         } else if (value === TaskType.Focused) {
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.FOCUSED, block.startTime, block.endTime),
+                            capacity: calculateBlockCapacity(WorkBlockType.Focused, block.startTime, block.endTime),
                           })
                         } else if (value === TaskType.Admin) {
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.ADMIN, block.startTime, block.endTime),
+                            capacity: calculateBlockCapacity(WorkBlockType.Admin, block.startTime, block.endTime),
                           })
                         }
                       }}
@@ -484,7 +483,7 @@ export function WorkBlocksEditor({
                             const admin = Math.max(0, totalMinutes - focus)
 
                             handleUpdateBlock(block.id, {
-                              capacity: calculateBlockCapacity(WorkBlockType.MIXED, block.startTime, block.endTime, { focus: focus / totalMinutes, admin: admin / totalMinutes }),
+                              capacity: calculateBlockCapacity(WorkBlockType.Mixed, block.startTime, block.endTime, { focus: focus / totalMinutes, admin: admin / totalMinutes }),
                             })
                           }}
                           min={0}
@@ -504,7 +503,7 @@ export function WorkBlocksEditor({
                             const focus = Math.max(0, totalMinutes - admin)
 
                             handleUpdateBlock(block.id, {
-                              capacity: calculateBlockCapacity(WorkBlockType.MIXED, block.startTime, block.endTime, { focus: focus / totalMinutes, admin: admin / totalMinutes }),
+                              capacity: calculateBlockCapacity(WorkBlockType.Mixed, block.startTime, block.endTime, { focus: focus / totalMinutes, admin: admin / totalMinutes }),
                             })
                           }}
                           min={0}

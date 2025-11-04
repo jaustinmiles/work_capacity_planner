@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { TaskType } from '@shared/enums'
-import { WorkBlockType } from '@shared/constants'
+import { TaskType, WorkBlockType } from '@shared/enums'
 import { Card } from '@arco-design/web-react'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
@@ -337,10 +336,10 @@ export function TimelineVisualizer({
           <div>
             {isBlock ? (() => {
               const block = item as WorkBlock
-              return `${block.type === WorkBlockType.FOCUSED ? '🎯 Focused' :
-                block.type === WorkBlockType.ADMIN ? '📋 Admin' :
-                block.type === WorkBlockType.PERSONAL ? '👤 Personal' :
-                block.type === WorkBlockType.FLEXIBLE ? '🔀 Flexible' : '🔄 Mixed'} Work`
+              return `${block.type === WorkBlockType.Focused ? '🎯 Focused' :
+                block.type === WorkBlockType.Admin ? '📋 Admin' :
+                block.type === WorkBlockType.Personal ? '👤 Personal' :
+                block.type === WorkBlockType.Flexible ? '🔀 Flexible' : '🔄 Mixed'} Work`
             })() : (() => {
               const meeting = item as WorkMeeting
               return meeting.name || meeting.type

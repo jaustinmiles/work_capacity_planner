@@ -1,9 +1,8 @@
 // Types for flexible work blocks system
 
 import { calculateDuration } from './time-utils'
-import { WorkBlockType } from './constants'
 import { getTotalCapacityForTaskType, BlockCapacity } from './capacity-calculator'
-import { TaskType } from './enums'
+import { TaskType, WorkBlockType } from './enums'
 
 export interface WorkBlock {
   id: string

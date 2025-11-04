@@ -1,7 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { Task, TaskStep } from '../shared/types'
-import { TaskType } from '../shared/enums'
-import { WorkBlockType } from '../shared/constants'
+import { TaskType, WorkBlockType } from '../shared/enums'
 import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime } from '../shared/time-provider'

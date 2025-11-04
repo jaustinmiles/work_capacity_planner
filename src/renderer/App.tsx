@@ -57,10 +57,27 @@ function App() {
     // Set up listener for main process logs
     if (window.electronAPI?.onMainLog) {
       window.electronAPI.onMainLog((entry: any) => {
-        // Forward main process logs to console
-        const levelMap = ['error', 'warn', 'info', 'debug', 'log'] as const
-        const method = levelMap[entry.level] || 'log'
-        console[method](`[Main/${entry.scope || 'System'}]`, entry.message, entry.data || '')
+        // Forward main process logs to logger
+        const message = `[Main/${entry.scope || 'System'}] ${entry.message}`
+        const data = entry.data || undefined
+
+        // Map numeric levels to logger methods
+        switch(entry.level) {
+          case 0:
+            logger.error(message, data)
+            break
+          case 1:
+            logger.warn(message, data)
+            break
+          case 2:
+            logger.info(message, data)
+            break
+          case 3:
+            logger.debug(message, data)
+            break
+          default:
+            logger.info(message, data)
+        }
       })
     }
   }, [])

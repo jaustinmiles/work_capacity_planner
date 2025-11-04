@@ -33,6 +33,17 @@ export enum TaskType {
   Flexible = 'flexible', // For flexible capacity that can be used by any task type
 }
 
+// Work block types for scheduling
+export enum WorkBlockType {
+  Focused = 'focused',
+  Admin = 'admin',
+  Mixed = 'mixed',
+  Flexible = 'flexible',
+  Personal = 'personal',
+  Blocked = 'blocked',
+  Sleep = 'sleep',
+}
+
 // Amendment types for voice amendments
 export enum AmendmentType {
   StatusUpdate = 'status_update',
