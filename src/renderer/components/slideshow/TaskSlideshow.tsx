@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Modal, Button, Space, Typography, Tag, Card, Divider, Message } from '@arco-design/web-react'
+import { Modal, Button, Space, Typography, Tag, Card, Divider, Message, Table } from '@arco-design/web-react'
 import { IconLeft, IconRight, IconClockCircle } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useResponsive } from '../../providers/ResponsiveProvider'
@@ -11,6 +11,8 @@ import {
   buildComparisonGraph,
   detectCycle,
   getMissingComparisons,
+  topologicalSort,
+  mapToRankings,
   type ComparisonResult,
   type ComparisonGraph,
   type ItemId,
@@ -292,6 +294,37 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
 
   // Show completion view with graphs if complete or no more pairs
   if (isComplete || (!currentPair && comparisons.length > 0)) {
+    // Compute rankings for both importance and urgency
+    const itemIds = items.map(item => item.id)
+    const importanceSorted = topologicalSort(itemIds, graph.priorityWins)
+    const urgencySorted = topologicalSort(itemIds, graph.urgencyWins)
+
+    const importanceRankings = mapToRankings(importanceSorted)
+    const urgencyRankings = mapToRankings(urgencySorted)
+
+    // Build rankings table data
+    const rankingsData = items.map(item => {
+      const importanceRank = importanceRankings.find(r => r.id === item.id)
+      const urgencyRank = urgencyRankings.find(r => r.id === item.id)
+
+      const importanceScore = importanceRank?.score || 5
+      const urgencyScore = urgencyRank?.score || 5
+      const priorityScore = importanceScore * urgencyScore / 10 // Normalize to 1-10 scale
+
+      return {
+        key: item.id,
+        name: isRegularTask(item.data)
+          ? (item.data as Task).name
+          : (item.data as SequencedTask).name,
+        importance: importanceScore,
+        urgency: urgencyScore,
+        priority: priorityScore.toFixed(1),
+        type: item.type,
+      }
+    })
+
+    // Sort by priority for display
+    rankingsData.sort((a, b) => parseFloat(b.priority) - parseFloat(a.priority))
     return (
       <Modal
         title={
@@ -333,12 +366,88 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
             </div>
           </Card>
 
+          {/* Rankings Table */}
+          <Card>
+            <Title heading={5} style={{ marginBottom: 16 }}>
+              Computed Rankings (Priority = Importance × Urgency ÷ 10)
+            </Title>
+            <Table
+              columns={[
+                {
+                  title: 'Task/Workflow',
+                  dataIndex: 'name',
+                  key: 'name',
+                  width: '40%',
+                },
+                {
+                  title: 'Type',
+                  dataIndex: 'type',
+                  key: 'type',
+                  width: '15%',
+                  render: (type: EntityType) => (
+                    <Tag color={type === EntityType.Task ? 'blue' : 'purple'}>
+                      {type === EntityType.Task ? 'Task' : 'Workflow'}
+                    </Tag>
+                  ),
+                },
+                {
+                  title: 'Importance',
+                  dataIndex: 'importance',
+                  key: 'importance',
+                  width: '15%',
+                  align: 'center',
+                  render: (score: number) => (
+                    <Tag color={score >= 7 ? 'red' : score >= 4 ? 'orange' : 'green'}>
+                      {score}
+                    </Tag>
+                  ),
+                },
+                {
+                  title: 'Urgency',
+                  dataIndex: 'urgency',
+                  key: 'urgency',
+                  width: '15%',
+                  align: 'center',
+                  render: (score: number) => (
+                    <Tag color={score >= 7 ? 'red' : score >= 4 ? 'orange' : 'green'}>
+                      {score}
+                    </Tag>
+                  ),
+                },
+                {
+                  title: 'Priority',
+                  dataIndex: 'priority',
+                  key: 'priority',
+                  width: '15%',
+                  align: 'center',
+                  render: (score: string) => {
+                    const val = parseFloat(score)
+                    return (
+                      <Tag color={val >= 7 ? 'red' : val >= 4 ? 'orange' : 'green'}>
+                        <strong>{score}</strong>
+                      </Tag>
+                    )
+                  },
+                },
+              ]}
+              data={rankingsData}
+              pagination={false}
+              size="small"
+              border
+            />
+            <div style={{ marginTop: 12, textAlign: 'center' }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Higher scores indicate higher importance/urgency. Priority helps determine task order.
+              </Text>
+            </div>
+          </Card>
+
           {/* Final Graph Visualizations */}
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
             {/* Priority Graph */}
             <div>
               <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
-                Priority Rankings
+                Importance Rankings
               </Title>
               <ComparisonGraphMinimap
                 graph={{ priorityWins: graph.priorityWins, urgencyWins: new Map() }}
@@ -440,17 +549,17 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
         {/* Current Question */}
         <Card style={{ background: '#f0f5ff', textAlign: 'center' }}>
           <Title heading={4} style={{ margin: '8px 0' }}>
-            Which item has higher {currentQuestion === ComparisonType.Priority ? 'PRIORITY' : 'URGENCY'}?
+            Which item has higher {currentQuestion === ComparisonType.Priority ? 'IMPORTANCE' : 'URGENCY'}?
           </Title>
           <Text type="secondary">
             {currentQuestion === ComparisonType.Priority
-              ? 'Priority = Importance × Urgency (which should be done first?)'
+              ? 'Importance = The intrinsic value, impact, or significance of this item'
               : 'Urgency = How time-sensitive is this item?'}
           </Text>
           {currentComparison && (
             <div style={{ marginTop: 12 }}>
               {currentQuestion === ComparisonType.Priority && currentComparison.higherPriority && (
-                <Tag color="green">Priority answered</Tag>
+                <Tag color="green">Importance answered</Tag>
               )}
               {currentQuestion === ComparisonType.Urgency && currentComparison.higherUrgency && (
                 <Tag color="green">Urgency answered</Tag>
@@ -465,7 +574,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
             {/* Priority Graph */}
             <div>
               <Title heading={6} style={{ marginBottom: 8, textAlign: 'center' }}>
-                Priority Graph
+                Importance Graph
               </Title>
               <ComparisonGraphMinimap
                 graph={{ priorityWins: graph.priorityWins, urgencyWins: new Map() }}

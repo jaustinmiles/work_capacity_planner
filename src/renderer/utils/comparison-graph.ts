@@ -195,3 +195,103 @@ export function getMissingComparisons(
 
   return missingPairs
 }
+
+/**
+ * Rankings for items with 1-10 scores
+ */
+export interface ItemRanking {
+  id: ItemId
+  rank: number  // Position in sorted order (1st, 2nd, etc.)
+  score: number // 1-10 mapped score
+}
+
+/**
+ * Perform topological sort on comparison graph using Kahn's algorithm
+ * Returns items sorted from highest to lowest (most wins to least wins)
+ */
+export function topologicalSort(
+  items: ItemId[],
+  winsGraph: Map<ItemId, Set<ItemId>>,
+): ItemId[] {
+  // Calculate in-degrees (how many items beat each item)
+  const inDegree = new Map<ItemId, number>()
+  items.forEach(item => inDegree.set(item, 0))
+
+  // Count incoming edges for each node
+  winsGraph.forEach(losers => {
+    losers.forEach(loser => {
+      const current = inDegree.get(loser) || 0
+      inDegree.set(loser, current + 1)
+    })
+  })
+
+  // Find all nodes with 0 in-degree (winners that aren't beaten by anyone)
+  const queue: ItemId[] = []
+  items.forEach(item => {
+    if (inDegree.get(item) === 0) {
+      queue.push(item)
+    }
+  })
+
+  // Process the graph using Kahn's algorithm
+  const sorted: ItemId[] = []
+
+  while (queue.length > 0) {
+    // Sort the current level by original order for stability
+    queue.sort((a, b) => items.indexOf(a) - items.indexOf(b))
+    const current = queue.shift()!
+    sorted.push(current)
+
+    // Reduce in-degree for items beaten by current
+    const beaten = winsGraph.get(current)
+    if (beaten) {
+      beaten.forEach(loser => {
+        const newDegree = (inDegree.get(loser) || 1) - 1
+        inDegree.set(loser, newDegree)
+
+        if (newDegree === 0) {
+          queue.push(loser)
+        }
+      })
+    }
+  }
+
+  // Handle any remaining items (in case of disconnected components)
+  items.forEach(item => {
+    if (!sorted.includes(item)) {
+      sorted.push(item)
+    }
+  })
+
+  return sorted
+}
+
+/**
+ * Convert sorted items to 1-10 rankings with linear mapping
+ */
+export function mapToRankings(sortedItems: ItemId[]): ItemRanking[] {
+  if (sortedItems.length === 0) return []
+  if (sortedItems.length === 1) {
+    return [{ id: sortedItems[0], rank: 1, score: 10 }]
+  }
+
+  const rankings: ItemRanking[] = []
+  const maxScore = 10
+  const minScore = 1
+  const scoreRange = maxScore - minScore
+
+  sortedItems.forEach((id, index) => {
+    // Linear mapping from position to score
+    // First item gets 10, last item gets 1
+    const position = index / (sortedItems.length - 1)
+    const score = Math.round(maxScore - (position * scoreRange))
+
+    rankings.push({
+      id,
+      rank: index + 1,
+      score: Math.max(minScore, Math.min(maxScore, score)),
+    })
+  })
+
+  return rankings
+}
