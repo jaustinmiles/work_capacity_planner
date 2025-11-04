@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Modal, Button, Space, Typography, Tag, Card, Progress, Badge, Divider } from '@arco-design/web-react'
+import { Modal, Button, Space, Typography, Tag, Card, Badge, Divider } from '@arco-design/web-react'
 import { IconLeft, IconRight, IconClockCircle, IconBranch, IconList, IconCheckCircleFill } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useResponsive } from '../../providers/ResponsiveProvider'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
+import { EntityType } from '@shared/enums'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -14,67 +16,35 @@ interface TaskSlideshowProps {
 
 type SlideshowItem = {
   id: string
-  type: 'task' | 'workflow'
+  type: EntityType.Task | EntityType.Workflow
   data: Task | SequencedTask
 }
 
 export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   const { tasks, sequencedTasks } = useTaskStore()
+  const { isCompact, isMobile } = useResponsive()
   const [currentIndex, setCurrentIndex] = useState(0)
 
-  // Combine and filter tasks and workflows
+  // Combine and filter tasks and workflows (exclude completed and archived)
   const items = useMemo<SlideshowItem[]>(() => {
     const taskItems: SlideshowItem[] = tasks
-      .filter(t => !t.archived)
+      .filter(t => !t.archived && !t.completed)
       .map(task => ({
         id: task.id,
-        type: 'task' as const,
+        type: EntityType.Task,
         data: task,
       }))
 
     const workflowItems: SlideshowItem[] = sequencedTasks
-      .filter(w => !w.archived)
+      .filter(w => !w.archived && !w.completed)
       .map(workflow => ({
         id: workflow.id,
-        type: 'workflow' as const,
+        type: EntityType.Workflow,
         data: workflow,
       }))
 
-    // Combine all items and sort by priority
-    const allItems = [...taskItems, ...workflowItems]
-
-    // Sort by:
-    // 1. Incomplete items first
-    // 2. Within incomplete, workflows before tasks (they're more complex)
-    // 3. Within each type, sort by importance/urgency for tasks
-    return allItems.sort((a, b) => {
-      const aCompleted = a.data.completed || false
-      const bCompleted = b.data.completed || false
-
-      // Incomplete items first
-      if (aCompleted !== bCompleted) {
-        return aCompleted ? 1 : -1
-      }
-
-      // Within same completion status, workflows before tasks
-      if (a.type !== b.type) {
-        return a.type === 'workflow' ? -1 : 1
-      }
-
-      // For tasks, sort by importance/urgency (higher values = higher priority)
-      if (a.type === 'task' && b.type === 'task') {
-        const aTask = a.data as Task
-        const bTask = b.data as Task
-
-        // Higher numbers = higher priority, so we want to sort descending
-        const aScore = (aTask.importance || 0) + (aTask.urgency || 0)
-        const bScore = (bTask.importance || 0) + (bTask.urgency || 0)
-
-        return bScore - aScore // Higher scores first
-      }
-
-      return 0
-    })
+    // Simply combine all items without sorting
+    return [...taskItems, ...workflowItems]
 
   }, [tasks, sequencedTasks])
 
@@ -129,7 +99,7 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
   }
 
   const currentItem = items[currentIndex]
-  const isTask = currentItem?.type === 'task'
+  const isTask = currentItem?.type === EntityType.Task
   const itemData = currentItem?.data
 
   // Type guards for better type safety
@@ -173,7 +143,10 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
           </Button>
         </Space>
       }
-      style={{ width: 900, maxWidth: '90vw' }}
+      style={{
+        width: isCompact ? '98vw' : isMobile ? '95vw' : 900,
+        maxWidth: isCompact ? '98vw' : isMobile ? '95vw' : '90vw',
+      }}
       maskClosable={false}
     >
       {currentItem && itemData && (
@@ -227,47 +200,6 @@ export function TaskSlideshow({ visible, onClose }: TaskSlideshowProps) {
                 )}
               </Space>
 
-              {/* Workflow steps */}
-              {isWorkflow(itemData) && itemData.steps && itemData.steps.length > 0 && (
-                <div style={{ marginTop: 16 }}>
-                  <Text style={{ fontWeight: 600, display: 'block', marginBottom: 12 }}>
-                    Workflow Steps:
-                  </Text>
-                  <div style={{ maxHeight: 200, overflow: 'auto' }}>
-                    {itemData.steps.map((step, index) => (
-                      <div
-                        key={step.id}
-                        style={{
-                          padding: '8px 12px',
-                          background: index % 2 === 0 ? '#f7f8fa' : 'white',
-                          borderRadius: 4,
-                        }}
-                      >
-                        <Space>
-                          <Text>{index + 1}.</Text>
-                          <Text>{step.name}</Text>
-                          <Tag size="small" color={step.status === 'completed' ? 'green' : 'gray'}>
-                            {step.status}
-                          </Tag>
-                          <Text type="secondary">({step.duration} min)</Text>
-                        </Space>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Progress for workflows */}
-                  <div style={{ marginTop: 16 }}>
-                    <Text type="secondary">Overall Progress</Text>
-                    <Progress
-                      percent={Math.round(
-                        (itemData.steps.filter(s => s.status === 'completed').length /
-                         itemData.steps.length) * 100,
-                      )}
-                      style={{ marginTop: 8 }}
-                    />
-                  </div>
-                </div>
-              )}
 
               {/* Notes */}
               {itemData.notes && (
