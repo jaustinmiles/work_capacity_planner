@@ -4,7 +4,7 @@
  */
 
 import { TaskType, WorkBlockType } from './enums'
-import { logger } from '@/logger'
+import { logger } from '../logger'
 
 export interface BlockCapacity {
   totalMinutes: number
