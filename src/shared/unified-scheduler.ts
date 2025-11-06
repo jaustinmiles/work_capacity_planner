@@ -1462,7 +1462,7 @@ export class UnifiedScheduler {
       return {
         id: meeting.id,
         name: meeting.name,
-        type: 'meeting' as const,
+        type: UnifiedScheduleItemType.Meeting,
         duration,
         priority: 1000, // High priority to avoid conflicts
         startTime,

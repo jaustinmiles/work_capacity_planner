@@ -234,13 +234,13 @@ function isItemCompleted(item: Task | TaskStep): boolean {
 /**
  * Determine the type of item for unified format
  */
-function determineItemType(item: Task | TaskStep): 'task' | 'workflow-step' {
+function determineItemType(item: Task | TaskStep): UnifiedScheduleItemType {
   // If it has a taskId, it's a workflow step
   if ('taskId' in item) {
-    return 'workflow-step'
+    return UnifiedScheduleItemType.WorkflowStep
   }
 
-  return 'task'
+  return UnifiedScheduleItemType.Task
 }
 
 /**
