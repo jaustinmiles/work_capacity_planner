@@ -386,7 +386,7 @@ export function WorkStatusWidget() {
 
         if (progress.isActive && !progress.isPaused) {
           logger.ui.info('[WorkStatusWidget] Pausing task before completion')
-          await store.pauseTask(activeSession.taskId)
+          await store.pauseWorkOnTask(activeSession.taskId)
         }
 
         // 2. Mark the task as completed
