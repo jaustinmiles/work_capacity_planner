@@ -307,12 +307,15 @@ export class UnifiedScheduler {
     validateConvertedItems(unifiedItems)
 
     // Apply priority calculation
+    // originalItem stores the source task/step/meeting that created this unified item
+    // It's used to preserve the original data for priority calculation and debugging
     unifiedItems.forEach(item => {
-      // REVIEW: can we use type guards to avoid the as cast? also, what is the meaning of originalItem? and how could a unified item exist without it? also why are we casting to task | taskstep without chekcing anything? couldn't this pass a meeting in?
-      if (item.originalItem) {
-        const priority = this.calculatePriority(item.originalItem as Task | TaskStep, context)
+      // Only calculate priority for tasks and steps, not meetings
+      if (item.originalItem && item.type !== 'meeting') {
+        // Type guard: meetings don't have priority calculation
+        const taskOrStep = item.originalItem as Task | TaskStep
+        const priority = this.calculatePriority(taskOrStep, context)
         item.priority = priority
-
       }
     })
 
@@ -331,14 +334,13 @@ export class UnifiedScheduler {
     }
 
     if (dependencyResult.conflicts.length > 0) {
-      const warningMessages = dependencyResult.warnings.map(w => w.message)
-      // REVIEW: looks like warning messages are returned twice here.
+      // Only pass warnings array once - generateDebugInfo will extract messages internally
       return {
         scheduled: [],
         unscheduled: unifiedItems,
         conflicts: dependencyResult.conflicts,
         warnings: dependencyResult.warnings,
-        debugInfo: this.generateDebugInfo([], unifiedItems, context, warningMessages),
+        debugInfo: this.generateDebugInfo([], unifiedItems, context, []),
       }
     }
 

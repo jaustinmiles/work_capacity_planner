@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, DatePicker, Alert, Dropdown, Menu, Spin } from '@arco-design/web-react'
-import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconClockCircle, IconUp, IconDown } from '@arco-design/web-react/icon'
+import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Alert, Dropdown, Menu, Spin } from '@arco-design/web-react'
+import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconClockCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
@@ -11,7 +11,6 @@ import { ScheduleMetricsPanel } from './ScheduleMetricsPanel'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
-import { WorkScheduleModal } from '../settings/WorkScheduleModal'
 import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
@@ -64,17 +63,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const scheduler = useUnifiedScheduler()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
-  const [showSettings, setShowSettings] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
   const [schedulingMetrics, setSchedulingMetrics] = useState<SchedulingMetrics | null>(null)
-  const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [isPinching, setIsPinching] = useState(false)
   const [draggedItem, setDraggedItem] = useState<any>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [dropTarget, setDropTarget] = useState<{ time: Date, row: number } | null>(null)
   const [refreshKey, setRefreshKey] = useState(0) // Force re-render when time changes
-  const [summaryCollapsed, setSummaryCollapsed] = useState(false)
 
   const { workSettings, setOptimalSchedule } = useTaskStore()
 
@@ -506,11 +501,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     const debugInfo = unifiedScheduleResult.debugInfo
     if (debugInfo) {
       setDebugInfo(debugInfo)
-
-      // Auto-show debug info if there are issues
-      if (debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0) {
-        setShowDebugInfo(true)
-      }
+      // Debug info now shows automatically when there are issues
     }
 
     // Store metrics from the scheduler
@@ -889,68 +880,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           unscheduledCount={debugInfo?.unscheduledItems?.length || 0}
           className="gantt-metrics"
         />
-      )}
-
-      {/* Schedule Options Card */}
-      {!workPatternsLoading && (
-        <Card
-          title="Schedule Options"
-          bordered={false}
-          style={{ marginBottom: 16 }}
-          extra={
-            <Button
-              size="small"
-              type="text"
-              onClick={() => setSummaryCollapsed(!summaryCollapsed)}
-              icon={summaryCollapsed ? <IconDown /> : <IconUp />}
-            />
-          }
-        >
-          {!summaryCollapsed && (
-          <Row gutter={16}>
-            <Col xs={24} sm={24} md={12} lg={8}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary">Schedule Options</Text>
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                  <DatePicker
-                    value={selectedDate ? dayjs(selectedDate) : undefined}
-                    onChange={(dateString, __date) => {
-                      if (dateString) {
-                        setSelectedDate(dateString)
-                        setShowSettings(true)
-                      }
-                    }}
-                    placeholder="Select day to edit"
-                    style={{ width: '100%' }}
-                    disabledDate={(_current) => {
-                      // Don't disable any dates - allow editing past and future
-                      return false
-                    }}
-                  />
-                  <Button
-                    icon={<IconSettings />}
-                    onClick={() => {
-                      setSelectedDate(dayjs().format('YYYY-MM-DD'))
-                      setShowSettings(true)
-                    }}
-                    style={{ width: '100%' }}
-                  >
-                    {"Edit Today's Schedule"}
-                  </Button>
-                  <Button
-                    icon={<IconInfoCircle />}
-                    onClick={() => setShowDebugInfo(!showDebugInfo)}
-                    style={{ width: '100%' }}
-                    type={debugInfo && (debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0) ? 'primary' : 'default'}
-                  >
-                    Debug Info
-                  </Button>
-              </Space>
-            </Space>
-          </Col>
-        </Row>
-        )}
-      </Card>
       )}
 
       {/* Gantt Chart - Only show when patterns are loaded */}
@@ -1887,23 +1816,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       </Card>
       )}
 
-      {/* Work Schedule Modal */}
-      <WorkScheduleModal
-        visible={showSettings}
-        date={selectedDate || dayjs().format('YYYY-MM-DD')}
-        onClose={() => {
-          setShowSettings(false)
-          setSelectedDate(null)
-        }}
-        onSave={async () => {
-          await loadWorkPatterns() // Reload patterns after saving
-          setShowSettings(false)
-          setSelectedDate(null)
-        }}
-      />
-
-      {/* Scheduling Debug Info */}
-      {showDebugInfo && debugInfo && (
+      {/* Scheduling Debug Info - Show automatically when there are issues */}
+      {debugInfo && (debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0) && (
         <DebugInfoComponent debugInfo={{
           unscheduledItems: debugInfo.unscheduledItems.map(item => ({
             id: item.id || '',
