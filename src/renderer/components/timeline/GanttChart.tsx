@@ -9,7 +9,7 @@ import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
 import { useUnifiedScheduler, ScheduleResult, SchedulingMetrics } from '../../hooks/useUnifiedScheduler'
 import { ScheduleMetricsPanel } from './ScheduleMetricsPanel'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
-import { SchedulingDebugInfo } from '@shared/unified-scheduler'
+import { SchedulingDebugInfo, OptimizationMode } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
@@ -484,7 +484,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       startDate: currentTime,
       allowTaskSplitting: true,
       respectMeetings: true,
-      optimizationMode: 'realistic' as const,
+      optimizationMode: OptimizationMode.Realistic,
       debugMode: true,
     }
 

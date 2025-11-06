@@ -4,6 +4,7 @@ import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar } from '@arco
 import { useTaskStore } from '../../store/useTaskStore'
 // Now using UnifiedScheduler for consistent scheduling across all views
 import { useUnifiedScheduler } from '../../hooks/useUnifiedScheduler'
+import { OptimizationMode } from '@shared/unified-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
@@ -109,7 +110,7 @@ export function WeeklyCalendar() {
       endDate: dayjs().add(30, 'day').toDate(),
       allowTaskSplitting: true,
       respectMeetings: true,
-      optimizationMode: 'realistic' as const,
+      optimizationMode: OptimizationMode.Realistic,
       debugMode: false,
     }
 
