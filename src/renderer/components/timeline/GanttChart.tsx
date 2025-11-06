@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Alert, Dropdown, Menu, Spin } from '@arco-design/web-react'
-import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconClockCircle } from '@arco-design/web-react/icon'
+import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
@@ -19,7 +19,6 @@ import { appEvents, EVENTS } from '../../utils/events'
 
 
 const { Text } = Typography
-const { Row, Col } = Grid
 
 interface GanttChartProps {
   tasks: Task[]
@@ -842,16 +841,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               <Text>
                 Days without defined work blocks will have no tasks scheduled.
               </Text>
-              <Button
-                type="text"
-                size="small"
-                onClick={() => {
-                  setSelectedDate(dayjs().add(1, 'day').format('YYYY-MM-DD'))
-                  setShowSettings(true)
-                }}
-              >
-                {"Customize Tomorrow's Schedule"}
-              </Button>
             </Space>
           }
           closable
@@ -1015,11 +1004,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         fontWeight: 500,
                         borderRight: '1px solid #e5e5e5',
                         background: isWeekend ? '#f5f5f5' : hasCustomPattern ? '#e6f7ff' : '#fff',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => {
-                        setSelectedDate(dateStr)
-                        setShowSettings(true)
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1443,16 +1427,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                         {workPatterns.length === 0 ? (
                           <>
                             <Text type="secondary">You need to set up your work schedule first</Text>
-                            <Button
-                              type="primary"
-                              icon={<IconSettings />}
-                              onClick={() => {
-                                setSelectedDate(dayjs().format('YYYY-MM-DD'))
-                                setShowSettings(true)
-                              }}
-                            >
-                              Create Work Schedule
-                            </Button>
+                            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                              Please configure your work schedule in Settings
+                            </Text>
                           </>
                         ) : (
                           <Text type="secondary">Add some tasks or workflows to see them scheduled</Text>
