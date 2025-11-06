@@ -402,9 +402,9 @@ export function WorkStatusWidget() {
         Message.success(`Completed task: ${activeSession.taskName || 'Task'}`)
       }
 
-      // The completeStep method in the store already calls refreshAllData
-      // which emits DATA_REFRESH_NEEDED event. Our event listener will handle
-      // refreshing the UI, so we don't need to do it manually here.
+      // The completeStep method in the store already updates state and emits
+      // appropriate events. Our event listeners will handle updating the UI,
+      // so we don't need to do anything else here.
       logger.ui.info('[WorkStatusWidget] Task completion successful, UI will refresh via event')
     } catch (error) {
       logger.ui.error('Failed to complete current task', {
@@ -434,7 +434,7 @@ export function WorkStatusWidget() {
       }
 
       // Force reload of next task after starting work
-      // The store's startNextTask already calls refreshAllData which emits the event
+      // The store's startNextTask already emits SESSION_CHANGED event
       await loadNextTask()
     } catch (error) {
       logger.ui.error('Failed to start next task', {

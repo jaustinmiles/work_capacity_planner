@@ -873,8 +873,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         // LOGGER_REMOVED: remainingActiveSessions: newSessions.size,
       // LOGGER_REMOVED: })
 
-      // Use unified refresh to ensure all data and UI is consistent
-      await get().refreshAllData()
+      // Emit events to notify UI of state changes - no refresh needed
+      appEvents.emit(EVENTS.SESSION_CHANGED)
+      appEvents.emit(EVENTS.TIME_LOGGED)
     } catch (error) {
       logger.ui.error('Failed to pause work on step', {
         error: error instanceof Error ? error.message : String(error),
@@ -924,8 +925,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       newSessions.delete(taskId)
       set({ activeWorkSessions: newSessions })
 
-      // Use unified refresh to ensure all data and UI is consistent
-      await get().refreshAllData()
+      // Emit events to notify UI of state changes - no refresh needed
+      appEvents.emit(EVENTS.SESSION_CHANGED)
+      appEvents.emit(EVENTS.TIME_LOGGED)
 
       // LOGGER_REMOVED: logger.ui.info('[TaskStore] ✅ Stopped work on task', {
         // LOGGER_REMOVED: taskId,
@@ -1533,8 +1535,9 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Reset skip index after starting a task (to show actual next task when they finish)
       get().resetNextTaskSkipIndex()
 
-      // Use unified refresh to ensure all data and UI is consistent
-      await get().refreshAllData()
+      // Emit event to notify UI that a new work session started
+      // The startWorkOnStep/startWorkOnTask methods already updated the state
+      appEvents.emit(EVENTS.SESSION_CHANGED)
     } catch (error) {
       // rendererLogger.error('[TaskStore] Failed to start next task', error as Error)
       set({
