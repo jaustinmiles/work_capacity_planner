@@ -39,7 +39,7 @@ async function createWindow() {
   // Load the app
   if (process.env.NODE_ENV === 'development') {
     mainWindow.loadURL('http://localhost:5174')
-    mainWindow.webContents.openDevTools()
+    // DevTools can be opened manually with Ctrl+Shift+I when needed
   } else {
     mainWindow.loadFile(path.join(__dirname, 'dist/renderer/index.html'))
   }
