@@ -41,6 +41,16 @@ export enum GanttItemType {
   BlockedTime = 'blocked-time',
 }
 
+// Unified schedule item types
+export enum UnifiedScheduleItemType {
+  Task = 'task',
+  WorkflowStep = 'workflow-step',
+  AsyncWait = 'async-wait',
+  Meeting = 'meeting',
+  Break = 'break',
+  BlockedTime = 'blocked-time',
+}
+
 // Work block types for scheduling
 export enum WorkBlockType {
   Focused = 'focused',

@@ -19,7 +19,7 @@
 import { Task } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
 import { getSchedulerCapacityForTaskType, SplitRatio } from './capacity-calculator'
-import { TaskType, WorkBlockType } from './enums'
+import { TaskType, WorkBlockType, UnifiedScheduleItemType } from './enums'
 import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
 import { WorkSettings } from './work-settings-types'
 import { ProductivityPattern, SchedulingPreferences } from './types'
@@ -75,11 +75,10 @@ export enum SeverityLevel {
 // ============================================================================
 // UNIFIED DATA MODELS
 // ============================================================================
-// lets go through these types and make sure this is really necessary. I feel like there is some data transformation happening that is confusing and lots of unused proeprties.
 export interface UnifiedScheduleItem {
   id: string
   name: string
-  type: 'task' | 'workflow-step' | 'async-wait' | 'meeting' | 'break' | 'blocked-time'
+  type: UnifiedScheduleItemType
   duration: number
   priority: number
 
@@ -578,7 +577,7 @@ export class UnifiedScheduler {
               const waitTimeItem: UnifiedScheduleItem = {
                 id: `${item.id}-wait`,
                 name: `⏳ Waiting: ${item.name}`,
-                type: 'async-wait',
+                type: UnifiedScheduleItemType.AsyncWait,
                 duration: item.asyncWaitTime,
                 priority: 0,
                 startTime: scheduledItem.endTime,

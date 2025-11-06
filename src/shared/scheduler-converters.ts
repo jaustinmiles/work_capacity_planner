@@ -12,7 +12,7 @@
 import { Task, TaskStep } from './types'
 import { SequencedTask } from './sequencing-types'
 import { UnifiedScheduleItem } from './unified-scheduler'
-import { TaskType } from './enums'
+import { TaskType, StepStatus, UnifiedScheduleItemType } from './enums'
 
 /**
  * Convert various input types to UnifiedScheduleItem format
@@ -78,13 +78,13 @@ function processSequencedTask(
     }
     processedItemIds.add(step.id)
 
-    const isCompleted = step.status === 'completed'
+    const isCompleted = step.status === StepStatus.Completed
 
     const unifiedItem: UnifiedScheduleItem = {
       // Core identification
       id: step.id,
       name: step.name,
-      type: 'workflow-step' as const,
+      type: UnifiedScheduleItemType.WorkflowStep,
 
       // Duration and priority
       duration: step.duration,

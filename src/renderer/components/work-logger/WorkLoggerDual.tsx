@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getCurrentTime } from '@shared/time-provider'
+import { generateUniqueId } from '@shared/step-id-utils'
 import {
   Modal,
   Space,
@@ -40,6 +41,7 @@ import {
   timeToMinutes,
   minutesToTime,
   getTypeColor,
+  getTypeTagColor,
 } from './SessionState'
 
 const { Text } = Typography
@@ -154,14 +156,14 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 const step = t.steps.find(s => s.id === session.stepId)
                 if (step) {
                   stepName = step.name
-                  type = step.type as TaskType || task.type as TaskType
+                  type = step.type || task.type
                   break
                 }
               }
             }
           } else {
             // For regular tasks, use the task's type
-            type = task.type as TaskType || TaskType.Focused
+            type = task.type || TaskType.Focused
           }
         }
 
@@ -230,7 +232,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     }
 
     const newSession: WorkSessionData = {
-      id: `temp-${new Date(getCurrentTime()).getTime()}`,
+      id: generateUniqueId('session'),
       taskId,
       taskName: task?.name || 'Unknown Task',
       startMinutes: startMinutes,
@@ -735,12 +737,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                     <Col xs={24} sm={12} md={8} lg={8} style={{ textAlign: 'right' }}>
                       <Space>
                         <Tag
-                          color={
-                            selectedSession.type === TaskType.Focused ? 'blue' :
-                            selectedSession.type === TaskType.Admin ? 'orange' :
-                            selectedSession.type === TaskType.Personal ? 'green' :
-                            'default'
-                          }
+                          color={getTypeTagColor(selectedSession.type)}
                         >
                           {
                             selectedSession.type === TaskType.Focused ? 'Focused' :

@@ -423,14 +423,14 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId)
           if (task) {
             taskName = taskName || task.name
-            taskType = task.type as TaskType
+            taskType = task.type
 
             // If it's a step session, check if the step has a different type
             if (session.stepId && task.steps) {
               const step = task.steps.find(s => s.id === session.stepId)
               if (step) {
                 stepName = stepName || step.name
-                taskType = step.type as TaskType || taskType
+                taskType = step.type || taskType
               }
             }
           }

@@ -60,6 +60,24 @@ export function getTypeColor(type: TaskType): string {
   }
 }
 
+// Get tag color name for task type (for Arco Design Tag component)
+export function getTypeTagColor(type: TaskType): string {
+  switch (type) {
+    case TaskType.Focused:
+      return 'blue'
+    case TaskType.Personal:
+      return 'green'
+    case TaskType.Admin:
+      return 'orange'
+    case TaskType.Mixed:
+      return 'purple'
+    case TaskType.Flexible:
+      return 'cyan'
+    default:
+      return 'default'
+  }
+}
+
 // Check if two sessions overlap
 export function checkOverlap(
   session: WorkSessionData,
