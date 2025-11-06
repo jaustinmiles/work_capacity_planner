@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, Alert, Dropdown, Menu, Spin } from '@arco-design/web-react'
+import { Card, Typography, Space, Tag, Empty, Tooltip, Button, Alert, Dropdown, Menu, Spin } from '@arco-design/web-react'
 import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
