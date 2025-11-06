@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { Card, Row, Col, Progress, Tooltip, Tag, Space } from '@arco-design/web-react'
+import { Card, Grid, Progress, Tooltip, Tag, Space } from '@arco-design/web-react'
 import {
   IconClockCircle,
   IconCalendar,
@@ -14,12 +14,14 @@ import {
   IconExclamationCircle,
   IconInfoCircle,
 } from '@arco-design/web-react/icon'
-import { SchedulingMetrics } from '../../../shared/unified-scheduler-types'
+import { SchedulingMetrics } from '../../../shared/unified-scheduler'
 import {
   getUtilizationDescription,
   getDeadlineRiskDescription,
 } from '../../../shared/scheduler-metrics'
 import './ScheduleMetricsPanel.css'
+
+const { Row, Col } = Grid
 
 interface ScheduleMetricsPanelProps {
   metrics: SchedulingMetrics | null
