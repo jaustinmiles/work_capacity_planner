@@ -1079,7 +1079,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
         // Check if all non-waiting steps are completed to update overall status
         const allStepsCompleted = updatedTask.steps.every(s =>
-          s.status === StepStatus.Completed || s.status === StepStatus.Waiting
+          s.status === StepStatus.Completed || s.status === StepStatus.Waiting,
         )
         if (allStepsCompleted) {
           updatedTask.overallStatus = TaskStatus.Completed
