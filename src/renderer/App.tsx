@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Dropdown, Spin, Alert, Popconfirm, Tooltip } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconPlus, IconDown, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye } from '@arco-design/web-react/icon'
+import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs } from '@arco-design/web-react'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -17,6 +17,7 @@ import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
 import { VoiceAmendmentModal } from './components/voice'
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
+import { MultiDayScheduleEditor } from './components/settings/MultiDayScheduleEditor'
 import { SessionManager } from './components/session/SessionManager'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
 import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
@@ -32,7 +33,6 @@ import { appEvents, EVENTS } from './utils/events'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
-const MenuItem = Menu.Item
 
 import { TaskType, TaskStatus, StepStatus } from '@shared/enums'
 
@@ -85,7 +85,7 @@ function App() {
   // Session loading is now handled in useTaskStore.initializeData()
   // to prevent flash of default session
 
-  const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline'>('tasks')
+  const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline' | 'schedule'>('tasks')
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
   const [brainstormModalVisible, setBrainstormModalVisible] = useState(false)
@@ -554,94 +554,6 @@ function App() {
             )}
           </div>
 
-          <Menu
-            selectedKeys={[activeView]}
-            onClickMenuItem={(key) => setActiveView(key as any)}
-            style={{ marginTop: 20 }}
-          >
-            <MenuItem key="tasks" data-testid="nav-tasks">
-              {sidebarCollapsed ? (
-                <Tooltip content="Task List" position="right">
-                  <Space data-testid="nav-tasks-content" style={{ width: '100%' }}>
-                    <IconList />
-                    {incompleteTasks > 0 && (
-                      <Badge count={incompleteTasks} dot offset={[6, -4]} />
-                    )}
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space data-testid="nav-tasks-content">
-                  <IconList />
-                  <span>Task List</span>
-                  {incompleteTasks > 0 && (
-                    <Badge count={incompleteTasks} dot offset={[6, -4]} />
-                  )}
-                </Space>
-              )}
-            </MenuItem>
-            <MenuItem key="matrix" data-testid="nav-matrix">
-              {sidebarCollapsed ? (
-                <Tooltip content="Eisenhower Matrix" position="right">
-                  <Space style={{ width: '100%' }}>
-                    <IconApps />
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space>
-                  <IconApps />
-                  <span>Eisenhower Matrix</span>
-                </Space>
-              )}
-            </MenuItem>
-            <MenuItem key="calendar" data-testid="nav-calendar">
-              {sidebarCollapsed ? (
-                <Tooltip content="Calendar" position="right">
-                  <Space style={{ width: '100%' }}>
-                    <IconCalendar />
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space>
-                  <IconCalendar />
-                  <span>Calendar</span>
-                </Space>
-              )}
-            </MenuItem>
-            <MenuItem key="workflows" data-testid="nav-workflows">
-              {sidebarCollapsed ? (
-                <Tooltip content="Workflows" position="right">
-                  <Space style={{ width: '100%' }}>
-                    <IconBranch />
-                    {activeWorkflows > 0 && (
-                      <Badge count={activeWorkflows} dot offset={[6, -4]} />
-                    )}
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space>
-                  <IconBranch />
-                  <span>Workflows</span>
-                  {activeWorkflows > 0 && (
-                    <Badge count={activeWorkflows} dot offset={[6, -4]} />
-                  )}
-                </Space>
-              )}
-            </MenuItem>
-            <MenuItem key="timeline" data-testid="nav-timeline">
-              {sidebarCollapsed ? (
-                <Tooltip content="Timeline" position="right">
-                  <Space style={{ width: '100%' }}>
-                    <IconSchedule />
-                  </Space>
-                </Tooltip>
-              ) : (
-                <Space>
-                  <IconSchedule />
-                  <span>Timeline</span>
-                </Space>
-              )}
-            </MenuItem>
-          </Menu>
 
           {/* Work Status Widget */}
           {!sidebarCollapsed && (
@@ -650,61 +562,6 @@ function App() {
             </div>
           )}
 
-          <div style={{
-            position: 'absolute',
-            bottom: 16,
-            left: 16,
-            right: 16,
-          }}>
-            <Dropdown
-              trigger="click"
-              droplist={
-                <div style={{ padding: 8 }}>
-                  <Button
-                    type="text"
-                    icon={<IconBulb />}
-                    onClick={() => setBrainstormModalVisible(true)}
-                    style={{ width: '100%', justifyContent: 'flex-start', marginBottom: 4 }}
-                  >
-                    AI Brainstorm
-                  </Button>
-                  <Button
-                    type="text"
-                    icon={<IconPlus />}
-                    onClick={() => setTaskFormVisible(true)}
-                    style={{ width: '100%', justifyContent: 'flex-start', marginBottom: 4 }}
-                  >
-                    Simple Task
-                  </Button>
-                  <Button
-                    type="text"
-                    icon={<IconBranch />}
-                    onClick={() => setSequencedTaskFormVisible(true)}
-                    style={{ width: '100%', justifyContent: 'flex-start' }}
-                  >
-                    Sequenced Workflow
-                  </Button>
-                </div>
-              }
-            >
-              <Button
-                type="primary"
-                size={sidebarCollapsed ? 'default' : 'large'}
-                icon={<IconPlus />}
-                long
-                style={{
-                  boxShadow: '0 4px 10px rgba(22, 93, 255, 0.2)',
-                  fontWeight: 500,
-                }}
-              >
-                {!sidebarCollapsed ? (
-                  <>Add Task <IconDown style={{ marginLeft: 8 }} /></>
-                ) : (
-                  <IconDown />
-                )}
-              </Button>
-            </Dropdown>
-          </div>
         </Sider>
 
         <Layout>
@@ -715,28 +572,74 @@ function App() {
             height: 64,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            gap: 24,
           }}>
-            <Title
-              heading={5}
-              style={{
-                margin: 0,
-                color: '#4E5969',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                minWidth: 0, // Allow truncation
-                flex: 1, // Take available space but allow shrinking
-              }}
+            {/* Horizontal Navigation Tabs */}
+            <Tabs
+              activeTab={activeView}
+              onChange={(key) => setActiveView(key as any)}
+              type="line"
+              style={{ flex: 1, minWidth: 0 }}
             >
-              {/* Responsive titles */}
-              {activeView === 'tasks' && (screenWidth < 640 ? 'Tasks' : 'Task Management')}
-              {activeView === 'matrix' && (screenWidth < 640 ? 'Matrix' : 'Priority Matrix')}
-              {activeView === 'calendar' && (screenWidth < 640 ? 'Calendar' : 'Schedule Overview')}
-              {activeView === 'workflows' && (screenWidth < 640 ? 'Workflows' : 'Sequenced Workflows')}
-              {activeView === 'timeline' && (screenWidth < 640 ? 'Timeline' : 'Gantt Chart')}
-            </Title>
+              <Tabs.TabPane
+                key="tasks"
+                title={
+                  <Space>
+                    <IconList />
+                    <span>Tasks</span>
+                    {incompleteTasks > 0 && <Badge count={incompleteTasks} dot />}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key="matrix"
+                title={
+                  <Space>
+                    <IconApps />
+                    <span>Matrix</span>
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key="calendar"
+                title={
+                  <Space>
+                    <IconCalendar />
+                    <span>Calendar</span>
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key="workflows"
+                title={
+                  <Space>
+                    <IconBranch />
+                    <span>Workflows</span>
+                    {activeWorkflows > 0 && <Badge count={activeWorkflows} dot />}
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key="timeline"
+                title={
+                  <Space>
+                    <IconSchedule />
+                    <span>Timeline</span>
+                  </Space>
+                }
+              />
+              <Tabs.TabPane
+                key="schedule"
+                title={
+                  <Space>
+                    <IconCalendar />
+                    <span>Schedule</span>
+                  </Space>
+                }
+              />
+            </Tabs>
 
+            {/* Action Buttons */}
             <Space>
               <Button
                 type="primary"
@@ -886,6 +789,19 @@ function App() {
                   />
                 </ErrorBoundary>
               )}
+
+              {activeView === 'schedule' && (
+                <ErrorBoundary>
+                  <MultiDayScheduleEditor
+                    visible={true}
+                    onClose={() => setActiveView('timeline')}
+                    onSave={() => {
+                      // Refresh data if needed
+                      initializeData()
+                    }}
+                  />
+                </ErrorBoundary>
+              )}
                 </>
               )}
             </div>
@@ -976,6 +892,26 @@ function App() {
             width: 56,
             height: 56,
             boxShadow: '0 4px 12px rgba(22, 93, 255, 0.3)',
+            zIndex: 1000,
+          }}
+        />
+
+        {/* Floating Brain Button for AI Brainstorm */}
+        <Button
+          type="primary"
+          shape="circle"
+          size="large"
+          icon={<IconBulb />}
+          onClick={() => setBrainstormModalVisible(true)}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: 24,
+            width: 56,
+            height: 56,
+            backgroundColor: '#faad14',
+            borderColor: '#faad14',
+            boxShadow: '0 4px 12px rgba(255, 193, 7, 0.3)',
             zIndex: 1000,
           }}
         />
