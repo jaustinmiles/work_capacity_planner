@@ -51,7 +51,6 @@ export function WorkStatusWidget() {
   const [nextTask, setNextTask] = useState<NextScheduledItem | null>(null)
   const [isLoadingNextTask, setIsLoadingNextTask] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0) // Force re-render on completion
 
   // Debug: Log when activeWorkSessions changes
   useEffect(() => {
@@ -406,9 +405,6 @@ export function WorkStatusWidget() {
 
       // Use the store's refreshAllData which properly updates everything
       await useTaskStore.getState().refreshAllData()
-
-      // Force component re-render
-      setRefreshKey(prev => prev + 1)
 
       // Wait for state to propagate
       await new Promise(resolve => setTimeout(resolve, 100))
