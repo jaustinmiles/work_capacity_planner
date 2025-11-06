@@ -2020,8 +2020,8 @@ export class UnifiedScheduler {
     // Conditionally include splitRatio only if it exists (not undefined)
     const totalCapacityForTaskType = getTotalCapacityForTaskType(
       block.splitRatio !== undefined
-        ? { totalMinutes: block.totalMinutes, type: block.blockType as WorkBlockType, splitRatio: block.splitRatio }
-        : { totalMinutes: block.totalMinutes, type: block.blockType as WorkBlockType },
+        ? { totalMinutes: block.totalMinutes, type: block.blockType, splitRatio: block.splitRatio }
+        : { totalMinutes: block.totalMinutes, type: block.blockType },
       taskType,
     )
 

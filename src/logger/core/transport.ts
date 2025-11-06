@@ -26,6 +26,13 @@ export abstract class Transport {
   getName(): string {
     return this.name
   }
+
+  /**
+   * Clean up resources and disable the transport
+   */
+  destroy(): void {
+    this.disable()
+  }
 }
 
 /**
@@ -154,7 +161,8 @@ export class ElectronTransport extends Transport {
   }
 
   write(entry: LogEntry): void {
-    if (!this.enabled || !this.window) return
+    // Check if transport is enabled and window exists and is not destroyed
+    if (!this.enabled || !this.window || this.window.isDestroyed?.()) return
 
     try {
       // Send simplified log data to renderer
