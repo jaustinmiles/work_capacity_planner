@@ -1069,8 +1069,8 @@ export const useTaskStore = create<TaskStore>((set, get) => {
               return {
                 ...s,
                 status: newStatus,
-                completedAt: new Date().toISOString(),
-                actualMinutes: (s.actualMinutes || 0) + (totalMinutes || 0),
+                completedAt: new Date(),
+                actualDuration: (s.actualDuration || 0) + (totalMinutes || 0),
               }
             }
             return s
