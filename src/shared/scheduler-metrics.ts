@@ -7,8 +7,7 @@
 
 import { UnifiedScheduleItem, ScheduleContext, SchedulingMetrics } from './unified-scheduler'
 import { DailyWorkPattern } from './work-blocks-types'
-import { TaskType, WorkBlockType } from './enums'
-import { getSchedulerCapacityForTaskType } from './capacity-calculator'
+import { TaskType } from './enums'
 import { parseTimeString } from './time-utils'
 
 /**
@@ -195,7 +194,7 @@ function calculateDayCapacity(pattern: DailyWorkPattern): number {
  */
 function calculateDeadlineRisk(
   scheduled: UnifiedScheduleItem[],
-  context: ScheduleContext,
+  _context: ScheduleContext,
 ): { deadlineRiskScore: number; deadlinesMissed: number } {
   const itemsWithDeadlines = scheduled.filter(item =>
     item.deadline && item.endTime,

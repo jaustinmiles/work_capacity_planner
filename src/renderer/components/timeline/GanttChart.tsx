@@ -20,7 +20,7 @@ import { getCurrentTime, isTimeOverridden } from '@shared/time-provider'
 import { appEvents, EVENTS } from '../../utils/events'
 
 
-const { Title, Text } = Typography
+const { Text } = Typography
 const { Row, Col } = Grid
 
 interface GanttChartProps {
@@ -603,7 +603,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   const totalDuration = chartEndTime.getTime() - chartStartTime.getTime()
   const totalHours = totalDuration / (1000 * 60 * 60)
-  const totalDays = Math.ceil(totalHours / 8) // Assuming 8-hour workdays
 
   // Calculate chart width based on pixelsPerHour
   const chartWidthPx = totalHours * pixelsPerHour

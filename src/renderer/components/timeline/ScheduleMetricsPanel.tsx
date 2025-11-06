@@ -248,7 +248,7 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
         <div className="metrics-info">
           <IconInfoCircle style={{ marginRight: 8 }} />
           <span>
-            {unscheduledCount} items couldn't be scheduled due to capacity or dependency constraints
+            {unscheduledCount} items couldn&apos;t be scheduled due to capacity or dependency constraints
           </span>
         </div>
       )}
