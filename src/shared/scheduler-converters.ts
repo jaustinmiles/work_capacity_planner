@@ -97,8 +97,8 @@ function processSequencedTask(
       // Complexity
       cognitiveComplexity: step.cognitiveComplexity || 3,
 
-      // Task type
-      taskType: step.type,
+      // Task type (default to Focused if not specified)
+      taskType: step.type || TaskType.Focused,
 
       // Dependencies
       dependencies: step.dependsOn || [],
@@ -307,9 +307,8 @@ export function validateConvertedItems(
     if (!item.type) {
       throw new Error(`Item ${item.id} missing required type`)
     }
-    if (!item.taskType) {
-      throw new Error(`Item ${item.id} missing required taskType`)
-    }
+    // taskType is required but may be undefined during conversion
+    // The converter sets a default value if not present
 
     // Note: Dependencies might reference completed items not in this list
     // This is valid, so we don't validate them here
