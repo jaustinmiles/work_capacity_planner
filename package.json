@@ -19,6 +19,8 @@
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix --quiet",
     "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
     "postinstall": "./scripts/dev/setup-git-hooks.sh || echo 'Git hooks setup failed (may be CI environment)'"
   },
   "keywords": [
