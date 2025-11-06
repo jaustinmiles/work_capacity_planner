@@ -7,6 +7,7 @@ import { TaskType } from '@shared/enums'
 import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
 import { useUnifiedScheduler, ScheduleResult, SchedulingMetrics } from '../../hooks/useUnifiedScheduler'
+import { ScheduleMetricsPanel } from './ScheduleMetricsPanel'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
@@ -883,102 +884,34 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         />
       )}
 
-      {/* Summary - Only show when patterns are loaded */}
+      {/* Modern Metrics Panel - Only show when patterns are loaded */}
+      {!workPatternsLoading && (
+        <ScheduleMetricsPanel
+          metrics={schedulingMetrics}
+          scheduledCount={scheduledItems.filter((item: any) => !item.isWaitTime).length}
+          unscheduledCount={debugInfo?.unscheduledItems?.length || 0}
+          className="gantt-metrics"
+        />
+      )}
+
+      {/* Schedule Options Card */}
       {!workPatternsLoading && (
         <Card
-          title="Schedule Summary"
-        bordered={false}
-        style={{ marginBottom: 16 }}
-        extra={
-          <Button
-            size="small"
-            type="text"
-            onClick={() => setSummaryCollapsed(!summaryCollapsed)}
-            icon={summaryCollapsed ? <IconDown /> : <IconUp />}
-          />
-        }
-      >
-        {!summaryCollapsed && (
-        <Row gutter={16} align="center">
-          <Col xs={24} sm={12} md={6} lg={4}>
-            <Space direction="vertical">
-              <Text type="secondary">Scheduled</Text>
-              <Title heading={4}>{scheduledItems.filter((item: any) => !item.isWaitTime).length}</Title>
-              {debugInfo && debugInfo.unscheduledItems.length > 0 && (
-                <Text type="warning" style={{ fontSize: 12 }}>
-                  {debugInfo.unscheduledItems.length} unscheduled
-                </Text>
-              )}
-            </Space>
-          </Col>
-          <Col xs={24} sm={12} md={6} lg={4}>
-            <Space direction="vertical">
-              <Text type="secondary">Utilization</Text>
-              <Title heading={4} style={{
-                color: schedulingMetrics?.utilizationRate ?
-                  (schedulingMetrics.utilizationRate > 0.9 ? '#ff4d4f' :
-                   schedulingMetrics.utilizationRate > 0.7 ? '#faad14' : '#52c41a')
-                  : 'inherit',
-              }}>
-                {schedulingMetrics?.utilizationRate ?
-                  `${Math.round(schedulingMetrics.utilizationRate * 100)}%` : 'N/A'}
-              </Title>
-              {schedulingMetrics?.peakUtilization && schedulingMetrics.peakUtilization > 0.9 && (
-                <Text type="warning" style={{ fontSize: 12 }}>
-                  Peak: {Math.round(schedulingMetrics.peakUtilization * 100)}%
-                </Text>
-              )}
-            </Space>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Space direction="vertical">
-              <Text type="secondary">Completion</Text>
-              <Title heading={4} style={{ fontSize: 16 }}>{formatDate(chartEndTime)}</Title>
-              <Text type="secondary">{formatTime(chartEndTime)}</Text>
-            </Space>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Space direction="vertical">
-              <Text type="secondary">Work Hours</Text>
-              <Title heading={4}>
-                {schedulingMetrics?.totalFocusedHours ?
-                  `${Math.round((schedulingMetrics.totalFocusedHours +
-                    (schedulingMetrics.totalAdminHours || 0)) * 10) / 10}h` :
-                  `${Math.round(totalDays * 8)}h est`}
-              </Title>
-            </Space>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Space direction="vertical">
-              <Text type="secondary">Deadline Risk</Text>
-              <Title heading={4} style={{
-                color: schedulingMetrics?.deadlineRiskScore ?
-                  (schedulingMetrics.deadlineRiskScore > 0.7 ? '#ff4d4f' :
-                   schedulingMetrics.deadlineRiskScore > 0.3 ? '#faad14' : '#52c41a')
-                  : 'inherit',
-              }}>
-                {schedulingMetrics?.deadlineRiskScore !== undefined ?
-                  (schedulingMetrics.deadlineRiskScore > 0.7 ? 'High' :
-                   schedulingMetrics.deadlineRiskScore > 0.3 ? 'Medium' : 'Low')
-                  : 'N/A'}
-              </Title>
-              {schedulingMetrics?.deadlinesMissed && schedulingMetrics.deadlinesMissed > 0 && (
-                <Text type="error" style={{ fontSize: 12 }}>
-                  {schedulingMetrics.deadlinesMissed} at risk
-                </Text>
-              )}
-            </Space>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Space direction="vertical">
-              <Text type="secondary">Avg Priority</Text>
-              <Title heading={4}>
-                {schedulingMetrics?.averagePriority ?
-                  Math.round(schedulingMetrics.averagePriority) : 'N/A'}
-              </Title>
-            </Space>
-          </Col>
-          <Col xs={24} sm={24} md={10} lg={7}>
+          title="Schedule Options"
+          bordered={false}
+          style={{ marginBottom: 16 }}
+          extra={
+            <Button
+              size="small"
+              type="text"
+              onClick={() => setSummaryCollapsed(!summaryCollapsed)}
+              icon={summaryCollapsed ? <IconDown /> : <IconUp />}
+            />
+          }
+        >
+          {!summaryCollapsed && (
+          <Row gutter={16}>
+            <Col xs={24} sm={24} md={12} lg={8}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <Text type="secondary">Schedule Options</Text>
               <Space direction="vertical" size="small" style={{ width: '100%' }}>

@@ -41,6 +41,7 @@ import {
   calculateAsyncUrgency,
   calculateCognitiveMatch,
 } from './scheduler-priority'
+import { calculateSchedulingMetrics } from './scheduler-metrics'
 
 // ============================================================================
 // ENUMS
@@ -181,6 +182,7 @@ export interface SchedulingMetrics {
   totalWorkDays?: number
   totalFocusedHours?: number
   totalAdminHours?: number
+  totalPersonalHours?: number
   projectedCompletionDate?: Date
   averageUtilization?: number
   peakUtilization?: number
@@ -1719,37 +1721,8 @@ export class UnifiedScheduler {
     schedule: UnifiedScheduleItem[],
     context: ScheduleContext,
   ): SchedulingMetrics {
-    const focusedHours = schedule
-      .filter(item => item.taskType === TaskType.Focused)
-      .reduce((sum, item) => sum + item.duration, 0) / 60
-
-    const adminHours = schedule
-      .filter(item => item.taskType === TaskType.Admin)
-      .reduce((sum, item) => sum + item.duration, 0) / 60
-
-    // Find the last scheduled item to determine completion date
-    const lastItem = schedule
-      .filter(item => item.endTime)
-      .sort((a, b) => (b.endTime?.getTime() || 0) - (a.endTime?.getTime() || 0))[0]
-
-    const projectedCompletionDate = lastItem?.endTime || getCurrentTime()
-
-    // Calculate work days from start to completion
-    const startDate = context.currentTime
-    const daysDiff = Math.ceil((projectedCompletionDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-    const totalWorkDays = Math.max(1, daysDiff)
-
-    return {
-      totalWorkDays,
-      totalFocusedHours: focusedHours,
-      totalAdminHours: adminHours,
-      projectedCompletionDate,
-      averageUtilization: 0.75, // Placeholder - would calculate based on capacity
-      peakUtilization: 0.9, // Placeholder - would calculate based on daily peaks
-      capacityUtilization: 0.75,
-      deadlineRiskScore: 0,
-      alternativeScenariosCount: 0,
-    }
+    // Use the comprehensive metrics calculation from scheduler-metrics module
+    return calculateSchedulingMetrics(schedule, context)
   }
 }
 
