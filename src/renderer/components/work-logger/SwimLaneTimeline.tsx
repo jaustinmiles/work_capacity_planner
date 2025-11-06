@@ -12,6 +12,7 @@ import {
 } from './SessionState'
 import { useContainerQuery } from '../../hooks/useContainerQuery'
 import { useResponsive } from '../../providers/ResponsiveProvider'
+import { getCurrentTime } from '@shared/time-provider'
 
 const { Text } = Typography
 
@@ -629,7 +630,7 @@ export function SwimLaneTimeline({
               const hourInDay = i % HOURS_PER_DAY
               const actualHour = START_HOUR + hourInDay
 
-              const today = new Date()
+              const today = getCurrentTime()
               const displayDate = new Date(today)
               displayDate.setDate(today.getDate() + (dayIndex - 1)) // -1, 0, +1 days
 
@@ -935,7 +936,7 @@ export function SwimLaneTimeline({
                   const width = Math.max(actualWidth, 20)
                   const isSelected = session.id === selectedSessionId
                   const isHovered = session.id === hoveredSession
-                  const isMeetingSession = session.id.startsWith('meeting-')
+                  const isMeetingSession = lane.isMeeting
 
                   const sessionKey = `${lane.id}-${session.id}-${sessionIndex}`
 

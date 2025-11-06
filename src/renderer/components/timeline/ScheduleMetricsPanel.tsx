@@ -19,6 +19,7 @@ import {
   getUtilizationDescription,
   getDeadlineRiskDescription,
 } from '../../../shared/scheduler-metrics'
+import { getCurrentTime } from '../../../shared/time-provider'
 import './ScheduleMetricsPanel.css'
 
 const { Row, Col } = Grid
@@ -58,7 +59,7 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
     ? new Date(metrics.projectedCompletionDate)
     : null
   const daysUntilCompletion = completionDate
-    ? Math.ceil((completionDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil((completionDate.getTime() - getCurrentTime().getTime()) / (1000 * 60 * 60 * 24))
     : 0
 
   return (

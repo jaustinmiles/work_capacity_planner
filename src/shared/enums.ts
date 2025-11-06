@@ -33,6 +33,14 @@ export enum TaskType {
   Flexible = 'flexible', // For flexible capacity that can be used by any task type
 }
 
+// Gantt chart item types
+export enum GanttItemType {
+  Task = 'task',
+  WorkflowStep = 'workflow-step',
+  Meeting = 'meeting',
+  BlockedTime = 'blocked-time',
+}
+
 // Work block types for scheduling
 export enum WorkBlockType {
   Focused = 'focused',
