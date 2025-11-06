@@ -167,6 +167,12 @@ export interface SchedulingDebugInfo {
     used: number                            // Always present
     blockType: WorkBlockType                // Always present
     utilization: number                     // Always present
+    capacityBreakdown?: { focus?: number; admin?: number; personal?: number }  // Optional - for mixed blocks
+    usedBreakdown?: { focus?: number; admin?: number; personal?: number }       // Optional - for mixed blocks
+    isCurrent?: boolean                     // Optional - true if this is the current block
+    reasonNotFilled?: string[]              // Optional - reasons why block wasn't fully utilized
+    perTypeUtilization?: { focus?: number; admin?: number; personal?: number }  // Optional - utilization by type
+    splitRatio?: { focus: number; admin: number }  // Optional - for mixed blocks
   }>
   warnings: string[]                        // Always present
   totalScheduled: number                    // Always present

@@ -177,7 +177,7 @@ export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debu
                     title: 'Capacity',
                     render: (_, record) => {
                       if (record.capacityBreakdown) {
-                        const parts = []
+                        const parts: string[] = []
                         if (record.capacityBreakdown.focus) parts.push(`F:${record.capacityBreakdown.focus}`)
                         if (record.capacityBreakdown.admin) parts.push(`A:${record.capacityBreakdown.admin}`)
                         if (record.capacityBreakdown.personal) parts.push(`P:${record.capacityBreakdown.personal}`)
@@ -193,7 +193,7 @@ export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debu
                       const total = record.capacity ?? 0
 
                       if (record.usedBreakdown) {
-                        const parts = []
+                        const parts: string[] = []
                         if (record.usedBreakdown.focus) parts.push(`F:${record.usedBreakdown.focus}`)
                         if (record.usedBreakdown.admin) parts.push(`A:${record.usedBreakdown.admin}`)
                         if (record.usedBreakdown.personal) parts.push(`P:${record.usedBreakdown.personal}`)
