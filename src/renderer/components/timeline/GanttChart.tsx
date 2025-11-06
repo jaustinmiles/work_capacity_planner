@@ -1118,7 +1118,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                   } catch (error) {
                     logger.db.error('Failed to set deadline', {
                       error: error instanceof Error ? error.message : String(error),
-                      itemId: draggedItem?.taskId || draggedItem?.workflowId,
+                      itemId: draggedItem?.id || draggedItem?.workflowId,
                     }, 'deadline-set-error')
                     Message.error('Failed to set deadline')
                   } finally {
