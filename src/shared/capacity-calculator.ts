@@ -4,6 +4,7 @@
  */
 
 import { TaskType, WorkBlockType } from './enums'
+import { logger } from '../logger'
 
 export interface BlockCapacity {
   totalMinutes: number
@@ -67,7 +68,7 @@ export function calculateBlockCapacity(
       }
 
     default:
-      console.warn(`Unknown block type: ${type}`)
+      logger.warn('Unknown block type', { type }, 'capacity-calculator')
       return {
         totalMinutes: 0,
         type,

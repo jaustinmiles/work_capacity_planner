@@ -216,7 +216,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       logger.ui.error('Failed to save work sessions', {
         error: error instanceof Error ? error.message : String(error),
       })
-      console.error('Failed to save work sessions:', error)
+      logger.error('Failed to save work sessions', error, 'work-logger-calendar')
     } finally {
       setIsSaving(false)
     }
@@ -250,7 +250,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       logger.ui.error('Failed to delete session', {
         error: error instanceof Error ? error.message : String(error),
       })
-      console.error('Failed to delete session:', error)
+      logger.error('Failed to delete session', error, 'work-logger-calendar')
     }
   }
 
