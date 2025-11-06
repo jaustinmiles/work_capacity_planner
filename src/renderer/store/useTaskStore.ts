@@ -1044,7 +1044,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // Don't emit SESSION_CHANGED here - we'll emit TASK_UPDATED at the end which covers everything
 
-      // Reload the sequenced task to get updated data
+      // Update the step in memory without reloading from database
       const task = state.sequencedTasks.find(t =>
         t.steps.some(s => s.id === stepId),
       )
@@ -1056,17 +1056,34 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       })
 
       if (task) {
-        logger.system.info('[useTaskStore] Reloading sequenced task from database')
-        const updatedTask = await getDatabase().getSequencedTaskById(task.id)
+        // Update the step status directly in the state
+        const updatedTask = {
+          ...task,
+          steps: task.steps.map(s => {
+            if (s.id === stepId) {
+              // If step has async wait time, mark as waiting, otherwise completed
+              const newStatus = s.asyncWaitTime && s.asyncWaitTime > 0
+                ? StepStatus.Waiting
+                : StepStatus.Completed
 
-        logger.system.info('[useTaskStore] Database reload result', {
-          updatedTaskFound: !!updatedTask,
-          updatedTaskId: updatedTask?.id,
-        })
+              return {
+                ...s,
+                status: newStatus,
+                completedAt: new Date().toISOString(),
+                actualMinutes: (s.actualMinutes || 0) + (totalMinutes || 0),
+              }
+            }
+            return s
+          }),
+        }
 
-        if (!updatedTask) {
-          logger.system.error('[useTaskStore] Failed to reload task - database returned null!', { taskId: task.id })
-          throw new Error(`Failed to reload task ${task.id} after completing step`)
+        // Check if all non-waiting steps are completed to update overall status
+        const allStepsCompleted = updatedTask.steps.every(s =>
+          s.status === StepStatus.Completed || s.status === StepStatus.Waiting
+        )
+        if (allStepsCompleted) {
+          updatedTask.overallStatus = TaskStatus.Completed
+          updatedTask.completed = true
         }
 
         set(state => ({
@@ -1074,7 +1091,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             t.id === task.id ? updatedTask : t,
           ),
         }))
-        logger.system.info('[useTaskStore] Updated sequenced tasks in state')
+        logger.system.info('[useTaskStore] Updated step status in memory')
       }
 
       // Reset skip index when a step is completed (to show the actual next task)
