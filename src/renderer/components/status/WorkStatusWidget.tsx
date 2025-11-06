@@ -400,6 +400,15 @@ export function WorkStatusWidget() {
         Message.success(`Completed task: ${activeSession.taskName || 'Task'}`)
       }
 
+      // Force a full refresh to ensure UI state consistency
+      logger.ui.info('[WorkStatusWidget] Triggering full data refresh')
+
+      // Wait for store updates to complete
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Trigger the unified refresh event
+      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+
       // Reload next task after completing current one
       logger.ui.info('[WorkStatusWidget] Reloading next task')
       await loadNextTask()

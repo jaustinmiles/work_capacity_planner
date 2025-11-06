@@ -467,12 +467,30 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   updateTask: async (id, updates) => {
     try {
       const updatedTask = await getDatabase().updateTask(id, updates)
-      set((state) => ({
-        tasks: state.tasks.map(task =>
-          task.id === id ? updatedTask : task,
-        ),
-        error: null,
-      }))
+
+      // If task is being marked as completed, clear its active work session
+      if (updates.completed || updates.overallStatus === TaskStatus.Completed) {
+        const state = get()
+        const newSessions = new Map(state.activeWorkSessions)
+        newSessions.delete(id)
+        set({
+          tasks: state.tasks.map(task =>
+            task.id === id ? updatedTask : task,
+          ),
+          activeWorkSessions: newSessions,
+          error: null,
+        })
+      } else {
+        set((state) => ({
+          tasks: state.tasks.map(task =>
+            task.id === id ? updatedTask : task,
+          ),
+          error: null,
+        }))
+      }
+
+      // Emit refresh event to ensure UI consistency
+      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to update task',
@@ -1408,7 +1426,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             // Also filter out if any dependency is a waiting step
             if (step?.dependsOn && step.dependsOn.length > 0) {
               const hasWaitingDependency = step.dependsOn.some(depId =>
-                waitingStepIds.has(depId)
+                waitingStepIds.has(depId),
               )
               if (hasWaitingDependency) {
                 return false
