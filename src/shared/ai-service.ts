@@ -171,6 +171,16 @@ For each workflow you identify:
 
 For simple standalone tasks that don't have complex dependencies, extract them separately.
 
+CRITICAL JSON FORMATTING REQUIREMENTS:
+- Return ONLY valid JSON with no explanatory text before or after
+- All string values must properly escape special characters (", \\, \n, \r, \t)
+- Use \\n for newlines within string fields (not actual line breaks)
+- Step names and descriptions must NOT contain unescaped quotes or backslashes
+- Ensure all arrays have commas between elements
+- Ensure all object properties have commas between them (except the last)
+- Do not use trailing commas after the last element in arrays or objects
+- The entire response must be valid, parseable JSON
+
 Return your response as a JSON object:
 {
   "summary": "Overview of brainstorm content and workflow complexity",
@@ -247,20 +257,113 @@ Focus on understanding the async nature described in natural language. Be realis
 
       // Extract JSON from the response (Claude sometimes adds extra text)
       let jsonText = content.text.trim()
-      const jsonStart = jsonText.indexOf('{')
-      const jsonEnd = jsonText.lastIndexOf('}')
 
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
+      // First, check if the response is wrapped in markdown code blocks
+      const codeBlockPattern = /```(?:json)?\s*\n?([\s\S]*?)\n?```/
+      const codeBlockMatch = jsonText.match(codeBlockPattern)
+      if (codeBlockMatch) {
+        jsonText = codeBlockMatch[1].trim()
       }
 
-      return JSON.parse(jsonText)
+      // Try to extract JSON more carefully by matching braces
+      const jsonStart = jsonText.indexOf('{')
+      if (jsonStart === -1) {
+        logger.system.error('No JSON object found in AI response', {
+          responseLength: jsonText.length,
+          responsePreview: jsonText.substring(0, 500),
+        })
+        throw new Error('No JSON object found in AI response')
+      }
+
+      // Count braces to find the matching closing brace
+      let braceCount = 0
+      let inString = false
+      let escapeNext = false
+      let jsonEnd = -1
+
+      for (let i = jsonStart; i < jsonText.length; i++) {
+        const char = jsonText[i]
+
+        // Handle escape sequences
+        if (escapeNext) {
+          escapeNext = false
+          continue
+        }
+
+        if (char === '\\') {
+          escapeNext = true
+          continue
+        }
+
+        // Track string boundaries
+        if (char === '"' && !escapeNext) {
+          inString = !inString
+          continue
+        }
+
+        // Only count braces outside of strings
+        if (!inString) {
+          if (char === '{' || char === '[') braceCount++
+          if (char === '}' || char === ']') braceCount--
+
+          if (braceCount === 0) {
+            jsonEnd = i
+            break
+          }
+        }
+      }
+
+      if (jsonEnd === -1) {
+        logger.system.error('Could not find matching closing brace in AI response', {
+          responseLength: jsonText.length,
+          jsonStart,
+          braceCount,
+          last500Chars: jsonText.substring(Math.max(0, jsonText.length - 500)),
+        })
+        throw new Error('Could not find matching closing brace - response may be truncated')
+      }
+
+      const extractedJson = jsonText.substring(jsonStart, jsonEnd + 1)
+
+      // Log extraction details for debugging
+      logger.system.debug('AI response JSON extraction', {
+        originalLength: content.text.length,
+        extractedLength: extractedJson.length,
+        jsonStart,
+        jsonEnd,
+        hadCodeBlock: !!codeBlockMatch,
+      })
+
+      try {
+        return JSON.parse(extractedJson)
+      } catch (parseError) {
+        // Log detailed error information
+        logger.system.error('Failed to parse extracted JSON', {
+          parseError: parseError instanceof Error ? parseError.message : String(parseError),
+          extractedLength: extractedJson.length,
+          // Find the approximate error position
+          errorPosition: parseError instanceof SyntaxError && parseError.message.includes('position')
+            ? parseError.message.match(/position (\d+)/)?.[1]
+            : 'unknown',
+          // Log a snippet around the error position if we can determine it
+          jsonSnippet: parseError instanceof SyntaxError && parseError.message.includes('position')
+            ? (() => {
+                const pos = parseInt(parseError.message.match(/position (\d+)/)?.[1] || '0')
+                return {
+                  before: extractedJson.substring(Math.max(0, pos - 100), pos),
+                  after: extractedJson.substring(pos, Math.min(extractedJson.length, pos + 100)),
+                }
+              })()
+            : null,
+        })
+        throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`)
+      }
     } catch (error) {
       logger.system.error('Error extracting workflows from brainstorm:', error)
-      if (error instanceof SyntaxError) {
-        throw new Error(`Failed to parse AI response as JSON: ${error instanceof Error ? error.message : String(error)}`)
+      if (error instanceof Error && error.message.includes('Failed to parse')) {
+        throw error // Re-throw parsing errors with our enhanced message
       }
-      throw new Error(`Failed to extract workflows from brainstorm text: ${error.message}`)
+      throw new Error(`Failed to extract workflows from brainstorm text: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
