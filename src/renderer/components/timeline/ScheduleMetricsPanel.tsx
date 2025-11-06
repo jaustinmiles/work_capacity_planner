@@ -156,7 +156,7 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
                 <div className="metric-value" style={{ color: riskInfo.color }}>
                   {riskInfo.label}
                 </div>
-                {metrics.deadlinesMissed > 0 && (
+                {(metrics.deadlinesMissed ?? 0) > 0 && (
                   <div className="metric-label">{metrics.deadlinesMissed} at risk</div>
                 )}
                 <Tooltip content={riskInfo.description}>
@@ -222,9 +222,9 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
                   {Math.round(metrics.averagePriority || 0)}
                 </div>
                 <div className="metric-label">
-                  {metrics.averagePriority >= 70
+                  {(metrics.averagePriority ?? 0) >= 70
                     ? 'High Priority'
-                    : metrics.averagePriority >= 40
+                    : (metrics.averagePriority ?? 0) >= 40
                     ? 'Medium Priority'
                     : 'Low Priority'}
                 </div>
@@ -235,11 +235,11 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
       </div>
 
       {/* Peak Utilization Warning */}
-      {metrics.peakUtilization > 0.9 && (
+      {(metrics.peakUtilization ?? 0) > 0.9 && (
         <div className="metrics-warning">
           <IconExclamationCircle style={{ marginRight: 8 }} />
           <span>
-            Peak utilization reaches {Math.round(metrics.peakUtilization * 100)}% -
+            Peak utilization reaches {Math.round((metrics.peakUtilization ?? 0) * 100)}% -
             consider redistributing tasks for better balance
           </span>
         </div>
