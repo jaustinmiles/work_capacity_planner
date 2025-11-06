@@ -25,44 +25,41 @@ import { WorkSettings } from './work-settings-types'
 import { ProductivityPattern, SchedulingPreferences } from './types'
 import { logger } from '@/logger'
 import { getCurrentTime, getLocalDateString, timeProvider as _timeProvider } from './time-provider'
+import { calculateDuration as calculateTimeStringDuration, parseTimeString } from './time-utils'
 
 // ============================================================================
-// UTILITY FUNCTIONS
+// ENUMS
 // ============================================================================
 
-/**
- * Safely parse time string in HH:MM format
- * Returns hour and minute as numbers, throwing if invalid
- */
-function parseTimeString(timeString: string): { hour: number; minute: number } {
-  const parts = timeString.split(':')
-  if (parts.length !== 2) {
-    throw new Error(`Invalid time format: ${timeString}. Expected HH:MM`)
-  }
-
-  const hour = Number(parts[0])
-  const minute = Number(parts[1])
-
-  if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-    throw new Error(`Invalid time values in: ${timeString}`)
-  }
-
-  return { hour, minute }
+export enum SchedulingConflictType {
+  DependencyCycle = 'dependency_cycle',
+  CapacityExceeded = 'capacity_exceeded',
+  DeadlineImpossible = 'deadline_impossible',
+  ResourceConflict = 'resource_conflict'
 }
 
-/**
- * Calculate duration in minutes between two time strings
- */
-function calculateTimeStringDuration(startTime: string, endTime: string): number {
-  const start = parseTimeString(startTime)
-  const end = parseTimeString(endTime)
-  return (end.hour * 60 + end.minute) - (start.hour * 60 + start.minute)
+export enum SchedulingWarningType {
+  SoftDeadlineRisk = 'soft_deadline_risk',
+  CapacityWarning = 'capacity_warning',
+  CognitiveMismatch = 'cognitive_mismatch',
+  ContextSwitch = 'context_switch'
+}
+
+export enum OptimizationMode {
+  Realistic = 'realistic',
+  Optimal = 'optimal',
+  Conservative = 'conservative'
+}
+
+export enum SeverityLevel {
+  Error = 'error',
+  Warning = 'warning'
 }
 
 // ============================================================================
 // UNIFIED DATA MODELS
 // ============================================================================
-
+// lets go through these types and make sure this is really necessary. I feel like there is some data transformation happening that is confusing and lots of unused proeprties.
 export interface UnifiedScheduleItem {
   id: string
   name: string
@@ -164,6 +161,7 @@ export interface SchedulingDebugInfo {
   deadlineAnalysis?: any
 }
 
+// REVIEW: as an example, I don't know where in the app a lot of this stuff is even used.
 export interface SchedulingMetrics {
   totalWorkDays?: number
   totalFocusedHours?: number
@@ -184,20 +182,21 @@ export interface SchedulingMetrics {
 }
 
 export interface SchedulingConflict {
-  type: 'dependency_cycle' | 'capacity_exceeded' | 'deadline_impossible' | 'resource_conflict'
+  type: SchedulingConflictType
   affectedItems: string[]
   description: string
-  severity: 'error' | 'warning'
+  severity: SeverityLevel
   suggestedResolution: string
 }
 
 export interface SchedulingWarning {
-  type: 'soft_deadline_risk' | 'capacity_warning' | 'cognitive_mismatch' | 'context_switch'
+  type: SchedulingWarningType
   message: string
   item: UnifiedScheduleItem
   expectedDelay?: number
 }
 
+// REVIEW: surely this type is defined already elsewhere.
 interface BlockCapacity {
   blockId: string
   blockType: WorkBlockType
@@ -243,6 +242,7 @@ export interface ScheduleConfig {
   includeWeekends?: boolean
   allowTaskSplitting?: boolean
   respectMeetings?: boolean
+  // REVIEW: can we use enums please
   optimizationMode?: 'realistic' | 'optimal' | 'conservative'
   debugMode?: boolean
   maxDays?: number // Backwards compatibility
@@ -279,15 +279,11 @@ export class UnifiedScheduler {
 
     // Apply priority calculation
     unifiedItems.forEach(item => {
+      // REVIEW: can we use type guards to avoid the as cast? also, what is the meaning of originalItem? and how could a unified item exist without it? also why are we casting to task | taskstep without chekcing anything? couldn't this pass a meeting in?
       if (item.originalItem) {
         const priority = this.calculatePriority(item.originalItem as Task | TaskStep, context)
         item.priority = priority
 
-        // Debug logging for priority calculation
-        if (config.debugMode) {
-          const _original = item.originalItem as any
-          // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [Priority] ${item.name}: priority=${priority.toFixed(2)}, importance=${_original.importance || 5}, urgency=${_original.urgency || 5}`)
-        }
       }
     })
 
@@ -307,6 +303,7 @@ export class UnifiedScheduler {
 
     if (dependencyResult.conflicts.length > 0) {
       const warningMessages = dependencyResult.warnings.map(w => w.message)
+      // REVIEW: looks like warning messages are returned twice here.
       return {
         scheduled: [],
         unscheduled: unifiedItems,
@@ -315,28 +312,6 @@ export class UnifiedScheduler {
         debugInfo: this.generateDebugInfo([], unifiedItems, context, warningMessages),
       }
     }
-
-    // Allocate to work blocks
-    if (config.debugMode) {
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Starting allocation with items:', dependencyResult.resolved.length)
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Work patterns:', context.workPatterns.length)
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Items to allocate:', dependencyResult.resolved.map(i => ({ id: i.id, name: i.name, duration: i.duration })))
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Completed items:', Array.from(completedItemIds))
-    }
-
-    // Log what we're about to pass to allocateToWorkBlocks
-    // LOGGER_REMOVED: logger.scheduler.info(' [UnifiedScheduler] BEFORE allocateToWorkBlocks call', {
-      // itemsToAllocate: dependencyResult.resolved.length,
-      // workPatternsCount: context.workPatterns.length,
-      // workPatternDates: context.workPatterns.map(p => p.date),
-      // configStartDate: config.startDate || context.startDate,
-      // contextCurrentTime: context.currentTime?.toISOString(),
-      // hasWorkPatterns: context.workPatterns.length > 0,
-      // firstWorkPattern: context.workPatterns[0] ? {
-        // date: context.workPatterns[0].date,
-        // blocks: context.workPatterns[0].blocks.length,
-      // } : null,
-    // })
 
     // Ensure config has startDate from context if not provided
     // Also pass currentTime for proper scheduling
@@ -347,14 +322,10 @@ export class UnifiedScheduler {
     }
     const allocated = this.allocateToWorkBlocks(dependencyResult.resolved, context.workPatterns, configWithStartDate, completedItemIds)
 
-    if (config.debugMode) {
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Allocation result:', allocated.length)
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Allocated items:', allocated.map(i => ({ id: i.id, name: i.name, startTime: i.startTime, endTime: i.endTime })))
-    }
-
     // Generate debug info (always - it's mandatory)
     const allocatedIds = new Set(allocated.map(item => item.id))
     const actuallyUnscheduled = unifiedItems.filter(item => !allocatedIds.has(item.id))
+    // REVIEW: I want a full review of our debug info. It's never helpful or complete.
     const debugInfo = this.generateDebugInfo(allocated, actuallyUnscheduled, context)
 
     // Generate metrics
@@ -379,6 +350,7 @@ export class UnifiedScheduler {
    * Asynchronous scheduling for database persistence
    * Can take longer, handles larger datasets, includes full optimization
    */
+  // REVIEW: is this even used anywhere?  I don't think I ever wanted a feature for large datasets...
   async scheduleForPersistence(
     items: (Task | SequencedTask | TaskStep)[],
     context: ScheduleContext,
@@ -400,6 +372,7 @@ export class UnifiedScheduler {
   /**
    * Enhance scheduling result with advanced async features
    */
+  // REVIEW: I want to make sure all these fancy functions are even used, tested, or valid. I feel like a lot of this was just thrown in to make the scheduler look more complex and feature rich.
   private async enhanceWithAsyncFeatures(
     baseResult: ScheduleResult,
     originalItems: (Task | SequencedTask | TaskStep)[],
@@ -1086,57 +1059,13 @@ export class UnifiedScheduler {
     config: ScheduleConfig & { currentTime?: Date },
     completedItemIds: Set<string> = new Set(),
   ): UnifiedScheduleItem[] {
-    // Log at the very start to verify method is called
-    // LOGGER_REMOVED: logger.scheduler.info('[UnifiedScheduler] allocateToWorkBlocks CALLED', {
-      // LOGGER_REMOVED: itemCount: items.length,
-      // LOGGER_REMOVED: patternCount: workPatterns.length,
-      // LOGGER_REMOVED: hasItems: items.length > 0,
-      // LOGGER_REMOVED: hasPatterns: workPatterns.length > 0,
-    // LOGGER_REMOVED: })
-
-    // Safety check: Validate patterns match override date
-    if (config.currentTime && workPatterns.length > 0) {
-      const overrideDate = new Date(config.currentTime)
-      const overrideDateStr = `${overrideDate.getFullYear()}-${String(overrideDate.getMonth() + 1).padStart(2, '0')}-${String(overrideDate.getDate()).padStart(2, '0')}`
-      const hasOverrideDatePattern = workPatterns.some(p => p.date === overrideDateStr)
-
-      if (!hasOverrideDatePattern) {
-        // LOGGER_REMOVED: logger.scheduler.error('[UnifiedScheduler] CRITICAL: No pattern for override date', {
-          // overrideDate: overrideDateStr,
-          // overrideTime: config.currentTime.toISOString(),
-          // availableDates: workPatterns.map(p => p.date),
-          // firstPattern: workPatterns[0]?.date,
-          // lastPattern: workPatterns[workPatterns.length - 1]?.date,
-        // })
-      }
-    }
-
-    // Check for empty inputs and log
     if (items.length === 0) {
-      // LOGGER_REMOVED: logger.scheduler.warn('[UnifiedScheduler] allocateToWorkBlocks - No items to allocate, returning empty')
       return []
     }
 
     if (workPatterns.length === 0) {
-      // LOGGER_REMOVED: logger.scheduler.warn('[UnifiedScheduler] allocateToWorkBlocks - No work patterns provided, returning empty')
       return []
     }
-
-    // Enhanced logging for debugging
-    const realNow = new Date()
-    const providerNow = getCurrentTime()
-    logger.system.debug('allocateToWorkBlocks called', {
-      itemCount: items.length,
-      patternCount: workPatterns.length,
-      configStartDate: config.startDate,
-      configCurrentTime: config.currentTime?.toISOString(),
-      realTime: realNow.toISOString(),
-      providerTime: providerNow.toISOString(),
-      hasOverride: _timeProvider.isOverridden(),
-      overrideValue: _timeProvider.getOverride()?.toISOString(),
-      firstPatternDate: workPatterns[0]?.date,
-      firstPatternBlockCount: workPatterns[0]?.blocks.length,
-    }, 'unified-scheduler-allocate')
 
     const scheduled: UnifiedScheduleItem[] = []
     const remaining = [...items]
@@ -1147,7 +1076,6 @@ export class UnifiedScheduler {
     // Ensure startDate is a valid Date object with better fallback handling
     let startDateValue = config.startDate
     if (!startDateValue) {
-      // LOGGER_REMOVED: logger.scheduler.warn('No startDate provided to allocateToWorkBlocks, using today')
       startDateValue = getLocalDateString(getCurrentTime())
     }
 
@@ -1155,83 +1083,42 @@ export class UnifiedScheduler {
     // This ensures we start scheduling from "now" not midnight
     // When we have currentTime, we should start from that date (at midnight)
     // to check the whole day's patterns
+    // REVIEW: let's use a utility function or something. This is mad confusing I don't even understand why we need this here.
     let currentDate: Date
     if (config.currentTime) {
       // Start from the LOCAL DATE of currentTime (at midnight) to check full day patterns
       // CRITICAL: Use local date, NOT UTC date
       const dateStr = getLocalDateString(config.currentTime)
       currentDate = new Date(dateStr + 'T00:00:00')
-      // LOGGER_REMOVED: logger.scheduler.info(' [UnifiedScheduler] Using currentTime LOCAL date for start', {
-        // currentTime: config.currentTime.toISOString(),
-        // localDateTime: config.currentTime.toString(),
-        // startingDate: currentDate.toISOString(),
-        // dateStr,
-      // })
     } else if (typeof startDateValue === 'string') {
       currentDate = new Date(startDateValue + 'T00:00:00')
     } else {
       currentDate = new Date(startDateValue)
     }
 
-    // LOGGER_REMOVED: logger.scheduler.info('🕐 [UnifiedScheduler] Starting allocation with time context', {
-      // currentTime: config.currentTime?.toISOString(),
-      // startDateValue,
-      // currentDate: currentDate.toISOString(),
-      // usingCurrentTime: !!config.currentTime,
-    // })
-
     // Validate the date immediately
     if (!currentDate || isNaN(currentDate.getTime())) {
-      // LOGGER_REMOVED: logger.scheduler.error('Invalid date in allocateToWorkBlocks', {
-        // LOGGER_REMOVED: startDateValue,
-        // LOGGER_REMOVED: configStartDate: config.startDate,
-        // LOGGER_REMOVED: currentDate,
-      // LOGGER_REMOVED: })
       // Return empty array if we can't create a valid date
       return []
     }
 
     let dayIndex = 0
+    // This should be a configuration option.
     const maxDays = 30 // Safety limit
 
     while (remaining.length > 0 && dayIndex < maxDays) {
-      if (config.debugMode) {
-        // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [UnifiedScheduler] Day ${dayIndex}: ${remaining.length} items remaining`)
-      }
-
+      // REVIEW: should use utility functions for date manipulations.
       const dateStr = currentDate.toISOString().split('T')[0]
-
-      // Log each date we're checking with more detail
-      // LOGGER_REMOVED: logger.scheduler.info(`📅 [UnifiedScheduler] Checking date ${dateStr}`, {
-        // dayIndex,
-        // currentDate: currentDate.toISOString(),
-        // remainingItems: remaining.length,
-        // availablePatterns: workPatterns.map(p => p.date),
-        // hasPatternForDate: workPatterns.some(p => p.date === dateStr),
-        // currentTimeConstraint: config.currentTime?.toISOString(),
-      // })
 
       const pattern = workPatterns.find(p => p.date === dateStr)
 
       if (!pattern || pattern.blocks.length === 0) {
-        if (config.debugMode) {
-          // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [UnifiedScheduler] No work pattern for date ${dateStr}, skipping`)
-        }
-        // Log when we skip a day
-        // LOGGER_REMOVED: logger.scheduler.info(`📅 [UnifiedScheduler] Skipping ${dateStr} - no work pattern`, {
-          // LOGGER_REMOVED: dayIndex,
-          // LOGGER_REMOVED: dateStr,
-          // LOGGER_REMOVED: hasPattern: !!pattern,
-          // LOGGER_REMOVED: blockCount: pattern?.blocks?.length || 0,
-        // LOGGER_REMOVED: })
-
         // No work pattern for this day, move to next
         // Simply increment the date by one day - no special handling needed
         currentDate.setDate(currentDate.getDate() + 1)
         dayIndex++
         // Check if date is still valid after modification
         if (isNaN(currentDate.getTime())) {
-          // LOGGER_REMOVED: logger.scheduler.error('Date became invalid after increment', { dateStr, dayIndex })
           break
         }
         continue
@@ -1243,33 +1130,10 @@ export class UnifiedScheduler {
       const blockDate = new Date(dateStr + 'T00:00:00')
       const dayBlocks = pattern.blocks.map(block => this.createBlockCapacity(block, blockDate))
 
-      if (config.debugMode) {
-        // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [UnifiedScheduler] Day ${dayIndex} blocks:`, dayBlocks.map(b => ({
-          // id: b.blockId,
-          // type: b.blockType,
-          // totalMinutes: b.totalMinutes,
-          // usedMinutes: b.usedMinutes,
-          // availableMinutes: b.totalMinutes - b.usedMinutes,
-        // })))
-      }
-
       // Schedule meetings and breaks first (for time blocking only)
       const meetingItems = this.scheduleMeetings(pattern.meetings || [], blockDate)
       // Add meetings to scheduled array so they block time
       scheduled.push(...meetingItems)
-
-      // Log block availability for current time
-      // LOGGER_REMOVED: logger.scheduler.info(' [UnifiedScheduler] Processing work blocks for day', {
-        // dayIndex,
-        // dateStr,
-        // currentDate: currentDate.toISOString(),
-        // blockCount: dayBlocks.length,
-        // totalMinutes: dayBlocks.reduce((sum, b) => sum + b.totalMinutes, 0),
-        // totalUsedMinutes: dayBlocks.reduce((sum, b) => sum + b.usedMinutes, 0),
-        // isFirstDay: dayIndex === 0,
-        // hasCurrentTimeConstraint: dayIndex === 0 && !!config.currentTime,
-        // currentTimeConstraint: config.currentTime?.toISOString(),
-      // })
 
       // Try to schedule remaining items in this day's blocks
       let scheduledItemsToday = false
@@ -1281,6 +1145,7 @@ export class UnifiedScheduler {
 
         // CRITICAL FIX: Sort remaining items by priority before each scheduling attempt
         // This ensures high priority items are scheduled first, even after dependencies are resolved
+        // REVIEW: I want to make sure this is after all boosts have been applied.
         remaining.sort((a, b) => (b.priority || 0) - (a.priority || 0))
 
         for (let itemIndex = 0; itemIndex < remaining.length; itemIndex++) {
@@ -1289,14 +1154,7 @@ export class UnifiedScheduler {
 
           // Check if dependencies are satisfied
           if (!this.areDependenciesSatisfied(item, scheduled, completedItemIds)) {
-            if (config.debugMode) {
-              // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [UnifiedScheduler] Dependencies not satisfied for item ${item.id}`)
-            }
             continue // Skip this item, try next
-          }
-
-          if (config.debugMode) {
-            // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [UnifiedScheduler] Trying to fit item ${item.id} (${item.duration} min, ${item.taskType})`)
           }
 
           // Try to fit item in available blocks
@@ -1306,26 +1164,7 @@ export class UnifiedScheduler {
           // This prevents using "now" when scheduling future days
           const currentTimeToUse = (dayIndex === 0 && config.currentTime) ? config.currentTime : undefined
 
-          // LOGGER_REMOVED: logger.scheduler.info(' [UnifiedScheduler] Finding block for item', {
-            // itemId: item.id,
-            // itemName: item.name,
-            // itemDuration: item.duration,
-            // itemType: item.taskType,
-            // dayIndex,
-            // currentTimeToUse: currentTimeToUse?.toISOString(),
-            // blockDate: blockDate.toISOString(),
-          // })
-
           const fitResult = this.findBestBlockForItem(item, dayBlocks, scheduled, blockDate, currentTimeToUse)
-
-          if (config.debugMode) {
-            // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [UnifiedScheduler] Fit result for ${item.id}:`, {
-              // LOGGER_REMOVED: canFit: fitResult.canFit,
-              // LOGGER_REMOVED: canPartiallyFit: fitResult.canPartiallyFit,
-              // LOGGER_REMOVED: availableMinutes: fitResult.availableMinutes,
-              // LOGGER_REMOVED: block: fitResult.block?.blockId,
-            // LOGGER_REMOVED: })
-          }
 
           if (fitResult.canFit && fitResult.block) {
             // Schedule the full item
@@ -1333,6 +1172,7 @@ export class UnifiedScheduler {
             scheduled.push(scheduledItem)
 
             // If item has asyncWaitTime, create a wait time block
+            // REVIEW: so... we need to rethink how we do wait time. Because wait times should be shown but constantly be updating, while other things are scheduled. So we should show the wait time decreasing.. wait time starts at task completion. It's like a timer that blocks the next task. To be honest it should block dependency resolution.
             if (item.asyncWaitTime && item.asyncWaitTime > 0 && scheduledItem.endTime) {
               const waitTimeItem: UnifiedScheduleItem = {
                 id: `${item.id}-wait`,
@@ -1357,15 +1197,12 @@ export class UnifiedScheduler {
             // Update block capacity
             this.updateBlockCapacity(fitResult.block, item)
 
-            if (config.debugMode) {
-              // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [UnifiedScheduler] Scheduled ${item.id} from ${scheduledItem.startTime?.toISOString()} to ${scheduledItem.endTime?.toISOString()}`)
-            }
-
             // Start over from the beginning since we modified the array
             break
 
           } else if (fitResult.canPartiallyFit && fitResult.block && config.allowTaskSplitting !== false) {
             // Split the task across multiple days
+            // REVIEW: why do we need different logic for this? seems like we would jsut mark the split and the next iteration would know that if it schedules it's scheduling a split task.
             const splitItems = this.splitTaskAcrossDays(item, [
               { date: currentDate, duration: fitResult.availableMinutes || 0 },
             ])
@@ -1385,10 +1222,6 @@ export class UnifiedScheduler {
 
               // Update block capacity
               this.updateBlockCapacity(fitResult.block, firstPart)
-
-              if (config.debugMode) {
-                // LOGGER_REMOVED: logger.scheduler.debug(`🔧 [UnifiedScheduler] Scheduled partial ${firstPart.id} (${firstPart.duration} min)`)
-              }
 
               // Start over from the beginning since we modified the array
               break
@@ -1512,15 +1345,15 @@ export class UnifiedScheduler {
       }
 
       // Parse block times (assuming they're in "HH:MM" format)
-      const start = parseTimeString(block.startTime)
-      const end = parseTimeString(block.endTime)
+      const [startHour, startMinute] = parseTimeString(block.startTime)
+      const [endHour, endMinute] = parseTimeString(block.endTime)
 
       // Create Date objects for block start and end (using today as base date)
       const blockStartTime = getCurrentTime()
-      blockStartTime.setHours(start.hour, start.minute, 0, 0)
+      blockStartTime.setHours(startHour, startMinute, 0, 0)
 
       const blockEndTime = getCurrentTime()
-      blockEndTime.setHours(end.hour, end.minute, 0, 0)
+      blockEndTime.setHours(endHour, endMinute, 0, 0)
 
       // Calculate block duration in minutes
       const blockDurationMs = blockEndTime.getTime() - blockStartTime.getTime()
@@ -1615,14 +1448,14 @@ export class UnifiedScheduler {
     if (!item.startTime || !item.endTime) return false
 
     // Parse meeting times (assuming same date as item for simplicity)
-    const meetingStartTime = parseTimeString(meeting.startTime)
-    const meetingEndTime = parseTimeString(meeting.endTime)
+    const [meetingStartHour, meetingStartMinute] = parseTimeString(meeting.startTime)
+    const [meetingEndHour, meetingEndMinute] = parseTimeString(meeting.endTime)
 
     const meetingStart = new Date(item.startTime)
-    meetingStart.setHours(meetingStartTime.hour, meetingStartTime.minute, 0, 0)
+    meetingStart.setHours(meetingStartHour, meetingStartMinute, 0, 0)
 
     const meetingEnd = new Date(item.startTime)
-    meetingEnd.setHours(meetingEndTime.hour, meetingEndTime.minute, 0, 0)
+    meetingEnd.setHours(meetingEndHour, meetingEndMinute, 0, 0)
 
     // Check for overlap: item starts before meeting ends AND item ends after meeting starts
     return item.startTime < meetingEnd && item.endTime > meetingStart
@@ -1639,10 +1472,10 @@ export class UnifiedScheduler {
     if (!item.startTime || !item.endTime) return item
 
     // Parse meeting end time
-    const meetingEndTime = parseTimeString(conflictingMeeting.endTime)
+    const [meetingEndHour, meetingEndMinute] = parseTimeString(conflictingMeeting.endTime)
 
     const meetingEnd = new Date(item.startTime)
-    meetingEnd.setHours(meetingEndTime.hour, meetingEndTime.minute, 0, 0)
+    meetingEnd.setHours(meetingEndHour, meetingEndMinute, 0, 0)
 
     // Schedule item to start after the meeting ends
     const newStartTime = new Date(meetingEnd)
@@ -1910,24 +1743,7 @@ export class UnifiedScheduler {
     if (totalMinutes === 0) {
       totalMinutes = calculateTimeStringDuration(block.startTime, block.endTime)
 
-      // LOGGER_REMOVED: logger.scheduler.warn(' [UnifiedScheduler] Block capacity was 0, calculated from time', {
-        // LOGGER_REMOVED: blockId: block.id,
-        // LOGGER_REMOVED: blockType: block.type,
-        // LOGGER_REMOVED: startTime: block.startTime,
-        // LOGGER_REMOVED: endTime: block.endTime,
-        // LOGGER_REMOVED: calculatedMinutes: totalMinutes,
-      // LOGGER_REMOVED: })
     }
-
-    // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Converting block to capacity', {
-      // blockId: block.id,
-      // blockType: block.type,
-      // startTime: block.startTime,
-      // endTime: block.endTime,
-      // originalCapacity: capacity,
-      // totalMinutes,
-      // date: date.toISOString(),
-    // })
 
     // Simple unified structure
     return {
@@ -1948,48 +1764,18 @@ export class UnifiedScheduler {
     item: UnifiedScheduleItem,
     blocks: BlockCapacity[],
     scheduled: UnifiedScheduleItem[],
+    // REVIEW: what is the purpose of currentDate here? value unused.
     currentDate: Date,
     currentTime?: Date,
   ): FitResult {
-    // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] findBestBlockForItem called', {
-      // itemId: item.id,
-      // itemDuration: item.duration,
-      // itemType: item.taskType,
-      // blockCount: blocks.length,
-      // currentTime: currentTime?.toISOString(),
-      // blocks: blocks.map(b => ({
-        // id: b.blockId,
-        // type: b.blockType,
-        // start: b.startTime.toISOString(),
-        // end: b.endTime.toISOString(),
-        // totalMinutes: b.totalMinutes,
-        // usedMinutes: b.usedMinutes,
-        // availableMinutes: b.totalMinutes - b.usedMinutes,
-      // })),
-    // })
 
     for (const block of blocks) {
       const fitResult = this.canFitInBlock(item, block, scheduled, currentTime)
-
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Block fit check', {
-        // itemId: item.id,
-        // blockId: block.blockId,
-        // canFit: fitResult.canFit,
-        // canPartiallyFit: fitResult.canPartiallyFit,
-        // availableMinutes: fitResult.availableMinutes,
-        // startTime: fitResult.startTime?.toISOString(),
-      // })
 
       if (fitResult.canFit || fitResult.canPartiallyFit) {
         return { ...fitResult, block }
       }
     }
-
-    // LOGGER_REMOVED: logger.scheduler.warn(' [UnifiedScheduler] No suitable block found for item', {
-      // LOGGER_REMOVED: itemId: item.id,
-      // LOGGER_REMOVED: itemName: item.name,
-      // LOGGER_REMOVED: duration: item.duration,
-    // LOGGER_REMOVED: })
 
     return { canFit: false, canPartiallyFit: false }
   }
@@ -2007,18 +1793,10 @@ export class UnifiedScheduler {
     const taskType = item.taskType === TaskType.Focused ? TaskType.Focused :
                      item.taskType === TaskType.Admin ? TaskType.Admin : TaskType.Personal
 
-    // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Checking block compatibility', {
-      // LOGGER_REMOVED: itemId: item.id,
-      // LOGGER_REMOVED: blockId: block.blockId,
-      // LOGGER_REMOVED: blockType: block.blockType,
-      // LOGGER_REMOVED: taskType: taskType,
-      // LOGGER_REMOVED: totalMinutes: block.totalMinutes,
-      // LOGGER_REMOVED: usedMinutes: block.usedMinutes,
-    // LOGGER_REMOVED: })
-
     // Calculate available capacity using the scheduler-specific helper function
     // This allows flexible blocks to be used for any task type
     // Conditionally include splitRatio only if it exists (not undefined)
+    // REVIEW: can we use a utility function for this. we have a whole suite of capacity calculators already. this looks like it's using a function imported from the module but it does something super simplistic.
     const totalCapacityForTaskType = getSchedulerCapacityForTaskType(
       block.splitRatio !== undefined
         ? { totalMinutes: block.totalMinutes, type: block.blockType, splitRatio: block.splitRatio }
@@ -2028,7 +1806,6 @@ export class UnifiedScheduler {
 
     // If this block type doesn't support this task type, capacity will be 0
     if (totalCapacityForTaskType === 0) {
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Block type incompatible with task type')
       return { canFit: false, canPartiallyFit: false }
     }
 
@@ -2043,35 +1820,9 @@ export class UnifiedScheduler {
       // Simply reduce available by time already passed
       effectiveAvailableCapacity = Math.max(0, availableCapacity - minutesPassed)
 
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Adjusting for past time in current block', {
-        // blockId: block.blockId,
-        // currentTime: currentTime.toISOString(),
-        // blockStart: block.startTime.toISOString(),
-        // blockEnd: block.endTime.toISOString(),
-        // minutesPassed,
-        // originalAvailable: availableCapacity,
-        // effectiveAvailable: effectiveAvailableCapacity,
-      // })
     }
 
-    // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Block capacity calculation', {
-      // blockId: block.blockId,
-      // blockType: block.blockType,
-      // taskType: taskType,
-      // itemName: item.name,
-      // itemDuration: item.duration,
-      // blockStartTime: block.startTime.toISOString(),
-      // blockEndTime: block.endTime.toISOString(),
-      // totalMinutes: block.totalMinutes,
-      // usedMinutes: block.usedMinutes,
-      // calculatedCapacity: availableCapacity,
-      // effectiveCapacity: effectiveAvailableCapacity,
-      // hasTimePassed: currentTime && currentTime > block.startTime && currentTime < block.endTime,
-      // currentTime: currentTime?.toISOString(),
-    // })
-
     if (effectiveAvailableCapacity <= 0) {
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] No capacity available in block')
       return { canFit: false, canPartiallyFit: false }
     }
 
@@ -2086,24 +1837,15 @@ export class UnifiedScheduler {
 
 
     // Find available time slot within the block
+    // REVIEW: seems like this whole function is doing a lot of work that could be done in a utility function. it seems overly complicated
     const availableMinutes = Math.min(effectiveAvailableCapacity,
       this.calculateAvailableTimeInBlock(block, blockScheduled))
 
     // Find when we can start in this block
     const potentialStartTime = this.findNextAvailableTime(block, blockScheduled, currentTime)
 
-    // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Time constraint check', {
-      // blockId: block.blockId,
-      // blockStart: block.startTime.toISOString(),
-      // blockEnd: block.endTime.toISOString(),
-      // currentTime: currentTime?.toISOString(),
-      // potentialStartTime: potentialStartTime.toISOString(),
-      // isPastBlock: potentialStartTime.getTime() >= block.endTime.getTime(),
-    // })
-
     // Check if we're past the block or can't fit
     if (potentialStartTime.getTime() >= block.endTime.getTime()) {
-      // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Start time is past block end time')
       return { canFit: false, canPartiallyFit: false }
     }
 
@@ -2199,14 +1941,6 @@ export class UnifiedScheduler {
     // Simply update used minutes - works for all block types
     block.usedMinutes = (block.usedMinutes || 0) + item.duration
 
-    // LOGGER_REMOVED: logger.scheduler.debug(' [UnifiedScheduler] Updated block capacity', {
-      // LOGGER_REMOVED: blockId: block.blockId,
-      // LOGGER_REMOVED: blockType: block.blockType,
-      // LOGGER_REMOVED: totalMinutes: block.totalMinutes,
-      // LOGGER_REMOVED: usedBefore: block.usedMinutes - item.duration,
-      // LOGGER_REMOVED: usedAfter: block.usedMinutes,
-      // LOGGER_REMOVED: itemDuration: item.duration,
-    // LOGGER_REMOVED: })
   }
 
   /**
@@ -2215,22 +1949,17 @@ export class UnifiedScheduler {
   private parseTimeOnDate(date: Date, timeStr: string): Date {
     // Handle missing or invalid time strings
     if (!timeStr || typeof timeStr !== 'string') {
-      // LOGGER_REMOVED: logger.error('[UnifiedScheduler] Invalid timeStr provided to parseTimeOnDate', {
-        // timeStr,
-        // date: date.toISOString(),
-        // type: typeof timeStr,
-      // })
       // Return start of day as fallback
       const result = new Date(date)
       result.setHours(0, 0, 0, 0)
       return result
     }
 
-    const parsedTime = parseTimeString(timeStr)
+    const [hour, minute] = parseTimeString(timeStr)
     // Create a new date in local time - the time strings like "09:00"
     // represent local time for the user, not UTC
     const result = new Date(date)
-    result.setHours(parsedTime.hour, parsedTime.minute, 0, 0)
+    result.setHours(hour, minute, 0, 0)
     return result
   }
 
@@ -2253,16 +1982,6 @@ export class UnifiedScheduler {
    * Find next available time in block
    */
   private findNextAvailableTime(block: BlockCapacity, scheduledInBlock: UnifiedScheduleItem[], currentTime?: Date): Date {
-    // Log critical time context for debugging
-    // LOGGER_REMOVED: logger.scheduler.info('🕐 [UnifiedScheduler] findNextAvailableTime called', {
-      // blockId: block.blockId,
-      // blockStart: block.startTime.toISOString(),
-      // blockEnd: block.endTime.toISOString(),
-      // currentTime: currentTime?.toISOString() || 'none',
-      // scheduledCount: scheduledInBlock.length,
-      // timestamp: getCurrentTime().toISOString(),
-    // })
-
     // If no current time constraint, start from block start
     if (!currentTime) {
       const effectiveStartTime = block.startTime
@@ -2297,24 +2016,11 @@ export class UnifiedScheduler {
 
     // If current time is past the block end, we can't use this block
     if (now.getTime() >= block.endTime.getTime()) {
-      // LOGGER_REMOVED: logger.scheduler.info(' [UnifiedScheduler] Current time past block end', {
-        // currentTime: now.toISOString(),
-        // blockEnd: block.endTime.toISOString(),
-        // comparison: `${now.getTime()} >= ${block.endTime.getTime()}`,
-        // timeDiffMinutes: Math.floor((now.getTime() - block.endTime.getTime()) / 60000),
-      // })
       // Return block end time to indicate block is full/past
       return block.endTime
     }
 
     const effectiveStartTime = new Date(Math.max(block.startTime.getTime(), now.getTime()))
-
-    // LOGGER_REMOVED: logger.scheduler.info('✅ [UnifiedScheduler] Using effective start time', {
-      // blockStart: block.startTime.toISOString(),
-      // currentTime: now.toISOString(),
-      // effectiveStart: effectiveStartTime.toISOString(),
-      // isCurrentTimeInBlock: now.getTime() >= block.startTime.getTime() && now.getTime() < block.endTime.getTime(),
-    // })
 
     // If no items scheduled in this block, return the effective start time
     if (scheduledInBlock.length === 0) {
@@ -2405,15 +2111,12 @@ export class UnifiedScheduler {
 
         if (!dependencyExists) {
           errors.push({
-            type: 'dependency_cycle',
+            type: SchedulingConflictType.DependencyCycle,
             affectedItems: [item.id, depId],
             description: `Item "${item.name}" depends on missing item "${depId}"`,
-            severity: 'error',
+            severity: SeverityLevel.Error,
             suggestedResolution: `Remove dependency on "${depId}" or add the missing item`,
           })
-        } else if (completedItemIds.has(depId)) {
-          // Log successful dependency resolution via completion
-          // LOGGER_REMOVED: logger.scheduler.debug(`✅ Dependency "${depId}" for item "${item.name}" satisfied by completion`)
         }
       }
     }
@@ -2423,10 +2126,10 @@ export class UnifiedScheduler {
     const cycleCheck = this.detectDependencyCycles(graph)
     if (cycleCheck.hasCycle) {
       errors.push({
-        type: 'dependency_cycle',
+        type: SchedulingConflictType.DependencyCycle,
         affectedItems: cycleCheck.cycleItems,
         description: 'Circular dependency detected between items',
-        severity: 'error',
+        severity: SeverityLevel.Error,
         suggestedResolution: 'Remove or modify dependencies to break the cycle',
       })
     }
@@ -2435,8 +2138,9 @@ export class UnifiedScheduler {
     for (const item of items) {
       const chainLength = this.calculateDependencyChainLength(item.id, graph)
       if (chainLength > 5) {
+        // REVIEW: are these warnings even displayed anywhere?
         warnings.push({
-          type: 'context_switch',
+          type: SchedulingWarningType.ContextSwitch,
           message: `Item "${item.name}" has a long dependency chain (${chainLength} levels deep)`,
           item,
           expectedDelay: chainLength * 30, // Estimate 30min overhead per dependency level
@@ -2630,10 +2334,10 @@ export class UnifiedScheduler {
       // Check if hour falls within time range
       if (!pattern.timeRangeStart || !pattern.timeRangeEnd) continue
 
-      const start = parseTimeString(pattern.timeRangeStart)
-      const end = parseTimeString(pattern.timeRangeEnd)
+      const [startHour] = parseTimeString(pattern.timeRangeStart)
+      const [endHour] = parseTimeString(pattern.timeRangeEnd)
 
-      if (hour >= start.hour && hour < end.hour) {
+      if (hour >= startHour && hour < endHour) {
         return pattern.cognitiveCapacity
       }
     }
@@ -2649,6 +2353,7 @@ export class UnifiedScheduler {
   /**
    * Convert various input types to UnifiedScheduleItem
    */
+  // REVIEW: let's move this to a utility file and make sure it's tested, if we even need it. But I hate how many hardcoded strings there are here. This is very error prone.
   private convertToUnifiedItems(
     items: (Task | SequencedTask | TaskStep)[],
   ): {
@@ -2657,11 +2362,18 @@ export class UnifiedScheduler {
   } {
     const unified: UnifiedScheduleItem[] = []
     const completedItemIds = new Set<string>()
+    const processedItemIds = new Set<string>() // Track all processed items to avoid duplicates
 
     for (const item of items) {
       if ('steps' in item && item.steps) {
         // SequencedTask - convert each step
         item.steps.forEach((step, index) => {
+          // Skip if we've already processed this step
+          if (processedItemIds.has(step.id)) {
+            return
+          }
+          processedItemIds.add(step.id)
+
           const isCompleted = step.status === 'completed'
 
           const unifiedItem = {
@@ -2692,6 +2404,12 @@ export class UnifiedScheduler {
           }
         })
       } else {
+        // Skip if we've already processed this item
+        if (processedItemIds.has(item.id)) {
+          continue
+        }
+        processedItemIds.add(item.id)
+
         // Regular Task or TaskStep
         const isCompleted = ('completed' in item && item.completed) || ('status' in item && item.status === 'completed')
 
@@ -2801,12 +2519,6 @@ export class UnifiedScheduler {
   }> {
     const utilization: Array<any> = []
 
-    // LOGGER_REMOVED: logger.scheduler.info('🔍 [BlockUtilization] Starting calculation', {
-      // scheduledCount: scheduled.length,
-      // patternCount: workPatterns.length,
-      // patternDates: workPatterns.map(p => p.date),
-    // })
-
     // Group scheduled items by date
     const itemsByDate = new Map<string, UnifiedScheduleItem[]>()
     scheduled.forEach(item => {
@@ -2824,21 +2536,8 @@ export class UnifiedScheduler {
       }
     })
 
-    // LOGGER_REMOVED: logger.scheduler.info('🔍 [BlockUtilization] Grouped scheduled items', {
-      // dates: Array.from(itemsByDate.keys()),
-      // itemsPerDate: Array.from(itemsByDate.entries()).map(([date, items]) => ({
-        // date,
-        // count: items.length,
-      // })),
-    // })
-
     // Calculate utilization for each work pattern
     workPatterns.forEach(pattern => {
-      // LOGGER_REMOVED: logger.scheduler.info('🔍 [BlockUtilization] Processing pattern', {
-        // LOGGER_REMOVED: date: pattern.date,
-        // LOGGER_REMOVED: blockCount: pattern.blocks?.length || 0,
-        // LOGGER_REMOVED: hasBlocks: !!pattern.blocks,
-      // LOGGER_REMOVED: })
       const dateItems = itemsByDate.get(pattern.date) || []
 
       pattern.blocks.forEach(block => {
@@ -2872,15 +2571,9 @@ export class UnifiedScheduler {
           utilization: Math.round(utilizationPercent),
         }
 
-        // LOGGER_REMOVED: logger.scheduler.info('🔍 [BlockUtilization] Added block', blockUtil)
         utilization.push(blockUtil)
       })
     })
-
-    // LOGGER_REMOVED: logger.scheduler.info('🔍 [BlockUtilization] Final result', {
-      // LOGGER_REMOVED: utilizationCount: utilization.length,
-      // LOGGER_REMOVED: utilizationBlocks: utilization,
-    // LOGGER_REMOVED: })
 
     return utilization
   }
