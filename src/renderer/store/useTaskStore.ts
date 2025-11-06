@@ -1332,13 +1332,37 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Call scheduler
       const scheduleResult = scheduler.scheduleForDisplay(items, context, config)
 
-      // Find all active wait blocks (ones that haven't expired yet)
+      // Find all active wait blocks and waiting steps
       const activeWaitBlocks = new Set<string>()
+      const waitingStepIds = new Set<string>()
+
+      // First, find all workflow steps that are in waiting status
+      for (const workflow of sequencedTasks) {
+        for (const step of workflow.steps) {
+          if (step.status === StepStatus.Waiting && step.completedAt && step.asyncWaitTime) {
+            // Check if wait time hasn't expired
+            const waitEndTime = new Date(step.completedAt).getTime() + (step.asyncWaitTime * 60000)
+            if (waitEndTime > currentTime.getTime()) {
+              waitingStepIds.add(step.id)
+              // Add both possible wait block IDs
+              activeWaitBlocks.add(`${step.id}-wait`)
+              activeWaitBlocks.add(`${step.id}-wait-future`)
+            }
+          }
+        }
+      }
+
+      // Also check scheduled wait blocks
       scheduleResult.scheduled.forEach(item => {
         if (item.type === 'async-wait' && item.endTime) {
           // Check if wait block is still active (hasn't expired)
           if (item.endTime.getTime() > currentTime.getTime()) {
             activeWaitBlocks.add(item.id)
+            // Extract the original step ID from wait block ID
+            const stepId = item.id.replace(/-wait(-future)?$/, '')
+            if (stepId !== item.id) {
+              waitingStepIds.add(stepId)
+            }
           }
         }
       })
@@ -1364,20 +1388,31 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           if (item.dependencies && item.dependencies.length > 0) {
             // If any dependency is an active wait block, filter this item out
             const hasActiveWaitDependency = item.dependencies.some(depId =>
-              activeWaitBlocks.has(depId)
+              activeWaitBlocks.has(depId),
             )
             if (hasActiveWaitDependency) {
               return false
             }
           }
 
-          // For workflow steps, check the actual step status
+          // For workflow steps, check the actual step status and dependencies
           if (item.type === 'workflow-step' && item.workflowId) {
             const workflow = sequencedTasks.find(seq => seq.id === item.workflowId)
             const step = workflow?.steps.find(s => s.id === item.id)
+
             // Filter out steps that are in waiting status
             if (step?.status === StepStatus.Waiting) {
               return false
+            }
+
+            // Also filter out if any dependency is a waiting step
+            if (step?.dependsOn && step.dependsOn.length > 0) {
+              const hasWaitingDependency = step.dependsOn.some(depId =>
+                waitingStepIds.has(depId)
+              )
+              if (hasWaitingDependency) {
+                return false
+              }
             }
           }
 
