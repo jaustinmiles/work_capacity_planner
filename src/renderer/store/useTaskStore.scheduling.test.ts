@@ -73,6 +73,11 @@ vi.mock('@shared/unified-scheduler', () => {
 
   return {
     UnifiedScheduler: vi.fn().mockImplementation(() => mockScheduler),
+    OptimizationMode: {
+      Realistic: 'realistic',
+      Optimal: 'optimal',
+      Conservative: 'conservative',
+    },
     __mockScheduler: mockScheduler,
   }
 })
