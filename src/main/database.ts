@@ -1321,7 +1321,7 @@ export class DatabaseService {
             const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
 
             // Use our unified capacity calculator - much simpler!
-            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null)
+            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.capacity?.splitRatio || null)
 
             return {
               id: crypto.randomUUID(),
@@ -1543,11 +1543,12 @@ export class DatabaseService {
         updatedAt: new Date(),
         WorkBlock: {
           create: (updates.blocks || []).map((b: any) => {
-            const { patternId: _patternId, id: _id, ...blockData } = b
+            const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
             return {
               id: crypto.randomUUID(),
               ...blockData,
-              capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+              totalCapacity: b.capacity?.totalMinutes || 0,
+              splitRatio: b.capacity?.splitRatio || null,
             }
           }),
         },
