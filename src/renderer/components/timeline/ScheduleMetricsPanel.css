@@ -212,41 +212,41 @@
   }
 }
 
-/* Dark Mode Support */
+/* Keep light theme even in dark mode for consistency */
 @media (prefers-color-scheme: dark) {
   .schedule-metrics-panel {
-    background: #1f1f1f;
+    background: #ffffff;
   }
 
   .metrics-header {
-    border-bottom-color: #303030;
+    border-bottom-color: #f0f0f0;
   }
 
   .value-number {
-    color: #ffffff;
+    color: #1f1f1f;
   }
 
   .stat-label,
   .metric-label {
-    color: #a0a0a0;
+    color: #595959;
   }
 
   .metric-card {
-    background: linear-gradient(135deg, #262626 0%, #1f1f1f 100%);
-    border-color: #303030;
+    background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+    border-color: #f0f0f0;
   }
 
   .metric-card:hover {
-    border-color: #404040;
+    border-color: #e0e0e0;
   }
 
   .metrics-warning {
-    background: #2a2111;
-    border-color: #4a3611;
+    background: #fff7e6;
+    border-color: #ffe7ba;
   }
 
   .metrics-info {
-    background: #111d2c;
-    border-color: #112a45;
+    background: #e6f7ff;
+    border-color: #bae7ff;
   }
 }

@@ -177,7 +177,13 @@ export interface SchedulingDebugInfo {
   deadlineAnalysis?: any
 }
 
-// REVIEW: as an example, I don't know where in the app a lot of this stuff is even used.
+/**
+ * Scheduling metrics used throughout the application:
+ * - ScheduleMetricsPanel.tsx: Displays metrics in the UI with cards and visualizations
+ * - GanttChart.tsx: Shows metrics alongside the timeline visualization
+ * - scheduler-metrics.ts: Calculates all these metrics from scheduled items
+ * - useUnifiedScheduler.ts: Hook that provides metrics to components
+ */
 export interface SchedulingMetrics {
   totalWorkDays?: number
   totalFocusedHours?: number
@@ -213,7 +219,11 @@ export interface SchedulingWarning {
   expectedDelay?: number
 }
 
-// REVIEW: surely this type is defined already elsewhere.
+/**
+ * Extended BlockCapacity for scheduling context.
+ * Different from capacity-calculator's BlockCapacity which only tracks totals.
+ * This includes runtime scheduling details like actual usage and time bounds.
+ */
 interface BlockCapacity {
   blockId: string
   blockType: WorkBlockType
@@ -259,8 +269,7 @@ export interface ScheduleConfig {
   includeWeekends?: boolean
   allowTaskSplitting?: boolean
   respectMeetings?: boolean
-  // REVIEW: can we use enums please
-  optimizationMode?: 'realistic' | 'optimal' | 'conservative'
+  optimizationMode?: OptimizationMode
   debugMode?: boolean
   maxDays?: number // Backwards compatibility
   currentTime?: Date // Optional current time for work block scheduling
@@ -554,7 +563,7 @@ export class UnifiedScheduler {
           // This prevents using "now" when scheduling future days
           const currentTimeToUse = (dayIndex === 0 && config.currentTime) ? config.currentTime : undefined
 
-          const fitResult = this.findBestBlockForItem(item, dayBlocks, scheduled, blockDate, currentTimeToUse)
+          const fitResult = this.findBestBlockForItem(item, dayBlocks, scheduled, currentTimeToUse)
 
           if (fitResult.canFit && fitResult.block) {
             // Schedule the full item
@@ -1145,8 +1154,6 @@ export class UnifiedScheduler {
     item: UnifiedScheduleItem,
     blocks: BlockCapacity[],
     scheduled: UnifiedScheduleItem[],
-    // REVIEW: what is the purpose of currentDate here? value unused.
-    currentDate: Date,
     currentTime?: Date,
   ): FitResult {
 

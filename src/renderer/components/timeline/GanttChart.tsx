@@ -12,7 +12,6 @@ import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInf
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { WorkScheduleModal } from '../settings/WorkScheduleModal'
-import { MultiDayScheduleEditor } from '../settings/MultiDayScheduleEditor'
 import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
@@ -66,7 +65,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
-  const [showMultiDayEditor, setShowMultiDayEditor] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
   const [schedulingMetrics, setSchedulingMetrics] = useState<SchedulingMetrics | null>(null)
@@ -938,14 +936,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     style={{ width: '100%' }}
                   >
                     {"Edit Today's Schedule"}
-                  </Button>
-                  <Button
-                    type="primary"
-                    icon={<IconCalendar />}
-                    onClick={() => setShowMultiDayEditor(true)}
-                    style={{ width: '100%' }}
-                  >
-                    Multi-Day Editor
                   </Button>
                   <Button
                     icon={<IconInfoCircle />}
@@ -1910,13 +1900,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           setShowSettings(false)
           setSelectedDate(null)
         }}
-      />
-
-      {/* Multi-Day Schedule Editor */}
-      <MultiDayScheduleEditor
-        visible={showMultiDayEditor}
-        onClose={() => setShowMultiDayEditor(false)}
-        onSave={() => loadWorkPatterns()}
       />
 
       {/* Scheduling Debug Info */}
