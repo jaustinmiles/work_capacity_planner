@@ -1042,8 +1042,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       set({ activeWorkSessions: newSessions })
       logger.system.info('[useTaskStore] Removed from active sessions', { sessionKey, workflowId: workflow?.id })
 
-      // Emit event immediately after clearing session to update UI
-      appEvents.emit(EVENTS.SESSION_CHANGED)
+      // Don't emit SESSION_CHANGED here - we'll emit TASK_UPDATED at the end which covers everything
 
       // Reload the sequenced task to get updated data
       const task = state.sequencedTasks.find(t =>
@@ -1088,8 +1087,8 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Check if any waiting steps have completed their wait time
       await get().checkAndCompleteExpiredWaitTimes()
 
-      // Emit final event to notify UI that task data has changed
-      appEvents.emit(EVENTS.TASK_UPDATED)
+      // Emit event to notify that a work session has ended (triggers next task load)
+      appEvents.emit(EVENTS.SESSION_CHANGED)
 
       logger.system.info('[useTaskStore] completeStep finished successfully')
     } catch (error) {

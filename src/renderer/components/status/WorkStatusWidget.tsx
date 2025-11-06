@@ -224,21 +224,21 @@ export function WorkStatusWidget() {
     // Removed interval-based refresh to reduce log spam
     // State changes are handled through event listeners
 
+    // Only update what's necessary for each event type
     const handleTimeLogged = () => {
-      loadWorkData()
-      loadNextTask()  // Reload next task when time is logged
+      loadWorkData()  // Only reload work data, not next task
     }
     const handleWorkflowUpdated = () => {
-      loadWorkData()
-      loadNextTask()  // Reload next task when workflow is updated
+      // Don't reload anything - the store state update will trigger re-render automatically
+      // This prevents unnecessary data fetching
     }
     const handleSessionChanged = () => {
-      loadWorkData()
-      loadNextTask()  // Reload next task when session changes
+      // Session changes need next task reload only
+      loadNextTask()
     }
     const handleDataRefresh = () => {
       loadWorkData()
-      loadNextTask()  // Reload next task when data refreshes
+      loadNextTask()  // Full refresh only when explicitly requested
     }
 
     appEvents.on(EVENTS.TIME_LOGGED, handleTimeLogged)
