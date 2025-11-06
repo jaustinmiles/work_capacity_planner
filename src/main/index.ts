@@ -1,70 +1,15 @@
-import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron'
+import { app, ipcMain, IpcMainInvokeEvent } from 'electron'
 import path from 'node:path'
 import { DatabaseService } from './database'
 import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
-import { LogScope, logger } from '../logger'
+import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
-import { ElectronTransport } from '../logger/core/transport'
 import type { Task } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
 
 // Get scoped logger for main process
 const mainLogger = getScopedLogger(LogScope.System)
-
-// Create electron transport (will be initialized when window is ready)
-const electronTransport = new ElectronTransport()
-
-
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (process.platform === 'win32') {
-  app.setAppUserModelId(app.getName())
-}
-
-let mainWindow: InstanceType<typeof BrowserWindow> | null = null
-
-async function createWindow(): Promise<void> {
-  // Prevent creating multiple windows
-  if (mainWindow) {
-    return
-  }
-
-  // Create the browser window.
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    show: false,
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, '../index.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  })
-
-  // Set up logger transport to forward logs to renderer
-  electronTransport.setWindow(mainWindow)
-  logger.addTransport(electronTransport)
-
-  mainWindow.on('ready-to-show', () => {
-    if (!mainWindow) {
-      throw new Error('"mainWindow" is not defined')
-    }
-    mainWindow.show()
-  })
-
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
-
-  // Load the app
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5174')
-    mainWindow.webContents.openDevTools()
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
-  }
-}
 
 // Initialize database service (declare it here for IPC handlers)
 let db: DatabaseService
@@ -79,21 +24,6 @@ app.whenReady().then(() => {
   mainLogger.info('Database path', { path: dbPath })
   mainLogger.info('Working directory', { cwd: process.cwd() })
   mainLogger.info('Main process initialized successfully')
-
-  createWindow()
-
-  app.on('activate', () => {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-})
-
-// Quit when all windows are closed, except on macOS.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
 })
 
 // IPC handlers for database operations
