@@ -11,15 +11,10 @@ import type { TaskStep } from '../shared/sequencing-types'
 // Get scoped logger for main process
 const mainLogger = getScopedLogger(LogScope.System)
 
-
-// Window creation is handled in electron.js to avoid duplicates
-// We only need to set up the database and IPC handlers here
-
 // Initialize database service (declare it here for IPC handlers)
 let db: DatabaseService
 
 // This method will be called when Electron has finished initialization
-// NOTE: Window creation is handled in electron.js to avoid duplicates
 app.whenReady().then(() => {
   // Initialize database service once when app is ready
   db = DatabaseService.getInstance()
@@ -29,23 +24,7 @@ app.whenReady().then(() => {
   mainLogger.info('Database path', { path: dbPath })
   mainLogger.info('Working directory', { cwd: process.cwd() })
   mainLogger.info('Main process initialized successfully')
-
-  // Window creation is handled in electron.js
-  // createWindow()
-
-  // app.on('activate', () => {
-  //   // On macOS it's common to re-create a window in the app when the
-  //   // dock icon is clicked and there are no other windows open.
-  //   if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  // })
 })
-
-// Quit when all windows are closed logic is in electron.js
-// app.on('window-all-closed', () => {
-//   if (process.platform !== 'darwin') {
-//     app.quit()
-//   }
-// })
 
 // IPC handlers for database operations
 // Session management handlers
