@@ -787,112 +787,15 @@ export class UnifiedScheduler {
   /**
    * Adjust schedule to respect existing meetings
    */
-  respectMeetings(
-    schedule: UnifiedScheduleItem[],
-    meetings: WorkMeeting[],
-  ): UnifiedScheduleItem[] {
-    if (meetings.length === 0) {
-      return schedule
-    }
-
-    const adjustedSchedule: UnifiedScheduleItem[] = []
-
-    for (const item of schedule) {
-      if (!item.startTime || !item.endTime) {
-        // Item has no timing, keep as-is
-        adjustedSchedule.push(item)
-        continue
-      }
-
-      let conflict = false
-      let conflictingMeeting: WorkMeeting | null = null
-
-      // Check if this scheduled item conflicts with any meeting
-      for (const meeting of meetings) {
-        if (this.hasTimeConflict(item, meeting)) {
-          conflict = true
-          conflictingMeeting = meeting
-          break
-        }
-      }
-
-      if (!conflict) {
-        // No conflict, keep item as-is
-        adjustedSchedule.push(item)
-      } else {
-        // Find next available time slot after the meeting
-        const adjustedItem = this.adjustItemForMeetingConflict(item, conflictingMeeting!, meetings)
-        adjustedSchedule.push(adjustedItem)
-      }
-    }
-
-    return adjustedSchedule
-  }
-
-  /**
-   * Check if a scheduled item conflicts with a meeting
-   */
-  private hasTimeConflict(item: UnifiedScheduleItem, meeting: WorkMeeting): boolean {
-    if (!item.startTime || !item.endTime) return false
-
-    // Parse meeting times (assuming same date as item for simplicity)
-    const [meetingStartHour, meetingStartMinute] = parseTimeString(meeting.startTime)
-    const [meetingEndHour, meetingEndMinute] = parseTimeString(meeting.endTime)
-
-    const meetingStart = new Date(item.startTime)
-    meetingStart.setHours(meetingStartHour, meetingStartMinute, 0, 0)
-
-    const meetingEnd = new Date(item.startTime)
-    meetingEnd.setHours(meetingEndHour, meetingEndMinute, 0, 0)
-
-    // Check for overlap: item starts before meeting ends AND item ends after meeting starts
-    return item.startTime < meetingEnd && item.endTime > meetingStart
-  }
-
-  /**
-   * Adjust an item's timing to avoid a meeting conflict
-   */
-  private adjustItemForMeetingConflict(
-    item: UnifiedScheduleItem,
-    conflictingMeeting: WorkMeeting,
-    allMeetings: WorkMeeting[],
-  ): UnifiedScheduleItem {
-    if (!item.startTime || !item.endTime) return item
-
-    // Parse meeting end time
-    const [meetingEndHour, meetingEndMinute] = parseTimeString(conflictingMeeting.endTime)
-
-    const meetingEnd = new Date(item.startTime)
-    meetingEnd.setHours(meetingEndHour, meetingEndMinute, 0, 0)
-
-    // Schedule item to start after the meeting ends
-    const newStartTime = new Date(meetingEnd)
-    const newEndTime = new Date(newStartTime.getTime() + item.duration * 60000)
-
-    const adjustedItem: UnifiedScheduleItem = {
-      ...item,
-      startTime: newStartTime,
-      endTime: newEndTime,
-    }
-
-    // Recursively check for conflicts with other meetings
-    for (const otherMeeting of allMeetings) {
-      if (otherMeeting.id !== conflictingMeeting.id && this.hasTimeConflict(adjustedItem, otherMeeting)) {
-        // Recursive call to handle cascading conflicts
-        return this.adjustItemForMeetingConflict(adjustedItem, otherMeeting, allMeetings)
-      }
-    }
-
-    return adjustedItem
-  }
 
   // ============================================================================
-  // OPTIMIZATION (from optimal-scheduler)
+  // OPTIMIZATION (from optimal-scheduler) - TEST ONLY
   // ============================================================================
 
   /**
    * Calculate optimal schedule ignoring capacity constraints
    * Uses algorithms from optimal-scheduler to find mathematically optimal arrangement
+   * @deprecated This method is only used in tests, not in production code
    */
   calculateOptimalSchedule(
     items: UnifiedScheduleItem[],
