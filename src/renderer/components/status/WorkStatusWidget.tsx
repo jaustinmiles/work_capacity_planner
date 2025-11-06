@@ -51,6 +51,7 @@ export function WorkStatusWidget() {
   const [nextTask, setNextTask] = useState<NextScheduledItem | null>(null)
   const [isLoadingNextTask, setIsLoadingNextTask] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0) // Force re-render on completion
 
   // Debug: Log when activeWorkSessions changes
   useEffect(() => {
@@ -403,11 +404,14 @@ export function WorkStatusWidget() {
       // Force a full refresh to ensure UI state consistency
       logger.ui.info('[WorkStatusWidget] Triggering full data refresh')
 
-      // Wait for store updates to complete
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Use the store's refreshAllData which properly updates everything
+      await useTaskStore.getState().refreshAllData()
 
-      // Trigger the unified refresh event
-      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      // Force component re-render
+      setRefreshKey(prev => prev + 1)
+
+      // Wait for state to propagate
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       // Reload next task after completing current one
       logger.ui.info('[WorkStatusWidget] Reloading next task')
@@ -479,10 +483,11 @@ export function WorkStatusWidget() {
 
               {(() => {
                 const activeSession = getActiveSession()
+                const hasActiveSession = activeSession && activeWorkSessions.size > 0
 
                 if (isLoadingNextTask) {
                   return <Text type="secondary">Loading...</Text>
-                } else if (activeSession) {
+                } else if (hasActiveSession) {
                   // Show active session details
                   return (
                     <Space direction="vertical" style={{ width: '100%' }}>
@@ -514,7 +519,7 @@ export function WorkStatusWidget() {
 
               {(() => {
                 const activeSession = getActiveSession()
-                const isActive = !!activeSession
+                const isActive = activeSession && activeWorkSessions.size > 0
 
                 // Render buttons based on active session state
                 if (isActive) {
@@ -612,10 +617,11 @@ export function WorkStatusWidget() {
 
             {(() => {
               const activeSession = getActiveSession()
+              const hasActiveSession = activeSession && activeWorkSessions.size > 0
 
               if (isLoadingNextTask) {
                 return <Text type="secondary">Loading...</Text>
-              } else if (activeSession) {
+              } else if (hasActiveSession) {
                 // Show active session details
                 return (
                   <Space direction="vertical" style={{ width: '100%' }}>
@@ -647,7 +653,7 @@ export function WorkStatusWidget() {
 
             {(() => {
               const activeSession = getActiveSession()
-              const isActive = !!activeSession
+              const isActive = activeSession && activeWorkSessions.size > 0
 
               // Render buttons based on active session state
               if (isActive) {
