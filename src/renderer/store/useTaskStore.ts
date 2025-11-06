@@ -1029,10 +1029,19 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       logger.system.info('[useTaskStore] Database update successful')
 
       // Remove from active sessions
+      // For workflow steps, the session key is the workflowId, not the stepId
+      const workflow = state.sequencedTasks.find(t =>
+        t.steps.some(s => s.id === stepId),
+      )
+      const sessionKey = workflow?.id || stepId  // Use workflowId if found, fallback to stepId
+
       const newSessions = new Map(state.activeWorkSessions)
-      newSessions.delete(stepId)
+      newSessions.delete(sessionKey)
       set({ activeWorkSessions: newSessions })
-      logger.system.info('[useTaskStore] Removed from active sessions')
+      logger.system.info('[useTaskStore] Removed from active sessions', { sessionKey, workflowId: workflow?.id })
+
+      // Emit event immediately after clearing session to update UI
+      appEvents.emit(EVENTS.SESSION_CHANGED)
 
       // Reload the sequenced task to get updated data
       const task = state.sequencedTasks.find(t =>
@@ -1070,11 +1079,15 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Reset skip index when a step is completed (to show the actual next task)
       get().resetNextTaskSkipIndex()
 
-      // Use unified refresh to ensure all data is consistent
-      await get().refreshAllData()
+      // Don't call refreshAllData here - we've already updated the state directly
+      // and emitted SESSION_CHANGED event. Calling refreshAllData causes unnecessary
+      // re-loading from database which can cause race conditions.
 
       // Check if any waiting steps have completed their wait time
       await get().checkAndCompleteExpiredWaitTimes()
+
+      // Emit final event to notify UI that task data has changed
+      appEvents.emit(EVENTS.TASK_UPDATED)
 
       logger.system.info('[useTaskStore] completeStep finished successfully')
     } catch (error) {

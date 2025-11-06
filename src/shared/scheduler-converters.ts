@@ -240,8 +240,9 @@ function isItemCompleted(item: Task | TaskStep): boolean {
   }
 
   // Check for status property (TaskStep)
-  if ('status' in item && item.status === 'completed') {
-    return true
+  if ('status' in item) {
+    // Both completed and waiting statuses mean the step doesn't need scheduling
+    return item.status === 'completed' || item.status === 'waiting'
   }
 
   return false

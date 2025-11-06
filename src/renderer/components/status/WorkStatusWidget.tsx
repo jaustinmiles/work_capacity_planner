@@ -242,12 +242,14 @@ export function WorkStatusWidget() {
     }
 
     appEvents.on(EVENTS.TIME_LOGGED, handleTimeLogged)
+    appEvents.on(EVENTS.TASK_UPDATED, handleWorkflowUpdated)  // Listen for task updates too
     appEvents.on(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
     appEvents.on(EVENTS.SESSION_CHANGED, handleSessionChanged)
     appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
 
     return () => {
       appEvents.off(EVENTS.TIME_LOGGED, handleTimeLogged)
+      appEvents.off(EVENTS.TASK_UPDATED, handleWorkflowUpdated)
       appEvents.off(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
       appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
       appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
@@ -400,19 +402,10 @@ export function WorkStatusWidget() {
         Message.success(`Completed task: ${activeSession.taskName || 'Task'}`)
       }
 
-      // Force a full refresh to ensure UI state consistency
-      logger.ui.info('[WorkStatusWidget] Triggering full data refresh')
-
-      // Use the store's refreshAllData which properly updates everything
-      await useTaskStore.getState().refreshAllData()
-
-      // Wait for state to propagate
-      await new Promise(resolve => setTimeout(resolve, 100))
-
-      // Reload next task after completing current one
-      logger.ui.info('[WorkStatusWidget] Reloading next task')
-      await loadNextTask()
-      logger.ui.info('[WorkStatusWidget] Next task loaded successfully')
+      // The completeStep method in the store already calls refreshAllData
+      // which emits DATA_REFRESH_NEEDED event. Our event listener will handle
+      // refreshing the UI, so we don't need to do it manually here.
+      logger.ui.info('[WorkStatusWidget] Task completion successful, UI will refresh via event')
     } catch (error) {
       logger.ui.error('Failed to complete current task', {
         error: error instanceof Error ? error.message : String(error),

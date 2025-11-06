@@ -135,7 +135,13 @@ export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMini
         const x = padding + (step.level * horizontalSpacing)
         const y = padding + (step.levelIndex * verticalSpacing)
         const isInProgress = step.status === 'in_progress' && isStepActivelyWorkedOn(step.id)
+        const isWaiting = step.status === 'waiting'
         const isFocused = step.type === TaskType.Focused
+
+        // Determine color based on status
+        let fillColor = isFocused ? '#165DFF' : '#00B42A'
+        if (isInProgress) fillColor = '#FF7D00'
+        else if (isWaiting) fillColor = '#FA8C16'  // Orange for waiting/timer active
 
         return (
           <g key={step.id}>
@@ -143,10 +149,10 @@ export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMini
               cx={x}
               cy={y}
               r={nodeSize / 2}
-              fill={isInProgress ? '#FF7D00' : (isFocused ? '#165DFF' : '#00B42A')}
-              stroke={isInProgress ? '#FF7D00' : (isFocused ? '#165DFF' : '#00B42A')}
-              strokeWidth={isInProgress ? '2' : '1'}
-              opacity={isInProgress ? 1 : 0.7}
+              fill={fillColor}
+              stroke={fillColor}
+              strokeWidth={isInProgress || isWaiting ? '2' : '1'}
+              opacity={isInProgress || isWaiting ? 1 : 0.7}
             />
             <text
               x={x}
@@ -159,6 +165,7 @@ export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMini
             >
               {index + 1}
             </text>
+            {/* Animated ring for in-progress */}
             {isInProgress && (
               <circle
                 cx={x}
@@ -177,6 +184,30 @@ export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMini
                   repeatCount="indefinite"
                 />
               </circle>
+            )}
+            {/* Clock icon indicator for waiting/timer active */}
+            {isWaiting && (
+              <>
+                <circle
+                  cx={x + nodeSize / 2}
+                  cy={y - nodeSize / 2}
+                  r="5"
+                  fill="#FA8C16"
+                  stroke="white"
+                  strokeWidth="1"
+                />
+                <text
+                  x={x + nodeSize / 2}
+                  y={y - nodeSize / 2}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="white"
+                  fontSize="8"
+                  fontWeight="bold"
+                >
+                  ⏱
+                </text>
+              </>
             )}
           </g>
         )
