@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
-import { TaskType, WorkBlockType } from '@shared/enums'
+import { TaskType, TaskStatus } from '@shared/enums'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconRefresh, IconPause } from '@arco-design/web-react/icon'
+import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconRefresh, IconPause, IconCheck } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { NextScheduledItem } from '@shared/types'
-import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
@@ -240,29 +239,6 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     return hours > 0 ? `${hours}h ${mins > 0 ? `${mins}m` : ''}` : `${mins}m`
   }
 
-  const getBlockDuration = (block: WorkBlock) => {
-    return calculateDuration(block.startTime, block.endTime)
-  }
-
-  const getBlockCapacity = (block: WorkBlock) => {
-    const duration = getBlockDuration(block)
-
-    if (block.capacity) {
-      return {
-        focusMinutes: getTotalCapacityForTaskType(block.capacity, TaskType.Focused),
-        adminMinutes: getTotalCapacityForTaskType(block.capacity, TaskType.Admin),
-      }
-    } else if (block.type === TaskType.Focused) {
-      return { focusMinutes: duration, adminMinutes: 0 }
-    } else if (block.type === TaskType.Admin) {
-      return { focusMinutes: 0, adminMinutes: duration }
-    } else if (block.type === WorkBlockType.Mixed) {
-      return { focusMinutes: duration / 2, adminMinutes: duration / 2 }
-    } else {
-      // flexible and universal blocks - full duration available for either type
-      return { focusMinutes: duration, adminMinutes: duration }
-    }
-  }
 
   // Tracking functions removed - functionality handled through time logging modal
 
@@ -313,6 +289,42 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     }
   }
 
+  const handleCompleteCurrentTask = async () => {
+    try {
+      const activeSession = getActiveSession()
+      if (!activeSession) {
+        logger.ui.warn('[WorkStatusWidget] No active session to complete')
+        return
+      }
+
+      setIsProcessing(true)
+
+      const store = useTaskStore.getState()
+
+      // Complete logic - both tasks and steps
+      if (activeSession.stepId) {
+        // For workflow steps, use completeStep
+        await store.completeStep(activeSession.stepId, activeSession.plannedMinutes)
+        Message.success(`Completed workflow step: ${activeSession.stepName || 'Step'}`)
+      } else if (activeSession.taskId) {
+        // For standalone tasks, mark as completed
+        await store.updateTask(activeSession.taskId, {
+          completed: true,
+          overallStatus: TaskStatus.Completed,
+        })
+        Message.success(`Completed task: ${activeSession.taskName || 'Task'}`)
+      }
+
+      // Reload next task after completing current one
+      await loadNextTask()
+    } catch (error) {
+      logger.ui.error('[WorkStatusWidget] Failed to complete current task:', error)
+      Message.error('Failed to complete task')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const handleStartNextTask = async () => {
     try {
       setIsProcessing(true)
@@ -340,9 +352,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       <Card>
         <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }} size="large">
           <Text type="secondary">No work schedule defined for today</Text>
-          <Button type="primary" onClick={onEditSchedule}>
-            Create Schedule
-          </Button>
+          {onEditSchedule && (
+            <Button type="primary" onClick={onEditSchedule}>
+              Create Schedule
+            </Button>
+          )}
 
           {/* Start Next Task section - works even without schedule */}
           <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
@@ -398,21 +412,50 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                 const activeSession = getActiveSession()
                 const isActive = !!activeSession
 
-                // Render button based on active session state
-
-                return (
-                  <Button
-                    type={isActive ? 'outline' : 'primary'}
-                    {...(isActive && { status: 'warning' as const })}
-                    icon={isActive ? <IconPause /> : <IconPlayArrow />}
-                    loading={isProcessing}
-                    disabled={(!nextTask && !isActive) || isLoadingNextTask}
-                    onClick={isActive ? handlePauseCurrentTask : handleStartNextTask}
-                    style={{ width: '100%' }}
-                  >
-                    {isActive ? 'Pause Current Task' : 'Start Next Task'}
-                  </Button>
-                )
+                // Render buttons based on active session state
+                if (isActive) {
+                  // Show both Pause and Complete buttons when task is running
+                  return (
+                    <Space style={{ width: '100%' }}>
+                      <Button
+                        type="outline"
+                        status="warning"
+                        icon={<IconPause />}
+                        loading={isProcessing}
+                        disabled={isLoadingNextTask}
+                        onClick={handlePauseCurrentTask}
+                        style={{ flex: 1 }}
+                      >
+                        Pause
+                      </Button>
+                      <Button
+                        type="primary"
+                        status="success"
+                        icon={<IconCheck />}
+                        loading={isProcessing}
+                        disabled={isLoadingNextTask}
+                        onClick={handleCompleteCurrentTask}
+                        style={{ flex: 1 }}
+                      >
+                        Complete
+                      </Button>
+                    </Space>
+                  )
+                } else {
+                  // Show Start button when no task is running
+                  return (
+                    <Button
+                      type="primary"
+                      icon={<IconPlayArrow />}
+                      loading={isProcessing}
+                      disabled={!nextTask || isLoadingNextTask}
+                      onClick={handleStartNextTask}
+                      style={{ width: '100%' }}
+                    >
+                      Start Next Task
+                    </Button>
+                  )
+                }
               })()}
             </Space>
           </div>
@@ -422,18 +465,29 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   }
 
   const totalCapacity = pattern.blocks.reduce((acc: any, block: WorkBlock) => {
-    const capacity = getBlockCapacity(block)
-    acc.focusMinutes += capacity.focusMinutes
-    acc.adminMinutes += capacity.adminMinutes
-    return acc
-  }, { focusMinutes: 0, adminMinutes: 0 })
+    // Skip blocks without capacity field - they shouldn't exist but be safe
+    if (!block.capacity) return acc
 
+    acc.focusMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Focused)
+    acc.adminMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Admin)
+    acc.personalMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Personal)
+    acc.flexibleMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Flexible)
+    return acc
+  }, { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0, flexibleMinutes: 0 })
+
+  // Calculate progress with ability to exceed 100% using flexible time
   const focusProgress = totalCapacity.focusMinutes > 0
     ? Math.round((accumulated.focused / totalCapacity.focusMinutes) * 100)
     : 0
   const adminProgress = totalCapacity.adminMinutes > 0
     ? Math.round((accumulated.admin / totalCapacity.adminMinutes) * 100)
     : 0
+
+  // Calculate how much flexible time has been used
+  const focusOverflow = Math.max(0, accumulated.focused - totalCapacity.focusMinutes)
+  const adminOverflow = Math.max(0, accumulated.admin - totalCapacity.adminMinutes)
+  const flexibleUsed = focusOverflow + adminOverflow
+  const flexibleRemaining = Math.max(0, totalCapacity.flexibleMinutes - flexibleUsed)
 
   return (
     <Card
@@ -443,37 +497,44 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
           <Text>Work Capacity - {dayjs().format('MMM D')}</Text>
         </Space>
       }
-      extra={
-        <Space>
-          {onEditSchedule && (
+    >
+      <Space direction="vertical" style={{ width: '100%' }} size="large">
+        {/* Edit Schedule Button */}
+        {onEditSchedule && (
+          <div style={{ marginBottom: 8 }}>
             <Button size="small" icon={<IconEdit />} onClick={onEditSchedule}>
               Edit Schedule
             </Button>
-          )}
-        </Space>
-      }
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
+          </div>
+        )}
         {/* Planned Capacity */}
         <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text style={{ fontWeight: 600 }}>{"Today's Planned Capacity"}</Text>
+            <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{"Today's Planned Capacity"}</Text>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text>🎯 Focus Time:</Text>
+              <Text style={{ whiteSpace: 'nowrap' }}>🎯 Focus Time:</Text>
               <Tag color="blue">{formatMinutes(totalCapacity.focusMinutes)}</Tag>
             </Space>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text>📋 Admin Time:</Text>
+              <Text style={{ whiteSpace: 'nowrap' }}>📋 Admin Time:</Text>
               <Tag color="orange">{formatMinutes(totalCapacity.adminMinutes)}</Tag>
             </Space>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text>🤝 Meeting Time:</Text>
+              <Text style={{ whiteSpace: 'nowrap' }}>🌱 Personal Time:</Text>
+              <Tag color="green">{formatMinutes(totalCapacity.personalMinutes)}</Tag>
+            </Space>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Text style={{ whiteSpace: 'nowrap' }}>🔄 Flexible Time:</Text>
+              <Tag color="gold">{formatMinutes(totalCapacity.flexibleMinutes)}</Tag>
+            </Space>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Text style={{ whiteSpace: 'nowrap' }}>🤝 Meeting Time:</Text>
               <Tag color="purple">{formatMinutes(meetingMinutes)}</Tag>
             </Space>
             <div style={{ borderTop: '1px solid #e5e5e5', marginTop: 8, paddingTop: 8 }}>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 100 }}>📊 Total Time:</Text>
-                <Tag color="green">{formatMinutes(totalCapacity.focusMinutes + totalCapacity.adminMinutes + meetingMinutes)}</Tag>
+                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 100, color: '#1D2129' }}>📊 Total Time:</Text>
+                <Tag color="default">{formatMinutes(totalCapacity.focusMinutes + totalCapacity.adminMinutes + totalCapacity.personalMinutes + totalCapacity.flexibleMinutes + meetingMinutes)}</Tag>
               </Space>
             </div>
           </Space>
@@ -512,8 +573,18 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                   </Space>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
                     {(() => {
-                      const capacity = getBlockCapacity(nextBlock)
-                      return `Capacity: ${formatMinutes(capacity.focusMinutes)} focus, ${formatMinutes(capacity.adminMinutes)} admin`
+                      if (!nextBlock.capacity) return 'No capacity data'
+                      const parts: string[] = []
+                      const focusMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Focused)
+                      const adminMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Admin)
+                      const personalMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Personal)
+                      const flexibleMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Flexible)
+
+                      if (focusMinutes > 0) parts.push(`${formatMinutes(focusMinutes)} focus`)
+                      if (adminMinutes > 0) parts.push(`${formatMinutes(adminMinutes)} admin`)
+                      if (personalMinutes > 0) parts.push(`${formatMinutes(personalMinutes)} personal`)
+                      if (flexibleMinutes > 0) parts.push(`${formatMinutes(flexibleMinutes)} flexible`)
+                      return `Capacity: ${parts.join(', ')}`
                     })()}
                   </Text>
                 </>
@@ -526,36 +597,76 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
         {/* Progress */}
         <div>
-          <Text type="secondary" style={{ marginBottom: '8px', display: 'block' }}>Completed Today</Text>
+          <Text type="secondary" style={{ marginBottom: '8px', display: 'block', whiteSpace: 'nowrap' }}>Completed Today</Text>
           <Space direction="vertical" style={{ width: '100%' }}>
             <div>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text>Focus</Text>
-                <Text>{formatMinutes(accumulated.focused)} / {formatMinutes(totalCapacity.focusMinutes)}</Text>
+                <Text style={{ whiteSpace: 'nowrap' }}>Focus</Text>
+                <Space>
+                  <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(accumulated.focused)} / {formatMinutes(totalCapacity.focusMinutes)}</Text>
+                  <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{focusProgress}%</Text>
+                </Space>
               </Space>
-              <Progress percent={focusProgress} color={focusProgress >= 100 ? '#00b42a' : '#165dff'} />
+              <Progress
+                percent={Math.min(focusProgress, 100)}
+                color={focusProgress >= 100 ? '#00b42a' : '#165dff'}
+              />
+              {focusOverflow > 0 && totalCapacity.flexibleMinutes > 0 && (
+                <Progress
+                  percent={Math.round(Math.min((focusOverflow / totalCapacity.flexibleMinutes) * 100, 100))}
+                  color='#FFA500'
+                  size='small'
+                  style={{ marginTop: 2 }}
+                />
+              )}
             </div>
             <div>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text>Admin</Text>
-                <Text>{formatMinutes(accumulated.admin)} / {formatMinutes(totalCapacity.adminMinutes)}</Text>
+                <Text style={{ whiteSpace: 'nowrap' }}>Admin</Text>
+                <Space>
+                  <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(accumulated.admin)} / {formatMinutes(totalCapacity.adminMinutes)}</Text>
+                  <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{adminProgress}%</Text>
+                </Space>
               </Space>
-              <Progress percent={adminProgress} color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'} />
+              <Progress
+                percent={Math.min(adminProgress, 100)}
+                color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'}
+              />
+              {adminOverflow > 0 && totalCapacity.flexibleMinutes > 0 && (
+                <Progress
+                  percent={Math.round(Math.min((adminOverflow / totalCapacity.flexibleMinutes) * 100, 100))}
+                  color='#FFA500'
+                  size='small'
+                  style={{ marginTop: 2 }}
+                />
+              )}
             </div>
             <div>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text>Personal</Text>
-                <Text>{formatMinutes(accumulated.personal)}</Text>
+                <Text style={{ whiteSpace: 'nowrap' }}>Personal</Text>
+                <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(accumulated.personal)}</Text>
               </Space>
               <Progress
                 percent={accumulated.personal > 0 ? 100 : 0}
                 color='#722ed1'
               />
             </div>
+            {totalCapacity.flexibleMinutes > 0 && (
+              <div>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Text style={{ whiteSpace: 'nowrap' }}>Flexible Time Used</Text>
+                  <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(flexibleUsed)} / {formatMinutes(totalCapacity.flexibleMinutes)}</Text>
+                </Space>
+                <Progress
+                  percent={Math.round((flexibleUsed / totalCapacity.flexibleMinutes) * 100)}
+                  color='#FFA500'
+                />
+              </div>
+            )}
             <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 600 }}>Total Logged</Text>
-                <Text style={{ fontWeight: 600 }}>
+                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1D2129' }}>Total Logged</Text>
+                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1D2129' }}>
                   {formatMinutes(accumulated.focused + accumulated.admin + accumulated.personal)}
                   {meetingMinutes > 0 && ` (+ ${formatMinutes(meetingMinutes)} meetings)`}
                 </Text>
@@ -576,6 +687,13 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             value={Math.max(0, totalCapacity.adminMinutes - accumulated.admin)}
             suffix="min"
           />
+          {totalCapacity.flexibleMinutes > 0 && (
+            <Statistic
+              title="Flexible Available"
+              value={flexibleRemaining}
+              suffix="min"
+            />
+          )}
         </Space>
 
         {/* Start Next Task */}
@@ -632,21 +750,50 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               const activeSession = getActiveSession()
               const isActive = !!activeSession
 
-              // Render button based on active session state
-
-              return (
-                <Button
-                  type={isActive ? 'outline' : 'primary'}
-                  {...(isActive && { status: 'warning' as const })}
-                  icon={isActive ? <IconPause /> : <IconPlayArrow />}
-                  loading={isProcessing}
-                  disabled={(!nextTask && !isActive) || isLoadingNextTask}
-                  onClick={isActive ? handlePauseCurrentTask : handleStartNextTask}
-                  style={{ width: '100%' }}
-                >
-                  {isActive ? 'Pause Current Task' : 'Start Next Task'}
-                </Button>
-              )
+              // Render buttons based on active session state
+              if (isActive) {
+                // Show both Pause and Complete buttons when task is running
+                return (
+                  <Space style={{ width: '100%' }}>
+                    <Button
+                      type="outline"
+                      status="warning"
+                      icon={<IconPause />}
+                      loading={isProcessing}
+                      disabled={isLoadingNextTask}
+                      onClick={handlePauseCurrentTask}
+                      style={{ flex: 1 }}
+                    >
+                      Pause
+                    </Button>
+                    <Button
+                      type="primary"
+                      status="success"
+                      icon={<IconCheck />}
+                      loading={isProcessing}
+                      disabled={isLoadingNextTask}
+                      onClick={handleCompleteCurrentTask}
+                      style={{ flex: 1 }}
+                    >
+                      Complete
+                    </Button>
+                  </Space>
+                )
+              } else {
+                // Show Start button when no task is running
+                return (
+                  <Button
+                    type="primary"
+                    icon={<IconPlayArrow />}
+                    loading={isProcessing}
+                    disabled={!nextTask || isLoadingNextTask}
+                    onClick={handleStartNextTask}
+                    style={{ width: '100%' }}
+                  >
+                    Start Next Task
+                  </Button>
+                )
+              }
             })()}
           </Space>
         </div>

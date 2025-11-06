@@ -8,6 +8,7 @@ import {
   WorkSessionData,
   minutesToTime,
   checkOverlap,
+  getTypeColor,
 } from './SessionState'
 import { useContainerQuery } from '../../hooks/useContainerQuery'
 import { useResponsive } from '../../providers/ResponsiveProvider'
@@ -181,15 +182,13 @@ export function SwimLaneTimeline({
 
   // Toggle workflow expansion
   const toggleWorkflow = (taskId: string) => {
-    setExpandedWorkflows(prev => {
-      const next = new Set(prev)
-      if (next.has(taskId)) {
-        next.delete(taskId)
-      } else {
-        next.add(taskId)
-      }
-      return next
-    })
+    const next = new Set(expandedWorkflows)
+    if (next.has(taskId)) {
+      next.delete(taskId)
+    } else {
+      next.add(taskId)
+    }
+    setExpandedWorkflows(next)
   }
 
   // Build swim lanes with collapsible workflows
@@ -292,8 +291,8 @@ export function SwimLaneTimeline({
     const meetingSessions: WorkSessionData[] = meetings.map(meeting => {
       const [startHour, startMin] = meeting.startTime.split(':').map(Number)
       const [endHour, endMin] = meeting.endTime.split(':').map(Number)
-      const startMinutes = startHour * 60 + startMin
-      const endMinutes = endHour * 60 + endMin
+      const startMinutes = (startHour ?? 0) * 60 + (startMin ?? 0)
+      const endMinutes = (endHour ?? 0) * 60 + (endMin ?? 0)
 
       return {
         id: `meeting-${meeting.id}`,
@@ -304,8 +303,8 @@ export function SwimLaneTimeline({
         type: TaskType.Admin, // Use Admin type for meetings
         isDragging: false,
         color: meeting.type === 'meeting' ? '#722ed1' :
-               meeting.type === 'break' ? '#13c2c2' :
-               meeting.type === 'personal' ? '#52c41a' : '#8c8c8c',
+          meeting.type === 'break' ? '#13c2c2' :
+            meeting.type === 'personal' ? '#52c41a' : '#8c8c8c',
       }
     })
 
@@ -315,6 +314,19 @@ export function SwimLaneTimeline({
       sessions: meetingSessions,
       isMeeting: true,
     })
+  }
+
+  // Helper function to get task type from task ID and optional step ID
+  const getTaskType = (taskId: string, stepId?: string): TaskType => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return TaskType.Focused // Default fallback
+
+    if (stepId && task.hasSteps && task.steps) {
+      const step = task.steps.find(s => s.id === stepId)
+      if (step) return step.type
+    }
+
+    return task.type
   }
 
   // Handle drag start
@@ -368,7 +380,7 @@ export function SwimLaneTimeline({
     const x = e.clientX - timelineRect.left + TIME_LABEL_WIDTH
     setCreatingSession({
       taskId,
-      stepId,
+      ...(stepId !== undefined && { stepId }),
       startX: x,
       currentX: x,
     })
@@ -386,15 +398,19 @@ export function SwimLaneTimeline({
           const newEnd = dragState.initialEndMinutes + deltaMinutes
 
           if (newStart >= START_HOUR * 60 && newEnd <= END_HOUR * 60) {
+            // Get the actual session to preserve its properties
+            const currentSession = sessions.find(s => s.id === dragState.sessionId)
+            if (!currentSession) return
+
             // Check for overlaps
             const movedSession: WorkSessionData = {
               id: dragState.sessionId,
-              taskId: '',
-              taskName: '',
+              taskId: currentSession.taskId,
+              taskName: currentSession.taskName,
               startMinutes: newStart,
               endMinutes: newEnd,
-              type: TaskType.Focused,
-              color: '',
+              type: currentSession.type,
+              color: currentSession.color,
             }
 
             if (!checkOverlap(movedSession, sessions, dragState.sessionId)) {
@@ -404,14 +420,18 @@ export function SwimLaneTimeline({
         } else if (dragState.edge === 'start') {
           const newStart = dragState.initialStartMinutes + deltaMinutes
           if (newStart >= START_HOUR * 60 && newStart < dragState.initialEndMinutes) {
+            // Get the actual session to preserve its properties
+            const currentSession = sessions.find(s => s.id === dragState.sessionId)
+            if (!currentSession) return
+
             const resizedSession: WorkSessionData = {
               id: dragState.sessionId,
-              taskId: '',
-              taskName: '',
+              taskId: currentSession.taskId,
+              taskName: currentSession.taskName,
               startMinutes: newStart,
               endMinutes: dragState.initialEndMinutes,
-              type: TaskType.Focused,
-              color: '',
+              type: currentSession.type,
+              color: currentSession.color,
             }
 
             if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
@@ -421,14 +441,18 @@ export function SwimLaneTimeline({
         } else if (dragState.edge === 'end') {
           const newEnd = dragState.initialEndMinutes + deltaMinutes
           if (newEnd <= END_HOUR * 60 && newEnd > dragState.initialStartMinutes) {
+            // Get the actual session to preserve its properties
+            const currentSession = sessions.find(s => s.id === dragState.sessionId)
+            if (!currentSession) return
+
             const resizedSession: WorkSessionData = {
               id: dragState.sessionId,
-              taskId: '',
-              taskName: '',
+              taskId: currentSession.taskId,
+              taskName: currentSession.taskName,
               startMinutes: dragState.initialStartMinutes,
               endMinutes: newEnd,
-              type: TaskType.Focused,
-              color: '',
+              type: currentSession.type,
+              color: currentSession.color,
             }
 
             if (!checkOverlap(resizedSession, sessions, dragState.sessionId)) {
@@ -460,17 +484,21 @@ export function SwimLaneTimeline({
         const startMinutes = pixelsToMinutes(Math.min(creatingSession.startX, creatingSession.currentX))
         const endMinutes = pixelsToMinutes(Math.max(creatingSession.startX, creatingSession.currentX))
 
-if (endMinutes - startMinutes >= 15) {
+        if (endMinutes - startMinutes >= 15) {
+          // Get the correct task type
+          const taskType = getTaskType(creatingSession.taskId, creatingSession.stepId)
+          const taskColor = getTypeColor(taskType)
+
           // Check for overlaps with existing sessions
           const newSession: WorkSessionData = {
             id: 'temp-new',
             taskId: creatingSession.taskId,
             taskName: '',
-            stepId: creatingSession.stepId,
+            ...(creatingSession.stepId !== undefined && { stepId: creatingSession.stepId }),
             startMinutes,
             endMinutes,
-            type: TaskType.Focused, // Will be set by parent
-            color: '',
+            type: taskType,
+            color: taskColor,
           }
 
           // Only check overlaps for sessions on the same lane
@@ -479,7 +507,7 @@ if (endMinutes - startMinutes >= 15) {
             (!creatingSession.stepId && s.taskId === creatingSession.taskId && !s.stepId),
           )
 
-if (!checkOverlap(newSession, laneSessions)) {
+          if (!checkOverlap(newSession, laneSessions)) {
             onSessionCreate(
               creatingSession.taskId,
               startMinutes,
@@ -564,497 +592,497 @@ if (!checkOverlap(newSession, laneSessions)) {
           maxWidth: '100%',
         }}
       >
-      {/* Time axis header */}
-      <div
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 10,
-          background: 'white',
-          borderBottom: '1px solid #e5e6eb',
-          height: 40,
-          display: 'flex',
-        }}
-      >
+        {/* Time axis header */}
         <div
           style={{
-            width: TIME_LABEL_WIDTH,
-            minWidth: TIME_LABEL_WIDTH,
-            borderRight: '1px solid #e5e6eb',
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            background: 'white',
+            borderBottom: '1px solid #e5e6eb',
+            height: 40,
             display: 'flex',
-            alignItems: 'center',
-            paddingLeft: 8,
-            flexShrink: 0,
           }}
         >
-          <Text style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Tasks</Text>
-        </div>
-        <div style={{
-          position: 'relative',
-          width: TOTAL_HOURS * hourWidth, // Let timeline be its natural width
-          minWidth: TOTAL_HOURS * hourWidth,
-          overflow: 'visible', // Allow content to be visible for scrolling
-          flexShrink: 0, // Prevent flex from shrinking the timeline
-        }}>
-          {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => {
-            const dayIndex = Math.floor(i / HOURS_PER_DAY) // 0 = yesterday, 1 = today, 2 = tomorrow
-            const hourInDay = i % HOURS_PER_DAY
-            const actualHour = START_HOUR + hourInDay
-
-            const today = new Date()
-            const displayDate = new Date(today)
-            displayDate.setDate(today.getDate() + (dayIndex - 1)) // -1, 0, +1 days
-
-            const dayLabel = dayIndex === 0 ? 'Yesterday' :
-                           dayIndex === 1 ? 'Today' : 'Tomorrow'
-
-            return (
-              <div
-                key={i}
-                style={{
-                  position: 'absolute',
-                  left: i * hourWidth,
-                  top: 0,
-                  height: '100%',
-                  width: Math.max(hourWidth, 40), // Ensure minimum column width
-                  borderLeft: i % HOURS_PER_DAY === 0 ? '2px solid #165DFF' : '1px solid #e5e6eb',
-                  paddingLeft: 4,
-                  display: 'flex',
-                  alignItems: 'center',
-                  flexDirection: 'column',
-                  background: i % HOURS_PER_DAY === 0 ? '#f5f7fa' : 'transparent',
-                  boxSizing: 'border-box',
-                }}
-              >
-                {i % HOURS_PER_DAY === 0 && (
-                  <Text style={{ fontSize: headerFontSize, color: '#165DFF', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                    {dayLabel}
-                  </Text>
-                )}
-                <Text style={{ fontSize: timeFontSize, color: '#86909c', whiteSpace: 'nowrap' }}>
-                  {actualHour.toString().padStart(2, '0')}:00
-                </Text>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Swim lanes */}
-      <div style={{ position: 'relative' }}>
-        {/* Now marker - continuous overlay across all lanes */}
-        {(() => {
-          const nowHours = currentTime.getHours() + currentTime.getMinutes() / 60
-          if (nowHours >= START_HOUR && nowHours <= END_HOUR) {
-            const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
-            const nowLeft = minutesToPixels(nowMinutes) - TIME_LABEL_WIDTH
-            return (
-              <div
-                style={{
-                  position: 'absolute',
-                  left: TIME_LABEL_WIDTH + nowLeft,
-                  top: 0,
-                  bottom: 0,
-                  width: 2,
-                  backgroundColor: '#ff4d4f',
-                  zIndex: 20,
-                  pointerEvents: 'none',
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: -4,
-                    left: -4,
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    backgroundColor: '#ff4d4f',
-                  }}
-                />
-              </div>
-            )
-          }
-          return null
-        })()}
-
-        {swimLanes.map((lane) => (
           <div
-            key={lane.id}
             style={{
-              height: laneHeight,
-              minHeight: laneHeight,
-              maxHeight: laneHeight,
-              borderBottom: '1px solid #e5e6eb',
+              width: TIME_LABEL_WIDTH,
+              minWidth: TIME_LABEL_WIDTH,
+              borderRight: '1px solid #e5e6eb',
               display: 'flex',
-              position: 'relative',
-              width: TIME_LABEL_WIDTH + TOTAL_HOURS * hourWidth,
-              minWidth: TIME_LABEL_WIDTH + TOTAL_HOURS * hourWidth,
+              alignItems: 'center',
+              paddingLeft: 8,
+              flexShrink: 0,
             }}
           >
-            {/* Task name */}
-            <div
-              style={{
-                width: TIME_LABEL_WIDTH,
-                minWidth: TIME_LABEL_WIDTH,
-                borderRight: '1px solid #e5e6eb',
-                padding: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                background: lane.isWorkflow ? '#f5f7fa' : 'white',
-                position: 'sticky',
-                left: 0,
-                zIndex: 5,
-                paddingLeft: lane.indent ? 24 : 4,
-                flexShrink: 0,
-              }}
-            >
-              {lane.isWorkflow && (
-                <Button
-                  size="mini"
-                  type="text"
-                  icon={lane.isExpanded ? <IconDown /> : <IconRight />}
-                  onClick={() => toggleWorkflow(lane.taskId!)}
-                  style={{
-                    minWidth: 20,
-                    width: 20,
-                    height: 20,
-                    padding: 0,
-                    marginRight: 4,
-                  }}
-                />
-              )}
-              <Tooltip content={lane.name}>
-                <Text
-                  style={{
-                    fontSize: sessionFontSize,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    fontWeight: lane.isWorkflow ? 'bold' : 'normal',
-                  }}
-                >
-                  {lane.name}
-                </Text>
-              </Tooltip>
-            </div>
+            <Text style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>Tasks</Text>
+          </div>
+          <div style={{
+            position: 'relative',
+            width: TOTAL_HOURS * hourWidth, // Let timeline be its natural width
+            minWidth: TOTAL_HOURS * hourWidth,
+            overflow: 'visible', // Allow content to be visible for scrolling
+            flexShrink: 0, // Prevent flex from shrinking the timeline
+          }}>
+            {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => {
+              const dayIndex = Math.floor(i / HOURS_PER_DAY) // 0 = yesterday, 1 = today, 2 = tomorrow
+              const hourInDay = i % HOURS_PER_DAY
+              const actualHour = START_HOUR + hourInDay
 
-            {/* Timeline area */}
-            <div
-              className="swim-lane"
-              style={{
-                width: TOTAL_HOURS * hourWidth, // Let timeline be its natural width
-                minWidth: TOTAL_HOURS * hourWidth,
-                position: 'relative',
-                cursor: 'crosshair',
-                overflow: 'visible', // Allow content to be visible for scrolling
-                flexShrink: 0, // Prevent flex container from shrinking this
-              }}
-              onMouseDown={(e) => {
-                // Don't allow creating on meetings lane
-                if (lane.isMeeting) {
-                  return
-                }
+              const today = new Date()
+              const displayDate = new Date(today)
+              displayDate.setDate(today.getDate() + (dayIndex - 1)) // -1, 0, +1 days
 
-                // Don't allow creating on collapsed workflow lanes - user should expand first
-                if (lane.isWorkflow && !lane.isExpanded) {
-                  return
-                }
+              const dayLabel = dayIndex === 0 ? 'Yesterday' :
+                dayIndex === 1 ? 'Today' : 'Tomorrow'
 
-                // Use the taskId and stepId directly from the lane object
-                if (lane.taskId) {
-                  handleLaneMouseDown(e, lane.taskId, lane.stepId)
-                }
-              }}
-            >
-              {/* Circadian Rhythm Curve */}
-              {showCircadianRhythm && (
-                <svg
-                  style={{
-                    position: 'absolute',
-                    left: TIME_LABEL_WIDTH,
-                    top: 0,
-                    width: TOTAL_HOURS * hourWidth,
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 0,
-                  }}
-                >
-                  <defs>
-                    <linearGradient id="circadianGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#FFD700" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#FFD700" stopOpacity="0.05" />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Generate smooth curve path */}
-                  <path
-                    d={(() => {
-                      const points: string[] = []
-                      const height = 400 // Fixed height for the curve
-                      const samples = 100 // Number of points for smooth curve
-
-                      for (let i = 0; i <= samples; i++) {
-                        const hour = START_HOUR + (i / samples) * TOTAL_HOURS
-                        const x = (i / samples) * TOTAL_HOURS * hourWidth
-                        const energy = getCircadianEnergy(hour)
-                        // Invert Y and scale to use bottom 60% of height
-                        const y = height - (energy * height * 0.6)
-
-                        if (i === 0) {
-                          points.push(`M ${x} ${y}`)
-                        } else {
-                          // Use line for smooth curve (with many points it appears smooth)
-                          points.push(`L ${x} ${y}`)
-                        }
-                      }
-
-                      // Close the path to create filled area
-                      points.push(`L ${TOTAL_HOURS * hourWidth} ${height}`)
-                      points.push(`L 0 ${height}`)
-                      points.push('Z')
-
-                      return points.join(' ')
-                    })()}
-                    fill="url(#circadianGradient)"
-                    stroke="#FFD700"
-                    strokeWidth="2"
-                    opacity="0.7"
-                  />
-
-                  {/* Add curve line on top for clarity */}
-                  <path
-                    d={(() => {
-                      const points: string[] = []
-                      const height = 400 // Fixed height for the curve
-                      const samples = 100
-
-                      for (let i = 0; i <= samples; i++) {
-                        const hour = START_HOUR + (i / samples) * TOTAL_HOURS
-                        const x = (i / samples) * TOTAL_HOURS * hourWidth
-                        const energy = getCircadianEnergy(hour)
-                        const y = height - (energy * height * 0.6)
-
-                        if (i === 0) {
-                          points.push(`M ${x} ${y}`)
-                        } else {
-                          points.push(`L ${x} ${y}`)
-                        }
-                      }
-
-                      return points.join(' ')
-                    })()}
-                    fill="none"
-                    stroke="#FFA500"
-                    strokeWidth="2"
-                    opacity="0.8"
-                  />
-
-                  {/* Peak and dip labels */}
-                  <text
-                    x={4 * hourWidth}
-                    y={20}
-                    fill="#FF8C00"
-                    fontSize="11"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                  >
-                    Morning Peak
-                  </text>
-                  <text
-                    x={10 * hourWidth}
-                    y={20}
-                    fill="#FF8C00"
-                    fontSize="11"
-                    fontWeight="bold"
-                    textAnchor="middle"
-                  >
-                    Afternoon Peak
-                  </text>
-                  <text
-                    x={7.5 * hourWidth}
-                    y={380}
-                    fill="#4169E1"
-                    fontSize="11"
-                    textAnchor="middle"
-                  >
-                    Post-lunch Dip
-                  </text>
-                </svg>
-              )}
-
-              {/* Hour grid lines */}
-              {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => (
+              return (
                 <div
                   key={i}
                   style={{
                     position: 'absolute',
                     left: i * hourWidth,
                     top: 0,
-                    bottom: 0,
-                    width: 0,
-                    borderLeft: '1px solid #f0f0f0',
+                    height: '100%',
+                    width: Math.max(hourWidth, 40), // Ensure minimum column width
+                    borderLeft: i % HOURS_PER_DAY === 0 ? '2px solid #165DFF' : '1px solid #e5e6eb',
+                    paddingLeft: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    flexDirection: 'column',
+                    background: i % HOURS_PER_DAY === 0 ? '#f5f7fa' : 'transparent',
+                    boxSizing: 'border-box',
                   }}
-                />
-              ))}
+                >
+                  {i % HOURS_PER_DAY === 0 && (
+                    <Text style={{ fontSize: headerFontSize, color: '#165DFF', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                      {dayLabel}
+                    </Text>
+                  )}
+                  <Text style={{ fontSize: timeFontSize, color: '#86909c', whiteSpace: 'nowrap' }}>
+                    {actualHour.toString().padStart(2, '0')}:00
+                  </Text>
+                </div>
+              )
+            })}
+          </div>
+        </div>
 
-              {/* Sessions */}
-              {lane.sessions.map((session, sessionIndex) => {
-                const left = minutesToPixels(session.startMinutes)
-                const actualWidth = (session.endMinutes - session.startMinutes) / 60 * hourWidth
-                // Use minimum visual width of 20px for very short sessions (for clickability)
-                // But don't mislead - the tooltip shows the accurate time
-                const width = Math.max(actualWidth, 20)
-                const isSelected = session.id === selectedSessionId
-                const isHovered = session.id === hoveredSession
-                const isMeetingSession = session.id.startsWith('meeting-')
-
-                const sessionKey = `${lane.id}-${session.id}-${sessionIndex}`
-
-                return (
-                  <div
-                    key={sessionKey}
-                    style={{
-                      position: 'absolute',
-                      left: left - TIME_LABEL_WIDTH,
-                      top: Math.max(2, 4 * zoomFactor),
-                      bottom: Math.max(2, 4 * zoomFactor),
-                      width,
-                      background: isMeetingSession
-                        ? '#722ed1aa'
-                        : session.completed
-                        ? `repeating-linear-gradient(45deg, ${session.color}33, ${session.color}33 10px, ${session.color}55 10px, ${session.color}55 20px)`
-                        : session.color + (isSelected ? '33' : '22'),
-                      border: `${Math.max(1, 2 * zoomFactor)}px solid ${isMeetingSession ? '#722ed1' : session.color}`,
-                      borderRadius: isMeetingSession ? 8 : Math.max(2, 4 * zoomFactor),
-                      cursor: isMeetingSession ? 'default' : 'move',
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: `0 ${Math.max(2, 4 * zoomFactor)}px`,
-                      overflow: 'hidden',
-                      boxShadow: isHovered ? '0 2px 8px rgba(0,0,0,0.15)' : undefined,
-                      transition: 'box-shadow 0.2s',
-                      opacity: session.completed ? 0.8 : 1,
-                    }}
-                    onMouseDown={isMeetingSession ? undefined : (e) => handleMouseDown(e, session.id, 'move')}
-                    onMouseEnter={() => setHoveredSession(session.id)}
-                    onMouseLeave={() => setHoveredSession(null)}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onSessionSelect(session.id)
-                    }}
-                  >
-                    {/* Resize handles - only show when selected and not a meeting */}
-                    {isSelected && !isMeetingSession && (
-                      <>
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            bottom: 0,
-                            width: 8,
-                            cursor: 'ew-resize',
-                            background: 'rgba(255,255,255,0.5)',
-                            borderLeft: `2px solid ${session.color}`,
-                            zIndex: 10,
-                          }}
-                          onMouseDown={(e) => handleMouseDown(e, session.id, 'start')}
-                        />
-                        <div
-                          style={{
-                            position: 'absolute',
-                            right: 0,
-                            top: 0,
-                            bottom: 0,
-                            width: 8,
-                            cursor: 'ew-resize',
-                            background: 'rgba(255,255,255,0.5)',
-                            borderRight: `2px solid ${session.color}`,
-                            zIndex: 10,
-                          }}
-                          onMouseDown={(e) => handleMouseDown(e, session.id, 'end')}
-                        />
-                      </>
-                    )}
-
-                    {/* Session content */}
-                    <Tooltip
-                      content={
-                        <div>
-                          <div style={{ fontWeight: 'bold' }}>{session.taskName}</div>
-                          {session.stepName && <div>{session.stepName}</div>}
-                          <div>
-                            {minutesToTime(session.startMinutes)} - {minutesToTime(session.endMinutes)}
-                          </div>
-                          <div style={{ fontWeight: 'bold' }}>
-                            {session.endMinutes - session.startMinutes} minutes
-                            ({Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10} hours)
-                          </div>
-                          {width > actualWidth && (
-                            <div style={{ color: '#faad14', marginTop: 4, fontSize: 11 }}>
-                              ℹ️ Expanded for visibility (zoom in to see actual size)
-                            </div>
-                          )}
-                          {isMeetingSession && <div style={{ marginTop: 4, fontStyle: 'italic' }}>Meeting/Event</div>}
-                        </div>
-                      }
-                    >
-                      <Text
-                        style={{
-                          fontSize: sessionFontSize,
-                          color: isMeetingSession ? 'white' : 'white',
-                          fontWeight: isMeetingSession ? 600 : 500,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: Math.max(2, 4 * zoomFactor),
-                        }}
-                      >
-                        {isMeetingSession && width > 30 ? (
-                          <>
-                            {width > 80 && session.taskName}
-                            {width > 50 && width <= 80 && `${session.taskName.substring(0, 8)}...`}
-                            {width <= 50 && `${session.endMinutes - session.startMinutes}m`}
-                          </>
-                        ) : (
-                          <>
-                            {width > 100 && session.taskName}
-                            {width > 60 && width <= 100 && `${session.endMinutes - session.startMinutes}m`}
-                            {width <= 60 && `${session.endMinutes - session.startMinutes}m`}
-                          </>
-                        )}
-                      </Text>
-                    </Tooltip>
-                  </div>
-                )
-              })}
-
-              {/* Creating session preview */}
-              {creatingSession && (
-                (creatingSession.stepId && lane.id === `${creatingSession.taskId}-${creatingSession.stepId}`) ||
-                (!creatingSession.stepId && lane.id === creatingSession.taskId)
-              ) && (
+        {/* Swim lanes */}
+        <div style={{ position: 'relative' }}>
+          {/* Now marker - continuous overlay across all lanes */}
+          {(() => {
+            const nowHours = currentTime.getHours() + currentTime.getMinutes() / 60
+            if (nowHours >= START_HOUR && nowHours <= END_HOUR) {
+              const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
+              const nowLeft = minutesToPixels(nowMinutes) - TIME_LABEL_WIDTH
+              return (
                 <div
                   style={{
                     position: 'absolute',
-                    left: Math.min(creatingSession.startX, creatingSession.currentX) - TIME_LABEL_WIDTH,
-                    top: 4,
-                    bottom: 4,
-                    width: Math.abs(creatingSession.currentX - creatingSession.startX),
-                    background: '#165DFF22',
-                    border: '2px dashed #165DFF',
-                    borderRadius: 4,
+                    left: TIME_LABEL_WIDTH + nowLeft,
+                    top: 0,
+                    bottom: 0,
+                    width: 2,
+                    backgroundColor: '#ff4d4f',
+                    zIndex: 20,
                     pointerEvents: 'none',
                   }}
-                />
-              )}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      left: -4,
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      backgroundColor: '#ff4d4f',
+                    }}
+                  />
+                </div>
+              )
+            }
+            return null
+          })()}
+
+          {swimLanes.map((lane) => (
+            <div
+              key={lane.id}
+              style={{
+                height: laneHeight,
+                minHeight: laneHeight,
+                maxHeight: laneHeight,
+                borderBottom: '1px solid #e5e6eb',
+                display: 'flex',
+                position: 'relative',
+                width: TIME_LABEL_WIDTH + TOTAL_HOURS * hourWidth,
+                minWidth: TIME_LABEL_WIDTH + TOTAL_HOURS * hourWidth,
+              }}
+            >
+              {/* Task name */}
+              <div
+                style={{
+                  width: TIME_LABEL_WIDTH,
+                  minWidth: TIME_LABEL_WIDTH,
+                  borderRight: '1px solid #e5e6eb',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: lane.isWorkflow ? '#f5f7fa' : 'white',
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 5,
+                  paddingLeft: lane.indent ? 24 : 4,
+                  flexShrink: 0,
+                }}
+              >
+                {lane.isWorkflow && (
+                  <Button
+                    size="mini"
+                    type="text"
+                    icon={lane.isExpanded ? <IconDown /> : <IconRight />}
+                    onClick={() => toggleWorkflow(lane.taskId!)}
+                    style={{
+                      minWidth: 20,
+                      width: 20,
+                      height: 20,
+                      padding: 0,
+                      marginRight: 4,
+                    }}
+                  />
+                )}
+                <Tooltip content={lane.name}>
+                  <Text
+                    style={{
+                      fontSize: sessionFontSize,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontWeight: lane.isWorkflow ? 'bold' : 'normal',
+                    }}
+                  >
+                    {lane.name}
+                  </Text>
+                </Tooltip>
+              </div>
+
+              {/* Timeline area */}
+              <div
+                className="swim-lane"
+                style={{
+                  width: TOTAL_HOURS * hourWidth, // Let timeline be its natural width
+                  minWidth: TOTAL_HOURS * hourWidth,
+                  position: 'relative',
+                  cursor: 'crosshair',
+                  overflow: 'visible', // Allow content to be visible for scrolling
+                  flexShrink: 0, // Prevent flex container from shrinking this
+                }}
+                onMouseDown={(e) => {
+                  // Don't allow creating on meetings lane
+                  if (lane.isMeeting) {
+                    return
+                  }
+
+                  // Don't allow creating on collapsed workflow lanes - user should expand first
+                  if (lane.isWorkflow && !lane.isExpanded) {
+                    return
+                  }
+
+                  // Use the taskId and stepId directly from the lane object
+                  if (lane.taskId) {
+                    handleLaneMouseDown(e, lane.taskId, lane.stepId)
+                  }
+                }}
+              >
+                {/* Circadian Rhythm Curve */}
+                {showCircadianRhythm && (
+                  <svg
+                    style={{
+                      position: 'absolute',
+                      left: TIME_LABEL_WIDTH,
+                      top: 0,
+                      width: TOTAL_HOURS * hourWidth,
+                      height: '100%',
+                      pointerEvents: 'none',
+                      zIndex: 0,
+                    }}
+                  >
+                    <defs>
+                      <linearGradient id="circadianGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#FFD700" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#FFD700" stopOpacity="0.05" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Generate smooth curve path */}
+                    <path
+                      d={(() => {
+                        const points: string[] = []
+                        const height = 400 // Fixed height for the curve
+                        const samples = 100 // Number of points for smooth curve
+
+                        for (let i = 0; i <= samples; i++) {
+                          const hour = START_HOUR + (i / samples) * TOTAL_HOURS
+                          const x = (i / samples) * TOTAL_HOURS * hourWidth
+                          const energy = getCircadianEnergy(hour)
+                          // Invert Y and scale to use bottom 60% of height
+                          const y = height - (energy * height * 0.6)
+
+                          if (i === 0) {
+                            points.push(`M ${x} ${y}`)
+                          } else {
+                            // Use line for smooth curve (with many points it appears smooth)
+                            points.push(`L ${x} ${y}`)
+                          }
+                        }
+
+                        // Close the path to create filled area
+                        points.push(`L ${TOTAL_HOURS * hourWidth} ${height}`)
+                        points.push(`L 0 ${height}`)
+                        points.push('Z')
+
+                        return points.join(' ')
+                      })()}
+                      fill="url(#circadianGradient)"
+                      stroke="#FFD700"
+                      strokeWidth="2"
+                      opacity="0.7"
+                    />
+
+                    {/* Add curve line on top for clarity */}
+                    <path
+                      d={(() => {
+                        const points: string[] = []
+                        const height = 400 // Fixed height for the curve
+                        const samples = 100
+
+                        for (let i = 0; i <= samples; i++) {
+                          const hour = START_HOUR + (i / samples) * TOTAL_HOURS
+                          const x = (i / samples) * TOTAL_HOURS * hourWidth
+                          const energy = getCircadianEnergy(hour)
+                          const y = height - (energy * height * 0.6)
+
+                          if (i === 0) {
+                            points.push(`M ${x} ${y}`)
+                          } else {
+                            points.push(`L ${x} ${y}`)
+                          }
+                        }
+
+                        return points.join(' ')
+                      })()}
+                      fill="none"
+                      stroke="#FFA500"
+                      strokeWidth="2"
+                      opacity="0.8"
+                    />
+
+                    {/* Peak and dip labels */}
+                    <text
+                      x={4 * hourWidth}
+                      y={20}
+                      fill="#FF8C00"
+                      fontSize="11"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      Morning Peak
+                    </text>
+                    <text
+                      x={10 * hourWidth}
+                      y={20}
+                      fill="#FF8C00"
+                      fontSize="11"
+                      fontWeight="bold"
+                      textAnchor="middle"
+                    >
+                      Afternoon Peak
+                    </text>
+                    <text
+                      x={7.5 * hourWidth}
+                      y={380}
+                      fill="#4169E1"
+                      fontSize="11"
+                      textAnchor="middle"
+                    >
+                      Post-lunch Dip
+                    </text>
+                  </svg>
+                )}
+
+                {/* Hour grid lines */}
+                {Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      left: i * hourWidth,
+                      top: 0,
+                      bottom: 0,
+                      width: 0,
+                      borderLeft: '1px solid #f0f0f0',
+                    }}
+                  />
+                ))}
+
+                {/* Sessions */}
+                {lane.sessions.map((session, sessionIndex) => {
+                  const left = minutesToPixels(session.startMinutes)
+                  const actualWidth = (session.endMinutes - session.startMinutes) / 60 * hourWidth
+                  // Use minimum visual width of 20px for very short sessions (for clickability)
+                  // But don't mislead - the tooltip shows the accurate time
+                  const width = Math.max(actualWidth, 20)
+                  const isSelected = session.id === selectedSessionId
+                  const isHovered = session.id === hoveredSession
+                  const isMeetingSession = session.id.startsWith('meeting-')
+
+                  const sessionKey = `${lane.id}-${session.id}-${sessionIndex}`
+
+                  return (
+                    <div
+                      key={sessionKey}
+                      style={{
+                        position: 'absolute',
+                        left: left - TIME_LABEL_WIDTH,
+                        top: Math.max(2, 4 * zoomFactor),
+                        bottom: Math.max(2, 4 * zoomFactor),
+                        width,
+                        background: isMeetingSession
+                          ? '#722ed1aa'
+                          : session.completed
+                            ? `repeating-linear-gradient(45deg, ${session.color}33, ${session.color}33 10px, ${session.color}55 10px, ${session.color}55 20px)`
+                            : session.color + (isSelected ? '33' : '22'),
+                        border: `${Math.max(1, 2 * zoomFactor)}px solid ${isMeetingSession ? '#722ed1' : session.color}`,
+                        borderRadius: isMeetingSession ? 8 : Math.max(2, 4 * zoomFactor),
+                        cursor: isMeetingSession ? 'default' : 'move',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: `0 ${Math.max(2, 4 * zoomFactor)}px`,
+                        overflow: 'hidden',
+                        boxShadow: isHovered ? '0 2px 8px rgba(0,0,0,0.15)' : undefined,
+                        transition: 'box-shadow 0.2s',
+                        opacity: session.completed ? 0.8 : 1,
+                      }}
+                      onMouseDown={isMeetingSession ? undefined : (e) => handleMouseDown(e, session.id, 'move')}
+                      onMouseEnter={() => setHoveredSession(session.id)}
+                      onMouseLeave={() => setHoveredSession(null)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onSessionSelect(session.id)
+                      }}
+                    >
+                      {/* Resize handles - only show when selected and not a meeting */}
+                      {isSelected && !isMeetingSession && (
+                        <>
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: 8,
+                              cursor: 'ew-resize',
+                              background: 'rgba(255,255,255,0.5)',
+                              borderLeft: `2px solid ${session.color}`,
+                              zIndex: 10,
+                            }}
+                            onMouseDown={(e) => handleMouseDown(e, session.id, 'start')}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              right: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: 8,
+                              cursor: 'ew-resize',
+                              background: 'rgba(255,255,255,0.5)',
+                              borderRight: `2px solid ${session.color}`,
+                              zIndex: 10,
+                            }}
+                            onMouseDown={(e) => handleMouseDown(e, session.id, 'end')}
+                          />
+                        </>
+                      )}
+
+                      {/* Session content */}
+                      <Tooltip
+                        content={
+                          <div>
+                            <div style={{ fontWeight: 'bold' }}>{session.taskName}</div>
+                            {session.stepName && <div>{session.stepName}</div>}
+                            <div>
+                              {minutesToTime(session.startMinutes)} - {minutesToTime(session.endMinutes)}
+                            </div>
+                            <div style={{ fontWeight: 'bold' }}>
+                              {session.endMinutes - session.startMinutes} minutes
+                              ({Math.round((session.endMinutes - session.startMinutes) / 60 * 10) / 10} hours)
+                            </div>
+                            {width > actualWidth && (
+                              <div style={{ color: '#faad14', marginTop: 4, fontSize: 11 }}>
+                                ℹ️ Expanded for visibility (zoom in to see actual size)
+                              </div>
+                            )}
+                            {isMeetingSession && <div style={{ marginTop: 4, fontStyle: 'italic' }}>Meeting/Event</div>}
+                          </div>
+                        }
+                      >
+                        <Text
+                          style={{
+                            fontSize: sessionFontSize,
+                            color: isMeetingSession ? 'white' : 'white',
+                            fontWeight: isMeetingSession ? 600 : 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: Math.max(2, 4 * zoomFactor),
+                          }}
+                        >
+                          {isMeetingSession && width > 30 ? (
+                            <>
+                              {width > 80 && session.taskName}
+                              {width > 50 && width <= 80 && `${session.taskName.substring(0, 8)}...`}
+                              {width <= 50 && `${session.endMinutes - session.startMinutes}m`}
+                            </>
+                          ) : (
+                            <>
+                              {width > 100 && session.taskName}
+                              {width > 60 && width <= 100 && `${session.endMinutes - session.startMinutes}m`}
+                              {width <= 60 && `${session.endMinutes - session.startMinutes}m`}
+                            </>
+                          )}
+                        </Text>
+                      </Tooltip>
+                    </div>
+                  )
+                })}
+
+                {/* Creating session preview */}
+                {creatingSession && (
+                  (creatingSession.stepId && lane.id === `${creatingSession.taskId}-${creatingSession.stepId}`) ||
+                  (!creatingSession.stepId && lane.id === creatingSession.taskId)
+                ) && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: Math.min(creatingSession.startX, creatingSession.currentX) - TIME_LABEL_WIDTH,
+                        top: 4,
+                        bottom: 4,
+                        width: Math.abs(creatingSession.currentX - creatingSession.startX),
+                        background: '#165DFF22',
+                        border: '2px dashed #165DFF',
+                        borderRadius: 4,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
       </div>
     </div>
   )

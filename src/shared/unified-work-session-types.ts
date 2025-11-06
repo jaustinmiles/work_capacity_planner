@@ -40,7 +40,8 @@ export interface UnifiedWorkSession {
   actualMinutes?: number // null = in progress, number = completed duration
 
   // Type and context
-  type: TaskType         // 'focused' | 'admin'
+  /** @deprecated The type should be derived from the task itself, not stored in the session */
+  type: TaskType         // 'focused' | 'admin' | 'personal' - DEPRECATED: derive from task
   notes?: string | undefined
 
   // Metadata (from database)
@@ -61,41 +62,48 @@ export interface UnifiedWorkSession {
 
 // Convert LocalWorkSession to UnifiedWorkSession
 export function fromLocalWorkSession(session: any): UnifiedWorkSession {
-  return {
+  const result: UnifiedWorkSession = {
     id: session.id,
     taskId: session.taskId,
-    stepId: session.stepId,
-    workflowId: session.workflowId,
     startTime: new Date(session.startTime),
-    endTime: session.endTime ? new Date(session.endTime) : undefined,
     plannedMinutes: session.plannedDuration || session.duration || 0,
-    actualMinutes: session.duration || undefined, // Convert accumulated duration
-    type: session.type,
-    isPaused: session.isPaused,
-    taskName: session.taskName,
-    stepName: session.stepName,
+    type: session.type, // @deprecated - should derive from task
   }
+
+  // Add optional fields only if they have values
+  if (session.stepId !== undefined) result.stepId = session.stepId
+  if (session.workflowId !== undefined) result.workflowId = session.workflowId
+  if (session.endTime) result.endTime = new Date(session.endTime)
+  if (session.duration !== undefined) result.actualMinutes = session.duration
+  if (session.isPaused !== undefined) result.isPaused = session.isPaused
+  if (session.taskName !== undefined) result.taskName = session.taskName
+  if (session.stepName !== undefined) result.stepName = session.stepName
+
+  return result
 }
 
 // Convert database WorkSession to UnifiedWorkSession
 export function fromDatabaseWorkSession(dbSession: any): UnifiedWorkSession {
-  return {
+  const result: UnifiedWorkSession = {
     id: dbSession.id,
     taskId: dbSession.taskId,
-    stepId: dbSession.stepId,
     startTime: new Date(dbSession.startTime),
-    endTime: dbSession.endTime ? new Date(dbSession.endTime) : undefined,
     plannedMinutes: dbSession.plannedMinutes || 0,
-    actualMinutes: dbSession.actualMinutes,
-    type: dbSession.type as TaskType,
-    notes: dbSession.notes,
-    createdAt: new Date(dbSession.createdAt),
-    updatedAt: new Date(dbSession.updatedAt),
-    // Preserve computed fields if present
-    workflowId: dbSession.workflowId,
-    taskName: dbSession.taskName,
-    stepName: dbSession.stepName,
+    type: dbSession.type as TaskType, // @deprecated - should derive from task
   }
+
+  // Add optional fields only if they have values
+  if (dbSession.stepId !== undefined && dbSession.stepId !== null) result.stepId = dbSession.stepId
+  if (dbSession.endTime) result.endTime = new Date(dbSession.endTime)
+  if (dbSession.actualMinutes !== undefined && dbSession.actualMinutes !== null) result.actualMinutes = dbSession.actualMinutes
+  if (dbSession.notes !== undefined && dbSession.notes !== null) result.notes = dbSession.notes
+  if (dbSession.createdAt) result.createdAt = new Date(dbSession.createdAt)
+  if (dbSession.updatedAt) result.updatedAt = new Date(dbSession.updatedAt)
+  if (dbSession.workflowId !== undefined && dbSession.workflowId !== null) result.workflowId = dbSession.workflowId
+  if (dbSession.taskName !== undefined && dbSession.taskName !== null) result.taskName = dbSession.taskName
+  if (dbSession.stepName !== undefined && dbSession.stepName !== null) result.stepName = dbSession.stepName
+
+  return result
 }
 
 // Convert WorkSessionData (clock format) to UnifiedWorkSession
@@ -105,25 +113,30 @@ export function fromWorkSessionData(sessionData: any): UnifiedWorkSession {
   const startTime = new Date(today)
   startTime.setHours(0, sessionData.startMinutes, 0, 0)
 
-  const endTime = new Date(today)
-  endTime.setHours(0, sessionData.endMinutes, 0, 0)
-
   const actualMinutes = sessionData.endMinutes - sessionData.startMinutes
 
-  return {
+  const result: UnifiedWorkSession = {
     id: sessionData.id,
     taskId: sessionData.taskId,
-    stepId: sessionData.stepId,
     startTime,
-    endTime: sessionData.completed ? endTime : undefined,
     plannedMinutes: actualMinutes, // Use actual as estimate for completed sessions
-    actualMinutes: sessionData.completed ? actualMinutes : undefined,
-    type: sessionData.type,
-    notes: sessionData.notes,
-    taskName: sessionData.taskName,
-    stepName: sessionData.stepName,
-    color: sessionData.color,
+    type: sessionData.type, // @deprecated - should derive from task
   }
+
+  // Add optional fields only if they have values
+  if (sessionData.stepId !== undefined && sessionData.stepId !== null) result.stepId = sessionData.stepId
+  if (sessionData.completed && sessionData.endMinutes) {
+    const endTime = new Date(today)
+    endTime.setHours(0, sessionData.endMinutes, 0, 0)
+    result.endTime = endTime
+    result.actualMinutes = actualMinutes
+  }
+  if (sessionData.notes !== undefined && sessionData.notes !== null) result.notes = sessionData.notes
+  if (sessionData.taskName !== undefined && sessionData.taskName !== null) result.taskName = sessionData.taskName
+  if (sessionData.stepName !== undefined && sessionData.stepName !== null) result.stepName = sessionData.stepName
+  if (sessionData.color !== undefined && sessionData.color !== null) result.color = sessionData.color
+
+  return result
 }
 
 // Convert UnifiedWorkSession to database format

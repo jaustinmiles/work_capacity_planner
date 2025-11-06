@@ -89,9 +89,9 @@ export function getTotalCapacityForTaskType(
     return block.type === WorkBlockType.Flexible ? block.totalMinutes : 0
   }
 
-  // Flexible blocks work with any task type
+  // Flexible blocks should NOT count toward focus/admin/personal - they're their own category
   if (block.type === WorkBlockType.Flexible) {
-    return block.totalMinutes
+    return 0  // Flexible blocks only count as flexible time
   }
 
   // Block type must match task type (except for mixed)
