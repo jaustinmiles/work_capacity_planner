@@ -426,10 +426,39 @@ describe('Database - Unified Task Model', () => {
 
       it('should sum work sessions by type', async () => {
         mockPrisma.workSession.findMany.mockResolvedValue([
-          { type: 'focused', actualMinutes: 30, plannedMinutes: 30, Task: { sessionId: 'session-1' } },
-          { type: 'admin', actualMinutes: 45, plannedMinutes: 40, Task: { sessionId: 'session-1' } },
-          { type: 'focused', actualMinutes: null, plannedMinutes: 20, Task: { sessionId: 'session-1' } }, // Active - should not count
-          { type: 'admin', actualMinutes: 15, plannedMinutes: 15, Task: { sessionId: 'session-1' } }])
+          {
+            id: 'ws1',
+            taskId: 'task1',
+            type: 'focused',
+            actualMinutes: 30,
+            plannedMinutes: 30,
+            Task: { type: 'focused', sessionId: 'session-1', TaskStep: [] },
+          },
+          {
+            id: 'ws2',
+            taskId: 'task2',
+            type: 'admin',
+            actualMinutes: 45,
+            plannedMinutes: 40,
+            Task: { type: 'admin', sessionId: 'session-1', TaskStep: [] },
+          },
+          {
+            id: 'ws3',
+            taskId: 'task3',
+            type: 'focused',
+            actualMinutes: null,
+            plannedMinutes: 20,
+            Task: { type: 'focused', sessionId: 'session-1', TaskStep: [] },
+          }, // Active - should not count
+          {
+            id: 'ws4',
+            taskId: 'task4',
+            type: 'admin',
+            actualMinutes: 15,
+            plannedMinutes: 15,
+            Task: { type: 'admin', sessionId: 'session-1', TaskStep: [] },
+          },
+        ])
         mockPrisma.taskStep.findMany.mockResolvedValue([])
 
         const result = await db.getTodayAccumulated(testDate)
@@ -472,15 +501,22 @@ describe('Database - Unified Task Model', () => {
       it('should create work session for task', async () => {
         const sessionData = {
           taskId: 'task-1',
-          type: 'focused' as const,
           startTime: new Date('2024-01-15T10:00:00'),
           plannedMinutes: 30,
           notes: 'Test session',
         }
 
+        // Mock task lookup for deriving type
+        mockPrisma.task.findUnique.mockResolvedValue({
+          id: 'task-1',
+          type: 'focused',
+          TaskStep: [],
+        })
+
         mockPrisma.workSession.create.mockResolvedValue({
           id: 'session-1',
           ...sessionData,
+          type: 'focused', // Derived from task
           endTime: new Date('2024-01-15T10:30:00'),
           plannedMinutes: 30,
           actualMinutes: 30,
@@ -501,10 +537,25 @@ describe('Database - Unified Task Model', () => {
         const sessionData = {
           taskId: 'workflow-1',
           stepId: 'step-1',
-          type: 'admin' as const,
           startTime: new Date('2024-01-15T14:00:00'),
           plannedMinutes: 45,
         }
+
+        // Mock task lookup for deriving type
+        mockPrisma.task.findUnique.mockResolvedValue({
+          id: 'workflow-1',
+          type: 'focused',
+          TaskStep: [{
+            id: 'step-1',
+            type: 'admin',
+          }],
+        })
+
+        mockPrisma.workSession.create.mockResolvedValue({
+          id: 'session-2',
+          ...sessionData,
+          type: 'admin', // Derived from step
+        })
 
         await db.createWorkSession(sessionData)
 

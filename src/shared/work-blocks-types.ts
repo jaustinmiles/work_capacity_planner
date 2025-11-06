@@ -111,14 +111,14 @@ export function getTotalCapacity(blocks: WorkBlock[]): { focus: number; admin: n
     } else if (block.type === 'personal') {
       acc.personal += durationMinutes
     } else if (block.type === 'mixed') {
+      // Mixed blocks split 50/50 between focus and admin
       acc.focus += durationMinutes / 2
       acc.admin += durationMinutes / 2
     } else if (block.type === 'flexible' || block.type === 'universal') {
-      // flexible and universal blocks can be used for any task type
-      // Full duration is available for EITHER focus OR admin work
-      // Set both to full duration to indicate either can use the full time
-      acc.focus += durationMinutes
-      acc.admin += durationMinutes
+      // Flexible blocks should NOT be counted here to avoid double-counting
+      // They are handled separately as flexible capacity
+      // The scheduler can still USE them for any task type, but they don't
+      // add to focus/admin/personal capacity totals
     }
 
     return acc

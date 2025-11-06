@@ -5,6 +5,7 @@ import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useUnifiedScheduler, ScheduleResult, UnifiedScheduleItem } from '../../hooks/useUnifiedScheduler'
+import { OptimizationMode } from '@shared/unified-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -55,7 +56,7 @@ export function ScheduleGenerator({
   const scheduler = useUnifiedScheduler()
 
   // Helper to call scheduler with proper context/config
-  const callScheduler = (tasksToSchedule: Task[], workflowsToSchedule: SequencedTask[], workPatterns: DailyWorkPattern[], config: { allowTaskSplitting: boolean; optimizationMode: 'realistic' | 'optimal' | 'conservative' }) => {
+  const callScheduler = (tasksToSchedule: Task[], workflowsToSchedule: SequencedTask[], workPatterns: DailyWorkPattern[], config: { allowTaskSplitting: boolean; optimizationMode: OptimizationMode }) => {
     const currentTime = new Date()
     const startDateString = currentTime.toISOString().split('T')[0]
 
@@ -163,7 +164,7 @@ export function ScheduleGenerator({
 
       const optimalResult = callScheduler(incompleteTasks, incompleteWorkflows, baseWorkPatterns, {
         allowTaskSplitting: true,
-        optimizationMode: 'optimal',
+        optimizationMode: OptimizationMode.Optimal,
       })
 
       logger.ui.debug('Generated optimal schedule', {
@@ -192,7 +193,7 @@ export function ScheduleGenerator({
       // Option 2: Balanced
       const balancedResult = callScheduler(incompleteTasks, incompleteWorkflows, baseWorkPatterns, {
         allowTaskSplitting: false,
-        optimizationMode: 'realistic',
+        optimizationMode: OptimizationMode.Realistic,
       })
 
       options.push({
@@ -218,7 +219,7 @@ export function ScheduleGenerator({
 
       const asyncResult = callScheduler(asyncPrioritizedTasks, incompleteWorkflows, baseWorkPatterns, {
         allowTaskSplitting: true,
-        optimizationMode: 'conservative',
+        optimizationMode: OptimizationMode.Conservative,
       })
 
       options.push({

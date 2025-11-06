@@ -76,14 +76,21 @@ describe('Work Session Management', () => {
     it('should create a work session with required fields', async () => {
       const workSessionData = {
         taskId: 'task-123',
-        type: TaskType.Focused,
         startTime: new Date('2024-01-15T09:00:00'),
         plannedMinutes: 60,
       }
 
+      // Mock task lookup to derive type
+      mockPrisma.task.findUnique.mockResolvedValue({
+        id: 'task-123',
+        type: 'focused',
+        TaskStep: [],
+      })
+
       mockPrisma.workSession.create.mockResolvedValue({
         id: 'ws-123',
         ...workSessionData,
+        type: 'focused', // Derived from task
         endTime: null,
         actualMinutes: null,
         notes: null,
@@ -92,10 +99,14 @@ describe('Work Session Management', () => {
 
       const result = await db.createWorkSession(workSessionData)
 
+      expect(mockPrisma.task.findUnique).toHaveBeenCalledWith({
+        where: { id: 'task-123' },
+        include: { TaskStep: true },
+      })
       expect(mockPrisma.workSession.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           taskId: 'task-123',
-          type: 'focused',
+          type: 'focused', // Derived from task
           startTime: workSessionData.startTime,
           plannedMinutes: 60,
         }),
@@ -113,14 +124,34 @@ describe('Work Session Management', () => {
       await expect(db.createWorkSession(invalidData)).rejects.toThrow('taskId is required')
     })
 
-    it('should throw error if type is missing', async () => {
-      const invalidData = {
+    it('should derive type from task when not provided', async () => {
+      const validData = {
         taskId: 'task-123',
         startTime: new Date(),
         plannedMinutes: 60,
-      } as any
+      }
 
-      await expect(db.createWorkSession(invalidData)).rejects.toThrow('type is required')
+      // Mock task lookup
+      mockPrisma.task.findUnique.mockResolvedValue({
+        id: 'task-123',
+        type: 'focused',
+        TaskStep: [],
+      })
+
+      mockPrisma.workSession.create.mockResolvedValue({
+        id: 'ws-new',
+        taskId: 'task-123',
+        type: 'focused', // Derived from task
+        startTime: validData.startTime,
+        plannedMinutes: 60,
+      })
+
+      await db.createWorkSession(validData)
+
+      expect(mockPrisma.task.findUnique).toHaveBeenCalledWith({
+        where: { id: 'task-123' },
+        include: { TaskStep: true },
+      })
     })
   })
 
@@ -263,10 +294,38 @@ describe('Work Session Management', () => {
       const testDate = '2024-01-15'
 
       mockPrisma.workSession.findMany.mockResolvedValue([
-        { type: 'focused', actualMinutes: 120, plannedMinutes: 100 },
-        { type: 'admin', actualMinutes: null, plannedMinutes: 60 }, // Active - should not count
-        { type: 'focused', actualMinutes: 90, plannedMinutes: 90 },
-        { type: 'admin', actualMinutes: 30, plannedMinutes: 45 },
+        {
+          id: 'ws1',
+          taskId: 'task1',
+          type: 'focused',
+          actualMinutes: 120,
+          plannedMinutes: 100,
+          Task: { type: 'focused', TaskStep: [] },
+        },
+        {
+          id: 'ws2',
+          taskId: 'task2',
+          type: 'admin',
+          actualMinutes: null,
+          plannedMinutes: 60, // Active - should not count
+          Task: { type: 'admin', TaskStep: [] },
+        },
+        {
+          id: 'ws3',
+          taskId: 'task3',
+          type: 'focused',
+          actualMinutes: 90,
+          plannedMinutes: 90,
+          Task: { type: 'focused', TaskStep: [] },
+        },
+        {
+          id: 'ws4',
+          taskId: 'task4',
+          type: 'admin',
+          actualMinutes: 30,
+          plannedMinutes: 45,
+          Task: { type: 'admin', TaskStep: [] },
+        },
       ])
       mockPrisma.taskStep.findMany.mockResolvedValue([])
 
@@ -302,6 +361,16 @@ describe('Work Session Management', () => {
         taskId: 'task-456',
         type: 'admin',
         Task: { type: 'focused' },
+      })
+
+      // Mock task lookup that createWorkSession will do
+      mockPrisma.task.findUnique.mockResolvedValue({
+        id: 'task-456',
+        type: 'focused',
+        TaskStep: [{
+          id: 'step-123',
+          type: 'admin',
+        }],
       })
 
       mockPrisma.workSession.create.mockResolvedValue({
@@ -398,10 +467,16 @@ describe('Work Session Management', () => {
 
       const newSessionData = {
         taskId: 'task-new',
-        type: TaskType.Focused,
         startTime: new Date('2024-01-15T10:30:00'),
         plannedMinutes: 60,
       }
+
+      // Mock task lookup for new task
+      mockPrisma.task.findUnique.mockResolvedValue({
+        id: 'task-new',
+        type: 'focused',
+        TaskStep: [],
+      })
 
       // Mock finding the existing active session
       mockPrisma.workSession.findFirst.mockResolvedValue(existingActiveSession)
@@ -450,10 +525,16 @@ describe('Work Session Management', () => {
     it('should create session normally when no active session exists', async () => {
       const newSessionData = {
         taskId: 'task-123',
-        type: TaskType.Focused,
         startTime: new Date('2024-01-15T09:00:00'),
         plannedMinutes: 60,
       }
+
+      // Mock task lookup
+      mockPrisma.task.findUnique.mockResolvedValue({
+        id: 'task-123',
+        type: 'focused',
+        TaskStep: [],
+      })
 
       // No active session exists
       mockPrisma.workSession.findFirst.mockResolvedValue(null)
@@ -515,9 +596,15 @@ describe('Work Session Management', () => {
         actualMinutes: null,
       })
 
+      // Mock task lookup for new task
+      mockPrisma.task.findUnique.mockResolvedValue({
+        id: 'task-new',
+        type: 'focused',
+        TaskStep: [],
+      })
+
       await db.createWorkSession({
         taskId: 'task-new',
-        type: TaskType.Focused,
         startTime: endTime,
         plannedMinutes: 60,
       })

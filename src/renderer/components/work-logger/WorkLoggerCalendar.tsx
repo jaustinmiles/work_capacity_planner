@@ -413,24 +413,32 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
           const top = timeToPixels(startTimeStr)
           const height = Math.max((displayMinutes / 60) * HOUR_HEIGHT, 30) // Minimum height for visibility
-          const color = session.type === TaskType.Focused ? '#165DFF' : '#00B42A'
 
-          // Look up task/step names if not in session
+          // Look up task/step to derive type and color
           let taskName = session.taskName || 'Unassigned'
           let stepName = session.stepName
-          if (session.taskId && !taskName) {
-            const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId)
-            taskName = task?.name || 'Unknown Task'
-          }
-          if (session.stepId && !stepName) {
-            for (const task of [...tasks, ...sequencedTasks]) {
-              const step = task.steps?.find(s => s.id === session.stepId)
+          let taskType = TaskType.Focused // Default if not found
+
+          // Find the task to get its type
+          const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId)
+          if (task) {
+            taskName = taskName || task.name
+            taskType = task.type
+
+            // If it's a step session, check if the step has a different type
+            if (session.stepId && task.steps) {
+              const step = task.steps.find(s => s.id === session.stepId)
               if (step) {
-                stepName = step.name
-                break
+                stepName = stepName || step.name
+                taskType = step.type || taskType
               }
             }
           }
+
+          // Derive color from task type
+          const color = taskType === TaskType.Focused ? '#165DFF' :
+                        taskType === TaskType.Admin ? '#FF9500' :
+                        taskType === TaskType.Personal ? '#00B42A' : '#8c8c8c'
 
           return (
             <div

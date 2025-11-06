@@ -47,6 +47,11 @@ let mockSchedulerInstance: any
 
 vi.mock('@shared/unified-scheduler', () => ({
   UnifiedScheduler: vi.fn().mockImplementation(() => mockSchedulerInstance),
+  OptimizationMode: {
+    Realistic: 'realistic',
+    Optimal: 'optimal',
+    Conservative: 'conservative',
+  },
 }))
 
 vi.mock('@shared/time-provider', () => ({

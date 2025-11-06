@@ -259,7 +259,7 @@ model WorkSession {
   taskId         String       // Parent task (required)
   stepId         String?      // Workflow step ID (optional, for step-specific sessions)
   patternId      String?      // Work pattern reference (for scheduled sessions)
-  type           String       // Session type: "task", "step", "break", etc.
+  type           String?      // @deprecated - Type is derived from task/step, field will be removed
   startTime      DateTime     // Session start time
   endTime        DateTime?    // Session end time (null = in progress)
   plannedMinutes Int          @default(0)  // Estimated duration

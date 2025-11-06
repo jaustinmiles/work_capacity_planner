@@ -5,7 +5,7 @@ import { TaskStatus } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
-import { UnifiedScheduler } from '@shared/unified-scheduler'
+import { UnifiedScheduler, OptimizationMode } from '@shared/unified-scheduler'
 import { getDatabase } from '../services/database'
 import { appEvents, EVENTS } from '../utils/events'
 import { logger } from '@/logger'
@@ -1232,7 +1232,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         startDate: currentTime,
         allowTaskSplitting: true,
         respectMeetings: true,
-        optimizationMode: 'realistic' as const,
+        optimizationMode: OptimizationMode.Realistic,
         debugMode: true,
       }
 

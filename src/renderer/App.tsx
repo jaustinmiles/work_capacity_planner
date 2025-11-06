@@ -517,7 +517,7 @@ function App() {
           collapsible
           collapsed={sidebarCollapsed}
           onCollapse={handleSidebarCollapse}
-          width={screenWidth < 768 ? 200 : 240} // Narrower on small screens
+          width={screenWidth < 768 ? 280 : 320} // Increased width to prevent text wrapping
           collapsedWidth={screenWidth < 768 ? 60 : 80} // Even narrower when collapsed on mobile
           trigger={null}
           style={{
@@ -525,8 +525,8 @@ function App() {
             boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
             overflow: 'hidden',
             // Responsive sidebar width
-            minWidth: sidebarCollapsed ? (screenWidth < 768 ? 60 : 80) : (screenWidth < 768 ? 200 : 240),
-            maxWidth: sidebarCollapsed ? (screenWidth < 768 ? 60 : 80) : (screenWidth < 768 ? 200 : 240),
+            minWidth: sidebarCollapsed ? (screenWidth < 768 ? 60 : 80) : (screenWidth < 768 ? 280 : 320),
+            maxWidth: sidebarCollapsed ? (screenWidth < 768 ? 60 : 80) : (screenWidth < 768 ? 280 : 320),
           }}
         >
           <div style={{

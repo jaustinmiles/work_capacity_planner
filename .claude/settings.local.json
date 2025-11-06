@@ -11,7 +11,8 @@
       "mcp__git__setup_bot_auth",
       "mcp__diagnostic__run_lint",
       "mcp__diagnostic__typecheck",
-      "mcp__diagnostic__run_tests"
+      "mcp__diagnostic__run_tests",
+      "mcp__diagnostic__run_test_file"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
@@ -36,5 +37,5 @@
       }
     ]
   },
-  "outputStyle": "Learning"
+  "outputStyle": "default"
 }

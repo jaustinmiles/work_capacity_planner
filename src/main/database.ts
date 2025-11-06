@@ -1686,7 +1686,6 @@ export class DatabaseService {
   async createWorkSession(data: {
     taskId: string
     stepId?: string
-    type: TaskType
     startTime: Date
     endTime?: Date
     plannedMinutes: number
@@ -1697,9 +1696,7 @@ export class DatabaseService {
     if (!data.taskId) {
       throw new Error('taskId is required for creating a work session')
     }
-    if (!data.type) {
-      throw new Error('type is required for creating a work session')
-    }
+    // Type is no longer required - it's derived from the task
     if (data.plannedMinutes === undefined || data.plannedMinutes === null) {
       throw new Error('plannedMinutes is required for creating a work session')
     }
@@ -1744,13 +1741,35 @@ export class DatabaseService {
       })
     }
 
+    // Look up the task to derive the type
+    const task = await this.client.task.findUnique({
+      where: { id: data.taskId },
+      include: {
+        TaskStep: true,
+      },
+    })
+
+    if (!task) {
+      throw new Error(`Task not found: ${data.taskId}`)
+    }
+
+    // Derive type from step or task
+    let derivedType: TaskType = task.type as TaskType
+    if (data.stepId) {
+      const step = task.TaskStep?.find(s => s.id === data.stepId)
+      if (step?.type) {
+        derivedType = step.type as TaskType
+      }
+    }
+
     const sessionId = crypto.randomUUID()
 
     dbLogger.debug('Creating work session in database', {
       sessionId,
       taskId: data.taskId,
       stepId: data.stepId,
-      type: data.type,
+      derivedType,
+      taskType: task.type,
       startTime: data.startTime.toISOString(),
       plannedMinutes: data.plannedMinutes,
       actualMinutes: data.actualMinutes,
@@ -1762,7 +1781,7 @@ export class DatabaseService {
         id: sessionId,
         taskId: data.taskId,
         stepId: data.stepId ?? null,
-        type: data.type,
+        type: derivedType, // Still store it for backwards compatibility, will remove field later
         startTime: data.startTime,
         endTime: data.endTime ?? null,
         plannedMinutes: data.plannedMinutes,
@@ -1804,7 +1823,7 @@ export class DatabaseService {
   async getTodayAccumulated(date: string): Promise<{ focused: number; admin: number; personal: number; total: number }> {
     const _sessionId = await this.getActiveSession()
 
-    // APPROACH 1: Get work sessions for the date
+    // APPROACH 1: Get work sessions for the date with task and step data
     const { startOfDay, endOfDay } = this.getLocalDateRange(date)
 
     const workSessions = await this.client.workSession.findMany({
@@ -1815,7 +1834,11 @@ export class DatabaseService {
         },
       },
       include: {
-        Task: true,
+        Task: {
+          include: {
+            TaskStep: true, // Include steps to look up step type if needed
+          },
+        },
       },
     })
 
@@ -1848,21 +1871,35 @@ export class DatabaseService {
       // This prevents active/planned sessions from being counted as completed time
       const minutes = session.actualMinutes || 0
 
+      // Derive type from parent task or step (not from deprecated session.type field)
+      let taskType: TaskType
+      if (session.stepId) {
+        // If it's a step session, find the step type
+        const step = session.Task?.TaskStep?.find(s => s.id === session.stepId)
+        taskType = (step?.type as TaskType) || (session.Task?.type as TaskType) || TaskType.Focused
+      } else {
+        // Otherwise use the task's type
+        taskType = (session.Task?.type as TaskType) || TaskType.Focused
+      }
+
       // DEBUG: Log each session's contribution to accumulated time
       dbLogger.info('getTodayAccumulated - Processing work session', {
         sessionId: session.id,
-        type: session.type,
+        derivedType: taskType,
+        deprecatedType: session.type, // Keep for debugging, but don't use
         actualMinutes: session.actualMinutes,
         plannedMinutes: session.plannedMinutes,
         minutesCounted: minutes,
         hasEndTime: !!session.endTime,
+        taskName: session.Task?.name,
+        stepId: session.stepId,
       })
 
-      if (session.type === TaskType.Focused) {
+      if (taskType === TaskType.Focused) {
         acc.focused += minutes
-      } else if (session.type === TaskType.Admin) {
+      } else if (taskType === TaskType.Admin) {
         acc.admin += minutes
-      } else if (session.type === TaskType.Personal) {
+      } else if (taskType === TaskType.Personal) {
         acc.personal += minutes
       }
       acc.total += minutes
@@ -2335,14 +2372,10 @@ export class DatabaseService {
       throw new Error(`Step not found: ${stepId}`)
     }
 
-    // Determine the type from the step or task
-    const type = (step.type || step.Task.type || TaskType.Focused) as TaskType
-
-    // Transform the data
+    // Transform the data - type is now derived from task/step in createWorkSession
     const workSessionData = {
       taskId: step.taskId,
       stepId: step.id,
-      type: type,
       startTime: data.startTime || new Date(),
       endTime: data.endTime || null,
       plannedMinutes: data.duration || data.plannedMinutes || 0,

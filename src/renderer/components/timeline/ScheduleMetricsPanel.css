@@ -1,0 +1,252 @@
+/**
+ * Modern styles for Schedule Metrics Panel
+ */
+
+.schedule-metrics-panel {
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.3s ease;
+}
+
+.schedule-metrics-panel:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+}
+
+.metrics-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  color: #8c8c8c;
+}
+
+.metrics-loading p {
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+/* Header Section */
+.metrics-header {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 24px;
+}
+
+.metric-stat {
+  text-align: center;
+}
+
+.stat-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.value-number {
+  font-size: 32px;
+  font-weight: 600;
+  color: #1f1f1f;
+  line-height: 1;
+}
+
+.value-suffix {
+  font-size: 18px;
+  color: #8c8c8c;
+  font-weight: normal;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #595959;
+  margin-bottom: 12px;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  margin-bottom: 16px;
+}
+
+.metric-card {
+  position: relative;
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+  border-radius: 12px;
+  padding: 20px;
+  height: 140px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #e0e0e0;
+}
+
+.metric-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.metric-card:hover .metric-icon {
+  transform: scale(1.1);
+}
+
+.metric-content {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.metric-title {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.metric-value {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.metric-label {
+  font-size: 13px;
+  color: #595959;
+}
+
+.metric-breakdown {
+  margin-top: 8px;
+}
+
+.metric-breakdown .arco-tag {
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+/* Progress bars */
+.metric-card .arco-progress {
+  height: 3px !important;
+  border-radius: 0 0 12px 12px;
+}
+
+.metric-card .arco-progress-bar-buffer {
+  background: #f5f5f5 !important;
+}
+
+/* Warning and Info Sections */
+.metrics-warning,
+.metrics-info {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-top: 12px;
+  animation: slideIn 0.3s ease;
+}
+
+.metrics-warning {
+  background: #fff7e6;
+  color: #fa8c16;
+  border: 1px solid #ffe7ba;
+}
+
+.metrics-info {
+  background: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #bae7ff;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .value-number {
+    font-size: 24px;
+  }
+
+  .value-suffix {
+    font-size: 14px;
+  }
+
+  .metric-card {
+    height: 120px;
+    padding: 16px;
+  }
+
+  .metric-value {
+    font-size: 24px;
+  }
+
+  .metric-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Keep light theme even in dark mode for consistency */
+@media (prefers-color-scheme: dark) {
+  .schedule-metrics-panel {
+    background: #ffffff;
+  }
+
+  .metrics-header {
+    border-bottom-color: #f0f0f0;
+  }
+
+  .value-number {
+    color: #1f1f1f;
+  }
+
+  .stat-label,
+  .metric-label {
+    color: #595959;
+  }
+
+  .metric-card {
+    background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+    border-color: #f0f0f0;
+  }
+
+  .metric-card:hover {
+    border-color: #e0e0e0;
+  }
+
+  .metrics-warning {
+    background: #fff7e6;
+    border-color: #ffe7ba;
+  }
+
+  .metrics-info {
+    background: #e6f7ff;
+    border-color: #bae7ff;
+  }
+}

@@ -46,7 +46,8 @@ describe('SessionState utilities', () => {
   describe('getTypeColor', () => {
     it('returns correct color for task type', () => {
       expect(getTypeColor(TaskType.Focused)).toBe('#165DFF')
-      expect(getTypeColor(TaskType.Admin)).toBe('#00B42A')
+      expect(getTypeColor(TaskType.Admin)).toBe('#FF9500') // Orange for admin tasks
+      expect(getTypeColor(TaskType.Personal)).toBe('#00B42A') // Green for personal tasks
     })
   })
 

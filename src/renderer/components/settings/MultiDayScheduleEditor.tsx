@@ -68,6 +68,13 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
     }
   }, [visible, dateRange])
 
+  // Load accumulated data when selected date changes
+  useEffect(() => {
+    if (visible && selectedDate) {
+      loadAccumulatedForDate(selectedDate)
+    }
+  }, [visible, selectedDate])
+
   const loadPatterns = async () => {
     setLoading(true)
     try {
@@ -81,14 +88,21 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
 
       while (currentDate.isSameOrBefore(endDate, 'day')) {
         const dateStr = currentDate.format('YYYY-MM-DD')
-        const pattern = await db.getWorkPattern(dateStr)
+        const [pattern, accumulatedData] = await Promise.all([
+          db.getWorkPattern(dateStr),
+          db.getTodayAccumulated(dateStr),
+        ])
 
         if (pattern) {
           patternsMap.set(dateStr, {
             date: dateStr,
             blocks: pattern.blocks || [],
             meetings: pattern.meetings || [],
-            accumulated: { focus: 0, admin: 0, personal: 0 },
+            accumulated: {
+              focus: accumulatedData?.focused || 0,
+              admin: accumulatedData?.admin || 0,
+              personal: accumulatedData?.personal || 0,
+            },
           })
         }
 
@@ -103,6 +117,32 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
       Message.error('Failed to load schedules')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadAccumulatedForDate = async (date: string) => {
+    try {
+      const db = getDatabase()
+      const accumulatedData = await db.getTodayAccumulated(date)
+
+      // Update the pattern map if it exists
+      const pattern = patterns.get(date)
+      if (pattern) {
+        const updatedPattern = {
+          ...pattern,
+          accumulated: {
+            focus: accumulatedData?.focused || 0,
+            admin: accumulatedData?.admin || 0,
+            personal: accumulatedData?.personal || 0,
+          },
+        }
+        setPatterns(new Map(patterns).set(date, updatedPattern))
+      }
+    } catch (error) {
+      logger.ui.error('Failed to load accumulated data', {
+        date,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
   }
 
@@ -559,7 +599,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
               blocks: patterns.get(selectedDate)?.blocks || [],
               meetings: patterns.get(selectedDate)?.meetings || [],
             }}
-            accumulated={{ focus: 0, admin: 0, personal: 0 }}
+            accumulated={patterns.get(selectedDate)?.accumulated || { focus: 0, admin: 0, personal: 0 }}
             onSave={(blocks, meetings) => handleSavePattern(selectedDate, blocks, meetings)}
           />
         )}

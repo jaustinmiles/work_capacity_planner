@@ -108,8 +108,10 @@ describe('work-blocks-types', () => {
       ]
 
       const capacity = getTotalCapacity(blocks)
-      expect(capacity.focus).toBe(240) // Full 4 hours available for focus
-      expect(capacity.admin).toBe(240) // Full 4 hours available for admin
+      // Flexible blocks should NOT be counted in focus/admin/personal to avoid double-counting
+      // They are tracked separately as flexible capacity
+      expect(capacity.focus).toBe(0)
+      expect(capacity.admin).toBe(0)
       expect(capacity.personal).toBe(0)
     })
 

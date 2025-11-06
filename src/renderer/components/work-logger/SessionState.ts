@@ -44,7 +44,38 @@ export function roundToFiveMinutes(minutes: number): number {
 
 // Get color for task type
 export function getTypeColor(type: TaskType): string {
-  return type === TaskType.Focused ? '#165DFF' : '#00B42A'
+  switch (type) {
+    case TaskType.Focused:
+      return '#165DFF' // Blue for focused work
+    case TaskType.Personal:
+      return '#00B42A' // Green for personal tasks
+    case TaskType.Admin:
+      return '#FF9500' // Orange for admin tasks (was showing green before!)
+    case TaskType.Mixed:
+      return '#722ed1' // Purple for mixed
+    case TaskType.Flexible:
+      return '#13c2c2' // Cyan for flexible
+    default:
+      return '#8c8c8c' // Gray fallback
+  }
+}
+
+// Get tag color name for task type (for Arco Design Tag component)
+export function getTypeTagColor(type: TaskType): string {
+  switch (type) {
+    case TaskType.Focused:
+      return 'blue'
+    case TaskType.Personal:
+      return 'green'
+    case TaskType.Admin:
+      return 'orange'
+    case TaskType.Mixed:
+      return 'purple'
+    case TaskType.Flexible:
+      return 'cyan'
+    default:
+      return 'default'
+  }
 }
 
 // Check if two sessions overlap
