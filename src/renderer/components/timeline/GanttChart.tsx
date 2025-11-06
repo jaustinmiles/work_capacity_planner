@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Card, Typography, Space, Tag, Grid, Empty, Tooltip, Button, DatePicker, Alert, Dropdown, Menu, Spin } from '@arco-design/web-react'
-import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconRefresh, IconClockCircle, IconUp, IconDown } from '@arco-design/web-react/icon'
+import { IconZoomIn, IconZoomOut, IconSettings, IconCalendar, IconMoon, IconInfoCircle, IconExpand, IconClockCircle, IconUp, IconDown } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
-import { useUnifiedScheduler, ScheduleResult } from '../../hooks/useUnifiedScheduler'
+import { useUnifiedScheduler, ScheduleResult, SchedulingMetrics } from '../../hooks/useUnifiedScheduler'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
@@ -68,6 +68,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [showMultiDayEditor, setShowMultiDayEditor] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
+  const [schedulingMetrics, setSchedulingMetrics] = useState<SchedulingMetrics | null>(null)
   const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [isPinching, setIsPinching] = useState(false)
   const [draggedItem, setDraggedItem] = useState<any>(null)
@@ -511,6 +512,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       if (debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0) {
         setShowDebugInfo(true)
       }
+    }
+
+    // Store metrics from the scheduler
+    if (unifiedScheduleResult.metrics) {
+      setSchedulingMetrics(unifiedScheduleResult.metrics)
 
       // Log the Gantt chart data for AI debugging
       const _viewWindow = {
@@ -644,12 +650,20 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
     const now = getCurrentTime()
     const nowPosition = getPositionPx(now)
-    const containerWidth = chartContainerRef.current.clientWidth
 
-    // Center the current time in the viewport
-    const scrollPosition = nowPosition - containerWidth / 2
+    // Position "now" on the left edge of the viewport
+    const scrollPosition = nowPosition
     chartContainerRef.current.scrollLeft = Math.max(0, scrollPosition)
   }, [chartStartTime, pixelsPerHour])
+
+  // Auto-snap to now when chart loads or updates
+  useEffect(() => {
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      handleSnapToNow()
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [scheduledItems, handleSnapToNow])
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -861,23 +875,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           type="warning"
           icon={<IconClockCircle />}
           content={
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Space>
-                <Text style={{ fontWeight: 'bold' }}>Time Override Active:</Text>
-                <Text>{getCurrentTime().toLocaleString()}</Text>
-              </Space>
-              <Button
-                type="primary"
-                size="small"
-                icon={<IconRefresh />}
-                onClick={() => {
-                  logger.ui.info('Manual refresh triggered', {}, 'gantt-manual-refresh')
-                  setOptimalSchedule([])
-                  setRefreshKey(prev => prev + 1)
-                }}
-              >
-                Refresh Schedule
-              </Button>
+            <Space>
+              <Text style={{ fontWeight: 'bold' }}>Time Override Active:</Text>
+              <Text>{getCurrentTime().toLocaleString()}</Text>
             </Space>
           }
         />
@@ -902,52 +902,79 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         <Row gutter={16} align="center">
           <Col xs={24} sm={12} md={6} lg={4}>
             <Space direction="vertical">
-              <Text type="secondary">Total Items</Text>
+              <Text type="secondary">Scheduled</Text>
               <Title heading={4}>{scheduledItems.filter((item: any) => !item.isWaitTime).length}</Title>
+              {debugInfo && debugInfo.unscheduledItems.length > 0 && (
+                <Text type="warning" style={{ fontSize: 12 }}>
+                  {debugInfo.unscheduledItems.length} unscheduled
+                </Text>
+              )}
             </Space>
           </Col>
           <Col xs={24} sm={12} md={6} lg={4}>
             <Space direction="vertical">
+              <Text type="secondary">Utilization</Text>
+              <Title heading={4} style={{
+                color: schedulingMetrics?.utilizationRate ?
+                  (schedulingMetrics.utilizationRate > 0.9 ? '#ff4d4f' :
+                   schedulingMetrics.utilizationRate > 0.7 ? '#faad14' : '#52c41a')
+                  : 'inherit',
+              }}>
+                {schedulingMetrics?.utilizationRate ?
+                  `${Math.round(schedulingMetrics.utilizationRate * 100)}%` : 'N/A'}
+              </Title>
+              {schedulingMetrics?.peakUtilization && schedulingMetrics.peakUtilization > 0.9 && (
+                <Text type="warning" style={{ fontSize: 12 }}>
+                  Peak: {Math.round(schedulingMetrics.peakUtilization * 100)}%
+                </Text>
+              )}
+            </Space>
+          </Col>
+          <Col xs={12} sm={8} md={4} lg={3}>
+            <Space direction="vertical">
               <Text type="secondary">Completion</Text>
-              <Title heading={4}>{formatDate(chartEndTime)}</Title>
+              <Title heading={4} style={{ fontSize: 16 }}>{formatDate(chartEndTime)}</Title>
               <Text type="secondary">{formatTime(chartEndTime)}</Text>
             </Space>
           </Col>
           <Col xs={12} sm={8} md={4} lg={3}>
             <Space direction="vertical">
-              <Text type="secondary">Work Days</Text>
-              <Title heading={4}>{totalDays} days</Title>
-            </Space>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Space direction="vertical">
-              <Text type="secondary">Workflows</Text>
-              <Title heading={4}>{sequencedTasks.filter(w => w.overallStatus !== 'completed').length}</Title>
-            </Space>
-          </Col>
-          <Col xs={12} sm={8} md={4} lg={3}>
-            <Space direction="vertical">
-              <Text type="secondary">Meeting Time</Text>
+              <Text type="secondary">Work Hours</Text>
               <Title heading={4}>
-                {itemRowPositions.totalMeetingMinutes > 0
-                  ? `${Math.floor(itemRowPositions.totalMeetingMinutes / 60)}h ${itemRowPositions.totalMeetingMinutes % 60}m`
-                  : '0h'}
+                {schedulingMetrics?.totalFocusedHours ?
+                  `${Math.round((schedulingMetrics.totalFocusedHours +
+                    (schedulingMetrics.totalAdminHours || 0)) * 10) / 10}h` :
+                  `${Math.round(totalDays * 8)}h est`}
               </Title>
             </Space>
           </Col>
           <Col xs={12} sm={8} md={4} lg={3}>
             <Space direction="vertical">
-              <Text type="secondary">Deadline Violations</Text>
-              <Title heading={4} style={{ color: scheduledItems.filter((item: any) => {
-                const parentWorkflow = item.workflowId ? sequencedTasks.find(w => w.id === item.workflowId) : null
-                const effectiveDeadline = item.deadline || (parentWorkflow?.deadline ? parentWorkflow.deadline : null)
-                return effectiveDeadline && dayjs(item.endTime).isAfter(dayjs(effectiveDeadline))
-              }).length > 0 ? '#ff4d4f' : '#00b42a' }}>
-                {scheduledItems.filter((item: any) => {
-                  const parentWorkflow = item.workflowId ? sequencedTasks.find(w => w.id === item.workflowId) : null
-                  const effectiveDeadline = item.deadline || (parentWorkflow?.deadline ? parentWorkflow.deadline : null)
-                  return effectiveDeadline && dayjs(item.endTime).isAfter(dayjs(effectiveDeadline))
-                }).length}
+              <Text type="secondary">Deadline Risk</Text>
+              <Title heading={4} style={{
+                color: schedulingMetrics?.deadlineRiskScore ?
+                  (schedulingMetrics.deadlineRiskScore > 0.7 ? '#ff4d4f' :
+                   schedulingMetrics.deadlineRiskScore > 0.3 ? '#faad14' : '#52c41a')
+                  : 'inherit',
+              }}>
+                {schedulingMetrics?.deadlineRiskScore !== undefined ?
+                  (schedulingMetrics.deadlineRiskScore > 0.7 ? 'High' :
+                   schedulingMetrics.deadlineRiskScore > 0.3 ? 'Medium' : 'Low')
+                  : 'N/A'}
+              </Title>
+              {schedulingMetrics?.deadlinesMissed && schedulingMetrics.deadlinesMissed > 0 && (
+                <Text type="error" style={{ fontSize: 12 }}>
+                  {schedulingMetrics.deadlinesMissed} at risk
+                </Text>
+              )}
+            </Space>
+          </Col>
+          <Col xs={12} sm={8} md={4} lg={3}>
+            <Space direction="vertical">
+              <Text type="secondary">Avg Priority</Text>
+              <Title heading={4}>
+                {schedulingMetrics?.averagePriority ?
+                  Math.round(schedulingMetrics.averagePriority) : 'N/A'}
               </Title>
             </Space>
           </Col>
@@ -1009,23 +1036,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         <Card
           title="Scheduled Tasks (Priority Order)"
           style={{ position: 'relative' }}
-          extra={
-            <Space>
-              <Button
-                size="small"
-                type="primary"
-                icon={<IconRefresh />}
-                onClick={() => {
-                  logger.ui.info('Manual refresh triggered', {}, 'gantt-manual-refresh')
-                  setRefreshKey(prev => prev + 1)
-                  loadWorkPatterns()
-                  setOptimalSchedule([])
-                }}
-              >
-                Refresh
-              </Button>
-            </Space>
-          }
         >
         {/* Pinch indicator */}
         {isPinching && (

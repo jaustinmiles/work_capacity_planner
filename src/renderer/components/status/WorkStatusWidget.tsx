@@ -552,8 +552,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
             </Space>
             <div style={{ borderTop: '1px solid #e5e5e5', marginTop: 8, paddingTop: 8 }}>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 100, color: '#1D2129' }}>📊 Total Time:</Text>
-                <Tag color="default">{formatMinutes(totalCapacity.focusMinutes + totalCapacity.adminMinutes + totalCapacity.personalMinutes + totalCapacity.flexibleMinutes + meetingMinutes)}</Tag>
+                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 100 }}>📊 Total Time:</Text>
+                <Text style={{ fontSize: '14px', fontWeight: 500 }}>{formatMinutes(totalCapacity.focusMinutes + totalCapacity.adminMinutes + totalCapacity.personalMinutes + totalCapacity.flexibleMinutes + meetingMinutes)}</Text>
               </Space>
             </div>
           </Space>

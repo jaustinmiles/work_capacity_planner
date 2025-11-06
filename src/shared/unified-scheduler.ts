@@ -26,6 +26,14 @@ import { ProductivityPattern, SchedulingPreferences } from './types'
 import { logger } from '@/logger'
 import { getCurrentTime, getLocalDateString, timeProvider as _timeProvider } from './time-provider'
 import { calculateDuration as calculateTimeStringDuration, parseTimeString } from './time-utils'
+import {
+  buildDependencyGraph,
+  topologicalSort,
+  detectDependencyCycles,
+  calculateCriticalPath,
+  calculateDependencyChainLength,
+} from './graph-utils'
+import { convertToUnifiedItems, validateConvertedItems } from './scheduler-converters'
 
 // ============================================================================
 // ENUMS
@@ -275,7 +283,10 @@ export class UnifiedScheduler {
   ): ScheduleResult {
 
     // Convert to unified format
-    const { activeItems: unifiedItems, completedItemIds } = this.convertToUnifiedItems(items)
+    const { activeItems: unifiedItems, completedItemIds } = convertToUnifiedItems(items)
+
+    // Validate converted items for data integrity
+    validateConvertedItems(unifiedItems)
 
     // Apply priority calculation
     unifiedItems.forEach(item => {
@@ -346,200 +357,6 @@ export class UnifiedScheduler {
     }
   }
 
-  /**
-   * Asynchronous scheduling for database persistence
-   * Can take longer, handles larger datasets, includes full optimization
-   */
-  // REVIEW: is this even used anywhere?  I don't think I ever wanted a feature for large datasets...
-  async scheduleForPersistence(
-    items: (Task | SequencedTask | TaskStep)[],
-    context: ScheduleContext,
-    config: ScheduleConfig,
-  ): Promise<ScheduleResult> {
-    return new Promise(resolve => {
-      (async () => {
-      // Start with base schedule
-      const baseResult = this.scheduleForDisplay(items, context, config)
-
-      // Enhanced async features
-      const enhancedResult = await this.enhanceWithAsyncFeatures(baseResult, items, context, config)
-
-        resolve(enhancedResult)
-      })()
-    })
-  }
-
-  /**
-   * Enhance scheduling result with advanced async features
-   */
-  // REVIEW: I want to make sure all these fancy functions are even used, tested, or valid. I feel like a lot of this was just thrown in to make the scheduler look more complex and feature rich.
-  private async enhanceWithAsyncFeatures(
-    baseResult: ScheduleResult,
-    originalItems: (Task | SequencedTask | TaskStep)[],
-    context: ScheduleContext,
-    config: ScheduleConfig,
-  ): Promise<ScheduleResult> {
-    const { activeItems: unifiedItems, completedItemIds: _completedItemIds } = this.convertToUnifiedItems(originalItems)
-
-    // 1. Capacity modeling - analyze resource utilization over time
-    const capacityModel = this.buildCapacityModel(baseResult, context.workPatterns)
-
-    // 2. Deadline risk analysis - identify items at risk of missing deadlines
-    const deadlineAnalysis = this.analyzeDeadlineRisks(baseResult.scheduled, context)
-
-    // 3. Alternative scheduling scenarios - generate optimized alternatives
-    const alternativeScenarios = await this.generateAlternativeScenarios(unifiedItems, context, config)
-
-    // 4. Enhanced metrics with capacity insights
-    const enhancedMetrics = {
-      ...baseResult.metrics,
-      capacityUtilization: capacityModel.utilizationRate,
-      deadlineRiskScore: deadlineAnalysis.riskScore,
-      alternativeScenariosCount: alternativeScenarios.length,
-    }
-
-    // 5. Enhanced warnings with capacity and deadline insights
-
-    return {
-      ...baseResult,
-      metrics: enhancedMetrics,
-      warnings: [],
-      // Augment debug info with optimization data
-      debugInfo: {
-        ...baseResult.debugInfo,
-        capacityModel,
-        alternativeScenarios: alternativeScenarios.slice(0, 3), // Top 3 alternatives
-        deadlineAnalysis,
-      },
-    }
-  }
-
-  /**
-   * Build capacity utilization model
-   */
-  private buildCapacityModel(result: ScheduleResult, workPatterns: DailyWorkPattern[]): {
-    utilizationRate: number
-    warnings: string[]
-    peakUtilizationPeriods: { date: string; utilization: number }[]
-  } {
-    const warnings: string[] = []
-    const utilizationByDate = new Map<string, number>()
-
-    // Calculate utilization for each day
-    for (const pattern of workPatterns) {
-      const totalCapacity = pattern.blocks.reduce((sum, block) => {
-        const blockMinutes = calculateTimeStringDuration(block.startTime, block.endTime)
-        return sum + blockMinutes
-      }, 0)
-
-      const scheduledMinutes = result.scheduled
-        .filter(item => item.startTime?.toISOString().split('T')[0] === pattern.date)
-        .reduce((sum, item) => sum + item.duration, 0)
-
-      const utilization = totalCapacity > 0 ? scheduledMinutes / totalCapacity : 0
-      utilizationByDate.set(pattern.date, utilization)
-
-      if (utilization > 0.9) {
-        warnings.push(`High utilization (${Math.round(utilization * 100)}%) on ${pattern.date}`)
-      }
-    }
-
-    const avgUtilization = Array.from(utilizationByDate.values())
-      .reduce((sum, util) => sum + util, 0) / utilizationByDate.size
-
-    const peakUtilizationPeriods = Array.from(utilizationByDate.entries())
-      .filter(([_date, util]) => util > 0.8)
-      .map(([date, utilization]) => ({ date, utilization }))
-      .sort((a, b) => b.utilization - a.utilization)
-
-    return {
-      utilizationRate: avgUtilization,
-      warnings,
-      peakUtilizationPeriods,
-    }
-  }
-
-  /**
-   * Analyze deadline risks
-   */
-  private analyzeDeadlineRisks(scheduled: UnifiedScheduleItem[], _context: ScheduleContext): {
-    riskScore: number
-    warnings: string[]
-    riskyItems: { id: string; name: string; riskLevel: 'high' | 'medium' | 'low' }[]
-  } {
-    const warnings: string[] = []
-    const riskyItems: { id: string; name: string; riskLevel: 'high' | 'medium' | 'low' }[] = []
-
-    let totalRiskScore = 0
-    let itemsWithDeadlines = 0
-
-    for (const item of scheduled) {
-      if (item.deadline && item.endTime) {
-        itemsWithDeadlines++
-        const timeToDeadline = item.deadline.getTime() - item.endTime.getTime()
-        const daysToDeadline = timeToDeadline / (24 * 60 * 60 * 1000)
-
-        let riskLevel: 'high' | 'medium' | 'low'
-        let riskScore: number
-
-        if (daysToDeadline < 0) {
-          riskLevel = 'high'
-          riskScore = 1
-          warnings.push(`"${item.name}" will miss deadline by ${Math.abs(Math.round(daysToDeadline))} days`)
-        } else if (daysToDeadline < 1) {
-          riskLevel = 'high'
-          riskScore = 0.8
-          warnings.push(`"${item.name}" has tight deadline (${Math.round(daysToDeadline * 24)} hours remaining)`)
-        } else if (daysToDeadline < 3) {
-          riskLevel = 'medium'
-          riskScore = 0.5
-        } else {
-          riskLevel = 'low'
-          riskScore = 0.1
-        }
-
-        totalRiskScore += riskScore
-        riskyItems.push({ id: item.id, name: item.name, riskLevel })
-      }
-    }
-
-    const avgRiskScore = itemsWithDeadlines > 0 ? totalRiskScore / itemsWithDeadlines : 0
-
-    return {
-      riskScore: avgRiskScore,
-      warnings,
-      riskyItems: riskyItems.filter(item => item.riskLevel !== 'low'),
-    }
-  }
-
-  /**
-   * Generate alternative scheduling scenarios
-   */
-  private async generateAlternativeScenarios(
-    _items: UnifiedScheduleItem[],
-    _context: ScheduleContext,
-    _config: ScheduleConfig,
-  ): Promise<Array<{ name: string; description: string; metrics: any }>> {
-    // For now, return a simple set of scenarios
-    // In a full implementation, this would use different scheduling strategies
-    return [
-      {
-        name: 'Deadline-First',
-        description: 'Prioritize items with tight deadlines',
-        metrics: { hypotheticalCompletionTime: 'TBD' },
-      },
-      {
-        name: 'Capacity-Optimized',
-        description: 'Maximize resource utilization',
-        metrics: { hypotheticalUtilization: 'TBD' },
-      },
-      {
-        name: 'Balanced',
-        description: 'Balance deadline pressure and capacity',
-        metrics: { hypotheticalBalance: 'TBD' },
-      },
-    ]
-  }
 
   // ============================================================================
   // PRIORITY CALCULATION (from deadline-scheduler)
@@ -859,192 +676,6 @@ export class UnifiedScheduler {
   // DEPENDENCY MANAGEMENT (from scheduling-engine)
   // ============================================================================
 
-  /**
-   * Sort items using topological sort to respect dependencies
-   * Uses Kahn's algorithm with priority consideration
-   */
-  topologicalSort(items: UnifiedScheduleItem[]): UnifiedScheduleItem[] {
-    const inDegree = new Map<string, number>()
-    const itemMap = new Map<string, UnifiedScheduleItem>()
-
-    // Initialize in-degree map and item map
-    items.forEach(item => {
-      inDegree.set(item.id, 0)
-      itemMap.set(item.id, item)
-    })
-
-    // Calculate in-degrees based on dependencies
-    items.forEach(item => {
-      const deps = item.dependencies || []
-      inDegree.set(item.id, deps.length)
-    })
-
-    // Priority queue - items with no dependencies, sorted by priority
-    const itemsWithNoDeps = items.filter(item => inDegree.get(item.id) === 0)
-    const queue = itemsWithNoDeps.sort((a, b) => (b.priority || 0) - (a.priority || 0)) // Higher priority first
-
-    const result: UnifiedScheduleItem[] = []
-
-    while (queue.length > 0) {
-      const current = queue.shift()!
-      result.push(current)
-
-      // Update dependencies - find items that depend on the current item
-      items.forEach(item => {
-        const deps = item.dependencies || []
-        if (deps.includes(current.id)) {
-          const newInDegree = (inDegree.get(item.id) || 0) - 1
-          inDegree.set(item.id, newInDegree)
-
-          if (newInDegree === 0) {
-            // Insert in priority order
-            const priority = item.priority || 0
-            let insertIndex = 0
-            while (insertIndex < queue.length) {
-              const queueItem = queue[insertIndex]
-              if (queueItem && (queueItem.priority || 0) > priority) {
-                insertIndex++
-              } else {
-                break
-              }
-            }
-            queue.splice(insertIndex, 0, item)
-          }
-        }
-      })
-    }
-
-    // Handle cycles: if there are remaining items with dependencies, add them anyway
-    // This prevents cycles from causing empty results
-    const processedIds = new Set(result.map(item => item.id))
-    const remaining = items.filter(item => !processedIds.has(item.id))
-
-    if (remaining.length > 0) {
-      // Sort remaining by priority and add them (breaking cycles)
-      const sortedRemaining = remaining.sort((a, b) => (b.priority || 0) - (a.priority || 0))
-      result.push(...sortedRemaining)
-    }
-
-    return result
-  }
-
-  /**
-   * Build dependency graph from items
-   * Maps each item ID to its list of dependencies
-   */
-  buildDependencyGraph(items: UnifiedScheduleItem[]): Map<string, string[]> {
-    const graph = new Map<string, string[]>()
-
-    items.forEach(item => {
-      const dependencies = item.dependencies || []
-      graph.set(item.id, dependencies)
-    })
-
-    return graph
-  }
-
-  /**
-   * Detect circular dependencies using DFS (Depth-First Search)
-   * Returns whether cycles exist and which items are involved
-   */
-  detectDependencyCycles(graph: Map<string, string[]>): {
-    hasCycle: boolean
-    cycleItems: string[]
-  } {
-    const visited = new Set<string>()
-    const recursionStack = new Set<string>()
-    const cycleItems: string[] = []
-
-    const dfs = (node: string): boolean => {
-      // If we're already in recursion stack, we found a cycle
-      if (recursionStack.has(node)) {
-        cycleItems.push(node)
-        return true
-      }
-
-      // If already fully visited, no cycle through this node
-      if (visited.has(node)) {
-        return false
-      }
-
-      // Mark as visited and add to recursion stack
-      visited.add(node)
-      recursionStack.add(node)
-
-      // Check all dependencies
-      const dependencies = graph.get(node) || []
-      for (const dep of dependencies) {
-        if (dfs(dep)) {
-          cycleItems.push(node) // Add this node to cycle path
-          return true
-        }
-      }
-
-      // Remove from recursion stack when done with this branch
-      recursionStack.delete(node)
-      return false
-    }
-
-    // Check all nodes for cycles
-    for (const node of graph.keys()) {
-      if (!visited.has(node)) {
-        if (dfs(node)) {
-          return { hasCycle: true, cycleItems }
-        }
-      }
-    }
-
-    return { hasCycle: false, cycleItems: [] }
-  }
-
-  /**
-   * Calculate critical path duration for workflow planning
-   * Returns the longest path through the dependency graph in minutes
-   */
-  calculateCriticalPath(items: UnifiedScheduleItem[]): number {
-    const graph = this.buildDependencyGraph(items)
-    const itemMap = new Map<string, UnifiedScheduleItem>()
-    const memo = new Map<string, number>()
-
-    // Build item lookup map
-    items.forEach(item => {
-      itemMap.set(item.id, item)
-    })
-
-    // Recursive function to calculate longest path from a node
-    const calculateLongestPath = (nodeId: string): number => {
-      // Check memo first
-      if (memo.has(nodeId)) {
-        return memo.get(nodeId)!
-      }
-
-      const item = itemMap.get(nodeId)
-      if (!item) return 0
-
-      const dependencies = graph.get(nodeId) || []
-      let maxDependencyPath = 0
-
-      // Find the longest path among dependencies
-      for (const depId of dependencies) {
-        const depPath = calculateLongestPath(depId)
-        maxDependencyPath = Math.max(maxDependencyPath, depPath)
-      }
-
-      // Current item's contribution = its duration + longest dependency path
-      const totalPath = item.duration + maxDependencyPath
-      memo.set(nodeId, totalPath)
-      return totalPath
-    }
-
-    // Calculate critical path as the maximum among all items
-    let criticalPath = 0
-    for (const item of items) {
-      const pathLength = calculateLongestPath(item.id)
-      criticalPath = Math.max(criticalPath, pathLength)
-    }
-
-    return criticalPath
-  }
 
   // ============================================================================
   // TASK ALLOCATION (from flexible-scheduler)
@@ -1511,7 +1142,7 @@ export class UnifiedScheduler {
     context: ScheduleContext,
   ): ScheduleResult {
     // Sort items topologically first to respect dependencies
-    const sortedItems = this.topologicalSort(items)
+    const sortedItems = topologicalSort(items)
 
     // Create optimal schedule by scheduling items as early as possible
     const scheduled: UnifiedScheduleItem[] = []
@@ -1584,7 +1215,7 @@ export class UnifiedScheduler {
         utilizationRate: scheduled.length > 0 ? 1 : 0, // Perfect utilization in optimal schedule
         averagePriority: scheduled.length > 0 ? scheduled.reduce((sum, item) => sum + (item.priority || 0), 0) / scheduled.length : 0,
         deadlinesMissed: 0,
-        criticalPathLength: this.calculateCriticalPath(scheduled),
+        criticalPathLength: calculateCriticalPath(scheduled),
       },
       debugInfo: {
         scheduledItems: [],
@@ -1603,93 +1234,6 @@ export class UnifiedScheduler {
     }
   }
 
-  /**
-   * Calculate theoretical minimum completion time based on critical path and parallelization
-   */
-  calculateMinimumCompletionTime(items: UnifiedScheduleItem[]): number {
-    if (items.length === 0) return 0
-
-    // For minimum completion time, we need to consider parallel execution
-    // The minimum time is the time taken when maximum parallelization is achieved
-    const parallelModel = this.modelParallelExecution(items)
-
-    // Calculate time for each parallel group (longest task in each group)
-    let totalParallelTime = 0
-    for (const group of parallelModel.parallelGroups) {
-      const maxDurationInGroup = Math.max(...group.map(item => item.duration))
-      totalParallelTime += maxDurationInGroup
-    }
-
-    return totalParallelTime
-  }
-
-  /**
-   * Model parallel execution possibilities by analyzing dependency graph
-   */
-  modelParallelExecution(items: UnifiedScheduleItem[]): {
-    parallelGroups: UnifiedScheduleItem[][]
-    maxParallelism: number
-    timeReduction: number
-  } {
-    const graph = this.buildDependencyGraph(items)
-    const parallelGroups: UnifiedScheduleItem[][] = []
-
-    // Group items by their dependency level (items at same level can run in parallel)
-    const levelGroups = new Map<number, UnifiedScheduleItem[]>()
-
-    const calculateLevel = (itemId: string, memo = new Map<string, number>()): number => {
-      if (memo.has(itemId)) return memo.get(itemId)!
-
-      const dependencies = graph.get(itemId) || []
-      if (dependencies.length === 0) {
-        memo.set(itemId, 0)
-        return 0
-      }
-
-      const maxDepLevel = Math.max(...dependencies.map(depId => calculateLevel(depId, memo)))
-      const level = maxDepLevel + 1
-      memo.set(itemId, level)
-      return level
-    }
-
-    // Calculate level for each item
-    items.forEach(item => {
-      const level = calculateLevel(item.id)
-      const group = levelGroups.get(level) || []
-      group.push(item)
-      levelGroups.set(level, group)
-    })
-
-    // Convert level groups to parallel groups
-    const sortedLevels = Array.from(levelGroups.keys()).sort((a, b) => a - b)
-    sortedLevels.forEach(level => {
-      const group = levelGroups.get(level)!
-      if (group.length > 0) {
-        parallelGroups.push(group)
-      }
-    })
-
-    // Calculate max parallelism (largest group size)
-    const maxParallelism = Math.max(...parallelGroups.map(group => group.length))
-
-    // Estimate time reduction from parallelization
-    const sequentialTime = items.reduce((sum, item) => sum + item.duration, 0)
-    let parallelTime = 0
-
-    parallelGroups.forEach(group => {
-      // Time for this level is the maximum duration in the group (since they run in parallel)
-      const levelTime = Math.max(...group.map(item => item.duration))
-      parallelTime += levelTime
-    })
-
-    const timeReduction = Math.max(0, sequentialTime - parallelTime)
-
-    return {
-      parallelGroups,
-      maxParallelism,
-      timeReduction,
-    }
-  }
 
   // ============================================================================
   // ALLOCATION HELPER METHODS
@@ -2122,12 +1666,13 @@ export class UnifiedScheduler {
     }
 
     // Check for circular dependencies
-    const graph = this.buildDependencyGraph(items)
-    const cycleCheck = this.detectDependencyCycles(graph)
+    const graph = buildDependencyGraph(items)
+    const cycleCheck = detectDependencyCycles(graph)
     if (cycleCheck.hasCycle) {
+      const cycleItems = cycleCheck.cycles.flat()
       errors.push({
         type: SchedulingConflictType.DependencyCycle,
-        affectedItems: cycleCheck.cycleItems,
+        affectedItems: cycleItems,
         description: 'Circular dependency detected between items',
         severity: SeverityLevel.Error,
         suggestedResolution: 'Remove or modify dependencies to break the cycle',
@@ -2136,7 +1681,7 @@ export class UnifiedScheduler {
 
     // Check for complex dependency chains (warning)
     for (const item of items) {
-      const chainLength = this.calculateDependencyChainLength(item.id, graph)
+      const chainLength = calculateDependencyChainLength(item.id, graph)
       if (chainLength > 5) {
         // REVIEW: are these warnings even displayed anywhere?
         warnings.push({
@@ -2158,28 +1703,6 @@ export class UnifiedScheduler {
   /**
    * Calculate the maximum dependency chain length for an item
    */
-  private calculateDependencyChainLength(itemId: string, graph: Map<string, string[]>): number {
-    const visited = new Set<string>()
-
-    const dfs = (nodeId: string): number => {
-      if (visited.has(nodeId)) return 0 // Avoid infinite recursion
-
-      visited.add(nodeId)
-      const dependencies = graph.get(nodeId) || []
-
-      if (dependencies.length === 0) return 1
-
-      let maxDepth = 0
-      for (const depId of dependencies) {
-        maxDepth = Math.max(maxDepth, dfs(depId))
-      }
-
-      visited.delete(nodeId) // Allow revisiting in other branches
-      return maxDepth + 1
-    }
-
-    return dfs(itemId)
-  }
 
   /**
    * Resolve dependencies and return items in executable order
@@ -2204,7 +1727,7 @@ export class UnifiedScheduler {
     }
 
     // If validation passes, perform topological sort
-    const resolved = this.topologicalSort(items)
+    const resolved = topologicalSort(items)
 
     return {
       resolved,
@@ -2350,105 +1873,6 @@ export class UnifiedScheduler {
   // UTILITIES AND HELPERS
   // ============================================================================
 
-  /**
-   * Convert various input types to UnifiedScheduleItem
-   */
-  // REVIEW: let's move this to a utility file and make sure it's tested, if we even need it. But I hate how many hardcoded strings there are here. This is very error prone.
-  private convertToUnifiedItems(
-    items: (Task | SequencedTask | TaskStep)[],
-  ): {
-    activeItems: UnifiedScheduleItem[]
-    completedItemIds: Set<string>
-  } {
-    const unified: UnifiedScheduleItem[] = []
-    const completedItemIds = new Set<string>()
-    const processedItemIds = new Set<string>() // Track all processed items to avoid duplicates
-
-    for (const item of items) {
-      if ('steps' in item && item.steps) {
-        // SequencedTask - convert each step
-        item.steps.forEach((step, index) => {
-          // Skip if we've already processed this step
-          if (processedItemIds.has(step.id)) {
-            return
-          }
-          processedItemIds.add(step.id)
-
-          const isCompleted = step.status === 'completed'
-
-          const unifiedItem = {
-            id: step.id,
-            name: step.name,
-            type: 'workflow-step' as const,
-            duration: step.duration,
-            priority: 0, // Will be calculated later
-            importance: step.importance ?? item.importance ?? 5,  // Default to 5 if both undefined
-            urgency: step.urgency ?? item.urgency ?? 5,          // Default to 5 if both undefined
-            cognitiveComplexity: step.cognitiveComplexity || 3,
-            taskType: step.type,
-            ...(item.deadline && { deadline: item.deadline }),   // Only include if defined
-            ...(item.deadlineType && { deadlineType: item.deadlineType }),
-            dependencies: step.dependsOn || [],
-            asyncWaitTime: step.asyncWaitTime,
-            completed: isCompleted,
-            workflowId: item.id,
-            workflowName: item.name,
-            stepIndex: index,
-            originalItem: step,
-          }
-
-          if (isCompleted) {
-            completedItemIds.add(step.id)
-          } else {
-            unified.push(unifiedItem)
-          }
-        })
-      } else {
-        // Skip if we've already processed this item
-        if (processedItemIds.has(item.id)) {
-          continue
-        }
-        processedItemIds.add(item.id)
-
-        // Regular Task or TaskStep
-        const isCompleted = ('completed' in item && item.completed) || ('status' in item && item.status === 'completed')
-
-        const deadline = 'deadline' in item ? item.deadline : undefined
-        const deadlineType = 'deadlineType' in item ? item.deadlineType : undefined
-        const workflowId = 'taskId' in item ? item.taskId : undefined
-
-        const unifiedItem = {
-          id: item.id,
-          name: item.name,
-          type: ('taskId' in item ? 'workflow-step' : 'task') as 'workflow-step' | 'task',
-          duration: item.duration,
-          priority: 0, // Will be calculated later
-          importance: item.importance ?? 5,  // Default to 5 (mid-range) if undefined
-          urgency: item.urgency ?? 5,        // Default to 5 (mid-range) if undefined
-          cognitiveComplexity: item.cognitiveComplexity || 3,
-          taskType: ('taskType' in item ? item.taskType : item.type) as TaskType,
-          ...(deadline && { deadline }),
-          ...(deadlineType && { deadlineType }),
-          dependencies: 'dependencies' in item ? item.dependencies : (item.dependsOn || []),
-          asyncWaitTime: item.asyncWaitTime,
-          completed: isCompleted,
-          ...(workflowId && { workflowId }),
-          originalItem: item,
-        }
-
-        if (isCompleted) {
-          completedItemIds.add(item.id)
-        } else {
-          unified.push(unifiedItem)
-        }
-      }
-    }
-
-    return {
-      activeItems: unified,
-      completedItemIds,
-    }
-  }
 
   /**
    * Generate debug information for scheduled and unscheduled items
@@ -2610,9 +2034,9 @@ export class UnifiedScheduler {
       totalFocusedHours: focusedHours,
       totalAdminHours: adminHours,
       projectedCompletionDate,
-      averageUtilization: 75, // Placeholder - would calculate based on capacity
-      peakUtilization: 90, // Placeholder - would calculate based on daily peaks
-      capacityUtilization: 75,
+      averageUtilization: 0.75, // Placeholder - would calculate based on capacity
+      peakUtilization: 0.9, // Placeholder - would calculate based on daily peaks
+      capacityUtilization: 0.75,
       deadlineRiskScore: 0,
       alternativeScenariosCount: 0,
     }
