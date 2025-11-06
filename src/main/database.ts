@@ -1511,6 +1511,23 @@ export class DatabaseService {
     meetings?: any[]
   }): Promise<any> {
     // [WorkPatternLifeCycle] START: Updating work pattern
+
+    // Log mixed blocks being passed in
+    if (updates.blocks) {
+      updates.blocks.forEach((block: any, index: number) => {
+        if (block.type === 'mixed') {
+          dbLogger.info('Mixed block received in updateWorkPattern', {
+            index,
+            type: block.type,
+            capacity: block.capacity,
+            capacitySplitRatio: block.capacity?.splitRatio,
+            topLevelSplitRatio: block.splitRatio,
+            fullBlock: JSON.stringify(block),
+          })
+        }
+      })
+    }
+
     dbLogger.info('updateWorkPattern - START', {
       patternId: id,
       hasBlocks: !!updates.blocks,
@@ -1544,12 +1561,24 @@ export class DatabaseService {
         WorkBlock: {
           create: (updates.blocks || []).map((b: any) => {
             const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
-            return {
+            const newBlock = {
               id: crypto.randomUUID(),
               ...blockData,
               totalCapacity: b.capacity?.totalMinutes || 0,
               splitRatio: b.capacity?.splitRatio || null,
             }
+
+            // Log what we're actually saving for mixed blocks
+            if (b.type === 'mixed') {
+              dbLogger.info('Creating mixed block in database', {
+                originalCapacity: b.capacity,
+                originalSplitRatio: b.capacity?.splitRatio,
+                savedTotalCapacity: newBlock.totalCapacity,
+                savedSplitRatio: newBlock.splitRatio,
+              })
+            }
+
+            return newBlock
           }),
         },
         WorkMeeting: {
