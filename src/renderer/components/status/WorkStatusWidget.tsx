@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { TaskType, TaskStatus, WorkBlockType } from '@shared/enums'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconSkipNext, IconPause, IconCheck } from '@arco-design/web-react/icon'
+import { IconCaretRight, IconPlayArrow, IconSkipNext, IconPause, IconCheck } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { NextScheduledItem } from '@shared/types'
@@ -16,10 +16,6 @@ import { Message } from '../common/Message'
 
 
 const { Text } = Typography
-
-interface WorkStatusWidgetProps {
-  onEditSchedule?: () => void
-}
 
 // Work block type display mapping for consistent UI representation
 const WORK_BLOCK_DISPLAY: Record<string, { label: string; icon: string }> = {
@@ -38,7 +34,7 @@ const getWorkBlockDisplay = (blockType: string): string => {
 }
 
 // Log spam reduced by removing interval-based refresh - now uses event-driven updates only
-export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
+export function WorkStatusWidget() {
   const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
   const workPatternsLoading = useTaskStore(state => state.workPatternsLoading)
   const isLoading = useTaskStore(state => state.isLoading)
@@ -125,7 +121,10 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
       setNextTask(nextItem)
     } catch (error) {
-      logger.ui.error('[WorkStatusWidget] ❌ Failed to load next task:', error)
+      logger.ui.error('Failed to load next task', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      }, 'load-next-task-error')
     } finally {
       setIsLoadingNextTask(false)
     }
@@ -278,8 +277,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   }
 
   const handlePauseCurrentTask = async () => {
+    let activeSession: any = null
     try {
-      const activeSession = getActiveSession()
+      activeSession = getActiveSession()
       if (!activeSession) {
         logger.ui.warn('[WorkStatusWidget] No active session to pause')
         return
@@ -301,7 +301,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       // Reload next task after stopping current one
       await loadNextTask()
     } catch (error) {
-      logger.ui.error('[WorkStatusWidget] Failed to pause current task:', error)
+      logger.ui.error('Failed to pause current task', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        activeSession,
+      }, 'pause-task-error')
       Message.error('Failed to pause work session')
     } finally {
       setIsProcessing(false)
@@ -309,8 +313,21 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   }
 
   const handleCompleteCurrentTask = async () => {
+    logger.ui.info('[WorkStatusWidget] Complete button clicked - starting completion flow')
+
+    let activeSession: any = null
     try {
-      const activeSession = getActiveSession()
+      activeSession = getActiveSession()
+      logger.ui.info('[WorkStatusWidget] Active session check', {
+        hasActiveSession: !!activeSession,
+        sessionDetails: activeSession ? {
+          stepId: activeSession.stepId,
+          taskId: activeSession.taskId,
+          stepName: activeSession.stepName,
+          taskName: activeSession.taskName,
+        } : null,
+      })
+
       if (!activeSession) {
         logger.ui.warn('[WorkStatusWidget] No active session to complete')
         return
@@ -322,22 +339,78 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
       // Complete logic - both tasks and steps
       if (activeSession.stepId) {
-        // For workflow steps, use completeStep
-        await store.completeStep(activeSession.stepId, activeSession.plannedMinutes)
+        logger.ui.info('[WorkStatusWidget] Completing workflow step', {
+          stepId: activeSession.stepId,
+          stepName: activeSession.stepName,
+        })
+
+        // For workflow steps:
+        // 1. First ensure the parent workflow is marked as started
+        const workflow = store.sequencedTasks.find(st =>
+          st.steps.some(step => step.id === activeSession.stepId),
+        )
+
+        logger.ui.info('[WorkStatusWidget] Found parent workflow', {
+          workflowFound: !!workflow,
+          workflowId: workflow?.id,
+          workflowStatus: workflow?.overallStatus,
+        })
+
+        if (workflow && workflow.overallStatus === TaskStatus.NotStarted) {
+          logger.ui.info('[WorkStatusWidget] Updating workflow status to InProgress')
+          await store.updateSequencedTask(workflow.id, {
+            overallStatus: TaskStatus.InProgress,
+          })
+        }
+
+        // 2. Complete the step (this will stop the work session and log accumulated time)
+        logger.ui.info('[WorkStatusWidget] Calling store.completeStep', { stepId: activeSession.stepId })
+        await store.completeStep(activeSession.stepId)
+        logger.ui.info('[WorkStatusWidget] store.completeStep returned successfully')
+
         Message.success(`Completed workflow step: ${activeSession.stepName || 'Step'}`)
       } else if (activeSession.taskId) {
-        // For standalone tasks, mark as completed
+        logger.ui.info('[WorkStatusWidget] Completing standalone task', {
+          taskId: activeSession.taskId,
+          taskName: activeSession.taskName,
+        })
+
+        // For standalone tasks:
+        // 1. First pause the work to ensure time is logged
+        const progress = store.getWorkSessionProgress(activeSession.taskId)
+        logger.ui.info('[WorkStatusWidget] Work session progress', {
+          isActive: progress.isActive,
+          isPaused: progress.isPaused,
+          elapsedMinutes: progress.elapsedMinutes,
+        })
+
+        if (progress.isActive && !progress.isPaused) {
+          logger.ui.info('[WorkStatusWidget] Pausing task before completion')
+          await store.pauseTask(activeSession.taskId)
+        }
+
+        // 2. Mark the task as completed
+        logger.ui.info('[WorkStatusWidget] Marking task as completed')
         await store.updateTask(activeSession.taskId, {
           completed: true,
           overallStatus: TaskStatus.Completed,
         })
+        logger.ui.info('[WorkStatusWidget] Task marked as completed successfully')
+
         Message.success(`Completed task: ${activeSession.taskName || 'Task'}`)
       }
 
       // Reload next task after completing current one
+      logger.ui.info('[WorkStatusWidget] Reloading next task')
       await loadNextTask()
+      logger.ui.info('[WorkStatusWidget] Next task loaded successfully')
     } catch (error) {
-      logger.ui.error('[WorkStatusWidget] Failed to complete current task:', error)
+      logger.ui.error('Failed to complete current task', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        activeSession,
+        taskType: activeSession?.stepId ? 'workflow-step' : 'standalone-task',
+      }, 'complete-task-error')
       Message.error('Failed to complete task')
     } finally {
       setIsProcessing(false)
@@ -348,19 +421,27 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     try {
       setIsProcessing(true)
 
+      // Store the task name before starting (for success message)
+      const taskToStart = nextTask
+
       await useTaskStore.getState().startNextTask()
 
       // Show success notification with task name
-      if (nextTask) {
-        Message.success(`Started work on: ${nextTask.title}`)
+      if (taskToStart) {
+        Message.success(`Started work on: ${taskToStart.title}`)
       }
 
-      // Don't reload next task here - UI now shows pause button, not next task
+      // Force reload of next task after starting work
+      // The store's startNextTask already calls refreshAllData which emits the event
+      await loadNextTask()
     } catch (error) {
       logger.ui.error('Failed to start next task', {
         error: error instanceof Error ? error.message : String(error),
       })
       Message.error('Failed to start work session')
+
+      // Reload state even on error to ensure UI is consistent
+      await loadNextTask()
     } finally {
       setIsProcessing(false)
     }
@@ -371,11 +452,6 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       <Card>
         <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }} size="large">
           <Text type="secondary">No work schedule defined for today</Text>
-          {onEditSchedule && (
-            <Button type="primary" onClick={onEditSchedule}>
-              Create Schedule
-            </Button>
-          )}
 
           {/* Start Next Task section - works even without schedule */}
           <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
@@ -509,23 +585,109 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const flexibleRemaining = Math.max(0, totalCapacity.flexibleMinutes - flexibleUsed)
 
   return (
-    <Card
-      title={
-        <Space>
-          <IconSchedule />
-          <Text>Work Capacity - {dayjs().format('MMM D')}</Text>
-        </Space>
-      }
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
-        {/* Edit Schedule Button */}
-        {onEditSchedule && (
-          <div style={{ marginBottom: 8 }}>
-            <Button size="small" icon={<IconEdit />} onClick={onEditSchedule}>
-              Edit Schedule
-            </Button>
-          </div>
-        )}
+    <Space direction="vertical" style={{ width: '100%' }} size="large">
+        {/* Start Next Task */}
+        <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
+              <Button
+                type="text"
+                icon={<IconSkipNext />}
+                loading={isLoadingNextTask}
+                onClick={handleSkipToNextTask}
+                size="small"
+                title="Skip to next task"
+              />
+            </Space>
+
+            {(() => {
+              const activeSession = getActiveSession()
+
+              if (isLoadingNextTask) {
+                return <Text type="secondary">Loading...</Text>
+              } else if (activeSession) {
+                // Show active session details
+                return (
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Text>Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}</Text>
+                    <Space>
+                      <Tag color="blue">{formatMinutes(activeSession.plannedMinutes)}</Tag>
+                      <Tag color={activeSession.stepId ? 'purple' : 'green'}>
+                        {activeSession.stepId ? '🔄 Workflow Step' : '📋 Task'}
+                      </Tag>
+                    </Space>
+                  </Space>
+                )
+              } else if (nextTask) {
+                return (
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Text>Next: {nextTask.title}</Text>
+                    <Space>
+                      <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
+                      <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
+                        {nextTask.type === 'step' ? '🔄 Workflow Step' : '📋 Task'}
+                      </Tag>
+                    </Space>
+                  </Space>
+                )
+              } else {
+                return <Text type="secondary">No tasks available</Text>
+              }
+            })()}
+
+            {(() => {
+              const activeSession = getActiveSession()
+              const isActive = !!activeSession
+
+              // Render buttons based on active session state
+              if (isActive) {
+                // Show both Pause and Complete buttons when task is running
+                return (
+                  <Space style={{ width: '100%' }}>
+                    <Button
+                      type="outline"
+                      status="warning"
+                      icon={<IconPause />}
+                      loading={isProcessing}
+                      disabled={isLoadingNextTask}
+                      onClick={handlePauseCurrentTask}
+                      style={{ flex: 1 }}
+                    >
+                      Pause
+                    </Button>
+                    <Button
+                      type="primary"
+                      status="success"
+                      icon={<IconCheck />}
+                      loading={isProcessing}
+                      disabled={isLoadingNextTask}
+                      onClick={handleCompleteCurrentTask}
+                      style={{ flex: 1 }}
+                    >
+                      Complete
+                    </Button>
+                  </Space>
+                )
+              } else {
+                // Show Start button when no task is running
+                return (
+                  <Button
+                    type="primary"
+                    icon={<IconPlayArrow />}
+                    loading={isProcessing}
+                    disabled={!nextTask || isLoadingNextTask}
+                    onClick={handleStartNextTask}
+                    style={{ width: '100%' }}
+                  >
+                    Start Next Task
+                  </Button>
+                )
+              }
+            })()}
+          </Space>
+        </div>
+
         {/* Planned Capacity */}
         <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -713,109 +875,6 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
           )}
         </Space>
 
-        {/* Start Next Task */}
-        <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
-              <Button
-                type="text"
-                icon={<IconSkipNext />}
-                loading={isLoadingNextTask}
-                onClick={handleSkipToNextTask}
-                size="small"
-                title="Skip to next task"
-              />
-            </Space>
-
-            {(() => {
-              const activeSession = getActiveSession()
-
-              if (isLoadingNextTask) {
-                return <Text type="secondary">Loading...</Text>
-              } else if (activeSession) {
-                // Show active session details
-                return (
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Text>Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}</Text>
-                    <Space>
-                      <Tag color="blue">{formatMinutes(activeSession.plannedMinutes)}</Tag>
-                      <Tag color={activeSession.stepId ? 'purple' : 'green'}>
-                        {activeSession.stepId ? '🔄 Workflow Step' : '📋 Task'}
-                      </Tag>
-                    </Space>
-                  </Space>
-                )
-              } else if (nextTask) {
-                return (
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Text>Next: {nextTask.title}</Text>
-                    <Space>
-                      <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
-                      <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
-                        {nextTask.type === 'step' ? '🔄 Workflow Step' : '📋 Task'}
-                      </Tag>
-                    </Space>
-                  </Space>
-                )
-              } else {
-                return <Text type="secondary">No tasks available</Text>
-              }
-            })()}
-
-            {(() => {
-              const activeSession = getActiveSession()
-              const isActive = !!activeSession
-
-              // Render buttons based on active session state
-              if (isActive) {
-                // Show both Pause and Complete buttons when task is running
-                return (
-                  <Space style={{ width: '100%' }}>
-                    <Button
-                      type="outline"
-                      status="warning"
-                      icon={<IconPause />}
-                      loading={isProcessing}
-                      disabled={isLoadingNextTask}
-                      onClick={handlePauseCurrentTask}
-                      style={{ flex: 1 }}
-                    >
-                      Pause
-                    </Button>
-                    <Button
-                      type="primary"
-                      status="success"
-                      icon={<IconCheck />}
-                      loading={isProcessing}
-                      disabled={isLoadingNextTask}
-                      onClick={handleCompleteCurrentTask}
-                      style={{ flex: 1 }}
-                    >
-                      Complete
-                    </Button>
-                  </Space>
-                )
-              } else {
-                // Show Start button when no task is running
-                return (
-                  <Button
-                    type="primary"
-                    icon={<IconPlayArrow />}
-                    loading={isProcessing}
-                    disabled={!nextTask || isLoadingNextTask}
-                    onClick={handleStartNextTask}
-                    style={{ width: '100%' }}
-                  >
-                    Start Next Task
-                  </Button>
-                )
-              }
-            })()}
-          </Space>
-        </div>
-
-      </Space>
-    </Card>
+    </Space>
   )
 }

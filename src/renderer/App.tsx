@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Layout, Menu, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs } from '@arco-design/web-react'
+import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs } from '@arco-design/web-react'
 import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
@@ -23,7 +23,6 @@ import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
 import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
 import { DevTools } from './components/dev/DevTools'
 import { useTaskStore } from './store/useTaskStore'
-import { exampleSequencedTask } from '@shared/sequencing-types'
 import type { TaskStep } from '@shared/types'
 import { getDatabase } from './services/database'
 import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
@@ -91,7 +90,6 @@ function App() {
   const [brainstormModalVisible, setBrainstormModalVisible] = useState(false)
   const [taskCreationFlowVisible, setTaskCreationFlowVisible] = useState(false)
   const [extractedTasks, setExtractedTasks] = useState<ExtractedTask[]>([])
-  const [showExampleWorkflow, setShowExampleWorkflow] = useState(false)
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
   const [showWorkLoggerDual, setShowWorkLoggerDual] = useState(false)
@@ -558,7 +556,7 @@ function App() {
           {/* Work Status Widget */}
           {!sidebarCollapsed && (
             <div style={{ padding: '20px 16px' }}>
-              <WorkStatusWidget onEditSchedule={() => setShowWorkSchedule(true)} />
+              <WorkStatusWidget />
             </div>
           )}
 
@@ -714,40 +712,50 @@ function App() {
               {activeView === 'workflows' && (
                 <ErrorBoundary>
                 <Space direction="vertical" style={{ width: '100%' }} size="large">
-                  {/* User's Created Workflows */}
-                  {sequencedTasks.length > 0 && (
-                    <>
-                      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography.Title heading={5}>Your Workflows ({sequencedTasks.length})</Typography.Title>
-                        {process.env.NODE_ENV === 'development' && sequencedTasks.length > 0 && (
-                          <Popconfirm
-                            title="Delete All Workflows?"
-                            content="This will permanently delete all workflows and their steps. This action cannot be undone."
-                            onOk={handleDeleteAllSequencedTasks}
-                            okText="Delete All"
-                            cancelText="Cancel"
-                            okButtonProps={{ status: 'danger' }}
+                  {/* Header with Add Button */}
+                  <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography.Title heading={5}>
+                      {sequencedTasks.length > 0 ? `Your Workflows (${sequencedTasks.length})` : 'Workflows'}
+                    </Typography.Title>
+                    <Space>
+                      <Button
+                        type="primary"
+                        onClick={() => setSequencedTaskFormVisible(true)}
+                      >
+                        Add Sequenced Task
+                      </Button>
+                      {process.env.NODE_ENV === 'development' && sequencedTasks.length > 0 && (
+                        <Popconfirm
+                          title="Delete All Workflows?"
+                          content="This will permanently delete all workflows and their steps. This action cannot be undone."
+                          onOk={handleDeleteAllSequencedTasks}
+                          okText="Delete All"
+                          cancelText="Cancel"
+                          okButtonProps={{ status: 'danger' }}
+                        >
+                          <Button
+                            type="text"
+                            size="small"
+                            status="danger"
+                            icon={<IconDelete />}
                           >
-                            <Button
-                              type="text"
-                              size="small"
-                              status="danger"
-                              icon={<IconDelete />}
-                            >
-                              Delete All Workflows
-                            </Button>
-                          </Popconfirm>
-                        )}
-                      </div>
+                            Delete All Workflows
+                          </Button>
+                        </Popconfirm>
+                      )}
+                    </Space>
+                  </div>
 
-                      {sequencedTasks
-                        .sort((a, b) => {
-                          // Sort by priority (importance * urgency) descending
-                          const priorityA = a.importance * a.urgency
-                          const priorityB = b.importance * b.urgency
-                          return priorityB - priorityA
-                        })
-                        .map(task => (
+                  {/* User's Created Workflows */}
+                  {sequencedTasks.length > 0 ? (
+                    sequencedTasks
+                      .sort((a, b) => {
+                        // Sort by priority (importance * urgency) descending
+                        const priorityA = a.importance * a.urgency
+                        const priorityB = b.importance * b.urgency
+                        return priorityB - priorityA
+                      })
+                      .map(task => (
                         <SequencedTaskView
                           key={task.id}
                           task={task}
@@ -757,25 +765,17 @@ function App() {
                           onResetWorkflow={() => handleResetWorkflow(task.id)}
                           onDelete={() => handleDeleteSequencedTask(task.id)}
                         />
-                      ))}
-                    </>
-                  )}
-
-                  {/* Example Workflow */}
-                  <Button
-                    type="primary"
-                    onClick={() => setShowExampleWorkflow(!showExampleWorkflow)}
-                  >
-                    {showExampleWorkflow ? 'Hide' : 'Show'} Example Workflow
-                  </Button>
-
-                  {showExampleWorkflow && (
-                    <SequencedTaskView
-                      task={exampleSequencedTask}
-                      onStartWorkflow={() => Message.info('This is just an example workflow')}
-                      onPauseWorkflow={() => Message.info('This is just an example workflow')}
-                      onResetWorkflow={() => Message.info('This is just an example workflow')}
-                    />
+                      ))
+                  ) : (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '60px 20px',
+                      color: '#86909c',
+                    }}>
+                      <Typography.Text>
+                        No workflows yet. Click &quot;Add Sequenced Task&quot; to create your first workflow.
+                      </Typography.Text>
+                    </div>
                   )}
                 </Space>
                 </ErrorBoundary>

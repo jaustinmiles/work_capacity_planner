@@ -72,6 +72,8 @@ export enum SeverityLevel {
   Warning = 'warning'
 }
 
+export const MINIMUM_SPLIT_SIZE = 10
+
 // ============================================================================
 // UNIFIED DATA MODELS
 // ============================================================================
@@ -98,6 +100,7 @@ export interface UnifiedScheduleItem {
 
   // Status
   completed?: boolean
+  completedAt?: Date  // When the item was completed (for wait time calculation)
   locked?: boolean
   lockedTime?: Date
 
@@ -121,7 +124,9 @@ export interface UnifiedScheduleItem {
   // Metadata
   blockId?: string
   isWaitTime?: boolean
+  isFutureWait?: boolean  // Indicates a wait block for a future event (not actively waiting)
   isBlocked?: boolean
+  isWaitingOnAsync?: boolean  // Step is in waiting status (async work happening externally)
   originalItem?: Task | TaskStep | WorkMeeting
 }
 
@@ -231,6 +236,7 @@ interface BlockCapacity {
   totalMinutes: number
   usedMinutes: number
   splitRatio?: { focus: number; admin: number } | undefined  // Only for mixed blocks
+  usedMinutesByType?: Map<TaskType, number>  // Track per-type usage for mixed blocks
 }
 
 interface FitResult {
@@ -350,7 +356,7 @@ export class UnifiedScheduler {
       startDate: config.startDate || context.startDate,
       currentTime: context.currentTime, // Pass currentTime for work block scheduling
     }
-    const allocated = this.allocateToWorkBlocks(dependencyResult.resolved, context.workPatterns, configWithStartDate, completedItemIds)
+    const allocated = this.allocateToWorkBlocks(dependencyResult.resolved, context.workPatterns, configWithStartDate, completedItemIds, true)
 
     // Generate debug info (always - it's mandatory)
     const allocatedIds = new Set(allocated.map(item => item.id))
@@ -368,7 +374,9 @@ export class UnifiedScheduler {
 
     return {
       scheduled: allocated,
-      unscheduled: unifiedItems.filter(item => !scheduledIds.has(item.id)),
+      unscheduled: unifiedItems.filter(item =>
+        !scheduledIds.has(item.id) && !item.isWaitingOnAsync,
+      ),
       debugInfo,
       metrics,
       conflicts: dependencyResult.conflicts,
@@ -458,6 +466,7 @@ export class UnifiedScheduler {
     workPatterns: DailyWorkPattern[],
     config: ScheduleConfig & { currentTime?: Date },
     completedItemIds: Set<string> = new Set(),
+    isForDisplay: boolean = false,
   ): UnifiedScheduleItem[] {
     if (items.length === 0) {
       return []
@@ -553,8 +562,36 @@ export class UnifiedScheduler {
           if (!item) continue // Should never happen, but satisfies TypeScript
 
           // Check if dependencies are satisfied
-          if (!this.areDependenciesSatisfied(item, scheduled, completedItemIds)) {
+          if (!this.areDependenciesSatisfied(item, scheduled, completedItemIds, isForDisplay)) {
             continue // Skip this item, try next
+          }
+
+          // Special handling for items that are waiting on async work
+          if (item.isWaitingOnAsync && item.asyncWaitTime && item.asyncWaitTime > 0) {
+            // This item is already completed and in waiting status
+            // Don't schedule the task itself, only create the wait block
+            // Use completedAt if available (when the wait actually started), otherwise use current time
+            const waitStartTime = item.completedAt ? new Date(item.completedAt) : (config.currentTime || currentDate)
+
+
+            const waitTimeItem: UnifiedScheduleItem = {
+              id: `${item.id}-wait`,
+              name: `⏳ Waiting: ${item.name}`,
+              type: UnifiedScheduleItemType.AsyncWait,
+              duration: item.asyncWaitTime,
+              priority: 0,
+              startTime: waitStartTime,
+              endTime: new Date(waitStartTime.getTime() + item.asyncWaitTime * 60000),
+              isWaitTime: true,
+              ...(item.workflowId && { workflowId: item.workflowId }),
+              ...(item.workflowName && { workflowName: item.workflowName }),
+              ...(item.originalItem && { originalItem: item.originalItem }),
+            }
+            scheduled.push(waitTimeItem)
+            remaining.splice(itemIndex, 1)
+            scheduledItemsToday = true
+            madeProgress = true
+            continue // Move to next item
           }
 
           // Try to fit item in available blocks
@@ -571,23 +608,42 @@ export class UnifiedScheduler {
             const scheduledItem = this.scheduleItemInBlock(item, fitResult, false)
             scheduled.push(scheduledItem)
 
-            // If item has asyncWaitTime, create a wait time block
-            // REVIEW: so... we need to rethink how we do wait time. Because wait times should be shown but constantly be updating, while other things are scheduled. So we should show the wait time decreasing.. wait time starts at task completion. It's like a timer that blocks the next task. To be honest it should block dependency resolution.
+            // Create future wait blocks for items that have asyncWaitTime
+            // These will show on the timeline but won't have active countdown timers
+            // Only items with isWaitingOnAsync=true (already completed and waiting) get countdown timers
             if (item.asyncWaitTime && item.asyncWaitTime > 0 && scheduledItem.endTime) {
-              const waitTimeItem: UnifiedScheduleItem = {
-                id: `${item.id}-wait`,
-                name: `⏳ Waiting: ${item.name}`,
+              const waitBlockId = `${item.id}-wait-future`
+              const futureWaitBlock: UnifiedScheduleItem = {
+                id: waitBlockId,
+                name: `⏳ Wait After: ${item.name}`,
                 type: UnifiedScheduleItemType.AsyncWait,
                 duration: item.asyncWaitTime,
                 priority: 0,
                 startTime: scheduledItem.endTime,
                 endTime: new Date(scheduledItem.endTime.getTime() + item.asyncWaitTime * 60000),
                 isWaitTime: true,
+                isFutureWait: true, // Mark this as a future wait (not actively waiting)
                 ...(item.workflowId && { workflowId: item.workflowId }),
                 ...(item.workflowName && { workflowName: item.workflowName }),
                 ...(item.originalItem && { originalItem: item.originalItem }),
               }
-              scheduled.push(waitTimeItem)
+              scheduled.push(futureWaitBlock)
+
+              // CRITICAL: Update dependencies for subsequent workflow steps
+              // Any item in the same workflow that depends on this item should now depend on the wait block
+              if (item.workflowId) {
+                // Find all remaining items in the same workflow that depend on this item
+                for (const remainingItem of remaining) {
+                  if (remainingItem.workflowId === item.workflowId &&
+                      remainingItem.dependencies?.includes(item.id)) {
+                    // Replace the dependency on the original item with dependency on wait block
+                    const depIndex = remainingItem.dependencies.indexOf(item.id)
+                    if (depIndex !== -1) {
+                      remainingItem.dependencies[depIndex] = waitBlockId
+                    }
+                  }
+                }
+              }
             }
 
             remaining.splice(itemIndex, 1)
@@ -650,7 +706,7 @@ export class UnifiedScheduler {
       if (!scheduledItemsToday && remaining.length > 0) {
         // Check if we should continue or break to avoid infinite loop
         const hasSchedulableItems = remaining.some(item =>
-          this.areDependenciesSatisfied(item, scheduled, completedItemIds),
+          this.areDependenciesSatisfied(item, scheduled, completedItemIds, isForDisplay),
         )
 
         if (!hasSchedulableItems) {
@@ -1093,21 +1149,43 @@ export class UnifiedScheduler {
     item: UnifiedScheduleItem,
     scheduled: UnifiedScheduleItem[],
     completedItemIds: Set<string> = new Set(),
+    isForDisplay: boolean = false,
   ): boolean {
     const dependencies = item.dependencies || []
 
     // Check that all dependencies are satisfied by either:
     // 1. Being in the completed items set (completed before scheduling started)
     // 2. Being scheduled with an end time (completed during this scheduling run)
+    // 3. Being a wait block that must complete before this item can start
     return dependencies.every(depId => {
-      // First check if it's in the pre-completed items set
-      if (completedItemIds.has(depId)) {
+      // Check if this is a wait block dependency
+      const isWaitBlock = depId.endsWith('-wait-future')
+
+      // First check if it's in the pre-completed items set (for non-wait blocks)
+      if (!isWaitBlock && completedItemIds.has(depId)) {
+        // Only check waiting status for immediate execution (not for display)
+        if (!isForDisplay) {
+          // But if it's marked as waiting on async, it's not truly complete yet
+          // Check if there's a scheduled item that's still waiting
+          const waitingDep = scheduled.find(s => s.id === depId && s.isWaitingOnAsync)
+          if (waitingDep) {
+            // This dependency is still in its async wait period, so it doesn't satisfy
+            return false
+          }
+        }
         return true
       }
 
       // Then check if it's scheduled and completed in this run
       const dependency = scheduled.find(s => s.id === depId)
-      return dependency && dependency.endTime // Must be scheduled AND have an end time
+
+      // For wait blocks, they must be scheduled and have an end time
+      if (isWaitBlock) {
+        return dependency && dependency.endTime
+      }
+
+      // For regular dependencies: Must be scheduled, have an end time, and NOT be waiting on async (for execution only)
+      return dependency && dependency.endTime && !dependency.isWaitingOnAsync
     })
   }
 
@@ -1136,8 +1214,8 @@ export class UnifiedScheduler {
 
     }
 
-    // Simple unified structure
-    return {
+    // Initialize the block capacity with per-type tracking for mixed blocks
+    const blockCapacity: BlockCapacity = {
       blockId: block.id,
       blockType: block.type as WorkBlockType,
       startTime,
@@ -1146,6 +1224,25 @@ export class UnifiedScheduler {
       usedMinutes: 0,
       splitRatio,
     }
+
+    // Initialize per-type usage tracking for mixed blocks
+    if (block.type === WorkBlockType.Mixed) {
+      blockCapacity.usedMinutesByType = new Map<TaskType, number>()
+      blockCapacity.usedMinutesByType.set(TaskType.Focused, 0)
+      blockCapacity.usedMinutesByType.set(TaskType.Admin, 0)
+      blockCapacity.usedMinutesByType.set(TaskType.Personal, 0)
+
+      // Log mixed block creation
+      logger.debug('Created mixed block capacity', {
+        blockId: block.id,
+        totalMinutes,
+        splitRatio,
+        focusCapacity: splitRatio ? Math.floor(totalMinutes * splitRatio.focus) : 0,
+        adminCapacity: splitRatio ? Math.floor(totalMinutes * splitRatio.admin) : 0,
+      })
+    }
+
+    return blockCapacity
   }
 
   /**
@@ -1182,10 +1279,7 @@ export class UnifiedScheduler {
     const taskType = item.taskType === TaskType.Focused ? TaskType.Focused :
                      item.taskType === TaskType.Admin ? TaskType.Admin : TaskType.Personal
 
-    // Calculate available capacity using the scheduler-specific helper function
-    // This allows flexible blocks to be used for any task type
-    // Conditionally include splitRatio only if it exists (not undefined)
-    // REVIEW: can we use a utility function for this. we have a whole suite of capacity calculators already. this looks like it's using a function imported from the module but it does something super simplistic.
+    // Calculate total capacity for this task type in this block
     const totalCapacityForTaskType = getSchedulerCapacityForTaskType(
       block.splitRatio !== undefined
         ? { totalMinutes: block.totalMinutes, type: block.blockType, splitRatio: block.splitRatio }
@@ -1198,62 +1292,79 @@ export class UnifiedScheduler {
       return { canFit: false, canPartiallyFit: false }
     }
 
-    // Calculate available capacity (total for this task type minus what's used)
-    const availableCapacity = totalCapacityForTaskType - block.usedMinutes
+    // Find when we can start in this block (considering current time and scheduled items)
+    // IMPORTANT: Exclude wait times as they don't block scheduling
+    const scheduledNonWaitItems = scheduled.filter(s => !s.isWaitTime)
+    const potentialStartTime = this.findNextAvailableTime(block, scheduledNonWaitItems, currentTime)
 
-    // Account for time already passed in current block
-    let effectiveAvailableCapacity = availableCapacity
-    if (currentTime && currentTime > block.startTime && currentTime < block.endTime) {
-      const minutesPassed = Math.floor((currentTime.getTime() - block.startTime.getTime()) / 60000)
-
-      // Simply reduce available by time already passed
-      effectiveAvailableCapacity = Math.max(0, availableCapacity - minutesPassed)
-
-    }
-
-    if (effectiveAvailableCapacity <= 0) {
-      return { canFit: false, canPartiallyFit: false }
-    }
-
-    // Check for time conflicts with scheduled items
-    // IMPORTANT: Exclude wait time blocks - they don't consume physical time/capacity
-    const blockScheduled = scheduled.filter(s =>
-      s.startTime && s.endTime &&
-      s.startTime < block.endTime &&
-      s.endTime > block.startTime &&
-      !s.isWaitTime,  // Wait times don't block scheduling
-    )
-
-
-    // Find available time slot within the block
-    // REVIEW: seems like this whole function is doing a lot of work that could be done in a utility function. it seems overly complicated
-    const availableMinutes = Math.min(effectiveAvailableCapacity,
-      this.calculateAvailableTimeInBlock(block, blockScheduled))
-
-    // Find when we can start in this block
-    const potentialStartTime = this.findNextAvailableTime(block, blockScheduled, currentTime)
-
-    // Check if we're past the block or can't fit
+    // Check if we're past the block
     if (potentialStartTime.getTime() >= block.endTime.getTime()) {
       return { canFit: false, canPartiallyFit: false }
     }
 
-    // Calculate how much time is actually available from the start time
-    const timeFromStart = Math.floor((block.endTime.getTime() - potentialStartTime.getTime()) / 60000)
-    const actualAvailableMinutes = Math.min(availableMinutes, timeFromStart)
+    // Calculate remaining time in block from potential start time
+    const remainingTimeInBlock = Math.floor((block.endTime.getTime() - potentialStartTime.getTime()) / 60000)
 
-    if (item.duration <= actualAvailableMinutes) {
+    // Get scheduled items that will be in the remaining time window
+    const scheduledInRemainingWindow = scheduled.filter(s =>
+      s.startTime && s.endTime &&
+      s.startTime >= potentialStartTime &&
+      s.endTime <= block.endTime &&
+      s.blockId === block.blockId &&
+      !s.isWaitTime,  // Wait times don't consume capacity
+    )
+
+    // Calculate available capacity based on block type
+    let availableCapacity: number
+
+    if (block.blockType === WorkBlockType.Mixed) {
+      // For mixed blocks, track per-type usage
+      const usedForThisType = scheduledInRemainingWindow
+        .filter(s => s.taskType === taskType)
+        .reduce((sum, s) => sum + s.duration, 0)
+
+      // Available is type-specific capacity minus what's scheduled for this type
+      availableCapacity = Math.min(totalCapacityForTaskType - usedForThisType, remainingTimeInBlock)
+
+      // Debug logging for mixed blocks
+      logger.debug('Mixed block capacity check (fixed)', {
+        blockId: block.blockId,
+        taskType,
+        totalCapacityForTaskType,
+        usedForThisType,
+        remainingTimeInBlock,
+        availableCapacity,
+        itemDuration: item.duration,
+        itemName: item.name,
+        potentialStartTime: potentialStartTime.toISOString(),
+      })
+    } else {
+      // For single-type blocks, simpler calculation
+      const totalUsed = scheduledInRemainingWindow
+        .reduce((sum, s) => sum + s.duration, 0)
+
+      // Available is remaining time minus what's scheduled
+      availableCapacity = remainingTimeInBlock - totalUsed
+    }
+
+    // Check if there's any capacity available
+    if (availableCapacity <= 0) {
+      return { canFit: false, canPartiallyFit: false }
+    }
+
+    // Check if item can fit
+    if (item.duration <= availableCapacity) {
       return {
         canFit: true,
         canPartiallyFit: true,
-        availableMinutes: actualAvailableMinutes,
+        availableMinutes: availableCapacity,
         startTime: potentialStartTime,
       }
-    } else if (actualAvailableMinutes > 30) { // Minimum split size
+    } else if (availableCapacity > MINIMUM_SPLIT_SIZE) { // Can partially fit
       return {
         canFit: false,
         canPartiallyFit: true,
-        availableMinutes: actualAvailableMinutes,
+        availableMinutes: availableCapacity,
         startTime: potentialStartTime,
       }
     }
@@ -1284,12 +1395,19 @@ export class UnifiedScheduler {
     const endTime = new Date(startTime.getTime() + duration * 60000)
 
 
-    return {
+    const result: UnifiedScheduleItem = {
       ...item,
       startTime,
       endTime,
       duration,
     }
+
+    // Add blockId if the block exists
+    if (fitResult.block?.blockId) {
+      result.blockId = fitResult.block.blockId
+    }
+
+    return result
   }
 
   /**
@@ -1327,9 +1445,30 @@ export class UnifiedScheduler {
   private updateBlockCapacity(block: BlockCapacity | undefined, item: UnifiedScheduleItem): void {
     if (!block) return
 
-    // Simply update used minutes - works for all block types
+    // Update total used minutes (for backward compatibility)
     block.usedMinutes = (block.usedMinutes || 0) + item.duration
 
+    // For mixed blocks, also track per-type usage
+    if (block.blockType === WorkBlockType.Mixed && item.taskType) {
+      if (!block.usedMinutesByType) {
+        block.usedMinutesByType = new Map<TaskType, number>()
+      }
+      const currentUsed = block.usedMinutesByType.get(item.taskType) || 0
+      const newUsed = currentUsed + item.duration
+      block.usedMinutesByType.set(item.taskType, newUsed)
+
+      // Log the update for mixed blocks
+      logger.debug('Updated mixed block capacity', {
+        blockId: block.blockId,
+        itemName: item.name,
+        itemType: item.taskType,
+        itemDuration: item.duration,
+        previousUsed: currentUsed,
+        newUsed,
+        totalUsed: block.usedMinutes,
+        splitRatio: block.splitRatio,
+      })
+    }
   }
 
   /**
@@ -1651,7 +1790,7 @@ export class UnifiedScheduler {
     const efficiency = totalItems > 0 ? (scheduled.length / totalItems) * 100 : 100
 
     // Calculate block utilization
-    const blockUtilization = this.calculateBlockUtilization(scheduled, context.workPatterns)
+    const blockUtilization = this.calculateBlockUtilization(scheduled, context.workPatterns, context.currentTime)
 
     // Calculate total duration
     const totalDuration = scheduled.reduce((sum, item) => sum + item.duration, 0)
@@ -1689,6 +1828,7 @@ export class UnifiedScheduler {
   private calculateBlockUtilization(
     scheduled: UnifiedScheduleItem[],
     workPatterns: DailyWorkPattern[],
+    currentTime?: Date,
   ): Array<{
     date: string
     blockId: string
@@ -1698,6 +1838,12 @@ export class UnifiedScheduler {
     used: number
     blockType: WorkBlockType
     utilization: number
+    perTypeUtilization?: { focus?: number; admin?: number; personal?: number }
+    splitRatio?: { focus: number; admin: number }
+    capacityBreakdown?: { focus?: number; admin?: number; personal?: number }
+    usedBreakdown?: { focus?: number; admin?: number; personal?: number }
+    isCurrent?: boolean
+    reasonNotFilled?: string[]
   }> {
     const utilization: Array<any> = []
 
@@ -1719,8 +1865,40 @@ export class UnifiedScheduler {
     })
 
     // Calculate utilization for each work pattern
+    logger.warn('Block utilization START - checking workPatterns', {
+      workPatternsIsNull: workPatterns === null,
+      workPatternsIsUndefined: workPatterns === undefined,
+      workPatternsLength: workPatterns?.length || 0,
+      firstPatternDate: workPatterns?.[0]?.date || 'no patterns',
+      firstPatternHasBlocks: !!(workPatterns?.[0]?.blocks),
+      firstPatternBlockCount: workPatterns?.[0]?.blocks?.length || 0,
+    })
+
+    // Early return if no patterns
+    if (!workPatterns || workPatterns.length === 0) {
+      logger.warn('No work patterns provided to calculateBlockUtilization - returning empty array!')
+      return utilization
+    }
+
     workPatterns.forEach(pattern => {
       const dateItems = itemsByDate.get(pattern.date) || []
+
+      // Check if blocks exist
+      if (!pattern.blocks || pattern.blocks.length === 0) {
+        logger.warn('Work pattern has no blocks!', {
+          date: pattern.date,
+          patternKeys: Object.keys(pattern),
+          hasBlocks: 'blocks' in pattern,
+          blocksValue: pattern.blocks,
+        })
+        return
+      }
+
+      logger.debug('Processing pattern with blocks', {
+        date: pattern.date,
+        blockCount: pattern.blocks.length,
+        firstBlock: pattern.blocks[0],
+      })
 
       pattern.blocks.forEach(block => {
         const blockStart = this.parseTimeOnDate(new Date(pattern.date), block.startTime)
@@ -1728,7 +1906,13 @@ export class UnifiedScheduler {
         const totalMinutes = (blockEnd.getTime() - blockStart.getTime()) / 60000
 
         // Calculate items scheduled in this block
+        // Use blockId for matching if available, otherwise fall back to time window
         const itemsInBlock = dateItems.filter(item => {
+          // Prefer blockId matching (more accurate)
+          if (item.blockId) {
+            return item.blockId === block.id
+          }
+          // Fallback to time window matching for items without blockId
           if (!item.startTime || !item.endTime) return false
           return item.startTime >= blockStart && item.endTime <= blockEnd
         })
@@ -1742,7 +1926,13 @@ export class UnifiedScheduler {
         // Calculate utilization percentage
         const utilizationPercent = totalCapacity > 0 ? (usedCapacity / totalCapacity) * 100 : 0
 
-        const blockUtil = {
+        // Check if this is the current block
+        const isCurrent = currentTime &&
+          currentTime >= blockStart &&
+          currentTime < blockEnd
+
+        // Create base utilization object
+        const blockUtil: any = {
           date: pattern.date,
           blockId: block.id,
           startTime: block.startTime,
@@ -1751,10 +1941,104 @@ export class UnifiedScheduler {
           used: usedCapacity,
           blockType: block.type,
           utilization: Math.round(utilizationPercent),
+          isCurrent,
+        }
+
+        // Calculate detailed capacity breakdown
+        const capacityBreakdown: any = {}
+        const usedBreakdown: any = {}
+        const reasonsNotFilled: string[] = []
+
+        // For mixed blocks, add per-type utilization breakdown
+        if (block.type === WorkBlockType.Mixed && block.capacity?.splitRatio) {
+          const focusCapacity = Math.floor(totalMinutes * block.capacity.splitRatio.focus)
+          const adminCapacity = Math.floor(totalMinutes * block.capacity.splitRatio.admin)
+
+          capacityBreakdown.focus = focusCapacity
+          capacityBreakdown.admin = adminCapacity
+
+          // Calculate used minutes by type
+          const focusUsed = itemsInBlock.filter(item => item.taskType === TaskType.Focused)
+            .reduce((sum, item) => sum + item.duration, 0)
+          const adminUsed = itemsInBlock.filter(item => item.taskType === TaskType.Admin)
+            .reduce((sum, item) => sum + item.duration, 0)
+          const personalUsed = itemsInBlock.filter(item => item.taskType === TaskType.Personal)
+            .reduce((sum, item) => sum + item.duration, 0)
+
+          usedBreakdown.focus = focusUsed
+          usedBreakdown.admin = adminUsed
+          if (personalUsed > 0) usedBreakdown.personal = personalUsed
+
+          blockUtil.perTypeUtilization = {
+            focus: focusCapacity > 0 ? Math.round((focusUsed / focusCapacity) * 100) : 0,
+            admin: adminCapacity > 0 ? Math.round((adminUsed / adminCapacity) * 100) : 0,
+            personal: personalUsed > 0 ? 100 : 0, // Personal tasks can use any capacity
+          }
+
+          blockUtil.splitRatio = block.capacity.splitRatio
+          blockUtil.capacityBreakdown = capacityBreakdown
+          blockUtil.usedBreakdown = usedBreakdown
+
+          // Determine reasons for underutilization
+          if (focusUsed < focusCapacity) {
+            const unusedFocus = focusCapacity - focusUsed
+            reasonsNotFilled.push(`${unusedFocus}min focus capacity unused`)
+          }
+          if (adminUsed < adminCapacity) {
+            const unusedAdmin = adminCapacity - adminUsed
+            reasonsNotFilled.push(`${unusedAdmin}min admin capacity unused`)
+          }
+
+          // Add debug logging for mixed blocks
+          logger.debug('Mixed block utilization', {
+            blockId: block.id,
+            isCurrent,
+            focusCapacity,
+            focusUsed,
+            adminCapacity,
+            adminUsed,
+            perTypeUtilization: blockUtil.perTypeUtilization,
+            reasonsNotFilled,
+          })
+        } else {
+          // For single-type blocks
+          if (block.type === WorkBlockType.Focused) {
+            capacityBreakdown.focus = totalCapacity
+            usedBreakdown.focus = usedCapacity
+          } else if (block.type === WorkBlockType.Admin) {
+            capacityBreakdown.admin = totalCapacity
+            usedBreakdown.admin = usedCapacity
+          } else if (block.type === WorkBlockType.Personal) {
+            capacityBreakdown.personal = totalCapacity
+            usedBreakdown.personal = usedCapacity
+          }
+
+          blockUtil.capacityBreakdown = capacityBreakdown
+          blockUtil.usedBreakdown = usedBreakdown
+
+          if (usedCapacity < totalCapacity) {
+            const unusedCapacity = totalCapacity - usedCapacity
+            reasonsNotFilled.push(`${unusedCapacity}min capacity unused`)
+          }
+        }
+
+        if (reasonsNotFilled.length > 0) {
+          blockUtil.reasonNotFilled = reasonsNotFilled
         }
 
         utilization.push(blockUtil)
+        logger.debug('Added block to utilization', {
+          blockId: blockUtil.blockId,
+          date: blockUtil.date,
+          utilizationArrayLength: utilization.length,
+        })
       })
+    })
+
+    logger.warn('Block utilization calculation complete', {
+      totalBlocksAdded: utilization.length,
+      dates: [...new Set(utilization.map(u => u.date))],
+      blockIds: utilization.map(u => u.blockId),
     })
 
     return utilization

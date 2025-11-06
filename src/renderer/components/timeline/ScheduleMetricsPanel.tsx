@@ -20,14 +20,25 @@ import {
   getDeadlineRiskDescription,
 } from '../../../shared/scheduler-metrics'
 import { getCurrentTime } from '../../../shared/time-provider'
+import { calculateRemainingWaitTime, formatCountdown } from '../../../shared/time-utils'
 import './ScheduleMetricsPanel.css'
 
 const { Row, Col } = Grid
+
+interface WaitingItem {
+  id: string
+  name: string
+  startTime?: Date
+  endTime?: Date
+  duration: number
+}
 
 interface ScheduleMetricsPanelProps {
   metrics: SchedulingMetrics | null
   scheduledCount: number
   unscheduledCount: number
+  waitingItems?: WaitingItem[]
+  currentTime?: Date
   className?: string
 }
 
@@ -35,6 +46,8 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
   metrics,
   scheduledCount,
   unscheduledCount,
+  waitingItems = [],
+  currentTime = new Date(),
   className,
 }) => {
   if (!metrics) {
@@ -253,6 +266,65 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
           <span>
             {unscheduledCount} items couldn&apos;t be scheduled due to capacity or dependency constraints
           </span>
+        </div>
+      )}
+
+      {/* Waiting Tasks with Countdown Timers */}
+      {waitingItems.length > 0 && (
+        <div className="metrics-waiting" style={{ marginTop: 16, padding: '12px', background: '#fff7e6', borderRadius: '8px' }}>
+          <div style={{ marginBottom: 8, fontWeight: 600, color: '#fa8c16' }}>
+            <IconClockCircle style={{ marginRight: 8 }} />
+            Async Wait Periods
+          </div>
+          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            {waitingItems.map(item => {
+              // Extract the step name from the wait item name (format: "⏳ Waiting: Step Name")
+              const stepName = item.name.replace('⏳ Waiting: ', '')
+
+              // Calculate remaining time if we have start time
+              let remainingMinutes = 0
+              let countdownText = 'Calculating...'
+
+              if (item.startTime) {
+                // The wait starts at the startTime and ends at endTime
+                const startTime = new Date(item.startTime)
+                console.log('Wait timer debug:', {
+                  itemName: stepName,
+                  startTime: startTime.toISOString(),
+                  duration: item.duration,
+                  currentTime: currentTime.toISOString(),
+                  endTime: item.endTime ? new Date(item.endTime).toISOString() : 'none',
+                })
+                remainingMinutes = calculateRemainingWaitTime(
+                  startTime,
+                  item.duration,
+                  currentTime,
+                )
+                countdownText = formatCountdown(remainingMinutes)
+              }
+
+              return (
+                <div key={item.id} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  background: '#fff',
+                  borderRadius: '6px',
+                  border: '1px solid #ffd591',
+                }}>
+                  <span style={{ color: '#595959' }}>{stepName}</span>
+                  <Tag
+                    color={remainingMinutes <= 0 ? 'green' : 'orange'}
+                    size="small"
+                    icon={remainingMinutes <= 0 ? <IconCheckCircle /> : <IconClockCircle />}
+                  >
+                    {countdownText}
+                  </Tag>
+                </div>
+              )
+            })}
+          </Space>
         </div>
       )}
     </Card>

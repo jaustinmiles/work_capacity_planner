@@ -41,6 +41,15 @@ export function SequencedTaskView({
   const [activeTab, setActiveTab] = useState<string>('overview')
   const [stepTimeLogs, setStepTimeLogs] = useState<Record<string, number>>({})
   const [stepsCollapsed, setStepsCollapsed] = useState(true) // Start collapsed for better UX with many workflows
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  // Update current time every minute for countdown timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000) // Update every minute
+    return () => clearInterval(interval)
+  }, [])
 
   const completedSteps = task.steps.filter(step => step.status === 'completed').length
   const totalSteps = task.steps.length
@@ -412,6 +421,8 @@ export function SequencedTaskView({
                           stepIndex={index}
                           isActive={step.status === 'in_progress'}
                           isCompleted={step.status === 'completed'}
+                          isWaiting={step.status === 'waiting'}
+                          currentTime={currentTime}
                           timeLogged={stepTimeLogs[step.id] || 0}
                           onStart={handleStepStart}
                           onComplete={handleStepComplete}

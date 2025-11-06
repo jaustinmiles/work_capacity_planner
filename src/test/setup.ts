@@ -120,3 +120,16 @@ vi.mock('@arco-design/web-react', async () => {
     },
   }
 })
+
+// Mock the ResizeObserver component from Arco
+vi.mock('@arco-design/web-react/lib/_util/resizeObserver', () => ({
+  default: vi.fn(({ children }) => children),
+}))
+
+// Mock VirtualList to prevent errors
+vi.mock('@arco-design/web-react/lib/_class/VirtualList', () => ({
+  default: vi.fn(({ children, _data }) => {
+    // Simple mock that just renders children without virtualization
+    return children
+  }),
+}))

@@ -39,6 +39,7 @@ export enum GanttItemType {
   WorkflowStep = 'workflow-step',
   Meeting = 'meeting',
   BlockedTime = 'blocked-time',
+  AsyncWait = 'async-wait',
 }
 
 // Unified schedule item types

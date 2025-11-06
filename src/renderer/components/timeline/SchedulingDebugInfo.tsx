@@ -1,9 +1,7 @@
 import React from 'react'
 import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
-import { getCurrentTime } from '@shared/time-provider'
 import type { SchedulingDebugInfo } from '@shared/unified-scheduler'
-import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 
@@ -147,109 +145,101 @@ export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debu
             {/* Block Utilization */}
             <div>
               <Title heading={6} style={{ marginBottom: 8 }}>
-                Block Utilization (Current & Next Day)
+                Block Utilization (All Blocks)
               </Title>
               <Table
                 rowKey={(record) => `${record.date}-${record.blockId}`}
                 columns={[
                   { title: 'Date', dataIndex: 'date' },
-                  { title: 'Block', dataIndex: 'blockId' },
+                  {
+                    title: 'Block ID',
+                    dataIndex: 'blockId',
+                    render: (val) => val?.substring(0, 8) || val,
+                  },
                   {
                     title: 'Time',
                     render: (_, record) => `${record.startTime} - ${record.endTime}`,
                   },
                   {
-                    title: 'Capacity Used',
+                    title: 'Type',
+                    dataIndex: 'blockType',
+                    render: (val) => {
+                      const colors: Record<string, string> = {
+                        'focused': 'blue',
+                        'admin': 'green',
+                        'mixed': 'purple',
+                        'personal': 'orange',
+                      }
+                      return <Tag color={colors[val] || 'default'}>{val}</Tag>
+                    },
+                  },
+                  {
+                    title: 'Capacity',
+                    render: (_, record) => {
+                      if (record.capacityBreakdown) {
+                        const parts = []
+                        if (record.capacityBreakdown.focus) parts.push(`F:${record.capacityBreakdown.focus}`)
+                        if (record.capacityBreakdown.admin) parts.push(`A:${record.capacityBreakdown.admin}`)
+                        if (record.capacityBreakdown.personal) parts.push(`P:${record.capacityBreakdown.personal}`)
+                        return parts.join(' ')
+                      }
+                      return record.capacity || 0
+                    },
+                  },
+                  {
+                    title: 'Used',
                     render: (_, record) => {
                       const used = record.used ?? 0
                       const total = record.capacity ?? 0
-                      if (total === 0) return '-'
 
-                      // Check if block is in progress
-                      if (!record.startTime || !record.endTime) return <Tag color="gray">Invalid time</Tag>
-
-                      const currentTime = getCurrentTime()
-                      const now = dayjs(currentTime)
-                      const blockDate = dayjs(record.date)
-                      const startParts = record.startTime.split(':')
-                      const endParts = record.endTime.split(':')
-                      if (startParts.length !== 2 || endParts.length !== 2) {
-                        return <Tag color="gray">Invalid time format</Tag>
-                      }
-                      const startHour = parseInt(startParts[0] || '0', 10)
-                      const startMin = parseInt(startParts[1] || '0', 10)
-                      const endHour = parseInt(endParts[0] || '0', 10)
-                      const endMin = parseInt(endParts[1] || '0', 10)
-                      const blockStart = blockDate.hour(startHour).minute(startMin)
-                      const blockEnd = blockDate.hour(endHour).minute(endMin)
-
-                      let effectiveUsed = used
-                      let effectiveTotal = total
-                      let isInProgress = false
-
-                      // If we're in the middle of the block, calculate based on remaining time
-                      if (now.isAfter(blockStart) && now.isBefore(blockEnd)) {
-                        isInProgress = true
-                        const totalMinutes = blockEnd.diff(blockStart, 'minute')
-                        const remainingMinutes = blockEnd.diff(now, 'minute')
-                        const remainingCapacity = Math.floor((remainingMinutes / totalMinutes) * total)
-
-                        // For in-progress blocks, show as 100% if remaining capacity is fully used
-                        effectiveTotal = remainingCapacity
-                        effectiveUsed = Math.min(used, remainingCapacity)
+                      if (record.usedBreakdown) {
+                        const parts = []
+                        if (record.usedBreakdown.focus) parts.push(`F:${record.usedBreakdown.focus}`)
+                        if (record.usedBreakdown.admin) parts.push(`A:${record.usedBreakdown.admin}`)
+                        if (record.usedBreakdown.personal) parts.push(`P:${record.usedBreakdown.personal}`)
+                        const breakdown = parts.join(' ')
+                        const percent = total > 0 ? Math.round((used / total) * 100) : 0
+                        const color = percent >= 80 ? 'green' : percent > 0 ? 'blue' : 'gray'
+                        return <Tag color={color}>{breakdown || `${used}/${total}`} ({percent}%)</Tag>
                       }
 
-                      const utilizationPercent = effectiveTotal > 0 ? Math.round((effectiveUsed / effectiveTotal) * 100) : 0
-                      const isFullyUsed = effectiveUsed === effectiveTotal
-                      const color = isFullyUsed ? 'green' : effectiveUsed > 0 ? 'blue' : 'gray'
-                      const progressLabel = isInProgress ? '🕐 ' : ''
-
-                      return (
-                        <Space>
-                          <Tag color={color} size="small">
-                            {progressLabel}{effectiveUsed}/{effectiveTotal} ({utilizationPercent}%)
-                          </Tag>
-                        </Space>
-                      )
+                      const percent = total > 0 ? Math.round((used / total) * 100) : 0
+                      const color = percent >= 80 ? 'green' : percent > 0 ? 'blue' : 'gray'
+                      return <Tag color={color}>{used}/{total} ({percent}%)</Tag>
                     },
                   },
                   {
                     title: 'Status',
-                    dataIndex: 'unusedReason',
-                    render: (val, record) => {
-                      // Check if block is actually utilized
+                    render: (_, record) => {
                       const totalUsed = record.used || 0
                       const totalCapacity = record.capacity || 0
 
+                      if (record.isCurrent) return <Tag color="cyan">Current</Tag>
+                      if (record.reasonNotFilled?.length) {
+                        return <Tag color="orange">{record.reasonNotFilled[0]}</Tag>
+                      }
                       if (totalUsed === 0 && totalCapacity > 0) {
-                        return <Tag color="yellow">Not utilized</Tag>
+                        return <Tag color="yellow">Empty</Tag>
                       }
                       if (totalUsed >= totalCapacity && totalCapacity > 0) {
-                        return <Tag color="green">Fully utilized</Tag>
+                        return <Tag color="green">Full</Tag>
                       }
-                      if (!val && totalUsed > 0) {
-                        return <Tag color="green">Partially utilized</Tag>
+                      if (totalUsed > 0) {
+                        return <Tag color="blue">Partial</Tag>
                       }
-                      if (val?.includes('in the past')) return <Tag color="gray">{val}</Tag>
-                      if (val?.includes('started at')) return <Tag color="blue">{val}</Tag>
-                      return <Tag color="orange">{val || 'Available'}</Tag>
+                      return <Tag>-</Tag>
                     },
                   },
                 ]}
                 data={(() => {
-                  // Filter to only show current and next day
-                  const today = new Date()
-                  today.setHours(0, 0, 0, 0)
-                  const tomorrow = new Date(today)
-                  tomorrow.setDate(tomorrow.getDate() + 1)
-                  const dayAfter = new Date(tomorrow)
-                  dayAfter.setDate(dayAfter.getDate() + 1)
-
-                  return debugInfo.blockUtilization.filter(block => {
-                    const blockDate = new Date(block.date)
-                    blockDate.setHours(0, 0, 0, 0)
-                    return blockDate >= today && blockDate < dayAfter
+                  // Show ALL blocks, no filtering
+                  console.log('Block utilization debug:', {
+                    totalBlocks: debugInfo.blockUtilization.length,
+                    allDates: [...new Set(debugInfo.blockUtilization.map(b => b.date))],
+                    blocks: debugInfo.blockUtilization.slice(0, 3), // Show first 3 for debugging
                   })
+
+                  return debugInfo.blockUtilization
                 })()}
                 pagination={false}
                 size="small"

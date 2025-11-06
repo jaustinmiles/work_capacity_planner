@@ -78,7 +78,11 @@ function processSequencedTask(
     }
     processedItemIds.add(step.id)
 
+    // Steps that are completed OR waiting (async work happening externally)
+    // are considered complete for dependency purposes
     const isCompleted = step.status === StepStatus.Completed
+    const isWaiting = step.status === StepStatus.Waiting
+    const isDone = isCompleted || isWaiting
 
     const unifiedItem: UnifiedScheduleItem = {
       // Core identification
@@ -105,7 +109,7 @@ function processSequencedTask(
       asyncWaitTime: step.asyncWaitTime,
 
       // Status
-      completed: isCompleted,
+      completed: isDone,
 
       // Workflow metadata
       workflowId: sequencedTask.id,
@@ -125,8 +129,20 @@ function processSequencedTask(
     }
 
     // Add to appropriate collection
-    if (isCompleted) {
+    // Completed and waiting steps go in completedItemIds (unblock dependents)
+    // But only truly completed steps are excluded from scheduling
+    if (isDone) {
       completedItemIds.add(step.id)
+      // Only add to unified array if not fully completed (still waiting)
+      if (isWaiting) {
+        // Mark it so UI knows not to allow starting it
+        unifiedItem.isWaitingOnAsync = true
+        // Pass the completion time so scheduler knows when wait started
+        if (step.completedAt) {
+          unifiedItem.completedAt = step.completedAt
+        }
+        unified.push(unifiedItem)
+      }
     } else {
       unified.push(unifiedItem)
     }

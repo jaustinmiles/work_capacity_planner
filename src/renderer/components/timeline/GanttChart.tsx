@@ -46,6 +46,7 @@ interface GanttItem extends GanttItemWorkflowMetadata {
   blockId?: string | undefined
   isBlocked?: boolean | undefined
   isWaitTime?: boolean | undefined
+  isFutureWait?: boolean | undefined
 }
 
 // Zoom presets
@@ -69,8 +70,17 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [dropTarget, setDropTarget] = useState<{ time: Date, row: number } | null>(null)
   const [refreshKey, setRefreshKey] = useState(0) // Force re-render when time changes
+  const [currentTime, setCurrentTime] = useState(new Date())
 
   const { workSettings, setOptimalSchedule } = useTaskStore()
+
+  // Update current time every minute for countdown timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000) // Update every minute
+    return () => clearInterval(interval)
+  }, [])
 
   // Listen for time override changes
   useEffect(() => {
@@ -259,14 +269,21 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Helper function to convert UnifiedScheduler results to GanttChart format
   const convertUnifiedToGanttItems = useCallback((result: ScheduleResult): GanttItem[] => {
-    logger.ui.debug('Converting UnifiedScheduler results to Gantt format', {
-      scheduledCount: result.scheduled.length,
-      unscheduledCount: result.unscheduled.length,
-    }, 'gantt-convert-results')
 
     // Filter out meetings, breaks, and blocked time - they're handled separately by getMeetingScheduledItems
+    // Also filter out completed tasks that are waiting (they'll be represented by async-wait items)
     return result.scheduled
-      .filter(item => item.type !== 'meeting' && item.type !== 'break' && item.type !== 'blocked-time')
+      .filter(item => {
+        // Filter out meetings, breaks, and blocked time
+        if (item.type === 'meeting' || item.type === 'break' || item.type === 'blocked-time') {
+          return false
+        }
+        // Filter out workflow steps that are in waiting status (keep async-wait items)
+        if (item.type === 'workflow-step' && item.isWaitingOnAsync) {
+          return false
+        }
+        return true
+      })
       .map((item) => {
         // Get task color based on type
         const getTaskColor = (taskType: TaskType): string => {
@@ -278,9 +295,20 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           }
         }
 
-        // UnifiedScheduleItem has properties directly, not nested in 'task'
-        const hasWorkflowMetadata = item.workflowId !== undefined
-        const itemType = item.type === 'workflow-step' ? GanttItemType.WorkflowStep : GanttItemType.Task
+        // Determine Gantt item type
+        let itemType: GanttItemType
+        if (item.type === 'async-wait') {
+          itemType = GanttItemType.AsyncWait
+        } else if (item.type === 'workflow-step') {
+          itemType = GanttItemType.WorkflowStep
+        } else {
+          itemType = GanttItemType.Task
+        }
+
+        // Set color - orange for wait times, normal colors for tasks
+        const itemColor = item.type === 'async-wait'
+          ? '#FF7D00'  // Orange for waiting
+          : getTaskColor(item.taskType || TaskType.Focused)
 
         const ganttItem: GanttItem = {
           id: item.id,
@@ -290,12 +318,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           duration: item.duration,
           startTime: item.startTime || new Date(),
           endTime: item.endTime || new Date(),
-          color: getTaskColor(item.taskType || TaskType.Focused),
+          color: itemColor,
           deadline: item.deadline,
           originalItem: (item.originalItem || item) as Task | SequencedTask | WorkMeeting,
           blockId: item.blockId,
+          isWaitTime: item.type === 'async-wait',
+          isFutureWait: item.isFutureWait,
           // Add workflow metadata if present
-          ...(hasWorkflowMetadata && {
+          ...(item.workflowId && {
             workflowId: item.workflowId,
             workflowName: item.workflowName,
             stepIndex: item.stepIndex,
@@ -540,10 +570,12 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       taskItems: ganttItems.length,
       meetingItems: meetingItems.length,
       totalItems: ganttItems.length + meetingItems.length,
+      waitBlocksInGantt: ganttItems.filter(item => item.isWaitTime).length,
     }, 'gantt-merge-meetings')
 
     // Combine task items and meeting items
     const allItems = [...meetingItems, ...ganttItems]
+
 
     return allItems
   }, [tasks, sequencedTasks, workPatterns, workPatternsLoading, refreshKey, workSettings, scheduler, convertUnifiedToGanttItems, getMeetingScheduledItems])
@@ -752,13 +784,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     })
 
     // Fourth pass: assign wait times to same row as their parent workflow
+
     waitItems.forEach((item: any) => {
       // For workflow async waits, use the workflow row
       if (item.workflowId && workflowRows.has(item.workflowId)) {
         positions.set(item.id, workflowRows.get(item.workflowId)!)
       } else {
-        // Fallback: try to find parent by removing '-wait' suffix
-        const parentId = item.id.replace('-wait', '')
+        // Fallback: try to find parent by removing '-wait' or '-wait-future' suffix
+        const parentId = item.id.replace(/-wait(-future)?$/, '')
         const parentPosition = positions.get(parentId)
         if (parentPosition !== undefined) {
           positions.set(item.id, parentPosition)
@@ -769,6 +802,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         }
       }
     })
+
+    // Debug: Log final positions for wait items
 
     // Fifth pass: add unscheduled tasks to display (they don't have scheduled times but need rows)
     // Check which tasks were not scheduled
@@ -854,6 +889,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           metrics={schedulingMetrics}
           scheduledCount={scheduledItems.filter((item: GanttItem) => !item.isWaitTime).length}
           unscheduledCount={debugInfo?.unscheduledItems?.length || 0}
+          waitingItems={scheduledItems.filter((item: GanttItem) =>
+            item.type === GanttItemType.AsyncWait && !item.isFutureWait,
+          )}
+          currentTime={currentTime}
           className="gantt-metrics"
         />
       )}

@@ -5,7 +5,9 @@
   "main": "electron.js",
   "scripts": {
     "start": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"wait-on http://localhost:5174 && npm run electron:dev\"",
+    "start:stable": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev:stable\" \"wait-on http://localhost:5174 && npm run electron:dev\"",
     "dev": "vite",
+    "dev:stable": "vite --config vite.config.stable.ts",
     "build:main": "tsc src/main/index.ts --outDir dist --module commonjs --esModuleInterop --skipLibCheck --sourceMap",
     "build:preload": "tsc src/preload/index.ts --outDir dist --module commonjs --esModuleInterop --skipLibCheck --sourceMap",
     "build:mcp": "tsc scripts/mcp/*.ts --outDir scripts/mcp/dist --module commonjs --esModuleInterop --skipLibCheck --resolveJsonModule",

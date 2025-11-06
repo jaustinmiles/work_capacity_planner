@@ -1,6 +1,6 @@
 import { vi, expect } from 'vitest'
 import { waitFor } from '@testing-library/react'
-import { appEvents } from '../shared/app-events'
+import { appEvents, EVENTS } from '@renderer/utils/events'
 
 /**
  * Mock event listeners registry
@@ -20,28 +20,6 @@ export function initMockEvents(): void {
       mockEventListeners.set(event, new Set())
     }
     mockEventListeners.get(event)!.add(handler)
-
-    // Return unsubscribe function
-    return () => {
-      mockEventListeners.get(event)?.delete(handler)
-    }
-  })
-
-  // Mock appEvents.once
-  vi.spyOn(appEvents, 'once').mockImplementation((event: string, handler: Function) => {
-    const wrappedHandler = (...args: any[]) => {
-      handler(...args)
-      mockEventListeners.get(event)?.delete(wrappedHandler)
-    }
-
-    if (!mockEventListeners.has(event)) {
-      mockEventListeners.set(event, new Set())
-    }
-    mockEventListeners.get(event)!.add(wrappedHandler)
-
-    return () => {
-      mockEventListeners.get(event)?.delete(wrappedHandler)
-    }
   })
 
   // Mock appEvents.off
@@ -56,15 +34,6 @@ export function initMockEvents(): void {
       listeners.forEach(handler => {
         handler(...args)
       })
-    }
-  })
-
-  // Mock appEvents.removeAllListeners
-  vi.spyOn(appEvents, 'removeAllListeners').mockImplementation((event?: string) => {
-    if (event) {
-      mockEventListeners.delete(event)
-    } else {
-      mockEventListeners.clear()
     }
   })
 }
@@ -108,10 +77,11 @@ export async function waitForEvent(
 
     const handler = (data: any) => {
       clearTimeout(timer)
+      appEvents.off(eventType, handler)
       resolve(data)
     }
 
-    appEvents.once(eventType, handler)
+    appEvents.on(eventType, handler)
   })
 }
 
@@ -196,18 +166,9 @@ export function getEventListenerCount(eventType: string): number {
 }
 
 /**
- * Common event types used in the application
+ * Re-export EVENTS for convenience
  */
-export const APP_EVENTS = {
-  TIME_LOGGED: 'timeLogged',
-  WORKFLOW_UPDATED: 'workflowUpdated',
-  TASK_UPDATED: 'taskUpdated',
-  SESSION_CHANGED: 'sessionChanged',
-  DATA_REFRESH_NEEDED: 'dataRefresh',
-  TIME_OVERRIDE_CHANGED: 'timeOverrideChanged',
-  WORK_PATTERN_UPDATED: 'workPatternUpdated',
-  SETTINGS_UPDATED: 'settingsUpdated',
-} as const
+export const APP_EVENTS = EVENTS
 
 /**
  * Helper to simulate a sequence of events
@@ -237,19 +198,6 @@ export function createMockEventEmitter() {
         listeners.set(event, new Set())
       }
       listeners.get(event)!.add(handler)
-      return () => listeners.get(event)?.delete(handler)
-    }),
-
-    once: vi.fn((event: string, handler: Function) => {
-      const wrappedHandler = (...args: any[]) => {
-        handler(...args)
-        listeners.get(event)?.delete(wrappedHandler)
-      }
-      if (!listeners.has(event)) {
-        listeners.set(event, new Set())
-      }
-      listeners.get(event)!.add(wrappedHandler)
-      return () => listeners.get(event)?.delete(wrappedHandler)
     }),
 
     off: vi.fn((event: string, handler: Function) => {
@@ -260,14 +208,6 @@ export function createMockEventEmitter() {
       const eventListeners = listeners.get(event)
       if (eventListeners) {
         eventListeners.forEach(handler => handler(...args))
-      }
-    }),
-
-    removeAllListeners: vi.fn((event?: string) => {
-      if (event) {
-        listeners.delete(event)
-      } else {
-        listeners.clear()
       }
     }),
 
