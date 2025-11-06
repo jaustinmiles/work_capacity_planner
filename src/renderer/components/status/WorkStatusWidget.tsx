@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
-import { TaskType, TaskStatus } from '@shared/enums'
+import { TaskType, TaskStatus, WorkBlockType } from '@shared/enums'
 import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconRefresh, IconPause, IconCheck } from '@arco-design/web-react/icon'
+import { IconSchedule, IconEdit, IconCaretRight, IconPlayArrow, IconSkipNext, IconPause, IconCheck } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
 import { NextScheduledItem } from '@shared/types'
 import { getDatabase } from '../../services/database'
 import { appEvents, EVENTS } from '../../utils/events'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
+import { getCurrentTime } from '@shared/time-provider'
+import { formatMinutes, parseTimeString } from '@shared/time-utils'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { Message } from '../common/Message'
@@ -19,11 +21,32 @@ interface WorkStatusWidgetProps {
   onEditSchedule?: () => void
 }
 
+// Work block type display mapping for consistent UI representation
+const WORK_BLOCK_DISPLAY: Record<string, { label: string; icon: string }> = {
+  [WorkBlockType.Focused]: { label: 'Focus', icon: '🎯' },
+  [WorkBlockType.Admin]: { label: 'Admin', icon: '📋' },
+  [WorkBlockType.Personal]: { label: 'Personal', icon: '👤' },
+  [WorkBlockType.Mixed]: { label: 'Mixed', icon: '🔄' },
+  [WorkBlockType.Flexible]: { label: 'Flexible', icon: '✨' },
+}
+
+// Helper function to get work block display
+const getWorkBlockDisplay = (blockType: string): string => {
+  const display = WORK_BLOCK_DISPLAY[blockType]
+  if (!display) return `🔄 ${blockType}` // Fallback for unknown types
+  return `${display.icon} ${display.label}`
+}
+
+// Log spam reduced by removing interval-based refresh - now uses event-driven updates only
 export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
   const workPatternsLoading = useTaskStore(state => state.workPatternsLoading)
   const isLoading = useTaskStore(state => state.isLoading)
-  const [currentDate] = useState(dayjs().format('YYYY-MM-DD'))
+  // Use time provider for consistent time handling
+  const [currentDate] = useState(() => {
+    const now = getCurrentTime()
+    return dayjs(now).format('YYYY-MM-DD')
+  })
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
   const [meetingMinutes, setMeetingMinutes] = useState(0)
@@ -139,7 +162,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
         personal: accumulatedData.personal || 0,
       })
 
-      const currentTime = new Date()
+      // Use time provider for consistent time handling
+      const currentTime = getCurrentTime()
       const currentBlockData = patternData ? getCurrentBlock(patternData.blocks, currentTime) : null
       const nextBlockData = patternData ? getNextBlock(patternData.blocks, currentTime) : null
 
@@ -149,9 +173,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
       let totalMeetingMinutes = 0
       if (patternData && patternData.meetings) {
         patternData.meetings.forEach((meeting: any) => {
+          // TODO: Create MeetingType enum when more meeting types are added
           if (meeting.type === 'meeting') {
-            const [startHour, startMin] = meeting.startTime.split(':').map(Number)
-            const [endHour, endMin] = meeting.endTime.split(':').map(Number)
+            // Use time utilities for parsing time strings
+            const [startHour, startMin] = parseTimeString(meeting.startTime)
+            const [endHour, endMin] = parseTimeString(meeting.endTime)
             const startMinutes = startHour * 60 + startMin
             const endMinutes = endHour * 60 + endMin
             const duration = endMinutes - startMinutes
@@ -196,7 +222,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
 
   useEffect(() => {
     loadWorkData()
-    const interval = setInterval(loadWorkData, 60000)
+    // Removed interval-based refresh to reduce log spam
+    // State changes are handled through event listeners
 
     const handleTimeLogged = () => {
       loadWorkData()
@@ -221,7 +248,6 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
 
     return () => {
-      clearInterval(interval)
       appEvents.off(EVENTS.TIME_LOGGED, handleTimeLogged)
       appEvents.off(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
       appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
@@ -229,15 +255,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
     }
   }, [currentDate])
 
-  const formatMinutes = (minutes: number) => {
-    // Handle NaN or invalid values
-    if (!minutes || isNaN(minutes)) {
-      return '0m'
-    }
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    return hours > 0 ? `${hours}h ${mins > 0 ? `${mins}m` : ''}` : `${mins}m`
-  }
+  // formatMinutes is imported from @shared/time-utils
 
 
   // Tracking functions removed - functionality handled through time logging modal
@@ -250,8 +268,9 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
   }
 
   // Handler functions for task actions
-  const handleRefreshNextTask = async () => {
-    logger.ui.info('[WorkStatusWidget] Manual refresh requested - incrementing skip index')
+  // Skip to the next task in the priority queue
+  const handleSkipToNextTask = async () => {
+    logger.ui.info('[WorkStatusWidget] Skip to next task requested - incrementing skip index')
     // Increment the skip index to show the next task in priority order
     useTaskStore.getState().incrementNextTaskSkipIndex()
     // Reload the next task with the new skip index
@@ -365,11 +384,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                 <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
                 <Button
                   type="text"
-                  icon={<IconRefresh />}
+                  icon={<IconSkipNext />}
                   loading={isLoadingNextTask}
-                  onClick={handleRefreshNextTask}
+                  onClick={handleSkipToNextTask}
                   size="small"
-                  title="Refresh task list"
+                  title="Skip to next task"
                 />
               </Space>
 
@@ -551,8 +570,8 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                 </Tag>
                 <Tag>
                   {currentBlock.type === 'focused' ? '🎯 Focused' :
-                   currentBlock.type === 'admin' ? '📋 Admin' :
-                   currentBlock.type === 'personal' ? '👤 Personal' : '🔄 Mixed'}
+                    currentBlock.type === 'admin' ? '📋 Admin' :
+                      currentBlock.type === 'personal' ? '👤 Personal' : '🔄 Mixed'}
                 </Tag>
               </Space>
             </Space>
@@ -566,9 +585,7 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
                       {nextBlock.startTime} - {nextBlock.endTime}
                     </Tag>
                     <Tag>
-                      {nextBlock.type === 'focused' ? '🎯 Focus' :
-                       nextBlock.type === 'admin' ? '📋 Admin' :
-                       nextBlock.type === 'personal' ? '👤 Personal' : '🔄 Mixed'}
+                      {getWorkBlockDisplay(nextBlock.type)}
                     </Tag>
                   </Space>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -703,11 +720,11 @@ export function WorkStatusWidget({ onEditSchedule }: WorkStatusWidgetProps) {
               <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
               <Button
                 type="text"
-                icon={<IconRefresh />}
+                icon={<IconSkipNext />}
                 loading={isLoadingNextTask}
-                onClick={handleRefreshNextTask}
+                onClick={handleSkipToNextTask}
                 size="small"
-                title="Refresh task list"
+                title="Skip to next task"
               />
             </Space>
 

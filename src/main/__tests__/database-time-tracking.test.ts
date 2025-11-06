@@ -25,6 +25,7 @@ vi.mock('@prisma/client', () => {
     },
     task: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
       update: vi.fn(),
     },
     taskStep: {
@@ -66,9 +67,30 @@ describe('Database - Time Tracking', () => {
 
     it('should sum up regular work sessions', async () => {
       mockPrisma.workSession.findMany.mockResolvedValue([
-        { type: 'focused', actualMinutes: 30, plannedMinutes: 25, Task: { sessionId: 'session-1' } },
-        { type: 'admin', actualMinutes: 45, plannedMinutes: 40, Task: { sessionId: 'session-1' } },
-        { type: 'focused', actualMinutes: null, plannedMinutes: 20, Task: { sessionId: 'session-1' } }, // Active session - should not count
+        {
+          id: 'ws1',
+          taskId: 'task1',
+          type: 'focused',
+          actualMinutes: 30,
+          plannedMinutes: 25,
+          Task: { type: 'focused', sessionId: 'session-1', TaskStep: [] },
+        },
+        {
+          id: 'ws2',
+          taskId: 'task2',
+          type: 'admin',
+          actualMinutes: 45,
+          plannedMinutes: 40,
+          Task: { type: 'admin', sessionId: 'session-1', TaskStep: [] },
+        },
+        {
+          id: 'ws3',
+          taskId: 'task3',
+          type: 'focused',
+          actualMinutes: null,
+          plannedMinutes: 20,
+          Task: { type: 'focused', sessionId: 'session-1', TaskStep: [] },
+        }, // Active session - should not count
       ])
       mockPrisma.taskStep.findMany.mockResolvedValue([])
 
@@ -113,9 +135,30 @@ describe('Database - Time Tracking', () => {
 
     it('should combine multiple work sessions', async () => {
       mockPrisma.workSession.findMany.mockResolvedValue([
-        { type: 'focused', actualMinutes: 30, plannedMinutes: 25, Task: { sessionId: 'session-1' } },
-        { type: 'focused', actualMinutes: 25, plannedMinutes: 20, Task: { sessionId: 'session-1' } },
-        { type: 'admin', actualMinutes: 60, plannedMinutes: 50, Task: { sessionId: 'session-1' } },
+        {
+          id: 'ws1',
+          taskId: 'task1',
+          type: 'focused',
+          actualMinutes: 30,
+          plannedMinutes: 25,
+          Task: { type: 'focused', sessionId: 'session-1', TaskStep: [] },
+        },
+        {
+          id: 'ws2',
+          taskId: 'task2',
+          type: 'focused',
+          actualMinutes: 25,
+          plannedMinutes: 20,
+          Task: { type: 'focused', sessionId: 'session-1', TaskStep: [] },
+        },
+        {
+          id: 'ws3',
+          taskId: 'task3',
+          type: 'admin',
+          actualMinutes: 60,
+          plannedMinutes: 50,
+          Task: { type: 'admin', sessionId: 'session-1', TaskStep: [] },
+        },
       ])
       mockPrisma.taskStep.findMany.mockResolvedValue([])
 
@@ -158,7 +201,11 @@ describe('Database - Time Tracking', () => {
           },
         },
         include: {
-          Task: true,
+          Task: {
+            include: {
+              TaskStep: true,
+            },
+          },
         },
       })
     })
@@ -169,15 +216,25 @@ describe('Database - Time Tracking', () => {
       const sessionData = {
         taskId: 'task-1',
         stepId: 'step-1',
-        type: 'focused' as const,
         startTime: new Date(),
         plannedMinutes: 30,
         notes: 'Test session',
       }
 
+      // Mock task lookup for deriving type
+      mockPrisma.task.findUnique.mockResolvedValue({
+        id: 'task-1',
+        type: 'focused',
+        TaskStep: [{
+          id: 'step-1',
+          type: 'focused',
+        }],
+      })
+
       mockPrisma.workSession.create.mockResolvedValue({
         id: 'session-1',
         ...sessionData,
+        type: 'focused', // Derived from task
       })
 
       await db.createWorkSession(sessionData)
@@ -186,7 +243,7 @@ describe('Database - Time Tracking', () => {
         data: expect.objectContaining({
           taskId: sessionData.taskId,
           stepId: sessionData.stepId,
-          type: sessionData.type,
+          type: 'focused', // Derived from task
           startTime: sessionData.startTime,
           plannedMinutes: sessionData.plannedMinutes,
           notes: sessionData.notes,

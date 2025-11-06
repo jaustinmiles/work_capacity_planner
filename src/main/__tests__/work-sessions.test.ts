@@ -294,10 +294,38 @@ describe('Work Session Management', () => {
       const testDate = '2024-01-15'
 
       mockPrisma.workSession.findMany.mockResolvedValue([
-        { type: 'focused', actualMinutes: 120, plannedMinutes: 100 },
-        { type: 'admin', actualMinutes: null, plannedMinutes: 60 }, // Active - should not count
-        { type: 'focused', actualMinutes: 90, plannedMinutes: 90 },
-        { type: 'admin', actualMinutes: 30, plannedMinutes: 45 },
+        {
+          id: 'ws1',
+          taskId: 'task1',
+          type: 'focused',
+          actualMinutes: 120,
+          plannedMinutes: 100,
+          Task: { type: 'focused', TaskStep: [] },
+        },
+        {
+          id: 'ws2',
+          taskId: 'task2',
+          type: 'admin',
+          actualMinutes: null,
+          plannedMinutes: 60, // Active - should not count
+          Task: { type: 'admin', TaskStep: [] },
+        },
+        {
+          id: 'ws3',
+          taskId: 'task3',
+          type: 'focused',
+          actualMinutes: 90,
+          plannedMinutes: 90,
+          Task: { type: 'focused', TaskStep: [] },
+        },
+        {
+          id: 'ws4',
+          taskId: 'task4',
+          type: 'admin',
+          actualMinutes: 30,
+          plannedMinutes: 45,
+          Task: { type: 'admin', TaskStep: [] },
+        },
       ])
       mockPrisma.taskStep.findMany.mockResolvedValue([])
 
@@ -333,6 +361,16 @@ describe('Work Session Management', () => {
         taskId: 'task-456',
         type: 'admin',
         Task: { type: 'focused' },
+      })
+
+      // Mock task lookup that createWorkSession will do
+      mockPrisma.task.findUnique.mockResolvedValue({
+        id: 'task-456',
+        type: 'focused',
+        TaskStep: [{
+          id: 'step-123',
+          type: 'admin',
+        }],
       })
 
       mockPrisma.workSession.create.mockResolvedValue({

@@ -351,9 +351,17 @@ export function WorkBlocksEditor({
           <Col span={4}>
             <Space direction="vertical">
               <Text type="secondary">Used Today</Text>
-              <Title heading={5}>
-                {formatMinutes(accumulated.focus)} / {formatMinutes(accumulated.admin)}
-              </Title>
+              <Space direction="vertical" size={0}>
+                <Text style={{ fontSize: '14px' }}>
+                  <Text type="secondary">Focus:</Text> {formatMinutes(accumulated.focus)}
+                </Text>
+                <Text style={{ fontSize: '14px' }}>
+                  <Text type="secondary">Admin:</Text> {formatMinutes(accumulated.admin)}
+                </Text>
+                <Text style={{ fontSize: '14px' }}>
+                  <Text type="secondary">Personal:</Text> {formatMinutes(accumulated.personal)}
+                </Text>
+              </Space>
             </Space>
           </Col>
           <Col span={8}>

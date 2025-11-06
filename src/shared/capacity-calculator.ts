@@ -49,8 +49,8 @@ export function calculateBlockCapacity(
       }
 
     case WorkBlockType.Mixed: {
-      // Parse custom split ratio or use default (70% focus, 30% admin)
-      const ratio: SplitRatio = splitRatio || { focus: 0.7, admin: 0.3 }
+      // Parse custom split ratio or use default (50% focus, 50% admin)
+      const ratio: SplitRatio = splitRatio || { focus: 0.5, admin: 0.5 }
 
       return {
         totalMinutes,
@@ -77,21 +77,18 @@ export function calculateBlockCapacity(
 }
 
 /**
- * Get total capacity for a specific task type from a block
+ * Get total capacity for a specific task type from a block (for display purposes)
  * Note: This returns TOTAL capacity, not remaining available capacity
+ * For flexible blocks, this only returns capacity when querying for flexible type
  */
 export function getTotalCapacityForTaskType(
   block: BlockCapacity,
   taskType: TaskType,
 ): number {
-  // When querying for Flexible task type, return total if block is flexible
-  if (taskType === TaskType.Flexible) {
-    return block.type === WorkBlockType.Flexible ? block.totalMinutes : 0
-  }
-
-  // Flexible blocks should NOT count toward focus/admin/personal - they're their own category
+  // Flexible blocks should ONLY count toward flexible capacity
+  // This prevents double-counting in capacity displays
   if (block.type === WorkBlockType.Flexible) {
-    return 0  // Flexible blocks only count as flexible time
+    return taskType === TaskType.Flexible ? block.totalMinutes : 0
   }
 
   // Block type must match task type (except for mixed)
@@ -117,4 +114,22 @@ export function getTotalCapacityForTaskType(
   }
 
   return 0
+}
+
+/**
+ * Get scheduler capacity for a specific task type from a block
+ * Unlike getTotalCapacityForTaskType, this treats flexible blocks as available for ANY task type
+ * Used by the scheduler to determine if a task can fit in a block
+ */
+export function getSchedulerCapacityForTaskType(
+  block: BlockCapacity,
+  taskType: TaskType,
+): number {
+  // Flexible blocks can be used for ANY task type (except Flexible itself which is not a real task type)
+  if (block.type === WorkBlockType.Flexible && taskType !== TaskType.Flexible) {
+    return block.totalMinutes
+  }
+
+  // For all other blocks, use the standard capacity calculation
+  return getTotalCapacityForTaskType(block, taskType)
 }

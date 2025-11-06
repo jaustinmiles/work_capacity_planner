@@ -18,7 +18,7 @@
 
 import { Task } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
-import { getTotalCapacityForTaskType, SplitRatio } from './capacity-calculator'
+import { getSchedulerCapacityForTaskType, SplitRatio } from './capacity-calculator'
 import { TaskType, WorkBlockType } from './enums'
 import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
 import { WorkSettings } from './work-settings-types'
@@ -2016,9 +2016,10 @@ export class UnifiedScheduler {
       // LOGGER_REMOVED: usedMinutes: block.usedMinutes,
     // LOGGER_REMOVED: })
 
-    // Calculate available capacity using the helper function
+    // Calculate available capacity using the scheduler-specific helper function
+    // This allows flexible blocks to be used for any task type
     // Conditionally include splitRatio only if it exists (not undefined)
-    const totalCapacityForTaskType = getTotalCapacityForTaskType(
+    const totalCapacityForTaskType = getSchedulerCapacityForTaskType(
       block.splitRatio !== undefined
         ? { totalMinutes: block.totalMinutes, type: block.blockType, splitRatio: block.splitRatio }
         : { totalMinutes: block.totalMinutes, type: block.blockType },
