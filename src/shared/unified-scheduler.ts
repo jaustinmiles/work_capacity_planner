@@ -356,7 +356,7 @@ export class UnifiedScheduler {
     // Generate debug info (always - it's mandatory)
     const allocatedIds = new Set(allocated.map(item => item.id))
     const actuallyUnscheduled = unifiedItems.filter(item => !allocatedIds.has(item.id))
-    // REVIEW: I want a full review of our debug info. It's never helpful or complete.
+    // Debug info enhanced with: deadline analysis, dependency blocking reasons, total duration
     const debugInfo = this.generateDebugInfo(allocated, actuallyUnscheduled, context)
 
     // Generate metrics
@@ -1613,27 +1613,62 @@ export class UnifiedScheduler {
       duration: item.duration,
       priority: item.priority,
       startTime: item.startTime?.toISOString(),
-      priorityBreakdown: item.originalItem ?
+      priorityBreakdown: item.originalItem && item.type !== 'meeting' ?
         this.calculatePriorityWithBreakdown(item.originalItem as Task | TaskStep, context) :
         undefined,
     }))
 
-    const unscheduledItems = unscheduled.map(item => ({
-      id: item.id,
-      name: item.name,
-      type: item.type,
-      duration: item.duration,
-      reason: 'Could not find suitable time slot',
-      priorityBreakdown: item.originalItem ?
-        this.calculatePriorityWithBreakdown(item.originalItem as Task | TaskStep, context) :
-        undefined,
-    }))
+    // Enhance unscheduled items with better reasons
+    const unscheduledItems = unscheduled.map(item => {
+      let reason = 'Could not find suitable time slot'
+
+      // Check for specific reasons
+      if (item.dependencies && item.dependencies.length > 0) {
+        const unblockedDeps = item.dependencies.filter(depId =>
+          !scheduled.some(s => s.id === depId),
+        )
+        if (unblockedDeps.length > 0) {
+          reason = `Blocked by dependencies: ${unblockedDeps.join(', ')}`
+        }
+      } else if (item.duration > 480) {
+        reason = 'Task duration exceeds maximum block size (8 hours)'
+      } else if (item.type === 'meeting' && !item.startTime) {
+        reason = 'Meeting has no scheduled time'
+      }
+
+      return {
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        duration: item.duration,
+        reason,
+        priorityBreakdown: item.originalItem && item.type !== 'meeting' ?
+          this.calculatePriorityWithBreakdown(item.originalItem as Task | TaskStep, context) :
+          undefined,
+      }
+    })
 
     const totalItems = scheduled.length + unscheduled.length
     const efficiency = totalItems > 0 ? (scheduled.length / totalItems) * 100 : 100
 
     // Calculate block utilization
     const blockUtilization = this.calculateBlockUtilization(scheduled, context.workPatterns)
+
+    // Calculate total duration
+    const totalDuration = scheduled.reduce((sum, item) => sum + item.duration, 0)
+
+    // Analyze deadlines
+    const deadlineAnalysis = {
+      missedDeadlines: scheduled.filter(item =>
+        item.deadline && item.endTime && item.endTime > item.deadline,
+      ).length,
+      atRiskDeadlines: scheduled.filter(item => {
+        if (!item.deadline || !item.endTime) return false
+        const bufferHours = (item.deadline.getTime() - item.endTime.getTime()) / (1000 * 60 * 60)
+        return bufferHours > 0 && bufferHours < 24
+      }).length,
+      totalWithDeadlines: scheduled.filter(item => item.deadline).length,
+    }
 
     return {
       scheduledItems,  // Add scheduled items with priority breakdown
@@ -1643,6 +1678,9 @@ export class UnifiedScheduler {
       totalScheduled: scheduled.length,
       totalUnscheduled: unscheduled.length,
       scheduleEfficiency: efficiency,
+      totalDuration,
+      deadlineAnalysis,
+      sortOrder: 'Priority-based with dependency resolution',
     }
   }
 
