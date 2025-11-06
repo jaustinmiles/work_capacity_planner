@@ -34,6 +34,13 @@ import {
   calculateDependencyChainLength,
 } from './graph-utils'
 import { convertToUnifiedItems, validateConvertedItems } from './scheduler-converters'
+import {
+  calculatePriority,
+  calculatePriorityWithBreakdown,
+  calculateDeadlinePressure,
+  calculateAsyncUrgency,
+  calculateCognitiveMatch,
+} from './scheduler-priority'
 
 // ============================================================================
 // ENUMS
@@ -369,8 +376,7 @@ export class UnifiedScheduler {
     item: Task | TaskStep,
     context: ScheduleContext,
   ): number {
-    const breakdown = this.calculatePriorityWithBreakdown(item, context)
-    return breakdown.total
+    return calculatePriority(item, context)
   }
 
   /**
@@ -380,118 +386,7 @@ export class UnifiedScheduler {
     item: Task | TaskStep,
     context: ScheduleContext,
   ): PriorityBreakdown {
-    // Base Eisenhower score - TaskStep might have importance/urgency, or use parent's
-    let importance: number = 5
-    let urgency: number = 5
-
-    if ('importance' in item && 'urgency' in item && typeof item.importance === 'number' && typeof item.urgency === 'number') {
-      // It's a Task with required fields
-      importance = item.importance
-      urgency = item.urgency
-    } else {
-      // It's a TaskStep - check for overrides first, then use parent workflow
-      const step = item as TaskStep
-
-      // Find parent workflow
-      const parentWorkflow = context.workflows.find(w => w.id === step.taskId)
-      if (!parentWorkflow) {
-        // Try to find workflow containing this step
-        const containingWorkflow = context.workflows.find(w =>
-          w.steps?.some(s => s.id === step.id),
-        )
-        importance = containingWorkflow?.importance || 5
-        urgency = containingWorkflow?.urgency || 5
-      } else {
-        importance = parentWorkflow.importance || 5
-        urgency = parentWorkflow.urgency || 5
-      }
-
-      // Override with step-specific priority if provided
-      if (step.importance !== undefined && step.importance !== null) {
-        importance = step.importance
-      }
-      if (step.urgency !== undefined && step.urgency !== null) {
-        urgency = step.urgency
-      }
-    }
-
-    // Base Eisenhower score (raw importance × urgency)
-    const eisenhower = importance * urgency
-
-    // Enhanced calculation with importance weighting for final priority
-    // High importance (8-10) gets extra boost to differentiate from medium/low
-    let importanceMultiplier = 1.0
-    if (importance >= 9) {
-      importanceMultiplier = 1.5  // 50% boost for critical importance
-    } else if (importance >= 7) {
-      importanceMultiplier = 1.2  // 20% boost for high importance
-    }
-
-    // Similar for urgency
-    let urgencyMultiplier = 1.0
-    if (urgency >= 9) {
-      urgencyMultiplier = 1.5  // 50% boost for critical urgency
-    } else if (urgency >= 7) {
-      urgencyMultiplier = 1.2  // 20% boost for high urgency
-    }
-
-    // Apply multipliers to get weighted score for actual priority
-    const weightedEisenhower = eisenhower * importanceMultiplier * urgencyMultiplier
-
-    // Deadline pressure calculation (additive, not multiplicative)
-    const deadlinePressure = this.calculateDeadlinePressure(item, context)
-    const deadlineBoost = deadlinePressure > 1 ? deadlinePressure * 100 : 0 // Additive boost amount
-
-    // Async urgency bonus
-    const asyncBoost = this.calculateAsyncUrgency(item, context)
-
-    // Cognitive match multiplier
-    const cognitiveMatchFactor = this.calculateCognitiveMatch(item, context.currentTime, context)
-    const cognitiveMatch = weightedEisenhower * (cognitiveMatchFactor - 1) // Just the boost/penalty
-
-    // Context switch penalty
-    let contextSwitchPenalty = 0
-    if (context.lastScheduledItem?.originalItem) {
-      const lastItem = context.lastScheduledItem.originalItem
-      const differentWorkflow = 'taskId' in item && 'taskId' in lastItem &&
-                               item.taskId !== lastItem.taskId
-      const differentProject = 'projectId' in item && 'projectId' in lastItem &&
-                              item.projectId !== lastItem.projectId
-
-      if (differentWorkflow || differentProject) {
-        contextSwitchPenalty = -(context.schedulingPreferences?.contextSwitchPenalty || 5)
-      }
-    }
-
-    // Add workflow depth bonus - longer critical paths get priority
-    let workflowDepthBonus = 0
-    if ('taskId' in item) {
-      // It's a workflow step - find the workflow
-      const workflow = context.workflows.find(w => w.id === item.taskId ||
-        w.steps?.some(s => s.id === item.id))
-      if (workflow) {
-        // Give bonus based on critical path length
-        // Longer workflows need to start earlier
-        const criticalPathHours = (workflow.criticalPathDuration || 0) / 60
-        workflowDepthBonus = Math.min(50, criticalPathHours * 5) // 5 points per hour of critical path
-      }
-    }
-
-    // Calculate total using proven additive formula
-    // This ensures urgent deadlines always take priority regardless of base priority
-    const deadlineAdditive = deadlinePressure > 1 ? deadlinePressure * 100 : 0
-    const total = weightedEisenhower + deadlineAdditive + asyncBoost * cognitiveMatchFactor +
-      contextSwitchPenalty + workflowDepthBonus
-
-    return {
-      eisenhower,
-      deadlineBoost,
-      asyncBoost,
-      cognitiveMatch,
-      contextSwitchPenalty,
-      workflowDepthBonus,
-      total,
-    }
+    return calculatePriorityWithBreakdown(item, context)
   }
 
   /**
@@ -502,70 +397,15 @@ export class UnifiedScheduler {
     item: Task | TaskStep | SequencedTask,
     context: ScheduleContext,
   ): number {
-    // Check if item has deadline (Task/SequencedTask) or if parent has deadline (TaskStep)
-    let deadline: Date | undefined
-    let deadlineType: 'hard' | 'soft' | undefined
-
-    if ('deadline' in item) {
-      deadline = item.deadline
-      deadlineType = item.deadlineType
-    } else if ('taskId' in item) {
-      // TaskStep - need to find parent task/workflow deadline
-      const parentTask = context.tasks.find(t => t.id === item.taskId)
-      const parentWorkflow = context.workflows.find(w => w.id === item.taskId)
-      const parent = parentTask || parentWorkflow
-      if (parent?.deadline) {
-        deadline = parent.deadline
-        deadlineType = parent.deadlineType
-      }
-      // Also check if the step is part of any workflow
-      if (!deadline) {
-        for (const workflow of context.workflows) {
-          if (workflow.steps?.some(s => s.id === item.id)) {
-            if (workflow.deadline) {
-              deadline = workflow.deadline
-              deadlineType = workflow.deadlineType
-            }
-            break
-          }
-        }
-      }
+    // Delegate to imported function if it's a Task or TaskStep
+    if (!('steps' in item)) {
+      return calculateDeadlinePressure(item as Task | TaskStep, context)
     }
-
-    if (!deadline) return 1.0
-
-    // Calculate critical path remaining
-    const criticalPathHours = this.calculateCriticalPathRemaining(item, context)
-    const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours +
-                            context.workSettings.defaultCapacity.maxAdminHours
-    const workDaysNeeded = criticalPathHours / workHoursPerDay
-
-    // Calculate actual days until deadline
-    const hoursUntilDeadline = (deadline.getTime() - context.currentTime.getTime()) / (1000 * 60 * 60)
-    const daysUntilDeadline = hoursUntilDeadline / 24
-
-    // Slack time in days
-    const slackDays = daysUntilDeadline - workDaysNeeded
-
-    if (slackDays <= 0) {
-      // Impossible or on critical path
-      return 1000
+    // For SequencedTask, use the first step or return no pressure
+    if (item.steps && item.steps.length > 0 && item.steps[0]) {
+      return calculateDeadlinePressure(item.steps[0], context)
     }
-
-    // Apply inverse power function with careful tuning
-    // The key is to have reasonable pressure at different slack levels:
-    // - 0.5 days slack: ~15-20 pressure
-    // - 1 day slack: ~7-10 pressure
-    // - 2 days slack: ~3-5 pressure
-    // - 5 days slack: ~1.5-2 pressure
-    const k = deadlineType === 'hard' ? 10 : 5
-    const p = 1.1  // Slightly superlinear for good curve
-    const pressure = k / Math.pow(slackDays + 0.4, p)
-
-    // For large slack (>5 days), add a small base pressure
-    const basePressure = slackDays > 5 ? 1.1 : 1.0
-
-    return Math.max(basePressure, Math.min(pressure, 1000))
+    return 1.0
   }
 
   /**
@@ -575,67 +415,7 @@ export class UnifiedScheduler {
     item: Task | TaskStep,
     context: ScheduleContext,
   ): number {
-    // Check if this is an async trigger
-    const isAsyncTrigger = item.isAsyncTrigger ||
-      (item.asyncWaitTime > 0 && item.duration > 0)
-
-    if (!isAsyncTrigger || !item.asyncWaitTime) return 0
-
-    // Find dependent tasks
-    const dependentTasks = this.findDependentTasks(item, context)
-    const dependentWorkHours = dependentTasks.reduce((sum, task) => {
-      if ('duration' in task) {
-        return sum + task.duration / 60
-      }
-      return sum
-    }, 0)
-
-    // Calculate async wait hours first
-    const asyncWaitHours = item.asyncWaitTime / 60
-
-    // Always give async tasks a boost based on their wait time
-    const baseAsyncBoost = Math.min(500, 40 + (asyncWaitHours * 40))
-
-    // Find earliest deadline in chain (optional)
-    const chainDeadline = this.findEarliestDeadlineInChain(item, dependentTasks, context)
-    if (!chainDeadline) {
-      return baseAsyncBoost
-    }
-
-    // Calculate time dynamics
-    const hoursUntilDeadline = (chainDeadline.getTime() - context.currentTime.getTime()) / (1000 * 60 * 60)
-    const availableTimeAfterAsync = hoursUntilDeadline - asyncWaitHours
-
-    // Compression ratio calculation
-    const workHoursPerDay = context.workSettings.defaultCapacity.maxFocusHours +
-                            context.workSettings.defaultCapacity.maxAdminHours
-    const availableWorkHours = (availableTimeAfterAsync / 24) * workHoursPerDay
-    const compressionRatio = availableWorkHours > 0 ? dependentWorkHours / availableWorkHours : 2
-
-    // For truly impossible scenarios
-    if (compressionRatio > 1.5) {
-      return 150 // Extreme urgency for impossible scenarios
-    }
-
-    // Exponential growth function
-    const asyncRatio = asyncWaitHours / Math.max(1, hoursUntilDeadline)
-    const baseAsyncUrgency = 20 * Math.exp(3 * asyncRatio)
-    const waitTimeBoost = 10 * Math.exp(asyncWaitHours / 24)
-    const compressionBoost = 5 * Math.exp(compressionRatio)
-    const daysUntilDeadline = hoursUntilDeadline / 24
-    const timePressure = 10 / (daysUntilDeadline + 1)
-
-    const totalUrgency = baseAsyncUrgency + waitTimeBoost + compressionBoost + timePressure
-
-    if (compressionRatio > 1.5) {
-      return Math.max(200, totalUrgency)
-    }
-
-    if (compressionRatio >= 0.7 && compressionRatio <= 1.5) {
-      return Math.max(80, totalUrgency)
-    }
-
-    return Math.min(300, totalUrgency)
+    return calculateAsyncUrgency(item, context)
   }
 
   /**
@@ -646,30 +426,7 @@ export class UnifiedScheduler {
     currentTime: Date,
     context: ScheduleContext,
   ): number {
-    // If no productivity patterns defined, return neutral
-    if (!context.productivityPatterns || context.productivityPatterns.length === 0) {
-      return 1.0
-    }
-
-    const itemComplexity = item.cognitiveComplexity || 3
-    const slotCapacity = this.getProductivityLevel(currentTime, context.productivityPatterns)
-
-    const optimalMatches: Record<string, number[]> = {
-      'peak': [4, 5],
-      'high': [3, 4],
-      'moderate': [2, 3],
-      'low': [1, 2],
-    }
-
-    const isOptimal = optimalMatches[slotCapacity]?.includes(itemComplexity) || false
-
-    if (isOptimal) return 1.2 // 20% bonus
-
-    // Calculate mismatch penalty
-    const capacityLevel = { 'peak': 4, 'high': 3, 'moderate': 2, 'low': 1 }[slotCapacity] || 2
-    const mismatch = Math.abs(capacityLevel - itemComplexity)
-
-    return Math.max(0.7, 1 - (mismatch * 0.15))
+    return calculateCognitiveMatch(item, currentTime, context)
   }
 
   // ============================================================================

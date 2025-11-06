@@ -10,8 +10,9 @@
  */
 
 import { Task, TaskStep } from './types'
-import { ScheduleContext, PriorityBreakdown } from './unified-scheduler-types'
-import { parseTimeString, getCurrentTime } from './time-utils'
+import { ScheduleContext, PriorityBreakdown } from './unified-scheduler'
+import { parseTimeString } from './time-utils'
+import { getCurrentTime } from './time-provider'
 
 /**
  * Calculate priority for a single item
@@ -142,10 +143,6 @@ export function calculatePriorityWithBreakdown(
     contextSwitchPenalty,
     workflowDepthBonus,
     total,
-    importance,
-    urgency,
-    deadlinePressure,  // Raw pressure value (1.0+ if deadline applies)
-    cognitiveMatchFactor,  // Raw factor (1.0 = neutral, >1 = boost, <1 = penalty)
   }
 }
 
