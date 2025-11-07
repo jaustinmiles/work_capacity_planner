@@ -80,20 +80,21 @@ export function WorkStatusWidget() {
 
   // Effect 1: Initialize work patterns on mount
   useEffect(() => {
-    logger.ui.info('WorkStatusWidget: Initializing patterns')
+    logger.ui.info('WorkStatusWidget: Loading work patterns')
     loadWorkPatterns()
-    // Mark as initialized once patterns are loaded
-    if (!workPatternsLoading && workPatterns && workPatterns.length > 0) {
-      setIsInitialized(true)
-      logger.ui.info('WorkStatusWidget: Patterns initialized', { count: workPatterns.length })
-    }
-  }, [loadWorkPatterns, workPatternsLoading, workPatterns])
+  }, [loadWorkPatterns])
 
-  // Effect 2: Load work data when patterns are ready
+  // Effect 2: Load work data when patterns are available
   useEffect(() => {
-    if (!isInitialized || workPatternsLoading) {
-      logger.ui.debug('WorkStatusWidget: Waiting for initialization', { isInitialized, workPatternsLoading })
+    if (workPatternsLoading || !workPatterns) {
+      logger.ui.debug('WorkStatusWidget: Patterns not ready yet', { workPatternsLoading, hasPatterns: !!workPatterns })
       return
+    }
+
+    // Mark as initialized once we have patterns
+    if (!isInitialized && workPatterns.length >= 0) {
+      setIsInitialized(true)
+      logger.ui.info('WorkStatusWidget: Initialized with patterns', { count: workPatterns.length })
     }
 
     const loadWorkData = async () => {
@@ -157,16 +158,11 @@ export function WorkStatusWidget() {
 
   // Effect 3: Manage next task state
   useEffect(() => {
-    if (!isInitialized) {
-      logger.ui.debug('WorkStatusWidget: Not loading next task - not initialized')
-      return
-    }
-
     const loadNextTask = async () => {
       // Only load next task if no active session
       if (activeWorkSessions.size === 0) {
-        if (isLoading) {
-          logger.ui.debug('WorkStatusWidget: Not loading next task - store is loading')
+        if (isLoading || workPatternsLoading) {
+          logger.ui.debug('WorkStatusWidget: Not loading next task - still loading', { isLoading, workPatternsLoading })
           return
         }
 
@@ -191,9 +187,9 @@ export function WorkStatusWidget() {
 
     loadNextTask()
   }, [
-    isInitialized,
     activeWorkSessions.size,
     isLoading,
+    workPatternsLoading,
     tasks.length,
     sequencedTasks.length,
     nextTaskSkipIndex,
