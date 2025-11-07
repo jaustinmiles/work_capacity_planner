@@ -1217,7 +1217,8 @@
     "description": "Workflows stored as Tasks with hasSteps=true causing type confusion throughout codebase. Priority calculation creates fake Task objects from TaskSteps. Duplicate logic for handling tasks vs workflow steps. Constant type casting required. See context/architecture-improvements.md for proposed fix.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:00.522Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1282,7 +1283,8 @@
     "description": "Excessive logging in database operations (DB: logs everywhere), amendment parsing flow, and voice modal debugging. Noisy console output affecting development. Need to add debug flag or remove before production.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:01.022Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1295,7 +1297,8 @@
     "description": "Missing tests for voice amendment integration, workflow step addition, IPC enum serialization, and job context integration. Reduced confidence in voice features. Need comprehensive test suite for new functionality.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:01.122Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1384,7 +1387,8 @@
     "title": "Gantt Chart Schedule summary should not include schedule editing by default",
     "description": "maybe we can collapse this, or entirely remove it. But it's too big compared to the timeline, which should be the main focus of attention. ",
     "timestamp": "2025-09-06T20:24:45.328Z",
-    "sessionId": "session-1757190285319-xyud3m0lo"
+    "sessionId": "session-1757190285319-xyud3m0lo",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1580,7 +1584,8 @@
     "title": "Refresh button on start next task should get the next available task",
     "description": "User story: I am out at a coffee shop and I see the 'Start Next Task' widget tells me to do a task that I need to be at home for. I can't do this task at the moment, so I click the refresh icon. A new task pops up, different from the one previously shown. The task that pops up is the next up in priority order compared to the at-home task. \n\nCurrent behavior: the refresh supposedly refreshes the widget, but I don't think it does anything at all, which is why the functionality should change.\n\nKey insights: the 'Start Next Task' priority order of tasks should be the SAME as the Gantt chart and any other scheduling. Everything should be using the same unified scheduling, same work blocks, etc. So this task should be as easy as maintaining an index into the list of tasks and workflows in scheduling order. Then clicking that refresh button would increment the index used to display the task. Then, whenever a task is completed or the app is restarted, the index should reset. This means that the refresh logic allowing us to work on different tasks (other than the one that is scheduled as 'up next') should only persist during an app session and should return to the default behavior of showing the next up by priority order whenever the app refreshes or restarts. ",
     "timestamp": "2025-10-12T21:42:13.071Z",
-    "sessionId": "session-1760305333047-3c462681"
+    "sessionId": "session-1760305333047-3c462681",
+    "resolved": true
   },
   {
     "type": "feature",
