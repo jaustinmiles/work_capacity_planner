@@ -541,9 +541,9 @@ export function WorkStatusWidget() {
               } else {
                 // Show Start button when no task is running
                 // Debug logging
-                if (!nextTask && isInitialized) {
+                if (!nextTask && !workPatternsLoading && !isLoading) {
                   logger.ui.warn('WorkStatusWidget: Start button disabled - no next task', {
-                    isInitialized,
+                    workPatternsLoading,
                     isLoading,
                     tasksCount: tasks.length,
                     sequencedTasksCount: sequencedTasks.length,
@@ -555,13 +555,14 @@ export function WorkStatusWidget() {
                   <Button
                     type="primary"
                     icon={<IconPlayArrow />}
-                    loading={isProcessing || !isInitialized}
-                    disabled={!isInitialized ? false : (!nextTask && !isLoading)}
+                    loading={isProcessing || workPatternsLoading}
+                    disabled={workPatternsLoading || isLoading || (!nextTask && !isProcessing)}
                     onClick={handleStartNextTask}
                     style={{ width: '100%', marginTop: 8 }}
                   >
-                    {!isInitialized ? 'Initializing...' :
+                    {workPatternsLoading ? 'Loading...' :
                      isLoading ? 'Loading...' :
+                     isProcessing ? 'Starting...' :
                      !nextTask ? 'No Tasks Available' :
                      'Start Next Task'}
                   </Button>
