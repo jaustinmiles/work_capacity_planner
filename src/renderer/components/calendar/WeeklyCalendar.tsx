@@ -25,10 +25,12 @@ export function WeeklyCalendar() {
     const grouped = new Map<string, typeof scheduledItems>()
 
     scheduledItems.forEach(item => {
-      const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
-      const existing = grouped.get(dateStr) || []
-      existing.push(item)
-      grouped.set(dateStr, existing)
+      if (item.startTime) {
+        const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
+        const existing = grouped.get(dateStr) || []
+        existing.push(item)
+        grouped.set(dateStr, existing)
+      }
     })
 
     return grouped
@@ -100,15 +102,21 @@ export function WeeklyCalendar() {
     const focusedMinutes = daySchedule
       .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === 'focused')
       .reduce((sum, item) => {
-        const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
-        return sum + duration
+        if (item.endTime && item.startTime) {
+          const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
+          return sum + duration
+        }
+        return sum
       }, 0)
 
     const admin = daySchedule
       .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === TaskType.Admin)
       .reduce((sum, item) => {
-        const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
-        return sum + duration
+        if (item.endTime && item.startTime) {
+          const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
+          return sum + duration
+        }
+        return sum
       }, 0)
 
     const hasScheduledTasks = daySchedule.length > 0
@@ -331,7 +339,24 @@ export function WeeklyCalendar() {
           {selectedDate ? (
             <DailyScheduleView
               date={selectedDate.format('YYYY-MM-DD')}
-              scheduledItems={itemsByDate.get(selectedDate.format('YYYY-MM-DD')) || []}
+              scheduledItems={
+                (itemsByDate.get(selectedDate.format('YYYY-MM-DD')) || [])
+                  .filter(item => item.startTime && item.endTime)
+                  .map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    type: item.type as 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break',
+                    priority: item.priority || 0,
+                    duration: item.duration,
+                    startTime: item.startTime!,
+                    endTime: item.endTime!,
+                    color: item.color || '#6b7280',
+                    workflowId: item.workflowId,
+                    workflowName: item.workflowName,
+                    originalItem: item.originalItem,
+                    deadline: item.deadline,
+                  }))
+              }
               workPattern={workPatterns.find(p => p.date === selectedDate.format('YYYY-MM-DD'))}
               style={{ height: '100%' }}
             />
