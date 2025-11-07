@@ -1,15 +1,12 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Calendar, Card, Typography, Space, Statistic, Grid, Tag, Alert, Empty, Spin } from '@arco-design/web-react'
 import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
-import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType, WorkBlockType } from '@shared/enums'
-import { logger } from '@/logger'
-import { getDatabase } from '../../services/database'
+import { TaskType } from '@shared/enums'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
 
@@ -18,7 +15,7 @@ const { Title, Text } = Typography
 const { Row, Col } = Grid
 
 export function WeeklyCalendar() {
-  const { tasks, sequencedTasks, workSettings } = useTaskStore()
+  const { tasks, sequencedTasks } = useTaskStore()
   const { ganttItems: scheduledItems } = useSchedulerStore()
   const { workPatterns, isLoading: workPatternsLoading } = useWorkPatternStore()
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(dayjs())
