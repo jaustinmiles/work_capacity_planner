@@ -70,14 +70,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [dropTarget, setDropTarget] = useState<{ time: Date, row: number } | null>(null)
   const [refreshKey, setRefreshKey] = useState(0) // Force re-render when time changes
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const [currentTime, setCurrentTime] = useState(getCurrentTime())
 
   const { workSettings, setOptimalSchedule } = useTaskStore()
 
   // Update current time every minute for countdown timers
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date())
+      setCurrentTime(getCurrentTime())
     }, 60000) // Update every minute
     return () => clearInterval(interval)
   }, [])
@@ -316,8 +316,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           type: itemType,
           priority: item.priority || 0,
           duration: item.duration,
-          startTime: item.startTime || new Date(),
-          endTime: item.endTime || new Date(),
+          startTime: item.startTime || getCurrentTime(),
+          endTime: item.endTime || getCurrentTime(),
           color: itemColor,
           deadline: item.deadline,
           originalItem: (item.originalItem || item) as Task | SequencedTask | WorkMeeting,

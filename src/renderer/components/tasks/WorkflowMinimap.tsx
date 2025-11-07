@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { TaskType } from '@shared/enums'
+import { TaskType, StepStatus } from '@shared/enums'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useTaskStore } from '@renderer/store/useTaskStore'
 
@@ -16,7 +16,7 @@ export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMini
   const { incompleteSteps, layout } = useMemo(() => {
     // Filter to only show incomplete steps
     const incomplete = task.steps.filter(step =>
-      step.status === 'pending' || step.status === 'in_progress' || step.status === 'waiting',
+      step.status === StepStatus.Pending || step.status === StepStatus.InProgress || step.status === StepStatus.Waiting,
     )
 
     if (incomplete.length === 0) {
@@ -134,8 +134,8 @@ export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMini
       {incompleteSteps.map((step, index) => {
         const x = padding + (step.level * horizontalSpacing)
         const y = padding + (step.levelIndex * verticalSpacing)
-        const isInProgress = step.status === 'in_progress' && isStepActivelyWorkedOn(step.id)
-        const isWaiting = step.status === 'waiting'
+        const isInProgress = step.status === StepStatus.InProgress && isStepActivelyWorkedOn(step.id)
+        const isWaiting = step.status === StepStatus.Waiting
         const isFocused = step.type === TaskType.Focused
 
         // Determine color based on status

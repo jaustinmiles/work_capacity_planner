@@ -113,7 +113,7 @@ export function SequencedTaskView({
   const calculateEstimatedCompletionTime = () => {
     const now = new Date()
     const remainingMinutes = task.steps
-      .filter(step => step.status === 'pending')
+      .filter(step => step.status === StepStatus.Pending)
       .reduce((sum, step) => sum + step.duration + step.asyncWaitTime, 0)
 
     const completionTime = new Date(now.getTime() + remainingMinutes * 60000)
@@ -419,9 +419,9 @@ export function SequencedTaskView({
                           key={step.id}
                           step={step}
                           stepIndex={index}
-                          isActive={step.status === 'in_progress'}
-                          isCompleted={step.status === 'completed'}
-                          isWaiting={step.status === 'waiting'}
+                          isActive={step.status === StepStatus.InProgress}
+                          isCompleted={step.status === StepStatus.Completed}
+                          isWaiting={step.status === StepStatus.Waiting}
                           currentTime={currentTime}
                           timeLogged={stepTimeLogs[step.id] || 0}
                           onStart={handleStepStart}

@@ -43,6 +43,16 @@ export function generateRandomStepId(): string {
 }
 
 /**
+ * Extract the original step ID from a wait block ID
+ * Wait block IDs are in the format: stepId-wait or stepId-wait-future
+ * @param waitBlockId The wait block ID to parse
+ * @returns The original step ID, or the input if it's not a wait block ID
+ */
+export function extractStepIdFromWaitBlockId(waitBlockId: string): string {
+  return waitBlockId.replace(/-wait(-future)?$/, '')
+}
+
+/**
  * Generate a unique ID with a given prefix
  * Format: prefix-timestamp-random
  * Example: "WTS-1759443199835-3ejbx2mvh"

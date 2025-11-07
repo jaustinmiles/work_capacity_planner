@@ -12,6 +12,7 @@ import { logger } from '@/logger'
 import { WorkTrackingService } from '../services/workTrackingService'
 import dayjs from 'dayjs'
 import { getCurrentTime } from '../../shared/time-provider'
+import { extractStepIdFromWaitBlockId } from '../../shared/step-id-utils'
 
 
 interface TaskStore {
@@ -1410,7 +1411,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
           if (item.endTime.getTime() > currentTime.getTime()) {
             activeWaitBlocks.add(item.id)
             // Extract the original step ID from wait block ID
-            const stepId = item.id.replace(/-wait(-future)?$/, '')
+            const stepId = extractStepIdFromWaitBlockId(item.id)
             if (stepId !== item.id) {
               waitingStepIds.add(stepId)
             }
