@@ -6,6 +6,9 @@
  */
 
 import { UnifiedScheduleItem, ScheduleContext, SchedulingMetrics } from './unified-scheduler'
+
+// Re-export SchedulingMetrics for convenience
+export type { SchedulingMetrics }
 import { DailyWorkPattern } from './work-blocks-types'
 import { TaskType } from './enums'
 import { parseTimeString } from './time-utils'

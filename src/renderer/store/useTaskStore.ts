@@ -1,18 +1,16 @@
 import { create } from 'zustand'
-import { Task, NextScheduledItem } from '@shared/types'
+import { subscribeWithSelector } from 'zustand/middleware'
+import { Task } from '@shared/types'
+import { useSchedulerStore } from './useSchedulerStore'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskStatus, StepStatus, UnifiedScheduleItemType } from '@shared/enums'
-import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { TaskStatus, StepStatus } from '@shared/enums'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@shared/work-settings-types'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
-import { UnifiedScheduler, OptimizationMode } from '@shared/unified-scheduler'
+// Scheduler now handled by useSchedulerStore
 import { getDatabase } from '../services/database'
-import { appEvents, EVENTS } from '../utils/events'
+// Events removed - using reactive state instead
 import { logger } from '@/logger'
 import { WorkTrackingService } from '../services/workTrackingService'
-import dayjs from 'dayjs'
-import { getCurrentTime } from '../../shared/time-provider'
-import { extractStepIdFromWaitBlockId, createWaitBlockId } from '../../shared/step-id-utils'
 
 
 interface TaskStore {
@@ -22,12 +20,7 @@ interface TaskStore {
   isLoading: boolean
   error: string | null
   workSettings: WorkSettings
-  workPatterns: DailyWorkPattern[]
-  workPatternsLoading: boolean
   includeArchived: boolean  // Track whether archived tasks should be shown
-
-  // Scheduling state
-  optimalSchedule: any | null
 
   // Progress tracking state
   activeWorkSessions: Map<string, UnifiedWorkSession>
@@ -42,7 +35,6 @@ interface TaskStore {
   loadTasks: (includeArchived?: boolean) => Promise<void>
   loadSequencedTasks: () => Promise<void>
   refreshAllData: () => Promise<void>
-  loadWorkPatterns: () => Promise<void>
   initializeData: () => Promise<void>
 
   // Actions
@@ -57,8 +49,7 @@ interface TaskStore {
   selectTask: (id: string | null) => void
 
   // Scheduling actions
-  setOptimalSchedule: (schedule: any) => void
-  getOptimalSchedule: () => any
+  // Scheduling moved to useSchedulerStore
 
   // Settings actions
   updateWorkSettings: (__settings: WorkSettings) => Promise<void>
@@ -89,7 +80,6 @@ interface TaskStore {
     isPaused: boolean
     elapsedMinutes: number
   }
-  getNextScheduledItem: () => Promise<NextScheduledItem | null>
   startNextTask: () => Promise<void>
 }
 
@@ -116,9 +106,10 @@ export const clearInjectedWorkTrackingService = () => {
   injectedWorkTrackingService = null
 }
 
-export const useTaskStore = create<TaskStore>((set, get) => {
-  // Helper to get the current WorkTrackingService (lazy singleton or test injection)
-  const getWorkTrackingService = () => {
+export const useTaskStore = create<TaskStore>()(
+  subscribeWithSelector((set, get) => {
+    // Helper to get the current WorkTrackingService (lazy singleton or test injection)
+    const getWorkTrackingService = () => {
     if (injectedWorkTrackingService) {
       return injectedWorkTrackingService
     }
@@ -140,8 +131,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     selectedTaskId: null,
     isLoading: true, // Start with true to prevent premature getNextScheduledItem calls
     error: null,
-    workPatterns: [],
-    workPatternsLoading: true,
+    // Work patterns now in useWorkPatternStore
     includeArchived: false,  // Default to not showing archived tasks
     workSettings: (() => {
       try {
@@ -151,9 +141,6 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         return DEFAULT_WORK_SETTINGS
       }
     })(),
-
-    // Scheduling state
-    optimalSchedule: null,
 
     // Progress tracking state
     activeWorkSessions: new Map(),
@@ -242,8 +229,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         error: null,
       })
 
-      // Emit single unified event for components to listen to
-      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      // Reactive state will auto-update components
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to refresh data',
@@ -252,72 +238,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     }
   },
 
-  loadWorkPatterns: async () => {
-    try {
-      // rendererLogger.info('[WorkPatternLifeCycle] TaskStore.loadWorkPatterns - START')
-      set({ workPatternsLoading: true })
-
-      const db = getDatabase()
-      const patterns: DailyWorkPattern[] = []
-
-      // DEBUG: Log what getCurrentTime returns
-      const currentTime = getCurrentTime()
-      // rendererLogger.info('[DEBUG] loadWorkPatterns getCurrentTime:', {
-        // time: currentTime.toISOString(),
-        // localDate: currentTime.toLocaleDateString(),
-        // localTime: currentTime.toLocaleTimeString(),
-      // })
-
-      const today = dayjs(currentTime).startOf('day')
-      // rendererLogger.info('[DEBUG] loadWorkPatterns date range:', {
-        // startDate: today.add(-1, 'day').format('YYYY-MM-DD'),
-        // endDate: today.add(7, 'day').format('YYYY-MM-DD'),
-        // todayDate: today.format('YYYY-MM-DD'),
-      // })
-
-      // Load patterns from yesterday to next 7 days (to handle late-night overrides)
-      for (let i = -1; i < 8; i++) {
-        const date = today.add(i, 'day')
-        const dateStr = date.format('YYYY-MM-DD')
-
-        const pattern = await db.getWorkPattern(dateStr)
-
-        if (pattern && ((pattern.blocks && pattern.blocks.length > 0) || (pattern.meetings && pattern.meetings.length > 0))) {
-          patterns.push({
-            date: dateStr,
-            blocks: pattern.blocks,
-            meetings: pattern.meetings,
-            accumulated: { focus: 0, admin: 0, personal: 0 },
-          })
-        } else {
-          // No pattern found - no default blocks
-          patterns.push({
-            date: dateStr,
-            blocks: [],
-            meetings: [],
-            accumulated: { focus: 0, admin: 0, personal: 0 },
-          })
-        }
-      }
-
-      // rendererLogger.info('[WorkPatternLifeCycle] TaskStore.loadWorkPatterns - COMPLETE', {
-        // total: patterns.length,
-        // withBlocks: patterns.filter(p => p.blocks && p.blocks.length > 0).length,
-        // dates: patterns.map(p => p.date),
-        // currentTime: getCurrentTime().toISOString(),
-        // realTime: new Date().toISOString(),
-      // })
-
-      set({ workPatterns: patterns, workPatternsLoading: false })
-    } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to load work patterns', error as Error)
-      set({
-        workPatterns: [],
-        workPatternsLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to load work patterns',
-      })
-    }
-  },
+  // Work patterns now handled by useWorkPatternStore
 
   initializeData: async () => {
     try {
@@ -327,8 +248,6 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       set({
         tasks: [],
         sequencedTasks: [],
-        workPatterns: [],
-        workPatternsLoading: true,
         isLoading: true,
         error: null,
         nextTaskSkipIndex: 0,
@@ -368,23 +287,28 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       await getDatabase().loadLastUsedSession()
 
       // Loading all data from database
-      // rendererLogger.info('[TaskStore] Loading tasks, workflows, and work patterns from database...')
+      logger.ui.info('[TaskStore] Loading tasks, workflows, and work patterns from database...')
       const [tasks, sequencedTasks] = await Promise.all([
         getDatabase().getTasks(),
         getDatabase().getSequencedTasks(),
       ])
 
       // Load work patterns separately (it's async and sets its own state)
-      await get().loadWorkPatterns()
+      // Work patterns loaded by useWorkPatternStore
 
-      // rendererLogger.info('[TaskStore] Data loaded successfully', {
-        // taskCount: tasks.length,
-        // workflowCount: sequencedTasks.length,
-        // totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0),
-        // firstTaskSessionId: tasks[0]?.sessionId,
-      // })
+      logger.ui.info('[TaskStore] Data loaded successfully', {
+        taskCount: tasks.length,
+        workflowCount: sequencedTasks.length,
+        totalSteps: sequencedTasks.reduce((sum, workflow) => sum + workflow.steps.length, 0),
+        taskNames: tasks.map(t => t.name),
+        workflowNames: sequencedTasks.map(w => w.name),
+      })
 
       // Store initialized successfully
+      logger.ui.info('[TaskStore] Setting tasks in store', {
+        taskCount: tasks.length,
+        sequencedCount: sequencedTasks.length,
+      })
       set({ tasks, sequencedTasks, isLoading: false })
 
       // rendererLogger.info('[TaskStore] Store initialization completed successfully')
@@ -492,7 +416,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       }
 
       // Emit refresh event to ensure UI consistency
-      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      // Event removed - reactive state handles updates
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to update task',
@@ -614,14 +538,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
   // Scheduling actions
 
-  setOptimalSchedule: (schedule: any) => {
-    // rendererLogger.info('[TaskStore] Setting optimal schedule', {
-      // scheduledItemCount: schedule?.length || 0,
-    // })
-    set({ optimalSchedule: schedule })
-  },
-
-  getOptimalSchedule: () => get().optimalSchedule,
+  // Scheduling moved to useSchedulerStore
 
   // Settings actions
   updateWorkSettings: async (settings: WorkSettings) => {
@@ -704,7 +621,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // })
 
       // Emit event to trigger UI updates
-      appEvents.emit(EVENTS.SESSION_CHANGED)
+      // Event removed - reactive state handles updates
     } catch (error) {
       logger.ui.error('Failed to start work on step', {
         error: error instanceof Error ? error.message : String(error),
@@ -774,7 +691,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // })
 
       // Emit event to trigger UI updates
-      appEvents.emit(EVENTS.SESSION_CHANGED)
+      // Event removed - reactive state handles updates
     } catch (error) {
       logger.ui.error('Failed to start work on task', {
         error: error instanceof Error ? error.message : String(error),
@@ -850,8 +767,8 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
 
       // Emit events to notify UI of state changes - no refresh needed
-      appEvents.emit(EVENTS.SESSION_CHANGED)
-      appEvents.emit(EVENTS.TIME_LOGGED)
+      // Event removed - reactive state handles updates
+      // Event removed - reactive state handles updates
     } catch (error) {
       logger.ui.error('Failed to pause work on step', {
         error: error instanceof Error ? error.message : String(error),
@@ -893,8 +810,8 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       set({ activeWorkSessions: newSessions })
 
       // Emit events to notify UI of state changes - no refresh needed
-      appEvents.emit(EVENTS.SESSION_CHANGED)
-      appEvents.emit(EVENTS.TIME_LOGGED)
+      // Event removed - reactive state handles updates
+      // Event removed - reactive state handles updates
 
     } catch (error) {
       logger.ui.error('Failed to stop work on task', {
@@ -938,7 +855,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         })
 
         // Emit event to update other components
-        appEvents.emit(EVENTS.TIME_LOGGED)
+        // Event removed - reactive state handles updates
       }
 
       // Find the step to check if it has async wait time
@@ -1036,7 +953,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       await get().checkAndCompleteExpiredWaitTimes()
 
       // Emit event to notify that a work session has ended (triggers next task load)
-      appEvents.emit(EVENTS.SESSION_CHANGED)
+      // Event removed - reactive state handles updates
 
     } catch (error) {
       logger.system.error('[useTaskStore] completeStep failed', {
@@ -1157,7 +1074,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         })
 
         // Emit event to update other components
-        appEvents.emit(EVENTS.TIME_LOGGED)
+        // Event removed - reactive state handles updates
       }
     } catch (error) {
       set({
@@ -1267,186 +1184,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     }
   },
 
-  getNextScheduledItem: async () => {
-    try {
-      const state = get()
-      const skipIndex = state.nextTaskSkipIndex
-      const tasks = state.tasks
-      const sequencedTasks = state.sequencedTasks
-      const workPatterns = state.workPatterns
-      const workSettings = state.workSettings
-
-      if (!workPatterns || workPatterns.length === 0) {
-        return null
-      }
-
-      // Use UnifiedScheduler directly
-      const scheduler = new UnifiedScheduler()
-
-      const currentTime = getCurrentTime()
-      const startDateString = currentTime.toISOString().split('T')[0]
-
-      // Build context and config for UnifiedScheduler
-      const context = {
-        startDate: startDateString,
-        tasks,
-        workflows: sequencedTasks,
-        workPatterns,
-        workSettings,
-        currentTime,
-      }
-
-      const config = {
-        startDate: currentTime,
-        allowTaskSplitting: true,
-        respectMeetings: true,
-        optimizationMode: OptimizationMode.Realistic,
-        debugMode: true,
-      }
-
-      // Combine tasks and workflows into items array
-      const items = [...tasks, ...sequencedTasks]
-
-      // Call scheduler
-      const scheduleResult = scheduler.scheduleForDisplay(items, context, config)
-
-      // Find all active wait blocks and waiting steps
-      const activeWaitBlocks = new Set<string>()
-      const waitingStepIds = new Set<string>()
-
-      // First, find all workflow steps that are in waiting status
-      for (const workflow of sequencedTasks) {
-        for (const step of workflow.steps) {
-          if (step.status === StepStatus.Waiting && step.completedAt && step.asyncWaitTime) {
-            // Check if wait time hasn't expired
-            const waitEndTime = new Date(step.completedAt).getTime() + (step.asyncWaitTime * 60000)
-            if (waitEndTime > currentTime.getTime()) {
-              waitingStepIds.add(step.id)
-              // Add both possible wait block IDs
-              activeWaitBlocks.add(createWaitBlockId(step.id, false))
-              activeWaitBlocks.add(createWaitBlockId(step.id, true))
-            }
-          }
-        }
-      }
-
-      // Also check scheduled wait blocks
-      scheduleResult.scheduled.forEach(item => {
-        if (item.type === 'async-wait' && item.endTime) {
-          // Check if wait block is still active (hasn't expired)
-          if (item.endTime.getTime() > currentTime.getTime()) {
-            activeWaitBlocks.add(item.id)
-            // Extract the original step ID from wait block ID
-            const stepId = extractStepIdFromWaitBlockId(item.id)
-            if (stepId !== item.id) {
-              waitingStepIds.add(stepId)
-            }
-          }
-        }
-      })
-
-      // Filter out meetings, async wait blocks, waiting items, and items blocked by active wait timers
-      const sortedByTime = [...scheduleResult.scheduled]
-        .filter(item => {
-          // Must have a start time
-          if (!item.startTime) return false
-
-          // Filter out non-work items
-          if (item.type === UnifiedScheduleItemType.Meeting ||
-              item.type === UnifiedScheduleItemType.Break ||
-              item.type === UnifiedScheduleItemType.BlockedTime ||
-              item.type === UnifiedScheduleItemType.AsyncWait) {
-            return false
-          }
-
-          // Filter out items that are waiting on async work
-          if (item.isWaitingOnAsync) {
-            return false
-          }
-
-          // Check if this item has dependencies on active wait blocks
-          if (item.dependencies && item.dependencies.length > 0) {
-            // If any dependency is an active wait block, filter this item out
-            const hasActiveWaitDependency = item.dependencies.some(depId =>
-              activeWaitBlocks.has(depId),
-            )
-            if (hasActiveWaitDependency) {
-              return false
-            }
-          }
-
-          // For workflow steps, check the actual step status and dependencies
-          if (item.type === 'workflow-step' && item.workflowId) {
-            const workflow = sequencedTasks.find(seq => seq.id === item.workflowId)
-            const step = workflow?.steps.find(s => s.id === item.id)
-
-            // Filter out steps that are in waiting status
-            if (step?.status === StepStatus.Waiting) {
-              return false
-            }
-
-            // Also filter out if any dependency is a waiting step
-            if (step?.dependsOn && step.dependsOn.length > 0) {
-              const hasWaitingDependency = step.dependsOn.some(depId =>
-                waitingStepIds.has(depId),
-              )
-              if (hasWaitingDependency) {
-                return false
-              }
-            }
-          }
-
-          return true
-        })
-        .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime())
-
-      if (sortedByTime.length === 0) {
-        return null
-      }
-
-      const targetIndex = Math.min(skipIndex, sortedByTime.length - 1)
-      const scheduledItem = sortedByTime[targetIndex]
-
-      if (!scheduledItem || !scheduledItem.startTime) {
-        return null
-      }
-
-      // Convert to NextScheduledItem format
-      const isWorkflowStep = scheduledItem.type === 'workflow-step'
-
-      if (isWorkflowStep) {
-        const workflow = sequencedTasks.find(seq =>
-          seq.steps.some(step => step.id === scheduledItem.id),
-        )
-        const step = workflow?.steps.find(s => s.id === scheduledItem.id)
-
-        if (step && workflow) {
-          return {
-            type: 'step' as const,
-            id: step.id,
-            workflowId: workflow.id,
-            title: step.name,
-            estimatedDuration: step.duration,
-            scheduledStartTime: scheduledItem.startTime,
-          }
-        }
-      }
-
-      // Regular task
-      return {
-        type: 'task' as const,
-        id: scheduledItem.id,
-        title: scheduledItem.name,
-        estimatedDuration: scheduledItem.duration,
-        scheduledStartTime: scheduledItem.startTime,
-      }
-    } catch (error) {
-      logger.ui.error('Failed to get next scheduled item', {
-        error: error instanceof Error ? error.message : String(error),
-      }, 'next-item-error')
-      return null
-    }
-  },
+  // Moved to useSchedulerStore for reactive scheduling
 
   startNextTask: async () => {
     try {
@@ -1456,8 +1194,8 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         return
       }
 
-      // Get the next scheduled item
-      const nextItem = await get().getNextScheduledItem()
+      // Get the next scheduled item from the scheduler store
+      const nextItem = useSchedulerStore.getState().nextScheduledItem
 
       if (!nextItem) {
         // rendererLogger.info('[TaskStore] No next task available to start')
@@ -1484,7 +1222,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
 
       // Emit event to notify UI that a new work session started
       // The startWorkOnStep/startWorkOnTask methods already updated the state
-      appEvents.emit(EVENTS.SESSION_CHANGED)
+      // Event removed - reactive state handles updates
     } catch (error) {
       // rendererLogger.error('[TaskStore] Failed to start next task', error as Error)
       set({
@@ -1493,4 +1231,5 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     }
   },
 }
-})
+  }),
+)

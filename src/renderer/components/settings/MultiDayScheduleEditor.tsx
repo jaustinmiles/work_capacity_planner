@@ -30,8 +30,9 @@ import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { logger } from '@/logger'
-import { appEvents, EVENTS } from '../../utils/events'
 import { getCurrentTime } from '@shared/time-provider'
+import { useWorkPatternStore } from '../../store/useWorkPatternStore'
+import { useSchedulerStore } from '../../store/useSchedulerStore'
 
 
 dayjs.extend(isSameOrBefore)
@@ -177,8 +178,9 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
       await loadPatterns()
       onSave?.()
 
-      // Emit event to refresh UI components (especially sidebar)
-      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      // Refresh stores to update UI
+      await useWorkPatternStore.getState().loadWorkPatterns()
+      useSchedulerStore.getState().recomputeSchedule()
     } catch (error) {
       logger.ui.error('Failed to save pattern', {
         error: error instanceof Error ? error.message : String(error),
@@ -328,8 +330,9 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
         await onSave()
       }
 
-      // Emit event to refresh UI components (especially sidebar)
-      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      // Refresh stores to update UI
+      await useWorkPatternStore.getState().loadWorkPatterns()
+      useSchedulerStore.getState().recomputeSchedule()
     } catch (error) {
       logger.ui.error('Failed to clear schedules', {
         error: error instanceof Error ? error.message : String(error),

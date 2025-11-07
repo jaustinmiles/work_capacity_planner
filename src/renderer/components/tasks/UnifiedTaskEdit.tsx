@@ -38,7 +38,7 @@ import { StepWorkSessionsModal } from './StepWorkSessionsModal'
 import { DependencyEditor } from '../shared/DependencyEditor'
 import { Message } from '../common/Message'
 import { getDatabase } from '../../services/database'
-import { appEvents, EVENTS } from '../../utils/events'
+import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { logger } from '@/logger'
 
 const { Title, Text } = Typography
@@ -166,8 +166,9 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           worstCaseDuration,
         })
 
-        // Emit workflow updated event
-        appEvents.emit(EVENTS.WORKFLOW_UPDATED)
+        // Update stores for reactive UI updates
+        await useTaskStore.getState().initializeData()
+        useSchedulerStore.getState().recomputeSchedule()
         logger.db.info('Workflow saved successfully', {
           workflowId: task.id,
           stepCount: cleanedSteps.length,
@@ -175,7 +176,9 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
       } else {
         // Regular task save
         await updateTask(task.id, editedTask)
-        appEvents.emit(EVENTS.TASK_UPDATED, { taskId: task.id })
+        // Update stores for reactive UI updates
+        await useTaskStore.getState().initializeData()
+        useSchedulerStore.getState().recomputeSchedule()
         logger.db.info('Task saved successfully', {
           taskId: task.id,
         }, 'task-save-success')
@@ -284,7 +287,9 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           worstCaseDuration,
         })
 
-        appEvents.emit(EVENTS.WORKFLOW_UPDATED)
+        // Update stores for reactive UI updates
+        await useTaskStore.getState().initializeData()
+        useSchedulerStore.getState().recomputeSchedule()
         logger.db.info('Step saved to database', {
           workflowId: task.id,
           totalSteps: cleanedSteps.length,

@@ -31,7 +31,7 @@ import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
-import { appEvents, EVENTS } from '../../utils/events'
+import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { SwimLaneTimeline } from './SwimLaneTimeline'
 import { CircularClock } from './CircularClock'
 import { ClockTimePicker } from '../common/ClockTimePicker'
@@ -431,8 +431,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       await loadWorkSessions()
       await loadTasks()
 
-      // Emit event to update WorkStatusWidget and other components
-      appEvents.emit(EVENTS.TIME_LOGGED)
+      // Trigger scheduler recompute to update UI components
+      useSchedulerStore.getState().recomputeSchedule()
     } catch (error) {
       logger.db.error('Failed to save work sessions', {
         error: error instanceof Error ? error.message : String(error),

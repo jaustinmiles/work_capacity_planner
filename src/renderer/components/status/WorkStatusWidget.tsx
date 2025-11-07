@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { Card, Space, Typography, Button, Tag, Progress, Message, Statistic } from '@arco-design/web-react'
 import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconCaretRight } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useSchedulerStore } from '../../store/useSchedulerStore'
+import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { formatMinutes } from '@shared/time-utils'
 import { TaskStatus, TaskType, WorkBlockType } from '@shared/enums'
 import dayjs from 'dayjs'
@@ -10,7 +12,6 @@ import { getCurrentTime } from '@shared/time-provider'
 import { getDatabase } from '../../services/database'
 import { WorkBlock } from '@shared/work-blocks-types'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
-import { appEvents, EVENTS } from '../../utils/events'
 
 const { Title, Text } = Typography
 
@@ -50,15 +51,11 @@ const calculateDuration = (startTime: string, endTime: string): number => {
 }
 
 export function WorkStatusWidget() {
-  // Subscribe to all relevant store state
+  // Task store state
   const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
-  const workPatternsLoading = useTaskStore(state => state.workPatternsLoading)
-  const workPatterns = useTaskStore(state => state.workPatterns)
   const isLoading = useTaskStore(state => state.isLoading)
   const tasks = useTaskStore(state => state.tasks)
   const sequencedTasks = useTaskStore(state => state.sequencedTasks)
-  const getNextScheduledItem = useTaskStore(state => state.getNextScheduledItem)
-  const loadWorkPatterns = useTaskStore(state => state.loadWorkPatterns)
   const nextTaskSkipIndex = useTaskStore(state => state.nextTaskSkipIndex)
   const startNextTask = useTaskStore(state => state.startNextTask)
   const pauseWorkOnTask = useTaskStore(state => state.pauseWorkOnTask)
@@ -67,6 +64,13 @@ export function WorkStatusWidget() {
   const updateTask = useTaskStore(state => state.updateTask)
   const getWorkSessionProgress = useTaskStore(state => state.getWorkSessionProgress)
   const incrementNextTaskSkipIndex = useTaskStore(state => state.incrementNextTaskSkipIndex)
+
+  // Work pattern store state
+  const workPatterns = useWorkPatternStore(state => state.workPatterns)
+  const workPatternsLoading = useWorkPatternStore(state => state.isLoading)
+
+  // Scheduler store state
+  const nextScheduledItem = useSchedulerStore(state => state.nextScheduledItem)
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [nextTask, setNextTask] = useState<any>(null)
@@ -90,10 +94,7 @@ export function WorkStatusWidget() {
     return sessions.length > 0 ? sessions[0] : null
   }, [activeWorkSessions])
 
-  // Load patterns on mount
-  useEffect(() => {
-    loadWorkPatterns()
-  }, [])
+  // Patterns now auto-load via useWorkPatternStore
 
   // Load work data when patterns change
   useEffect(() => {
@@ -165,13 +166,8 @@ export function WorkStatusWidget() {
         return
       }
 
-      try {
-        const item = await getNextScheduledItem()
-        setNextTask(item)
-      } catch (err) {
-        logger.ui.error('Failed to get next task', { error: err })
-        setNextTask(null)
-      }
+      // Next scheduled item is now reactive state from scheduler store
+      setNextTask(nextScheduledItem)
     }
 
     loadNextTask()
@@ -181,10 +177,11 @@ export function WorkStatusWidget() {
     isLoading,
     tasks,
     sequencedTasks,
+    nextScheduledItem,
     nextTaskSkipIndex,
   ])
 
-  // Listen for events that require data refresh
+  // Refresh accumulated times when sessions change
   useEffect(() => {
     const handleDataChange = async () => {
       // Refresh accumulated times
@@ -202,14 +199,8 @@ export function WorkStatusWidget() {
       }
     }
 
-    appEvents.on(EVENTS.TIME_LOGGED, handleDataChange)
-    appEvents.on(EVENTS.SESSION_CHANGED, handleDataChange)
-
-    return () => {
-      appEvents.off(EVENTS.TIME_LOGGED, handleDataChange)
-      appEvents.off(EVENTS.SESSION_CHANGED, handleDataChange)
-    }
-  }, [pattern, currentDate])
+    handleDataChange()
+  }, [pattern, currentDate, activeWorkSessions])
 
   // Handler functions
   const handleStartNextTask = async () => {

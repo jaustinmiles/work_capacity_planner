@@ -25,7 +25,8 @@ import { assertNever, StepStatus } from '@shared/enums'
 import { getDatabase } from '../services/database'
 import { Message } from '../components/common/Message'
 import { logger } from '@/logger'
-import { appEvents, EVENTS } from './events'
+import { useTaskStore } from '../store/useTaskStore'
+import { useSchedulerStore } from '../store/useSchedulerStore'
 import {
   applyForwardDependencyChanges,
   applyReverseDependencyChanges,
@@ -790,10 +791,9 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
   if (successCount > 0) {
     Message.success(`Applied ${successCount} amendment${successCount !== 1 ? 's' : ''}`)
-    // Emit events to refresh UI
-    appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
-    appEvents.emit(EVENTS.TASK_UPDATED)
-    appEvents.emit(EVENTS.WORKFLOW_UPDATED)
+    // Update stores to refresh UI reactively
+    await useTaskStore.getState().initializeData()
+    useSchedulerStore.getState().recomputeSchedule()
   }
   if (errorCount > 0) {
     Message.error(`Failed to apply ${errorCount} amendment${errorCount !== 1 ? 's' : ''}`)

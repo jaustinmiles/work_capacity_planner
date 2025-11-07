@@ -3,19 +3,19 @@ import { Card, Typography, Space, Tag, Empty, Tooltip, Button, Alert, Dropdown, 
 import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType, GanttItemType, UnifiedScheduleItemType } from '@shared/enums'
+import { TaskType, GanttItemType } from '@shared/enums'
 import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
-// Updated to use UnifiedScheduler via useUnifiedScheduler hook
-import { useUnifiedScheduler, ScheduleResult, SchedulingMetrics } from '../../hooks/useUnifiedScheduler'
 import { ScheduleMetricsPanel } from './ScheduleMetricsPanel'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
-import { SchedulingDebugInfo, OptimizationMode } from '@shared/unified-scheduler'
+import { SchedulingDebugInfo } from '@shared/unified-scheduler'
+import { SchedulingMetrics } from '@shared/scheduler-metrics'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useSchedulerStore } from '../../store/useSchedulerStore'
+import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { getCurrentTime, isTimeOverridden } from '@shared/time-provider'
-import { appEvents, EVENTS } from '../../utils/events'
 
 
 const { Text } = Typography
@@ -59,20 +59,18 @@ const ZOOM_PRESETS = [
 ]
 
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
-  const { updateTask, updateSequencedTask, workPatterns = [], workPatternsLoading, loadWorkPatterns } = useTaskStore()
-  const scheduler = useUnifiedScheduler()
+  const { updateTask, updateSequencedTask, workSettings } = useTaskStore()
+  const { workPatterns = [], isLoading: workPatternsLoading } = useWorkPatternStore()
+  const { ganttItems, scheduleResult } = useSchedulerStore()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
-  const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
-  const [schedulingMetrics, setSchedulingMetrics] = useState<SchedulingMetrics | null>(null)
   const [isPinching, setIsPinching] = useState(false)
   const [draggedItem, setDraggedItem] = useState<GanttItem | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [dropTarget, setDropTarget] = useState<{ time: Date, row: number } | null>(null)
-  const [refreshKey, setRefreshKey] = useState(0) // Force re-render when time changes
   const [currentTime, setCurrentTime] = useState(getCurrentTime())
-
-  const { workSettings, setOptimalSchedule } = useTaskStore()
+  const [debugInfo, setDebugInfo] = useState<SchedulingDebugInfo | null>(null)
+  const [schedulingMetrics, setSchedulingMetrics] = useState<SchedulingMetrics | null>(null)
 
   // Update current time every minute for countdown timers
   useEffect(() => {
@@ -82,23 +80,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     return () => clearInterval(interval)
   }, [])
 
-  // Listen for time override changes
-  useEffect(() => {
-    const handleTimeChange = () => {
-      logger.system.info('Time override changed, reloading patterns', {}, 'time-override-change')
-      // CRITICAL: Reload patterns with new time context
-      loadWorkPatterns()
-      // Clear any saved schedule when time changes
-      setOptimalSchedule([])
-      // Force re-render by incrementing key
-      setRefreshKey(prev => prev + 1)
-    }
-
-    appEvents.on(EVENTS.TIME_OVERRIDE_CHANGED, handleTimeChange)
-    return () => {
-      appEvents.off(EVENTS.TIME_OVERRIDE_CHANGED, handleTimeChange)
-    }
-  }, [setOptimalSchedule, loadWorkPatterns])
+  // Time changes are now handled reactively through stores
 
   // Zoom controls
   const handleZoomIn = useCallback(() => {
@@ -254,90 +236,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     }
   }, [pixelsPerHour, setIsPinching])
 
-  // Reload work patterns when WorkScheduleModal closes or data changes
-  useEffect(() => {
-    const handleDataRefresh = () => {
-      logger.ui.info('Data refresh event, reloading work patterns', {}, 'gantt-data-refresh')
-      loadWorkPatterns()
-    }
+  // Data refreshes are now handled reactively through stores
 
-    appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-    return () => {
-      appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-    }
-  }, [loadWorkPatterns])
-
-  // Helper function to convert UnifiedScheduler results to GanttChart format
-  const convertUnifiedToGanttItems = useCallback((result: ScheduleResult): GanttItem[] => {
-
-    // Filter out meetings, breaks, and blocked time - they're handled separately by getMeetingScheduledItems
-    // Also filter out completed tasks that are waiting (they'll be represented by async-wait items)
-    return result.scheduled
-      .filter(item => {
-        // Filter out meetings, breaks, and blocked time
-        if (item.type === UnifiedScheduleItemType.Meeting ||
-            item.type === UnifiedScheduleItemType.Break ||
-            item.type === UnifiedScheduleItemType.BlockedTime) {
-          return false
-        }
-        // Filter out workflow steps that are in waiting status (keep async-wait items)
-        if (item.type === UnifiedScheduleItemType.WorkflowStep && item.isWaitingOnAsync) {
-          return false
-        }
-        return true
-      })
-      .map((item) => {
-        // Get task color based on type
-        const getTaskColor = (taskType: TaskType): string => {
-          switch (taskType) {
-            case TaskType.Focused: return '#3b82f6'
-            case TaskType.Admin: return '#f59e0b'
-            case TaskType.Personal: return '#10b981'
-            default: return '#6b7280'
-          }
-        }
-
-        // Determine Gantt item type
-        let itemType: GanttItemType
-        if (item.type === 'async-wait') {
-          itemType = GanttItemType.AsyncWait
-        } else if (item.type === 'workflow-step') {
-          itemType = GanttItemType.WorkflowStep
-        } else {
-          itemType = GanttItemType.Task
-        }
-
-        // Set color - orange for wait times, normal colors for tasks
-        const itemColor = item.type === 'async-wait'
-          ? '#FF7D00'  // Orange for waiting
-          : getTaskColor(item.taskType || TaskType.Focused)
-
-        const ganttItem: GanttItem = {
-          id: item.id,
-          name: item.name,
-          type: itemType,
-          priority: item.priority || 0,
-          duration: item.duration,
-          startTime: item.startTime || getCurrentTime(),
-          endTime: item.endTime || getCurrentTime(),
-          color: itemColor,
-          deadline: item.deadline,
-          originalItem: (item.originalItem || item) as Task | SequencedTask | WorkMeeting,
-          blockId: item.blockId,
-          isWaitTime: item.type === 'async-wait',
-          isFutureWait: item.isFutureWait,
-          // Add workflow metadata if present
-          ...(item.workflowId && {
-            workflowId: item.workflowId,
-            workflowName: item.workflowName,
-            stepIndex: item.stepIndex,
-            isWorkflowStep: true,
-          }),
-        }
-
-        return ganttItem
-      })
-  }, [])
 
   // Helper function to convert meetings from workPatterns to ScheduledItem format
   const getMeetingScheduledItems = useCallback((workPatterns: DailyWorkPattern[]): GanttItem[] => {
@@ -457,130 +357,34 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   }, [])
 
   // Use the scheduler to get properly ordered items
-  // Include refreshKey in dependencies to force recalculation when time changes
+  // Get scheduled items from the reactive scheduler store
   const scheduledItems = useMemo(() => {
-    logger.ui.info('Computing schedule', {
-      workPatternsLoading,
-      workPatternsCount: workPatterns.length,
-      tasksCount: tasks.length,
-      sequencedTasksCount: sequencedTasks.length,
-      refreshKey,
-      currentTime: getCurrentTime().toISOString(),
-    }, 'gantt-compute-schedule')
+    // Convert scheduler store items to GanttChart format
+    const ganttItemsFromStore = ganttItems.map(item => ({
+      ...item,
+      startTime: item.startTime ? new Date(item.startTime) : new Date(),
+      endTime: item.endTime ? new Date(item.endTime) : new Date(),
+      deadline: item.deadline ? new Date(item.deadline) : undefined,
+      originalItem: item.originalItem || item,
+    } as unknown as GanttItem))
 
-    // Don't try to schedule if patterns are still loading
-    if (workPatternsLoading) {
-      logger.ui.info('Patterns still loading, waiting', {}, 'gantt-patterns-loading')
-      return []
-    }
-
-    if (workPatterns.length === 0) {
-      logger.ui.warn('No work patterns available after loading', {}, 'gantt-no-patterns')
-      return []
-    }
-
-    // Log all tasks with their deadline status
-    const tasksWithDeadlines = tasks.filter(task => task.deadline)
-    const workflowsWithDeadlines = sequencedTasks.filter(workflow => workflow.deadline)
-
-    logger.ui.info('Input data analysis', {
-      totalTasks: tasks.length,
-      tasksWithDeadlines: tasksWithDeadlines.length,
-      totalWorkflows: sequencedTasks.length,
-      workflowsWithDeadlines: workflowsWithDeadlines.length,
-      deadlineTaskNames: tasksWithDeadlines.map(t => ({ name: t.name, deadline: t.deadline })),
-      deadlineWorkflowNames: workflowsWithDeadlines.map(w => ({ name: w.name, deadline: w.deadline })),
-    }, 'gantt-data-analysis')
-
-    // Always use UnifiedScheduler for scheduling - no saved schedules
-
-    // IMPORTANT: Pass all tasks to UnifiedScheduler - it will handle deduplication
-    // The scheduler handles removing any tasks that are also in sequencedTasks
-    logger.ui.info('Using UnifiedScheduler for calculation', {
-      schedulerType: 'unified',
-      tasksCount: tasks.length,
-      sequencedTasksCount: sequencedTasks.length,
-      currentTime: getCurrentTime().toISOString(),
-    }, 'gantt-scheduler-start')
-
-    // Call UnifiedScheduler directly
-    const currentTime = getCurrentTime()
-    const startDateString = currentTime.toISOString().split('T')[0] || ''
-
-    const context = {
-      startDate: startDateString,
-      tasks,
-      workflows: sequencedTasks,
-      workPatterns,
-      workSettings,
-      currentTime,
-    }
-
-    const config = {
-      startDate: currentTime,
-      allowTaskSplitting: true,
-      respectMeetings: true,
-      optimizationMode: OptimizationMode.Realistic,
-      debugMode: true,
-    }
-
-    const items = [...tasks, ...sequencedTasks]
-    const unifiedScheduleResult = scheduler.scheduleForDisplay(items, context, config)
-
-    // Convert UnifiedScheduler results to GanttChart format
-    const ganttItems = convertUnifiedToGanttItems(unifiedScheduleResult)
-
-    // Use real debug info from UnifiedScheduler if available
-    // Debug info should always be defined (scheduler always generates it)
-    // For now, handle cases where it might be undefined (e.g., hooks/adapters not updated yet)
-    const debugInfo = unifiedScheduleResult.debugInfo
-    if (debugInfo) {
-      setDebugInfo(debugInfo)
-      // Debug info now shows automatically when there are issues
-    }
-
-    // Store metrics from the scheduler
-    if (unifiedScheduleResult.metrics) {
-      setSchedulingMetrics(unifiedScheduleResult.metrics)
-
-      // Log final schedule results with deadline analysis
-      const finalItemsWithDeadlines = ganttItems.filter(item => item.deadline)
-      const violatedDeadlines = finalItemsWithDeadlines.filter(item =>
-        dayjs(item.endTime).isAfter(dayjs(item.deadline)),
-      )
-
-      logger.ui.info('UnifiedScheduler calculation complete', {
-        totalScheduledItems: ganttItems.length,
-        itemsWithDeadlines: finalItemsWithDeadlines.length,
-        violatedDeadlines: violatedDeadlines.length,
-        unscheduledItems: debugInfo.unscheduledItems.length,
-        warnings: debugInfo.warnings.length,
-        violationDetails: violatedDeadlines.map(item => ({
-          name: item.name,
-          deadline: dayjs(item.deadline).format('YYYY-MM-DD HH:mm'),
-          actualEnd: dayjs(item.endTime).format('YYYY-MM-DD HH:mm'),
-          delayMinutes: dayjs(item.endTime).diff(dayjs(item.deadline), 'minutes'),
-          isWorkflow: !!item.workflowId,
-        })),
-      }, 'gantt-schedule-complete')
-    }
-
-    // Add meeting items from work patterns
+    // Add meetings from work patterns
     const meetingItems = getMeetingScheduledItems(workPatterns)
 
-    logger.ui.info('Merging UnifiedScheduler results with meetings', {
-      taskItems: ganttItems.length,
-      meetingItems: meetingItems.length,
-      totalItems: ganttItems.length + meetingItems.length,
-      waitBlocksInGantt: ganttItems.filter(item => item.isWaitTime).length,
-    }, 'gantt-merge-meetings')
+    // Combine all items
+    return [...meetingItems, ...ganttItemsFromStore]
+  }, [ganttItems, workPatterns])
 
-    // Combine task items and meeting items
-    const allItems = [...meetingItems, ...ganttItems]
+  // Process debug info from scheduler
+  useEffect(() => {
+    if (scheduleResult?.debugInfo) {
+      setDebugInfo(scheduleResult.debugInfo)
+    }
+    if (scheduleResult?.metrics) {
+      setSchedulingMetrics(scheduleResult.metrics)
+    }
+  }, [scheduleResult])
 
-
-    return allItems
-  }, [tasks, sequencedTasks, workPatterns, workPatternsLoading, refreshKey, workSettings, scheduler, convertUnifiedToGanttItems, getMeetingScheduledItems])
 
   // Calculate chart dimensions
   const now = getCurrentTime()
@@ -899,6 +703,58 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         />
       )}
 
+      {/* Block Utilization Display */}
+      {!workPatternsLoading && debugInfo?.blockUtilization && debugInfo.blockUtilization.length > 0 && (
+        <Card title="Block Utilization (All Blocks)" style={{ marginTop: 16 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Date</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Block ID</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Time</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Type</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Capacity</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Used</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {debugInfo.blockUtilization.map((block: any, index: number) => (
+                <tr key={`${block.blockId}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px' }}>{block.date}</td>
+                  <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.9em' }}>
+                    {block.blockId}
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {block.startTime} - {block.endTime}
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    <Tag color={block.type === 'focused' ? 'blue' : block.type === 'admin' ? 'orange' : 'green'}>
+                      {block.type}
+                    </Tag>
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {block.capacity}min
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {block.used}/{block.capacity} ({Math.round((block.used / block.capacity) * 100)}%)
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {block.status === 'unused' ? (
+                      <Tag color="gray">{block.unusedReason || 'Unused'}</Tag>
+                    ) : block.status === 'partial' ? (
+                      <Tag color="orange">Partially Used</Tag>
+                    ) : (
+                      <Tag color="green">Used</Tag>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
       {/* Gantt Chart - Only show when patterns are loaded */}
       {!workPatternsLoading && (
         <Card
@@ -1152,9 +1008,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     }
 
                     // Trigger a reschedule to respect the new deadline
-                    // TODO: Replace with UnifiedScheduler refresh trigger
-                    // await generateSchedule() - removed legacy method
-                    setRefreshKey(prev => prev + 1) // Force refresh to respect new deadline
+                    await useTaskStore.getState().initializeData()
+                    useSchedulerStore.getState().recomputeSchedule()
                     Message.info('Schedule updated to respect the new deadline')
                   } catch (error) {
                     logger.db.error('Failed to set deadline', {

@@ -28,8 +28,7 @@ import {
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
-
-import { appEvents, EVENTS } from '../../utils/events'
+import { useSchedulerStore } from '../../store/useSchedulerStore'
 import dayjs from 'dayjs'
 
 const { Text } = Typography
@@ -210,8 +209,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       await loadWorkSessions() // Reload to get proper IDs
       await loadTasks() // Reload tasks to update cumulative time
 
-      // Emit event to update WorkStatusWidget and other components
-      appEvents.emit(EVENTS.TIME_LOGGED)
+      // Trigger scheduler recompute to update UI components
+      useSchedulerStore.getState().recomputeSchedule()
     } catch (error) {
       logger.ui.error('Failed to save work sessions', {
         error: error instanceof Error ? error.message : String(error),
