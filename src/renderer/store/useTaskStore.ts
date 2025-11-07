@@ -1030,13 +1030,15 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       await getDatabase().updateTaskStepProgress(stepId, updateData)
       logger.system.info('[useTaskStore] Database update successful')
 
-      // Remove from active sessions
+      // Remove from active sessions (in-memory only - work session data is preserved in database)
       // For workflow steps, the session key is the workflowId, not the stepId
       const workflow = state.sequencedTasks.find(t =>
         t.steps.some(s => s.id === stepId),
       )
       const sessionKey = workflow?.id || stepId  // Use workflowId if found, fallback to stepId
 
+      // NOTE: This only removes from the activeWorkSessions Map to stop showing as active
+      // The actual work session records are preserved in the database for time tracking history
       const newSessions = new Map(state.activeWorkSessions)
       newSessions.delete(sessionKey)
       set({ activeWorkSessions: newSessions })
