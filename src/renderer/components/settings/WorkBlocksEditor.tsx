@@ -428,13 +428,14 @@ export function WorkBlocksEditor({
                     <Select
                       value={block.type}
                       onChange={(value) => {
-                        // When changing to mixed, automatically split capacity 50/50
-                        if (value === 'mixed' && block.type !== 'mixed') {
+                        // When changing to mixed, prompt user to set split ratio
+                        if (value === WorkBlockType.Mixed && block.type !== WorkBlockType.Mixed) {
+                          // Start with 70% focus, 30% admin as a more reasonable default
                           handleUpdateBlock(block.id, {
                             type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.Mixed, block.startTime, block.endTime, { focus: 0.5, admin: 0.5 }),
+                            capacity: calculateBlockCapacity(WorkBlockType.Mixed, block.startTime, block.endTime, { focus: 0.7, admin: 0.3 }),
                           })
-                        } else if (value === 'flexible') {
+                        } else if (value === WorkBlockType.Flexible) {
                           // Flexible blocks don't have predetermined capacity split
                           handleUpdateBlock(block.id, {
                             type: value,

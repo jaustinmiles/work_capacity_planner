@@ -60,12 +60,18 @@ export function WorkStatusWidget() {
   const getNextScheduledItem = useTaskStore(state => state.getNextScheduledItem)
   const loadWorkPatterns = useTaskStore(state => state.loadWorkPatterns)
   const nextTaskSkipIndex = useTaskStore(state => state.nextTaskSkipIndex)
+  const startNextTask = useTaskStore(state => state.startNextTask)
+  const pauseWorkOnTask = useTaskStore(state => state.pauseWorkOnTask)
+  const pauseWorkOnStep = useTaskStore(state => state.pauseWorkOnStep)
+  const completeStep = useTaskStore(state => state.completeStep)
+  const updateTask = useTaskStore(state => state.updateTask)
+  const getWorkSessionProgress = useTaskStore(state => state.getWorkSessionProgress)
+  const incrementNextTaskSkipIndex = useTaskStore(state => state.incrementNextTaskSkipIndex)
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [nextTask, setNextTask] = useState<any>(null)
-  const [isInitialized, setIsInitialized] = useState(false)
 
-  // Local UI state
+  // Local UI state for display only
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
@@ -78,30 +84,26 @@ export function WorkStatusWidget() {
     return dayjs(now).format('YYYY-MM-DD')
   }, [])
 
-  // Effect 1: Initialize work patterns on mount
-  useEffect(() => {
-    logger.ui.info('WorkStatusWidget: Loading work patterns')
-    loadWorkPatterns()
-  }, [loadWorkPatterns])
+  // Get active session from store state
+  const activeSession = useMemo(() => {
+    const sessions = Array.from(activeWorkSessions.values())
+    return sessions.length > 0 ? sessions[0] : null
+  }, [activeWorkSessions])
 
-  // Effect 2: Load work data when patterns are available
+  // Load patterns on mount
   useEffect(() => {
-    if (workPatternsLoading || !workPatterns) {
-      logger.ui.debug('WorkStatusWidget: Patterns not ready yet', { workPatternsLoading, hasPatterns: !!workPatterns })
+    loadWorkPatterns()
+  }, [])
+
+  // Load work data when patterns change
+  useEffect(() => {
+    if (!workPatterns || workPatterns.length === 0) {
       return
     }
 
-    // Mark as initialized once we have patterns
-    if (!isInitialized && workPatterns.length >= 0) {
-      setIsInitialized(true)
-      logger.ui.info('WorkStatusWidget: Initialized with patterns', { count: workPatterns.length })
-    }
-
     const loadWorkData = async () => {
-      logger.ui.debug('WorkStatusWidget: Loading work data')
-
       try {
-        const pattern = workPatterns?.find(p => p.date === currentDate)
+        const pattern = workPatterns.find(p => p.date === currentDate)
 
         if (pattern) {
           setPattern(pattern)
@@ -133,15 +135,8 @@ export function WorkStatusWidget() {
             admin: accumulatedData.admin || 0,
             personal: accumulatedData.personal || 0,
           })
-
-          logger.ui.debug('WorkStatusWidget: Work data loaded', {
-            pattern: pattern.date,
-            currentBlock: current?.type,
-            accumulated,
-          })
         } else {
-          // No pattern for today, clear everything
-          logger.ui.debug('WorkStatusWidget: No pattern for today')
+          // No pattern for today
           setPattern(null)
           setCurrentBlock(null)
           setNextBlock(null)
@@ -149,38 +144,32 @@ export function WorkStatusWidget() {
           setAccumulated({ focused: 0, admin: 0, personal: 0 })
         }
       } catch (error) {
-        logger.ui.error('WorkStatusWidget: Failed to load work data', { error })
+        logger.ui.error('Failed to load work data', { error })
       }
     }
 
     loadWorkData()
-  }, [currentDate, workPatterns, workPatternsLoading, isInitialized])
+  }, [currentDate, workPatterns])
 
-  // Effect 3: Manage next task state
+  // Load next task when relevant state changes
   useEffect(() => {
     const loadNextTask = async () => {
-      // Only load next task if no active session
-      if (activeWorkSessions.size === 0) {
-        if (isLoading || workPatternsLoading) {
-          logger.ui.debug('WorkStatusWidget: Not loading next task - still loading', { isLoading, workPatternsLoading })
-          return
-        }
+      // Only load if no active session
+      if (activeWorkSessions.size > 0) {
+        setNextTask(null)
+        return
+      }
 
-        try {
-          logger.ui.debug('WorkStatusWidget: Loading next task')
-          const item = await getNextScheduledItem()
-          setNextTask(item)
-          logger.ui.info('WorkStatusWidget: Next task loaded', {
-            task: item?.title || 'none',
-            type: item?.type || 'none',
-            id: item?.id || 'none',
-          })
-        } catch (err) {
-          logger.ui.error('WorkStatusWidget: Failed to get next task', { error: err })
-          setNextTask(null)
-        }
-      } else {
-        logger.ui.debug('WorkStatusWidget: Active session exists, clearing next task')
+      // Don't load while patterns or store is loading
+      if (workPatternsLoading || isLoading) {
+        return
+      }
+
+      try {
+        const item = await getNextScheduledItem()
+        setNextTask(item)
+      } catch (err) {
+        logger.ui.error('Failed to get next task', { error: err })
         setNextTask(null)
       }
     }
@@ -188,28 +177,16 @@ export function WorkStatusWidget() {
     loadNextTask()
   }, [
     activeWorkSessions.size,
-    isLoading,
     workPatternsLoading,
-    tasks.length,
-    sequencedTasks.length,
+    isLoading,
+    tasks,
+    sequencedTasks,
     nextTaskSkipIndex,
-    getNextScheduledItem,
   ])
 
   // Listen for events that require data refresh
   useEffect(() => {
     const handleDataChange = async () => {
-      // Only refresh next task if no active session
-      if (activeWorkSessions.size === 0 && !workPatternsLoading && !isLoading) {
-        try {
-          const item = await getNextScheduledItem()
-          setNextTask(item)
-        } catch (err) {
-          logger.ui.error('Failed to refresh next task on event', { error: err })
-          setNextTask(null)
-        }
-      }
-
       // Refresh accumulated times
       if (pattern) {
         try {
@@ -225,60 +202,78 @@ export function WorkStatusWidget() {
       }
     }
 
-    appEvents.on(EVENTS.TASK_UPDATED, handleDataChange)
-    appEvents.on(EVENTS.WORKFLOW_UPDATED, handleDataChange)
-    appEvents.on(EVENTS.SESSION_CHANGED, handleDataChange)
     appEvents.on(EVENTS.TIME_LOGGED, handleDataChange)
+    appEvents.on(EVENTS.SESSION_CHANGED, handleDataChange)
 
     return () => {
-      appEvents.off(EVENTS.TASK_UPDATED, handleDataChange)
-      appEvents.off(EVENTS.WORKFLOW_UPDATED, handleDataChange)
-      appEvents.off(EVENTS.SESSION_CHANGED, handleDataChange)
       appEvents.off(EVENTS.TIME_LOGGED, handleDataChange)
+      appEvents.off(EVENTS.SESSION_CHANGED, handleDataChange)
     }
-  }, [activeWorkSessions.size, workPatternsLoading, isLoading, pattern, currentDate, getNextScheduledItem])
+  }, [pattern, currentDate])
 
-  // Get active session helper
-  const getActiveSession = () => {
-    const sessions = Array.from(activeWorkSessions.values())
-    return sessions.length > 0 ? sessions[0] : null
+  // Handler functions
+  const handleStartNextTask = async () => {
+    try {
+      setIsProcessing(true)
+      await startNextTask()
+
+      // Get the task that was started for the success message
+      if (nextTask) {
+        Message.success(`Started work on: ${nextTask.title}`)
+      } else {
+        Message.success('Started work session')
+      }
+    } catch (error) {
+      logger.ui.error('Failed to start task', { error })
+      Message.error('Failed to start work session')
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  // Handler functions - always get fresh state to avoid stale closures
-  const handleCompleteCurrentTask = async () => {
+  const handlePauseCurrentTask = async () => {
+    if (!activeSession) {
+      return
+    }
+
     try {
       setIsProcessing(true)
 
-      // Get fresh state directly from store
-      const store = useTaskStore.getState()
-      const sessions = Array.from(store.activeWorkSessions.values())
-      const activeSession = sessions.length > 0 ? sessions[0] : null
-
-      if (!activeSession) {
-        logger.ui.warn('No active session to complete')
-        return
+      if (activeSession.stepId) {
+        await pauseWorkOnStep(activeSession.stepId)
+      } else if (activeSession.taskId) {
+        await pauseWorkOnTask(activeSession.taskId)
       }
 
-      logger.ui.info('Completing task/step', {
-        sessionId: activeSession.id,
-        stepId: activeSession.stepId,
-        taskId: activeSession.taskId,
-        stepName: activeSession.stepName,
-        taskName: activeSession.taskName,
-      })
+      Message.success('Work session paused')
+    } catch (error) {
+      logger.ui.error('Failed to pause task', { error })
+      Message.error('Failed to pause work session')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleCompleteCurrentTask = async () => {
+    if (!activeSession) {
+      return
+    }
+
+    try {
+      setIsProcessing(true)
 
       if (activeSession.stepId) {
-        await store.completeStep(activeSession.stepId)
+        await completeStep(activeSession.stepId)
         Message.success(`Completed workflow step: ${activeSession.stepName || 'Step'}`)
       } else if (activeSession.taskId) {
         // Pause work first to log time
-        const progress = store.getWorkSessionProgress(activeSession.taskId)
+        const progress = getWorkSessionProgress(activeSession.taskId)
         if (progress.isActive && !progress.isPaused) {
-          await store.pauseWorkOnTask(activeSession.taskId)
+          await pauseWorkOnTask(activeSession.taskId)
         }
 
         // Mark task as completed
-        await store.updateTask(activeSession.taskId, {
+        await updateTask(activeSession.taskId, {
           completed: true,
           overallStatus: TaskStatus.Completed,
         })
@@ -293,118 +288,14 @@ export function WorkStatusWidget() {
     }
   }
 
-  const handlePauseCurrentTask = async () => {
-    try {
-      setIsProcessing(true)
-
-      // Get fresh state directly from store
-      const store = useTaskStore.getState()
-      const sessions = Array.from(store.activeWorkSessions.values())
-      const activeSession = sessions.length > 0 ? sessions[0] : null
-
-      if (!activeSession) {
-        logger.ui.warn('No active session to pause')
-        return
-      }
-
-      logger.ui.info('Pausing work', {
-        sessionId: activeSession.id,
-        stepId: activeSession.stepId,
-        taskId: activeSession.taskId,
-      })
-
-      if (activeSession.stepId) {
-        await store.pauseWorkOnStep(activeSession.stepId)
-      } else if (activeSession.taskId) {
-        await store.pauseWorkOnTask(activeSession.taskId)
-      }
-
-      Message.success('Work session paused')
-    } catch (error) {
-      logger.ui.error('Failed to pause task', { error })
-      Message.error('Failed to pause work session')
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  const handleStartNextTask = async () => {
-    try {
-      setIsProcessing(true)
-
-      // Get fresh state
-      const store = useTaskStore.getState()
-
-      // If we don't have a nextTask in state, try to get it fresh from the store
-      let taskToStart = nextTask
-      if (!taskToStart) {
-        logger.ui.info('WorkStatusWidget: No nextTask in state, fetching from store')
-        taskToStart = await store.getNextScheduledItem()
-        if (taskToStart) {
-          setNextTask(taskToStart)
-          logger.ui.info('WorkStatusWidget: Found task from store', {
-            title: taskToStart.title,
-            type: taskToStart.type,
-            id: taskToStart.id,
-          })
-        }
-      }
-
-      // Log what we're about to start for debugging
-      if (taskToStart) {
-        logger.ui.info('WorkStatusWidget: Starting next task', {
-          title: taskToStart.title,
-          type: taskToStart.type,
-          id: taskToStart.id,
-          estimatedDuration: taskToStart.estimatedDuration,
-        })
-      } else {
-        logger.ui.warn('WorkStatusWidget: No task available to start')
-      }
-
-      await store.startNextTask()
-
-      if (taskToStart) {
-        Message.success(`Started work on: ${taskToStart.title}`)
-      } else {
-        Message.info('Starting next available task')
-      }
-    } catch (error) {
-      logger.ui.error('WorkStatusWidget: Failed to start task', { error })
-      Message.error('Failed to start work session')
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
   const handleSkipToNextTask = async () => {
-    const store = useTaskStore.getState()
-    store.incrementNextTaskSkipIndex()
+    incrementNextTaskSkipIndex()
 
-    // Immediately try to get the next task after skipping
-    logger.ui.info('WorkStatusWidget: Skip button pressed, fetching next task')
-    const newNextTask = await store.getNextScheduledItem()
-
-    if (!newNextTask) {
-      // If no more tasks after skip, reset the skip index
-      logger.ui.warn('WorkStatusWidget: No tasks after skip, resetting skip index')
-      store.resetNextTaskSkipIndex()
-      // Try once more with reset index
-      const resetTask = await store.getNextScheduledItem()
-      setNextTask(resetTask)
-    } else {
-      setNextTask(newNextTask)
-      logger.ui.info('WorkStatusWidget: New task after skip', {
-        title: newNextTask.title,
-        type: newNextTask.type,
-      })
-    }
+    // The next task will be reloaded automatically by the useEffect
+    // due to nextTaskSkipIndex changing
   }
 
-  const activeSession = getActiveSession()
-  const hasActiveSession = !!(activeSession && activeWorkSessions.size > 0)
-
-  // Calculate total capacity for the day - PROPER calculation for ALL types
+  // Calculate total capacity for the day
   const totalCapacity = useMemo(() => {
     if (!pattern || !pattern.blocks) {
       return { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0, flexibleMinutes: 0 }
@@ -418,9 +309,7 @@ export function WorkStatusWidget() {
         acc.personalMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Personal)
         acc.flexibleMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Flexible)
       } else {
-        // Fallback for blocks without capacity data - should never happen but handle gracefully
-        // For mixed blocks without capacity data, we can't know the actual split ratio
-        // so we skip them rather than assuming an incorrect ratio
+        // Fallback for blocks without capacity data
         const duration = calculateDuration(block.startTime, block.endTime)
         if (block.type === WorkBlockType.Focused) {
           acc.focusMinutes += duration
@@ -431,9 +320,8 @@ export function WorkStatusWidget() {
         } else if (block.type === WorkBlockType.Flexible) {
           acc.flexibleMinutes += duration
         } else if (block.type === WorkBlockType.Mixed) {
-          // Mixed blocks MUST have capacity data to know split ratios
-          // We cannot assume any ratio - log warning and skip
-          logger.ui.warn('Mixed block without capacity data - cannot determine split ratio', { block })
+          // Mixed blocks without capacity data - skip
+          logger.ui.warn('Mixed block without capacity data', { block })
         }
       }
       return acc
@@ -454,12 +342,14 @@ export function WorkStatusWidget() {
   const flexibleUsed = focusOverflow + adminOverflow
   const flexibleRemaining = Math.max(0, totalCapacity.flexibleMinutes - flexibleUsed)
 
+  const hasActiveSession = !!activeSession
+
   return (
     <Card>
       <Space direction="vertical" style={{ width: '100%' }} size="medium">
         <Title heading={6}>Work Status</Title>
 
-        {/* Start Next Task - MOVED TO TOP */}
+        {/* Start Next Task - AT THE TOP */}
         <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
@@ -470,13 +360,11 @@ export function WorkStatusWidget() {
                 onClick={handleSkipToNextTask}
                 size="small"
                 title="Skip to next task"
-                disabled={hasActiveSession}
+                disabled={hasActiveSession || isProcessing}
               />
             </Space>
 
             {(() => {
-              const activeSession = getActiveSession()
-
               if (activeSession) {
                 // Show active session details
                 return (
@@ -507,75 +395,49 @@ export function WorkStatusWidget() {
               }
             })()}
 
-            {(() => {
-              const activeSession = getActiveSession()
-              const isActive = !!activeSession
-
-              // Render buttons based on active session state
-              if (isActive) {
-                // Show both Pause and Complete buttons when task is running
-                return (
-                  <Space style={{ width: '100%', marginTop: 8 }}>
-                    <Button
-                      type="outline"
-                      status="warning"
-                      icon={<IconPause />}
-                      loading={isProcessing}
-                      onClick={handlePauseCurrentTask}
-                      style={{ flex: 1 }}
-                    >
-                      Pause
-                    </Button>
-                    <Button
-                      type="primary"
-                      status="success"
-                      icon={<IconCheck />}
-                      loading={isProcessing}
-                      onClick={handleCompleteCurrentTask}
-                      style={{ flex: 1 }}
-                    >
-                      Complete
-                    </Button>
-                  </Space>
-                )
-              } else {
-                // Show Start button when no task is running
-                // Debug logging
-                if (!nextTask && !workPatternsLoading && !isLoading) {
-                  logger.ui.warn('WorkStatusWidget: Start button disabled - no next task', {
-                    workPatternsLoading,
-                    isLoading,
-                    tasksCount: tasks.length,
-                    sequencedTasksCount: sequencedTasks.length,
-                    activeSessionsSize: activeWorkSessions.size,
-                  })
-                }
-
-                return (
-                  <Button
-                    type="primary"
-                    icon={<IconPlayArrow />}
-                    loading={isProcessing || workPatternsLoading}
-                    disabled={workPatternsLoading || isLoading || (!nextTask && !isProcessing)}
-                    onClick={handleStartNextTask}
-                    style={{ width: '100%', marginTop: 8 }}
-                  >
-                    {workPatternsLoading ? 'Loading...' :
-                     isLoading ? 'Loading...' :
-                     isProcessing ? 'Starting...' :
-                     !nextTask ? 'No Tasks Available' :
-                     'Start Next Task'}
-                  </Button>
-                )
-              }
-            })()}
+            {/* Action buttons */}
+            {hasActiveSession ? (
+              <Space style={{ width: '100%', marginTop: 8 }}>
+                <Button
+                  type="outline"
+                  status="warning"
+                  icon={<IconPause />}
+                  loading={isProcessing}
+                  onClick={handlePauseCurrentTask}
+                  style={{ flex: 1 }}
+                >
+                  Pause
+                </Button>
+                <Button
+                  type="primary"
+                  status="success"
+                  icon={<IconCheck />}
+                  loading={isProcessing}
+                  onClick={handleCompleteCurrentTask}
+                  style={{ flex: 1 }}
+                >
+                  Complete
+                </Button>
+              </Space>
+            ) : (
+              <Button
+                type="primary"
+                icon={<IconPlayArrow />}
+                loading={isProcessing || workPatternsLoading}
+                disabled={workPatternsLoading || isLoading || isProcessing}
+                onClick={handleStartNextTask}
+                style={{ width: '100%', marginTop: 8 }}
+              >
+                {workPatternsLoading || isLoading ? 'Loading...' : 'Start Next Task'}
+              </Button>
+            )}
           </Space>
         </div>
 
         {/* Planned Capacity */}
         <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{'Today\'s Planned Capacity'}</Text>
+            <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Today&apos;s Planned Capacity</Text>
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
               <Text style={{ whiteSpace: 'nowrap' }}>🎯 Focus Time:</Text>
               <Tag color="blue">{formatMinutes(totalCapacity.focusMinutes)}</Tag>

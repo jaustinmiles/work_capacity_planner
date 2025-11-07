@@ -49,13 +49,15 @@ export function calculateBlockCapacity(
       }
 
     case WorkBlockType.Mixed: {
-      // Parse custom split ratio or use default (50% focus, 50% admin)
-      const ratio: SplitRatio = splitRatio || { focus: 0.5, admin: 0.5 }
+      // Mixed blocks MUST have an explicit split ratio
+      if (!splitRatio) {
+        throw new Error('Mixed blocks require an explicit split ratio')
+      }
 
       return {
         totalMinutes,
         type,
-        splitRatio: ratio,
+        splitRatio,
       }
     }
 

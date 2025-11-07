@@ -26,6 +26,7 @@ import { ProductivityPattern, SchedulingPreferences } from './types'
 import { logger } from '@/logger'
 import { getCurrentTime, getLocalDateString, timeProvider as _timeProvider } from './time-provider'
 import { calculateDuration as calculateTimeStringDuration, parseTimeString } from './time-utils'
+import { createWaitBlockId, isWaitBlockId } from './step-id-utils'
 import {
   buildDependencyGraph,
   topologicalSort,
@@ -618,7 +619,7 @@ export class UnifiedScheduler {
             // These will show on the timeline but won't have active countdown timers
             // Only items with isWaitingOnAsync=true (already completed and waiting) get countdown timers
             if (item.asyncWaitTime && item.asyncWaitTime > 0 && scheduledItem.endTime) {
-              const waitBlockId = `${item.id}-wait-future`
+              const waitBlockId = createWaitBlockId(item.id, true)
               const futureWaitBlock: UnifiedScheduleItem = {
                 id: waitBlockId,
                 name: `⏳ Wait After: ${item.name}`,
@@ -1165,7 +1166,7 @@ export class UnifiedScheduler {
     // 3. Being a wait block that must complete before this item can start
     return dependencies.every(depId => {
       // Check if this is a wait block dependency
-      const isWaitBlock = depId.endsWith('-wait-future')
+      const isWaitBlock = isWaitBlockId(depId)
 
       // First check if it's in the pre-completed items set (for non-wait blocks)
       if (!isWaitBlock && completedItemIds.has(depId)) {

@@ -126,6 +126,7 @@ export enum ViewType {
   Calendar = 'calendar',
   Workflows = 'workflows',
   Timeline = 'timeline',
+  Schedule = 'schedule',
 }
 
 // AI Processing modes for brainstorming

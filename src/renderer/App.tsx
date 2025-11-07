@@ -33,7 +33,7 @@ import { appEvents, EVENTS } from './utils/events'
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
-import { TaskType, TaskStatus, StepStatus } from '@shared/enums'
+import { TaskType, TaskStatus, StepStatus, ViewType } from '@shared/enums'
 
 interface ExtractedTask {
   name: string
@@ -84,7 +84,7 @@ function App() {
   // Session loading is now handled in useTaskStore.initializeData()
   // to prevent flash of default session
 
-  const [activeView, setActiveView] = useState<'tasks' | 'matrix' | 'calendar' | 'workflows' | 'timeline' | 'schedule'>('tasks')
+  const [activeView, setActiveView] = useState<ViewType>(ViewType.Tasks)
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
   const [brainstormModalVisible, setBrainstormModalVisible] = useState(false)
@@ -323,7 +323,7 @@ function App() {
 
       // Switch to workflows view if workflows were created
       if (workflows.length > 0) {
-        setActiveView('workflows')
+        setActiveView(ViewType.Workflows)
       }
     } catch (error) {
       logger.ui.error('Error creating workflows', {
@@ -574,7 +574,7 @@ function App() {
               style={{ flex: 1, minWidth: 0 }}
             >
               <Tabs.TabPane
-                key="tasks"
+                key={ViewType.Tasks}
                 title={
                   <Space>
                     <IconList />
@@ -584,7 +584,7 @@ function App() {
                 }
               />
               <Tabs.TabPane
-                key="matrix"
+                key={ViewType.Matrix}
                 title={
                   <Space>
                     <IconApps />
@@ -593,7 +593,7 @@ function App() {
                 }
               />
               <Tabs.TabPane
-                key="calendar"
+                key={ViewType.Calendar}
                 title={
                   <Space>
                     <IconCalendar />
@@ -602,7 +602,7 @@ function App() {
                 }
               />
               <Tabs.TabPane
-                key="workflows"
+                key={ViewType.Workflows}
                 title={
                   <Space>
                     <IconBranch />
@@ -612,7 +612,7 @@ function App() {
                 }
               />
               <Tabs.TabPane
-                key="timeline"
+                key={ViewType.Timeline}
                 title={
                   <Space>
                     <IconSchedule />
@@ -621,7 +621,7 @@ function App() {
                 }
               />
               <Tabs.TabPane
-                key="schedule"
+                key={ViewType.Schedule}
                 title={
                   <Space>
                     <IconCalendar />
@@ -685,25 +685,25 @@ function App() {
                 </div>
               ) : (
                 <>
-              {activeView === 'tasks' && (
+              {activeView === ViewType.Tasks && (
                 <ErrorBoundary>
                   <TaskList onAddTask={() => setTaskFormVisible(true)} />
                 </ErrorBoundary>
               )}
 
-              {activeView === 'matrix' && (
+              {activeView === ViewType.Matrix && (
                 <ErrorBoundary>
                   <EisenhowerMatrix onAddTask={() => setTaskFormVisible(true)} />
                 </ErrorBoundary>
               )}
 
-              {activeView === 'calendar' && (
+              {activeView === ViewType.Calendar && (
                 <ErrorBoundary>
                   <WeeklyCalendar />
                 </ErrorBoundary>
               )}
 
-              {activeView === 'workflows' && (
+              {activeView === ViewType.Workflows && (
                 <ErrorBoundary>
                 <Space direction="vertical" style={{ width: '100%' }} size="large">
                   {/* Header with Add Button */}
@@ -775,7 +775,7 @@ function App() {
                 </ErrorBoundary>
               )}
 
-              {activeView === 'timeline' && (
+              {activeView === ViewType.Timeline && (
                 <ErrorBoundary>
                   <GanttChart
                     tasks={tasks}
@@ -784,11 +784,11 @@ function App() {
                 </ErrorBoundary>
               )}
 
-              {activeView === 'schedule' && (
+              {activeView === ViewType.Schedule && (
                 <ErrorBoundary>
                   <MultiDayScheduleEditor
                     visible={true}
-                    onClose={() => setActiveView('timeline')}
+                    onClose={() => setActiveView(ViewType.Timeline)}
                     onSave={() => {
                       // Refresh data if needed
                       initializeData()
