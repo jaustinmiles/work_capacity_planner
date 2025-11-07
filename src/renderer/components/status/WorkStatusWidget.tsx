@@ -1,14 +1,14 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, Space, Typography, Button, Tag, Progress, Statistic, Grid, Message } from '@arco-design/web-react'
 import { IconPlayArrow, IconPause, IconCheck, IconSkipNext } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { formatMinutes } from '@shared/time-utils'
-import { TaskType, TaskStatus } from '@shared/enums'
+import { TaskStatus } from '@shared/enums'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { getDatabase } from '../../services/database'
-import { WorkBlock } from '@shared/work-blocks-types'
+import { WorkBlock, getTotalCapacity } from '@shared/work-blocks-types'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -44,6 +44,7 @@ export function WorkStatusWidget() {
   const tasks = useTaskStore(state => state.tasks)
   const sequencedTasks = useTaskStore(state => state.sequencedTasks)
   const getNextScheduledItem = useTaskStore(state => state.getNextScheduledItem)
+  const loadWorkPatterns = useTaskStore(state => state.loadWorkPatterns)
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [nextTask, setNextTask] = useState<any>(null)
@@ -59,6 +60,11 @@ export function WorkStatusWidget() {
     const now = getCurrentTime()
     return dayjs(now).format('YYYY-MM-DD')
   }, [])
+
+  // Load work patterns on mount
+  useEffect(() => {
+    loadWorkPatterns()
+  }, []) // Only run once on mount
 
   // Reactively compute next task when dependencies change
   useEffect(() => {
@@ -84,8 +90,13 @@ export function WorkStatusWidget() {
     isLoading,
   ])
 
-  // Load work pattern data once on mount
+  // Load work pattern data when patterns are loaded
   useEffect(() => {
+    // Don't try to load data if patterns are still loading
+    if (workPatternsLoading) {
+      return
+    }
+
     const loadWorkData = async () => {
       try {
         const pattern = workPatterns.find(p => p.date === currentDate)
@@ -105,6 +116,11 @@ export function WorkStatusWidget() {
             block.startTime > currentTimeStr,
           )
           setNextBlock(next || null)
+        } else {
+          // No pattern for today, clear the state
+          setPattern(null)
+          setCurrentBlock(null)
+          setNextBlock(null)
         }
 
         // Calculate accumulated time
@@ -121,7 +137,7 @@ export function WorkStatusWidget() {
     }
 
     loadWorkData()
-  }, [currentDate, workPatterns])
+  }, [currentDate, workPatterns, workPatternsLoading])
 
   // Get active session helper
   const getActiveSession = () => {
@@ -239,29 +255,14 @@ export function WorkStatusWidget() {
   const activeSession = getActiveSession()
   const hasActiveSession = !!(activeSession && activeWorkSessions.size > 0)
 
-  // Calculate total capacity for the day
-  const getTotalCapacityForTaskType = (capacity: any, taskType: TaskType) => {
-    if (taskType === TaskType.Focused) {
-      return capacity.focus || 0
-    } else if (taskType === TaskType.Admin) {
-      return capacity.admin || 0
-    }
-    return 0
-  }
+  // Calculate total capacity for the day using the getTotalCapacity helper
+  const totalCapacity = pattern ? getTotalCapacity(pattern.blocks) : { focus: 0, admin: 0, personal: 0 }
 
-  const totalCapacity = pattern.blocks.reduce((acc: any, block: WorkBlock) => {
-    if (!block.capacity) return acc
-
-    acc.focusMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Focused)
-    acc.adminMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Admin)
-    return acc
-  }, { focusMinutes: 0, adminMinutes: 0 })
-
-  const focusProgress = totalCapacity.focusMinutes > 0
-    ? Math.round((accumulated.focused / totalCapacity.focusMinutes) * 100)
+  const focusProgress = totalCapacity.focus > 0
+    ? Math.round((accumulated.focused / totalCapacity.focus) * 100)
     : 0
-  const adminProgress = totalCapacity.adminMinutes > 0
-    ? Math.round((accumulated.admin / totalCapacity.adminMinutes) * 100)
+  const adminProgress = totalCapacity.admin > 0
+    ? Math.round((accumulated.admin / totalCapacity.admin) * 100)
     : 0
 
   return (
@@ -350,14 +351,14 @@ export function WorkStatusWidget() {
       {/* Work Progress Card */}
       <Card>
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Title heading={6}>Today's Progress</Title>
+          <Title heading={6}>Today&apos;s Progress</Title>
 
           <Row gutter={16}>
             <Col span={12}>
               <Statistic
                 title="Focus Work"
                 value={accumulated.focused}
-                suffix={`/ ${totalCapacity.focusMinutes} min`}
+                suffix={`/ ${totalCapacity.focus} min`}
               />
               <Progress percent={focusProgress} showText={false} />
             </Col>
@@ -365,7 +366,7 @@ export function WorkStatusWidget() {
               <Statistic
                 title="Admin Work"
                 value={accumulated.admin}
-                suffix={`/ ${totalCapacity.adminMinutes} min`}
+                suffix={`/ ${totalCapacity.admin} min`}
               />
               <Progress percent={adminProgress} showText={false} />
             </Col>
