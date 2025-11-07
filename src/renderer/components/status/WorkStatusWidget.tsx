@@ -100,8 +100,8 @@ export function WorkStatusWidget() {
 
   // Load work pattern data when patterns are loaded
   useEffect(() => {
-    // Don't try to load data if patterns are still loading
-    if (workPatternsLoading) {
+    // Don't try to load data if patterns are still loading or not available
+    if (workPatternsLoading || !workPatterns || workPatterns.length === 0) {
       return
     }
 
