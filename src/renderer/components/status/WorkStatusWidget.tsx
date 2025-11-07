@@ -35,6 +35,19 @@ function formatBlockTime(block: WorkBlock | null) {
   return `${display.icon} ${display.label}`
 }
 
+// Helper to calculate duration
+const calculateDuration = (startTime: string, endTime: string): number => {
+  const startParts = startTime.split(':').map(Number)
+  const endParts = endTime.split(':').map(Number)
+  if (startParts.length !== 2 || endParts.length !== 2) return 0
+
+  const [startHour = 0, startMin = 0] = startParts
+  const [endHour = 0, endMin = 0] = endParts
+  const startMinutes = startHour * 60 + startMin
+  const endMinutes = endHour * 60 + endMin
+  return endMinutes > startMinutes ? endMinutes - startMinutes : 0
+}
+
 export function WorkStatusWidget() {
   // Subscribe to all relevant store state
   const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
@@ -295,19 +308,6 @@ export function WorkStatusWidget() {
       mixed: mixedMinutes,
     }
   }, [pattern])
-
-  // Helper to calculate duration
-  const calculateDuration = (startTime: string, endTime: string): number => {
-    const startParts = startTime.split(':').map(Number)
-    const endParts = endTime.split(':').map(Number)
-    if (startParts.length !== 2 || endParts.length !== 2) return 0
-
-    const [startHour, startMin] = startParts
-    const [endHour, endMin] = endParts
-    const startMinutes = startHour * 60 + startMin
-    const endMinutes = endHour * 60 + endMin
-    return endMinutes > startMinutes ? endMinutes - startMinutes : 0
-  }
 
   // Calculate progress and overflow
   const focusProgress = totalCapacity.focus > 0
