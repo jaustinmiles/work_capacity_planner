@@ -77,6 +77,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [bedtimeHour, setBedtimeHour] = useState(22) // Default 10 PM
   const [wakeTimeHour, setWakeTimeHour] = useState(6) // Default 6 AM
   const [showCircadianSettings, setShowCircadianSettings] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [sessionToDelete, setSessionToDelete] = useState<WorkSessionData | null>(null)
 
   const { tasks, sequencedTasks, loadTasks, activeWorkSessions } = useTaskStore()
   const { isCompact, isMobile, isDesktop } = useResponsive()
@@ -289,41 +291,36 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     if (!visible) return
 
     const handleKeyPress = (event: KeyboardEvent) => {
-      // Check for backspace key or Delete key
-      if ((event.key === 'Backspace' || event.key === 'Delete') && selectedSessionId) {
-        // Prevent default backspace navigation behavior
+      // Only handle delete/backspace when we have a selected session
+      if (!selectedSessionId) return
+
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        // Check if user is typing in an input field
+        const target = event.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true') {
+          return
+        }
+
         event.preventDefault()
 
-        // Find the selected session
         const session = sessions.find(s => s.id === selectedSessionId)
-        if (!session) return
+        if (!session) {
+          return
+        }
 
-        // Show confirmation dialog
-        Modal.confirm({
-          title: 'Delete Work Session',
-          content: `Are you sure you want to delete the work session for "${session.taskName}${session.stepName ? ' - ' + session.stepName : ''}" (${minutesToTime(session.startMinutes)} - ${minutesToTime(session.endMinutes)})?`,
-          okText: 'Delete',
-          cancelText: 'Cancel',
-          okButtonProps: { status: 'danger' },
-          onOk: () => {
-            handleSessionDelete(selectedSessionId)
-            logger.ui.info('Work session deleted via keyboard shortcut', {
-              sessionId: selectedSessionId,
-              taskName: session.taskName,
-            }, 'session-keyboard-delete')
-          },
-        })
+        // Set state to show confirmation modal
+        setSessionToDelete(session)
+        setShowDeleteConfirm(true)
       }
     }
 
-    // Add event listener
-    window.addEventListener('keydown', handleKeyPress)
+    // Attach to window with capture phase
+    window.addEventListener('keydown', handleKeyPress, true)
 
-    // Cleanup on unmount or when dependencies change
     return () => {
-      window.removeEventListener('keydown', handleKeyPress)
+      window.removeEventListener('keydown', handleKeyPress, true)
     }
-  }, [visible, selectedSessionId, sessions, handleSessionDelete])
+  }, [visible, selectedSessionId, sessions])
 
   // Save all dirty sessions
   const saveSessions = async () => {
@@ -999,6 +996,38 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             }
           />
         </Space>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        title="Delete Work Session"
+        visible={showDeleteConfirm}
+        onCancel={() => {
+          setShowDeleteConfirm(false)
+          setSessionToDelete(null)
+        }}
+        onOk={async () => {
+          if (sessionToDelete) {
+            await handleSessionDelete(sessionToDelete.id)
+            logger.ui.info('Work session deleted via keyboard shortcut', {
+              sessionId: sessionToDelete.id,
+              taskName: sessionToDelete.taskName,
+            }, 'session-keyboard-delete')
+          }
+          setShowDeleteConfirm(false)
+          setSessionToDelete(null)
+        }}
+        okText="Delete"
+        cancelText="Cancel"
+        okButtonProps={{ status: 'danger' }}
+      >
+        {sessionToDelete && (
+          <Text>
+            Are you sure you want to delete the work session for &quot;{sessionToDelete.taskName}
+            {sessionToDelete.stepName ? ' - ' + sessionToDelete.stepName : ''}&quot;
+            ({minutesToTime(sessionToDelete.startMinutes)} - {minutesToTime(sessionToDelete.endMinutes)})?
+          </Text>
+        )}
       </Modal>
     </Modal>
   )

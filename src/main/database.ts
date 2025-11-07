@@ -1512,31 +1512,7 @@ export class DatabaseService {
   }): Promise<any> {
     // [WorkPatternLifeCycle] START: Updating work pattern
 
-    // Log mixed blocks being passed in
-    if (updates.blocks) {
-      updates.blocks.forEach((block: any, index: number) => {
-        if (block.type === 'mixed') {
-          dbLogger.info('Mixed block received in updateWorkPattern', {
-            index,
-            type: block.type,
-            capacity: block.capacity,
-            capacitySplitRatio: block.capacity?.splitRatio,
-            topLevelSplitRatio: block.splitRatio,
-            fullBlock: JSON.stringify(block),
-          })
-        }
-      })
-    }
-
-    dbLogger.info('updateWorkPattern - START', {
-      patternId: id,
-      hasBlocks: !!updates.blocks,
-      hasMeetings: !!updates.meetings,
-      blocksCount: updates.blocks?.length || 0,
-      meetingsCount: updates.meetings?.length || 0,
-      timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
-    })
+    // [WorkPatternLifeCycle] Updating work pattern
 
     // Delete existing blocks and meetings
     const _deletedBlocks = await this.client.workBlock.deleteMany({
@@ -1546,18 +1522,11 @@ export class DatabaseService {
       where: { patternId: id },
     })
 
-    dbLogger.debug('updateWorkPattern - Deleted existing', {
-      patternId: id,
-      deletedBlocks: _deletedBlocks.count,
-      deletedMeetings: _deletedMeetings.count,
-      timestamp: new Date().toISOString(),
-    })
-
     // Update with new data
     const pattern = await this.client.workPattern.update({
       where: { id },
       data: {
-        updatedAt: new Date(),
+        updatedAt: getCurrentTime(),
         WorkBlock: {
           create: (updates.blocks || []).map((b: any) => {
             const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
@@ -1566,16 +1535,6 @@ export class DatabaseService {
               ...blockData,
               totalCapacity: b.capacity?.totalMinutes || 0,
               splitRatio: b.capacity?.splitRatio || null,
-            }
-
-            // Log what we're actually saving for mixed blocks
-            if (b.type === 'mixed') {
-              dbLogger.info('Creating mixed block in database', {
-                originalCapacity: b.capacity,
-                originalSplitRatio: b.capacity?.splitRatio,
-                savedTotalCapacity: newBlock.totalCapacity,
-                savedSplitRatio: newBlock.splitRatio,
-              })
             }
 
             return newBlock

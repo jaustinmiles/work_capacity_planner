@@ -149,22 +149,6 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
   const handleSavePattern = async (date: string, blocks: WorkBlock[], meetings: WorkMeeting[]) => {
     try {
       const db = getDatabase()
-      logger.ui.info('[MultiDayScheduleEditor] handleSavePattern - Saving pattern', { date, blockCount: blocks.length })
-
-      // Log detailed block information, especially for mixed blocks
-      blocks.forEach((block, index) => {
-        if (block.type === 'mixed') {
-          logger.ui.info('[MultiDayScheduleEditor] Mixed block details', {
-            index,
-            type: block.type,
-            startTime: block.startTime,
-            endTime: block.endTime,
-            capacity: block.capacity,
-            splitRatio: block.capacity?.splitRatio,
-            topLevelSplitRatio: (block as any).splitRatio,
-          })
-        }
-      })
 
       const existingPattern = patterns.get(date)
 
