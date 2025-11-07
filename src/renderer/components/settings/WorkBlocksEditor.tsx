@@ -109,7 +109,7 @@ export function WorkBlocksEditor({
       id: `block-${Date.now()}`,
       startTime: '09:00',
       endTime: '12:00',
-      type: 'mixed',
+      type: WorkBlockType.Mixed,
     }
     setBlocks([...blocks, newBlock])
   }
@@ -529,7 +529,7 @@ export function WorkBlocksEditor({
                       </Text>
                     ) : (
                       <Text type="secondary">
-                        {block.type === TaskType.Focused ? 'All focus time' : 'All admin time'}
+                        {block.type === WorkBlockType.Focused ? 'All focus time' : 'All admin time'}
                       </Text>
                     )}
                   </Col>

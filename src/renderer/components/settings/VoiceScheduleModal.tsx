@@ -457,13 +457,13 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                               <Space>
                                 <Text>{block.startTime} - {block.endTime}</Text>
                                 <Tag color={
-                                  block.type === TaskType.Focused ? 'blue' :
-                                  block.type === TaskType.Admin ? 'green' :
-                                  block.type === 'personal' ? 'orange' : 'purple'
+                                  block.type === WorkBlockType.Focused ? 'blue' :
+                                  block.type === WorkBlockType.Admin ? 'green' :
+                                  block.type === WorkBlockType.Personal ? 'orange' : 'purple'
                                 }>
                                   {block.type}
                                 </Tag>
-                                {block.type === 'mixed' && block.capacity && (
+                                {block.type === WorkBlockType.Mixed && block.capacity && (
                                   <Text type="secondary">
                                     {getTotalCapacityForTaskType(block.capacity, TaskType.Focused)}min focus / {getTotalCapacityForTaskType(block.capacity, TaskType.Admin)}min admin
                                   </Text>

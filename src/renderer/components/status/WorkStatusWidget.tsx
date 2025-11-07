@@ -3,27 +3,34 @@ import { Card, Space, Typography, Button, Tag, Progress, Message, Statistic } fr
 import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconCaretRight } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { formatMinutes } from '@shared/time-utils'
-import { TaskStatus, TaskType } from '@shared/enums'
+import { TaskStatus, TaskType, WorkBlockType } from '@shared/enums'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { getDatabase } from '../../services/database'
 import { WorkBlock } from '@shared/work-blocks-types'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
+import { appEvents, EVENTS } from '../../utils/events'
 
 const { Title, Text } = Typography
 
 function getBlockDisplay(block: WorkBlock | null) {
   if (!block) return { icon: '🔍', label: 'No block' }
   switch (block.type) {
-    case 'focused':
+    case WorkBlockType.Focused:
       return { icon: '🎯', label: 'Focus' }
-    case 'admin':
+    case WorkBlockType.Admin:
       return { icon: '📊', label: 'Admin' }
-    case 'personal':
+    case WorkBlockType.Personal:
       return { icon: '🏠', label: 'Personal' }
-    case 'mixed':
+    case WorkBlockType.Mixed:
       return { icon: '🔄', label: 'Mixed' }
+    case WorkBlockType.Flexible:
+      return { icon: '🔄', label: 'Flexible' }
+    case WorkBlockType.Blocked:
+      return { icon: '🚫', label: 'Blocked' }
+    case WorkBlockType.Sleep:
+      return { icon: '😴', label: 'Sleep' }
     default:
       return { icon: '❓', label: 'Unknown' }
   }
@@ -52,6 +59,7 @@ export function WorkStatusWidget() {
   const sequencedTasks = useTaskStore(state => state.sequencedTasks)
   const getNextScheduledItem = useTaskStore(state => state.getNextScheduledItem)
   const loadWorkPatterns = useTaskStore(state => state.loadWorkPatterns)
+  const nextTaskSkipIndex = useTaskStore(state => state.nextTaskSkipIndex)
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [nextTask, setNextTask] = useState<any>(null)
@@ -69,49 +77,32 @@ export function WorkStatusWidget() {
     return dayjs(now).format('YYYY-MM-DD')
   }, [])
 
-  // Load work patterns on mount
+  // Consolidated data loading effect with proper sequencing
   useEffect(() => {
-    loadWorkPatterns()
-  }, []) // Only run once on mount
+    let mounted = true
 
-  // Reactively compute next task when dependencies change
-  useEffect(() => {
-    if (activeWorkSessions.size === 0 && !workPatternsLoading && !isLoading) {
-      // Get next task when no active session
-      getNextScheduledItem().then(item => {
-        setNextTask(item)
-      }).catch(err => {
-        logger.ui.error('Failed to get next task', { error: err })
-        setNextTask(null)
-      })
-    } else if (activeWorkSessions.size > 0) {
-      // Clear next task when session is active
-      setNextTask(null)
-    }
-  }, [
-    activeWorkSessions.size,
-    tasks.length, // React to task changes
-    sequencedTasks.length, // React to workflow changes
-    // React to step status changes
-    sequencedTasks.map(t => t.steps.map(s => s.status).join(',')).join(';'),
-    workPatternsLoading,
-    isLoading,
-  ])
+    const loadAllData = async () => {
+      // Step 1: Ensure work patterns are loaded
+      if (workPatternsLoading) {
+        return // Wait for patterns to finish loading
+      }
 
-  // Load work pattern data when patterns are loaded
-  useEffect(() => {
-    // Don't try to load data if patterns are still loading or not available
-    if (workPatternsLoading || !workPatterns || workPatterns.length === 0) {
-      return
-    }
+      // If patterns aren't loaded yet, trigger load
+      if (!workPatterns || workPatterns.length === 0) {
+        loadWorkPatterns()
+        return // Will re-run when patterns load
+      }
 
-    const loadWorkData = async () => {
+      // Step 2: Process pattern data and accumulated times
       try {
         const pattern = workPatterns.find(p => p.date === currentDate)
+
+        if (!mounted) return
+
         if (pattern) {
           setPattern(pattern)
 
-          // Get current blocks
+          // Get current and next blocks
           const now = getCurrentTime()
           const currentTimeStr = now.toTimeString().slice(0, 5)
 
@@ -124,44 +115,115 @@ export function WorkStatusWidget() {
             block.startTime > currentTimeStr,
           )
           setNextBlock(next || null)
-        } else {
-          // No pattern for today, clear the state
-          setPattern(null)
-          setCurrentBlock(null)
-          setNextBlock(null)
-        }
 
-        // Calculate meeting minutes if pattern has meetings
-        if (pattern && pattern.meetings) {
-          const totalMeetingMinutes = pattern.meetings.reduce((total: number, meeting: any) => {
-            const duration = calculateDuration(meeting.startTime, meeting.endTime)
-            return total + duration
-          }, 0)
+          // Calculate meeting minutes
+          const totalMeetingMinutes = pattern.meetings?.reduce((total: number, meeting: any) => {
+            return total + calculateDuration(meeting.startTime, meeting.endTime)
+          }, 0) || 0
           setMeetingMinutes(totalMeetingMinutes)
-        } else {
-          setMeetingMinutes(0)
-        }
 
-        // Calculate accumulated time - only if we have patterns loaded
-        if (pattern) {
+          // Load accumulated time
           const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
-          const accumulated = {
+
+          if (!mounted) return
+
+          setAccumulated({
             focused: accumulatedData.focused || 0,
             admin: accumulatedData.admin || 0,
             personal: accumulatedData.personal || 0,
-          }
-          setAccumulated(accumulated)
+          })
         } else {
-          // No pattern, reset accumulated to zero
+          // No pattern for today, clear everything
+          setPattern(null)
+          setCurrentBlock(null)
+          setNextBlock(null)
+          setMeetingMinutes(0)
           setAccumulated({ focused: 0, admin: 0, personal: 0 })
         }
       } catch (error) {
         logger.ui.error('Failed to load work data', { error })
       }
+
+      // Step 3: Load next task (only if no active session)
+      if (!mounted) return
+
+      if (activeWorkSessions.size === 0 && !isLoading) {
+        try {
+          const item = await getNextScheduledItem()
+          if (mounted) {
+            setNextTask(item)
+          }
+        } catch (err) {
+          logger.ui.error('Failed to get next task', { error: err })
+          if (mounted) {
+            setNextTask(null)
+          }
+        }
+      } else if (activeWorkSessions.size > 0) {
+        setNextTask(null)
+      }
     }
 
-    loadWorkData()
-  }, [currentDate, workPatterns, workPatternsLoading])
+    loadAllData()
+
+    return () => {
+      mounted = false
+    }
+  }, [
+    currentDate,
+    workPatterns,
+    workPatternsLoading,
+    isLoading,
+    activeWorkSessions.size,
+    nextTaskSkipIndex,
+    // Simplified dependencies - only track actual data changes
+    tasks.length,
+    sequencedTasks.length,
+    loadWorkPatterns,
+    getNextScheduledItem,
+  ])
+
+  // Listen for events that require data refresh
+  useEffect(() => {
+    const handleDataChange = async () => {
+      // Only refresh next task if no active session
+      if (activeWorkSessions.size === 0 && !workPatternsLoading && !isLoading) {
+        try {
+          const item = await getNextScheduledItem()
+          setNextTask(item)
+        } catch (err) {
+          logger.ui.error('Failed to refresh next task on event', { error: err })
+          setNextTask(null)
+        }
+      }
+
+      // Refresh accumulated times
+      if (pattern) {
+        try {
+          const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
+          setAccumulated({
+            focused: accumulatedData.focused || 0,
+            admin: accumulatedData.admin || 0,
+            personal: accumulatedData.personal || 0,
+          })
+        } catch (error) {
+          logger.ui.error('Failed to refresh accumulated times', { error })
+        }
+      }
+    }
+
+    appEvents.on(EVENTS.TASK_UPDATED, handleDataChange)
+    appEvents.on(EVENTS.WORKFLOW_UPDATED, handleDataChange)
+    appEvents.on(EVENTS.SESSION_CHANGED, handleDataChange)
+    appEvents.on(EVENTS.TIME_LOGGED, handleDataChange)
+
+    return () => {
+      appEvents.off(EVENTS.TASK_UPDATED, handleDataChange)
+      appEvents.off(EVENTS.WORKFLOW_UPDATED, handleDataChange)
+      appEvents.off(EVENTS.SESSION_CHANGED, handleDataChange)
+      appEvents.off(EVENTS.TIME_LOGGED, handleDataChange)
+    }
+  }, [activeWorkSessions.size, workPatternsLoading, isLoading, pattern, currentDate, getNextScheduledItem])
 
   // Get active session helper
   const getActiveSession = () => {
@@ -169,15 +231,28 @@ export function WorkStatusWidget() {
     return sessions.length > 0 ? sessions[0] : null
   }
 
-  // Handler functions
+  // Handler functions - always get fresh state to avoid stale closures
   const handleCompleteCurrentTask = async () => {
     try {
       setIsProcessing(true)
 
-      const activeSession = getActiveSession()
-      if (!activeSession) return
-
+      // Get fresh state directly from store
       const store = useTaskStore.getState()
+      const sessions = Array.from(store.activeWorkSessions.values())
+      const activeSession = sessions.length > 0 ? sessions[0] : null
+
+      if (!activeSession) {
+        logger.ui.warn('No active session to complete')
+        return
+      }
+
+      logger.ui.info('Completing task/step', {
+        sessionId: activeSession.id,
+        stepId: activeSession.stepId,
+        taskId: activeSession.taskId,
+        stepName: activeSession.stepName,
+        taskName: activeSession.taskName,
+      })
 
       if (activeSession.stepId) {
         await store.completeStep(activeSession.stepId)
@@ -209,10 +284,21 @@ export function WorkStatusWidget() {
     try {
       setIsProcessing(true)
 
-      const activeSession = getActiveSession()
-      if (!activeSession) return
-
+      // Get fresh state directly from store
       const store = useTaskStore.getState()
+      const sessions = Array.from(store.activeWorkSessions.values())
+      const activeSession = sessions.length > 0 ? sessions[0] : null
+
+      if (!activeSession) {
+        logger.ui.warn('No active session to pause')
+        return
+      }
+
+      logger.ui.info('Pausing work', {
+        sessionId: activeSession.id,
+        stepId: activeSession.stepId,
+        taskId: activeSession.taskId,
+      })
 
       if (activeSession.stepId) {
         await store.pauseWorkOnStep(activeSession.stepId)
@@ -233,8 +319,21 @@ export function WorkStatusWidget() {
     try {
       setIsProcessing(true)
 
+      // Get fresh state
+      const store = useTaskStore.getState()
+
+      // Log what we're about to start for debugging
       const taskToStart = nextTask
-      await useTaskStore.getState().startNextTask()
+      if (taskToStart) {
+        logger.ui.info('Starting next task', {
+          title: taskToStart.title,
+          type: taskToStart.type,
+          id: taskToStart.id,
+          estimatedDuration: taskToStart.estimatedDuration,
+        })
+      }
+
+      await store.startNextTask()
 
       if (taskToStart) {
         Message.success(`Started work on: ${taskToStart.title}`)
@@ -269,20 +368,22 @@ export function WorkStatusWidget() {
         acc.personalMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Personal)
         acc.flexibleMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Flexible)
       } else {
-        // Fallback for blocks without capacity data
+        // Fallback for blocks without capacity data - should never happen but handle gracefully
+        // For mixed blocks without capacity data, we can't know the actual split ratio
+        // so we skip them rather than assuming an incorrect ratio
         const duration = calculateDuration(block.startTime, block.endTime)
-        if (block.type === 'focused') {
+        if (block.type === WorkBlockType.Focused) {
           acc.focusMinutes += duration
-        } else if (block.type === 'admin') {
+        } else if (block.type === WorkBlockType.Admin) {
           acc.adminMinutes += duration
-        } else if (block.type === 'personal') {
+        } else if (block.type === WorkBlockType.Personal) {
           acc.personalMinutes += duration
-        } else if (block.type === 'flexible') {
+        } else if (block.type === WorkBlockType.Flexible) {
           acc.flexibleMinutes += duration
-        } else if (block.type === 'mixed') {
-          // Mixed blocks split 50/50 between focus and admin
-          acc.focusMinutes += duration / 2
-          acc.adminMinutes += duration / 2
+        } else if (block.type === WorkBlockType.Mixed) {
+          // Mixed blocks MUST have capacity data to know split ratios
+          // We cannot assume any ratio - log warning and skip
+          logger.ui.warn('Mixed block without capacity data - cannot determine split ratio', { block })
         }
       }
       return acc

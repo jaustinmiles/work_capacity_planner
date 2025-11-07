@@ -51,7 +51,7 @@ export function SequencedTaskView({
     return () => clearInterval(interval)
   }, [])
 
-  const completedSteps = task.steps.filter(step => step.status === 'completed').length
+  const completedSteps = task.steps.filter(step => step.status === StepStatus.Completed).length
   const totalSteps = task.steps.length
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0
 

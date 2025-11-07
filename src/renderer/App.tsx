@@ -167,18 +167,12 @@ function App() {
       useTaskStore.getState().initializeData()
     }
 
-    const handleSessionChanged = () => {
-      logger.system.debug('Session change event received', {}, 'session-change-event')
-      // Call initializeData directly from store to avoid dependency issues
-      useTaskStore.getState().initializeData()
-    }
-
+    // Only listen for explicit data refresh requests, not session changes
+    // Session changes should be handled by individual components
     appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-    appEvents.on(EVENTS.SESSION_CHANGED, handleSessionChanged)
 
     return () => {
       appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-      appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
     }
   }, [])
 

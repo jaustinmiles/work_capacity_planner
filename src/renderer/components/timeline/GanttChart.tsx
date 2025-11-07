@@ -3,7 +3,7 @@ import { Card, Typography, Space, Tag, Empty, Tooltip, Button, Alert, Dropdown, 
 import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType, GanttItemType } from '@shared/enums'
+import { TaskType, GanttItemType, UnifiedScheduleItemType } from '@shared/enums'
 import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
 // Updated to use UnifiedScheduler via useUnifiedScheduler hook
 import { useUnifiedScheduler, ScheduleResult, SchedulingMetrics } from '../../hooks/useUnifiedScheduler'
@@ -275,11 +275,13 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     return result.scheduled
       .filter(item => {
         // Filter out meetings, breaks, and blocked time
-        if (item.type === 'meeting' || item.type === 'break' || item.type === 'blocked-time') {
+        if (item.type === UnifiedScheduleItemType.Meeting ||
+            item.type === UnifiedScheduleItemType.Break ||
+            item.type === UnifiedScheduleItemType.BlockedTime) {
           return false
         }
         // Filter out workflow steps that are in waiting status (keep async-wait items)
-        if (item.type === 'workflow-step' && item.isWaitingOnAsync) {
+        if (item.type === UnifiedScheduleItemType.WorkflowStep && item.isWaitingOnAsync) {
           return false
         }
         return true
