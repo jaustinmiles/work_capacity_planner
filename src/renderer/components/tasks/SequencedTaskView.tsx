@@ -41,8 +41,17 @@ export function SequencedTaskView({
   const [activeTab, setActiveTab] = useState<string>('overview')
   const [stepTimeLogs, setStepTimeLogs] = useState<Record<string, number>>({})
   const [stepsCollapsed, setStepsCollapsed] = useState(true) // Start collapsed for better UX with many workflows
+  const [currentTime, setCurrentTime] = useState(new Date())
 
-  const completedSteps = task.steps.filter(step => step.status === 'completed').length
+  // Update current time every minute for countdown timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 60000) // Update every minute
+    return () => clearInterval(interval)
+  }, [])
+
+  const completedSteps = task.steps.filter(step => step.status === StepStatus.Completed).length
   const totalSteps = task.steps.length
   const progressPercent = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0
 
@@ -104,7 +113,7 @@ export function SequencedTaskView({
   const calculateEstimatedCompletionTime = () => {
     const now = new Date()
     const remainingMinutes = task.steps
-      .filter(step => step.status === 'pending')
+      .filter(step => step.status === StepStatus.Pending)
       .reduce((sum, step) => sum + step.duration + step.asyncWaitTime, 0)
 
     const completionTime = new Date(now.getTime() + remainingMinutes * 60000)
@@ -410,8 +419,10 @@ export function SequencedTaskView({
                           key={step.id}
                           step={step}
                           stepIndex={index}
-                          isActive={step.status === 'in_progress'}
-                          isCompleted={step.status === 'completed'}
+                          isActive={step.status === StepStatus.InProgress}
+                          isCompleted={step.status === StepStatus.Completed}
+                          isWaiting={step.status === StepStatus.Waiting}
+                          currentTime={currentTime}
                           timeLogged={stepTimeLogs[step.id] || 0}
                           onStart={handleStepStart}
                           onComplete={handleStepComplete}

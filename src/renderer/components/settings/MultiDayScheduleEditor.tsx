@@ -46,7 +46,7 @@ interface MultiDayScheduleEditorProps {
   onSave?: () => void
 }
 
-export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDayScheduleEditorProps) {
+export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: MultiDayScheduleEditorProps) {
   const currentTime = getCurrentTime()
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs(currentTime),
@@ -149,7 +149,7 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
   const handleSavePattern = async (date: string, blocks: WorkBlock[], meetings: WorkMeeting[]) => {
     try {
       const db = getDatabase()
-      logger.ui.info('[MultiDayScheduleEditor] handleSavePattern - Saving pattern', { date, blockCount: blocks.length })
+
       const existingPattern = patterns.get(date)
 
       if (existingPattern && 'id' in existingPattern) {
@@ -399,18 +399,12 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
     return tabs
   }
 
-  if (!visible) return null
-
   return (
     <Card
       style={{
-        position: 'fixed',
-        top: 20,
-        right: 20,
-        bottom: 20,
-        left: 20,
-        zIndex: 1000,
-        overflow: 'auto',
+        width: '100%',
+        maxWidth: 1200,
+        margin: '0 auto',
       }}
       title={
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
@@ -422,7 +416,6 @@ export function MultiDayScheduleEditor({ visible, onClose, onSave }: MultiDaySch
             <Button icon={<IconFileAudio />} onClick={() => setShowVoiceModal(true)}>
               Voice Input
             </Button>
-            <Button onClick={onClose}>Close</Button>
           </Space>
         </Space>
       }

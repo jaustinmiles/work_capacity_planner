@@ -8,7 +8,7 @@ export interface WorkBlock {
   id: string
   startTime: string // "09:00"
   endTime: string // "12:00"
-  type: 'focused' | 'admin' | 'mixed' | 'personal' | 'flexible' | 'universal'
+  type: WorkBlockType
   capacity?: {
     totalMinutes: number
     type: WorkBlockType
@@ -55,8 +55,8 @@ export const DEFAULT_WORK_TEMPLATES: WorkTemplate[] = [
     name: 'Standard 9-5',
     description: 'Traditional work day with lunch break',
     blocks: [
-      { startTime: '09:00', endTime: '12:00', type: 'mixed' },
-      { startTime: '13:00', endTime: '17:00', type: 'mixed' },
+      { startTime: '09:00', endTime: '12:00', type: WorkBlockType.Mixed },
+      { startTime: '13:00', endTime: '17:00', type: WorkBlockType.Mixed },
     ],
     isDefault: true,
   },
@@ -65,9 +65,9 @@ export const DEFAULT_WORK_TEMPLATES: WorkTemplate[] = [
     name: 'Early Bird',
     description: 'Start early with focused morning time',
     blocks: [
-      { startTime: '06:00', endTime: '09:00', type: 'focused' },
-      { startTime: '09:30', endTime: '12:00', type: 'admin' },
-      { startTime: '13:00', endTime: '15:00', type: 'mixed' },
+      { startTime: '06:00', endTime: '09:00', type: WorkBlockType.Focused },
+      { startTime: '09:30', endTime: '12:00', type: WorkBlockType.Admin },
+      { startTime: '13:00', endTime: '15:00', type: WorkBlockType.Mixed },
     ],
   },
   {
@@ -75,9 +75,9 @@ export const DEFAULT_WORK_TEMPLATES: WorkTemplate[] = [
     name: 'Night Owl',
     description: 'Later start with evening focus time',
     blocks: [
-      { startTime: '10:00', endTime: '12:00', type: 'admin' },
-      { startTime: '13:00', endTime: '16:00', type: 'mixed' },
-      { startTime: '19:00', endTime: '22:00', type: 'focused' },
+      { startTime: '10:00', endTime: '12:00', type: WorkBlockType.Admin },
+      { startTime: '13:00', endTime: '16:00', type: WorkBlockType.Mixed },
+      { startTime: '19:00', endTime: '22:00', type: WorkBlockType.Focused },
     ],
   },
   {
@@ -85,10 +85,10 @@ export const DEFAULT_WORK_TEMPLATES: WorkTemplate[] = [
     name: 'Split Day',
     description: 'Work in multiple focused blocks',
     blocks: [
-      { startTime: '08:00', endTime: '10:00', type: 'focused' },
-      { startTime: '11:00', endTime: '13:00', type: 'focused' },
-      { startTime: '15:00', endTime: '17:00', type: 'admin' },
-      { startTime: '20:00', endTime: '21:30', type: 'focused' },
+      { startTime: '08:00', endTime: '10:00', type: WorkBlockType.Focused },
+      { startTime: '11:00', endTime: '13:00', type: WorkBlockType.Focused },
+      { startTime: '15:00', endTime: '17:00', type: WorkBlockType.Admin },
+      { startTime: '20:00', endTime: '21:30', type: WorkBlockType.Focused },
     ],
   },
 ]
@@ -104,17 +104,17 @@ export function getTotalCapacity(blocks: WorkBlock[]): { focus: number; admin: n
       acc.focus += getTotalCapacityForTaskType(blockCapacity, TaskType.Focused)
       acc.admin += getTotalCapacityForTaskType(blockCapacity, TaskType.Admin)
       acc.personal += getTotalCapacityForTaskType(blockCapacity, TaskType.Personal)
-    } else if (block.type === 'focused') {
+    } else if (block.type === WorkBlockType.Focused) {
       acc.focus += durationMinutes
-    } else if (block.type === 'admin') {
+    } else if (block.type === WorkBlockType.Admin) {
       acc.admin += durationMinutes
-    } else if (block.type === 'personal') {
+    } else if (block.type === WorkBlockType.Personal) {
       acc.personal += durationMinutes
-    } else if (block.type === 'mixed') {
+    } else if (block.type === WorkBlockType.Mixed) {
       // Mixed blocks split 50/50 between focus and admin
       acc.focus += durationMinutes / 2
       acc.admin += durationMinutes / 2
-    } else if (block.type === 'flexible' || block.type === 'universal') {
+    } else if (block.type === WorkBlockType.Flexible) {
       // Flexible blocks should NOT be counted here to avoid double-counting
       // They are handled separately as flexible capacity
       // The scheduler can still USE them for any task type, but they don't

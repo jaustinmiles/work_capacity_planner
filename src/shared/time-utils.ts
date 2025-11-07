@@ -64,3 +64,43 @@ export function formatTimeHHMM(date: Date): string {
 export function formatTimeFromParts(hours: number, minutes: number): string {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 }
+
+/**
+ * Calculate remaining time in minutes until a wait period expires
+ * Returns negative if already expired
+ */
+export function calculateRemainingWaitTime(
+  completedAt: Date,
+  asyncWaitMinutes: number,
+  currentTime: Date = new Date(),
+): number {
+  const waitEndTime = completedAt.getTime() + asyncWaitMinutes * 60000
+  const remainingMs = waitEndTime - currentTime.getTime()
+  // Return 0 if expired, never negative
+  return Math.max(0, Math.ceil(remainingMs / 60000))
+}
+
+/**
+ * Format countdown time with appropriate units
+ * Examples: "2h 30m", "45m", "5m", "Ready"
+ */
+export function formatCountdown(remainingMinutes: number): string {
+  if (remainingMinutes <= 0) return 'Ready'
+  return formatMinutes(remainingMinutes) + ' remaining'
+}
+
+/**
+ * Get human-readable wait status with countdown
+ */
+export function getWaitStatus(
+  completedAt: Date,
+  asyncWaitMinutes: number,
+  currentTime: Date = new Date(),
+): { expired: boolean; remainingMinutes: number; displayText: string } {
+  const remainingMinutes = calculateRemainingWaitTime(completedAt, asyncWaitMinutes, currentTime)
+  return {
+    expired: remainingMinutes <= 0,
+    remainingMinutes: Math.max(0, remainingMinutes),
+    displayText: formatCountdown(remainingMinutes),
+  }
+}

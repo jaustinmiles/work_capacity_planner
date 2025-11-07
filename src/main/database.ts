@@ -81,7 +81,7 @@ export class DatabaseService {
       dbLogger.info('Found existing active session', {
         sessionId: session.id,
         name: session.name,
-        createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
+        createdAt: session.createdAt?.toISOString() || getCurrentTime().toISOString(),
       })
     } else {
       dbLogger.warn('No active session found, checking for existing sessions to reactivate')
@@ -107,7 +107,7 @@ export class DatabaseService {
         dbLogger.warn('No sessions found in database, creating new session')
 
         // Create a new session with a date-based name
-        const today = new Date()
+        const today = getCurrentTime()
         const dayName = today.toLocaleDateString('en-US', { weekday: 'short' })
         const monthDay = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
         const sessionName = `${dayName} ${monthDay}`
@@ -204,7 +204,7 @@ export class DatabaseService {
 
   async updateSession(id: string, updates: { name?: string; description?: string }): Promise<{ id: string; name: string; description: string | null; isActive: boolean; createdAt: Date; updatedAt: Date }> {
     const updateData: any = {
-      updatedAt: new Date(),
+      updatedAt: getCurrentTime(),
     }
     if (updates.name !== undefined) {
       updateData.name = updates.name
@@ -359,7 +359,7 @@ export class DatabaseService {
         hasSteps: !!steps && steps.length > 0,
         criticalPathDuration: taskData.criticalPathDuration || taskData.duration,
         worstCaseDuration: taskData.worstCaseDuration || taskData.duration,
-        updatedAt: new Date(),
+        updatedAt: getCurrentTime(),
       },
     })
 
@@ -433,7 +433,7 @@ export class DatabaseService {
       where: { id },
       data: {
         ...cleanUpdateData,
-        updatedAt: new Date(),
+        updatedAt: getCurrentTime(),
       },
       include: {
         TaskStep: {
@@ -570,7 +570,7 @@ export class DatabaseService {
       where: { id },
       data: {
         completed: true,
-        completedAt: new Date(),
+        completedAt: getCurrentTime(),
         actualDuration: actualDuration ?? null,
         overallStatus: 'completed',
       },
@@ -616,7 +616,7 @@ export class DatabaseService {
             currentStepId: null,
             overallStatus: 'completed',
             completed: true,
-            completedAt: new Date(),
+            completedAt: getCurrentTime(),
           },
         })
       }
@@ -766,7 +766,7 @@ export class DatabaseService {
 
     const updateData: any = {
       ...data,
-      updatedAt: new Date(),
+      updatedAt: getCurrentTime(),
     }
 
     if (data.asyncPatterns !== undefined) {
@@ -897,7 +897,7 @@ export class DatabaseService {
       where: { id },
       data: {
         ...updates,
-        updatedAt: new Date(),
+        updatedAt: getCurrentTime(),
       },
     })
   }
@@ -1210,8 +1210,8 @@ export class DatabaseService {
     dbLogger.info('getWorkPattern - Query', {
       date,
       sessionId,
-      timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      timestamp: getCurrentTime().toISOString(),
+      localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
     })
     const pattern = await this.client.workPattern.findUnique({
       where: {
@@ -1294,8 +1294,8 @@ export class DatabaseService {
       blocksCount: data.blocks?.length || 0,
       meetingsCount: data.meetings?.length || 0,
       recurring: data.recurring || null,
-      timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      timestamp: getCurrentTime().toISOString(),
+      localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
     })
 
     dbLogger.info('createWorkPattern - Creating pattern', { date: data.date, sessionId, blocksCount: data.blocks?.length || 0 })
@@ -1321,7 +1321,7 @@ export class DatabaseService {
             const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
 
             // Use our unified capacity calculator - much simpler!
-            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null)
+            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.capacity?.splitRatio || null)
 
             return {
               id: crypto.randomUUID(),
@@ -1433,7 +1433,7 @@ export class DatabaseService {
       sessionId: pattern.sessionId,
       totalBlocks: pattern.WorkBlock.length,
       totalMeetings: pattern.WorkMeeting.length,
-      timestamp: new Date().toISOString(),
+      timestamp: getCurrentTime().toISOString(),
     })
 
     return formattedPattern
@@ -1511,15 +1511,8 @@ export class DatabaseService {
     meetings?: any[]
   }): Promise<any> {
     // [WorkPatternLifeCycle] START: Updating work pattern
-    dbLogger.info('updateWorkPattern - START', {
-      patternId: id,
-      hasBlocks: !!updates.blocks,
-      hasMeetings: !!updates.meetings,
-      blocksCount: updates.blocks?.length || 0,
-      meetingsCount: updates.meetings?.length || 0,
-      timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
-    })
+
+    // [WorkPatternLifeCycle] Updating work pattern
 
     // Delete existing blocks and meetings
     const _deletedBlocks = await this.client.workBlock.deleteMany({
@@ -1529,26 +1522,22 @@ export class DatabaseService {
       where: { patternId: id },
     })
 
-    dbLogger.debug('updateWorkPattern - Deleted existing', {
-      patternId: id,
-      deletedBlocks: _deletedBlocks.count,
-      deletedMeetings: _deletedMeetings.count,
-      timestamp: new Date().toISOString(),
-    })
-
     // Update with new data
     const pattern = await this.client.workPattern.update({
       where: { id },
       data: {
-        updatedAt: new Date(),
+        updatedAt: getCurrentTime(),
         WorkBlock: {
           create: (updates.blocks || []).map((b: any) => {
-            const { patternId: _patternId, id: _id, ...blockData } = b
-            return {
+            const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
+            const newBlock = {
               id: crypto.randomUUID(),
               ...blockData,
-              capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+              totalCapacity: b.capacity?.totalMinutes || 0,
+              splitRatio: b.capacity?.splitRatio || null,
             }
+
+            return newBlock
           }),
         },
         WorkMeeting: {
@@ -1587,7 +1576,7 @@ export class DatabaseService {
         endTime: m.endTime,
         type: m.type,
       })),
-      timestamp: new Date().toISOString(),
+      timestamp: getCurrentTime().toISOString(),
     })
 
     const formattedPattern = {
@@ -1609,7 +1598,7 @@ export class DatabaseService {
       sessionId: pattern.sessionId,
       totalBlocks: pattern.WorkBlock.length,
       totalMeetings: pattern.WorkMeeting.length,
-      timestamp: new Date().toISOString(),
+      timestamp: getCurrentTime().toISOString(),
     })
 
     return formattedPattern
@@ -1619,8 +1608,8 @@ export class DatabaseService {
     // [WorkPatternLifeCycle] START: Deleting work pattern
     dbLogger.info('deleteWorkPattern - START', {
       patternId: id,
-      timestamp: new Date().toISOString(),
-      localTime: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      timestamp: getCurrentTime().toISOString(),
+      localTime: getCurrentTime().toLocaleTimeString('en-US', { hour12: false }),
     })
 
     // Get pattern details before deletion for logging
@@ -1640,7 +1629,7 @@ export class DatabaseService {
         blocksCount: pattern.WorkBlock.length,
         meetingsCount: pattern.WorkMeeting.length,
         isTemplate: pattern.isTemplate,
-        timestamp: new Date().toISOString(),
+        timestamp: getCurrentTime().toISOString(),
       })
     }
 
@@ -1650,7 +1639,7 @@ export class DatabaseService {
 
     dbLogger.info('deleteWorkPattern - COMPLETE', {
       patternId: id,
-      timestamp: new Date().toISOString(),
+      timestamp: getCurrentTime().toISOString(),
     })
   }
 
@@ -1814,7 +1803,7 @@ export class DatabaseService {
     return await this.client.workSession.update({
       where: { id },
       data: {
-        endTime: new Date(),
+        endTime: getCurrentTime(),
         actualMinutes,
       },
     })
@@ -2119,7 +2108,7 @@ export class DatabaseService {
     if (existing) {
       await this.client.jargonEntry.update({
         where: { id: existing.id },
-        data: { definition, updatedAt: new Date() },
+        data: { definition, updatedAt: getCurrentTime() },
       })
     } else {
       // Create new entry if it doesn't exist
@@ -2130,8 +2119,8 @@ export class DatabaseService {
           definition,
           sessionId,
           category: 'custom',
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          createdAt: getCurrentTime(),
+          updatedAt: getCurrentTime(),
         },
       })
     }
@@ -2376,7 +2365,7 @@ export class DatabaseService {
     const workSessionData = {
       taskId: step.taskId,
       stepId: step.id,
-      startTime: data.startTime || new Date(),
+      startTime: data.startTime || getCurrentTime(),
       endTime: data.endTime || null,
       plannedMinutes: data.duration || data.plannedMinutes || 0,
       actualMinutes: data.actualMinutes || data.duration || null,

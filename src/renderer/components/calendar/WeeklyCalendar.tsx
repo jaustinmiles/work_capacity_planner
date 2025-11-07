@@ -60,7 +60,7 @@ export function WeeklyCalendar() {
                 id: `weekend-personal-${dateStr}`,
                 startTime: '10:00',
                 endTime: '14:00',
-                type: 'personal',
+                type: WorkBlockType.Personal,
                 capacity: { totalMinutes: 240, type: WorkBlockType.Personal },
               },
             ],

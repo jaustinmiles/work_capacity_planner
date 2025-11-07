@@ -2,6 +2,8 @@ import { Space, Typography, Tag, Tooltip, Badge, Button, Progress } from '@arco-
 import { TaskType } from '@shared/enums'
 import { IconClockCircle, IconCalendar, IconExclamationCircle, IconCheck, IconHistory } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
+import { getWaitStatus } from '@shared/time-utils'
+import { getCurrentTime } from '@shared/time-provider'
 
 const { Text } = Typography
 
@@ -10,13 +12,26 @@ interface TaskStepItemProps {
   stepIndex: number
   isActive?: boolean
   isCompleted?: boolean
+  isWaiting?: boolean
+  currentTime?: Date
   estimatedStartTime?: Date
   timeLogged?: number  // Total minutes logged
   onComplete?: (__stepId: string) => void
   onStart?: (stepId: string) => void
 }
 
-export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = false, estimatedStartTime, timeLogged = 0, onComplete, onStart }: TaskStepItemProps) {
+export function TaskStepItem({
+  step,
+  stepIndex,
+  isActive = false,
+  isCompleted = false,
+  isWaiting = false,
+  currentTime = getCurrentTime(),
+  estimatedStartTime,
+  timeLogged = 0,
+  onComplete,
+  onStart,
+}: TaskStepItemProps) {
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
@@ -28,12 +43,14 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
 
   const getStatusColor = () => {
     if (isCompleted) return '#00B42A'
+    if (isWaiting) return '#FF7D00'  // Orange for waiting
     if (isActive) return '#165DFF'
     return '#86909C'
   }
 
   const getStatusIcon = () => {
     if (isCompleted) return <IconCheck />
+    if (isWaiting) return <IconClockCircle />
     return <div style={{
       width: 16,
       height: 16,
@@ -49,6 +66,11 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
       {stepIndex + 1}
     </div>
   }
+
+  // Get wait status if step is waiting
+  const waitStatus = isWaiting && step.completedAt && step.asyncWaitTime
+    ? getWaitStatus(new Date(step.completedAt), step.asyncWaitTime, currentTime)
+    : null
 
   return (
     <div
@@ -112,6 +134,17 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
                   Complete
                 </Button>
               )}
+              {/* Show complete button for expired wait timers */}
+              {isWaiting && waitStatus?.expired && onComplete && (
+                <Button
+                  size="mini"
+                  status="success"
+                  icon={<IconCheck />}
+                  onClick={() => onComplete(step.id)}
+                >
+                  Complete
+                </Button>
+              )}
             </Space>
           )}
         </div>
@@ -150,7 +183,18 @@ export function TaskStepItem({ step, stepIndex, isActive = false, isCompleted = 
             {step.type === TaskType.Focused ? 'Focused Work' : 'Admin/Meeting'}
           </Tag>
 
-          {step.asyncWaitTime > 0 && (
+          {/* Show countdown if waiting, otherwise show async wait time */}
+          {waitStatus && (
+            <Tag
+              icon={<IconClockCircle />}
+              color={waitStatus.expired ? 'green' : 'orange'}
+              size="small"
+            >
+              {waitStatus.displayText}
+            </Tag>
+          )}
+
+          {!isWaiting && step.asyncWaitTime > 0 && (
             <Tag
               icon={<IconCalendar />}
               color="orange"

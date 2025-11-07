@@ -39,6 +39,7 @@ export enum GanttItemType {
   WorkflowStep = 'workflow-step',
   Meeting = 'meeting',
   BlockedTime = 'blocked-time',
+  AsyncWait = 'async-wait',
 }
 
 // Unified schedule item types
@@ -125,6 +126,7 @@ export enum ViewType {
   Calendar = 'calendar',
   Workflows = 'workflows',
   Timeline = 'timeline',
+  Schedule = 'schedule',
 }
 
 // AI Processing modes for brainstorming
