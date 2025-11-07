@@ -284,6 +284,47 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     }
   }, [sessions, selectedSessionId])
 
+  // Keyboard handler for backspace deletion
+  useEffect(() => {
+    if (!visible) return
+
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Check for backspace key or Delete key
+      if ((event.key === 'Backspace' || event.key === 'Delete') && selectedSessionId) {
+        // Prevent default backspace navigation behavior
+        event.preventDefault()
+
+        // Find the selected session
+        const session = sessions.find(s => s.id === selectedSessionId)
+        if (!session) return
+
+        // Show confirmation dialog
+        Modal.confirm({
+          title: 'Delete Work Session',
+          content: `Are you sure you want to delete the work session for "${session.taskName}${session.stepName ? ' - ' + session.stepName : ''}" (${minutesToTime(session.startMinutes)} - ${minutesToTime(session.endMinutes)})?`,
+          okText: 'Delete',
+          cancelText: 'Cancel',
+          okButtonProps: { status: 'danger' },
+          onOk: () => {
+            handleSessionDelete(selectedSessionId)
+            logger.ui.info('Work session deleted via keyboard shortcut', {
+              sessionId: selectedSessionId,
+              taskName: session.taskName,
+            }, 'session-keyboard-delete')
+          },
+        })
+      }
+    }
+
+    // Add event listener
+    window.addEventListener('keydown', handleKeyPress)
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress)
+    }
+  }, [visible, selectedSessionId, sessions, handleSessionDelete])
+
   // Save all dirty sessions
   const saveSessions = async () => {
     setIsSaving(true)

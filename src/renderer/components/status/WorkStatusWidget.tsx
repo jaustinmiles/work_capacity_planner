@@ -1,17 +1,34 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Card, Space, Typography, Button, Tag, Progress, Grid, Message } from '@arco-design/web-react'
-import { IconPlayArrow, IconPause, IconCheck, IconSkipNext } from '@arco-design/web-react/icon'
+import { Card, Space, Typography, Button, Tag, Progress, Grid, Message, Statistic } from '@arco-design/web-react'
+import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconCaretRight } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { formatMinutes } from '@shared/time-utils'
-import { TaskStatus } from '@shared/enums'
+import { TaskStatus, TaskType, WorkBlockType } from '@shared/enums'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { getDatabase } from '../../services/database'
 import { WorkBlock, getTotalCapacity } from '@shared/work-blocks-types'
+import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
+
+// Work block type display mapping for consistent UI representation
+const WORK_BLOCK_DISPLAY: Record<string, { label: string; icon: string }> = {
+  [WorkBlockType.Focused]: { label: 'Focus', icon: '🎯' },
+  [WorkBlockType.Admin]: { label: 'Admin', icon: '📋' },
+  [WorkBlockType.Personal]: { label: 'Personal', icon: '👤' },
+  [WorkBlockType.Mixed]: { label: 'Mixed', icon: '🔄' },
+  [WorkBlockType.Flexible]: { label: 'Flexible', icon: '✨' },
+}
+
+// Helper function to get work block display
+const getWorkBlockDisplay = (blockType: string): string => {
+  const display = WORK_BLOCK_DISPLAY[blockType]
+  if (!display) return `🔄 ${blockType}` // Fallback for unknown types
+  return `${display.icon} ${display.label}`
+}
 
 function getBlockDisplay(block: WorkBlock | null) {
   if (!block) return { icon: '🔍', label: 'No block' }
@@ -253,78 +270,59 @@ export function WorkStatusWidget() {
     // Next task will be recomputed automatically via useEffect
   }
 
-  // Render loading state
-  if (workPatternsLoading || isLoading) {
-    return (
-      <Card>
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Title heading={6}>Work Status</Title>
-          <Text type="secondary">Loading...</Text>
-        </Space>
-      </Card>
-    )
-  }
-
-  // Render no pattern state
-  if (!pattern) {
-    return (
-      <Card>
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Title heading={6}>Work Status</Title>
-          <Text type="secondary">No work pattern configured for today</Text>
-        </Space>
-      </Card>
-    )
-  }
-
   const activeSession = getActiveSession()
   const hasActiveSession = !!(activeSession && activeWorkSessions.size > 0)
 
-  // Calculate total capacity for the day including flexible time
+  // Calculate total capacity for the day - PROPER calculation for ALL types
   const totalCapacity = useMemo(() => {
     if (!pattern || !pattern.blocks) {
-      return { focus: 0, admin: 0, personal: 0, flexible: 0, mixed: 0 }
+      return { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0, flexibleMinutes: 0 }
     }
 
-    const baseCapacity = getTotalCapacity(pattern.blocks)
-
-    // Calculate flexible and mixed capacity separately
-    let flexibleMinutes = 0
-    let mixedMinutes = 0
-
-    pattern.blocks.forEach((block: WorkBlock) => {
-      const duration = calculateDuration(block.startTime, block.endTime)
-      if (block.type === 'flexible') {
-        flexibleMinutes += duration
-      } else if (block.type === 'mixed' && block.capacity?.splitRatio) {
-        // Mixed blocks are already counted in focus/admin, but track total for display
-        mixedMinutes += duration
+    return pattern.blocks.reduce((acc: any, block: WorkBlock) => {
+      if (block.capacity) {
+        // Use the proper capacity calculator for blocks with capacity data
+        acc.focusMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Focused)
+        acc.adminMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Admin)
+        acc.personalMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Personal)
+        acc.flexibleMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Flexible)
+      } else {
+        // Fallback for blocks without capacity data
+        const duration = calculateDuration(block.startTime, block.endTime)
+        if (block.type === 'focused') {
+          acc.focusMinutes += duration
+        } else if (block.type === 'admin') {
+          acc.adminMinutes += duration
+        } else if (block.type === 'personal') {
+          acc.personalMinutes += duration
+        } else if (block.type === 'flexible') {
+          acc.flexibleMinutes += duration
+        } else if (block.type === 'mixed') {
+          // Mixed blocks split 50/50 between focus and admin
+          acc.focusMinutes += duration / 2
+          acc.adminMinutes += duration / 2
+        }
       }
-    })
-
-    return {
-      ...baseCapacity,
-      flexible: flexibleMinutes,
-      mixed: mixedMinutes,
-    }
+      return acc
+    }, { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0, flexibleMinutes: 0 })
   }, [pattern])
 
   // Calculate progress and overflow
-  const focusProgress = totalCapacity.focus > 0
-    ? Math.round((accumulated.focused / totalCapacity.focus) * 100)
+  const focusProgress = totalCapacity.focusMinutes > 0
+    ? Math.round((accumulated.focused / totalCapacity.focusMinutes) * 100)
     : 0
-  const adminProgress = totalCapacity.admin > 0
-    ? Math.round((accumulated.admin / totalCapacity.admin) * 100)
+  const adminProgress = totalCapacity.adminMinutes > 0
+    ? Math.round((accumulated.admin / totalCapacity.adminMinutes) * 100)
     : 0
-  const personalProgress = totalCapacity.personal > 0
-    ? Math.round((accumulated.personal / totalCapacity.personal) * 100)
+  const personalProgress = totalCapacity.personalMinutes > 0
+    ? Math.round((accumulated.personal / totalCapacity.personalMinutes) * 100)
     : 0
 
   // Calculate overflow into flexible time
-  const focusOverflow = Math.max(0, accumulated.focused - totalCapacity.focus)
-  const adminOverflow = Math.max(0, accumulated.admin - totalCapacity.admin)
+  const focusOverflow = Math.max(0, accumulated.focused - totalCapacity.focusMinutes)
+  const adminOverflow = Math.max(0, accumulated.admin - totalCapacity.adminMinutes)
   const flexibleUsed = focusOverflow + adminOverflow
-  const flexibleRemaining = Math.max(0, totalCapacity.flexible - flexibleUsed)
+  const flexibleRemaining = Math.max(0, totalCapacity.flexibleMinutes - flexibleUsed)
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -418,24 +416,20 @@ export function WorkStatusWidget() {
             <Space direction="vertical" style={{ width: '100%' }} size="small">
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text style={{ whiteSpace: 'nowrap' }}>🎯 Focus Time:</Text>
-                <Tag color="blue">{formatMinutes(totalCapacity.focus)}</Tag>
+                <Tag color="blue">{formatMinutes(totalCapacity.focusMinutes)}</Tag>
               </Space>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text style={{ whiteSpace: 'nowrap' }}>📋 Admin Time:</Text>
-                <Tag color="orange">{formatMinutes(totalCapacity.admin)}</Tag>
+                <Tag color="orange">{formatMinutes(totalCapacity.adminMinutes)}</Tag>
               </Space>
-              {totalCapacity.personal > 0 && (
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Text style={{ whiteSpace: 'nowrap' }}>🌱 Personal Time:</Text>
-                  <Tag color="green">{formatMinutes(totalCapacity.personal)}</Tag>
-                </Space>
-              )}
-              {totalCapacity.flexible > 0 && (
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Text style={{ whiteSpace: 'nowrap' }}>🔄 Flexible Time:</Text>
-                  <Tag color="gold">{formatMinutes(totalCapacity.flexible)}</Tag>
-                </Space>
-              )}
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text style={{ whiteSpace: 'nowrap' }}>🌱 Personal Time:</Text>
+                <Tag color="green">{formatMinutes(totalCapacity.personalMinutes)}</Tag>
+              </Space>
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text style={{ whiteSpace: 'nowrap' }}>🔄 Flexible Time:</Text>
+                <Tag color="gold">{formatMinutes(totalCapacity.flexibleMinutes)}</Tag>
+              </Space>
               {meetingMinutes > 0 && (
                 <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                   <Text style={{ whiteSpace: 'nowrap' }}>🤝 Meeting Time:</Text>
@@ -446,7 +440,7 @@ export function WorkStatusWidget() {
                 <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                   <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>📊 Total Time:</Text>
                   <Text style={{ fontSize: '14px', fontWeight: 500 }}>
-                    {formatMinutes(totalCapacity.focus + totalCapacity.admin + totalCapacity.personal + totalCapacity.flexible + meetingMinutes)}
+                    {formatMinutes(totalCapacity.focusMinutes + totalCapacity.adminMinutes + totalCapacity.personalMinutes + totalCapacity.flexibleMinutes + meetingMinutes)}
                   </Text>
                 </Space>
               </div>
@@ -465,7 +459,7 @@ export function WorkStatusWidget() {
               <div>
                 <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 4 }}>
                   <Text>🎯 Focus</Text>
-                  <Text>{formatMinutes(accumulated.focused)} / {formatMinutes(totalCapacity.focus)}</Text>
+                  <Text>{formatMinutes(accumulated.focused)} / {formatMinutes(totalCapacity.focusMinutes)}</Text>
                 </Space>
                 <Progress
                   percent={Math.min(focusProgress, 100)}
