@@ -3,6 +3,7 @@ import { TaskType } from '@shared/enums'
 import { IconClockCircle, IconCalendar, IconExclamationCircle, IconCheck, IconHistory } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
 import { getWaitStatus } from '@shared/time-utils'
+import { getCurrentTime } from '@shared/time-provider'
 
 const { Text } = Typography
 
@@ -25,7 +26,7 @@ export function TaskStepItem({
   isActive = false,
   isCompleted = false,
   isWaiting = false,
-  currentTime = new Date(),
+  currentTime = getCurrentTime(),
   estimatedStartTime,
   timeLogged = 0,
   onComplete,

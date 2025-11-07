@@ -24,6 +24,7 @@ interface TaskStore {
   workSettings: WorkSettings
   workPatterns: DailyWorkPattern[]
   workPatternsLoading: boolean
+  includeArchived: boolean  // Track whether archived tasks should be shown
 
   // Scheduling state
   optimalSchedule: any | null
@@ -141,6 +142,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     error: null,
     workPatterns: [],
     workPatternsLoading: true,
+    includeArchived: false,  // Default to not showing archived tasks
     workSettings: (() => {
       try {
         const saved = window.localStorage.getItem('workSettings')
@@ -182,7 +184,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
     try {
       // rendererLogger.info('[TaskStore] Loading tasks from database', { includeArchived })
       // Loading tasks from database
-      set({ isLoading: true, error: null })
+      set({ isLoading: true, error: null, includeArchived })  // Store the preference
       const tasks = await getDatabase().getTasks(includeArchived)
       // Tasks loaded successfully
       // rendererLogger.info('[TaskStore] Tasks loaded successfully', {
@@ -225,9 +227,12 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   // Unified refresh function that reloads all data consistently
   refreshAllData: async () => {
     try {
+      // Use the stored includeArchived preference
+      const { includeArchived } = get()
+
       // Load all data in parallel for efficiency
       const [tasks, sequencedTasks] = await Promise.all([
-        getDatabase().getTasks(false),
+        getDatabase().getTasks(includeArchived),
         getDatabase().getSequencedTasks(),
       ])
 
@@ -944,19 +949,12 @@ export const useTaskStore = create<TaskStore>((set, get) => {
   },
 
   completeStep: async (stepId: string, actualMinutes?: number, notes?: string) => {
-    logger.system.info('[useTaskStore] completeStep called', { stepId, actualMinutes, notes })
+    // LOGGER_REMOVED: logger.system.info('[useTaskStore] completeStep called', { stepId, actualMinutes, notes })
 
     const state = get()
     const session = state.activeWorkSessions.get(stepId)
 
-    logger.system.info('[useTaskStore] Active session check', {
-      hasSession: !!session,
-      sessionDetails: session ? {
-        stepId: session.stepId,
-        isPaused: session.isPaused,
-        actualMinutes: session.actualMinutes,
-      } : null,
-    })
+    // LOGGER_REMOVED: logger.system.info('[useTaskStore] Active session check', { ... })
 
     let totalMinutes = actualMinutes || 0
 
@@ -964,25 +962,22 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Calculate final duration if session is active
       const elapsed = session.isPaused ? 0 : Date.now() - session.startTime.getTime()
       totalMinutes = (session.actualMinutes || 0) + Math.floor(elapsed / 60000)
-      logger.system.info('[useTaskStore] Calculated total minutes', { elapsed, totalMinutes })
+      // LOGGER_REMOVED: logger.system.info('[useTaskStore] Calculated total minutes', { elapsed, totalMinutes })
     }
 
     try {
       // Stop work session in WorkTrackingService if there's an active one
       const activeWorkSession = getWorkTrackingService().getCurrentActiveSession()
-      logger.system.info('[useTaskStore] WorkTrackingService session check', {
-        hasActiveSession: !!activeWorkSession,
-        matchesStepId: activeWorkSession?.stepId === stepId,
-      })
+      // LOGGER_REMOVED: logger.system.info('[useTaskStore] WorkTrackingService session check', { ... })
 
       if (activeWorkSession && activeWorkSession.stepId === stepId) {
-        logger.system.info('[useTaskStore] Stopping work session in WorkTrackingService')
+        // LOGGER_REMOVED: logger.system.info('[useTaskStore] Stopping work session in WorkTrackingService')
         await getWorkTrackingService().stopWorkSession(activeWorkSession.id)
       }
 
       // Create work session record
       if (totalMinutes > 0) {
-        logger.system.info('[useTaskStore] Creating step work session record', { totalMinutes })
+        // LOGGER_REMOVED: logger.system.info('[useTaskStore] Creating step work session record', { totalMinutes })
         await getDatabase().createStepWorkSession({
           taskStepId: stepId,
           // If there's a session, use its start time, otherwise calculate backward from now
@@ -1000,11 +995,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         .flatMap(t => t.steps)
         .find(s => s.id === stepId)
 
-      logger.system.info('[useTaskStore] Found step', {
-        stepFound: !!step,
-        stepName: step?.name,
-        asyncWaitTime: step?.asyncWaitTime,
-      })
+      // LOGGER_REMOVED: logger.system.info('[useTaskStore] Found step', { ... })
 
       // If step has asyncWaitTime, transition to 'waiting' instead of 'completed'
       const hasAsyncWait = step && step.asyncWaitTime && step.asyncWaitTime > 0
@@ -1022,14 +1013,10 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         ...(notes && { notes }),
       }
 
-      logger.system.info('[useTaskStore] Updating task step progress in database', {
-        stepId,
-        finalStatus,
-        updateData,
-      })
+      // LOGGER_REMOVED: logger.system.info('[useTaskStore] Updating task step progress in database', { ... })
 
       await getDatabase().updateTaskStepProgress(stepId, updateData)
-      logger.system.info('[useTaskStore] Database update successful')
+      // LOGGER_REMOVED: logger.system.info('[useTaskStore] Database update successful')
 
       // Remove from active sessions (in-memory only - work session data is preserved in database)
       // For workflow steps, the session key is the workflowId, not the stepId
@@ -1043,7 +1030,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       const newSessions = new Map(state.activeWorkSessions)
       newSessions.delete(sessionKey)
       set({ activeWorkSessions: newSessions })
-      logger.system.info('[useTaskStore] Removed from active sessions', { sessionKey, workflowId: workflow?.id })
+      // LOGGER_REMOVED: logger.system.info('[useTaskStore] Removed from active sessions', { sessionKey, workflowId: workflow?.id })
 
       // Don't emit SESSION_CHANGED here - we'll emit TASK_UPDATED at the end which covers everything
 
@@ -1052,11 +1039,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
         t.steps.some(s => s.id === stepId),
       )
 
-      logger.system.info('[useTaskStore] Found parent task', {
-        taskFound: !!task,
-        taskId: task?.id,
-        taskName: task?.name,
-      })
+      // LOGGER_REMOVED: logger.system.info('[useTaskStore] Found parent task', { ... })
 
       if (task) {
         // Update the step status directly in the state
@@ -1094,7 +1077,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
             t.id === task.id ? updatedTask : t,
           ),
         }))
-        logger.system.info('[useTaskStore] Updated step status in memory')
+        // LOGGER_REMOVED: logger.system.info('[useTaskStore] Updated step status in memory')
       }
 
       // Reset skip index when a step is completed (to show the actual next task)
@@ -1110,7 +1093,7 @@ export const useTaskStore = create<TaskStore>((set, get) => {
       // Emit event to notify that a work session has ended (triggers next task load)
       appEvents.emit(EVENTS.SESSION_CHANGED)
 
-      logger.system.info('[useTaskStore] completeStep finished successfully')
+      // LOGGER_REMOVED: logger.system.info('[useTaskStore] completeStep finished successfully')
     } catch (error) {
       logger.system.error('[useTaskStore] completeStep failed', {
         error: error instanceof Error ? error.message : String(error),

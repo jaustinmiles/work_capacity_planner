@@ -2,6 +2,7 @@ import React from 'react'
 import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
 import type { SchedulingDebugInfo } from '@shared/unified-scheduler'
+import { WorkBlockType } from '@shared/enums'
 
 const { Title, Text } = Typography
 
@@ -165,10 +166,13 @@ export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debu
                     dataIndex: 'blockType',
                     render: (val) => {
                       const colors: Record<string, string> = {
-                        'focused': 'blue',
-                        'admin': 'green',
-                        'mixed': 'purple',
-                        'personal': 'orange',
+                        [WorkBlockType.Focused]: 'blue',
+                        [WorkBlockType.Admin]: 'green',
+                        [WorkBlockType.Mixed]: 'purple',
+                        [WorkBlockType.Personal]: 'orange',
+                        [WorkBlockType.Flexible]: 'cyan',
+                        [WorkBlockType.Blocked]: 'red',
+                        [WorkBlockType.Sleep]: 'gray',
                       }
                       return <Tag color={colors[val] || 'default'}>{val}</Tag>
                     },
@@ -231,16 +235,7 @@ export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debu
                     },
                   },
                 ]}
-                data={(() => {
-                  // Show ALL blocks, no filtering
-                  console.log('Block utilization debug:', {
-                    totalBlocks: debugInfo.blockUtilization.length,
-                    allDates: [...new Set(debugInfo.blockUtilization.map(b => b.date))],
-                    blocks: debugInfo.blockUtilization.slice(0, 3), // Show first 3 for debugging
-                  })
-
-                  return debugInfo.blockUtilization
-                })()}
+                data={debugInfo.blockUtilization}
                 pagination={false}
                 size="small"
                 scroll={{ y: 300 }}
