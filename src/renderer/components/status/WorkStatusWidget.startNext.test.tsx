@@ -97,7 +97,7 @@ describe('WorkStatusWidget Start Next Task Button', () => {
     await waitFor(() => {
       const button = screen.getByRole('button', { name: /Start Next Task/i })
       expect(button).toBeInTheDocument()
-      expect(button).toBeDisabled() // Should be disabled when no tasks available
+      expect(button).not.toBeDisabled() // Button is enabled even when no tasks (shows message on click)
     })
   })
 
