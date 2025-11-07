@@ -1,423 +1,189 @@
-import { useState, useEffect } from 'react'
-import { TaskType, TaskStatus, WorkBlockType } from '@shared/enums'
-import { Card, Space, Typography, Progress, Tag, Button, Statistic } from '@arco-design/web-react'
-import { IconCaretRight, IconPlayArrow, IconSkipNext, IconPause, IconCheck } from '@arco-design/web-react/icon'
+import React, { useEffect, useState, useMemo } from 'react'
+import { Card, Space, Typography, Button, Tag, Progress, Statistic, Grid, Message } from '@arco-design/web-react'
+import { IconPlayArrow, IconPause, IconCheck, IconSkipNext } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
-import { WorkBlock, getCurrentBlock, getNextBlock } from '@shared/work-blocks-types'
-import { NextScheduledItem } from '@shared/types'
-import { getDatabase } from '../../services/database'
-import { appEvents, EVENTS } from '../../utils/events'
-import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
-import { getCurrentTime } from '@shared/time-provider'
-import { formatMinutes, parseTimeString } from '@shared/time-utils'
+import { formatMinutes } from '@shared/time-utils'
+import { TaskType, TaskStatus } from '@shared/enums'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
-import { Message } from '../common/Message'
+import { getCurrentTime } from '@shared/time-provider'
+import { getDatabase } from '../../services/database'
+import { WorkBlock } from '@shared/work-blocks-types'
 
+const { Title, Text } = Typography
+const { Row, Col } = Grid
 
-const { Text } = Typography
-
-// Work block type display mapping for consistent UI representation
-const WORK_BLOCK_DISPLAY: Record<string, { label: string; icon: string }> = {
-  [WorkBlockType.Focused]: { label: 'Focus', icon: '🎯' },
-  [WorkBlockType.Admin]: { label: 'Admin', icon: '📋' },
-  [WorkBlockType.Personal]: { label: 'Personal', icon: '👤' },
-  [WorkBlockType.Mixed]: { label: 'Mixed', icon: '🔄' },
-  [WorkBlockType.Flexible]: { label: 'Flexible', icon: '✨' },
+function getBlockDisplay(block: WorkBlock | null) {
+  if (!block) return { icon: '🔍', label: 'No block' }
+  switch (block.type) {
+    case 'focused':
+      return { icon: '🎯', label: 'Focus' }
+    case 'admin':
+      return { icon: '📊', label: 'Admin' }
+    case 'personal':
+      return { icon: '🏠', label: 'Personal' }
+    case 'mixed':
+      return { icon: '🔄', label: 'Mixed' }
+    default:
+      return { icon: '❓', label: 'Unknown' }
+  }
 }
 
-// Helper function to get work block display
-const getWorkBlockDisplay = (blockType: string): string => {
-  const display = WORK_BLOCK_DISPLAY[blockType]
-  if (!display) return `🔄 ${blockType}` // Fallback for unknown types
+function formatBlockTime(block: WorkBlock | null) {
+  if (!block) return 'No current block'
+  const display = getBlockDisplay(block)
   return `${display.icon} ${display.label}`
 }
 
-// Log spam reduced by removing interval-based refresh - now uses event-driven updates only
 export function WorkStatusWidget() {
+  // Subscribe to all relevant store state
   const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
   const workPatternsLoading = useTaskStore(state => state.workPatternsLoading)
+  const workPatterns = useTaskStore(state => state.workPatterns)
   const isLoading = useTaskStore(state => state.isLoading)
-  // Use time provider for consistent time handling
-  const [currentDate] = useState(() => {
-    const now = getCurrentTime()
-    return dayjs(now).format('YYYY-MM-DD')
-  })
+  const tasks = useTaskStore(state => state.tasks)
+  const sequencedTasks = useTaskStore(state => state.sequencedTasks)
+  const getNextScheduledItem = useTaskStore(state => state.getNextScheduledItem)
+
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [nextTask, setNextTask] = useState<any>(null)
+
+  // Local UI state
   const [pattern, setPattern] = useState<any>(null)
   const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
-  const [meetingMinutes, setMeetingMinutes] = useState(0)
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
-  const [nextTask, setNextTask] = useState<NextScheduledItem | null>(null)
-  const [isLoadingNextTask, setIsLoadingNextTask] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
 
-  // Debug: Log when activeWorkSessions changes
+  // Get current date
+  const currentDate = useMemo(() => {
+    const now = getCurrentTime()
+    return dayjs(now).format('YYYY-MM-DD')
+  }, [])
+
+  // Reactively compute next task when dependencies change
   useEffect(() => {
-    logger.ui.debug('[WorkStatusWidget] activeWorkSessions changed', {
-      count: activeWorkSessions.size,
-      sessionIds: Array.from(activeWorkSessions.keys()),
-    })
-  }, [activeWorkSessions])
-
-  const loadNextTask = async () => {
-    try {
-      logger.ui.info('[WorkStatusWidget] 🎯 Loading next task...')
-      setIsLoadingNextTask(true)
-
-      const state = useTaskStore.getState()
-
-      // CRITICAL: Wait for work patterns to load before calling getNextScheduledItem
-      if (state.workPatternsLoading) {
-        logger.ui.warn('[WorkStatusWidget] ⏳ Work patterns still loading, waiting...', {
-          workPatternsLoading: state.workPatternsLoading,
-          workPatternsCount: state.workPatterns.length,
-        })
-
-        // Wait up to 5 seconds for patterns to load
-        const startTime = Date.now()
-        while (state.workPatternsLoading && Date.now() - startTime < 5000) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          // Re-check state
-          const currentState = useTaskStore.getState()
-          if (!currentState.workPatternsLoading) {
-            logger.ui.info('[WorkStatusWidget] ✅ Work patterns loaded, continuing...')
-            break
-          }
-        }
-
-        if (useTaskStore.getState().workPatternsLoading) {
-          logger.ui.error('[WorkStatusWidget] ❌ Timeout waiting for work patterns to load')
-          setNextTask(null)
-          return
-        }
-      }
-
-      logger.ui.info('[WorkStatusWidget] 📊 Calling getNextScheduledItem with loaded patterns', {
-        workPatternsCount: useTaskStore.getState().workPatterns.length,
-        tasksCount: useTaskStore.getState().tasks.length,
-        workflowsCount: useTaskStore.getState().sequencedTasks.length,
+    if (activeWorkSessions.size === 0 && !workPatternsLoading && !isLoading) {
+      // Get next task when no active session
+      getNextScheduledItem().then(item => {
+        setNextTask(item)
+      }).catch(err => {
+        logger.ui.error('Failed to get next task', { error: err })
+        setNextTask(null)
       })
-
-      const nextItem = await state.getNextScheduledItem()
-
-      logger.ui.info('[WorkStatusWidget] ✅ Next scheduled item result:', {
-        nextItem: nextItem ? {
-          type: nextItem.type,
-          id: nextItem.id,
-          title: nextItem.title,
-          estimatedDuration: nextItem.estimatedDuration,
-          scheduledStartTime: nextItem.scheduledStartTime,
-        } : null,
-      })
-
-      logger.ui.info('🚨 [WorkStatusWidget] ABOUT TO CALL setNextTask - THIS IS WHAT WILL DISPLAY:', {
-        nextItem: nextItem ? {
-          type: nextItem.type,
-          id: nextItem.id,
-          title: nextItem.title,
-        } : null,
-      })
-
-      setNextTask(nextItem)
-    } catch (error) {
-      logger.ui.error('Failed to load next task', {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      }, 'load-next-task-error')
-    } finally {
-      setIsLoadingNextTask(false)
-    }
-  }
-
-  const loadWorkData = async () => {
-    try {
-      logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - START', {
-        currentDate,
-        timestamp: new Date().toISOString(),
-      })
-
-      const db = getDatabase()
-      const [patternData, accumulatedData] = await Promise.all([
-        db.getWorkPattern(currentDate),
-        db.getTodayAccumulated(currentDate),
-      ])
-
-      logger.ui.debug('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - Pattern loaded', {
-        currentDate,
-        patternFound: !!patternData,
-        patternId: patternData?.id || null,
-        blocksCount: patternData?.blocks?.length || 0,
-        timestamp: new Date().toISOString(),
-      })
-
-      // DO NOT CALL loadNextTask() HERE - it will run before store.workPatterns are loaded
-      // loadNextTask will be called by the separate useEffect watching workPatternsLoading
-
-      setPattern(patternData)
-      setAccumulated({
-        focused: accumulatedData.focused || 0,
-        admin: accumulatedData.admin || 0,
-        personal: accumulatedData.personal || 0,
-      })
-
-      // Use time provider for consistent time handling
-      const currentTime = getCurrentTime()
-      const currentBlockData = patternData ? getCurrentBlock(patternData.blocks, currentTime) : null
-      const nextBlockData = patternData ? getNextBlock(patternData.blocks, currentTime) : null
-
-      setCurrentBlock(currentBlockData)
-      setNextBlock(nextBlockData)
-
-      let totalMeetingMinutes = 0
-      if (patternData && patternData.meetings) {
-        patternData.meetings.forEach((meeting: any) => {
-          // TODO: Create MeetingType enum when more meeting types are added
-          if (meeting.type === 'meeting') {
-            // Use time utilities for parsing time strings
-            const [startHour, startMin] = parseTimeString(meeting.startTime)
-            const [endHour, endMin] = parseTimeString(meeting.endTime)
-            const startMinutes = startHour * 60 + startMin
-            const endMinutes = endHour * 60 + endMin
-            const duration = endMinutes - startMinutes
-            totalMeetingMinutes += duration > 0 ? duration : 0
-          }
-        })
-      }
-      setMeetingMinutes(totalMeetingMinutes)
-
-      logger.ui.info('[WorkPatternLifeCycle] WorkStatusWidget.loadWorkData - COMPLETE', {
-        currentDate,
-        patternLoaded: !!patternData,
-        currentBlockFound: !!currentBlockData,
-        nextBlockFound: !!nextBlockData,
-        accumulated: accumulatedData,
-        meetingMinutes: totalMeetingMinutes,
-        timestamp: new Date().toISOString(),
-      })
-    } catch (error) {
-      logger.ui.error('Failed to load work data', {
-        error: error instanceof Error ? error.message : String(error),
-        currentDate,
-      })
-    }
-  }
-
-  // Reactively manage next task based on active sessions
-  useEffect(() => {
-    // Only load next task when:
-    // 1. Data is ready (patterns and tasks loaded)
-    // 2. There's NO active work session
-    if (!workPatternsLoading && !isLoading && activeWorkSessions.size === 0) {
-      logger.ui.info('[WorkStatusWidget] No active session, loading next task', {
-        workPatternsLoading,
-        isLoading,
-        activeSessionCount: activeWorkSessions.size,
-      })
-      loadNextTask()
     } else if (activeWorkSessions.size > 0) {
       // Clear next task when session is active
-      logger.ui.info('[WorkStatusWidget] Active session detected, clearing next task', {
-        activeSessionCount: activeWorkSessions.size,
-      })
       setNextTask(null)
     }
-  }, [workPatternsLoading, isLoading, activeWorkSessions.size])
+  }, [
+    activeWorkSessions.size,
+    tasks.length, // React to task changes
+    sequencedTasks.length, // React to workflow changes
+    // React to step status changes
+    sequencedTasks.map(t => t.steps.map(s => s.status).join(',')).join(';'),
+    workPatternsLoading,
+    isLoading,
+  ])
 
+  // Load work pattern data once on mount
   useEffect(() => {
+    const loadWorkData = async () => {
+      try {
+        const pattern = workPatterns.find(p => p.date === currentDate)
+        if (pattern) {
+          setPattern(pattern)
+
+          // Get current blocks
+          const now = getCurrentTime()
+          const currentTimeStr = now.toTimeString().slice(0, 5)
+
+          const current = pattern.blocks.find(block =>
+            block.startTime <= currentTimeStr && block.endTime > currentTimeStr,
+          )
+          setCurrentBlock(current || null)
+
+          const next = pattern.blocks.find(block =>
+            block.startTime > currentTimeStr,
+          )
+          setNextBlock(next || null)
+        }
+
+        // Calculate accumulated time
+        const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
+        const accumulated = {
+          focused: accumulatedData.focused || 0,
+          admin: accumulatedData.admin || 0,
+          personal: accumulatedData.personal || 0,
+        }
+        setAccumulated(accumulated)
+      } catch (error) {
+        logger.ui.error('Failed to load work data', { error })
+      }
+    }
+
     loadWorkData()
-    // Removed interval-based refresh to reduce log spam
-    // State changes are handled through event listeners
+  }, [currentDate, workPatterns])
 
-    // Only update what's necessary for each event type
-    const handleTimeLogged = () => {
-      loadWorkData()  // Only reload work data for progress updates
-    }
-    const handleWorkflowUpdated = () => {
-      // Don't reload anything - the store state update will trigger re-render automatically
-      // This prevents unnecessary data fetching
-    }
-    const handleSessionChanged = () => {
-      // Don't reload anything - activeWorkSessions is subscribed via Zustand
-      // The component will re-render automatically when sessions change
-    }
-    const handleDataRefresh = () => {
-      loadWorkData()
-      loadNextTask()  // Full refresh only when explicitly requested
-    }
-
-    appEvents.on(EVENTS.TIME_LOGGED, handleTimeLogged)
-    appEvents.on(EVENTS.TASK_UPDATED, handleWorkflowUpdated)  // Listen for task updates too
-    appEvents.on(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
-    appEvents.on(EVENTS.SESSION_CHANGED, handleSessionChanged)
-    appEvents.on(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-
-    return () => {
-      appEvents.off(EVENTS.TIME_LOGGED, handleTimeLogged)
-      appEvents.off(EVENTS.TASK_UPDATED, handleWorkflowUpdated)
-      appEvents.off(EVENTS.WORKFLOW_UPDATED, handleWorkflowUpdated)
-      appEvents.off(EVENTS.SESSION_CHANGED, handleSessionChanged)
-      appEvents.off(EVENTS.DATA_REFRESH_NEEDED, handleDataRefresh)
-    }
-  }, [currentDate])
-
-  // formatMinutes is imported from @shared/time-utils
-
-
-  // Tracking functions removed - functionality handled through time logging modal
-
-  // Helper function to get the active work session
+  // Get active session helper
   const getActiveSession = () => {
-    // Get the first active session from the Map
     const sessions = Array.from(activeWorkSessions.values())
     return sessions.length > 0 ? sessions[0] : null
   }
 
-  // Handler functions for task actions
-  // Skip to the next task in the priority queue
-  const handleSkipToNextTask = async () => {
-    logger.ui.info('[WorkStatusWidget] Skip to next task requested - incrementing skip index')
-    // Increment the skip index to show the next task in priority order
-    useTaskStore.getState().incrementNextTaskSkipIndex()
-    // Reload the next task with the new skip index
-    await loadNextTask()
-  }
-
-  const handlePauseCurrentTask = async () => {
-    let activeSession: any = null
+  // Handler functions
+  const handleCompleteCurrentTask = async () => {
     try {
-      activeSession = getActiveSession()
-      if (!activeSession) {
-        logger.ui.warn('[WorkStatusWidget] No active session to pause')
-        return
-      }
-
       setIsProcessing(true)
+
+      const activeSession = getActiveSession()
+      if (!activeSession) return
 
       const store = useTaskStore.getState()
 
-      // Unified stop logic - both tasks and steps use store methods
       if (activeSession.stepId) {
-        await store.pauseWorkOnStep(activeSession.stepId)
-        Message.success('Work session paused')
+        await store.completeStep(activeSession.stepId)
+        Message.success(`Completed workflow step: ${activeSession.stepName || 'Step'}`)
       } else if (activeSession.taskId) {
-        await store.pauseWorkOnTask(activeSession.taskId)
-        Message.success('Work session stopped')
-      }
+        // Pause work first to log time
+        const progress = store.getWorkSessionProgress(activeSession.taskId)
+        if (progress.isActive && !progress.isPaused) {
+          await store.pauseWorkOnTask(activeSession.taskId)
+        }
 
-      // Reload next task after stopping current one
-      await loadNextTask()
+        // Mark task as completed
+        await store.updateTask(activeSession.taskId, {
+          completed: true,
+          overallStatus: TaskStatus.Completed,
+        })
+
+        Message.success(`Completed task: ${activeSession.taskName || 'Task'}`)
+      }
     } catch (error) {
-      logger.ui.error('Failed to pause current task', {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        activeSession,
-      }, 'pause-task-error')
-      Message.error('Failed to pause work session')
+      logger.ui.error('Failed to complete task', { error })
+      Message.error('Failed to complete task')
     } finally {
       setIsProcessing(false)
     }
   }
 
-  const handleCompleteCurrentTask = async () => {
-    logger.ui.info('[WorkStatusWidget] Complete button clicked - starting completion flow')
-
-    let activeSession: any = null
+  const handlePauseCurrentTask = async () => {
     try {
-      activeSession = getActiveSession()
-      logger.ui.info('[WorkStatusWidget] Active session check', {
-        hasActiveSession: !!activeSession,
-        sessionDetails: activeSession ? {
-          stepId: activeSession.stepId,
-          taskId: activeSession.taskId,
-          stepName: activeSession.stepName,
-          taskName: activeSession.taskName,
-        } : null,
-      })
-
-      if (!activeSession) {
-        logger.ui.warn('[WorkStatusWidget] No active session to complete')
-        return
-      }
-
       setIsProcessing(true)
+
+      const activeSession = getActiveSession()
+      if (!activeSession) return
 
       const store = useTaskStore.getState()
 
-      // Complete logic - both tasks and steps
       if (activeSession.stepId) {
-        logger.ui.info('[WorkStatusWidget] Completing workflow step', {
-          stepId: activeSession.stepId,
-          stepName: activeSession.stepName,
-        })
-
-        // For workflow steps:
-        // 1. First ensure the parent workflow is marked as started
-        const workflow = store.sequencedTasks.find(st =>
-          st.steps.some(step => step.id === activeSession.stepId),
-        )
-
-        logger.ui.info('[WorkStatusWidget] Found parent workflow', {
-          workflowFound: !!workflow,
-          workflowId: workflow?.id,
-          workflowStatus: workflow?.overallStatus,
-        })
-
-        if (workflow && workflow.overallStatus === TaskStatus.NotStarted) {
-          logger.ui.info('[WorkStatusWidget] Updating workflow status to InProgress')
-          await store.updateSequencedTask(workflow.id, {
-            overallStatus: TaskStatus.InProgress,
-          })
-        }
-
-        // 2. Complete the step (this will stop the work session and log accumulated time)
-        logger.ui.info('[WorkStatusWidget] Calling store.completeStep', { stepId: activeSession.stepId })
-        await store.completeStep(activeSession.stepId)
-        logger.ui.info('[WorkStatusWidget] store.completeStep returned successfully')
-
-        Message.success(`Completed workflow step: ${activeSession.stepName || 'Step'}`)
+        await store.pauseWorkOnStep(activeSession.stepId)
       } else if (activeSession.taskId) {
-        logger.ui.info('[WorkStatusWidget] Completing standalone task', {
-          taskId: activeSession.taskId,
-          taskName: activeSession.taskName,
-        })
-
-        // For standalone tasks:
-        // 1. First pause the work to ensure time is logged
-        const progress = store.getWorkSessionProgress(activeSession.taskId)
-        logger.ui.info('[WorkStatusWidget] Work session progress', {
-          isActive: progress.isActive,
-          isPaused: progress.isPaused,
-          elapsedMinutes: progress.elapsedMinutes,
-        })
-
-        if (progress.isActive && !progress.isPaused) {
-          logger.ui.info('[WorkStatusWidget] Pausing task before completion')
-          await store.pauseWorkOnTask(activeSession.taskId)
-        }
-
-        // 2. Mark the task as completed
-        logger.ui.info('[WorkStatusWidget] Marking task as completed')
-        await store.updateTask(activeSession.taskId, {
-          completed: true,
-          overallStatus: TaskStatus.Completed,
-        })
-        logger.ui.info('[WorkStatusWidget] Task marked as completed successfully')
-
-        Message.success(`Completed task: ${activeSession.taskName || 'Task'}`)
+        await store.pauseWorkOnTask(activeSession.taskId)
       }
 
-      // The completeStep method in the store already updates state
-      // The component will reload next task automatically when it detects no active session
-      logger.ui.info('[WorkStatusWidget] Task completed successfully')
+      Message.success('Work session paused')
     } catch (error) {
-      logger.ui.error('Failed to complete current task', {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        activeSession,
-        taskType: activeSession?.stepId ? 'workflow-step' : 'standalone-task',
-      }, 'complete-task-error')
-      Message.error('Failed to complete task')
+      logger.ui.error('Failed to pause task', { error })
+      Message.error('Failed to pause work session')
     } finally {
       setIsProcessing(false)
     }
@@ -427,153 +193,70 @@ export function WorkStatusWidget() {
     try {
       setIsProcessing(true)
 
-      // Store the task name before starting (for success message)
       const taskToStart = nextTask
-
       await useTaskStore.getState().startNextTask()
 
-      // Show success notification with task name
       if (taskToStart) {
         Message.success(`Started work on: ${taskToStart.title}`)
       }
-
-      // The useEffect will reactively clear nextTask when activeWorkSessions updates
-      // The component will re-render automatically via Zustand subscriptions
     } catch (error) {
-      logger.ui.error('Failed to start next task', {
-        error: error instanceof Error ? error.message : String(error),
-      })
+      logger.ui.error('Failed to start task', { error })
       Message.error('Failed to start work session')
     } finally {
       setIsProcessing(false)
     }
   }
 
-  if (!pattern) {
+  const handleSkipToNextTask = async () => {
+    useTaskStore.getState().incrementNextTaskSkipIndex()
+    // Next task will be recomputed automatically via useEffect
+  }
+
+  // Render loading state
+  if (workPatternsLoading || isLoading) {
     return (
       <Card>
-        <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }} size="large">
-          <Text type="secondary">No work schedule defined for today</Text>
-
-          {/* Start Next Task section - works even without schedule */}
-          <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
-                <Button
-                  type="text"
-                  icon={<IconSkipNext />}
-                  loading={isLoadingNextTask}
-                  onClick={handleSkipToNextTask}
-                  size="small"
-                  title="Skip to next task"
-                />
-              </Space>
-
-              {(() => {
-                const activeSession = getActiveSession()
-                const hasActiveSession = activeSession && activeWorkSessions.size > 0
-
-                if (isLoadingNextTask) {
-                  return <Text type="secondary">Loading...</Text>
-                } else if (hasActiveSession) {
-                  // Show active session details
-                  return (
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Text>Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}</Text>
-                      <Space>
-                        <Tag color="blue">{formatMinutes(activeSession.plannedMinutes)}</Tag>
-                        <Tag color={activeSession.stepId ? 'purple' : 'green'}>
-                          {activeSession.stepId ? '🔄 Workflow Step' : '📋 Task'}
-                        </Tag>
-                      </Space>
-                    </Space>
-                  )
-                } else if (nextTask) {
-                  return (
-                    <Space direction="vertical" style={{ width: '100%' }}>
-                      <Text>Next: {nextTask.title}</Text>
-                      <Space>
-                        <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
-                        <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
-                          {nextTask.type === 'step' ? '🔄 Workflow Step' : '📋 Task'}
-                        </Tag>
-                      </Space>
-                    </Space>
-                  )
-                } else {
-                  return <Text type="secondary">No tasks available</Text>
-                }
-              })()}
-
-              {(() => {
-                const activeSession = getActiveSession()
-                const isActive = activeSession && activeWorkSessions.size > 0
-
-                // Render buttons based on active session state
-                if (isActive) {
-                  // Show both Pause and Complete buttons when task is running
-                  return (
-                    <Space style={{ width: '100%' }}>
-                      <Button
-                        type="outline"
-                        status="warning"
-                        icon={<IconPause />}
-                        loading={isProcessing}
-                        disabled={isLoadingNextTask}
-                        onClick={handlePauseCurrentTask}
-                        style={{ flex: 1 }}
-                      >
-                        Pause
-                      </Button>
-                      <Button
-                        type="primary"
-                        status="success"
-                        icon={<IconCheck />}
-                        loading={isProcessing}
-                        disabled={isLoadingNextTask}
-                        onClick={handleCompleteCurrentTask}
-                        style={{ flex: 1 }}
-                      >
-                        Complete
-                      </Button>
-                    </Space>
-                  )
-                } else {
-                  // Show Start button when no task is running
-                  return (
-                    <Button
-                      type="primary"
-                      icon={<IconPlayArrow />}
-                      loading={isProcessing}
-                      disabled={!nextTask || isLoadingNextTask}
-                      onClick={handleStartNextTask}
-                      style={{ width: '100%' }}
-                    >
-                      Start Next Task
-                    </Button>
-                  )
-                }
-              })()}
-            </Space>
-          </div>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Title heading={6}>Work Status</Title>
+          <Text type="secondary">Loading...</Text>
         </Space>
       </Card>
     )
   }
 
+  // Render no pattern state
+  if (!pattern) {
+    return (
+      <Card>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Title heading={6}>Work Status</Title>
+          <Text type="secondary">No work pattern configured for today</Text>
+        </Space>
+      </Card>
+    )
+  }
+
+  const activeSession = getActiveSession()
+  const hasActiveSession = !!(activeSession && activeWorkSessions.size > 0)
+
+  // Calculate total capacity for the day
+  const getTotalCapacityForTaskType = (capacity: any, taskType: TaskType) => {
+    if (taskType === TaskType.Focused) {
+      return capacity.focus || 0
+    } else if (taskType === TaskType.Admin) {
+      return capacity.admin || 0
+    }
+    return 0
+  }
+
   const totalCapacity = pattern.blocks.reduce((acc: any, block: WorkBlock) => {
-    // Skip blocks without capacity field - they shouldn't exist but be safe
     if (!block.capacity) return acc
 
     acc.focusMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Focused)
     acc.adminMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Admin)
-    acc.personalMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Personal)
-    acc.flexibleMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Flexible)
     return acc
-  }, { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0, flexibleMinutes: 0 })
+  }, { focusMinutes: 0, adminMinutes: 0 })
 
-  // Calculate progress with ability to exceed 100% using flexible time
   const focusProgress = totalCapacity.focusMinutes > 0
     ? Math.round((accumulated.focused / totalCapacity.focusMinutes) * 100)
     : 0
@@ -581,304 +264,121 @@ export function WorkStatusWidget() {
     ? Math.round((accumulated.admin / totalCapacity.adminMinutes) * 100)
     : 0
 
-  // Calculate how much flexible time has been used
-  const focusOverflow = Math.max(0, accumulated.focused - totalCapacity.focusMinutes)
-  const adminOverflow = Math.max(0, accumulated.admin - totalCapacity.adminMinutes)
-  const flexibleUsed = focusOverflow + adminOverflow
-  const flexibleRemaining = Math.max(0, totalCapacity.flexibleMinutes - flexibleUsed)
-
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
-        {/* Start Next Task */}
-        <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ fontWeight: 600, color: '#1890ff' }}>🚀 Start Next Task</Text>
-              <Button
-                type="text"
-                icon={<IconSkipNext />}
-                loading={isLoadingNextTask}
-                onClick={handleSkipToNextTask}
-                size="small"
-                title="Skip to next task"
-              />
-            </Space>
-
-            {(() => {
-              const activeSession = getActiveSession()
-              const hasActiveSession = activeSession && activeWorkSessions.size > 0
-
-              if (isLoadingNextTask) {
-                return <Text type="secondary">Loading...</Text>
-              } else if (hasActiveSession) {
-                // Show active session details
-                return (
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Text>Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}</Text>
-                    <Space>
-                      <Tag color="blue">{formatMinutes(activeSession.plannedMinutes)}</Tag>
-                      <Tag color={activeSession.stepId ? 'purple' : 'green'}>
-                        {activeSession.stepId ? '🔄 Workflow Step' : '📋 Task'}
-                      </Tag>
-                    </Space>
-                  </Space>
-                )
-              } else if (nextTask) {
-                return (
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Text>Next: {nextTask.title}</Text>
-                    <Space>
-                      <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
-                      <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
-                        {nextTask.type === 'step' ? '🔄 Workflow Step' : '📋 Task'}
-                      </Tag>
-                    </Space>
-                  </Space>
-                )
-              } else {
-                return <Text type="secondary">No tasks available</Text>
-              }
-            })()}
-
-            {(() => {
-              const activeSession = getActiveSession()
-              const isActive = activeSession && activeWorkSessions.size > 0
-
-              // Render buttons based on active session state
-              if (isActive) {
-                // Show both Pause and Complete buttons when task is running
-                return (
-                  <Space style={{ width: '100%' }}>
-                    <Button
-                      type="outline"
-                      status="warning"
-                      icon={<IconPause />}
-                      loading={isProcessing}
-                      disabled={isLoadingNextTask}
-                      onClick={handlePauseCurrentTask}
-                      style={{ flex: 1 }}
-                    >
-                      Pause
-                    </Button>
-                    <Button
-                      type="primary"
-                      status="success"
-                      icon={<IconCheck />}
-                      loading={isProcessing}
-                      disabled={isLoadingNextTask}
-                      onClick={handleCompleteCurrentTask}
-                      style={{ flex: 1 }}
-                    >
-                      Complete
-                    </Button>
-                  </Space>
-                )
-              } else {
-                // Show Start button when no task is running
-                return (
-                  <Button
-                    type="primary"
-                    icon={<IconPlayArrow />}
-                    loading={isProcessing}
-                    disabled={!nextTask || isLoadingNextTask}
-                    onClick={handleStartNextTask}
-                    style={{ width: '100%' }}
-                  >
-                    Start Next Task
-                  </Button>
-                )
-              }
-            })()}
-          </Space>
-        </div>
-
-        {/* Planned Capacity */}
-        <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{"Today's Planned Capacity"}</Text>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>🎯 Focus Time:</Text>
-              <Tag color="blue">{formatMinutes(totalCapacity.focusMinutes)}</Tag>
-            </Space>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>📋 Admin Time:</Text>
-              <Tag color="orange">{formatMinutes(totalCapacity.adminMinutes)}</Tag>
-            </Space>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>🌱 Personal Time:</Text>
-              <Tag color="green">{formatMinutes(totalCapacity.personalMinutes)}</Tag>
-            </Space>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>🔄 Flexible Time:</Text>
-              <Tag color="gold">{formatMinutes(totalCapacity.flexibleMinutes)}</Tag>
-            </Space>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>🤝 Meeting Time:</Text>
-              <Tag color="purple">{formatMinutes(meetingMinutes)}</Tag>
-            </Space>
-            <div style={{ borderTop: '1px solid #e5e5e5', marginTop: 8, paddingTop: 8 }}>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 100 }}>📊 Total Time:</Text>
-                <Text style={{ fontSize: '14px', fontWeight: 500 }}>{formatMinutes(totalCapacity.focusMinutes + totalCapacity.adminMinutes + totalCapacity.personalMinutes + totalCapacity.flexibleMinutes + meetingMinutes)}</Text>
-              </Space>
-            </div>
-          </Space>
-        </div>
-
-        {/* Current/Next Block */}
-        <div>
-          {currentBlock ? (
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary" style={{ whiteSpace: 'nowrap', minWidth: 150 }}>Currently in Work Block</Text>
-              <Space>
-                <Tag color="green" icon={<IconCaretRight />}>
-                  {currentBlock.startTime} - {currentBlock.endTime}
-                </Tag>
-                <Tag>
-                  {currentBlock.type === 'focused' ? '🎯 Focused' :
-                    currentBlock.type === 'admin' ? '📋 Admin' :
-                      currentBlock.type === 'personal' ? '👤 Personal' : '🔄 Mixed'}
-                </Tag>
-              </Space>
-            </Space>
-          ) : (
-            <Space direction="vertical" style={{ width: '100%' }}>
-              {nextBlock ? (
-                <>
-                  <Text type="secondary" style={{ whiteSpace: 'nowrap', minWidth: 120 }}>Next Work Block</Text>
-                  <Space>
-                    <Tag color="cyan">
-                      {nextBlock.startTime} - {nextBlock.endTime}
-                    </Tag>
-                    <Tag>
-                      {getWorkBlockDisplay(nextBlock.type)}
-                    </Tag>
-                  </Space>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
-                    {(() => {
-                      if (!nextBlock.capacity) return 'No capacity data'
-                      const parts: string[] = []
-                      const focusMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Focused)
-                      const adminMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Admin)
-                      const personalMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Personal)
-                      const flexibleMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Flexible)
-
-                      if (focusMinutes > 0) parts.push(`${formatMinutes(focusMinutes)} focus`)
-                      if (adminMinutes > 0) parts.push(`${formatMinutes(adminMinutes)} admin`)
-                      if (personalMinutes > 0) parts.push(`${formatMinutes(personalMinutes)} personal`)
-                      if (flexibleMinutes > 0) parts.push(`${formatMinutes(flexibleMinutes)} flexible`)
-                      return `Capacity: ${parts.join(', ')}`
-                    })()}
-                  </Text>
-                </>
-              ) : (
-                <Text type="secondary">No more work blocks today</Text>
-              )}
-            </Space>
-          )}
-        </div>
-
-        {/* Progress */}
-        <div>
-          <Text type="secondary" style={{ marginBottom: '8px', display: 'block', whiteSpace: 'nowrap' }}>Completed Today</Text>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <div>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ whiteSpace: 'nowrap' }}>Focus</Text>
-                <Space>
-                  <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(accumulated.focused)} / {formatMinutes(totalCapacity.focusMinutes)}</Text>
-                  <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{focusProgress}%</Text>
-                </Space>
-              </Space>
-              <Progress
-                percent={Math.min(focusProgress, 100)}
-                color={focusProgress >= 100 ? '#00b42a' : '#165dff'}
-              />
-              {focusOverflow > 0 && totalCapacity.flexibleMinutes > 0 && (
-                <Progress
-                  percent={Math.round(Math.min((focusOverflow / totalCapacity.flexibleMinutes) * 100, 100))}
-                  color='#FFA500'
-                  size='small'
-                  style={{ marginTop: 2 }}
-                />
-              )}
-            </div>
-            <div>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ whiteSpace: 'nowrap' }}>Admin</Text>
-                <Space>
-                  <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(accumulated.admin)} / {formatMinutes(totalCapacity.adminMinutes)}</Text>
-                  <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{adminProgress}%</Text>
-                </Space>
-              </Space>
-              <Progress
-                percent={Math.min(adminProgress, 100)}
-                color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'}
-              />
-              {adminOverflow > 0 && totalCapacity.flexibleMinutes > 0 && (
-                <Progress
-                  percent={Math.round(Math.min((adminOverflow / totalCapacity.flexibleMinutes) * 100, 100))}
-                  color='#FFA500'
-                  size='small'
-                  style={{ marginTop: 2 }}
-                />
-              )}
-            </div>
-            <div>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ whiteSpace: 'nowrap' }}>Personal</Text>
-                <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(accumulated.personal)}</Text>
-              </Space>
-              <Progress
-                percent={accumulated.personal > 0 ? 100 : 0}
-                color='#722ed1'
-              />
-            </div>
-            {totalCapacity.flexibleMinutes > 0 && (
-              <div>
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Text style={{ whiteSpace: 'nowrap' }}>Flexible Time Used</Text>
-                  <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(flexibleUsed)} / {formatMinutes(totalCapacity.flexibleMinutes)}</Text>
-                </Space>
-                <Progress
-                  percent={Math.round((flexibleUsed / totalCapacity.flexibleMinutes) * 100)}
-                  color='#FFA500'
-                />
-              </div>
-            )}
-            <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1D2129' }}>Total Logged</Text>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1D2129' }}>
-                  {formatMinutes(accumulated.focused + accumulated.admin + accumulated.personal)}
-                  {meetingMinutes > 0 && ` (+ ${formatMinutes(meetingMinutes)} meetings)`}
-                </Text>
-              </Space>
-            </div>
-          </Space>
-        </div>
-
-        {/* Quick Stats */}
-        <Space style={{ width: '100%', justifyContent: 'space-around' }}>
-          <Statistic
-            title="Remaining Focus"
-            value={Math.max(0, totalCapacity.focusMinutes - accumulated.focused)}
-            suffix="min"
-          />
-          <Statistic
-            title="Remaining Admin"
-            value={Math.max(0, totalCapacity.adminMinutes - accumulated.admin)}
-            suffix="min"
-          />
-          {totalCapacity.flexibleMinutes > 0 && (
-            <Statistic
-              title="Flexible Available"
-              value={flexibleRemaining}
-              suffix="min"
+      {/* Start Next Task Card */}
+      <Card>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Title heading={6} style={{ margin: 0 }}>
+              {hasActiveSession ? 'Current Task' : 'Start Next Task'}
+            </Title>
+            <Button
+              type="text"
+              icon={<IconSkipNext />}
+              onClick={handleSkipToNextTask}
+              size="small"
+              title="Skip to next task"
+              disabled={hasActiveSession}
             />
-          )}
-        </Space>
+          </div>
 
+          <div style={{ minHeight: 60, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            {hasActiveSession ? (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text>Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}</Text>
+                <Space>
+                  <Tag color="blue">{formatMinutes(activeSession.plannedMinutes)}</Tag>
+                  <Tag color={activeSession.stepId ? 'purple' : 'green'}>
+                    {activeSession.stepId ? '🔄 Workflow Step' : '📋 Task'}
+                  </Tag>
+                </Space>
+              </Space>
+            ) : nextTask ? (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text>Next: {nextTask.title}</Text>
+                <Space>
+                  <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
+                  <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
+                    {nextTask.type === 'step' ? '🔄 Workflow Step' : '📋 Task'}
+                  </Tag>
+                </Space>
+              </Space>
+            ) : (
+              <Text type="secondary">No tasks available</Text>
+            )}
+
+            {hasActiveSession ? (
+              <Space style={{ width: '100%', marginTop: 16 }}>
+                <Button
+                  type="outline"
+                  status="warning"
+                  icon={<IconPause />}
+                  loading={isProcessing}
+                  onClick={handlePauseCurrentTask}
+                  style={{ flex: 1 }}
+                >
+                  Pause
+                </Button>
+                <Button
+                  type="primary"
+                  status="success"
+                  icon={<IconCheck />}
+                  loading={isProcessing}
+                  onClick={handleCompleteCurrentTask}
+                  style={{ flex: 1 }}
+                >
+                  Complete
+                </Button>
+              </Space>
+            ) : (
+              <Button
+                type="primary"
+                icon={<IconPlayArrow />}
+                loading={isProcessing}
+                disabled={!nextTask}
+                onClick={handleStartNextTask}
+                style={{ width: '100%', marginTop: 16 }}
+              >
+                Start Next Task
+              </Button>
+            )}
+          </div>
+        </Space>
+      </Card>
+
+      {/* Work Progress Card */}
+      <Card>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Title heading={6}>Today's Progress</Title>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Statistic
+                title="Focus Work"
+                value={accumulated.focused}
+                suffix={`/ ${totalCapacity.focusMinutes} min`}
+              />
+              <Progress percent={focusProgress} showText={false} />
+            </Col>
+            <Col span={12}>
+              <Statistic
+                title="Admin Work"
+                value={accumulated.admin}
+                suffix={`/ ${totalCapacity.adminMinutes} min`}
+              />
+              <Progress percent={adminProgress} showText={false} />
+            </Col>
+          </Row>
+
+          <Space style={{ marginTop: 16 }}>
+            <Tag color="blue">Current: {formatBlockTime(currentBlock)}</Tag>
+            {nextBlock && (
+              <Tag color="gray">Next: {nextBlock.startTime} - {getBlockDisplay(nextBlock).label}</Tag>
+            )}
+          </Space>
+        </Space>
+      </Card>
     </Space>
   )
 }
