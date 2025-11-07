@@ -63,6 +63,7 @@ export function WorkStatusWidget() {
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [nextTask, setNextTask] = useState<any>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   // Local UI state
   const [pattern, setPattern] = useState<any>(null)
@@ -77,27 +78,29 @@ export function WorkStatusWidget() {
     return dayjs(now).format('YYYY-MM-DD')
   }, [])
 
-  // Consolidated data loading effect with proper sequencing
+  // Effect 1: Initialize work patterns on mount
   useEffect(() => {
-    let mounted = true
+    logger.ui.info('WorkStatusWidget: Initializing patterns')
+    loadWorkPatterns()
+    // Mark as initialized once patterns are loaded
+    if (!workPatternsLoading && workPatterns && workPatterns.length > 0) {
+      setIsInitialized(true)
+      logger.ui.info('WorkStatusWidget: Patterns initialized', { count: workPatterns.length })
+    }
+  }, [loadWorkPatterns, workPatternsLoading, workPatterns])
 
-    const loadAllData = async () => {
-      // Step 1: Ensure work patterns are loaded
-      if (workPatternsLoading) {
-        return // Wait for patterns to finish loading
-      }
+  // Effect 2: Load work data when patterns are ready
+  useEffect(() => {
+    if (!isInitialized || workPatternsLoading) {
+      logger.ui.debug('WorkStatusWidget: Waiting for initialization', { isInitialized, workPatternsLoading })
+      return
+    }
 
-      // If patterns aren't loaded yet, trigger load
-      if (!workPatterns || workPatterns.length === 0) {
-        loadWorkPatterns()
-        return // Will re-run when patterns load
-      }
+    const loadWorkData = async () => {
+      logger.ui.debug('WorkStatusWidget: Loading work data')
 
-      // Step 2: Process pattern data and accumulated times
       try {
-        const pattern = workPatterns.find(p => p.date === currentDate)
-
-        if (!mounted) return
+        const pattern = workPatterns?.find(p => p.date === currentDate)
 
         if (pattern) {
           setPattern(pattern)
@@ -124,16 +127,20 @@ export function WorkStatusWidget() {
 
           // Load accumulated time
           const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
-
-          if (!mounted) return
-
           setAccumulated({
             focused: accumulatedData.focused || 0,
             admin: accumulatedData.admin || 0,
             personal: accumulatedData.personal || 0,
           })
+
+          logger.ui.debug('WorkStatusWidget: Work data loaded', {
+            pattern: pattern.date,
+            currentBlock: current?.type,
+            accumulated,
+          })
         } else {
           // No pattern for today, clear everything
+          logger.ui.debug('WorkStatusWidget: No pattern for today')
           setPattern(null)
           setCurrentBlock(null)
           setNextBlock(null)
@@ -141,45 +148,55 @@ export function WorkStatusWidget() {
           setAccumulated({ focused: 0, admin: 0, personal: 0 })
         }
       } catch (error) {
-        logger.ui.error('Failed to load work data', { error })
+        logger.ui.error('WorkStatusWidget: Failed to load work data', { error })
       }
+    }
 
-      // Step 3: Load next task (only if no active session)
-      if (!mounted) return
+    loadWorkData()
+  }, [currentDate, workPatterns, workPatternsLoading, isInitialized])
 
-      if (activeWorkSessions.size === 0 && !isLoading) {
-        try {
-          const item = await getNextScheduledItem()
-          if (mounted) {
-            setNextTask(item)
-          }
-        } catch (err) {
-          logger.ui.error('Failed to get next task', { error: err })
-          if (mounted) {
-            setNextTask(null)
-          }
+  // Effect 3: Manage next task state
+  useEffect(() => {
+    if (!isInitialized) {
+      logger.ui.debug('WorkStatusWidget: Not loading next task - not initialized')
+      return
+    }
+
+    const loadNextTask = async () => {
+      // Only load next task if no active session
+      if (activeWorkSessions.size === 0) {
+        if (isLoading) {
+          logger.ui.debug('WorkStatusWidget: Not loading next task - store is loading')
+          return
         }
-      } else if (activeWorkSessions.size > 0) {
+
+        try {
+          logger.ui.debug('WorkStatusWidget: Loading next task')
+          const item = await getNextScheduledItem()
+          setNextTask(item)
+          logger.ui.info('WorkStatusWidget: Next task loaded', {
+            task: item?.title || 'none',
+            type: item?.type || 'none',
+            id: item?.id || 'none',
+          })
+        } catch (err) {
+          logger.ui.error('WorkStatusWidget: Failed to get next task', { error: err })
+          setNextTask(null)
+        }
+      } else {
+        logger.ui.debug('WorkStatusWidget: Active session exists, clearing next task')
         setNextTask(null)
       }
     }
 
-    loadAllData()
-
-    return () => {
-      mounted = false
-    }
+    loadNextTask()
   }, [
-    currentDate,
-    workPatterns,
-    workPatternsLoading,
-    isLoading,
+    isInitialized,
     activeWorkSessions.size,
-    nextTaskSkipIndex,
-    // Simplified dependencies - only track actual data changes
+    isLoading,
     tasks.length,
     sequencedTasks.length,
-    loadWorkPatterns,
+    nextTaskSkipIndex,
     getNextScheduledItem,
   ])
 
@@ -322,24 +339,42 @@ export function WorkStatusWidget() {
       // Get fresh state
       const store = useTaskStore.getState()
 
+      // If we don't have a nextTask in state, try to get it fresh from the store
+      let taskToStart = nextTask
+      if (!taskToStart) {
+        logger.ui.info('WorkStatusWidget: No nextTask in state, fetching from store')
+        taskToStart = await store.getNextScheduledItem()
+        if (taskToStart) {
+          setNextTask(taskToStart)
+          logger.ui.info('WorkStatusWidget: Found task from store', {
+            title: taskToStart.title,
+            type: taskToStart.type,
+            id: taskToStart.id,
+          })
+        }
+      }
+
       // Log what we're about to start for debugging
-      const taskToStart = nextTask
       if (taskToStart) {
-        logger.ui.info('Starting next task', {
+        logger.ui.info('WorkStatusWidget: Starting next task', {
           title: taskToStart.title,
           type: taskToStart.type,
           id: taskToStart.id,
           estimatedDuration: taskToStart.estimatedDuration,
         })
+      } else {
+        logger.ui.warn('WorkStatusWidget: No task available to start')
       }
 
       await store.startNextTask()
 
       if (taskToStart) {
         Message.success(`Started work on: ${taskToStart.title}`)
+      } else {
+        Message.info('Starting next available task')
       }
     } catch (error) {
-      logger.ui.error('Failed to start task', { error })
+      logger.ui.error('WorkStatusWidget: Failed to start task', { error })
       Message.error('Failed to start work session')
     } finally {
       setIsProcessing(false)
@@ -347,8 +382,27 @@ export function WorkStatusWidget() {
   }
 
   const handleSkipToNextTask = async () => {
-    useTaskStore.getState().incrementNextTaskSkipIndex()
-    // Next task will be recomputed automatically via useEffect
+    const store = useTaskStore.getState()
+    store.incrementNextTaskSkipIndex()
+
+    // Immediately try to get the next task after skipping
+    logger.ui.info('WorkStatusWidget: Skip button pressed, fetching next task')
+    const newNextTask = await store.getNextScheduledItem()
+
+    if (!newNextTask) {
+      // If no more tasks after skip, reset the skip index
+      logger.ui.warn('WorkStatusWidget: No tasks after skip, resetting skip index')
+      store.resetNextTaskSkipIndex()
+      // Try once more with reset index
+      const resetTask = await store.getNextScheduledItem()
+      setNextTask(resetTask)
+    } else {
+      setNextTask(newNextTask)
+      logger.ui.info('WorkStatusWidget: New task after skip', {
+        title: newNextTask.title,
+        type: newNextTask.type,
+      })
+    }
   }
 
   const activeSession = getActiveSession()
@@ -490,16 +544,30 @@ export function WorkStatusWidget() {
                 )
               } else {
                 // Show Start button when no task is running
+                // Debug logging
+                if (!nextTask && isInitialized) {
+                  logger.ui.warn('WorkStatusWidget: Start button disabled - no next task', {
+                    isInitialized,
+                    isLoading,
+                    tasksCount: tasks.length,
+                    sequencedTasksCount: sequencedTasks.length,
+                    activeSessionsSize: activeWorkSessions.size,
+                  })
+                }
+
                 return (
                   <Button
                     type="primary"
                     icon={<IconPlayArrow />}
-                    loading={isProcessing}
-                    disabled={!nextTask}
+                    loading={isProcessing || !isInitialized}
+                    disabled={!isInitialized ? false : (!nextTask && !isLoading)}
                     onClick={handleStartNextTask}
                     style={{ width: '100%', marginTop: 8 }}
                   >
-                    Start Next Task
+                    {!isInitialized ? 'Initializing...' :
+                     isLoading ? 'Loading...' :
+                     !nextTask ? 'No Tasks Available' :
+                     'Start Next Task'}
                   </Button>
                 )
               }
