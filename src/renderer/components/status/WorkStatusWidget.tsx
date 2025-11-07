@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Card, Space, Typography, Button, Tag, Progress, Statistic, Grid, Message } from '@arco-design/web-react'
+import { Card, Space, Typography, Button, Tag, Progress, Grid, Message } from '@arco-design/web-react'
 import { IconPlayArrow, IconPause, IconCheck, IconSkipNext } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { formatMinutes } from '@shared/time-utils'
@@ -54,6 +54,7 @@ export function WorkStatusWidget() {
   const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
+  const [meetingMinutes, setMeetingMinutes] = useState(0)
 
   // Get current date
   const currentDate = useMemo(() => {
@@ -121,6 +122,17 @@ export function WorkStatusWidget() {
           setPattern(null)
           setCurrentBlock(null)
           setNextBlock(null)
+        }
+
+        // Calculate meeting minutes if pattern has meetings
+        if (pattern && pattern.meetings) {
+          const totalMeetingMinutes = pattern.meetings.reduce((total: number, meeting: any) => {
+            const duration = calculateDuration(meeting.startTime, meeting.endTime)
+            return total + duration
+          }, 0)
+          setMeetingMinutes(totalMeetingMinutes)
+        } else {
+          setMeetingMinutes(0)
         }
 
         // Calculate accumulated time
@@ -255,15 +267,64 @@ export function WorkStatusWidget() {
   const activeSession = getActiveSession()
   const hasActiveSession = !!(activeSession && activeWorkSessions.size > 0)
 
-  // Calculate total capacity for the day using the getTotalCapacity helper
-  const totalCapacity = pattern ? getTotalCapacity(pattern.blocks) : { focus: 0, admin: 0, personal: 0 }
+  // Calculate total capacity for the day including flexible time
+  const totalCapacity = useMemo(() => {
+    if (!pattern || !pattern.blocks) {
+      return { focus: 0, admin: 0, personal: 0, flexible: 0, mixed: 0 }
+    }
 
+    const baseCapacity = getTotalCapacity(pattern.blocks)
+
+    // Calculate flexible and mixed capacity separately
+    let flexibleMinutes = 0
+    let mixedMinutes = 0
+
+    pattern.blocks.forEach((block: WorkBlock) => {
+      const duration = calculateDuration(block.startTime, block.endTime)
+      if (block.type === 'flexible') {
+        flexibleMinutes += duration
+      } else if (block.type === 'mixed' && block.capacity?.splitRatio) {
+        // Mixed blocks are already counted in focus/admin, but track total for display
+        mixedMinutes += duration
+      }
+    })
+
+    return {
+      ...baseCapacity,
+      flexible: flexibleMinutes,
+      mixed: mixedMinutes,
+    }
+  }, [pattern])
+
+  // Helper to calculate duration
+  const calculateDuration = (startTime: string, endTime: string): number => {
+    const startParts = startTime.split(':').map(Number)
+    const endParts = endTime.split(':').map(Number)
+    if (startParts.length !== 2 || endParts.length !== 2) return 0
+
+    const [startHour, startMin] = startParts
+    const [endHour, endMin] = endParts
+    const startMinutes = startHour * 60 + startMin
+    const endMinutes = endHour * 60 + endMin
+    return endMinutes > startMinutes ? endMinutes - startMinutes : 0
+  }
+
+  // Calculate progress and overflow
   const focusProgress = totalCapacity.focus > 0
     ? Math.round((accumulated.focused / totalCapacity.focus) * 100)
     : 0
   const adminProgress = totalCapacity.admin > 0
     ? Math.round((accumulated.admin / totalCapacity.admin) * 100)
     : 0
+  const personalProgress = totalCapacity.personal > 0
+    ? Math.round((accumulated.personal / totalCapacity.personal) * 100)
+    : 0
+
+  // Calculate overflow into flexible time
+  const focusOverflow = Math.max(0, accumulated.focused - totalCapacity.focus)
+  const adminOverflow = Math.max(0, accumulated.admin - totalCapacity.admin)
+  const flexibleUsed = focusOverflow + adminOverflow
+  const flexibleRemaining = Math.max(0, totalCapacity.flexible - flexibleUsed)
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -348,28 +409,133 @@ export function WorkStatusWidget() {
         </Space>
       </Card>
 
+      {/* Capacity Summary Card */}
+      <Card>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Title heading={6}>Capacity Summary</Title>
+
+          <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
+            <Space direction="vertical" style={{ width: '100%' }} size="small">
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text style={{ whiteSpace: 'nowrap' }}>🎯 Focus Time:</Text>
+                <Tag color="blue">{formatMinutes(totalCapacity.focus)}</Tag>
+              </Space>
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Text style={{ whiteSpace: 'nowrap' }}>📋 Admin Time:</Text>
+                <Tag color="orange">{formatMinutes(totalCapacity.admin)}</Tag>
+              </Space>
+              {totalCapacity.personal > 0 && (
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Text style={{ whiteSpace: 'nowrap' }}>🌱 Personal Time:</Text>
+                  <Tag color="green">{formatMinutes(totalCapacity.personal)}</Tag>
+                </Space>
+              )}
+              {totalCapacity.flexible > 0 && (
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Text style={{ whiteSpace: 'nowrap' }}>🔄 Flexible Time:</Text>
+                  <Tag color="gold">{formatMinutes(totalCapacity.flexible)}</Tag>
+                </Space>
+              )}
+              {meetingMinutes > 0 && (
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Text style={{ whiteSpace: 'nowrap' }}>🤝 Meeting Time:</Text>
+                  <Tag color="purple">{formatMinutes(meetingMinutes)}</Tag>
+                </Space>
+              )}
+              <div style={{ borderTop: '1px solid #e5e5e5', marginTop: 8, paddingTop: 8 }}>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>📊 Total Time:</Text>
+                  <Text style={{ fontSize: '14px', fontWeight: 500 }}>
+                    {formatMinutes(totalCapacity.focus + totalCapacity.admin + totalCapacity.personal + totalCapacity.flexible + meetingMinutes)}
+                  </Text>
+                </Space>
+              </div>
+            </Space>
+          </div>
+        </Space>
+      </Card>
+
       {/* Work Progress Card */}
       <Card>
         <Space direction="vertical" style={{ width: '100%' }}>
           <Title heading={6}>Today&apos;s Progress</Title>
 
-          <Row gutter={16}>
+          <Row gutter={[16, 16]}>
             <Col span={12}>
-              <Statistic
-                title="Focus Work"
-                value={accumulated.focused}
-                suffix={`/ ${totalCapacity.focus} min`}
-              />
-              <Progress percent={focusProgress} showText={false} />
+              <div>
+                <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text>🎯 Focus</Text>
+                  <Text>{formatMinutes(accumulated.focused)} / {formatMinutes(totalCapacity.focus)}</Text>
+                </Space>
+                <Progress
+                  percent={Math.min(focusProgress, 100)}
+                  color={focusProgress >= 100 ? '#00b42a' : '#165dff'}
+                />
+                {focusOverflow > 0 && totalCapacity.flexible > 0 && (
+                  <Progress
+                    percent={Math.round(Math.min((focusOverflow / totalCapacity.flexible) * 100, 100))}
+                    color="#FFA500"
+                    size="small"
+                    style={{ marginTop: 2 }}
+                  />
+                )}
+              </div>
             </Col>
             <Col span={12}>
-              <Statistic
-                title="Admin Work"
-                value={accumulated.admin}
-                suffix={`/ ${totalCapacity.admin} min`}
-              />
-              <Progress percent={adminProgress} showText={false} />
+              <div>
+                <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text>📋 Admin</Text>
+                  <Text>{formatMinutes(accumulated.admin)} / {formatMinutes(totalCapacity.admin)}</Text>
+                </Space>
+                <Progress
+                  percent={Math.min(adminProgress, 100)}
+                  color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'}
+                />
+                {adminOverflow > 0 && totalCapacity.flexible > 0 && (
+                  <Progress
+                    percent={Math.round(Math.min((adminOverflow / totalCapacity.flexible) * 100, 100))}
+                    color="#FFA500"
+                    size="small"
+                    style={{ marginTop: 2 }}
+                  />
+                )}
+              </div>
             </Col>
+            {totalCapacity.personal > 0 && (
+              <Col span={12}>
+                <div>
+                  <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text>🌱 Personal</Text>
+                    <Text>{formatMinutes(accumulated.personal)} / {formatMinutes(totalCapacity.personal)}</Text>
+                  </Space>
+                  <Progress
+                    percent={personalProgress}
+                    color={personalProgress >= 100 ? '#00b42a' : '#52c41a'}
+                  />
+                </div>
+              </Col>
+            )}
+            {totalCapacity.flexible > 0 && (
+              <Col span={12}>
+                <div>
+                  <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text>🔄 Flexible Used</Text>
+                    <Text style={{ color: flexibleUsed > totalCapacity.flexible ? 'red' : 'inherit' }}>
+                      {formatMinutes(flexibleUsed)} / {formatMinutes(totalCapacity.flexible)}
+                    </Text>
+                  </Space>
+                  <Progress
+                    percent={Math.round((flexibleUsed / totalCapacity.flexible) * 100)}
+                    color={flexibleUsed > totalCapacity.flexible ? '#ff4d4f' : '#FFA500'}
+                  />
+                  {flexibleRemaining > 0 && (
+                    <Text type="secondary" style={{ fontSize: 12, marginTop: 4 }}>
+                      {formatMinutes(flexibleRemaining)} remaining
+                    </Text>
+                  )}
+                </div>
+              </Col>
+            )}
           </Row>
 
           <Space style={{ marginTop: 16 }}>
