@@ -203,21 +203,26 @@ export function WorkStatusWidget() {
     }
   }
 
-  // Separate useEffect to load next task ONLY when BOTH work patterns AND tasks/workflows are loaded
+  // Reactively manage next task based on active sessions
   useEffect(() => {
-    if (!workPatternsLoading && !isLoading) {
-      logger.ui.info('[WorkStatusWidget] ALL DATA READY, loading next task', {
+    // Only load next task when:
+    // 1. Data is ready (patterns and tasks loaded)
+    // 2. There's NO active work session
+    if (!workPatternsLoading && !isLoading && activeWorkSessions.size === 0) {
+      logger.ui.info('[WorkStatusWidget] No active session, loading next task', {
         workPatternsLoading,
         isLoading,
+        activeSessionCount: activeWorkSessions.size,
       })
       loadNextTask()
-    } else {
-      logger.ui.warn('[WorkStatusWidget] Data still loading, NOT calling loadNextTask', {
-        workPatternsLoading,
-        isLoading,
+    } else if (activeWorkSessions.size > 0) {
+      // Clear next task when session is active
+      logger.ui.info('[WorkStatusWidget] Active session detected, clearing next task', {
+        activeSessionCount: activeWorkSessions.size,
       })
+      setNextTask(null)
     }
-  }, [workPatternsLoading, isLoading])
+  }, [workPatternsLoading, isLoading, activeWorkSessions.size])
 
   useEffect(() => {
     loadWorkData()
@@ -226,15 +231,15 @@ export function WorkStatusWidget() {
 
     // Only update what's necessary for each event type
     const handleTimeLogged = () => {
-      loadWorkData()  // Only reload work data, not next task
+      loadWorkData()  // Only reload work data for progress updates
     }
     const handleWorkflowUpdated = () => {
       // Don't reload anything - the store state update will trigger re-render automatically
       // This prevents unnecessary data fetching
     }
     const handleSessionChanged = () => {
-      // Session changes need next task reload only
-      loadNextTask()
+      // Don't reload anything - activeWorkSessions is subscribed via Zustand
+      // The component will re-render automatically when sessions change
     }
     const handleDataRefresh = () => {
       loadWorkData()
@@ -402,10 +407,9 @@ export function WorkStatusWidget() {
         Message.success(`Completed task: ${activeSession.taskName || 'Task'}`)
       }
 
-      // The completeStep method in the store already updates state and emits
-      // appropriate events. Our event listeners will handle updating the UI,
-      // so we don't need to do anything else here.
-      logger.ui.info('[WorkStatusWidget] Task completion successful, UI will refresh via event')
+      // The completeStep method in the store already updates state
+      // The component will reload next task automatically when it detects no active session
+      logger.ui.info('[WorkStatusWidget] Task completed successfully')
     } catch (error) {
       logger.ui.error('Failed to complete current task', {
         error: error instanceof Error ? error.message : String(error),
@@ -433,17 +437,13 @@ export function WorkStatusWidget() {
         Message.success(`Started work on: ${taskToStart.title}`)
       }
 
-      // Force reload of next task after starting work
-      // The store's startNextTask already emits SESSION_CHANGED event
-      await loadNextTask()
+      // The useEffect will reactively clear nextTask when activeWorkSessions updates
+      // The component will re-render automatically via Zustand subscriptions
     } catch (error) {
       logger.ui.error('Failed to start next task', {
         error: error instanceof Error ? error.message : String(error),
       })
       Message.error('Failed to start work session')
-
-      // Reload state even on error to ensure UI is consistent
-      await loadNextTask()
     } finally {
       setIsProcessing(false)
     }
