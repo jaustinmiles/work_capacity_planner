@@ -82,6 +82,7 @@ describe('WorkTrackingService', () => {
       const taskId = 'task-123'
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
       mockDatabase.getTaskById.mockResolvedValue({ id: taskId, name: 'Test Task' })
+      mockDatabase.createWorkSession.mockResolvedValue({ id: 'ws-generated-123' })
 
       const session = await service.startWorkSession(taskId)
 
@@ -108,6 +109,7 @@ describe('WorkTrackingService', () => {
         name: 'Test Workflow',
         steps: [{ id: stepId, name: 'Test Step' }],
       })
+      mockDatabase.createWorkSession.mockResolvedValue({ id: 'ws-generated-456' })
 
       const session = await service.startWorkSession(undefined, stepId, workflowId)
 
@@ -121,6 +123,7 @@ describe('WorkTrackingService', () => {
     it('should prevent starting multiple sessions simultaneously', async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
       mockDatabase.getTaskById.mockResolvedValue({ id: 'task-1', name: 'Task 1' })
+      mockDatabase.createWorkSession.mockResolvedValue({ id: 'ws-generated-789' })
 
       // Start first session
       await service.startWorkSession('task-1')
@@ -258,6 +261,7 @@ describe('WorkTrackingService', () => {
     beforeEach(async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
       mockDatabase.getTaskById.mockResolvedValue({ id: 'task-123', name: 'Test Task' })
+      mockDatabase.createWorkSession.mockResolvedValue({ id: 'ws-test-session' })
       await service.startWorkSession('task-123')
     })
 
@@ -343,6 +347,7 @@ describe('WorkTrackingService', () => {
     it('should track current active task session', async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
       mockDatabase.getTaskById.mockResolvedValue({ id: 'task-123', name: 'Test Task' })
+      mockDatabase.createWorkSession.mockResolvedValue({ id: 'ws-active-task' })
 
       await service.startWorkSession('task-123')
 
@@ -358,6 +363,7 @@ describe('WorkTrackingService', () => {
         name: 'Test Workflow',
         steps: [{ id: 'step-456', name: 'Test Step' }],
       })
+      mockDatabase.createWorkSession.mockResolvedValue({ id: 'ws-active-step' })
 
       await service.startWorkSession(undefined, 'step-456', 'workflow-789')
 
@@ -369,6 +375,7 @@ describe('WorkTrackingService', () => {
     it('should calculate elapsed time correctly', async () => {
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
       mockDatabase.getTaskById.mockResolvedValue({ id: 'task-123', name: 'Test Task' })
+      mockDatabase.createWorkSession.mockResolvedValue({ id: 'ws-elapsed-time' })
 
       // Mock timers to control time progression
       vi.useFakeTimers()

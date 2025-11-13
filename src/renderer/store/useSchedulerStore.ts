@@ -237,8 +237,8 @@ const extractNextScheduledItem = (
     const scheduledItem = workItems[wrappedIndex]
     if (!scheduledItem?.startTime) return null
 
-    // Continue with the wrapped item
-    const targetItem = scheduledItem
+    // Continue with the wrapped item (startTime is guaranteed to exist here)
+    const targetItem = scheduledItem as typeof scheduledItem & { startTime: Date }
 
     // Add the rest of the function logic using targetItem
     if (targetItem.type === 'workflow-step') {
@@ -274,12 +274,15 @@ const extractNextScheduledItem = (
 
   if (!scheduledItem?.startTime) return null
 
+  // TypeScript knows startTime exists after the check above
+  const itemWithStartTime = scheduledItem as typeof scheduledItem & { startTime: Date }
+
   // Convert to NextScheduledItem format
-  if (scheduledItem.type === 'workflow-step') {
+  if (itemWithStartTime.type === 'workflow-step') {
     const workflow = sequencedTasks.find(seq =>
-      seq.steps.some(step => step.id === scheduledItem.id),
+      seq.steps.some(step => step.id === itemWithStartTime.id),
     )
-    const step = workflow?.steps.find(s => s.id === scheduledItem.id)
+    const step = workflow?.steps.find(s => s.id === itemWithStartTime.id)
 
     if (step && workflow) {
       return {
@@ -288,7 +291,7 @@ const extractNextScheduledItem = (
         workflowId: workflow.id,
         title: step.name,
         estimatedDuration: step.duration,
-        scheduledStartTime: scheduledItem.startTime,
+        scheduledStartTime: itemWithStartTime.startTime,
       }
     }
   }
@@ -296,10 +299,10 @@ const extractNextScheduledItem = (
   // Regular task
   return {
     type: 'task' as const,
-    id: scheduledItem.id,
-    title: scheduledItem.name,
-    estimatedDuration: scheduledItem.duration,
-    scheduledStartTime: scheduledItem.startTime,
+    id: itemWithStartTime.id,
+    title: itemWithStartTime.name,
+    estimatedDuration: itemWithStartTime.duration,
+    scheduledStartTime: itemWithStartTime.startTime,
   }
 }
 

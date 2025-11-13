@@ -71,7 +71,6 @@ export function WorkStatusWidget() {
   const updateTask = useTaskStore(state => state.updateTask)
   const getWorkSessionProgress = useTaskStore(state => state.getWorkSessionProgress)
   const incrementNextTaskSkipIndex = useTaskStore(state => state.incrementNextTaskSkipIndex)
-  const reconcileActiveWorkSessions = useTaskStore(state => state.reconcileActiveWorkSessions)
 
   // Work pattern store state
   const workPatterns = useWorkPatternStore(state => state.workPatterns)
@@ -117,11 +116,6 @@ export function WorkStatusWidget() {
   }, [activeWorkSessions])
 
   // Patterns now auto-load via useWorkPatternStore
-
-  // Reconcile work sessions on component mount to ensure UI state is synced with backend
-  useEffect(() => {
-    reconcileActiveWorkSessions()
-  }, [reconcileActiveWorkSessions])
 
   // Load work data when patterns change
   useEffect(() => {
