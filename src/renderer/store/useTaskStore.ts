@@ -117,9 +117,6 @@ export const useTaskStore = create<TaskStore>()(
     // Lazy creation of singleton - only create when first needed
     if (!workTrackingServiceSingleton) {
       workTrackingServiceSingleton = new WorkTrackingService()
-      // rendererLogger.info('[TaskStore] Created WorkTrackingService singleton (lazy)', {
-        // instanceId: (workTrackingServiceSingleton as any).instanceId,
-      // })
     }
 
     return workTrackingServiceSingleton
@@ -151,37 +148,20 @@ export const useTaskStore = create<TaskStore>()(
 
     incrementNextTaskSkipIndex: () => {
       const currentIndex = get().nextTaskSkipIndex
-      // rendererLogger.info('[TaskStore] Incrementing next task skip index', {
-        // currentIndex,
-        // newIndex: currentIndex + 1,
-      // })
       set({ nextTaskSkipIndex: currentIndex + 1 })
     },
 
     resetNextTaskSkipIndex: () => {
-      const _currentIndex = get().nextTaskSkipIndex
-      // rendererLogger.info('[TaskStore] Resetting next task skip index', {
-        // previousIndex: _currentIndex,
-      // })
       set({ nextTaskSkipIndex: 0 })
     },
 
   // Data loading actions
   loadTasks: async (includeArchived = false) => {
     try {
-      // rendererLogger.info('[TaskStore] Loading tasks from database', { includeArchived })
-      // Loading tasks from database
       set({ isLoading: true, error: null, includeArchived })  // Store the preference
       const tasks = await getDatabase().getTasks(includeArchived)
-      // Tasks loaded successfully
-      // rendererLogger.info('[TaskStore] Tasks loaded successfully', {
-        // taskCount: tasks.length,
-        // incompleteCount: tasks.filter(t => !t.completed).length,
-        // archivedCount: tasks.filter(t => t.archived).length,
-      // })
       set({ tasks, isLoading: false })
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to load tasks', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to load tasks',
         isLoading: false,
@@ -191,17 +171,10 @@ export const useTaskStore = create<TaskStore>()(
 
   loadSequencedTasks: async () => {
     try {
-      // rendererLogger.info('[TaskStore] Loading sequenced tasks from database')
       set({ isLoading: true, error: null })
       const sequencedTasks = await getDatabase().getSequencedTasks()
-      // Sequenced tasks loaded successfully
-      // rendererLogger.info('[TaskStore] Sequenced tasks loaded successfully', {
-        // workflowCount: sequencedTasks.length,
-        // totalSteps: sequencedTasks.reduce((sum, st) => sum + st.steps.length, 0),
-      // })
       set({ sequencedTasks, isLoading: false })
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to load sequenced tasks', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to load sequenced tasks',
         isLoading: false,
@@ -242,7 +215,6 @@ export const useTaskStore = create<TaskStore>()(
 
   initializeData: async () => {
     try {
-      // rendererLogger.info('[TaskStore] Starting data initialization...')
       // Clear existing data first to prevent stale data from showing
       // Reset skip index on app restart
       set({
@@ -255,25 +227,15 @@ export const useTaskStore = create<TaskStore>()(
 
       // Initialize WorkTrackingService first to restore active sessions
       try {
-        // rendererLogger.info('[TaskStore] Initializing WorkTrackingService...')
         await getWorkTrackingService().initialize()
-        // rendererLogger.info('[TaskStore] WorkTrackingService initialized successfully')
 
         // Sync any restored active session to task store
         const restoredSession = getWorkTrackingService().getCurrentActiveSession()
         if (restoredSession) {
-          // rendererLogger.info('[TaskStore] Syncing restored session to store', {
-            // sessionId: restoredSession.id,
-            // taskId: restoredSession.taskId,
-            // stepId: restoredSession.stepId,
-          // })
-
           const sessionKey = restoredSession.workflowId || restoredSession.taskId
           const newSessions = new Map()
           newSessions.set(sessionKey, restoredSession)
           set({ activeWorkSessions: newSessions })
-
-          // rendererLogger.info('[TaskStore] Restored session synced to store')
         }
       } catch (error) {
         logger.system.error('Failed to initialize WorkTrackingService', {
@@ -283,7 +245,6 @@ export const useTaskStore = create<TaskStore>()(
       }
 
       // Load last used session first to prevent default session flash
-      // rendererLogger.info('[TaskStore] Loading last used session...')
       await getDatabase().loadLastUsedSession()
 
       // Loading all data from database
@@ -310,10 +271,7 @@ export const useTaskStore = create<TaskStore>()(
         sequencedCount: sequencedTasks.length,
       })
       set({ tasks, sequencedTasks, isLoading: false })
-
-      // rendererLogger.info('[TaskStore] Store initialization completed successfully')
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to initialize data:', error)
       set({
         error: error instanceof Error ? error.message : 'Failed to initialize data',
         isLoading: false,
@@ -323,24 +281,12 @@ export const useTaskStore = create<TaskStore>()(
 
   addTask: async (taskData) => {
     try {
-      // rendererLogger.info('[TaskStore] Creating new task', {
-        // taskName: taskData.name,
-        // type: taskData.type,
-        // duration: taskData.duration,
-        // importance: taskData.importance,
-        // urgency: taskData.urgency,
-      // })
       const task = await getDatabase().createTask(taskData)
       set((state) => ({
         tasks: [...state.tasks, task],
         error: null,
       }))
-      // rendererLogger.info('[TaskStore] Task created successfully', {
-        // taskId: task.id,
-        // taskName: task.name,
-      // })
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to create task', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to create task',
       })
@@ -453,9 +399,7 @@ export const useTaskStore = create<TaskStore>()(
         selectedTaskId: state.selectedTaskId === id ? null : state.selectedTaskId,
         error: null,
       }))
-      // rendererLogger.info('[TaskStore] Task deleted successfully', { taskId: id })
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to delete task', error as Error, { taskId: id })
       set({
         error: error instanceof Error ? error.message : 'Failed to delete task',
       })
@@ -484,14 +428,12 @@ export const useTaskStore = create<TaskStore>()(
 
 
 
-      const updates = {
+      const updates: Partial<Task> = {
         completed: !task.completed,
-        completedAt: !task.completed ? new Date() : undefined,
+        ...(!task.completed ? { completedAt: new Date() } : {}),
       }
 
-      await get().updateTask(id, updates)
-
-      // If task is being marked as completed, clean up any active work session
+      // If task is being marked as completed, clean up any active work session BEFORE updating
       if (!task.completed) { // Will be completed after toggle
         const state = get()
         const activeSession = state.activeWorkSessions.get(id)
@@ -514,12 +456,20 @@ export const useTaskStore = create<TaskStore>()(
         }
       }
 
+      // Update the task
+      await get().updateTask(id, updates)
+
 
       // Reset skip index when task is completed (to show the actual next task)
       // Note: task.completed is the OLD value before toggle, so !task.completed means "now completed"
       if (!task.completed) {
         get().resetNextTaskSkipIndex()
       }
+
+      // Force schedule recomputation after task completion to ensure UI updates
+      // This ensures the completed task is removed from the schedule immediately
+      useSchedulerStore.getState().recomputeSchedule()
+
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to toggle task completion',
@@ -576,9 +526,13 @@ export const useTaskStore = create<TaskStore>()(
       return
     }
 
+    // Store original state for rollback
+    const originalSessions = new Map(state.activeWorkSessions)
+    let workSession: UnifiedWorkSession | null = null
+
     try {
       // Start work session in WorkTrackingService for persistence
-      const workSession = await getWorkTrackingService().startWorkSession(undefined, stepId, workflowId)
+      workSession = await getWorkTrackingService().startWorkSession(undefined, stepId, workflowId)
 
       // Sync the session to store's activeWorkSessions so UI can see it
       const localSession: UnifiedWorkSession = {
@@ -590,45 +544,40 @@ export const useTaskStore = create<TaskStore>()(
       // Use workflowId as key to match WorkTrackingService's getSessionKey
       newSessions.set(sessionKey, localSession)
 
-      // rendererLogger.info('[TaskStore] Syncing workflow step session to store state', {
-        // stepId,
-        // workflowId,
-        // sessionKey,
-        // sessionId: workSession.id,
-        // isPaused: localSession.isPaused,
-        // sessionsBeforeUpdate: get().activeWorkSessions.size,
-        // sessionsAfterUpdate: newSessions.size,
-      // })
-
       set({ activeWorkSessions: newSessions })
-
-      // Log after state update to verify
-      // rendererLogger.info('[TaskStore] State updated, verifying activeWorkSessions', {
-        // currentActiveSessionsSize: get().activeWorkSessions.size,
-        // hasSession: get().activeWorkSessions.has(stepId),
-        // sessionIsPaused: get().activeWorkSessions.get(stepId)?.isPaused,
-      // })
 
       // Update step status in database
       await getDatabase().updateTaskStepProgress(stepId, {
         status: 'in_progress',
-        startedAt: activeSession ? undefined : new Date(),
+        startedAt: new Date(),  // Always set a valid timestamp when starting work
       })
-
-      // rendererLogger.info('[TaskStore] Started work on step', {
-        // stepId,
-        // workflowId,
-      // })
 
       // Emit event to trigger UI updates
       // Event removed - reactive state handles updates
     } catch (error) {
+      // Rollback UI state to prevent corruption
+      set({ activeWorkSessions: originalSessions })
+
+      // If work session was created in WorkTrackingService, try to stop it
+      if (workSession?.id) {
+        try {
+          await getWorkTrackingService().stopWorkSession(workSession.id)
+        } catch (cleanupError) {
+          logger.ui.warn('Failed to cleanup work session after error', {
+            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+            sessionId: workSession.id,
+          }, 'session-cleanup-error')
+        }
+      }
+
       logger.ui.error('Failed to start work on step', {
         error: error instanceof Error ? error.message : String(error),
         stepId,
         workflowId,
       }, 'step-work-start-error')
-      // Don't throw - handle gracefully
+
+      // Re-throw error so caller knows the operation failed
+      throw error
     }
   },
 
@@ -640,9 +589,13 @@ export const useTaskStore = create<TaskStore>()(
 
     // Starting work on task
 
+    // Store original state for rollback
+    const originalSessions = new Map(get().activeWorkSessions)
+    let workSession: UnifiedWorkSession | null = null
+
     try {
       // Start work session in WorkTrackingService for persistence
-      const workSession = await getWorkTrackingService().startWorkSession(taskId, undefined, undefined)
+      workSession = await getWorkTrackingService().startWorkSession(taskId, undefined, undefined)
 
       // Work session created successfully
 
@@ -656,54 +609,42 @@ export const useTaskStore = create<TaskStore>()(
       const newSessions = new Map(get().activeWorkSessions)
       newSessions.set(taskId, localSession)
 
-      // rendererLogger.info('[TaskStore] Syncing session to store state', {
-        // taskId,
-        // sessionId: workSession.id,
-        // isPaused: localSession.isPaused,
-        // sessionsBeforeUpdate: get().activeWorkSessions.size,
-        // sessionsAfterUpdate: newSessions.size,
-      // })
-
       set({ activeWorkSessions: newSessions })
-
-      // State updated with new work session
-      // rendererLogger.debug('[TaskStore] State updated for task', {
-        // taskId,
-        // currentActiveSessionsSize: get().activeWorkSessions.size,
-        // hasSession: get().activeWorkSessions.has(taskId),
-        // sessionIsPaused: get().activeWorkSessions.get(taskId)?.isPaused,
-        // allSessionKeys: Array.from(get().activeWorkSessions.keys()),
-        // allSessions: Array.from(get().activeWorkSessions.values()).map(s => ({
-          // id: s.id,
-          // taskId: s.taskId,
-          // isPaused: s.isPaused,
-        // })),
-      // })
 
       // Update task status in database
       await getDatabase().updateTask(taskId, {
         overallStatus: TaskStatus.InProgress,
       })
 
-      //   taskId,
-      //   sessionId: workSession.id,
-      //   activeSessionsInStore: get().activeWorkSessions.size,
-      // })
-
       // Emit event to trigger UI updates
       // Event removed - reactive state handles updates
     } catch (error) {
+      // Rollback UI state to prevent corruption
+      set({ activeWorkSessions: originalSessions })
+
+      // If work session was created in WorkTrackingService, try to stop it
+      if (workSession?.id) {
+        try {
+          await getWorkTrackingService().stopWorkSession(workSession.id)
+        } catch (cleanupError) {
+          logger.ui.warn('Failed to cleanup work session after error', {
+            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+            sessionId: workSession.id,
+          }, 'session-cleanup-error')
+        }
+      }
+
       logger.ui.error('Failed to start work on task', {
         error: error instanceof Error ? error.message : String(error),
         taskId,
       }, 'task-work-start-error')
-      // Don't throw - handle gracefully
+
+      // Re-throw error so caller knows the operation failed
+      throw error
     }
   },
 
   pauseWorkOnStep: async (stepId: string) => {
-    // rendererLogger.warn('[TaskStore] ⏸️ pauseWorkOnStep called', { stepId })
-
     const state = get()
     // Find session by checking all sessions for matching stepId
     let sessionKey: string | null = null
@@ -718,53 +659,40 @@ export const useTaskStore = create<TaskStore>()(
     }
 
     if (!session || !sessionKey || session.isPaused) {
-      //   sessionFound: !!session,
-      //   sessionKey,
-      //   allKeys: Array.from(state.activeWorkSessions.keys()),
-      // })
       return
     }
 
     try {
-      // Get current active session from WorkTrackingService
+      // Use the session we already found - no need for redundant lookup
       const service = getWorkTrackingService()
-      // rendererLogger.warn('[TaskStore] 🔍 Looking for active session', {
-        // stepId,
-        // serviceInstanceId: (service as any).instanceId,
-      // })
 
-      const activeWorkSession = service.getCurrentActiveSession()
-      // rendererLogger.warn('[TaskStore] 🎯 Active session result', {
-        // foundActiveSession: !!activeWorkSession,
-        // activeSessionId: activeWorkSession?.id,
-        // activeSessionStepId: activeWorkSession?.stepId,
-        // requestedStepId: stepId,
-        // matchesStepId: activeWorkSession?.stepId === stepId,
-      // })
-
-      if (activeWorkSession && activeWorkSession.stepId === stepId) {
-        // Pause via WorkTrackingService
-        // rendererLogger.warn('[TaskStore] ⏸️ Attempting to pause session', {
-          // sessionId: activeWorkSession.id,
-          // serviceInstanceId: (service as any).instanceId,
-        // })
-        await service.pauseWorkSession(activeWorkSession.id)
-      } else {
-        // rendererLogger.error('[TaskStore] ❌ Cannot pause - no matching session found', {
-          // requestedStepId: stepId,
-          // foundSessionStepId: activeWorkSession?.stepId,
-        // })
+      // Ensure the session has an ID
+      if (!session.id) {
+        logger.ui.error('Session found but has no ID', {
+          stepId,
+          sessionKey,
+        }, 'step-work-pause-error')
+        // Still remove from UI state to prevent stuck state
+        const newSessions = new Map(state.activeWorkSessions)
+        newSessions.delete(sessionKey)
+        set({ activeWorkSessions: newSessions })
+        return
       }
+
+      // Pause via WorkTrackingService using the session we found
+      await service.pauseWorkSession(session.id)
 
       // WorkTrackingService.pauseWorkSession already closed the session in the database
       // No need to create a duplicate work session record here
 
       // Remove the session from activeWorkSessions since it's now paused (closed in database)
       const newSessions = new Map(state.activeWorkSessions)
-      newSessions.delete(sessionKey!)
+      newSessions.delete(sessionKey)
 
       set({ activeWorkSessions: newSessions })
 
+      // Force schedule recomputation to show next task immediately
+      useSchedulerStore.getState().recomputeSchedule()
 
       // Emit events to notify UI of state changes - no refresh needed
       // Event removed - reactive state handles updates
@@ -774,40 +702,61 @@ export const useTaskStore = create<TaskStore>()(
         error: error instanceof Error ? error.message : String(error),
         stepId,
       }, 'step-work-pause-error')
+
+      // On error, still try to sync UI state to prevent stuck sessions
+      try {
+        const service = getWorkTrackingService()
+        const activeSession = service.getCurrentActiveSession()
+
+        // If service has no active session, remove from UI state
+        if (!activeSession || activeSession.stepId !== stepId) {
+          const newSessions = new Map(state.activeWorkSessions)
+          newSessions.delete(sessionKey!)
+          set({ activeWorkSessions: newSessions })
+        }
+      } catch (syncError) {
+        // Log but don't throw - best effort sync
+        logger.ui.warn('Failed to sync state after pause error', {
+          error: syncError instanceof Error ? syncError.message : String(syncError),
+        }, 'state-sync-error')
+      }
     }
   },
 
   pauseWorkOnTask: async (taskId: string) => {
-    // rendererLogger.info('[TaskStore] 🛑 pauseWorkOnTask called', { taskId })
-
     const state = get()
     const session = state.activeWorkSessions.get(taskId)
 
     if (!session) {
-      //   allKeys: Array.from(state.activeWorkSessions.keys()),
-      // })
       return
     }
 
     try {
-      // Stop session through WorkTrackingService
+      // Use the session we already found - no need for redundant lookup
       const service = getWorkTrackingService()
-      const activeWorkSession = service.getCurrentActiveSession()
 
-      // rendererLogger.info('[TaskStore] 🔍 Stopping session via WorkTrackingService', {
-        // taskId,
-        // sessionId: activeWorkSession?.id,
-        // matchesTask: activeWorkSession?.taskId === taskId,
-      // })
-
-      if (activeWorkSession && activeWorkSession.taskId === taskId) {
-        await service.stopWorkSession(activeWorkSession.id)
+      // Ensure the session has an ID
+      if (!session.id) {
+        logger.ui.error('Session found but has no ID', {
+          taskId,
+        }, 'task-work-stop-error')
+        // Still remove from UI state to prevent stuck state
+        const newSessions = new Map(state.activeWorkSessions)
+        newSessions.delete(taskId)
+        set({ activeWorkSessions: newSessions })
+        return
       }
+
+      // Stop via WorkTrackingService using the session we found
+      await service.stopWorkSession(session.id)
 
       // Remove from store
       const newSessions = new Map(state.activeWorkSessions)
       newSessions.delete(taskId)
       set({ activeWorkSessions: newSessions })
+
+      // Force schedule recomputation to show next task immediately
+      useSchedulerStore.getState().recomputeSchedule()
 
       // Emit events to notify UI of state changes - no refresh needed
       // Event removed - reactive state handles updates
@@ -818,6 +767,26 @@ export const useTaskStore = create<TaskStore>()(
         error: error instanceof Error ? error.message : String(error),
         taskId,
       }, 'task-work-stop-error')
+
+      // On error, still try to sync UI state to prevent stuck sessions
+      try {
+        const service = getWorkTrackingService()
+        const activeSession = service.getCurrentActiveSession()
+
+        // If service has no active session, remove from UI state
+        if (!activeSession || activeSession.taskId !== taskId) {
+          const newSessions = new Map(state.activeWorkSessions)
+          newSessions.delete(taskId)
+          set({ activeWorkSessions: newSessions })
+        }
+      } catch (syncError) {
+        // Log but don't throw - best effort sync
+        logger.ui.warn('Failed to sync state after stop error', {
+          error: syncError instanceof Error ? syncError.message : String(syncError),
+        }, 'state-sync-error')
+      }
+
+      // Re-throw the original error for proper error handling in UI
       throw error
     }
   },
@@ -825,7 +794,15 @@ export const useTaskStore = create<TaskStore>()(
   completeStep: async (stepId: string, actualMinutes?: number, notes?: string) => {
 
     const state = get()
-    const session = state.activeWorkSessions.get(stepId)
+
+    // Find the workflow that contains this step to get the correct session key
+    const workflow = state.sequencedTasks.find(t =>
+      t.steps.some(s => s.id === stepId),
+    )
+
+    // For workflow steps, the session is keyed by workflowId
+    const sessionKey = workflow ? workflow.id : stepId
+    const session = state.activeWorkSessions.get(sessionKey)
 
 
     let totalMinutes = actualMinutes || 0
@@ -944,6 +921,9 @@ export const useTaskStore = create<TaskStore>()(
 
       // Reset skip index when a step is completed (to show the actual next task)
       get().resetNextTaskSkipIndex()
+
+      // Force schedule recomputation to ensure UI updates immediately
+      useSchedulerStore.getState().recomputeSchedule()
 
       // Don't call refreshAllData here - we've already updated the state directly
       // and emitted SESSION_CHANGED event. Calling refreshAllData causes unnecessary
@@ -1184,13 +1164,61 @@ export const useTaskStore = create<TaskStore>()(
     }
   },
 
+  // State reconciliation method to sync with WorkTrackingService
+  reconcileActiveWorkSessions: async () => {
+    try {
+      const service = getWorkTrackingService()
+      const activeSession = service.getCurrentActiveSession()
+
+      const state = get()
+      const newSessions = new Map<string, UnifiedWorkSession>()
+
+      // If WorkTrackingService has an active session, ensure it's in our store
+      if (activeSession) {
+        // Determine the correct key based on session type
+        let sessionKey: string
+        if (activeSession.workflowId && activeSession.stepId) {
+          // For workflow steps, use workflowId as key (consistent with WorkTrackingService)
+          sessionKey = activeSession.workflowId
+        } else if (activeSession.taskId) {
+          // For regular tasks, use taskId as key
+          sessionKey = activeSession.taskId
+        } else {
+          // Fallback to session ID if no task or workflow
+          sessionKey = activeSession.id || 'default'
+        }
+
+        newSessions.set(sessionKey, activeSession)
+      }
+
+      // Update store only if there's a difference
+      const currentKeys = Array.from(state.activeWorkSessions.keys()).sort()
+      const newKeys = Array.from(newSessions.keys()).sort()
+
+      if (JSON.stringify(currentKeys) !== JSON.stringify(newKeys)) {
+        logger.ui.info('Reconciling active work sessions with WorkTrackingService', {
+          previousKeys: currentKeys,
+          newKeys: newKeys,
+        }, 'session-reconcile')
+
+        set({ activeWorkSessions: newSessions })
+
+        // Trigger schedule recomputation after reconciliation
+        useSchedulerStore.getState().recomputeSchedule()
+      }
+    } catch (error) {
+      logger.ui.error('Failed to reconcile work sessions', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'session-reconcile-error')
+    }
+  },
+
   // Moved to useSchedulerStore for reactive scheduling
 
   startNextTask: async () => {
     try {
       // Check if any work is already active
       if (getWorkTrackingService().isAnyWorkActive()) {
-        // rendererLogger.warn('[TaskStore] Cannot start next task: work session already active')
         return
       }
 
@@ -1198,16 +1226,8 @@ export const useTaskStore = create<TaskStore>()(
       const nextItem = useSchedulerStore.getState().nextScheduledItem
 
       if (!nextItem) {
-        // rendererLogger.info('[TaskStore] No next task available to start')
         return
       }
-
-      // rendererLogger.info('[TaskStore] Starting next task', {
-        // type: nextItem.type,
-        // id: nextItem.id,
-        // title: nextItem.title,
-        // workflowId: nextItem.workflowId,
-      // })
 
       // Start work based on item type
       if (nextItem.type === 'step' && nextItem.workflowId) {
@@ -1224,7 +1244,6 @@ export const useTaskStore = create<TaskStore>()(
       // The startWorkOnStep/startWorkOnTask methods already updated the state
       // Event removed - reactive state handles updates
     } catch (error) {
-      // rendererLogger.error('[TaskStore] Failed to start next task', error as Error)
       set({
         error: error instanceof Error ? error.message : 'Failed to start next task',
       })

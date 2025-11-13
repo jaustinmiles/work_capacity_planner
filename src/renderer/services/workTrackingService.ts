@@ -134,7 +134,7 @@ export class WorkTrackingService {
         }
       }
 
-      // Create new unified work session
+      // Create new unified work session (without ID - database will generate)
       const workSession = createUnifiedWorkSession({
         taskId: workflowId || taskId || '',
         stepId,
@@ -169,9 +169,13 @@ export class WorkTrackingService {
         // },
       // })
 
-      await this.database.createWorkSession(dbPayload)
+      // Create session in database and get the database-generated ID
+      const dbSession = await this.database.createWorkSession(dbPayload)
 
-      // Store in local state
+      // Update the work session with the database-generated ID
+      workSession.id = dbSession.id
+
+      // Store in local state with the correct database ID
       const sessionKey = this.getSessionKey(workSession)
       this.activeSessions.set(sessionKey, workSession)
 
@@ -440,7 +444,13 @@ export class WorkTrackingService {
   }
 
   private getSessionKey(session: UnifiedWorkSession): string {
-    return session.taskId || session.stepId || session.workflowId || 'default'
+    // For workflow steps, always use workflowId as key
+    // For regular tasks, use taskId
+    // This ensures consistency across the system
+    if (session.workflowId && session.stepId) {
+      return session.workflowId
+    }
+    return session.taskId || 'default'
   }
 
   private isValidSession(session: any): session is UnifiedWorkSession {

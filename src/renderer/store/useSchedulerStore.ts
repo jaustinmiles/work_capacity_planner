@@ -229,6 +229,46 @@ const extractNextScheduledItem = (
 
   if (workItems.length === 0) return null
 
+  // Handle skipIndex bounds properly
+  if (skipIndex >= workItems.length) {
+    // If we've skipped past all available items, wrap back to the first
+    // This provides better UX than showing "no tasks"
+    const wrappedIndex = skipIndex % workItems.length
+    const scheduledItem = workItems[wrappedIndex]
+    if (!scheduledItem?.startTime) return null
+
+    // Continue with the wrapped item
+    const targetItem = scheduledItem
+
+    // Add the rest of the function logic using targetItem
+    if (targetItem.type === 'workflow-step') {
+      const workflow = sequencedTasks.find(seq =>
+        seq.steps.some(step => step.id === targetItem.id),
+      )
+      const step = workflow?.steps.find(s => s.id === targetItem.id)
+
+      if (step && workflow) {
+        return {
+          type: 'step' as const,
+          id: step.id,
+          workflowId: workflow.id,
+          title: step.name,
+          estimatedDuration: step.duration,
+          scheduledStartTime: targetItem.startTime,
+        }
+      }
+    }
+
+    // Regular task
+    return {
+      type: 'task' as const,
+      id: targetItem.id,
+      title: targetItem.name,
+      estimatedDuration: targetItem.duration,
+      scheduledStartTime: targetItem.startTime,
+    }
+  }
+
   const targetIndex = Math.min(skipIndex, workItems.length - 1)
   const scheduledItem = workItems[targetIndex]
 
@@ -280,15 +320,16 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
       const state = get()
       const newState = { ...state, ...inputs }
 
-      // Check if we need to recompute
-      const needsRecompute =
+      // Check if we need to recompute the schedule
+      // Active work sessions changing doesn't require schedule recomputation
+      // Only changes to tasks, workflows, patterns, or settings do
+      const needsScheduleRecompute =
         inputs.tasks !== undefined ||
         inputs.sequencedTasks !== undefined ||
         inputs.workPatterns !== undefined ||
-        inputs.workSettings !== undefined ||
-        inputs.activeWorkSessions !== undefined
+        inputs.workSettings !== undefined
 
-      if (needsRecompute) {
+      if (needsScheduleRecompute) {
         // Compute new schedule
         const scheduleResult = computeSchedule(
           newState.tasks,
@@ -311,6 +352,22 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
           ganttItems,
           nextScheduledItem,
         })
+      } else if (inputs.activeWorkSessions !== undefined) {
+        // If only active work sessions changed, just update the next scheduled item
+        // This prevents the Gantt chart from being cleared unnecessarily
+        const nextScheduledItem = extractNextScheduledItem(
+          state.scheduleResult,
+          state.sequencedTasks,
+          state.nextTaskSkipIndex,
+        )
+
+        set({
+          ...inputs,
+          nextScheduledItem,
+          // Preserve the existing schedule and Gantt items
+          scheduleResult: state.scheduleResult,
+          ganttItems: state.ganttItems,
+        })
       } else {
         set(inputs)
       }
@@ -323,7 +380,15 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         state.sequencedTasks,
         index,
       )
-      set({ nextTaskSkipIndex: index, nextScheduledItem })
+      // Only update skip index and next item, preserve everything else
+      // This prevents the Gantt chart from being wiped
+      set({
+        nextTaskSkipIndex: index,
+        nextScheduledItem,
+        // Explicitly preserve other state to prevent unwanted re-renders
+        ganttItems: state.ganttItems,
+        scheduleResult: state.scheduleResult,
+      })
     },
 
     recomputeSchedule: () => {

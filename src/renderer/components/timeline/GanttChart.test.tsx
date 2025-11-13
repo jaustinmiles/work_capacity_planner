@@ -2,14 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, cleanup } from '@testing-library/react'
 import { GanttChart } from './GanttChart'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useSchedulerStore } from '../../store/useSchedulerStore'
+import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { getCurrentTime } from '@shared/time-provider'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 import '@testing-library/jest-dom'
 
-// Mock the store
+// Mock the stores
 vi.mock('../../store/useTaskStore')
+vi.mock('../../store/useSchedulerStore')
+vi.mock('../../store/useWorkPatternStore')
 vi.mock('@shared/time-provider')
 
 // Mock the UnifiedScheduler hook - returns stable scheduler instance
@@ -77,41 +81,66 @@ describe('GanttChart', () => {
       })
     })
 
-    // Mock the store
+    // Mock the task store
     vi.mocked(useTaskStore).mockReturnValue({
       updateTask: vi.fn(),
       updateSequencedTask: vi.fn(),
-      generateSchedule: vi.fn(),
-      getOptimalSchedule: vi.fn(),
+      workSettings: null,
+    } as any)
+
+    // Mock the scheduler store with default empty state
+    vi.mocked(useSchedulerStore).mockReturnValue({
+      ganttItems: [],
+      scheduleResult: null,
+    } as any)
+
+    // Mock the work pattern store with default empty state
+    vi.mocked(useWorkPatternStore).mockReturnValue({
       workPatterns: [],
-      workPatternsLoading: false,
-      loadWorkPatterns: vi.fn(),
+      isLoading: false,
+      currentBlock: null,
+      nextBlock: null,
     } as any)
   })
 
   it('should show message to add tasks when work patterns exist but no tasks', async () => {
-    // Update mock to have work patterns
-    vi.mocked(useTaskStore).mockReturnValue({
-      updateTask: vi.fn(),
-      updateSequencedTask: vi.fn(),
-      generateSchedule: vi.fn(),
-      getOptimalSchedule: vi.fn(),
+    // Update mocks to have work patterns but no scheduled items
+    vi.mocked(useWorkPatternStore).mockReturnValue({
       workPatterns: [
         {
           date: '2025-08-30',
-          isWorkday: true,
           blocks: [{
             id: 'block-1',
             startTime: '09:00',
             endTime: '17:00',
             type: 'flexible',
+            capacity: { focus: 480, admin: 480 },
           }],
           meetings: [],
-          effectiveCapacity: { focus: 480, admin: 480, personal: 0 },
+          accumulated: { focus: 0, admin: 0, personal: 0 },
         },
       ],
-      workPatternsLoading: false,
-      loadWorkPatterns: vi.fn(),
+      isLoading: false,
+      currentBlock: null,
+      nextBlock: null,
+    } as any)
+
+    vi.mocked(useSchedulerStore).mockReturnValue({
+      ganttItems: [],
+      scheduleResult: {
+        scheduled: [],
+        unscheduled: [],
+        debugInfo: {
+          scheduledItems: [],
+          unscheduledItems: [],
+          blockUtilization: [],
+          warnings: [],
+          totalScheduled: 0,
+          totalUnscheduled: 0,
+          scheduleEfficiency: 0,
+        },
+        conflicts: [],
+      },
     } as any)
 
     const mockTasks: Task[] = []

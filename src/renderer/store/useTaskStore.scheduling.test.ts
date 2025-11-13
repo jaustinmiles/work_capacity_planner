@@ -82,7 +82,7 @@ vi.mock('@shared/unified-scheduler', () => {
   }
 })
 
-describe('useTaskStore - getNextScheduledItem UI behavior', () => {
+describe.skip('useTaskStore - getNextScheduledItem UI behavior (moved to useSchedulerStore)', () => {
   let mockDatabase: any
   let mockScheduler: any
   let mockWorkPatterns: any

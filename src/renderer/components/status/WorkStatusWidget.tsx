@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Card, Space, Typography, Button, Tag, Progress, Message, Statistic } from '@arco-design/web-react'
+import { Card, Space, Typography, Button, Tag, Progress, Statistic, Alert } from '@arco-design/web-react'
 import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconCaretRight } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
@@ -14,6 +14,13 @@ import { WorkBlock } from '@shared/work-blocks-types'
 import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
 
 const { Title, Text } = Typography
+
+// Custom notification state for React 19 compatibility
+interface NotificationState {
+  message: string
+  type: 'success' | 'error' | 'info' | 'warning'
+  visible: boolean
+}
 
 function getBlockDisplay(block: WorkBlock | null) {
   if (!block) return { icon: '🔍', label: 'No block' }
@@ -64,6 +71,7 @@ export function WorkStatusWidget() {
   const updateTask = useTaskStore(state => state.updateTask)
   const getWorkSessionProgress = useTaskStore(state => state.getWorkSessionProgress)
   const incrementNextTaskSkipIndex = useTaskStore(state => state.incrementNextTaskSkipIndex)
+  const reconcileActiveWorkSessions = useTaskStore(state => state.reconcileActiveWorkSessions)
 
   // Work pattern store state
   const workPatterns = useWorkPatternStore(state => state.workPatterns)
@@ -82,6 +90,20 @@ export function WorkStatusWidget() {
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
   const [meetingMinutes, setMeetingMinutes] = useState(0)
 
+  // Notification state for React 19 compatibility
+  const [notification, setNotification] = useState<NotificationState>({
+    message: '',
+    type: 'info',
+    visible: false,
+  })
+
+  // Helper to show notifications
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    setNotification({ message, type, visible: true })
+    // Auto-hide after 3 seconds
+    setTimeout(() => setNotification(prev => ({ ...prev, visible: false })), 3000)
+  }
+
   // Get current date
   const currentDate = useMemo(() => {
     const now = getCurrentTime()
@@ -95,6 +117,11 @@ export function WorkStatusWidget() {
   }, [activeWorkSessions])
 
   // Patterns now auto-load via useWorkPatternStore
+
+  // Reconcile work sessions on component mount to ensure UI state is synced with backend
+  useEffect(() => {
+    reconcileActiveWorkSessions()
+  }, [reconcileActiveWorkSessions])
 
   // Load work data when patterns change
   useEffect(() => {
@@ -210,13 +237,16 @@ export function WorkStatusWidget() {
 
       // Get the task that was started for the success message
       if (nextTask) {
-        Message.success(`Started work on: ${nextTask.title}`)
+        showNotification(`Started work on: ${nextTask.title}`, 'success')
       } else {
-        Message.success('Started work session')
+        showNotification('Started work session', 'success')
       }
     } catch (error) {
-      logger.ui.error('Failed to start task', { error })
-      Message.error('Failed to start work session')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start work session'
+      logger.ui.error('Failed to start task', { error: errorMessage })
+
+      // Show error notification to user
+      showNotification(errorMessage, 'error')
     } finally {
       setIsProcessing(false)
     }
@@ -236,10 +266,10 @@ export function WorkStatusWidget() {
         await pauseWorkOnTask(activeSession.taskId)
       }
 
-      Message.success('Work session paused')
+      showNotification('Work session paused', 'success')
     } catch (error) {
       logger.ui.error('Failed to pause task', { error })
-      Message.error('Failed to pause work session')
+      showNotification('Failed to pause work session', 'error')
     } finally {
       setIsProcessing(false)
     }
@@ -255,7 +285,7 @@ export function WorkStatusWidget() {
 
       if (activeSession.stepId) {
         await completeStep(activeSession.stepId)
-        Message.success(`Completed workflow step: ${activeSession.stepName || 'Step'}`)
+        showNotification(`Completed workflow step: ${activeSession.stepName || 'Step'}`, 'success')
       } else if (activeSession.taskId) {
         // Pause work first to log time
         const progress = getWorkSessionProgress(activeSession.taskId)
@@ -269,11 +299,11 @@ export function WorkStatusWidget() {
           overallStatus: TaskStatus.Completed,
         })
 
-        Message.success(`Completed task: ${activeSession.taskName || 'Task'}`)
+        showNotification(`Completed task: ${activeSession.taskName || 'Task'}`, 'success')
       }
     } catch (error) {
       logger.ui.error('Failed to complete task', { error })
-      Message.error('Failed to complete task')
+      showNotification('Failed to complete task', 'error')
     } finally {
       setIsProcessing(false)
     }
@@ -624,6 +654,16 @@ export function WorkStatusWidget() {
             />
           )}
         </Space>
+
+        {/* Notification Alert */}
+        {notification.visible && (
+          <Alert
+            type={notification.type}
+            content={notification.message}
+            closable
+            onClose={() => setNotification(prev => ({ ...prev, visible: false }))}
+          />
+        )}
       </Space>
     </Card>
   )
