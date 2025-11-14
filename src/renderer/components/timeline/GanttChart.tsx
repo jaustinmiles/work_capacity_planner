@@ -16,6 +16,7 @@ import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { getCurrentTime, isTimeOverridden } from '@shared/time-provider'
+import { parseTimeOnDate, dateToYYYYMMDD, addDays } from '@shared/time-utils'
 
 
 const { Text } = Typography
@@ -250,21 +251,11 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       const date = new Date(pattern.date + 'T00:00:00')
 
       pattern.meetings.forEach(meeting => {
-        // Parse times for this date
-        const parseTimeOnDate = (date: Date, timeStr: string): Date => {
-          const parts = timeStr.split(':').map(Number)
-          const hours = parts[0] ?? 0
-          const minutes = parts[1] ?? 0
-          const result = new Date(date)
-          result.setHours(hours, minutes, 0, 0)
-          return result
-        }
-
         const startTime = parseTimeOnDate(date, meeting.startTime)
         const endTime = parseTimeOnDate(date, meeting.endTime)
 
         // Generate unique meeting IDs per day
-        const dateStr = date.toISOString().split('T')[0]
+        const dateStr = dateToYYYYMMDD(date)
         const baseId = `${meeting.id}-${dateStr}`
         const count = meetingMap.get(baseId) || 0
         meetingMap.set(baseId, count + 1)
@@ -278,8 +269,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
         if (crossesMidnight) {
           if (isSleepBlock) {
             // Split sleep blocks across midnight
-            const midnight = new Date(date)
-            midnight.setDate(midnight.getDate() + 1)
+            const midnight = addDays(date, 1)
             midnight.setHours(0, 0, 0, 0)
 
             // Night portion (from start time to midnight)
@@ -297,11 +287,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
             })
 
             // Morning portion (from midnight to end time next day)
-            const nextDayStart = new Date(date)
-            nextDayStart.setDate(nextDayStart.getDate() + 1)
+            const nextDayStart = addDays(date, 1)
             nextDayStart.setHours(0, 0, 0, 0)
 
-            const nextDayEnd = parseTimeOnDate(new Date(date.getTime() + 24 * 60 * 60 * 1000), meeting.endTime)
+            const nextDayEnd = parseTimeOnDate(addDays(date, 1), meeting.endTime)
 
             meetingItems.push({
               id: `${uniqueMeetingId}-morning`,
@@ -421,8 +410,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
   // Calculate end time based on work patterns AND scheduled items
   // Always show at least 7 days ahead or to the last work pattern
-  const sevenDaysFromNow = new Date(now)
-  sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
+  const sevenDaysFromNow = addDays(now, 7)
 
   // Find the last work pattern date
   const lastPatternDate = workPatterns.length > 0 && workPatterns[workPatterns.length - 1]
@@ -459,12 +447,12 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Calculate day boundaries for visual separation
   const dayBoundaries = useMemo(() => {
     const boundaries: Date[] = []
-    const dayTime = new Date(chartStartTime)
+    let dayTime = new Date(chartStartTime)
     dayTime.setHours(0, 0, 0, 0)
 
     while (dayTime <= chartEndTime) {
       boundaries.push(new Date(dayTime))
-      dayTime.setDate(dayTime.getDate() + 1)
+      dayTime = addDays(dayTime, 1)
     }
     return boundaries
   }, [chartStartTime, chartEndTime])

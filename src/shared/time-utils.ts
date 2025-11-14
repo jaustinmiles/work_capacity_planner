@@ -4,8 +4,8 @@
  */
 export function parseTimeString(timeStr: string, defaultHour = 0, defaultMinute = 0): [number, number] {
   const parts = timeStr.split(':').map(Number)
-  const hours = parts[0] ?? defaultHour
-  const minutes = parts[1] ?? defaultMinute
+  const hours = (parts.length > 0 && !Number.isNaN(parts[0])) ? parts[0] : defaultHour
+  const minutes = (parts.length > 1 && !Number.isNaN(parts[1])) ? parts[1] : defaultMinute
   return [hours, minutes]
 }
 
@@ -43,9 +43,9 @@ export function formatMinutes(minutes: number): string {
 export function parseDateString(dateStr: string): [number, number, number] {
   const parts = dateStr.split('-').map(Number)
   return [
-    parts[0] ?? new Date().getFullYear(),
-    parts[1] ?? 1,
-    parts[2] ?? 1,
+    (parts.length > 0 && !Number.isNaN(parts[0])) ? parts[0] : new Date().getFullYear(),
+    (parts.length > 1 && !Number.isNaN(parts[1])) ? parts[1] : 1,
+    (parts.length > 2 && !Number.isNaN(parts[2])) ? parts[2] : 1,
   ]
 }
 
@@ -103,4 +103,47 @@ export function getWaitStatus(
     remainingMinutes: Math.max(0, remainingMinutes),
     displayText: formatCountdown(remainingMinutes),
   }
+}
+
+/**
+ * Format Date to YYYY-MM-DD string
+ * This is the standard date format used throughout the application
+ */
+export function dateToYYYYMMDD(date: Date): string {
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Parse a time string (HH:MM) and apply it to a specific date
+ * Returns a new Date object with the date from baseDate and time from timeStr
+ */
+export function parseTimeOnDate(baseDate: Date, timeStr: string): Date {
+  const [hours, minutes] = parseTimeString(timeStr)
+  const result = new Date(baseDate)
+  result.setHours(hours, minutes, 0, 0)
+  return result
+}
+
+/**
+ * Add days to a date
+ * Returns a new Date object
+ */
+export function addDays(date: Date, days: number): Date {
+  const result = new Date(date)
+  result.setDate(result.getDate() + days)
+  return result
+}
+
+/**
+ * Check if two dates are the same day (ignoring time)
+ */
+export function isSameDay(date1: Date, date2: Date): boolean {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  )
 }

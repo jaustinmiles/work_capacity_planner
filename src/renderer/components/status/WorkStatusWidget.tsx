@@ -4,9 +4,8 @@ import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconCaretRight } fro
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
-import { formatMinutes } from '@shared/time-utils'
+import { formatMinutes, calculateDuration, formatTimeHHMM, dateToYYYYMMDD } from '@shared/time-utils'
 import { TaskStatus, TaskType, WorkBlockType } from '@shared/enums'
-import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { getDatabase } from '../../services/database'
@@ -44,18 +43,7 @@ function getBlockDisplay(block: WorkBlock | null) {
   }
 }
 
-// Helper to calculate duration
-const calculateDuration = (startTime: string, endTime: string): number => {
-  const startParts = startTime.split(':').map(Number)
-  const endParts = endTime.split(':').map(Number)
-  if (startParts.length !== 2 || endParts.length !== 2) return 0
-
-  const [startHour = 0, startMin = 0] = startParts
-  const [endHour = 0, endMin = 0] = endParts
-  const startMinutes = startHour * 60 + startMin
-  const endMinutes = endHour * 60 + endMin
-  return endMinutes > startMinutes ? endMinutes - startMinutes : 0
-}
+// calculateDuration is now imported from @shared/time-utils
 
 export function WorkStatusWidget() {
   // Task store state
@@ -106,7 +94,7 @@ export function WorkStatusWidget() {
   // Get current date
   const currentDate = useMemo(() => {
     const now = getCurrentTime()
-    return dayjs(now).format('YYYY-MM-DD')
+    return dateToYYYYMMDD(now)
   }, [])
 
   // Get active session from store state
@@ -132,7 +120,7 @@ export function WorkStatusWidget() {
 
           // Get current and next blocks
           const now = getCurrentTime()
-          const currentTimeStr = now.toTimeString().slice(0, 5)
+          const currentTimeStr = formatTimeHHMM(now)
 
           const current = pattern.blocks.find(block =>
             block.startTime <= currentTimeStr && block.endTime > currentTimeStr,

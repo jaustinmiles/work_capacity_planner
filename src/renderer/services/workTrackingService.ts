@@ -9,6 +9,7 @@ import {
 } from '../../shared/unified-work-session-types'
 import { TaskType } from '../../shared/enums'
 import { getCurrentTime } from '@/shared/time-provider'
+import { dateToYYYYMMDD, addDays } from '@/shared/time-utils'
 
 /**
  * Options for work session persistence behavior
@@ -319,11 +320,8 @@ export class WorkTrackingService {
       // Get work sessions from the past few days and clean up stale ones
       const dates: string[] = []
       for (let i = 0; i < 7; i++) {
-        const date = new Date(cutoffDate)
-        date.setDate(date.getDate() - i)
-        // TODO: use a utility function here. We shouldn't do date parsing hardcoded.
-        const isoString = date.toISOString()
-        const dateStr = isoString.split('T')[0] ?? ''
+        const date = addDays(cutoffDate, -i)
+        const dateStr = dateToYYYYMMDD(date)
         dates.push(dateStr)
       }
 

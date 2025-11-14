@@ -17,6 +17,7 @@ import { getCurrentTime } from '@/shared/time-provider'
 import { logger } from '@/logger'
 import { StepStatus, TaskType, UnifiedScheduleItemType } from '@/shared/enums'
 import { createWaitBlockId } from '@/shared/step-id-utils'
+import { dateToYYYYMMDD } from '@/shared/time-utils'
 
 export interface NextScheduledItem {
   type: 'task' | 'step'
@@ -113,7 +114,7 @@ const computeSchedule = (
     }
 
     const currentTime = getCurrentTime()
-    const startDateString = currentTime.toISOString().split('T')[0]!
+    const startDateString = dateToYYYYMMDD(currentTime)
 
     const context = {
       startDate: startDateString,
