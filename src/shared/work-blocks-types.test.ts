@@ -89,8 +89,8 @@ describe('work-blocks-types', () => {
           capacity: {
             totalMinutes: 120,
             type: 'mixed',
-            splitRatio: { focus: 0.5, admin: 0.5 }
-          }
+            splitRatio: { focus: 0.5, admin: 0.5 },
+          },
         },
       ]
 
