@@ -63,6 +63,16 @@ function hasStartTime(item: UnifiedScheduleItem): item is UnifiedScheduleItem & 
   return item.startTime !== undefined && item.startTime !== null
 }
 
+// Helper to check if item is a non-work item (meetings, breaks, blocked time, async waits)
+function isNonWorkItem(item: UnifiedScheduleItem): boolean {
+  return (
+    item.type === UnifiedScheduleItemType.Meeting ||
+    item.type === UnifiedScheduleItemType.Break ||
+    item.type === UnifiedScheduleItemType.BlockedTime ||
+    item.type === UnifiedScheduleItemType.AsyncWait
+  )
+}
+
 // Helper function to get task color based on type
 const getTaskColor = (taskType: TaskType): string => {
   switch (taskType) {
@@ -203,10 +213,7 @@ const extractNextScheduledItem = (
       if (!item.startTime) return false
 
       // Filter out non-work items
-      if (item.type === UnifiedScheduleItemType.Meeting ||
-          item.type === UnifiedScheduleItemType.Break ||
-          item.type === UnifiedScheduleItemType.BlockedTime ||
-          item.type === UnifiedScheduleItemType.AsyncWait) {
+      if (isNonWorkItem(item)) {
         return false
       }
 

@@ -10,6 +10,7 @@ import { TaskType, UnifiedScheduleItemType } from '@shared/enums'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
 import { dateToYYYYMMDD } from '@shared/time-utils'
+import { minutesBetween } from '../../utils/dateUtils'
 
 
 const { Title, Text } = Typography
@@ -104,7 +105,7 @@ export function WeeklyCalendar() {
       .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === TaskType.Focused)
       .reduce((sum, item) => {
         if (item.endTime && item.startTime) {
-          const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
+          const duration = minutesBetween(item.startTime, item.endTime)
           return sum + duration
         }
         return sum
@@ -114,7 +115,7 @@ export function WeeklyCalendar() {
       .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === TaskType.Admin)
       .reduce((sum, item) => {
         if (item.endTime && item.startTime) {
-          const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
+          const duration = minutesBetween(item.startTime, item.endTime)
           return sum + duration
         }
         return sum
