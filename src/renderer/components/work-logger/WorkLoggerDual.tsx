@@ -31,7 +31,6 @@ import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
-import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { SwimLaneTimeline } from './SwimLaneTimeline'
 import { CircularClock } from './CircularClock'
 import { ClockTimePicker } from '../common/ClockTimePicker'
@@ -138,56 +137,56 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
       const formattedSessions: WorkSessionData[] = filterActiveSessions(dbSessions)
         .map(session => {
-        const startTime = dayjs(session.startTime)
-        // For active sessions without endTime, use current time to show actual duration
-        const endTime = session.endTime
-          ? dayjs(session.endTime)
-          : dayjs(getCurrentTime()) // Use time provider for active sessions
+          const startTime = dayjs(session.startTime)
+          // For active sessions without endTime, use current time to show actual duration
+          const endTime = session.endTime
+            ? dayjs(session.endTime)
+            : dayjs(getCurrentTime()) // Use time provider for active sessions
 
-        // Find task and step details
-        const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
-        let stepName: string | undefined
-        let type: TaskType = TaskType.Focused // Default
+          // Find task and step details
+          const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
+          let stepName: string | undefined
+          let type: TaskType = TaskType.Focused // Default
 
-        // Get the type from the task or step, not from the session
-        if (task) {
-          if (session.stepId) {
-            // For workflow steps, find the step's type
-            for (const t of [...tasks, ...sequencedTasks]) {
-              if (t.hasSteps && t.steps) {
-                const step = t.steps.find(s => s.id === session.stepId)
-                if (step) {
-                  stepName = step.name
-                  type = step.type || task.type
-                  break
+          // Get the type from the task or step, not from the session
+          if (task) {
+            if (session.stepId) {
+              // For workflow steps, find the step's type
+              for (const t of [...tasks, ...sequencedTasks]) {
+                if (t.hasSteps && t.steps) {
+                  const step = t.steps.find(s => s.id === session.stepId)
+                  if (step) {
+                    stepName = step.name
+                    type = step.type || task.type
+                    break
+                  }
                 }
               }
+            } else {
+              // For regular tasks, use the task's type
+              type = task.type || TaskType.Focused
             }
-          } else {
-            // For regular tasks, use the task's type
-            type = task.type || TaskType.Focused
           }
-        }
 
-        const workSessionData: WorkSessionData = {
-          id: session.id,
-          taskId: session.taskId,
-          taskName: task?.name || 'Unknown Task',
-          startMinutes: startTime.hour() * 60 + startTime.minute(),
-          endMinutes: endTime.hour() * 60 + endTime.minute(),
-          type,
-          color: getTypeColor(type),
-          isNew: false,
-          isDirty: false,
-        }
+          const workSessionData: WorkSessionData = {
+            id: session.id,
+            taskId: session.taskId,
+            taskName: task?.name || 'Unknown Task',
+            startMinutes: startTime.hour() * 60 + startTime.minute(),
+            endMinutes: endTime.hour() * 60 + endTime.minute(),
+            type,
+            color: getTypeColor(type),
+            isNew: false,
+            isDirty: false,
+          }
 
-        // Only add optional properties if they have values
-        if (session.stepId) workSessionData.stepId = session.stepId
-        if (stepName) workSessionData.stepName = stepName
-        if (session.notes) workSessionData.notes = session.notes
+          // Only add optional properties if they have values
+          if (session.stepId) workSessionData.stepId = session.stepId
+          if (stepName) workSessionData.stepName = stepName
+          if (session.notes) workSessionData.notes = session.notes
 
-        return workSessionData
-      })
+          return workSessionData
+        })
 
       setSessions(formattedSessions)
     } catch (error) {
@@ -205,11 +204,11 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     setSessions(prev => prev.map(session =>
       session.id === id
         ? {
-            ...session,
-            startMinutes: startMinutes,
-            endMinutes: endMinutes,
-            isDirty: true,
-          }
+          ...session,
+          startMinutes: startMinutes,
+          endMinutes: endMinutes,
+          isDirty: true,
+        }
         : session,
     ))
   }, [])
@@ -431,8 +430,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       await loadWorkSessions()
       await loadTasks()
 
-      // Trigger scheduler recompute to update UI components
-      useSchedulerStore.getState().recomputeSchedule()
+      // Schedule will automatically recompute via reactive subscriptions when tasks update
     } catch (error) {
       logger.db.error('Failed to save work sessions', {
         error: error instanceof Error ? error.message : String(error),
@@ -779,9 +777,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                         >
                           {
                             selectedSession.type === TaskType.Focused ? 'Focused' :
-                            selectedSession.type === TaskType.Admin ? 'Admin' :
-                            selectedSession.type === TaskType.Personal ? 'Personal' :
-                            'Unknown'
+                              selectedSession.type === TaskType.Admin ? 'Admin' :
+                                selectedSession.type === TaskType.Personal ? 'Personal' :
+                                  'Unknown'
                           }
                         </Tag>
                         <Text>{selectedSession.endMinutes - selectedSession.startMinutes} minutes</Text>
@@ -886,17 +884,17 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                     <Tag
                       color={
                         task.type === TaskType.Focused ? 'blue' :
-                        task.type === TaskType.Admin ? 'orange' :
-                        task.type === TaskType.Personal ? 'green' :
-                        'default'
+                          task.type === TaskType.Admin ? 'orange' :
+                            task.type === TaskType.Personal ? 'green' :
+                              'default'
                       }
                       size="small"
                     >
                       {
                         task.type === TaskType.Focused ? 'F' :
-                        task.type === TaskType.Admin ? 'A' :
-                        task.type === TaskType.Personal ? 'P' :
-                        '?'
+                          task.type === TaskType.Admin ? 'A' :
+                            task.type === TaskType.Personal ? 'P' :
+                              '?'
                       }
                     </Tag>
                     {task.label}
@@ -955,9 +953,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 <Select.Option key={i} value={i}>
                   {i.toString().padStart(2, '0')}:00 - {
                     i === 0 ? 'Midnight' :
-                    i < 12 ? `${i} AM` :
-                    i === 12 ? 'Noon' :
-                    `${i - 12} PM`
+                      i < 12 ? `${i} AM` :
+                        i === 12 ? 'Noon' :
+                          `${i - 12} PM`
                   }
                 </Select.Option>
               ))}
@@ -975,9 +973,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 <Select.Option key={i} value={i}>
                   {i.toString().padStart(2, '0')}:00 - {
                     i === 0 ? 'Midnight' :
-                    i < 12 ? `${i} AM` :
-                    i === 12 ? 'Noon' :
-                    `${i - 12} PM`
+                      i < 12 ? `${i} AM` :
+                        i === 12 ? 'Noon' :
+                          `${i - 12} PM`
                   }
                 </Select.Option>
               ))}

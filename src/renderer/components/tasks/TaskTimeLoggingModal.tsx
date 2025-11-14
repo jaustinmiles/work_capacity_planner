@@ -4,7 +4,6 @@ import { Task } from '@shared/types'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
 import { useTaskStore } from '../../store/useTaskStore'
-import { useSchedulerStore } from '../../store/useSchedulerStore'
 import dayjs from 'dayjs'
 
 
@@ -79,7 +78,7 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
 
       // Update stores to reflect logged time
       await useTaskStore.getState().initializeData()
-      useSchedulerStore.getState().recomputeSchedule()
+      // Schedule will automatically recompute via reactive subscriptions
 
       logger.ui.info('[WorkLogging] Stores updated', {})
 

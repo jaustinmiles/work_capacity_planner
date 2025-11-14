@@ -27,7 +27,6 @@ import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
-import { useSchedulerStore } from '../../store/useSchedulerStore'
 
 
 const { Title, Text } = Typography
@@ -162,7 +161,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       // Refresh stores after deletion
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
-      useSchedulerStore.getState().recomputeSchedule()
+      // Schedule will automatically recompute via reactive subscriptions
     } catch (error) {
       logger.ui.error('Failed to delete session', {
         error: error instanceof Error ? error.message : String(error),

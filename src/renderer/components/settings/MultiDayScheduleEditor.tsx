@@ -32,7 +32,6 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
-import { useSchedulerStore } from '../../store/useSchedulerStore'
 
 
 dayjs.extend(isSameOrBefore)
@@ -180,7 +179,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
 
       // Refresh stores to update UI
       await useWorkPatternStore.getState().loadWorkPatterns()
-      useSchedulerStore.getState().recomputeSchedule()
+      // Schedule will automatically recompute via reactive subscriptions
     } catch (error) {
       logger.ui.error('Failed to save pattern', {
         error: error instanceof Error ? error.message : String(error),
@@ -332,7 +331,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
 
       // Refresh stores to update UI
       await useWorkPatternStore.getState().loadWorkPatterns()
-      useSchedulerStore.getState().recomputeSchedule()
+      // Schedule will automatically recompute via reactive subscriptions
     } catch (error) {
       logger.ui.error('Failed to clear schedules', {
         error: error instanceof Error ? error.message : String(error),

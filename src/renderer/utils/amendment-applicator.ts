@@ -26,7 +26,6 @@ import { getDatabase } from '../services/database'
 import { Message } from '../components/common/Message'
 import { logger } from '@/logger'
 import { useTaskStore } from '../store/useTaskStore'
-import { useSchedulerStore } from '../store/useSchedulerStore'
 import {
   applyForwardDependencyChanges,
   applyReverseDependencyChanges,
@@ -793,7 +792,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
     Message.success(`Applied ${successCount} amendment${successCount !== 1 ? 's' : ''}`)
     // Update stores to refresh UI reactively
     await useTaskStore.getState().initializeData()
-    useSchedulerStore.getState().recomputeSchedule()
+    // Schedule will automatically recompute via reactive subscriptions
   }
   if (errorCount > 0) {
     Message.error(`Failed to apply ${errorCount} amendment${errorCount !== 1 ? 's' : ''}`)

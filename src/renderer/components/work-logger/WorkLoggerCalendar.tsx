@@ -28,7 +28,6 @@ import {
 import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
-import { useSchedulerStore } from '../../store/useSchedulerStore'
 import dayjs from 'dayjs'
 
 const { Text } = Typography
@@ -209,8 +208,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
       await loadWorkSessions() // Reload to get proper IDs
       await loadTasks() // Reload tasks to update cumulative time
 
-      // Trigger scheduler recompute to update UI components
-      useSchedulerStore.getState().recomputeSchedule()
+      // Schedule will automatically recompute via reactive subscriptions when tasks update
     } catch (error) {
       logger.ui.error('Failed to save work sessions', {
         error: error instanceof Error ? error.message : String(error),
@@ -436,8 +434,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
           // Derive color from task type
           const color = taskType === TaskType.Focused ? '#165DFF' :
-                        taskType === TaskType.Admin ? '#FF9500' :
-                        taskType === TaskType.Personal ? '#00B42A' : '#8c8c8c'
+            taskType === TaskType.Admin ? '#FF9500' :
+              taskType === TaskType.Personal ? '#00B42A' : '#8c8c8c'
 
           return (
             <div
@@ -657,8 +655,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
               {...(selectedSession.stepId
                 ? { value: `step:${selectedSession.stepId}:${selectedSession.taskId}` }
                 : selectedSession.taskId
-                ? { value: `task:${selectedSession.taskId}` }
-                : {})}
+                  ? { value: `task:${selectedSession.taskId}` }
+                  : {})}
               onChange={(value) => {
                 if (value.startsWith('step:')) {
                   const [, stepId, taskId] = value.split(':')

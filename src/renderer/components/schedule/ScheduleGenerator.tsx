@@ -9,7 +9,6 @@ import { OptimizationMode } from '@shared/unified-scheduler'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
-import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
@@ -54,7 +53,6 @@ export function ScheduleGenerator({
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const { workSettings } = useTaskStore()
-  const { recomputeSchedule } = useSchedulerStore()
   const scheduler = useUnifiedScheduler()
 
   // Helper to call scheduler with proper context/config
@@ -445,9 +443,7 @@ export function ScheduleGenerator({
 
       // Save the schedule to the store if it's an optimal schedule
       // Note: Schedule is now managed reactively through the scheduler store
-
-      // Trigger scheduler recompute after saving
-      recomputeSchedule()
+      // Schedule will automatically recompute via reactive subscriptions
 
       Message.success('Schedule saved successfully!')
       onScheduleAccepted()

@@ -11,6 +11,7 @@ import { getDatabase } from '../services/database'
 // Events removed - using reactive state instead
 import { logger } from '@/logger'
 import { WorkTrackingService } from '../services/workTrackingService'
+import { getCurrentTime } from '@shared/time-provider'
 
 
 interface TaskStore {
@@ -430,7 +431,7 @@ export const useTaskStore = create<TaskStore>()(
 
       const updates: Partial<Task> = {
         completed: !task.completed,
-        ...(!task.completed ? { completedAt: new Date() } : {}),
+        ...(!task.completed ? { completedAt: getCurrentTime() } : {}),
       }
 
       // If task is being marked as completed, clean up any active work session BEFORE updating
@@ -547,7 +548,7 @@ export const useTaskStore = create<TaskStore>()(
       // Update step status in database
       await getDatabase().updateTaskStepProgress(stepId, {
         status: 'in_progress',
-        startedAt: new Date(),  // Always set a valid timestamp when starting work
+        startedAt: getCurrentTime(),  // Always set a valid timestamp when starting work
       })
 
       // Emit event to trigger UI updates
@@ -836,13 +837,14 @@ export const useTaskStore = create<TaskStore>()(
       const finalStatus = hasAsyncWait ? 'waiting' : 'completed'
 
       // Update step progress AND notes
+      const now = getCurrentTime()
       const updateData = {
         status: finalStatus,
-        completedAt: new Date(), // Mark when active work completed (wait time starts from here)
+        completedAt: now, // Mark when active work completed (wait time starts from here)
         actualDuration: totalMinutes,
         percentComplete: 100,
         // If the step was never started, set startedAt to when it was completed minus duration
-        startedAt: session?.startTime || new Date(Date.now() - totalMinutes * 60000),
+        startedAt: session?.startTime || new Date(now.getTime() - totalMinutes * 60000),
         // Save notes to the step itself, not just the work session
         ...(notes && { notes }),
       }
@@ -885,7 +887,7 @@ export const useTaskStore = create<TaskStore>()(
               return {
                 ...s,
                 status: newStatus,
-                completedAt: new Date(),
+                completedAt: getCurrentTime(),
                 actualDuration: (s.actualDuration || 0) + (totalMinutes || 0),
               }
             }
@@ -912,9 +914,7 @@ export const useTaskStore = create<TaskStore>()(
       // Reset skip index when a step is completed (to show the actual next task)
       get().resetNextTaskSkipIndex()
 
-      // Force schedule recomputation to ensure UI updates immediately
-      useSchedulerStore.getState().recomputeSchedule()
-
+      // Schedule will automatically recompute via reactive subscriptions in storeConnector
       // Don't call refreshAllData here - we've already updated the state directly
       // and emitted SESSION_CHANGED event. Calling refreshAllData causes unnecessary
       // re-loading from database which can cause race conditions.
@@ -947,7 +947,7 @@ export const useTaskStore = create<TaskStore>()(
    */
   checkAndCompleteExpiredWaitTimes: async () => {
     const state = get()
-    const now = new Date()
+    const now = getCurrentTime()
 
     for (const workflow of state.sequencedTasks) {
       for (const step of workflow.steps) {
@@ -1033,9 +1033,10 @@ export const useTaskStore = create<TaskStore>()(
         // Append notes to existing step notes if provided
         let updatedNotes = step.notes
         if (notes) {
+          const timestamp = getCurrentTime().toLocaleString()
           updatedNotes = step.notes
-            ? `${step.notes}\n\n${new Date().toLocaleString()}: ${notes}`
-            : `${new Date().toLocaleString()}: ${notes}`
+            ? `${step.notes}\n\n${timestamp}: ${notes}`
+            : `${timestamp}: ${notes}`
         }
 
         await getDatabase().updateTaskStepProgress(stepId, {
@@ -1193,8 +1194,7 @@ export const useTaskStore = create<TaskStore>()(
 
         set({ activeWorkSessions: newSessions })
 
-        // Trigger schedule recomputation after reconciliation
-        useSchedulerStore.getState().recomputeSchedule()
+        // Schedule will automatically recompute via reactive subscriptions
       }
     } catch (error) {
       logger.ui.error('Failed to reconcile work sessions', {

@@ -127,7 +127,7 @@ export class WorkTrackingService {
       const dbPayload = {
         ...toDatabaseWorkSession(workSession),
         sessionId: currentSession?.id || 'session-1',
-        date: new Date().toISOString().split('T')[0],
+        date: dateToYYYYMMDD(getCurrentTime()),
       }
 
       // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Creating database work session', {
@@ -238,7 +238,7 @@ export class WorkTrackingService {
       }
 
       // Set final end time and calculate actual duration
-      session.endTime = new Date()
+      session.endTime = getCurrentTime()
 
       // Ensure startTime is a Date object
       const startTime = session.startTime instanceof Date ? session.startTime : new Date(session.startTime)
