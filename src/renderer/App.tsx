@@ -97,7 +97,7 @@ function App() {
   // Session loading is now handled in useTaskStore.initializeData()
   // to prevent flash of default session
 
-  const [activeView, setActiveView] = useState<ViewType>(ViewType.Tasks)
+  const [activeView, setActiveView] = useState<ViewType>(ViewType.Timeline)
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
   const [brainstormModalVisible, setBrainstormModalVisible] = useState(false)
@@ -573,44 +573,6 @@ function App() {
                 style={{ flex: 1, minWidth: 0 }}
               >
                 <Tabs.TabPane
-                  key={ViewType.Tasks}
-                  title={
-                    <Space>
-                      <IconList />
-                      <span>Tasks</span>
-                      {incompleteTasks > 0 && <Badge count={incompleteTasks} dot />}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Matrix}
-                  title={
-                    <Space>
-                      <IconApps />
-                      <span>Matrix</span>
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Calendar}
-                  title={
-                    <Space>
-                      <IconCalendar />
-                      <span>Calendar</span>
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
-                  key={ViewType.Workflows}
-                  title={
-                    <Space>
-                      <IconBranch />
-                      <span>Workflows</span>
-                      {activeWorkflows > 0 && <Badge count={activeWorkflows} dot />}
-                    </Space>
-                  }
-                />
-                <Tabs.TabPane
                   key={ViewType.Timeline}
                   title={
                     <Space>
@@ -625,6 +587,44 @@ function App() {
                     <Space>
                       <IconCalendar />
                       <span>Schedule</span>
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
+                  key={ViewType.Workflows}
+                  title={
+                    <Space>
+                      <IconBranch />
+                      <span>Workflows</span>
+                      {activeWorkflows > 0 && <Badge count={activeWorkflows} dot />}
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
+                  key={ViewType.Tasks}
+                  title={
+                    <Space>
+                      <IconList />
+                      <span>Tasks</span>
+                      {incompleteTasks > 0 && <Badge count={incompleteTasks} dot />}
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
+                  key={ViewType.Calendar}
+                  title={
+                    <Space>
+                      <IconCalendar />
+                      <span>Calendar</span>
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
+                  key={ViewType.Matrix}
+                  title={
+                    <Space>
+                      <IconApps />
+                      <span>Matrix</span>
                     </Space>
                   }
                 />

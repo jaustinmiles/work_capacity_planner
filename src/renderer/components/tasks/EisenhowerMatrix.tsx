@@ -15,7 +15,7 @@ interface EisenhowerMatrixProps {
 
 export function EisenhowerMatrix({ onAddTask }: EisenhowerMatrixProps) {
   const { tasks, sequencedTasks, selectTask } = useTaskStore()
-  const [viewMode, setViewMode] = useState<'grid' | 'scatter'>('grid')
+  const [viewMode, setViewMode] = useState<'grid' | 'scatter'>('scatter')
   const { ref: containerRef, width: containerWidth } = useContainerQuery<HTMLDivElement>()
   const [containerSize, setContainerSize] = useState({ width: 500, height: 500 })
 
