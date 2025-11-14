@@ -544,7 +544,9 @@ export class UnifiedScheduler {
       // IMPORTANT: Blocks need to be created with a date at midnight for proper time calculations
       // But we'll still use currentTime for scheduling constraints
       const blockDate = new Date(dateStr + 'T00:00:00')
-      const dayBlocks = pattern.blocks.map(block => this.createBlockCapacity(block, blockDate))
+      const dayBlocks = pattern.blocks
+        .map(block => this.createBlockCapacity(block, blockDate))
+        .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
 
       // Schedule meetings and breaks first (for time blocking only)
       const meetingItems = this.scheduleMeetings(pattern.meetings || [], blockDate)
@@ -1498,20 +1500,6 @@ export class UnifiedScheduler {
     return result
   }
 
-  /**
-   * Calculate available time in block considering scheduled items
-   */
-  private calculateAvailableTimeInBlock(block: BlockCapacity, scheduledInBlock: UnifiedScheduleItem[]): number {
-    const totalBlockMinutes = (block.endTime.getTime() - block.startTime.getTime()) / 60000
-    const usedMinutes = scheduledInBlock.reduce((sum, item) => {
-      if (item.startTime && item.endTime) {
-        return sum + ((item.endTime.getTime() - item.startTime.getTime()) / 60000)
-      }
-      return sum + item.duration
-    }, 0)
-
-    return totalBlockMinutes - usedMinutes
-  }
 
   /**
    * Find next available time in block

@@ -1,151 +1,38 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Calendar, Card, Typography, Space, Statistic, Grid, Tag, Alert, Empty, Spin } from '@arco-design/web-react'
 import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
-// Now using UnifiedScheduler for consistent scheduling across all views
-import { useUnifiedScheduler } from '../../hooks/useUnifiedScheduler'
-import { OptimizationMode } from '@shared/unified-scheduler'
-import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { useSchedulerStore } from '../../store/useSchedulerStore'
+import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType, WorkBlockType } from '@shared/enums'
-import { logger } from '@/logger'
-import { getDatabase } from '../../services/database'
+import { TaskType, UnifiedScheduleItemType } from '@shared/enums'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
+import { dateToYYYYMMDD } from '@shared/time-utils'
+import { minutesBetween } from '../../utils/dateUtils'
 
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
 
 export function WeeklyCalendar() {
-  const { tasks, sequencedTasks, workSettings } = useTaskStore()
-  const scheduler = useUnifiedScheduler()
+  const { tasks, sequencedTasks } = useTaskStore()
+  const { scheduledItems } = useSchedulerStore()
+  const { workPatterns, isLoading: workPatternsLoading } = useWorkPatternStore()
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(dayjs())
-  const [workPatterns, setWorkPatterns] = useState<DailyWorkPattern[]>([])
-  const [loading, setLoading] = useState(false)
-
-  // Load work patterns for the next 30 days
-  useEffect(() => {
-    loadWorkPatterns()
-  }, [])
-
-  const loadWorkPatterns = async () => {
-    setLoading(true)
-    try {
-      const db = getDatabase()
-      const patterns: DailyWorkPattern[] = []
-      const today = dayjs().startOf('day')
-
-      // Load patterns for the next 30 days
-      for (let i = 0; i < 30; i++) {
-        const date = today.add(i, 'day')
-        const dateStr = date.format('YYYY-MM-DD')
-        const dayOfWeek = date.day()
-
-        const pattern = await db.getWorkPattern(dateStr)
-        if (pattern) {
-          patterns.push({
-            date: dateStr,
-            blocks: pattern.blocks,
-            meetings: pattern.meetings,
-            accumulated: { focus: 0, admin: 0, personal: 0 },
-          })
-        } else if (dayOfWeek === 0 || dayOfWeek === 6) {
-          // Weekend with no pattern - show personal time
-          patterns.push({
-            date: dateStr,
-            blocks: [
-              {
-                id: `weekend-personal-${dateStr}`,
-                startTime: '10:00',
-                endTime: '14:00',
-                type: WorkBlockType.Personal,
-                capacity: { totalMinutes: 240, type: WorkBlockType.Personal },
-              },
-            ],
-            meetings: [],
-            accumulated: { focus: 0, admin: 0, personal: 0 },
-          })
-        } else {
-          // No pattern - NO DEFAULT BLOCKS!
-          // User must explicitly define work blocks
-          patterns.push({
-            date: dateStr,
-            blocks: [],
-            meetings: [],
-            accumulated: { focus: 0, admin: 0, personal: 0 },
-          })
-        }
-      }
-
-      setWorkPatterns(patterns)
-    } catch (error) {
-      logger.ui.error('Failed to load work patterns', {
-        error: error instanceof Error ? error.message : String(error),
-      }, 'work-patterns-load-error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Use the unified scheduler to get properly scheduled items
-  const scheduledItems = useMemo(() => {
-    if (workPatterns.length === 0) return []
-
-    const currentTime = dayjs().toDate()
-    const startDateString = dayjs().format('YYYY-MM-DD')
-
-    const context = {
-      startDate: startDateString,
-      tasks,
-      workflows: sequencedTasks,
-      workPatterns,
-      workSettings,
-      currentTime,
-    }
-
-    const config = {
-      startDate: currentTime,
-      endDate: dayjs().add(30, 'day').toDate(),
-      allowTaskSplitting: true,
-      respectMeetings: true,
-      optimizationMode: OptimizationMode.Realistic,
-      debugMode: false,
-    }
-
-    const items = [...tasks, ...sequencedTasks]
-    const result = scheduler.scheduleForDisplay(items, context, config)
-
-    // Convert UnifiedScheduleItem to the format expected by the component
-    type ScheduledItemType = 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break'
-
-    return result.scheduled
-      .filter(item => item.type === 'task' || item.type === 'workflow-step')
-      .map(item => ({
-        id: item.id,
-        name: item.name,
-        type: item.type as ScheduledItemType,
-        priority: item.priority || 0,
-        duration: item.duration,
-        startTime: item.startTime || currentTime,
-        endTime: item.endTime || currentTime,
-        color: item.taskType === TaskType.Focused ? '#165DFF' :
-               item.taskType === TaskType.Admin ? '#00B42A' : '#F77234',
-        originalItem: item.originalItem || item,
-        deadline: item.deadline,
-      }))
-  }, [tasks, sequencedTasks, workPatterns, workSettings, scheduler])
 
   // Group scheduled items by date
   const itemsByDate = useMemo(() => {
     const grouped = new Map<string, typeof scheduledItems>()
 
     scheduledItems.forEach(item => {
-      const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
-      const existing = grouped.get(dateStr) || []
-      existing.push(item)
-      grouped.set(dateStr, existing)
+      if (item.startTime) {
+        const dateStr = dateToYYYYMMDD(item.startTime)
+        const existing = grouped.get(dateStr) || []
+        existing.push(item)
+        grouped.set(dateStr, existing)
+      }
     })
 
     return grouped
@@ -155,7 +42,7 @@ export function WeeklyCalendar() {
 
   // Calculate total work capacity needed
   const totalFocusedMinutes = incompleteTasks
-    .filter(task => task.type === 'focused')
+    .filter(task => task.type === TaskType.Focused)
     .reduce((sum, task) => sum + task.duration, 0)
 
   const totalAdminMinutes = incompleteTasks
@@ -215,17 +102,23 @@ export function WeeklyCalendar() {
 
     // Calculate time by type for this day
     const focusedMinutes = daySchedule
-      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === 'focused')
+      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === TaskType.Focused)
       .reduce((sum, item) => {
-        const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
-        return sum + duration
+        if (item.endTime && item.startTime) {
+          const duration = minutesBetween(item.startTime, item.endTime)
+          return sum + duration
+        }
+        return sum
       }, 0)
 
     const admin = daySchedule
       .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === TaskType.Admin)
       .reduce((sum, item) => {
-        const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)
-        return sum + duration
+        if (item.endTime && item.startTime) {
+          const duration = minutesBetween(item.startTime, item.endTime)
+          return sum + duration
+        }
+        return sum
       }, 0)
 
     const hasScheduledTasks = daySchedule.length > 0
@@ -390,7 +283,7 @@ export function WeeklyCalendar() {
               </Space>
             </Title>
 
-            {loading ? (
+            {workPatternsLoading ? (
               <div style={{ textAlign: 'center', padding: 40 }}>
                 <Spin size={40} />
                 <div style={{ marginTop: 16 }}>Loading schedule...</div>
@@ -448,7 +341,24 @@ export function WeeklyCalendar() {
           {selectedDate ? (
             <DailyScheduleView
               date={selectedDate.format('YYYY-MM-DD')}
-              scheduledItems={itemsByDate.get(selectedDate.format('YYYY-MM-DD')) || []}
+              scheduledItems={
+                (itemsByDate.get(selectedDate.format('YYYY-MM-DD')) || [])
+                  .filter(item => item.startTime && item.endTime)
+                  .map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    type: item.type as UnifiedScheduleItemType,
+                    priority: item.priority || 0,
+                    duration: item.duration,
+                    startTime: item.startTime!,
+                    endTime: item.endTime!,
+                    color: item.color || '#6b7280',
+                    workflowId: item.workflowId,
+                    workflowName: item.workflowName,
+                    originalItem: item.originalItem,
+                    deadline: item.deadline,
+                  }))
+              }
               workPattern={workPatterns.find(p => p.date === selectedDate.format('YYYY-MM-DD'))}
               style={{ height: '100%' }}
             />

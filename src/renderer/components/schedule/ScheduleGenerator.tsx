@@ -52,7 +52,7 @@ export function ScheduleGenerator({
   const [selectedOption, setSelectedOption] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
-  const { workSettings, setOptimalSchedule } = useTaskStore()
+  const { workSettings } = useTaskStore()
   const scheduler = useUnifiedScheduler()
 
   // Helper to call scheduler with proper context/config
@@ -442,22 +442,8 @@ export function ScheduleGenerator({
       }
 
       // Save the schedule to the store if it's an optimal schedule
-      if (selected.id === 'optimal') {
-        // Convert UnifiedScheduleItem to the format expected by the store
-        const storeSchedule = selected.schedule.map(item => ({
-          id: item.id,
-          name: item.name,
-          type: item.type === 'workflow-step' ? 'workflow-step' as const : 'task' as const,
-          priority: item.priority || 0,
-          duration: item.duration,
-          startTime: item.startTime || new Date(),
-          endTime: item.endTime || new Date(),
-          color: '#1890ff',
-          deadline: item.deadline,
-          originalItem: item.originalItem || item,
-        }))
-        setOptimalSchedule(storeSchedule)
-      }
+      // Note: Schedule is now managed reactively through the scheduler store
+      // Schedule will automatically recompute via reactive subscriptions
 
       Message.success('Schedule saved successfully!')
       onScheduleAccepted()

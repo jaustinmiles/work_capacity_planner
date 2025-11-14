@@ -24,10 +24,10 @@ describe('time-utils', () => {
     it('should use defaults for invalid input', () => {
       // Empty string splits to [''] which converts to 0 with || operator
       expect(parseTimeString('', 8, 30)).toEqual([0, 30])
-      // 'invalid' splits to ['invalid'] which converts to NaN
+      // 'invalid' splits to ['invalid'] which converts to NaN, now we use defaults
       const [h, m] = parseTimeString('invalid', 12, 0)
-      expect(isNaN(h)).toBe(true)
-      expect(m).toBe(0)
+      expect(h).toBe(12) // Uses default hour
+      expect(m).toBe(0) // Uses default minute
     })
 
     it('should handle missing minutes', () => {
@@ -43,14 +43,14 @@ describe('time-utils', () => {
     })
 
     it('should handle NaN values', () => {
-      // When parts are NaN, the function doesn't use the defaults properly
+      // When parts are NaN, the function now uses the defaults
       const [h1, m1] = parseTimeString('abc:def', 7, 30)
-      expect(isNaN(h1)).toBe(true)
-      expect(isNaN(m1)).toBe(true)
+      expect(h1).toBe(7) // Uses default hour
+      expect(m1).toBe(30) // Uses default minute
 
       const [h2, m2] = parseTimeString('12:xyz', 0, 0)
-      expect(h2).toBe(12)
-      expect(isNaN(m2)).toBe(true)
+      expect(h2).toBe(12) // Valid hour
+      expect(m2).toBe(0) // Uses default minute since 'xyz' is NaN
     })
   })
 
@@ -71,8 +71,8 @@ describe('time-utils', () => {
     it('should handle invalid input', () => {
       // Empty string becomes 0
       expect(timeStringToMinutes('')).toBe(0)
-      // Invalid string results in NaN
-      expect(isNaN(timeStringToMinutes('invalid'))).toBe(true)
+      // Invalid string now returns 0 (uses defaults)
+      expect(timeStringToMinutes('invalid')).toBe(0)
     })
 
     it('should handle partial time strings', () => {
@@ -106,8 +106,8 @@ describe('time-utils', () => {
     it('should handle invalid inputs', () => {
       // Empty strings become 0, so duration is 0
       expect(calculateDuration('', '')).toBe(0)
-      // Invalid strings result in NaN calculations
-      expect(isNaN(calculateDuration('invalid', 'times'))).toBe(true)
+      // Invalid strings now return 0 (uses defaults which result in 0 duration)
+      expect(calculateDuration('invalid', 'times')).toBe(0)
     })
   })
 

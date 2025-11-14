@@ -38,7 +38,6 @@ import { StepWorkSessionsModal } from './StepWorkSessionsModal'
 import { DependencyEditor } from '../shared/DependencyEditor'
 import { Message } from '../common/Message'
 import { getDatabase } from '../../services/database'
-import { appEvents, EVENTS } from '../../utils/events'
 import { logger } from '@/logger'
 
 const { Title, Text } = Typography
@@ -166,8 +165,9 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           worstCaseDuration,
         })
 
-        // Emit workflow updated event
-        appEvents.emit(EVENTS.WORKFLOW_UPDATED)
+        // Update stores for reactive UI updates
+        await useTaskStore.getState().initializeData()
+        // Schedule will automatically recompute via store subscription
         logger.db.info('Workflow saved successfully', {
           workflowId: task.id,
           stepCount: cleanedSteps.length,
@@ -175,7 +175,9 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
       } else {
         // Regular task save
         await updateTask(task.id, editedTask)
-        appEvents.emit(EVENTS.TASK_UPDATED, { taskId: task.id })
+        // Update stores for reactive UI updates
+        await useTaskStore.getState().initializeData()
+        // Schedule will automatically recompute via reactive subscriptions
         logger.db.info('Task saved successfully', {
           taskId: task.id,
         }, 'task-save-success')
@@ -284,7 +286,9 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           worstCaseDuration,
         })
 
-        appEvents.emit(EVENTS.WORKFLOW_UPDATED)
+        // Update stores for reactive UI updates
+        await useTaskStore.getState().initializeData()
+        // Schedule will automatically recompute via reactive subscriptions
         logger.db.info('Step saved to database', {
           workflowId: task.id,
           totalSteps: cleanedSteps.length,
@@ -535,49 +539,49 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
               actions={
                 isEditing
                   ? [
-                      <Button
-                        key="edit"
-                        icon={<IconEdit />}
-                        size="small"
-                        onClick={() => handleStepEdit(step)}
-                      />,
-                      <Button
-                        key="split"
-                        icon={<IconScissor />}
-                        size="small"
-                        onClick={() => setSplitStep({ step, index })}
-                      />,
-                      <Button
-                        key="up"
-                        icon={<IconUp />}
-                        size="small"
-                        disabled={index === 0}
-                        onClick={() => handleStepMove(index, 'up')}
-                      />,
-                      <Button
-                        key="down"
-                        icon={<IconDown />}
-                        size="small"
-                        disabled={index === steps.length - 1}
-                        onClick={() => handleStepMove(index, 'down')}
-                      />,
-                      <Popconfirm
-                        key="delete"
-                        title="Delete this step?"
-                        onOk={() => handleStepDelete(step.id)}
-                      >
-                        <Button icon={<IconDelete />} size="small" status="danger" />
-                      </Popconfirm>,
-                    ]
+                    <Button
+                      key="edit"
+                      icon={<IconEdit />}
+                      size="small"
+                      onClick={() => handleStepEdit(step)}
+                    />,
+                    <Button
+                      key="split"
+                      icon={<IconScissor />}
+                      size="small"
+                      onClick={() => setSplitStep({ step, index })}
+                    />,
+                    <Button
+                      key="up"
+                      icon={<IconUp />}
+                      size="small"
+                      disabled={index === 0}
+                      onClick={() => handleStepMove(index, 'up')}
+                    />,
+                    <Button
+                      key="down"
+                      icon={<IconDown />}
+                      size="small"
+                      disabled={index === steps.length - 1}
+                      onClick={() => handleStepMove(index, 'down')}
+                    />,
+                    <Popconfirm
+                      key="delete"
+                      title="Delete this step?"
+                      onOk={() => handleStepDelete(step.id)}
+                    >
+                      <Button icon={<IconDelete />} size="small" status="danger" />
+                    </Popconfirm>,
+                  ]
                   : [
-                      <Button
-                        key="sessions"
-                        size="small"
-                        onClick={() => setSelectedStepForSessions(step)}
-                      >
-                        View Sessions
-                      </Button>,
-                    ]
+                    <Button
+                      key="sessions"
+                      size="small"
+                      onClick={() => setSelectedStepForSessions(step)}
+                    >
+                      View Sessions
+                    </Button>,
+                  ]
               }
             >
               <List.Item.Meta

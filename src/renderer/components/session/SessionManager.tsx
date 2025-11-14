@@ -25,7 +25,8 @@ import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
-import { appEvents, EVENTS } from '../../utils/events'
+import { useTaskStore } from '../../store/useTaskStore'
+import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 
 
 const { Title, Text } = Typography
@@ -80,9 +81,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       await loadSessions()
       onSessionChange?.()
 
-      // Emit event to refresh UI components
-      appEvents.emit(EVENTS.SESSION_CHANGED)
-      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      // Refresh stores for new session
+      await useTaskStore.getState().initializeData()
+      await useWorkPatternStore.getState().loadWorkPatterns()
+      // Schedule will automatically recompute via store subscriptions
     } catch (error) {
       logger.ui.error('Failed to create session', {
         error: error instanceof Error ? error.message : String(error),
@@ -106,9 +108,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       await loadSessions()
       onSessionChange?.()
 
-      // Emit event to refresh UI components
-      appEvents.emit(EVENTS.SESSION_CHANGED)
-      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      // Refresh stores for new session
+      await useTaskStore.getState().initializeData()
+      await useWorkPatternStore.getState().loadWorkPatterns()
+      // Schedule will automatically recompute via store subscriptions
     } catch (error) {
       logger.ui.error('Failed to switch session', {
         error: error instanceof Error ? error.message : String(error),
@@ -155,8 +158,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       Message.success('Session deleted')
       await loadSessions()
 
-      // Emit event to refresh UI components
-      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      // Refresh stores after deletion
+      await useTaskStore.getState().initializeData()
+      await useWorkPatternStore.getState().loadWorkPatterns()
+      // Schedule will automatically recompute via reactive subscriptions
     } catch (error) {
       logger.ui.error('Failed to delete session', {
         error: error instanceof Error ? error.message : String(error),

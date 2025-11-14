@@ -145,11 +145,9 @@ describe('useTaskStore WorkTrackingService Integration', () => {
 
       mockWorkTrackingService.startWorkSession.mockRejectedValue(error)
 
-      // Act & Assert - Should not throw
+      // Act & Assert - Should throw the error (error is re-thrown after rollback)
       const store = useTaskStore.getState()
-      expect(() => {
-        store.startWorkOnStep(stepId, workflowId)
-      }).not.toThrow()
+      await expect(store.startWorkOnStep(stepId, workflowId)).rejects.toThrow('Database connection failed')
     })
 
     it('should prevent starting work if another session is already active', async () => {

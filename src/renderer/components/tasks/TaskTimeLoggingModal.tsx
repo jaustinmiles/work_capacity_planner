@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Modal, Form, InputNumber, Typography, Space, DatePicker, Input } from '@arco-design/web-react'
 import { Task } from '@shared/types'
-import { appEvents, EVENTS } from '../../utils/events'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
+import { useTaskStore } from '../../store/useTaskStore'
 import dayjs from 'dayjs'
 
 
@@ -76,11 +76,11 @@ export function TaskTimeLoggingModal({ task, visible, onClose }: TaskTimeLogging
 
 
 
-      // Emit events to update other components
-      appEvents.emit(EVENTS.TIME_LOGGED)
-      appEvents.emit(EVENTS.DATA_REFRESH_NEEDED)
+      // Update stores to reflect logged time
+      await useTaskStore.getState().initializeData()
+      // Schedule will automatically recompute via reactive subscriptions
 
-      logger.ui.info('[WorkLogging] Events emitted', {})
+      logger.ui.info('[WorkLogging] Stores updated', {})
 
 
 

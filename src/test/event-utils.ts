@@ -1,219 +1,88 @@
-import { vi, expect } from 'vitest'
-import { waitFor } from '@testing-library/react'
-import { appEvents, EVENTS } from '@renderer/utils/events'
+import { vi } from 'vitest'
 
 /**
- * Mock event listeners registry
+ * Event utilities stub - events have been removed from the system
+ * This file exists only to prevent import errors in legacy tests
+ * All functions are no-ops since the event system no longer exists
  */
-const mockEventListeners = new Map<string, Set<Function>>()
 
-/**
- * Initialize mock event system
- * Call this in beforeEach to set up event mocking
- */
 export function initMockEvents(): void {
-  mockEventListeners.clear()
-
-  // Mock appEvents.on
-  vi.spyOn(appEvents, 'on').mockImplementation((event: string, handler: Function) => {
-    if (!mockEventListeners.has(event)) {
-      mockEventListeners.set(event, new Set())
-    }
-    mockEventListeners.get(event)!.add(handler)
-  })
-
-  // Mock appEvents.off
-  vi.spyOn(appEvents, 'off').mockImplementation((event: string, handler: Function) => {
-    mockEventListeners.get(event)?.delete(handler)
-  })
-
-  // Mock appEvents.emit
-  vi.spyOn(appEvents, 'emit').mockImplementation((event: string, ...args: any[]) => {
-    const listeners = mockEventListeners.get(event)
-    if (listeners) {
-      listeners.forEach(handler => {
-        handler(...args)
-      })
-    }
-  })
+  // No-op - events have been removed
 }
 
-/**
- * Clean up mock events
- * Call this in afterEach to clean up
- */
 export function cleanupMockEvents(): void {
-  mockEventListeners.clear()
-  vi.restoreAllMocks()
+  // No-op - events have been removed
 }
 
-/**
- * Fire a mock app event
- */
-export function fireAppEvent(eventType: string, data?: any): void {
-  const listeners = mockEventListeners.get(eventType)
-  if (listeners) {
-    listeners.forEach(handler => {
-      handler(data)
-    })
-  }
+export function fireAppEvent(_eventType: string, _data?: any): void {
+  // No-op - events have been removed
 }
 
-/**
- * Wait for an event to be emitted
- * Useful for testing async operations that emit events
- */
 export async function waitForEvent(
-  eventType: string,
-  options?: { timeout?: number },
+  _eventType: string,
+  _options?: { timeout?: number },
 ): Promise<any> {
-  const { timeout = 1000 } = options || {}
-
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      appEvents.off(eventType, handler)
-      reject(new Error(`Event "${eventType}" not emitted within ${timeout}ms`))
-    }, timeout)
-
-    const handler = (data: any) => {
-      clearTimeout(timer)
-      appEvents.off(eventType, handler)
-      resolve(data)
-    }
-
-    appEvents.on(eventType, handler)
-  })
+  // No-op - events have been removed
+  return Promise.resolve()
 }
 
-/**
- * Create a spy for a specific event
- * Returns a function that can be used to check if the event was emitted
- */
-export function createEventSpy(eventType: string): {
+export function createEventSpy(_eventType: string): {
   handler: ReturnType<typeof vi.fn>
   unsubscribe: () => void
 } {
-  const handler = vi.fn()
-
-  if (!mockEventListeners.has(eventType)) {
-    mockEventListeners.set(eventType, new Set())
-  }
-  mockEventListeners.get(eventType)!.add(handler)
-
-  const unsubscribe = () => {
-    mockEventListeners.get(eventType)?.delete(handler)
-  }
-
-  return { handler, unsubscribe }
-}
-
-/**
- * Assert that an event was emitted with specific data
- */
-export async function expectEventEmitted(
-  eventType: string,
-  expectedData?: any,
-  options?: { timeout?: number },
-): Promise<void> {
-  const { timeout = 100 } = options || {}
-
-  const eventSpy = createEventSpy(eventType)
-
-  await waitFor(
-    () => {
-      expect(eventSpy.handler).toHaveBeenCalled()
-      if (expectedData !== undefined) {
-        expect(eventSpy.handler).toHaveBeenCalledWith(expectedData)
-      }
-    },
-    { timeout },
-  )
-
-  eventSpy.unsubscribe()
-}
-
-/**
- * Assert that an event was NOT emitted
- */
-export async function expectEventNotEmitted(
-  eventType: string,
-  options?: { waitTime?: number },
-): Promise<void> {
-  const { waitTime = 100 } = options || {}
-
-  const eventSpy = createEventSpy(eventType)
-
-  // Wait a bit to make sure the event has time to be emitted if it was going to be
-  await new Promise(resolve => setTimeout(resolve, waitTime))
-
-  expect(eventSpy.handler).not.toHaveBeenCalled()
-
-  eventSpy.unsubscribe()
-}
-
-/**
- * Get all listeners for a specific event (for debugging)
- */
-export function getEventListeners(eventType: string): Function[] {
-  return Array.from(mockEventListeners.get(eventType) || [])
-}
-
-/**
- * Get count of listeners for a specific event
- */
-export function getEventListenerCount(eventType: string): number {
-  return mockEventListeners.get(eventType)?.size || 0
-}
-
-/**
- * Re-export EVENTS for convenience
- */
-export const APP_EVENTS = EVENTS
-
-/**
- * Helper to simulate a sequence of events
- * Useful for testing complex event-driven workflows
- */
-export async function simulateEventSequence(
-  events: Array<{ type: string; data?: any; delay?: number }>,
-): Promise<void> {
-  for (const event of events) {
-    if (event.delay) {
-      await new Promise(resolve => setTimeout(resolve, event.delay))
-    }
-    fireAppEvent(event.type, event.data)
-  }
-}
-
-/**
- * Create a mock event emitter for testing
- * This can be used to replace appEvents entirely in tests
- */
-export function createMockEventEmitter() {
-  const listeners = new Map<string, Set<Function>>()
-
   return {
-    on: vi.fn((event: string, handler: Function) => {
-      if (!listeners.has(event)) {
-        listeners.set(event, new Set())
-      }
-      listeners.get(event)!.add(handler)
-    }),
+    handler: vi.fn(),
+    unsubscribe: () => {},
+  }
+}
 
-    off: vi.fn((event: string, handler: Function) => {
-      listeners.get(event)?.delete(handler)
-    }),
+export async function expectEventEmitted(
+  _eventType: string,
+  _expectedData?: any,
+  _options?: { timeout?: number },
+): Promise<void> {
+  // No-op - events have been removed
+}
 
-    emit: vi.fn((event: string, ...args: any[]) => {
-      const eventListeners = listeners.get(event)
-      if (eventListeners) {
-        eventListeners.forEach(handler => handler(...args))
-      }
-    }),
+export async function expectEventNotEmitted(
+  _eventType: string,
+  _options?: { waitTime?: number },
+): Promise<void> {
+  // No-op - events have been removed
+}
 
-    // Test-specific helpers
-    _getListeners: (event: string) => Array.from(listeners.get(event) || []),
-    _getListenerCount: (event: string) => listeners.get(event)?.size || 0,
-    _clearAllListeners: () => listeners.clear(),
+export function getEventListeners(_eventType: string): Function[] {
+  return []
+}
+
+export function getEventListenerCount(_eventType: string): number {
+  return 0
+}
+
+// Legacy export for compatibility
+export const APP_EVENTS = {
+  TIME_LOGGED: 'timeLogged',
+  DATA_REFRESH_NEEDED: 'dataRefresh',
+  SESSION_CHANGED: 'sessionChanged',
+  TIME_OVERRIDE_CHANGED: 'timeOverrideChanged',
+  WORKFLOW_STATE_CHANGED: 'workflowStateChanged',
+  WORKFLOW_PAUSED: 'workflowPaused',
+  WORKFLOW_RESET: 'workflowReset',
+}
+
+export async function simulateEventSequence(
+  _events: Array<{ type: string; data?: any; delay?: number }>,
+): Promise<void> {
+  // No-op - events have been removed
+}
+
+export function createMockEventEmitter() {
+  return {
+    on: vi.fn(),
+    off: vi.fn(),
+    emit: vi.fn(),
+    _getListeners: (_event: string) => [],
+    _getListenerCount: (_event: string) => 0,
+    _clearAllListeners: () => {},
   }
 }

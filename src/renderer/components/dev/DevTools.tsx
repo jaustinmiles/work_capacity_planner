@@ -4,6 +4,8 @@ import { IconDelete, IconTool, IconMessage, IconList, IconFile, IconClockCircle 
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
+import { useTaskStore } from '../../store/useTaskStore'
+import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { FeedbackForm } from './FeedbackForm'
 import { FeedbackViewer } from './FeedbackViewer'
 import { LogViewer } from './LogViewer'
@@ -41,8 +43,12 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
       await getDatabase().deleteAllUserData()
       logger.ui.info('All user data cleared successfully')
       Message.success('All user data cleared successfully')
-      // Reload the page to refresh everything
-      setTimeout(() => window.location.reload(), 1000)
+
+      // Re-initialize data in stores
+      // No delay needed - stores can be initialized immediately after clearing
+      await useTaskStore.getState().initializeData()
+      await useWorkPatternStore.getState().loadWorkPatterns()
+      // Schedule will automatically recompute via store subscriptions
     } catch (error) {
       logger.ui.error('Failed to clear data', {
         error: error instanceof Error ? error.message : String(error),

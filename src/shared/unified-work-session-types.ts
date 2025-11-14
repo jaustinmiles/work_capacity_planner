@@ -22,6 +22,7 @@
  */
 
 import { TaskType } from './enums'
+import { generateUniqueId } from './step-id-utils'
 
 /**
  * Unified work session structure that serves as single source of truth
@@ -194,6 +195,7 @@ export function getSessionColor(session: UnifiedWorkSession): string {
 
 // Create new session with defaults
 export function createUnifiedWorkSession(params: {
+  id?: string  // ID is now optional - database will generate if not provided
   taskId: string
   stepId?: string
   type: TaskType
@@ -205,7 +207,9 @@ export function createUnifiedWorkSession(params: {
   const now = new Date()
 
   return {
-    id: `session-${Date.now()}-${crypto.randomUUID().substring(0, 8)}`,
+    // Only generate ID if not provided (for compatibility)
+    // Database should generate the real ID
+    id: params.id || generateUniqueId('ws'),
     taskId: params.taskId,
     stepId: params.stepId,
     workflowId: params.workflowId,

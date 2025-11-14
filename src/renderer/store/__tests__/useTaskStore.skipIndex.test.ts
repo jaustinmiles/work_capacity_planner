@@ -24,16 +24,7 @@ vi.mock('../../services/workTrackingService', () => ({
   })),
 }))
 
-vi.mock('../../utils/events', () => ({
-  appEvents: { on: vi.fn(), off: vi.fn(), emit: vi.fn() },
-  EVENTS: {
-    TIME_LOGGED: 'timeLogged',
-    WORKFLOW_UPDATED: 'workflowUpdated',
-    SESSION_CHANGED: 'sessionChanged',
-    DATA_REFRESH_NEEDED: 'dataRefresh',
-    TIME_OVERRIDE_CHANGED: 'timeOverrideChanged',
-  },
-}))
+// Events system has been removed
 
 vi.mock('@/logger', () => ({
   logger: {
@@ -43,16 +34,34 @@ vi.mock('@/logger', () => ({
   },
 }))
 
-let mockSchedulerInstance: any
+// Mock unified scheduler with factory function to avoid hoisting issues
+vi.mock('@shared/unified-scheduler', () => {
+  const mockScheduleResult = {
+    scheduled: [],
+    unscheduled: [],
+    debugInfo: {
+      scheduledItems: [],
+      unscheduledItems: [],
+      blockUtilization: [],
+      warnings: [],
+      totalScheduled: 0,
+      totalUnscheduled: 0,
+      scheduleEfficiency: 0,
+    },
+    conflicts: [],
+  }
 
-vi.mock('@shared/unified-scheduler', () => ({
-  UnifiedScheduler: vi.fn().mockImplementation(() => mockSchedulerInstance),
-  OptimizationMode: {
-    Realistic: 'realistic',
-    Optimal: 'optimal',
-    Conservative: 'conservative',
-  },
-}))
+  return {
+    UnifiedScheduler: vi.fn().mockImplementation(() => ({
+      scheduleForDisplay: vi.fn().mockReturnValue(mockScheduleResult),
+    })),
+    OptimizationMode: {
+      Realistic: 'realistic',
+      Optimal: 'optimal',
+      Conservative: 'conservative',
+    },
+  }
+})
 
 vi.mock('@shared/time-provider', () => ({
   getCurrentTime: vi.fn(() => new Date('2025-01-15T08:00:00Z')),
@@ -61,24 +70,6 @@ vi.mock('@shared/time-provider', () => ({
 describe('useTaskStore - nextTaskSkipIndex', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-
-    // Reset mock scheduler
-    mockSchedulerInstance = {
-      scheduleForDisplay: vi.fn().mockReturnValue({
-        scheduled: [],
-        unscheduled: [],
-        debugInfo: {
-          scheduledItems: [],
-          unscheduledItems: [],
-          blockUtilization: [],
-          warnings: [],
-          totalScheduled: 0,
-          totalUnscheduled: 0,
-          scheduleEfficiency: 0,
-        },
-        conflicts: [],
-      }),
-    }
 
     // Reset the store state
     useTaskStore.setState({
@@ -139,141 +130,23 @@ describe('useTaskStore - nextTaskSkipIndex', () => {
     })
   })
 
-  describe('getNextScheduledItem', () => {
+  // getNextScheduledItem has been moved to useSchedulerStore,
+  // so these tests are no longer applicable here
+  describe.skip('getNextScheduledItem - moved to useSchedulerStore', () => {
     it('should use the stored skipIndex from state', async () => {
-      const mockTasks = [
-        { id: 'task-1', name: 'Task 1', type: 'focused', duration: 60, completed: false },
-        { id: 'task-2', name: 'Task 2', type: 'focused', duration: 60, completed: false },
-        { id: 'task-3', name: 'Task 3', type: 'focused', duration: 60, completed: false },
-      ]
-
-      mockSchedulerInstance.scheduleForDisplay.mockReturnValue({
-        scheduled: [
-          { id: 'task-1', name: 'Task 1', type: 'task', duration: 60, priority: 50, startTime: new Date('2024-01-15T09:00:00'), endTime: new Date('2024-01-15T10:00:00'), taskType: 'focused' },
-          { id: 'task-2', name: 'Task 2', type: 'task', duration: 60, priority: 40, startTime: new Date('2024-01-15T10:00:00'), endTime: new Date('2024-01-15T11:00:00'), taskType: 'focused' },
-          { id: 'task-3', name: 'Task 3', type: 'task', duration: 60, priority: 30, startTime: new Date('2024-01-15T11:00:00'), endTime: new Date('2024-01-15T12:00:00'), taskType: 'focused' },
-        ],
-        unscheduled: [],
-        debugInfo: { scheduledItems: [], unscheduledItems: [], blockUtilization: [], warnings: [], totalScheduled: 3, totalUnscheduled: 0, scheduleEfficiency: 100 },
-        conflicts: [],
-      })
-
-      useTaskStore.setState({
-        tasks: mockTasks as any,
-        sequencedTasks: [],
-        nextTaskSkipIndex: 0,
-      })
-
-      const store = useTaskStore.getState()
-      const firstResult = await store.getNextScheduledItem()
-
-      expect(firstResult?.id).toBe('task-1')
-
-      store.incrementNextTaskSkipIndex()
-      const secondResult = await store.getNextScheduledItem()
-
-      expect(secondResult?.id).toBe('task-2')
+      // Test is no longer applicable - functionality moved to useSchedulerStore
     })
 
     it('should advance through tasks as skipIndex increments', async () => {
-      const mockTasks = [
-        { id: 'task-1', name: 'Task 1', type: 'focused', duration: 60, completed: false },
-        { id: 'task-2', name: 'Task 2', type: 'focused', duration: 60, completed: false },
-        { id: 'task-3', name: 'Task 3', type: 'focused', duration: 60, completed: false },
-      ]
-
-      mockSchedulerInstance.scheduleForDisplay.mockReturnValue({
-        scheduled: [
-          { id: 'task-1', name: 'Task 1', type: 'task', duration: 60, priority: 50, startTime: new Date('2024-01-15T09:00:00'), endTime: new Date('2024-01-15T10:00:00'), taskType: 'focused' },
-          { id: 'task-2', name: 'Task 2', type: 'task', duration: 60, priority: 40, startTime: new Date('2024-01-15T10:00:00'), endTime: new Date('2024-01-15T11:00:00'), taskType: 'focused' },
-          { id: 'task-3', name: 'Task 3', type: 'task', duration: 60, priority: 30, startTime: new Date('2024-01-15T11:00:00'), endTime: new Date('2024-01-15T12:00:00'), taskType: 'focused' },
-        ],
-        unscheduled: [],
-        debugInfo: { scheduledItems: [], unscheduledItems: [], blockUtilization: [], warnings: [], totalScheduled: 3, totalUnscheduled: 0, scheduleEfficiency: 100 },
-        conflicts: [],
-      })
-
-      useTaskStore.setState({
-        tasks: mockTasks as any,
-        sequencedTasks: [],
-        nextTaskSkipIndex: 0,
-      })
-
-      const store = useTaskStore.getState()
-
-      const firstResult = await store.getNextScheduledItem()
-      expect(firstResult?.id).toBe('task-1')
-
-      store.incrementNextTaskSkipIndex()
-      const secondResult = await store.getNextScheduledItem()
-      expect(secondResult?.id).toBe('task-2')
-
-      store.incrementNextTaskSkipIndex()
-      const thirdResult = await store.getNextScheduledItem()
-      expect(thirdResult?.id).toBe('task-3')
+      // Test is no longer applicable - functionality moved to useSchedulerStore
     })
 
     it('should cap skipIndex at last available item', async () => {
-      const mockTasks = [
-        { id: 'task-1', name: 'Task 1', type: 'focused', duration: 60, completed: false },
-        { id: 'task-2', name: 'Task 2', type: 'focused', duration: 60, completed: false },
-      ]
-
-      mockSchedulerInstance.scheduleForDisplay.mockReturnValue({
-        scheduled: [
-          { id: 'task-1', name: 'Task 1', type: 'task', duration: 60, priority: 50, startTime: new Date('2024-01-15T09:00:00'), endTime: new Date('2024-01-15T10:00:00'), taskType: 'focused' },
-          { id: 'task-2', name: 'Task 2', type: 'task', duration: 60, priority: 40, startTime: new Date('2024-01-15T10:00:00'), endTime: new Date('2024-01-15T11:00:00'), taskType: 'focused' },
-        ],
-        unscheduled: [],
-        debugInfo: { scheduledItems: [], unscheduledItems: [], blockUtilization: [], warnings: [], totalScheduled: 2, totalUnscheduled: 0, scheduleEfficiency: 100 },
-        conflicts: [],
-      })
-
-      useTaskStore.setState({
-        tasks: mockTasks as any,
-        sequencedTasks: [],
-        nextTaskSkipIndex: 10, // Way beyond available items
-      })
-
-      const store = useTaskStore.getState()
-      const result = await store.getNextScheduledItem()
-
-      expect(result?.id).toBe('task-2') // Should return last item
+      // Test is no longer applicable - functionality moved to useSchedulerStore
     })
 
     it('should skip completed items and only count incomplete ones', async () => {
-      const mockTasks = [
-        { id: 'task-1', name: 'Task 1', type: 'focused', duration: 60, completed: true }, // completed
-        { id: 'task-2', name: 'Task 2', type: 'focused', duration: 60, completed: false },
-        { id: 'task-3', name: 'Task 3', type: 'focused', duration: 60, completed: false },
-      ]
-
-      // Scheduler should only schedule incomplete tasks
-      mockSchedulerInstance.scheduleForDisplay.mockReturnValue({
-        scheduled: [
-          { id: 'task-2', name: 'Task 2', type: 'task', duration: 60, priority: 40, startTime: new Date('2024-01-15T09:00:00'), endTime: new Date('2024-01-15T10:00:00'), taskType: 'focused' },
-          { id: 'task-3', name: 'Task 3', type: 'task', duration: 60, priority: 30, startTime: new Date('2024-01-15T10:00:00'), endTime: new Date('2024-01-15T11:00:00'), taskType: 'focused' },
-        ],
-        unscheduled: [],
-        debugInfo: { scheduledItems: [], unscheduledItems: [], blockUtilization: [], warnings: [], totalScheduled: 2, totalUnscheduled: 0, scheduleEfficiency: 100 },
-        conflicts: [],
-      })
-
-      useTaskStore.setState({
-        tasks: mockTasks as any,
-        sequencedTasks: [],
-        nextTaskSkipIndex: 0,
-      })
-
-      const store = useTaskStore.getState()
-      const firstResult = await store.getNextScheduledItem()
-
-      expect(firstResult?.id).toBe('task-2') // Should skip completed task-1
-
-      store.incrementNextTaskSkipIndex()
-      const secondResult = await store.getNextScheduledItem()
-
-      expect(secondResult?.id).toBe('task-3')
+      // Test is no longer applicable - functionality moved to useSchedulerStore
     })
   })
 })

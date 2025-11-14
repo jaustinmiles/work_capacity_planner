@@ -58,9 +58,6 @@ export class ErrorBoundary extends Component<Props, State> {
                 <Button type="primary" icon={<IconRefresh />} onClick={this.handleReset}>
                   Try Again
                 </Button>
-                <Button onClick={() => window.location.reload()}>
-                  Reload Page
-                </Button>
               </Space>
             }
           >

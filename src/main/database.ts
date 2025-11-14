@@ -2384,9 +2384,16 @@ export class DatabaseService {
   async updateTaskStepProgress(stepId: string, data: any): Promise<void> {
     // Find task ID from step
     const step = await this.client.taskStep.findUnique({ where: { id: stepId } })
-    if (step?.taskId) {
-      await this.updateTaskStep(step.taskId, stepId, data)
+
+    if (!step) {
+      throw new Error(`Step not found: ${stepId}`)
     }
+
+    if (!step.taskId) {
+      throw new Error(`Step ${stepId} has no associated taskId`)
+    }
+
+    await this.updateTaskStep(step.taskId, stepId, data)
   }
 
   async getStepWorkSessions(stepId: string): Promise<any[]> {

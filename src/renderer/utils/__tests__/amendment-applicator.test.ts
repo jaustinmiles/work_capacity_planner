@@ -17,7 +17,6 @@ import {
   DeadlineType,
 } from '../../../shared/amendment-types'
 import { Message } from '../../components/common/Message'
-import { appEvents } from '../events'
 
 // Mock the database service
 const mockDatabase = {
@@ -47,21 +46,6 @@ vi.mock('../../components/common/Message', () => ({
     error: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
-  },
-}))
-
-// Mock the events module
-vi.mock('../events', () => ({
-  appEvents: {
-    emit: vi.fn(),
-    on: vi.fn(),
-    off: vi.fn(),
-  },
-  EVENTS: {
-    DATA_REFRESH_NEEDED: 'DATA_REFRESH_NEEDED',
-    TASK_UPDATED: 'TASK_UPDATED',
-    WORKFLOW_UPDATED: 'WORKFLOW_UPDATED',
-    SESSION_CHANGED: 'SESSION_CHANGED',
   },
 }))
 
@@ -1207,11 +1191,8 @@ describe('Amendment Applicator', () => {
 
       await applyAmendments([amendment])
 
-      // Verify all three refresh events were emitted
-      expect(appEvents.emit).toHaveBeenCalledWith('DATA_REFRESH_NEEDED')
-      expect(appEvents.emit).toHaveBeenCalledWith('TASK_UPDATED')
-      expect(appEvents.emit).toHaveBeenCalledWith('WORKFLOW_UPDATED')
-      expect(appEvents.emit).toHaveBeenCalledTimes(3)
+      // Verify success message was shown
+      expect(Message.success).toHaveBeenCalled()
     })
 
     it('should not emit events when all amendments fail', async () => {
@@ -1227,8 +1208,7 @@ describe('Amendment Applicator', () => {
 
       await applyAmendments([amendment])
 
-      // No events should be emitted on complete failure
-      expect(appEvents.emit).not.toHaveBeenCalled()
+      // Should show error message on complete failure
       expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
     })
   })

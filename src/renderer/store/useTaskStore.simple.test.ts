@@ -16,10 +16,7 @@ vi.mock('../services/database', () => ({
   })),
 }))
 
-vi.mock('../utils/events', () => ({
-  appEvents: { emit: vi.fn() },
-  EVENTS: { TIME_LOGGED: 'timeLogged' },
-}))
+// Events system has been removed
 
 vi.mock('@/shared/logger', () => ({
   logger: {
@@ -59,7 +56,7 @@ describe('Start Next Task Simple Integration', () => {
 
     // Verify the method exists
     expect(typeof store.startNextTask).toBe('function')
-    expect(typeof store.getNextScheduledItem).toBe('function')
+    // getNextScheduledItem has been moved to useSchedulerStore
     expect(typeof store.startWorkOnTask).toBe('function')
   })
 
@@ -70,7 +67,7 @@ describe('Start Next Task Simple Integration', () => {
 
     // These methods should exist and be functions
     expect(store.startNextTask).toBeDefined()
-    expect(store.getNextScheduledItem).toBeDefined()
+    // getNextScheduledItem has been moved to useSchedulerStore
     expect(store.startWorkOnTask).toBeDefined()
     expect(store.startWorkOnStep).toBeDefined()
   })
@@ -80,11 +77,8 @@ describe('Start Next Task Simple Integration', () => {
 
     const store = useTaskStore.getState()
 
-    // With no tasks, getNextScheduledItem should return null
-    const nextItem = await store.getNextScheduledItem()
-    expect(nextItem).toBeNull()
-
-    // startNextTask should not throw with no tasks
+    // getNextScheduledItem has been moved to useSchedulerStore
+    // With no tasks, startNextTask should not throw
     await expect(store.startNextTask()).resolves.not.toThrow()
   })
 })
