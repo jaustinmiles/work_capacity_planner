@@ -115,14 +115,6 @@ const computeSchedule = (
   workSettings: WorkSettings | null,
 ): ScheduleResult | null => {
   try {
-    logger.ui.debug('Computing schedule', {
-      taskCount: tasks.length,
-      sequencedTaskCount: sequencedTasks.length,
-      patternCount: workPatterns?.length || 0,
-      hasWorkSettings: !!workSettings,
-      firstPattern: workPatterns?.[0],
-    })
-
     if (!workPatterns || workPatterns.length === 0) {
       logger.ui.warn('No work patterns available for scheduling')
       return null
@@ -130,6 +122,15 @@ const computeSchedule = (
 
     const currentTime = getCurrentTime()
     const startDateString = dateToYYYYMMDD(currentTime)
+
+    // Debug: Log time and date calculation
+    logger.ui.info('Scheduler time context', {
+      currentTime: currentTime.toISOString(),
+      startDateString,
+      patternDates: workPatterns.map(p => p.date),
+      taskCount: tasks.length,
+      workflowCount: sequencedTasks.length,
+    }, 'scheduler-time-debug')
 
     const context = {
       startDate: startDateString,
@@ -145,31 +146,27 @@ const computeSchedule = (
       allowTaskSplitting: true,
       respectMeetings: true,
       optimizationMode: OptimizationMode.Realistic,
-      debugMode: true,
+      debugMode: false, // Disable verbose scheduler debug logs
     }
 
     const items = [...tasks, ...sequencedTasks]
 
-    logger.ui.debug('Calling scheduler.scheduleForDisplay', {
-      itemCount: items.length,
-      itemNames: items.map(i => i.name),
-      contextStartDate: context.startDate,
-      hasWorkPatterns: context.workPatterns.length > 0,
-      firstWorkPattern: context.workPatterns[0],
-    })
+    // Warn if trying to schedule with no items
+    if (items.length === 0) {
+      logger.ui.warn('Attempting to schedule with 0 tasks/workflows - schedule will be empty', {
+        workPatternCount: workPatterns.length,
+        patternDates: workPatterns.map(p => p.date),
+      }, 'empty-schedule')
+    }
 
     const result = scheduler.scheduleForDisplay(items, context, config)
 
     logger.ui.info('Schedule recomputed', {
       totalItems: result.scheduled.length,
       unscheduled: result.unscheduled.length,
-      scheduledItems: result.scheduled.map(s => ({
-        name: s.name,
-        startTime: s.startTime,
-        endTime: s.endTime,
-      })),
-      unscheduledItems: result.unscheduled.map(u => u.name),
-      debugInfo: result.debugInfo,
+      scheduledNames: result.scheduled.map(s => s.name),
+      unscheduledNames: result.unscheduled.map(u => u.name),
+      startDate: startDateString,
     }, 'scheduler-recompute')
 
     return result

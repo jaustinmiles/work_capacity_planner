@@ -110,6 +110,12 @@ export function WorkBlocksEditor({
       startTime: '09:00',
       endTime: '12:00',
       type: WorkBlockType.Mixed,
+      capacity: calculateBlockCapacity(
+        WorkBlockType.Mixed,
+        '09:00',
+        '12:00',
+        { focus: 0.5, admin: 0.5 }, // Default 50/50 split - user can customize
+      ),
     }
     setBlocks([...blocks, newBlock])
   }
@@ -145,10 +151,24 @@ export function WorkBlocksEditor({
     }
 
     if (template) {
-      const newBlocks = template.blocks.map((b, index) => ({
-        ...b,
-        id: `block-${Date.now()}-${index}`,
-      }))
+      const newBlocks = template.blocks.map((b, index) => {
+        const block: WorkBlock = {
+          ...b,
+          id: `block-${Date.now()}-${index}`,
+        }
+
+        // Initialize capacity for mixed blocks if not present
+        if (block.type === WorkBlockType.Mixed && !block.capacity) {
+          block.capacity = calculateBlockCapacity(
+            WorkBlockType.Mixed,
+            block.startTime,
+            block.endTime,
+            { focus: 0.5, admin: 0.5 }, // Default 50/50 split - user can customize
+          )
+        }
+
+        return block
+      })
       setBlocks(newBlocks)
 
       // If it's a user template, also apply meetings

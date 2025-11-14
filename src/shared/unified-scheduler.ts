@@ -357,11 +357,13 @@ export class UnifiedScheduler {
     }
 
     // Ensure config has startDate from context if not provided
-    // Also pass currentTime for proper scheduling
+    // NOTE: We deliberately DON'T pass context.currentTime to config.currentTime for display scheduling
+    // This prevents filtering out past work blocks, which would make the schedule non-idempotent
+    // Priority calculations still use context.currentTime for deadline pressure (correct behavior)
     const configWithStartDate: ScheduleConfig = {
       ...config,
       startDate: config.startDate || context.startDate,
-      currentTime: context.currentTime, // Pass currentTime for work block scheduling
+      // currentTime: NOT copied - display schedule should show all blocks regardless of time
     }
     const allocated = this.allocateToWorkBlocks(dependencyResult.resolved, context.workPatterns, configWithStartDate, completedItemIds, true)
 
@@ -475,6 +477,17 @@ export class UnifiedScheduler {
     completedItemIds: Set<string> = new Set(),
     isForDisplay: boolean = false,
   ): UnifiedScheduleItem[] {
+    logger.info('allocateToWorkBlocks called', {
+      itemCount: items.length,
+      itemNames: items.map(i => i.name),
+      itemTypes: items.map(i => i.taskType),
+      patternCount: workPatterns.length,
+      patternDates: workPatterns.map(p => p.date),
+      hasCurrentTime: !!config.currentTime,
+      currentTime: config.currentTime?.toISOString(),
+      isForDisplay,
+    })
+
     if (items.length === 0) {
       return []
     }
@@ -523,8 +536,8 @@ export class UnifiedScheduler {
     const maxDays = 30 // Safety limit
 
     while (remaining.length > 0 && dayIndex < maxDays) {
-      // REVIEW: should use utility functions for date manipulations.
-      const dateStr = currentDate.toISOString().split('T')[0]
+      // Use timezone-aware date string to match work patterns in user's local timezone
+      const dateStr = getLocalDateString(currentDate)
 
       const pattern = workPatterns.find(p => p.date === dateStr)
 
@@ -724,6 +737,14 @@ export class UnifiedScheduler {
         }
       }
     }
+
+    logger.info('allocateToWorkBlocks complete', {
+      scheduledCount: scheduled.length,
+      scheduledNames: scheduled.map(s => s.name),
+      remainingCount: remaining.length,
+      remainingNames: remaining.map(r => r.name),
+      remainingTypes: remaining.map(r => r.taskType),
+    })
 
     return scheduled
   }
@@ -1298,6 +1319,13 @@ export class UnifiedScheduler {
 
     // If this block type doesn't support this task type, capacity will be 0
     if (totalCapacityForTaskType === 0) {
+      logger.warn('Task rejected: type mismatch', {
+        taskName: item.name,
+        taskType,
+        blockType: block.blockType,
+        blockId: block.blockId,
+        totalCapacityForTaskType,
+      })
       return { canFit: false, canPartiallyFit: false }
     }
 
@@ -1308,6 +1336,14 @@ export class UnifiedScheduler {
 
     // Check if we're past the block
     if (potentialStartTime.getTime() >= block.endTime.getTime()) {
+      logger.warn('Task rejected: block full or in past', {
+        taskName: item.name,
+        blockId: block.blockId,
+        blockTime: `${block.startTime.toISOString()} - ${block.endTime.toISOString()}`,
+        potentialStartTime: potentialStartTime.toISOString(),
+        currentTimeProvided: !!currentTime,
+        currentTime: currentTime?.toISOString(),
+      })
       return { canFit: false, canPartiallyFit: false }
     }
 
@@ -1507,6 +1543,11 @@ export class UnifiedScheduler {
   private findNextAvailableTime(block: BlockCapacity, scheduledInBlock: UnifiedScheduleItem[], currentTime?: Date): Date {
     // If no current time constraint, start from block start
     if (!currentTime) {
+      logger.debug('findNextAvailableTime: No time constraint - using block start time', {
+        blockId: block.blockId,
+        blockStart: block.startTime.toISOString(),
+        scheduledCount: scheduledInBlock.length,
+      })
       const effectiveStartTime = block.startTime
 
       // If no items scheduled in this block, return the block start time
@@ -1535,10 +1576,20 @@ export class UnifiedScheduler {
     }
 
     // With current time constraint, ensure we don't schedule in the past
+    logger.warn('findNextAvailableTime: Using time constraint (BAD - should not happen for display)', {
+      blockId: block.blockId,
+      currentTime: currentTime.toISOString(),
+      blockEnd: block.endTime.toISOString(),
+    })
     const now = currentTime
 
     // If current time is past the block end, we can't use this block
     if (now.getTime() >= block.endTime.getTime()) {
+      logger.warn('Block rejected: current time past block end', {
+        blockId: block.blockId,
+        now: now.toISOString(),
+        blockEnd: block.endTime.toISOString(),
+      })
       // Return block end time to indicate block is full/past
       return block.endTime
     }
@@ -1860,7 +1911,7 @@ export class UnifiedScheduler {
     })
 
     // Calculate utilization for each work pattern
-    logger.warn('Block utilization START - checking workPatterns', {
+    logger.debug('Block utilization START - checking workPatterns', {
       workPatternsIsNull: workPatterns === null,
       workPatternsIsUndefined: workPatterns === undefined,
       workPatternsLength: workPatterns?.length || 0,
@@ -2030,7 +2081,7 @@ export class UnifiedScheduler {
       })
     })
 
-    logger.warn('Block utilization calculation complete', {
+    logger.debug('Block utilization calculation complete', {
       totalBlocksAdded: utilization.length,
       dates: [...new Set(utilization.map(u => u.date))],
       blockIds: utilization.map(u => u.blockId),
