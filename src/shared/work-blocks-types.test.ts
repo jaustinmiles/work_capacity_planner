@@ -81,12 +81,22 @@ describe('work-blocks-types', () => {
 
     it('should calculate capacity for mixed blocks', () => {
       const blocks: WorkBlock[] = [
-        { id: '1', startTime: '09:00', endTime: '11:00', type: 'mixed' },
+        {
+          id: '1',
+          startTime: '09:00',
+          endTime: '11:00',
+          type: 'mixed',
+          capacity: {
+            totalMinutes: 120,
+            type: 'mixed',
+            splitRatio: { focus: 0.5, admin: 0.5 }
+          }
+        },
       ]
 
       const capacity = getTotalCapacity(blocks)
-      expect(capacity.focus).toBe(60) // Half of 2 hours
-      expect(capacity.admin).toBe(60) // Half of 2 hours
+      expect(capacity.focus).toBe(60) // 50% of 2 hours
+      expect(capacity.admin).toBe(60) // 50% of 2 hours
       expect(capacity.personal).toBe(0)
     })
 
