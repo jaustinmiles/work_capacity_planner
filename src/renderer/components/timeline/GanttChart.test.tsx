@@ -90,7 +90,7 @@ describe('GanttChart', () => {
 
     // Mock the scheduler store with default empty state
     vi.mocked(useSchedulerStore).mockReturnValue({
-      ganttItems: [],
+      scheduledItems: [],
       scheduleResult: null,
     } as any)
 
@@ -126,7 +126,7 @@ describe('GanttChart', () => {
     } as any)
 
     vi.mocked(useSchedulerStore).mockReturnValue({
-      ganttItems: [],
+      scheduledItems: [],
       scheduleResult: {
         scheduled: [],
         unscheduled: [],

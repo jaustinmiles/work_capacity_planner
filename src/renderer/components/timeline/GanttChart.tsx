@@ -62,7 +62,7 @@ const ZOOM_PRESETS = [
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const { updateTask, updateSequencedTask, workSettings } = useTaskStore()
   const { workPatterns = [], isLoading: workPatternsLoading } = useWorkPatternStore()
-  const { ganttItems, scheduleResult } = useSchedulerStore()
+  const { scheduledItems: scheduledItemsFromStore, scheduleResult } = useSchedulerStore()
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [isPinching, setIsPinching] = useState(false)
@@ -351,7 +351,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Get scheduled items from the reactive scheduler store
   const scheduledItems = useMemo(() => {
     // Convert scheduler store items to GanttChart format
-    const ganttItemsFromStore: GanttItem[] = ganttItems.map(item => ({
+    const ganttItemsFromStore: GanttItem[] = scheduledItemsFromStore.map(item => ({
       id: item.id,
       name: item.name,
       // Map UnifiedScheduleItemType to GanttItemType
@@ -384,7 +384,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
     // Combine all items
     return [...meetingItems, ...ganttItemsFromStore]
-  }, [ganttItems, workPatterns])
+  }, [scheduledItemsFromStore, workPatterns])
 
   // Process debug info from scheduler
   useEffect(() => {

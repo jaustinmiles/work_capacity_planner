@@ -17,7 +17,7 @@ import { getCurrentTime } from '@/shared/time-provider'
 import { logger } from '@/logger'
 import { StepStatus, TaskType, UnifiedScheduleItemType, NextScheduledItemType } from '@/shared/enums'
 import { createWaitBlockId } from '@/shared/step-id-utils'
-import { dateToYYYYMMDD } from '@/shared/time-utils'
+import { dateToYYYYMMDD, calculateRemainingWaitTime } from '@/shared/time-utils'
 
 export interface NextScheduledItem {
   type: NextScheduledItemType
@@ -40,7 +40,7 @@ interface SchedulerStoreState {
   scheduleResult: ScheduleResult | null
 
   // Derived values (computed from schedule result)
-  ganttItems: UnifiedScheduleItem[]
+  scheduledItems: UnifiedScheduleItem[]
   nextScheduledItem: NextScheduledItem | null
   nextTaskSkipIndex: number
 
@@ -197,8 +197,12 @@ const extractNextScheduledItem = (
   for (const workflow of sequencedTasks) {
     for (const step of workflow.steps) {
       if (step.status === StepStatus.Waiting && step.completedAt && step.asyncWaitTime) {
-        const waitEndTime = new Date(step.completedAt).getTime() + (step.asyncWaitTime * 60000)
-        if (waitEndTime > currentTime.getTime()) {
+        const remainingMinutes = calculateRemainingWaitTime(
+          new Date(step.completedAt),
+          step.asyncWaitTime,
+          currentTime,
+        )
+        if (remainingMinutes > 0) {
           waitingStepIds.add(step.id)
           activeWaitBlocks.add(createWaitBlockId(step.id, false))
           activeWaitBlocks.add(createWaitBlockId(step.id, true))
@@ -332,7 +336,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
     workSettings: null,
     activeWorkSessions: new Set(),
     scheduleResult: null,
-    ganttItems: [],
+    scheduledItems: [],
     nextScheduledItem: null,
     nextTaskSkipIndex: 0,
 
@@ -359,7 +363,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         )
 
         // Extract derived values and add colors
-        const ganttItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []
+        const scheduledItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []
         const nextScheduledItem = extractNextScheduledItem(
           scheduleResult,
           newState.sequencedTasks,
@@ -369,7 +373,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         set({
           ...inputs,
           scheduleResult,
-          ganttItems,
+          scheduledItems,
           nextScheduledItem,
         })
       } else if (inputs.activeWorkSessions !== undefined) {
@@ -384,9 +388,9 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         set({
           ...inputs,
           nextScheduledItem,
-          // Preserve the existing schedule and Gantt items
+          // Preserve the existing schedule and scheduled items
           scheduleResult: state.scheduleResult,
-          ganttItems: state.ganttItems,
+          scheduledItems: state.scheduledItems,
         })
       } else {
         set(inputs)
@@ -406,7 +410,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         nextTaskSkipIndex: index,
         nextScheduledItem,
         // Explicitly preserve other state to prevent unwanted re-renders
-        ganttItems: state.ganttItems,
+        scheduledItems: state.scheduledItems,
         scheduleResult: state.scheduleResult,
       })
     },
@@ -420,7 +424,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         state.workSettings,
       )
 
-      const ganttItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []
+      const scheduledItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []
       const nextScheduledItem = extractNextScheduledItem(
         scheduleResult,
         state.sequencedTasks,
@@ -429,7 +433,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
 
       set({
         scheduleResult,
-        ganttItems,
+        scheduledItems,
         nextScheduledItem,
       })
     },

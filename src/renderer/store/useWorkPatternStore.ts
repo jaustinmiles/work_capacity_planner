@@ -11,7 +11,7 @@ import { subscribeWithSelector } from 'zustand/middleware'
 import { DailyWorkPattern, WorkBlock } from '@/shared/work-blocks-types'
 import { WorkBlockType } from '@/shared/enums'
 import { getCurrentTime } from '@/shared/time-provider'
-import { calculateDuration, timeStringToMinutes } from '@/shared/time-utils'
+import { calculateDuration, timeStringToMinutes, formatTimeHHMM, dateToYYYYMMDD } from '@/shared/time-utils'
 import { logger } from '@/logger'
 
 interface AccumulatedTime {
@@ -45,7 +45,7 @@ const findCurrentAndNextBlock = (
 ): { current: WorkBlock | null; next: WorkBlock | null } => {
   if (!pattern) return { current: null, next: null }
 
-  const currentTimeStr = currentTime.toTimeString().slice(0, 5) // "HH:MM"
+  const currentTimeStr = formatTimeHHMM(currentTime) // "HH:MM"
 
   // Find current block
   const current = pattern.blocks.find(block => {
@@ -105,9 +105,14 @@ const calculateAccumulatedTime = (
           accumulated.personal += effectiveDuration
           break
         case WorkBlockType.Mixed:
-          // Mixed blocks split 50/50 between focus and admin
-          accumulated.focused += effectiveDuration / 2
-          accumulated.admin += effectiveDuration / 2
+          // Mixed blocks REQUIRE explicit split ratio - no default
+          if (block.capacity?.splitRatio) {
+            accumulated.focused += Math.floor(effectiveDuration * block.capacity.splitRatio.focus)
+            accumulated.admin += Math.floor(effectiveDuration * block.capacity.splitRatio.admin)
+          } else {
+            // This should never happen - Mixed blocks must define their split
+            throw new Error(`Mixed block ${block.id} is missing required capacity.splitRatio`)
+          }
           break
       }
     }
@@ -174,7 +179,7 @@ export const useWorkPatternStore = create<WorkPatternStoreState>()(
 
     setWorkPatterns: (patterns) => {
       const currentTime = getCurrentTime()
-      const todayKey = currentTime.toISOString().split('T')[0]
+      const todayKey = dateToYYYYMMDD(currentTime)
       const currentPattern = patterns.find(p => p.date === todayKey) || null
 
       const { current, next } = findCurrentAndNextBlock(currentPattern, currentTime)
@@ -194,7 +199,7 @@ export const useWorkPatternStore = create<WorkPatternStoreState>()(
     refreshDerivedState: () => {
       const state = get()
       const currentTime = getCurrentTime()
-      const todayKey = currentTime.toISOString().split('T')[0]
+      const todayKey = dateToYYYYMMDD(currentTime)
       const currentPattern = state.workPatterns.find(p => p.date === todayKey) || null
 
       const { current, next } = findCurrentAndNextBlock(currentPattern, currentTime)

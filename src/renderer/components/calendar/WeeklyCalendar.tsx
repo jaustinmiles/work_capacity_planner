@@ -18,7 +18,7 @@ const { Row, Col } = Grid
 
 export function WeeklyCalendar() {
   const { tasks, sequencedTasks } = useTaskStore()
-  const { ganttItems: scheduledItems } = useSchedulerStore()
+  const { scheduledItems } = useSchedulerStore()
   const { workPatterns, isLoading: workPatternsLoading } = useWorkPatternStore()
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs | null>(dayjs())
 

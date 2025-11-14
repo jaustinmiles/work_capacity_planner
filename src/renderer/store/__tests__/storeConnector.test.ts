@@ -54,7 +54,7 @@ describe('Store Connector - Reactive Updates', () => {
       workSettings: null,
       activeWorkSessions: new Set(),
       scheduleResult: null,
-      ganttItems: [],
+      scheduledItems: [],
       nextScheduledItem: null,
       nextTaskSkipIndex: 0,
     })

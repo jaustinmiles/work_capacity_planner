@@ -111,9 +111,9 @@ export function getTotalCapacity(blocks: WorkBlock[]): { focus: number; admin: n
     } else if (block.type === WorkBlockType.Personal) {
       acc.personal += durationMinutes
     } else if (block.type === WorkBlockType.Mixed) {
-      // Mixed blocks split 50/50 between focus and admin
-      acc.focus += durationMinutes / 2
-      acc.admin += durationMinutes / 2
+      // Mixed blocks REQUIRE explicit split ratio - cannot have default
+      // This should never happen as Mixed blocks should always have capacity defined
+      throw new Error(`Mixed block ${block.id} is missing required capacity.splitRatio`)
     } else if (block.type === WorkBlockType.Flexible) {
       // Flexible blocks should NOT be counted here to avoid double-counting
       // They are handled separately as flexible capacity
