@@ -130,13 +130,6 @@ export class WorkTrackingService {
         date: dateToYYYYMMDD(getCurrentTime()),
       }
 
-      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Creating database work session', {
-        // dbPayload: {
-          // ...dbPayload,
-          // startTime: dbPayload.startTime.toISOString(),
-        // },
-      // })
-
       // Create session in database and get the database-generated ID
       const dbSession = await this.database.createWorkSession(dbPayload)
 
@@ -147,14 +140,6 @@ export class WorkTrackingService {
       const sessionKey = this.getSessionKey(workSession)
       this.activeSessions.set(sessionKey, workSession)
 
-      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Work session started successfully', {
-        // LOGGER_REMOVED: sessionId: workSession.id,
-        // LOGGER_REMOVED: sessionKey,
-        // LOGGER_REMOVED: taskId,
-        // LOGGER_REMOVED: stepId,
-        // LOGGER_REMOVED: workflowId,
-      // LOGGER_REMOVED: })
-
       return workSession
     } catch (error) {
       this.handleSessionError(error as Error, 'starting work session')
@@ -164,20 +149,8 @@ export class WorkTrackingService {
 
   async pauseWorkSession(sessionId: string): Promise<void> {
     try {
-      // LOGGER_REMOVED: logger.ui.warn(`[WorkTrackingService ${this.instanceId}] 🟡 Attempting to pause session`, {
-        // instanceId: this.instanceId,
-        // sessionId,
-        // activeSessionsCount: this.activeSessions.size,
-        // activeSessionIds: Array.from(this.activeSessions.keys()),
-      // })
-
       const session = this.findSessionById(sessionId)
       if (!session) {
-        // LOGGER_REMOVED: logger.ui.error(`[WorkTrackingService ${this.instanceId}] ❌ PAUSE FAILED: No session found`, {
-          // instanceId: this.instanceId,
-          // requestedSessionId: sessionId,
-          // availableSessions: Array.from(this.activeSessions.values()).map(s => ({ id: s.id, stepId: s.stepId })),
-        // })
         throw new Error(`No active session found with ID: ${sessionId}`)
       }
 
@@ -194,11 +167,6 @@ export class WorkTrackingService {
       // Remove from active sessions (it's now closed)
       const sessionKey = this.getSessionKey(session)
       this.activeSessions.delete(sessionKey)
-
-      // LOGGER_REMOVED: logger.ui.info('Paused work session (closed in database)', {
-        // sessionId,
-        // actualMinutes: Math.max(elapsedMinutes, 1),
-      // })
     } catch (error) {
       this.handleSessionError(error as Error, 'pausing work session')
       throw error
@@ -222,8 +190,6 @@ export class WorkTrackingService {
         isPaused: false,
         pausedAt: null,
       })
-
-      // LOGGER_REMOVED: logger.ui.info('Resumed work session', { sessionId })
     } catch (error) {
       this.handleSessionError(error as Error, 'resuming work session')
       throw error
@@ -258,11 +224,6 @@ export class WorkTrackingService {
       // Update database with end time (marks as completed, not active)
       const dbData = toDatabaseWorkSession(session)
       await this.database.updateWorkSession(session.id, dbData)
-
-      // LOGGER_REMOVED: logger.ui.info('Stopped work session', {
-        // LOGGER_REMOVED: sessionId,
-        // LOGGER_REMOVED: actualMinutes: session.actualMinutes,
-      // LOGGER_REMOVED: })
     } catch (error) {
       this.handleSessionError(error as Error, 'stopping work session')
       throw error
@@ -273,7 +234,6 @@ export class WorkTrackingService {
     try {
       const dbData = toDatabaseWorkSession(session)
       const result = await this.database.updateWorkSession(session.id, dbData)
-      // LOGGER_REMOVED: logger.ui.debug('Saved active work session', { sessionId: session.id })
       return result
     } catch (error) {
       this.handleSessionError(error as Error, 'saving active session')
@@ -287,26 +247,15 @@ export class WorkTrackingService {
       const activeSession = await this.database.getActiveWorkSession()
 
       if (!activeSession) {
-        // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] No active work session found in database')
         return null
       }
 
       if (!this.isValidSession(activeSession)) {
-        // LOGGER_REMOVED: logger.ui.warn('[WorkTrackingService] Active session found but invalid', { activeSession })
         return null
       }
 
       // Convert to unified format
       const unified = fromDatabaseWorkSession(activeSession)
-
-      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Found active work session', {
-        // LOGGER_REMOVED: sessionId: unified.id,
-        // LOGGER_REMOVED: taskId: unified.taskId,
-        // LOGGER_REMOVED: stepId: unified.stepId,
-        // LOGGER_REMOVED: workflowId: unified.workflowId,
-        // LOGGER_REMOVED: taskName: unified.taskName,
-        // LOGGER_REMOVED: stepName: unified.stepName,
-      // LOGGER_REMOVED: })
 
       return unified
     } catch (error) {
@@ -344,7 +293,6 @@ export class WorkTrackingService {
         }
       }
 
-      // LOGGER_REMOVED: logger.ui.info('Cleaned up stale work sessions', { cleanedCount, cutoffDate })
       return cleanedCount
     } catch (error) {
       this.handleSessionError(error as Error, 'clearing stale sessions')
@@ -354,21 +302,9 @@ export class WorkTrackingService {
 
   getCurrentActiveSession(): UnifiedWorkSession | null {
     const sessions = Array.from(this.activeSessions.values())
-    // LOGGER_REMOVED: logger.ui.warn(`[WorkTrackingService ${this.instanceId}] 🔍 Getting current active session`, {
-      // instanceId: this.instanceId,
-      // activeSessionsCount: this.activeSessions.size,
-      // hasActiveSession: sessions.length > 0,
-      // sessionIds: sessions.map(s => s.id),
-    // })
 
     // Filter out sessions that are paused
     const activeSession = sessions.find(s => !s.isPaused) || null
-    if (activeSession) {
-      // LOGGER_REMOVED: logger.ui.warn(`[WorkTrackingService ${this.instanceId}] Found active (non-paused) session`, {
-        // sessionId: activeSession.id,
-        // isPaused: activeSession.isPaused,
-      // })
-    }
 
     return activeSession
   }

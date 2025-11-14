@@ -78,6 +78,24 @@ export function getTypeTagColor(type: TaskType): string {
   }
 }
 
+// Get display name for task type
+export function getTypeDisplayName(type: TaskType): string {
+  switch (type) {
+    case TaskType.Focused:
+      return 'Focused'
+    case TaskType.Personal:
+      return 'Personal'
+    case TaskType.Admin:
+      return 'Admin'
+    case TaskType.Mixed:
+      return 'Mixed'
+    case TaskType.Flexible:
+      return 'Flexible'
+    default:
+      return 'Unknown'
+  }
+}
+
 // Check if two sessions overlap
 export function checkOverlap(
   session: WorkSessionData,

@@ -41,6 +41,7 @@ import {
   minutesToTime,
   getTypeColor,
   getTypeTagColor,
+  getTypeDisplayName,
 } from './SessionState'
 
 const { Text } = Typography
@@ -775,12 +776,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                         <Tag
                           color={getTypeTagColor(selectedSession.type)}
                         >
-                          {
-                            selectedSession.type === TaskType.Focused ? 'Focused' :
-                              selectedSession.type === TaskType.Admin ? 'Admin' :
-                                selectedSession.type === TaskType.Personal ? 'Personal' :
-                                  'Unknown'
-                          }
+                          {getTypeDisplayName(selectedSession.type)}
                         </Tag>
                         <Text>{selectedSession.endMinutes - selectedSession.startMinutes} minutes</Text>
                         <Button
@@ -882,12 +878,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 <Select.Option key={task.value} value={task.value}>
                   <Space>
                     <Tag
-                      color={
-                        task.type === TaskType.Focused ? 'blue' :
-                          task.type === TaskType.Admin ? 'orange' :
-                            task.type === TaskType.Personal ? 'green' :
-                              'default'
-                      }
+                      color={getTypeTagColor(task.type)}
                       size="small"
                     >
                       {

@@ -29,6 +29,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
 import dayjs from 'dayjs'
+import { getTypeColor } from '../work-logger/SessionState'
 
 const { Text } = Typography
 
@@ -432,10 +433,8 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
             }
           }
 
-          // Derive color from task type
-          const color = taskType === TaskType.Focused ? '#165DFF' :
-            taskType === TaskType.Admin ? '#FF9500' :
-              taskType === TaskType.Personal ? '#00B42A' : '#8c8c8c'
+          // Derive color from task type using utility
+          const color = getTypeColor(taskType)
 
           return (
             <div

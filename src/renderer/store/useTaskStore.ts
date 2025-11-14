@@ -12,6 +12,7 @@ import { getDatabase } from '../services/database'
 import { logger } from '@/logger'
 import { WorkTrackingService } from '../services/workTrackingService'
 import { getCurrentTime } from '@shared/time-provider'
+import { addMinutes } from '../utils/dateUtils'
 
 
 interface TaskStore {
@@ -844,7 +845,7 @@ export const useTaskStore = create<TaskStore>()(
         actualDuration: totalMinutes,
         percentComplete: 100,
         // If the step was never started, set startedAt to when it was completed minus duration
-        startedAt: session?.startTime || new Date(now.getTime() - totalMinutes * 60000),
+        startedAt: session?.startTime || addMinutes(now, -totalMinutes),
         // Save notes to the step itself, not just the work session
         ...(notes && { notes }),
       }
