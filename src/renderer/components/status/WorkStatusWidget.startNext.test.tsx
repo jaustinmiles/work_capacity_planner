@@ -78,6 +78,8 @@ vi.mock('@shared/work-blocks-types', () => ({
 vi.mock('@shared/time-utils', () => ({
   calculateDuration: vi.fn(() => 60),
   formatMinutes: vi.fn((mins) => `${mins}m`),
+  formatTimeHHMM: vi.fn((date: Date) => date.toTimeString().slice(0, 5)),
+  dateToYYYYMMDD: vi.fn((date: Date) => date.toISOString().split('T')[0]),
 }))
 
 vi.mock('@shared/time-provider', () => ({
