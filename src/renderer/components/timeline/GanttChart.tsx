@@ -479,14 +479,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     chartContainerRef.current.scrollLeft = Math.max(0, scrollPosition)
   }, [chartStartTime, pixelsPerHour])
 
-  // Auto-snap to now when chart loads or updates
+  // Auto-snap to now when chart first loads or when snap function updates
   useEffect(() => {
     // Small delay to ensure DOM is ready
     const timer = setTimeout(() => {
       handleSnapToNow()
     }, 100)
     return () => clearTimeout(timer)
-  }, [scheduledItems, handleSnapToNow])
+  }, [handleSnapToNow]) // Depend on the function - re-runs when its dependencies change
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

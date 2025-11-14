@@ -31,6 +31,7 @@ import {
   getRemainingCapacity,
 } from '@shared/work-blocks-types'
 import { calculateBlockCapacity, getTotalCapacityForTaskType } from '@shared/capacity-calculator'
+import { generateUniqueId } from '@shared/step-id-utils'
 import { Message } from '../common/Message'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
@@ -106,10 +107,16 @@ export function WorkBlocksEditor({
 
   const handleAddBlock = () => {
     const newBlock: WorkBlock = {
-      id: `block-${Date.now()}`,
+      id: generateUniqueId('block'),
       startTime: '09:00',
       endTime: '12:00',
       type: WorkBlockType.Mixed,
+      capacity: calculateBlockCapacity(
+        WorkBlockType.Mixed,
+        '09:00',
+        '12:00',
+        { focus: 0.5, admin: 0.5 }, // Default 50/50 split - user can customize
+      ),
     }
     setBlocks([...blocks, newBlock])
   }
@@ -145,9 +152,9 @@ export function WorkBlocksEditor({
     }
 
     if (template) {
-      const newBlocks = template.blocks.map((b, index) => ({
+      const newBlocks = template.blocks.map((b) => ({
         ...b,
-        id: `block-${Date.now()}-${index}`,
+        id: generateUniqueId('block'),
       }))
       setBlocks(newBlocks)
 

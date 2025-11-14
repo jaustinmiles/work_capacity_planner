@@ -162,7 +162,8 @@ export const useTaskStore = create<TaskStore>()(
     try {
       set({ isLoading: true, error: null, includeArchived })  // Store the preference
       const tasks = await getDatabase().getTasks(includeArchived)
-      set({ tasks, isLoading: false })
+      // Create new array reference to ensure storeConnector detects change
+      set({ tasks: [...tasks], isLoading: false })
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to load tasks',
@@ -175,7 +176,8 @@ export const useTaskStore = create<TaskStore>()(
     try {
       set({ isLoading: true, error: null })
       const sequencedTasks = await getDatabase().getSequencedTasks()
-      set({ sequencedTasks, isLoading: false })
+      // Create new array reference to ensure storeConnector detects change
+      set({ sequencedTasks: [...sequencedTasks], isLoading: false })
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to load sequenced tasks',
@@ -272,7 +274,8 @@ export const useTaskStore = create<TaskStore>()(
         taskCount: tasks.length,
         sequencedCount: sequencedTasks.length,
       })
-      set({ tasks, sequencedTasks, isLoading: false })
+      // CRITICAL: Create new array references to ensure storeConnector detects changes
+      set({ tasks: [...tasks], sequencedTasks: [...sequencedTasks], isLoading: false })
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to initialize data',

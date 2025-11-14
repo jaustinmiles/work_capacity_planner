@@ -789,8 +789,9 @@ function App() {
                           visible={true}
                           onClose={() => setActiveView(ViewType.Timeline)}
                           onSave={() => {
-                            // Refresh data if needed
-                            initializeData()
+                            // Work patterns update reactively via storeConnector - no need to reload tasks
+                            // initializeData() wipes tasks and causes timeline to blank out
+                            setActiveView(ViewType.Timeline)
                           }}
                         />
                       </ErrorBoundary>

@@ -9,6 +9,7 @@ import { useTaskStore } from './useTaskStore'
 import { useSchedulerStore } from './useSchedulerStore'
 import { useWorkPatternStore } from './useWorkPatternStore'
 import { logger } from '@/logger'
+import { shallow } from 'zustand/shallow'
 
 let isConnected = false
 
@@ -20,25 +21,42 @@ export const connectStores = () => {
 
   logger.ui.info('Initializing reactive store connections', {}, 'store-connector')
 
-  // Connect task store changes to scheduler store
-  const unsubTaskStore = useTaskStore.subscribe(
-    (state) => ({
-      tasks: state.tasks,
-      sequencedTasks: state.sequencedTasks,
-      workSettings: state.workSettings,
-      activeWorkSessions: state.activeWorkSessions,
-    }),
-    (values) => {
-      logger.ui.debug('Task store changed, updating scheduler', {
-        taskCount: values.tasks.length,
-        sequencedCount: values.sequencedTasks.length,
-      }, 'store-sync')
+  // Subscribe to tasks AND sequencedTasks together to avoid race conditions
+  // This ensures when both change simultaneously, scheduler gets both new values
+  const unsubTaskData = useTaskStore.subscribe(
+    (state) => ({ tasks: state.tasks, sequencedTasks: state.sequencedTasks }),
+    ({ tasks, sequencedTasks }) => {
+      logger.ui.info('Task data changed, updating scheduler', {
+        taskCount: tasks.length,
+        workflowCount: sequencedTasks.length,
+        taskNames: tasks.map(t => t.name),
+        workflowNames: sequencedTasks.map(w => w.name),
+      }, 'task-data-changed')
+
+      useSchedulerStore.getState().setInputs({ tasks, sequencedTasks })
+    },
+    { equalityFn: shallow }, // Use shallow comparison - fires when tasks OR sequencedTasks reference changes
+  )
+
+  // Subscribe to work settings directly
+  const unsubWorkSettings = useTaskStore.subscribe(
+    (state) => state.workSettings,
+    (workSettings) => {
+      logger.ui.info('Work settings changed, updating scheduler', {}, 'work-settings-changed')
+      useSchedulerStore.getState().setInputs({ workSettings })
+    },
+  )
+
+  // Subscribe to active work sessions directly
+  const unsubActiveWorkSessions = useTaskStore.subscribe(
+    (state) => state.activeWorkSessions,
+    (activeWorkSessions) => {
+      logger.ui.debug('Active work sessions changed, updating scheduler', {
+        sessionCount: activeWorkSessions.size,
+      }, 'sessions-changed')
 
       useSchedulerStore.getState().setInputs({
-        tasks: values.tasks,
-        sequencedTasks: values.sequencedTasks,
-        workSettings: values.workSettings,
-        activeWorkSessions: new Set(values.activeWorkSessions.keys()),
+        activeWorkSessions: new Set(activeWorkSessions.keys()),
       })
     },
   )
@@ -47,9 +65,24 @@ export const connectStores = () => {
   const unsubPatternStore = useWorkPatternStore.subscribe(
     (state) => state.workPatterns,
     (workPatterns) => {
-      logger.ui.debug('Work patterns changed, updating scheduler', {
+      logger.ui.info('Work patterns changed, updating scheduler', {
         patternCount: workPatterns.length,
-      }, 'store-sync')
+        dates: workPatterns.map(p => p.date),
+        totalBlocks: workPatterns.reduce((sum, p) => sum + p.blocks.length, 0),
+        blockDetails: workPatterns.flatMap(p =>
+          p.blocks.map(b => ({
+            date: p.date,
+            id: b.id,
+            time: `${b.startTime}-${b.endTime}`,
+            type: b.type,
+            capacity: b.capacity ? {
+              totalMinutes: (b.capacity as any).totalMinutes,
+              type: (b.capacity as any).type,
+              splitRatio: (b.capacity as any).splitRatio || null,
+            } : null,
+          })),
+        ),
+      }, 'work-patterns-updated')
 
       useSchedulerStore.getState().setInputs({ workPatterns })
     },
@@ -69,7 +102,9 @@ export const connectStores = () => {
 
   // Return cleanup function
   return () => {
-    unsubTaskStore()
+    unsubTaskData()
+    unsubWorkSettings()
+    unsubActiveWorkSessions()
     unsubPatternStore()
     unsubSkipIndex()
     isConnected = false

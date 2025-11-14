@@ -115,14 +115,6 @@ const computeSchedule = (
   workSettings: WorkSettings | null,
 ): ScheduleResult | null => {
   try {
-    logger.ui.debug('Computing schedule', {
-      taskCount: tasks.length,
-      sequencedTaskCount: sequencedTasks.length,
-      patternCount: workPatterns?.length || 0,
-      hasWorkSettings: !!workSettings,
-      firstPattern: workPatterns?.[0],
-    })
-
     if (!workPatterns || workPatterns.length === 0) {
       logger.ui.warn('No work patterns available for scheduling')
       return null
@@ -130,6 +122,15 @@ const computeSchedule = (
 
     const currentTime = getCurrentTime()
     const startDateString = dateToYYYYMMDD(currentTime)
+
+    // Debug: Log time and date calculation
+    logger.ui.info('Scheduler time context', {
+      currentTime: currentTime.toISOString(),
+      startDateString,
+      patternDates: workPatterns.map(p => p.date),
+      taskCount: tasks.length,
+      workflowCount: sequencedTasks.length,
+    }, 'scheduler-time-debug')
 
     const context = {
       startDate: startDateString,
@@ -145,31 +146,27 @@ const computeSchedule = (
       allowTaskSplitting: true,
       respectMeetings: true,
       optimizationMode: OptimizationMode.Realistic,
-      debugMode: true,
+      debugMode: false, // Disable verbose scheduler debug logs
     }
 
     const items = [...tasks, ...sequencedTasks]
 
-    logger.ui.debug('Calling scheduler.scheduleForDisplay', {
-      itemCount: items.length,
-      itemNames: items.map(i => i.name),
-      contextStartDate: context.startDate,
-      hasWorkPatterns: context.workPatterns.length > 0,
-      firstWorkPattern: context.workPatterns[0],
-    })
+    // Warn if trying to schedule with no items
+    if (items.length === 0) {
+      logger.ui.warn('Attempting to schedule with 0 tasks/workflows - schedule will be empty', {
+        workPatternCount: workPatterns.length,
+        patternDates: workPatterns.map(p => p.date),
+      }, 'empty-schedule')
+    }
 
     const result = scheduler.scheduleForDisplay(items, context, config)
 
     logger.ui.info('Schedule recomputed', {
       totalItems: result.scheduled.length,
       unscheduled: result.unscheduled.length,
-      scheduledItems: result.scheduled.map(s => ({
-        name: s.name,
-        startTime: s.startTime,
-        endTime: s.endTime,
-      })),
-      unscheduledItems: result.unscheduled.map(u => u.name),
-      debugInfo: result.debugInfo,
+      scheduledNames: result.scheduled.map(s => s.name),
+      unscheduledNames: result.unscheduled.map(u => u.name),
+      startDate: startDateString,
     }, 'scheduler-recompute')
 
     return result
@@ -262,11 +259,14 @@ const extractNextScheduledItem = (
     const targetItem = scheduledItem
 
     // Add the rest of the function logic using targetItem
+    // Use originalTaskId if this is a split task, otherwise use the item's ID
+    const taskId = targetItem.originalTaskId || targetItem.id
+
     if (targetItem.type === UnifiedScheduleItemType.WorkflowStep) {
       const workflow = sequencedTasks.find(seq =>
-        seq.steps.some(step => step.id === targetItem.id),
+        seq.steps.some(step => step.id === taskId),
       )
-      const step = workflow?.steps.find(s => s.id === targetItem.id)
+      const step = workflow?.steps.find(s => s.id === taskId)
 
       if (step && workflow) {
         return {
@@ -280,10 +280,10 @@ const extractNextScheduledItem = (
       }
     }
 
-    // Regular task
+    // Regular task - use original ID for split tasks
     return {
       type: NextScheduledItemType.Task,
-      id: targetItem.id,
+      id: taskId,
       title: targetItem.name,
       estimatedDuration: targetItem.duration,
       scheduledStartTime: targetItem.startTime,
@@ -298,12 +298,15 @@ const extractNextScheduledItem = (
   // TypeScript knows startTime exists via type guard
   const itemWithStartTime = scheduledItem
 
+  // Use originalTaskId if this is a split task, otherwise use the item's ID
+  const taskId = itemWithStartTime.originalTaskId || itemWithStartTime.id
+
   // Convert to NextScheduledItem format
   if (itemWithStartTime.type === UnifiedScheduleItemType.WorkflowStep) {
     const workflow = sequencedTasks.find(seq =>
-      seq.steps.some(step => step.id === itemWithStartTime.id),
+      seq.steps.some(step => step.id === taskId),
     )
-    const step = workflow?.steps.find(s => s.id === itemWithStartTime.id)
+    const step = workflow?.steps.find(s => s.id === taskId)
 
     if (step && workflow) {
       return {
@@ -317,10 +320,10 @@ const extractNextScheduledItem = (
     }
   }
 
-  // Regular task
+  // Regular task - use original ID for split tasks
   return {
     type: NextScheduledItemType.Task,
-    id: itemWithStartTime.id,
+    id: taskId,
     title: itemWithStartTime.name,
     estimatedDuration: itemWithStartTime.duration,
     scheduledStartTime: itemWithStartTime.startTime,
