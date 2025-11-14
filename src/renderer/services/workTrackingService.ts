@@ -417,7 +417,10 @@ export class WorkTrackingService {
     if (session.workflowId && session.stepId) {
       return session.workflowId
     }
-    return session.taskId || 'default'
+    if (!session.taskId) {
+      throw new Error('Session must have either workflowId or taskId')
+    }
+    return session.taskId
   }
 
   private isValidSession(session: any): session is UnifiedWorkSession {

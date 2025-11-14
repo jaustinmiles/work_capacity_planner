@@ -5,7 +5,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { formatMinutes, calculateDuration, formatTimeHHMM, dateToYYYYMMDD } from '@shared/time-utils'
-import { TaskStatus, TaskType, WorkBlockType } from '@shared/enums'
+import { TaskStatus, TaskType, WorkBlockType, NotificationType } from '@shared/enums'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { getDatabase } from '../../services/database'
@@ -17,7 +17,7 @@ const { Title, Text } = Typography
 // Custom notification state for React 19 compatibility
 interface NotificationState {
   message: string
-  type: 'success' | 'error' | 'info' | 'warning'
+  type: NotificationType
   visible: boolean
 }
 
@@ -80,12 +80,12 @@ export function WorkStatusWidget() {
   // Notification state for React 19 compatibility
   const [notification, setNotification] = useState<NotificationState>({
     message: '',
-    type: 'info',
+    type: NotificationType.Info,
     visible: false,
   })
 
   // Helper to show notifications
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+  const showNotification = (message: string, type: NotificationType = NotificationType.Info) => {
     setNotification({ message, type, visible: true })
     // Auto-hide after 3 seconds
     setTimeout(() => setNotification(prev => ({ ...prev, visible: false })), 3000)
@@ -219,16 +219,16 @@ export function WorkStatusWidget() {
 
       // Get the task that was started for the success message
       if (nextTask) {
-        showNotification(`Started work on: ${nextTask.title}`, 'success')
+        showNotification(`Started work on: ${nextTask.title}`, NotificationType.Success)
       } else {
-        showNotification('Started work session', 'success')
+        showNotification('Started work session', NotificationType.Success)
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to start work session'
       logger.ui.error('Failed to start task', { error: errorMessage })
 
       // Show error notification to user
-      showNotification(errorMessage, 'error')
+      showNotification(errorMessage, NotificationType.Error)
     } finally {
       setIsProcessing(false)
     }
@@ -248,10 +248,10 @@ export function WorkStatusWidget() {
         await pauseWorkOnTask(activeSession.taskId)
       }
 
-      showNotification('Work session paused', 'success')
+      showNotification('Work session paused', NotificationType.Success)
     } catch (error) {
       logger.ui.error('Failed to pause task', { error })
-      showNotification('Failed to pause work session', 'error')
+      showNotification('Failed to pause work session', NotificationType.Error)
     } finally {
       setIsProcessing(false)
     }
@@ -267,7 +267,7 @@ export function WorkStatusWidget() {
 
       if (activeSession.stepId) {
         await completeStep(activeSession.stepId)
-        showNotification(`Completed workflow step: ${activeSession.stepName || 'Step'}`, 'success')
+        showNotification(`Completed workflow step: ${activeSession.stepName || 'Step'}`, NotificationType.Success)
       } else if (activeSession.taskId) {
         // Pause work first to log time
         const progress = getWorkSessionProgress(activeSession.taskId)
@@ -281,11 +281,11 @@ export function WorkStatusWidget() {
           overallStatus: TaskStatus.Completed,
         })
 
-        showNotification(`Completed task: ${activeSession.taskName || 'Task'}`, 'success')
+        showNotification(`Completed task: ${activeSession.taskName || 'Task'}`, NotificationType.Success)
       }
     } catch (error) {
       logger.ui.error('Failed to complete task', { error })
-      showNotification('Failed to complete task', 'error')
+      showNotification('Failed to complete task', NotificationType.Error)
     } finally {
       setIsProcessing(false)
     }

@@ -9,6 +9,7 @@ import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType, UnifiedScheduleItemType } from '@shared/enums'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
+import { dateToYYYYMMDD } from '@shared/time-utils'
 
 
 const { Title, Text } = Typography
@@ -26,7 +27,7 @@ export function WeeklyCalendar() {
 
     scheduledItems.forEach(item => {
       if (item.startTime) {
-        const dateStr = dayjs(item.startTime).format('YYYY-MM-DD')
+        const dateStr = dateToYYYYMMDD(item.startTime)
         const existing = grouped.get(dateStr) || []
         existing.push(item)
         grouped.set(dateStr, existing)
@@ -40,7 +41,7 @@ export function WeeklyCalendar() {
 
   // Calculate total work capacity needed
   const totalFocusedMinutes = incompleteTasks
-    .filter(task => task.type === 'focused')
+    .filter(task => task.type === TaskType.Focused)
     .reduce((sum, task) => sum + task.duration, 0)
 
   const totalAdminMinutes = incompleteTasks
@@ -100,7 +101,7 @@ export function WeeklyCalendar() {
 
     // Calculate time by type for this day
     const focusedMinutes = daySchedule
-      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === 'focused')
+      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === TaskType.Focused)
       .reduce((sum, item) => {
         if (item.endTime && item.startTime) {
           const duration = Math.round((item.endTime.getTime() - item.startTime.getTime()) / 60000)

@@ -52,6 +52,12 @@ export enum UnifiedScheduleItemType {
   BlockedTime = 'blocked-time',
 }
 
+// Next scheduled item types (for UI display)
+export enum NextScheduledItemType {
+  Task = 'task',
+  Step = 'step',
+}
+
 // Work block types for scheduling
 export enum WorkBlockType {
   Focused = 'focused',
@@ -90,6 +96,14 @@ export enum EntityType {
 export enum DeadlineType {
   Hard = 'hard',
   Soft = 'soft',
+}
+
+// Notification types for UI alerts and messages
+export enum NotificationType {
+  Success = 'success',
+  Error = 'error',
+  Info = 'info',
+  Warning = 'warning',
 }
 
 // Work session types

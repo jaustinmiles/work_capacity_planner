@@ -15,12 +15,12 @@ import { DailyWorkPattern } from '@/shared/work-blocks-types'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@/shared/work-settings-types'
 import { getCurrentTime } from '@/shared/time-provider'
 import { logger } from '@/logger'
-import { StepStatus, TaskType, UnifiedScheduleItemType } from '@/shared/enums'
+import { StepStatus, TaskType, UnifiedScheduleItemType, NextScheduledItemType } from '@/shared/enums'
 import { createWaitBlockId } from '@/shared/step-id-utils'
 import { dateToYYYYMMDD } from '@/shared/time-utils'
 
 export interface NextScheduledItem {
-  type: 'task' | 'step'
+  type: NextScheduledItemType
   id: string
   workflowId?: string
   title: string
@@ -57,6 +57,11 @@ interface SchedulerStoreState {
 }
 
 const scheduler = new UnifiedScheduler()
+
+// Helper to check if item has required startTime
+function hasStartTime(item: UnifiedScheduleItem): item is UnifiedScheduleItem & { startTime: Date } {
+  return item.startTime !== undefined && item.startTime !== null
+}
 
 // Helper function to get task color based on type
 const getTaskColor = (taskType: TaskType): string => {
@@ -198,10 +203,10 @@ const extractNextScheduledItem = (
       if (!item.startTime) return false
 
       // Filter out non-work items
-      if (item.type === 'meeting' ||
-          item.type === 'break' ||
-          item.type === 'blocked-time' ||
-          item.type === 'async-wait') {
+      if (item.type === UnifiedScheduleItemType.Meeting ||
+          item.type === UnifiedScheduleItemType.Break ||
+          item.type === UnifiedScheduleItemType.BlockedTime ||
+          item.type === UnifiedScheduleItemType.AsyncWait) {
         return false
       }
 
@@ -213,7 +218,7 @@ const extractNextScheduledItem = (
       }
 
       // For workflow steps, check status and dependencies
-      if (item.type === 'workflow-step' && item.workflowId) {
+      if (item.type === UnifiedScheduleItemType.WorkflowStep && item.workflowId) {
         const workflow = sequencedTasks.find(seq => seq.id === item.workflowId)
         const step = workflow?.steps.find(s => s.id === item.id)
 
@@ -226,7 +231,11 @@ const extractNextScheduledItem = (
 
       return true
     })
-    .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime())
+    .sort((a, b) => {
+      const aTime = a.startTime?.getTime() ?? 0
+      const bTime = b.startTime?.getTime() ?? 0
+      return aTime - bTime
+    })
 
   if (workItems.length === 0) return null
 
@@ -236,13 +245,13 @@ const extractNextScheduledItem = (
     // This provides better UX than showing "no tasks"
     const wrappedIndex = skipIndex % workItems.length
     const scheduledItem = workItems[wrappedIndex]
-    if (!scheduledItem?.startTime) return null
+    if (!scheduledItem || !hasStartTime(scheduledItem)) return null
 
-    // Continue with the wrapped item (startTime is guaranteed to exist here)
-    const targetItem = scheduledItem as typeof scheduledItem & { startTime: Date }
+    // Continue with the wrapped item (TypeScript knows startTime exists via type guard)
+    const targetItem = scheduledItem
 
     // Add the rest of the function logic using targetItem
-    if (targetItem.type === 'workflow-step') {
+    if (targetItem.type === UnifiedScheduleItemType.WorkflowStep) {
       const workflow = sequencedTasks.find(seq =>
         seq.steps.some(step => step.id === targetItem.id),
       )
@@ -250,7 +259,7 @@ const extractNextScheduledItem = (
 
       if (step && workflow) {
         return {
-          type: 'step' as const,
+          type: NextScheduledItemType.Step,
           id: step.id,
           workflowId: workflow.id,
           title: step.name,
@@ -262,7 +271,7 @@ const extractNextScheduledItem = (
 
     // Regular task
     return {
-      type: 'task' as const,
+      type: NextScheduledItemType.Task,
       id: targetItem.id,
       title: targetItem.name,
       estimatedDuration: targetItem.duration,
@@ -273,13 +282,13 @@ const extractNextScheduledItem = (
   const targetIndex = Math.min(skipIndex, workItems.length - 1)
   const scheduledItem = workItems[targetIndex]
 
-  if (!scheduledItem?.startTime) return null
+  if (!scheduledItem || !hasStartTime(scheduledItem)) return null
 
-  // TypeScript knows startTime exists after the check above
-  const itemWithStartTime = scheduledItem as typeof scheduledItem & { startTime: Date }
+  // TypeScript knows startTime exists via type guard
+  const itemWithStartTime = scheduledItem
 
   // Convert to NextScheduledItem format
-  if (itemWithStartTime.type === 'workflow-step') {
+  if (itemWithStartTime.type === UnifiedScheduleItemType.WorkflowStep) {
     const workflow = sequencedTasks.find(seq =>
       seq.steps.some(step => step.id === itemWithStartTime.id),
     )
@@ -287,7 +296,7 @@ const extractNextScheduledItem = (
 
     if (step && workflow) {
       return {
-        type: 'step' as const,
+        type: NextScheduledItemType.Step,
         id: step.id,
         workflowId: workflow.id,
         title: step.name,
@@ -299,7 +308,7 @@ const extractNextScheduledItem = (
 
   // Regular task
   return {
-    type: 'task' as const,
+    type: NextScheduledItemType.Task,
     id: itemWithStartTime.id,
     title: itemWithStartTime.name,
     estimatedDuration: itemWithStartTime.duration,
