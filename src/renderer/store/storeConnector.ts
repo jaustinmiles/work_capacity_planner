@@ -9,6 +9,7 @@ import { useTaskStore } from './useTaskStore'
 import { useSchedulerStore } from './useSchedulerStore'
 import { useWorkPatternStore } from './useWorkPatternStore'
 import { logger } from '@/logger'
+import { shallow } from 'zustand/shallow'
 
 let isConnected = false
 
@@ -20,36 +21,21 @@ export const connectStores = () => {
 
   logger.ui.info('Initializing reactive store connections', {}, 'store-connector')
 
-  // SIMPLIFIED: Subscribe to tasks directly
-  const unsubTasks = useTaskStore.subscribe(
-    (state) => state.tasks,
-    (tasks) => {
-      logger.ui.info('Tasks changed, updating scheduler', {
+  // Subscribe to tasks AND sequencedTasks together to avoid race conditions
+  // This ensures when both change simultaneously, scheduler gets both new values
+  const unsubTaskData = useTaskStore.subscribe(
+    (state) => ({ tasks: state.tasks, sequencedTasks: state.sequencedTasks }),
+    ({ tasks, sequencedTasks }) => {
+      logger.ui.info('Task data changed, updating scheduler', {
         taskCount: tasks.length,
+        workflowCount: sequencedTasks.length,
         taskNames: tasks.map(t => t.name),
-      }, 'tasks-changed')
-
-      useSchedulerStore.getState().setInputs({
-        tasks,
-        sequencedTasks: useTaskStore.getState().sequencedTasks,
-      })
-    },
-  )
-
-  // Subscribe to sequenced tasks directly
-  const unsubSequencedTasks = useTaskStore.subscribe(
-    (state) => state.sequencedTasks,
-    (sequencedTasks) => {
-      logger.ui.info('Sequenced tasks changed, updating scheduler', {
-        sequencedCount: sequencedTasks.length,
         workflowNames: sequencedTasks.map(w => w.name),
-      }, 'workflows-changed')
+      }, 'task-data-changed')
 
-      useSchedulerStore.getState().setInputs({
-        tasks: useTaskStore.getState().tasks,
-        sequencedTasks,
-      })
+      useSchedulerStore.getState().setInputs({ tasks, sequencedTasks })
     },
+    { equalityFn: shallow }, // Use shallow comparison - fires when tasks OR sequencedTasks reference changes
   )
 
   // Subscribe to work settings directly
@@ -116,8 +102,7 @@ export const connectStores = () => {
 
   // Return cleanup function
   return () => {
-    unsubTasks()
-    unsubSequencedTasks()
+    unsubTaskData()
     unsubWorkSettings()
     unsubActiveWorkSessions()
     unsubPatternStore()

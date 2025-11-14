@@ -31,6 +31,7 @@ import {
   getRemainingCapacity,
 } from '@shared/work-blocks-types'
 import { calculateBlockCapacity, getTotalCapacityForTaskType } from '@shared/capacity-calculator'
+import { generateUniqueId } from '@shared/step-id-utils'
 import { Message } from '../common/Message'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
@@ -106,7 +107,7 @@ export function WorkBlocksEditor({
 
   const handleAddBlock = () => {
     const newBlock: WorkBlock = {
-      id: `block-${Date.now()}`,
+      id: generateUniqueId('block'),
       startTime: '09:00',
       endTime: '12:00',
       type: WorkBlockType.Mixed,
@@ -151,24 +152,10 @@ export function WorkBlocksEditor({
     }
 
     if (template) {
-      const newBlocks = template.blocks.map((b, index) => {
-        const block: WorkBlock = {
-          ...b,
-          id: `block-${Date.now()}-${index}`,
-        }
-
-        // Initialize capacity for mixed blocks if not present
-        if (block.type === WorkBlockType.Mixed && !block.capacity) {
-          block.capacity = calculateBlockCapacity(
-            WorkBlockType.Mixed,
-            block.startTime,
-            block.endTime,
-            { focus: 0.5, admin: 0.5 }, // Default 50/50 split - user can customize
-          )
-        }
-
-        return block
-      })
+      const newBlocks = template.blocks.map((b) => ({
+        ...b,
+        id: generateUniqueId('block'),
+      }))
       setBlocks(newBlocks)
 
       // If it's a user template, also apply meetings

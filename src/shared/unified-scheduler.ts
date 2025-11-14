@@ -357,13 +357,13 @@ export class UnifiedScheduler {
     }
 
     // Ensure config has startDate from context if not provided
-    // NOTE: We deliberately DON'T pass context.currentTime to config.currentTime for display scheduling
-    // This prevents filtering out past work blocks, which would make the schedule non-idempotent
-    // Priority calculations still use context.currentTime for deadline pressure (correct behavior)
+    // Pass currentTime so tasks are scheduled from "now" forward, not from block start
+    // The scheduler will clamp task start times to MAX(blockStart, currentTime)
+    // Blocks where currentTime >= blockEnd won't fit new tasks (correct behavior)
     const configWithStartDate: ScheduleConfig = {
       ...config,
       startDate: config.startDate || context.startDate,
-      // currentTime: NOT copied - display schedule should show all blocks regardless of time
+      currentTime: context.currentTime, // Pass currentTime for proper "now" positioning
     }
     const allocated = this.allocateToWorkBlocks(dependencyResult.resolved, context.workPatterns, configWithStartDate, completedItemIds, true)
 
