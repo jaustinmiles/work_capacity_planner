@@ -29,7 +29,7 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
     await page.waitForLoadState('networkidle')
   })
 
-  test('should display EisenhowerMatrix in grid view by default', async ({ page }, testInfo) => {
+  test('should display EisenhowerMatrix in scatter view by default', async ({ page }, testInfo) => {
     // Skip mobile viewports
     if (testInfo.project.name === 'Mobile Small' || testInfo.project.name === 'Mobile Large') {
       test.skip()
@@ -39,22 +39,15 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
     // Check for the matrix title
     await expect(page.locator('text=Eisenhower Priority Matrix')).toBeVisible()
 
-    // Ensure we're in grid view (click it explicitly to be sure)
-    const gridButton = page.locator('.arco-radio-button').filter({ hasText: 'Grid' })
-    await gridButton.click()
-
-    // Wait for grid view to render
+    // Wait for scatter view to render (default view)
     await page.waitForTimeout(500)
 
-    // Check for grid quadrants (these are rendered as text, not h6 elements)
-    await expect(page.locator('text="Do First"')).toBeVisible()
-    await expect(page.locator('text="Schedule"')).toBeVisible()
-    await expect(page.locator('text="Delegate"')).toBeVisible()
-    await expect(page.locator('text="Eliminate"')).toBeVisible()
+    // Check for scatter view elements
+    await expect(page.locator('text=Urgency →')).toBeVisible()
+    await expect(page.locator('text=Importance →')).toBeVisible()
 
-    // Check for axis labels
-    await expect(page.locator('text=/Less Urgent.*More Urgent/')).toBeVisible()
-    await expect(page.locator('text=/Less Important.*More Important/')).toBeVisible()
+    // Check for scan button (scatter view specific)
+    await expect(page.locator('button:has-text("Scan")')).toBeVisible()
   })
 
   test('should switch between grid and scatter views', async ({ page }, testInfo) => {
@@ -64,35 +57,32 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
       return
     }
 
-    // Ensure we start in grid view
-    const gridButton = page.locator('.arco-radio-button').filter({ hasText: 'Grid' })
-    await gridButton.click()
+    // Verify we start in scatter view (default)
     await page.waitForTimeout(500)
-
-    // Verify grid view is showing
-    await expect(page.locator('text="Do First"')).toBeVisible()
-
-    // Switch to scatter view using Arco button-style radio
-    const scatterButton = page.locator('.arco-radio-button').filter({ hasText: 'Scatter' })
-    await scatterButton.click()
-
-    // Wait for scatter view to render
-    await page.waitForTimeout(500)
-
-    // Check for scatter view elements
     await expect(page.locator('text=Urgency →')).toBeVisible()
     await expect(page.locator('text=Importance →')).toBeVisible()
 
-    // Check for scan button (scatter view specific)
-    await expect(page.locator('button:has-text("Scan")')).toBeVisible()
-
-    // Switch back to grid view
+    // Switch to grid view using Arco button-style radio
+    const gridButton = page.locator('.arco-radio-button').filter({ hasText: 'Grid' })
     await gridButton.click()
+
+    // Wait for grid view to render
     await page.waitForTimeout(500)
 
-    // Verify grid view is back
+    // Check for grid view elements
     await expect(page.locator('text="Do First"')).toBeVisible()
     await expect(page.locator('text="Schedule"')).toBeVisible()
+    await expect(page.locator('text="Delegate"')).toBeVisible()
+    await expect(page.locator('text="Eliminate"')).toBeVisible()
+
+    // Switch back to scatter view
+    const scatterButton = page.locator('.arco-radio-button').filter({ hasText: 'Scatter' })
+    await scatterButton.click()
+    await page.waitForTimeout(500)
+
+    // Verify scatter view is back
+    await expect(page.locator('text=Urgency →')).toBeVisible()
+    await expect(page.locator('text=Importance →')).toBeVisible()
   })
 
   test('should handle zoom controls in grid view', async ({ page }, testInfo) => {
@@ -226,36 +216,35 @@ test.describe('EisenhowerMatrix E2E Tests', () => {
       return
     }
 
-    // Ensure we start in grid view
+    // Verify we start in scatter view (default)
+    await page.waitForTimeout(500)
+    await expect(page.locator('text=Urgency →')).toBeVisible()
+    await expect(page.locator('text=Importance →')).toBeVisible()
+
+    // Switch to grid view
     const gridButton = page.locator('.arco-radio-button').filter({ hasText: 'Grid' })
     await gridButton.click()
     await page.waitForTimeout(500)
 
-    // Verify grid view
+    // Wait for grid view to be fully loaded
     await expect(page.locator('text=Do First')).toBeVisible()
+    await expect(page.locator('text=Schedule')).toBeVisible()
 
-    // Switch to scatter view
+    // Switch back to scatter view
     const scatterButton = page.locator('.arco-radio-button').filter({ hasText: 'Scatter' })
     await scatterButton.click()
     await page.waitForTimeout(500)
 
-    // Wait for scatter view to be fully loaded
+    // Verify we're back in scatter view
     await expect(page.locator('text=Urgency →')).toBeVisible()
     await expect(page.locator('text=Importance →')).toBeVisible()
 
-    // Switch back to grid view
+    // Switch back to grid view again
     await gridButton.click()
     await page.waitForTimeout(500)
 
-    // Verify we're back in grid view
+    // Verify grid view is fully loaded again
     await expect(page.locator('text=Do First')).toBeVisible()
-
-    // Switch back to scatter view again
-    await scatterButton.click()
-    await page.waitForTimeout(500)
-
-    // Verify scatter view is fully loaded again
-    await expect(page.locator('text=Urgency →')).toBeVisible()
-    await expect(page.locator('text=Importance →')).toBeVisible()
+    await expect(page.locator('text=Schedule')).toBeVisible()
   })
 })

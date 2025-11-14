@@ -78,25 +78,8 @@ describe('EisenhowerMatrix', () => {
   })
 
   describe('View Mode Orchestration', () => {
-    it('should render grid view by default', () => {
+    it('should render scatter view by default', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Check for grid-specific elements
-      expect(screen.getByText('Do First')).toBeInTheDocument()
-      expect(screen.getByText('Schedule')).toBeInTheDocument()
-      expect(screen.getByText('Delegate')).toBeInTheDocument()
-      expect(screen.getByText('Eliminate')).toBeInTheDocument()
-
-      // Scatter-specific elements should not be present
-      expect(screen.queryByText('Urgency →')).not.toBeInTheDocument()
-    })
-
-    it('should switch to scatter view when toggled', () => {
-      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
-
-      // Find scatter toggle button
-      const scatterButton = screen.getByDisplayValue('scatter')
-      fireEvent.click(scatterButton)
 
       // Check for scatter-specific elements
       expect(screen.getByText('Urgency →')).toBeInTheDocument()
@@ -108,25 +91,48 @@ describe('EisenhowerMatrix', () => {
       expect(doFirstElements.length).toBeLessThanOrEqual(1) // May exist as overlay label
     })
 
-    it('should show scatter view when toggled', () => {
+    it('should switch to grid view when toggled', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      // Grid mode initially - check for grid elements
+      // Find grid toggle button
+      const gridButton = screen.getByDisplayValue('grid')
+      fireEvent.click(gridButton)
+
+      // Check for grid-specific elements
+      expect(screen.getByText('Do First')).toBeInTheDocument()
       expect(screen.getByText('Schedule')).toBeInTheDocument()
+      expect(screen.getByText('Delegate')).toBeInTheDocument()
+      expect(screen.getByText('Eliminate')).toBeInTheDocument()
 
-      // Switch to scatter mode
-      const scatterButton = screen.getByDisplayValue('scatter')
-      fireEvent.click(scatterButton)
+      // Scatter-specific elements should not be present
+      expect(screen.queryByText('Urgency →')).not.toBeInTheDocument()
+    })
 
-      // Scatter mode should show axis labels
+    it('should show grid view when toggled', () => {
+      renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+
+      // Scatter mode initially - check for scatter elements
       expect(screen.getByText('Urgency →')).toBeInTheDocument()
-      expect(screen.getByText('Importance →')).toBeInTheDocument()
+
+      // Switch to grid mode
+      const gridButton = screen.getByDisplayValue('grid')
+      fireEvent.click(gridButton)
+
+      // Grid mode should show quadrant labels
+      expect(screen.getByText('Do First')).toBeInTheDocument()
+      expect(screen.getByText('Schedule')).toBeInTheDocument()
+      expect(screen.getByText('Delegate')).toBeInTheDocument()
+      expect(screen.getByText('Eliminate')).toBeInTheDocument()
     })
   })
 
   describe('Task Data Management', () => {
     it('should pass filtered tasks to child components', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
+
+      // Switch to grid view for easier text-based assertions
+      const gridButton = screen.getByDisplayValue('grid')
+      fireEvent.click(gridButton)
 
       // Should show incomplete tasks
       expect(screen.getByText('Urgent Important Task')).toBeInTheDocument()
@@ -139,6 +145,10 @@ describe('EisenhowerMatrix', () => {
     it('should handle task selection from child components', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
+      // Switch to grid view for easier text-based assertions
+      const gridButton = screen.getByDisplayValue('grid')
+      fireEvent.click(gridButton)
+
       const taskElement = screen.getByText('Urgent Important Task')
       fireEvent.click(taskElement)
 
@@ -148,11 +158,16 @@ describe('EisenhowerMatrix', () => {
     it('should handle add task action from child components', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      // Find add button - it has an icon and might have text depending on width
-      const buttons = screen.getAllByRole('button')
-      const addButton = buttons.find(btn => btn.querySelector('.arco-icon-plus')) || screen.getByText('Add Task')
+      // Switch to grid view for consistent add button rendering
+      const gridButton = screen.getByDisplayValue('grid')
+      fireEvent.click(gridButton)
 
-      fireEvent.click(addButton)
+      // Find add button by its plus icon
+      const buttons = screen.getAllByRole('button')
+      const addButton = buttons.find(btn => btn.querySelector('.arco-icon-plus'))
+
+      expect(addButton).toBeDefined()
+      fireEvent.click(addButton!)
 
       expect(mockOnAddTask).toHaveBeenCalled()
     })

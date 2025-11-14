@@ -69,25 +69,22 @@ describe('EisenhowerMatrix - Diagonal Scan Feature', () => {
     it('should show scan button only in scatter view', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      // Grid view - no scan button
-      expect(screen.queryByTestId('diagonal-scan-button')).not.toBeInTheDocument()
-
-      // Switch to scatter view
-      const scatterRadio = screen.getByDisplayValue('scatter')
-      fireEvent.click(scatterRadio)
-
-      // Scatter view - scan button appears
+      // Scatter view (default) - scan button should be present
       expect(screen.getByTestId('diagonal-scan-button')).toBeInTheDocument()
       expect(screen.getByLabelText('Start diagonal scan')).toBeInTheDocument()
+
+      // Switch to grid view
+      const gridRadio = screen.getByDisplayValue('grid')
+      fireEvent.click(gridRadio)
+
+      // Grid view - no scan button
+      expect(screen.queryByTestId('diagonal-scan-button')).not.toBeInTheDocument()
     })
 
     it('should have scan button functionality delegated to scatter component', () => {
       renderWithProvider(<EisenhowerMatrix onAddTask={mockOnAddTask} />)
 
-      // Switch to scatter view first
-      const scatterRadio = screen.getByDisplayValue('scatter')
-      fireEvent.click(scatterRadio)
-
+      // Already in scatter view (default), scan button should be present
       const scanButton = screen.getByTestId('diagonal-scan-button')
 
       // Scan button should be present and functional
