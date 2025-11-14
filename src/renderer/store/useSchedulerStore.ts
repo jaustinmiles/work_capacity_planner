@@ -259,11 +259,14 @@ const extractNextScheduledItem = (
     const targetItem = scheduledItem
 
     // Add the rest of the function logic using targetItem
+    // Use originalTaskId if this is a split task, otherwise use the item's ID
+    const taskId = targetItem.originalTaskId || targetItem.id
+
     if (targetItem.type === UnifiedScheduleItemType.WorkflowStep) {
       const workflow = sequencedTasks.find(seq =>
-        seq.steps.some(step => step.id === targetItem.id),
+        seq.steps.some(step => step.id === taskId),
       )
-      const step = workflow?.steps.find(s => s.id === targetItem.id)
+      const step = workflow?.steps.find(s => s.id === taskId)
 
       if (step && workflow) {
         return {
@@ -277,10 +280,10 @@ const extractNextScheduledItem = (
       }
     }
 
-    // Regular task
+    // Regular task - use original ID for split tasks
     return {
       type: NextScheduledItemType.Task,
-      id: targetItem.id,
+      id: taskId,
       title: targetItem.name,
       estimatedDuration: targetItem.duration,
       scheduledStartTime: targetItem.startTime,
@@ -295,12 +298,15 @@ const extractNextScheduledItem = (
   // TypeScript knows startTime exists via type guard
   const itemWithStartTime = scheduledItem
 
+  // Use originalTaskId if this is a split task, otherwise use the item's ID
+  const taskId = itemWithStartTime.originalTaskId || itemWithStartTime.id
+
   // Convert to NextScheduledItem format
   if (itemWithStartTime.type === UnifiedScheduleItemType.WorkflowStep) {
     const workflow = sequencedTasks.find(seq =>
-      seq.steps.some(step => step.id === itemWithStartTime.id),
+      seq.steps.some(step => step.id === taskId),
     )
-    const step = workflow?.steps.find(s => s.id === itemWithStartTime.id)
+    const step = workflow?.steps.find(s => s.id === taskId)
 
     if (step && workflow) {
       return {
@@ -314,10 +320,10 @@ const extractNextScheduledItem = (
     }
   }
 
-  // Regular task
+  // Regular task - use original ID for split tasks
   return {
     type: NextScheduledItemType.Task,
-    id: itemWithStartTime.id,
+    id: taskId,
     title: itemWithStartTime.name,
     estimatedDuration: itemWithStartTime.duration,
     scheduledStartTime: itemWithStartTime.startTime,
