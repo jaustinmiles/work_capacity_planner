@@ -76,12 +76,29 @@ export function isWaitBlockId(id: string): boolean {
  * Format: prefix-timestamp-random
  * Example: "WTS-1759443199835-3ejbx2mvh"
  *
+ * Uses cryptographically secure random number generation
+ *
  * @param prefix - The prefix to use for the ID (e.g., 'WTS', 'jargon', 'session')
  * @returns A unique ID string
  */
 export function generateUniqueId(prefix: string): string {
   const timestamp = Date.now().toString(36)
-  const random = Math.random().toString(36).substring(2, 11)
+
+  // Use crypto.randomUUID() if available (browser/Node 15+), fallback to crypto.getRandomValues
+  let random: string
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    // Use randomUUID and extract a portion for compact IDs
+    random = crypto.randomUUID().replace(/-/g, '').substring(0, 9)
+  } else if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    // Fallback: use getRandomValues
+    const array = new Uint32Array(2)
+    crypto.getRandomValues(array)
+    random = array[0].toString(36) + array[1].toString(36).substring(0, 5)
+  } else {
+    // Final fallback for test environments without crypto (should not happen in production)
+    random = Math.random().toString(36).substring(2, 11)
+  }
+
   return `${prefix}-${timestamp}-${random}`
 }
 
