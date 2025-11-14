@@ -6,7 +6,7 @@ import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType } from '@shared/enums'
+import { TaskType, UnifiedScheduleItemType } from '@shared/enums'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
 
@@ -345,7 +345,7 @@ export function WeeklyCalendar() {
                   .map(item => ({
                     id: item.id,
                     name: item.name,
-                    type: item.type as 'task' | 'workflow-step' | 'async-wait' | 'blocked-time' | 'meeting' | 'break',
+                    type: item.type as UnifiedScheduleItemType,
                     priority: item.priority || 0,
                     duration: item.duration,
                     startTime: item.startTime!,

@@ -4,7 +4,7 @@ import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle } from '
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType, GanttItemType } from '@shared/enums'
-import { DailyWorkPattern, WorkMeeting } from '@shared/work-blocks-types'
+import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { ScheduleMetricsPanel } from './ScheduleMetricsPanel'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
@@ -26,10 +26,10 @@ interface GanttChartProps {
 }
 
 interface GanttItemWorkflowMetadata {
-  workflowId?: string
-  workflowName?: string
-  stepIndex?: number
-  isWorkflowStep?: boolean
+  workflowId?: string | undefined
+  workflowName?: string | undefined
+  stepIndex?: number | undefined
+  isWorkflowStep?: boolean | undefined
 }
 
 interface GanttItem extends GanttItemWorkflowMetadata {
@@ -42,7 +42,7 @@ interface GanttItem extends GanttItemWorkflowMetadata {
   endTime: Date
   color: string
   deadline?: Date | undefined
-  originalItem: Task | SequencedTask | WorkMeeting
+  originalItem: any // UnifiedScheduleItem | Task | SequencedTask | WorkMeeting | TaskStep
   blockId?: string | undefined
   isBlocked?: boolean | undefined
   isWaitTime?: boolean | undefined
@@ -252,7 +252,9 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       pattern.meetings.forEach(meeting => {
         // Parse times for this date
         const parseTimeOnDate = (date: Date, timeStr: string): Date => {
-          const [hours, minutes] = timeStr.split(':').map(Number)
+          const parts = timeStr.split(':').map(Number)
+          const hours = parts[0] ?? 0
+          const minutes = parts[1] ?? 0
           const result = new Date(date)
           result.setHours(hours, minutes, 0, 0)
           return result
@@ -360,13 +362,33 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Get scheduled items from the reactive scheduler store
   const scheduledItems = useMemo(() => {
     // Convert scheduler store items to GanttChart format
-    const ganttItemsFromStore = ganttItems.map(item => ({
-      ...item,
-      startTime: item.startTime ? new Date(item.startTime) : new Date(),
-      endTime: item.endTime ? new Date(item.endTime) : new Date(),
+    const ganttItemsFromStore: GanttItem[] = ganttItems.map(item => ({
+      id: item.id,
+      name: item.name,
+      // Map UnifiedScheduleItemType to GanttItemType
+      type: item.type === 'workflow-step' ? GanttItemType.WorkflowStep :
+            item.type === 'meeting' ? GanttItemType.Meeting :
+            item.type === 'blocked-time' ? GanttItemType.BlockedTime :
+            item.type === 'async-wait' ? GanttItemType.AsyncWait :
+            GanttItemType.Task,
+      priority: item.priority,
+      duration: item.duration,
+      startTime: item.startTime ? new Date(item.startTime) : getCurrentTime(),
+      endTime: item.endTime ? new Date(item.endTime) : getCurrentTime(),
+      color: item.color || '#6b7280',
       deadline: item.deadline ? new Date(item.deadline) : undefined,
       originalItem: item.originalItem || item,
-    } as unknown as GanttItem))
+      // Workflow metadata
+      workflowId: item.workflowId,
+      workflowName: item.workflowName,
+      stepIndex: item.stepIndex,
+      isWorkflowStep: item.type === 'workflow-step',
+      // Other properties
+      blockId: item.blockId,
+      isBlocked: item.isBlocked,
+      isWaitTime: item.isWaitTime,
+      isFutureWait: item.isFutureWait,
+    }))
 
     // Add meetings from work patterns
     const meetingItems = getMeetingScheduledItems(workPatterns)
@@ -1009,7 +1031,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
                     // Trigger a reschedule to respect the new deadline
                     await useTaskStore.getState().initializeData()
-                    useSchedulerStore.getState().recomputeSchedule()
+                    // Schedule will automatically recompute via store subscription
                     Message.info('Schedule updated to respect the new deadline')
                   } catch (error) {
                     logger.db.error('Failed to set deadline', {

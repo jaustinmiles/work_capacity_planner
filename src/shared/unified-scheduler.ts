@@ -1500,20 +1500,6 @@ export class UnifiedScheduler {
     return result
   }
 
-  /**
-   * Calculate available time in block considering scheduled items
-   */
-  private calculateAvailableTimeInBlock(block: BlockCapacity, scheduledInBlock: UnifiedScheduleItem[]): number {
-    const totalBlockMinutes = (block.endTime.getTime() - block.startTime.getTime()) / 60000
-    const usedMinutes = scheduledInBlock.reduce((sum, item) => {
-      if (item.startTime && item.endTime) {
-        return sum + ((item.endTime.getTime() - item.startTime.getTime()) / 60000)
-      }
-      return sum + item.duration
-    }, 0)
-
-    return totalBlockMinutes - usedMinutes
-  }
 
   /**
    * Find next available time in block

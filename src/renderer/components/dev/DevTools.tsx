@@ -5,7 +5,6 @@ import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
 import { useTaskStore } from '../../store/useTaskStore'
-import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { FeedbackForm } from './FeedbackForm'
 import { FeedbackViewer } from './FeedbackViewer'
@@ -45,13 +44,11 @@ export function DevTools({ visible, onClose }: DevToolsProps) {
       logger.ui.info('All user data cleared successfully')
       Message.success('All user data cleared successfully')
 
-      // Reset stores instead of reloading the page
-      setTimeout(() => {
-        // Re-initialize data in stores
-        useTaskStore.getState().initializeData()
-        useWorkPatternStore.getState().loadWorkPatterns()
-        useSchedulerStore.getState().recomputeSchedule()
-      }, 500)
+      // Re-initialize data in stores
+      // No delay needed - stores can be initialized immediately after clearing
+      await useTaskStore.getState().initializeData()
+      await useWorkPatternStore.getState().loadWorkPatterns()
+      // Schedule will automatically recompute via store subscriptions
     } catch (error) {
       logger.ui.error('Failed to clear data', {
         error: error instanceof Error ? error.message : String(error),

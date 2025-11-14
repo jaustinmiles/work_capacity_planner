@@ -22,6 +22,7 @@
  */
 
 import { TaskType } from './enums'
+import { generateUniqueId } from './step-id-utils'
 
 /**
  * Unified work session structure that serves as single source of truth
@@ -208,7 +209,7 @@ export function createUnifiedWorkSession(params: {
   return {
     // Only generate ID if not provided (for compatibility)
     // Database should generate the real ID
-    id: params.id || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+    id: params.id || generateUniqueId('ws'),
     taskId: params.taskId,
     stepId: params.stepId,
     workflowId: params.workflowId,

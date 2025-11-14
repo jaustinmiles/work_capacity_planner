@@ -168,7 +168,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
         // Update stores for reactive UI updates
         await useTaskStore.getState().initializeData()
-        useSchedulerStore.getState().recomputeSchedule()
+        // Schedule will automatically recompute via store subscription
         logger.db.info('Workflow saved successfully', {
           workflowId: task.id,
           stepCount: cleanedSteps.length,

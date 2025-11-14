@@ -466,9 +466,7 @@ export const useTaskStore = create<TaskStore>()(
         get().resetNextTaskSkipIndex()
       }
 
-      // Force schedule recomputation after task completion to ensure UI updates
-      // This ensures the completed task is removed from the schedule immediately
-      useSchedulerStore.getState().recomputeSchedule()
+      // Schedule will automatically recompute via store subscription when task is updated
 
     } catch (error) {
       set({
@@ -691,11 +689,7 @@ export const useTaskStore = create<TaskStore>()(
 
       set({ activeWorkSessions: newSessions })
 
-      // Force schedule recomputation to show next task immediately
-      useSchedulerStore.getState().recomputeSchedule()
-
-      // Emit events to notify UI of state changes - no refresh needed
-      // Event removed - reactive state handles updates
+      // Schedule will automatically recompute via store subscription
       // Event removed - reactive state handles updates
     } catch (error) {
       logger.ui.error('Failed to pause work on step', {
@@ -755,11 +749,7 @@ export const useTaskStore = create<TaskStore>()(
       newSessions.delete(taskId)
       set({ activeWorkSessions: newSessions })
 
-      // Force schedule recomputation to show next task immediately
-      useSchedulerStore.getState().recomputeSchedule()
-
-      // Emit events to notify UI of state changes - no refresh needed
-      // Event removed - reactive state handles updates
+      // Schedule will automatically recompute via store subscription
       // Event removed - reactive state handles updates
 
     } catch (error) {

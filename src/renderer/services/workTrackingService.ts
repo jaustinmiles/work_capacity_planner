@@ -1,8 +1,5 @@
 import { logger } from '@/logger'
 import { getDatabase } from './database'
-import type {
-  WorkSessionPersistenceOptions,
-} from './types/workTracking'
 import type { Task, TaskStep } from '../../shared/types'
 import {
   UnifiedWorkSession,
@@ -11,30 +8,26 @@ import {
   createUnifiedWorkSession,
 } from '../../shared/unified-work-session-types'
 import { TaskType } from '../../shared/enums'
-import { generateUniqueId } from '../../shared/step-id-utils'
 import { getCurrentTime } from '@/shared/time-provider'
+
+/**
+ * Options for work session persistence behavior
+ */
+export interface WorkSessionPersistenceOptions {
+  clearStaleSessionsOnStartup?: boolean
+  maxSessionAgeHours?: number
+}
 
 /**
  * WorkTrackingService - Manages active work sessions with database persistence
  */
-// We'll store active work sessions using the existing work session infrastructure
-// and track which ones are "active" vs "completed" in the session data
 
 export class WorkTrackingService {
   private activeSessions: Map<string, UnifiedWorkSession> = new Map()
   private options: Required<WorkSessionPersistenceOptions>
   private database: ReturnType<typeof getDatabase>
-  private instanceId: string
 
   constructor(options: WorkSessionPersistenceOptions = {}, database?: ReturnType<typeof getDatabase>) {
-    // Generate unique instance ID for tracking multiple instances in development
-    this.instanceId = generateUniqueId('WTS')
-    // LOGGER_REMOVED: logger.ui.debug(`[WorkTrackingService] Instance created: ${this.instanceId}`, {
-      // instanceId: this.instanceId,
-      // Capture call stack (first 5 lines) to debug why multiple instances are created
-      // stackTrace: this.getCallerStackTrace(),
-    // })
-
     this.options = {
       clearStaleSessionsOnStartup: true,
       maxSessionAgeHours: 24,
@@ -43,18 +36,9 @@ export class WorkTrackingService {
     this.database = database || getDatabase()
   }
 
-  /**
-   * Get abbreviated call stack for debugging instance creation
-   * Returns first 5 lines of stack trace to identify where service was instantiated
-   */
-  private getCallerStackTrace(): string {
-    return new Error().stack?.split('\n').slice(0, 5).join('\n') || 'No stack trace available'
-  }
-
   async initialize(): Promise<void> {
     // Clear local state first
     this.activeSessions.clear()
-    // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Cleared all local active sessions on initialization')
 
     // Clear stale sessions if enabled (older than maxSessionAgeHours)
     if (this.options.clearStaleSessionsOnStartup) {
@@ -68,30 +52,12 @@ export class WorkTrackingService {
       // Restore to memory so UI can show it
       const sessionKey = this.getSessionKey(activeSession)
       this.activeSessions.set(sessionKey, activeSession)
-
-      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Restored active session from database', {
-        // sessionId: activeSession.id,
-        // taskId: activeSession.taskId,
-        // stepId: activeSession.stepId,
-        // startTime: activeSession.startTime.toISOString(),
-      // })
-    } else {
-      // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] No active sessions to restore')
     }
-
-    // LOGGER_REMOVED: logger.ui.info('[WorkTrackingService] Initialization complete', {
-      // LOGGER_REMOVED: activeSessionCount: this.activeSessions.size,
-    // LOGGER_REMOVED: })
   }
 
   async startWorkSession(taskId?: string, stepId?: string, workflowId?: string): Promise<UnifiedWorkSession> {
     try {
-      // LOGGER_REMOVED: logger.ui.warn(`[WorkTrackingService ${this.instanceId}] 🟢 Starting work session`, {
-        // instanceId: this.instanceId,
-        // taskId, stepId, workflowId,
-        // currentActiveSessions: this.activeSessions.size,
-        // activeSessionIds: Array.from(this.activeSessions.keys()),
-      // })
+
 
       // Validate inputs
       if (!taskId && !stepId) {
@@ -103,9 +69,6 @@ export class WorkTrackingService {
 
       // Check for existing active session
       if (this.activeSessions.size > 0) {
-        // LOGGER_REMOVED: logger.ui.warn('[WorkTrackingService] Cannot start new session - another session is active', {
-          // LOGGER_REMOVED: activeSessionCount: this.activeSessions.size,
-        // LOGGER_REMOVED: })
         throw new Error('Cannot start new work session: another session is already active')
       }
 
@@ -135,15 +98,24 @@ export class WorkTrackingService {
       }
 
       // Create new unified work session (without ID - database will generate)
-      const workSession = createUnifiedWorkSession({
-        taskId: workflowId || taskId || '',
-        stepId,
+      const dbTaskId = workflowId || taskId
+      if (!dbTaskId) {
+        throw new Error('Either taskId or workflowId must be provided for work session')
+      }
+
+      const sessionParams: Parameters<typeof createUnifiedWorkSession>[0] = {
+        taskId: dbTaskId,
         type: TaskType.Focused,
         plannedMinutes: 60, // Default 1 hour
-        workflowId,
-        taskName,
-        stepName,
-      })
+      }
+
+      // Only add optional fields if they have values
+      if (stepId) sessionParams.stepId = stepId
+      if (workflowId) sessionParams.workflowId = workflowId
+      if (taskName) sessionParams.taskName = taskName
+      if (stepName) sessionParams.stepName = stepName
+
+      const workSession = createUnifiedWorkSession(sessionParams)
 
       // Set runtime state
       workSession.isPaused = false
@@ -151,11 +123,6 @@ export class WorkTrackingService {
       // Save to database as an active work session (no endTime)
       // For workflows: taskId = workflowId, stepId = stepId
       // For regular tasks: taskId = taskId, stepId = undefined
-      const dbTaskId = workflowId || taskId
-      if (!dbTaskId) {
-        throw new Error('Either taskId or workflowId must be provided')
-      }
-
       const dbPayload = {
         ...toDatabaseWorkSession(workSession),
         sessionId: currentSession?.id || 'session-1',
@@ -355,7 +322,9 @@ export class WorkTrackingService {
         const date = new Date(cutoffDate)
         date.setDate(date.getDate() - i)
         // TODO: use a utility function here. We shouldn't do date parsing hardcoded.
-        dates.push(date.toISOString().split('T')[0])
+        const isoString = date.toISOString()
+        const dateStr = isoString.split('T')[0] ?? ''
+        dates.push(dateStr)
       }
 
       let cleanedCount = 0

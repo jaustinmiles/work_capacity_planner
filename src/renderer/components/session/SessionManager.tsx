@@ -85,7 +85,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       // Refresh stores for new session
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
-      useSchedulerStore.getState().recomputeSchedule()
+      // Schedule will automatically recompute via store subscriptions
     } catch (error) {
       logger.ui.error('Failed to create session', {
         error: error instanceof Error ? error.message : String(error),
@@ -112,7 +112,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       // Refresh stores for new session
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
-      useSchedulerStore.getState().recomputeSchedule()
+      // Schedule will automatically recompute via store subscriptions
     } catch (error) {
       logger.ui.error('Failed to switch session', {
         error: error instanceof Error ? error.message : String(error),
