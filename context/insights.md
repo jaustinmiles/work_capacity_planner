@@ -213,9 +213,10 @@ When stuck on a bug:
 
 #### MCP Tools Reliability
 - **Success**: All git operations through MCP worked flawlessly
-- **Key Tools**: `mcp__git__get_pr_reviews`, `mcp__git__reply_to_comment`
+- **Key Tools**: `mcp__git__get_pr_reviews`, `mcp__git__reply_to_comment`, `mcp__git__stage_files`
 - **Result**: Could systematically address and reply to all comments
 - **Learning**: When MCP tools work, development flows beautifully
+- **New Addition**: `mcp__git__stage_files` allows staging files separately for review before committing
 
 ### Technical Achievements
 

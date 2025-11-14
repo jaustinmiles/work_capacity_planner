@@ -52,6 +52,7 @@ mcp__diagnostic__typecheck
 - Push frequently to catch issues early
 - Use existing utilities and patterns before creating new ones
 - Trust error messages - they usually point to the exact problem
+- Stage files with `mcp__git__stage_files` to review changes before committing
 
 ### PR Reviews
 - Fetch comments with `mcp__git__get_pr_reviews`

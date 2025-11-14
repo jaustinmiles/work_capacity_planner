@@ -10,7 +10,10 @@
       "mcp__diagnostic__run_lint",
       "mcp__diagnostic__typecheck",
       "mcp__diagnostic__run_tests",
-      "mcp__diagnostic__run_test_file"
+      "mcp__diagnostic__run_test_file",
+      "mcp__git__stage_files",
+      "mcp__git__create_feature_branch",
+      "mcp__git__commit_changes"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

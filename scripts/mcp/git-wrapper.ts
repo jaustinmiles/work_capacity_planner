@@ -160,6 +160,20 @@ class GitWrapper {
               properties: {},
             },
           },
+          {
+            name: 'stage_files',
+            description: 'Add files to git staging area without committing',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                files: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Specific files to stage (optional, stages all if not specified)',
+                },
+              },
+            },
+          },
         ] satisfies Tool[],
       }
     })
@@ -192,6 +206,9 @@ class GitWrapper {
 
           case 'push_changes':
             return await this.pushChanges()
+
+          case 'stage_files':
+            return await this.stageFiles(args.files as string[])
 
           default:
             throw new Error(`Unknown tool: ${name}`)
@@ -431,6 +448,33 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
         {
           type: 'text',
           text: `✅ **Changes Pushed**\n\n\`\`\`\n${truncatedOutput}\n\`\`\``,
+        },
+      ],
+    }
+  }
+
+  private async stageFiles(files?: string[]) {
+    if (files && files.length > 0) {
+      // Add specific files
+      for (const file of files) {
+        await this.runScript('git', ['add', file])
+      }
+    } else {
+      // Add all changes
+      await this.runScript('git', ['add', '-A'])
+    }
+
+    // Get status to show what was staged
+    const status = await this.runScript('git', ['status', '--short'])
+
+    const fileCount = files ? files.length : 'all'
+    const filesList = files ? `\n**Files:**\n${files.map(f => `- ${f}`).join('\n')}` : ''
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ **Staged ${fileCount} file(s)**${filesList}\n\n**Git Status:**\n\`\`\`\n${status || 'No changes staged'}\n\`\`\``,
         },
       ],
     }
