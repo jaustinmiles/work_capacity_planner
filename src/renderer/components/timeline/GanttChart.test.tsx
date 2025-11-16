@@ -88,11 +88,14 @@ describe('GanttChart', () => {
       workSettings: null,
     } as any)
 
-    // Mock the scheduler store with default empty state
-    vi.mocked(useSchedulerStore).mockReturnValue({
-      scheduledItems: [],
-      scheduleResult: null,
-    } as any)
+    // Mock the scheduler store with selector support
+    vi.mocked(useSchedulerStore).mockImplementation(((selector: any) => {
+      const state = {
+        scheduledItems: [],
+        scheduleResult: null,
+      }
+      return selector ? selector(state) : state
+    }) as any)
 
     // Mock the work pattern store with default empty state
     vi.mocked(useWorkPatternStore).mockReturnValue({
@@ -125,23 +128,26 @@ describe('GanttChart', () => {
       nextBlock: null,
     } as any)
 
-    vi.mocked(useSchedulerStore).mockReturnValue({
-      scheduledItems: [],
-      scheduleResult: {
-        scheduled: [],
-        unscheduled: [],
-        debugInfo: {
-          scheduledItems: [],
-          unscheduledItems: [],
-          blockUtilization: [],
-          warnings: [],
-          totalScheduled: 0,
-          totalUnscheduled: 0,
-          scheduleEfficiency: 0,
+    vi.mocked(useSchedulerStore).mockImplementation(((selector: any) => {
+      const state = {
+        scheduledItems: [],
+        scheduleResult: {
+          scheduled: [],
+          unscheduled: [],
+          debugInfo: {
+            scheduledItems: [],
+            unscheduledItems: [],
+            blockUtilization: [],
+            warnings: [],
+            totalScheduled: 0,
+            totalUnscheduled: 0,
+            scheduleEfficiency: 0,
+          },
+          conflicts: [],
         },
-        conflicts: [],
-      },
-    } as any)
+      }
+      return selector ? selector(state) : state
+    }) as any)
 
     const mockTasks: Task[] = []
     const mockSequencedTasks: SequencedTask[] = []
