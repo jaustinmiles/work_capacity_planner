@@ -865,18 +865,27 @@ export const useTaskStore = create<TaskStore>()(
 
       await getDatabase().updateTaskStepProgress(stepId, updateData)
 
-      // Reload from database to get confirmed data
-      await get().loadSequencedTasks()
-
-      // Remove active work session
+      // Update state in memory (database write persists, state update triggers reactive flow)
       const newSessions = new Map(state.activeWorkSessions)
       newSessions.delete(sessionKey)
 
-      // Update state - database is source of truth, reactive subscriptions handle the rest
-      set({
+      set(state => ({
         activeWorkSessions: newSessions,
+        sequencedTasks: state.sequencedTasks.map(t => {
+          if (t.id === workflow?.id) {
+            return {
+              ...t,
+              steps: t.steps.map(s =>
+                s.id === stepId
+                  ? { ...s, status: finalStatus as any, completedAt: now, percentComplete: 100 }
+                  : s,
+              ),
+            }
+          }
+          return t
+        }),
         nextTaskSkipIndex: 0,
-      })
+      }))
 
       logger.ui.info('[completeStep] Step completion successful', {
         stepId,

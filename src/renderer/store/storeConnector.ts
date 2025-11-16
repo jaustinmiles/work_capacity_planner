@@ -58,8 +58,8 @@ export const connectStores = () => {
 
       // Debounce: Wait for all property changes from a single set() to settle
       taskStoreUpdateTimeout = setTimeout(() => {
-        // Detect which properties actually changed using reference equality
-        // This preserves the activeWorkSessions-only optimization path
+        // Detect which properties actually changed using content comparison (not reference)
+        // This prevents infinite loops from .map() creating new array references
         const changes: {
           tasks?: Task[]
           sequencedTasks?: SequencedTask[]
@@ -67,16 +67,33 @@ export const connectStores = () => {
           activeWorkSessions?: Set<string>
         } = {}
 
-        if (current.tasks !== previousState.tasks) {
+        // Compare tasks by content (ID + completion status)
+        const tasksKey = current.tasks.map(t => `${t.id}:${t.completed}`).join('|')
+        const prevTasksKey = previousState.tasks.map(t => `${t.id}:${t.completed}`).join('|')
+        if (tasksKey !== prevTasksKey) {
           changes.tasks = current.tasks
         }
-        if (current.sequencedTasks !== previousState.sequencedTasks) {
+
+        // Compare sequencedTasks by content (ID + step statuses)
+        const seqKey = current.sequencedTasks.map(t =>
+          `${t.id}:${t.steps.map(s => `${s.id}:${s.status}`).join(',')}`
+        ).join('|')
+        const prevSeqKey = previousState.sequencedTasks.map(t =>
+          `${t.id}:${t.steps.map(s => `${s.id}:${s.status}`).join(',')}`
+        ).join('|')
+        if (seqKey !== prevSeqKey) {
           changes.sequencedTasks = current.sequencedTasks
         }
+
+        // Compare work settings by reference (simple object)
         if (current.workSettings !== previousState.workSettings) {
           changes.workSettings = current.workSettings
         }
-        if (current.activeWorkSessions !== previousState.activeWorkSessions) {
+
+        // Compare active sessions by content (session IDs)
+        const sessionsKey = Array.from(current.activeWorkSessions.keys()).sort().join('|')
+        const prevSessionsKey = Array.from(previousState.activeWorkSessions.keys()).sort().join('|')
+        if (sessionsKey !== prevSessionsKey) {
           changes.activeWorkSessions = new Set(current.activeWorkSessions.keys())
         }
 
