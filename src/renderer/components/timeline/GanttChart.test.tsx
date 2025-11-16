@@ -89,12 +89,13 @@ describe('GanttChart', () => {
     } as any)
 
     // Mock the scheduler store with selector support
+    // Create state ONCE to prevent infinite re-renders from new array references
+    const mockSchedulerState = {
+      scheduledItems: [],
+      scheduleResult: null,
+    }
     vi.mocked(useSchedulerStore).mockImplementation(((selector: any) => {
-      const state = {
-        scheduledItems: [],
-        scheduleResult: null,
-      }
-      return selector ? selector(state) : state
+      return selector ? selector(mockSchedulerState) : mockSchedulerState
     }) as any)
 
     // Mock the work pattern store with default empty state
@@ -128,25 +129,26 @@ describe('GanttChart', () => {
       nextBlock: null,
     } as any)
 
-    vi.mocked(useSchedulerStore).mockImplementation(((selector: any) => {
-      const state = {
-        scheduledItems: [],
-        scheduleResult: {
-          scheduled: [],
-          unscheduled: [],
-          debugInfo: {
-            scheduledItems: [],
-            unscheduledItems: [],
-            blockUtilization: [],
-            warnings: [],
-            totalScheduled: 0,
-            totalUnscheduled: 0,
-            scheduleEfficiency: 0,
-          },
-          conflicts: [],
+    // Create state ONCE to prevent infinite re-renders from new array references
+    const mockSchedulerState2 = {
+      scheduledItems: [],
+      scheduleResult: {
+        scheduled: [],
+        unscheduled: [],
+        debugInfo: {
+          scheduledItems: [],
+          unscheduledItems: [],
+          blockUtilization: [],
+          warnings: [],
+          totalScheduled: 0,
+          totalUnscheduled: 0,
+          scheduleEfficiency: 0,
         },
-      }
-      return selector ? selector(state) : state
+        conflicts: [],
+      },
+    }
+    vi.mocked(useSchedulerStore).mockImplementation(((selector: any) => {
+      return selector ? selector(mockSchedulerState2) : mockSchedulerState2
     }) as any)
 
     const mockTasks: Task[] = []
