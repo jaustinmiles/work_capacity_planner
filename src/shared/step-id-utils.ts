@@ -43,35 +43,6 @@ export function generateRandomStepId(): string {
 }
 
 /**
- * Generate a wait block ID from a step ID
- * @param stepId The step ID to create a wait block for
- * @param isFuture Whether this is a future wait block
- * @returns The wait block ID
- */
-export function createWaitBlockId(stepId: string, isFuture = false): string {
-  return isFuture ? `${stepId}-wait-future` : `${stepId}-wait`
-}
-
-/**
- * Extract the original step ID from a wait block ID
- * Wait block IDs are in the format: stepId-wait or stepId-wait-future
- * @param waitBlockId The wait block ID to parse
- * @returns The original step ID, or the input if it's not a wait block ID
- */
-export function extractStepIdFromWaitBlockId(waitBlockId: string): string {
-  return waitBlockId.replace(/-wait(-future)?$/, '')
-}
-
-/**
- * Check if an ID is a wait block ID
- * @param id The ID to check
- * @returns True if this is a wait block ID
- */
-export function isWaitBlockId(id: string): boolean {
-  return id.endsWith('-wait') || id.endsWith('-wait-future')
-}
-
-/**
  * Generate a unique ID with a given prefix
  * Format: prefix-timestamp-random
  * Example: "WTS-1759443199835-3ejbx2mvh"

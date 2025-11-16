@@ -62,7 +62,9 @@ interface TaskStore {
   pauseWorkOnStep: (stepId: string) => Promise<void>
   pauseWorkOnTask: (taskId: string) => Promise<void>
   completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
+  getExpiredWaitTimeUpdates: () => Promise<Map<string, SequencedTask>>
   checkAndCompleteExpiredWaitTimes: () => Promise<void>
+  startExpiredWaitTimePolling: () => () => void
   updateStepProgress: (stepId: string, __percentComplete: number) => Promise<void>
   logWorkSession: (stepId: string, __minutes: number, notes?: string) => Promise<void>
   loadWorkSessionHistory: (__stepId: string) => Promise<void>
@@ -438,20 +440,15 @@ export const useTaskStore = create<TaskStore>()(
         ...(!task.completed ? { completedAt: getCurrentTime() } : {}),
       }
 
-      // If task is being marked as completed, clean up any active work session BEFORE updating
+      // If task is being marked as completed, stop any active work session
+      // Note: activeWorkSessions will be cleaned up by updateTask()
       if (!task.completed) { // Will be completed after toggle
         const state = get()
         const activeSession = state.activeWorkSessions.get(id)
         if (activeSession) {
           try {
-            // Stop session in WorkTrackingService
+            // Stop session in WorkTrackingService (but don't update store yet)
             await getWorkTrackingService().stopWorkSession(activeSession.id!)
-
-            // Remove from store
-            const newSessions = new Map(state.activeWorkSessions)
-            newSessions.delete(id)
-            set({ activeWorkSessions: newSessions })
-
           } catch (error) {
             logger.ui.warn('Failed to stop work session for completed task', {
               error: error instanceof Error ? error.message : String(error),
@@ -461,9 +458,8 @@ export const useTaskStore = create<TaskStore>()(
         }
       }
 
-      // Update the task
+      // Update the task (this will also clean up activeWorkSessions if needed)
       await get().updateTask(id, updates)
-
 
       // Reset skip index when task is completed (to show the actual next task)
       // Note: task.completed is the OLD value before toggle, so !task.completed means "now completed"
@@ -787,6 +783,11 @@ export const useTaskStore = create<TaskStore>()(
   },
 
   completeStep: async (stepId: string, actualMinutes?: number, notes?: string) => {
+    logger.ui.info('[completeStep] Starting task completion', {
+      stepId,
+      actualMinutes,
+      hasNotes: !!notes,
+    }, 'complete-step-start')
 
     const state = get()
 
@@ -799,12 +800,20 @@ export const useTaskStore = create<TaskStore>()(
     const sessionKey = workflow ? workflow.id : stepId
     const session = state.activeWorkSessions.get(sessionKey)
 
+    logger.ui.debug('[completeStep] Session info', {
+      workflowId: workflow?.id,
+      workflowName: workflow?.name,
+      hasSession: !!session,
+      sessionKey,
+    }, 'complete-step-session')
+
 
     let totalMinutes = actualMinutes || 0
 
     if (session && !actualMinutes) {
       // Calculate final duration if session is active
-      const elapsed = session.isPaused ? 0 : Date.now() - session.startTime.getTime()
+      const currentTime = getCurrentTime()
+      const elapsed = session.isPaused ? 0 : currentTime.getTime() - session.startTime.getTime()
       totalMinutes = (session.actualMinutes || 0) + Math.floor(elapsed / 60000)
     }
 
@@ -821,7 +830,7 @@ export const useTaskStore = create<TaskStore>()(
         await getDatabase().createStepWorkSession({
           taskStepId: stepId,
           // If there's a session, use its start time, otherwise calculate backward from now
-          startTime: session?.startTime || new Date(Date.now() - totalMinutes * 60000),
+          startTime: session?.startTime || addMinutes(getCurrentTime(), -totalMinutes),
           duration: totalMinutes,
           notes,
         })
@@ -856,78 +865,23 @@ export const useTaskStore = create<TaskStore>()(
 
       await getDatabase().updateTaskStepProgress(stepId, updateData)
 
-      // Remove from active sessions (in-memory only - work session data is preserved in database)
-      // For workflow steps, the session key is the workflowId, not the stepId
-      const workflow = state.sequencedTasks.find(t =>
-        t.steps.some(s => s.id === stepId),
-      )
-      const sessionKey = workflow?.id || stepId  // Use workflowId if found, fallback to stepId
+      // Reload from database to get confirmed data
+      await get().loadSequencedTasks()
 
-      // NOTE: This only removes from the activeWorkSessions Map to stop showing as active
-      // The actual work session records are preserved in the database for time tracking history
+      // Remove active work session
       const newSessions = new Map(state.activeWorkSessions)
       newSessions.delete(sessionKey)
-      set({ activeWorkSessions: newSessions })
 
-      // Don't emit SESSION_CHANGED here - we'll emit TASK_UPDATED at the end which covers everything
+      // Update state - database is source of truth, reactive subscriptions handle the rest
+      set({
+        activeWorkSessions: newSessions,
+        nextTaskSkipIndex: 0,
+      })
 
-      // Update the step in memory without reloading from database
-      const task = state.sequencedTasks.find(t =>
-        t.steps.some(s => s.id === stepId),
-      )
-
-
-      if (task) {
-        // Update the step status directly in the state
-        const updatedTask = {
-          ...task,
-          steps: task.steps.map(s => {
-            if (s.id === stepId) {
-              // If step has async wait time, mark as waiting, otherwise completed
-              const newStatus = s.asyncWaitTime && s.asyncWaitTime > 0
-                ? StepStatus.Waiting
-                : StepStatus.Completed
-
-              return {
-                ...s,
-                status: newStatus,
-                completedAt: getCurrentTime(),
-                actualDuration: (s.actualDuration || 0) + (totalMinutes || 0),
-              }
-            }
-            return s
-          }),
-        }
-
-        // Check if all non-waiting steps are completed to update overall status
-        const allStepsCompleted = updatedTask.steps.every(s =>
-          s.status === StepStatus.Completed || s.status === StepStatus.Waiting,
-        )
-        if (allStepsCompleted) {
-          updatedTask.overallStatus = TaskStatus.Completed
-          updatedTask.completed = true
-        }
-
-        set(state => ({
-          sequencedTasks: state.sequencedTasks.map(t =>
-            t.id === task.id ? updatedTask : t,
-          ),
-        }))
-      }
-
-      // Reset skip index when a step is completed (to show the actual next task)
-      get().resetNextTaskSkipIndex()
-
-      // Schedule will automatically recompute via reactive subscriptions in storeConnector
-      // Don't call refreshAllData here - we've already updated the state directly
-      // and emitted SESSION_CHANGED event. Calling refreshAllData causes unnecessary
-      // re-loading from database which can cause race conditions.
-
-      // Check if any waiting steps have completed their wait time
-      await get().checkAndCompleteExpiredWaitTimes()
-
-      // Emit event to notify that a work session has ended (triggers next task load)
-      // Event removed - reactive state handles updates
+      logger.ui.info('[completeStep] Step completion successful', {
+        stepId,
+        finalStatus: updateData.status,
+      }, 'complete-step-success')
 
     } catch (error) {
       logger.system.error('[useTaskStore] completeStep failed', {
@@ -946,18 +900,20 @@ export const useTaskStore = create<TaskStore>()(
   },
 
   /**
-   * Check for steps in 'waiting' status whose wait time has expired
-   * and transition them to 'completed'
+   * Get expired wait time updates without calling set()
+   * Returns a Map of workflowId -> updated SequencedTask
+   * This allows batching with other state updates
    */
-  checkAndCompleteExpiredWaitTimes: async () => {
+  getExpiredWaitTimeUpdates: async (): Promise<Map<string, SequencedTask>> => {
     const state = get()
     const now = getCurrentTime()
+    const updates = new Map<string, SequencedTask>()
 
     for (const workflow of state.sequencedTasks) {
       for (const step of workflow.steps) {
         // Check if step is waiting and has expired wait time
         if (
-          step.status === 'waiting' &&
+          step.status === StepStatus.Waiting &&
           step.completedAt &&
           step.asyncWaitTime &&
           step.asyncWaitTime > 0
@@ -969,17 +925,13 @@ export const useTaskStore = create<TaskStore>()(
           if (now.getTime() >= waitEndTime) {
             try {
               await getDatabase().updateTaskStepProgress(step.id, {
-                status: 'completed',
+                status: StepStatus.Completed,
               })
 
               // Reload workflow to reflect changes
               const updatedTask = await getDatabase().getSequencedTaskById(workflow.id)
               if (updatedTask) {
-                set(state => ({
-                  sequencedTasks: state.sequencedTasks.map(t =>
-                    t.id === workflow.id ? updatedTask : t,
-                  ).filter((t): t is SequencedTask => t !== null),
-                }))
+                updates.set(workflow.id, updatedTask)
               }
             } catch (error) {
               logger.db.error('Failed to complete expired wait time', {
@@ -990,6 +942,89 @@ export const useTaskStore = create<TaskStore>()(
           }
         }
       }
+    }
+
+    return updates
+  },
+
+  /**
+   * Check for steps in 'waiting' status whose wait time has expired
+   * and transition them to 'completed'
+   *
+   * NOTE: This function now uses getExpiredWaitTimeUpdates() and applies
+   * updates in a single atomic state change to prevent subscription storms
+   */
+  checkAndCompleteExpiredWaitTimes: async () => {
+    const updates = await get().getExpiredWaitTimeUpdates()
+
+    if (updates.size > 0) {
+      set(state => ({
+        sequencedTasks: state.sequencedTasks.map(t =>
+          updates.get(t.id) || t,
+        ).filter((t): t is SequencedTask => t !== null),
+      }))
+    }
+  },
+
+  /**
+   * Start polling for expired wait times (separate from task completion)
+   * This prevents race conditions where database reloads during completion
+   * overwrite fresh in-memory data with stale database data
+   *
+   * Returns a cleanup function to stop polling
+   */
+  startExpiredWaitTimePolling: () => {
+    const POLL_INTERVAL_MS = 30000 // Check every 30 seconds
+
+    const poll = async () => {
+      try {
+        const updates = await get().getExpiredWaitTimeUpdates()
+
+        if (updates.size > 0) {
+          logger.ui.info('[useTaskStore] Expired wait times detected', {
+            count: updates.size,
+            workflowIds: Array.from(updates.keys()),
+          }, 'expired-waits-detected')
+
+          // Apply expired wait updates separately from completion
+          // This is safe because it's not racing with any other state updates
+          set(state => ({
+            sequencedTasks: state.sequencedTasks.map(t =>
+              updates.get(t.id) || t,
+            ).filter((t): t is SequencedTask => t !== null),
+          }))
+        }
+      } catch (error) {
+        logger.system.error('[useTaskStore] Failed to check expired wait times', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+
+    // Initial check
+    poll().catch(err => {
+      logger.system.error('[useTaskStore] Initial expired wait check failed', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    })
+
+    // Start periodic polling
+    const intervalId = setInterval(() => {
+      poll().catch(err => {
+        logger.system.error('[useTaskStore] Periodic expired wait check failed', {
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+    }, POLL_INTERVAL_MS)
+
+    logger.ui.info('[useTaskStore] Started expired wait time polling', {
+      intervalMs: POLL_INTERVAL_MS,
+    }, 'polling-started')
+
+    // Return cleanup function
+    return () => {
+      clearInterval(intervalId)
+      logger.ui.info('[useTaskStore] Stopped expired wait time polling', {}, 'polling-stopped')
     }
   },
 
@@ -1021,7 +1056,7 @@ export const useTaskStore = create<TaskStore>()(
     try {
       await getDatabase().createStepWorkSession({
         taskStepId: stepId,
-        startTime: new Date(Date.now() - minutes * 60000), // Start time is minutes ago
+        startTime: addMinutes(getCurrentTime(), -minutes), // Start time is minutes ago
         duration: minutes,
         notes,
       })
@@ -1147,7 +1182,8 @@ export const useTaskStore = create<TaskStore>()(
     // Calculate elapsed time consistently
     let elapsedMinutes = 0
     if (session) {
-      const elapsed = session.isPaused ? 0 : Date.now() - new Date(session.startTime).getTime()
+      const currentTime = getCurrentTime()
+      const elapsed = session.isPaused ? 0 : currentTime.getTime() - new Date(session.startTime).getTime()
       elapsedMinutes = (session.actualMinutes || 0) + Math.floor(elapsed / 60000)
     }
 

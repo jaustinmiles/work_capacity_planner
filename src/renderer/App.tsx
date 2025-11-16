@@ -170,6 +170,15 @@ function App() {
   useEffect(() => {
     logger.system.info('App initialization started - loading data from database', {}, 'app-data-init')
     initializeData()
+
+    // Start polling for expired wait times (separate from task completion)
+    // This prevents race conditions during task completion
+    const cleanupPolling = useTaskStore.getState().startExpiredWaitTimePolling()
+
+    // Cleanup polling on unmount
+    return () => {
+      cleanupPolling()
+    }
   }, []) // Empty dependency array - run once on mount. We omit initializeData to avoid infinite re-renders.
 
   // Stores now handle data refresh automatically through reactive subscriptions
