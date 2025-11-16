@@ -26,7 +26,6 @@ import { ProductivityPattern, SchedulingPreferences } from './types'
 import { logger } from '@/logger'
 import { getCurrentTime, getLocalDateString, timeProvider as _timeProvider } from './time-provider'
 import { calculateDuration as calculateTimeStringDuration, parseTimeString } from './time-utils'
-import { createWaitBlockId, isWaitBlockId } from './step-id-utils'
 import {
   buildDependencyGraph,
   topologicalSort,
@@ -125,7 +124,6 @@ export interface UnifiedScheduleItem {
   // Metadata
   blockId?: string
   isWaitTime?: boolean
-  isFutureWait?: boolean  // Indicates a wait block for a future event (not actively waiting)
   isBlocked?: boolean
   isWaitingOnAsync?: boolean  // Step is in waiting status (async work happening externally)
   originalItem?: Task | TaskStep | WorkMeeting
@@ -591,13 +589,11 @@ export class UnifiedScheduler {
           // Special handling for items that are waiting on async work
           if (item.isWaitingOnAsync && item.asyncWaitTime && item.asyncWaitTime > 0) {
             // This item is already completed and in waiting status
-            // Don't schedule the task itself, only create the wait block
-            // Use completedAt if available (when the wait actually started), otherwise use current time
+            // Create wait block with SAME ID as parent task so dependencies flow naturally
             const waitStartTime = item.completedAt ? new Date(item.completedAt) : (config.currentTime || currentDate)
 
-
             const waitTimeItem: UnifiedScheduleItem = {
-              id: `${item.id}-wait`,
+              id: item.id, // Use same ID as parent task for natural dependency flow
               name: `⏳ Waiting: ${item.name}`,
               type: UnifiedScheduleItemType.AsyncWait,
               duration: item.asyncWaitTime,
@@ -630,42 +626,21 @@ export class UnifiedScheduler {
             const scheduledItem = this.scheduleItemInBlock(item, fitResult, false)
             scheduled.push(scheduledItem)
 
-            // Create future wait blocks for items that have asyncWaitTime
-            // These will show on the timeline but won't have active countdown timers
-            // Only items with isWaitingOnAsync=true (already completed and waiting) get countdown timers
+            // Create wait block for tasks with async wait time (for display)
             if (item.asyncWaitTime && item.asyncWaitTime > 0 && scheduledItem.endTime) {
-              const waitBlockId = createWaitBlockId(item.id, true)
-              const futureWaitBlock: UnifiedScheduleItem = {
-                id: waitBlockId,
-                name: `⏳ Wait After: ${item.name}`,
+              const waitBlock: UnifiedScheduleItem = {
+                id: `${item.id}-wait`,
+                name: `⏳ Wait: ${item.name}`,
                 type: UnifiedScheduleItemType.AsyncWait,
                 duration: item.asyncWaitTime,
                 priority: 0,
                 startTime: scheduledItem.endTime,
                 endTime: new Date(scheduledItem.endTime.getTime() + item.asyncWaitTime * 60000),
                 isWaitTime: true,
-                isFutureWait: true, // Mark this as a future wait (not actively waiting)
                 ...(item.workflowId && { workflowId: item.workflowId }),
                 ...(item.workflowName && { workflowName: item.workflowName }),
-                ...(item.originalItem && { originalItem: item.originalItem }),
               }
-              scheduled.push(futureWaitBlock)
-
-              // CRITICAL: Update dependencies for subsequent workflow steps
-              // Any item in the same workflow that depends on this item should now depend on the wait block
-              if (item.workflowId) {
-                // Find all remaining items in the same workflow that depend on this item
-                for (const remainingItem of remaining) {
-                  if (remainingItem.workflowId === item.workflowId &&
-                      remainingItem.dependencies?.includes(item.id)) {
-                    // Replace the dependency on the original item with dependency on wait block
-                    const depIndex = remainingItem.dependencies.indexOf(item.id)
-                    if (depIndex !== -1) {
-                      remainingItem.dependencies[depIndex] = waitBlockId
-                    }
-                  }
-                }
-              }
+              scheduled.push(waitBlock)
             }
 
             remaining.splice(itemIndex, 1)
@@ -681,6 +656,7 @@ export class UnifiedScheduler {
           } else if (fitResult.canPartiallyFit && fitResult.block && config.allowTaskSplitting !== false) {
             // Split the task across multiple days
             // REVIEW: why do we need different logic for this? seems like we would jsut mark the split and the next iteration would know that if it schedules it's scheduling a split task.
+            // REVIEW: also, why is this hardcoding an array of length 1? how can this ever actually return for the next day?
             const splitItems = this.splitTaskAcrossDays(item, [
               { date: currentDate, duration: fitResult.availableMinutes || 0 },
             ])
@@ -1179,43 +1155,24 @@ export class UnifiedScheduler {
     item: UnifiedScheduleItem,
     scheduled: UnifiedScheduleItem[],
     completedItemIds: Set<string> = new Set(),
-    isForDisplay: boolean = false,
+    _isForDisplay: boolean = false,
   ): boolean {
     const dependencies = item.dependencies || []
 
     // Check that all dependencies are satisfied by either:
     // 1. Being in the completed items set (completed before scheduling started)
     // 2. Being scheduled with an end time (completed during this scheduling run)
-    // 3. Being a wait block that must complete before this item can start
     return dependencies.every(depId => {
-      // Check if this is a wait block dependency
-      const isWaitBlock = isWaitBlockId(depId)
-
-      // First check if it's in the pre-completed items set (for non-wait blocks)
-      if (!isWaitBlock && completedItemIds.has(depId)) {
-        // Only check waiting status for immediate execution (not for display)
-        if (!isForDisplay) {
-          // But if it's marked as waiting on async, it's not truly complete yet
-          // Check if there's a scheduled item that's still waiting
-          const waitingDep = scheduled.find(s => s.id === depId && s.isWaitingOnAsync)
-          if (waitingDep) {
-            // This dependency is still in its async wait period, so it doesn't satisfy
-            return false
-          }
-        }
+      // Check if it's in the pre-completed items set
+      if (completedItemIds.has(depId)) {
         return true
       }
 
-      // Then check if it's scheduled and completed in this run
-      const dependency = scheduled.find(s => s.id === depId)
+      // Check if it's scheduled in this run (including wait blocks which use same ID)
+      const dependency = scheduled.find(s => s.id === depId || s.originalTaskId === depId)
 
-      // For wait blocks, they must be scheduled and have an end time
-      if (isWaitBlock) {
-        return dependency && dependency.endTime
-      }
-
-      // For regular dependencies: Must be scheduled, have an end time, and NOT be waiting on async (for execution only)
-      return dependency && dependency.endTime && !dependency.isWaitingOnAsync
+      // Must be scheduled with an end time to satisfy the dependency
+      return dependency && dependency.endTime !== undefined
     })
   }
 
@@ -1457,7 +1414,7 @@ export class UnifiedScheduler {
 
   /**
    * Get the latest end time of all dependencies for an item
-   * IMPORTANT: If a dependency has async wait time, use the wait time's end time
+   * Checks for wait blocks with -wait suffix to get full wait time
    */
   private getLatestDependencyEndTime(item: UnifiedScheduleItem): Date | null {
     if (!item.dependencies?.length) return null
@@ -1465,15 +1422,14 @@ export class UnifiedScheduler {
     let latestEnd: Date | null = null
 
     for (const depId of item.dependencies) {
+      // Find the dependency task
       const dependency = this.scheduledItemsReference.find(s => s.id === depId)
       if (dependency && dependency.endTime) {
-        // Check if this dependency has an associated wait time block
-        const waitTimeBlock = this.scheduledItemsReference.find(s =>
-          s.id === `${depId}-wait` && s.isWaitTime,
-        )
+        // Check if there's a wait block after this dependency
+        const waitBlock = this.scheduledItemsReference.find(s => s.id === `${depId}-wait` && s.isWaitTime)
 
-        // Use wait time end if it exists, otherwise use dependency end
-        const effectiveEndTime = waitTimeBlock?.endTime || dependency.endTime
+        // Use wait block end time if it exists, otherwise use dependency end time
+        const effectiveEndTime = waitBlock?.endTime || dependency.endTime
 
         if (!latestEnd || effectiveEndTime > latestEnd) {
           latestEnd = effectiveEndTime
