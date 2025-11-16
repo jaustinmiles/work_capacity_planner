@@ -76,10 +76,10 @@ export const connectStores = () => {
 
         // Compare sequencedTasks by content (ID + step statuses)
         const seqKey = current.sequencedTasks.map(t =>
-          `${t.id}:${t.steps.map(s => `${s.id}:${s.status}`).join(',')}`
+          `${t.id}:${t.steps.map(s => `${s.id}:${s.status}`).join(',')}`,
         ).join('|')
         const prevSeqKey = previousState.sequencedTasks.map(t =>
-          `${t.id}:${t.steps.map(s => `${s.id}:${s.status}`).join(',')}`
+          `${t.id}:${t.steps.map(s => `${s.id}:${s.status}`).join(',')}`,
         ).join('|')
         if (seqKey !== prevSeqKey) {
           changes.sequencedTasks = current.sequencedTasks
@@ -174,8 +174,8 @@ export const connectStores = () => {
   }
 }
 
-// Auto-connect on module load if in browser environment
-if (typeof window !== 'undefined') {
+// Auto-connect on module load if in browser environment (not in tests)
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
   // Delay connection slightly to ensure stores are initialized
   setTimeout(() => {
     connectStores()
