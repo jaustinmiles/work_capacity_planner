@@ -15,19 +15,18 @@ export function createTaskComparisonKey(task: Task): string {
   // Include all properties that affect scheduling
   const props = [
     task.id,
-    task.title,
+    task.name,
     task.completed ? '1' : '0',
     task.type,
-    task.targetDuration?.toString() ?? 'null',
+    task.duration?.toString() ?? 'null',
     task.actualDuration?.toString() ?? 'null',
-    task.percentComplete?.toString() ?? '0',
     task.urgency?.toString() ?? '0',
     task.importance?.toString() ?? '0',
     task.cognitiveComplexity?.toString() ?? '0',
-    task.waitTime?.toString() ?? '0',
+    task.asyncWaitTime?.toString() ?? '0',
     task.deadline ?? 'null',
-    task.isWaitBlock ? '1' : '0',
-    task.parentId ?? 'null',
+    task.isLocked ? '1' : '0',
+    task.lockedStartTime?.toString() ?? 'null',
   ]
 
   return props.join(':')
@@ -39,26 +38,26 @@ export function createTaskComparisonKey(task: Task): string {
 export function createSequencedTaskComparisonKey(workflow: SequencedTask): string {
   const workflowProps = [
     workflow.id,
-    workflow.title,
+    workflow.name,
     workflow.completed ? '1' : '0',
     workflow.type,
     workflow.urgency?.toString() ?? '0',
     workflow.importance?.toString() ?? '0',
-    workflow.overallDeadline ?? 'null',
-    workflow.percentComplete?.toString() ?? '0',
+    workflow.deadline ?? 'null',
+    workflow.overallStatus ?? 'null',
   ]
 
   // Include all step states
   const stepKeys = workflow.steps.map(step => [
     step.id,
     step.status,
-    step.title,
-    step.targetDuration?.toString() ?? 'null',
+    step.name,
+    step.duration?.toString() ?? 'null',
     step.actualDuration?.toString() ?? 'null',
     step.percentComplete?.toString() ?? '0',
     step.cognitiveComplexity?.toString() ?? '0',
-    step.waitTime?.toString() ?? '0',
-    step.isWaitBlock ? '1' : '0',
+    step.asyncWaitTime?.toString() ?? '0',
+    step.isAsyncTrigger ? '1' : '0',
   ].join('/')).join(',')
 
   return `${workflowProps.join(':')}|${stepKeys}`
@@ -110,18 +109,39 @@ export function haveWorkSettingsChanged(
   if (current === null && previous === null) return false
   if (current === null || previous === null) return true
 
-  // Compare all relevant properties
-  return (
-    current.focusHours !== previous.focusHours ||
-    current.adminHours !== previous.adminHours ||
-    current.totalHours !== previous.totalHours ||
-    current.startTime !== previous.startTime ||
-    current.endTime !== previous.endTime ||
-    current.excludeWeekends !== previous.excludeWeekends ||
-    current.excludeHolidays !== previous.excludeHolidays ||
-    current.splitRatio !== previous.splitRatio ||
-    current.defaultType !== previous.defaultType
-  )
+  // Compare default work hours
+  if (
+    current.defaultWorkHours.startTime !== previous.defaultWorkHours.startTime ||
+    current.defaultWorkHours.endTime !== previous.defaultWorkHours.endTime ||
+    current.defaultWorkHours.lunchStart !== previous.defaultWorkHours.lunchStart ||
+    current.defaultWorkHours.lunchDuration !== previous.defaultWorkHours.lunchDuration
+  ) {
+    return true
+  }
+
+  // Compare default capacity
+  if (
+    current.defaultCapacity.maxFocusHours !== previous.defaultCapacity.maxFocusHours ||
+    current.defaultCapacity.maxAdminHours !== previous.defaultCapacity.maxAdminHours
+  ) {
+    return true
+  }
+
+  // Compare custom work hours keys
+  const currentCustomKeys = Object.keys(current.customWorkHours).sort()
+  const previousCustomKeys = Object.keys(previous.customWorkHours).sort()
+  if (currentCustomKeys.join(',') !== previousCustomKeys.join(',')) {
+    return true
+  }
+
+  // Compare custom capacity keys
+  const currentCapacityKeys = Object.keys(current.customCapacity).sort()
+  const previousCapacityKeys = Object.keys(previous.customCapacity).sort()
+  if (currentCapacityKeys.join(',') !== previousCapacityKeys.join(',')) {
+    return true
+  }
+
+  return current.timeZone !== previous.timeZone
 }
 
 /**
@@ -152,11 +172,8 @@ export function filterSchedulableItems(tasks: Task[]): Task[] {
     // Don't schedule completed tasks
     if (task.completed) return false
 
-    // Don't schedule wait blocks that are actively waiting
-    // (they're handled differently in the scheduler)
-    if (task.isWaitBlock && task.waitStartTime) {
-      return false
-    }
+    // Tasks don't have isWaitBlock property, so we can't filter on that
+    // The scheduler will handle wait time logic
 
     return true
   })
