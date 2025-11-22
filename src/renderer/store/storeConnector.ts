@@ -14,6 +14,15 @@ import type { Task } from '@shared/types'
 import type { SequencedTask } from '@shared/sequencing-types'
 import type { WorkSettings } from '@shared/work-settings-types'
 import type { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import { SCHEDULING_CONSTANTS } from '@shared/constants/scheduling'
+import {
+  haveTasksChanged,
+  haveSequencedTasksChanged,
+  haveWorkSettingsChanged,
+  haveActiveSessionsChanged,
+  filterSchedulableItems,
+  filterSchedulableWorkflows,
+} from '@shared/utils/store-comparison'
 
 let isConnected = false
 
@@ -29,7 +38,6 @@ export const connectStores = () => {
   // When a single set() updates multiple properties, this ensures we only trigger
   // scheduler recomputation ONCE instead of 3+ times
   let taskStoreUpdateTimeout: NodeJS.Timeout | null = null
-  const TASK_STORE_DEBOUNCE_MS = 100 // Debounce to batch rapid updates and prevent race conditions
 
   // Track previous state to detect which properties actually changed
   // This preserves critical optimizations (e.g., activeWorkSessions-only changes
@@ -58,8 +66,7 @@ export const connectStores = () => {
 
       // Debounce: Wait for all property changes from a single set() to settle
       taskStoreUpdateTimeout = setTimeout(() => {
-        // Detect which properties actually changed using content comparison (not reference)
-        // This prevents infinite loops from .map() creating new array references
+        // Detect which properties actually changed using proper content comparison
         const changes: {
           tasks?: Task[]
           sequencedTasks?: SequencedTask[]
@@ -67,33 +74,26 @@ export const connectStores = () => {
           activeWorkSessions?: Set<string>
         } = {}
 
-        // Compare tasks by content (ID + completion status)
-        const tasksKey = current.tasks.map(t => `${t.id}:${t.completed}`).join('|')
-        const prevTasksKey = previousState.tasks.map(t => `${t.id}:${t.completed}`).join('|')
-        if (tasksKey !== prevTasksKey) {
-          changes.tasks = current.tasks
+        // Compare tasks using proper content comparison that includes ALL scheduling-relevant properties
+        if (haveTasksChanged(current.tasks, previousState.tasks)) {
+          // CRITICAL: Filter out completed tasks before passing to scheduler
+          // This prevents the scheduler from trying to schedule completed tasks
+          changes.tasks = filterSchedulableItems(current.tasks)
         }
 
-        // Compare sequencedTasks by content (ID + step statuses)
-        const seqKey = current.sequencedTasks.map(t =>
-          `${t.id}:${t.steps.map(s => `${s.id}:${s.status}`).join(',')}`,
-        ).join('|')
-        const prevSeqKey = previousState.sequencedTasks.map(t =>
-          `${t.id}:${t.steps.map(s => `${s.id}:${s.status}`).join(',')}`,
-        ).join('|')
-        if (seqKey !== prevSeqKey) {
-          changes.sequencedTasks = current.sequencedTasks
+        // Compare sequenced tasks (workflows) with proper content comparison
+        if (haveSequencedTasksChanged(current.sequencedTasks, previousState.sequencedTasks)) {
+          // Filter out completed workflows before passing to scheduler
+          changes.sequencedTasks = filterSchedulableWorkflows(current.sequencedTasks)
         }
 
-        // Compare work settings by reference (simple object)
-        if (current.workSettings !== previousState.workSettings) {
+        // Compare work settings with all relevant properties
+        if (haveWorkSettingsChanged(current.workSettings, previousState.workSettings)) {
           changes.workSettings = current.workSettings
         }
 
-        // Compare active sessions by content (session IDs)
-        const sessionsKey = Array.from(current.activeWorkSessions.keys()).sort().join('|')
-        const prevSessionsKey = Array.from(previousState.activeWorkSessions.keys()).sort().join('|')
-        if (sessionsKey !== prevSessionsKey) {
+        // Compare active sessions for changes
+        if (haveActiveSessionsChanged(current.activeWorkSessions, previousState.activeWorkSessions)) {
           changes.activeWorkSessions = new Set(current.activeWorkSessions.keys())
         }
 
@@ -126,7 +126,7 @@ export const connectStores = () => {
         }
 
         taskStoreUpdateTimeout = null
-      }, TASK_STORE_DEBOUNCE_MS)
+      }, SCHEDULING_CONSTANTS.TASK_STORE_DEBOUNCE_MS)
     },
     { equalityFn: shallow }, // Shallow comparison for all watched fields
   )
@@ -179,5 +179,5 @@ if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
   // Delay connection slightly to ensure stores are initialized
   setTimeout(() => {
     connectStores()
-  }, 100)
+  }, SCHEDULING_CONSTANTS.AUTO_CONNECT_DELAY_MS)
 }

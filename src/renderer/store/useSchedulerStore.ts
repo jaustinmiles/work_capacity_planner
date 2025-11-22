@@ -329,27 +329,29 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         }
         recomputeTracker.lastTime = now
 
-        // Defensive validation: Check for corrupted state before scheduling
+        // Check for data issues and log them, but continue processing
+        // This ensures transparency - the UI shows the actual state even if it's broken
         const hasCorruptedTasks = newState.tasks.some(t => !t.id || t.id === '')
         const hasCorruptedWorkflows = newState.sequencedTasks.some(t => !t.id || !t.steps || t.id === '')
 
         if (hasCorruptedTasks || hasCorruptedWorkflows) {
-          logger.ui.error('[setInputs] Corrupted state detected, aborting schedule computation', {
+          // Log the issue for debugging, but don't hide it from the user
+          logger.ui.error('[setInputs] Data issues detected - UI will show actual state', {
             corruptedTasks: hasCorruptedTasks,
             corruptedWorkflows: hasCorruptedWorkflows,
             taskIds: newState.tasks.map(t => t.id || '<missing>'),
             workflowIds: newState.sequencedTasks.map(t => t.id || '<missing>'),
-          }, 'scheduler-corrupted-state')
-
-          // Don't recompute with corrupted data - keep existing schedule
-          set({ ...inputs })
-          return
+          }, 'scheduler-data-issues')
         }
 
-        // Compute new schedule
+        // Always compute new schedule - transparency over hiding problems
+        // Filter out any corrupted items to prevent crashes
+        const validTasks = newState.tasks.filter(t => t.id && t.id !== '')
+        const validWorkflows = newState.sequencedTasks.filter(t => t.id && t.id !== '' && t.steps)
+
         const scheduleResult = computeSchedule(
-          newState.tasks,
-          newState.sequencedTasks,
+          validTasks,
+          validWorkflows,
           newState.workPatterns,
           newState.workSettings,
         )

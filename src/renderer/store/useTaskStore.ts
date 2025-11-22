@@ -349,15 +349,18 @@ export const useTaskStore = create<TaskStore>()(
 
       // If task is being marked as completed, clear its active work session
       if (updates.completed || updates.overallStatus === TaskStatus.Completed) {
-        const state = get()
-        const newSessions = new Map(state.activeWorkSessions)
-        newSessions.delete(id)
-        set({
-          tasks: state.tasks.map(task =>
-            task.id === id ? updatedTask : task,
-          ),
-          activeWorkSessions: newSessions,
-          error: null,
+        // Use atomic state update with function form to prevent race conditions
+        set((state) => {
+          const newSessions = new Map(state.activeWorkSessions)
+          newSessions.delete(id)
+
+          return {
+            tasks: state.tasks.map(task =>
+              task.id === id ? updatedTask : task,
+            ),
+            activeWorkSessions: newSessions,
+            error: null,
+          }
         })
       } else {
         set((state) => ({
@@ -865,27 +868,30 @@ export const useTaskStore = create<TaskStore>()(
 
       await getDatabase().updateTaskStepProgress(stepId, updateData)
 
-      // Update state in memory (database write persists, state update triggers reactive flow)
-      const newSessions = new Map(state.activeWorkSessions)
-      newSessions.delete(sessionKey)
+      // Update state atomically to prevent race conditions
+      set(state => {
+        // Create new sessions map inside the atomic update
+        const newSessions = new Map(state.activeWorkSessions)
+        newSessions.delete(sessionKey)
 
-      set(state => ({
-        activeWorkSessions: newSessions,
-        sequencedTasks: state.sequencedTasks.map(t => {
-          if (t.id === workflow?.id) {
-            return {
-              ...t,
-              steps: t.steps.map(s =>
-                s.id === stepId
-                  ? { ...s, status: finalStatus as any, completedAt: now, percentComplete: 100 }
-                  : s,
-              ),
+        return {
+          activeWorkSessions: newSessions,
+          sequencedTasks: state.sequencedTasks.map(t => {
+            if (t.id === workflow?.id) {
+              return {
+                ...t,
+                steps: t.steps.map(s =>
+                  s.id === stepId
+                    ? { ...s, status: finalStatus as any, completedAt: now, percentComplete: 100 }
+                    : s,
+                ),
+              }
             }
-          }
-          return t
-        }),
-        nextTaskSkipIndex: 0,
-      }))
+            return t
+          }),
+          nextTaskSkipIndex: 0,
+        }
+      })
 
       logger.ui.info('[completeStep] Step completion successful', {
         stepId,

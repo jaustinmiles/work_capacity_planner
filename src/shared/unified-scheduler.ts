@@ -26,6 +26,7 @@ import { ProductivityPattern, SchedulingPreferences } from './types'
 import { logger } from '@/logger'
 import { getCurrentTime, getLocalDateString, timeProvider as _timeProvider } from './time-provider'
 import { calculateDuration as calculateTimeStringDuration, parseTimeString } from './time-utils'
+import { addDays, isSameDay } from 'date-fns'
 import {
   buildDependencyGraph,
   topologicalSort,
@@ -627,9 +628,10 @@ export class UnifiedScheduler {
             scheduled.push(scheduledItem)
 
             // Create wait block for tasks with async wait time (for display)
+            // Use the same ID as the parent task for consistent dependency handling
             if (item.asyncWaitTime && item.asyncWaitTime > 0 && scheduledItem.endTime) {
               const waitBlock: UnifiedScheduleItem = {
-                id: `${item.id}-wait`,
+                id: item.id, // Same ID as parent task for natural dependency flow
                 name: `⏳ Wait: ${item.name}`,
                 type: UnifiedScheduleItemType.AsyncWait,
                 duration: item.asyncWaitTime,
@@ -655,11 +657,68 @@ export class UnifiedScheduler {
 
           } else if (fitResult.canPartiallyFit && fitResult.block && config.allowTaskSplitting !== false) {
             // Split the task across multiple days
-            // REVIEW: why do we need different logic for this? seems like we would jsut mark the split and the next iteration would know that if it schedules it's scheduling a split task.
-            // REVIEW: also, why is this hardcoding an array of length 1? how can this ever actually return for the next day?
-            const splitItems = this.splitTaskAcrossDays(item, [
-              { date: currentDate, duration: fitResult.availableMinutes || 0 },
-            ])
+            // Calculate available capacity for current and future days
+            const availableSlots: { date: Date; duration: number }[] = []
+
+            // Add current day's available capacity
+            if (fitResult.availableMinutes && fitResult.availableMinutes > 0) {
+              availableSlots.push({
+                date: currentDate,
+                duration: fitResult.availableMinutes,
+              })
+            }
+
+            // Look ahead to future days for additional capacity
+            let remainingDuration = item.duration - (fitResult.availableMinutes || 0)
+            let lookAheadDate = new Date(currentDate)
+            const maxLookAheadDays = 7 // Look up to a week ahead for split capacity
+
+            for (let i = 0; i < maxLookAheadDays && remainingDuration > 0; i++) {
+              lookAheadDate = addDays(lookAheadDate, 1)
+              const futurePattern = workPatterns.find(p =>
+                isSameDay(lookAheadDate, new Date(p.date)),
+              )
+
+              if (futurePattern) {
+                // Calculate available capacity for this future day
+                // We need to convert blocks to BlockCapacity format for canFitInBlock
+                const blockCapacities: BlockCapacity[] = futurePattern.blocks.map(block => {
+                  const startTime = this.parseTimeOnDate(lookAheadDate, block.startTime)
+                  const endTime = this.parseTimeOnDate(lookAheadDate, block.endTime)
+                  const totalMinutes = calculateTimeStringDuration(block.startTime, block.endTime)
+
+                  return {
+                    blockId: block.id,
+                    blockType: block.type as WorkBlockType,
+                    startTime,
+                    endTime,
+                    totalMinutes,
+                    usedMinutes: 0, // Future days have no usage yet
+                    splitRatio: block.capacity?.splitRatio,
+                  }
+                })
+
+                const availableCapacity = blockCapacities
+                  .filter(blockCap => {
+                    // Check if this item type can fit in this block type
+                    const fitResult = this.canFitInBlock(item, blockCap, [], undefined)
+                    return fitResult.canFit || fitResult.canPartiallyFit
+                  })
+                  .reduce((sum, blockCap) => {
+                    return sum + blockCap.totalMinutes
+                  }, 0)
+
+                if (availableCapacity > 0) {
+                  availableSlots.push({
+                    date: lookAheadDate,
+                    duration: Math.min(availableCapacity, remainingDuration),
+                  })
+                  remainingDuration -= availableCapacity
+                }
+              }
+            }
+
+            const splitItems = this.splitTaskAcrossDays(item, availableSlots)
 
             if (splitItems.length > 0) {
               // Schedule the first part
@@ -1414,7 +1473,7 @@ export class UnifiedScheduler {
 
   /**
    * Get the latest end time of all dependencies for an item
-   * Checks for wait blocks with -wait suffix to get full wait time
+   * Checks for wait blocks with the same ID to get full wait time
    */
   private getLatestDependencyEndTime(item: UnifiedScheduleItem): Date | null {
     if (!item.dependencies?.length) return null
@@ -1422,18 +1481,20 @@ export class UnifiedScheduler {
     let latestEnd: Date | null = null
 
     for (const depId of item.dependencies) {
-      // Find the dependency task
-      const dependency = this.scheduledItemsReference.find(s => s.id === depId)
-      if (dependency && dependency.endTime) {
-        // Check if there's a wait block after this dependency
-        const waitBlock = this.scheduledItemsReference.find(s => s.id === `${depId}-wait` && s.isWaitTime)
+      // Find all scheduled items with this ID (could be task + wait block with same ID)
+      const dependencyItems = this.scheduledItemsReference.filter(s => s.id === depId)
 
-        // Use wait block end time if it exists, otherwise use dependency end time
-        const effectiveEndTime = waitBlock?.endTime || dependency.endTime
-
-        if (!latestEnd || effectiveEndTime > latestEnd) {
-          latestEnd = effectiveEndTime
+      // Find the latest end time among all items with this ID
+      // This handles both regular tasks and their associated wait blocks
+      let effectiveEndTime: Date | null = null
+      for (const dep of dependencyItems) {
+        if (dep.endTime && (!effectiveEndTime || dep.endTime > effectiveEndTime)) {
+          effectiveEndTime = dep.endTime
         }
+      }
+
+      if (effectiveEndTime && (!latestEnd || effectiveEndTime > latestEnd)) {
+        latestEnd = effectiveEndTime
       }
     }
 

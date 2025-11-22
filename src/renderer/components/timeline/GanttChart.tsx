@@ -706,9 +706,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           metrics={schedulingMetrics}
           scheduledCount={scheduledItems.filter((item: GanttItem) => !item.isWaitTime).length}
           unscheduledCount={debugInfo?.unscheduledItems?.length || 0}
-          waitingItems={scheduledItems.filter((item: GanttItem) =>
-            item.type === GanttItemType.AsyncWait && !item.isFutureWait,
-          )}
+          waitingItems={scheduledItems.filter((item: GanttItem) => {
+            if (item.type !== GanttItemType.AsyncWait) return false
+            // Only show if parent step is actually waiting (has completedAt)
+            const parentStepId = item.id.replace('-wait', '')
+            const parentStep = sequencedTasks.flatMap(t => t.steps).find(s => s.id === parentStepId)
+            return parentStep?.status === 'waiting' && parentStep?.completedAt
+          })}
+          sequencedTasks={sequencedTasks}
           currentTime={currentTime}
           className="gantt-metrics"
         />
