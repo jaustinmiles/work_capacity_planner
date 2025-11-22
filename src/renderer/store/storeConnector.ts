@@ -10,6 +10,19 @@ import { useSchedulerStore } from './useSchedulerStore'
 import { useWorkPatternStore } from './useWorkPatternStore'
 import { logger } from '@/logger'
 import { shallow } from 'zustand/shallow'
+import type { Task } from '@shared/types'
+import type { SequencedTask } from '@shared/sequencing-types'
+import type { WorkSettings } from '@shared/work-settings-types'
+import type { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import { SCHEDULING_CONSTANTS } from '@shared/constants/scheduling'
+import {
+  haveTasksChanged,
+  haveSequencedTasksChanged,
+  haveWorkSettingsChanged,
+  haveActiveSessionsChanged,
+  filterSchedulableItems,
+  filterSchedulableWorkflows,
+} from '@shared/utils/store-comparison'
 
 let isConnected = false
 
@@ -21,44 +34,101 @@ export const connectStores = () => {
 
   logger.ui.info('Initializing reactive store connections', {}, 'store-connector')
 
-  // Subscribe to tasks AND sequencedTasks together to avoid race conditions
-  // This ensures when both change simultaneously, scheduler gets both new values
-  const unsubTaskData = useTaskStore.subscribe(
-    (state) => ({ tasks: state.tasks, sequencedTasks: state.sequencedTasks }),
-    ({ tasks, sequencedTasks }) => {
-      logger.ui.info('Task data changed, updating scheduler', {
-        taskCount: tasks.length,
-        workflowCount: sequencedTasks.length,
-        taskNames: tasks.map(t => t.name),
-        workflowNames: sequencedTasks.map(w => w.name),
-      }, 'task-data-changed')
+  // MERGED SUBSCRIPTION with debouncing to prevent subscription storm
+  // When a single set() updates multiple properties, this ensures we only trigger
+  // scheduler recomputation ONCE instead of 3+ times
+  let taskStoreUpdateTimeout: NodeJS.Timeout | null = null
 
-      useSchedulerStore.getState().setInputs({ tasks, sequencedTasks })
+  // Track previous state to detect which properties actually changed
+  // This preserves critical optimizations (e.g., activeWorkSessions-only changes
+  // don't trigger full schedule recomputation)
+  let previousState = {
+    tasks: [] as Task[],
+    sequencedTasks: [] as SequencedTask[],
+    workSettings: null as WorkSettings | null,
+    activeWorkSessions: new Map() as Map<string, UnifiedWorkSession>,
+    nextTaskSkipIndex: 0,
+  }
+
+  const unsubTaskStore = useTaskStore.subscribe(
+    (state) => ({
+      tasks: state.tasks,
+      sequencedTasks: state.sequencedTasks,
+      workSettings: state.workSettings,
+      activeWorkSessions: state.activeWorkSessions,
+      nextTaskSkipIndex: state.nextTaskSkipIndex,
+    }),
+    (current) => {
+      // Clear any pending update
+      if (taskStoreUpdateTimeout) {
+        clearTimeout(taskStoreUpdateTimeout)
+      }
+
+      // Debounce: Wait for all property changes from a single set() to settle
+      taskStoreUpdateTimeout = setTimeout(() => {
+        // Detect which properties actually changed using proper content comparison
+        const changes: {
+          tasks?: Task[]
+          sequencedTasks?: SequencedTask[]
+          workSettings?: WorkSettings | null
+          activeWorkSessions?: Set<string>
+        } = {}
+
+        // Compare tasks using proper content comparison that includes ALL scheduling-relevant properties
+        if (haveTasksChanged(current.tasks, previousState.tasks)) {
+          // CRITICAL: Filter out completed tasks before passing to scheduler
+          // This prevents the scheduler from trying to schedule completed tasks
+          changes.tasks = filterSchedulableItems(current.tasks)
+        }
+
+        // Compare sequenced tasks (workflows) with proper content comparison
+        if (haveSequencedTasksChanged(current.sequencedTasks, previousState.sequencedTasks)) {
+          // Filter out completed workflows before passing to scheduler
+          changes.sequencedTasks = filterSchedulableWorkflows(current.sequencedTasks)
+        }
+
+        // Compare work settings with all relevant properties
+        if (haveWorkSettingsChanged(current.workSettings, previousState.workSettings)) {
+          changes.workSettings = current.workSettings
+        }
+
+        // Compare active sessions for changes
+        if (haveActiveSessionsChanged(current.activeWorkSessions, previousState.activeWorkSessions)) {
+          changes.activeWorkSessions = new Set(current.activeWorkSessions.keys())
+        }
+
+        logger.ui.info('Task store state changed, updating scheduler', {
+          taskCount: current.tasks.length,
+          workflowCount: current.sequencedTasks.length,
+          sessionCount: current.activeWorkSessions.size,
+          skipIndex: current.nextTaskSkipIndex,
+          changedProperties: Object.keys(changes), // Shows exactly what changed
+        }, 'task-store-changed')
+
+        // CRITICAL: Only pass properties that actually changed
+        // This allows setInputs() to take the optimization path for activeWorkSessions-only changes
+        if (Object.keys(changes).length > 0) {
+          useSchedulerStore.getState().setInputs(changes)
+        }
+
+        // Update skip index separately (doesn't trigger full recompute)
+        if (current.nextTaskSkipIndex !== previousState.nextTaskSkipIndex) {
+          useSchedulerStore.getState().setNextTaskSkipIndex(current.nextTaskSkipIndex)
+        }
+
+        // Update previous state tracking for next comparison
+        previousState = {
+          tasks: current.tasks,
+          sequencedTasks: current.sequencedTasks,
+          workSettings: current.workSettings,
+          activeWorkSessions: current.activeWorkSessions,
+          nextTaskSkipIndex: current.nextTaskSkipIndex,
+        }
+
+        taskStoreUpdateTimeout = null
+      }, SCHEDULING_CONSTANTS.TASK_STORE_DEBOUNCE_MS)
     },
-    { equalityFn: shallow }, // Use shallow comparison - fires when tasks OR sequencedTasks reference changes
-  )
-
-  // Subscribe to work settings directly
-  const unsubWorkSettings = useTaskStore.subscribe(
-    (state) => state.workSettings,
-    (workSettings) => {
-      logger.ui.info('Work settings changed, updating scheduler', {}, 'work-settings-changed')
-      useSchedulerStore.getState().setInputs({ workSettings })
-    },
-  )
-
-  // Subscribe to active work sessions directly
-  const unsubActiveWorkSessions = useTaskStore.subscribe(
-    (state) => state.activeWorkSessions,
-    (activeWorkSessions) => {
-      logger.ui.debug('Active work sessions changed, updating scheduler', {
-        sessionCount: activeWorkSessions.size,
-      }, 'sessions-changed')
-
-      useSchedulerStore.getState().setInputs({
-        activeWorkSessions: new Set(activeWorkSessions.keys()),
-      })
-    },
+    { equalityFn: shallow }, // Shallow comparison for all watched fields
   )
 
   // Connect work pattern changes to scheduler store
@@ -88,33 +158,26 @@ export const connectStores = () => {
     },
   )
 
-  // Connect next task skip index from task store to scheduler
-  const unsubSkipIndex = useTaskStore.subscribe(
-    (state) => state.nextTaskSkipIndex,
-    (skipIndex) => {
-      useSchedulerStore.getState().setNextTaskSkipIndex(skipIndex)
-    },
-  )
-
   isConnected = true
 
   logger.ui.info('Store connections established', {}, 'store-connector')
 
   // Return cleanup function
   return () => {
-    unsubTaskData()
-    unsubWorkSettings()
-    unsubActiveWorkSessions()
+    // Clean up debounce timeout if pending
+    if (taskStoreUpdateTimeout) {
+      clearTimeout(taskStoreUpdateTimeout)
+    }
+    unsubTaskStore()
     unsubPatternStore()
-    unsubSkipIndex()
     isConnected = false
   }
 }
 
-// Auto-connect on module load if in browser environment
-if (typeof window !== 'undefined') {
+// Auto-connect on module load if in browser environment (not in tests)
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test') {
   // Delay connection slightly to ensure stores are initialized
   setTimeout(() => {
     connectStores()
-  }, 100)
+  }, SCHEDULING_CONSTANTS.AUTO_CONNECT_DELAY_MS)
 }

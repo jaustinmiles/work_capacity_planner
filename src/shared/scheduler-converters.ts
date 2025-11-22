@@ -39,12 +39,29 @@ export function convertToUnifiedItems(
   for (const item of items) {
     // Handle SequencedTask (workflow with steps)
     if ('steps' in item && item.steps) {
+      const workflow = item as SequencedTask
+      const beforeCount = unified.length
+
       processSequencedTask(
-        item as SequencedTask,
+        workflow,
         unified,
         completedItemIds,
         processedItemIds,
       )
+
+      const afterCount = unified.length
+      const stepsAdded = afterCount - beforeCount
+
+      if (stepsAdded === 0 && !workflow.completed) {
+        // Workflow has no active steps but isn't marked completed
+        // This might indicate all steps are completed/waiting - potential issue
+        console.log('[scheduler-converters] Workflow has no active steps:', {
+          name: workflow.name,
+          id: workflow.id,
+          completed: workflow.completed,
+          steps: workflow.steps.map(s => ({ id: s.id, status: s.status })),
+        })
+      }
     } else {
       // Handle regular Task or TaskStep
       processTaskOrStep(
@@ -55,6 +72,13 @@ export function convertToUnifiedItems(
       )
     }
   }
+
+  console.log('[scheduler-converters] Conversion complete:', {
+    inputItems: items.length,
+    activeItems: unified.length,
+    completed: completedItemIds.size,
+    activeItemsNames: unified.map(i => i.name),
+  })
 
   return {
     activeItems: unified,

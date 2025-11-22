@@ -62,7 +62,9 @@ const ZOOM_PRESETS = [
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const { updateTask, updateSequencedTask, workSettings } = useTaskStore()
   const { workPatterns = [], isLoading: workPatternsLoading } = useWorkPatternStore()
-  const { scheduledItems: scheduledItemsFromStore, scheduleResult } = useSchedulerStore()
+  // Use selectors for optimal re-rendering - only update when these specific values change
+  const scheduledItemsFromStore = useSchedulerStore(state => state.scheduledItems)
+  const scheduleResult = useSchedulerStore(state => state.scheduleResult)
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [isPinching, setIsPinching] = useState(false)
@@ -376,7 +378,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       blockId: item.blockId,
       isBlocked: item.isBlocked,
       isWaitTime: item.isWaitTime,
-      isFutureWait: item.isFutureWait,
     }))
 
     // Add meetings from work patterns
@@ -705,9 +706,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           metrics={schedulingMetrics}
           scheduledCount={scheduledItems.filter((item: GanttItem) => !item.isWaitTime).length}
           unscheduledCount={debugInfo?.unscheduledItems?.length || 0}
-          waitingItems={scheduledItems.filter((item: GanttItem) =>
-            item.type === GanttItemType.AsyncWait && !item.isFutureWait,
-          )}
+          waitingItems={scheduledItems.filter((item: GanttItem) => {
+            if (item.type !== GanttItemType.AsyncWait) return false
+            // Only show if parent step is actually waiting (has completedAt)
+            const parentStepId = item.id.replace('-wait', '')
+            const parentStep = sequencedTasks.flatMap(t => t.steps).find(s => s.id === parentStepId)
+            return parentStep?.status === 'waiting' && parentStep?.completedAt
+          })}
+          sequencedTasks={sequencedTasks}
           currentTime={currentTime}
           className="gantt-metrics"
         />
@@ -1017,9 +1023,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       Message.success(`Workflow deadline set to ${dayjs(deadlineTime).format('MMM D, h:mm A')}`)
                     }
 
-                    // Trigger a reschedule to respect the new deadline
-                    await useTaskStore.getState().initializeData()
-                    // Schedule will automatically recompute via store subscription
+                    // Schedule will automatically recompute via reactive store subscription
+                    // No need to call initializeData() - updateSequencedTask already updates the store
                     Message.info('Schedule updated to respect the new deadline')
                   } catch (error) {
                     logger.db.error('Failed to set deadline', {
@@ -1334,7 +1339,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 )}
 
                 {/* Gantt bars */}
-                {scheduledItems.map((item, index) => {
+                {scheduledItems.map((item) => {
                   const leftPx = getPositionPx(item.startTime)
                   const widthPx = getDurationPx(item.duration)
                   const isWaitTime = item.isWaitTime
@@ -1419,7 +1424,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
 
                   return (
                     <div
-                      key={`${item.id}-${index}`}
+                      key={item.id}
                       draggable={!isWaitTime && !isBlocked}
                       style={{
                         position: 'absolute',

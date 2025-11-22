@@ -38,6 +38,7 @@ interface ScheduleMetricsPanelProps {
   scheduledCount: number
   unscheduledCount: number
   waitingItems?: WaitingItem[]
+  sequencedTasks?: any[]
   currentTime?: Date
   className?: string
 }
@@ -47,6 +48,7 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
   scheduledCount,
   unscheduledCount,
   waitingItems = [],
+  sequencedTasks = [],
   currentTime = new Date(),
   className,
 }) => {
@@ -278,29 +280,26 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
           </div>
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
             {waitingItems.map(item => {
-              // Extract the step name from the wait item name (format: "⏳ Waiting: Step Name")
-              const stepName = item.name.replace('⏳ Waiting: ', '')
+              // Extract the step name and find actual step for completion time
+              const stepName = item.name.replace('⏳ Waiting: ', '').replace('⏳ Wait: ', '')
+              const parentStepId = item.id.replace('-wait', '')
+              const parentStep = sequencedTasks.flatMap((t: any) => t.steps).find((s: any) => s.id === parentStepId)
 
-              // Calculate remaining time if we have start time
+              // Only show timer if step is actually completed/waiting with completedAt
               let remainingMinutes = 0
-              let countdownText = 'Calculating...'
+              let countdownText = 'Waiting...'
 
-              if (item.startTime) {
-                // The wait starts at the startTime and ends at endTime
-                const startTime = new Date(item.startTime)
-                console.log('Wait timer debug:', {
-                  itemName: stepName,
-                  startTime: startTime.toISOString(),
-                  duration: item.duration,
-                  currentTime: currentTime.toISOString(),
-                  endTime: item.endTime ? new Date(item.endTime).toISOString() : 'none',
-                })
+              if (parentStep?.completedAt && parentStep?.asyncWaitTime) {
+                // Use actual completion time, not scheduled time
                 remainingMinutes = calculateRemainingWaitTime(
-                  startTime,
-                  item.duration,
+                  new Date(parentStep.completedAt),
+                  parentStep.asyncWaitTime,
                   currentTime,
                 )
-                countdownText = formatCountdown(remainingMinutes)
+                countdownText = remainingMinutes > 0 ? formatCountdown(remainingMinutes) : 'Complete'
+              } else {
+                // Step not completed yet - don't show in this panel
+                return null
               }
 
               return (

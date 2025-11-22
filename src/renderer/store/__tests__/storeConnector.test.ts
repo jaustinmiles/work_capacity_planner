@@ -73,7 +73,7 @@ describe('Store Connector - Reactive Updates', () => {
     }
   })
 
-  it('should connect task store to scheduler store', () => {
+  it('should connect task store to scheduler store', async () => {
     unsubscribe = connectStores()
 
     const setInputsSpy = vi.spyOn(useSchedulerStore.getState(), 'setInputs')
@@ -91,6 +91,9 @@ describe('Store Connector - Reactive Updates', () => {
     }
 
     useTaskStore.setState({ tasks: [newTask] })
+
+    // Wait for debounce (100ms)
+    await new Promise(resolve => setTimeout(resolve, 150))
 
     // Verify scheduler was updated
     expect(setInputsSpy).toHaveBeenCalled()
@@ -116,17 +119,20 @@ describe('Store Connector - Reactive Updates', () => {
     expect(callArgs.workPatterns).toEqual([newPattern])
   })
 
-  it('should connect skip index to scheduler', () => {
+  it('should connect skip index to scheduler', async () => {
     unsubscribe = connectStores()
 
     const setSkipIndexSpy = vi.spyOn(useSchedulerStore.getState(), 'setNextTaskSkipIndex')
 
     useTaskStore.setState({ nextTaskSkipIndex: 3 })
 
+    // Wait for debounce (100ms)
+    await new Promise(resolve => setTimeout(resolve, 150))
+
     expect(setSkipIndexSpy).toHaveBeenCalledWith(3)
   })
 
-  it('should handle active work sessions updates', () => {
+  it('should handle active work sessions updates', async () => {
     unsubscribe = connectStores()
 
     const setInputsSpy = vi.spyOn(useSchedulerStore.getState(), 'setInputs')
@@ -141,6 +147,9 @@ describe('Store Connector - Reactive Updates', () => {
     useTaskStore.setState({
       activeWorkSessions: new Map([['task-1', activeSession as any]]),
     })
+
+    // Wait for debounce (100ms)
+    await new Promise(resolve => setTimeout(resolve, 150))
 
     expect(setInputsSpy).toHaveBeenCalled()
     const callArgs = setInputsSpy.mock.calls[0][0]

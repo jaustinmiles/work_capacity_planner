@@ -13,11 +13,9 @@ import { Task } from '@/shared/types'
 import { SequencedTask } from '@/shared/sequencing-types'
 import { DailyWorkPattern } from '@/shared/work-blocks-types'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@/shared/work-settings-types'
-import { getCurrentTime } from '@/shared/time-provider'
+import { getCurrentTime, getLocalDateString } from '@/shared/time-provider'
 import { logger } from '@/logger'
-import { StepStatus, TaskType, UnifiedScheduleItemType, NextScheduledItemType } from '@/shared/enums'
-import { createWaitBlockId } from '@/shared/step-id-utils'
-import { dateToYYYYMMDD, calculateRemainingWaitTime } from '@/shared/time-utils'
+import { TaskType, UnifiedScheduleItemType, NextScheduledItemType } from '@/shared/enums'
 
 export interface NextScheduledItem {
   type: NextScheduledItemType
@@ -57,6 +55,10 @@ interface SchedulerStoreState {
 }
 
 const scheduler = new UnifiedScheduler()
+
+// Defensive debouncing: Track last recomputation time to detect rapid-fire calls
+const recomputeTracker = { lastTime: 0 }
+const RECOMPUTE_DEBOUNCE_MS = 50 // If recomputations happen within 50ms, log a warning
 
 // Helper to check if item has required startTime
 function hasStartTime(item: UnifiedScheduleItem): item is UnifiedScheduleItem & { startTime: Date } {
@@ -121,15 +123,17 @@ const computeSchedule = (
     }
 
     const currentTime = getCurrentTime()
-    const startDateString = dateToYYYYMMDD(currentTime)
+    const startDateString = getLocalDateString(currentTime)
 
-    // Debug: Log time and date calculation
+    // Debug: Log time and date calculation with timezone validation
     logger.ui.info('Scheduler time context', {
       currentTime: currentTime.toISOString(),
+      currentTimeLocal: currentTime.toString(),
       startDateString,
       patternDates: workPatterns.map(p => p.date),
       taskCount: tasks.length,
       workflowCount: sequencedTasks.length,
+      dateMatch: workPatterns.some(p => p.date === startDateString),
     }, 'scheduler-time-debug')
 
     const context = {
@@ -185,56 +189,14 @@ const extractNextScheduledItem = (
 ): NextScheduledItem | null => {
   if (!scheduleResult) return null
 
-  const currentTime = getCurrentTime()
-
-  // Find all active wait blocks and waiting steps
-  const activeWaitBlocks = new Set<string>()
-  const waitingStepIds = new Set<string>()
-
-  for (const workflow of sequencedTasks) {
-    for (const step of workflow.steps) {
-      if (step.status === StepStatus.Waiting && step.completedAt && step.asyncWaitTime) {
-        const remainingMinutes = calculateRemainingWaitTime(
-          new Date(step.completedAt),
-          step.asyncWaitTime,
-          currentTime,
-        )
-        if (remainingMinutes > 0) {
-          waitingStepIds.add(step.id)
-          activeWaitBlocks.add(createWaitBlockId(step.id, false))
-          activeWaitBlocks.add(createWaitBlockId(step.id, true))
-        }
-      }
-    }
-  }
-
-  // Filter and sort scheduled items
+  // Filter and sort scheduled items to find work items (exclude wait blocks and non-work items)
   const workItems = scheduleResult.scheduled
     .filter(item => {
       if (!item.startTime) return false
 
-      // Filter out non-work items
+      // Filter out non-work items (wait blocks, meetings, breaks, blocked time)
       if (isNonWorkItem(item)) {
         return false
-      }
-
-      if (item.isWaitingOnAsync) return false
-
-      // Check dependencies on active wait blocks
-      if (item.dependencies?.some(depId => activeWaitBlocks.has(depId))) {
-        return false
-      }
-
-      // For workflow steps, check status and dependencies
-      if (item.type === UnifiedScheduleItemType.WorkflowStep && item.workflowId) {
-        const workflow = sequencedTasks.find(seq => seq.id === item.workflowId)
-        const step = workflow?.steps.find(s => s.id === item.id)
-
-        if (step?.status === StepStatus.Waiting) return false
-
-        if (step?.dependsOn?.some(depId => waitingStepIds.has(depId))) {
-          return false
-        }
       }
 
       return true
@@ -357,10 +319,39 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         inputs.workSettings !== undefined
 
       if (needsScheduleRecompute) {
-        // Compute new schedule
+        // Defensive check: Detect rapid-fire recomputations (subscription storm)
+        const now = Date.now()
+        if (now - recomputeTracker.lastTime < RECOMPUTE_DEBOUNCE_MS) {
+          logger.ui.warn('[setInputs] Rapid-fire recomputation detected', {
+            timeSinceLastMs: now - recomputeTracker.lastTime,
+            inputKeys: Object.keys(inputs),
+          }, 'scheduler-subscription-storm')
+        }
+        recomputeTracker.lastTime = now
+
+        // Check for data issues and log them, but continue processing
+        // This ensures transparency - the UI shows the actual state even if it's broken
+        const hasCorruptedTasks = newState.tasks.some(t => !t.id || t.id === '')
+        const hasCorruptedWorkflows = newState.sequencedTasks.some(t => !t.id || !t.steps || t.id === '')
+
+        if (hasCorruptedTasks || hasCorruptedWorkflows) {
+          // Log the issue for debugging, but don't hide it from the user
+          logger.ui.error('[setInputs] Data issues detected - UI will show actual state', {
+            corruptedTasks: hasCorruptedTasks,
+            corruptedWorkflows: hasCorruptedWorkflows,
+            taskIds: newState.tasks.map(t => t.id || '<missing>'),
+            workflowIds: newState.sequencedTasks.map(t => t.id || '<missing>'),
+          }, 'scheduler-data-issues')
+        }
+
+        // Always compute new schedule - transparency over hiding problems
+        // Filter out any corrupted items to prevent crashes
+        const validTasks = newState.tasks.filter(t => t.id && t.id !== '')
+        const validWorkflows = newState.sequencedTasks.filter(t => t.id && t.id !== '' && t.steps)
+
         const scheduleResult = computeSchedule(
-          newState.tasks,
-          newState.sequencedTasks,
+          validTasks,
+          validWorkflows,
           newState.workPatterns,
           newState.workSettings,
         )
