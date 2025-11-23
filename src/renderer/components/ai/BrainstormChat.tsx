@@ -413,7 +413,7 @@ function getAmendmentSummary(amendment: Amendment): string {
     case AmendmentType.TypeChange:
       return `Change ${amendment.target.name} type to ${amendment.newType}`
     case AmendmentType.WorkPatternModification:
-      return `Modify work pattern for ${amendment.date.toLocaleDateString()}`
+      return `Modify work pattern for ${amendment.date instanceof Date ? amendment.date.toLocaleDateString() : new Date(amendment.date).toLocaleDateString()}`
     case AmendmentType.WorkSessionEdit:
       return `${amendment.operation} work session`
     case AmendmentType.QueryResponse:
