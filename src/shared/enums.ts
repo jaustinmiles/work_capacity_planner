@@ -69,7 +69,7 @@ export enum WorkBlockType {
   Sleep = 'sleep',
 }
 
-// Amendment types for voice amendments
+// Amendment types for voice amendments and brainstorm chat
 export enum AmendmentType {
   StatusUpdate = 'status_update',
   TimeLog = 'time_log',
@@ -83,6 +83,51 @@ export enum AmendmentType {
   DeadlineChange = 'deadline_change',
   PriorityChange = 'priority_change',
   TypeChange = 'type_change',
+  WorkPatternModification = 'work_pattern_modification',
+  WorkSessionEdit = 'work_session_edit',
+  ArchiveToggle = 'archive_toggle',
+  QueryResponse = 'query_response',
+}
+
+// Work pattern modification operations
+export enum WorkPatternOperation {
+  AddBlock = 'add_block',
+  RemoveBlock = 'remove_block',
+  ModifyBlock = 'modify_block',
+  AddMeeting = 'add_meeting',
+  RemoveMeeting = 'remove_meeting',
+  ModifyMeeting = 'modify_meeting',
+}
+
+// Work session edit operations
+export enum WorkSessionOperation {
+  Create = 'create',
+  Update = 'update',
+  Delete = 'delete',
+  Split = 'split',
+}
+
+// Chat message roles for brainstorm chat
+export enum ChatMessageRole {
+  User = 'user',
+  Assistant = 'assistant',
+  System = 'system',
+}
+
+// Recurring pattern types for meetings and work blocks
+export enum RecurringPattern {
+  None = 'none',
+  Daily = 'daily',
+  Weekly = 'weekly',
+  Custom = 'custom',
+}
+
+// Amendment status tracking
+export enum AmendmentStatus {
+  Pending = 'pending',
+  Applied = 'applied',
+  Rejected = 'rejected',
+  Error = 'error',
 }
 
 // Entity types for amendments

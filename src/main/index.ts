@@ -312,6 +312,16 @@ ipcMain.handle('ai:extractScheduleFromVoice', async (_event: IpcMainInvokeEvent,
   return await aiService.extractScheduleFromVoice(voiceText, targetDate)
 })
 
+ipcMain.handle('ai:callAI', async (_event: IpcMainInvokeEvent, options: {
+  systemPrompt: string
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>
+  model?: string
+  maxTokens?: number
+}) => {
+  const aiService = getAIService()
+  return await aiService.callAI(options)
+})
+
 ipcMain.handle('ai:extractMultiDayScheduleFromVoice', async (_event: IpcMainInvokeEvent, voiceText: string, startDate: string) => {
   const aiService = getAIService()
   return await aiService.extractMultiDayScheduleFromVoice(voiceText, startDate)

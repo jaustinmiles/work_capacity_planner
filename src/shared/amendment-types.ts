@@ -2,12 +2,34 @@
  * Types for voice amendments and logging
  */
 
-import { AmendmentType, EntityType, TaskStatus, TaskType, DeadlineType } from './enums'
+import {
+  AmendmentType,
+  EntityType,
+  TaskStatus,
+  TaskType,
+  DeadlineType,
+  WorkPatternOperation,
+  WorkSessionOperation,
+  WorkBlockType,
+  RecurringPattern,
+  DayOfWeek,
+  AmendmentStatus,
+} from './enums'
 
 // Re-export enums for convenience
-export { AmendmentType, EntityType, TaskStatus, TaskType, DeadlineType }
-
-export type AmendmentStatus = 'pending' | 'applied' | 'rejected' | 'error'
+export {
+  AmendmentType,
+  EntityType,
+  TaskStatus,
+  TaskType,
+  DeadlineType,
+  WorkPatternOperation,
+  WorkSessionOperation,
+  WorkBlockType,
+  RecurringPattern,
+  DayOfWeek,
+  AmendmentStatus,
+}
 
 export interface AmendmentTarget {
   type: EntityType
@@ -135,6 +157,66 @@ export interface TypeChange {
   stepName?: string  // For changing step type
 }
 
+export interface WorkPatternModification {
+  type: AmendmentType.WorkPatternModification
+  date: Date
+  operation: WorkPatternOperation
+  blockId?: string  // For modify/remove operations
+  meetingId?: string  // For modify/remove operations
+  blockData?: {
+    startTime: Date
+    endTime: Date
+    type: WorkBlockType
+    splitRatio?: Record<string, number>  // For mixed blocks
+  }
+  meetingData?: {
+    name: string
+    startTime: Date
+    endTime: Date
+    type: TaskType
+    recurring?: RecurringPattern
+    daysOfWeek?: DayOfWeek[]
+  }
+}
+
+export interface WorkSessionEdit {
+  type: AmendmentType.WorkSessionEdit
+  operation: WorkSessionOperation
+  sessionId?: string  // For update/delete operations
+  taskId?: string  // For create operation or split target
+  stepId?: string  // Optional, for step-specific sessions
+  startTime?: Date
+  endTime?: Date
+  plannedMinutes?: number
+  actualMinutes?: number
+  notes?: string
+  // For split operation
+  splitSessions?: Array<{
+    taskId: string
+    stepId?: string
+    actualMinutes: number
+    notes?: string
+  }>
+}
+
+export interface ArchiveToggle {
+  type: AmendmentType.ArchiveToggle
+  target: AmendmentTarget
+  archive: boolean  // true = archive, false = unarchive
+  reason?: string
+}
+
+export interface QueryResponse {
+  type: AmendmentType.QueryResponse
+  query: string  // Original user query
+  response: string  // AI's text response
+  relevantEntities?: Array<{
+    type: EntityType
+    id: string
+    name: string
+  }>
+}
+
 export type Amendment =
   | StatusUpdate
   | TimeLog
@@ -148,6 +230,10 @@ export type Amendment =
   | DeadlineChange
   | PriorityChange
   | TypeChange
+  | WorkPatternModification
+  | WorkSessionEdit
+  | ArchiveToggle
+  | QueryResponse
 
 export interface AmendmentResult {
   amendments: Amendment[]

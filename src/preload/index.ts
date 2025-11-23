@@ -85,6 +85,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     extractScheduleFromVoice: (voiceText: string, targetDate: string) => ipcRenderer.invoke('ai:extractScheduleFromVoice', voiceText, targetDate),
     extractMultiDayScheduleFromVoice: (voiceText: string, startDate: string) => ipcRenderer.invoke('ai:extractMultiDayScheduleFromVoice', voiceText, startDate),
     parseAmendment: (transcription: string, context: any) => ipcRenderer.invoke('ai:parseAmendment', transcription, context),
+    callAI: (options: {
+      systemPrompt: string
+      messages: Array<{ role: 'user' | 'assistant'; content: string }>
+      model?: string
+      maxTokens?: number
+    }) => ipcRenderer.invoke('ai:callAI', options),
   },
 
   // Speech operations

@@ -985,6 +985,51 @@ Make questions specific and actionable. Avoid generic questions.
       throw new Error('Failed to generate contextual questions')
     }
   }
+
+  /**
+   * Generic AI call for brainstorm chat
+   * Supports multi-turn conversations with system prompts
+   */
+  async callAI(options: {
+    systemPrompt: string
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>
+    model?: string
+    maxTokens?: number
+  }): Promise<{ content: string }> {
+    const model = options.model || 'claude-sonnet-4-5-20250929'
+    const maxTokens = options.maxTokens || 8000
+
+    try {
+      const apiMessages: Anthropic.MessageParam[] = [
+        {
+          role: 'user',
+          content: options.systemPrompt,
+        },
+        ...options.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+      ]
+
+      const response = await this.anthropic.messages.create({
+        model,
+        max_tokens: maxTokens,
+        messages: apiMessages,
+      })
+
+      const content = response.content[0]
+      if (content.type !== 'text') {
+        throw new Error('Unexpected response type from Claude')
+      }
+
+      return { content: content.text }
+    } catch (error) {
+      logger.system.error('Error calling AI service', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'ai-call-error')
+      throw new Error(`AI service error: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
 }
 
 // Singleton instance with lazy initialization

@@ -12,7 +12,7 @@ import { SequencedTaskView } from './components/tasks/SequencedTaskView'
 import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
 import { GanttChart } from './components/timeline/GanttChart'
-import { BrainstormModal } from './components/ai/BrainstormModal'
+import { BrainstormChat } from './components/ai/BrainstormChat'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
 import { VoiceAmendmentModal } from './components/voice'
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
@@ -25,9 +25,7 @@ import { DevTools } from './components/dev/DevTools'
 import { useTaskStore } from './store/useTaskStore'
 import { useWorkPatternStore } from './store/useWorkPatternStore'
 import { connectStores } from './store/storeConnector'
-import type { TaskStep } from '@shared/types'
 import { getDatabase } from './services/database'
-import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
 import { logger } from '@/logger'
 
 
@@ -150,9 +148,7 @@ function App() {
   const {
     tasks,
     sequencedTasks,
-    addTask,
     addSequencedTask,
-    addOrUpdateSequencedTask,
     loadSequencedTasks,
     updateSequencedTask,
     deleteSequencedTask,
@@ -206,140 +202,6 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-
-  const handleTasksExtracted = (tasks: ExtractedTask[]): void => {
-    logger.ui.info('Tasks extracted from brainstorm', { count: tasks.length }, 'brainstorm-extract-tasks')
-    setExtractedTasks(tasks)
-    setBrainstormModalVisible(false)
-    setTaskCreationFlowVisible(true)
-  }
-
-  const handleWorkflowsExtracted = async (workflows: any[], standaloneTasks: ExtractedTask[]): Promise<void> => {
-    try {
-      logger.ui.info('Workflows extracted from brainstorm', {
-        workflowCount: workflows.length,
-        standaloneTaskCount: standaloneTasks.length,
-      }, 'brainstorm-extract-workflows')
-      // Create workflows
-      for (const workflow of workflows) {
-        // Combine description and notes
-        const combinedNotes = workflow.description
-          ? `${workflow.description}${workflow.notes ? '\n\n' + workflow.notes : ''}`
-          : workflow.notes || ''
-
-        // Check if a workflow with this name already exists to preserve step IDs
-        const existingWorkflow = sequencedTasks.find(wf => wf.name === workflow.name)
-
-        // Create step IDs - preserve existing ones if updating
-        let stepsWithIds: any[]
-        if (existingWorkflow && existingWorkflow.steps) {
-          // Build map of existing step names to IDs
-          const existingStepMap = new Map<string, string>()
-          existingWorkflow.steps.forEach((step: any) => {
-            existingStepMap.set(step.name, step.id)
-          })
-
-          // Assign IDs to steps, preserving existing ones
-          stepsWithIds = workflow.steps.map((step: any, index: number) => {
-            const existingId = existingStepMap.get(step.name)
-            return {
-              ...step,
-              id: existingId || generateRandomStepId(),
-              status: StepStatus.Pending,
-              stepIndex: index,
-            }
-          })
-        } else {
-          // New workflow - generate fresh IDs
-          stepsWithIds = workflow.steps.map((step: any, index: number) => {
-            return {
-              ...step,
-              id: generateRandomStepId(),
-              status: StepStatus.Pending,
-              stepIndex: index,
-            }
-          })
-        }
-
-        // Map dependencies from names to IDs first (preserves all fields)
-        const stepsWithFixedDeps = mapDependenciesToIds(stepsWithIds)
-
-        // Ensure all required TaskStep fields are present
-        const completeSteps: TaskStep[] = stepsWithFixedDeps.map((step: any) => ({
-          id: step.id,
-          taskId: '', // Will be set by database
-          name: step.name,
-          duration: step.duration || 60,
-          type: step.type || TaskType.Focused,
-          dependsOn: step.dependsOn || [],
-          asyncWaitTime: step.asyncWaitTime || 0,
-          status: step.status || StepStatus.Pending,
-          stepIndex: step.stepIndex ?? 0,
-          percentComplete: step.percentComplete ?? 0,
-          notes: step.notes || undefined,
-        }))
-
-        const sequencedTask = {
-          name: workflow.name,
-          importance: workflow.importance,
-          urgency: workflow.urgency,
-          type: workflow.type,
-          notes: combinedNotes,
-          dependencies: [],
-          completed: false,
-          duration: workflow.totalDuration || 0,
-          asyncWaitTime: 0,
-          sessionId: '',  // Will be set by database
-          hasSteps: true as true,
-          criticalPathDuration: workflow.totalDuration || 0, // Will be calculated properly
-          worstCaseDuration: (workflow.totalDuration || 0) * 1.5, // Estimate
-          overallStatus: TaskStatus.NotStarted,
-          steps: completeSteps,
-          archived: false,
-        }
-
-        // Use addOrUpdateSequencedTask which handles the logic
-        await addOrUpdateSequencedTask(sequencedTask)
-      }
-
-      // Create standalone tasks
-      for (const task of standaloneTasks) {
-        await addTask({
-          name: task.name,
-          duration: task.estimatedDuration,
-          importance: task.importance,
-          urgency: task.urgency,
-          type: task.type,
-          asyncWaitTime: 0,
-          dependencies: [],
-          completed: false,
-          notes: task.description,
-          sessionId: '',  // Will be set by database
-          hasSteps: false,
-          overallStatus: TaskStatus.NotStarted,
-          criticalPathDuration: task.estimatedDuration,
-          worstCaseDuration: task.estimatedDuration,
-          archived: false,
-        })
-      }
-
-      // Show success message
-      Message.success(`Created ${workflows.length} workflows and ${standaloneTasks.length} tasks`)
-
-      // Close modal
-      setBrainstormModalVisible(false)
-
-      // Switch to workflows view if workflows were created
-      if (workflows.length > 0) {
-        setActiveView(ViewType.Workflows)
-      }
-    } catch (error) {
-      logger.ui.error('Error creating workflows', {
-        error: error instanceof Error ? error.message : String(error),
-      }, 'workflow-create-error')
-      Message.error('Failed to create workflows and tasks')
-    }
-  }
 
   const handleTaskCreationComplete = (): void => {
     setTaskCreationFlowVisible(false)
@@ -825,11 +687,9 @@ function App() {
             }}
           />
 
-          <BrainstormModal
+          <BrainstormChat
             visible={brainstormModalVisible}
             onClose={() => setBrainstormModalVisible(false)}
-            onTasksExtracted={handleTasksExtracted}
-            onWorkflowsExtracted={handleWorkflowsExtracted}
           />
 
           <VoiceAmendmentModal

@@ -187,6 +187,12 @@ declare global {
           summary: string
         }>>
         parseAmendment: (transcription: string, __context: any) => Promise<any>
+        callAI: (options: {
+          systemPrompt: string
+          messages: Array<{ role: 'user' | 'assistant'; content: string }>
+          model?: string
+          maxTokens?: number
+        }) => Promise<{ content: string }>
       }
       speech: {
         transcribeAudio: (audioFilePath: string, __options?: any) => Promise<{
@@ -408,6 +414,15 @@ export class RendererDatabaseService {
 
   async extractJargonTerms(contextText: string) {
     return await window.electronAPI.ai.extractJargonTerms(contextText)
+  }
+
+  async callAI(options: {
+    systemPrompt: string
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>
+    model?: string
+    maxTokens?: number
+  }) {
+    return await window.electronAPI.ai.callAI(options)
   }
 
   // Speech-to-text operations
