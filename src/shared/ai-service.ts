@@ -1017,7 +1017,15 @@ Make questions specific and actionable. Avoid generic questions.
         messages: apiMessages,
       })
 
+      if (!response.content || response.content.length === 0) {
+        throw new Error('Empty response from Claude API')
+      }
+
       const content = response.content[0]
+      if (!content) {
+        throw new Error('No content in Claude API response')
+      }
+
       if (content.type !== 'text') {
         throw new Error('Unexpected response type from Claude')
       }
