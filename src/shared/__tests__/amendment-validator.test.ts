@@ -181,7 +181,7 @@ Let me know if you need changes.`
       // Second call should include retry feedback
       expect(mockGenerate).toHaveBeenCalledTimes(2)
       expect(mockGenerate.mock.calls[1]?.[0]).toBeDefined()
-      expect(mockGenerate.mock.calls[1]?.[0]).toContain('validation errors')
+      expect(mockGenerate.mock.calls[1]?.[0]).toContain('Failed to parse JSON')
     })
   })
 })

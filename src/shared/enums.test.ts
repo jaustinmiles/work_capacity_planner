@@ -134,7 +134,7 @@ describe('enums', () => {
 
     it('should have all expected keys', () => {
       const keys = Object.keys(AmendmentType)
-      expect(keys).toHaveLength(12)
+      expect(keys).toHaveLength(16)
       expect(keys).toContain('StatusUpdate')
       expect(keys).toContain('TimeLog')
       expect(keys).toContain('NoteAddition')
@@ -147,6 +147,10 @@ describe('enums', () => {
       expect(keys).toContain('DeadlineChange')
       expect(keys).toContain('PriorityChange')
       expect(keys).toContain('TypeChange')
+      expect(keys).toContain('WorkPatternModification')
+      expect(keys).toContain('WorkSessionEdit')
+      expect(keys).toContain('ArchiveToggle')
+      expect(keys).toContain('QueryResponse')
     })
 
     it('should cover all major amendment categories', () => {
