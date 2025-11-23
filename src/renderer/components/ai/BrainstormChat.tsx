@@ -128,7 +128,13 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
         jobContext: currentJobContext || undefined,
       })
 
-      addMessage(ChatMessageRole.Assistant, result.response)
+      addMessage(ChatMessageRole.Assistant, result.response, result.amendments)
+
+      // If AI included amendments in chat mode, set them as pending
+      if (result.amendments) {
+        setPendingAmendments(result.amendments)
+      }
+
       setStatus(ChatStatus.Idle)
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error))

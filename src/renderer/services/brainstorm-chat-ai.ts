@@ -5,7 +5,7 @@
 
 import { Amendment } from '@shared/amendment-types'
 import { ChatMessageRole } from '@shared/enums'
-import { validateWithRetry, ValidationLoopResult } from '@shared/amendment-validator'
+import { validateWithRetry, ValidationLoopResult, parseAIResponse } from '@shared/amendment-validator'
 import { gatherAppContext, formatContextForAI, AppContext, JobContextData } from './chat-context-provider'
 import { generateSystemPrompt } from '../prompts/brainstorm-chat-system'
 import { getDatabase } from './database'
@@ -49,6 +49,27 @@ export async function sendChatMessage(options: SendMessageOptions): Promise<Send
   const messages = buildMessages(context, conversationHistory, userMessage, false)
 
   const response = await callClaudeAPI(messages)
+
+  // Check if AI included JSON in conversational mode (it shouldn't, but handle it)
+  const parsed = parseAIResponse(response)
+
+  if (parsed.amendments) {
+    // AI included JSON when it should have been conversational
+    // Extract and return separately
+    const result: SendMessageResult = {
+      response: parsed.rawText || "I've generated some amendments based on our conversation.",
+    }
+
+    // Validate the amendments before returning
+    const { validateAmendments } = await import('@shared/schema-generator')
+    const validationResult = validateAmendments(parsed.amendments)
+
+    if (validationResult.valid) {
+      result.amendments = parsed.amendments as Amendment[]
+    }
+
+    return result
+  }
 
   return {
     response,
@@ -128,10 +149,21 @@ function buildMessages(
         content: userMessageOrRetry,
       })
     } else if (isAmendmentGeneration) {
-      // Explicit amendment generation request
+      // Explicit amendment generation request - VERY CLEAR DIRECTIVE
       messages.push({
         role: ChatMessageRole.User,
-        content: 'Based on our conversation, please generate amendments as a JSON array. Remember to check for duplicates and validate all dependencies.',
+        content: `SWITCH TO AMENDMENT MODE NOW.
+
+Based on our conversation above, generate a JSON array of amendments to implement the changes we discussed.
+
+CRITICAL INSTRUCTIONS:
+1. Respond with ONLY a raw JSON array
+2. NO additional text, explanations, or commentary
+3. NO markdown code blocks (no \`\`\`json)
+4. Just the pure JSON array starting with [ and ending with ]
+5. Use ISO date strings (YYYY-MM-DDTHH:mm:ssZ format) for all dates
+
+If you need more information, DO NOT generate amendments - instead, ask clarifying questions in a regular conversational response first.`,
       })
     } else {
       // Regular user message
@@ -140,6 +172,18 @@ function buildMessages(
         content: userMessageOrRetry,
       })
     }
+  } else if (isAmendmentGeneration) {
+    // No user message, but amendment generation requested
+    messages.push({
+      role: ChatMessageRole.User,
+      content: `SWITCH TO AMENDMENT MODE NOW.
+
+Generate a JSON array of amendments based on our conversation.
+
+CRITICAL: Respond with ONLY a raw JSON array. No text, no code blocks, just [ ... ]
+
+Use ISO date strings (YYYY-MM-DDTHH:mm:ssZ format) for all dates.`,
+    })
   }
 
   return messages

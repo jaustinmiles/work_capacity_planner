@@ -140,6 +140,36 @@ function validateNonEmptyString(value: unknown, path: string, fieldName: string,
 }
 
 /**
+ * Validate date (accepts Date object or ISO string)
+ * JSON can only contain strings, so we must accept ISO date strings from AI
+ */
+function validateDate(value: unknown, path: string, fieldName: string, errors: ValidationError[]): boolean {
+  if (value instanceof Date) {
+    return true
+  }
+
+  if (typeof value === 'string') {
+    const date = new Date(value)
+    if (isNaN(date.getTime())) {
+      errors.push({
+        path,
+        message: `${fieldName} must be a valid ISO date string or Date object`,
+        received: value,
+      })
+      return false
+    }
+    return true
+  }
+
+  errors.push({
+    path,
+    message: `${fieldName} must be a Date object or ISO date string`,
+    received: typeof value,
+  })
+  return false
+}
+
+/**
  * Main validation function for amendments
  */
 export function validateAmendment(amendment: unknown): ValidationResult {
@@ -398,7 +428,9 @@ function detectCircularDependencies(steps: Array<Record<string, unknown>>): stri
 function validateDeadlineChange(a: Record<string, unknown>, errors: ValidationError[]): void {
   validateTarget(a.target, 'target', errors)
 
-  if (!a.newDeadline) {
+  if (a.newDeadline) {
+    validateDate(a.newDeadline, 'newDeadline', 'New deadline', errors)
+  } else {
     errors.push({
       path: 'newDeadline',
       message: 'New deadline is required',
@@ -428,26 +460,14 @@ function validateTypeChange(a: Record<string, unknown>, errors: ValidationError[
 }
 
 function validateWorkPatternModification(a: Record<string, unknown>, errors: ValidationError[]): void {
-  // Date validation (can be Date object or ISO string)
-  if (!(a.date instanceof Date) && typeof a.date !== 'string') {
-    errors.push({
-      path: 'date',
-      message: 'Date must be a Date object or ISO string',
-      received: String(a.date),
-    })
-  }
-
+  validateDate(a.date, 'date', 'Date', errors)
   validateEnumValue(a.operation, WorkPatternOperation, 'operation', errors)
 
   // Validate blockData if present
   if (a.blockData && isObject(a.blockData)) {
     const block = a.blockData
-    if (!(block.startTime instanceof Date)) {
-      errors.push({ path: 'blockData.startTime', message: 'Start time must be a Date object' })
-    }
-    if (!(block.endTime instanceof Date)) {
-      errors.push({ path: 'blockData.endTime', message: 'End time must be a Date object' })
-    }
+    validateDate(block.startTime, 'blockData.startTime', 'Start time', errors)
+    validateDate(block.endTime, 'blockData.endTime', 'End time', errors)
     validateEnumValue(block.type, WorkBlockType, 'blockData.type', errors)
   }
 
@@ -455,12 +475,8 @@ function validateWorkPatternModification(a: Record<string, unknown>, errors: Val
   if (a.meetingData && isObject(a.meetingData)) {
     const meeting = a.meetingData
     validateNonEmptyString(meeting.name, 'meetingData.name', 'Meeting name', errors)
-    if (!(meeting.startTime instanceof Date)) {
-      errors.push({ path: 'meetingData.startTime', message: 'Start time must be a Date object' })
-    }
-    if (!(meeting.endTime instanceof Date)) {
-      errors.push({ path: 'meetingData.endTime', message: 'End time must be a Date object' })
-    }
+    validateDate(meeting.startTime, 'meetingData.startTime', 'Start time', errors)
+    validateDate(meeting.endTime, 'meetingData.endTime', 'End time', errors)
     validateEnumValue(meeting.type, TaskType, 'meetingData.type', errors)
   }
 }
@@ -476,12 +492,12 @@ function validateWorkSessionEdit(a: Record<string, unknown>, errors: ValidationE
   }
 
   // Validate date fields if present
-  if (a.startTime !== undefined && !(a.startTime instanceof Date)) {
-    errors.push({ path: 'startTime', message: 'Start time must be a Date object' })
+  if (a.startTime !== undefined) {
+    validateDate(a.startTime, 'startTime', 'Start time', errors)
   }
 
-  if (a.endTime !== undefined && !(a.endTime instanceof Date)) {
-    errors.push({ path: 'endTime', message: 'End time must be a Date object' })
+  if (a.endTime !== undefined) {
+    validateDate(a.endTime, 'endTime', 'End time', errors)
   }
 }
 
