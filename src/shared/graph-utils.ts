@@ -133,8 +133,8 @@ export function detectDependencyCycles(graph: Map<string, string[]>): {
     return false
   }
 
-  // Check all nodes
-  for (const node of graph.keys()) {
+  // Check all nodes (Array.from needed for ES5 target compatibility)
+  for (const node of Array.from(graph.keys())) {
     if (!visited.has(node)) {
       dfs(node)
     }

@@ -147,3 +147,67 @@ export function isSameDay(date1: Date, date2: Date): boolean {
     date1.getDate() === date2.getDate()
   )
 }
+
+/**
+ * Extract HH:MM time string from an ISO datetime string or Date object
+ *
+ * IMPORTANT: For ISO strings, extracts the time portion directly without timezone conversion.
+ * This is intentional because the AI provides times that represent the user's intended local time
+ * encoded in the ISO format (e.g., "2025-11-26T19:30:00Z" means "7:30 PM" in user's local time).
+ *
+ * @param input - ISO datetime string (e.g., "2025-11-26T19:30:00Z") or Date object
+ * @returns HH:MM string (e.g., "19:30")
+ */
+export function extractTimeFromISO(input: string | Date): string {
+  if (input instanceof Date) {
+    return formatTimeHHMM(input)
+  }
+
+  // Match ISO datetime format: extract HH:MM from the time portion
+  // Handles: "2025-11-26T19:30:00Z", "2025-11-26T19:30:00.000Z", "2025-11-26T19:30:00+00:00"
+  const isoMatch = input.match(/T(\d{2}):(\d{2})/)
+  if (isoMatch) {
+    return `${isoMatch[1]}:${isoMatch[2]}`
+  }
+
+  // Fallback: try to parse as time string directly (e.g., "19:30")
+  const timeMatch = input.match(/^(\d{2}):(\d{2})$/)
+  if (timeMatch) {
+    return input
+  }
+
+  // Last resort: parse as Date (will apply timezone conversion)
+  return formatTimeHHMM(new Date(input))
+}
+
+/**
+ * Format a YYYY-MM-DD date string for display without timezone conversion
+ *
+ * IMPORTANT: Using new Date("2025-11-26") parses as UTC midnight, which can
+ * display as the previous day in US timezones. This function avoids that issue.
+ *
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param locale - Locale for formatting (default: user's locale)
+ * @returns Formatted date string (e.g., "11/26/2025")
+ */
+export function formatDateStringForDisplay(dateStr: string, locale?: string): string {
+  // Check if it's a YYYY-MM-DD format
+  const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (dateMatch) {
+    const [, year, month, day] = dateMatch
+    // Create date at noon local time to avoid timezone edge cases
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0)
+    return date.toLocaleDateString(locale)
+  }
+
+  // For ISO datetime strings, extract just the date portion
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})T/)
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0)
+    return date.toLocaleDateString(locale)
+  }
+
+  // Fallback for other formats
+  return new Date(dateStr).toLocaleDateString(locale)
+}

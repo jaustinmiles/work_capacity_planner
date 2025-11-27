@@ -9,6 +9,7 @@ import { validateWithRetry, ValidationLoopResult, parseAIResponse } from '@share
 import { gatherAppContext, formatContextForAI, AppContext, JobContextData } from './chat-context-provider'
 import { generateSystemPrompt } from '../prompts/brainstorm-chat-system'
 import { getDatabase } from './database'
+import { logger } from '@/logger'
 
 export interface ChatMessage {
   role: ChatMessageRole
@@ -42,13 +43,27 @@ export interface GenerateAmendmentsOptions {
 export async function sendChatMessage(options: SendMessageOptions): Promise<SendMessageResult> {
   const { userMessage, conversationHistory, jobContext, onProgress } = options
 
+  logger.ui.info('Sending chat message', {
+    messageLength: userMessage.length,
+    historyLength: conversationHistory.length,
+    hasJobContext: !!jobContext,
+  }, 'brainstorm-chat')
+
   onProgress?.('Gathering app context...')
   const context = await gatherAppContext(jobContext)
 
   onProgress?.('Generating response...')
   const messages = buildMessages(context, conversationHistory, userMessage, false)
 
+  logger.ui.info('Calling Claude API', {
+    messageCount: messages.length,
+  }, 'brainstorm-chat')
+
   const response = await callClaudeAPI(messages)
+
+  logger.ui.info('Received AI response', {
+    responseLength: response.length,
+  }, 'brainstorm-chat')
 
   // Check if AI included JSON in conversational mode (it shouldn't, but handle it)
   const parsed = parseAIResponse(response)
@@ -162,8 +177,17 @@ CRITICAL INSTRUCTIONS:
 3. NO markdown code blocks (no \`\`\`json)
 4. Just the pure JSON array starting with [ and ending with ]
 5. Use ISO date strings (YYYY-MM-DDTHH:mm:ssZ format) for all dates
-
-If you need more information, DO NOT generate amendments - instead, ask clarifying questions in a regular conversational response first.`,
+6. **USE REASONABLE DEFAULTS** for any missing information:
+   - Duration: 30 min (simple), 60 min (medium), 120 min (complex)
+   - Importance: 5/10 unless context suggests otherwise
+   - Urgency: 5/10 unless deadline mentioned
+   - Type: "personal" for home tasks, "focused" for work, "admin" for meetings
+7. **DO NOT refuse to generate** - use your best judgment for missing fields
+8. **REQUIRED FIELDS** - Every amendment MUST include:
+   - For task/workflow targets: target.id, target.name, target.type ("task" or "workflow"), target.confidence (0-1)
+   - For NoteAddition: append must be true or false
+   - For StepAddition/StepRemoval: workflowTarget object AND stepName
+   - For DurationChange on steps: duration is required`,
       })
     } else {
       // Regular user message
@@ -182,7 +206,9 @@ Generate a JSON array of amendments based on our conversation.
 
 CRITICAL: Respond with ONLY a raw JSON array. No text, no code blocks, just [ ... ]
 
-Use ISO date strings (YYYY-MM-DDTHH:mm:ssZ format) for all dates.`,
+Use ISO date strings (YYYY-MM-DDTHH:mm:ssZ format) for all dates.
+Use reasonable defaults for missing fields (duration: 30-120min, importance/urgency: 5/10, type: personal/focused/admin).
+DO NOT refuse - generate your best interpretation.`,
     })
   }
 
@@ -207,7 +233,7 @@ async function callClaudeAPI(messages: ChatMessage[]): Promise<string> {
       role: m.role === ChatMessageRole.User ? 'user' : 'assistant',
       content: m.content,
     })),
-    model: 'claude-sonnet-4-5-20250929',
+    model: 'claude-opus-4-5-20251101',
   })
 
   return result.content

@@ -562,6 +562,57 @@ export function validateAmendments(amendments: unknown): ValidationResult {
 }
 
 /**
+ * Get schema hint for a specific error path to help AI fix the issue
+ */
+function getSchemaHint(path: string): string {
+  const hints: Record<string, string> = {
+    // NoteAddition
+    'append': '   → SCHEMA: note_addition requires "append": true|false (boolean)\n',
+
+    // StepAddition/StepRemoval
+    'workflowTarget': '   → SCHEMA: step_addition/step_removal uses "workflowTarget" NOT "target": { "type": "workflow", "name": "...", "confidence": 0.9 }\n',
+    'stepName': '   → SCHEMA: Step operations require "stepName": "step name string"\n',
+    'stepType': '   → SCHEMA: step_addition requires "stepType": "focused" | "admin" | "personal"\n',
+
+    // DurationChange
+    'newDuration': '   → SCHEMA: duration_change requires "newDuration": positive number (minutes)\n',
+
+    // TimeLog
+    'duration': '   → SCHEMA: time_log requires "duration": non-negative number (minutes); step_addition requires "duration": positive number\n',
+
+    // ArchiveToggle
+    'archive': '   → SCHEMA: archive_toggle requires "archive": true|false (boolean)\n',
+
+    // Target object
+    'target.type': '   → SCHEMA: target.type must be "task" | "workflow" | "step"\n',
+    'target.name': '   → SCHEMA: target.name must be a non-empty string\n',
+    'target.confidence': '   → SCHEMA: target.confidence must be a number between 0.0 and 1.0\n',
+
+    // WorkPatternModification
+    'operation': '   → SCHEMA: operation must be "add_block" | "add_meeting" | "remove_block" | "remove_meeting" for work_pattern_modification, or "create" | "update" | "delete" for work_session_edit\n',
+    'blockData.type': '   → SCHEMA: blockData.type must be "focused" | "admin" | "personal" | "mixed" | "flexible"\n',
+
+    // DeadlineChange
+    'newDeadline': '   → SCHEMA: deadline_change requires "newDeadline": ISO date string (e.g., "2025-11-30T17:00:00Z")\n',
+
+    // TypeChange
+    'newType': '   → SCHEMA: type_change requires "newType": "focused" | "admin" | "personal"\n',
+
+    // WorkflowCreation steps
+    'steps': '   → SCHEMA: workflow_creation requires "steps": array of { name, duration, type, dependsOn?, asyncWaitTime? }\n',
+    'steps[': '   → SCHEMA: Each step needs: "name" (string), "duration" (positive number), "type" ("focused"|"admin"|"personal")\n',
+  }
+
+  // Check for matches in the path
+  for (const [key, hint] of Object.entries(hints)) {
+    if (path.includes(key)) {
+      return hint
+    }
+  }
+  return ''
+}
+
+/**
  * Format validation errors for AI re-prompting
  */
 export function formatValidationErrors(result: ValidationResult): string {
@@ -569,7 +620,7 @@ export function formatValidationErrors(result: ValidationResult): string {
     return 'All amendments are valid.'
   }
 
-  let message = 'The following validation errors were found:\n\n'
+  let message = 'VALIDATION ERRORS - You must fix these and regenerate the COMPLETE JSON array:\n\n'
 
   result.errors.forEach((error, index) => {
     message += `${index + 1}. ${error.path}: ${error.message}`
@@ -580,6 +631,12 @@ export function formatValidationErrors(result: ValidationResult): string {
       message += ` (received: ${error.received})`
     }
     message += '\n'
+
+    // Add schema hint to help AI fix the specific error
+    const hint = getSchemaHint(error.path)
+    if (hint) {
+      message += hint
+    }
   })
 
   if (result.warnings && result.warnings.length > 0) {
@@ -589,7 +646,7 @@ export function formatValidationErrors(result: ValidationResult): string {
     })
   }
 
-  message += '\nPlease fix these errors and try again.'
+  message += '\nRespond with the CORRECTED JSON array only. No explanations.'
 
   return message
 }

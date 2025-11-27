@@ -21,8 +21,13 @@ import {
   TypeChange,
   TaskType,
   ArchiveToggle,
+  WorkPatternModification,
+  WorkSessionEdit,
 } from '@shared/amendment-types'
-import { assertNever, StepStatus } from '@shared/enums'
+import { assertNever, StepStatus, WorkPatternOperation, WorkSessionOperation } from '@shared/enums'
+import { dateToYYYYMMDD, extractTimeFromISO } from '@shared/time-utils'
+import { generateUniqueId, validateWorkflowDependencies } from '@shared/step-id-utils'
+import { useWorkPatternStore } from '../store/useWorkPatternStore'
 import { getDatabase } from '../services/database'
 import { Message } from '../components/common/Message'
 import { logger } from '@/logger'
@@ -32,11 +37,191 @@ import {
   applyReverseDependencyChanges,
 } from './dependency-utils'
 
+/**
+ * Result for a single amendment application
+ */
+export interface AmendmentResult {
+  amendment: Amendment
+  success: boolean
+  message: string
+}
 
-export async function applyAmendments(amendments: Amendment[]): Promise<void> {
+/**
+ * Resolve target names to IDs by looking up tasks and workflows in the database.
+ * This is critical because the AI generates amendments with names but no IDs.
+ */
+async function resolveAmendmentTargets(amendments: Amendment[], db: ReturnType<typeof getDatabase>): Promise<void> {
+  // Load all tasks and workflows once
+  const allTasks = await db.getTasks()
+  const allWorkflows = await db.getSequencedTasks()
+
+  /**
+   * Find a task or workflow by name using fuzzy matching
+   */
+  function findByName(name: string, type?: EntityType): { id: string; type: EntityType } | null {
+    // Normalize for comparison
+    const normalizedName = name.toLowerCase().trim()
+
+    // If type is specified, search only that type
+    if (type === EntityType.Task) {
+      const task = allTasks.find(t =>
+        t.name.toLowerCase().trim() === normalizedName ||
+        t.name.toLowerCase().includes(normalizedName) ||
+        normalizedName.includes(t.name.toLowerCase()),
+      )
+      if (task) return { id: task.id, type: EntityType.Task }
+    } else if (type === EntityType.Workflow) {
+      const workflow = allWorkflows.find(w =>
+        w.name.toLowerCase().trim() === normalizedName ||
+        w.name.toLowerCase().includes(normalizedName) ||
+        normalizedName.includes(w.name.toLowerCase()),
+      )
+      if (workflow) return { id: workflow.id, type: EntityType.Workflow }
+    } else {
+      // Search both types - workflows first (more specific)
+      const workflow = allWorkflows.find(w =>
+        w.name.toLowerCase().trim() === normalizedName ||
+        w.name.toLowerCase().includes(normalizedName) ||
+        normalizedName.includes(w.name.toLowerCase()),
+      )
+      if (workflow) return { id: workflow.id, type: EntityType.Workflow }
+
+      const task = allTasks.find(t =>
+        t.name.toLowerCase().trim() === normalizedName ||
+        t.name.toLowerCase().includes(normalizedName) ||
+        normalizedName.includes(t.name.toLowerCase()),
+      )
+      if (task) return { id: task.id, type: EntityType.Task }
+    }
+
+    return null
+  }
+
+  // Process each amendment and resolve targets
+  for (const amendment of amendments) {
+    // Handle amendments with 'target' field
+    if ('target' in amendment && amendment.target && !amendment.target.id) {
+      const match = findByName(amendment.target.name, amendment.target.type as EntityType)
+      if (match) {
+        amendment.target.id = match.id
+        amendment.target.type = match.type
+        logger.ui.info('Resolved amendment target', {
+          name: amendment.target.name,
+          id: match.id,
+          type: match.type,
+        }, 'target-resolved')
+      } else {
+        logger.ui.warn('Could not resolve amendment target', {
+          name: amendment.target.name,
+          type: amendment.target.type,
+          availableTasks: allTasks.map(t => t.name).slice(0, 5),
+          availableWorkflows: allWorkflows.map(w => w.name).slice(0, 5),
+        }, 'target-not-found')
+      }
+    }
+
+    // Handle amendments with 'workflowTarget' field (StepAddition, StepRemoval)
+    if ('workflowTarget' in amendment && amendment.workflowTarget && !amendment.workflowTarget.id) {
+      const match = findByName(amendment.workflowTarget.name, EntityType.Workflow)
+      if (match) {
+        amendment.workflowTarget.id = match.id
+        logger.ui.info('Resolved workflow target', {
+          name: amendment.workflowTarget.name,
+          id: match.id,
+        }, 'workflow-target-resolved')
+      } else {
+        logger.ui.warn('Could not resolve workflow target', {
+          name: amendment.workflowTarget.name,
+          availableWorkflows: allWorkflows.map(w => w.name).slice(0, 5),
+        }, 'workflow-target-not-found')
+      }
+    }
+  }
+}
+
+/**
+ * Summary of all amendment applications
+ */
+export interface ApplyAmendmentsResult {
+  successCount: number
+  errorCount: number
+  results: AmendmentResult[]
+}
+
+/**
+ * Get a human-readable summary of an amendment for display
+ */
+function getAmendmentDescription(amendment: Amendment): string {
+  switch (amendment.type) {
+    case AmendmentType.TaskCreation:
+      return `Create task "${amendment.name}"`
+    case AmendmentType.WorkflowCreation:
+      return `Create workflow "${amendment.name}" (${amendment.steps.length} steps)`
+    case AmendmentType.StatusUpdate:
+      return `Update ${amendment.target.name} → ${amendment.newStatus}`
+    case AmendmentType.TimeLog:
+      return `Log ${amendment.duration}min on ${amendment.target.name}`
+    case AmendmentType.NoteAddition:
+      return `Add note to ${amendment.target.name}`
+    case AmendmentType.DurationChange:
+      return `Change ${amendment.target.name} duration to ${amendment.newDuration}min`
+    case AmendmentType.StepAddition:
+      return `Add step "${amendment.stepName}" to ${amendment.workflowTarget.name}`
+    case AmendmentType.StepRemoval:
+      return `Remove step "${amendment.stepName}" from ${amendment.workflowTarget.name}`
+    case AmendmentType.DependencyChange:
+      return `Update dependencies for ${amendment.target.name}`
+    case AmendmentType.DeadlineChange:
+      return `Set deadline for ${amendment.target.name}`
+    case AmendmentType.PriorityChange:
+      return `Update priority for ${amendment.target.name}`
+    case AmendmentType.TypeChange:
+      return `Change ${amendment.target.name} type to ${amendment.newType}`
+    case AmendmentType.WorkPatternModification:
+      return `${amendment.operation} work pattern`
+    case AmendmentType.WorkSessionEdit:
+      return `${amendment.operation} work session`
+    case AmendmentType.ArchiveToggle:
+      return `${amendment.archive ? 'Archive' : 'Unarchive'} ${amendment.target.name}`
+    case AmendmentType.QueryResponse:
+      return 'Query response (no changes)'
+  }
+}
+
+export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAmendmentsResult> {
   const db = getDatabase()
+
+  // CRITICAL: Resolve target names to IDs before processing
+  // The AI generates amendments with target names but no IDs
+  logger.ui.info('Resolving amendment targets', {
+    amendmentCount: amendments.length,
+    types: amendments.map(a => a.type),
+  }, 'target-resolution-start')
+  await resolveAmendmentTargets(amendments, db)
+
   let successCount = 0
   let errorCount = 0
+  const results: AmendmentResult[] = []
+
+  /**
+   * Helper to record a failed amendment
+   */
+  function recordError(amendment: Amendment, message: string): void {
+    errorCount++
+    results.push({ amendment, success: false, message })
+  }
+
+  // Track the current amendment's success/error status
+  let currentAmendmentFailed = false
+  let currentAmendmentError = ''
+
+  /**
+   * Mark current amendment as failed (called from existing error paths)
+   */
+  function markFailed(error: string): void {
+    currentAmendmentFailed = true
+    currentAmendmentError = error
+  }
 
     // totalAmendments: amendments.length,
     // amendmentTypes: amendments.map(a => a.type),
@@ -57,6 +242,14 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
   const createdTaskMap = new Map<string, string>() // placeholder -> actual ID
 
   for (const amendment of amendments) {
+    // Reset tracking for this amendment
+    currentAmendmentFailed = false
+    currentAmendmentError = ''
+    const amendmentDesc = getAmendmentDescription(amendment)
+    // Track original counts to detect if this amendment changed them
+    const prevSuccessCount = successCount
+    const prevErrorCount = errorCount
+
     try {
       switch (amendment.type) {
         case AmendmentType.StatusUpdate: {
@@ -519,39 +712,76 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
 
         case AmendmentType.WorkflowCreation: {
           const creation = amendment as WorkflowCreation
-
-          // Create the workflow with steps - use notes field since description doesn't exist
           const totalDuration = creation.steps.reduce((sum, step) => sum + step.duration, 0)
+
+          // STEP 1: Generate unique IDs for all steps first (name → ID map)
+          const stepNameToId = new Map<string, string>()
+          creation.steps.forEach((step) => {
+            const stepId = generateUniqueId('step')
+            stepNameToId.set(step.name.toLowerCase(), stepId)
+          })
+
+          // STEP 2: Build steps with proper ID-based dependencies
+          const steps = creation.steps.map((step, index) => {
+            const stepId = stepNameToId.get(step.name.toLowerCase())!
+
+            // Convert dependency names to IDs
+            const dependencyIds = (step.dependsOn || []).map(depName => {
+              const depId = stepNameToId.get(depName.toLowerCase())
+              if (!depId) {
+                logger.ui.warn(`Dependency "${depName}" not found in workflow "${creation.name}"`, {
+                  stepName: step.name,
+                  availableSteps: Array.from(stepNameToId.keys()),
+                }, 'dependency-resolution')
+              }
+              return depId
+            }).filter((id): id is string => id !== undefined)
+
+            return {
+              id: stepId,
+              taskId: '', // Will be set when saved
+              name: step.name,
+              duration: step.duration,
+              type: step.type,
+              dependsOn: dependencyIds, // NOW USING IDs, NOT NAMES
+              asyncWaitTime: step.asyncWaitTime || 0,
+              status: StepStatus.Pending,
+              stepIndex: index,
+              percentComplete: 0,
+            }
+          })
+
+          // STEP 3: Validate dependencies (orphans + cycles)
+          const validationResult = validateWorkflowDependencies(steps)
+          if (!validationResult.isValid) {
+            logger.ui.error(`Invalid dependencies in workflow "${creation.name}"`, {
+              errors: validationResult.errors,
+            }, 'dependency-validation')
+            Message.error(`Workflow "${creation.name}": ${validationResult.errors[0]}`)
+            errorCount++
+            break
+          }
+
           const workflowData = {
             name: creation.name,
             notes: creation.description || '',
             importance: creation.importance || 5,
             urgency: creation.urgency || 5,
             duration: totalDuration,
-            type: creation.steps[0]?.type || TaskType.Focused,
+            type: steps[0]?.type || TaskType.Focused,
             asyncWaitTime: 0,
             completed: false,
             dependencies: [],
             criticalPathDuration: totalDuration,
             worstCaseDuration: totalDuration,
-            steps: creation.steps.map((step, index) => ({
-              id: `step-${Date.now()}-${index}`,
-              taskId: '', // Will be set when saved
-              name: step.name,
-              duration: step.duration,
-              type: step.type,
-              dependsOn: step.dependsOn || [],
-              asyncWaitTime: step.asyncWaitTime || 0,
-              status: StepStatus.Pending,
-              stepIndex: index,
-              percentComplete: 0,
-            })),
+            steps: steps,
             hasSteps: true as const,
             overallStatus: TaskStatus.NotStarted,
             archived: false,
           }
 
           await db.createSequencedTask(workflowData)
+          Message.success(`Created workflow: ${creation.name} (${steps.length} steps)`)
           successCount++
           break
         }
@@ -722,16 +952,293 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
         }
 
         case AmendmentType.WorkPatternModification: {
-          // TODO: Implement work pattern modification
-          // This requires accessing the work pattern store and database
-          Message.info('Work pattern modification not yet implemented')
+          const mod = amendment as WorkPatternModification
+
+          // Parse date carefully to avoid timezone issues
+          // AI may send ISO strings like "2025-11-25T19:30:00Z" - extract date part BEFORE timezone conversion
+          let dateStr: string
+          if (typeof mod.date === 'string') {
+            if (mod.date.includes('T')) {
+              // ISO string - extract YYYY-MM-DD before the 'T' to avoid UTC→local shift
+              dateStr = mod.date.split('T')[0]
+            } else {
+              // Already a date string like "2025-11-25"
+              dateStr = mod.date
+            }
+          } else {
+            // Date object - use local date extraction
+            dateStr = dateToYYYYMMDD(mod.date)
+          }
+
+          logger.ui.info('WorkPatternModification processing', {
+            operation: mod.operation,
+            originalDate: String(mod.date),
+            parsedDateStr: dateStr,
+          }, 'work-pattern-mod')
+
+          try {
+            // Get existing pattern for this date
+            const existingPattern = await db.getWorkPattern(dateStr)
+
+            switch (mod.operation) {
+              case WorkPatternOperation.AddBlock: {
+                if (!mod.blockData) {
+                  Message.warning('Block data required for AddBlock operation')
+                  errorCount++
+                  break
+                }
+
+                // Extract time directly from ISO string to avoid timezone conversion issues
+                // The AI provides times that represent local time encoded in ISO format
+                const startTimeStr = extractTimeFromISO(mod.blockData.startTime)
+                const endTimeStr = extractTimeFromISO(mod.blockData.endTime)
+
+                const newBlock = {
+                  startTime: startTimeStr,
+                  endTime: endTimeStr,
+                  type: mod.blockData.type,
+                  splitRatio: mod.blockData.splitRatio || null,
+                }
+
+                if (existingPattern) {
+                  // Add block to existing pattern
+                  const existingBlocks = existingPattern.WorkBlock || []
+                  await db.updateWorkPattern(existingPattern.id, {
+                    blocks: [...existingBlocks.map((b: { startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                      startTime: b.startTime,
+                      endTime: b.endTime,
+                      type: b.type,
+                      splitRatio: b.splitRatio,
+                    })), newBlock],
+                  })
+                } else {
+                  // Create new pattern with this block
+                  await db.createWorkPattern({
+                    date: dateStr,
+                    blocks: [newBlock],
+                    meetings: [],
+                  })
+                }
+
+                // Refresh work pattern store reactively
+                useWorkPatternStore.getState().loadWorkPatterns()
+                Message.success(`Added ${mod.blockData.type} block: ${startTimeStr} - ${endTimeStr}`)
+                successCount++
+                break
+              }
+
+              case WorkPatternOperation.AddMeeting: {
+                if (!mod.meetingData) {
+                  Message.warning('Meeting data required for AddMeeting operation')
+                  errorCount++
+                  break
+                }
+
+                // Extract time directly from ISO string to avoid timezone conversion issues
+                const meetingStartStr = extractTimeFromISO(mod.meetingData.startTime)
+                const meetingEndStr = extractTimeFromISO(mod.meetingData.endTime)
+
+                const newMeeting = {
+                  name: mod.meetingData.name,
+                  startTime: meetingStartStr,
+                  endTime: meetingEndStr,
+                  type: mod.meetingData.type,
+                  recurring: mod.meetingData.recurring || 'none', // Default to 'none' - Prisma requires non-null
+                  daysOfWeek: mod.meetingData.daysOfWeek || null,
+                }
+
+                if (existingPattern) {
+                  const existingMeetings = existingPattern.WorkMeeting || []
+                  const existingBlocks = existingPattern.WorkBlock || []
+                  await db.updateWorkPattern(existingPattern.id, {
+                    blocks: existingBlocks.map((b: { startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                      startTime: b.startTime,
+                      endTime: b.endTime,
+                      type: b.type,
+                      splitRatio: b.splitRatio,
+                    })),
+                    meetings: [...existingMeetings.map((m: { name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
+                      name: m.name,
+                      startTime: m.startTime,
+                      endTime: m.endTime,
+                      type: m.type,
+                      recurring: m.recurring || 'none', // Ensure non-null for Prisma
+                      daysOfWeek: m.daysOfWeek,
+                    })), newMeeting],
+                  })
+                } else {
+                  await db.createWorkPattern({
+                    date: dateStr,
+                    blocks: [],
+                    meetings: [newMeeting],
+                  })
+                }
+
+                useWorkPatternStore.getState().loadWorkPatterns()
+                Message.success(`Added meeting "${mod.meetingData.name}": ${meetingStartStr} - ${meetingEndStr}`)
+                successCount++
+                break
+              }
+
+              case WorkPatternOperation.RemoveBlock: {
+                if (!existingPattern || !mod.blockId) {
+                  Message.warning('Cannot remove block - pattern or block ID not found')
+                  errorCount++
+                  break
+                }
+
+                const filteredBlocks = (existingPattern.WorkBlock || []).filter(
+                  (b: { id: string }) => b.id !== mod.blockId,
+                )
+                await db.updateWorkPattern(existingPattern.id, {
+                  blocks: filteredBlocks.map((b: { startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                    startTime: b.startTime,
+                    endTime: b.endTime,
+                    type: b.type,
+                    splitRatio: b.splitRatio,
+                  })),
+                })
+
+                useWorkPatternStore.getState().loadWorkPatterns()
+                Message.success('Removed work block')
+                successCount++
+                break
+              }
+
+              case WorkPatternOperation.RemoveMeeting: {
+                if (!existingPattern || !mod.meetingId) {
+                  Message.warning('Cannot remove meeting - pattern or meeting ID not found')
+                  errorCount++
+                  break
+                }
+
+                const filteredMeetings = (existingPattern.WorkMeeting || []).filter(
+                  (m: { id: string }) => m.id !== mod.meetingId,
+                )
+                await db.updateWorkPattern(existingPattern.id, {
+                  meetings: filteredMeetings.map((m: { name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
+                    name: m.name,
+                    startTime: m.startTime,
+                    endTime: m.endTime,
+                    type: m.type,
+                    recurring: m.recurring || 'none', // Ensure non-null for Prisma
+                    daysOfWeek: m.daysOfWeek,
+                  })),
+                })
+
+                useWorkPatternStore.getState().loadWorkPatterns()
+                Message.success('Removed meeting')
+                successCount++
+                break
+              }
+
+              case WorkPatternOperation.ModifyBlock:
+              case WorkPatternOperation.ModifyMeeting: {
+                // These require more complex logic - for now show info message
+                Message.info('Block/meeting modification coming soon')
+                break
+              }
+
+              default: {
+                Message.warning(`Unknown work pattern operation: ${mod.operation}`)
+                errorCount++
+              }
+            }
+          } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error)
+            logger.ui.error('Failed to modify work pattern', {
+              error: errMsg,
+              date: dateStr,
+              operation: mod.operation,
+            }, 'work-pattern-modification-error')
+            markFailed(`Failed to modify work pattern: ${errMsg}`)
+            errorCount++
+          }
           break
         }
 
         case AmendmentType.WorkSessionEdit: {
-          // TODO: Implement work session editing
-          // This requires accessing work session database methods
-          Message.info('Work session editing not yet implemented')
+          const edit = amendment as WorkSessionEdit
+
+          try {
+            switch (edit.operation) {
+              case WorkSessionOperation.Create: {
+                if (!edit.taskId) {
+                  Message.warning('Task ID required to create work session')
+                  errorCount++
+                  break
+                }
+
+                const startTime = edit.startTime
+                  ? (edit.startTime instanceof Date ? edit.startTime : new Date(edit.startTime))
+                  : new Date()
+
+                await db.createWorkSession({
+                  taskId: edit.taskId,
+                  stepId: edit.stepId,
+                  startTime,
+                  endTime: edit.endTime
+                    ? (edit.endTime instanceof Date ? edit.endTime : new Date(edit.endTime))
+                    : undefined,
+                  plannedMinutes: edit.plannedMinutes || 30,
+                  actualMinutes: edit.actualMinutes,
+                  notes: edit.notes,
+                })
+                Message.success('Created work session')
+                successCount++
+                break
+              }
+
+              case WorkSessionOperation.Update: {
+                if (!edit.sessionId) {
+                  Message.warning('Session ID required to update work session')
+                  errorCount++
+                  break
+                }
+
+                await db.updateWorkSession(edit.sessionId, {
+                  startTime: edit.startTime
+                    ? (edit.startTime instanceof Date ? edit.startTime : new Date(edit.startTime))
+                    : undefined,
+                  endTime: edit.endTime
+                    ? (edit.endTime instanceof Date ? edit.endTime : new Date(edit.endTime))
+                    : undefined,
+                  plannedMinutes: edit.plannedMinutes,
+                  actualMinutes: edit.actualMinutes,
+                  notes: edit.notes,
+                })
+                Message.success('Updated work session')
+                successCount++
+                break
+              }
+
+              case WorkSessionOperation.Delete: {
+                if (!edit.sessionId) {
+                  Message.warning('Session ID required to delete work session')
+                  errorCount++
+                  break
+                }
+
+                await db.deleteWorkSession(edit.sessionId)
+                Message.success('Deleted work session')
+                successCount++
+                break
+              }
+
+              case WorkSessionOperation.Split: {
+                // Split requires new database method - defer for now
+                Message.info('Work session split not yet implemented')
+                break
+              }
+            }
+          } catch (error) {
+            logger.ui.error('Failed to edit work session', {
+              error: error instanceof Error ? error.message : String(error),
+              operation: edit.operation,
+            }, 'work-session-edit-error')
+            Message.error(`Failed to ${edit.operation} work session`)
+            errorCount++
+          }
           break
         }
 
@@ -776,21 +1283,55 @@ export async function applyAmendments(amendments: Amendment[]): Promise<void> {
         }
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       logger.ui.error('Error applying amendment', {
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
         amendmentType: amendment.type,
       }, 'amendment-apply-error')
-      errorCount++
+      // Only record if we haven't already tracked this amendment
+      if (successCount === prevSuccessCount && errorCount === prevErrorCount) {
+        recordError(amendment, errorMessage)
+      }
+    }
+
+    // Record result based on what happened during this amendment
+    // If counts didn't change in the switch, record based on markFailed flag
+    if (successCount === prevSuccessCount && errorCount === prevErrorCount) {
+      // Nothing was recorded yet - use the tracking flags
+      if (currentAmendmentFailed) {
+        results.push({ amendment, success: false, message: currentAmendmentError || 'Unknown error' })
+      } else {
+        // No explicit success/error - assume success for amendments that don't increment counts
+        results.push({ amendment, success: true, message: amendmentDesc })
+      }
+    } else if (successCount > prevSuccessCount) {
+      // Success was recorded via successCount++
+      results.push({ amendment, success: true, message: amendmentDesc })
+    } else if (errorCount > prevErrorCount) {
+      // Error was recorded via errorCount++
+      results.push({ amendment, success: false, message: currentAmendmentError || amendmentDesc })
     }
   }
 
+  // Update stores if any amendments succeeded
   if (successCount > 0) {
-    Message.success(`Applied ${successCount} amendment${successCount !== 1 ? 's' : ''}`)
-    // Update stores to refresh UI reactively
     await useTaskStore.getState().initializeData()
     // Schedule will automatically recompute via reactive subscriptions
   }
-  if (errorCount > 0) {
-    Message.error(`Failed to apply ${errorCount} amendment${errorCount !== 1 ? 's' : ''}`)
+
+  // Show summary messages (for backwards compatibility with existing behavior)
+  if (successCount > 0 && errorCount === 0) {
+    Message.success(`Applied ${successCount} amendment${successCount > 1 ? 's' : ''}`)
+  } else if (successCount > 0 && errorCount > 0) {
+    Message.success(`Applied ${successCount} amendment${successCount > 1 ? 's' : ''}`)
+    Message.error(`Failed to apply ${errorCount} amendment${errorCount > 1 ? 's' : ''}`)
+  } else if (errorCount > 0) {
+    Message.error(`Failed to apply ${errorCount} amendment${errorCount > 1 ? 's' : ''}`)
+  }
+
+  return {
+    successCount,
+    errorCount,
+    results,
   }
 }

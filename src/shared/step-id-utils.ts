@@ -8,6 +8,7 @@
  * - General unique IDs (jargon entries, sessions, etc.)
  */
 import { logger } from '../logger'
+import { detectDependencyCycles, buildDependencyGraph } from './graph-utils'
 
 /**
  * Generate a stable step ID that won't change between updates
@@ -247,4 +248,53 @@ export function fixBrokenDependencies(
       return isValid
     }),
   }))
+}
+
+/**
+ * Comprehensive workflow dependency validation
+ * Checks for both orphan dependencies and circular dependencies
+ *
+ * @param steps - Array of workflow steps with id, name, and dependsOn
+ * @returns Validation result with isValid flag and detailed errors
+ */
+export function validateWorkflowDependencies(
+  steps: Array<{ id: string; name: string; dependsOn: string[] }>,
+): { isValid: boolean; errors: string[] } {
+  const errors: string[] = []
+  const stepIds = new Set(steps.map(s => s.id))
+  const stepIdToName = new Map(steps.map(s => [s.id, s.name]))
+
+  // Check 1: Missing/orphan dependencies
+  for (const step of steps) {
+    for (const depId of step.dependsOn) {
+      if (!stepIds.has(depId)) {
+        errors.push(`Step "${step.name}" depends on non-existent step`)
+      }
+    }
+  }
+
+  // Check 2: Circular dependencies using graph-utils
+  // Convert steps to GraphNode format for buildDependencyGraph
+  const graphNodes = steps.map(s => ({
+    id: s.id,
+    dependencies: s.dependsOn,
+  }))
+
+  const graph = buildDependencyGraph(graphNodes)
+  const cycleResult = detectDependencyCycles(graph)
+
+  if (cycleResult.hasCycle) {
+    // Get step names for the cycle for a readable error message
+    for (const cycle of cycleResult.cycles) {
+      const cycleNames = cycle
+        .map(id => stepIdToName.get(id) || id)
+        .join(' → ')
+      errors.push(`Circular dependency detected: ${cycleNames}`)
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  }
 }

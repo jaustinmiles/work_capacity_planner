@@ -14,22 +14,72 @@ import {
   Select,
   Card,
   Tag,
+  Typography,
 } from '@arco-design/web-react'
 import { IconSend, IconRobot, IconUser, IconRefresh } from '@arco-design/web-react/icon'
 import { useBrainstormChatStore, ChatStatus } from '../../store/useBrainstormChatStore'
 import { ChatMessageRole, AmendmentType } from '@shared/enums'
-import { Amendment } from '@shared/amendment-types'
+import { Amendment, WorkflowCreation } from '@shared/amendment-types'
 import { sendChatMessage, generateAmendments } from '../../services/brainstorm-chat-ai'
-import { applyAmendments } from '../../utils/amendment-applicator'
+import { applyAmendments, ApplyAmendmentsResult } from '../../utils/amendment-applicator'
+import { IconCheck, IconClose } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { JobContextData } from '../../services/chat-context-provider'
+import { formatDateStringForDisplay } from '@shared/time-utils'
 
 const { TextArea } = Input
 const { Option } = Select
+const { Text } = Typography
 
 interface BrainstormChatProps {
   visible: boolean
   onClose: () => void
+}
+
+/**
+ * Expanded preview component for workflow amendments
+ * Shows step details, durations, async waits, and dependencies
+ */
+function WorkflowAmendmentPreview({ amendment }: { amendment: WorkflowCreation }): React.ReactElement {
+  const totalDuration = amendment.steps.reduce((sum, step) => sum + step.duration, 0)
+  const totalAsyncWait = amendment.steps.reduce((sum, step) => sum + (step.asyncWaitTime || 0), 0)
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ marginBottom: 8 }}>
+        <Text bold>{amendment.name}</Text>
+        {amendment.description && (
+          <Text type="secondary" style={{ marginLeft: 8 }}>
+            — {amendment.description}
+          </Text>
+        )}
+      </div>
+
+      <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: '2px solid var(--color-border-2)' }}>
+        {amendment.steps.map((step, idx) => (
+          <div key={idx} style={{ marginBottom: 4, fontSize: 13 }}>
+            <Text>
+              {idx + 1}. {step.name}
+            </Text>
+            <Text type="secondary"> ({step.duration}min)</Text>
+            {(step.asyncWaitTime ?? 0) > 0 && (
+              <Text type="warning"> + {step.asyncWaitTime}min wait</Text>
+            )}
+            {step.dependsOn && step.dependsOn.length > 0 && (
+              <Text type="secondary"> → after: {step.dependsOn.join(', ')}</Text>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <Space size="small">
+        <Tag color="gray">Total: {totalDuration}min active</Tag>
+        {totalAsyncWait > 0 && <Tag color="gold">{totalAsyncWait}min async</Tag>}
+        <Tag color="orange">Importance: {amendment.importance}/10</Tag>
+        <Tag color="red">Urgency: {amendment.urgency}/10</Tag>
+      </Space>
+    </div>
+  )
 }
 
 export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React.ReactElement {
@@ -52,6 +102,7 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
   const [inputValue, setInputValue] = useState('')
   const [jobContexts, setJobContexts] = useState<Array<{ id: string; name: string; data: JobContextData }>>([])
   const [selectedContextId, setSelectedContextId] = useState<string | null>(null)
+  const [applyResults, setApplyResults] = useState<ApplyAmendmentsResult | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Load job contexts on mount
@@ -179,9 +230,23 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
     setStatus(ChatStatus.ApplyingAmendments)
 
     try {
-      await applyAmendments(pendingAmendments)
+      const results = await applyAmendments(pendingAmendments)
+      setApplyResults(results)
       clearPendingAmendments()
-      addMessage(ChatMessageRole.System, `Successfully applied ${pendingAmendments.length} amendment(s)`)
+
+      // Add summary message to chat
+      if (results.errorCount === 0) {
+        addMessage(ChatMessageRole.System, `✓ Successfully applied all ${results.successCount} amendment(s)`)
+      } else if (results.successCount === 0) {
+        addMessage(ChatMessageRole.System, `✗ Failed to apply all ${results.errorCount} amendment(s)`)
+      } else {
+        addMessage(
+          ChatMessageRole.System,
+          `Applied ${results.successCount} amendment(s), ${results.errorCount} failed. Click "View Details" for more info.`,
+        )
+      }
+
+      setStatus(ChatStatus.Idle)
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error))
       setStatus(ChatStatus.Idle)
@@ -290,11 +355,15 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
                     style={{ marginTop: 12 }}
                   >
                     {message.amendments.map((amendment, idx) => (
-                      <div key={idx} style={{ marginBottom: 8 }}>
+                      <div key={idx} style={{ marginBottom: 12, paddingBottom: 8, borderBottom: idx < message.amendments!.length - 1 ? '1px solid var(--color-border-1)' : 'none' }}>
                         <Tag color="blue">{amendment.type}</Tag>
-                        <span style={{ marginLeft: 8 }}>
-                          {getAmendmentSummary(amendment)}
-                        </span>
+                        {amendment.type === AmendmentType.WorkflowCreation ? (
+                          <WorkflowAmendmentPreview amendment={amendment as WorkflowCreation} />
+                        ) : (
+                          <span style={{ marginLeft: 8 }}>
+                            {getAmendmentSummary(amendment)}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </Card>
@@ -359,6 +428,88 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
           <Spin tip={getStatusMessage(status)} />
         )}
       </Space>
+
+      {/* Results Modal */}
+      <Modal
+        visible={applyResults !== null}
+        onCancel={() => setApplyResults(null)}
+        title={
+          applyResults?.errorCount === 0
+            ? '✓ All Amendments Applied'
+            : applyResults?.successCount === 0
+              ? '✗ All Amendments Failed'
+              : '⚠ Partial Success'
+        }
+        style={{ width: 600 }}
+        footer={
+          <Button type="primary" onClick={() => setApplyResults(null)}>
+            Close
+          </Button>
+        }
+      >
+        {applyResults && (
+          <Space direction="vertical" style={{ width: '100%' }} size="medium">
+            {/* Summary */}
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <Tag color="green" style={{ fontSize: 14, padding: '4px 12px' }}>
+                ✓ {applyResults.successCount} Succeeded
+              </Tag>
+              {applyResults.errorCount > 0 && (
+                <Tag color="red" style={{ fontSize: 14, padding: '4px 12px' }}>
+                  ✗ {applyResults.errorCount} Failed
+                </Tag>
+              )}
+            </div>
+
+            {/* Detailed Results */}
+            <div
+              style={{
+                maxHeight: 400,
+                overflowY: 'auto',
+                border: '1px solid var(--color-border)',
+                borderRadius: 4,
+              }}
+            >
+              {applyResults.results.map((result, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                    padding: '12px 16px',
+                    borderBottom:
+                      idx < applyResults.results.length - 1
+                        ? '1px solid var(--color-border-1)'
+                        : 'none',
+                    backgroundColor: result.success
+                      ? 'var(--color-success-light-1)'
+                      : 'var(--color-danger-light-1)',
+                  }}
+                >
+                  <div style={{ flexShrink: 0, marginTop: 2 }}>
+                    {result.success ? (
+                      <IconCheck style={{ color: 'var(--color-success)' }} />
+                    ) : (
+                      <IconClose style={{ color: 'var(--color-danger)' }} />
+                    )}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500 }}>
+                      <Tag size="small" color={result.success ? 'green' : 'red'}>
+                        {result.amendment.type}
+                      </Tag>
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 13, color: 'var(--color-text-2)' }}>
+                      {result.message}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Space>
+        )}
+      </Modal>
     </Modal>
   )
 }
@@ -413,7 +564,7 @@ function getAmendmentSummary(amendment: Amendment): string {
     case AmendmentType.TypeChange:
       return `Change ${amendment.target.name} type to ${amendment.newType}`
     case AmendmentType.WorkPatternModification:
-      return `Modify work pattern for ${amendment.date instanceof Date ? amendment.date.toLocaleDateString() : new Date(amendment.date).toLocaleDateString()}`
+      return `Modify work pattern for ${amendment.date instanceof Date ? amendment.date.toLocaleDateString() : formatDateStringForDisplay(amendment.date)}`
     case AmendmentType.WorkSessionEdit:
       return `${amendment.operation} work session`
     case AmendmentType.QueryResponse:

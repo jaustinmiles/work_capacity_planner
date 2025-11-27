@@ -211,7 +211,11 @@ Remember: The user can always continue the conversation to refine changes before
 
 function generateContextSummary(context: AppContext): string {
   let summary = `**Current Date**: ${context.currentDate}\n`
-  summary += `**Time**: ${new Date(context.currentTime).toLocaleTimeString()}\n\n`
+  // Use 24-hour format to avoid AI misinterpreting AM/PM
+  const timeDate = new Date(context.currentTime)
+  const hours = timeDate.getHours().toString().padStart(2, '0')
+  const minutes = timeDate.getMinutes().toString().padStart(2, '0')
+  summary += `**Current Time**: ${hours}:${minutes} (24-hour format, local time)\n\n`
 
   summary += '**Summary**:\n'
   summary += `- ${context.summary.totalTasks} tasks (${context.summary.completedTasks} completed, ${context.summary.inProgressTasks} in progress)\n`
@@ -229,22 +233,274 @@ function generateContextSummary(context: AppContext): string {
 
 function generateAmendmentTypeDescriptions(): string {
   return `
-1. **status_update**: Mark tasks/workflows/steps as not_started, in_progress, waiting, or completed
-2. **time_log**: Record actual time spent on tasks or steps
-3. **note_addition**: Add or append notes to tasks/workflows/steps
-4. **duration_change**: Update estimated duration
-5. **step_addition**: Add new steps to workflows (specify position with afterStep/beforeStep)
-6. **step_removal**: Remove steps from workflows
-7. **dependency_change**: Add/remove dependencies between tasks or steps
-8. **task_creation**: Create new standalone tasks
-9. **workflow_creation**: Create new workflows with multiple steps
-10. **deadline_change**: Set or modify deadlines (hard or soft)
-11. **priority_change**: Update importance (1-10), urgency (1-10), or cognitive complexity (1-5)
-12. **type_change**: Change task type (focused, admin, or personal)
-13. **work_pattern_modification**: Add/remove/modify work blocks or meetings in schedule
-14. **work_session_edit**: Create, update, delete, or split time tracking sessions
-15. **archive_toggle**: Archive or unarchive tasks/workflows
-16. **query_response**: For information-only responses (no changes)
+## Amendment Types with Required Fields
+
+### 1. task_creation
+Create new standalone tasks.
+\`\`\`json
+{
+  "type": "task_creation",
+  "name": "Task name (required)",
+  "description": "Optional description",
+  "duration": 30,
+  "importance": 5,
+  "urgency": 5,
+  "taskType": "focused"
+}
+\`\`\`
+- **taskType**: "focused" | "admin" | "personal"
+
+### 2. workflow_creation
+Create new workflows with multiple steps.
+\`\`\`json
+{
+  "type": "workflow_creation",
+  "name": "Workflow name (required)",
+  "description": "Optional description",
+  "importance": 5,
+  "urgency": 5,
+  "steps": [
+    {
+      "name": "Step name",
+      "duration": 30,
+      "type": "focused",
+      "dependsOn": [],
+      "asyncWaitTime": 0
+    }
+  ]
+}
+\`\`\`
+- **steps[].type**: "focused" | "admin" | "personal"
+- **steps[].dependsOn**: Array of step NAMES (not IDs)
+- **steps[].asyncWaitTime**: Wait time in minutes before next step can start
+
+### 3. status_update
+Mark tasks/workflows/steps as not_started, in_progress, waiting, or completed.
+\`\`\`json
+{
+  "type": "status_update",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  },
+  "newStatus": "in_progress"
+}
+\`\`\`
+- **target.type**: "task" | "workflow" | "step"
+- **newStatus**: "not_started" | "in_progress" | "waiting" | "completed"
+- **confidence**: 0.0 to 1.0
+
+### 4. time_log
+Record actual time spent on tasks or steps.
+\`\`\`json
+{
+  "type": "time_log",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  },
+  "duration": 30
+}
+\`\`\`
+- **duration**: Time in minutes (required, non-negative number)
+
+### 5. note_addition
+Add or append notes to tasks/workflows/steps.
+\`\`\`json
+{
+  "type": "note_addition",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  },
+  "note": "The note content",
+  "append": true
+}
+\`\`\`
+- **note**: Non-empty string (required)
+- **append**: boolean (required) - true to add to existing notes, false to replace
+
+### 6. duration_change
+Update estimated duration.
+\`\`\`json
+{
+  "type": "duration_change",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  },
+  "newDuration": 60
+}
+\`\`\`
+- **newDuration**: Positive number in minutes (required)
+
+### 7. step_addition
+Add new steps to workflows.
+\`\`\`json
+{
+  "type": "step_addition",
+  "workflowTarget": {
+    "type": "workflow",
+    "name": "Workflow name",
+    "confidence": 0.9
+  },
+  "stepName": "New step name",
+  "duration": 30,
+  "stepType": "focused",
+  "afterStep": "Previous step name",
+  "dependencies": [],
+  "asyncWaitTime": 0
+}
+\`\`\`
+- **workflowTarget**: NOT "target" - uses different field name (required)
+- **stepName**: Non-empty string (required)
+- **duration**: Positive number (required)
+- **stepType**: "focused" | "admin" | "personal" (required)
+
+### 8. step_removal
+Remove steps from workflows.
+\`\`\`json
+{
+  "type": "step_removal",
+  "workflowTarget": {
+    "type": "workflow",
+    "name": "Workflow name",
+    "confidence": 0.9
+  },
+  "stepName": "Step to remove"
+}
+\`\`\`
+- **workflowTarget**: NOT "target" (required)
+- **stepName**: Non-empty string (required)
+
+### 9. dependency_change
+Add/remove dependencies between steps.
+\`\`\`json
+{
+  "type": "dependency_change",
+  "target": {
+    "type": "workflow",
+    "name": "Workflow name",
+    "confidence": 0.9
+  },
+  "stepName": "Step name",
+  "addDependencies": ["other step name"],
+  "removeDependencies": []
+}
+\`\`\`
+- **stepName**: The step to modify (required)
+
+### 10. deadline_change
+Set or modify deadlines.
+\`\`\`json
+{
+  "type": "deadline_change",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  },
+  "newDeadline": "2025-11-30T17:00:00Z",
+  "isHard": true
+}
+\`\`\`
+- **newDeadline**: ISO date string (required)
+
+### 11. priority_change
+Update importance, urgency, or cognitive complexity.
+\`\`\`json
+{
+  "type": "priority_change",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  },
+  "importance": 8,
+  "urgency": 9
+}
+\`\`\`
+- **importance**: 1-10 (optional)
+- **urgency**: 1-10 (optional)
+- **cognitiveComplexity**: 1-5 (optional)
+
+### 12. type_change
+Change task type.
+\`\`\`json
+{
+  "type": "type_change",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  },
+  "newType": "focused"
+}
+\`\`\`
+- **newType**: "focused" | "admin" | "personal" (required)
+
+### 13. work_pattern_modification
+Add/remove/modify work blocks or meetings in schedule.
+\`\`\`json
+{
+  "type": "work_pattern_modification",
+  "date": "2025-11-25",
+  "operation": "add_block",
+  "blockData": {
+    "startTime": "2025-11-25T19:30:00Z",
+    "endTime": "2025-11-25T21:30:00Z",
+    "type": "personal"
+  }
+}
+\`\`\`
+- **operation**: "add_block" | "add_meeting" | "remove_block" | "remove_meeting"
+- **blockData.type**: "focused" | "admin" | "personal" | "mixed" | "flexible"
+- For meetings, use **meetingData** instead with name, startTime, endTime, type
+
+### 14. work_session_edit
+Create, update, or delete time tracking sessions.
+\`\`\`json
+{
+  "type": "work_session_edit",
+  "operation": "create",
+  "taskId": "task-id",
+  "startTime": "2025-11-25T14:00:00Z",
+  "endTime": "2025-11-25T15:00:00Z",
+  "plannedMinutes": 60
+}
+\`\`\`
+- **operation**: "create" | "update" | "delete"
+- For "update"/"delete": **sessionId** is required
+
+### 15. archive_toggle
+Archive or unarchive tasks/workflows.
+\`\`\`json
+{
+  "type": "archive_toggle",
+  "target": {
+    "type": "task",
+    "name": "Task name",
+    "confidence": 0.9
+  },
+  "archive": true
+}
+\`\`\`
+- **archive**: boolean (required) - true to archive, false to unarchive
+
+### 16. query_response
+For information-only responses (no changes).
+\`\`\`json
+{
+  "type": "query_response",
+  "query": "What the user asked",
+  "response": "Your answer to their question"
+}
+\`\`\`
+- Use this when user asks a question that doesn't require changes
 `
 }
 

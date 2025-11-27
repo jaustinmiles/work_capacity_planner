@@ -159,20 +159,20 @@ export interface TypeChange {
 
 export interface WorkPatternModification {
   type: AmendmentType.WorkPatternModification
-  date: Date
+  date: Date | string  // AI sends ISO strings, runtime may be Date
   operation: WorkPatternOperation
   blockId?: string  // For modify/remove operations
   meetingId?: string  // For modify/remove operations
   blockData?: {
-    startTime: Date
-    endTime: Date
+    startTime: Date | string  // AI sends ISO strings
+    endTime: Date | string
     type: WorkBlockType
     splitRatio?: Record<string, number>  // For mixed blocks
   }
   meetingData?: {
     name: string
-    startTime: Date
-    endTime: Date
+    startTime: Date | string  // AI sends ISO strings
+    endTime: Date | string
     type: TaskType
     recurring?: RecurringPattern
     daysOfWeek?: DayOfWeek[]

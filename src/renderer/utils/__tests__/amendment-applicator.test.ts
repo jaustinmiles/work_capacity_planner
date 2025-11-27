@@ -30,7 +30,7 @@ const mockDatabase = {
   addStepToWorkflow: vi.fn(),
   getStepWorkSessions: vi.fn(),
   createStepWorkSession: vi.fn(),
-  // Add missing methods needed by useTaskStore
+  // Add missing methods needed by useTaskStore and target resolution
   getTasks: vi.fn().mockResolvedValue([]),
   getSequencedTasks: vi.fn().mockResolvedValue([]),
 }
