@@ -43,7 +43,7 @@ vi.mock('../../logging/index.renderer', () => ({
   getRendererLogger: () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }),
 }))
 
-describe('Start Next Task Simple Integration', { timeout: 15000 }, () => {
+describe('Start Next Task Simple Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
