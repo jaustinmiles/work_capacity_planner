@@ -56,11 +56,61 @@ async function resolveAmendmentTargets(amendments: Amendment[], db: ReturnType<t
   const allWorkflows = await db.getSequencedTasks()
 
   /**
-   * Find a task or workflow by name using fuzzy matching
+   * Result type for findByName that includes optional step information
    */
-  function findByName(name: string, type?: EntityType): { id: string; type: EntityType } | null {
+  interface FindResult {
+    id: string
+    type: EntityType
+    stepName?: string  // Set when we found a step inside a workflow
+  }
+
+  /**
+   * Find a task, workflow, or step by name using fuzzy matching
+   */
+  function findByName(name: string, type?: EntityType): FindResult | null {
     // Normalize for comparison
     const normalizedName = name.toLowerCase().trim()
+
+    // SPECIAL HANDLING: When looking for a "step", search workflow steps first
+    if (type === EntityType.Step) {
+      for (const workflow of allWorkflows) {
+        if (workflow.steps) {
+          const step = workflow.steps.find(s =>
+            s.name.toLowerCase().trim() === normalizedName ||
+            s.name.toLowerCase().includes(normalizedName) ||
+            normalizedName.includes(s.name.toLowerCase()),
+          )
+          if (step) {
+            logger.ui.info('Found step in workflow', {
+              stepName: step.name,
+              workflowName: workflow.name,
+              workflowId: workflow.id,
+            }, 'step-found-in-workflow')
+            // Return workflow ID - the handlers need the workflow to find the step
+            return {
+              id: workflow.id,
+              type: EntityType.Workflow,
+              stepName: step.name,  // Pass actual step name for use in handlers
+            }
+          }
+        }
+      }
+      // Not found as step - try as a standalone task (AI may have misclassified)
+      const task = allTasks.find(t =>
+        t.name.toLowerCase().trim() === normalizedName ||
+        t.name.toLowerCase().includes(normalizedName) ||
+        normalizedName.includes(t.name.toLowerCase()),
+      )
+      if (task) {
+        logger.ui.info('Correcting target type from step to task', {
+          name,
+          foundType: 'task',
+        }, 'type-corrected')
+        return { id: task.id, type: EntityType.Task }
+      }
+      // Still not found - return null
+      return null
+    }
 
     // If type is specified, search only that type
     if (type === EntityType.Task) {
@@ -109,7 +159,21 @@ async function resolveAmendmentTargets(amendments: Amendment[], db: ReturnType<t
           name: amendment.target.name,
           id: match.id,
           type: match.type,
+          stepName: match.stepName,
         }, 'target-resolved')
+
+        // If we found a step inside a workflow, propagate stepName to amendments that need it
+        // This handles the case where AI sends target.type: "step" for workflow steps
+        if (match.stepName) {
+          // Set stepName on amendments that use it for step-specific operations
+          if ('stepName' in amendment && !amendment.stepName) {
+            (amendment as any).stepName = match.stepName
+            logger.ui.info('Set stepName from resolved step', {
+              amendmentType: amendment.type,
+              stepName: match.stepName,
+            }, 'stepname-propagated')
+          }
+        }
       } else {
         logger.ui.warn('Could not resolve amendment target', {
           name: amendment.target.name,
@@ -270,11 +334,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                   })
                   successCount++
                 } else {
-                  Message.warning(`Step "${update.stepName}" not found in workflow`)
+                  markFailed(`Step "${update.stepName}" not found in workflow "${workflow.name}"`)
                   errorCount++
                 }
               } else {
-                Message.warning('Workflow not found or has no steps')
+                markFailed(`Workflow not found or has no steps for target "${update.target.name}"`)
                 errorCount++
               }
             } else if (update.target.type === EntityType.Workflow) {
@@ -292,7 +356,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
               successCount++
             }
           } else {
-            Message.warning(`Cannot update ${update.target.name} - not found`)
+            markFailed(`Cannot update "${update.target.name}" - target not found in database`)
             errorCount++
           }
           break
@@ -322,11 +386,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                   })
                   successCount++
                 } else {
-                  Message.warning(`Step "${log.stepName}" not found in workflow`)
+                  markFailed(`Step "${log.stepName}" not found in workflow "${workflow.name}"`)
                   errorCount++
                 }
               } else {
-                Message.warning('Workflow not found or has no steps')
+                markFailed(`Workflow not found or has no steps for target "${log.target.name}"`)
                 errorCount++
               }
             } else {
@@ -341,7 +405,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
               successCount++
             }
           } else {
-            Message.warning(`Cannot log time for ${log.target.name} - not found`)
+            markFailed(`Cannot log time for "${log.target.name}" - target not found in database`)
             errorCount++
           }
           break
@@ -370,11 +434,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                   })
                   successCount++
                 } else {
-                  Message.warning(`Step "${note.stepName}" not found in workflow`)
+                  markFailed(`Step "${note.stepName}" not found in workflow "${workflow.name}"`)
                   errorCount++
                 }
               } else {
-                Message.warning('Workflow not found or has no steps')
+                markFailed(`Workflow not found or has no steps for target "${note.target.name}"`)
                 errorCount++
               }
             } else if (note.target.type === EntityType.Workflow) {
@@ -401,7 +465,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
               }
             }
           } else {
-            Message.warning(`Cannot add note to ${note.target.name} - not found`)
+            markFailed(`Cannot add note to "${note.target.name}" - target not found in database`)
             errorCount++
           }
           break
@@ -435,11 +499,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
                   successCount++
                 } else {
-                  Message.warning(`Step "${change.stepName}" not found in workflow`)
+                  markFailed(`Step "${change.stepName}" not found in workflow "${workflow.name}"`)
                   errorCount++
                 }
               } else {
-                Message.warning('Workflow not found or has no steps')
+                markFailed(`Workflow not found or has no steps for target "${change.target.name}"`)
                 errorCount++
               }
             } else if (change.target.type === EntityType.Workflow) {
@@ -456,7 +520,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
               successCount++
             }
           } else {
-            Message.warning(`Cannot update duration for ${change.target.name} - not found`)
+            markFailed(`Cannot update duration for "${change.target.name}" - target not found in database`)
             errorCount++
           }
           break
