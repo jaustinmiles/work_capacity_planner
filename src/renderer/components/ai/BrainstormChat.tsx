@@ -31,9 +31,61 @@ import { logger } from '@/logger'
 const { TextArea } = Input
 const { Option } = Select
 
+// ============================================================================
+// UI CONFIGURATION
+// Edit these values to adjust the chat interface appearance
+// ============================================================================
+const CHAT_UI_CONFIG = {
+  // Modal dimensions
+  modal: {
+    width: '80vw',
+    maxWidth: 1200,
+  },
+  // Context selector
+  contextSelector: {
+    width: 300,
+  },
+  // Message list
+  messageList: {
+    height: '50vh',
+    padding: 16,
+  },
+  // Empty state
+  emptyState: {
+    padding: 32,
+    iconSize: 48,
+    iconMarginBottom: 16,
+  },
+  // Message bubble
+  messageBubble: {
+    padding: '12px 16px',
+    borderRadius: 8,
+    gap: 12,
+  },
+  // Results modal
+  resultsModal: {
+    width: 600,
+    maxHeight: 400,
+  },
+  // Tags
+  tag: {
+    fontSize: 14,
+    padding: '4px 12px',
+  },
+} as const
+
 interface BrainstormChatProps {
   visible: boolean
   onClose: () => void
+}
+
+/**
+ * Job context item with ID, display name, and full data
+ */
+interface JobContextItem {
+  id: string
+  name: string
+  data: JobContextData
 }
 
 export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React.ReactElement {
@@ -54,7 +106,7 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
   } = useBrainstormChatStore()
 
   const [inputValue, setInputValue] = useState('')
-  const [jobContexts, setJobContexts] = useState<Array<{ id: string; name: string; data: JobContextData }>>([])
+  const [jobContexts, setJobContexts] = useState<JobContextItem[]>([])
   const [selectedContextId, setSelectedContextId] = useState<string | null>(null)
   const [applyResults, setApplyResults] = useState<ApplyAmendmentsResult | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -217,7 +269,7 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
       visible={visible}
       onCancel={onClose}
       title="Brainstorm Chat"
-      style={{ width: '80vw', maxWidth: 1200 }}
+      style={{ width: CHAT_UI_CONFIG.modal.width, maxWidth: CHAT_UI_CONFIG.modal.maxWidth }}
       footer={null}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -225,7 +277,7 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
         <Space style={{ width: '100%' }}>
           <Select
             placeholder="Select job context (optional)"
-            style={{ width: 300 }}
+            style={{ width: CHAT_UI_CONFIG.contextSelector.width }}
             value={selectedContextId || undefined}
             onChange={handleContextChange}
             allowClear
@@ -257,17 +309,17 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
         {/* Chat Messages */}
         <div
           style={{
-            height: '50vh',
+            height: CHAT_UI_CONFIG.messageList.height,
             overflowY: 'auto',
             border: '1px solid var(--color-border)',
             borderRadius: 4,
-            padding: 16,
+            padding: CHAT_UI_CONFIG.messageList.padding,
             backgroundColor: 'var(--color-bg-1)',
           }}
         >
           {messages.length === 0 && (
-            <div style={{ textAlign: 'center', padding: 32, color: 'var(--color-text-3)' }}>
-              <IconRobot style={{ fontSize: 48, marginBottom: 16 }} />
+            <div style={{ textAlign: 'center', padding: CHAT_UI_CONFIG.emptyState.padding, color: 'var(--color-text-3)' }}>
+              <IconRobot style={{ fontSize: CHAT_UI_CONFIG.emptyState.iconSize, marginBottom: CHAT_UI_CONFIG.emptyState.iconMarginBottom }} />
               <div>Start a conversation to brainstorm tasks, workflows, or query your schedule</div>
             </div>
           )}
@@ -393,7 +445,7 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
               ? '✗ All Amendments Failed'
               : '⚠ Partial Success'
         }
-        style={{ width: 600 }}
+        style={{ width: CHAT_UI_CONFIG.resultsModal.width }}
         footer={
           <Button type="primary" onClick={() => setApplyResults(null)}>
             Close
@@ -404,11 +456,11 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
           <Space direction="vertical" style={{ width: '100%' }} size="medium">
             {/* Summary */}
             <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
-              <Tag color="green" style={{ fontSize: 14, padding: '4px 12px' }}>
+              <Tag color="green" style={{ fontSize: CHAT_UI_CONFIG.tag.fontSize, padding: CHAT_UI_CONFIG.tag.padding }}>
                 ✓ {applyResults.successCount} Succeeded
               </Tag>
               {applyResults.errorCount > 0 && (
-                <Tag color="red" style={{ fontSize: 14, padding: '4px 12px' }}>
+                <Tag color="red" style={{ fontSize: CHAT_UI_CONFIG.tag.fontSize, padding: CHAT_UI_CONFIG.tag.padding }}>
                   ✗ {applyResults.errorCount} Failed
                 </Tag>
               )}
@@ -417,7 +469,7 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
             {/* Detailed Results */}
             <div
               style={{
-                maxHeight: 400,
+                maxHeight: CHAT_UI_CONFIG.resultsModal.maxHeight,
                 overflowY: 'auto',
                 border: '1px solid var(--color-border)',
                 borderRadius: 4,

@@ -25,6 +25,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { logger } from '@/logger'
 import { DependencyEditor } from '../shared/DependencyEditor'
 import { WorkflowAmendmentPreview } from '../shared/WorkflowAmendmentPreview'
+import { PreviewMode } from '../../../shared/enums'
 import { applyAmendments } from '../../utils/amendment-applicator'
 
 
@@ -659,7 +660,7 @@ export function VoiceAmendmentModal({
         )
       }
       case AmendmentType.WorkflowCreation: {
-        return <WorkflowAmendmentPreview amendment={amendment as WorkflowCreation} mode="compact" />
+        return <WorkflowAmendmentPreview amendment={amendment as WorkflowCreation} mode={PreviewMode.Compact} />
       }
       default:
         logger.ui.error('Unknown amendment type', {

@@ -194,6 +194,12 @@ export enum AIProcessingMode {
   Workflows = 'workflows',
 }
 
+// Preview display modes for amendment components
+export enum PreviewMode {
+  Compact = 'compact',    // Truncated view for modals
+  Detailed = 'detailed',  // Full view with all steps and dependencies
+}
+
 // JSON Schema primitive types (for schema generation/validation)
 export enum JsonSchemaType {
   String = 'string',

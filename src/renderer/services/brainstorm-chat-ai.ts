@@ -3,9 +3,10 @@
  * Handles AI communication, amendment generation, and validation
  */
 
-import { Amendment } from '@shared/amendment-types'
+import { Amendment, RawAmendment } from '@shared/amendment-types'
 import { ChatMessageRole } from '@shared/enums'
-import { validateWithRetry, ValidationLoopResult, parseAIResponse } from '@shared/amendment-validator'
+import { validateWithRetry, ValidationLoopResult, parseAIResponse, transformAmendments } from '@shared/amendment-validator'
+import { validateAmendments } from '@shared/schema-generator'
 import { gatherAppContext, formatContextForAI, AppContext, JobContextData } from './chat-context-provider'
 import { generateSystemPrompt } from '../prompts/brainstorm-chat-system'
 import { getDatabase } from './database'
@@ -76,11 +77,11 @@ export async function sendChatMessage(options: SendMessageOptions): Promise<Send
     }
 
     // Validate the amendments before returning
-    const { validateAmendments } = await import('@shared/schema-generator')
     const validationResult = validateAmendments(parsed.amendments)
 
     if (validationResult.valid) {
-      result.amendments = parsed.amendments as Amendment[]
+      // Transform raw amendments (with string dates) to proper Amendment objects (with Date objects)
+      result.amendments = transformAmendments(parsed.amendments as RawAmendment[])
     }
 
     return result

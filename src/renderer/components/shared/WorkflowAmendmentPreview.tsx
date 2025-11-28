@@ -5,13 +5,14 @@
 import React from 'react'
 import { Space, Tag, Typography } from '@arco-design/web-react'
 import { WorkflowCreation } from '../../../shared/amendment-types'
+import { PreviewMode } from '../../../shared/enums'
 
 const { Text } = Typography
 
 interface WorkflowAmendmentPreviewProps {
   amendment: WorkflowCreation
-  /** 'compact' shows truncated steps, 'detailed' shows all steps with dependencies */
-  mode?: 'compact' | 'detailed'
+  /** PreviewMode.Compact shows truncated steps, PreviewMode.Detailed shows all steps with dependencies */
+  mode?: PreviewMode
   /** Maximum steps to show in compact mode before "...and N more" (default: 3) */
   maxCompactSteps?: number
 }
@@ -22,13 +23,13 @@ interface WorkflowAmendmentPreviewProps {
  */
 export function WorkflowAmendmentPreview({
   amendment,
-  mode = 'detailed',
+  mode = PreviewMode.Detailed,
   maxCompactSteps = 3,
 }: WorkflowAmendmentPreviewProps): React.ReactElement {
   const totalDuration = amendment.steps.reduce((sum, step) => sum + step.duration, 0)
   const totalAsyncWait = amendment.steps.reduce((sum, step) => sum + (step.asyncWaitTime || 0), 0)
 
-  if (mode === 'compact') {
+  if (mode === PreviewMode.Compact) {
     return (
       <Space direction="vertical" size={4}>
         <Space>

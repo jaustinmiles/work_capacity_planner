@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { TaskType } from '../shared/enums'
+import { TaskType, ChatMessageRole } from '../shared/enums'
 import { TaskStep } from './sequencing-types'
 import { AICallOptions } from './types'
 import { logger } from '../logger'
@@ -998,7 +998,7 @@ Make questions specific and actionable. Avoid generic questions.
     try {
       const apiMessages: Anthropic.MessageParam[] = [
         {
-          role: 'user',
+          role: ChatMessageRole.User,
           content: options.systemPrompt,
         },
         ...options.messages.map(m => ({
