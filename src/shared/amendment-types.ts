@@ -159,20 +159,20 @@ export interface TypeChange {
 
 export interface WorkPatternModification {
   type: AmendmentType.WorkPatternModification
-  date: Date | string  // AI sends ISO strings, runtime may be Date
+  date: Date  // Transformed from ISO string
   operation: WorkPatternOperation
   blockId?: string  // For modify/remove operations
   meetingId?: string  // For modify/remove operations
   blockData?: {
-    startTime: Date | string  // AI sends ISO strings
-    endTime: Date | string
+    startTime: Date  // Transformed from ISO string
+    endTime: Date
     type: WorkBlockType
     splitRatio?: Record<string, number>  // For mixed blocks
   }
   meetingData?: {
     name: string
-    startTime: Date | string  // AI sends ISO strings
-    endTime: Date | string
+    startTime: Date  // Transformed from ISO string
+    endTime: Date
     type: TaskType
     recurring?: RecurringPattern
     daysOfWeek?: DayOfWeek[]
@@ -216,6 +216,110 @@ export interface QueryResponse {
     name: string
   }>
 }
+
+// ============================================================================
+// RAW TYPES - What AI returns (all date/time fields are ISO strings)
+// These are used immediately after JSON.parse() before transformation
+// ============================================================================
+
+/**
+ * Raw TimeLog from AI - dates are ISO strings
+ */
+export interface RawTimeLog {
+  type: AmendmentType.TimeLog
+  target: AmendmentTarget
+  duration: number
+  date?: string  // ISO date string from AI
+  startTime?: string  // ISO datetime string
+  endTime?: string
+  description?: string
+  stepName?: string
+}
+
+/**
+ * Raw DeadlineChange from AI - deadline is ISO string
+ */
+export interface RawDeadlineChange {
+  type: AmendmentType.DeadlineChange
+  target: AmendmentTarget
+  newDeadline: string  // ISO date string from AI
+  deadlineType?: DeadlineType
+  stepName?: string
+}
+
+/**
+ * Raw WorkPatternModification from AI - all times are ISO strings
+ */
+export interface RawWorkPatternModification {
+  type: AmendmentType.WorkPatternModification
+  date: string  // ISO date string from AI
+  operation: WorkPatternOperation
+  blockId?: string
+  meetingId?: string
+  blockData?: {
+    startTime: string  // ISO datetime string
+    endTime: string
+    type: WorkBlockType
+    splitRatio?: Record<string, number>
+  }
+  meetingData?: {
+    name: string
+    startTime: string  // ISO datetime string
+    endTime: string
+    type: TaskType
+    recurring?: RecurringPattern
+    daysOfWeek?: DayOfWeek[]
+  }
+}
+
+/**
+ * Raw WorkSessionEdit from AI - times are ISO strings
+ */
+export interface RawWorkSessionEdit {
+  type: AmendmentType.WorkSessionEdit
+  operation: WorkSessionOperation
+  sessionId?: string
+  taskId?: string
+  stepId?: string
+  startTime?: string  // ISO datetime string
+  endTime?: string
+  plannedMinutes?: number
+  actualMinutes?: number
+  notes?: string
+  splitSessions?: Array<{
+    taskId: string
+    stepId?: string
+    actualMinutes: number
+    notes?: string
+  }>
+}
+
+/**
+ * Union of all raw amendment types (what AI returns)
+ * Types without date fields pass through unchanged
+ */
+export type RawAmendment =
+  | StatusUpdate  // No date fields
+  | RawTimeLog
+  | NoteAddition  // No date fields
+  | DurationChange  // No date fields
+  | StepAddition  // No date fields
+  | StepRemoval  // No date fields
+  | DependencyChange  // No date fields
+  | TaskCreation  // No date fields
+  | WorkflowCreation  // No date fields
+  | RawDeadlineChange
+  | PriorityChange  // No date fields
+  | TypeChange  // No date fields
+  | RawWorkPatternModification
+  | RawWorkSessionEdit
+  | ArchiveToggle  // No date fields
+  | QueryResponse  // No date fields
+
+// ============================================================================
+// TRANSFORMED TYPES - What application code uses (proper JS Date objects)
+// These are used after transformAmendments() processes the raw types
+// ============================================================================
 
 export type Amendment =
   | StatusUpdate

@@ -1,4 +1,4 @@
-import { TaskType, TaskStatus, StepStatus, DeadlineType } from './enums'
+import { TaskType, TaskStatus, StepStatus, DeadlineType, ChatMessageRole } from './enums'
 
 /**
  * Interface for entities that support time logging
@@ -163,4 +163,15 @@ export function isTimeLoggable(entity: unknown): entity is TimeLoggable {
     typeof (entity as any).duration === 'number' &&
     typeof (entity as any).type === 'string'
   )
+}
+
+/**
+ * Options for AI chat API calls
+ * Used across main, preload, and renderer for consistent AI interaction
+ */
+export interface AICallOptions {
+  systemPrompt: string
+  messages: Array<{ role: ChatMessageRole.User | ChatMessageRole.Assistant; content: string }>
+  model?: string
+  maxTokens?: number
 }

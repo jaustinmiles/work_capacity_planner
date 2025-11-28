@@ -13,6 +13,7 @@ import {
   WorkBlockType,
 } from './amendment-types'
 import { isValidEnumValue } from './enums'
+import { detectDependencyCycles } from './graph-utils'
 
 export interface ValidationError {
   path: string
@@ -382,6 +383,7 @@ function validateWorkflowCreation(
 }
 
 function detectCircularDependencies(steps: Array<Record<string, unknown>>): string[] {
+  // Build a dependency graph from step names
   const graph = new Map<string, string[]>()
 
   steps.forEach((step) => {
@@ -391,38 +393,11 @@ function detectCircularDependencies(steps: Array<Record<string, unknown>>): stri
     }
   })
 
-  const circular: string[] = []
-  const visited = new Set<string>()
-  const recursionStack = new Set<string>()
+  // Use centralized cycle detection from graph-utils
+  const result = detectDependencyCycles(graph)
 
-  function hasCycle(node: string): boolean {
-    visited.add(node)
-    recursionStack.add(node)
-
-    const neighbors = graph.get(node) || []
-    for (const neighbor of neighbors) {
-      if (!visited.has(neighbor)) {
-        if (hasCycle(neighbor)) {
-          circular.push(`${neighbor} -> ${node}`)
-          return true
-        }
-      } else if (recursionStack.has(neighbor)) {
-        circular.push(`${neighbor} -> ${node}`)
-        return true
-      }
-    }
-
-    recursionStack.delete(node)
-    return false
-  }
-
-  for (const node of graph.keys()) {
-    if (!visited.has(node)) {
-      hasCycle(node)
-    }
-  }
-
-  return circular
+  // Format cycles as readable strings (e.g., "A -> B -> C -> A")
+  return result.cycles.map(cycle => cycle.join(' -> '))
 }
 
 function validateDeadlineChange(a: Record<string, unknown>, errors: ValidationError[]): void {

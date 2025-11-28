@@ -4,7 +4,20 @@
  */
 
 import { validateAmendments, formatValidationErrors, ValidationResult } from './schema-generator'
-import { Amendment } from './amendment-types'
+import {
+  Amendment,
+  RawAmendment,
+  RawTimeLog,
+  RawDeadlineChange,
+  RawWorkPatternModification,
+  RawWorkSessionEdit,
+  TimeLog,
+  DeadlineChange,
+  WorkPatternModification,
+  WorkSessionEdit,
+} from './amendment-types'
+import { AmendmentType } from './enums'
+import { logger } from '../logger'
 
 export interface ValidationLoopOptions {
   maxAttempts?: number  // Default: 5
@@ -29,8 +42,12 @@ export function parseAIResponse(response: string): { amendments: unknown; rawTex
   try {
     const parsed = JSON.parse(response)
     return { amendments: parsed }
-  } catch (_e) {
+  } catch (e) {
     // Not pure JSON, try to extract JSON from text
+    logger.system.debug('AI response is not pure JSON, attempting extraction', {
+      responsePreview: response.substring(0, 100),
+      error: e instanceof Error ? e.message : String(e),
+    }, 'ai-parse-fallback')
   }
 
   // Look for JSON array in the response
@@ -43,8 +60,11 @@ export function parseAIResponse(response: string): { amendments: unknown; rawTex
         return { amendments, rawText }
       }
       return { amendments }
-    } catch (_e) {
-      // Failed to parse extracted JSON
+    } catch (e) {
+      logger.system.debug('Failed to parse JSON array extracted from response', {
+        extractedJson: jsonArrayMatch[0].substring(0, 200),
+        error: e instanceof Error ? e.message : String(e),
+      }, 'ai-parse-array-failed')
     }
   }
 
@@ -58,8 +78,11 @@ export function parseAIResponse(response: string): { amendments: unknown; rawTex
         return { amendments, rawText }
       }
       return { amendments }
-    } catch (_e) {
-      // Failed to parse code block JSON
+    } catch (e) {
+      logger.system.debug('Failed to parse JSON from code block', {
+        codeBlockContent: codeBlockMatch[1].substring(0, 200),
+        error: e instanceof Error ? e.message : String(e),
+      }, 'ai-parse-codeblock-failed')
     }
   }
 
@@ -110,7 +133,11 @@ export async function validateWithRetry(
       validationResults.push(validationResult)
 
       if (validationResult.valid) {
-        // Success!
+        // Success! Cast is safe here because:
+        // 1. `amendments` starts as `unknown` after JSON.parse()
+        // 2. validateAmendments() performs exhaustive runtime validation of the structure
+        // 3. When valid === true, we've confirmed it matches the Amendment[] schema
+        // This cast bridges the gap between runtime validation and TypeScript's static typing.
         return {
           success: true,
           amendments: amendments as Amendment[],
@@ -199,6 +226,118 @@ export function createUserErrorReport(result: ValidationLoopResult): string {
   }
 
   return report
+}
+
+// ============================================================================
+// TRANSFORMATION FUNCTIONS
+// Convert RawAmendment (string dates from AI) to Amendment (proper Date objects)
+// ============================================================================
+
+/**
+ * Safely parse a date string to Date object
+ * Returns undefined if parsing fails
+ */
+function safeParseDateString(dateStr: string | undefined): Date | undefined {
+  if (!dateStr) return undefined
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) {
+      logger.system.debug('Failed to parse date string', { dateStr }, 'date-parse-failed')
+      return undefined
+    }
+    return date
+  } catch (e) {
+    logger.system.debug('Exception parsing date string', {
+      dateStr,
+      error: e instanceof Error ? e.message : String(e),
+    }, 'date-parse-exception')
+    return undefined
+  }
+}
+
+/**
+ * Transform a single raw amendment to a proper Amendment with Date objects
+ */
+function transformAmendment(raw: RawAmendment): Amendment {
+  switch (raw.type) {
+    case AmendmentType.TimeLog: {
+      const rawTimeLog = raw as RawTimeLog
+      const transformed: TimeLog = {
+        ...rawTimeLog,
+        date: safeParseDateString(rawTimeLog.date),
+        startTime: safeParseDateString(rawTimeLog.startTime),
+        endTime: safeParseDateString(rawTimeLog.endTime),
+      }
+      return transformed
+    }
+
+    case AmendmentType.DeadlineChange: {
+      const rawDeadline = raw as RawDeadlineChange
+      const newDeadline = safeParseDateString(rawDeadline.newDeadline)
+      if (!newDeadline) {
+        logger.system.warn('DeadlineChange has invalid deadline, using current date', {
+          rawDeadline: rawDeadline.newDeadline,
+        }, 'deadline-fallback')
+      }
+      const transformed: DeadlineChange = {
+        ...rawDeadline,
+        newDeadline: newDeadline || new Date(),
+      }
+      return transformed
+    }
+
+    case AmendmentType.WorkPatternModification: {
+      const rawPattern = raw as RawWorkPatternModification
+      const date = safeParseDateString(rawPattern.date)
+      if (!date) {
+        logger.system.warn('WorkPatternModification has invalid date, using current date', {
+          rawDate: rawPattern.date,
+        }, 'work-pattern-date-fallback')
+      }
+      const transformed: WorkPatternModification = {
+        ...rawPattern,
+        date: date || new Date(),
+        blockData: rawPattern.blockData ? {
+          ...rawPattern.blockData,
+          startTime: safeParseDateString(rawPattern.blockData.startTime) || new Date(),
+          endTime: safeParseDateString(rawPattern.blockData.endTime) || new Date(),
+        } : undefined,
+        meetingData: rawPattern.meetingData ? {
+          ...rawPattern.meetingData,
+          startTime: safeParseDateString(rawPattern.meetingData.startTime) || new Date(),
+          endTime: safeParseDateString(rawPattern.meetingData.endTime) || new Date(),
+        } : undefined,
+      }
+      return transformed
+    }
+
+    case AmendmentType.WorkSessionEdit: {
+      const rawSession = raw as RawWorkSessionEdit
+      const transformed: WorkSessionEdit = {
+        ...rawSession,
+        startTime: safeParseDateString(rawSession.startTime),
+        endTime: safeParseDateString(rawSession.endTime),
+      }
+      return transformed
+    }
+
+    // Types without date fields pass through unchanged
+    default:
+      return raw as Amendment
+  }
+}
+
+/**
+ * Transform an array of raw amendments to proper Amendment objects
+ * This is the main entry point for the transformation pipeline:
+ *
+ * Flow: AI Response (text) → parseAIResponse() → RawAmendment[] → transformAmendments() → Amendment[]
+ *
+ * @param rawAmendments - Array of raw amendments from AI (with string dates)
+ * @returns Array of transformed amendments (with Date objects)
+ */
+export function transformAmendments(rawAmendments: RawAmendment[]): Amendment[] {
+  return rawAmendments.map(transformAmendment)
 }
 
 /**

@@ -1018,21 +1018,9 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
         case AmendmentType.WorkPatternModification: {
           const mod = amendment as WorkPatternModification
 
-          // Parse date carefully to avoid timezone issues
-          // AI may send ISO strings like "2025-11-25T19:30:00Z" - extract date part BEFORE timezone conversion
-          let dateStr: string
-          if (typeof mod.date === 'string') {
-            if (mod.date.includes('T')) {
-              // ISO string - extract YYYY-MM-DD before the 'T' to avoid UTC→local shift
-              dateStr = mod.date.split('T')[0]
-            } else {
-              // Already a date string like "2025-11-25"
-              dateStr = mod.date
-            }
-          } else {
-            // Date object - use local date extraction
-            dateStr = dateToYYYYMMDD(mod.date)
-          }
+          // Date is now always a proper Date object after transformation in amendment-validator.ts
+          // Use local date extraction to get YYYY-MM-DD string
+          const dateStr = dateToYYYYMMDD(mod.date)
 
           logger.ui.info('WorkPatternModification processing', {
             operation: mod.operation,

@@ -230,7 +230,7 @@ async function callClaudeAPI(messages: ChatMessage[]): Promise<string> {
   const result = await db.callAI({
     systemPrompt: systemMessage?.content || '',
     messages: conversationMessages.map(m => ({
-      role: m.role === ChatMessageRole.User ? 'user' : 'assistant',
+      role: m.role === ChatMessageRole.User ? ChatMessageRole.User : ChatMessageRole.Assistant,
       content: m.content,
     })),
     model: 'claude-opus-4-5-20251101',

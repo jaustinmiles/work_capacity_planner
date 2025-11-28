@@ -19,10 +19,12 @@ import {
   PriorityChange,
   TypeChange,
   TaskType,
+  WorkflowCreation,
 } from '../../../shared/amendment-types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { logger } from '@/logger'
 import { DependencyEditor } from '../shared/DependencyEditor'
+import { WorkflowAmendmentPreview } from '../shared/WorkflowAmendmentPreview'
 import { applyAmendments } from '../../utils/amendment-applicator'
 
 
@@ -657,31 +659,7 @@ export function VoiceAmendmentModal({
         )
       }
       case AmendmentType.WorkflowCreation: {
-        const workflowCreation = amendment as any // WorkflowCreation type
-        return (
-          <Space direction="vertical" size={4}>
-            <Space>
-              <Text>Create workflow:</Text>
-              <Text bold>{workflowCreation.name}</Text>
-            </Space>
-            <Text type="secondary">Steps: {workflowCreation.steps?.length || 0}</Text>
-            <Text type="secondary">
-              Priority: {workflowCreation.importance || 'Default'}/{workflowCreation.urgency || 'Default'}
-            </Text>
-            {workflowCreation.steps && workflowCreation.steps.length > 0 && (
-              <div style={{ marginLeft: 16 }}>
-                {workflowCreation.steps.slice(0, 3).map((step: any, index: number) => (
-                  <Text key={index} type="secondary" style={{ display: 'block' }}>
-                    • {step.name} ({step.duration}m)
-                  </Text>
-                ))}
-                {workflowCreation.steps.length > 3 && (
-                  <Text type="secondary">... and {workflowCreation.steps.length - 3} more steps</Text>
-                )}
-              </div>
-            )}
-          </Space>
-        )
+        return <WorkflowAmendmentPreview amendment={amendment as WorkflowCreation} mode="compact" />
       }
       default:
         logger.ui.error('Unknown amendment type', {

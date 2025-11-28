@@ -14,72 +14,26 @@ import {
   Select,
   Card,
   Tag,
-  Typography,
 } from '@arco-design/web-react'
 import { IconSend, IconRobot, IconUser, IconRefresh } from '@arco-design/web-react/icon'
 import { useBrainstormChatStore, ChatStatus } from '../../store/useBrainstormChatStore'
 import { ChatMessageRole, AmendmentType } from '@shared/enums'
 import { Amendment, WorkflowCreation } from '@shared/amendment-types'
+import { WorkflowAmendmentPreview } from '../shared/WorkflowAmendmentPreview'
 import { sendChatMessage, generateAmendments } from '../../services/brainstorm-chat-ai'
 import { applyAmendments, ApplyAmendmentsResult } from '../../utils/amendment-applicator'
 import { IconCheck, IconClose } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { JobContextData } from '../../services/chat-context-provider'
 import { formatDateStringForDisplay } from '@shared/time-utils'
+import { logger } from '@/logger'
 
 const { TextArea } = Input
 const { Option } = Select
-const { Text } = Typography
 
 interface BrainstormChatProps {
   visible: boolean
   onClose: () => void
-}
-
-/**
- * Expanded preview component for workflow amendments
- * Shows step details, durations, async waits, and dependencies
- */
-function WorkflowAmendmentPreview({ amendment }: { amendment: WorkflowCreation }): React.ReactElement {
-  const totalDuration = amendment.steps.reduce((sum, step) => sum + step.duration, 0)
-  const totalAsyncWait = amendment.steps.reduce((sum, step) => sum + (step.asyncWaitTime || 0), 0)
-
-  return (
-    <div style={{ marginTop: 8 }}>
-      <div style={{ marginBottom: 8 }}>
-        <Text bold>{amendment.name}</Text>
-        {amendment.description && (
-          <Text type="secondary" style={{ marginLeft: 8 }}>
-            — {amendment.description}
-          </Text>
-        )}
-      </div>
-
-      <div style={{ marginBottom: 8, paddingLeft: 8, borderLeft: '2px solid var(--color-border-2)' }}>
-        {amendment.steps.map((step, idx) => (
-          <div key={idx} style={{ marginBottom: 4, fontSize: 13 }}>
-            <Text>
-              {idx + 1}. {step.name}
-            </Text>
-            <Text type="secondary"> ({step.duration}min)</Text>
-            {(step.asyncWaitTime ?? 0) > 0 && (
-              <Text type="warning"> + {step.asyncWaitTime}min wait</Text>
-            )}
-            {step.dependsOn && step.dependsOn.length > 0 && (
-              <Text type="secondary"> → after: {step.dependsOn.join(', ')}</Text>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <Space size="small">
-        <Tag color="gray">Total: {totalDuration}min active</Tag>
-        {totalAsyncWait > 0 && <Tag color="gold">{totalAsyncWait}min async</Tag>}
-        <Tag color="orange">Importance: {amendment.importance}/10</Tag>
-        <Tag color="red">Urgency: {amendment.urgency}/10</Tag>
-      </Space>
-    </div>
-  )
 }
 
 export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React.ReactElement {
@@ -204,11 +158,10 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
         })),
         jobContext: currentJobContext || undefined,
         onProgress: (statusMsg) => {
-          // Could show this in UI if desired
-          console.log(statusMsg)
+          logger.ui.debug('Amendment generation progress', { statusMsg }, 'brainstorm-progress')
         },
         onRetry: (attempt, errors) => {
-          console.log(`Retry attempt ${attempt}:`, errors)
+          logger.ui.debug('Amendment generation retry', { attempt, errors }, 'brainstorm-retry')
         },
       })
 

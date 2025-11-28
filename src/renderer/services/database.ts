@@ -1,4 +1,4 @@
-import { Task, Session } from '@shared/types'
+import { Task, Session, AICallOptions } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
 
@@ -187,12 +187,7 @@ declare global {
           summary: string
         }>>
         parseAmendment: (transcription: string, __context: any) => Promise<any>
-        callAI: (options: {
-          systemPrompt: string
-          messages: Array<{ role: 'user' | 'assistant'; content: string }>
-          model?: string
-          maxTokens?: number
-        }) => Promise<{ content: string }>
+        callAI: (options: AICallOptions) => Promise<{ content: string }>
       }
       speech: {
         transcribeAudio: (audioFilePath: string, __options?: any) => Promise<{
@@ -416,12 +411,7 @@ export class RendererDatabaseService {
     return await window.electronAPI.ai.extractJargonTerms(contextText)
   }
 
-  async callAI(options: {
-    systemPrompt: string
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>
-    model?: string
-    maxTokens?: number
-  }) {
+  async callAI(options: AICallOptions) {
     return await window.electronAPI.ai.callAI(options)
   }
 

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { TaskType } from '../shared/enums'
 import { TaskStep } from './sequencing-types'
+import { AICallOptions } from './types'
 import { logger } from '../logger'
 
 /**
@@ -990,12 +991,7 @@ Make questions specific and actionable. Avoid generic questions.
    * Generic AI call for brainstorm chat
    * Supports multi-turn conversations with system prompts
    */
-  async callAI(options: {
-    systemPrompt: string
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>
-    model?: string
-    maxTokens?: number
-  }): Promise<{ content: string }> {
+  async callAI(options: AICallOptions): Promise<{ content: string }> {
     const model = options.model || 'claude-sonnet-4-5-20250929'
     const maxTokens = options.maxTokens || 8000
 

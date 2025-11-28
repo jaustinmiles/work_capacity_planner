@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { validateAmendment, validateAmendments, formatValidationErrors } from '../schema-generator'
-import { AmendmentType, EntityType, TaskStatus, TaskType, WorkPatternOperation, WorkSessionOperation } from '../enums'
+import { AmendmentType, EntityType, TaskStatus, TaskType, WorkPatternOperation, WorkSessionOperation, DeadlineType } from '../enums'
 
 describe('schema-generator', () => {
   describe('validateAmendment', () => {
@@ -174,6 +174,235 @@ describe('schema-generator', () => {
 
       const result = validateAmendment(amendment)
       expect(result.valid).toBe(true)
+    })
+
+    it('should validate TimeLog', () => {
+      const amendment = {
+        type: AmendmentType.TimeLog,
+        target: {
+          type: EntityType.Task,
+          name: 'My Task',
+          confidence: 0.95,
+        },
+        duration: 45,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject TimeLog with negative duration', () => {
+      const amendment = {
+        type: AmendmentType.TimeLog,
+        target: {
+          type: EntityType.Task,
+          name: 'My Task',
+          confidence: 0.95,
+        },
+        duration: -30, // Invalid
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'duration')).toBe(true)
+    })
+
+    it('should validate NoteAddition', () => {
+      const amendment = {
+        type: AmendmentType.NoteAddition,
+        target: {
+          type: EntityType.Task,
+          name: 'Task with notes',
+          confidence: 1.0,
+        },
+        note: 'This is an important note',
+        append: true,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject NoteAddition with empty note', () => {
+      const amendment = {
+        type: AmendmentType.NoteAddition,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        note: '', // Invalid: empty
+        append: true,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'note')).toBe(true)
+    })
+
+    it('should validate DurationChange', () => {
+      const amendment = {
+        type: AmendmentType.DurationChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        newDuration: 120,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should validate StepAddition', () => {
+      const amendment = {
+        type: AmendmentType.StepAddition,
+        workflowTarget: {
+          type: EntityType.Workflow,
+          name: 'My Workflow',
+          confidence: 1.0,
+        },
+        stepName: 'New Step',
+        duration: 30,
+        stepType: TaskType.Focused,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should validate StepRemoval', () => {
+      const amendment = {
+        type: AmendmentType.StepRemoval,
+        workflowTarget: {
+          type: EntityType.Workflow,
+          name: 'My Workflow',
+          confidence: 1.0,
+        },
+        stepName: 'Obsolete Step',
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should validate DependencyChange', () => {
+      const amendment = {
+        type: AmendmentType.DependencyChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Dependent Task',
+          confidence: 1.0,
+        },
+        stepName: 'Step 2',
+        addDependencies: ['Step 1'],
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should validate DeadlineChange', () => {
+      const amendment = {
+        type: AmendmentType.DeadlineChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Deadline Task',
+          confidence: 1.0,
+        },
+        newDeadline: new Date('2025-12-31'),
+        deadlineType: DeadlineType.Hard,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject DeadlineChange without deadline', () => {
+      const amendment = {
+        type: AmendmentType.DeadlineChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        // Missing newDeadline
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'newDeadline')).toBe(true)
+    })
+
+    it('should validate PriorityChange', () => {
+      const amendment = {
+        type: AmendmentType.PriorityChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Priority Task',
+          confidence: 1.0,
+        },
+        importance: 8,
+        urgency: 9,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject PriorityChange with out-of-range values', () => {
+      const amendment = {
+        type: AmendmentType.PriorityChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        importance: 15, // Invalid: must be 1-10
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'importance')).toBe(true)
+    })
+
+    it('should validate TypeChange', () => {
+      const amendment = {
+        type: AmendmentType.TypeChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Type Task',
+          confidence: 1.0,
+        },
+        newType: TaskType.Admin,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should validate QueryResponse', () => {
+      const amendment = {
+        type: AmendmentType.QueryResponse,
+        query: 'What are my top priorities?',
+        response: 'Your top priorities are...',
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject QueryResponse without response', () => {
+      const amendment = {
+        type: AmendmentType.QueryResponse,
+        query: 'What tasks are due?',
+        // Missing response
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'response')).toBe(true)
     })
 
     it('should reject amendment if not an object', () => {
