@@ -5,7 +5,7 @@ import { getAIService } from '../shared/ai-service'
 import { getSpeechService } from '../shared/speech-service'
 import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
-import type { Task } from '../shared/types'
+import type { Task, AICallOptions } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
 
 // Get scoped logger for main process
@@ -310,6 +310,11 @@ ipcMain.handle('ai:getJobContextualQuestions', async (_event: IpcMainInvokeEvent
 ipcMain.handle('ai:extractScheduleFromVoice', async (_event: IpcMainInvokeEvent, voiceText: string, targetDate: string) => {
   const aiService = getAIService()
   return await aiService.extractScheduleFromVoice(voiceText, targetDate)
+})
+
+ipcMain.handle('ai:callAI', async (_event: IpcMainInvokeEvent, options: AICallOptions) => {
+  const aiService = getAIService()
+  return await aiService.callAI(options)
 })
 
 ipcMain.handle('ai:extractMultiDayScheduleFromVoice', async (_event: IpcMainInvokeEvent, voiceText: string, startDate: string) => {

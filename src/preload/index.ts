@@ -1,4 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron')
+import type { AICallOptions } from '../shared/types'
 
 // Don't use logger in preload - it runs in a special context
 
@@ -85,6 +86,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     extractScheduleFromVoice: (voiceText: string, targetDate: string) => ipcRenderer.invoke('ai:extractScheduleFromVoice', voiceText, targetDate),
     extractMultiDayScheduleFromVoice: (voiceText: string, startDate: string) => ipcRenderer.invoke('ai:extractMultiDayScheduleFromVoice', voiceText, startDate),
     parseAmendment: (transcription: string, context: any) => ipcRenderer.invoke('ai:parseAmendment', transcription, context),
+    callAI: (options: AICallOptions) => ipcRenderer.invoke('ai:callAI', options),
   },
 
   // Speech operations

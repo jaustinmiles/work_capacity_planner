@@ -248,3 +248,8 @@ export function fixBrokenDependencies(
     }),
   }))
 }
+
+// Re-export validateWorkflowDependencies and StepDefinition from graph-utils for backwards compatibility
+// This function now lives in graph-utils.ts alongside other dependency graph algorithms
+export { validateWorkflowDependencies } from './graph-utils'
+export type { StepDefinition } from './graph-utils'

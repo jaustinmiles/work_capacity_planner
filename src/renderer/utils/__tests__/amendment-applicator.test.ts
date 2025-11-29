@@ -30,7 +30,7 @@ const mockDatabase = {
   addStepToWorkflow: vi.fn(),
   getStepWorkSessions: vi.fn(),
   createStepWorkSession: vi.fn(),
-  // Add missing methods needed by useTaskStore
+  // Add missing methods needed by useTaskStore and target resolution
   getTasks: vi.fn().mockResolvedValue([]),
   getSequencedTasks: vi.fn().mockResolvedValue([]),
 }
@@ -149,9 +149,13 @@ describe('Amendment Applicator', () => {
         newStatus: 'completed',
       }
 
-      await applyAmendments([amendment])
+      const result = await applyAmendments([amendment])
 
-      expect(Message.warning).toHaveBeenCalledWith('Cannot update Unknown Task - not found')
+      // Error is now recorded in results array via markFailed() instead of Message.warning
+      expect(result.errorCount).toBe(1)
+      expect(result.results[0].success).toBe(false)
+      expect(result.results[0].message).toContain('Unknown Task')
+      expect(result.results[0].message).toContain('not found')
       expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
     })
   })
@@ -788,10 +792,14 @@ describe('Amendment Applicator', () => {
         ],
       })
 
-      await applyAmendments([amendment])
+      const result = await applyAmendments([amendment])
 
       expect(mockDatabase.updateTaskStepProgress).not.toHaveBeenCalled()
-      expect(Message.warning).toHaveBeenCalledWith('Step "Nonexistent Step" not found in workflow')
+      // Error is now recorded in results array via markFailed() instead of Message.warning
+      expect(result.errorCount).toBe(1)
+      expect(result.results[0].success).toBe(false)
+      expect(result.results[0].message).toContain('Nonexistent Step')
+      expect(result.results[0].message).toContain('not found')
       expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
     })
 
@@ -814,10 +822,14 @@ describe('Amendment Applicator', () => {
         steps: [],
       })
 
-      await applyAmendments([amendment])
+      const result = await applyAmendments([amendment])
 
       expect(mockDatabase.updateTaskStepProgress).not.toHaveBeenCalled()
-      expect(Message.warning).toHaveBeenCalledWith('Step "Some Step" not found in workflow')
+      // Error is now recorded in results array via markFailed() instead of Message.warning
+      expect(result.errorCount).toBe(1)
+      expect(result.results[0].success).toBe(false)
+      expect(result.results[0].message).toContain('Some Step')
+      expect(result.results[0].message).toContain('not found')
     })
   })
 

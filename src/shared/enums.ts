@@ -69,7 +69,7 @@ export enum WorkBlockType {
   Sleep = 'sleep',
 }
 
-// Amendment types for voice amendments
+// Amendment types for voice amendments and brainstorm chat
 export enum AmendmentType {
   StatusUpdate = 'status_update',
   TimeLog = 'time_log',
@@ -83,6 +83,51 @@ export enum AmendmentType {
   DeadlineChange = 'deadline_change',
   PriorityChange = 'priority_change',
   TypeChange = 'type_change',
+  WorkPatternModification = 'work_pattern_modification',
+  WorkSessionEdit = 'work_session_edit',
+  ArchiveToggle = 'archive_toggle',
+  QueryResponse = 'query_response',
+}
+
+// Work pattern modification operations
+export enum WorkPatternOperation {
+  AddBlock = 'add_block',
+  RemoveBlock = 'remove_block',
+  ModifyBlock = 'modify_block',
+  AddMeeting = 'add_meeting',
+  RemoveMeeting = 'remove_meeting',
+  ModifyMeeting = 'modify_meeting',
+}
+
+// Work session edit operations
+export enum WorkSessionOperation {
+  Create = 'create',
+  Update = 'update',
+  Delete = 'delete',
+  Split = 'split',
+}
+
+// Chat message roles for brainstorm chat
+export enum ChatMessageRole {
+  User = 'user',
+  Assistant = 'assistant',
+  System = 'system',
+}
+
+// Recurring pattern types for meetings and work blocks
+export enum RecurringPattern {
+  None = 'none',
+  Daily = 'daily',
+  Weekly = 'weekly',
+  Custom = 'custom',
+}
+
+// Amendment status tracking
+export enum AmendmentStatus {
+  Pending = 'pending',
+  Applied = 'applied',
+  Rejected = 'rejected',
+  Error = 'error',
 }
 
 // Entity types for amendments
@@ -149,52 +194,23 @@ export enum AIProcessingMode {
   Workflows = 'workflows',
 }
 
-/**
- * Helper function to ensure exhaustive checks in switch statements
- * Usage:
- * ```
- * switch (status) {
- *   case TaskStatus.NotStarted:
- *     return 'gray'
- *   case TaskStatus.InProgress:
- *     return 'blue'
- *   case TaskStatus.Waiting:
- *     return 'orange'
- *   case TaskStatus.Completed:
- *     return 'green'
- *   default:
- *     return assertNever(status)
- * }
- * ```
- */
-export function assertNever(value: never): never {
-  // Provide a more helpful error message for debugging
-  const displayValue = typeof value === 'object' && value !== null
-    ? JSON.stringify(value, null, 2)
-    : String(value)
-  throw new Error(`Unexpected value: ${displayValue}`)
+// Preview display modes for amendment components
+export enum PreviewMode {
+  Compact = 'compact',    // Truncated view for modals
+  Detailed = 'detailed',  // Full view with all steps and dependencies
 }
 
-/**
- * Type guard to check if a string is a valid enum value
- */
-export function isValidEnumValue<T extends Record<string, string>>(
-  enumObj: T,
-  value: string,
-): value is T[keyof T] {
-  return Object.values(enumObj).includes(value as T[keyof T])
+// JSON Schema primitive types (for schema generation/validation)
+export enum JsonSchemaType {
+  String = 'string',
+  Number = 'number',
+  Boolean = 'boolean',
+  Object = 'object',
+  Array = 'array',
+  Integer = 'integer',
+  Null = 'null',
 }
 
-/**
- * Safe enum parser with fallback
- */
-export function parseEnum<T extends Record<string, string>>(
-  enumObj: T,
-  value: string,
-  fallback: T[keyof T],
-): T[keyof T] {
-  if (isValidEnumValue(enumObj, value)) {
-    return value as T[keyof T]
-  }
-  return fallback
-}
+// Re-export enum utility functions from enum-utils.ts for backwards compatibility
+// These functions are now defined in enum-utils.ts to keep enums.ts focused on definitions
+export { assertNever, isValidEnumValue, parseEnum } from './enum-utils'
