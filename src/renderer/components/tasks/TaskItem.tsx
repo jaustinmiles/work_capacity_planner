@@ -23,9 +23,11 @@ const { Text } = Typography
 interface TaskItemProps {
   task: Task
   showUnarchive?: boolean
+  /** Step IDs that matched a search query - used for highlighting */
+  matchedStepIds?: string[] | undefined
 }
 
-export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
+export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskItemProps) {
   const { toggleTaskComplete, deleteTask, selectTask, updateTask, loadTasks } = useTaskStore()
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState(task.name)
@@ -436,6 +438,7 @@ export function TaskItem({ task, showUnarchive = false }: TaskItemProps) {
               criticalPathDuration: task.criticalPathDuration || task.duration,
               worstCaseDuration: task.worstCaseDuration || task.duration,
             } as SequencedTask}
+            highlightedStepIds={matchedStepIds}
           />
         </Modal>
       )}

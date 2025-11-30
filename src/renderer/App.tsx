@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconSoundFill, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -14,7 +14,7 @@ import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
 import { GanttChart } from './components/timeline/GanttChart'
 import { BrainstormChat } from './components/ai/BrainstormChat'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
-import { VoiceAmendmentModal } from './components/voice'
+// VoiceAmendmentModal removed - voice functionality now integrated into BrainstormChat
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from './components/settings/MultiDayScheduleEditor'
@@ -105,7 +105,6 @@ function App() {
   const [showSessionManager, setShowSessionManager] = useState(false)
   const [showWorkLoggerDual, setShowWorkLoggerDual] = useState(false)
   const [showTaskSlideshow, setShowTaskSlideshow] = useState(false)
-  const [voiceAmendmentVisible, setVoiceAmendmentVisible] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
 
   // Responsive breakpoints
@@ -692,11 +691,6 @@ function App() {
             onClose={() => setBrainstormModalVisible(false)}
           />
 
-          <VoiceAmendmentModal
-            visible={voiceAmendmentVisible}
-            onClose={() => setVoiceAmendmentVisible(false)}
-          />
-
           <TaskCreationFlow
             visible={taskCreationFlowVisible}
             onClose={handleTaskCreationComplete}
@@ -741,25 +735,7 @@ function App() {
             onClose={() => setTaskFormVisible(false)}
           />
 
-          {/* Floating Action Button for Voice Amendments */}
-          <Button
-            type="primary"
-            shape="circle"
-            size="large"
-            icon={<IconSoundFill />}
-            onClick={() => setVoiceAmendmentVisible(true)}
-            style={{
-              position: 'fixed',
-              bottom: 24,
-              right: 24,
-              width: 56,
-              height: 56,
-              boxShadow: '0 4px 12px rgba(22, 93, 255, 0.3)',
-              zIndex: 1000,
-            }}
-          />
-
-          {/* Floating Brain Button for AI Brainstorm */}
+          {/* Floating Brain Button for AI Brainstorm (includes voice input) */}
           <Button
             type="primary"
             shape="circle"

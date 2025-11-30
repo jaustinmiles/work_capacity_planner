@@ -52,6 +52,7 @@ interface SchedulerStoreState {
   }) => void
   setNextTaskSkipIndex: (index: number) => void
   recomputeSchedule: () => void
+  clearSchedule: () => void
 }
 
 const scheduler = new UnifiedScheduler()
@@ -429,6 +430,21 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         scheduleResult,
         scheduledItems,
         nextScheduledItem,
+      })
+    },
+
+    clearSchedule: () => {
+      logger.ui.info('Clearing schedule for session switch', {}, 'schedule-clear')
+      set({
+        tasks: [],
+        sequencedTasks: [],
+        workPatterns: [],
+        workSettings: null,
+        activeWorkSessions: new Set(),
+        scheduleResult: null,
+        scheduledItems: [],
+        nextScheduledItem: null,
+        nextTaskSkipIndex: 0,
       })
     },
   })),
