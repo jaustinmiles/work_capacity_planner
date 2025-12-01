@@ -26,6 +26,30 @@ import {
 
 let isConnected = false
 
+// Track previous state at module level so it can be reset on session switch
+let previousState = {
+  tasks: [] as Task[],
+  sequencedTasks: [] as SequencedTask[],
+  workSettings: null as WorkSettings | null,
+  activeWorkSessions: new Map() as Map<string, UnifiedWorkSession>,
+  nextTaskSkipIndex: 0,
+}
+
+/**
+ * Resets the store connector's previous state tracking.
+ * MUST be called before session switch to prevent stale data comparisons.
+ */
+export const resetStoreConnectorState = (): void => {
+  logger.ui.info('Resetting store connector state for session switch', {}, 'store-connector-reset')
+  previousState = {
+    tasks: [],
+    sequencedTasks: [],
+    workSettings: null,
+    activeWorkSessions: new Map(),
+    nextTaskSkipIndex: 0,
+  }
+}
+
 export const connectStores = () => {
   if (isConnected) {
     logger.ui.warn('Store connector already initialized', {}, 'store-connector')
@@ -39,16 +63,7 @@ export const connectStores = () => {
   // scheduler recomputation ONCE instead of 3+ times
   let taskStoreUpdateTimeout: NodeJS.Timeout | null = null
 
-  // Track previous state to detect which properties actually changed
-  // This preserves critical optimizations (e.g., activeWorkSessions-only changes
-  // don't trigger full schedule recomputation)
-  let previousState = {
-    tasks: [] as Task[],
-    sequencedTasks: [] as SequencedTask[],
-    workSettings: null as WorkSettings | null,
-    activeWorkSessions: new Map() as Map<string, UnifiedWorkSession>,
-    nextTaskSkipIndex: 0,
-  }
+  // Note: previousState is now at module level to allow reset on session switch
 
   const unsubTaskStore = useTaskStore.subscribe(
     (state) => ({

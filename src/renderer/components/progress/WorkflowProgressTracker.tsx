@@ -11,10 +11,13 @@ const { Row, Col } = Grid
 
 interface WorkflowProgressTrackerProps {
   workflow: SequencedTask
+  /** Step IDs that should be highlighted (e.g., from search results) */
+  highlightedStepIds?: string[] | undefined
 }
 
 export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = ({
   workflow,
+  highlightedStepIds,
 }) => {
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
   const [showTimeModal, setShowTimeModal] = useState<string | null>(null)
@@ -69,6 +72,7 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
     const progress = getStepProgress(step.id)
     const stepStats = getStepStats(step.id)
     const isExpanded = expandedSteps.has(step.id)
+    const isHighlighted = highlightedStepIds?.includes(step.id) ?? false
 
     const getStepStatusColor = () => {
       switch (step.status) {
@@ -78,13 +82,22 @@ export const WorkflowProgressTracker: React.FC<WorkflowProgressTrackerProps> = (
       }
     }
 
+    // Highlighted background takes precedence for search results visibility
+    const getBackgroundColor = () => {
+      if (isHighlighted) return '#FFFBE6' // Yellow highlight for search matches
+      if (step.status === 'completed') return '#F6FFED'
+      if (step.status === 'in_progress') return '#F0F9FF'
+      return undefined
+    }
+
     return (
       <Card
         key={step.id}
         style={{
           marginBottom: 8,
-          borderColor: getStepStatusColor(),
-          backgroundColor: step.status === 'completed' ? '#F6FFED' : step.status === 'in_progress' ? '#F0F9FF' : undefined,
+          borderColor: isHighlighted ? '#FAAD14' : getStepStatusColor(),
+          borderWidth: isHighlighted ? 2 : 1,
+          backgroundColor: getBackgroundColor(),
         }}
         hoverable
         onClick={() => toggleStepExpanded(step.id)}

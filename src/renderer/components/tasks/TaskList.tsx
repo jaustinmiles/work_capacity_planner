@@ -1,15 +1,16 @@
-import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select, Radio, Pagination, Switch } from '@arco-design/web-react'
-import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter, IconList, IconApps, IconEye, IconEyeInvisible } from '@arco-design/web-react/icon'
+import { Card, List, Typography, Empty, Space, Tag, Button, Progress, Popconfirm, Select, Radio, Pagination, Switch, Input } from '@arco-design/web-react'
+import { IconPlus, IconCheckCircle, IconClockCircle, IconDelete, IconCalendarClock, IconEdit, IconFilter, IconList, IconApps, IconEye, IconEyeInvisible, IconSearch } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
 import { TaskItem } from './TaskItem'
 import { TaskGridView } from './TaskGridView'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ScheduleGenerator } from '../schedule/ScheduleGenerator'
 import { TaskQuickEditModal } from './TaskQuickEditModal'
 import { logger } from '@/logger'
 import { TaskType } from '@shared/enums'
+import { searchTasks } from '@shared/search-utils'
 
 
 const { Title, Text } = Typography
@@ -26,6 +27,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20) // Show 20 tasks per page
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Initialize showArchived from localStorage
   const [showArchived, setShowArchived] = useState(() => {
@@ -42,11 +44,30 @@ export function TaskList({ onAddTask }: TaskListProps) {
   }
 
   // Apply task type filter
-  const filteredTasks = taskTypeFilter === 'all'
+  const typeFilteredTasks = taskTypeFilter === 'all'
     ? tasks
     : taskTypeFilter === 'work'
     ? tasks.filter(task => task.type === TaskType.Focused || task.type === TaskType.Admin)
     : tasks.filter(task => task.type === taskTypeFilter)
+
+  // Apply search filter and compute matched step IDs
+  const { filteredTasks, matchedStepIdsMap } = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return { filteredTasks: typeFilteredTasks, matchedStepIdsMap: new Map<string, string[]>() }
+    }
+
+    const searchResults = searchTasks(typeFilteredTasks, searchQuery)
+    const matchedTasks = searchResults.map(result => result.task)
+    const stepIdsMap = new Map<string, string[]>()
+
+    for (const result of searchResults) {
+      if (result.matchedStepIds.length > 0) {
+        stepIdsMap.set(result.task.id, result.matchedStepIds)
+      }
+    }
+
+    return { filteredTasks: matchedTasks, matchedStepIdsMap: stepIdsMap }
+  }, [typeFilteredTasks, searchQuery])
 
   // Separate tasks by status
   const incompleteTasks = filteredTasks.filter(task => !task.completed && !task.archived)
@@ -128,7 +149,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
       {/* Filters and View Mode */}
       <Card>
         <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Space style={{ alignItems: 'center' }}>
+          <Space style={{ alignItems: 'center', flexWrap: 'wrap' }}>
             <IconFilter style={{ fontSize: 16 }} />
             <Text style={{ whiteSpace: 'nowrap', minWidth: 100 }}>Filter by Type:</Text>
             <Select
@@ -149,7 +170,22 @@ export function TaskList({ onAddTask }: TaskListProps) {
               <Select.Option value={TaskType.Admin}>Admin Tasks</Select.Option>
               <Select.Option value={TaskType.Personal}>Personal Tasks</Select.Option>
             </Select>
-            {taskTypeFilter !== 'all' && (
+            <Input.Search
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(value) => {
+                setSearchQuery(value)
+                setCurrentPage(1) // Reset to first page when searching
+                logger.ui.info('Task search query changed', {
+                  query: value,
+                  resultCount: filteredTasks.length,
+                }, 'task-search')
+              }}
+              allowClear
+              style={{ width: 220 }}
+              prefix={<IconSearch />}
+            />
+            {(taskTypeFilter !== 'all' || searchQuery) && (
               <Text type="secondary">
                 Showing {filteredTasks.length} of {tasks.length} tasks
               </Text>
@@ -279,7 +315,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
             dataSource={sortedIncompleteTasks}
             render={(task) => (
               <List.Item key={task.id}>
-                <TaskItem task={task} />
+                <TaskItem task={task} matchedStepIds={matchedStepIdsMap.get(task.id)} />
               </List.Item>
             )}
           />
@@ -327,7 +363,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
             dataSource={archivedTasks}
             render={(task) => (
               <List.Item key={task.id}>
-                <TaskItem task={task} showUnarchive={true} />
+                <TaskItem task={task} showUnarchive={true} matchedStepIds={matchedStepIdsMap.get(task.id)} />
               </List.Item>
             )}
           />
@@ -348,7 +384,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
             dataSource={paginatedCompletedTasks}
             render={(task) => (
               <List.Item key={task.id}>
-                <TaskItem task={task} />
+                <TaskItem task={task} matchedStepIds={matchedStepIdsMap.get(task.id)} />
               </List.Item>
             )}
           />

@@ -27,6 +27,8 @@ import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
+import { useSchedulerStore } from '../../store/useSchedulerStore'
+import { resetStoreConnectorState } from '../../store/storeConnector'
 
 
 const { Title, Text } = Typography
@@ -73,6 +75,16 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
     try {
       const values = await form.validate()
       const db = getDatabase()
+
+      // CRITICAL: Clear all stores BEFORE creating/switching session
+      // This ensures no stale data from old session leaks into the new one
+      logger.ui.info('Clearing stores before session create', {
+        newSessionName: values.name,
+      }, 'session-create-clear')
+      resetStoreConnectorState()
+      useWorkPatternStore.getState().clearWorkPatterns()
+      useSchedulerStore.getState().clearSchedule()
+
       await db.createSession(values.name, values.description)
 
       Message.success('Session created and activated')
@@ -101,6 +113,17 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
         to: _session?.name || 'unknown',
         sessionId,
       })
+
+      // CRITICAL: Clear all stores BEFORE switching session
+      // This ensures no stale data from old session leaks into the new one
+      logger.ui.info('Clearing stores before session switch', {
+        fromSession: activeSession?.name,
+        toSession: _session?.name,
+      }, 'session-switch-clear')
+      resetStoreConnectorState()
+      useWorkPatternStore.getState().clearWorkPatterns()
+      useSchedulerStore.getState().clearSchedule()
+
       const db = getDatabase()
       await db.switchSession(sessionId)
 
@@ -158,7 +181,10 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       Message.success('Session deleted')
       await loadSessions()
 
-      // Refresh stores after deletion
+      // Clear stores to ensure no stale data, then refresh
+      resetStoreConnectorState()
+      useWorkPatternStore.getState().clearWorkPatterns()
+      useSchedulerStore.getState().clearSchedule()
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
       // Schedule will automatically recompute via reactive subscriptions

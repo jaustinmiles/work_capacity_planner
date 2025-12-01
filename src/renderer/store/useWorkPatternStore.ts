@@ -37,6 +37,7 @@ interface WorkPatternStoreState {
   loadWorkPatterns: () => Promise<void>
   setWorkPatterns: (patterns: DailyWorkPattern[]) => void
   refreshDerivedState: () => void
+  clearWorkPatterns: () => void
 }
 
 const findCurrentAndNextBlock = (
@@ -212,6 +213,20 @@ export const useWorkPatternStore = create<WorkPatternStoreState>()(
         nextBlock: next,
         accumulated,
         meetingMinutes,
+      })
+    },
+
+    clearWorkPatterns: () => {
+      logger.ui.info('Clearing work patterns for session switch', {}, 'work-patterns-clear')
+      set({
+        workPatterns: [],
+        isLoading: false,
+        error: null,
+        currentPattern: null,
+        currentBlock: null,
+        nextBlock: null,
+        accumulated: { focused: 0, admin: 0, personal: 0 },
+        meetingMinutes: 0,
       })
     },
   })),

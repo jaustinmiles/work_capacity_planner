@@ -1149,7 +1149,7 @@ export class DatabaseService {
   async getWorkPatterns(): Promise<any[]> {
     const sessionId = await this.getActiveSession()
     dbLogger.debug('getWorkPatterns - Looking for patterns', { sessionId })
-    let patterns = await this.client.workPattern.findMany({
+    const patterns = await this.client.workPattern.findMany({
       where: {
         sessionId,
         isTemplate: false,
@@ -1161,25 +1161,12 @@ export class DatabaseService {
       orderBy: { date: 'desc' },
     })
 
-    // If no patterns found for current session, get ALL patterns as fallback
-    if (patterns.length === 0) {
-      dbLogger.debug('getWorkPatterns - No patterns for current session, fetching ALL patterns')
-      patterns = await this.client.workPattern.findMany({
-        where: {
-          isTemplate: false,
-        },
-        include: {
-          WorkBlock: true,
-          WorkMeeting: true,
-        },
-        orderBy: { date: 'desc' },
-      })
-      if (patterns.length > 0) {
-        dbLogger.debug('getWorkPatterns - Found patterns from other sessions', { count: patterns.length })
-      }
-    } else {
-      dbLogger.debug('getWorkPatterns - Found patterns for current session', { count: patterns.length })
-    }
+    // Session isolation: Return only current session's patterns
+    // Empty result is correct behavior for new sessions - user should create their own patterns
+    dbLogger.debug('getWorkPatterns - Found patterns for current session', {
+      count: patterns.length,
+      sessionId,
+    })
 
     return patterns.map(pattern => ({
       ...pattern,
@@ -2265,15 +2252,25 @@ export class DatabaseService {
   }
 
   async getWorkSessionsForTask(taskId: string): Promise<any[]> {
+    // Session isolation: Only return work sessions if task belongs to current session
+    const sessionId = await this.getActiveSession()
+
     return this.client.workSession.findMany({
-      where: { taskId },
+      where: {
+        taskId,
+        // Filter through Task relationship to ensure session isolation
+        Task: {
+          sessionId,
+        },
+      },
       orderBy: { startTime: 'desc' },
     })
   }
 
   async getWorkSessions(date: string): Promise<any[]> {
-    // Get all work sessions for the given date
-    // This includes both pattern-based sessions and standalone sessions
+    // Get work sessions for the given date, filtered by current session
+    // Session isolation: Only return work sessions for tasks belonging to current session
+    const sessionId = await this.getActiveSession()
     const { startOfDay, endOfDay } = this.getLocalDateRange(date)
 
     const sessions = await this.client.workSession.findMany({
@@ -2282,11 +2279,21 @@ export class DatabaseService {
           gte: startOfDay,
           lte: endOfDay,
         },
+        // Session isolation: Filter through Task relationship
+        Task: {
+          sessionId,
+        },
       },
       include: {
         Task: true,
       },
       orderBy: { startTime: 'asc' },
+    })
+
+    dbLogger.debug('getWorkSessions - Session-filtered results', {
+      date,
+      sessionId,
+      count: sessions.length,
     })
 
     return sessions

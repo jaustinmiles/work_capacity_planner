@@ -15,7 +15,7 @@ import {
   Card,
   Tag,
 } from '@arco-design/web-react'
-import { IconSend, IconRobot, IconUser, IconRefresh } from '@arco-design/web-react/icon'
+import { IconSend, IconRobot, IconUser, IconRefresh, IconVoice, IconPause } from '@arco-design/web-react/icon'
 import { useBrainstormChatStore, ChatStatus } from '../../store/useBrainstormChatStore'
 import { ChatMessageRole, AmendmentType } from '@shared/enums'
 import { Amendment, WorkflowCreation } from '@shared/amendment-types'
@@ -27,6 +27,7 @@ import { getDatabase } from '../../services/database'
 import { JobContextData } from '../../services/chat-context-provider'
 import { formatDateStringForDisplay } from '@shared/time-utils'
 import { logger } from '@/logger'
+import { useVoiceRecording } from '../../hooks/useVoiceRecording'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -110,6 +111,27 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
   const [selectedContextId, setSelectedContextId] = useState<string | null>(null)
   const [applyResults, setApplyResults] = useState<ApplyAmendmentsResult | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Voice recording integration - transcribed text goes to input
+  const {
+    recordingState,
+    isTranscribing,
+    recordingDuration,
+    error: voiceError,
+    startRecording,
+    stopRecording,
+  } = useVoiceRecording({
+    transcriptionPrompt: 'Task planning brainstorm conversation',
+    onTranscriptionComplete: (text) => {
+      // Insert transcribed text into input field
+      setInputValue(prev => prev ? `${prev} ${text}` : text)
+      logger.ui.info('Voice transcription complete', { textLength: text.length }, 'voice-transcription')
+    },
+    onError: (error) => {
+      setError(error)
+      logger.ui.error('Voice recording error', { error }, 'voice-error')
+    },
+  })
 
   // Load job contexts on mount
   useEffect(() => {
@@ -408,12 +430,48 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
             autoSize={{ minRows: 2, maxRows: 6 }}
           />
 
+          {/* Voice recording indicator */}
+          {(recordingState === 'recording' || isTranscribing) && (
+            <Alert
+              type="info"
+              content={
+                isTranscribing
+                  ? 'Transcribing audio...'
+                  : `Recording: ${recordingDuration}s - Click stop when done`
+              }
+              style={{ marginBottom: 8 }}
+            />
+          )}
+
+          {/* Voice error */}
+          {voiceError && (
+            <Alert type="error" content={voiceError} closable style={{ marginBottom: 8 }} />
+          )}
+
           <Space>
+            {/* Voice input toggle */}
+            <Button
+              type={recordingState === 'recording' ? 'primary' : 'default'}
+              status={recordingState === 'recording' ? 'danger' : undefined}
+              icon={recordingState === 'recording' ? <IconPause /> : <IconVoice />}
+              onClick={() => {
+                if (recordingState === 'recording') {
+                  stopRecording()
+                } else {
+                  startRecording()
+                }
+              }}
+              disabled={status !== ChatStatus.Idle || isTranscribing}
+              loading={isTranscribing}
+            >
+              {recordingState === 'recording' ? 'Stop' : 'Voice'}
+            </Button>
+
             <Button
               type="primary"
               icon={<IconSend />}
               onClick={handleSendMessage}
-              disabled={!inputValue.trim() || status !== ChatStatus.Idle}
+              disabled={!inputValue.trim() || status !== ChatStatus.Idle || recordingState === 'recording'}
               loading={status === ChatStatus.Processing}
             >
               Send
