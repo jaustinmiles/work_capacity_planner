@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SwimLaneTimeline } from '../SwimLaneTimeline'
 import { WorkSessionData } from '@shared/types'
-import { TaskType } from '@shared/enums'
 import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
 
 // Helper function to render with ResponsiveProvider
@@ -25,7 +24,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
       importance: 5,
       urgency: 5,
       duration: 60,
-      type: TaskType.Focused,
+      type: 'focused',
       completed: false,
     },
   ]
@@ -321,7 +320,7 @@ describe('SwimLaneTimeline - Circadian Rhythm', () => {
             importance: 5,
             urgency: 5,
             duration: 30,
-            type: TaskType.Admin,
+            type: 'admin',
             completed: false,
           }]}
           onSessionUpdate={mockOnSessionUpdate}

@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { parseAIResponse, validateWithRetry, transformAmendments } from '../amendment-validator'
-import { AmendmentType, TaskType, WorkPatternOperation, WorkSessionOperation, WorkBlockType } from '../enums'
+import { AmendmentType, WorkPatternOperation, WorkSessionOperation, WorkBlockType } from '../enums'
 import type { RawTimeLog, RawDeadlineChange, RawWorkPatternModification, RawWorkSessionEdit } from '../amendment-types'
 
 describe('amendment-validator', () => {
@@ -268,7 +268,7 @@ Let me know if you need changes.`
         type: AmendmentType.TaskCreation,
         name: 'New Task',
         duration: 60,
-        taskType: TaskType.Focused,
+        taskType: 'focused',
       }
 
       const transformed = transformAmendments([taskCreation as any])

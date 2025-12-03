@@ -3,6 +3,15 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { TaskStepItem } from '../TaskStepItem'
 import { TaskStep } from '@shared/sequencing-types'
 
+// Mock the user task types store
+vi.mock('../../../store/useUserTaskTypeStore', () => ({
+  useSortedUserTaskTypes: () => [
+    { id: 'focused', name: 'Focused', color: 'blue', emoji: '🎯' },
+    { id: 'admin', name: 'Admin', color: 'green', emoji: '📋' },
+    { id: 'personal', name: 'Personal', color: 'orange', emoji: '🏠' },
+  ],
+}))
+
 describe('Workflow Step Completion UI', () => {
   const mockStep: TaskStep = {
     id: 'step-1',
@@ -37,7 +46,7 @@ describe('Workflow Step Completion UI', () => {
 
       expect(screen.getByText('Test Step')).toBeTruthy()
       expect(screen.getByText('1h')).toBeTruthy() // Duration
-      expect(screen.getByText('Focused Work')).toBeTruthy() // Type
+      expect(screen.getByText('🎯 Focused')).toBeTruthy() // Type (from user-defined types)
     })
 
     it('should show Start button for pending steps', () => {

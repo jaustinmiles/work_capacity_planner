@@ -1,8 +1,8 @@
 import { Table, Tag, Button, Space, Dropdown, Menu, Typography, Input, Select, Card } from '@arco-design/web-react'
 import { IconEdit, IconDelete, IconCheckCircle, IconClockCircle, IconMore } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
-import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { Message } from '../common/Message'
 import { useState, useEffect } from 'react'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
@@ -17,6 +17,7 @@ interface TaskGridViewProps {
 
 export function TaskGridView({ tasks }: TaskGridViewProps) {
   const { updateTask, deleteTask } = useTaskStore()
+  const userTypes = useSortedUserTaskTypes()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [editModalVisible, setEditModalVisible] = useState(false)
   const [editingCell, setEditingCell] = useState<{ taskId: string; field: string } | null>(null)
@@ -72,14 +73,16 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
     setEditModalVisible(true)
   }
 
-  const getTaskTypeTag = (type: TaskType) => {
-    const typeConfig = {
-      [TaskType.Focused]: { color: 'blue', text: 'Focused' },
-      [TaskType.Admin]: { color: 'orange', text: 'Admin' },
-      [TaskType.Personal]: { color: 'green', text: 'Personal' },
+  const getTaskTypeTag = (typeId: string) => {
+    const userType = userTypes.find(t => t.id === typeId)
+    if (userType) {
+      return (
+        <Tag color={userType.color || 'gray'} size="small">
+          {userType.emoji && `${userType.emoji} `}{userType.name}
+        </Tag>
+      )
     }
-    const config = typeConfig[type] || { color: 'gray', text: type }
-    return <Tag color={config.color} size="small">{config.text}</Tag>
+    return typeId ? <Tag color="gray" size="small">{typeId}</Tag> : null
   }
 
   const getStatusIcon = (task: Task) => {
@@ -147,14 +150,13 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       dataIndex: 'type',
       key: 'type',
       width: 100,
-      render: (type: TaskType) => getTaskTypeTag(type),
-      filters: [
-        { text: 'Focused', value: TaskType.Focused },
-        { text: 'Admin', value: TaskType.Admin },
-        { text: 'Personal', value: TaskType.Personal },
-      ],
-      onFilter: (value: TaskType, record: Task) => record.type === value,
-      sorter: (a: Task, b: Task) => a.type.localeCompare(b.type),
+      render: (type: string) => getTaskTypeTag(type),
+      filters: userTypes.map(ut => ({
+        text: ut.emoji ? `${ut.emoji} ${ut.name}` : ut.name,
+        value: ut.id,
+      })),
+      onFilter: (value: string, record: Task) => record.type === value,
+      sorter: (a: Task, b: Task) => (a.type || '').localeCompare(b.type || ''),
     },
     {
       title: 'Duration',
@@ -195,7 +197,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               style={{ width: 80 }}
               size="small"
             >
-              {[1,2,3,4,5,6,7,8,9,10].map(n => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                 <Select.Option key={n} value={n}>{n}/10</Select.Option>
               ))}
             </Select>
@@ -240,7 +242,7 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
               style={{ width: 80 }}
               size="small"
             >
-              {[1,2,3,4,5,6,7,8,9,10].map(n => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
                 <Select.Option key={n} value={n}>{n}/10</Select.Option>
               ))}
             </Select>

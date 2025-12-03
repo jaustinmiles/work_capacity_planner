@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Modal, Form, Input, Select, InputNumber, Button, Space, Card, Typography, Divider, Alert, DatePicker } from '@arco-design/web-react'
 import { IconPlus, IconDelete } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
-import { TaskType } from '@shared/enums'
 import dayjs from 'dayjs'
 import { generateRandomStepId, mapDependenciesToIds } from '@shared/step-id-utils'
+import { useSortedUserTaskTypes } from '@renderer/store/useUserTaskTypeStore'
 
 const { TextArea } = Input
 const { Title, Text } = Typography
@@ -17,8 +17,11 @@ interface SequencedTaskFormProps {
 
 export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskFormProps) {
   const [form] = Form.useForm()
+  const userTaskTypes = useSortedUserTaskTypes()
+  const initialDefaultType = userTaskTypes[0]?.id || ''
+  const [defaultStepType, setDefaultStepType] = useState(initialDefaultType)
   const [steps, setSteps] = useState<Partial<TaskStep>[]>([
-    { id: generateRandomStepId(), name: '', duration: 60, type: TaskType.Focused, dependsOn: [], asyncWaitTime: 0 },
+    { id: generateRandomStepId(), name: '', duration: 60, type: initialDefaultType, dependsOn: [], asyncWaitTime: 0 },
   ])
 
   const addStep = () => {
@@ -26,7 +29,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
       id: generateRandomStepId(),
       name: '',
       duration: 60,
-      type: TaskType.Focused,
+      type: defaultStepType,
       dependsOn: [],
       asyncWaitTime: 0,
     }])
@@ -61,7 +64,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         taskId: '',  // Will be set when saved
         name: step.name || `Step ${index + 1}`,
         duration: step.duration || 60,
-        type: step.type || TaskType.Focused,
+        type: step.type || defaultStepType, // Use selected default step type
         dependsOn: step.dependsOn || [],
         asyncWaitTime: step.asyncWaitTime || 0,
         status: 'pending' as const,
@@ -88,12 +91,13 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         cognitiveComplexity: values.cognitiveComplexity || 3,
         deadline: values.deadline ? dayjs(values.deadline).toISOString() : null,
         hasSteps: true,
-        type: TaskType.Focused, // Default type for workflows
+        // Workflows don't have types - only steps have types for scheduling
       }
 
       onSubmit(sequencedTask)
       form.resetFields()
-      setSteps([{ name: '', duration: 60, type: TaskType.Focused, dependsOn: [], asyncWaitTime: 0 }])
+      setDefaultStepType(initialDefaultType)
+      setSteps([{ id: generateRandomStepId(), name: '', duration: 60, type: initialDefaultType, dependsOn: [], asyncWaitTime: 0 }])
       onClose()
     } catch (__error) {
       // Form validation failed
@@ -117,7 +121,6 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         initialValues={{
           importance: 5,
           urgency: 5,
-          type: TaskType.Focused,
         }}
       >
         <Form.Item
@@ -182,7 +185,7 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
         <Divider />
 
         <div style={{ marginBottom: 16 }}>
-          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }}>
             <Title heading={6}>Workflow Steps</Title>
             <Button
               type="primary"
@@ -193,7 +196,23 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
               Add Step
             </Button>
           </Space>
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Space style={{ marginBottom: 8 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>Default type for new steps:</Text>
+            <Select
+              size="small"
+              value={defaultStepType}
+              onChange={setDefaultStepType}
+              style={{ width: 150 }}
+              disabled={userTaskTypes.length === 0}
+            >
+              {userTaskTypes.map(taskType => (
+                <Select.Option key={taskType.id} value={taskType.id}>
+                  {taskType.emoji} {taskType.name}
+                </Select.Option>
+              ))}
+            </Select>
+          </Space>
+          <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
             Define the sequence of steps for this task. Steps will execute in order based on dependencies.
           </Text>
         </div>
@@ -242,10 +261,14 @@ export function SequencedTaskForm({ visible, onClose, onSubmit }: SequencedTaskF
                   <Select
                     value={step.type}
                     onChange={(value) => updateStep(index, 'type', value)}
-                    style={{ width: 120, display: 'block' }}
+                    style={{ width: 140, display: 'block' }}
+                    disabled={userTaskTypes.length === 0}
                   >
-                    <Select.Option value="focused">Focused</Select.Option>
-                    <Select.Option value="admin">Admin</Select.Option>
+                    {userTaskTypes.map(taskType => (
+                      <Select.Option key={taskType.id} value={taskType.id}>
+                        {taskType.emoji} {taskType.name}
+                      </Select.Option>
+                    ))}
                   </Select>
                 </div>
 

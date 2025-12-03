@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { Card, Grid, Typography, Space, Tag, Button, Slider } from '@arco-design/web-react'
 import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
-import { TaskType } from '@shared/enums'
 import { Task } from '@shared/types'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 // import { useResponsive } from '../../providers/ResponsiveProvider' // Not used
 
 const { Row, Col } = Grid
@@ -24,6 +24,7 @@ interface QuadrantCardProps {
 
 export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth }: EisenhowerGridProps) {
   const [zoom, setZoom] = useState(1)
+  const userTypes = useSortedUserTaskTypes()
   // const { } = useResponsive() // Not used in this component
 
   // Filter tasks by completion status
@@ -113,8 +114,7 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
               size="small"
               style={{
                 cursor: 'pointer',
-                borderColor: task.type === TaskType.Focused ? '#165DFF' :
-                           task.type === TaskType.Admin ? '#00B42A' : '#FF7D00',
+                borderColor: userTypes.find(t => t.id === task.type)?.color || '#165DFF',
                 backgroundColor: '#fff',
                 transform: `scale(${Math.min(zoom, 1.2)})`,
                 transformOrigin: 'top left',
@@ -125,13 +125,16 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
               <Space direction="vertical" style={{ width: '100%' }} size="small">
                 <Text style={{ fontSize: 14, fontWeight: 'bold' }}>{task.name}</Text>
                 <Space>
-                  <Tag
-                    color={task.type === TaskType.Focused ? 'blue' :
-                          task.type === TaskType.Admin ? 'green' : 'orange'}
-                    size="small"
-                  >
-                    {task.type}
-                  </Tag>
+                  {(() => {
+                    const userType = userTypes.find(t => t.id === task.type)
+                    return userType ? (
+                      <Tag color={userType.color || 'gray'} size="small">
+                        {userType.emoji && `${userType.emoji} `}{userType.name}
+                      </Tag>
+                    ) : task.type ? (
+                      <Tag color="gray" size="small">{task.type}</Tag>
+                    ) : null
+                  })()}
                   <Tag size="small">{task.duration}m</Tag>
                   <Tag color="purple" size="small">I:{task.importance}</Tag>
                   <Tag color="red" size="small">U:{task.urgency}</Tag>

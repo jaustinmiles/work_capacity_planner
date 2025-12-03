@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { Task, Session } from './types'
-import { TaskType } from './enums'
 
 describe('Type definitions', () => {
   describe('Session type', () => {
@@ -43,7 +42,7 @@ describe('Type definitions', () => {
         duration: 60,
         importance: 7,
         urgency: 8,
-        type: TaskType.Focused,
+        type: 'focused',
         sessionId: 'test-session',
         asyncWaitTime: 0,
         dependencies: [],
@@ -57,7 +56,7 @@ describe('Type definitions', () => {
       }
 
       expect(task?.sessionId).toBe('test-session')
-      expect(task?.type).toBe(TaskType.Focused)
+      expect(task?.type).toBe('focused')
       expect(task?.importance).toBe(7)
       expect(task?.urgency).toBe(8)
     })
@@ -69,7 +68,7 @@ describe('Type definitions', () => {
         duration: 60,
         importance: 5,
         urgency: 5,
-        type: TaskType.Admin,
+        type: 'admin',
         sessionId: 'test-session',
         asyncWaitTime: 0,
         dependencies: [],

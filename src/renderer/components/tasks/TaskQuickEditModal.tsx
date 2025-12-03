@@ -27,7 +27,7 @@ import {
   IconEdit,
 } from '@arco-design/web-react/icon'
 import { Task, TaskStep } from '@shared/types'
-import { TaskType } from '@shared/enums'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import { logger } from '@/logger'
@@ -85,6 +85,8 @@ export function TaskQuickEditModal({
   includeWorkflowSteps: initialIncludeSteps = true,
 }: TaskQuickEditModalProps) {
   const { tasks, updateTask } = useTaskStore()
+  const userTaskTypes = useSortedUserTaskTypes()
+  const defaultTypeId = userTaskTypes[0]?.id || ''
   // LOGGER_REMOVED: const logger = useLogger({ component: 'TaskQuickEditModal' })
   const [filter, setFilter] = useState(initialFilter)
   const [includeWorkflowSteps] = useState(initialIncludeSteps)
@@ -662,19 +664,15 @@ export function TaskQuickEditModal({
           <Col span={12}>
             <Text bold style={{ display: 'block', marginBottom: 8 }}>Type</Text>
             <Select
-              value={(editedData as any)?.type || TaskType.Focused}
+              value={(editedData as any)?.type || defaultTypeId}
               onChange={(value) => updateField('type', value)}
               style={{ width: '100%' }}
             >
-              <Select.Option value={TaskType.Focused}>
-                <Tag color="blue">Focused</Tag>
-              </Select.Option>
-              <Select.Option value={TaskType.Admin}>
-                <Tag color="green">Admin</Tag>
-              </Select.Option>
-              <Select.Option value={TaskType.Personal}>
-                <Tag color="purple">Personal</Tag>
-              </Select.Option>
+              {userTaskTypes.map(taskType => (
+                <Select.Option key={taskType.id} value={taskType.id}>
+                  <Tag color={taskType.color}>{taskType.emoji} {taskType.name}</Tag>
+                </Select.Option>
+              ))}
             </Select>
           </Col>
           <Col span={12}>

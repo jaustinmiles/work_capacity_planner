@@ -6,7 +6,6 @@
 import { UnifiedScheduler } from '../unified-scheduler'
 import { ScheduleContext, ScheduleConfig } from '../unified-scheduler-types'
 import { Task, SequencedTask } from '../types'
-import { TaskType } from '../enums'
 import { DailyWorkPattern } from '../work-blocks-types'
 
 describe('UnifiedScheduler - Integration', () => {
@@ -92,7 +91,7 @@ describe('UnifiedScheduler - Integration', () => {
     importance: 5,
     urgency: 5,
     cognitiveComplexity: 3,
-    taskType: TaskType.Focused,
+    taskType: 'focused',
     status: 'not_started',
     createdAt: new Date('2025-01-15T08:00:00.000Z'),
     notes: '',
@@ -119,8 +118,8 @@ describe('UnifiedScheduler - Integration', () => {
   describe('End-to-End Scheduling', () => {
     it('should handle mixed tasks and workflows', () => {
       const tasks = [
-        createTestTask('individual-1', 60, { taskType: TaskType.Focused }),
-        createTestTask('individual-2', 45, { taskType: TaskType.Admin }),
+        createTestTask('individual-1', 60, { taskType: 'focused' }),
+        createTestTask('individual-2', 45, { taskType: 'admin' }),
       ]
 
       const workflows = [
@@ -148,25 +147,25 @@ describe('UnifiedScheduler - Integration', () => {
         createTestTask('urgent-important', 60, {
           importance: 9,
           urgency: 9,
-          taskType: TaskType.Focused,
+          taskType: 'focused',
         }),
         createTestTask('with-deadline', 45, {
           importance: 6,
           urgency: 6,
           deadline: new Date('2025-01-16T17:00:00.000Z'),
           deadlineType: 'hard',
-          taskType: TaskType.Admin,
+          taskType: 'admin',
         }),
         createTestTask('low-priority', 30, {
           importance: 2,
           urgency: 2,
-          taskType: TaskType.Personal,
+          taskType: 'personal',
         }),
         createTestTask('dependent', 45, {
           importance: 7,
           urgency: 7,
           dependencies: ['urgent-important'],
-          taskType: TaskType.Focused,
+          taskType: 'focused',
         }),
       ]
 
@@ -200,13 +199,13 @@ describe('UnifiedScheduler - Integration', () => {
       // Create a realistic workload
       const tasks = [
         ...Array.from({ length: 10 }, (_, i) =>
-          createTestTask(`focus-${i}`, 60, { taskType: TaskType.Focused }),
+          createTestTask(`focus-${i}`, 60, { taskType: 'focused' }),
         ),
         ...Array.from({ length: 8 }, (_, i) =>
-          createTestTask(`admin-${i}`, 45, { taskType: TaskType.Admin }),
+          createTestTask(`admin-${i}`, 45, { taskType: 'admin' }),
         ),
         ...Array.from({ length: 5 }, (_, i) =>
-          createTestTask(`personal-${i}`, 30, { taskType: TaskType.Personal }),
+          createTestTask(`personal-${i}`, 30, { taskType: 'personal' }),
         ),
       ]
 
@@ -240,7 +239,7 @@ describe('UnifiedScheduler - Integration', () => {
     it('should handle high-volume task scheduling', () => {
       // Create 50 tasks of varying types and durations
       const largeTasks = Array.from({ length: 50 }, (_, i) => {
-        const types = [TaskType.Focused, TaskType.Admin, TaskType.Personal]
+        const types = ['focused', 'admin', 'personal']
         const durations = [15, 30, 45, 60, 90, 120]
 
         return createTestTask(`large-${i}`, durations[i % durations.length], {
@@ -306,8 +305,8 @@ describe('UnifiedScheduler - Integration', () => {
   describe('Async Scheduling', () => {
     it('should return enhanced results with capacity modeling', async () => {
       const tasks = [
-        createTestTask('async-1', 60, { taskType: TaskType.Focused }),
-        createTestTask('async-2', 45, { taskType: TaskType.Admin }),
+        createTestTask('async-1', 60, { taskType: 'focused' }),
+        createTestTask('async-2', 45, { taskType: 'admin' }),
       ]
 
       const result = await scheduler.scheduleForPersistence(tasks, mockContext, mockConfig)
@@ -324,12 +323,12 @@ describe('UnifiedScheduler - Integration', () => {
         createTestTask('risky-task', 120, {
           deadline: new Date('2025-01-15T15:00:00.000Z'), // Same day, tight deadline
           deadlineType: 'hard',
-          taskType: TaskType.Focused,
+          taskType: 'focused',
         }),
         createTestTask('safe-task', 60, {
           deadline: new Date('2025-01-20T17:00:00.000Z'), // Several days later
           deadlineType: 'soft',
-          taskType: TaskType.Admin,
+          taskType: 'admin',
         }),
       ]
 
@@ -345,7 +344,7 @@ describe('UnifiedScheduler - Integration', () => {
     it('should complete scheduling within reasonable time', () => {
       const mediumTasks = Array.from({ length: 20 }, (_, i) =>
         createTestTask(`perf-${i}`, 60, {
-          taskType: i % 2 === 0 ? TaskType.Focused : TaskType.Admin,
+          taskType: i % 2 === 0 ? 'focused' : 'admin',
         }),
       )
 
@@ -360,9 +359,9 @@ describe('UnifiedScheduler - Integration', () => {
 
     it('should generate comprehensive metrics', () => {
       const tasks = [
-        createTestTask('metric-1', 60, { taskType: TaskType.Focused }),
-        createTestTask('metric-2', 45, { taskType: TaskType.Admin }),
-        createTestTask('metric-3', 30, { taskType: TaskType.Personal }),
+        createTestTask('metric-1', 60, { taskType: 'focused' }),
+        createTestTask('metric-2', 45, { taskType: 'admin' }),
+        createTestTask('metric-3', 30, { taskType: 'personal' }),
       ]
 
       const result = scheduler.scheduleForDisplay(tasks, mockContext, mockConfig)
@@ -404,7 +403,7 @@ describe('UnifiedScheduler - Integration', () => {
         }],
       }
 
-      const adminTask = createTestTask('admin-no-blocks', 60, { taskType: TaskType.Admin })
+      const adminTask = createTestTask('admin-no-blocks', 60, { taskType: 'admin' })
       const result = scheduler.scheduleForDisplay([adminTask], focusOnlyContext, mockConfig)
 
       // Admin task should be unscheduled since no admin blocks available

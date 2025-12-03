@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { TaskType } from '@shared/enums'
 import { Card, Typography, Tag, Space, Tooltip } from '@arco-design/web-react'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 
 const { Title, Text } = Typography
 
@@ -15,7 +15,7 @@ interface GraphNode {
   label: string
   duration: number
   asyncWaitTime: number
-  type: TaskType
+  type: string
   x: number
   y: number
   dependencies: string[]
@@ -23,6 +23,18 @@ interface GraphNode {
 
 export function WorkflowGraph({ task }: WorkflowGraphProps) {
   const { sequencedTasks } = useTaskStore()
+  const userTaskTypes = useSortedUserTaskTypes()
+
+  // Helper to get type display info
+  const getTypeInfo = (typeId: string) => {
+    const userType = userTaskTypes.find(t => t.id === typeId)
+    return {
+      name: userType?.name || typeId,
+      color: userType?.color || '#8c8c8c',
+      bgColor: userType ? `${userType.color}15` : '#f5f5f5',
+      emoji: userType?.emoji || '',
+    }
+  }
 
   // Always use the latest task data from store
   const currentTask = sequencedTasks.find(t => t.id === task.id) || task
@@ -151,7 +163,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                     <div style={{ fontWeight: 'bold', marginBottom: 4 }}>{node.label}</div>
                     <div>Duration: {formatDuration(node.duration)}</div>
                     {node.asyncWaitTime > 0 && <div>Wait time: {formatDuration(node.asyncWaitTime)}</div>}
-                    <div>Type: {node.type === TaskType.Focused ? 'Focused' : 'Admin'}</div>
+                      <div>Type: {getTypeInfo(node.type).emoji} {getTypeInfo(node.type).name}</div>
                   </div>
                 }
               >
@@ -163,8 +175,8 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                     width="200"
                     height="80"
                     rx="8"
-                    fill={node.type === TaskType.Focused ? '#E6F7FF' : '#E8F5E9'}
-                    stroke={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
+                    fill={getTypeInfo(node.type).bgColor}
+                    stroke={getTypeInfo(node.type).color}
                     strokeWidth="2"
                     style={{ cursor: 'pointer' }}
                   />
@@ -174,7 +186,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                     cx={node.x + 20}
                     cy={node.y + 20}
                     r="15"
-                    fill={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
+                    fill={getTypeInfo(node.type).color}
                   />
                   <text
                     x={node.x + 20}
@@ -223,7 +235,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 width="40"
                 height="20"
                 rx="10"
-                fill={node.type === TaskType.Focused ? '#165DFF' : '#00B42A'}
+                fill={getTypeInfo(node.type).color}
               />
               <text
                 x={node.x + 170}
@@ -232,7 +244,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
                 fill="white"
                 fontSize="10"
               >
-                {node.type === TaskType.Focused ? 'Focus' : 'Admin'}
+                {getTypeInfo(node.type).name.substring(0, 6)}
               </text>
             </g>
           ))}
@@ -241,8 +253,11 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
 
       <div style={{ marginTop: 16 }}>
         <Space>
-          <Tag color="blue">Focused Work</Tag>
-          <Tag color="green">Admin Task</Tag>
+          {userTaskTypes.map(taskType => (
+            <Tag key={taskType.id} color={taskType.color}>
+              {taskType.emoji} {taskType.name}
+            </Tag>
+          ))}
           <Text type="secondary">Dashed lines show dependencies</Text>
         </Space>
       </div>

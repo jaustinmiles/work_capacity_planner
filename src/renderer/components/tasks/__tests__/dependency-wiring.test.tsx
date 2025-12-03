@@ -4,7 +4,7 @@ import { StepSplitModal } from '../StepSplitModal'
 import { TaskSplitModal } from '../TaskSplitModal'
 import { TaskStep } from '@shared/sequencing-types'
 import { Task } from '@shared/types'
-import { StepStatus, TaskType } from '@shared/enums'
+import { StepStatus } from '@shared/enums'
 
 // Mock the store
 const mockUpdateTask = vi.fn()
@@ -36,7 +36,7 @@ describe('Dependency Wiring in Split Features', () => {
       taskId: 'task-1',
       name: 'Step with Dependencies',
       duration: 120,
-      type: TaskType.Focused,
+      type: 'focused',
       asyncWaitTime: 0,
       dependsOn: ['step-1', 'step-2'], // This step depends on two others
       status: StepStatus.Pending,
@@ -158,7 +158,7 @@ describe('Dependency Wiring in Split Features', () => {
       duration: 120,
       importance: 5,
       urgency: 5,
-      type: TaskType.Focused,
+      type: 'focused',
       asyncWaitTime: 0,
       dependencies: ['task-a', 'task-b'], // Task-level dependencies
       completed: false,
@@ -278,7 +278,7 @@ describe('Dependency Wiring in Split Features', () => {
         taskId: 'task-1',
         name: 'Middle Step',
         duration: 60,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependsOn: ['step-1'],
         status: StepStatus.Pending,
@@ -317,7 +317,7 @@ describe('Dependency Wiring in Split Features', () => {
         taskId: 'task-1',
         name: 'Step',
         duration: 60,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependsOn: undefined as any, // Simulating bad data
         status: StepStatus.Pending,
@@ -342,7 +342,7 @@ describe('Dependency Wiring in Split Features', () => {
         taskId: 'task-1',
         name: 'Step',
         duration: 60,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependsOn: dependencies,
         status: StepStatus.Pending,

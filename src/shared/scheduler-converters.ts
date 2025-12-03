@@ -12,7 +12,7 @@
 import { Task, TaskStep } from './types'
 import { SequencedTask } from './sequencing-types'
 import { UnifiedScheduleItem } from './unified-scheduler'
-import { TaskType, StepStatus, UnifiedScheduleItemType } from './enums'
+import { StepStatus, UnifiedScheduleItemType } from './enums'
 
 /**
  * Convert various input types to UnifiedScheduleItem format
@@ -125,8 +125,8 @@ function processSequencedTask(
       // Complexity
       cognitiveComplexity: step.cognitiveComplexity || 3,
 
-      // Task type ID (references UserTaskType, falls back to old enum value)
-      taskTypeId: step.type || TaskType.Focused,
+      // Task type ID (references UserTaskType)
+      taskTypeId: step.type || '',
 
       // Dependencies
       dependencies: step.dependsOn || [],
@@ -286,20 +286,21 @@ function determineItemType(item: Task | TaskStep): UnifiedScheduleItemType {
 
 /**
  * Extract task type from various formats
+ * Returns user-defined task type ID (string)
  */
-function extractTaskType(item: Task | TaskStep): TaskType {
+function extractTaskType(item: Task | TaskStep): string {
   // TaskStep has taskType property
   if ('taskType' in item && item.taskType) {
-    return item.taskType as TaskType
+    return item.taskType as string
   }
 
   // Task has type property
   if ('type' in item && item.type) {
-    return item.type as TaskType
+    return item.type as string
   }
 
-  // Default to focused if not specified
-  return TaskType.Focused
+  // Default to empty string if not specified
+  return ''
 }
 
 /**

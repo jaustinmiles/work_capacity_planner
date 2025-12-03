@@ -23,12 +23,10 @@ export enum StepStatus {
   Skipped = 'skipped',
 }
 
-// Task types
-
-export enum TaskType {
-  Focused = 'focused',
-  Admin = 'admin',
-  Personal = 'personal',
+// User task type kind (for distinguishing system vs user-created types)
+export enum UserTaskTypeKind {
+  System = 'system',
+  User = 'user',
 }
 
 // Gantt chart item types
@@ -56,12 +54,9 @@ export enum NextScheduledItemType {
   Step = 'step',
 }
 
-// Work block types for scheduling (used by AI amendment system)
-// Note: For new code, use BlockTypeConfig from work-blocks-types.ts instead
+// Work block types for scheduling - non-work time only
+// Task types are now user-defined, not hardcoded
 export enum WorkBlockType {
-  Focused = 'focused',
-  Admin = 'admin',
-  Personal = 'personal',
   Blocked = 'blocked',
   Sleep = 'sleep',
 }
@@ -148,10 +143,9 @@ export enum NotificationType {
   Warning = 'warning',
 }
 
-// Work session types
+// Work session system types (non-task time tracking)
+// Actual task work sessions use dynamic user-defined type IDs
 export enum WorkSessionType {
-  Focused = 'focused',
-  Admin = 'admin',
   Meeting = 'meeting',
   Break = 'break',
 }

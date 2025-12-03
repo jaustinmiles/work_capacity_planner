@@ -41,7 +41,6 @@ const COMPONENT_OPTIONS = [
   { label: 'Weekly Calendar', value: 'calendar/WeeklyCalendar' },
   { label: 'Workflow Editor', value: 'tasks/SequencedTaskEdit' },
   { label: 'Workflow Progress Tracker', value: 'progress/WorkflowProgressTracker' },
-  { label: 'Voice Amendment', value: 'voice/VoiceAmendmentModal' },
   { label: 'AI Brainstorm', value: 'ai/BrainstormModal' },
   { label: 'Task Creation Flow', value: 'ai/TaskCreationFlow' },
   { label: 'Schedule Generator', value: 'schedule/ScheduleGenerator' },

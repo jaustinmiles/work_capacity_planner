@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { TaskType, StepStatus } from '@shared/enums'
+import { StepStatus } from '@shared/enums'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import {
   Card,
   Space,
@@ -57,6 +58,8 @@ interface UnifiedTaskEditProps {
  */
 export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: UnifiedTaskEditProps) {
   const { updateTask, updateSequencedTask } = useTaskStore()
+  const userTaskTypes = useSortedUserTaskTypes()
+  const defaultTypeId = userTaskTypes[0]?.id || ''
   const [editedTask, setEditedTask] = useState<Task | SequencedTask>({ ...task })
   const [isEditing, setIsEditing] = useState(startInEditMode)
   const [isSaving, setIsSaving] = useState(false)
@@ -380,9 +383,11 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
                 }
                 style={{ width: '100%' }}
               >
-                <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
-                <Select.Option value={TaskType.Admin}>Admin Task</Select.Option>
-                <Select.Option value={TaskType.Personal}>Personal Task</Select.Option>
+                {userTaskTypes.map(taskType => (
+                  <Select.Option key={taskType.id} value={taskType.id}>
+                    {taskType.emoji} {taskType.name}
+                  </Select.Option>
+                ))}
                 {isWorkflow && <Select.Option value={'workflow'}>Workflow</Select.Option>}
               </Select>
             ) : (
@@ -624,7 +629,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
                 taskId: sequencedTask.id,
                 name: '',
                 duration: 30,
-                type: TaskType.Focused,
+                type: defaultTypeId,
                 dependsOn: [],
                 asyncWaitTime: 0,
                 status: StepStatus.Pending,
@@ -771,9 +776,11 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
             <FormItem field="type" label="Type">
               <Select style={{ width: '100%' }}>
-                <Select.Option value={TaskType.Focused}>Focused</Select.Option>
-                <Select.Option value={TaskType.Admin}>Admin Task</Select.Option>
-                <Select.Option value={TaskType.Personal}>Personal Task</Select.Option>
+                {userTaskTypes.map(taskType => (
+                  <Select.Option key={taskType.id} value={taskType.id}>
+                    {taskType.emoji} {taskType.name}
+                  </Select.Option>
+                ))}
               </Select>
             </FormItem>
             <FormItem field="cognitiveComplexity" label="Cognitive Complexity (1-5)">

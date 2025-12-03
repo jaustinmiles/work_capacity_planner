@@ -391,9 +391,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         if (task) {
           if (session.stepId && task.hasSteps && task.steps) {
             const step = task.steps.find(s => s.id === session.stepId)
-            taskType = step?.type || task.type
+            taskType = step?.type || task.type || ''
           } else {
-            taskType = task.type
+            taskType = task.type || '' // Workflows may not have a type
           }
         }
 
@@ -453,7 +453,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         options.push({
           value: `task:${task.id}`,
           label: task.name,
-          type: task.type,
+          type: task.type || '', // Regular tasks should always have type
         })
       } else if (task.steps) {
         // For workflows, we add each step as an option

@@ -2,7 +2,6 @@ import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { CircularClock } from '../CircularClock'
-import { TaskType } from '@shared/enums'
 import type { WorkSessionData } from '../SessionState'
 import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
 
@@ -24,7 +23,7 @@ describe('CircularClock', () => {
       taskName: 'Morning Task',
       startMinutes: 540, // 9:00 AM
       endMinutes: 600, // 10:00 AM
-      type: TaskType.Focused,
+      type: 'focused',
       color: '#165DFF',
     },
     {
@@ -33,7 +32,7 @@ describe('CircularClock', () => {
       taskName: 'Afternoon Task',
       startMinutes: 840, // 2:00 PM (14:00)
       endMinutes: 900, // 3:00 PM (15:00)
-      type: TaskType.Admin,
+      type: 'admin',
       color: '#00B42A',
     },
     {
@@ -44,7 +43,7 @@ describe('CircularClock', () => {
       stepName: 'Step 1',
       startMinutes: 660, // 11:00 AM
       endMinutes: 720, // 12:00 PM
-      type: TaskType.Focused,
+      type: 'focused',
       color: '#165DFF',
     },
   ]
@@ -158,7 +157,7 @@ describe('CircularClock', () => {
         stepName: 'Step 1',
         startMinutes: 660,
         endMinutes: 690,
-        type: TaskType.Focused,
+        type: 'focused',
         color: '#165DFF',
       },
       {
@@ -169,7 +168,7 @@ describe('CircularClock', () => {
         stepName: 'Step 2',
         startMinutes: 700,
         endMinutes: 720,
-        type: TaskType.Admin,
+        type: 'admin',
         color: '#00B42A',
       },
     ]

@@ -19,7 +19,6 @@ import {
   DeadlineChange,
   PriorityChange,
   TypeChange,
-  TaskType,
   ArchiveToggle,
   WorkPatternModification,
   WorkSessionEdit,
@@ -244,7 +243,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                 date: log.date ? log.date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                 plannedMinutes: log.duration,
                 actualMinutes: log.duration,
-                type: TaskType.Focused, // Default, could be smarter
+                type: '', // User-defined task type - empty means unspecified
               })
               successCount++
             }
@@ -594,7 +593,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
             importance: creation.importance || 5,
             urgency: creation.urgency || 5,
             duration: creation.duration,
-            type: creation.taskType || TaskType.Focused,
+            type: creation.taskType || '',
             asyncWaitTime: 0,
             completed: false,
             dependencies: [],
@@ -676,7 +675,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
             importance: creation.importance || 5,
             urgency: creation.urgency || 5,
             duration: totalDuration,
-            type: steps[0]?.type || TaskType.Focused,
+            type: steps[0]?.type || '',
             asyncWaitTime: 0,
             completed: false,
             dependencies: [],

@@ -4,7 +4,7 @@
 
 import { UnifiedScheduler } from '../unified-scheduler'
 import { SequencedTask } from '../sequencing-types'
-import { TaskType, StepStatus } from '../enums'
+import { StepStatus } from '../enums'
 
 describe('UnifiedScheduler - Dependency Resolution Unit Tests', () => {
   let scheduler: UnifiedScheduler
@@ -20,7 +20,7 @@ describe('UnifiedScheduler - Dependency Resolution Unit Tests', () => {
       duration: 120,
       importance: 5,
       urgency: 5,
-      type: TaskType.Focused,
+      type: 'focused',
       asyncWaitTime: 0,
       dependencies: [],
       completed: false,
@@ -37,7 +37,7 @@ describe('UnifiedScheduler - Dependency Resolution Unit Tests', () => {
           taskId: 'workflow-1',
           name: 'First Step',
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           dependsOn: [],
           asyncWaitTime: 0,
           status: StepStatus.Completed, // Completed
@@ -49,7 +49,7 @@ describe('UnifiedScheduler - Dependency Resolution Unit Tests', () => {
           taskId: 'workflow-1',
           name: 'Second Step',
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           dependsOn: ['step-1'], // Depends on completed step
           asyncWaitTime: 0,
           status: StepStatus.Pending,
@@ -80,7 +80,7 @@ describe('UnifiedScheduler - Dependency Resolution Unit Tests', () => {
       duration: 60,
       importance: 5,
       urgency: 5,
-      type: TaskType.Focused,
+      type: 'focused',
       asyncWaitTime: 0,
       dependencies: [],
       completed: false,
@@ -97,7 +97,7 @@ describe('UnifiedScheduler - Dependency Resolution Unit Tests', () => {
           taskId: 'workflow-1',
           name: 'Second Step',
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           dependsOn: ['step-1'], // Depends on missing step
           asyncWaitTime: 0,
           status: StepStatus.Pending,

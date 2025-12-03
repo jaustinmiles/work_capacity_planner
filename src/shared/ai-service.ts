@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { TaskType, ChatMessageRole } from '../shared/enums'
+import { ChatMessageRole } from '../shared/enums'
 import { TaskStep } from './sequencing-types'
 import { AICallOptions } from './types'
 import { logger } from '../logger'
@@ -26,7 +26,7 @@ export class AIService {
       estimatedDuration: number
       importance: number
       urgency: number
-      type: TaskType
+      type: string // User-defined task type ID
       deadline?: string // ISO date string
       deadlineType?: 'hard' | 'soft'
       cognitiveComplexity?: 1 | 2 | 3 | 4 | 5
@@ -123,7 +123,7 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
       description: string
       importance: number
       urgency: number
-      type: TaskType
+      type: string // User-defined task type ID
       steps: Omit<TaskStep, 'id' | 'status'>[]
       totalDuration: number
       earliestCompletion: string
@@ -136,7 +136,7 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
       estimatedDuration: number
       importance: number
       urgency: number
-      type: TaskType
+      type: string // User-defined task type ID
       needsMoreInfo?: boolean
     }>
     summary: string
@@ -501,7 +501,7 @@ Make steps actionable and specific. Consider real-world constraints like review 
       duration?: number
       importance?: number
       urgency?: number
-      type?: TaskType.Focused | 'admin'
+      type?: string // User-defined task type ID
       tips?: string[]
     }
     confidence: number

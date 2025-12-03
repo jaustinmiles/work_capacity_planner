@@ -6,7 +6,6 @@
 import { UnifiedScheduler } from '../unified-scheduler'
 import { UnifiedScheduleItem, ScheduleContext } from '../unified-scheduler-types'
 import { Task } from '../types'
-import { TaskType } from '../enums'
 
 describe('UnifiedScheduler - Optimization Methods', () => {
   let scheduler: UnifiedScheduler
@@ -44,7 +43,7 @@ describe('UnifiedScheduler - Optimization Methods', () => {
     duration,
     dependencies,
     priority: 50,
-    taskType: TaskType.Focused,
+    taskType: 'focused',
     originalItem: { id, name: `Task ${id}`, duration } as Task,
     isAsyncTrigger,
     asyncWaitTime,

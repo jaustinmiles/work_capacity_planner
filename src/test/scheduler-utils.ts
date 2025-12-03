@@ -1,7 +1,6 @@
 import { vi } from 'vitest'
-import type { Task, SequencedTask } from '@/shared/types'
+import type { Task, SequencedTask, TaskType } from '@/shared/types'
 import type { SchedulerResult, ScheduledItem, UnscheduledItem, SchedulerDebugInfo } from '@/shared/unified-scheduler'
-import { TaskType } from '@/shared/types'
 
 /**
  * Creates a mock UnifiedScheduler with all required methods

@@ -412,27 +412,3 @@ export function TaskTypeManager({ embedded = false, onTypesChange }: TaskTypeMan
     </Card>
   )
 }
-
-/**
- * Preset templates for common workflows
- */
-export const TYPE_TEMPLATES = {
-  knowledgeWorker: [
-    { name: 'Deep Work', emoji: '🎯', color: '#3B82F6' },
-    { name: 'Meetings', emoji: '🤝', color: '#F59E0B' },
-    { name: 'Admin', emoji: '📝', color: '#10B981' },
-    { name: 'Personal', emoji: '🏠', color: '#8B5CF6' },
-  ],
-  creative: [
-    { name: 'Create', emoji: '🎨', color: '#EC4899' },
-    { name: 'Research', emoji: '🔬', color: '#06B6D4' },
-    { name: 'Admin', emoji: '📊', color: '#F59E0B' },
-    { name: 'Breaks', emoji: '☕', color: '#84CC16' },
-  ],
-  freelancer: [
-    { name: 'Client Work', emoji: '💼', color: '#3B82F6' },
-    { name: 'Business', emoji: '📈', color: '#10B981' },
-    { name: 'Learning', emoji: '📚', color: '#8B5CF6' },
-    { name: 'Personal', emoji: '🏃', color: '#F97316' },
-  ],
-}

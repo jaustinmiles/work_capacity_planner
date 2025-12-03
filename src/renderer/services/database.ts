@@ -1,6 +1,5 @@
 import { Task, Session, AICallOptions } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType } from '@shared/enums'
 import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput } from '@shared/user-task-types'
 
 
@@ -94,7 +93,7 @@ declare global {
             estimatedDuration: number
             importance: number
             urgency: number
-            type: TaskType.Focused | 'admin'
+            type: string
             needsMoreInfo?: boolean
           }>
           summary: string
@@ -106,7 +105,7 @@ declare global {
             description: string
             importance: number
             urgency: number
-            type: TaskType.Focused | 'admin'
+            type: string
             steps: any[]
             totalDuration: number
             earliestCompletion: string
@@ -119,7 +118,7 @@ declare global {
             estimatedDuration: number
             importance: number
             urgency: number
-            type: TaskType.Focused | 'admin'
+            type: string
             needsMoreInfo?: boolean
           }>
           summary: string
@@ -158,7 +157,7 @@ declare global {
             id: string
             startTime: string
             endTime: string
-            type: TaskType.Focused | 'admin' | 'mixed'
+            type: string | 'mixed'
             capacity?: {
               focused: number
               admin: number
@@ -179,7 +178,7 @@ declare global {
             id: string
             startTime: string
             endTime: string
-            type: TaskType.Focused | 'admin' | 'mixed' | 'personal'
+            type: string | 'mixed' | 'personal'
             capacity?: {
               focusMinutes?: number
               adminMinutes?: number
@@ -360,7 +359,7 @@ export class RendererDatabaseService {
   async addStepToWorkflow(workflowId: string, stepData: {
     name: string
     duration: number
-    type: TaskType
+    type: string // User-defined task type ID
     afterStep?: string
     beforeStep?: string
     dependencies?: string[]

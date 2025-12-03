@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client'
 import { Task, TaskStep } from '../shared/types'
-import { TaskType } from '../shared/enums'
 import {
   UserTaskType,
   CreateUserTaskTypeInput,
@@ -1196,7 +1195,7 @@ export class DatabaseService {
   async addStepToWorkflow(workflowId: string, stepData: {
     name: string
     duration: number
-    type: TaskType
+    type: string // User-defined task type ID
     afterStep?: string
     beforeStep?: string
     dependencies?: string[]
@@ -1899,12 +1898,12 @@ export class DatabaseService {
       throw new Error(`Task not found: ${data.taskId}`)
     }
 
-    // Derive type from step or task
-    let derivedType: TaskType = task.type as TaskType
+    // Derive type from step or task (user-defined task type ID)
+    let derivedType: string = task.type || ''
     if (data.stepId) {
       const step = task.TaskStep?.find(s => s.id === data.stepId)
       if (step?.type) {
-        derivedType = step.type as TaskType
+        derivedType = step.type
       }
     }
 
@@ -2563,7 +2562,7 @@ export class DatabaseService {
     return this.client.workSession.findMany({ where: { stepId } })
   }
 
-  async updateWorkSessionTypesForStep(stepId: string, newType: TaskType): Promise<void> {
+  async updateWorkSessionTypesForStep(stepId: string, newType: string): Promise<void> {
     await this.client.workSession.updateMany({
       where: { stepId },
       data: { type: newType },

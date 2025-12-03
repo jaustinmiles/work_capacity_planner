@@ -5,30 +5,9 @@ import {
   UI_CONSTANTS,
   DATE_FORMATS,
 } from './constants'
-import { StepStatus, TaskStatus, TaskType, WorkBlockType } from './enums'
+import { StepStatus, TaskStatus, WorkBlockType } from './enums'
 
 describe('constants', () => {
-  describe('TaskType enum', () => {
-    it('should have correct values', () => {
-      expect(TaskType.Focused).toBe('focused')
-      expect(TaskType.Admin).toBe('admin')
-      expect(TaskType.Personal).toBe('personal')
-    })
-
-    it('should have all expected keys', () => {
-      const keys = Object.keys(TaskType)
-      expect(keys).toHaveLength(3)
-      expect(keys).toContain('Focused')
-      expect(keys).toContain('Admin')
-      expect(keys).toContain('Personal')
-    })
-
-    it('should be usable in type checking', () => {
-      const taskType: TaskType = TaskType.Focused
-      expect(taskType).toBe('focused')
-    })
-  })
-
   describe('TaskStatus enum', () => {
     it('should have correct values', () => {
       expect(TaskStatus.NotStarted).toBe('not_started')
@@ -103,20 +82,12 @@ describe('constants', () => {
 
   describe('WorkBlockType enum', () => {
     it('should have all expected keys', () => {
+      // WorkBlockType now only contains non-work block types
+      // Task types are now user-defined, not hardcoded
       const keys = Object.keys(WorkBlockType)
-      expect(keys).toHaveLength(5)
-      expect(keys).toContain('Focused')
-      expect(keys).toContain('Admin')
-      expect(keys).toContain('Personal')
+      expect(keys).toHaveLength(2)
       expect(keys).toContain('Blocked')
       expect(keys).toContain('Sleep')
-    })
-
-    it('should have types that align with TaskType where applicable', () => {
-      expect(WorkBlockType.Focused).toBe('focused')
-      expect(TaskType.Focused).toBe('focused')
-      expect(WorkBlockType.Admin).toBe('admin')
-      expect(TaskType.Admin).toBe('admin')
     })
 
     it('should have unique block types for system states', () => {
@@ -276,12 +247,6 @@ describe('constants', () => {
   })
 
   describe('Cross-constant relationships', () => {
-    it('should have consistent task types across enums', () => {
-      // TaskType and WorkBlockType should align for common types
-      expect(TaskType.Focused).toBe(WorkBlockType.Focused)
-      expect(TaskType.Admin).toBe(WorkBlockType.Admin)
-    })
-
     it('should have non-overlapping status values where appropriate', () => {
       // Step status has unique values
       expect(Object.values(TaskStatus)).not.toContain('skipped')

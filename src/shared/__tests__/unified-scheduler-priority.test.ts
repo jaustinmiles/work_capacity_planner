@@ -7,7 +7,6 @@
 import { UnifiedScheduler } from '../unified-scheduler'
 import { ScheduleContext } from '../unified-scheduler-types'
 import { Task } from '../types'
-import { TaskType } from '../enums'
 import { DailyWorkPattern } from '../work-blocks-types'
 
 describe('UnifiedScheduler - Priority Features', () => {
@@ -60,7 +59,7 @@ describe('UnifiedScheduler - Priority Features', () => {
     importance: 5,
     urgency: 5,
     cognitiveComplexity: 3,
-    taskType: TaskType.Focused,
+    taskType: 'focused',
     status: 'not_started',
     createdAt: new Date('2025-01-15T08:00:00.000Z'),
     notes: '',

@@ -1,5 +1,4 @@
 import React, { useCallback, useMemo, useEffect, useState } from 'react'
-import { TaskType } from '@shared/enums'
 import ReactFlow, {
   Node,
   Edge,
@@ -18,6 +17,8 @@ import { Tag, Space, Typography, Switch, Button } from '@arco-design/web-react'
 import { IconFullscreen, IconFullscreenExit } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
 import { logger } from '@/logger'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
+import { UserTaskType, getTypeColor } from '@shared/user-task-types'
 
 
 import 'reactflow/dist/style.css'
@@ -41,14 +42,25 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
     return `${mins}m`
   }
 
+  // Get user type info for this step
+  const userTypes: UserTaskType[] = data.userTypes || []
+  const userType = userTypes.find(t => t.id === data.type)
+  const typeColor = userType?.color || getTypeColor(userTypes, data.type) || '#165DFF'
+  const typeName = userType?.name || data.type || 'Task'
+  const typeEmoji = userType?.emoji || ''
+
+  // Generate lighter background from the type color
+  const hexToRgba = (hex: string, alpha: number) => {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+
   // Completed steps have a more muted appearance
   const isCompleted = data.status === 'completed'
-  const bgColor = isCompleted
-    ? '#F5F5F5'
-    : data.type === TaskType.Focused ? '#E6F7FF' : '#E8F5E9'
-  const borderColor = isCompleted
-    ? '#BFBFBF'
-    : data.type === TaskType.Focused ? '#165DFF' : '#00B42A'
+  const bgColor = isCompleted ? '#F5F5F5' : hexToRgba(typeColor, 0.1)
+  const borderColor = isCompleted ? '#BFBFBF' : typeColor
 
   return (
     <div
@@ -77,7 +89,7 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <div
           style={{
-            background: isCompleted ? '#8C8C8C' : data.type === TaskType.Focused ? '#165DFF' : '#00B42A',
+            background: isCompleted ? '#8C8C8C' : typeColor,
             color: 'white',
             borderRadius: '50%',
             width: 30,
@@ -100,8 +112,8 @@ const WorkflowNode = React.memo(({ data }: { data: any }) => {
           {formatDuration(data.duration)}
           {data.asyncWaitTime > 0 && ` + ${formatDuration(data.asyncWaitTime)} wait`}
         </Text>
-        <Tag size="small" color={data.type === TaskType.Focused ? 'blue' : 'green'}>
-          {data.type === TaskType.Focused ? 'Focused' : 'Admin'}
+        <Tag size="small" color={typeColor}>
+          {typeEmoji && `${typeEmoji} `}{typeName}
         </Tag>
       </Space>
 
@@ -127,6 +139,7 @@ export function InteractiveWorkflowGraph({
 }: InteractiveWorkflowGraphProps) {
   const [hideCompleted, setHideCompleted] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const userTypes = useSortedUserTaskTypes()
   // Define node types outside component to prevent re-renders
   const nodeTypes = useMemo(() => ({
     workflow: WorkflowNode,
@@ -230,13 +243,14 @@ export function InteractiveWorkflowGraph({
             stepNumber: stepIndex + 1,
             status: step.status,
             isEditable,
+            userTypes, // Pass user types for dynamic colors
           },
         })
       })
     })
 
     return nodes
-  }, [task, isEditable, hideCompleted])
+  }, [task, isEditable, hideCompleted, userTypes])
 
   // Convert dependencies to React Flow edges
   const initialEdges = useMemo(() => {

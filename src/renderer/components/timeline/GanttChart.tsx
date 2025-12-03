@@ -3,7 +3,7 @@ import { Card, Typography, Space, Tag, Empty, Tooltip, Button, Alert, Dropdown, 
 import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType, GanttItemType } from '@shared/enums'
+import { GanttItemType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { ScheduleMetricsPanel } from './ScheduleMetricsPanel'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
@@ -1066,7 +1066,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       : isWorkflowRow
                         ? firstItem.workflowName
                         : isUnscheduledRow
-                          ? `${unscheduledInRow.name} (Unscheduled${unscheduledInRow.type === TaskType.Personal ? ' - Personal' : ''})`
+                          ? `${unscheduledInRow.name} (Unscheduled)`
                           : firstItem?.name.replace(/\[.*\]\s*/, '')
 
                     return (

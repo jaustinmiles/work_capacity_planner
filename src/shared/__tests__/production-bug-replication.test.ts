@@ -15,7 +15,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { UnifiedScheduler } from '../unified-scheduler'
 import { Task } from '../types'
 import { SequencedTask } from '../sequencing-types'
-import { TaskType, TaskStatus, StepStatus } from '../enums'
+import { TaskStatus, StepStatus } from '../enums'
 import { DailyWorkPattern } from '../work-blocks-types'
 
 describe('Production Bug Replication - Workflow Priority Issue', () => {
@@ -71,7 +71,7 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
   const productionWorkflow: SequencedTask = {
     id: 'workflow-001',
     name: 'Complete Scheduler Unification',
-    type: TaskType.Focused,
+    type: 'focused',
     projectId: 'project-001',
     totalDuration: 180, // 3 hours total
     remainingDuration: 180,
@@ -90,7 +90,7 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
         taskId: 'workflow-001',
         name: 'Fix TypeScript errors',
         duration: 60,
-        type: TaskType.Focused,
+        type: 'focused',
         dependsOn: [],
         asyncWaitTime: 0,
         status: 'pending' as StepStatus,
@@ -102,7 +102,7 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
         taskId: 'workflow-001',
         name: 'Update tests',
         duration: 60,
-        type: TaskType.Focused,
+        type: 'focused',
         dependsOn: ['step-001'],
         asyncWaitTime: 0,
         status: 'pending' as StepStatus,
@@ -114,7 +114,7 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
         taskId: 'workflow-001',
         name: 'Run integration tests',
         duration: 60,
-        type: TaskType.Admin,
+        type: 'admin',
         dependsOn: ['step-002'],
         asyncWaitTime: 0,
         status: 'pending' as StepStatus,
@@ -131,7 +131,7 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
     duration: 30,
     importance: 5, // MEDIUM
     urgency: 5, // MEDIUM
-    taskType: TaskType.Admin,
+    taskType: 'admin',
     asyncWaitTime: 0,
     dependencies: [],
     completed: false,

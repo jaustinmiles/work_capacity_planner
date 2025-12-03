@@ -33,7 +33,7 @@ import { logger } from '@/logger'
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
-import { TaskType, TaskStatus, StepStatus, ViewType } from '@shared/enums'
+import { TaskStatus, StepStatus, ViewType } from '@shared/enums'
 
 interface ExtractedTask {
   name: string
@@ -41,7 +41,7 @@ interface ExtractedTask {
   estimatedDuration: number
   importance: number
   urgency: number
-  type: TaskType
+  type: string
   needsMoreInfo?: boolean
 }
 

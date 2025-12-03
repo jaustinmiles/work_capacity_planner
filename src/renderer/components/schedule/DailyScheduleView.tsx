@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { TaskType } from '@shared/enums'
 import { Card, Space, Typography, Tag, Empty, Timeline, Badge } from '@arco-design/web-react'
-import { IconClockCircle, IconDesktop, IconUserGroup, IconCalendar, IconMoon } from '@arco-design/web-react/icon'
+import { IconClockCircle, IconCalendar, IconMoon } from '@arco-design/web-react/icon'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { logger } from '@/logger'
 
@@ -137,15 +136,10 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
         {/* Summary Stats */}
         <Space>
           <Badge
-            count={`${formatDuration(getTotalMinutes(sortedItems.filter(i => i.type === 'task' && (i.originalItem as any).type === TaskType.Focused)))}`}
+            count={`${formatDuration(getTotalMinutes(sortedItems))}`}
             style={{ backgroundColor: '#165DFF' }}
           />
-          <Text type="secondary">Focused</Text>
-          <Badge
-            count={`${formatDuration(getTotalMinutes(sortedItems.filter(i => i.type === 'task' && (i.originalItem as any).type === TaskType.Admin)))}`}
-            style={{ backgroundColor: '#00B42A' }}
-          />
-          <Text type="secondary">Admin</Text>
+          <Text type="secondary">Total Time</Text>
         </Space>
 
         {/* Timeline View - Combine blocks and meetings in chronological order */}
@@ -176,9 +170,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
               if (item.type === 'block') {
                 const block = item.data
                 const hasItems = block.items.length > 0
-                const blockIcon = block.type === TaskType.Focused ? <IconDesktop /> :
-                                block.type === TaskType.Admin ? <IconUserGroup /> :
-                                <IconClockCircle />
+                const blockIcon = <IconClockCircle />
 
                 return (
                   <Timeline.Item
@@ -192,9 +184,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
                     <Text style={{ fontWeight: 500 }}>
                       {block.type === 'mixed' ? 'Mixed Work Block' :
                        block.type === 'flexible' ? 'Flexible Work Block' :
-                       block.type === TaskType.Focused ? 'Focus Block' :
-                       block.type === TaskType.Admin ? 'Admin Block' :
-                       'Personal Time'}
+                       'Work Block'}
                     </Text>
                     {!hasItems && (
                       <Tag size="small" color="gray">Available</Tag>

@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { TaskSplitModal } from '../TaskSplitModal'
 import { Task } from '@shared/types'
-import { TaskType } from '@shared/enums'
 import { vi } from 'vitest'
 
 // Mock the store
@@ -30,7 +29,7 @@ describe('TaskSplitModal', () => {
     duration: 120, // 2 hours
     importance: 5,
     urgency: 5,
-    type: TaskType.Focused,
+    type: 'focused',
     asyncWaitTime: 0,
     dependencies: [],
     completed: false,
@@ -225,7 +224,7 @@ describe('TaskSplitModal', () => {
       // Check that the second task inherits properties
       expect(mockAddTask).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: TaskType.Focused,
+          type: 'focused',
           importance: 5,
           urgency: 5,
           deadline: mockTask.deadline,

@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { UnifiedScheduler } from '../unified-scheduler'
 import { ScheduleContext, UnifiedScheduleItem } from '../unified-scheduler'
 import { DailyWorkPattern, WorkBlock, WorkMeeting } from '../work-blocks-types'
-import { TaskType } from '../enums'
 
 describe('UnifiedScheduler - Meeting Scheduling', () => {
   let scheduler: UnifiedScheduler
@@ -43,7 +42,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
         id: 'task-1',
         name: 'Review code',
         type: 'task',
-        taskType: TaskType.Focused,
+        taskType: 'focused',
         duration: 60, // 1 hour task
         priority: 5,
         dependencies: [],
@@ -143,7 +142,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
           id: 'task-1',
           name: 'Task 1',
           type: 'task',
-          taskType: TaskType.Focused,
+          taskType: 'focused',
           duration: 30,
           priority: 5,
           dependencies: [],
@@ -152,7 +151,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
           id: 'task-2',
           name: 'Task 2',
           type: 'task',
-          taskType: TaskType.Focused,
+          taskType: 'focused',
           duration: 30,
           priority: 5,
           dependencies: [],
@@ -161,7 +160,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
           id: 'task-3',
           name: 'Task 3',
           type: 'task',
-          taskType: TaskType.Focused,
+          taskType: 'focused',
           duration: 30,
           priority: 5,
           dependencies: [],
@@ -259,7 +258,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
         id: 'task-1',
         name: 'Large Task',
         type: 'task',
-        taskType: TaskType.Focused,
+        taskType: 'focused',
         duration: 45,
         priority: 5,
         dependencies: [],
@@ -358,7 +357,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
         id: 'task-1',
         name: 'Task',
         type: 'task',
-        taskType: TaskType.Focused,
+        taskType: 'focused',
         duration: 60,
         priority: 5,
         dependencies: [],
@@ -430,7 +429,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
           id: 'task-1',
           name: 'Low Priority Task',
           type: 'task',
-          taskType: TaskType.Focused,
+          taskType: 'focused',
           duration: 30,
           priority: 1,
           dependencies: [],
@@ -439,7 +438,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
           id: 'task-2',
           name: 'High Priority Task',
           type: 'task',
-          taskType: TaskType.Focused,
+          taskType: 'focused',
           duration: 30,
           priority: 10,
           dependencies: [],

@@ -1,4 +1,4 @@
-import { TaskType, TaskStatus, StepStatus, DeadlineType, ChatMessageRole } from './enums'
+import { TaskStatus, StepStatus, DeadlineType, ChatMessageRole } from './enums'
 
 /**
  * Interface for entities that support time logging
@@ -9,7 +9,7 @@ export interface TimeLoggable {
   name: string
   duration: number // estimated duration in minutes
   actualDuration?: number // actual logged time in minutes
-  type: TaskType
+  type?: string // User-defined task type ID (optional for workflows, required for tasks/steps)
 }
 
 export interface Session {
@@ -54,7 +54,8 @@ export interface Task extends TimeLoggable {
 }
 
 export interface TaskStep extends TimeLoggable {
-  // Inherited from TimeLoggable: id, name, duration, actualDuration, type
+  // Inherited from TimeLoggable: id, name, duration, actualDuration
+  type: string // Required for steps (overrides optional from TimeLoggable)
   taskId: string
   dependsOn: string[] // step IDs
   asyncWaitTime: number
@@ -118,7 +119,7 @@ export interface Project {
 
 export interface TaskFilters {
   completed?: boolean
-  type?: TaskType
+  type?: string // User-defined task type ID
   projectId?: string
   search?: string
 }

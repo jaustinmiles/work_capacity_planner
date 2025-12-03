@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { TaskType } from '@shared/enums'
 import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, Tabs } from '@arco-design/web-react'
 import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -396,17 +395,13 @@ export function ScheduleGenerator({
 
           // Calculate total capacity used (kept for potential future use)
           let _focus = 0
-          let _admin = 0
-          let _personal = 0
+          const _admin = 0
+          const _personal = 0
 
           for (const item of items) {
-            if (item.taskTypeId === TaskType.Focused) {
-              _focus += item.duration
-            } else if (item.taskTypeId === TaskType.Personal) {
-              _personal += item.duration
-            } else {
-              _admin += item.duration
-            }
+            // Note: With user-configurable task types, we no longer have hardcoded type checks
+            // Capacity calculation is now handled per user-defined types
+            _focus += item.duration
           }
 
           // For optimal schedules, create blocks with AVAILABLE capacity, not just used capacity

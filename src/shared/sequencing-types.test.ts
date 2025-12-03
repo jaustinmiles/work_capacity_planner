@@ -6,7 +6,7 @@ import {
   WorkflowExecution,
   SequencedTask,
 } from './sequencing-types'
-import { TaskType, TaskStatus, StepStatus } from './enums'
+import { TaskStatus, StepStatus } from './enums'
 
 describe('sequencing-types', () => {
   describe('createWorkflowTask', () => {
@@ -15,12 +15,12 @@ describe('sequencing-types', () => {
         name: 'Test Workflow',
         importance: 7,
         urgency: 6,
-        type: TaskType.Focused,
+        type: 'focused',
         steps: [
           {
             name: 'Step 1',
             duration: 30,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: [],
             asyncWaitTime: 0,
             status: StepStatus.Pending,
@@ -33,7 +33,7 @@ describe('sequencing-types', () => {
       expect(result.name).toBe('Test Workflow')
       expect(result.importance).toBe(7)
       expect(result.urgency).toBe(6)
-      expect(result.type).toBe(TaskType.Focused)
+      expect(result.type).toBe('focused')
       expect(result.hasSteps).toBe(true)
       expect(result.sessionId).toBe('test-session')
     })
@@ -43,11 +43,11 @@ describe('sequencing-types', () => {
         name: 'Test Workflow',
         importance: 5,
         urgency: 5,
-        type: TaskType.Admin,
+        type: 'admin',
         steps: [
-          { name: 'Step 1', duration: 30, type: TaskType.Focused },
-          { name: 'Step 2', duration: 45, type: TaskType.Admin },
-          { name: 'Step 3', duration: 15, type: TaskType.Focused },
+          { name: 'Step 1', duration: 30, type: 'focused' },
+          { name: 'Step 2', duration: 45, type: 'admin' },
+          { name: 'Step 3', duration: 15, type: 'focused' },
         ],
         sessionId: 'test-session',
       })
@@ -60,10 +60,10 @@ describe('sequencing-types', () => {
         name: 'Test Workflow',
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         steps: [
-          { name: 'First', duration: 20, type: TaskType.Focused },
-          { name: 'Second', duration: 30, type: TaskType.Admin },
+          { name: 'First', duration: 20, type: 'focused' },
+          { name: 'Second', duration: 30, type: 'admin' },
         ],
         sessionId: 'test-session',
       })
@@ -79,11 +79,11 @@ describe('sequencing-types', () => {
         name: 'Test Workflow',
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         steps: [
-          { name: 'Step 1', duration: 20, type: TaskType.Focused, dependsOn: [] },
-          { name: 'Step 2', duration: 30, type: TaskType.Admin, dependsOn: ['step-0'] },
-          { name: 'Step 3', duration: 25, type: TaskType.Focused, dependsOn: ['step-0', 'step-1'] },
+          { name: 'Step 1', duration: 20, type: 'focused', dependsOn: [] },
+          { name: 'Step 2', duration: 30, type: 'admin', dependsOn: ['step-0'] },
+          { name: 'Step 3', duration: 25, type: 'focused', dependsOn: ['step-0', 'step-1'] },
         ],
         sessionId: 'test-session',
       })
@@ -97,9 +97,9 @@ describe('sequencing-types', () => {
         name: 'Test Workflow',
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         steps: [
-          { name: 'Step 1', duration: 30, type: TaskType.Focused },
+          { name: 'Step 1', duration: 30, type: 'focused' },
         ],
         sessionId: 'test-session',
       })
@@ -115,10 +115,10 @@ describe('sequencing-types', () => {
         name: 'Test Workflow',
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         steps: [
-          { name: 'Step 1', duration: 30, type: TaskType.Focused, asyncWaitTime: 10 },
-          { name: 'Step 2', duration: 40, type: TaskType.Admin, asyncWaitTime: 20 },
+          { name: 'Step 1', duration: 30, type: 'focused', asyncWaitTime: 10 },
+          { name: 'Step 2', duration: 40, type: 'admin', asyncWaitTime: 20 },
         ],
         sessionId: 'test-session',
       })
@@ -132,10 +132,10 @@ describe('sequencing-types', () => {
         name: 'Test Workflow',
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         steps: [
-          { name: 'Step 1', duration: 20, type: TaskType.Focused, asyncWaitTime: 0 },
-          { name: 'Step 2', duration: 40, type: TaskType.Admin, asyncWaitTime: 0 },
+          { name: 'Step 1', duration: 20, type: 'focused', asyncWaitTime: 0 },
+          { name: 'Step 2', duration: 40, type: 'admin', asyncWaitTime: 0 },
         ],
         sessionId: 'test-session',
       })
@@ -149,7 +149,7 @@ describe('sequencing-types', () => {
         name: 'Test Workflow',
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         steps: [],
         notes: 'This is a test note',
         sessionId: 'test-session',
@@ -163,7 +163,7 @@ describe('sequencing-types', () => {
         name: 'Test Workflow',
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         steps: [],
         sessionId: 'test-session',
       })
@@ -180,7 +180,7 @@ describe('sequencing-types', () => {
         name: 'Empty Workflow',
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         steps: [],
         sessionId: 'test-session',
       })
@@ -199,7 +199,7 @@ describe('sequencing-types', () => {
       expect(exampleSequencedTask.duration).toBe(365)
       expect(exampleSequencedTask.importance).toBe(8)
       expect(exampleSequencedTask.urgency).toBe(7)
-      expect(exampleSequencedTask.type).toBe(TaskType.Focused)
+      expect(exampleSequencedTask.type).toBe('example-type')
     })
 
     it('should have workflow-specific properties', () => {
@@ -219,7 +219,7 @@ describe('sequencing-types', () => {
       expect(firstStep.taskId).toBe('task-123')
       expect(firstStep.name).toBe('Data Mining')
       expect(firstStep.duration).toBe(120)
-      expect(firstStep.type).toBe(TaskType.Focused)
+      expect(firstStep.type).toBe('example-type')
       expect(firstStep.dependsOn).toEqual([])
       expect(firstStep.asyncWaitTime).toBe(0)
       expect(firstStep.status).toBe(StepStatus.Pending)
@@ -245,10 +245,11 @@ describe('sequencing-types', () => {
       expect(clStep.asyncWaitTime).toBe(480)
     })
 
-    it('should have mixed task types in steps', () => {
+    it('should have consistent task types in steps', () => {
+      // Note: exampleSequencedTask uses 'example-type' as a placeholder
+      // In real apps, steps would have user-defined type IDs
       const types = exampleSequencedTask.steps.map(s => s.type)
-      expect(types).toContain(TaskType.Focused)
-      expect(types).toContain(TaskType.Admin)
+      expect(types.every(t => t === 'example-type')).toBe(true)
     })
   })
 
@@ -264,7 +265,7 @@ describe('sequencing-types', () => {
             taskId: 'task-1',
             name: 'Fix failing tests',
             duration: 45,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: [],
             asyncWaitTime: 0,
             status: StepStatus.Pending,
@@ -314,7 +315,7 @@ describe('sequencing-types', () => {
         duration: 100,
         importance: 7,
         urgency: 6,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependencies: [],
         completed: false,
@@ -331,7 +332,7 @@ describe('sequencing-types', () => {
             taskId: 'seq-task-1',
             name: 'First Step',
             duration: 100,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: [],
             asyncWaitTime: 0,
             status: StepStatus.Pending,

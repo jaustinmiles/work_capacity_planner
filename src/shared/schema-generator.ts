@@ -6,7 +6,6 @@
 import {
   AmendmentType,
   EntityType,
-  TaskType,
   TaskStatus,
   WorkPatternOperation,
   WorkSessionOperation,
@@ -294,7 +293,8 @@ function validateStepAddition(a: Record<string, unknown>, errors: ValidationErro
   validateTarget(a.workflowTarget, 'workflowTarget', errors)
   validateNonEmptyString(a.stepName, 'stepName', 'Step name', errors)
   validatePositiveNumber(a.duration, 'duration', 'Duration', errors)
-  validateEnumValue(a.stepType, TaskType, 'stepType', errors)
+  // stepType is a user-defined task type ID (string) - no enum validation needed
+  validateNonEmptyString(a.stepType, 'stepType', 'Step type', errors)
 }
 
 function validateStepRemoval(a: Record<string, unknown>, errors: ValidationError[]): void {
@@ -320,7 +320,8 @@ function validateTaskCreation(a: Record<string, unknown>, errors: ValidationErro
   }
 
   if (a.taskType !== undefined) {
-    validateEnumValue(a.taskType, TaskType, 'taskType', errors)
+    // taskType is a user-defined task type ID (string)
+    validateNonEmptyString(a.taskType, 'taskType', 'Task type', errors)
   }
 }
 
@@ -352,7 +353,8 @@ function validateWorkflowCreation(
 
     validateNonEmptyString(step.name, `steps[${index}].name`, 'Step name', errors)
     validatePositiveNumber(step.duration, `steps[${index}].duration`, 'Duration', errors)
-    validateEnumValue(step.type, TaskType, `steps[${index}].type`, errors)
+    // step.type is a user-defined task type ID (string)
+    validateNonEmptyString(step.type, `steps[${index}].type`, 'Step type', errors)
 
     if (typeof step.name === 'string') {
       if (stepNames.has(step.name)) {
@@ -431,7 +433,8 @@ function validatePriorityChange(a: Record<string, unknown>, errors: ValidationEr
 
 function validateTypeChange(a: Record<string, unknown>, errors: ValidationError[]): void {
   validateTarget(a.target, 'target', errors)
-  validateEnumValue(a.newType, TaskType, 'newType', errors)
+  // newType is a user-defined task type ID (string)
+  validateNonEmptyString(a.newType, 'newType', 'New type', errors)
 }
 
 function validateWorkPatternModification(a: Record<string, unknown>, errors: ValidationError[]): void {
@@ -452,7 +455,8 @@ function validateWorkPatternModification(a: Record<string, unknown>, errors: Val
     validateNonEmptyString(meeting.name, 'meetingData.name', 'Meeting name', errors)
     validateDate(meeting.startTime, 'meetingData.startTime', 'Start time', errors)
     validateDate(meeting.endTime, 'meetingData.endTime', 'End time', errors)
-    validateEnumValue(meeting.type, TaskType, 'meetingData.type', errors)
+    // meeting.type is a string (meeting type category)
+    validateNonEmptyString(meeting.type, 'meetingData.type', 'Meeting type', errors)
   }
 }
 

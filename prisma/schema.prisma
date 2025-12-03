@@ -230,9 +230,6 @@ model WorkBlock {
   endTime       String
   typeConfig    String      @default("{\"kind\":\"system\",\"systemType\":\"blocked\"}") // JSON: BlockTypeConfig
   totalCapacity Int         @default(0) // Total minutes available in this block
-  // Legacy fields - kept for migration, will be removed
-  type          String?     // @deprecated - use typeConfig instead
-  splitRatio    Json?       // @deprecated - use typeConfig.allocations instead
   WorkPattern   WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
 
   @@index([patternId])

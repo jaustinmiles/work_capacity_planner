@@ -328,7 +328,7 @@ export function SwimLaneTimeline({
       if (step) return step.type
     }
 
-    return task.type
+    return task.type || '' // Workflows may not have a type
   }
 
   // Handle drag start

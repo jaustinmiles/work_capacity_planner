@@ -311,7 +311,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         taskOptions.push({
           value: `task:${task.id}`,
           label: task.name,
-          type: task.type,
+          type: task.type || '', // Regular tasks should always have type
         })
       }
     })
@@ -422,7 +422,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId)
           if (task) {
             taskName = taskName || task.name
-            taskType = task.type
+            taskType = task.type || '' // Workflows may not have a type
 
             // If it's a step session, check if the step has a different type
             if (session.stepId && task.steps) {

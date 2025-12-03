@@ -6,7 +6,6 @@
 import { UnifiedScheduler } from '../unified-scheduler'
 import { UnifiedScheduleItem, ScheduleContext, ScheduleConfig } from '../unified-scheduler'
 import { Task } from '../types'
-import { TaskType } from '../enums'
 import { DailyWorkPattern } from '../work-blocks-types'
 
 describe('UnifiedScheduler - Core Functionality', () => {
@@ -69,7 +68,7 @@ describe('UnifiedScheduler - Core Functionality', () => {
     importance: 5,
     urgency: 5,
     cognitiveComplexity: 3,
-    taskType: TaskType.Focused,
+    taskType: 'focused',
     status: 'not_started',
     createdAt: new Date('2025-01-15T08:00:00.000Z'),
     notes: '',
@@ -80,7 +79,7 @@ describe('UnifiedScheduler - Core Functionality', () => {
     it('should schedule simple tasks without dependencies', () => {
       const tasks = [
         createTestTask('task1', 60),
-        createTestTask('task2', 45, { taskType: TaskType.Admin }),
+        createTestTask('task2', 45, { taskType: 'admin' }),
       ]
 
       const result = scheduler.scheduleForDisplay(tasks, mockContext, mockConfig)
@@ -292,7 +291,7 @@ describe('UnifiedScheduler - Core Functionality', () => {
           name: 'Focus Task',
           duration: 60,
           priority: 50,
-          taskType: TaskType.Focused,
+          taskType: 'focused',
           originalItem: createTestTask('focus-task', 60),
         },
         {
@@ -300,8 +299,8 @@ describe('UnifiedScheduler - Core Functionality', () => {
           name: 'Admin Task',
           duration: 45,
           priority: 50,
-          taskType: TaskType.Admin,
-          originalItem: createTestTask('admin-task', 45, { taskType: TaskType.Admin }),
+          taskType: 'admin',
+          originalItem: createTestTask('admin-task', 45, { taskType: 'admin' }),
         },
       ]
 
@@ -328,7 +327,7 @@ describe('UnifiedScheduler - Core Functionality', () => {
         name: 'Large Task',
         duration: 240, // 4 hours - exceeds morning focus block
         priority: 50,
-        taskType: TaskType.Focused,
+        taskType: 'focused',
         originalItem: createTestTask('large-task', 240),
       }
 

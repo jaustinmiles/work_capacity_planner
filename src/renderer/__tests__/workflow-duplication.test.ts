@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useTaskStore } from '../store/useTaskStore'
-import { TaskType } from '@shared/enums'
 import type { SequencedTask } from '@shared/types'
 
 // Mock the database
@@ -68,7 +67,7 @@ describe('Workflow Duplication Bug', () => {
       name: 'Test Workflow',
       importance: 7,
       urgency: 8,
-      type: TaskType.Focused,
+      type: 'focused',
       notes: 'Initial notes',
       dependencies: [],
       completed: false,
@@ -85,7 +84,7 @@ describe('Workflow Duplication Bug', () => {
           taskId: '',
           name: 'Step 1',
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           dependsOn: [],
           asyncWaitTime: 0,
           status: 'pending' as const,
@@ -97,7 +96,7 @@ describe('Workflow Duplication Bug', () => {
           taskId: '',
           name: 'Step 2',
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           dependsOn: ['step-1'],
           asyncWaitTime: 0,
           status: 'pending' as const,
@@ -131,7 +130,7 @@ describe('Workflow Duplication Bug', () => {
           taskId: '',
           name: 'Step 3',
           duration: 30,
-          type: TaskType.Admin,
+          type: 'admin',
           dependsOn: ['step-2'],
           asyncWaitTime: 0,
           status: 'pending' as const,
@@ -165,7 +164,7 @@ describe('Workflow Duplication Bug', () => {
       name: 'Update Test Workflow',
       importance: 5,
       urgency: 6,
-      type: TaskType.Personal,
+      type: 'personal',
       notes: 'Original',
       dependencies: [],
       completed: false,
@@ -182,7 +181,7 @@ describe('Workflow Duplication Bug', () => {
           taskId: '',
           name: 'Original Step',
           duration: 60,
-          type: TaskType.Personal,
+          type: 'personal',
           dependsOn: [],
           asyncWaitTime: 0,
           status: 'pending' as const,
@@ -210,7 +209,7 @@ describe('Workflow Duplication Bug', () => {
             taskId: workflowId,
             name: 'Added Step',
             duration: 30,
-            type: TaskType.Personal,
+            type: 'personal',
             dependsOn: ['step-a'],
             asyncWaitTime: 0,
             status: 'pending' as const,

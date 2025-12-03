@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { Card, Space, Typography, Tag, Button, Alert, Statistic, Grid, Progress, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar, IconPlayArrow, IconPause, IconRefresh, IconDown, IconEdit, IconDelete, IconMindMapping, IconHistory, IconBook, IconArchive, IconUndo } from '@arco-design/web-react/icon'
 import { SequencedTask, TaskStep } from '@shared/sequencing-types'
-import { TaskType, StepStatus } from '@shared/enums'
+import { StepStatus } from '@shared/enums'
 import { TaskStepItem } from './TaskStepItem'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
 import { WorkflowVisualization } from './WorkflowVisualization'
 import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
@@ -34,6 +35,7 @@ export function SequencedTaskView({
   onDelete,
 }: SequencedTaskViewProps) {
   const { activeWorkSessions, isStepActivelyWorkedOn } = useTaskStore()
+  const userTypes = useSortedUserTaskTypes()
   const [showDetails, setShowDetails] = useState(false)
   const [showEditView, setShowEditView] = useState(false)
   const [showVisualization, setShowVisualization] = useState(false)
@@ -559,11 +561,7 @@ export function SequencedTaskView({
                       <Text style={{ fontWeight: 500 }}>
                         Step {index + 1}: {step.name}
                       </Text>
-                      <Tag size="small" color={
-                        step.type === TaskType.Focused ? 'blue' :
-                        step.type === TaskType.Admin ? 'green' :
-                        'orange'
-                      }>
+                      <Tag size="small" color={userTypes.find(t => t.id === step.type)?.color || 'gray'}>
                         {formatDuration(step.duration)}
                       </Tag>
                       {step.asyncWaitTime > 0 && (

@@ -5,7 +5,7 @@
 import { UnifiedScheduler } from '../unified-scheduler'
 import { SequencedTask } from '../sequencing-types'
 import { Task } from '../types'
-import { TaskType, TaskStatus, StepStatus } from '../enums'
+import { TaskStatus, StepStatus } from '../enums'
 // Helper to create a simple work pattern with new typeConfig format
 const createMockWorkPattern = () => ({
   date: '2024-01-01',
@@ -39,7 +39,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
         duration: 120,
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependencies: [],
         completed: false,
@@ -57,7 +57,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
             taskId: 'workflow-1',
             name: 'First Step',
             duration: 60,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: [],
             asyncWaitTime: 0,
             status: StepStatus.Completed, // This is completed
@@ -69,7 +69,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
             taskId: 'workflow-1',
             name: 'Second Step',
             duration: 60,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: ['step-1'], // Depends on completed step
             asyncWaitTime: 0,
             status: StepStatus.Pending,
@@ -122,7 +122,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
         duration: 120,
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependencies: [],
         completed: false,
@@ -140,7 +140,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
             taskId: 'workflow-1',
             name: 'Second Step',
             duration: 60,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: ['step-1'], // Depends on missing step
             asyncWaitTime: 0,
             status: StepStatus.Pending,
@@ -193,7 +193,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
         duration: 180,
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependencies: [],
         completed: false,
@@ -211,7 +211,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
             taskId: 'workflow-1',
             name: 'First Step',
             duration: 60,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: [],
             asyncWaitTime: 0,
             status: StepStatus.Completed, // Completed
@@ -223,7 +223,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
             taskId: 'workflow-1',
             name: 'Second Step',
             duration: 60,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: [],
             asyncWaitTime: 0,
             status: StepStatus.Pending, // Still pending
@@ -235,7 +235,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
             taskId: 'workflow-1',
             name: 'Third Step',
             duration: 60,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: ['step-1', 'step-2'], // Depends on both completed and pending
             asyncWaitTime: 0,
             status: StepStatus.Pending,
@@ -297,7 +297,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
         duration: 60,
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependencies: [],
         completed: true, // Completed
@@ -316,7 +316,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
         duration: 60,
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependencies: [],
         completed: false,
@@ -334,7 +334,7 @@ describe('UnifiedScheduler - Completed Dependencies', () => {
             taskId: 'workflow-1',
             name: 'First Step',
             duration: 60,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: ['task-1'], // Depends on completed task
             asyncWaitTime: 0,
             status: StepStatus.Pending,

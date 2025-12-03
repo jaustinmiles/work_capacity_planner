@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
-import { TaskType, StepStatus } from '@shared/enums'
+import { StepStatus } from '@shared/enums'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useTaskStore } from '@renderer/store/useTaskStore'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 
 interface WorkflowMinimapProps {
   task: SequencedTask
@@ -11,6 +12,7 @@ interface WorkflowMinimapProps {
 
 export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMinimapProps) {
   const isStepActivelyWorkedOn = useTaskStore(state => state.isStepActivelyWorkedOn)
+  const userTypes = useSortedUserTaskTypes()
 
   // Calculate positions for incomplete steps
   const { incompleteSteps, layout } = useMemo(() => {
@@ -136,10 +138,10 @@ export function WorkflowMinimap({ task, width = 280, height = 80 }: WorkflowMini
         const y = padding + (step.levelIndex * verticalSpacing)
         const isInProgress = step.status === StepStatus.InProgress && isStepActivelyWorkedOn(step.id)
         const isWaiting = step.status === StepStatus.Waiting
-        const isFocused = step.type === TaskType.Focused
+        const userType = userTypes.find(t => t.id === step.type)
 
-        // Determine color based on status
-        let fillColor = isFocused ? '#165DFF' : '#00B42A'
+        // Determine color based on status (use user type color or default blue)
+        let fillColor = userType?.color || '#165DFF'
         if (isInProgress) fillColor = '#FF7D00'
         else if (isWaiting) fillColor = '#FA8C16'  // Orange for waiting/timer active
 

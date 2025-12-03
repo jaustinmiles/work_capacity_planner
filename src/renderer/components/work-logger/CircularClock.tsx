@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Tooltip } from '@arco-design/web-react'
-import { TaskType } from '@shared/enums'
 import {
   WorkSessionData,
   generateArcPath,
@@ -232,8 +231,8 @@ export function CircularClock({
             taskName: '',
             startMinutes: roundToQuarter(newStart % 1440),
             endMinutes: roundToQuarter(newEnd % 1440),
-            type: TaskType.Focused,
-            color: '',
+            type: sessions.find(s => s.id === dragState.sessionId)?.type || '',
+            color: sessions.find(s => s.id === dragState.sessionId)?.color || '',
           }
 
           if (!checkOverlap(movedSession, displaySessions, dragState.sessionId)) {
@@ -252,8 +251,8 @@ export function CircularClock({
               taskName: '',
               startMinutes: newStart,
               endMinutes: dragState.initialEndMinutes,
-              type: TaskType.Focused,
-              color: '',
+              type: sessions.find(s => s.id === dragState.sessionId)?.type || '',
+              color: sessions.find(s => s.id === dragState.sessionId)?.color || '',
             }
 
             if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
@@ -269,8 +268,8 @@ export function CircularClock({
               taskName: '',
               startMinutes: dragState.initialStartMinutes,
               endMinutes: newEnd,
-              type: TaskType.Focused,
-              color: '',
+              type: sessions.find(s => s.id === dragState.sessionId)?.type || '',
+              color: sessions.find(s => s.id === dragState.sessionId)?.color || '',
             }
 
             if (!checkOverlap(resizedSession, displaySessions, dragState.sessionId)) {
@@ -299,8 +298,8 @@ export function CircularClock({
             taskName: '',
             startMinutes: start,
             endMinutes: end,
-            type: TaskType.Focused,
-            color: '',
+            type: sessions.find(s => s.id === 'temp-new')?.type || '',
+            color: sessions.find(s => s.id === 'temp-new')?.color || '',
           }
 
           if (!checkOverlap(newSession, displaySessions)) {
