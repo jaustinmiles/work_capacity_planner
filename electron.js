@@ -19,7 +19,7 @@ async function createWindow() {
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, 'dist/index.js'),
+      preload: path.join(__dirname, 'dist/preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },

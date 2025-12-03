@@ -10,8 +10,15 @@ import {
   angleToMinutes,
   findClosestEdge,
 } from '../SessionState'
-import { TaskType } from '@shared/enums'
+import type { UserTaskType } from '@shared/user-task-types'
 import type { WorkSessionData } from '../SessionState'
+
+// Mock user task types for testing
+const mockUserTypes: UserTaskType[] = [
+  { id: 'focused', sessionId: 'session-1', name: 'Focus', emoji: '🎯', color: '#165DFF', sortOrder: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'admin', sessionId: 'session-1', name: 'Admin', emoji: '📋', color: '#FF9500', sortOrder: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'personal', sessionId: 'session-1', name: 'Personal', emoji: '🌱', color: '#00B42A', sortOrder: 2, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+]
 
 describe('SessionState utilities', () => {
   describe('timeToMinutes', () => {
@@ -45,9 +52,13 @@ describe('SessionState utilities', () => {
 
   describe('getTypeColor', () => {
     it('returns correct color for task type', () => {
-      expect(getTypeColor(TaskType.Focused)).toBe('#165DFF')
-      expect(getTypeColor(TaskType.Admin)).toBe('#FF9500') // Orange for admin tasks
-      expect(getTypeColor(TaskType.Personal)).toBe('#00B42A') // Green for personal tasks
+      expect(getTypeColor(mockUserTypes, 'focused')).toBe('#165DFF')
+      expect(getTypeColor(mockUserTypes, 'admin')).toBe('#FF9500') // Orange for admin tasks
+      expect(getTypeColor(mockUserTypes, 'personal')).toBe('#00B42A') // Green for personal tasks
+    })
+
+    it('returns default gray for unknown type', () => {
+      expect(getTypeColor(mockUserTypes, 'unknown')).toBe('#808080')
     })
   })
 
@@ -59,7 +70,7 @@ describe('SessionState utilities', () => {
         taskName: 'Task 1',
         startMinutes: 540, // 9:00
         endMinutes: 600, // 10:00
-        type: TaskType.Focused,
+        type: 'focused', // User-defined type ID
         color: '#165DFF',
       },
       {
@@ -68,7 +79,7 @@ describe('SessionState utilities', () => {
         taskName: 'Task 2',
         startMinutes: 660, // 11:00
         endMinutes: 720, // 12:00
-        type: TaskType.Admin,
+        type: 'admin', // User-defined type ID
         color: '#00B42A',
       },
     ]
@@ -80,7 +91,7 @@ describe('SessionState utilities', () => {
         taskName: 'Task 3',
         startMinutes: 580, // 9:40
         endMinutes: 640, // 10:40
-        type: TaskType.Focused,
+        type: 'focused',
         color: '#165DFF',
       }
 
@@ -94,7 +105,7 @@ describe('SessionState utilities', () => {
         taskName: 'Task 3',
         startMinutes: 600, // 10:00
         endMinutes: 660, // 11:00
-        type: TaskType.Focused,
+        type: 'focused',
         color: '#165DFF',
       }
 
@@ -108,7 +119,7 @@ describe('SessionState utilities', () => {
         taskName: 'Task 1',
         startMinutes: 540,
         endMinutes: 600,
-        type: TaskType.Focused,
+        type: 'focused',
         color: '#165DFF',
       }
 
@@ -204,7 +215,7 @@ describe('SessionState utilities', () => {
         taskName: 'Task 1',
         startMinutes: 540,
         endMinutes: 600,
-        type: TaskType.Focused,
+        type: 'focused',
         color: '#165DFF',
       },
       {
@@ -213,7 +224,7 @@ describe('SessionState utilities', () => {
         taskName: 'Task 2',
         startMinutes: 660,
         endMinutes: 720,
-        type: TaskType.Admin,
+        type: 'admin',
         color: '#00B42A',
       },
     ]

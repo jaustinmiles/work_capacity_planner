@@ -2,241 +2,71 @@ import { describe, it, expect } from 'vitest'
 import {
   WorkBlock,
   DailyWorkPattern,
-  Meeting,
-  WorkTemplate,
-  DEFAULT_WORK_TEMPLATES,
-  getTotalCapacity,
-  getRemainingCapacity,
+  WorkMeeting,
   getCurrentBlock,
   getNextBlock,
+  isTaskTypeCompatibleWithBlock,
 } from './work-blocks-types'
 import { UnifiedWorkSession } from './unified-work-session-types'
-import { TaskType } from './enums'
+import { BlockTypeConfig, SystemBlockType } from './user-task-types'
 
 describe('work-blocks-types', () => {
-  describe('DEFAULT_WORK_TEMPLATES', () => {
-    it('should have 4 default templates', () => {
-      expect(DEFAULT_WORK_TEMPLATES).toHaveLength(4)
+  describe('BlockTypeConfig', () => {
+    it('should support single type blocks', () => {
+      const typeConfig: BlockTypeConfig = {
+        kind: 'single',
+        typeId: 'focused',
+      }
+      expect(typeConfig.kind).toBe('single')
+      expect(typeConfig.typeId).toBe('focused')
     })
 
-    it('should have standard-9-5 template as default', () => {
-      const standard = DEFAULT_WORK_TEMPLATES.find(t => t.id === 'standard-9-5')
-      expect(standard).toBeDefined()
-      expect(standard?.isDefault).toBe(true)
-      expect(standard?.blocks).toHaveLength(2)
-      expect(standard?.blocks[0]).toEqual({
-        startTime: '09:00',
-        endTime: '12:00',
-        type: 'mixed',
-      })
+    it('should support combo blocks with allocations', () => {
+      const typeConfig: BlockTypeConfig = {
+        kind: 'combo',
+        allocations: [
+          { typeId: 'focused', ratio: 0.7 },
+          { typeId: 'admin', ratio: 0.3 },
+        ],
+      }
+      expect(typeConfig.kind).toBe('combo')
+      expect(typeConfig.allocations).toHaveLength(2)
+      expect(typeConfig.allocations[0].ratio + typeConfig.allocations[1].ratio).toBe(1)
     })
 
-    it('should have early-bird template', () => {
-      const earlyBird = DEFAULT_WORK_TEMPLATES.find(t => t.id === 'early-bird')
-      expect(earlyBird).toBeDefined()
-      expect(earlyBird?.blocks).toHaveLength(3)
-      expect(earlyBird?.blocks[0].startTime).toBe('06:00')
-      expect(earlyBird?.blocks[0].type).toBe('focused')
-    })
-
-    it('should have night-owl template', () => {
-      const nightOwl = DEFAULT_WORK_TEMPLATES.find(t => t.id === 'night-owl')
-      expect(nightOwl).toBeDefined()
-      expect(nightOwl?.blocks).toHaveLength(3)
-      expect(nightOwl?.blocks[2].startTime).toBe('19:00')
-      expect(nightOwl?.blocks[2].endTime).toBe('22:00')
-    })
-
-    it('should have split-day template', () => {
-      const splitDay = DEFAULT_WORK_TEMPLATES.find(t => t.id === 'split-day')
-      expect(splitDay).toBeDefined()
-      expect(splitDay?.blocks).toHaveLength(4)
-    })
-  })
-
-  describe('getTotalCapacity', () => {
-    it('should calculate capacity for focused blocks', () => {
-      const blocks: WorkBlock[] = [
-        { id: '1', startTime: '09:00', endTime: '11:00', type: 'focused' },
-        { id: '2', startTime: '14:00', endTime: '16:00', type: 'focused' },
-      ]
-
-      const capacity = getTotalCapacity(blocks)
-      expect(capacity.focus).toBe(240) // 2 + 2 hours
-      expect(capacity.admin).toBe(0)
-      expect(capacity.personal).toBe(0)
-    })
-
-    it('should calculate capacity for admin blocks', () => {
-      const blocks: WorkBlock[] = [
-        { id: '1', startTime: '09:00', endTime: '10:30', type: 'admin' },
-        { id: '2', startTime: '13:00', endTime: '14:00', type: 'admin' },
-      ]
-
-      const capacity = getTotalCapacity(blocks)
-      expect(capacity.focus).toBe(0)
-      expect(capacity.admin).toBe(150) // 1.5 + 1 hours
-      expect(capacity.personal).toBe(0)
-    })
-
-    it('should calculate capacity for mixed blocks', () => {
-      const blocks: WorkBlock[] = [
-        {
-          id: '1',
-          startTime: '09:00',
-          endTime: '11:00',
-          type: 'mixed',
-          capacity: {
-            totalMinutes: 120,
-            type: 'mixed',
-            splitRatio: { focus: 0.5, admin: 0.5 },
-          },
-        },
-      ]
-
-      const capacity = getTotalCapacity(blocks)
-      expect(capacity.focus).toBe(60) // 50% of 2 hours
-      expect(capacity.admin).toBe(60) // 50% of 2 hours
-      expect(capacity.personal).toBe(0)
-    })
-
-    it('should calculate capacity for personal blocks', () => {
-      const blocks: WorkBlock[] = [
-        { id: '1', startTime: '12:00', endTime: '13:00', type: 'personal' },
-      ]
-
-      const capacity = getTotalCapacity(blocks)
-      expect(capacity.focus).toBe(0)
-      expect(capacity.admin).toBe(0)
-      expect(capacity.personal).toBe(60)
-    })
-
-    it('should calculate capacity for flexible/universal blocks', () => {
-      const blocks: WorkBlock[] = [
-        { id: '1', startTime: '09:00', endTime: '11:00', type: 'flexible' },
-        { id: '2', startTime: '14:00', endTime: '16:00', type: 'universal' },
-      ]
-
-      const capacity = getTotalCapacity(blocks)
-      // Flexible blocks should NOT be counted in focus/admin/personal to avoid double-counting
-      // They are tracked separately as flexible capacity
-      expect(capacity.focus).toBe(0)
-      expect(capacity.admin).toBe(0)
-      expect(capacity.personal).toBe(0)
-    })
-
-    it('should use custom capacity when provided', () => {
-      const blocks: WorkBlock[] = [
-        {
-          id: '1',
-          startTime: '09:00',
-          endTime: '11:00',
-          type: 'mixed',
-          capacity: {
-            totalMinutes: 120,
-            type: 'mixed',
-            splitRatio: {
-              focus: 0.75, // 75% focus = 90 minutes
-              admin: 0.25, // 25% admin = 30 minutes
-            },
-          },
-        },
-      ]
-
-      const capacity = getTotalCapacity(blocks)
-      expect(capacity.focus).toBe(90)
-      expect(capacity.admin).toBe(30)
-      expect(capacity.personal).toBe(0)
-    })
-
-    it('should handle empty blocks array', () => {
-      const capacity = getTotalCapacity([])
-      expect(capacity.focus).toBe(0)
-      expect(capacity.admin).toBe(0)
-      expect(capacity.personal).toBe(0)
-    })
-
-    it('should handle blocks spanning midnight', () => {
-      const blocks: WorkBlock[] = [
-        { id: '1', startTime: '22:00', endTime: '02:00', type: 'focused' },
-      ]
-
-      // This would need special handling in real implementation
-      const capacity = getTotalCapacity(blocks)
-      // For now it calculates negative duration
-      expect(capacity.focus).toBeLessThan(0)
-    })
-  })
-
-  describe('getRemainingCapacity', () => {
-    const blocks: WorkBlock[] = [
-      { id: '1', startTime: '09:00', endTime: '12:00', type: 'focused' },
-      { id: '2', startTime: '13:00', endTime: '17:00', type: 'admin' },
-    ]
-
-    it('should calculate remaining capacity with no accumulation', () => {
-      const remaining = getRemainingCapacity(blocks, {
-        focus: 0,
-        admin: 0,
-        personal: 0,
-      })
-
-      expect(remaining.focus).toBe(180) // 3 hours
-      expect(remaining.admin).toBe(240) // 4 hours
-      expect(remaining.personal).toBe(0)
-    })
-
-    it('should calculate remaining capacity with partial accumulation', () => {
-      const remaining = getRemainingCapacity(blocks, {
-        focus: 60,
-        admin: 120,
-        personal: 0,
-      })
-
-      expect(remaining.focus).toBe(120)
-      expect(remaining.admin).toBe(120)
-      expect(remaining.personal).toBe(0)
-    })
-
-    it('should return 0 when fully accumulated', () => {
-      const remaining = getRemainingCapacity(blocks, {
-        focus: 180,
-        admin: 240,
-        personal: 0,
-      })
-
-      expect(remaining.focus).toBe(0)
-      expect(remaining.admin).toBe(0)
-      expect(remaining.personal).toBe(0)
-    })
-
-    it('should return 0 when over-accumulated', () => {
-      const remaining = getRemainingCapacity(blocks, {
-        focus: 300,
-        admin: 500,
-        personal: 100,
-      })
-
-      expect(remaining.focus).toBe(0)
-      expect(remaining.admin).toBe(0)
-      expect(remaining.personal).toBe(0)
-    })
-
-    it('should handle undefined personal in accumulated', () => {
-      const remaining = getRemainingCapacity(blocks, {
-        focus: 0,
-        admin: 0,
-      })
-
-      expect(remaining.personal).toBe(0)
+    it('should support system blocks', () => {
+      const typeConfig: BlockTypeConfig = {
+        kind: 'system',
+        systemType: SystemBlockType.Blocked,
+      }
+      expect(typeConfig.kind).toBe('system')
+      expect(typeConfig.systemType).toBe('blocked')
     })
   })
 
   describe('getCurrentBlock', () => {
     const blocks: WorkBlock[] = [
-      { id: '1', startTime: '09:00', endTime: '12:00', type: 'focused' },
-      { id: '2', startTime: '13:00', endTime: '17:00', type: 'admin' },
-      { id: '3', startTime: '18:00', endTime: '20:00', type: 'personal' },
+      {
+        id: '1',
+        startTime: '09:00',
+        endTime: '12:00',
+        typeConfig: { kind: 'single', typeId: 'focused' },
+        capacity: { totalMinutes: 180 },
+      },
+      {
+        id: '2',
+        startTime: '13:00',
+        endTime: '17:00',
+        typeConfig: { kind: 'single', typeId: 'admin' },
+        capacity: { totalMinutes: 240 },
+      },
+      {
+        id: '3',
+        startTime: '18:00',
+        endTime: '20:00',
+        typeConfig: { kind: 'single', typeId: 'personal' },
+        capacity: { totalMinutes: 120 },
+      },
     ]
 
     it('should find current block when time is within a block', () => {
@@ -306,9 +136,27 @@ describe('work-blocks-types', () => {
 
   describe('getNextBlock', () => {
     const blocks: WorkBlock[] = [
-      { id: '1', startTime: '09:00', endTime: '12:00', type: 'focused' },
-      { id: '2', startTime: '13:00', endTime: '17:00', type: 'admin' },
-      { id: '3', startTime: '18:00', endTime: '20:00', type: 'personal' },
+      {
+        id: '1',
+        startTime: '09:00',
+        endTime: '12:00',
+        typeConfig: { kind: 'single', typeId: 'focused' },
+        capacity: { totalMinutes: 180 },
+      },
+      {
+        id: '2',
+        startTime: '13:00',
+        endTime: '17:00',
+        typeConfig: { kind: 'single', typeId: 'admin' },
+        capacity: { totalMinutes: 240 },
+      },
+      {
+        id: '3',
+        startTime: '18:00',
+        endTime: '20:00',
+        typeConfig: { kind: 'single', typeId: 'personal' },
+        capacity: { totalMinutes: 120 },
+      },
     ]
 
     it('should find next block when time is before all blocks', () => {
@@ -367,49 +215,96 @@ describe('work-blocks-types', () => {
       const block = getNextBlock([])
       expect(block).toBeNull()
     })
+  })
 
-    it('should handle unsorted blocks', () => {
-      const unsortedBlocks: WorkBlock[] = [
-        { id: '2', startTime: '13:00', endTime: '17:00', type: 'admin' },
-        { id: '3', startTime: '18:00', endTime: '20:00', type: 'personal' },
-        { id: '1', startTime: '09:00', endTime: '12:00', type: 'focused' },
-      ]
+  describe('isTaskTypeCompatibleWithBlock', () => {
+    it('should return true for matching single type block', () => {
+      const block: WorkBlock = {
+        id: '1',
+        startTime: '09:00',
+        endTime: '12:00',
+        typeConfig: { kind: 'single', typeId: 'focused' },
+        capacity: { totalMinutes: 180 },
+      }
+      expect(isTaskTypeCompatibleWithBlock(block, 'focused')).toBe(true)
+    })
 
-      const time = new Date('2025-01-15T08:00:00')
-      const block = getNextBlock(unsortedBlocks, time)
+    it('should return false for non-matching single type block', () => {
+      const block: WorkBlock = {
+        id: '1',
+        startTime: '09:00',
+        endTime: '12:00',
+        typeConfig: { kind: 'single', typeId: 'focused' },
+        capacity: { totalMinutes: 180 },
+      }
+      expect(isTaskTypeCompatibleWithBlock(block, 'admin')).toBe(false)
+    })
 
-      expect(block).toBeDefined()
-      expect(block?.id).toBe('1')
+    it('should return true for combo block with matching allocation', () => {
+      const block: WorkBlock = {
+        id: '1',
+        startTime: '09:00',
+        endTime: '12:00',
+        typeConfig: {
+          kind: 'combo',
+          allocations: [
+            { typeId: 'focused', ratio: 0.7 },
+            { typeId: 'admin', ratio: 0.3 },
+          ],
+        },
+        capacity: { totalMinutes: 180 },
+      }
+      expect(isTaskTypeCompatibleWithBlock(block, 'focused')).toBe(true)
+      expect(isTaskTypeCompatibleWithBlock(block, 'admin')).toBe(true)
+    })
+
+    it('should return false for combo block without matching allocation', () => {
+      const block: WorkBlock = {
+        id: '1',
+        startTime: '09:00',
+        endTime: '12:00',
+        typeConfig: {
+          kind: 'combo',
+          allocations: [
+            { typeId: 'focused', ratio: 0.7 },
+            { typeId: 'admin', ratio: 0.3 },
+          ],
+        },
+        capacity: { totalMinutes: 180 },
+      }
+      expect(isTaskTypeCompatibleWithBlock(block, 'personal')).toBe(false)
+    })
+
+    it('should return false for system blocks', () => {
+      const block: WorkBlock = {
+        id: '1',
+        startTime: '22:00',
+        endTime: '06:00',
+        typeConfig: { kind: 'system', systemType: SystemBlockType.Sleep },
+        capacity: { totalMinutes: 480 },
+      }
+      expect(isTaskTypeCompatibleWithBlock(block, 'focused')).toBe(false)
     })
   })
 
   describe('Type definitions', () => {
-    it('should create valid WorkBlock', () => {
+    it('should create valid WorkBlock with typeConfig', () => {
       const block: WorkBlock = {
         id: 'test-block',
         startTime: '09:00',
         endTime: '11:00',
-        type: 'focused',
-        capacity: {
-          focus: 120,
-          admin: 0,
-          personal: 0,
-        },
+        typeConfig: { kind: 'single', typeId: 'focused' },
+        capacity: { totalMinutes: 120 },
       }
 
       expect(block.id).toBe('test-block')
-      expect(block.type).toBe('focused')
+      expect(block.typeConfig.kind).toBe('single')
     })
 
     it('should create valid DailyWorkPattern', () => {
       const pattern: DailyWorkPattern = {
         date: '2025-01-15',
         blocks: [],
-        accumulated: {
-          focus: 0,
-          admin: 0,
-          personal: 0,
-        },
         meetings: [],
       }
 
@@ -417,8 +312,8 @@ describe('work-blocks-types', () => {
       expect(pattern.blocks).toEqual([])
     })
 
-    it('should create valid Meeting', () => {
-      const meeting: Meeting = {
+    it('should create valid WorkMeeting', () => {
+      const meeting: WorkMeeting = {
         id: 'meeting-1',
         name: 'Daily Standup',
         startTime: '10:00',
@@ -436,27 +331,12 @@ describe('work-blocks-types', () => {
         id: 'session-1',
         taskId: 'task-1',
         startTime: new Date(),
-        type: TaskType.Focused,
+        type: 'focused', // User-defined type ID
         plannedMinutes: 60,
       }
 
       expect(session.taskId).toBe('task-1')
       expect(session.actualMinutes).toBeUndefined()
-    })
-
-    it('should create valid WorkTemplate', () => {
-      const template: WorkTemplate = {
-        id: 'custom-template',
-        name: 'My Custom Day',
-        description: 'A custom work template',
-        blocks: [
-          { startTime: '08:00', endTime: '12:00', type: 'focused' },
-        ],
-        isDefault: false,
-      }
-
-      expect(template.blocks).toHaveLength(1)
-      expect(template.isDefault).toBe(false)
     })
   })
 })

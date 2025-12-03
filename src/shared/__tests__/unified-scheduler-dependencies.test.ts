@@ -6,20 +6,18 @@ import { UnifiedScheduler } from '../unified-scheduler'
 import { SequencedTask } from '../sequencing-types'
 import { Task } from '../types'
 import { TaskType, TaskStatus, StepStatus } from '../enums'
-// Helper to create a simple work pattern
+// Helper to create a simple work pattern with new typeConfig format
 const createMockWorkPattern = () => ({
   date: '2024-01-01',
-  accumulated: { focus: 0, admin: 0, personal: 0 },
+  accumulated: {}, // Dynamic format: Record<string, number>
   blocks: [
     {
       id: 'block-1',
       startTime: '09:00',
       endTime: '17:00',
-      type: 'focused' as const,
+      typeConfig: { kind: 'single' as const, typeId: 'focused' },
       capacity: {
-        focus: 480,
-        admin: 0,
-        personal: 0,
+        totalMinutes: 480,
       },
     },
   ],

@@ -22,11 +22,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             patternId: 'pattern-1',
             startTime: '09:00',
             endTime: '17:00',
-            type: 'flexible',
-            capacity: {
-              focus: 480,
-              admin: 480,
-            },
+            typeConfig: { kind: 'combo' as const, allocations: [{ typeId: 'focused', ratio: 0.5 }, { typeId: 'admin', ratio: 0.5 }] },
+            capacity: { totalMinutes: 480 },
           } as WorkBlock,
         ],
         meetings: [
@@ -39,7 +36,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focus: 0, admin: 0 },
+        accumulated: {},
       }
 
       const task: UnifiedScheduleItem = {
@@ -107,11 +104,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             patternId: 'pattern-1',
             startTime: '09:00',
             endTime: '17:00',
-            type: 'flexible',
-            capacity: {
-              focus: 480,
-              admin: 480,
-            },
+            typeConfig: { kind: 'combo' as const, allocations: [{ typeId: 'focused', ratio: 0.5 }, { typeId: 'admin', ratio: 0.5 }] },
+            capacity: { totalMinutes: 480 },
           } as WorkBlock,
         ],
         meetings: [
@@ -140,7 +134,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focus: 0, admin: 0 },
+        accumulated: {},
       }
 
       // Create three 30-minute tasks
@@ -235,11 +229,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             patternId: 'pattern-1',
             startTime: '09:00',
             endTime: '12:00',
-            type: 'flexible',
-            capacity: {
-              focus: 180,
-              admin: 180,
-            },
+            typeConfig: { kind: 'combo' as const, allocations: [{ typeId: 'focused', ratio: 0.5 }, { typeId: 'admin', ratio: 0.5 }] },
+            capacity: { totalMinutes: 180 },
           } as WorkBlock,
         ],
         meetings: [
@@ -260,7 +251,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focus: 0, admin: 0 },
+        accumulated: {},
       }
 
       // Task is 45 minutes, only has 30-minute gaps
@@ -346,11 +337,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             patternId: 'pattern-1',
             startTime: '09:00',
             endTime: '17:00',
-            type: 'flexible',
-            capacity: {
-              focus: 480,
-              admin: 480,
-            },
+            typeConfig: { kind: 'combo' as const, allocations: [{ typeId: 'focused', ratio: 0.5 }, { typeId: 'admin', ratio: 0.5 }] },
+            capacity: { totalMinutes: 480 },
           } as WorkBlock,
         ],
         meetings: [
@@ -363,7 +351,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focus: 0, admin: 0 },
+        accumulated: {},
       }
 
       const task: UnifiedScheduleItem = {
@@ -420,11 +408,8 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             patternId: 'pattern-1',
             startTime: '09:00',
             endTime: '17:00',
-            type: 'flexible',
-            capacity: {
-              focus: 480,
-              admin: 480,
-            },
+            typeConfig: { kind: 'combo' as const, allocations: [{ typeId: 'focused', ratio: 0.5 }, { typeId: 'admin', ratio: 0.5 }] },
+            capacity: { totalMinutes: 480 },
           } as WorkBlock,
         ],
         meetings: [
@@ -437,7 +422,7 @@ describe('UnifiedScheduler - Meeting Scheduling', () => {
             recurring: false,
           } as WorkMeeting,
         ],
-        accumulated: { focus: 0, admin: 0 },
+        accumulated: {},
       }
 
       const tasks: UnifiedScheduleItem[] = [

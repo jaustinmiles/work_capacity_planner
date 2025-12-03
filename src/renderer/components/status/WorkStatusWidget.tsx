@@ -4,13 +4,14 @@ import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconCaretRight } fro
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { formatMinutes, calculateDuration, formatTimeHHMM, dateToYYYYMMDD } from '@shared/time-utils'
-import { TaskStatus, TaskType, WorkBlockType, NotificationType } from '@shared/enums'
+import { TaskStatus, NotificationType } from '@shared/enums'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { getDatabase } from '../../services/database'
-import { WorkBlock } from '@shared/work-blocks-types'
-import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
+import { WorkBlock, getTotalCapacityByType } from '@shared/work-blocks-types'
+import { isSystemBlock, isSingleTypeBlock, isComboBlock, UserTaskType } from '@shared/user-task-types'
 
 const { Title, Text } = Typography
 
@@ -21,26 +22,28 @@ interface NotificationState {
   visible: boolean
 }
 
-function getBlockDisplay(block: WorkBlock | null) {
+function getBlockDisplay(block: WorkBlock | null, userTypes: UserTaskType[]) {
   if (!block) return { icon: '🔍', label: 'No block' }
-  switch (block.type) {
-    case WorkBlockType.Focused:
-      return { icon: '🎯', label: 'Focus' }
-    case WorkBlockType.Admin:
-      return { icon: '📊', label: 'Admin' }
-    case WorkBlockType.Personal:
-      return { icon: '🏠', label: 'Personal' }
-    case WorkBlockType.Mixed:
-      return { icon: '🔄', label: 'Mixed' }
-    case WorkBlockType.Flexible:
-      return { icon: '🔄', label: 'Flexible' }
-    case WorkBlockType.Blocked:
-      return { icon: '🚫', label: 'Blocked' }
-    case WorkBlockType.Sleep:
-      return { icon: '😴', label: 'Sleep' }
-    default:
-      return { icon: '❓', label: 'Unknown' }
+  const { typeConfig } = block
+  if (isSystemBlock(typeConfig)) {
+    return { icon: '🚫', label: typeConfig.systemType === 'sleep' ? 'Sleep' : 'Blocked' }
   }
+  if (isSingleTypeBlock(typeConfig)) {
+    // Look up user type for display name and emoji
+    const userType = userTypes.find(t => t.id === typeConfig.typeId)
+    const emoji = userType?.emoji || '📋'
+    const name = userType?.name || typeConfig.typeId
+    return { icon: emoji, label: name }
+  }
+  if (isComboBlock(typeConfig)) {
+    // Look up user types for combo block display
+    const typeNames = typeConfig.allocations.map(a => {
+      const userType = userTypes.find(t => t.id === a.typeId)
+      return userType?.name || a.typeId
+    }).join('/')
+    return { icon: '🔄', label: typeNames }
+  }
+  return { icon: '❓', label: 'Unknown' }
 }
 
 // calculateDuration is now imported from @shared/time-utils
@@ -64,6 +67,9 @@ export function WorkStatusWidget() {
   const workPatterns = useWorkPatternStore(state => state.workPatterns)
   const workPatternsLoading = useWorkPatternStore(state => state.isLoading)
 
+  // User-defined task types
+  const userTaskTypes = useSortedUserTaskTypes()
+
   // Scheduler store state
   const nextScheduledItem = useSchedulerStore(state => state.nextScheduledItem)
 
@@ -72,7 +78,9 @@ export function WorkStatusWidget() {
 
   // Local UI state for display only
   const [pattern, setPattern] = useState<any>(null)
-  const [accumulated, setAccumulated] = useState({ focused: 0, admin: 0, personal: 0 })
+  // Dynamic accumulated time by typeId
+  const [accumulatedByType, setAccumulatedByType] = useState<Record<string, number>>({})
+  const [accumulatedTotal, setAccumulatedTotal] = useState(0)
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
   const [meetingMinutes, setMeetingMinutes] = useState(0)
@@ -138,20 +146,18 @@ export function WorkStatusWidget() {
           }, 0) || 0
           setMeetingMinutes(totalMeetingMinutes)
 
-          // Load accumulated time
+          // Load accumulated time (dynamic by type)
           const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
-          setAccumulated({
-            focused: accumulatedData.focused || 0,
-            admin: accumulatedData.admin || 0,
-            personal: accumulatedData.personal || 0,
-          })
+          setAccumulatedByType(accumulatedData.byType || {})
+          setAccumulatedTotal(accumulatedData.total || 0)
         } else {
           // No pattern for today
           setPattern(null)
           setCurrentBlock(null)
           setNextBlock(null)
           setMeetingMinutes(0)
-          setAccumulated({ focused: 0, admin: 0, personal: 0 })
+          setAccumulatedByType({})
+          setAccumulatedTotal(0)
         }
       } catch (error) {
         logger.ui.error('Failed to load work data', { error })
@@ -197,11 +203,8 @@ export function WorkStatusWidget() {
       if (pattern) {
         try {
           const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
-          setAccumulated({
-            focused: accumulatedData.focused || 0,
-            admin: accumulatedData.admin || 0,
-            personal: accumulatedData.personal || 0,
-          })
+          setAccumulatedByType(accumulatedData.byType || {})
+          setAccumulatedTotal(accumulatedData.total || 0)
         } catch (error) {
           logger.ui.error('Failed to refresh accumulated times', { error })
         }
@@ -298,52 +301,19 @@ export function WorkStatusWidget() {
     // due to nextTaskSkipIndex changing
   }
 
-  // Calculate total capacity for the day
-  const totalCapacity = useMemo(() => {
+  // Calculate total capacity for the day using dynamic type system
+  // Returns a map of typeId -> planned minutes
+  const capacityByType = useMemo(() => {
     if (!pattern || !pattern.blocks) {
-      return { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0, flexibleMinutes: 0 }
+      return {} as Record<string, number>
     }
-
-    return pattern.blocks.reduce((acc: any, block: WorkBlock) => {
-      if (block.capacity) {
-        // Use the proper capacity calculator for blocks with capacity data
-        acc.focusMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Focused)
-        acc.adminMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Admin)
-        acc.personalMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Personal)
-        acc.flexibleMinutes += getTotalCapacityForTaskType(block.capacity, TaskType.Flexible)
-      } else {
-        // Fallback for blocks without capacity data
-        const duration = calculateDuration(block.startTime, block.endTime)
-        if (block.type === WorkBlockType.Focused) {
-          acc.focusMinutes += duration
-        } else if (block.type === WorkBlockType.Admin) {
-          acc.adminMinutes += duration
-        } else if (block.type === WorkBlockType.Personal) {
-          acc.personalMinutes += duration
-        } else if (block.type === WorkBlockType.Flexible) {
-          acc.flexibleMinutes += duration
-        } else if (block.type === WorkBlockType.Mixed) {
-          // Mixed blocks without capacity data - skip
-          logger.ui.warn('Mixed block without capacity data', { block })
-        }
-      }
-      return acc
-    }, { focusMinutes: 0, adminMinutes: 0, personalMinutes: 0, flexibleMinutes: 0 })
+    return getTotalCapacityByType(pattern.blocks, [])
   }, [pattern])
 
-  // Calculate progress and overflow
-  const focusProgress = totalCapacity.focusMinutes > 0
-    ? Math.round((accumulated.focused / totalCapacity.focusMinutes) * 100)
-    : 0
-  const adminProgress = totalCapacity.adminMinutes > 0
-    ? Math.round((accumulated.admin / totalCapacity.adminMinutes) * 100)
-    : 0
-
-  // Calculate overflow into flexible time
-  const focusOverflow = Math.max(0, accumulated.focused - totalCapacity.focusMinutes)
-  const adminOverflow = Math.max(0, accumulated.admin - totalCapacity.adminMinutes)
-  const flexibleUsed = focusOverflow + adminOverflow
-  const flexibleRemaining = Math.max(0, totalCapacity.flexibleMinutes - flexibleUsed)
+  // Calculate total planned minutes (sum of all type capacities)
+  const totalPlannedMinutes = useMemo(() => {
+    return Object.values(capacityByType).reduce((sum, mins) => sum + mins, 0)
+  }, [capacityByType])
 
   const hasActiveSession = !!activeSession
 
@@ -437,26 +407,25 @@ export function WorkStatusWidget() {
           </Space>
         </div>
 
-        {/* Planned Capacity */}
+        {/* Planned Capacity - Dynamic based on user-defined types */}
         <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Today&apos;s Planned Capacity</Text>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>🎯 Focus Time:</Text>
-              <Tag color="blue">{formatMinutes(totalCapacity.focusMinutes)}</Tag>
-            </Space>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>📋 Admin Time:</Text>
-              <Tag color="orange">{formatMinutes(totalCapacity.adminMinutes)}</Tag>
-            </Space>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>🌱 Personal Time:</Text>
-              <Tag color="green">{formatMinutes(totalCapacity.personalMinutes)}</Tag>
-            </Space>
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>🔄 Flexible Time:</Text>
-              <Tag color="gold">{formatMinutes(totalCapacity.flexibleMinutes)}</Tag>
-            </Space>
+            {userTaskTypes.length === 0 ? (
+              <Text type="secondary">No task types defined. Go to Settings to create types.</Text>
+            ) : (
+              userTaskTypes.map(taskType => {
+                const plannedMinutes = capacityByType[taskType.id] || 0
+                return (
+                  <Space key={taskType.id} style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Text style={{ whiteSpace: 'nowrap' }}>{taskType.emoji} {taskType.name}:</Text>
+                    <Tag style={{ backgroundColor: taskType.color, color: '#fff', border: 'none' }}>
+                      {formatMinutes(plannedMinutes)}
+                    </Tag>
+                  </Space>
+                )
+              })
+            )}
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
               <Text style={{ whiteSpace: 'nowrap' }}>🤝 Meeting Time:</Text>
               <Tag color="purple">{formatMinutes(meetingMinutes)}</Tag>
@@ -465,7 +434,7 @@ export function WorkStatusWidget() {
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 100 }}>📊 Total Time:</Text>
                 <Text style={{ fontSize: '14px', fontWeight: 500 }}>
-                  {formatMinutes(totalCapacity.focusMinutes + totalCapacity.adminMinutes + totalCapacity.personalMinutes + totalCapacity.flexibleMinutes + meetingMinutes)}
+                  {formatMinutes(totalPlannedMinutes + meetingMinutes)}
                 </Text>
               </Space>
             </div>
@@ -482,24 +451,12 @@ export function WorkStatusWidget() {
                   {currentBlock.startTime} - {currentBlock.endTime}
                 </Tag>
                 <Tag>
-                  {getBlockDisplay(currentBlock).icon} {getBlockDisplay(currentBlock).label}
+                  {getBlockDisplay(currentBlock, userTaskTypes).icon} {getBlockDisplay(currentBlock, userTaskTypes).label}
                 </Tag>
               </Space>
               {currentBlock.capacity && (
                 <Text type="secondary" style={{ fontSize: '12px' }}>
-                  {(() => {
-                    const parts: string[] = []
-                    const focusMinutes = getTotalCapacityForTaskType(currentBlock.capacity, TaskType.Focused)
-                    const adminMinutes = getTotalCapacityForTaskType(currentBlock.capacity, TaskType.Admin)
-                    const personalMinutes = getTotalCapacityForTaskType(currentBlock.capacity, TaskType.Personal)
-                    const flexibleMinutes = getTotalCapacityForTaskType(currentBlock.capacity, TaskType.Flexible)
-
-                    if (focusMinutes > 0) parts.push(`${formatMinutes(focusMinutes)} focus`)
-                    if (adminMinutes > 0) parts.push(`${formatMinutes(adminMinutes)} admin`)
-                    if (personalMinutes > 0) parts.push(`${formatMinutes(personalMinutes)} personal`)
-                    if (flexibleMinutes > 0) parts.push(`${formatMinutes(flexibleMinutes)} flexible`)
-                    return parts.length > 0 ? `Capacity: ${parts.join(', ')}` : 'No capacity data'
-                  })()}
+                  Capacity: {formatMinutes(currentBlock.capacity.totalMinutes)}
                 </Text>
               )}
             </Space>
@@ -513,24 +470,13 @@ export function WorkStatusWidget() {
                       {nextBlock.startTime} - {nextBlock.endTime}
                     </Tag>
                     <Tag>
-                      {getBlockDisplay(nextBlock).icon} {getBlockDisplay(nextBlock).label}
+                      {getBlockDisplay(nextBlock, userTaskTypes).icon} {getBlockDisplay(nextBlock, userTaskTypes).label}
                     </Tag>
                   </Space>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
-                    {(() => {
-                      if (!nextBlock.capacity) return 'No capacity data'
-                      const parts: string[] = []
-                      const focusMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Focused)
-                      const adminMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Admin)
-                      const personalMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Personal)
-                      const flexibleMinutes = getTotalCapacityForTaskType(nextBlock.capacity, TaskType.Flexible)
-
-                      if (focusMinutes > 0) parts.push(`${formatMinutes(focusMinutes)} focus`)
-                      if (adminMinutes > 0) parts.push(`${formatMinutes(adminMinutes)} admin`)
-                      if (personalMinutes > 0) parts.push(`${formatMinutes(personalMinutes)} personal`)
-                      if (flexibleMinutes > 0) parts.push(`${formatMinutes(flexibleMinutes)} flexible`)
-                      return `Capacity: ${parts.join(', ')}`
-                    })()}
+                    {nextBlock.capacity
+                      ? `Capacity: ${formatMinutes(nextBlock.capacity.totalMinutes)}`
+                      : 'No capacity data'}
                   </Text>
                 </>
               ) : (
@@ -540,75 +486,42 @@ export function WorkStatusWidget() {
           )}
         </div>
 
-        {/* Progress */}
+        {/* Progress - Dynamic based on user-defined types */}
         <div>
           <Text type="secondary" style={{ marginBottom: '8px', display: 'block', whiteSpace: 'nowrap' }}>Completed Today</Text>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <div>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ whiteSpace: 'nowrap' }}>Focus</Text>
-                <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(accumulated.focused)} / {formatMinutes(totalCapacity.focusMinutes)}</Text>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{focusProgress}%</Text>
-              </Space>
-              <Progress
-                percent={Math.min(focusProgress, 100)}
-                color={focusProgress >= 100 ? '#00b42a' : '#165dff'}
-              />
-              {focusOverflow > 0 && totalCapacity.flexibleMinutes > 0 && (
-                <Progress
-                  percent={Math.round(Math.min((focusOverflow / totalCapacity.flexibleMinutes) * 100, 100))}
-                  color="#FFA500"
-                  size="small"
-                  style={{ marginTop: 2 }}
-                />
-              )}
-            </div>
-            <div>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ whiteSpace: 'nowrap' }}>Admin</Text>
-                <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(accumulated.admin)} / {formatMinutes(totalCapacity.adminMinutes)}</Text>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{adminProgress}%</Text>
-              </Space>
-              <Progress
-                percent={Math.min(adminProgress, 100)}
-                color={adminProgress >= 100 ? '#00b42a' : '#ff7d00'}
-              />
-              {adminOverflow > 0 && totalCapacity.flexibleMinutes > 0 && (
-                <Progress
-                  percent={Math.round(Math.min((adminOverflow / totalCapacity.flexibleMinutes) * 100, 100))}
-                  color="#FFA500"
-                  size="small"
-                  style={{ marginTop: 2 }}
-                />
-              )}
-            </div>
-            <div>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ whiteSpace: 'nowrap' }}>Personal</Text>
-                <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(accumulated.personal)}</Text>
-              </Space>
-              <Progress
-                percent={accumulated.personal > 0 ? 100 : 0}
-                color="#722ed1"
-              />
-            </div>
-            {totalCapacity.flexibleMinutes > 0 && (
-              <div>
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Text style={{ whiteSpace: 'nowrap' }}>Flexible Time Used</Text>
-                  <Text style={{ whiteSpace: 'nowrap' }}>{formatMinutes(flexibleUsed)} / {formatMinutes(totalCapacity.flexibleMinutes)}</Text>
-                </Space>
-                <Progress
-                  percent={Math.round((flexibleUsed / totalCapacity.flexibleMinutes) * 100)}
-                  color="#FFA500"
-                />
-              </div>
+            {userTaskTypes.length === 0 ? (
+              <Text type="secondary">No task types defined yet.</Text>
+            ) : (
+              userTaskTypes.map(taskType => {
+                const logged = accumulatedByType[taskType.id] || 0
+                const planned = capacityByType[taskType.id] || 0
+                const progress = planned > 0 ? Math.round((logged / planned) * 100) : (logged > 0 ? 100 : 0)
+
+                return (
+                  <div key={taskType.id}>
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                      <Text style={{ whiteSpace: 'nowrap' }}>{taskType.emoji} {taskType.name}</Text>
+                      <Text style={{ whiteSpace: 'nowrap' }}>
+                        {formatMinutes(logged)}{planned > 0 && ` / ${formatMinutes(planned)}`}
+                      </Text>
+                      {planned > 0 && (
+                        <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{progress}%</Text>
+                      )}
+                    </Space>
+                    <Progress
+                      percent={Math.min(progress, 100)}
+                      color={progress >= 100 ? '#00b42a' : taskType.color}
+                    />
+                  </div>
+                )
+              })
             )}
             <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
               <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                 <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1D2129' }}>Total Logged</Text>
                 <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1D2129' }}>
-                  {formatMinutes(accumulated.focused + accumulated.admin + accumulated.personal)}
+                  {formatMinutes(accumulatedTotal)}
                   {meetingMinutes > 0 && ` (+ ${formatMinutes(meetingMinutes)} meetings)`}
                 </Text>
               </Space>
@@ -616,26 +529,25 @@ export function WorkStatusWidget() {
           </Space>
         </div>
 
-        {/* Quick Stats */}
-        <Space style={{ width: '100%', justifyContent: 'space-around' }}>
-          <Statistic
-            title="Remaining Focus"
-            value={Math.max(0, totalCapacity.focusMinutes - accumulated.focused)}
-            suffix="min"
-          />
-          <Statistic
-            title="Remaining Admin"
-            value={Math.max(0, totalCapacity.adminMinutes - accumulated.admin)}
-            suffix="min"
-          />
-          {totalCapacity.flexibleMinutes > 0 && (
-            <Statistic
-              title="Flexible Available"
-              value={flexibleRemaining}
-              suffix="min"
-            />
-          )}
-        </Space>
+        {/* Quick Stats - Dynamic based on user-defined types */}
+        {userTaskTypes.length > 0 && (
+          <Space style={{ width: '100%', justifyContent: 'space-around', flexWrap: 'wrap' }}>
+            {userTaskTypes.slice(0, 3).map(taskType => {
+              const logged = accumulatedByType[taskType.id] || 0
+              const planned = capacityByType[taskType.id] || 0
+              const remaining = Math.max(0, planned - logged)
+
+              return (
+                <Statistic
+                  key={taskType.id}
+                  title={`Remaining ${taskType.name}`}
+                  value={remaining}
+                  suffix="min"
+                />
+              )
+            })}
+          </Space>
+        )}
 
         {/* Notification Alert */}
         {notification.visible && (

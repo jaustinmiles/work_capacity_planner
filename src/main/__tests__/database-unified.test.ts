@@ -463,10 +463,12 @@ describe('Database - Unified Task Model', () => {
 
         const result = await db.getTodayAccumulated(testDate)
 
+        // New dynamic format: { byType: Record<string, number>, total: number }
         expect(result).toEqual({
-          focused: 30, // Only 30 (actualMinutes)
-          admin: 60,  // 45 + 15
-          personal: 0,
+          byType: {
+            focused: 30, // Only 30 (actualMinutes)
+            admin: 60,  // 45 + 15
+          },
           total: 90, // 30 + 60
         })
       })
@@ -478,22 +480,20 @@ describe('Database - Unified Task Model', () => {
         const result = await db.getTodayAccumulated(testDate)
 
         expect(result).toEqual({
-          focused: 0,
-          admin: 0,
-          personal: 0,
+          byType: {},
           total: 0,
         })
       })
 
       it('should use actualMinutes when available', async () => {
         mockPrisma.workSession.findMany.mockResolvedValue([
-          { type: 'focused', actualMinutes: 45, plannedMinutes: 30, Task: { sessionId: 'session-1' } },
-          { type: 'focused', actualMinutes: null, plannedMinutes: 30, Task: { sessionId: 'session-1' } }]) // Active - should not count
+          { type: 'focused', actualMinutes: 45, plannedMinutes: 30, Task: { type: 'focused', sessionId: 'session-1', TaskStep: [] } },
+          { type: 'focused', actualMinutes: null, plannedMinutes: 30, Task: { type: 'focused', sessionId: 'session-1', TaskStep: [] } }]) // Active - should not count
         mockPrisma.taskStep.findMany.mockResolvedValue([])
 
         const result = await db.getTodayAccumulated(testDate)
 
-        expect(result?.focused).toBe(45) // Only 45 (actualMinutes), not plannedMinutes
+        expect(result.byType['focused']).toBe(45) // Only 45 (actualMinutes), not plannedMinutes
       })
     })
 

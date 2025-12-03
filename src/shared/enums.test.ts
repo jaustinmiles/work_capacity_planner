@@ -88,22 +88,14 @@ describe('enums', () => {
       expect(TaskType.Focused).toBe('focused')
       expect(TaskType.Admin).toBe('admin')
       expect(TaskType.Personal).toBe('personal')
-      expect(TaskType.Mixed).toBe('mixed')
     })
 
     it('should have all expected keys', () => {
       const keys = Object.keys(TaskType)
-      expect(keys).toHaveLength(5)
+      expect(keys).toHaveLength(3)
       expect(keys).toContain('Focused')
       expect(keys).toContain('Admin')
       expect(keys).toContain('Personal')
-      expect(keys).toContain('Mixed')
-      expect(keys).toContain('Flexible')
-    })
-
-    it('should include Mixed type for work blocks', () => {
-      // Mixed is only for work blocks, not individual tasks
-      expect(TaskType.Mixed).toBe('mixed')
     })
 
     it('should support type categorization', () => {

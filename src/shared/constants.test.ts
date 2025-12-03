@@ -13,17 +13,14 @@ describe('constants', () => {
       expect(TaskType.Focused).toBe('focused')
       expect(TaskType.Admin).toBe('admin')
       expect(TaskType.Personal).toBe('personal')
-      expect(TaskType.Mixed).toBe('mixed')
-      expect(TaskType.Flexible).toBe('flexible')
     })
 
     it('should have all expected keys', () => {
       const keys = Object.keys(TaskType)
+      expect(keys).toHaveLength(3)
       expect(keys).toContain('Focused')
       expect(keys).toContain('Admin')
       expect(keys).toContain('Personal')
-      expect(keys).toContain('Mixed')
-      expect(keys).toContain('Flexible')
     })
 
     it('should be usable in type checking', () => {
@@ -105,14 +102,11 @@ describe('constants', () => {
   })
 
   describe('WorkBlockType enum', () => {
-
     it('should have all expected keys', () => {
       const keys = Object.keys(WorkBlockType)
-      expect(keys).toHaveLength(7)
+      expect(keys).toHaveLength(5)
       expect(keys).toContain('Focused')
       expect(keys).toContain('Admin')
-      expect(keys).toContain('Mixed')
-      expect(keys).toContain('Flexible')
       expect(keys).toContain('Personal')
       expect(keys).toContain('Blocked')
       expect(keys).toContain('Sleep')
@@ -125,8 +119,8 @@ describe('constants', () => {
       expect(TaskType.Admin).toBe('admin')
     })
 
-    it('should have unique block types', () => {
-      expect(WorkBlockType.Mixed).toBe('mixed')
+    it('should have unique block types for system states', () => {
+      expect(WorkBlockType.Blocked).toBe('blocked')
       expect(WorkBlockType.Sleep).toBe('sleep')
     })
   })
@@ -284,8 +278,8 @@ describe('constants', () => {
   describe('Cross-constant relationships', () => {
     it('should have consistent task types across enums', () => {
       // TaskType and WorkBlockType should align for common types
-      expect(TaskType.FOCUSED).toBe(WorkBlockType.FOCUSED)
-      expect(TaskType.ADMIN).toBe(WorkBlockType.ADMIN)
+      expect(TaskType.Focused).toBe(WorkBlockType.Focused)
+      expect(TaskType.Admin).toBe(WorkBlockType.Admin)
     })
 
     it('should have non-overlapping status values where appropriate', () => {
@@ -314,9 +308,9 @@ describe('constants', () => {
     it('should maintain type safety for enum usage', () => {
       // This would fail TypeScript compilation if enums weren't properly typed
       const statuses: TaskStatus[] = [
-        TaskStatus.PENDING,
-        TaskStatus.IN_PROGRESS,
-        TaskStatus.COMPLETED,
+        TaskStatus.NotStarted,
+        TaskStatus.InProgress,
+        TaskStatus.Completed,
       ]
       expect(statuses).toHaveLength(3)
     })

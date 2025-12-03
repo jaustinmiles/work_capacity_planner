@@ -29,8 +29,6 @@ export enum TaskType {
   Focused = 'focused',
   Admin = 'admin',
   Personal = 'personal',
-  Mixed = 'mixed', // Only used for work blocks in scheduling, not for individual tasks
-  Flexible = 'flexible', // For flexible capacity that can be used by any task type
 }
 
 // Gantt chart item types
@@ -58,12 +56,11 @@ export enum NextScheduledItemType {
   Step = 'step',
 }
 
-// Work block types for scheduling
+// Work block types for scheduling (used by AI amendment system)
+// Note: For new code, use BlockTypeConfig from work-blocks-types.ts instead
 export enum WorkBlockType {
   Focused = 'focused',
   Admin = 'admin',
-  Mixed = 'mixed',
-  Flexible = 'flexible',
   Personal = 'personal',
   Blocked = 'blocked',
   Sleep = 'sleep',

@@ -15,7 +15,8 @@ import { DailyWorkPattern } from '@/shared/work-blocks-types'
 import { WorkSettings, DEFAULT_WORK_SETTINGS } from '@/shared/work-settings-types'
 import { getCurrentTime, getLocalDateString } from '@/shared/time-provider'
 import { logger } from '@/logger'
-import { TaskType, UnifiedScheduleItemType, NextScheduledItemType } from '@/shared/enums'
+import { UnifiedScheduleItemType, NextScheduledItemType } from '@/shared/enums'
+import { useUserTaskTypeStore } from './useUserTaskTypeStore'
 
 export interface NextScheduledItem {
   type: NextScheduledItemType
@@ -76,12 +77,21 @@ function isNonWorkItem(item: UnifiedScheduleItem): boolean {
   )
 }
 
-// Helper function to get task color based on type
-const getTaskColor = (taskType: TaskType): string => {
-  switch (taskType) {
-    case TaskType.Focused: return '#3b82f6'
-    case TaskType.Admin: return '#f59e0b'
-    case TaskType.Personal: return '#10b981'
+// Helper function to get task color based on type ID
+// Uses user-configurable types from UserTaskTypeStore with fallbacks for legacy IDs
+const getTaskColor = (taskTypeId: string): string => {
+  // Get color from user task type store (non-reactive access for use outside components)
+  const userTypes = useUserTaskTypeStore.getState().types
+  const userType = userTypes.find(t => t.id === taskTypeId)
+  if (userType) {
+    return userType.color
+  }
+
+  // Fallback for legacy type IDs (backwards compatibility)
+  switch (taskTypeId) {
+    case 'focused': return '#3b82f6'
+    case 'admin': return '#f59e0b'
+    case 'personal': return '#10b981'
     default: return '#6b7280'
   }
 }
@@ -100,8 +110,8 @@ const addColorsToItems = (items: UnifiedScheduleItem[]): UnifiedScheduleItem[] =
       color = '#06b6d4' // Cyan for breaks
     } else if (item.type === UnifiedScheduleItemType.BlockedTime) {
       color = '#64748b' // Slate for blocked time
-    } else if (item.taskType) {
-      color = getTaskColor(item.taskType)
+    } else if (item.taskTypeId) {
+      color = getTaskColor(item.taskTypeId)
     }
 
     return {

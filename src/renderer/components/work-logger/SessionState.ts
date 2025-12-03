@@ -1,4 +1,4 @@
-import { TaskType } from '@shared/enums'
+import { UserTaskType, getTypeColor as getTypeColorFromTypes, getTypeName, getTypeEmoji } from '@shared/user-task-types'
 
 export interface WorkSessionData {
   id: string
@@ -8,7 +8,7 @@ export interface WorkSessionData {
   stepName?: string
   startMinutes: number // 0-1440 (minutes since midnight)
   endMinutes: number
-  type: TaskType
+  type: string // User-defined type ID
   color: string
   isDirty?: boolean
   isNew?: boolean
@@ -42,58 +42,28 @@ export function roundToFiveMinutes(minutes: number): number {
   return Math.round(minutes / 5) * 5
 }
 
-// Get color for task type
-export function getTypeColor(type: TaskType): string {
-  switch (type) {
-    case TaskType.Focused:
-      return '#165DFF' // Blue for focused work
-    case TaskType.Personal:
-      return '#00B42A' // Green for personal tasks
-    case TaskType.Admin:
-      return '#FF9500' // Orange for admin tasks (was showing green before!)
-    case TaskType.Mixed:
-      return '#722ed1' // Purple for mixed
-    case TaskType.Flexible:
-      return '#13c2c2' // Cyan for flexible
-    default:
-      return '#8c8c8c' // Gray fallback
-  }
+/**
+ * Get color for a task type ID.
+ * Requires the user-defined types array to be passed in.
+ */
+export function getTypeColor(types: UserTaskType[], typeId: string): string {
+  return getTypeColorFromTypes(types, typeId)
 }
 
-// Get tag color name for task type (for Arco Design Tag component)
-export function getTypeTagColor(type: TaskType): string {
-  switch (type) {
-    case TaskType.Focused:
-      return 'blue'
-    case TaskType.Personal:
-      return 'green'
-    case TaskType.Admin:
-      return 'orange'
-    case TaskType.Mixed:
-      return 'purple'
-    case TaskType.Flexible:
-      return 'cyan'
-    default:
-      return 'default'
-  }
+/**
+ * Get display name for a task type ID.
+ * Requires the user-defined types array to be passed in.
+ */
+export function getTypeDisplayName(types: UserTaskType[], typeId: string): string {
+  return getTypeName(types, typeId)
 }
 
-// Get display name for task type
-export function getTypeDisplayName(type: TaskType): string {
-  switch (type) {
-    case TaskType.Focused:
-      return 'Focused'
-    case TaskType.Personal:
-      return 'Personal'
-    case TaskType.Admin:
-      return 'Admin'
-    case TaskType.Mixed:
-      return 'Mixed'
-    case TaskType.Flexible:
-      return 'Flexible'
-    default:
-      return 'Unknown'
-  }
+/**
+ * Get emoji for a task type ID.
+ * Requires the user-defined types array to be passed in.
+ */
+export function getTypeEmojiDisplay(types: UserTaskType[], typeId: string): string {
+  return getTypeEmoji(types, typeId)
 }
 
 // Check if two sessions overlap

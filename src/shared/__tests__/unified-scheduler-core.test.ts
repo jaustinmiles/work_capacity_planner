@@ -23,20 +23,18 @@ describe('UnifiedScheduler - Core Functionality', () => {
         id: 'morning-focus',
         startTime: '09:00',
         endTime: '12:00',
-        type: 'focused',
+        typeConfig: { kind: 'single', typeId: 'focused' },
+        capacity: { totalMinutes: 180 },
       },
       {
         id: 'afternoon-admin',
         startTime: '13:00',
         endTime: '15:00',
-        type: 'admin',
+        typeConfig: { kind: 'single', typeId: 'admin' },
+        capacity: { totalMinutes: 120 },
       },
     ],
-    accumulated: {
-      focus: 0,
-      admin: 0,
-      personal: 0,
-    },
+    accumulated: {},
     meetings: [],
   }
 

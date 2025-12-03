@@ -125,8 +125,8 @@ function processSequencedTask(
       // Complexity
       cognitiveComplexity: step.cognitiveComplexity || 3,
 
-      // Task type (default to Focused if not specified)
-      taskType: step.type || TaskType.Focused,
+      // Task type ID (references UserTaskType, falls back to old enum value)
+      taskTypeId: step.type || TaskType.Focused,
 
       // Dependencies
       dependencies: step.dependsOn || [],
@@ -201,8 +201,8 @@ function processTaskOrStep(
   // Determine item type
   const itemType = determineItemType(item)
 
-  // Determine task type
-  const taskType = extractTaskType(item)
+  // Determine task type ID (references UserTaskType)
+  const taskTypeId = extractTaskType(item)
 
   const unifiedItem: UnifiedScheduleItem = {
     // Core identification
@@ -221,8 +221,8 @@ function processTaskOrStep(
     // Complexity
     cognitiveComplexity: item.cognitiveComplexity || 3,
 
-    // Task type
-    taskType,
+    // Task type ID (references UserTaskType)
+    taskTypeId,
 
     // Dependencies
     dependencies: extractDependencies(item),

@@ -1,7 +1,17 @@
 import { PrismaClient } from '@prisma/client'
 import { Task, TaskStep } from '../shared/types'
-import { TaskType, WorkBlockType } from '../shared/enums'
-import { calculateBlockCapacity, SplitRatio } from '../shared/capacity-calculator'
+import { TaskType } from '../shared/enums'
+import {
+  UserTaskType,
+  CreateUserTaskTypeInput,
+  UpdateUserTaskTypeInput,
+  createUserTaskType as createUserTaskTypeEntity,
+  userTaskTypeToRecord,
+  recordToUserTaskType,
+  BlockTypeConfig,
+  SystemBlockType,
+} from '../shared/user-task-types'
+import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime } from '../shared/time-provider'
 import * as crypto from 'crypto'
@@ -14,6 +24,49 @@ const prisma = new PrismaClient()
 
 // Get scoped logger for database operations
 const dbLogger = getScopedLogger(LogScope.Database)
+
+// Default typeConfig for system blocks
+const DEFAULT_TYPE_CONFIG: BlockTypeConfig = { kind: 'system', systemType: SystemBlockType.Blocked }
+
+/**
+ * Parse typeConfig from database JSON string.
+ * Falls back to system blocked if parsing fails.
+ */
+function parseTypeConfig(typeConfigJson: string | null): BlockTypeConfig {
+  if (!typeConfigJson) return DEFAULT_TYPE_CONFIG
+  try {
+    return JSON.parse(typeConfigJson) as BlockTypeConfig
+  } catch {
+    return DEFAULT_TYPE_CONFIG
+  }
+}
+
+/**
+ * Map a database WorkBlock to include parsed typeConfig and calculated capacity.
+ */
+function mapDatabaseBlock(dbBlock: {
+  id: string
+  startTime: string
+  endTime: string
+  typeConfig: string
+  totalCapacity: number
+  type?: string | null
+  splitRatio?: unknown
+  patternId: string
+}) {
+  const typeConfig = parseTypeConfig(dbBlock.typeConfig)
+  const capacity = calculateBlockCapacity(typeConfig, dbBlock.startTime, dbBlock.endTime)
+
+  return {
+    id: dbBlock.id,
+    startTime: dbBlock.startTime,
+    endTime: dbBlock.endTime,
+    typeConfig,
+    capacity,
+    totalCapacity: capacity.totalMinutes,
+    patternId: dbBlock.patternId,
+  }
+}
 
 // Database service for managing tasks (including workflows)
 export class DatabaseService {
@@ -314,6 +367,166 @@ export class DatabaseService {
         },
       })
     }
+  }
+
+  // ============================================================================
+  // User Task Types - Session-scoped configurable task types
+  // ============================================================================
+
+  /**
+   * Get all user task types for a session.
+   */
+  async getUserTaskTypes(sessionId?: string): Promise<UserTaskType[]> {
+    const activeSessionId = sessionId || (await this.getActiveSession())
+
+    const records = await this.client.userTaskType.findMany({
+      where: { sessionId: activeSessionId },
+      orderBy: { sortOrder: 'asc' },
+    })
+
+    return records.map((record) =>
+      recordToUserTaskType({
+        ...record,
+        createdAt: record.createdAt.toISOString(),
+        updatedAt: record.updatedAt.toISOString(),
+      }),
+    )
+  }
+
+  /**
+   * Get a single user task type by ID.
+   */
+  async getUserTaskTypeById(id: string): Promise<UserTaskType | null> {
+    const record = await this.client.userTaskType.findUnique({
+      where: { id },
+    })
+
+    if (!record) return null
+
+    return recordToUserTaskType({
+      ...record,
+      createdAt: record.createdAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString(),
+    })
+  }
+
+  /**
+   * Create a new user task type.
+   */
+  async createUserTaskType(input: CreateUserTaskTypeInput): Promise<UserTaskType> {
+    // Get the next sort order
+    const existingTypes = await this.client.userTaskType.findMany({
+      where: { sessionId: input.sessionId },
+      orderBy: { sortOrder: 'desc' },
+      take: 1,
+    })
+
+    const nextSortOrder = existingTypes.length > 0 ? existingTypes[0].sortOrder + 1 : 0
+
+    // Create the entity with generated ID and timestamps
+    const entity = createUserTaskTypeEntity({
+      ...input,
+      sortOrder: input.sortOrder ?? nextSortOrder,
+    })
+
+    // Convert to record format for database
+    const record = userTaskTypeToRecord(entity)
+
+    // Create in database
+    const created = await this.client.userTaskType.create({
+      data: {
+        id: record.id,
+        sessionId: record.sessionId,
+        name: record.name,
+        emoji: record.emoji,
+        color: record.color,
+        sortOrder: record.sortOrder,
+        createdAt: new Date(record.createdAt),
+        updatedAt: new Date(record.updatedAt),
+      },
+    })
+
+    dbLogger.info('Created user task type', {
+      id: created.id,
+      name: created.name,
+      sessionId: created.sessionId,
+    })
+
+    return recordToUserTaskType({
+      ...created,
+      createdAt: created.createdAt.toISOString(),
+      updatedAt: created.updatedAt.toISOString(),
+    })
+  }
+
+  /**
+   * Update an existing user task type.
+   */
+  async updateUserTaskType(id: string, updates: UpdateUserTaskTypeInput): Promise<UserTaskType> {
+    const updated = await this.client.userTaskType.update({
+      where: { id },
+      data: {
+        ...updates,
+        updatedAt: getCurrentTime(),
+      },
+    })
+
+    dbLogger.info('Updated user task type', {
+      id: updated.id,
+      name: updated.name,
+      updates,
+    })
+
+    return recordToUserTaskType({
+      ...updated,
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+    })
+  }
+
+  /**
+   * Delete a user task type.
+   * WARNING: This does not check if the type is in use by tasks or blocks.
+   */
+  async deleteUserTaskType(id: string): Promise<void> {
+    await this.client.userTaskType.delete({
+      where: { id },
+    })
+
+    dbLogger.info('Deleted user task type', { id })
+  }
+
+  /**
+   * Reorder user task types by providing an ordered array of IDs.
+   */
+  async reorderUserTaskTypes(sessionId: string, orderedIds: string[]): Promise<void> {
+    // Update each type's sortOrder based on position in array
+    await this.client.$transaction(
+      orderedIds.map((id, index) =>
+        this.client.userTaskType.update({
+          where: { id },
+          data: { sortOrder: index },
+        }),
+      ),
+    )
+
+    dbLogger.info('Reordered user task types', {
+      sessionId,
+      count: orderedIds.length,
+    })
+  }
+
+  /**
+   * Check if a session has any user task types defined.
+   */
+  async sessionHasTaskTypes(sessionId?: string): Promise<boolean> {
+    const activeSessionId = sessionId || (await this.getActiveSession())
+
+    const count = await this.client.userTaskType.count({
+      where: { sessionId: activeSessionId },
+    })
+
+    return count > 0
   }
 
   // Tasks
@@ -1170,21 +1383,7 @@ export class DatabaseService {
 
     return patterns.map(pattern => ({
       ...pattern,
-      blocks: pattern.WorkBlock.map(b => {
-        // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
-        const capacity = calculateBlockCapacity(
-          b.type as WorkBlockType,
-          b.startTime,
-          b.endTime,
-          b.splitRatio as unknown as SplitRatio | null,
-        )
-
-        return {
-          ...b,
-          capacity,
-          totalCapacity: b.totalCapacity,
-        }
-      }),
+      blocks: pattern.WorkBlock.map(mapDatabaseBlock),
       meetings: pattern.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -1233,28 +1432,14 @@ export class DatabaseService {
       blockDetails: pattern.WorkBlock.map((b: any) => ({
         start: b.startTime,
         end: b.endTime,
-        type: b.type,
+        typeConfig: b.typeConfig,
       })),
       meetings: pattern.WorkMeeting.length,
     })
 
     return {
       ...pattern,
-      blocks: pattern.WorkBlock.map(b => {
-        // Use the unified capacity calculator - returns {focus, admin, personal, flexible, total}
-        const capacity = calculateBlockCapacity(
-          b.type as WorkBlockType,
-          b.startTime,
-          b.endTime,
-          b.splitRatio as unknown as SplitRatio | null,
-        )
-
-        return {
-          ...b,
-          capacity,
-          totalCapacity: b.totalCapacity,
-        }
-      }),
+      blocks: pattern.WorkBlock.map(mapDatabaseBlock),
       meetings: pattern.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -1305,16 +1490,16 @@ export class DatabaseService {
         sessionId,
         WorkBlock: {
           create: (blocks || []).map((b: any) => {
-            const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
-
-            // Use our unified capacity calculator - much simpler!
-            const blockCapacity = calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.capacity?.splitRatio || null)
+            // Extract typeConfig from input block
+            const typeConfig: BlockTypeConfig = b.typeConfig || DEFAULT_TYPE_CONFIG
+            const blockCapacity = calculateBlockCapacity(typeConfig, b.startTime, b.endTime)
 
             return {
               id: crypto.randomUUID(),
-              ...blockData,
+              startTime: b.startTime,
+              endTime: b.endTime,
+              typeConfig: JSON.stringify(typeConfig),
               totalCapacity: blockCapacity.totalMinutes,
-              splitRatio: blockCapacity.splitRatio || null,
             }
           }),
         },
@@ -1371,11 +1556,14 @@ export class DatabaseService {
                 isTemplate: false,
                 WorkBlock: {
                   create: (blocks || []).map((b: any) => {
-                    const { patternId: _patternId, id: _id, ...blockData } = b
+                    const typeConfig: BlockTypeConfig = b.typeConfig || DEFAULT_TYPE_CONFIG
+                    const blockCapacity = calculateBlockCapacity(typeConfig, b.startTime, b.endTime)
                     return {
                       id: crypto.randomUUID(),
-                      ...blockData,
-                      capacity: b.capacity ? JSON.stringify(b.capacity) : null,
+                      startTime: b.startTime,
+                      endTime: b.endTime,
+                      typeConfig: JSON.stringify(typeConfig),
+                      totalCapacity: blockCapacity.totalMinutes,
                     }
                   }),
                 },
@@ -1403,11 +1591,7 @@ export class DatabaseService {
 
     const formattedPattern = {
       ...pattern,
-      blocks: pattern.WorkBlock.map(b => ({
-        ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
-        totalCapacity: b.totalCapacity,
-      })),
+      blocks: pattern.WorkBlock.map(mapDatabaseBlock),
       meetings: pattern.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -1456,9 +1640,8 @@ export class DatabaseService {
             id: crypto.randomUUID(),
             startTime: b.startTime,
             endTime: b.endTime,
-            type: b.type,
+            typeConfig: b.typeConfig, // Copy typeConfig from template
             totalCapacity: b.totalCapacity || 0,
-            splitRatio: b.splitRatio || null,
           })),
         },
         WorkMeeting: {
@@ -1481,11 +1664,7 @@ export class DatabaseService {
 
     return {
       ...template,
-      blocks: template.WorkBlock.map(b => ({
-        ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
-        totalCapacity: b.totalCapacity,
-      })),
+      blocks: template.WorkBlock.map(mapDatabaseBlock),
       meetings: template.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -1516,15 +1695,15 @@ export class DatabaseService {
         updatedAt: getCurrentTime(),
         WorkBlock: {
           create: (updates.blocks || []).map((b: any) => {
-            const { patternId: _patternId, id: _id, capacity: _capacity, ...blockData } = b
-            const newBlock = {
+            const typeConfig: BlockTypeConfig = b.typeConfig || DEFAULT_TYPE_CONFIG
+            const blockCapacity = calculateBlockCapacity(typeConfig, b.startTime, b.endTime)
+            return {
               id: crypto.randomUUID(),
-              ...blockData,
-              totalCapacity: b.capacity?.totalMinutes || 0,
-              splitRatio: b.capacity?.splitRatio || null,
+              startTime: b.startTime,
+              endTime: b.endTime,
+              typeConfig: JSON.stringify(typeConfig),
+              totalCapacity: blockCapacity.totalMinutes,
             }
-
-            return newBlock
           }),
         },
         WorkMeeting: {
@@ -1553,8 +1732,7 @@ export class DatabaseService {
       blocks: pattern.WorkBlock.map(b => ({
         startTime: b.startTime,
         endTime: b.endTime,
-        type: b.type,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
+        typeConfig: b.typeConfig,
         totalCapacity: b.totalCapacity,
       })),
       meetings: pattern.WorkMeeting.map(m => ({
@@ -1568,11 +1746,7 @@ export class DatabaseService {
 
     const formattedPattern = {
       ...pattern,
-      blocks: pattern.WorkBlock.map(b => ({
-        ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
-        totalCapacity: b.totalCapacity,
-      })),
+      blocks: pattern.WorkBlock.map(mapDatabaseBlock),
       meetings: pattern.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -1646,11 +1820,7 @@ export class DatabaseService {
 
     return templates.map(t => ({
       ...t,
-      blocks: t.WorkBlock.map(b => ({
-        ...b,
-        capacity: calculateBlockCapacity(b.type as WorkBlockType, b.startTime, b.endTime, b.splitRatio as unknown as SplitRatio | null),
-        totalCapacity: b.totalCapacity,
-      })),
+      blocks: t.WorkBlock.map(mapDatabaseBlock),
       meetings: t.WorkMeeting.map(m => ({
         ...m,
         daysOfWeek: m.daysOfWeek ? JSON.parse(m.daysOfWeek) : null,
@@ -1796,10 +1966,11 @@ export class DatabaseService {
     })
   }
 
-  async getTodayAccumulated(date: string): Promise<{ focused: number; admin: number; personal: number; total: number }> {
-    const _sessionId = await this.getActiveSession()
-
-    // APPROACH 1: Get work sessions for the date with task and step data
+  /**
+   * Get accumulated work time for a date, grouped by user-defined type ID.
+   * Returns a map of typeId -> minutes, plus a total.
+   */
+  async getTodayAccumulated(date: string): Promise<{ byType: Record<string, number>; total: number }> {
     const { startOfDay, endOfDay } = this.getLocalDateRange(date)
 
     const workSessions = await this.client.workSession.findMany({
@@ -1812,13 +1983,13 @@ export class DatabaseService {
       include: {
         Task: {
           include: {
-            TaskStep: true, // Include steps to look up step type if needed
+            TaskStep: true,
           },
         },
       },
     })
 
-    // APPROACH 2: Also check task steps that were completed today with actualDuration
+    // Also check task steps that were completed today with actualDuration
     const completedSteps = await this.client.taskStep.findMany({
       where: {
         completedAt: {
@@ -1831,81 +2002,66 @@ export class DatabaseService {
       },
     })
 
-    // APPROACH 3: Check tasks with actualDuration that were updated today (unused for now)
-    // const tasksWithTime = await this.client.task.findMany({
-    //   where: {
-    //     sessionId: _sessionId,
-    //     actualDuration: {
-    //       gt: 0,
-    //     },
-    //   },
-    // })
+    // Accumulate from work sessions - now using dynamic type IDs
+    const accumulated: { byType: Record<string, number>; total: number } = {
+      byType: {},
+      total: 0,
+    }
 
-    // Accumulate from work sessions
-    const accumulated = workSessions.reduce((acc, session) => {
-      // FIXED: Only count actualMinutes (completed work), not plannedMinutes (estimates)
-      // This prevents active/planned sessions from being counted as completed time
+    workSessions.forEach(session => {
+      // Only count actualMinutes (completed work), not plannedMinutes
       const minutes = session.actualMinutes || 0
+      if (minutes === 0) return
 
-      // Derive type from parent task or step (not from deprecated session.type field)
-      let taskType: TaskType
+      // Get type ID from task or step (string, user-defined type ID)
+      let typeId: string
       if (session.stepId) {
-        // If it's a step session, find the step type
         const step = session.Task?.TaskStep?.find(s => s.id === session.stepId)
-        taskType = (step?.type as TaskType) || (session.Task?.type as TaskType) || TaskType.Focused
+        typeId = step?.type || session.Task?.type || ''
       } else {
-        // Otherwise use the task's type
-        taskType = (session.Task?.type as TaskType) || TaskType.Focused
+        typeId = session.Task?.type || ''
       }
 
-      // DEBUG: Log each session's contribution to accumulated time
-      dbLogger.info('getTodayAccumulated - Processing work session', {
+      // Skip if no type ID
+      if (!typeId) {
+        dbLogger.warn('getTodayAccumulated - Session has no type ID', {
+          sessionId: session.id,
+          taskId: session.taskId,
+        })
+        return
+      }
+
+      // Accumulate by type ID
+      accumulated.byType[typeId] = (accumulated.byType[typeId] || 0) + minutes
+      accumulated.total += minutes
+
+      dbLogger.debug('getTodayAccumulated - Processing work session', {
         sessionId: session.id,
-        derivedType: taskType,
-        deprecatedType: session.type, // Keep for debugging, but don't use
-        actualMinutes: session.actualMinutes,
-        plannedMinutes: session.plannedMinutes,
-        minutesCounted: minutes,
-        hasEndTime: !!session.endTime,
+        typeId,
+        minutes,
         taskName: session.Task?.name,
-        stepId: session.stepId,
       })
-
-      if (taskType === TaskType.Focused) {
-        acc.focused += minutes
-      } else if (taskType === TaskType.Admin) {
-        acc.admin += minutes
-      } else if (taskType === TaskType.Personal) {
-        acc.personal += minutes
-      }
-      acc.total += minutes
-      return acc
-    }, { focused: 0, admin: 0, personal: 0, total: 0 })
-
-    // DEBUG: Log final accumulated totals
-    dbLogger.info('getTodayAccumulated - Final accumulated time', {
-      date,
-      totalSessions: workSessions.length,
-      accumulated,
     })
 
     // Add time from completed steps (if not already in work sessions)
     completedSteps.forEach(step => {
       if (step.actualDuration) {
-        // Check if this step already has a work session
         const hasWorkSession = workSessions.some(ws => ws.stepId === step.id)
         if (!hasWorkSession) {
-          const stepType = step.type as TaskType
-          if (stepType === TaskType.Focused) {
-            accumulated.focused += step.actualDuration
-          } else if (stepType === TaskType.Admin) {
-            accumulated.admin += step.actualDuration
-          } else if (stepType === TaskType.Personal) {
-            accumulated.personal += step.actualDuration
+          const typeId = step.type || ''
+          if (typeId) {
+            accumulated.byType[typeId] = (accumulated.byType[typeId] || 0) + step.actualDuration
+            accumulated.total += step.actualDuration
           }
-          accumulated.total += step.actualDuration
         }
       }
+    })
+
+    dbLogger.info('getTodayAccumulated - Final accumulated time', {
+      date,
+      totalSessions: workSessions.length,
+      byType: accumulated.byType,
+      total: accumulated.total,
     })
 
     return accumulated

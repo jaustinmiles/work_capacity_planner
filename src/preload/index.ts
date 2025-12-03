@@ -16,6 +16,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteSession: (id: string) => ipcRenderer.invoke('db:deleteSession', id),
     getCurrentSession: () => ipcRenderer.invoke('db:getCurrentSession'),
     updateSchedulingPreferences: (sessionId: string, updates: any) => ipcRenderer.invoke('db:updateSchedulingPreferences', sessionId, updates),
+    // User task type operations
+    getUserTaskTypes: (sessionId?: string) => ipcRenderer.invoke('db:getUserTaskTypes', sessionId),
+    getUserTaskTypeById: (id: string) => ipcRenderer.invoke('db:getUserTaskTypeById', id),
+    createUserTaskType: (input: any) => ipcRenderer.invoke('db:createUserTaskType', input),
+    updateUserTaskType: (id: string, updates: any) => ipcRenderer.invoke('db:updateUserTaskType', id, updates),
+    deleteUserTaskType: (id: string) => ipcRenderer.invoke('db:deleteUserTaskType', id),
+    reorderUserTaskTypes: (orderedIds: string[]) => ipcRenderer.invoke('db:reorderUserTaskTypes', orderedIds),
+    sessionHasTaskTypes: (sessionId?: string) => ipcRenderer.invoke('db:sessionHasTaskTypes', sessionId),
     // Task operations
     getTasks: (includeArchived?: boolean) => ipcRenderer.invoke('db:getTasks', includeArchived),
     getSequencedTasks: () => ipcRenderer.invoke('db:getSequencedTasks'),

@@ -12,14 +12,14 @@ describe('enum-utils', () => {
       expect(isValidEnumValue(TaskType, 'focused')).toBe(true)
       expect(isValidEnumValue(TaskType, 'admin')).toBe(true)
       expect(isValidEnumValue(TaskType, 'personal')).toBe(true)
-      expect(isValidEnumValue(TaskType, 'mixed')).toBe(true)
-      expect(isValidEnumValue(TaskType, 'flexible')).toBe(true)
     })
 
     it('should return false for invalid TaskType values', () => {
       expect(isValidEnumValue(TaskType, 'invalid')).toBe(false)
       expect(isValidEnumValue(TaskType, '')).toBe(false)
       expect(isValidEnumValue(TaskType, 'FOCUSED')).toBe(false) // case sensitive
+      expect(isValidEnumValue(TaskType, 'mixed')).toBe(false) // removed type
+      expect(isValidEnumValue(TaskType, 'flexible')).toBe(false) // removed type
     })
 
     it('should return true for valid StepStatus values', () => {
@@ -98,10 +98,6 @@ describe('enum-utils', () => {
           return 'Administrative'
         case TaskType.Personal:
           return 'Personal'
-        case TaskType.Mixed:
-          return 'Mixed'
-        case TaskType.Flexible:
-          return 'Flexible'
         default:
           return assertNever(type)
       }
@@ -111,8 +107,6 @@ describe('enum-utils', () => {
       expect(getTaskTypeLabel(TaskType.Focused)).toBe('Deep Work')
       expect(getTaskTypeLabel(TaskType.Admin)).toBe('Administrative')
       expect(getTaskTypeLabel(TaskType.Personal)).toBe('Personal')
-      expect(getTaskTypeLabel(TaskType.Mixed)).toBe('Mixed')
-      expect(getTaskTypeLabel(TaskType.Flexible)).toBe('Flexible')
     })
   })
 })

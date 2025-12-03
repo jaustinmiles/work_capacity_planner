@@ -331,10 +331,12 @@ describe('Work Session Management', () => {
 
       const result = await db.getTodayAccumulated(testDate)
 
+      // New dynamic format: { byType: Record<string, number>, total: number }
       expect(result).toEqual({
-        focused: 210, // 120 + 90
-        admin: 30,    // Only 30 (actualMinutes)
-        personal: 0,  // no personal time
+        byType: {
+          focused: 210, // 120 + 90
+          admin: 30,    // Only 30 (actualMinutes)
+        },
         total: 240,   // 210 + 30
       })
     })
@@ -346,9 +348,7 @@ describe('Work Session Management', () => {
       const result = await db.getTodayAccumulated('2024-01-15')
 
       expect(result).toEqual({
-        focused: 0,
-        admin: 0,
-        personal: 0,
+        byType: {},
         total: 0,
       })
     })

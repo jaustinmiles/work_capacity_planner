@@ -125,6 +125,23 @@ model Session {
   WorkPattern          WorkPattern[]
   ProductivityPattern  ProductivityPattern[]
   SchedulingPreferences SchedulingPreferences?
+  UserTaskType         UserTaskType[]
+}
+
+// User-configurable task type definition
+// Session-scoped - each session has its own set of types
+model UserTaskType {
+  id        String   @id
+  sessionId String
+  name      String   // Display name (e.g., "Deep Work", "Errands")
+  emoji     String   // Emoji icon (e.g., "🎯", "🛒")
+  color     String   // Hex color (e.g., "#4A90D9")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  Session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
 }
 
 // Task model - Unified model for both simple tasks and workflow containers
@@ -211,9 +228,11 @@ model WorkBlock {
   patternId     String
   startTime     String
   endTime       String
-  type          String      // WorkBlockType enum: focused, admin, mixed, flexible, personal, blocked, sleep
+  typeConfig    String      @default("{\"kind\":\"system\",\"systemType\":\"blocked\"}") // JSON: BlockTypeConfig
   totalCapacity Int         @default(0) // Total minutes available in this block
-  splitRatio    Json?       // JSON for mixed blocks: {focus: 0.7, admin: 0.3} etc
+  // Legacy fields - kept for migration, will be removed
+  type          String?     // @deprecated - use typeConfig instead
+  splitRatio    Json?       // @deprecated - use typeConfig.allocations instead
   WorkPattern   WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
 
   @@index([patternId])

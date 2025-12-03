@@ -1599,7 +1599,8 @@
     "title": "Tasks and workflows should be keyword searchable",
     "description": "Let's add a search field to both the workflows and task list views. These should allow keyword matching to titles, steps, or notes. ",
     "timestamp": "2025-10-12T21:44:34.299Z",
-    "sessionId": "session-1760305474289-002e8d14"
+    "sessionId": "session-1760305474289-002e8d14",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1613,7 +1614,8 @@
     "steps": "Create a new session when you have work patterns for other sessions. Observer behavior. ",
     "expected": "When a new session is created, no data from other sessions should be accessible. ",
     "timestamp": "2025-11-30T00:48:52.014Z",
-    "sessionId": "session-1764463731997-c761bb39"
+    "sessionId": "session-1764463731997-c761bb39",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1624,6 +1626,24 @@
     "title": "Voice Ai brainstorm chat not accessible",
     "description": "I see two icons on the main screen - one is a lightbulb and one is a voice icon. But they take us to different UI pages. I don't want the old 'voice ammendment' thing anymore. It should just be a chat, but in the chat, we should have voice and typing options in order to interact with the AI. ",
     "timestamp": "2025-11-30T00:50:48.216Z",
-    "sessionId": "session-1764463848194-04a9cff9"
+    "sessionId": "session-1764463848194-04a9cff9",
+    "resolved": true
+  },
+  {
+    "type": "feature",
+    "priority": "critical",
+    "components": [
+      "tasks/UnifiedTaskEdit",
+      "status/WorkStatusWidget",
+      "tasks/SequencedTaskEdit",
+      "ai/BrainstormModal",
+      "settings/WorkBlocksEditor",
+      "settings/MultiDayScheduleEditor",
+      "session/SessionManager"
+    ],
+    "title": "The user should specify task type",
+    "description": "I want to move away from having defined 'focus' 'admin' and 'personal' task and block types. instead, the user should specify the types. for example, the user might want to make a 'hobby' block or an 'errand' block and select their own emoji/icon and color for it. \n\nThis will entail a few changes. First, the work status widget will need to be updated to show all the planned times and spent times for each user specified task type. the same will be true for the swim lanes. When creating a task or workflow the drop down list should have all the user specified types. I want to remove all references to focus, personal, and admin. there should be no defaults. we will also need to adjust the prompts to the AI and provide the user specified types as context. \n\nHopefully not too many updates will be needed to the scheduling engine - just extensions of matching to block types that already exist. ",
+    "timestamp": "2025-12-01T05:30:18.624Z",
+    "sessionId": "session-1764567018607-73e93637"
   }
 ]

@@ -98,11 +98,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
             date: dateStr,
             blocks: pattern.blocks || [],
             meetings: pattern.meetings || [],
-            accumulated: {
-              focus: accumulatedData?.focused || 0,
-              admin: accumulatedData?.admin || 0,
-              personal: accumulatedData?.personal || 0,
-            },
+            accumulated: accumulatedData?.byType || {},
           })
         }
 
@@ -130,11 +126,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
       if (pattern) {
         const updatedPattern = {
           ...pattern,
-          accumulated: {
-            focus: accumulatedData?.focused || 0,
-            admin: accumulatedData?.admin || 0,
-            personal: accumulatedData?.personal || 0,
-          },
+          accumulated: accumulatedData?.byType || {},
         }
         setPatterns(new Map(patterns).set(date, updatedPattern))
       }
@@ -594,7 +586,11 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
               blocks: patterns.get(selectedDate)?.blocks || [],
               meetings: patterns.get(selectedDate)?.meetings || [],
             }}
-            accumulated={patterns.get(selectedDate)?.accumulated || { focus: 0, admin: 0, personal: 0 }}
+            accumulated={{
+              focus: patterns.get(selectedDate)?.accumulated?.['focused'] ?? 0,
+              admin: patterns.get(selectedDate)?.accumulated?.['admin'] ?? 0,
+              personal: patterns.get(selectedDate)?.accumulated?.['personal'] ?? 0,
+            }}
             onSave={(blocks, meetings) => handleSavePattern(selectedDate, blocks, meetings)}
           />
         )}
@@ -630,11 +626,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
               date,
               blocks: schedule.blocks || [],
               meetings: schedule.meetings || [],
-              accumulated: {
-                focus: 0,
-                admin: 0,
-                personal: 0,
-              },
+              accumulated: {},
             })
           }
 

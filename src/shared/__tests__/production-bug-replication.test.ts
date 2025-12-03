@@ -39,24 +39,30 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
           id: 'block-1',
           startTime: '15:30', // Using PDT time directly
           endTime: '17:15', // Using PDT time directly
-          type: 'mixed',
-          capacity: {
-            focus: 73, // 70% of 105 minutes
-            admin: 32, // 30% of 105 minutes
+          typeConfig: {
+            kind: 'combo',
+            allocations: [
+              { typeId: 'focused', ratio: 0.7 }, // 70% of 105 minutes = 73 min
+              { typeId: 'admin', ratio: 0.3 },   // 30% of 105 minutes = 32 min
+            ],
           },
+          capacity: { totalMinutes: 105 },
         },
         {
           id: 'block-2',
           startTime: '19:30', // Using PDT time directly
           endTime: '21:45', // Using PDT time directly
-          type: 'flexible',
-          capacity: {
-            focus: 67, // 50% of 135 minutes
-            admin: 68, // 50% of 135 minutes
+          typeConfig: {
+            kind: 'combo',
+            allocations: [
+              { typeId: 'focused', ratio: 0.5 }, // 50% of 135 minutes = 67 min
+              { typeId: 'admin', ratio: 0.5 },   // 50% of 135 minutes = 68 min
+            ],
           },
+          capacity: { totalMinutes: 135 },
         },
       ],
-      accumulated: { focus: 0, admin: 0 },
+      accumulated: {},
       meetings: [],
     },
   ]
@@ -125,7 +131,7 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
     duration: 30,
     importance: 5, // MEDIUM
     urgency: 5, // MEDIUM
-    type: TaskType.Admin,
+    taskType: TaskType.Admin,
     asyncWaitTime: 0,
     dependencies: [],
     completed: false,
@@ -153,9 +159,9 @@ describe('Production Bug Replication - Workflow Priority Issue', () => {
     expect(productionWorkPatterns).toHaveLength(1)
     expect(productionWorkPatterns[0].blocks).toHaveLength(2)
     expect(productionWorkPatterns[0].blocks[0].startTime).toBe('15:30') // PDT time
-    expect(productionWorkPatterns[0].blocks[0].type).toBe('mixed')
+    expect(productionWorkPatterns[0].blocks[0].typeConfig.kind).toBe('combo')
     expect(productionWorkPatterns[0].blocks[1].startTime).toBe('19:30') // PDT time
-    expect(productionWorkPatterns[0].blocks[1].type).toBe('flexible')
+    expect(productionWorkPatterns[0].blocks[1].typeConfig.kind).toBe('combo')
 
     // Assert 3: Workflow has high priority
     expect(productionWorkflow.importance).toBe(9)

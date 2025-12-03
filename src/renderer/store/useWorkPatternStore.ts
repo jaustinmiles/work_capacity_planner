@@ -9,16 +9,19 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { DailyWorkPattern, WorkBlock } from '@/shared/work-blocks-types'
-import { WorkBlockType } from '@/shared/enums'
 import { getCurrentTime } from '@/shared/time-provider'
 import { calculateDuration, timeStringToMinutes, formatTimeHHMM, dateToYYYYMMDD } from '@/shared/time-utils'
 import { logger } from '@/logger'
+import {
+  AccumulatedTimeByType,
+  isSystemBlock,
+  isSingleTypeBlock,
+  isComboBlock,
+  createEmptyAccumulatedTime,
+} from '@/shared/user-task-types'
 
-interface AccumulatedTime {
-  focused: number
-  admin: number
-  personal: number
-}
+// Use dynamic accumulated time type
+type AccumulatedTime = AccumulatedTimeByType
 
 interface WorkPatternStoreState {
   // Core state
@@ -80,7 +83,7 @@ const calculateAccumulatedTime = (
   pattern: DailyWorkPattern | null,
   currentTime: Date,
 ): AccumulatedTime => {
-  const accumulated = { focused: 0, admin: 0, personal: 0 }
+  const accumulated = createEmptyAccumulatedTime()
 
   if (!pattern) return accumulated
 
@@ -94,27 +97,25 @@ const calculateAccumulatedTime = (
     if (blockStart < currentMinutes) {
       // Calculate how much of this block has passed
       const effectiveDuration = Math.min(blockDuration, currentMinutes - blockStart)
+      const { typeConfig } = block
 
-      switch (block.type) {
-        case WorkBlockType.Focused:
-          accumulated.focused += effectiveDuration
-          break
-        case WorkBlockType.Admin:
-          accumulated.admin += effectiveDuration
-          break
-        case WorkBlockType.Personal:
-          accumulated.personal += effectiveDuration
-          break
-        case WorkBlockType.Mixed:
-          // Mixed blocks REQUIRE explicit split ratio - no default
-          if (block.capacity?.splitRatio) {
-            accumulated.focused += Math.floor(effectiveDuration * block.capacity.splitRatio.focus)
-            accumulated.admin += Math.floor(effectiveDuration * block.capacity.splitRatio.admin)
-          } else {
-            // This should never happen - Mixed blocks must define their split
-            throw new Error(`Mixed block ${block.id} is missing required capacity.splitRatio`)
-          }
-          break
+      if (isSystemBlock(typeConfig)) {
+        // System blocks (blocked, sleep) don't contribute to accumulated time
+        return
+      }
+
+      if (isSingleTypeBlock(typeConfig)) {
+        // Single-type block: all time goes to that type
+        const typeId = typeConfig.typeId
+        accumulated[typeId] = (accumulated[typeId] || 0) + effectiveDuration
+      }
+
+      if (isComboBlock(typeConfig)) {
+        // Combo block: distribute time by allocation ratios
+        for (const allocation of typeConfig.allocations) {
+          const minutes = Math.floor(effectiveDuration * allocation.ratio)
+          accumulated[allocation.typeId] = (accumulated[allocation.typeId] || 0) + minutes
+        }
       }
     }
   })
@@ -139,7 +140,7 @@ export const useWorkPatternStore = create<WorkPatternStoreState>()(
     currentPattern: null,
     currentBlock: null,
     nextBlock: null,
-    accumulated: { focused: 0, admin: 0, personal: 0 },
+    accumulated: {},
     meetingMinutes: 0,
 
     loadWorkPatterns: async () => {
@@ -225,7 +226,7 @@ export const useWorkPatternStore = create<WorkPatternStoreState>()(
         currentPattern: null,
         currentBlock: null,
         nextBlock: null,
-        accumulated: { focused: 0, admin: 0, personal: 0 },
+        accumulated: {},
         meetingMinutes: 0,
       })
     },

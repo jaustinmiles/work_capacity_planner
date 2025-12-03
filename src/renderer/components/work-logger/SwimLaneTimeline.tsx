@@ -3,13 +3,13 @@ import { Typography, Tooltip, Button, Switch } from '@arco-design/web-react'
 import { IconDown, IconRight, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType } from '@shared/enums'
 import {
   WorkSessionData,
   minutesToTime,
   checkOverlap,
   getTypeColor,
 } from './SessionState'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { useContainerQuery } from '../../hooks/useContainerQuery'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { getCurrentTime } from '@shared/time-provider'
@@ -93,6 +93,7 @@ export function SwimLaneTimeline({
   // Responsive container measurement
   const { ref: timelineRef, width: _containerWidth } = useContainerQuery<HTMLDivElement>()
   const { isCompact: _isCompact } = useResponsive()
+  const userTaskTypes = useSortedUserTaskTypes()
 
   // Hour width is simply the baseHourWidth - no complex calculations needed
   const hourWidth = baseHourWidth
@@ -301,7 +302,7 @@ export function SwimLaneTimeline({
         taskName: meeting.name,
         startMinutes,
         endMinutes,
-        type: TaskType.Admin, // Use Admin type for meetings
+        type: 'meeting', // System type for meetings
         isDragging: false,
         color: meeting.type === 'meeting' ? '#722ed1' :
           meeting.type === 'break' ? '#13c2c2' :
@@ -318,9 +319,9 @@ export function SwimLaneTimeline({
   }
 
   // Helper function to get task type from task ID and optional step ID
-  const getTaskType = (taskId: string, stepId?: string): TaskType => {
+  const getTaskType = (taskId: string, stepId?: string): string => {
     const task = tasks.find(t => t.id === taskId)
-    if (!task) return TaskType.Focused // Default fallback
+    if (!task) return userTaskTypes[0]?.id || '' // Default to first user type
 
     if (stepId && task.hasSteps && task.steps) {
       const step = task.steps.find(s => s.id === stepId)
@@ -488,7 +489,7 @@ export function SwimLaneTimeline({
         if (endMinutes - startMinutes >= 15) {
           // Get the correct task type
           const taskType = getTaskType(creatingSession.taskId, creatingSession.stepId)
-          const taskColor = getTypeColor(taskType)
+          const taskColor = getTypeColor(userTaskTypes, taskType)
 
           // Check for overlaps with existing sessions
           const newSession: WorkSessionData = {

@@ -31,26 +31,25 @@ describe('UnifiedScheduler - Integration', () => {
             id: `morning-focus-${i}`,
             startTime: '09:00',
             endTime: '12:00',
-            type: 'focused',
+            typeConfig: { kind: 'single' as const, typeId: 'focused' },
+            capacity: { totalMinutes: 180 },
           },
           {
             id: `afternoon-admin-${i}`,
             startTime: '13:00',
             endTime: '15:00',
-            type: 'admin',
+            typeConfig: { kind: 'single' as const, typeId: 'admin' },
+            capacity: { totalMinutes: 120 },
           },
           {
             id: `evening-personal-${i}`,
             startTime: '18:00',
             endTime: '19:00',
-            type: 'personal',
+            typeConfig: { kind: 'single' as const, typeId: 'personal' },
+            capacity: { totalMinutes: 60 },
           },
         ],
-        accumulated: {
-          focus: 0,
-          admin: 0,
-          personal: 0,
-        },
+        accumulated: {}, // Dynamic format
         meetings: [],
       })
     }
@@ -233,8 +232,7 @@ describe('UnifiedScheduler - Integration', () => {
       // Verify metrics are generated
       expect(result.metrics).toBeDefined()
       expect(result.metrics.totalWorkDays).toBeGreaterThan(0)
-      expect(result.metrics.totalFocusedHours).toBeGreaterThanOrEqual(0)
-      expect(result.metrics.totalAdminHours).toBeGreaterThanOrEqual(0)
+      expect(result.metrics.hoursByType).toBeDefined()
     })
   })
 
@@ -370,8 +368,7 @@ describe('UnifiedScheduler - Integration', () => {
       const result = scheduler.scheduleForDisplay(tasks, mockContext, mockConfig)
 
       expect(result.metrics.totalWorkDays).toBeGreaterThan(0)
-      expect(result.metrics.totalFocusedHours).toBeGreaterThanOrEqual(0)
-      expect(result.metrics.totalAdminHours).toBeGreaterThanOrEqual(0)
+      expect(result.metrics.hoursByType).toBeDefined()
       expect(result.metrics.averageUtilization).toBeGreaterThanOrEqual(0)
       // Note: utilization might be > 1 if calculated as hours/day rather than percentage
       expect(result.metrics.averageUtilization).toBeDefined()
@@ -399,9 +396,10 @@ describe('UnifiedScheduler - Integration', () => {
             id: 'focus-only',
             startTime: '09:00',
             endTime: '10:00',
-            type: 'focused',
+            typeConfig: { kind: 'single' as const, typeId: 'focused' },
+            capacity: { totalMinutes: 60 },
           }],
-          accumulated: { focus: 0, admin: 0, personal: 0 },
+          accumulated: {}, // Dynamic format
           meetings: [],
         }],
       }

@@ -1,8 +1,8 @@
-import React from 'react'
-import { TaskType } from '@shared/enums'
+import React, { useEffect } from 'react'
 import { Modal, Form, Input, Select, Slider, InputNumber, Space, Grid, DatePicker, Checkbox, Radio } from '@arco-design/web-react'
 import { IconClockCircle, IconCalendar, IconLock, IconBulb } from '@arco-design/web-react/icon'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useSortedUserTaskTypes, useUserTaskTypeStore } from '../../store/useUserTaskTypeStore'
 import dayjs from 'dayjs'
 
 const { TextArea } = Input
@@ -18,6 +18,15 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
   const [form] = Form.useForm()
   const [isLocked, setIsLocked] = React.useState(false)
   const [hasDeadline, setHasDeadline] = React.useState(false)
+  const userTaskTypes = useSortedUserTaskTypes()
+  const { isInitialized, loadTypes } = useUserTaskTypeStore()
+
+  // Load types if not initialized
+  useEffect(() => {
+    if (!isInitialized) {
+      loadTypes()
+    }
+  }, [isInitialized, loadTypes])
 
   const handleSubmit = async () => {
     try {
@@ -87,8 +96,7 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
           duration: 60,
           importance: 5,
           urgency: 5,
-          type: TaskType.Focused,
-          category: 'work',
+          type: userTaskTypes[0]?.id || '',
           asyncWaitTime: 0,
         }}
       >
@@ -105,12 +113,18 @@ export function TaskForm({ visible, onClose }: TaskFormProps) {
             <Form.Item
               label="Type"
               field="type"
-              rules={[{ required: true }]}
+              rules={[{ required: true, message: 'Please select a task type' }]}
+              extra={userTaskTypes.length === 0 ? 'Create task types in Settings first' : undefined}
             >
-              <Select>
-                <Select.Option value={TaskType.Focused}>Focused Work</Select.Option>
-                <Select.Option value={TaskType.Admin}>Admin/Meetings</Select.Option>
-                <Select.Option value={TaskType.Personal}>Personal</Select.Option>
+              <Select placeholder="Select task type" disabled={userTaskTypes.length === 0}>
+                {userTaskTypes.map((taskType) => (
+                  <Select.Option key={taskType.id} value={taskType.id}>
+                    <Space>
+                      <span>{taskType.emoji}</span>
+                      <span>{taskType.name}</span>
+                    </Space>
+                  </Select.Option>
+                ))}
               </Select>
             </Form.Item>
           </Col>

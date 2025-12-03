@@ -199,7 +199,7 @@ export function formatContextForAI(context: AppContext): string {
   formatted += `## Work Patterns (${context.workPatterns.length})\n\n`
   context.workPatterns.forEach(pattern => {
     formatted += `- **${pattern.date}**\n`
-    formatted += `  - Blocks: ${pattern.blocks.map(b => `${b.startTime}-${b.endTime} (${b.type})`).join(', ')}\n`
+    formatted += `  - Blocks: ${pattern.blocks.map(b => `${b.startTime}-${b.endTime} (${JSON.stringify(b.typeConfig)})`).join(', ')}\n`
     if (pattern.meetings.length > 0) {
       formatted += `  - Meetings: ${pattern.meetings.map(m => `${m.name} (${m.startTime}-${m.endTime})`).join(', ')}\n`
     }

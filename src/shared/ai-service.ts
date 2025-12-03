@@ -667,7 +667,7 @@ Make questions specific to their apparent work patterns. Prioritize questions th
       id: string
       startTime: string
       endTime: string
-      type: TaskType | TaskType.Mixed | 'personal'
+      type: string // AI returns raw string, converted to typeConfig by caller
       capacity?: {
         totalMinutes: number
         type: string
@@ -791,7 +791,7 @@ Important:
       id: string
       startTime: string
       endTime: string
-      type: TaskType | TaskType.Mixed
+      type: string // AI returns raw string, converted to typeConfig by caller
       capacity?: {
         totalMinutes: number
         type: string

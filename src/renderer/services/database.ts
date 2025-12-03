@@ -1,6 +1,7 @@
 import { Task, Session, AICallOptions } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { TaskType } from '@shared/enums'
+import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput } from '@shared/user-task-types'
 
 
 // Type for the Electron API exposed by preload script
@@ -17,6 +18,14 @@ declare global {
         deleteSession: (id: string) => Promise<void>
         getCurrentSession: () => Promise<any>
         updateSchedulingPreferences: (sessionId: string, updates: any) => Promise<any>
+        // User task type operations
+        getUserTaskTypes: (sessionId?: string) => Promise<UserTaskType[]>
+        getUserTaskTypeById: (id: string) => Promise<UserTaskType | null>
+        createUserTaskType: (input: Omit<CreateUserTaskTypeInput, 'sessionId'>) => Promise<UserTaskType>
+        updateUserTaskType: (id: string, updates: UpdateUserTaskTypeInput) => Promise<UserTaskType>
+        deleteUserTaskType: (id: string) => Promise<void>
+        reorderUserTaskTypes: (orderedIds: string[]) => Promise<void>
+        sessionHasTaskTypes: (sessionId?: string) => Promise<boolean>
         // Task operations
         getTasks: (includeArchived?: boolean) => Promise<Task[]>
         getSequencedTasks: () => Promise<SequencedTask[]>
@@ -66,7 +75,7 @@ declare global {
         getActiveWorkSession: () => Promise<any | null>
         getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
         getTaskTotalLoggedTime: (taskId: string) => Promise<number>
-        getTodayAccumulated: (__date: string) => Promise<{ focused: number; admin: number; personal?: number; total?: number }>
+        getTodayAccumulated: (__date: string) => Promise<{ byType: Record<string, number>; total: number }>
         // Progress tracking operations
         createStepWorkSession: (data: any) => Promise<any>
         updateTaskStepProgress: (__stepId: string, data: any) => Promise<any>

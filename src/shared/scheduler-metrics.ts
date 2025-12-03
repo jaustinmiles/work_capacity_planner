@@ -10,7 +10,6 @@ import { UnifiedScheduleItem, ScheduleContext, SchedulingMetrics } from './unifi
 // Re-export SchedulingMetrics for convenience
 export type { SchedulingMetrics }
 import { DailyWorkPattern } from './work-blocks-types'
-import { TaskType } from './enums'
 import { parseTimeString } from './time-utils'
 
 /**
@@ -28,8 +27,8 @@ export function calculateSchedulingMetrics(
   // Calculate basic time metrics
   const { totalWorkDays, projectedCompletionDate } = calculateTimeMetrics(actualTasks, context)
 
-  // Calculate hours by type
-  const { focusedHours, adminHours, personalHours } = calculateHoursByType(actualTasks)
+  // Calculate hours by type (dynamic)
+  const hoursByType = calculateHoursByType(actualTasks)
 
   // Calculate utilization metrics
   const { averageUtilization, peakUtilization, capacityUtilization } =
@@ -44,11 +43,12 @@ export function calculateSchedulingMetrics(
   // Calculate critical path
   const criticalPathLength = calculateCriticalPathHours(actualTasks)
 
+  // Calculate total duration from hoursByType
+  const totalHours = Object.values(hoursByType).reduce((sum, hours) => sum + hours, 0)
+
   return {
     totalWorkDays,
-    totalFocusedHours: focusedHours,
-    totalAdminHours: adminHours,
-    totalPersonalHours: personalHours,
+    hoursByType,
     projectedCompletionDate,
     averageUtilization,
     peakUtilization,
@@ -61,7 +61,7 @@ export function calculateSchedulingMetrics(
     utilizationRate: averageUtilization, // For backward compatibility
     scheduledCount: actualTasks.length,
     unscheduledCount: 0, // Will be set by scheduler
-    totalDuration: focusedHours + adminHours + personalHours,
+    totalDuration: totalHours,
   }
 }
 
@@ -99,24 +99,19 @@ function calculateTimeMetrics(
 }
 
 /**
- * Calculate hours by task type
+ * Calculate hours by task type dynamically.
+ * Returns a Record<typeId, hours> for all types present in the scheduled items.
  */
-function calculateHoursByType(
-  scheduled: UnifiedScheduleItem[],
-): { focusedHours: number; adminHours: number; personalHours: number } {
-  const focusedHours = scheduled
-    .filter(item => item.taskType === TaskType.Focused)
-    .reduce((sum, item) => sum + item.duration, 0) / 60
+function calculateHoursByType(scheduled: UnifiedScheduleItem[]): Record<string, number> {
+  const hoursByType: Record<string, number> = {}
 
-  const adminHours = scheduled
-    .filter(item => item.taskType === TaskType.Admin)
-    .reduce((sum, item) => sum + item.duration, 0) / 60
+  scheduled.forEach(item => {
+    const typeId = item.taskTypeId || 'unknown'
+    const hours = item.duration / 60
+    hoursByType[typeId] = (hoursByType[typeId] || 0) + hours
+  })
 
-  const personalHours = scheduled
-    .filter(item => item.taskType === TaskType.Personal)
-    .reduce((sum, item) => sum + item.duration, 0) / 60
-
-  return { focusedHours, adminHours, personalHours }
+  return hoursByType
 }
 
 /**

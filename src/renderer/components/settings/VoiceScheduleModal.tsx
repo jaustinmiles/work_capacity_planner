@@ -1,10 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { TaskType, WorkBlockType } from '@shared/enums'
 import { Modal, Button, Typography, Alert, Space, Card, Tag, Divider, Upload, Input } from '@arco-design/web-react'
 import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconUpload, IconFile, IconCheckCircle } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
-import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
+import { isSingleTypeBlock, isComboBlock, isSystemBlock } from '@shared/user-task-types'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 
@@ -226,13 +225,21 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
         ...result,
         blocks: result.blocks.map((block: any) => ({
           ...block,
+          // Convert old 'type' string to new typeConfig format
+          typeConfig: block.typeConfig || (
+            block.type === 'mixed' ? {
+              kind: 'combo' as const,
+              allocations: [
+                { typeId: 'focused', ratio: 0.5 },
+                { typeId: 'admin', ratio: 0.5 },
+              ],
+            } : {
+              kind: 'single' as const,
+              typeId: block.type || 'focused',
+            }
+          ),
           capacity: block.capacity ? {
             totalMinutes: (block.capacity.focusMinutes || 0) + (block.capacity.admin || 0) + (block.capacity.personalMinutes || 0),
-            type: block.type as WorkBlockType,
-            splitRatio: block.type === 'mixed' && block.capacity.focusMinutes && block.capacity.admin ? {
-              focus: block.capacity.focusMinutes / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0)),
-              admin: block.capacity.admin / ((block.capacity.focusMinutes || 0) + (block.capacity.admin || 0)),
-            } : undefined,
           } : undefined,
         })),
       }))
@@ -457,20 +464,26 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                               <Space>
                                 <Text>{block.startTime} - {block.endTime}</Text>
                                 <Tag color={
-                                  block.type === WorkBlockType.Focused ? 'blue' :
-                                  block.type === WorkBlockType.Admin ? 'green' :
-                                  block.type === WorkBlockType.Personal ? 'orange' : 'purple'
+                                  isSystemBlock(block.typeConfig) ? 'gray' :
+                                  isComboBlock(block.typeConfig) ? 'purple' :
+                                  isSingleTypeBlock(block.typeConfig) ? (
+                                    block.typeConfig.typeId === 'focused' ? 'blue' :
+                                    block.typeConfig.typeId === 'admin' ? 'green' :
+                                    block.typeConfig.typeId === 'personal' ? 'orange' : 'blue'
+                                  ) : 'gray'
                                 }>
-                                  {block.type}
+                                  {isSystemBlock(block.typeConfig) ? block.typeConfig.systemType :
+                                   isComboBlock(block.typeConfig) ? 'Combo' :
+                                   isSingleTypeBlock(block.typeConfig) ? block.typeConfig.typeId : 'unknown'}
                                 </Tag>
-                                {block.type === WorkBlockType.Mixed && block.capacity && (
+                                {isComboBlock(block.typeConfig) && (
                                   <Text type="secondary">
-                                    {getTotalCapacityForTaskType(block.capacity, TaskType.Focused)}min focus / {getTotalCapacityForTaskType(block.capacity, TaskType.Admin)}min admin
+                                    {block.typeConfig.allocations.map(a => `${Math.round(a.ratio * 100)}% ${a.typeId}`).join(' / ')}
                                   </Text>
                                 )}
-                                {block.type === 'personal' && block.capacity && (
+                                {block.capacity && (
                                   <Text type="secondary">
-                                    {getTotalCapacityForTaskType(block.capacity, TaskType.Personal)}min personal
+                                    {block.capacity.totalMinutes}min
                                   </Text>
                                 )}
                               </Space>
