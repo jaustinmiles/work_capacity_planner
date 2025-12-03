@@ -586,11 +586,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
               blocks: patterns.get(selectedDate)?.blocks || [],
               meetings: patterns.get(selectedDate)?.meetings || [],
             }}
-            accumulated={{
-              focus: patterns.get(selectedDate)?.accumulated?.['focused'] ?? 0,
-              admin: patterns.get(selectedDate)?.accumulated?.['admin'] ?? 0,
-              personal: patterns.get(selectedDate)?.accumulated?.['personal'] ?? 0,
-            }}
+            accumulated={patterns.get(selectedDate)?.accumulated || {}}
             onSave={(blocks, meetings) => handleSavePattern(selectedDate, blocks, meetings)}
           />
         )}

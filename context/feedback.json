@@ -1645,5 +1645,18 @@
     "description": "I want to move away from having defined 'focus' 'admin' and 'personal' task and block types. instead, the user should specify the types. for example, the user might want to make a 'hobby' block or an 'errand' block and select their own emoji/icon and color for it. \n\nThis will entail a few changes. First, the work status widget will need to be updated to show all the planned times and spent times for each user specified task type. the same will be true for the swim lanes. When creating a task or workflow the drop down list should have all the user specified types. I want to remove all references to focus, personal, and admin. there should be no defaults. we will also need to adjust the prompts to the AI and provide the user specified types as context. \n\nHopefully not too many updates will be needed to the scheduling engine - just extensions of matching to block types that already exist. ",
     "timestamp": "2025-12-01T05:30:18.624Z",
     "sessionId": "session-1764567018607-73e93637"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "components": [
+      "tasks/TaskList",
+      "tasks/UnifiedTaskEdit",
+      "tasks/SequencedTaskEdit"
+    ],
+    "title": "Users should be able to promote standalone tasks to workflows",
+    "description": "user story: i have a task, but I realized I want it to be a workflow, so I want to be able to click a button to turn the task into a workflow where I can then add steps and modify it. ",
+    "timestamp": "2025-12-03T21:54:23.519Z",
+    "sessionId": "session-1764798863498-e988bd28"
   }
 ]
