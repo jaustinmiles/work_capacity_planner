@@ -86,6 +86,7 @@ export enum AmendmentType {
   WorkSessionEdit = 'work_session_edit',
   ArchiveToggle = 'archive_toggle',
   QueryResponse = 'query_response',
+  TaskTypeCreation = 'task_type_creation',
 }
 
 // Work pattern modification operations

@@ -36,7 +36,7 @@ declare global {
         deleteTimeSink: (id: string) => Promise<void>
         reorderTimeSinks: (orderedIds: string[]) => Promise<void>
         // Time sink session operations
-        createTimeSinkSession: (data: Omit<CreateTimeSinkSessionInput, 'startTime'> & { startTime: string; endTime?: string }) => Promise<TimeSinkSession>
+        createTimeSinkSession: (data: Omit<CreateTimeSinkSessionInput, 'startTime' | 'endTime'> & { startTime: string; endTime?: string }) => Promise<TimeSinkSession>
         endTimeSinkSession: (id: string, actualMinutes: number, notes?: string) => Promise<TimeSinkSession>
         getTimeSinkSessions: (timeSinkId: string) => Promise<TimeSinkSession[]>
         getTimeSinkSessionsByDate: (date: string) => Promise<TimeSinkSession[]>

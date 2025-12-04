@@ -22,6 +22,7 @@ import {
   ArchiveToggle,
   WorkPatternModification,
   WorkSessionEdit,
+  TaskTypeCreation,
 } from '@shared/amendment-types'
 import { assertNever, StepStatus, WorkPatternOperation, WorkSessionOperation } from '@shared/enums'
 import { dateToYYYYMMDD, extractTimeFromISO } from '@shared/time-utils'
@@ -93,6 +94,8 @@ function getAmendmentDescription(amendment: Amendment): string {
       return `${amendment.archive ? 'Archive' : 'Unarchive'} ${amendment.target.name}`
     case AmendmentType.QueryResponse:
       return 'Query response (no changes)'
+    case AmendmentType.TaskTypeCreation:
+      return `Create task type "${amendment.name}"`
   }
 }
 
@@ -1203,6 +1206,48 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
         case AmendmentType.QueryResponse: {
           // QueryResponse doesn't modify anything, just informational
           // No action needed
+          break
+        }
+
+        case AmendmentType.TaskTypeCreation: {
+          const creation = amendment as TaskTypeCreation
+          try {
+            // Validate hex color format
+            if (!creation.color.match(/^#[0-9A-Fa-f]{6}$/)) {
+              Message.warning(`Invalid color format "${creation.color}" - must be #RRGGBB`)
+              errorCount++
+              break
+            }
+
+            // Check for duplicate type name
+            const existingTypes = useUserTaskTypeStore.getState().types
+            const duplicate = existingTypes.find(
+              t => t.name.toLowerCase() === creation.name.toLowerCase(),
+            )
+            if (duplicate) {
+              Message.warning(`Task type "${creation.name}" already exists`)
+              errorCount++
+              break
+            }
+
+            // Create the new task type
+            await useUserTaskTypeStore.getState().createType({
+              name: creation.name.trim(),
+              emoji: creation.emoji || '📌',
+              color: creation.color.toUpperCase(),
+            })
+
+            Message.success(`Created task type: ${creation.emoji} ${creation.name}`)
+            successCount++
+          } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error)
+            logger.ui.error('Failed to create task type', {
+              error: errMsg,
+              name: creation.name,
+            }, 'task-type-creation-error')
+            Message.error(`Failed to create task type "${creation.name}": ${errMsg}`)
+            errorCount++
+          }
           break
         }
 

@@ -11,6 +11,7 @@ import {
   DeadlineChange,
   PriorityChange,
   TypeChange,
+  TaskTypeCreation,
   AmendmentType,
   EntityType,
   DeadlineType,
@@ -45,6 +46,18 @@ vi.mock('../../components/common/Message', () => ({
     error: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
+  },
+}))
+
+// Mock the useUserTaskTypeStore for TaskTypeCreation tests
+const mockUserTaskTypeStore = {
+  types: [] as Array<{ id: string; name: string; emoji: string; color: string }>,
+  createType: vi.fn(),
+}
+
+vi.mock('../../store/useUserTaskTypeStore', () => ({
+  useUserTaskTypeStore: {
+    getState: () => mockUserTaskTypeStore,
   },
 }))
 
@@ -1221,6 +1234,123 @@ describe('Amendment Applicator', () => {
 
       // Should show error message on complete failure
       expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
+    })
+  })
+
+  describe('Task Type Creation', () => {
+    beforeEach(() => {
+      // Reset type store mocks
+      mockUserTaskTypeStore.types = []
+      mockUserTaskTypeStore.createType.mockReset()
+      mockUserTaskTypeStore.createType.mockResolvedValue({
+        id: 'type-new',
+        name: 'Deep Work',
+        emoji: '🎯',
+        color: '#4A90D9',
+      })
+    })
+
+    it('should create a new task type', async () => {
+      const amendment: TaskTypeCreation = {
+        type: AmendmentType.TaskTypeCreation,
+        name: 'Deep Work',
+        emoji: '🎯',
+        color: '#4A90D9',
+      }
+
+      await applyAmendments([amendment])
+
+      expect(mockUserTaskTypeStore.createType).toHaveBeenCalledWith({
+        name: 'Deep Work',
+        emoji: '🎯',
+        color: '#4A90D9',
+      })
+      expect(Message.success).toHaveBeenCalledWith('Created task type: 🎯 Deep Work')
+    })
+
+    it('should reject invalid color format', async () => {
+      const amendment: TaskTypeCreation = {
+        type: AmendmentType.TaskTypeCreation,
+        name: 'Bad Color',
+        emoji: '❌',
+        color: 'not-a-color',
+      }
+
+      const result = await applyAmendments([amendment])
+
+      expect(mockUserTaskTypeStore.createType).not.toHaveBeenCalled()
+      expect(Message.warning).toHaveBeenCalledWith('Invalid color format "not-a-color" - must be #RRGGBB')
+      expect(result.errorCount).toBe(1)
+    })
+
+    it('should reject duplicate type names', async () => {
+      // Set up existing type
+      mockUserTaskTypeStore.types = [
+        { id: 'type-1', name: 'Deep Work', emoji: '🎯', color: '#4A90D9' },
+      ]
+
+      const amendment: TaskTypeCreation = {
+        type: AmendmentType.TaskTypeCreation,
+        name: 'deep work', // Case-insensitive match
+        emoji: '🔥',
+        color: '#FF0000',
+      }
+
+      const result = await applyAmendments([amendment])
+
+      expect(mockUserTaskTypeStore.createType).not.toHaveBeenCalled()
+      expect(Message.warning).toHaveBeenCalledWith('Task type "deep work" already exists')
+      expect(result.errorCount).toBe(1)
+    })
+
+    it('should uppercase color and trim name', async () => {
+      const amendment: TaskTypeCreation = {
+        type: AmendmentType.TaskTypeCreation,
+        name: '  Focus Time  ',
+        emoji: '⏰',
+        color: '#aabbcc',
+      }
+
+      await applyAmendments([amendment])
+
+      expect(mockUserTaskTypeStore.createType).toHaveBeenCalledWith({
+        name: 'Focus Time',
+        emoji: '⏰',
+        color: '#AABBCC',
+      })
+    })
+
+    it('should use default emoji if not provided', async () => {
+      const amendment: TaskTypeCreation = {
+        type: AmendmentType.TaskTypeCreation,
+        name: 'Generic Type',
+        emoji: '',
+        color: '#123456',
+      }
+
+      await applyAmendments([amendment])
+
+      expect(mockUserTaskTypeStore.createType).toHaveBeenCalledWith({
+        name: 'Generic Type',
+        emoji: '📌',
+        color: '#123456',
+      })
+    })
+
+    it('should handle createType errors gracefully', async () => {
+      mockUserTaskTypeStore.createType.mockRejectedValue(new Error('Database error'))
+
+      const amendment: TaskTypeCreation = {
+        type: AmendmentType.TaskTypeCreation,
+        name: 'Error Type',
+        emoji: '💥',
+        color: '#FF0000',
+      }
+
+      const result = await applyAmendments([amendment])
+
+      expect(result.errorCount).toBe(1)
+      expect(Message.error).toHaveBeenCalled()
     })
   })
 })

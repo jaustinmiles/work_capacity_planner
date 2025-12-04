@@ -215,6 +215,13 @@ export interface QueryResponse {
   }>
 }
 
+export interface TaskTypeCreation {
+  type: AmendmentType.TaskTypeCreation
+  name: string    // Type display name (required)
+  emoji: string   // Emoji icon (required)
+  color: string   // Hex color like "#RRGGBB" (required)
+}
+
 // ============================================================================
 // RAW TYPES - What AI returns (all date/time fields are ISO strings)
 // These are used immediately after JSON.parse() before transformation
@@ -313,6 +320,7 @@ export type RawAmendment =
   | RawWorkSessionEdit
   | ArchiveToggle  // No date fields
   | QueryResponse  // No date fields
+  | TaskTypeCreation  // No date fields
 
 // ============================================================================
 // TRANSFORMED TYPES - What application code uses (proper JS Date objects)
@@ -336,6 +344,7 @@ export type Amendment =
   | WorkSessionEdit
   | ArchiveToggle
   | QueryResponse
+  | TaskTypeCreation
 
 export interface AmendmentResult {
   amendments: Amendment[]
