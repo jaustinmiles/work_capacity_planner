@@ -13,7 +13,7 @@ import { getDatabase } from '../../services/database'
 import { WorkBlock, getTotalCapacityByType } from '@shared/work-blocks-types'
 import { isSystemBlock, isSingleTypeBlock, isComboBlock, UserTaskType } from '@shared/user-task-types'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 // Custom notification state for React 19 compatibility
 interface NotificationState {
@@ -320,8 +320,6 @@ export function WorkStatusWidget() {
   return (
     <Card>
       <Space direction="vertical" style={{ width: '100%' }} size="medium">
-        <Title heading={6}>Work Status</Title>
-
         {/* Start Next Task - AT THE TOP */}
         <div style={{ background: '#f0f8ff', padding: '12px', borderRadius: '4px', border: '1px solid #1890ff' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -496,7 +494,9 @@ export function WorkStatusWidget() {
               userTaskTypes.map(taskType => {
                 const logged = accumulatedByType[taskType.id] || 0
                 const planned = capacityByType[taskType.id] || 0
-                const progress = planned > 0 ? Math.round((logged / planned) * 100) : (logged > 0 ? 100 : 0)
+                // Don't show misleading 100% for unplanned work - show 0% instead
+                const progress = planned > 0 ? Math.round((logged / planned) * 100) : 0
+                const hasUnplannedWork = planned === 0 && logged > 0
 
                 return (
                   <div key={taskType.id}>
@@ -510,9 +510,20 @@ export function WorkStatusWidget() {
                       )}
                     </Space>
                     <Progress
-                      percent={Math.min(progress, 100)}
-                      color={progress >= 100 ? '#00b42a' : taskType.color}
+                      percent={hasUnplannedWork ? 100 : Math.min(progress, 100)}
+                      color={
+                        hasUnplannedWork
+                          ? '#ff7d00'  // Orange warning for unplanned work
+                          : progress >= 100
+                            ? '#00b42a'
+                            : taskType.color
+                      }
                     />
+                    {hasUnplannedWork && (
+                      <Text type="warning" style={{ fontSize: '11px' }}>
+                        ⚠️ Unplanned work logged
+                      </Text>
+                    )}
                   </div>
                 )
               })
