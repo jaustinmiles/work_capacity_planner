@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getCurrentTime } from '@shared/time-provider'
-import { formatMinutes } from '@shared/time-utils'
+import { formatMinutes, formatElapsedWithSeconds } from '@shared/time-utils'
 import { generateUniqueId } from '@shared/step-id-utils'
 import {
   Modal,
@@ -98,7 +98,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const activeSinkSession = useActiveSinkSession()
   const timeSinks = useSortedTimeSinks()
 
-  // Real-time timer for active sessions (updates every 10 seconds for dogfooding)
+  // Real-time timer for active sessions (updates every second for counting display)
   const [, forceUpdate] = useState({})
   useEffect(() => {
     if (!visible) return
@@ -106,9 +106,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     const timer = setInterval(() => {
       // Update if any work or time sink session is active
       if (activeWorkSessions.size > 0 || activeSinkSession) {
-        forceUpdate({}) // Force re-render to update elapsed time
+        forceUpdate({}) // Force re-render to update elapsed time with seconds
       }
-    }, 10000) // Update every 10 seconds
+    }, 1000) // Update every second for real-time seconds display
 
     return () => clearInterval(timer)
   }, [visible, activeWorkSessions.size, activeSinkSession])
@@ -637,8 +637,12 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               parentName = 'Unknown Type'
             }
 
-            const elapsedMinutes = Math.floor((getCurrentTime().getTime() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
-            const elapsedText = formatMinutes(elapsedMinutes)
+            // Show real-time elapsed with seconds for active sessions
+            const previousMinutes = session.actualMinutes || 0
+            const currentSegmentText = formatElapsedWithSeconds(session.startTime, getCurrentTime())
+            const elapsedText = previousMinutes > 0
+              ? `${formatMinutes(previousMinutes)} + ${currentSegmentText}`
+              : currentSegmentText
 
             return (
               <Card style={{ background: '#e6f7ff', border: '1px solid #91d5ff' }}>
@@ -671,8 +675,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             const sinkEmoji = sink?.emoji || '⏱️'
             const sinkColor = sink?.color || '#9B59B6'
 
-            const elapsedMinutes = Math.floor((getCurrentTime().getTime() - activeSinkSession.startTime.getTime()) / 60000)
-            const elapsedText = formatMinutes(elapsedMinutes)
+            // Show real-time elapsed with seconds for active time sinks
+            const elapsedText = formatElapsedWithSeconds(activeSinkSession.startTime, getCurrentTime())
 
             return (
               <Card style={{ background: '#f9f0ff', border: `1px solid ${sinkColor}` }}>
@@ -763,7 +767,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             <Card
               title={
                 <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <span>Timeline View</span>
+                  <span>Swim Lane View</span>
                   <Checkbox
                     checked={hideCompleted}
                     onChange={setHideCompleted}
@@ -797,7 +801,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
             {/* Linear Timeline - Zoomable horizontal view */}
             <Card
-              title="Timeline View"
+              title="Linear Timeline"
               style={{ marginBottom: 16 }}
               extra={
                 <Space>

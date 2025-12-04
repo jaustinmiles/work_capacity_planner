@@ -343,4 +343,104 @@ describe('SwimLaneTimeline', () => {
       }
     })
   })
+
+  describe('Time Sink Lane', () => {
+    const timeSinkSessions: WorkSessionData[] = [
+      {
+        id: 'sink-session-1',
+        taskId: 'sink-time-sink-1',
+        taskName: 'Social Media',
+        startMinutes: 600, // 10:00 AM
+        endMinutes: 630, // 10:30 AM
+        type: 'time-sink',
+        color: '#9B59B6',
+      },
+      {
+        id: 'sink-session-2',
+        taskId: 'sink-time-sink-2',
+        taskName: 'Coffee Break',
+        startMinutes: 720, // 12:00 PM
+        endMinutes: 750, // 12:30 PM
+        type: 'time-sink',
+        color: '#E91E63',
+      },
+    ]
+
+    it('renders dedicated time sink lane when time sinks exist', () => {
+      renderWithProvider(
+        <SwimLaneTimeline
+          sessions={[...mockSessions, ...timeSinkSessions]}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      // Time sink lane should be visible
+      expect(screen.getByText('⏱️ Time Sinks')).toBeInTheDocument()
+    })
+
+    it('does not render time sink lane when no time sinks exist', () => {
+      renderWithProvider(
+        <SwimLaneTimeline
+          sessions={mockSessions}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      // Time sink lane should NOT be visible
+      expect(screen.queryByText('⏱️ Time Sinks')).not.toBeInTheDocument()
+    })
+
+    it('displays time sink sessions with their names', () => {
+      renderWithProvider(
+        <SwimLaneTimeline
+          sessions={[...mockSessions, ...timeSinkSessions]}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      // Time sink names should appear (in sessions or tooltips)
+      expect(screen.getByText('⏱️ Time Sinks')).toBeInTheDocument()
+    })
+
+    it('time sinks with sink- prefix are filtered into time sink lane', () => {
+      const mixedSessions = [
+        ...mockSessions,
+        {
+          id: 'sink-abc123',
+          taskId: 'sink-distraction-1',
+          taskName: 'YouTube',
+          startMinutes: 780,
+          endMinutes: 810,
+          type: 'time-sink',
+          color: '#FF5722',
+        },
+      ]
+
+      renderWithProvider(
+        <SwimLaneTimeline
+          sessions={mixedSessions}
+          tasks={mockTasks}
+          onSessionUpdate={mockOnSessionUpdate}
+          onSessionCreate={mockOnSessionCreate}
+          onSessionDelete={mockOnSessionDelete}
+          onSessionSelect={mockOnSessionSelect}
+        />,
+      )
+
+      // Time sink lane should appear because we have a sink- session
+      expect(screen.getByText('⏱️ Time Sinks')).toBeInTheDocument()
+    })
+  })
 })

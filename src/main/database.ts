@@ -29,6 +29,7 @@ import { LogQueryOptionsInternal, LogEntryInternal, SessionLogSummary } from '..
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../shared/time-provider'
+import { timeStringToMinutes } from '../shared/time-utils'
 import * as crypto from 'crypto'
 import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
@@ -2071,27 +2072,79 @@ export class DatabaseService {
   }): Promise<any> {
     // [WorkPatternLifeCycle] START: Updating work pattern
 
-    // [WorkPatternLifeCycle] Updating work pattern
-
-    // Delete existing blocks and meetings
-    const _deletedBlocks = await this.client.workBlock.deleteMany({
+    // Get existing blocks to preserve IDs and check for sessions
+    const existingBlocks = await this.client.workBlock.findMany({
       where: { patternId: id },
     })
-    const _deletedMeetings = await this.client.workMeeting.deleteMany({
+    const existingBlockIds = new Set(existingBlocks.map(b => b.id))
+
+    // Build map of incoming blocks by ID (for blocks that have IDs)
+    const incomingBlocks = updates.blocks || []
+    const incomingBlockIds = new Set(
+      incomingBlocks.map((b: any) => b.id).filter(Boolean),
+    )
+
+    // Determine which blocks to delete (no longer in the incoming list)
+    const blocksToDelete = existingBlocks.filter(b => !incomingBlockIds.has(b.id))
+
+    // Check for sessions before deleting - blocks with sessions cannot be deleted
+    for (const block of blocksToDelete) {
+      const sessionCount = await this.client.workSession.count({
+        where: { blockId: block.id },
+      })
+      if (sessionCount > 0) {
+        throw new Error(
+          `Cannot delete block ${block.id} (${block.startTime}-${block.endTime}): ` +
+          `has ${sessionCount} work session(s). Remove sessions first or keep the block.`,
+        )
+      }
+    }
+
+    // Delete blocks that are no longer present (validated above as having no sessions)
+    if (blocksToDelete.length > 0) {
+      await this.client.workBlock.deleteMany({
+        where: { id: { in: blocksToDelete.map(b => b.id) } },
+      })
+    }
+
+    // Update existing blocks (preserve IDs!)
+    for (const block of incomingBlocks) {
+      if (block.id && existingBlockIds.has(block.id)) {
+        const typeConfig: BlockTypeConfig = block.typeConfig || DEFAULT_TYPE_CONFIG
+        const blockCapacity = calculateBlockCapacity(typeConfig, block.startTime, block.endTime)
+        await this.client.workBlock.update({
+          where: { id: block.id },
+          data: {
+            startTime: block.startTime,
+            endTime: block.endTime,
+            typeConfig: JSON.stringify(typeConfig),
+            totalCapacity: blockCapacity.totalMinutes,
+          },
+        })
+      }
+    }
+
+    // Create new blocks (those without existing IDs)
+    const blocksToCreate = incomingBlocks.filter(
+      (b: any) => !b.id || !existingBlockIds.has(b.id),
+    )
+
+    // Delete all meetings (meetings don't have sessions referencing them)
+    await this.client.workMeeting.deleteMany({
       where: { patternId: id },
     })
 
-    // Update with new data
+    // Now update pattern with new blocks and meetings
     const pattern = await this.client.workPattern.update({
       where: { id },
       data: {
         updatedAt: getCurrentTime(),
         WorkBlock: {
-          create: (updates.blocks || []).map((b: any) => {
+          create: blocksToCreate.map((b: any) => {
             const typeConfig: BlockTypeConfig = b.typeConfig || DEFAULT_TYPE_CONFIG
             const blockCapacity = calculateBlockCapacity(typeConfig, b.startTime, b.endTime)
             return {
-              id: crypto.randomUUID(),
+              id: b.id || crypto.randomUUID(),
               startTime: b.startTime,
               endTime: b.endTime,
               typeConfig: JSON.stringify(typeConfig),
@@ -2230,11 +2283,8 @@ export class DatabaseService {
     if (!pattern?.blocks) return null
 
     for (const block of pattern.blocks) {
-      // Parse block times (format: "HH:MM")
-      const [startHour, startMin] = block.startTime.split(':').map(Number)
-      const [endHour, endMin] = block.endTime.split(':').map(Number)
-      const blockStart = startHour * 60 + startMin
-      const blockEnd = endHour * 60 + endMin
+      const blockStart = timeStringToMinutes(block.startTime)
+      const blockEnd = timeStringToMinutes(block.endTime)
 
       // Handle blocks that cross midnight
       if (blockEnd < blockStart) {

@@ -16,7 +16,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Slider } from '@arco-design/web-react'
 import { WorkBlock, BlockTypeConfig } from '@shared/work-blocks-types'
 import { UserTaskType, getTypeColor } from '@shared/user-task-types'
-import { BlockConfigKind } from '@shared/enums'
+import { BlockConfigKind, WorkBlockType } from '@shared/enums'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import {
   WorkSessionData,
@@ -59,10 +59,10 @@ interface CreatingSession {
 // Constants
 // ============================================================================
 
-const TIMELINE_HEIGHT = 120
-const BLOCK_LANE_HEIGHT = 24
-const SESSION_LANE_HEIGHT = 40
-const SESSION_LANE_Y = 50
+const TIMELINE_HEIGHT = 160
+const BLOCK_LANE_HEIGHT = 28
+const SESSION_LANE_HEIGHT = 50
+const SESSION_LANE_Y = 55
 const HOUR_LABEL_HEIGHT = 20
 const TIME_LABEL_WIDTH = 0
 const MIN_ZOOM = 40
@@ -87,7 +87,7 @@ function getBlockColor(block: WorkBlock, userTypes: UserTaskType[]): string {
     return '#722ED1' // Purple for combo blocks
   } else {
     // System blocks (sleep, blocked)
-    return typeConfig.systemType === 'sleep' ? '#86909c' : '#F53F3F'
+    return typeConfig.systemType === WorkBlockType.Sleep ? '#86909c' : '#F53F3F'
   }
 }
 
