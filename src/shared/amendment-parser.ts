@@ -808,9 +808,9 @@ IMPORTANT:
 
     // Parse duration (e.g., "2 hours", "30 minutes")
     const durationMatch = phrase.match(/(\d+(?:\.\d+)?)\s*(\w+)/i)
-    if (durationMatch) {
-      const value = parseFloat(durationMatch[1]!)
-      const unit = durationMatch[2]!.toLowerCase()
+    if (durationMatch && durationMatch[1] && durationMatch[2]) {
+      const value = parseFloat(durationMatch[1])
+      const unit = durationMatch[2].toLowerCase()
 
       for (const [key, multiplier] of Object.entries(this.TIME_UNITS)) {
         if (unit.startsWith(key.substring(0, 3))) {

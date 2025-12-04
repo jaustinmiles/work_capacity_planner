@@ -80,7 +80,7 @@ export function parseAIResponse(response: string): { amendments: unknown; rawTex
       return { amendments }
     } catch (e) {
       logger.system.debug('Failed to parse JSON from code block', {
-        codeBlockContent: codeBlockMatch[1]!.substring(0, 200),
+        codeBlockContent: (codeBlockMatch[1] ?? '').substring(0, 200),
         error: e instanceof Error ? e.message : String(e),
       }, 'ai-parse-codeblock-failed')
     }

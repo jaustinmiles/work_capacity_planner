@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getCurrentTime } from '@shared/time-provider'
-import { formatMinutes, formatElapsedWithSeconds } from '@shared/time-utils'
+import { formatMinutes, formatElapsedWithSeconds, parseDateString } from '@shared/time-utils'
 import { generateUniqueId } from '@shared/step-id-utils'
 import {
   Modal,
@@ -428,10 +428,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       const dirtySessionsToSave = sessions.filter(s => s.isDirty && s.taskId && validTaskIds.has(s.taskId))
 
       for (const session of dirtySessionsToSave) {
-        const dateParts = selectedDate.split('-').map(Number)
-        const year = dateParts[0] ?? new Date().getFullYear()
-        const month = dateParts[1] ?? 1
-        const day = dateParts[2] ?? 1
+        const [year, month, day] = parseDateString(selectedDate)
         const startHour = Math.floor(session.startMinutes / 60)
         const startMin = session.startMinutes % 60
         const endHour = Math.floor(session.endMinutes / 60)

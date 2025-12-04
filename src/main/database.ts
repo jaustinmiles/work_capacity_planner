@@ -35,7 +35,7 @@ import {
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../shared/time-provider'
-import { timeStringToMinutes } from '../shared/time-utils'
+import { timeStringToMinutes, parseDateString, dateToYYYYMMDD } from '../shared/time-utils'
 import * as crypto from 'crypto'
 import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
@@ -117,10 +117,7 @@ export class DatabaseService {
 
   // Utility function to parse date string and create local date range
   private getLocalDateRange(dateString: string): { startOfDay: Date; endOfDay: Date } {
-    const parts = dateString.split('-').map(Number)
-    const year = parts[0] ?? new Date().getFullYear()
-    const month = parts[1] ?? 1
-    const day = parts[2] ?? 1
+    const [year, month, day] = parseDateString(dateString)
 
     const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0)
     const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999)
@@ -455,7 +452,7 @@ export class DatabaseService {
       take: 1,
     })
 
-    const nextSortOrder = existingTypes.length > 0 ? existingTypes[0]!.sortOrder + 1 : 0
+    const nextSortOrder = (existingTypes[0]?.sortOrder ?? -1) + 1
 
     // Create the entity with generated ID and timestamps
     const entity = createUserTaskTypeEntity({
@@ -615,7 +612,7 @@ export class DatabaseService {
       take: 1,
     })
 
-    const nextSortOrder = existingSinks.length > 0 ? existingSinks[0]!.sortOrder + 1 : 0
+    const nextSortOrder = (existingSinks[0]?.sortOrder ?? -1) + 1
 
     // Create the entity with generated ID and timestamps
     const entity = createTimeSinkEntity({
@@ -1935,8 +1932,7 @@ export class DatabaseService {
         for (let i = 1; i <= 30; i++) {
           const futureDate = new Date(startDate)
           futureDate.setDate(futureDate.getDate() + i)
-          const futureDateStr = futureDate.toISOString().split('T')[0] ?? ''
-          if (!futureDateStr) continue // Satisfy noUncheckedIndexedAccess
+          const futureDateStr = dateToYYYYMMDD(futureDate)
 
           // Check if pattern already exists for this date
           const existingPattern = await this.client.workPattern.findUnique({

@@ -3,6 +3,7 @@ import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { isSingleTypeBlock, isComboBlock, isSystemBlock, getTypeColor } from '@shared/user-task-types'
 import { useSortedUserTaskTypes } from '@renderer/store/useUserTaskTypeStore'
 import { getCurrentTime } from '@shared/time-provider'
+import { parseTimeString } from '@shared/time-utils'
 
 interface TimelineVisualizerProps {
   blocks: WorkBlock[]
@@ -100,12 +101,8 @@ export function TimelineVisualizer({
       const deltaMinutes = Math.round((deltaY / HOUR_HEIGHT) * 60)
 
       // Calculate new start and end times
-      const startParts = dragState.initialTime.split(':').map(Number)
-      const endParts = (dragState.initialEndTime || '').split(':').map(Number)
-      const startHours = startParts[0] ?? 0
-      const startMinutes = startParts[1] ?? 0
-      const endHours = endParts[0] ?? 0
-      const endMinutes = endParts[1] ?? 0
+      const [startHours, startMinutes] = parseTimeString(dragState.initialTime)
+      const [endHours, endMinutes] = parseTimeString(dragState.initialEndTime || '')
 
       const newStartTotalMinutes = (startHours - startHour) * 60 + startMinutes + deltaMinutes
       const newEndTotalMinutes = (endHours - startHour) * 60 + endMinutes + deltaMinutes
