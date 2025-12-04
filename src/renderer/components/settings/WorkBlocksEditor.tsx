@@ -360,7 +360,7 @@ export function WorkBlocksEditor({
       </Card>
 
       <Row gutter={16}>
-        <Col span={14}>
+        <Col span={12}>
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             {/* Capacity Summary */}
             <Card>
@@ -736,8 +736,8 @@ export function WorkBlocksEditor({
       </Modal>
           </Space>
         </Col>
-        <Col span={10}>
-          <Card title="Visual Timeline" style={{ height: 'calc(100vh - 200px)', overflow: 'auto' }}>
+        <Col span={12}>
+          <div style={{ height: 'calc(100vh - 200px)', position: 'sticky', top: 16 }}>
             <TimelineVisualizer
               blocks={blocks}
               meetings={meetings}
@@ -745,9 +745,9 @@ export function WorkBlocksEditor({
               onMeetingUpdate={(id, updates) => handleUpdateMeeting(id, updates)}
               startHour={6}
               endHour={22}
-              height={600}
+              height={Math.max(600, window.innerHeight - 250)}
             />
-          </Card>
+          </div>
         </Col>
       </Row>
     </div>
