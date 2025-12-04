@@ -29,6 +29,7 @@ import {
 import dayjs from 'dayjs'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
+import { useActiveSinkSession, useSortedTimeSinks } from '../../store/useTimeSinkStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
 import { SwimLaneTimeline } from './SwimLaneTimeline'
@@ -90,20 +91,23 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const { tasks, sequencedTasks, loadTasks, activeWorkSessions } = useTaskStore()
   const { isCompact, isMobile, isDesktop } = useResponsive()
   const userTaskTypes = useSortedUserTaskTypes()
+  const activeSinkSession = useActiveSinkSession()
+  const timeSinks = useSortedTimeSinks()
 
-  // Real-time timer for active work sessions (updates every 10 seconds for dogfooding)
+  // Real-time timer for active sessions (updates every 10 seconds for dogfooding)
   const [, forceUpdate] = useState({})
   useEffect(() => {
     if (!visible) return
 
     const timer = setInterval(() => {
-      if (activeWorkSessions.size > 0) {
+      // Update if any work or time sink session is active
+      if (activeWorkSessions.size > 0 || activeSinkSession) {
         forceUpdate({}) // Force re-render to update elapsed time
       }
     }, 10000) // Update every 10 seconds
 
     return () => clearInterval(timer)
-  }, [visible, activeWorkSessions.size])
+  }, [visible, activeWorkSessions.size, activeSinkSession])
 
   // Load sessions when date changes or modal opens
   useEffect(() => {
@@ -557,83 +561,111 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             Array.from(activeWorkSessions.entries()),
           )
 
-          if (activeSessionEntries.length === 0) {
+          // Check for active work session first
+          if (activeSessionEntries.length > 0) {
+            const [_sessionKey, session] = activeSessionEntries[0]
+
+            // Determine if this is a workflow step or regular task
+            let itemName = ''
+            let parentName = ''
+
+            if (session.stepId) {
+              sequencedTasks.forEach(workflow => {
+                const step = workflow.steps?.find(s => s.id === session.stepId)
+                if (step) {
+                  itemName = step.name
+                  parentName = workflow.name
+                }
+              })
+              if (!itemName) {
+                itemName = 'Unknown Step'
+                parentName = 'Unknown Workflow'
+              }
+            } else if (session.taskId) {
+              const task = tasks.find(t => t.id === session.taskId)
+              if (task) {
+                itemName = task.name
+                parentName = 'Task'
+              } else {
+                const workflow = sequencedTasks.find(w => w.id === session.taskId)
+                if (workflow) {
+                  itemName = workflow.name
+                  parentName = 'Workflow'
+                } else {
+                  itemName = 'Unknown Task'
+                  parentName = 'Task'
+                }
+              }
+            } else {
+              itemName = 'Unknown Item'
+              parentName = 'Unknown Type'
+            }
+
+            const elapsedMinutes = Math.floor((new Date(getCurrentTime()).getTime() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
+            const elapsedHours = Math.floor(elapsedMinutes / 60)
+            const elapsedMins = elapsedMinutes % 60
+            const elapsedText = elapsedHours > 0 ? `${elapsedHours}h ${elapsedMins}m` : `${elapsedMins}m`
+
             return (
-              <Card style={{ background: '#f7f8fa', border: '1px dashed #d9d9d9' }}>
-                <Space>
-                  <IconClockCircle style={{ color: '#86909c' }} />
-                  <Text type="secondary">No active work session</Text>
+              <Card style={{ background: '#e6f7ff', border: '1px solid #91d5ff' }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Space>
+                      <IconClockCircle style={{ color: '#1890ff' }} />
+                      <Text style={{ fontWeight: 600 }}>Currently Working:</Text>
+                    </Space>
+                    <Tag color="blue">{elapsedText} elapsed</Tag>
+                  </Space>
+                  <Text style={{ fontSize: 14 }}>
+                    {parentName === 'Task' ? (
+                      <strong>{itemName}</strong>
+                    ) : (
+                      <>
+                        <strong>{parentName}</strong> → {itemName}
+                      </>
+                    )}
+                  </Text>
                 </Space>
               </Card>
             )
           }
 
-          const [_sessionKey, session] = activeSessionEntries[0] // Get first non-paused active session
+          // Check for active time sink session
+          if (activeSinkSession) {
+            const sink = timeSinks.find(s => s.id === activeSinkSession.timeSinkId)
+            const sinkName = sink?.name || 'Unknown Time Sink'
+            const sinkEmoji = sink?.emoji || '⏱️'
+            const sinkColor = sink?.color || '#9B59B6'
 
-          // Determine if this is a workflow step or regular task
-          let itemName = ''
-          let parentName = ''
+            const elapsedMinutes = Math.floor((new Date(getCurrentTime()).getTime() - activeSinkSession.startTime.getTime()) / 60000)
+            const elapsedHours = Math.floor(elapsedMinutes / 60)
+            const elapsedMins = elapsedMinutes % 60
+            const elapsedText = elapsedHours > 0 ? `${elapsedHours}h ${elapsedMins}m` : `${elapsedMins}m`
 
-          if (session.stepId) {
-            // This is a workflow step session
-            sequencedTasks.forEach(workflow => {
-              const step = workflow.steps?.find(s => s.id === session.stepId)
-              if (step) {
-                itemName = step.name
-                parentName = workflow.name
-              }
-            })
-            if (!itemName) {
-              itemName = 'Unknown Step'
-              parentName = 'Unknown Workflow'
-            }
-          } else if (session.taskId) {
-            // This is a regular task session
-            const task = tasks.find(t => t.id === session.taskId)
-            if (task) {
-              itemName = task.name
-              parentName = 'Task' // Regular tasks don't have parents
-            } else {
-              // Check if it's a workflow (taskId might be workflowId)
-              const workflow = sequencedTasks.find(w => w.id === session.taskId)
-              if (workflow) {
-                itemName = workflow.name
-                parentName = 'Workflow'
-              } else {
-                itemName = 'Unknown Task'
-                parentName = 'Task'
-              }
-            }
-          } else {
-            itemName = 'Unknown Item'
-            parentName = 'Unknown Type'
+            return (
+              <Card style={{ background: '#f9f0ff', border: `1px solid ${sinkColor}` }}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Space>
+                      <span style={{ fontSize: 16 }}>{sinkEmoji}</span>
+                      <Text style={{ fontWeight: 600 }}>Time Sink Active:</Text>
+                    </Space>
+                    <Tag color="purple">{elapsedText} elapsed</Tag>
+                  </Space>
+                  <Text style={{ fontSize: 14 }}>
+                    <strong>{sinkName}</strong>
+                  </Text>
+                </Space>
+              </Card>
+            )
           }
 
-          // Calculate elapsed time
-          const elapsedMinutes = Math.floor((new Date(getCurrentTime()).getTime() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
-          const elapsedHours = Math.floor(elapsedMinutes / 60)
-          const elapsedMins = elapsedMinutes % 60
-          const elapsedText = elapsedHours > 0 ? `${elapsedHours}h ${elapsedMins}m` : `${elapsedMins}m`
-
+          // No active session
           return (
-            <Card style={{ background: '#e6f7ff', border: '1px solid #91d5ff' }}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <Space>
-                    <IconClockCircle style={{ color: '#1890ff' }} />
-                    <Text style={{ fontWeight: 600 }}>Currently Working:</Text>
-                  </Space>
-                  <Tag color="blue">{elapsedText} elapsed</Tag>
-                </Space>
-                <Text style={{ fontSize: 14 }}>
-                  {parentName === 'Task' ? (
-                    <strong>{itemName}</strong>
-                  ) : (
-                    <>
-                      <strong>{parentName}</strong> → {itemName}
-                    </>
-                  )}
-                </Text>
+            <Card style={{ background: '#f7f8fa', border: '1px dashed #d9d9d9' }}>
+              <Space>
+                <IconClockCircle style={{ color: '#86909c' }} />
+                <Text type="secondary">No active session</Text>
               </Space>
             </Card>
           )

@@ -111,6 +111,18 @@ export const clearInjectedWorkTrackingService = () => {
   injectedWorkTrackingService = null
 }
 
+/**
+ * Get the work tracking service singleton.
+ * Exported for cross-store coordination (e.g., time sinks stopping active work).
+ */
+export const getWorkTrackingServiceInstance = (): WorkTrackingService => {
+  if (injectedWorkTrackingService) return injectedWorkTrackingService
+  if (!workTrackingServiceSingleton) {
+    workTrackingServiceSingleton = new WorkTrackingService()
+  }
+  return workTrackingServiceSingleton
+}
+
 export const useTaskStore = create<TaskStore>()(
   subscribeWithSelector((set, get) => {
     // Helper to get the current WorkTrackingService (lazy singleton or test injection)

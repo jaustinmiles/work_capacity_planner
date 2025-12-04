@@ -2,9 +2,199 @@
  * Unit tests for RadarChart utility functions
  */
 
-import { prepareRadarChartData, PrepareRadarDataInput, RadarChartDataPoint } from '../RadarChart'
+import {
+  prepareRadarChartData,
+  PrepareRadarDataInput,
+  RadarChartDataPoint,
+  getVertexPosition,
+  generatePolygonPoints,
+  getAverageColor,
+  formatMinutesDisplay,
+} from '../RadarChart'
 
 describe('RadarChart', () => {
+  describe('getVertexPosition', () => {
+    const centerX = 150
+    const centerY = 150
+    const radius = 100
+
+    it('places first vertex at top (12 o\'clock position)', () => {
+      const pos = getVertexPosition(0, 4, radius, centerX, centerY)
+      // First vertex should be at top: y should be less than center
+      expect(pos.x).toBeCloseTo(centerX, 5)
+      expect(pos.y).toBeCloseTo(centerY - radius, 5)
+    })
+
+    it('places second vertex at right for 4-point chart', () => {
+      const pos = getVertexPosition(1, 4, radius, centerX, centerY)
+      // Second vertex in 4-point chart should be at right (3 o'clock)
+      expect(pos.x).toBeCloseTo(centerX + radius, 5)
+      expect(pos.y).toBeCloseTo(centerY, 5)
+    })
+
+    it('calculates correct positions for triangle (3 vertices)', () => {
+      // Triangle: top, bottom-right, bottom-left
+      const top = getVertexPosition(0, 3, radius, centerX, centerY)
+      const bottomRight = getVertexPosition(1, 3, radius, centerX, centerY)
+      const bottomLeft = getVertexPosition(2, 3, radius, centerX, centerY)
+
+      // Top vertex at 12 o'clock
+      expect(top.y).toBeLessThan(centerY)
+      // Bottom vertices below center
+      expect(bottomRight.y).toBeGreaterThan(centerY)
+      expect(bottomLeft.y).toBeGreaterThan(centerY)
+      // Bottom right is to the right of center
+      expect(bottomRight.x).toBeGreaterThan(centerX)
+      // Bottom left is to the left of center
+      expect(bottomLeft.x).toBeLessThan(centerX)
+    })
+
+    it('handles zero radius', () => {
+      const pos = getVertexPosition(0, 4, 0, centerX, centerY)
+      expect(pos.x).toBe(centerX)
+      expect(pos.y).toBe(centerY)
+    })
+
+    it('handles single vertex (edge case)', () => {
+      const pos = getVertexPosition(0, 1, radius, centerX, centerY)
+      expect(pos.x).toBeCloseTo(centerX, 5)
+      expect(pos.y).toBeCloseTo(centerY - radius, 5)
+    })
+  })
+
+  describe('generatePolygonPoints', () => {
+    const centerX = 100
+    const centerY = 100
+    const maxRadius = 50
+
+    it('generates correct SVG points string format', () => {
+      const values = [1, 1, 1] // All at max radius
+      const points = generatePolygonPoints(values, maxRadius, centerX, centerY)
+
+      // Should be "x1,y1 x2,y2 x3,y3" format
+      expect(points).toMatch(/^\d+\.?\d*,\d+\.?\d*\s+\d+\.?\d*,\d+\.?\d*\s+\d+\.?\d*,\d+\.?\d*$/)
+    })
+
+    it('generates points for varying values', () => {
+      const values = [1, 0.5, 0.25, 0]
+      const points = generatePolygonPoints(values, maxRadius, centerX, centerY)
+
+      const pointPairs = points.split(' ')
+      expect(pointPairs).toHaveLength(4)
+    })
+
+    it('handles empty values array', () => {
+      const points = generatePolygonPoints([], maxRadius, centerX, centerY)
+      expect(points).toBe('')
+    })
+
+    it('handles single value', () => {
+      const points = generatePolygonPoints([1], maxRadius, centerX, centerY)
+      const [x, y] = points.split(',').map(Number)
+      expect(x).toBeCloseTo(centerX, 5)
+      expect(y).toBeCloseTo(centerY - maxRadius, 5)
+    })
+
+    it('scales points correctly based on values', () => {
+      // Two values: one at max, one at half
+      const values = [1, 0.5]
+      const points = generatePolygonPoints(values, maxRadius, centerX, centerY)
+
+      const pairs = points.split(' ')
+      expect(pairs).toHaveLength(2)
+
+      // First point should be at full radius (top)
+      const [_x1, y1] = pairs[0].split(',').map(Number)
+      expect(y1).toBeCloseTo(centerY - maxRadius, 5)
+
+      // Second point should be at half radius (bottom)
+      const [_x2, y2] = pairs[1].split(',').map(Number)
+      expect(y2).toBeCloseTo(centerY + maxRadius * 0.5, 5)
+    })
+  })
+
+  describe('getAverageColor', () => {
+    it('returns default gray for empty array', () => {
+      expect(getAverageColor([])).toBe('#808080')
+    })
+
+    it('returns the color itself for single color', () => {
+      expect(getAverageColor(['#FF0000'])).toBe('#FF0000')
+    })
+
+    it('averages two colors correctly', () => {
+      // Red + Blue = Purple-ish
+      const result = getAverageColor(['#FF0000', '#0000FF'])
+      // Average: r=127.5, g=0, b=127.5 -> #7f007f
+      expect(result.toLowerCase()).toBe('#800080')
+    })
+
+    it('averages three colors correctly', () => {
+      // Red + Green + Blue = Gray-ish
+      const result = getAverageColor(['#FF0000', '#00FF00', '#0000FF'])
+      // Average: r=85, g=85, b=85 -> #555555
+      expect(result.toLowerCase()).toBe('#555555')
+    })
+
+    it('handles lowercase hex', () => {
+      const result = getAverageColor(['#ff0000'])
+      expect(result.toLowerCase()).toBe('#ff0000')
+    })
+
+    it('handles white color', () => {
+      const result = getAverageColor(['#FFFFFF', '#FFFFFF'])
+      expect(result.toUpperCase()).toBe('#FFFFFF')
+    })
+
+    it('handles black color', () => {
+      const result = getAverageColor(['#000000', '#000000'])
+      expect(result).toBe('#000000')
+    })
+
+    it('returns default for invalid colors', () => {
+      // Colors without valid 6-char hex are skipped
+      const result = getAverageColor(['#FFF', '#invalid', '#ABCDE'])
+      expect(result).toBe('#808080')
+    })
+
+    it('ignores invalid colors in mix', () => {
+      const result = getAverageColor(['#FF0000', '#invalid', '#FF0000'])
+      // Only the valid red colors should be averaged
+      expect(result.toLowerCase()).toBe('#ff0000')
+    })
+  })
+
+  describe('formatMinutesDisplay', () => {
+    it('formats minutes under 60', () => {
+      expect(formatMinutesDisplay(0)).toBe('0m')
+      expect(formatMinutesDisplay(1)).toBe('1m')
+      expect(formatMinutesDisplay(30)).toBe('30m')
+      expect(formatMinutesDisplay(59)).toBe('59m')
+    })
+
+    it('formats exactly 60 minutes as 1h', () => {
+      expect(formatMinutesDisplay(60)).toBe('1h')
+    })
+
+    it('formats hours with remaining minutes', () => {
+      expect(formatMinutesDisplay(61)).toBe('1h 1m')
+      expect(formatMinutesDisplay(90)).toBe('1h 30m')
+      expect(formatMinutesDisplay(125)).toBe('2h 5m')
+    })
+
+    it('formats exact hours without minutes', () => {
+      expect(formatMinutesDisplay(120)).toBe('2h')
+      expect(formatMinutesDisplay(180)).toBe('3h')
+      expect(formatMinutesDisplay(300)).toBe('5h')
+    })
+
+    it('handles large values', () => {
+      expect(formatMinutesDisplay(600)).toBe('10h')
+      expect(formatMinutesDisplay(1440)).toBe('24h') // Full day
+      expect(formatMinutesDisplay(1441)).toBe('24h 1m')
+    })
+  })
+
   describe('prepareRadarChartData', () => {
     it('returns empty array for empty task types', () => {
       const input: PrepareRadarDataInput = {

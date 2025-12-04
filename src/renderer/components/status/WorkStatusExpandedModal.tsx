@@ -12,6 +12,7 @@ import { RadarChart, prepareRadarChartData, RadarChartDataPoint } from './RadarC
 import { UserTaskType } from '@shared/user-task-types'
 import { WorkBlock } from '@shared/work-blocks-types'
 import { formatMinutes } from '@shared/time-utils'
+import { BlockConfigKind, WorkBlockType } from '@shared/enums'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -41,14 +42,14 @@ function getBlockTypeName(block: WorkBlock | null, userTypes: UserTaskType[]): s
   if (!block) return 'None'
 
   const { typeConfig } = block
-  if (typeConfig.kind === 'system') {
-    return typeConfig.systemType === 'sleep' ? 'Sleep' : 'Blocked'
+  if (typeConfig.kind === BlockConfigKind.System) {
+    return typeConfig.systemType === WorkBlockType.Sleep ? 'Sleep' : 'Blocked'
   }
-  if (typeConfig.kind === 'single') {
+  if (typeConfig.kind === BlockConfigKind.Single) {
     const userType = userTypes.find(t => t.id === typeConfig.typeId)
     return userType?.name || 'Unknown'
   }
-  if (typeConfig.kind === 'combo') {
+  if (typeConfig.kind === BlockConfigKind.Combo) {
     return typeConfig.allocations
       .map(a => {
         const userType = userTypes.find(t => t.id === a.typeId)

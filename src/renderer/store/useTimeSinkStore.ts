@@ -30,6 +30,7 @@ import {
 import { getCurrentTime } from '@/shared/time-provider'
 import { dateToYYYYMMDD } from '@/shared/time-utils'
 import { logger } from '@/logger'
+import { getWorkTrackingServiceInstance } from './useTaskStore'
 
 interface TimeSinkStoreState {
   // Core state
@@ -215,13 +216,27 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
 
     /**
      * Start a new time sink session.
+     * Enforces mutual exclusivity: stops any active work session first.
      */
     startSession: async (sinkId, notes): Promise<TimeSinkSession> => {
       const { activeSinkSession } = get()
 
-      // Stop any existing active session first
+      // Stop any existing active time sink session first
       if (activeSinkSession) {
         await get().stopSession()
+      }
+
+      // Stop any active work session (mutual exclusivity with tasks/workflows)
+      const workTrackingService = getWorkTrackingServiceInstance()
+      if (workTrackingService.isAnyWorkActive()) {
+        const activeWorkSession = workTrackingService.getCurrentActiveSession()
+        if (activeWorkSession?.id) {
+          logger.ui.info('Stopping active work session to start time sink', {
+            workSessionId: activeWorkSession.id,
+            sinkId,
+          }, 'time-sink-stopping-work')
+          await workTrackingService.stopWorkSession(activeWorkSession.id)
+        }
       }
 
       try {

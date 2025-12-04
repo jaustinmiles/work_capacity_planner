@@ -60,7 +60,7 @@ const MIN_VERTICES_FOR_RADAR = 3
  * @param centerY - Center Y coordinate
  * @returns {x, y} coordinates
  */
-function getVertexPosition(
+export function getVertexPosition(
   index: number,
   total: number,
   radius: number,
@@ -82,7 +82,7 @@ function getVertexPosition(
  * @param centerY - Center Y coordinate
  * @returns SVG points string "x1,y1 x2,y2 ..."
  */
-function generatePolygonPoints(
+export function generatePolygonPoints(
   values: number[],
   maxRadius: number,
   centerX: number,
@@ -101,7 +101,7 @@ function generatePolygonPoints(
  * Calculate average color from array of hex colors
  * Used for the fill color of the radar polygon
  */
-function getAverageColor(colors: string[]): string {
+export function getAverageColor(colors: string[]): string {
   if (colors.length === 0) return '#808080'
   if (colors.length === 1) return colors[0]
 
@@ -130,7 +130,7 @@ function getAverageColor(colors: string[]): string {
 /**
  * Format minutes for display
  */
-function formatMinutesDisplay(minutes: number): string {
+export function formatMinutesDisplay(minutes: number): string {
   if (minutes < 60) {
     return `${minutes}m`
   }
