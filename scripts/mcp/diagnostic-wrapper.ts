@@ -47,8 +47,8 @@ class DiagnosticWrapper {
               properties: {
                 filter: {
                   type: 'string',
-                  enum: ['high', 'unresolved', 'summary'],
-                  description: 'Type of feedback query',
+                  enum: ['high', 'unresolved', 'summary', 'by-type'],
+                  description: 'Type of feedback query (use by-type with type parameter)',
                 },
                 type: {
                   type: 'string',
@@ -426,16 +426,20 @@ class DiagnosticWrapper {
         }
       }
 
-      const output = await this.runScript('npm', npmArgs)
+      // Use 5 minute timeout for full test suite
+      const output = await this.runScript('npm', npmArgs, 300000)
 
-      // Parse test results from output
-      const passedMatch = output.match(/Tests:\s*(\d+)\s*passed/)
-      const failedMatch = output.match(/Tests:\s*(\d+)\s*failed/)
-      const totalMatch = output.match(/Tests:.*,\s*(\d+)\s*total/)
+      // Parse test results from Vitest output format
+      // Vitest format: "Tests  1114 passed | 82 skipped (1196)"
+      const passedMatch = output.match(/Tests\s+(\d+)\s+passed/)
+      const failedMatch = output.match(/(\d+)\s+failed/)
+      const skippedMatch = output.match(/(\d+)\s+skipped/)
+      const totalMatch = output.match(/\((\d+)\)/)
 
       const passed = passedMatch ? parseInt(passedMatch[1]) : 0
       const failed = failedMatch ? parseInt(failedMatch[1]) : 0
-      const total = totalMatch ? parseInt(totalMatch[1]) : 0
+      const skipped = skippedMatch ? parseInt(skippedMatch[1]) : 0
+      const total = totalMatch ? parseInt(totalMatch[1]) : (passed + failed + skipped)
 
       const icon = failed > 0 ? '❌' : '✅'
       const summary = failed > 0
@@ -567,8 +571,8 @@ class DiagnosticWrapper {
         }
       }
 
-      // Run jest with the specific file
-      const jestArgs = ['jest', file, '--no-coverage']
+      // Run vitest with 'run' flag to ensure non-interactive mode
+      const vitestArgs = ['vitest', 'run', file, '--reporter=verbose']
 
       if (watch) {
         return {
@@ -581,16 +585,19 @@ class DiagnosticWrapper {
         }
       }
 
-      const output = await this.runScript('npx', jestArgs)
+      // Use 2 minute timeout for single test file
+      const output = await this.runScript('npx', vitestArgs, 120000)
 
-      // Parse test results
-      const passedMatch = output.match(/Tests:\s*(\d+)\s*passed/)
-      const failedMatch = output.match(/Tests:\s*(\d+)\s*failed/)
-      const totalMatch = output.match(/Tests:.*,\s*(\d+)\s*total/)
+      // Parse test results from Vitest output format
+      const passedMatch = output.match(/Tests\s+(\d+)\s+passed/)
+      const failedMatch = output.match(/(\d+)\s+failed/)
+      const skippedMatch = output.match(/(\d+)\s+skipped/)
+      const totalMatch = output.match(/\((\d+)\)/)
 
       const passed = passedMatch ? parseInt(passedMatch[1]) : 0
       const failed = failedMatch ? parseInt(failedMatch[1]) : 0
-      const total = totalMatch ? parseInt(totalMatch[1]) : passed + failed
+      const skipped = skippedMatch ? parseInt(skippedMatch[1]) : 0
+      const total = totalMatch ? parseInt(totalMatch[1]) : (passed + failed + skipped)
 
       const icon = failed > 0 ? '❌' : '✅'
       const summary = failed > 0
@@ -650,7 +657,11 @@ class DiagnosticWrapper {
     return truncated.substring(0, lastNewline > 0 ? lastNewline : maxChars) + '\n\n... (output truncated)'
   }
 
-  private async runScript(command: string, args: string[]): Promise<string> {
+  private async runScript(
+    command: string,
+    args: string[],
+    timeoutMs: number = 120000,  // 2 min default
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       const childProcess = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -659,6 +670,38 @@ class DiagnosticWrapper {
 
       let stdout = ''
       let stderr = ''
+      let killed = false
+      let settled = false
+
+      // Helper to safely settle the promise only once
+      const safeResolve = (value: string) => {
+        if (!settled) {
+          settled = true
+          clearTimeout(timeout)
+          resolve(value)
+        }
+      }
+
+      const safeReject = (error: Error) => {
+        if (!settled) {
+          settled = true
+          clearTimeout(timeout)
+          reject(error)
+        }
+      }
+
+      // CRITICAL: Add timeout to prevent zombie processes
+      const timeout = setTimeout(() => {
+        killed = true
+        childProcess.kill('SIGTERM')
+        // Force kill after 5s if SIGTERM doesn't work
+        setTimeout(() => {
+          if (!childProcess.killed) {
+            childProcess.kill('SIGKILL')
+          }
+        }, 5000)
+        safeReject(new Error(`Process timed out after ${timeoutMs}ms`))
+      }, timeoutMs)
 
       childProcess.stdout.on('data', (data) => {
         stdout += data.toString()
@@ -669,18 +712,22 @@ class DiagnosticWrapper {
       })
 
       childProcess.on('close', (code) => {
+        if (killed) return  // Already rejected by timeout
+
         if (code === 0) {
-          resolve(stdout)
+          safeResolve(stdout)
         } else {
           // Include both stdout and stderr in error message
           // (db-inspector uses console.log for errors, which goes to stdout)
           const errorMsg = stderr || stdout || 'No output'
-          reject(new Error(`Script failed with code ${code}: ${errorMsg}`))
+          safeReject(new Error(`Script failed with code ${code}: ${errorMsg}`))
         }
       })
 
       childProcess.on('error', (error) => {
-        reject(error)
+        // Ensure cleanup on spawn errors
+        childProcess.kill('SIGKILL')
+        safeReject(error)
       })
     })
   }

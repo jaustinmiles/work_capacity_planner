@@ -500,7 +500,11 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
     return `${head}\n\n... [${omitted} lines truncated] ...\n\n${tail}`
   }
 
-  private async runScript(command: string, args: string[]): Promise<string> {
+  private async runScript(
+    command: string,
+    args: string[],
+    timeoutMs: number = 60000,  // 1 min default for git operations
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       const childProcess = spawn(command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -509,6 +513,38 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
 
       let stdout = ''
       let stderr = ''
+      let killed = false
+      let settled = false
+
+      // Helper to safely settle the promise only once
+      const safeResolve = (value: string) => {
+        if (!settled) {
+          settled = true
+          clearTimeout(timeout)
+          resolve(value)
+        }
+      }
+
+      const safeReject = (error: Error) => {
+        if (!settled) {
+          settled = true
+          clearTimeout(timeout)
+          reject(error)
+        }
+      }
+
+      // CRITICAL: Add timeout to prevent zombie processes
+      const timeout = setTimeout(() => {
+        killed = true
+        childProcess.kill('SIGTERM')
+        // Force kill after 5s if SIGTERM doesn't work
+        setTimeout(() => {
+          if (!childProcess.killed) {
+            childProcess.kill('SIGKILL')
+          }
+        }, 5000)
+        safeReject(new Error(`Process timed out after ${timeoutMs}ms`))
+      }, timeoutMs)
 
       childProcess.stdout.on('data', (data) => {
         stdout += data.toString()
@@ -519,17 +555,21 @@ Co-Authored-By: Claude <noreply@anthropic.com>`
       })
 
       childProcess.on('close', (code) => {
+        if (killed) return  // Already rejected by timeout
+
         if (code === 0) {
-          resolve(stdout)
+          safeResolve(stdout)
         } else {
           // Include both stdout and stderr for better error context
           const errorOutput = [stderr, stdout].filter(Boolean).join('\n')
-          reject(new Error(`Command failed with code ${code}:\n${errorOutput}`))
+          safeReject(new Error(`Command failed with code ${code}:\n${errorOutput}`))
         }
       })
 
       childProcess.on('error', (error) => {
-        reject(error)
+        // Ensure cleanup on spawn errors
+        childProcess.kill('SIGKILL')
+        safeReject(error)
       })
     })
   }

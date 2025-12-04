@@ -1644,7 +1644,8 @@
     "title": "The user should specify task type",
     "description": "I want to move away from having defined 'focus' 'admin' and 'personal' task and block types. instead, the user should specify the types. for example, the user might want to make a 'hobby' block or an 'errand' block and select their own emoji/icon and color for it. \n\nThis will entail a few changes. First, the work status widget will need to be updated to show all the planned times and spent times for each user specified task type. the same will be true for the swim lanes. When creating a task or workflow the drop down list should have all the user specified types. I want to remove all references to focus, personal, and admin. there should be no defaults. we will also need to adjust the prompts to the AI and provide the user specified types as context. \n\nHopefully not too many updates will be needed to the scheduling engine - just extensions of matching to block types that already exist. ",
     "timestamp": "2025-12-01T05:30:18.624Z",
-    "sessionId": "session-1764567018607-73e93637"
+    "sessionId": "session-1764567018607-73e93637",
+    "resolved": true
   },
   {
     "type": "feature",
@@ -1658,5 +1659,36 @@
     "description": "user story: i have a task, but I realized I want it to be a workflow, so I want to be able to click a button to turn the task into a workflow where I can then add steps and modify it. ",
     "timestamp": "2025-12-03T21:54:23.519Z",
     "sessionId": "session-1764798863498-e988bd28"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "status/WorkStatusWidget"
+    ],
+    "title": "Ui improvement",
+    "description": "Let's remove the 'Work Status' title text. All the components describe themselves. Also there is a weird UI issue underneeth the 'completed today' section, where the formatting for remaining categories seems to be broken. Also, it's kind of misleading for something that doesn't have any planned time to show up as utilizing 100% with a full green bar. If anything this should be shown to the user as a warning since that means theres a ton of work done without planning. ",
+    "timestamp": "2025-12-04T04:10:52.677Z",
+    "sessionId": "session-1764821452654-a9483cc7"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "work-logger/WorkLoggerDualView",
+      "status/WorkStatusWidget"
+    ],
+    "title": "Higher internal consistency with work blocks/sessions and planned time",
+    "description": "whenever work for a task is done, we should enforce a block creation. ideally, we would have two pathways. 1. if the User is in the middle of a work block, and the work block has a type that doesn't match the task the user is trying to start, then we should allow the user to take a detour by basically eating into the planned block's time. This should be reflected in the work status widget. 2. if the user is not in the middle of a block, then we should create one that is the length of the task. \n\nthen, when we make a worksession, we should save it to the database with the id of the work block where that work was done. Then, the planned capacity vs logged will be enforced internally better. All work sessions are connected to blocks. \n\nthe remaining problem we need to solve is if the user works through the end of the block. I want to add a notification banner system that will display an alert (permanent, must be dismissed by the user) where an alert is displayed when the work block ends and when we are eating into other time. All logged time must be saved within the time bounds of a block, so if the user goes over the block into another, the time logged goes into the new block. if it goes into empty space, we should make a new block of some type like 'overflow' or something or create a new block with the proper type",
+    "timestamp": "2025-12-04T04:23:21.913Z",
+    "sessionId": "session-1764822201894-7d3ae420"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "title": "Radar chart for time spent on task types",
+    "description": "i'd like to add a radar chart (also called a spider chart, web chart, or star plot).\nWhat I'm thinking is that the side bar Work Status widget should be a bit simpler and easy to parse/read, and mainly be focused on what work block we're in, and some of the remaining schedule/blocks or planned task (task queue maybe), and of course the start next task button. then, there should be a full screen button that expands it and shows all the info we have. and in this expanded view, there should be the radar chart. the number of edges in the radar chart is determined by the number of user defined task types, and the length of the area extending outward should be based on normalized time spent",
+    "timestamp": "2025-12-04T04:33:03.361Z",
+    "sessionId": "session-1764822783341-621f33f3"
   }
 ]
