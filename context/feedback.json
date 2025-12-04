@@ -1519,7 +1519,10 @@
     "title": "Show meetings on dual view clock",
     "description": "meetings should be displayed on the dual view clock alongside logged work sessions. ",
     "timestamp": "2025-09-23T20:00:18.663Z",
-    "sessionId": "session-1758657618655-5df415fb"
+    "sessionId": "session-1758657618655-5df415fb",
+    "resolved": true,
+    "resolvedDate": "2025-12-04T05:30:00.000Z",
+    "resolvedIn": "PR #110"
   },
   {
     "type": "bug",
@@ -1658,7 +1661,9 @@
     "title": "Users should be able to promote standalone tasks to workflows",
     "description": "user story: i have a task, but I realized I want it to be a workflow, so I want to be able to click a button to turn the task into a workflow where I can then add steps and modify it. ",
     "timestamp": "2025-12-03T21:54:23.519Z",
-    "sessionId": "session-1764798863498-e988bd28"
+    "sessionId": "session-1764798863498-e988bd28",
+    "resolved": true,
+    "resolvedBy": "PR #110 - Added promoteTaskToWorkflow() method with full IPC bridge and UI button"
   },
   {
     "type": "improvement",

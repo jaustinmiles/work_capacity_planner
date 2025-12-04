@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteTask: (id: string) => ipcRenderer.invoke('db:deleteTask', id),
     archiveTask: (id: string) => ipcRenderer.invoke('db:archiveTask', id),
     unarchiveTask: (id: string) => ipcRenderer.invoke('db:unarchiveTask', id),
+    promoteTaskToWorkflow: (taskId: string) => ipcRenderer.invoke('db:promoteTaskToWorkflow', taskId),
     deleteSequencedTask: (id: string) => ipcRenderer.invoke('db:deleteSequencedTask', id),
     addStepToWorkflow: (workflowId: string, stepData: any) => ipcRenderer.invoke('db:addStepToWorkflow', workflowId, stepData),
     initializeDefaultData: () => ipcRenderer.invoke('db:initializeDefaultData'),

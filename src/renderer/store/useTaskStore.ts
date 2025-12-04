@@ -47,6 +47,7 @@ interface TaskStore {
   updateSequencedTask: (__id: string, updates: Partial<SequencedTask>) => Promise<void>
   deleteTask: (__id: string) => Promise<void>
   deleteSequencedTask: (id: string) => Promise<void>
+  promoteTaskToWorkflow: (taskId: string) => Promise<void>
   toggleTaskComplete: (__id: string) => Promise<void>
   selectTask: (id: string | null) => void
 
@@ -428,6 +429,32 @@ export const useTaskStore = create<TaskStore>()(
       set({
         error: error instanceof Error ? error.message : 'Failed to delete sequenced task',
       })
+    }
+  },
+
+  promoteTaskToWorkflow: async (taskId) => {
+    try {
+      const taskName = get().tasks.find(t => t.id === taskId)?.name
+      logger.ui.info('Promoting task to workflow', { taskId, taskName }, 'task-promote')
+
+      const promotedTask = await getDatabase().promoteTaskToWorkflow(taskId)
+
+      // Update state: task stays in tasks array but now has hasSteps=true
+      // Also add to sequencedTasks for workflows view
+      set((state) => ({
+        tasks: state.tasks.map(task =>
+          task.id === taskId ? promotedTask : task,
+        ),
+        sequencedTasks: [...state.sequencedTasks, promotedTask as SequencedTask],
+        error: null,
+      }))
+
+      logger.ui.info('Task promoted to workflow successfully', { taskId, taskName }, 'task-promote')
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to promote task to workflow'
+      logger.ui.error('Failed to promote task to workflow', { taskId, error: errorMsg }, 'task-promote')
+      set({ error: errorMsg })
+      throw error
     }
   },
 

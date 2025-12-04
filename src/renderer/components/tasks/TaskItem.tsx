@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Modal } from '@arco-design/web-react'
-import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping, IconPlayArrow, IconUndo } from '@arco-design/web-react/icon'
+import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping, IconPlayArrow, IconUndo, IconLoop } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { useTaskStore } from '../../store/useTaskStore'
 import { UnifiedTaskEdit } from './UnifiedTaskEdit'
@@ -28,7 +28,7 @@ interface TaskItemProps {
 }
 
 export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskItemProps) {
-  const { toggleTaskComplete, deleteTask, selectTask, updateTask, loadTasks } = useTaskStore()
+  const { toggleTaskComplete, deleteTask, selectTask, updateTask, loadTasks, promoteTaskToWorkflow } = useTaskStore()
   const userTypes = useSortedUserTaskTypes()
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState(task.name)
@@ -343,6 +343,30 @@ export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskIt
                   }}
                 />
               </Tooltip>
+
+              {/* Promote to workflow - only show for standalone tasks */}
+              {!task.hasSteps && (
+                <Tooltip content="Convert to workflow">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<IconLoop />}
+                    onClick={async () => {
+                      logger.ui.info('Promote to workflow clicked', {
+                        taskId: task.id,
+                        taskName: task.name,
+                      })
+                      try {
+                        await promoteTaskToWorkflow(task.id)
+                        Message.success('Task promoted to workflow. You can now add steps.')
+                        setShowEditModal(true) // Open edit modal to add steps
+                      } catch (error) {
+                        Message.error(error instanceof Error ? error.message : 'Failed to promote task')
+                      }
+                    }}
+                  />
+                </Tooltip>
+              )}
             </>
           )}
 
