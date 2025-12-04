@@ -10,6 +10,7 @@ export interface WorkSessionData {
   endMinutes: number
   type: string // User-defined type ID
   color: string
+  blockId?: string // Work block this session belongs to
   isDirty?: boolean
   isNew?: boolean
   notes?: string

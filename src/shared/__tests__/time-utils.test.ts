@@ -4,6 +4,7 @@ import {
   timeStringToMinutes,
   calculateDuration,
   formatMinutes,
+  formatElapsedWithSeconds,
   parseDateString,
   formatTimeHHMM,
   formatTimeFromParts,
@@ -64,6 +65,38 @@ describe('time-utils', () => {
       expect(formatMinutes(90)).toBe('1h 30m')
       expect(formatMinutes(120)).toBe('2h')
       expect(formatMinutes(150)).toBe('2h 30m')
+    })
+  })
+
+  describe('formatElapsedWithSeconds', () => {
+    it('should format seconds only for short durations', () => {
+      const startTime = new Date('2024-01-15T10:00:00')
+      const currentTime = new Date('2024-01-15T10:00:30') // 30 seconds later
+      expect(formatElapsedWithSeconds(startTime, currentTime)).toBe('30s')
+    })
+
+    it('should format minutes and seconds', () => {
+      const startTime = new Date('2024-01-15T10:00:00')
+      const currentTime = new Date('2024-01-15T10:05:30') // 5 min 30 sec later
+      expect(formatElapsedWithSeconds(startTime, currentTime)).toBe('5m 30s')
+    })
+
+    it('should format hours, minutes and seconds', () => {
+      const startTime = new Date('2024-01-15T10:00:00')
+      const currentTime = new Date('2024-01-15T11:30:45') // 1h 30m 45s later
+      expect(formatElapsedWithSeconds(startTime, currentTime)).toBe('1h 30m 45s')
+    })
+
+    it('should handle zero seconds correctly', () => {
+      const startTime = new Date('2024-01-15T10:00:00')
+      const currentTime = new Date('2024-01-15T10:05:00') // Exactly 5 minutes
+      expect(formatElapsedWithSeconds(startTime, currentTime)).toBe('5m 0s')
+    })
+
+    it('should handle exact hour', () => {
+      const startTime = new Date('2024-01-15T10:00:00')
+      const currentTime = new Date('2024-01-15T11:00:00') // Exactly 1 hour
+      expect(formatElapsedWithSeconds(startTime, currentTime)).toBe('1h 0m 0s')
     })
   })
 

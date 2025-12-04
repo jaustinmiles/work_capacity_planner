@@ -37,6 +37,26 @@ export function formatMinutes(minutes: number): string {
 }
 
 /**
+ * Format elapsed time with seconds for real-time display
+ * Used for active sessions to show counting seconds
+ */
+export function formatElapsedWithSeconds(startTime: Date, currentTime: Date = new Date()): string {
+  const elapsedMs = currentTime.getTime() - startTime.getTime()
+  const totalSeconds = Math.floor(elapsedMs / 1000)
+
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds}s`
+  }
+  return `${seconds}s`
+}
+
+/**
  * Safely parse date string in "YYYY-MM-DD" format
  * Returns [year, month, day] with defaults if parsing fails
  */

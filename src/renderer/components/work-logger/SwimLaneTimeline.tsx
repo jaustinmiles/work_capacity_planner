@@ -205,6 +205,7 @@ export function SwimLaneTimeline({
     stepId?: string  // Add stepId to track workflow steps
     indent?: boolean
     isMeeting?: boolean
+    isTimeSink?: boolean
     meetingType?: string
     meetingStartMinutes?: number
     meetingEndMinutes?: number
@@ -316,6 +317,17 @@ export function SwimLaneTimeline({
       name: '📅 Meetings & Events',
       sessions: meetingSessions,
       isMeeting: true,
+    })
+  }
+
+  // Add time sinks lane - filter sessions with taskId starting with 'sink-'
+  const timeSinkSessions = sessions.filter(s => s.taskId.startsWith('sink-'))
+  if (timeSinkSessions.length > 0) {
+    swimLanes.unshift({
+      id: 'time-sinks-lane',
+      name: '⏱️ Time Sinks',
+      sessions: timeSinkSessions,
+      isTimeSink: true,
     })
   }
 
@@ -782,8 +794,8 @@ export function SwimLaneTimeline({
                   flexShrink: 0, // Prevent flex container from shrinking this
                 }}
                 onMouseDown={(e) => {
-                  // Don't allow creating on meetings lane
-                  if (lane.isMeeting) {
+                  // Don't allow creating on meetings or time sinks lane
+                  if (lane.isMeeting || lane.isTimeSink) {
                     return
                   }
 
@@ -939,6 +951,7 @@ export function SwimLaneTimeline({
                   const isSelected = session.id === selectedSessionId
                   const isHovered = session.id === hoveredSession
                   const isMeetingSession = lane.isMeeting
+                  const isTimeSinkSession = lane.isTimeSink
 
                   const sessionKey = `${lane.id}-${session.id}-${sessionIndex}`
 
@@ -1028,6 +1041,7 @@ export function SwimLaneTimeline({
                               </div>
                             )}
                             {isMeetingSession && <div style={{ marginTop: 4, fontStyle: 'italic' }}>Meeting/Event</div>}
+                            {isTimeSinkSession && <div style={{ marginTop: 4, fontStyle: 'italic' }}>⏱️ Time Sink</div>}
                           </div>
                         }
                       >

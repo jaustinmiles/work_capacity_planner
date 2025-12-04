@@ -44,6 +44,10 @@ export interface UnifiedWorkSession {
   type: string           // User-defined type ID (no longer hardcoded enum)
   notes?: string | undefined
 
+  // Block association (for capacity tracking)
+  blockId?: string | undefined     // Work block this session belongs to
+  blockName?: string | undefined   // Computed: block type display name (not persisted)
+
   // Metadata (from database)
   createdAt?: Date
   updatedAt?: Date
@@ -97,6 +101,7 @@ export function fromDatabaseWorkSession(dbSession: any): UnifiedWorkSession {
   if (dbSession.endTime) result.endTime = new Date(dbSession.endTime)
   if (dbSession.actualMinutes !== undefined && dbSession.actualMinutes !== null) result.actualMinutes = dbSession.actualMinutes
   if (dbSession.notes !== undefined && dbSession.notes !== null) result.notes = dbSession.notes
+  if (dbSession.blockId !== undefined && dbSession.blockId !== null) result.blockId = dbSession.blockId
   if (dbSession.createdAt) result.createdAt = new Date(dbSession.createdAt)
   if (dbSession.updatedAt) result.updatedAt = new Date(dbSession.updatedAt)
   if (dbSession.workflowId !== undefined && dbSession.workflowId !== null) result.workflowId = dbSession.workflowId
@@ -146,6 +151,7 @@ export function toDatabaseWorkSession(session: UnifiedWorkSession): any {
     taskId: session.taskId,
     stepId: session.stepId || null,
     patternId: null, // Not used in current implementation
+    blockId: session.blockId || null,
     type: session.type,
     startTime: session.startTime,
     endTime: session.endTime || null,
