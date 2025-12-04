@@ -10,6 +10,8 @@ import {
 } from './SessionState'
 import { useContainerQuery } from '../../hooks/useContainerQuery'
 import { useResponsive } from '../../providers/ResponsiveProvider'
+import { Meeting } from '@shared/work-blocks-types'
+import { MeetingType } from '@shared/enums'
 
 interface CircularClockProps {
   sessions: WorkSessionData[]
@@ -20,7 +22,7 @@ interface CircularClockProps {
   selectedSessionId?: string
   onSessionSelect: (id: string | null) => void
   currentTime?: Date
-  meetings?: Array<{ startMinutes: number; endMinutes: number; name: string }>
+  meetings?: Meeting[]
   sleepBlocks?: Array<{ startMinutes: number; endMinutes: number }>
   bedtimeHour?: number
   wakeTimeHour?: number
@@ -57,6 +59,7 @@ export function CircularClock({
   selectedSessionId,
   onSessionSelect,
   currentTime = new Date(),
+  meetings = [],
   bedtimeHour = DEFAULT_BEDTIME,
   wakeTimeHour = DEFAULT_WAKE_TIME,
 }: CircularClockProps) {
@@ -525,6 +528,53 @@ export function CircularClock({
                 </>
               )}
             </g>
+          )
+        })}
+
+        {/* Meetings as arcs on outer ring */}
+        {meetings.map((meeting) => {
+          // Convert HH:MM to minutes
+          const [startH, startM] = meeting.startTime.split(':').map(Number)
+          const [endH, endM] = meeting.endTime.split(':').map(Number)
+          const startMinutes = startH * 60 + startM
+          const endMinutes = endH * 60 + endM
+
+          // Color based on meeting type (same as SwimLaneTimeline)
+          const color = meeting.type === MeetingType.Meeting ? '#722ed1' :
+                        meeting.type === MeetingType.Break ? '#13c2c2' :
+                        meeting.type === MeetingType.Personal ? '#52c41a' : '#8c8c8c'
+
+          const path = generateArcPath(
+            startMinutes,
+            endMinutes,
+            outerRadius + 5,    // Slightly outside work sessions
+            outerRadius + 18,   // Thin ring
+            center,
+            center,
+            WORKDAY_START,
+            WORKDAY_HOURS,
+          )
+
+          return (
+            <Tooltip
+              key={meeting.id}
+              content={
+                <div>
+                  <div style={{ fontWeight: 'bold' }}>{meeting.name}</div>
+                  <div>{meeting.startTime} - {meeting.endTime}</div>
+                  <div style={{ opacity: 0.8, fontSize: '0.9em' }}>{meeting.type}</div>
+                </div>
+              }
+            >
+              <path
+                d={path}
+                fill={color + '33'}
+                stroke={color}
+                strokeWidth={2}
+                strokeDasharray="4 2"
+                style={{ cursor: 'default' }}
+              />
+            </Tooltip>
           )
         })}
 

@@ -430,16 +430,32 @@ class DiagnosticWrapper {
       const output = await this.runScript('npm', npmArgs, 300000)
 
       // Parse test results from Vitest output format
-      // Vitest format: "Tests  1114 passed | 82 skipped (1196)"
-      const passedMatch = output.match(/Tests\s+(\d+)\s+passed/)
-      const failedMatch = output.match(/(\d+)\s+failed/)
-      const skippedMatch = output.match(/(\d+)\s+skipped/)
-      const totalMatch = output.match(/\((\d+)\)/)
+      // Vitest format: "      Tests  1 failed | 1113 passed | 82 skipped (1196)"
+      // Note: Must use multiline match anchored to "Tests" to avoid matching "Test Files" line
+      const testsSummaryMatch = output.match(
+        /^\s*Tests\s+(?:(\d+)\s+failed\s+\|\s+)?(\d+)\s+passed(?:\s+\|\s+(\d+)\s+skipped)?\s+\((\d+)\)/m,
+      )
 
-      const passed = passedMatch ? parseInt(passedMatch[1]) : 0
-      const failed = failedMatch ? parseInt(failedMatch[1]) : 0
-      const skipped = skippedMatch ? parseInt(skippedMatch[1]) : 0
-      const total = totalMatch ? parseInt(totalMatch[1]) : (passed + failed + skipped)
+      let passed = 0
+      let failed = 0
+      let skipped = 0
+      let total = 0
+
+      if (testsSummaryMatch) {
+        failed = testsSummaryMatch[1] ? parseInt(testsSummaryMatch[1]) : 0
+        passed = parseInt(testsSummaryMatch[2])
+        skipped = testsSummaryMatch[3] ? parseInt(testsSummaryMatch[3]) : 0
+        total = parseInt(testsSummaryMatch[4])
+      } else {
+        // Fallback to individual matches if summary line not found
+        const passedMatch = output.match(/Tests\s+(\d+)\s+passed/)
+        const failedMatch = output.match(/(\d+)\s+failed/)
+        const skippedMatch = output.match(/(\d+)\s+skipped/)
+        passed = passedMatch ? parseInt(passedMatch[1]) : 0
+        failed = failedMatch ? parseInt(failedMatch[1]) : 0
+        skipped = skippedMatch ? parseInt(skippedMatch[1]) : 0
+        total = passed + failed + skipped
+      }
 
       const icon = failed > 0 ? '❌' : '✅'
       const summary = failed > 0
