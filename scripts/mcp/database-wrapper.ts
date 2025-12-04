@@ -23,7 +23,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 // Paths relative to project root
-const PROJECT_ROOT = path.join(__dirname, '../..')
+// When compiled, __dirname is scripts/mcp/dist, so we need ../../.. to reach project root
+const PROJECT_ROOT = path.join(__dirname, '../../..')
 const DB_PATH = path.join(PROJECT_ROOT, 'prisma', 'dev.db')
 const BACKUP_DIR = path.join(PROJECT_ROOT, 'backups')
 

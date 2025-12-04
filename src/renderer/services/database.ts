@@ -3,6 +3,7 @@ import { SequencedTask } from '@shared/sequencing-types'
 import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
 import { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, CreateTimeSinkSessionInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
 import { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
+import { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
 
 
 // Type for the Electron API exposed by preload script
@@ -102,6 +103,12 @@ declare global {
         // Log viewer operations (dev mode)
         getSessionLogs: (options?: LogQueryOptions) => Promise<LogEntry[]>
         getLoggedSessions: () => Promise<SessionLogSummary[]>
+        // Schedule snapshot operations
+        createScheduleSnapshot: (data: ScheduleSnapshotData, label?: string) => Promise<ScheduleSnapshot>
+        getScheduleSnapshots: (sessionId?: string) => Promise<ScheduleSnapshot[]>
+        getScheduleSnapshotById: (id: string) => Promise<ScheduleSnapshot | null>
+        getTodayScheduleSnapshot: () => Promise<ScheduleSnapshot | null>
+        deleteScheduleSnapshot: (id: string) => Promise<void>
       }
       // Log persistence
       persistLog?: (logEntry: any) => Promise<void>
@@ -630,6 +637,27 @@ export class RendererDatabaseService {
 
   async getLoggedSessions(): Promise<SessionLogSummary[]> {
     return await window.electronAPI.db.getLoggedSessions()
+  }
+
+  // Schedule snapshot operations
+  async createScheduleSnapshot(data: ScheduleSnapshotData, label?: string): Promise<ScheduleSnapshot> {
+    return await window.electronAPI.db.createScheduleSnapshot(data, label)
+  }
+
+  async getScheduleSnapshots(sessionId?: string): Promise<ScheduleSnapshot[]> {
+    return await window.electronAPI.db.getScheduleSnapshots(sessionId)
+  }
+
+  async getScheduleSnapshotById(id: string): Promise<ScheduleSnapshot | null> {
+    return await window.electronAPI.db.getScheduleSnapshotById(id)
+  }
+
+  async getTodayScheduleSnapshot(): Promise<ScheduleSnapshot | null> {
+    return await window.electronAPI.db.getTodayScheduleSnapshot()
+  }
+
+  async deleteScheduleSnapshot(id: string): Promise<void> {
+    return await window.electronAPI.db.deleteScheduleSnapshot(id)
   }
 }
 

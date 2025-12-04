@@ -36,9 +36,12 @@ interface SwimLaneTimelineProps {
   onExpandedWorkflowsChange?: (expanded: Set<string>) => void
   bedtimeHour?: number
   wakeTimeHour?: number
+  maxHeight?: number | string
 }
 
 const TIME_LABEL_WIDTH = 120
+const HEADER_HEIGHT = 40
+const MIN_CONTAINER_HEIGHT = 200
 const START_HOUR = 0
 const END_HOUR = 24
 const HOURS_PER_DAY = 24
@@ -69,6 +72,7 @@ export function SwimLaneTimeline({
   onExpandedWorkflowsChange,
   bedtimeHour = 22,
   wakeTimeHour = 6,
+  maxHeight,
 }: SwimLaneTimelineProps) {
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [creatingSession, setCreatingSession] = useState<{
@@ -331,6 +335,10 @@ export function SwimLaneTimeline({
     })
   }
 
+  // Calculate content-based height for the container
+  const contentHeight = swimLanes.length * laneHeight + HEADER_HEIGHT
+  const minContainerHeight = Math.max(MIN_CONTAINER_HEIGHT, contentHeight)
+
   // Helper function to get task type from task ID and optional step ID
   const getTaskType = (taskId: string, stepId?: string): string => {
     const task = tasks.find(t => t.id === taskId)
@@ -547,7 +555,12 @@ export function SwimLaneTimeline({
   }, [dragState, creatingSession, onSessionUpdate, onSessionCreate, hourWidth])
 
   return (
-    <div style={{ height: '100%', position: 'relative' }}>
+    <div style={{
+      minHeight: minContainerHeight,
+      maxHeight: maxHeight ?? '100%',
+      height: 'auto',
+      position: 'relative',
+    }}>
       {/* Zoom Controls - Floating Overlay */}
       <div style={{
         position: 'absolute',
@@ -602,6 +615,7 @@ export function SwimLaneTimeline({
           overflowY: 'auto', // Allow vertical scroll when many swim lanes
           background: '#fafbfc',
           borderRadius: 8,
+          minHeight: minContainerHeight,
           height: '100%',
           width: '100%',
           maxWidth: '100%',
