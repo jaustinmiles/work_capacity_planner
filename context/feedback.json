@@ -70,7 +70,8 @@
     "title": "'Time sinks' Functionality",
     "description": "I want to add a feature for 'Time sinks', which are tasks that never get completed but still take up time. User story: I, as a user, am trying to track my day. I realized I have spent the last hour talking on the phone with a friend, just chatting, accomplishing no real goal. I want to setup a time sink in the app called 'phone time with friends' so that I can log time on it. Over time, I can see how much time I've spent on each 'Time sink' over the course of different time periods so I can analyze how I spend my time. This should go hand in hand with the other feature request about doing the planned vs actual day",
     "timestamp": "2025-09-03T01:38:05.696Z",
-    "sessionId": "session-1756863485686-bjvjzn4cg"
+    "sessionId": "session-1756863485686-bjvjzn4cg",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1697,7 +1698,8 @@
     "title": "Radar chart for time spent on task types",
     "description": "i'd like to add a radar chart (also called a spider chart, web chart, or star plot).\nWhat I'm thinking is that the side bar Work Status widget should be a bit simpler and easy to parse/read, and mainly be focused on what work block we're in, and some of the remaining schedule/blocks or planned task (task queue maybe), and of course the start next task button. then, there should be a full screen button that expands it and shows all the info we have. and in this expanded view, there should be the radar chart. the number of edges in the radar chart is determined by the number of user defined task types, and the length of the area extending outward should be based on normalized time spent",
     "timestamp": "2025-12-04T04:33:03.361Z",
-    "sessionId": "session-1764822783341-621f33f3"
+    "sessionId": "session-1764822783341-621f33f3",
+    "resolved": true
   },
   {
     "type": "bug",

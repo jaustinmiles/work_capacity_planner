@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Card, Space, Typography, Button, Tag, Progress, Statistic, Alert } from '@arco-design/web-react'
-import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconCaretRight } from '@arco-design/web-react/icon'
+import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconCaretRight, IconFullscreen } from '@arco-design/web-react/icon'
+import { WorkStatusExpandedModal } from './WorkStatusExpandedModal'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
@@ -79,6 +80,7 @@ export function WorkStatusWidget() {
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [nextTask, setNextTask] = useState<any>(null)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   // Local UI state for display only
   const [pattern, setPattern] = useState<any>(null)
@@ -569,6 +571,30 @@ export function WorkStatusWidget() {
             })}
           </Space>
         )}
+
+        {/* Expand Button */}
+        <Button
+          type="text"
+          icon={<IconFullscreen />}
+          onClick={() => setIsExpanded(true)}
+          style={{ width: '100%' }}
+        >
+          {isCompact ? 'Details' : 'View Full Details'}
+        </Button>
+
+        {/* Expanded Modal */}
+        <WorkStatusExpandedModal
+          visible={isExpanded}
+          onClose={() => setIsExpanded(false)}
+          accumulatedByType={accumulatedByType}
+          capacityByType={capacityByType}
+          userTaskTypes={userTaskTypes}
+          meetingMinutes={meetingMinutes}
+          totalPlannedMinutes={totalPlannedMinutes}
+          accumulatedTotal={accumulatedTotal}
+          currentBlock={currentBlock}
+          nextBlock={nextBlock}
+        />
 
         {/* Notification Alert */}
         {notification.visible && (

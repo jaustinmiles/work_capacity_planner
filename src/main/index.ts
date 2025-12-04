@@ -92,6 +92,66 @@ ipcMain.handle('db:sessionHasTaskTypes', async (_event: IpcMainInvokeEvent, sess
   return await db.sessionHasTaskTypes(sessionId)
 })
 
+// Time sink handlers
+ipcMain.handle('db:getTimeSinks', async (_event: IpcMainInvokeEvent, sessionId?: string) => {
+  return await db.getTimeSinks(sessionId)
+})
+
+ipcMain.handle('db:getTimeSinkById', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.getTimeSinkById(id)
+})
+
+ipcMain.handle('db:createTimeSink', async (_event: IpcMainInvokeEvent, input: { name: string; emoji: string; color: string; typeId?: string; sortOrder?: number }) => {
+  const sessionId = await db.getActiveSession()
+  return await db.createTimeSink({ ...input, sessionId })
+})
+
+ipcMain.handle('db:updateTimeSink', async (_event: IpcMainInvokeEvent, id: string, updates: { name?: string; emoji?: string; color?: string; typeId?: string | null; sortOrder?: number }) => {
+  return await db.updateTimeSink(id, updates)
+})
+
+ipcMain.handle('db:deleteTimeSink', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.deleteTimeSink(id)
+})
+
+ipcMain.handle('db:reorderTimeSinks', async (_event: IpcMainInvokeEvent, orderedIds: string[]) => {
+  const sessionId = await db.getActiveSession()
+  return await db.reorderTimeSinks(sessionId, orderedIds)
+})
+
+// Time sink session handlers
+ipcMain.handle('db:createTimeSinkSession', async (_event: IpcMainInvokeEvent, data: { timeSinkId: string; startTime: string; endTime?: string; actualMinutes?: number; notes?: string }) => {
+  return await db.createTimeSinkSession({
+    ...data,
+    startTime: new Date(data.startTime),
+    endTime: data.endTime ? new Date(data.endTime) : undefined,
+  })
+})
+
+ipcMain.handle('db:endTimeSinkSession', async (_event: IpcMainInvokeEvent, id: string, actualMinutes: number, notes?: string) => {
+  return await db.endTimeSinkSession(id, actualMinutes, notes)
+})
+
+ipcMain.handle('db:getTimeSinkSessions', async (_event: IpcMainInvokeEvent, timeSinkId: string) => {
+  return await db.getTimeSinkSessions(timeSinkId)
+})
+
+ipcMain.handle('db:getTimeSinkSessionsByDate', async (_event: IpcMainInvokeEvent, date: string) => {
+  return await db.getTimeSinkSessionsByDate(date)
+})
+
+ipcMain.handle('db:getActiveTimeSinkSession', async () => {
+  return await db.getActiveTimeSinkSession()
+})
+
+ipcMain.handle('db:getTimeSinkAccumulated', async (_event: IpcMainInvokeEvent, startDate: string, endDate: string) => {
+  return await db.getTimeSinkAccumulated(startDate, endDate)
+})
+
+ipcMain.handle('db:deleteTimeSinkSession', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.deleteTimeSinkSession(id)
+})
+
 ipcMain.handle('db:getTasks', async (_event, includeArchived = false) => {
   mainLogger.info('Getting tasks from database...', { includeArchived })
   const tasks = await db.getTasks(includeArchived)

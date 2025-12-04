@@ -57,7 +57,18 @@ export class WorkTrackingService {
 
   async startWorkSession(taskId?: string, stepId?: string, workflowId?: string): Promise<UnifiedWorkSession> {
     try {
-
+      // Stop any active time sink session (mutual exclusivity)
+      // Using dynamic import to avoid circular dependency with useTaskStore
+      const { useTimeSinkStore } = await import('../store/useTimeSinkStore')
+      const timeSinkState = useTimeSinkStore.getState()
+      if (timeSinkState.activeSinkSession) {
+        logger.system.info('Stopping active time sink to start work session', {
+          timeSinkSessionId: timeSinkState.activeSinkSession.id,
+          taskId,
+          stepId,
+        }, 'work-stopping-time-sink')
+        await timeSinkState.stopSession()
+      }
 
       // Validate inputs
       if (!taskId && !stepId) {

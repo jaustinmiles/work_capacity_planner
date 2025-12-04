@@ -1,6 +1,7 @@
 import { Task, Session, AICallOptions } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
+import { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, CreateTimeSinkSessionInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
 import { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
 
 
@@ -26,6 +27,21 @@ declare global {
         deleteUserTaskType: (id: string) => Promise<void>
         reorderUserTaskTypes: (orderedIds: string[]) => Promise<void>
         sessionHasTaskTypes: (sessionId?: string) => Promise<boolean>
+        // Time sink operations
+        getTimeSinks: (sessionId?: string) => Promise<TimeSink[]>
+        getTimeSinkById: (id: string) => Promise<TimeSink | null>
+        createTimeSink: (input: Omit<CreateTimeSinkInput, 'sessionId'>) => Promise<TimeSink>
+        updateTimeSink: (id: string, updates: UpdateTimeSinkInput) => Promise<TimeSink>
+        deleteTimeSink: (id: string) => Promise<void>
+        reorderTimeSinks: (orderedIds: string[]) => Promise<void>
+        // Time sink session operations
+        createTimeSinkSession: (data: Omit<CreateTimeSinkSessionInput, 'startTime'> & { startTime: string; endTime?: string }) => Promise<TimeSinkSession>
+        endTimeSinkSession: (id: string, actualMinutes: number, notes?: string) => Promise<TimeSinkSession>
+        getTimeSinkSessions: (timeSinkId: string) => Promise<TimeSinkSession[]>
+        getTimeSinkSessionsByDate: (date: string) => Promise<TimeSinkSession[]>
+        getActiveTimeSinkSession: () => Promise<TimeSinkSession | null>
+        getTimeSinkAccumulated: (startDate: string, endDate: string) => Promise<TimeSinkAccumulatedResult>
+        deleteTimeSinkSession: (id: string) => Promise<void>
         // Task operations
         getTasks: (includeArchived?: boolean) => Promise<Task[]>
         getSequencedTasks: () => Promise<SequencedTask[]>
@@ -564,6 +580,10 @@ export class RendererDatabaseService {
 
   async getWorkSessions(date: string) {
     return await window.electronAPI.db.getWorkSessions(date)
+  }
+
+  async getTimeSinkSessionsByDate(date: string): Promise<TimeSinkSession[]> {
+    return await window.electronAPI.db.getTimeSinkSessionsByDate(date)
   }
 
   async getActiveWorkSession() {

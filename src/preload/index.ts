@@ -25,6 +25,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteUserTaskType: (id: string) => ipcRenderer.invoke('db:deleteUserTaskType', id),
     reorderUserTaskTypes: (orderedIds: string[]) => ipcRenderer.invoke('db:reorderUserTaskTypes', orderedIds),
     sessionHasTaskTypes: (sessionId?: string) => ipcRenderer.invoke('db:sessionHasTaskTypes', sessionId),
+    // Time sink operations
+    getTimeSinks: (sessionId?: string) => ipcRenderer.invoke('db:getTimeSinks', sessionId),
+    getTimeSinkById: (id: string) => ipcRenderer.invoke('db:getTimeSinkById', id),
+    createTimeSink: (input: { name: string; emoji: string; color: string; typeId?: string; sortOrder?: number }) =>
+      ipcRenderer.invoke('db:createTimeSink', input),
+    updateTimeSink: (id: string, updates: { name?: string; emoji?: string; color?: string; typeId?: string | null; sortOrder?: number }) =>
+      ipcRenderer.invoke('db:updateTimeSink', id, updates),
+    deleteTimeSink: (id: string) => ipcRenderer.invoke('db:deleteTimeSink', id),
+    reorderTimeSinks: (orderedIds: string[]) => ipcRenderer.invoke('db:reorderTimeSinks', orderedIds),
+    // Time sink session operations
+    createTimeSinkSession: (data: { timeSinkId: string; startTime: string; endTime?: string; actualMinutes?: number; notes?: string }) =>
+      ipcRenderer.invoke('db:createTimeSinkSession', data),
+    endTimeSinkSession: (id: string, actualMinutes: number, notes?: string) =>
+      ipcRenderer.invoke('db:endTimeSinkSession', id, actualMinutes, notes),
+    getTimeSinkSessions: (timeSinkId: string) => ipcRenderer.invoke('db:getTimeSinkSessions', timeSinkId),
+    getTimeSinkSessionsByDate: (date: string) => ipcRenderer.invoke('db:getTimeSinkSessionsByDate', date),
+    getActiveTimeSinkSession: () => ipcRenderer.invoke('db:getActiveTimeSinkSession'),
+    getTimeSinkAccumulated: (startDate: string, endDate: string) =>
+      ipcRenderer.invoke('db:getTimeSinkAccumulated', startDate, endDate),
+    deleteTimeSinkSession: (id: string) => ipcRenderer.invoke('db:deleteTimeSinkSession', id),
     // Task operations
     getTasks: (includeArchived?: boolean) => ipcRenderer.invoke('db:getTasks', includeArchived),
     getSequencedTasks: () => ipcRenderer.invoke('db:getSequencedTasks'),
