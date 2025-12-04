@@ -372,10 +372,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         actualMinutes,
       })
 
-      // Add to local state
+      // Add to local state - use the database-generated ID directly
       const newSessionData: WorkSessionData = {
-        id: `sink-${session.id}`,
-        taskId: `sink-${sinkId}`,
+        id: session.id,
+        taskId: sinkId,
         taskName: `${sink?.emoji || '⏱️'} ${sink?.name || 'Time Sink'}`,
         startMinutes,
         endMinutes,
@@ -619,7 +619,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     const sinks: WorkSessionData[] = []
 
     sessions.forEach(s => {
-      if (s.taskId.startsWith('sink-')) {
+      if (s.type === 'time-sink') {
         sinks.push(s)
       } else {
         work.push(s)
