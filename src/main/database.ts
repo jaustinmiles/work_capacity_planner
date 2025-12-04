@@ -787,6 +787,54 @@ export class DatabaseService {
     return this.formatTask(task)
   }
 
+  /**
+   * Promotes a standalone task to a workflow (empty workflow with no steps initially)
+   * Preserves all existing task data and sets up workflow structure
+   * @param taskId - ID of the task to promote
+   * @returns Updated task with hasSteps=true and empty steps array
+   */
+  @logged({ scope: LogScope.Database, tag: 'promoteTaskToWorkflow' })
+  async promoteTaskToWorkflow(taskId: string): Promise<Task> {
+    // Fetch the standalone task
+    const existingTask = await this.client.task.findUnique({
+      where: { id: taskId },
+      include: { TaskStep: true },
+    })
+
+    if (!existingTask) {
+      throw new Error(`Task ${taskId} not found`)
+    }
+
+    if (existingTask.hasSteps) {
+      throw new Error(`Task ${taskId} is already a workflow`)
+    }
+
+    if (existingTask.completed) {
+      throw new Error(`Cannot promote completed task ${taskId} to workflow`)
+    }
+
+    // Calculate initial workflow durations based on current task duration
+    const criticalPathDuration = existingTask.duration
+    const worstCaseDuration = Math.round(existingTask.duration * 1.5)
+
+    // Update task to workflow
+    const promotedTask = await this.client.task.update({
+      where: { id: taskId },
+      data: {
+        hasSteps: true,
+        criticalPathDuration,
+        worstCaseDuration,
+        overallStatus: 'not_started',
+        updatedAt: getCurrentTime(),
+      },
+      include: {
+        TaskStep: { orderBy: { stepIndex: 'asc' } },
+      },
+    })
+
+    return this.formatTask(promotedTask)
+  }
+
   async completeTask(id: string, actualDuration?: number): Promise<Task> {
     const task = await this.client.task.update({
       where: { id },

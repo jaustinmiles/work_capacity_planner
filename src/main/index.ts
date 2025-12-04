@@ -133,6 +133,10 @@ ipcMain.handle('db:unarchiveTask', async (_event: IpcMainInvokeEvent, id: string
   return await db.unarchiveTask(id)
 })
 
+ipcMain.handle('db:promoteTaskToWorkflow', async (_event: IpcMainInvokeEvent, taskId: string) => {
+  return await db.promoteTaskToWorkflow(taskId)
+})
+
 ipcMain.handle('db:deleteSequencedTask', async (_event: IpcMainInvokeEvent, id: string) => {
   return await db.deleteSequencedTask(id)
 })

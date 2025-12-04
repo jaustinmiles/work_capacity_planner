@@ -1519,7 +1519,10 @@
     "title": "Show meetings on dual view clock",
     "description": "meetings should be displayed on the dual view clock alongside logged work sessions. ",
     "timestamp": "2025-09-23T20:00:18.663Z",
-    "sessionId": "session-1758657618655-5df415fb"
+    "sessionId": "session-1758657618655-5df415fb",
+    "resolved": true,
+    "resolvedDate": "2025-12-04T05:30:00.000Z",
+    "resolvedIn": "PR #110"
   },
   {
     "type": "bug",
@@ -1658,7 +1661,9 @@
     "title": "Users should be able to promote standalone tasks to workflows",
     "description": "user story: i have a task, but I realized I want it to be a workflow, so I want to be able to click a button to turn the task into a workflow where I can then add steps and modify it. ",
     "timestamp": "2025-12-03T21:54:23.519Z",
-    "sessionId": "session-1764798863498-e988bd28"
+    "sessionId": "session-1764798863498-e988bd28",
+    "resolved": true,
+    "resolvedBy": "PR #110 - Added promoteTaskToWorkflow() method with full IPC bridge and UI button"
   },
   {
     "type": "improvement",
@@ -1669,7 +1674,8 @@
     "title": "Ui improvement",
     "description": "Let's remove the 'Work Status' title text. All the components describe themselves. Also there is a weird UI issue underneeth the 'completed today' section, where the formatting for remaining categories seems to be broken. Also, it's kind of misleading for something that doesn't have any planned time to show up as utilizing 100% with a full green bar. If anything this should be shown to the user as a warning since that means theres a ton of work done without planning. ",
     "timestamp": "2025-12-04T04:10:52.677Z",
-    "sessionId": "session-1764821452654-a9483cc7"
+    "sessionId": "session-1764821452654-a9483cc7",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1690,5 +1696,17 @@
     "description": "i'd like to add a radar chart (also called a spider chart, web chart, or star plot).\nWhat I'm thinking is that the side bar Work Status widget should be a bit simpler and easy to parse/read, and mainly be focused on what work block we're in, and some of the remaining schedule/blocks or planned task (task queue maybe), and of course the start next task button. then, there should be a full screen button that expands it and shows all the info we have. and in this expanded view, there should be the radar chart. the number of edges in the radar chart is determined by the number of user defined task types, and the length of the area extending outward should be based on normalized time spent",
     "timestamp": "2025-12-04T04:33:03.361Z",
     "sessionId": "session-1764822783341-621f33f3"
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "components": [
+      "layout/Navigation",
+      "status/WorkStatusWidget"
+    ],
+    "title": "Better responsive design for small screens",
+    "description": "The start next task button overflows outside of the work status widget on smaller screen sizes, and many of the progress bars do as well. addiitonally, on small screens, the navigation is impossible to use (all i can see are the arrows to move through the menu left or right, but not the navigation items themselves (like timeline, schedule, calednar, etc). the reason is the log work, slideshow (which should be called 'tournament' anyway or just have a trophy icon or something) and other buttons don't collapse or anything and take up all the space. ",
+    "timestamp": "2025-12-04T05:17:56.489Z",
+    "sessionId": "session-1764825476471-be36d15f"
   }
 ]
