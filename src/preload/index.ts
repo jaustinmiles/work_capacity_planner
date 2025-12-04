@@ -107,6 +107,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('log:getSessionLogs', options),
     getLoggedSessions: (): Promise<SessionLogSummary[]> =>
       ipcRenderer.invoke('log:getLoggedSessions'),
+    // Schedule snapshot operations
+    createScheduleSnapshot: (data: any, label?: string) =>
+      ipcRenderer.invoke('db:createScheduleSnapshot', data, label),
+    getScheduleSnapshots: (sessionId?: string) =>
+      ipcRenderer.invoke('db:getScheduleSnapshots', sessionId),
+    getScheduleSnapshotById: (id: string) =>
+      ipcRenderer.invoke('db:getScheduleSnapshotById', id),
+    getTodayScheduleSnapshot: () =>
+      ipcRenderer.invoke('db:getTodayScheduleSnapshot'),
+    deleteScheduleSnapshot: (id: string) =>
+      ipcRenderer.invoke('db:deleteScheduleSnapshot', id),
   },
 
   // AI operations

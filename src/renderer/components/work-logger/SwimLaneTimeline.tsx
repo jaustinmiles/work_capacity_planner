@@ -36,9 +36,13 @@ interface SwimLaneTimelineProps {
   onExpandedWorkflowsChange?: (expanded: Set<string>) => void
   bedtimeHour?: number
   wakeTimeHour?: number
+  maxHeight?: number | string
 }
 
 const TIME_LABEL_WIDTH = 120
+const HEADER_HEIGHT = 40
+const MIN_CONTAINER_HEIGHT = 200
+const MAX_CONTENT_HEIGHT = 500 // Max height before vertical scrolling kicks in
 const START_HOUR = 0
 const END_HOUR = 24
 const HOURS_PER_DAY = 24
@@ -69,6 +73,7 @@ export function SwimLaneTimeline({
   onExpandedWorkflowsChange,
   bedtimeHour = 22,
   wakeTimeHour = 6,
+  maxHeight,
 }: SwimLaneTimelineProps) {
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [creatingSession, setCreatingSession] = useState<{
@@ -331,6 +336,12 @@ export function SwimLaneTimeline({
     })
   }
 
+  // Calculate content-based height for the container
+  // Snap to fit content, but cap at MAX_CONTENT_HEIGHT before scrolling
+  const contentHeight = swimLanes.length * laneHeight + HEADER_HEIGHT
+  const snappedHeight = Math.max(MIN_CONTAINER_HEIGHT, Math.min(contentHeight, MAX_CONTENT_HEIGHT))
+  const needsVerticalScroll = contentHeight > MAX_CONTENT_HEIGHT
+
   // Helper function to get task type from task ID and optional step ID
   const getTaskType = (taskId: string, stepId?: string): string => {
     const task = tasks.find(t => t.id === taskId)
@@ -547,7 +558,11 @@ export function SwimLaneTimeline({
   }, [dragState, creatingSession, onSessionUpdate, onSessionCreate, hourWidth])
 
   return (
-    <div style={{ height: '100%', position: 'relative' }}>
+    <div style={{
+      height: snappedHeight,
+      maxHeight: maxHeight ?? snappedHeight,
+      position: 'relative',
+    }}>
       {/* Zoom Controls - Floating Overlay */}
       <div style={{
         position: 'absolute',
@@ -599,7 +614,7 @@ export function SwimLaneTimeline({
         style={{
           position: 'relative',
           overflowX: 'auto', // Allow horizontal scroll for 3-day timeline
-          overflowY: 'auto', // Allow vertical scroll when many swim lanes
+          overflowY: needsVerticalScroll ? 'auto' : 'hidden', // Scroll only when content exceeds max
           background: '#fafbfc',
           borderRadius: 8,
           height: '100%',

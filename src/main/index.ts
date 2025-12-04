@@ -382,6 +382,27 @@ ipcMain.handle('db:getTimeAccuracyStats', async (_event: IpcMainInvokeEvent, fil
   return await db.getTimeAccuracyStats(filters)
 })
 
+// Schedule snapshot handlers
+ipcMain.handle('db:createScheduleSnapshot', async (_event: IpcMainInvokeEvent, data: unknown, label?: string) => {
+  return await db.createScheduleSnapshot(data as Parameters<typeof db.createScheduleSnapshot>[0], label)
+})
+
+ipcMain.handle('db:getScheduleSnapshots', async (_event: IpcMainInvokeEvent, sessionId?: string) => {
+  return await db.getScheduleSnapshots(sessionId)
+})
+
+ipcMain.handle('db:getScheduleSnapshotById', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.getScheduleSnapshotById(id)
+})
+
+ipcMain.handle('db:getTodayScheduleSnapshot', async () => {
+  return await db.getTodayScheduleSnapshot()
+})
+
+ipcMain.handle('db:deleteScheduleSnapshot', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.deleteScheduleSnapshot(id)
+})
+
 // AI operation handlers
 ipcMain.handle('ai:extractTasksFromBrainstorm', async (_event: IpcMainInvokeEvent, brainstormText: string) => {
   const aiService = getAIService()

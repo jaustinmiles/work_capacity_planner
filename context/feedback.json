@@ -787,7 +787,8 @@
     "title": "Real time vs Optimal time comparison view",
     "description": "I want to be able to start my day and 'freeze' the schedule, so that throughout the day we can see how we are spending our time compared to the plan. Ideally this would be two timeline views, one showing the planned day originally when the freeze happened, and the other showing the actual work logging. Then it could show me empty time, gaps, breaks that went too long, or bad estimates. ",
     "timestamp": "2025-08-27T14:21:22.294Z",
-    "sessionId": "session-1756304482285-nurr7t2bt"
+    "sessionId": "session-1756304482285-nurr7t2bt",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1725,7 +1726,8 @@
     "title": "swim lanes vertical view should scale with number of tasks/meetings/workflows",
     "description": "swim lanes vertical view should scale with number of tasks/meetings/workflows",
     "timestamp": "2025-12-04T09:36:33.386Z",
-    "sessionId": "session-1764840993365-963896b7"
+    "sessionId": "session-1764840993365-963896b7",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1737,7 +1739,8 @@
     "title": "Remove timeline visualizer wrapper around schedule timeline view",
     "description": "there's an unnecessary wrapper div. In general, this page has too complex UI and needs a simplification to match the rest of the app's style",
     "timestamp": "2025-12-04T10:11:07.275Z",
-    "sessionId": "session-1764843067251-1e2591f5"
+    "sessionId": "session-1764843067251-1e2591f5",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1748,7 +1751,8 @@
     "title": "Remaining work type section weirdly formatted",
     "description": "this section \"Block-Session Linking: Work sessions now auto-link to their containing work block at the database level for better capacity tracking.\" is weirdly indented, but overall, the work status widget has too much stuff in it. It should be 'start next task' widget, 'time sinks' widget, and then a new widget that shows planned capacity and logged so far in the same widget by cateogry type. then everything else would be explained in the expanded view with 'view full details'",
     "timestamp": "2025-12-04T10:13:41.555Z",
-    "sessionId": "session-1764843221532-40537cc9"
+    "sessionId": "session-1764843221532-40537cc9",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1759,6 +1763,7 @@
     "title": "The block utilization pop up in the gantt chart should render below the timeline",
     "description": "The block utilization pop up in the gantt chart should render below the timeline and the type currently renders as a little black box instead of the work block type name",
     "timestamp": "2025-12-04T10:14:29.016Z",
-    "sessionId": "session-1764843268995-c4863841"
+    "sessionId": "session-1764843268995-c4863841",
+    "resolved": true
   }
 ]

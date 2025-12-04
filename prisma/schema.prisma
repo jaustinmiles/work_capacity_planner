@@ -111,22 +111,37 @@ model SequencedTask {
 }
 
 model Session {
-  id                   String                 @id
-  name                 String
-  description          String?
-  isActive             Boolean                @default(false)
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @default(now())
-  JargonEntry          JargonEntry[]
-  JobContext           JobContext[]
-  SequencedTask        SequencedTask[]
-  Task                 Task[]
-  TimeEstimateAccuracy TimeEstimateAccuracy[]
-  WorkPattern          WorkPattern[]
-  ProductivityPattern  ProductivityPattern[]
+  id                    String                 @id
+  name                  String
+  description           String?
+  isActive              Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @default(now())
+  JargonEntry           JargonEntry[]
+  JobContext            JobContext[]
+  SequencedTask         SequencedTask[]
+  Task                  Task[]
+  TimeEstimateAccuracy  TimeEstimateAccuracy[]
+  WorkPattern           WorkPattern[]
+  ProductivityPattern   ProductivityPattern[]
   SchedulingPreferences SchedulingPreferences?
-  UserTaskType         UserTaskType[]
-  TimeSink             TimeSink[]
+  UserTaskType          UserTaskType[]
+  TimeSink              TimeSink[]
+  ScheduleSnapshot      ScheduleSnapshot[]
+}
+
+// Schedule Snapshot - Captures schedule state at a point in time
+// Used for "freeze schedule" feature to compare planned vs actual time use
+model ScheduleSnapshot {
+  id           String   @id @default(uuid())
+  sessionId    String
+  label        String?  // Optional user-provided label (e.g., "Morning Plan")
+  snapshotData String   // JSON serialized ScheduleSnapshotData
+  createdAt    DateTime @default(now())
+  Session      Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
 }
 
 // User-configurable task type definition

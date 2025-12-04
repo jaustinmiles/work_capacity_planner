@@ -18,6 +18,20 @@ export interface WorkSessionData {
   completed?: boolean // Track if the task was completed in this session
 }
 
+/**
+ * Planned schedule item from a frozen snapshot.
+ * Used for "planned vs actual" comparison overlay.
+ */
+export interface PlannedSessionItem {
+  id: string
+  name: string
+  taskId?: string
+  startMinutes: number // 0-1440 (minutes since midnight)
+  endMinutes: number
+  type: string // 'task' | 'workflow-step' | 'meeting' | 'async-wait'
+  color: string
+}
+
 // Convert time string (HH:mm) to minutes since midnight
 export function timeToMinutes(timeStr: string): number {
   const [hours, minutes] = timeStr.split(':').map(Number)

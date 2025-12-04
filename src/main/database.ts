@@ -26,6 +26,12 @@ import {
 } from '../shared/time-sink-types'
 import { WorkBlockType, BlockConfigKind } from '../shared/enums'
 import { LogQueryOptionsInternal, LogEntryInternal, SessionLogSummary } from '../shared/log-types'
+import {
+  ScheduleSnapshot,
+  ScheduleSnapshotData,
+  serializeSnapshotData,
+  deserializeSnapshotData,
+} from '../shared/schedule-snapshot-types'
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../shared/time-provider'
@@ -3103,6 +3109,121 @@ export class DatabaseService {
 
   async getTimeAccuracyStats(filters?: any): Promise<any> {
     return this.getTimeEstimateStats(filters?.taskType)
+  }
+
+  // ============================================================================
+  // Schedule Snapshots - Frozen schedule state for planned vs actual comparison
+  // ============================================================================
+
+  /**
+   * Create a new schedule snapshot for the current session.
+   */
+  async createScheduleSnapshot(data: ScheduleSnapshotData, label?: string): Promise<ScheduleSnapshot> {
+    const sessionId = await this.getActiveSession()
+
+    const record = await this.client.scheduleSnapshot.create({
+      data: {
+        sessionId,
+        label: label ?? null,
+        snapshotData: serializeSnapshotData(data),
+      },
+    })
+
+    dbLogger.info('Created schedule snapshot', {
+      id: record.id,
+      sessionId,
+      label,
+      scheduledCount: data.totalScheduled,
+    })
+
+    return {
+      id: record.id,
+      sessionId: record.sessionId,
+      createdAt: record.createdAt,
+      label: record.label,
+      data: deserializeSnapshotData(record.snapshotData),
+    }
+  }
+
+  /**
+   * Get all schedule snapshots for a session.
+   */
+  async getScheduleSnapshots(sessionId?: string): Promise<ScheduleSnapshot[]> {
+    const activeSessionId = sessionId ?? (await this.getActiveSession())
+
+    const records = await this.client.scheduleSnapshot.findMany({
+      where: { sessionId: activeSessionId },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return records.map((record) => ({
+      id: record.id,
+      sessionId: record.sessionId,
+      createdAt: record.createdAt,
+      label: record.label,
+      data: deserializeSnapshotData(record.snapshotData),
+    }))
+  }
+
+  /**
+   * Get a schedule snapshot by ID.
+   */
+  async getScheduleSnapshotById(id: string): Promise<ScheduleSnapshot | null> {
+    const record = await this.client.scheduleSnapshot.findUnique({
+      where: { id },
+    })
+
+    if (!record) return null
+
+    return {
+      id: record.id,
+      sessionId: record.sessionId,
+      createdAt: record.createdAt,
+      label: record.label,
+      data: deserializeSnapshotData(record.snapshotData),
+    }
+  }
+
+  /**
+   * Get today's schedule snapshot (most recent snapshot created today).
+   */
+  async getTodayScheduleSnapshot(): Promise<ScheduleSnapshot | null> {
+    const sessionId = await this.getActiveSession()
+    const today = getLocalDateString(getCurrentTime())
+    const startOfDay = new Date(today + 'T00:00:00')
+    const endOfDay = new Date(today + 'T23:59:59')
+
+    const record = await this.client.scheduleSnapshot.findFirst({
+      where: {
+        sessionId,
+        createdAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (!record) return null
+
+    return {
+      id: record.id,
+      sessionId: record.sessionId,
+      createdAt: record.createdAt,
+      label: record.label,
+      data: deserializeSnapshotData(record.snapshotData),
+    }
+  }
+
+  /**
+   * Delete a schedule snapshot.
+   */
+  async deleteScheduleSnapshot(id: string): Promise<void> {
+    await this.client.scheduleSnapshot.delete({
+      where: { id },
+    })
+
+    dbLogger.info('Deleted schedule snapshot', { id })
   }
 }
 

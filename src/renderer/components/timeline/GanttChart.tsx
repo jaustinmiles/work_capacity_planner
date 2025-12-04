@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Card, Typography, Space, Tag, Empty, Tooltip, Button, Alert, Dropdown, Menu, Spin } from '@arco-design/web-react'
-import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle } from '@arco-design/web-react/icon'
+import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle, IconCamera } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { GanttItemType } from '@shared/enums'
-import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { DailyWorkPattern, BlockTypeConfig } from '@shared/work-blocks-types'
+import { isSingleTypeBlock, isComboBlock, isSystemBlock } from '@shared/user-task-types'
 import { ScheduleMetricsPanel } from './ScheduleMetricsPanel'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
 import { SchedulingDebugInfo } from '@shared/unified-scheduler'
@@ -14,7 +15,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
-import { getTypeColor } from '@shared/user-task-types'
+import { useScheduleSnapshotStore, useHasSnapshotToday } from '../../store/useScheduleSnapshotStore'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { getCurrentTime, isTimeOverridden } from '@shared/time-provider'
@@ -61,6 +62,47 @@ const ZOOM_PRESETS = [
   { label: 'Hourly', value: 240, description: 'Hour by hour' },
 ]
 
+// Block type display colors
+const COMBO_BLOCK_COLOR = '#722ED1'
+const SLEEP_BLOCK_COLOR = '#86909c'
+const BLOCKED_BLOCK_COLOR = '#F53F3F'
+
+/**
+ * Extract display name and color from a BlockTypeConfig
+ */
+function getBlockTypeDisplay(
+  typeConfig: BlockTypeConfig,
+  userTypes: Array<{ id: string; name: string; color: string }>,
+): { name: string; color: string } {
+  if (isSingleTypeBlock(typeConfig)) {
+    const userType = userTypes.find(t => t.id === typeConfig.typeId)
+    return {
+      name: userType?.name ?? 'Unknown Type',
+      color: userType?.color ?? '#86909c',
+    }
+  }
+
+  if (isComboBlock(typeConfig)) {
+    const typeNames = typeConfig.allocations
+      .map(a => userTypes.find(t => t.id === a.typeId)?.name ?? 'Unknown')
+      .join(' / ')
+    return {
+      name: `Combo: ${typeNames}`,
+      color: COMBO_BLOCK_COLOR,
+    }
+  }
+
+  if (isSystemBlock(typeConfig)) {
+    const isSleep = typeConfig.systemType === 'sleep'
+    return {
+      name: isSleep ? 'Sleep' : 'Blocked',
+      color: isSleep ? SLEEP_BLOCK_COLOR : BLOCKED_BLOCK_COLOR,
+    }
+  }
+
+  return { name: 'Unknown', color: '#86909c' }
+}
+
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const { updateTask, updateSequencedTask, workSettings } = useTaskStore()
   const { workPatterns = [], isLoading: workPatternsLoading } = useWorkPatternStore()
@@ -68,6 +110,10 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   // Use selectors for optimal re-rendering - only update when these specific values change
   const scheduledItemsFromStore = useSchedulerStore(state => state.scheduledItems)
   const scheduleResult = useSchedulerStore(state => state.scheduleResult)
+  // Schedule snapshot store
+  const createSnapshot = useScheduleSnapshotStore(state => state.createSnapshot)
+  const hasSnapshotToday = useHasSnapshotToday()
+  const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false)
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
   const [isPinching, setIsPinching] = useState(false)
@@ -100,6 +146,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const handleZoomReset = useCallback(() => {
     setPixelsPerHour(120)
   }, [])
+
+  // Handle freeze schedule snapshot
+  const handleFreezeSchedule = useCallback(async () => {
+    if (!scheduleResult || isCreatingSnapshot) return
+
+    setIsCreatingSnapshot(true)
+    try {
+      await createSnapshot(scheduleResult)
+      logger.ui.info('Schedule frozen successfully', {}, 'schedule-frozen')
+    } catch (error) {
+      logger.ui.error('Failed to freeze schedule', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'freeze-error')
+    } finally {
+      setIsCreatingSnapshot(false)
+    }
+  }, [scheduleResult, createSnapshot, isCreatingSnapshot])
 
   // Keyboard shortcuts for zoom
   useEffect(() => {
@@ -748,9 +811,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     {block.startTime} - {block.endTime}
                   </td>
                   <td style={{ padding: '8px' }}>
-                    <Tag color={getTypeColor(userTypes, block.type)}>
-                      {userTypes.find(t => t.id === block.type)?.name || block.type}
-                    </Tag>
+                    {(() => {
+                      const display = getBlockTypeDisplay(block.typeConfig, userTypes)
+                      return (
+                        <Tag color={display.color}>
+                          {display.name}
+                        </Tag>
+                      )
+                    })()}
                   </td>
                   <td style={{ padding: '8px' }}>
                     {block.capacity}min
@@ -859,6 +927,19 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               >
                 <Button size="small" icon={<IconExpand />} />
               </Dropdown>
+              <div style={{ width: 1, height: 24, backgroundColor: '#e5e6e8' }} />
+              <Tooltip content={hasSnapshotToday ? 'Schedule already frozen today' : 'Freeze current schedule for comparison'}>
+                <Button
+                  size="small"
+                  type={hasSnapshotToday ? 'secondary' : 'primary'}
+                  icon={<IconCamera />}
+                  onClick={handleFreezeSchedule}
+                  loading={isCreatingSnapshot}
+                  disabled={!scheduleResult || isCreatingSnapshot}
+                >
+                  {hasSnapshotToday ? 'Frozen ✓' : 'Freeze'}
+                </Button>
+              </Tooltip>
             </Space>
           </div>
           <div
