@@ -45,7 +45,7 @@ interface ExtractedTask {
   needsMoreInfo?: boolean
 }
 
-function App() {
+function AppContent() {
   // Initialize stores and connections
   useEffect(() => {
     logger.system.info('Initializing reactive stores', {}, 'app-init')
@@ -369,13 +369,12 @@ function App() {
   }
 
   return (
-    <ResponsiveProvider>
-      <ConfigProvider
-        locale={enUS}
-        theme={{
-          primaryColor: '#165DFF',
-        }}
-      >
+    <ConfigProvider
+      locale={enUS}
+      theme={{
+        primaryColor: '#165DFF',
+      }}
+    >
         <Layout style={{ minHeight: '100vh' }}>
           <Sider
             collapsible
@@ -782,7 +781,15 @@ function App() {
             }}
           />
         </Layout>
-      </ConfigProvider>
+    </ConfigProvider>
+  )
+}
+
+// App wrapper that provides ResponsiveProvider context
+function App() {
+  return (
+    <ResponsiveProvider>
+      <AppContent />
     </ResponsiveProvider>
   )
 }
