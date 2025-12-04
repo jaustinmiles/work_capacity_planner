@@ -41,12 +41,14 @@ import { ClockTimePicker } from '../common/ClockTimePicker'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import {
   WorkSessionData,
+  PlannedSessionItem,
   timeToMinutes,
   minutesToTime,
   getTypeColor,
   getTypeDisplayName,
   getTypeEmojiDisplay,
 } from './SessionState'
+import { useTodaySnapshot } from '../../store/useScheduleSnapshotStore'
 
 const { Text } = Typography
 const { Row, Col } = Grid
@@ -90,6 +92,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [wakeTimeHour, setWakeTimeHour] = useState(6) // Default 6 AM
   const [showCircadianSettings, setShowCircadianSettings] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showPlannedOverlay, setShowPlannedOverlay] = useState(false)
+
+  // Get today's frozen schedule snapshot
+  const todaySnapshot = useTodaySnapshot()
   const [sessionToDelete, setSessionToDelete] = useState<WorkSessionData | null>(null)
 
   const { tasks, sequencedTasks, loadTasks, activeWorkSessions } = useTaskStore()
@@ -547,6 +553,46 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     return [...activeTasks, ...activeSequencedTasks]
   }, [tasks, sequencedTasks, hideCompleted])
 
+  // Transform frozen schedule snapshot into PlannedSessionItem[] for comparison overlay
+  const plannedItemsForDate = useMemo((): PlannedSessionItem[] => {
+    if (!todaySnapshot?.data?.scheduledItems) return []
+
+    return todaySnapshot.data.scheduledItems
+      .filter(item => {
+        // Only include items with valid start times on the selected date
+        if (!item.startTime) return false
+        const itemDate = new Date(item.startTime).toISOString().split('T')[0]
+        return itemDate === selectedDate
+      })
+      .map(item => {
+        const startDate = new Date(item.startTime!)
+        const startMinutes = startDate.getHours() * 60 + startDate.getMinutes()
+        const duration = item.duration || 30 // Default 30 min if missing
+
+        // Get color based on item type
+        let color = '#86909c'
+        if (item.type === 'meeting') {
+          color = '#F77234'
+        } else {
+          // Try to find task type color
+          const task = [...tasks, ...sequencedTasks].find(t => t.id === item.id)
+          if (task?.type) {
+            color = getTypeColor(userTaskTypes, task.type)
+          }
+        }
+
+        return {
+          id: item.id,
+          name: item.name,
+          taskId: item.id,
+          startMinutes,
+          endMinutes: startMinutes + duration,
+          type: item.type || 'task',
+          color,
+        }
+      })
+  }, [todaySnapshot, selectedDate, tasks, sequencedTasks, userTaskTypes])
+
   // Callback to handle workflow expansion changes from SwimLaneTimeline
   const handleWorkflowExpansionChange = useCallback((expanded: Set<string>) => {
     setExpandedWorkflows(expanded)
@@ -777,26 +823,21 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 </Space>
               }
               style={{ marginBottom: 16 }}>
-              <div style={{
-                height: isCompact ? 500 : isMobile ? 600 : 700,
-                width: '100%',
-                overflow: 'auto', // Allow scrolling within timeline
-              }}>
-                <SwimLaneTimeline
-                  sessions={sessions}
-                  tasks={filteredTasks}
-                  meetings={meetings}
-                  onSessionUpdate={handleSessionUpdate}
-                  onSessionCreate={handleTimelineSessionCreate}
-                  onSessionDelete={handleSessionDelete}
-                  selectedSessionId={selectedSessionId || undefined}
-                  onSessionSelect={(id) => setSelectedSessionId(id || null)}
-                  expandedWorkflows={expandedWorkflows}
-                  onExpandedWorkflowsChange={handleWorkflowExpansionChange}
-                  bedtimeHour={bedtimeHour}
-                  wakeTimeHour={wakeTimeHour}
-                />
-              </div>
+              <SwimLaneTimeline
+                sessions={sessions}
+                tasks={filteredTasks}
+                meetings={meetings}
+                onSessionUpdate={handleSessionUpdate}
+                onSessionCreate={handleTimelineSessionCreate}
+                onSessionDelete={handleSessionDelete}
+                selectedSessionId={selectedSessionId || undefined}
+                onSessionSelect={(id) => setSelectedSessionId(id || null)}
+                expandedWorkflows={expandedWorkflows}
+                onExpandedWorkflowsChange={handleWorkflowExpansionChange}
+                bedtimeHour={bedtimeHour}
+                wakeTimeHour={wakeTimeHour}
+                maxHeight={isCompact ? 500 : isMobile ? 600 : 700}
+              />
             </Card>
 
             {/* Linear Timeline - Zoomable horizontal view */}
@@ -822,6 +863,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 onSessionSelect={(id) => setSelectedSessionId(id)}
                 currentTime={getCurrentTime()}
                 date={selectedDate}
+                plannedItems={plannedItemsForDate}
+                showPlannedOverlay={showPlannedOverlay}
+                onTogglePlannedOverlay={() => setShowPlannedOverlay(!showPlannedOverlay)}
               />
             </Card>
 

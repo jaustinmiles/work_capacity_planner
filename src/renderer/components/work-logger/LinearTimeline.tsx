@@ -12,14 +12,15 @@
  * - 5-minute snap intervals
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Slider } from '@arco-design/web-react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { Slider, Switch } from '@arco-design/web-react'
 import { WorkBlock, BlockTypeConfig } from '@shared/work-blocks-types'
 import { UserTaskType, getTypeColor } from '@shared/user-task-types'
 import { BlockConfigKind, WorkBlockType } from '@shared/enums'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import {
   WorkSessionData,
+  PlannedSessionItem,
   timeToMinutes,
   checkOverlap,
   roundToFiveMinutes,
@@ -40,6 +41,10 @@ interface LinearTimelineProps {
   onSessionSelect: (id: string | null) => void
   currentTime: Date
   date: string
+  // Planned vs Actual comparison
+  plannedItems?: PlannedSessionItem[]
+  showPlannedOverlay?: boolean
+  onTogglePlannedOverlay?: () => void
 }
 
 interface DragState {
@@ -59,14 +64,16 @@ interface CreatingSession {
 // Constants
 // ============================================================================
 
-const TIMELINE_HEIGHT = 160
+const TIMELINE_HEIGHT = 200 // Increased to accommodate larger planned lane
 const BLOCK_LANE_HEIGHT = 28
 const SESSION_LANE_HEIGHT = 50
-const SESSION_LANE_Y = 55
+const SESSION_LANE_Y = 90 // Moved down to make room for larger planned lane
+const PLANNED_LANE_Y = 48 // Above session lane
+const PLANNED_LANE_HEIGHT = 36 // Larger for visibility
 const HOUR_LABEL_HEIGHT = 20
 const TIME_LABEL_WIDTH = 0
 const MIN_ZOOM = 40
-const MAX_ZOOM = 200
+const MAX_ZOOM = 400
 const DEFAULT_ZOOM = 80
 const SNAP_INTERVAL = 5
 const ZOOM_STORAGE_KEY = 'linear-timeline-zoom'
@@ -104,11 +111,40 @@ export function LinearTimeline({
   selectedSessionId,
   onSessionSelect,
   currentTime,
+  plannedItems = [],
+  showPlannedOverlay = false,
+  onTogglePlannedOverlay,
 }: LinearTimelineProps): React.ReactElement {
   // eslint-disable-next-line no-undef
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const userTaskTypes = useSortedUserTaskTypes()
+
+  // Calculate variance metrics when showing planned overlay
+  const varianceMetrics = useMemo(() => {
+    if (!showPlannedOverlay || plannedItems.length === 0) return null
+
+    const plannedDuration = plannedItems.reduce(
+      (sum, p) => sum + (p.endMinutes - p.startMinutes),
+      0,
+    )
+    const actualDuration = sessions.reduce(
+      (sum, s) => sum + (s.endMinutes - s.startMinutes),
+      0,
+    )
+    const variance = actualDuration - plannedDuration
+    const variancePercent = plannedDuration > 0
+      ? Math.round((variance / plannedDuration) * 100)
+      : 0
+
+    return {
+      planned: plannedDuration,
+      actual: actualDuration,
+      variance,
+      variancePercent,
+      isOver: variance > 0,
+    }
+  }, [showPlannedOverlay, plannedItems, sessions])
 
   // Zoom state (persisted to localStorage)
   const [hourWidth, setHourWidth] = useState<number>(() => {
@@ -318,8 +354,8 @@ export function LinearTimeline({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {/* Zoom Control */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8 }}>
+      {/* Zoom Control & Planned Overlay Toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: '#86909c' }}>Zoom:</span>
         <Slider
           value={hourWidth}
@@ -335,6 +371,47 @@ export function LinearTimeline({
         <span style={{ fontSize: 11, color: '#c9cdd4', minWidth: 45 }}>
           {Math.round(hourWidth)}px/hr
         </span>
+
+        {/* Planned vs Actual toggle - only show if we have planned items */}
+        {plannedItems.length > 0 && onTogglePlannedOverlay && (
+          <>
+            <div style={{ width: 1, height: 16, backgroundColor: '#e5e6eb', margin: '0 4px' }} />
+            <Switch
+              size="small"
+              checked={showPlannedOverlay}
+              onChange={onTogglePlannedOverlay}
+            />
+            <span style={{ fontSize: 11, color: showPlannedOverlay ? '#165DFF' : '#86909c' }}>
+              Planned
+            </span>
+          </>
+        )}
+
+        {/* Variance metrics when overlay is active */}
+        {showPlannedOverlay && varianceMetrics && (
+          <div style={{
+            display: 'flex',
+            gap: 12,
+            fontSize: 11,
+            marginLeft: 8,
+            padding: '4px 10px',
+            backgroundColor: '#f7f8fa',
+            borderRadius: 4,
+          }}>
+            <span style={{ color: '#86909c' }}>
+              Planned: <strong>{Math.round(varianceMetrics.planned / 60 * 10) / 10}h</strong>
+            </span>
+            <span style={{ color: '#86909c' }}>
+              Actual: <strong>{Math.round(varianceMetrics.actual / 60 * 10) / 10}h</strong>
+            </span>
+            <span style={{
+              color: varianceMetrics.isOver ? '#F53F3F' : '#00B42A',
+              fontWeight: 600,
+            }}>
+              {varianceMetrics.isOver ? '+' : ''}{varianceMetrics.variancePercent}%
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Timeline Container (scrollable) */}
@@ -349,6 +426,18 @@ export function LinearTimeline({
           style={{ cursor: dragState || creatingSession ? 'grabbing' : 'crosshair' }}
           onMouseDown={handleBackgroundMouseDown}
         >
+          {/* SVG Defs for patterns */}
+          <defs>
+            <pattern id="planned-stripes" patternUnits="userSpaceOnUse" width="6" height="6">
+              <path
+                d="M0,6 l6,-6 M-1.5,1.5 l3,-3 M4.5,7.5 l3,-3"
+                stroke="#666"
+                strokeWidth="1"
+                opacity="0.5"
+              />
+            </pattern>
+          </defs>
+
           {/* Background rect for click detection */}
           <rect
             className="timeline-background"
@@ -389,21 +478,50 @@ export function LinearTimeline({
             const endMin = timeToMinutes(block.endTime)
             const blockColor = getBlockColor(block, userTaskTypes)
             const width = minutesToX(endMin) - minutesToX(startMin)
+            const typeConfig = block.typeConfig as BlockTypeConfig
+
+            // Get block type name for tooltip and label
+            let blockTypeName = 'Work Block'
+            if (typeConfig.kind === BlockConfigKind.Single) {
+              const userType = userTaskTypes.find(t => t.id === typeConfig.typeId)
+              blockTypeName = userType ? `${userType.emoji} ${userType.name}` : 'Unknown Type'
+            } else if (typeConfig.kind === BlockConfigKind.Combo) {
+              blockTypeName = '🎨 Combo Block'
+            } else if (typeConfig.systemType === WorkBlockType.Sleep) {
+              blockTypeName = '😴 Sleep'
+            } else {
+              blockTypeName = '🚫 Blocked'
+            }
 
             // Skip blocks with zero or negative width
             if (width <= 0) return null
 
             return (
-              <rect
-                key={block.id}
-                x={minutesToX(startMin)}
-                y={HOUR_LABEL_HEIGHT}
-                width={width}
-                height={BLOCK_LANE_HEIGHT}
-                fill={blockColor}
-                opacity={0.25}
-                rx={2}
-              />
+              <g key={block.id}>
+                <rect
+                  x={minutesToX(startMin)}
+                  y={HOUR_LABEL_HEIGHT}
+                  width={width}
+                  height={BLOCK_LANE_HEIGHT}
+                  fill={blockColor}
+                  opacity={0.25}
+                  rx={2}
+                >
+                  <title>{blockTypeName} ({block.startTime} - {block.endTime})</title>
+                </rect>
+                {width > 80 && (
+                  <text
+                    x={minutesToX(startMin) + 4}
+                    y={HOUR_LABEL_HEIGHT + BLOCK_LANE_HEIGHT / 2 + 4}
+                    fontSize={10}
+                    fill={blockColor}
+                    opacity={0.8}
+                    style={{ pointerEvents: 'none', fontWeight: 500 }}
+                  >
+                    {blockTypeName}
+                  </text>
+                )}
+              </g>
             )
           })}
 
@@ -437,6 +555,56 @@ export function LinearTimeline({
                     style={{ pointerEvents: 'none' }}
                   >
                     {meeting.name}
+                  </text>
+                )}
+              </g>
+            )
+          })}
+
+          {/* Planned items overlay (from frozen schedule snapshot) */}
+          {showPlannedOverlay && plannedItems.map(item => {
+            const x = minutesToX(item.startMinutes)
+            const width = minutesToX(item.endMinutes) - x
+
+            if (width <= 0) return null
+
+            return (
+              <g key={`planned-${item.id}`}>
+                <rect
+                  x={x}
+                  y={PLANNED_LANE_Y}
+                  width={width}
+                  height={PLANNED_LANE_HEIGHT}
+                  fill={item.color}
+                  opacity={0.2}
+                  rx={4}
+                  style={{ cursor: 'default' }}
+                >
+                  <title>Planned: {item.name} ({Math.round(item.endMinutes - item.startMinutes)} min)</title>
+                </rect>
+                <rect
+                  x={x}
+                  y={PLANNED_LANE_Y}
+                  width={width}
+                  height={PLANNED_LANE_HEIGHT}
+                  fill="url(#planned-stripes)"
+                  opacity={0.6}
+                  stroke={item.color}
+                  strokeWidth={2}
+                  strokeDasharray="6,3"
+                  rx={4}
+                  style={{ cursor: 'default' }}
+                />
+                {width > 50 && (
+                  <text
+                    x={x + 6}
+                    y={PLANNED_LANE_Y + PLANNED_LANE_HEIGHT / 2 + 4}
+                    fontSize={11}
+                    fill={item.color}
+                    fontWeight={500}
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {item.name.length > Math.floor(width / 8) ? item.name.slice(0, Math.floor(width / 8)) + '…' : item.name}
                   </text>
                 )}
               </g>
