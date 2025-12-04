@@ -52,6 +52,13 @@ interface WorkLoggerDualProps {
   onClose: () => void
 }
 
+/** Option type for task/step selection in work logger */
+interface TaskSelectOption {
+  value: string   // Format: "task:{taskId}" or "step:{stepId}:{taskId}"
+  label: string   // Display name for the task/step
+  type: string    // User-defined task type ID
+}
+
 // Helper function to filter out paused sessions from arrays
 const filterActiveSessions = <T extends { isPaused?: boolean }>(sessions: T[]): T[] => {
   return sessions.filter((session): session is T => !session.isPaused)
@@ -445,7 +452,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
   // Get available tasks for assignment
   const availableTasks = useMemo(() => {
-    const options: Array<{ value: string; label: string; type: string }> = []
+    const options: TaskSelectOption[] = []
 
     const allTasks = [...tasks, ...sequencedTasks]
     allTasks.forEach(task => {

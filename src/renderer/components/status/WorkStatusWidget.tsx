@@ -6,7 +6,7 @@ import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { formatMinutes, calculateDuration, formatTimeHHMM, dateToYYYYMMDD } from '@shared/time-utils'
-import { TaskStatus, NotificationType } from '@shared/enums'
+import { TaskStatus, NotificationType, WorkBlockType } from '@shared/enums'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { getDatabase } from '../../services/database'
@@ -26,7 +26,7 @@ function getBlockDisplay(block: WorkBlock | null, userTypes: UserTaskType[]) {
   if (!block) return { icon: '🔍', label: 'No block' }
   const { typeConfig } = block
   if (isSystemBlock(typeConfig)) {
-    return { icon: '🚫', label: typeConfig.systemType === 'sleep' ? 'Sleep' : 'Blocked' }
+    return { icon: '🚫', label: typeConfig.systemType === WorkBlockType.Sleep ? 'Sleep' : 'Blocked' }
   }
   if (isSingleTypeBlock(typeConfig)) {
     // Look up user type for display name and emoji

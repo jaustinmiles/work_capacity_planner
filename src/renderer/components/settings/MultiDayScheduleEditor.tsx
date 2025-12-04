@@ -18,14 +18,12 @@ import {
   IconCalendar,
   IconCopy,
   IconPaste,
-  IconFileAudio,
   IconDelete,
 } from '@arco-design/web-react/icon'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
 import { calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { WorkBlocksEditor } from './WorkBlocksEditor'
-import { VoiceScheduleModal } from './VoiceScheduleModal'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
@@ -59,7 +57,6 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
     blocks: WorkBlock[]
     meetings: WorkMeeting[]
   } | null>(null)
-  const [showVoiceModal, setShowVoiceModal] = useState(false)
 
   // Load patterns for date range
   useEffect(() => {
@@ -401,16 +398,9 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
         margin: '0 auto',
       }}
       title={
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Space>
-            <IconCalendar style={{ fontSize: 24 }} />
-            <Title heading={4} style={{ margin: 0 }}>Multi-Day Schedule Editor</Title>
-          </Space>
-          <Space>
-            <Button icon={<IconFileAudio />} onClick={() => setShowVoiceModal(true)}>
-              Voice Input
-            </Button>
-          </Space>
+        <Space>
+          <IconCalendar style={{ fontSize: 24 }} />
+          <Title heading={4} style={{ margin: 0 }}>Multi-Day Schedule Editor</Title>
         </Space>
       }
     >
@@ -602,42 +592,6 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
           </Space>
         </Card>
       </Space>
-
-      {/* Voice Input Modal */}
-      <VoiceScheduleModal
-        visible={showVoiceModal}
-        onClose={() => setShowVoiceModal(false)}
-        onScheduleExtracted={(schedules) => {
-          // Handle both single schedule (legacy) and multi-day schedules
-          const schedulesToApply = Array.isArray(schedules) ? schedules : [schedules]
-
-          // Apply extracted schedules to their respective days
-          const newPatterns = new Map(patterns)
-
-          for (const schedule of schedulesToApply) {
-            const date = schedule.date
-
-            // Replace the pattern for this day with the extracted schedule
-            newPatterns.set(date, {
-              date,
-              blocks: schedule.blocks || [],
-              meetings: schedule.meetings || [],
-              accumulated: {},
-            })
-          }
-
-          setPatterns(newPatterns)
-
-          // If multiple days were extracted, show a success message
-          if (schedulesToApply.length > 1) {
-            Message.success(`Applied schedule to ${schedulesToApply.length} days`)
-          }
-
-          setShowVoiceModal(false)
-          Message.success('Voice schedule imported')
-        }}
-        targetDate={selectedDate}
-      />
     </Card>
   )
 }

@@ -13,6 +13,7 @@ import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { useContainerQuery } from '../../hooks/useContainerQuery'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { getCurrentTime } from '@shared/time-provider'
+import { WorkSessionType } from '@shared/enums'
 
 const { Text } = Typography
 
@@ -302,10 +303,10 @@ export function SwimLaneTimeline({
         taskName: meeting.name,
         startMinutes,
         endMinutes,
-        type: 'meeting', // System type for meetings
+        type: WorkSessionType.Meeting, // System type for meetings
         isDragging: false,
-        color: meeting.type === 'meeting' ? '#722ed1' :
-          meeting.type === 'break' ? '#13c2c2' :
+        color: meeting.type === WorkSessionType.Meeting ? '#722ed1' :
+          meeting.type === WorkSessionType.Break ? '#13c2c2' :
             meeting.type === 'personal' ? '#52c41a' : '#8c8c8c',
       }
     })

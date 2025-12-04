@@ -35,6 +35,7 @@ import {
 } from '@shared/user-task-types'
 import { WorkBlockType, BlockConfigKind } from '@shared/enums'
 import { getCurrentTime } from '@shared/time-provider'
+import { formatTimeFromParts } from '@shared/time-utils'
 import { generateUniqueId } from '@shared/step-id-utils'
 import { useSortedUserTaskTypes, useUserTaskTypeStore } from '@/renderer/store/useUserTaskTypeStore'
 import { Message } from '../common/Message'
@@ -163,8 +164,9 @@ export function WorkBlocksEditor({
     }
     // Use current time (rounded to nearest hour) as default start time
     const now = getCurrentTime()
-    const startTime = dayjs(now).startOf('hour').format('HH:mm')
-    const endTime = dayjs(now).startOf('hour').add(3, 'hour').format('HH:mm')
+    const currentHour = new Date(now).getHours()
+    const startTime = formatTimeFromParts(currentHour, 0)
+    const endTime = formatTimeFromParts((currentHour + 3) % 24, 0)
     const newBlock: WorkBlock = {
       id: generateUniqueId('block'),
       startTime,

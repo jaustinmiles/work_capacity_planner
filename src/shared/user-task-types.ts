@@ -138,6 +138,41 @@ export function getSortedTypes(types: UserTaskType[]): UserTaskType[] {
   return [...types].sort((a, b) => a.sortOrder - b.sortOrder)
 }
 
+/**
+ * System block type colors for display purposes.
+ * Used for combo blocks, system blocks (blocked/sleep), etc.
+ */
+export const SYSTEM_BLOCK_COLORS: Record<string, string> = {
+  [BlockConfigKind.Combo]: 'purple',
+  [BlockConfigKind.System]: 'red',
+  [WorkBlockType.Blocked]: 'red',
+  [WorkBlockType.Sleep]: 'gray',
+}
+
+/**
+ * Get the display color for a block type string.
+ * Handles both system block types (from enums) and user-defined type IDs.
+ *
+ * @param blockType - Either a system type (BlockConfigKind, WorkBlockType) or user type ID
+ * @param userTypes - Array of user-defined task types to search
+ * @returns Color string (Arco Design color name or hex value)
+ */
+export function getBlockTypeDisplayColor(blockType: string, userTypes: UserTaskType[]): string {
+  // Check system colors first (enum values)
+  if (SYSTEM_BLOCK_COLORS[blockType]) {
+    return SYSTEM_BLOCK_COLORS[blockType]
+  }
+
+  // Check user-defined type colors
+  const userType = userTypes.find(t => t.id === blockType)
+  if (userType?.color) {
+    return userType.color
+  }
+
+  // Default color
+  return 'arcoblue'
+}
+
 // ============================================================================
 // Validation Functions
 // ============================================================================
@@ -440,6 +475,15 @@ export function deserializeBlockTypeConfig(json: string): BlockTypeConfig {
  * Type for accumulated time by type ID.
  */
 export type AccumulatedTimeByType = Record<string, number>
+
+/**
+ * Result type for accumulated work time queries.
+ * Groups time by user-defined task type IDs.
+ */
+export interface AccumulatedTimeResult {
+  byType: AccumulatedTimeByType  // typeId -> minutes
+  total: number                   // total minutes across all types
+}
 
 /**
  * Create an empty accumulated time record.

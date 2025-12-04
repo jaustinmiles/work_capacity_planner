@@ -8,6 +8,7 @@ import {
   userTaskTypeToRecord,
   recordToUserTaskType,
   BlockTypeConfig,
+  AccumulatedTimeResult,
 } from '../shared/user-task-types'
 import { WorkBlockType, BlockConfigKind } from '../shared/enums'
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
@@ -23,6 +24,15 @@ const prisma = new PrismaClient()
 
 // Get scoped logger for database operations
 const dbLogger = getScopedLogger(LogScope.Database)
+
+/**
+ * Database WorkBlock fields used for logging.
+ */
+interface WorkBlockLogData {
+  startTime: string
+  endTime: string
+  typeConfig: string
+}
 
 // Default typeConfig for system blocks
 const DEFAULT_TYPE_CONFIG: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
@@ -1428,7 +1438,7 @@ export class DatabaseService {
       date,
       patternId: pattern.id,
       blocks: pattern.WorkBlock.length,
-      blockDetails: pattern.WorkBlock.map((b: any) => ({
+      blockDetails: pattern.WorkBlock.map((b: WorkBlockLogData) => ({
         start: b.startTime,
         end: b.endTime,
         typeConfig: b.typeConfig,
@@ -1969,7 +1979,7 @@ export class DatabaseService {
    * Get accumulated work time for a date, grouped by user-defined type ID.
    * Returns a map of typeId -> minutes, plus a total.
    */
-  async getTodayAccumulated(date: string): Promise<{ byType: Record<string, number>; total: number }> {
+  async getTodayAccumulated(date: string): Promise<AccumulatedTimeResult> {
     const { startOfDay, endOfDay } = this.getLocalDateRange(date)
 
     const workSessions = await this.client.workSession.findMany({
@@ -2002,7 +2012,7 @@ export class DatabaseService {
     })
 
     // Accumulate from work sessions - now using dynamic type IDs
-    const accumulated: { byType: Record<string, number>; total: number } = {
+    const accumulated: AccumulatedTimeResult = {
       byType: {},
       total: 0,
     }

@@ -27,6 +27,7 @@ import { assertNever, StepStatus, WorkPatternOperation, WorkSessionOperation } f
 import { dateToYYYYMMDD, extractTimeFromISO } from '@shared/time-utils'
 import { generateUniqueId, validateWorkflowDependencies } from '@shared/step-id-utils'
 import { useWorkPatternStore } from '../store/useWorkPatternStore'
+import { useUserTaskTypeStore } from '../store/useUserTaskTypeStore'
 import { getDatabase } from '../services/database'
 import { Message } from '../components/common/Message'
 import { logger } from '@/logger'
@@ -93,6 +94,34 @@ function getAmendmentDescription(amendment: Amendment): string {
     case AmendmentType.QueryResponse:
       return 'Query response (no changes)'
   }
+}
+
+/**
+ * Validate and resolve a task type ID against user-defined types.
+ * Returns a valid type ID or empty string if not found.
+ */
+function resolveTaskType(requestedType: string | undefined): string {
+  if (!requestedType) return ''
+
+  const userTypes = useUserTaskTypeStore.getState().types
+  const matchedType = userTypes.find(t =>
+    t.id === requestedType ||
+    t.name.toLowerCase() === requestedType.toLowerCase(),
+  )
+
+  if (matchedType) {
+    return matchedType.id
+  }
+
+  // Log warning if type not found
+  if (requestedType) {
+    logger.ui.warn('Task type not found in user-defined types', {
+      requestedType,
+      availableTypes: userTypes.map(t => ({ id: t.id, name: t.name })),
+    }, 'task-type-resolution')
+  }
+
+  return ''
 }
 
 export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAmendmentsResult> {
@@ -594,7 +623,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
             importance: creation.importance || 5,
             urgency: creation.urgency || 5,
             duration: creation.duration,
-            type: creation.taskType || '',
+            type: resolveTaskType(creation.taskType),
             asyncWaitTime: 0,
             completed: false,
             dependencies: [],
@@ -650,7 +679,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
               taskId: '', // Will be set when saved
               name: step.name,
               duration: step.duration,
-              type: step.type,
+              type: resolveTaskType(step.type),
               dependsOn: dependencyIds, // NOW USING IDs, NOT NAMES
               asyncWaitTime: step.asyncWaitTime || 0,
               status: StepStatus.Pending,

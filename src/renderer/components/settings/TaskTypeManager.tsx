@@ -62,7 +62,17 @@ const EMOJI_OPTIONS = [
   '🎯', '💼', '📝', '🏠', '🎨', '📚', '💪', '🧠',
   '🔧', '📊', '🎮', '🛒', '🏃', '🍳', '🌱', '💰',
   '📧', '🤝', '📞', '✍️', '🔬', '🎵', '🚗', '⚡',
-]
+] as const
+
+/** Type derived from EMOJI_OPTIONS array values */
+type EmojiOption = typeof EMOJI_OPTIONS[number]
+
+/** Form field names for type-safe form operations */
+const TypeFormFields = {
+  name: 'name',
+  emoji: 'emoji',
+  color: 'color',
+} as const
 
 interface TaskTypeManagerProps {
   /** Whether to show as a card (for embedding) or standalone */
@@ -73,7 +83,7 @@ interface TaskTypeManagerProps {
 
 interface TypeFormData {
   name: string
-  emoji: string
+  emoji: EmojiOption | string  // EmojiOption from palette, or custom string input
   color: string
 }
 
@@ -208,9 +218,9 @@ export function TaskTypeManager({ embedded = false, onTypesChange }: TaskTypeMan
           {EMOJI_OPTIONS.map((emoji) => (
             <Button
               key={emoji}
-              type={form.getFieldValue('emoji') === emoji ? 'primary' : 'secondary'}
+              type={form.getFieldValue(TypeFormFields.emoji) === emoji ? 'primary' : 'secondary'}
               size="small"
-              onClick={() => form.setFieldValue('emoji', emoji)}
+              onClick={() => form.setFieldValue(TypeFormFields.emoji, emoji)}
               style={{ fontSize: 18, padding: '4px 8px' }}
             >
               {emoji}
@@ -229,17 +239,17 @@ export function TaskTypeManager({ embedded = false, onTypesChange }: TaskTypeMan
             <Button
               key={color}
               size="small"
-              onClick={() => form.setFieldValue('color', color)}
+              onClick={() => form.setFieldValue(TypeFormFields.color, color)}
               style={{
                 backgroundColor: color,
-                border: form.getFieldValue('color') === color ? '3px solid #000' : '1px solid #ccc',
+                border: form.getFieldValue(TypeFormFields.color) === color ? '3px solid #000' : '1px solid #ccc',
                 width: 32,
                 height: 32,
                 padding: 0,
                 borderRadius: 4,
               }}
             >
-              {form.getFieldValue('color') === color && (
+              {form.getFieldValue(TypeFormFields.color) === color && (
                 <IconCheck style={{ color: '#fff' }} />
               )}
             </Button>

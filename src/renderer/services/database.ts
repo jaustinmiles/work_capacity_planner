@@ -1,6 +1,6 @@
 import { Task, Session, AICallOptions } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput } from '@shared/user-task-types'
+import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
 
 
 // Type for the Electron API exposed by preload script
@@ -74,7 +74,7 @@ declare global {
         getActiveWorkSession: () => Promise<any | null>
         getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
         getTaskTotalLoggedTime: (taskId: string) => Promise<number>
-        getTodayAccumulated: (__date: string) => Promise<{ byType: Record<string, number>; total: number }>
+        getTodayAccumulated: (__date: string) => Promise<AccumulatedTimeResult>
         // Progress tracking operations
         createStepWorkSession: (data: any) => Promise<any>
         updateTaskStepProgress: (__stepId: string, data: any) => Promise<any>
