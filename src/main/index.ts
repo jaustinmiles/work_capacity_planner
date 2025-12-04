@@ -225,6 +225,25 @@ ipcMain.handle('log:persistBatch', async (_event: IpcMainInvokeEvent, logs: any[
   return await db.persistLogs(logs)
 })
 
+// Log retrieval handlers for LogViewer (dev mode)
+ipcMain.handle('log:getSessionLogs', async (_event: IpcMainInvokeEvent, options?: {
+  sessionId?: string
+  level?: string
+  source?: string
+  since?: string  // ISO date string
+  limit?: number
+}) => {
+  const parsedOptions = options ? {
+    ...options,
+    since: options.since ? new Date(options.since) : undefined,
+  } : undefined
+  return await db.getSessionLogs(parsedOptions)
+})
+
+ipcMain.handle('log:getLoggedSessions', async () => {
+  return await db.getLoggedSessions()
+})
+
 // Work pattern handlers
 ipcMain.handle('db:getWorkPattern', async (_event: IpcMainInvokeEvent, date: string) => {
   return await db.getWorkPattern(date)

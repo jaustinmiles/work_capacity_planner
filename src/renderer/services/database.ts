@@ -82,6 +82,23 @@ declare global {
         getStepWorkSessions: (__stepId: string) => Promise<any[]>
         recordTimeEstimate: (data: any) => Promise<any>
         getTimeAccuracyStats: (__filters?: any) => Promise<any>
+        // Log viewer operations (dev mode)
+        getSessionLogs: (options?: {
+          sessionId?: string
+          level?: string
+          source?: string
+          since?: string
+          limit?: number
+        }) => Promise<Array<{
+          id: string
+          level: string
+          message: string
+          source: string
+          context: string
+          sessionId: string | null
+          createdAt: string
+        }>>
+        getLoggedSessions: () => Promise<Array<{ sessionId: string; logCount: number }>>
       }
       // Log persistence
       persistLog?: (logEntry: any) => Promise<void>
@@ -597,6 +614,29 @@ export class RendererDatabaseService {
 
   async getTimeAccuracyStats(filters?: any) {
     return await window.electronAPI.db.getTimeAccuracyStats(filters)
+  }
+
+  // Log viewer operations (dev mode)
+  async getSessionLogs(options?: {
+    sessionId?: string
+    level?: string
+    source?: string
+    since?: string
+    limit?: number
+  }): Promise<Array<{
+    id: string
+    level: string
+    message: string
+    source: string
+    context: string
+    sessionId: string | null
+    createdAt: string
+  }>> {
+    return await window.electronAPI.db.getSessionLogs(options)
+  }
+
+  async getLoggedSessions(): Promise<Array<{ sessionId: string; logCount: number }>> {
+    return await window.electronAPI.db.getLoggedSessions()
   }
 }
 

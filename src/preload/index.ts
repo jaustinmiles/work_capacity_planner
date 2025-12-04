@@ -81,6 +81,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getStepWorkSessions: (stepId: string) => ipcRenderer.invoke('db:getStepWorkSessions', stepId),
     recordTimeEstimate: (data: any) => ipcRenderer.invoke('db:recordTimeEstimate', data),
     getTimeAccuracyStats: (filters?: any) => ipcRenderer.invoke('db:getTimeAccuracyStats', filters),
+    // Log viewer operations (dev mode)
+    getSessionLogs: (options?: {
+      sessionId?: string
+      level?: string
+      source?: string
+      since?: string
+      limit?: number
+    }) => ipcRenderer.invoke('log:getSessionLogs', options),
+    getLoggedSessions: () => ipcRenderer.invoke('log:getLoggedSessions'),
   },
 
   // AI operations

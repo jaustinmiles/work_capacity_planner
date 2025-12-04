@@ -6,6 +6,7 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { WorkStatusWidget } from './WorkStatusWidget'
+import { ResponsiveProvider } from '../../providers/ResponsiveProvider'
 
 // Mock all dependencies with simple implementations
 vi.mock('../../services/database', () => ({
@@ -92,8 +93,12 @@ describe('WorkStatusWidget Start Next Task Button', () => {
   })
 
   it('should render Start Next Task button', async () => {
-    // Act
-    render(<WorkStatusWidget />)
+    // Act - wrap in ResponsiveProvider since WorkStatusWidget uses useResponsive
+    render(
+      <ResponsiveProvider>
+        <WorkStatusWidget />
+      </ResponsiveProvider>,
+    )
 
     // Assert - Wait for async operations to complete and look for the button specifically
     await waitFor(() => {
@@ -104,8 +109,12 @@ describe('WorkStatusWidget Start Next Task Button', () => {
   })
 
   it('should show appropriate message when no tasks are available', async () => {
-    // Act
-    render(<WorkStatusWidget />)
+    // Act - wrap in ResponsiveProvider since WorkStatusWidget uses useResponsive
+    render(
+      <ResponsiveProvider>
+        <WorkStatusWidget />
+      </ResponsiveProvider>,
+    )
 
     // Assert - Since getNextScheduledItem returns null, should show no tasks message
     await waitFor(() => {

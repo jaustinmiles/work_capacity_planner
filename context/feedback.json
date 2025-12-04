@@ -826,7 +826,7 @@
   },
   {
     "type": "feature",
-    "priority": "high",
+    "priority": "medium",
     "components": [
       "utils/flexible-scheduler"
     ],
@@ -1494,7 +1494,8 @@
     "description": "Frequently, if I delete a task, or change a workflow or task, or add one, the task list view needs a refresh (command + r) in order to update. Maybe it's not listening to the proper events",
     "steps": "create a workflow, go to task page, observe workflow isnt there. refresh, observe task appears. Go to workflow pages, delete workflow. Go to task page, observe task display of workflow still remains. Refresh. Observer task disappears. ",
     "timestamp": "2025-09-11T21:24:50.893Z",
-    "sessionId": "session-1757625890883-645927c3"
+    "sessionId": "session-1757625890883-645927c3",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1699,7 +1700,7 @@
   },
   {
     "type": "bug",
-    "priority": "medium",
+    "priority": "high",
     "components": [
       "layout/Navigation",
       "status/WorkStatusWidget"

@@ -4,7 +4,7 @@ import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconBulb, I
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
-import { ResponsiveProvider } from './providers/ResponsiveProvider'
+import { ResponsiveProvider, useResponsive } from './providers/ResponsiveProvider'
 import { TaskList } from './components/tasks/TaskList'
 import { TaskForm } from './components/tasks/TaskForm'
 import { SequencedTaskForm } from './components/tasks/SequencedTaskForm'
@@ -111,6 +111,7 @@ function App() {
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
+  const { isCompact, isMobile } = useResponsive()
 
   // Sidebar collapsed state - persist to localStorage + auto-collapse on narrow screens
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -437,10 +438,10 @@ function App() {
               alignItems: 'center',
               gap: 24,
             }}>
-              {/* Horizontal Navigation Tabs */}
+              {/* Horizontal Navigation Tabs - hide text on mobile */}
               <Tabs
                 activeTab={activeView}
-                onChange={(key) => setActiveView(key as any)}
+                onChange={(key) => setActiveView(key as ViewType)}
                 type="line"
                 style={{ flex: 1, minWidth: 0 }}
               >
@@ -449,7 +450,7 @@ function App() {
                   title={
                     <Space>
                       <IconSchedule />
-                      <span>Timeline</span>
+                      {!isMobile && <span>Timeline</span>}
                     </Space>
                   }
                 />
@@ -458,7 +459,7 @@ function App() {
                   title={
                     <Space>
                       <IconCalendar />
-                      <span>Schedule</span>
+                      {!isMobile && <span>Schedule</span>}
                     </Space>
                   }
                 />
@@ -467,7 +468,7 @@ function App() {
                   title={
                     <Space>
                       <IconBranch />
-                      <span>Workflows</span>
+                      {!isMobile && <span>Workflows</span>}
                       {activeWorkflows > 0 && <Badge count={activeWorkflows} dot />}
                     </Space>
                   }
@@ -477,7 +478,7 @@ function App() {
                   title={
                     <Space>
                       <IconList />
-                      <span>Tasks</span>
+                      {!isMobile && <span>Tasks</span>}
                       {incompleteTasks > 0 && <Badge count={incompleteTasks} dot />}
                     </Space>
                   }
@@ -487,7 +488,7 @@ function App() {
                   title={
                     <Space>
                       <IconCalendar />
-                      <span>Calendar</span>
+                      {!isMobile && <span>Calendar</span>}
                     </Space>
                   }
                 />
@@ -496,41 +497,45 @@ function App() {
                   title={
                     <Space>
                       <IconApps />
-                      <span>Matrix</span>
+                      {!isMobile && <span>Matrix</span>}
                     </Space>
                   }
                 />
               </Tabs>
 
-              {/* Action Buttons */}
-              <Space>
+              {/* Action Buttons - collapse to icons on small screens */}
+              <Space wrap style={{ flexShrink: 0 }}>
                 <Button
                   type="primary"
                   icon={<IconClockCircle />}
                   onClick={() => setShowWorkLoggerDual(true)}
+                  title="Log Work"
                 >
-                  Log Work
+                  {!isCompact && 'Log Work'}
                 </Button>
                 <Button
                   type="text"
                   icon={<IconEye />}
                   onClick={() => setShowTaskSlideshow(true)}
+                  title="Tournament"
                 >
-                  Slideshow
+                  {!isCompact && 'Tournament'}
                 </Button>
                 <Button
                   type="text"
                   icon={<IconSettings />}
                   onClick={() => setShowTaskTypeManager(true)}
+                  title="Settings"
                 >
-                  Settings
+                  {!isCompact && 'Settings'}
                 </Button>
                 <Button
                   type="text"
                   icon={<IconUserGroup />}
                   onClick={() => setShowSessionManager(true)}
+                  title="Sessions"
                 >
-                  Sessions
+                  {!isCompact && 'Sessions'}
                 </Button>
               </Space>
             </Header>

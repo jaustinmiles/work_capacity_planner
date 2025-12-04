@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Card, Space, Typography, Button, Tag, Progress, Statistic, Alert } from '@arco-design/web-react'
 import { IconPlayArrow, IconPause, IconCheck, IconSkipNext, IconCaretRight } from '@arco-design/web-react/icon'
+import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
@@ -49,6 +50,9 @@ function getBlockDisplay(block: WorkBlock | null, userTypes: UserTaskType[]) {
 // calculateDuration is now imported from @shared/time-utils
 
 export function WorkStatusWidget() {
+  // Responsive state for compact layouts
+  const { isCompact } = useResponsive()
+
   // Task store state
   const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
   const isLoading = useTaskStore(state => state.isLoading)
@@ -397,9 +401,9 @@ export function WorkStatusWidget() {
                 loading={isProcessing || workPatternsLoading}
                 disabled={workPatternsLoading || isLoading || isProcessing}
                 onClick={handleStartNextTask}
-                style={{ width: '100%', marginTop: 8 }}
+                style={{ width: '100%', marginTop: 8, minWidth: 0 }}
               >
-                {workPatternsLoading || isLoading ? 'Loading...' : 'Start Next Task'}
+                {workPatternsLoading || isLoading ? 'Loading...' : (isCompact ? 'Start' : 'Start Next Task')}
               </Button>
             )}
           </Space>
@@ -408,15 +412,17 @@ export function WorkStatusWidget() {
         {/* Planned Capacity - Dynamic based on user-defined types */}
         <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '4px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>Today&apos;s Planned Capacity</Text>
+            <Text style={{ fontWeight: 600 }}>{isCompact ? 'Capacity' : "Today's Planned Capacity"}</Text>
             {userTaskTypes.length === 0 ? (
               <Text type="secondary">No task types defined. Go to Settings to create types.</Text>
             ) : (
               userTaskTypes.map(taskType => {
                 const plannedMinutes = capacityByType[taskType.id] || 0
                 return (
-                  <Space key={taskType.id} style={{ width: '100%', justifyContent: 'space-between' }}>
-                    <Text style={{ whiteSpace: 'nowrap' }}>{taskType.emoji} {taskType.name}:</Text>
+                  <Space key={taskType.id} style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                    <Text style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {taskType.emoji} {isCompact ? '' : taskType.name + ':'}
+                    </Text>
                     <Tag style={{ backgroundColor: taskType.color, color: '#fff', border: 'none' }}>
                       {formatMinutes(plannedMinutes)}
                     </Tag>
@@ -424,13 +430,13 @@ export function WorkStatusWidget() {
                 )
               })
             )}
-            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-              <Text style={{ whiteSpace: 'nowrap' }}>🤝 Meeting Time:</Text>
+            <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+              <Text>🤝 {isCompact ? '' : 'Meeting Time:'}</Text>
               <Tag color="purple">{formatMinutes(meetingMinutes)}</Tag>
             </Space>
             <div style={{ borderTop: '1px solid #e5e5e5', marginTop: 8, paddingTop: 8 }}>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', minWidth: 100 }}>📊 Total Time:</Text>
+              <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                <Text style={{ fontWeight: 600 }}>📊 {isCompact ? '' : 'Total:'}</Text>
                 <Text style={{ fontSize: '14px', fontWeight: 500 }}>
                   {formatMinutes(totalPlannedMinutes + meetingMinutes)}
                 </Text>
@@ -443,16 +449,16 @@ export function WorkStatusWidget() {
         <div>
           {currentBlock ? (
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Text type="secondary" style={{ whiteSpace: 'nowrap', minWidth: 150 }}>Currently in Work Block</Text>
-              <Space>
+              <Text type="secondary">{isCompact ? 'Current Block' : 'Currently in Work Block'}</Text>
+              <Space wrap>
                 <Tag color="green" icon={<IconCaretRight />}>
                   {currentBlock.startTime} - {currentBlock.endTime}
                 </Tag>
                 <Tag>
-                  {getBlockDisplay(currentBlock, userTaskTypes).icon} {getBlockDisplay(currentBlock, userTaskTypes).label}
+                  {getBlockDisplay(currentBlock, userTaskTypes).icon} {!isCompact && getBlockDisplay(currentBlock, userTaskTypes).label}
                 </Tag>
               </Space>
-              {currentBlock.capacity && (
+              {!isCompact && currentBlock.capacity && (
                 <Text type="secondary" style={{ fontSize: '12px' }}>
                   Capacity: {formatMinutes(currentBlock.capacity.totalMinutes)}
                 </Text>
@@ -462,23 +468,25 @@ export function WorkStatusWidget() {
             <Space direction="vertical" style={{ width: '100%' }}>
               {nextBlock ? (
                 <>
-                  <Text type="secondary" style={{ whiteSpace: 'nowrap', minWidth: 120 }}>Next Work Block</Text>
-                  <Space>
+                  <Text type="secondary">{isCompact ? 'Next Block' : 'Next Work Block'}</Text>
+                  <Space wrap>
                     <Tag color="cyan">
                       {nextBlock.startTime} - {nextBlock.endTime}
                     </Tag>
                     <Tag>
-                      {getBlockDisplay(nextBlock, userTaskTypes).icon} {getBlockDisplay(nextBlock, userTaskTypes).label}
+                      {getBlockDisplay(nextBlock, userTaskTypes).icon} {!isCompact && getBlockDisplay(nextBlock, userTaskTypes).label}
                     </Tag>
                   </Space>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
-                    {nextBlock.capacity
-                      ? `Capacity: ${formatMinutes(nextBlock.capacity.totalMinutes)}`
-                      : 'No capacity data'}
-                  </Text>
+                  {!isCompact && (
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      {nextBlock.capacity
+                        ? `Capacity: ${formatMinutes(nextBlock.capacity.totalMinutes)}`
+                        : 'No capacity data'}
+                    </Text>
+                  )}
                 </>
               ) : (
-                <Text type="secondary">No more work blocks today</Text>
+                <Text type="secondary">{isCompact ? 'No more blocks' : 'No more work blocks today'}</Text>
               )}
             </Space>
           )}
@@ -486,7 +494,7 @@ export function WorkStatusWidget() {
 
         {/* Progress - Dynamic based on user-defined types */}
         <div>
-          <Text type="secondary" style={{ marginBottom: '8px', display: 'block', whiteSpace: 'nowrap' }}>Completed Today</Text>
+          <Text type="secondary" style={{ marginBottom: '8px', display: 'block' }}>{isCompact ? 'Progress' : 'Completed Today'}</Text>
           <Space direction="vertical" style={{ width: '100%' }}>
             {userTaskTypes.length === 0 ? (
               <Text type="secondary">No task types defined yet.</Text>
@@ -500,13 +508,15 @@ export function WorkStatusWidget() {
 
                 return (
                   <div key={taskType.id}>
-                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                      <Text style={{ whiteSpace: 'nowrap' }}>{taskType.emoji} {taskType.name}</Text>
-                      <Text style={{ whiteSpace: 'nowrap' }}>
-                        {formatMinutes(logged)}{planned > 0 && ` / ${formatMinutes(planned)}`}
+                    <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                      <Text style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {taskType.emoji} {isCompact ? '' : taskType.name}
                       </Text>
-                      {planned > 0 && (
-                        <Text style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{progress}%</Text>
+                      <Text>
+                        {formatMinutes(logged)}{!isCompact && planned > 0 && ` / ${formatMinutes(planned)}`}
+                      </Text>
+                      {!isCompact && planned > 0 && (
+                        <Text style={{ fontWeight: 600 }}>{progress}%</Text>
                       )}
                     </Space>
                     <Progress
@@ -521,7 +531,7 @@ export function WorkStatusWidget() {
                     />
                     {hasUnplannedWork && (
                       <Text type="warning" style={{ fontSize: '11px' }}>
-                        ⚠️ Unplanned work logged
+                        {isCompact ? '⚠️' : '⚠️ Unplanned work logged'}
                       </Text>
                     )}
                   </div>
@@ -529,11 +539,11 @@ export function WorkStatusWidget() {
               })
             )}
             <div style={{ borderTop: '1px solid #f0f0f0', marginTop: 8, paddingTop: 8 }}>
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1D2129' }}>Total Logged</Text>
-                <Text style={{ fontWeight: 600, whiteSpace: 'nowrap', color: '#1D2129' }}>
+              <Space style={{ width: '100%', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                <Text style={{ fontWeight: 600, color: '#1D2129' }}>{isCompact ? 'Total' : 'Total Logged'}</Text>
+                <Text style={{ fontWeight: 600, color: '#1D2129' }}>
                   {formatMinutes(accumulatedTotal)}
-                  {meetingMinutes > 0 && ` (+ ${formatMinutes(meetingMinutes)} meetings)`}
+                  {!isCompact && meetingMinutes > 0 && ` (+ ${formatMinutes(meetingMinutes)} meetings)`}
                 </Text>
               </Space>
             </div>

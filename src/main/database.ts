@@ -2276,6 +2276,60 @@ export class DatabaseService {
     }
   }
 
+  // Log retrieval for LogViewer component
+  async getSessionLogs(options?: {
+    sessionId?: string
+    level?: string
+    source?: string
+    since?: Date
+    limit?: number
+  }): Promise<Array<{
+    id: string
+    level: string
+    message: string
+    source: string
+    context: string
+    sessionId: string | null
+    createdAt: Date
+  }>> {
+    const { sessionId, level, source, since, limit = 100 } = options || {}
+
+    const where: {
+      sessionId?: string
+      level?: string
+      source?: string
+      createdAt?: { gte: Date }
+    } = {}
+
+    if (sessionId) where.sessionId = sessionId
+    if (level) where.level = level
+    if (source) where.source = source
+    if (since) where.createdAt = { gte: since }
+
+    return this.client.appLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    })
+  }
+
+  // Get distinct sessions that have logs
+  async getLoggedSessions(): Promise<Array<{ sessionId: string; logCount: number }>> {
+    const result = await this.client.appLog.groupBy({
+      by: ['sessionId'],
+      _count: { id: true },
+      where: { sessionId: { not: null } },
+      orderBy: { _count: { id: 'desc' } },
+    })
+
+    return result
+      .filter((r): r is typeof r & { sessionId: string } => r.sessionId !== null)
+      .map(r => ({
+        sessionId: r.sessionId,
+        logCount: r._count.id,
+      }))
+  }
+
   // Cleanup
   async disconnect(): Promise<void> {
     await this.client.$disconnect()
