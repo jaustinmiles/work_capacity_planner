@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Card } from '@arco-design/web-react'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { isSingleTypeBlock, isComboBlock, isSystemBlock, getTypeColor } from '@shared/user-task-types'
 import { useSortedUserTaskTypes } from '@renderer/store/useUserTaskTypeStore'
-import dayjs from 'dayjs'
+import { getCurrentTime } from '@shared/time-provider'
 
 interface TimelineVisualizerProps {
   blocks: WorkBlock[]
@@ -380,17 +379,17 @@ export function TimelineVisualizer({
   }
 
   return (
-    <Card title="Schedule Timeline" style={{ height: '100%' }}>
-      <div
-        ref={containerRef}
-        style={{
-          position: 'relative',
-          height,
-          overflow: 'auto',
-          backgroundColor: '#FAFBFC',
-          borderRadius: 4,
-        }}
-      >
+    <div
+      ref={containerRef}
+      style={{
+        position: 'relative',
+        height,
+        overflow: 'auto',
+        backgroundColor: '#FAFBFC',
+        borderRadius: 4,
+        border: '1px solid #e5e8ef',
+      }}
+    >
         {/* Time labels */}
         {renderTimeLabels()}
 
@@ -409,9 +408,9 @@ export function TimelineVisualizer({
 
         {/* Current time indicator */}
         {(() => {
-          const now = dayjs()
-          const currentHour = now.hour()
-          const currentMinute = now.minute()
+          const now = getCurrentTime()
+          const currentHour = now.getHours()
+          const currentMinute = now.getMinutes()
 
           if (currentHour >= startHour && currentHour < endHour) {
             const currentTimePixels = timeToPixels(
@@ -446,7 +445,6 @@ export function TimelineVisualizer({
           }
           return null
         })()}
-      </div>
-    </Card>
+    </div>
   )
 }
