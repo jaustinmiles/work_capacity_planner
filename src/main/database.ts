@@ -781,6 +781,34 @@ export class DatabaseService {
   }
 
   /**
+   * Get all time sink sessions for a specific date.
+   * Includes sessions that started on this date.
+   */
+  async getTimeSinkSessionsByDate(date: string): Promise<TimeSinkSession[]> {
+    const startOfDay = new Date(`${date}T00:00:00`)
+    const endOfDay = new Date(`${date}T23:59:59.999`)
+
+    const records = await this.client.timeSinkSession.findMany({
+      where: {
+        startTime: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      orderBy: { startTime: 'asc' },
+    })
+
+    return records.map((record) =>
+      recordToTimeSinkSession({
+        ...record,
+        startTime: record.startTime.toISOString(),
+        endTime: record.endTime?.toISOString() ?? null,
+        createdAt: record.createdAt.toISOString(),
+      }),
+    )
+  }
+
+  /**
    * Get the currently active time sink session (if any).
    */
   async getActiveTimeSinkSession(): Promise<TimeSinkSession | null> {

@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     endTimeSinkSession: (id: string, actualMinutes: number, notes?: string) =>
       ipcRenderer.invoke('db:endTimeSinkSession', id, actualMinutes, notes),
     getTimeSinkSessions: (timeSinkId: string) => ipcRenderer.invoke('db:getTimeSinkSessions', timeSinkId),
+    getTimeSinkSessionsByDate: (date: string) => ipcRenderer.invoke('db:getTimeSinkSessionsByDate', date),
     getActiveTimeSinkSession: () => ipcRenderer.invoke('db:getActiveTimeSinkSession'),
     getTimeSinkAccumulated: (startDate: string, endDate: string) =>
       ipcRenderer.invoke('db:getTimeSinkAccumulated', startDate, endDate),

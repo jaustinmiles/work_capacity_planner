@@ -38,6 +38,7 @@ declare global {
         createTimeSinkSession: (data: Omit<CreateTimeSinkSessionInput, 'startTime'> & { startTime: string; endTime?: string }) => Promise<TimeSinkSession>
         endTimeSinkSession: (id: string, actualMinutes: number, notes?: string) => Promise<TimeSinkSession>
         getTimeSinkSessions: (timeSinkId: string) => Promise<TimeSinkSession[]>
+        getTimeSinkSessionsByDate: (date: string) => Promise<TimeSinkSession[]>
         getActiveTimeSinkSession: () => Promise<TimeSinkSession | null>
         getTimeSinkAccumulated: (startDate: string, endDate: string) => Promise<TimeSinkAccumulatedResult>
         deleteTimeSinkSession: (id: string) => Promise<void>
@@ -579,6 +580,10 @@ export class RendererDatabaseService {
 
   async getWorkSessions(date: string) {
     return await window.electronAPI.db.getWorkSessions(date)
+  }
+
+  async getTimeSinkSessionsByDate(date: string): Promise<TimeSinkSession[]> {
+    return await window.electronAPI.db.getTimeSinkSessionsByDate(date)
   }
 
   async getActiveWorkSession() {

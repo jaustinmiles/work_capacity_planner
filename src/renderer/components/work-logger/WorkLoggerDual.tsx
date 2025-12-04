@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getCurrentTime } from '@shared/time-provider'
+import { formatMinutes } from '@shared/time-utils'
 import { generateUniqueId } from '@shared/step-id-utils'
 import {
   Modal,
@@ -201,7 +202,37 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           return workSessionData
         })
 
-      setSessions(formattedSessions)
+      // Load time sink sessions for the same date
+      const timeSinkSessions = await db.getTimeSinkSessionsByDate(selectedDate)
+      const formattedTimeSinkSessions: WorkSessionData[] = timeSinkSessions.map(session => {
+        const startTime = dayjs(session.startTime)
+        // For active sessions without endTime, use current time to show actual duration
+        const endTime = session.endTime
+          ? dayjs(session.endTime)
+          : dayjs(getCurrentTime())
+
+        // Find the time sink to get its name and color
+        const sink = timeSinks.find(s => s.id === session.timeSinkId)
+        const sinkName = sink?.name || 'Time Sink'
+        const sinkEmoji = sink?.emoji || '⏱️'
+        const sinkColor = sink?.color || '#9B59B6'
+
+        return {
+          id: `sink-${session.id}`, // Prefix to identify as time sink
+          taskId: `sink-${session.timeSinkId}`, // Use sink ID as task ID
+          taskName: `${sinkEmoji} ${sinkName}`,
+          startMinutes: startTime.hour() * 60 + startTime.minute(),
+          endMinutes: endTime.hour() * 60 + endTime.minute(),
+          type: 'time-sink', // Special type for time sinks
+          color: sinkColor,
+          isNew: false,
+          isDirty: false,
+          notes: session.notes,
+        }
+      })
+
+      // Combine work sessions and time sink sessions
+      setSessions([...formattedSessions, ...formattedTimeSinkSessions])
     } catch (error) {
       logger.ui.error('Failed to load work sessions', {
         error: error instanceof Error ? error.message : String(error),
@@ -601,10 +632,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               parentName = 'Unknown Type'
             }
 
-            const elapsedMinutes = Math.floor((new Date(getCurrentTime()).getTime() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
-            const elapsedHours = Math.floor(elapsedMinutes / 60)
-            const elapsedMins = elapsedMinutes % 60
-            const elapsedText = elapsedHours > 0 ? `${elapsedHours}h ${elapsedMins}m` : `${elapsedMins}m`
+            const elapsedMinutes = Math.floor((getCurrentTime().getTime() - session.startTime.getTime()) / 60000) + (session.actualMinutes || 0)
+            const elapsedText = formatMinutes(elapsedMinutes)
 
             return (
               <Card style={{ background: '#e6f7ff', border: '1px solid #91d5ff' }}>
@@ -637,10 +666,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             const sinkEmoji = sink?.emoji || '⏱️'
             const sinkColor = sink?.color || '#9B59B6'
 
-            const elapsedMinutes = Math.floor((new Date(getCurrentTime()).getTime() - activeSinkSession.startTime.getTime()) / 60000)
-            const elapsedHours = Math.floor(elapsedMinutes / 60)
-            const elapsedMins = elapsedMinutes % 60
-            const elapsedText = elapsedHours > 0 ? `${elapsedHours}h ${elapsedMins}m` : `${elapsedMins}m`
+            const elapsedMinutes = Math.floor((getCurrentTime().getTime() - activeSinkSession.startTime.getTime()) / 60000)
+            const elapsedText = formatMinutes(elapsedMinutes)
 
             return (
               <Card style={{ background: '#f9f0ff', border: `1px solid ${sinkColor}` }}>

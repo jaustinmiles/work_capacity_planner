@@ -136,6 +136,10 @@ ipcMain.handle('db:getTimeSinkSessions', async (_event: IpcMainInvokeEvent, time
   return await db.getTimeSinkSessions(timeSinkId)
 })
 
+ipcMain.handle('db:getTimeSinkSessionsByDate', async (_event: IpcMainInvokeEvent, date: string) => {
+  return await db.getTimeSinkSessionsByDate(date)
+})
+
 ipcMain.handle('db:getActiveTimeSinkSession', async () => {
   return await db.getActiveTimeSinkSession()
 })
