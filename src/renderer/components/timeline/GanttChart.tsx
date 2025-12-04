@@ -112,6 +112,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const scheduleResult = useSchedulerStore(state => state.scheduleResult)
   // Schedule snapshot store
   const createSnapshot = useScheduleSnapshotStore(state => state.createSnapshot)
+  const deleteSnapshot = useScheduleSnapshotStore(state => state.deleteSnapshot)
+  const todaySnapshot = useScheduleSnapshotStore(state => state.todaySnapshot)
   const hasSnapshotToday = useHasSnapshotToday()
   const [isCreatingSnapshot, setIsCreatingSnapshot] = useState(false)
   const [pixelsPerHour, setPixelsPerHour] = useState(120) // pixels per hour for scaling
@@ -163,6 +165,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
       setIsCreatingSnapshot(false)
     }
   }, [scheduleResult, createSnapshot, isCreatingSnapshot])
+
+  // Handle unfreeze (delete today's snapshot)
+  const handleUnfreezeSchedule = useCallback(async () => {
+    if (!todaySnapshot || isCreatingSnapshot) return
+
+    setIsCreatingSnapshot(true)
+    try {
+      await deleteSnapshot(todaySnapshot.id)
+      logger.ui.info('Schedule unfrozen successfully', {}, 'schedule-unfrozen')
+    } catch (error) {
+      logger.ui.error('Failed to unfreeze schedule', {
+        error: error instanceof Error ? error.message : String(error),
+      }, 'unfreeze-error')
+    } finally {
+      setIsCreatingSnapshot(false)
+    }
+  }, [todaySnapshot, deleteSnapshot, isCreatingSnapshot])
 
   // Keyboard shortcuts for zoom
   useEffect(() => {
@@ -928,16 +947,16 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                 <Button size="small" icon={<IconExpand />} />
               </Dropdown>
               <div style={{ width: 1, height: 24, backgroundColor: '#e5e6e8' }} />
-              <Tooltip content={hasSnapshotToday ? 'Schedule already frozen today' : 'Freeze current schedule for comparison'}>
+              <Tooltip content={hasSnapshotToday ? 'Click to unfreeze and allow re-freezing' : 'Freeze current schedule for comparison'}>
                 <Button
                   size="small"
                   type={hasSnapshotToday ? 'secondary' : 'primary'}
                   icon={<IconCamera />}
-                  onClick={handleFreezeSchedule}
+                  onClick={hasSnapshotToday ? handleUnfreezeSchedule : handleFreezeSchedule}
                   loading={isCreatingSnapshot}
-                  disabled={!scheduleResult || isCreatingSnapshot}
+                  disabled={(!scheduleResult && !hasSnapshotToday) || isCreatingSnapshot}
                 >
-                  {hasSnapshotToday ? 'Frozen ✓' : 'Freeze'}
+                  {hasSnapshotToday ? 'Unfreeze' : 'Freeze'}
                 </Button>
               </Tooltip>
             </Space>
