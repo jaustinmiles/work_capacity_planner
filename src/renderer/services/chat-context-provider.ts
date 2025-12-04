@@ -6,6 +6,7 @@
 import { useTaskStore } from '../store/useTaskStore'
 import { useSchedulerStore } from '../store/useSchedulerStore'
 import { useWorkPatternStore } from '../store/useWorkPatternStore'
+import { useUserTaskTypeStore } from '../store/useUserTaskTypeStore'
 import { Task } from '@shared/types'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { WorkSettings } from '@shared/work-settings-types'
@@ -13,6 +14,7 @@ import { UnifiedScheduleItem } from '@shared/unified-scheduler'
 import { getCurrentTime, getLocalDateString } from '@shared/time-provider'
 import { TaskStatus } from '@shared/enums'
 import { getDatabase } from './database'
+import type { UserTaskType } from '@shared/user-task-types'
 
 export interface JobContextData {
   name: string
@@ -42,6 +44,7 @@ export interface AppContext {
   schedule: UnifiedScheduleItem[]  // Use actual UnifiedScheduleItem type
   workSessions: WorkSessionData[]
   workSettings: WorkSettings
+  userTaskTypes: UserTaskType[]  // User-defined task types (e.g., "coding", "design", "admin")
   jobContext?: JobContextData
   summary: ContextSummary
 }
@@ -67,6 +70,7 @@ export async function gatherAppContext(jobContext?: JobContextData): Promise<App
   const taskStore = useTaskStore.getState()
   const schedulerStore = useSchedulerStore.getState()
   const workPatternStore = useWorkPatternStore.getState()
+  const userTaskTypeStore = useUserTaskTypeStore.getState()
 
   const currentTime = getCurrentTime()
   const currentDateStr = getLocalDateString(currentTime)
@@ -119,6 +123,7 @@ export async function gatherAppContext(jobContext?: JobContextData): Promise<App
       return sessionData
     }),
     workSettings: taskStore.workSettings,
+    userTaskTypes: userTaskTypeStore.types,
     summary,
   }
 
@@ -155,6 +160,18 @@ export function formatContextForAI(context: AppContext): string {
     formatted += `**Review Cycles:** ${context.jobContext.reviewCycles}\n`
     formatted += `**Tools:** ${context.jobContext.tools}\n\n`
   }
+
+  // User-Defined Task Types
+  formatted += `## Available Task Types (${context.userTaskTypes.length})\n\n`
+  formatted += 'Use these type IDs when creating or modifying tasks:\n\n'
+  context.userTaskTypes.forEach(taskType => {
+    formatted += `- **${taskType.name}** (ID: \`${taskType.id}\`)`
+    if (taskType.emoji) {
+      formatted += ` ${taskType.emoji}`
+    }
+    formatted += '\n'
+  })
+  formatted += '\n'
 
   // Tasks
   const simpleTasks = context.tasks.filter(t => !t.hasSteps)

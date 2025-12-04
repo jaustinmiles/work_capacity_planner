@@ -8,7 +8,8 @@ import type {
   TimeLogEntry,
   WorkSession,
 } from '@/shared/types'
-import { BlockTypeConfig, SystemBlockType } from '@/shared/user-task-types'
+import { BlockTypeConfig } from '@/shared/user-task-types'
+import { WorkBlockType, BlockConfigKind } from '@/shared/enums'
 import { calculateBlockCapacity } from '@/shared/capacity-calculator'
 
 /**
@@ -19,23 +20,23 @@ function createTypeConfig(type: string): BlockTypeConfig {
     case 'focused':
     case 'admin':
     case 'personal':
-      return { kind: 'single', typeId: type }
+      return { kind: BlockConfigKind.Single, typeId: type }
     case 'combo':
     case 'mixed':
       return {
-        kind: 'combo',
+        kind: BlockConfigKind.Combo,
         allocations: [
           { typeId: 'focused', ratio: 0.5 },
           { typeId: 'admin', ratio: 0.5 },
         ],
       }
     case 'sleep':
-      return { kind: 'system', systemType: SystemBlockType.Sleep }
+      return { kind: BlockConfigKind.System, systemType: WorkBlockType.Sleep }
     case 'blocked':
     case 'break':
     case 'meeting':
     default:
-      return { kind: 'system', systemType: SystemBlockType.Blocked }
+      return { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
   }
 }
 
@@ -48,11 +49,11 @@ export function createMockWorkPattern(overrides?: Partial<DailyWorkPattern>): Da
     date: new Date().toISOString().split('T')[0], // Today's date
     dayOfWeek: new Date().getDay(),
     blocks: [
-      createMockWorkBlock({ id: 'block-1', typeConfig: { kind: 'single', typeId: 'focused' }, startTime: '09:00', endTime: '11:00' }),
-      createMockWorkBlock({ id: 'block-2', typeConfig: { kind: 'single', typeId: 'admin' }, startTime: '11:00', endTime: '12:00' }),
-      createMockWorkBlock({ id: 'block-3', typeConfig: { kind: 'system', systemType: SystemBlockType.Blocked }, startTime: '12:00', endTime: '13:00' }),
-      createMockWorkBlock({ id: 'block-4', typeConfig: { kind: 'combo', allocations: [{ typeId: 'focused', ratio: 0.5 }, { typeId: 'admin', ratio: 0.5 }] }, startTime: '13:00', endTime: '15:00' }),
-      createMockWorkBlock({ id: 'block-5', typeConfig: { kind: 'single', typeId: 'personal' }, startTime: '15:00', endTime: '17:00' }),
+      createMockWorkBlock({ id: 'block-1', typeConfig: { kind: BlockConfigKind.Single, typeId: 'focused' }, startTime: '09:00', endTime: '11:00' }),
+      createMockWorkBlock({ id: 'block-2', typeConfig: { kind: BlockConfigKind.Single, typeId: 'admin' }, startTime: '11:00', endTime: '12:00' }),
+      createMockWorkBlock({ id: 'block-3', typeConfig: { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }, startTime: '12:00', endTime: '13:00' }),
+      createMockWorkBlock({ id: 'block-4', typeConfig: { kind: BlockConfigKind.Combo, allocations: [{ typeId: 'focused', ratio: 0.5 }, { typeId: 'admin', ratio: 0.5 }] }, startTime: '13:00', endTime: '15:00' }),
+      createMockWorkBlock({ id: 'block-5', typeConfig: { kind: BlockConfigKind.Single, typeId: 'personal' }, startTime: '15:00', endTime: '17:00' }),
     ],
     totalCapacity: 420, // 7 hours in minutes
     totalAccumulated: 0,
@@ -63,7 +64,7 @@ export function createMockWorkPattern(overrides?: Partial<DailyWorkPattern>): Da
   // Recalculate totalCapacity if blocks were overridden
   if (!overrides?.totalCapacity) {
     defaultPattern.totalCapacity = defaultPattern.blocks.reduce((sum, block) => {
-      if (block.capacity && block.typeConfig.kind !== 'system') {
+      if (block.capacity && block.typeConfig.kind !== BlockConfigKind.System) {
         return sum + block.capacity.totalMinutes
       }
       return sum

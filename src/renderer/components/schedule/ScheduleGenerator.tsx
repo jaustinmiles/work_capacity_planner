@@ -5,14 +5,15 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useUnifiedScheduler, ScheduleResult, UnifiedScheduleItem } from '../../hooks/useUnifiedScheduler'
 import { OptimizationMode } from '@shared/unified-scheduler'
-import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { DailyWorkPattern, BlockTypeConfig } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { calculateBlockCapacity } from '@shared/capacity-calculator'
-import { SystemBlockType, createEmptyAccumulatedTime } from '@shared/user-task-types'
+import { createEmptyAccumulatedTime } from '@shared/user-task-types'
+import { WorkBlockType, BlockConfigKind } from '@shared/enums'
 
 
 const { Title, Text } = Typography
@@ -140,7 +141,7 @@ export function ScheduleGenerator({
         if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
           // Regular work day - create system blocked placeholder
           // Users should configure proper task types and patterns in settings
-          const typeConfig = { kind: 'system' as const, systemType: SystemBlockType.Blocked }
+          const typeConfig: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
           blocks.push({
             id: `block-${dateStr}-work`,
             startTime: dayWorkHours.startTime,
@@ -393,24 +394,9 @@ export function ScheduleGenerator({
           }, sortedItems[0].endTime!)
           const latestEndStr = dayjs(latestEnd).format('HH:mm')
 
-          // Calculate total capacity used (kept for potential future use)
-          let _focus = 0
-          const _admin = 0
-          const _personal = 0
-
-          for (const item of items) {
-            // Note: With user-configurable task types, we no longer have hardcoded type checks
-            // Capacity calculation is now handled per user-defined types
-            _focus += item.duration
-          }
-
-          // For optimal schedules, create blocks with AVAILABLE capacity, not just used capacity
-          // The optimal scheduler can schedule ALL DAY (7am-11pm = 16 hours = 960 minutes)
-          const _totalMinutes = dayjs(latestEnd).diff(dayjs(sortedItems[0].startTime), 'minute')
-
           // Create block with system blocked type as placeholder
           // Actual type depends on user-configured task types
-          const typeConfig = { kind: 'system' as const, systemType: SystemBlockType.Blocked }
+          const typeConfig: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
           blocks.push({
             id: `block-${dateStr}-work`,
             startTime: earliestStart,

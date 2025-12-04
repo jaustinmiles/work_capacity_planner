@@ -99,9 +99,8 @@ export function WeeklyCalendar() {
     const dateStr = currentDate.format('YYYY-MM-DD')
     const daySchedule = itemsByDate.get(dateStr) || []
 
-    // Calculate time by type for this day
-    // Note: With user-configurable task types, we show total time instead of per-type breakdown
-    const focusedMinutes = daySchedule
+    // Calculate total scheduled time for this day
+    const totalMinutes = daySchedule
       .reduce((sum, item) => {
         if (item.endTime && item.startTime) {
           const duration = minutesBetween(item.startTime, item.endTime)
@@ -109,8 +108,6 @@ export function WeeklyCalendar() {
         }
         return sum
       }, 0)
-
-    const admin = 0 // Deprecated: use user-configurable types instead
 
     const hasScheduledTasks = daySchedule.length > 0
     const workPattern = workPatterns.find(p => p.date === dateStr)
@@ -133,19 +130,10 @@ export function WeeklyCalendar() {
         }}>
           {currentDate.date()}
         </div>
-        {hasScheduledTasks && (
-          <Space direction="vertical" size={4} style={{ marginTop: 4 }}>
-            {focusedMinutes > 0 && (
-              <Tag size="small" color="blue" style={{ margin: 0 }}>
-                {Math.floor(focusedMinutes / 60)}h {focusedMinutes % 60 > 0 ? `${focusedMinutes % 60}m` : ''}
-              </Tag>
-            )}
-            {admin > 0 && (
-              <Tag size="small" color="green" style={{ margin: 0 }}>
-                {Math.floor(admin / 60)}h {admin % 60 > 0 ? `${admin % 60}m` : ''}
-              </Tag>
-            )}
-          </Space>
+        {hasScheduledTasks && totalMinutes > 0 && (
+          <Tag size="small" color="blue" style={{ margin: 0, marginTop: 4 }}>
+            {Math.floor(totalMinutes / 60)}h {totalMinutes % 60 > 0 ? `${totalMinutes % 60}m` : ''}
+          </Tag>
         )}
         {!hasScheduledTasks && !isWeekend && hasWorkBlocks && !isPast && (
           <Tag size="small" color="gray" style={{ margin: 0, marginTop: 4 }}>

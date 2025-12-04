@@ -50,13 +50,17 @@ export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskIt
     })
   }, [task.id, task.actualDuration]) // Re-fetch when actualDuration changes
 
+  // Priority thresholds (importance × urgency scale is 1-100)
+  const HIGH_PRIORITY_THRESHOLD = 64   // 8×8 or higher
+  const MEDIUM_PRIORITY_THRESHOLD = 36 // 6×6 or higher
+
   const priorityScore = task.importance * task.urgency
-  const priorityColor = priorityScore >= 64 ? 'red' :
-    priorityScore >= 36 ? 'orange' :
+  const priorityColor = priorityScore >= HIGH_PRIORITY_THRESHOLD ? 'red' :
+    priorityScore >= MEDIUM_PRIORITY_THRESHOLD ? 'orange' :
       'green'
 
-  const priorityStatus = priorityScore >= 64 ? 'High Priority' :
-    priorityScore >= 36 ? 'Medium Priority' :
+  const priorityStatus = priorityScore >= HIGH_PRIORITY_THRESHOLD ? 'High Priority' :
+    priorityScore >= MEDIUM_PRIORITY_THRESHOLD ? 'Medium Priority' :
       'Low Priority'
 
   const handleSave = async () => {
@@ -314,11 +318,6 @@ export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskIt
                   onClick={() => {
                     logger.ui.debug('Time logging button clicked', {})
                     logger.ui.info('Time logging modal opened', {})
-                    // taskId: task.id,
-                    // taskName: task.name,
-                    // hasSteps: task.hasSteps,
-                    // })
-                    // Use WorkflowProgressTracker for workflows, TaskTimeLoggingModal for regular tasks
                     if (task.hasSteps) {
                       setShowProgressModal(true)
                     } else {

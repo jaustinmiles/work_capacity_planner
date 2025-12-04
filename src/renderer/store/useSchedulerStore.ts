@@ -87,13 +87,8 @@ const getTaskColor = (taskTypeId: string): string => {
     return userType.color
   }
 
-  // Fallback for legacy type IDs (backwards compatibility)
-  switch (taskTypeId) {
-    case 'focused': return '#3b82f6'
-    case 'admin': return '#f59e0b'
-    case 'personal': return '#10b981'
-    default: return '#6b7280'
-  }
+  // Default color for unknown types
+  return '#6b7280'
 }
 
 // Helper function to add colors to schedule items

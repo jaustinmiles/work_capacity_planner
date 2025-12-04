@@ -2,6 +2,8 @@ import React from 'react'
 import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
 import type { SchedulingDebugInfo } from '@shared/unified-scheduler'
+import { BlockConfigKind, WorkBlockType } from '@shared/enums'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 
 const { Title, Text } = Typography
 
@@ -10,9 +12,36 @@ interface SchedulingDebugPanelProps {
 }
 
 export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debugInfo }) => {
+  const userTypes = useSortedUserTaskTypes()
+
   if (!debugInfo) return null
 
   const hasIssues = debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0
+
+  // Color mapping for block types - supports both system types and user-defined types
+  const getBlockTypeColor = (blockType: string): string => {
+    // System block type colors (using enum values)
+    const systemColors: Record<string, string> = {
+      [BlockConfigKind.Combo]: 'purple',
+      [BlockConfigKind.System]: 'red',
+      [WorkBlockType.Blocked]: 'red',
+      [WorkBlockType.Sleep]: 'gray',
+    }
+
+    // Check system colors first
+    if (systemColors[blockType]) {
+      return systemColors[blockType]
+    }
+
+    // Check user-defined type colors
+    const userType = userTypes.find(t => t.id === blockType)
+    if (userType?.color) {
+      return userType.color
+    }
+
+    // Default color
+    return 'arcoblue'
+  }
 
   return (
     <Card style={{ marginTop: 16 }}>
@@ -164,14 +193,10 @@ export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debu
                     title: 'Type',
                     dataIndex: 'blockType',
                     render: (val) => {
-                      // System block types have fixed colors
-                      const systemColors: Record<string, string> = {
-                        combo: 'purple',
-                        system: 'red',
-                        blocked: 'red',
-                        sleep: 'gray',
-                      }
-                      return <Tag color={systemColors[val] || 'arcoblue'}>{val}</Tag>
+                      // Get user type name if available, otherwise use the block type value
+                      const userType = userTypes.find(t => t.id === val)
+                      const displayName = userType ? `${userType.emoji} ${userType.name}` : val
+                      return <Tag color={getBlockTypeColor(val)}>{displayName}</Tag>
                     },
                   },
                   {

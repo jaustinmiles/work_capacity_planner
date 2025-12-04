@@ -4,6 +4,8 @@ import { IconSoundFill, IconPause, IconStop, IconRefresh, IconRobot, IconUpload,
 import { getDatabase } from '../../services/database'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { isSingleTypeBlock, isComboBlock, isSystemBlock } from '@shared/user-task-types'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
+import { BlockConfigKind } from '@shared/enums'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 
@@ -41,6 +43,9 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // User-defined task types for dynamic type handling
+  const userTypes = useSortedUserTaskTypes()
 
   // Define stopRecording before using it in useEffect
   const stopRecording = useCallback(() => {
@@ -220,26 +225,28 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
         targetDate || dayjs().format('YYYY-MM-DD'),
       )
       // TODO: Remove this conversion once AI service is updated to return new format
-      // For now, convert from old format to new format
+      // For now, convert from old format to new format using user-defined types
+      const defaultTypeId = userTypes[0]?.id || 'default'
+      const secondTypeId = userTypes[1]?.id || userTypes[0]?.id || 'default'
       const convertedResults = results.map((result: any) => ({
         ...result,
         blocks: result.blocks.map((block: any) => ({
           ...block,
-          // Convert old 'type' string to new typeConfig format
+          // Convert old 'type' string to new typeConfig format using user-defined types
           typeConfig: block.typeConfig || (
             block.type === 'mixed' ? {
-              kind: 'combo' as const,
+              kind: BlockConfigKind.Combo,
               allocations: [
-                { typeId: 'focused', ratio: 0.5 },
-                { typeId: 'admin', ratio: 0.5 },
+                { typeId: defaultTypeId, ratio: 0.5 },
+                { typeId: secondTypeId, ratio: 0.5 },
               ],
             } : {
-              kind: 'single' as const,
-              typeId: block.type || 'focused',
+              kind: BlockConfigKind.Single,
+              typeId: block.type || defaultTypeId,
             }
           ),
           capacity: block.capacity ? {
-            totalMinutes: (block.capacity.focusMinutes || 0) + (block.capacity.admin || 0) + (block.capacity.personalMinutes || 0),
+            totalMinutes: block.capacity.totalMinutes || 0,
           } : undefined,
         })),
       }))
@@ -467,14 +474,15 @@ export function VoiceScheduleModal({ visible, onClose, onScheduleExtracted, targ
                                   isSystemBlock(block.typeConfig) ? 'gray' :
                                   isComboBlock(block.typeConfig) ? 'purple' :
                                   isSingleTypeBlock(block.typeConfig) ? (
-                                    block.typeConfig.typeId === 'focused' ? 'blue' :
-                                    block.typeConfig.typeId === 'admin' ? 'green' :
-                                    block.typeConfig.typeId === 'personal' ? 'orange' : 'blue'
+                                    userTypes.find(t => t.id === (block.typeConfig as { kind: 'single'; typeId: string }).typeId)?.color || 'blue'
                                   ) : 'gray'
                                 }>
                                   {isSystemBlock(block.typeConfig) ? block.typeConfig.systemType :
                                    isComboBlock(block.typeConfig) ? 'Combo' :
-                                   isSingleTypeBlock(block.typeConfig) ? block.typeConfig.typeId : 'unknown'}
+                                   isSingleTypeBlock(block.typeConfig) ? (
+                                     userTypes.find(t => t.id === (block.typeConfig as { kind: 'single'; typeId: string }).typeId)?.name ||
+                                     (block.typeConfig as { kind: 'single'; typeId: string }).typeId
+                                   ) : 'unknown'}
                                 </Tag>
                                 {isComboBlock(block.typeConfig) && (
                                   <Text type="secondary">

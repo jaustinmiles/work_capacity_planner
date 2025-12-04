@@ -8,39 +8,40 @@ import {
   isTaskTypeCompatibleWithBlock,
 } from './work-blocks-types'
 import { UnifiedWorkSession } from './unified-work-session-types'
-import { BlockTypeConfig, SystemBlockType } from './user-task-types'
+import { BlockTypeConfig } from './user-task-types'
+import { WorkBlockType, BlockConfigKind } from './enums'
 
 describe('work-blocks-types', () => {
   describe('BlockTypeConfig', () => {
     it('should support single type blocks', () => {
       const typeConfig: BlockTypeConfig = {
-        kind: 'single',
+        kind: BlockConfigKind.Single,
         typeId: 'focused',
       }
-      expect(typeConfig.kind).toBe('single')
+      expect(typeConfig.kind).toBe(BlockConfigKind.Single)
       expect(typeConfig.typeId).toBe('focused')
     })
 
     it('should support combo blocks with allocations', () => {
       const typeConfig: BlockTypeConfig = {
-        kind: 'combo',
+        kind: BlockConfigKind.Combo,
         allocations: [
           { typeId: 'focused', ratio: 0.7 },
           { typeId: 'admin', ratio: 0.3 },
         ],
       }
-      expect(typeConfig.kind).toBe('combo')
+      expect(typeConfig.kind).toBe(BlockConfigKind.Combo)
       expect(typeConfig.allocations).toHaveLength(2)
       expect(typeConfig.allocations[0].ratio + typeConfig.allocations[1].ratio).toBe(1)
     })
 
     it('should support system blocks', () => {
       const typeConfig: BlockTypeConfig = {
-        kind: 'system',
-        systemType: SystemBlockType.Blocked,
+        kind: BlockConfigKind.System,
+        systemType: WorkBlockType.Blocked,
       }
-      expect(typeConfig.kind).toBe('system')
-      expect(typeConfig.systemType).toBe('blocked')
+      expect(typeConfig.kind).toBe(BlockConfigKind.System)
+      expect(typeConfig.systemType).toBe(WorkBlockType.Blocked)
     })
   })
 
@@ -280,7 +281,7 @@ describe('work-blocks-types', () => {
         id: '1',
         startTime: '22:00',
         endTime: '06:00',
-        typeConfig: { kind: 'system', systemType: SystemBlockType.Sleep },
+        typeConfig: { kind: BlockConfigKind.System, systemType: WorkBlockType.Sleep },
         capacity: { totalMinutes: 480 },
       }
       expect(isTaskTypeCompatibleWithBlock(block, 'focused')).toBe(false)

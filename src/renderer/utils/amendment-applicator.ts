@@ -237,13 +237,14 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                 errorCount++
               }
             } else {
-              // Log time for task
+              // Log time for task - look up task's type from database
+              const task = await db.getTaskById(log.target.id)
               await db.createWorkSession({
                 taskId: log.target.id,
                 date: log.date ? log.date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
                 plannedMinutes: log.duration,
                 actualMinutes: log.duration,
-                type: '', // User-defined task type - empty means unspecified
+                type: task?.type || '',
               })
               successCount++
             }

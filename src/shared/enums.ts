@@ -61,6 +61,13 @@ export enum WorkBlockType {
   Sleep = 'sleep',
 }
 
+// Block configuration kinds - how a work block handles task types
+export enum BlockConfigKind {
+  Single = 'single',  // Block accepts only one specific task type
+  Combo = 'combo',    // Block accepts multiple types with ratio-based capacity allocation
+  System = 'system',  // Non-working block (blocked or sleep)
+}
+
 // Amendment types for voice amendments and brainstorm chat
 export enum AmendmentType {
   StatusUpdate = 'status_update',

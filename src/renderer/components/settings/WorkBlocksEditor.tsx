@@ -31,9 +31,10 @@ import {
   isSingleTypeBlock,
   isComboBlock,
   isSystemBlock,
-  SystemBlockType,
   AccumulatedTimeByType,
 } from '@shared/user-task-types'
+import { WorkBlockType, BlockConfigKind } from '@shared/enums'
+import { getCurrentTime } from '@shared/time-provider'
 import { generateUniqueId } from '@shared/step-id-utils'
 import { useSortedUserTaskTypes, useUserTaskTypeStore } from '@/renderer/store/useUserTaskTypeStore'
 import { Message } from '../common/Message'
@@ -157,15 +158,19 @@ export function WorkBlocksEditor({
     // Default to first user type if available, otherwise fallback to 'focused'
     const defaultTypeId = userTaskTypes.length > 0 ? userTaskTypes[0].id : 'focused'
     const typeConfig: BlockTypeConfig = {
-      kind: 'single',
+      kind: BlockConfigKind.Single,
       typeId: defaultTypeId,
     }
+    // Use current time (rounded to nearest hour) as default start time
+    const now = getCurrentTime()
+    const startTime = dayjs(now).startOf('hour').format('HH:mm')
+    const endTime = dayjs(now).startOf('hour').add(3, 'hour').format('HH:mm')
     const newBlock: WorkBlock = {
       id: generateUniqueId('block'),
-      startTime: '09:00',
-      endTime: '12:00',
+      startTime,
+      endTime,
       typeConfig,
-      capacity: calculateBlockCapacity(typeConfig, '09:00', '12:00'),
+      capacity: calculateBlockCapacity(typeConfig, startTime, endTime),
     }
     setBlocks([...blocks, newBlock])
   }
@@ -471,17 +476,17 @@ export function WorkBlocksEditor({
                           const firstType = userTaskTypes[0]?.id ?? 'focused'
                           const secondType = userTaskTypes[1]?.id ?? userTaskTypes[0]?.id ?? 'admin'
                           newTypeConfig = {
-                            kind: 'combo',
+                            kind: BlockConfigKind.Combo,
                             allocations: [
                               { typeId: firstType, ratio: 0.7 },
                               { typeId: secondType, ratio: 0.3 },
                             ],
                           }
                         } else if (value === 'system') {
-                          newTypeConfig = { kind: 'system', systemType: SystemBlockType.Blocked }
+                          newTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
                         } else {
                           // Single type block using the selected user type ID
-                          newTypeConfig = { kind: 'single', typeId: value }
+                          newTypeConfig = { kind: BlockConfigKind.Single, typeId: value }
                         }
                         handleUpdateBlock(block.id, {
                           typeConfig: newTypeConfig,

@@ -551,7 +551,7 @@ function getSchemaHint(path: string): string {
     // StepAddition/StepRemoval
     'workflowTarget': '   → SCHEMA: step_addition/step_removal uses "workflowTarget" NOT "target": { "type": "workflow", "name": "...", "confidence": 0.9 }\n',
     'stepName': '   → SCHEMA: Step operations require "stepName": "step name string"\n',
-    'stepType': '   → SCHEMA: step_addition requires "stepType": "focused" | "admin" | "personal"\n',
+    'stepType': '   → SCHEMA: step_addition requires "stepType": user-defined task type ID (see Available Task Types in context)\n',
 
     // DurationChange
     'newDuration': '   → SCHEMA: duration_change requires "newDuration": positive number (minutes)\n',
@@ -569,17 +569,17 @@ function getSchemaHint(path: string): string {
 
     // WorkPatternModification
     'operation': '   → SCHEMA: operation must be "add_block" | "add_meeting" | "remove_block" | "remove_meeting" for work_pattern_modification, or "create" | "update" | "delete" for work_session_edit\n',
-    'blockData.type': '   → SCHEMA: blockData.type must be "focused" | "admin" | "personal" | "mixed" | "flexible"\n',
+    'blockData.type': '   → SCHEMA: blockData.type must be a user-defined task type ID (see Available Task Types in context)\n',
 
     // DeadlineChange
     'newDeadline': '   → SCHEMA: deadline_change requires "newDeadline": ISO date string (e.g., "2025-11-30T17:00:00Z")\n',
 
     // TypeChange
-    'newType': '   → SCHEMA: type_change requires "newType": "focused" | "admin" | "personal"\n',
+    'newType': '   → SCHEMA: type_change requires "newType": user-defined task type ID (see Available Task Types in context)\n',
 
     // WorkflowCreation steps
     'steps': '   → SCHEMA: workflow_creation requires "steps": array of { name, duration, type, dependsOn?, asyncWaitTime? }\n',
-    'steps[': '   → SCHEMA: Each step needs: "name" (string), "duration" (positive number), "type" ("focused"|"admin"|"personal")\n',
+    'steps[': '   → SCHEMA: Each step needs: "name" (string), "duration" (positive number), "type" (user-defined task type ID)\n',
   }
 
   // Check for matches in the path

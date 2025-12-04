@@ -12,6 +12,7 @@
  */
 
 import { generateUniqueId } from './step-id-utils'
+import { WorkBlockType, BlockConfigKind } from './enums'
 
 // ============================================================================
 // Core Types
@@ -72,15 +73,6 @@ export interface UpdateUserTaskTypeInput {
 // ============================================================================
 
 /**
- * System-level block types that are not user-configurable.
- * These represent non-working time periods.
- */
-export enum SystemBlockType {
-  Blocked = 'blocked', // Time blocked off (unavailable)
-  Sleep = 'sleep', // Sleep/rest time
-}
-
-/**
  * Allocation of a specific type within a combo block.
  */
 export interface TypeAllocation {
@@ -92,14 +84,14 @@ export interface TypeAllocation {
  * Configuration for how a work block handles task types.
  *
  * Three kinds:
- * - 'single': Block accepts only one specific task type
- * - 'combo': Block accepts multiple types with ratio-based capacity allocation
- * - 'system': Non-working block (blocked or sleep)
+ * - BlockConfigKind.Single: Block accepts only one specific task type
+ * - BlockConfigKind.Combo: Block accepts multiple types with ratio-based capacity allocation
+ * - BlockConfigKind.System: Non-working block (blocked or sleep)
  */
 export type BlockTypeConfig =
-  | { kind: 'single'; typeId: string }
-  | { kind: 'combo'; allocations: TypeAllocation[] }
-  | { kind: 'system'; systemType: SystemBlockType }
+  | { kind: BlockConfigKind.Single; typeId: string }
+  | { kind: BlockConfigKind.Combo; allocations: TypeAllocation[] }
+  | { kind: BlockConfigKind.System; systemType: WorkBlockType }
 
 // ============================================================================
 // Utility Functions
@@ -266,32 +258,32 @@ export function validateCreateInput(input: CreateUserTaskTypeInput): {
 /**
  * Check if a block type config is a system block (blocked/sleep).
  */
-export function isSystemBlock(config: BlockTypeConfig): config is { kind: 'system'; systemType: SystemBlockType } {
-  return config.kind === 'system'
+export function isSystemBlock(config: BlockTypeConfig): config is { kind: BlockConfigKind.System; systemType: WorkBlockType } {
+  return config.kind === BlockConfigKind.System
 }
 
 /**
  * Check if a block type config is a single-type block.
  */
-export function isSingleTypeBlock(config: BlockTypeConfig): config is { kind: 'single'; typeId: string } {
-  return config.kind === 'single'
+export function isSingleTypeBlock(config: BlockTypeConfig): config is { kind: BlockConfigKind.Single; typeId: string } {
+  return config.kind === BlockConfigKind.Single
 }
 
 /**
  * Check if a block type config is a combo block.
  */
-export function isComboBlock(config: BlockTypeConfig): config is { kind: 'combo'; allocations: TypeAllocation[] } {
-  return config.kind === 'combo'
+export function isComboBlock(config: BlockTypeConfig): config is { kind: BlockConfigKind.Combo; allocations: TypeAllocation[] } {
+  return config.kind === BlockConfigKind.Combo
 }
 
 /**
  * Get all type IDs referenced in a block type config.
  */
 export function getTypeIdsFromConfig(config: BlockTypeConfig): string[] {
-  if (config.kind === 'single') {
+  if (config.kind === BlockConfigKind.Single) {
     return [config.typeId]
   }
-  if (config.kind === 'combo') {
+  if (config.kind === BlockConfigKind.Combo) {
     return config.allocations.map((a) => a.typeId)
   }
   return []
@@ -301,15 +293,15 @@ export function getTypeIdsFromConfig(config: BlockTypeConfig): string[] {
  * Check if a task type is compatible with a block type config.
  */
 export function isTypeCompatibleWithBlock(taskTypeId: string, config: BlockTypeConfig): boolean {
-  if (config.kind === 'system') {
+  if (config.kind === BlockConfigKind.System) {
     return false // System blocks don't accept tasks
   }
 
-  if (config.kind === 'single') {
+  if (config.kind === BlockConfigKind.Single) {
     return config.typeId === taskTypeId
   }
 
-  if (config.kind === 'combo') {
+  if (config.kind === BlockConfigKind.Combo) {
     return config.allocations.some((a) => a.typeId === taskTypeId)
   }
 
@@ -321,15 +313,15 @@ export function isTypeCompatibleWithBlock(taskTypeId: string, config: BlockTypeC
  * Returns 1.0 for single-type blocks, the ratio for combo blocks, 0 for incompatible.
  */
 export function getTypeRatioInBlock(taskTypeId: string, config: BlockTypeConfig): number {
-  if (config.kind === 'system') {
+  if (config.kind === BlockConfigKind.System) {
     return 0
   }
 
-  if (config.kind === 'single') {
+  if (config.kind === BlockConfigKind.Single) {
     return config.typeId === taskTypeId ? 1.0 : 0
   }
 
-  if (config.kind === 'combo') {
+  if (config.kind === BlockConfigKind.Combo) {
     const allocation = config.allocations.find((a) => a.typeId === taskTypeId)
     return allocation?.ratio ?? 0
   }
@@ -363,7 +355,7 @@ export function createUserTaskType(input: CreateUserTaskTypeInput): UserTaskType
  * Create a single-type block config.
  */
 export function createSingleTypeConfig(typeId: string): BlockTypeConfig {
-  return { kind: 'single', typeId }
+  return { kind: BlockConfigKind.Single, typeId }
 }
 
 /**
@@ -375,14 +367,14 @@ export function createComboTypeConfig(allocations: TypeAllocation[]): BlockTypeC
     throw new Error('Invalid type allocations: must have 2+ types with ratios summing to 1.0')
   }
 
-  return { kind: 'combo', allocations }
+  return { kind: BlockConfigKind.Combo, allocations }
 }
 
 /**
  * Create a system block config.
  */
-export function createSystemBlockConfig(systemType: SystemBlockType): BlockTypeConfig {
-  return { kind: 'system', systemType }
+export function createSystemBlockConfig(systemType: WorkBlockType): BlockTypeConfig {
+  return { kind: BlockConfigKind.System, systemType }
 }
 
 // ============================================================================
@@ -425,15 +417,15 @@ export function deserializeBlockTypeConfig(json: string): BlockTypeConfig {
   const parsed = JSON.parse(json) as BlockTypeConfig
 
   // Validate the parsed object has expected shape
-  if (parsed.kind === 'single' && typeof parsed.typeId === 'string') {
+  if (parsed.kind === BlockConfigKind.Single && typeof parsed.typeId === 'string') {
     return parsed
   }
 
-  if (parsed.kind === 'combo' && Array.isArray(parsed.allocations)) {
+  if (parsed.kind === BlockConfigKind.Combo && Array.isArray(parsed.allocations)) {
     return parsed
   }
 
-  if (parsed.kind === 'system' && (parsed.systemType === 'blocked' || parsed.systemType === 'sleep')) {
+  if (parsed.kind === BlockConfigKind.System && (parsed.systemType === WorkBlockType.Blocked || parsed.systemType === WorkBlockType.Sleep)) {
     return parsed
   }
 

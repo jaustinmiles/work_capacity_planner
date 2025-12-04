@@ -8,8 +8,8 @@ import {
   userTaskTypeToRecord,
   recordToUserTaskType,
   BlockTypeConfig,
-  SystemBlockType,
 } from '../shared/user-task-types'
+import { WorkBlockType, BlockConfigKind } from '../shared/enums'
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime } from '../shared/time-provider'
@@ -25,7 +25,7 @@ const prisma = new PrismaClient()
 const dbLogger = getScopedLogger(LogScope.Database)
 
 // Default typeConfig for system blocks
-const DEFAULT_TYPE_CONFIG: BlockTypeConfig = { kind: 'system', systemType: SystemBlockType.Blocked }
+const DEFAULT_TYPE_CONFIG: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
 
 /**
  * Parse typeConfig from database JSON string.

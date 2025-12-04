@@ -19,13 +19,13 @@ import {
   isSingleTypeBlock,
   isComboBlock,
   getTypeRatioInBlock,
-  SystemBlockType,
   createEmptyAccumulatedTime,
 } from './user-task-types'
+import { WorkBlockType, BlockConfigKind } from './enums'
 
 // Re-export for convenience
 export type { BlockTypeConfig } from './user-task-types'
-export { SystemBlockType } from './user-task-types'
+export { WorkBlockType } from './enums'
 
 /**
  * A work block represents a time slot in a day's schedule.
@@ -259,7 +259,7 @@ export function createSingleTypeBlock(
     id,
     startTime,
     endTime,
-    typeConfig: { kind: 'single', typeId },
+    typeConfig: { kind: BlockConfigKind.Single, typeId },
   }
 }
 
@@ -276,7 +276,7 @@ export function createComboBlock(
     id,
     startTime,
     endTime,
-    typeConfig: { kind: 'combo', allocations },
+    typeConfig: { kind: BlockConfigKind.Combo, allocations },
   }
 }
 
@@ -287,12 +287,12 @@ export function createSystemBlock(
   id: string,
   startTime: string,
   endTime: string,
-  systemType: SystemBlockType,
+  systemType: WorkBlockType,
 ): WorkBlock {
   return {
     id,
     startTime,
     endTime,
-    typeConfig: { kind: 'system', systemType },
+    typeConfig: { kind: BlockConfigKind.System, systemType },
   }
 }
