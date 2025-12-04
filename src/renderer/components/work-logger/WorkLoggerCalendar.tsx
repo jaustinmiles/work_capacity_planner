@@ -158,6 +158,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
+    return undefined
   }, [dragState, sessions, selectedDate, dirtyIds])
 
   // Save dirty work sessions

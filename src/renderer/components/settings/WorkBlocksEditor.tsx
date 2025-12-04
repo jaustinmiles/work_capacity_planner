@@ -157,7 +157,7 @@ export function WorkBlocksEditor({
 
   const handleAddBlock = () => {
     // Default to first user type if available, otherwise fallback to 'focused'
-    const defaultTypeId = userTaskTypes.length > 0 ? userTaskTypes[0].id : 'focused'
+    const defaultTypeId = userTaskTypes.length > 0 ? userTaskTypes[0]!.id : 'focused'
     const typeConfig: BlockTypeConfig = {
       kind: BlockConfigKind.Single,
       typeId: defaultTypeId,

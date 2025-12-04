@@ -152,7 +152,7 @@ ipcMain.handle('db:deleteTimeSinkSession', async (_event: IpcMainInvokeEvent, id
   return await db.deleteTimeSinkSession(id)
 })
 
-ipcMain.handle('db:getTasks', async (_event, includeArchived = false) => {
+ipcMain.handle('db:getTasks', async (_event: IpcMainInvokeEvent, includeArchived = false) => {
   mainLogger.info('Getting tasks from database...', { includeArchived })
   const tasks = await db.getTasks(includeArchived)
   mainLogger.info(`Found ${tasks.length} tasks`)
@@ -504,7 +504,7 @@ ipcMain.handle('speech:getSchedulingSettings', async () => {
 })
 
 // Feedback handlers
-ipcMain.handle('feedback:save', async (_event, feedback) => {
+ipcMain.handle('feedback:save', async (_event: IpcMainInvokeEvent, feedback: unknown) => {
   const fs = await import('fs/promises')
   // Use process.cwd() for development, which should be the project root
   const projectRoot = process.cwd()
@@ -563,9 +563,10 @@ ipcMain.handle('feedback:save', async (_event, feedback) => {
     })
   } else if (feedback && typeof feedback === 'object' && 'type' in feedback) {
     // Check for duplicates before adding
+    const feedbackItem = feedback as { timestamp?: string; sessionId?: string }
     const isDuplicate = allFeedback.some(existing =>
-      existing.timestamp === feedback.timestamp &&
-      existing.sessionId === feedback.sessionId,
+      existing.timestamp === feedbackItem.timestamp &&
+      existing.sessionId === feedbackItem.sessionId,
     )
     if (!isDuplicate) {
       allFeedback.push(feedback)
@@ -607,7 +608,7 @@ ipcMain.handle('feedback:load', async () => {
   }
 })
 
-ipcMain.handle('feedback:update', async (_event, updatedFeedback) => {
+ipcMain.handle('feedback:update', async (_event: IpcMainInvokeEvent, updatedFeedback: unknown) => {
   const fs = await import('fs/promises')
   const projectRoot = process.cwd()
   const feedbackPath = path.join(projectRoot, 'context', 'feedback.json')
@@ -657,7 +658,7 @@ ipcMain.handle('app:getSessionId', () => {
 })
 
 // Logging handler - forward renderer logs
-ipcMain.on('log:message', (_event, { level, scope, message, data }) => {
+ipcMain.on('log:message', (_event: unknown, { level, scope, message, data }: { level: string; scope?: string; message: string; data?: Record<string, unknown> }) => {
   // Add scope to context if provided
   const contextData = scope ? { ...data, scope } : data
 

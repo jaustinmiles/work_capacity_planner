@@ -64,7 +64,7 @@ export function generateUniqueId(prefix: string): string {
     // Fallback: use getRandomValues
     const array = new Uint32Array(2)
     crypto.getRandomValues(array)
-    random = array[0].toString(36) + array[1].toString(36).substring(0, 5)
+    random = array[0]!.toString(36) + array[1]!.toString(36).substring(0, 5)
   } else {
     // Final fallback for test environments without crypto (should not happen in production)
     random = Math.random().toString(36).substring(2, 11)
@@ -135,9 +135,9 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
       // Try to parse "step N" or "Step N" references
       const stepNumberMatch = dep.match(/^(?:step|Step)\s+(\d+)$/i)
       if (stepNumberMatch) {
-        const stepIndex = parseInt(stepNumberMatch[1], 10) - 1 // Convert to 0-based index
+        const stepIndex = parseInt(stepNumberMatch[1]!, 10) - 1 // Convert to 0-based index
         if (stepIndex >= 0 && stepIndex < steps.length) {
-          return steps[stepIndex].id
+          return steps[stepIndex]!.id
         }
       }
 
@@ -145,9 +145,9 @@ export function mapDependenciesToIds<T extends { name: string; id: string; depen
       // where the workflow name is prepended to "step N"
       const workflowStepMatch = dep.match(/^(.+?)\s+step\s+(\d+)$/i)
       if (workflowStepMatch) {
-        const stepIndex = parseInt(workflowStepMatch[2], 10) - 1
+        const stepIndex = parseInt(workflowStepMatch[2]!, 10) - 1
         if (stepIndex >= 0 && stepIndex < steps.length) {
-          return steps[stepIndex].id
+          return steps[stepIndex]!.id
         }
       }
 

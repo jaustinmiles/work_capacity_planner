@@ -70,7 +70,7 @@ export function parseAIResponse(response: string): { amendments: unknown; rawTex
 
   // Look for JSON code block
   const codeBlockMatch = response.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/)
-  if (codeBlockMatch) {
+  if (codeBlockMatch && codeBlockMatch[1]) {
     try {
       const amendments = JSON.parse(codeBlockMatch[1])
       const rawText = response.replace(codeBlockMatch[0], '').trim()
@@ -80,7 +80,7 @@ export function parseAIResponse(response: string): { amendments: unknown; rawTex
       return { amendments }
     } catch (e) {
       logger.system.debug('Failed to parse JSON from code block', {
-        codeBlockContent: codeBlockMatch[1].substring(0, 200),
+        codeBlockContent: codeBlockMatch[1]!.substring(0, 200),
         error: e instanceof Error ? e.message : String(e),
       }, 'ai-parse-codeblock-failed')
     }
@@ -187,6 +187,7 @@ export function createUserErrorReport(result: ValidationLoopResult): string {
 
   if (result.validationResults.length > 0) {
     const lastValidation = result.validationResults[result.validationResults.length - 1]
+    if (!lastValidation) return report // Satisfy noUncheckedIndexedAccess
 
     if (lastValidation.errors.length > 0) {
       report += 'The following issues were found:\n\n'

@@ -29,13 +29,6 @@ export class AmendmentParser {
     /(.+?)\s+is\s+(?:now\s+)?(complete[d]?|done|finished|in[- ]progress|paused)/i,
   ]
 
-  private readonly TIME_LOG_PATTERNS = [
-    /(?:i\s+)?(?:spent|worked)\s+(.+?)\s+(?:on|for)\s+(?:the\s+)?(.+)/i,
-    /(?:worked\s+on)\s+(.+?)\s+(?:for|from)\s+(.+)/i,
-    /(?:the\s+)?(.+?)\s+took\s+(.+?)(?:\s+to complete)?/i,
-    /(?:the\s+)?(.+?)\s+(?:ran|went)\s+(.+?)\s+over/i,
-  ]
-
   private readonly NOTE_PATTERNS = [
     /(?:add\s+)?note(?:\s+to\s+(.+?))?:\s*(.+)/i,
     /(?:add|update|set)\s+(?:a\s+)?(?:note|comment|memo)\s+(?:to|for|on)\s+(.+?):\s*(.+)/i,
@@ -127,13 +120,13 @@ export class AmendmentParser {
     let jobContextInfo = ''
     if (context.jobContexts && context.jobContexts.length > 0) {
       const primaryContext = context.jobContexts[0]
-      if (primaryContext.role) {
+      if (primaryContext && primaryContext.role) {
         jobContextInfo += `\nUser Role: ${primaryContext.role}\n`
       }
-      if (primaryContext.context) {
+      if (primaryContext && primaryContext.context) {
         jobContextInfo += `Job Context: ${primaryContext.context}\n`
       }
-      if (primaryContext.jargonDictionary) {
+      if (primaryContext && primaryContext.jargonDictionary) {
         const jargon = Object.entries(primaryContext.jargonDictionary)
           .map(([term, def]) => `  - ${term}: ${def}`)
           .join('\n')
@@ -396,7 +389,6 @@ IMPORTANT:
 
       // Adjust confidence if we removed duplicates - significant reduction as this indicates misunderstanding
       if (uniqueAmendments.length < result.amendments.length) {
-        const _duplicateCount = result.amendments.length - uniqueAmendments.length
         result.confidence = result.confidence * 0.7 // Significant reduction when duplicates were found
       }
 
@@ -540,7 +532,7 @@ IMPORTANT:
         const entityName = match[1]?.trim()
         const statusText = match[2]?.trim() || match[1]?.trim()
 
-        if (!entityName) continue
+        if (!entityName || !statusText) continue
 
         const target = this.findTarget(entityName, context)
         const newStatus = this.parseStatus(statusText)
@@ -698,7 +690,7 @@ IMPORTANT:
 
     // Check if it's referring to a step
     const stepMatch = normalizedName.match(/(?:step\s+)?(.+?)\s+step/i)
-    if (stepMatch) {
+    if (stepMatch && stepMatch[1]) {
       return this.findStepTarget(stepMatch[1], context)
     }
 
@@ -730,8 +722,8 @@ IMPORTANT:
     // Sort by score and return best match
     candidates.sort((a, b) => b.score - a.score)
 
-    if (candidates.length > 0) {
-      const best = candidates[0]
+    const best = candidates[0]
+    if (best) {
       return {
         type: best.type,
         id: best.id,
@@ -817,8 +809,8 @@ IMPORTANT:
     // Parse duration (e.g., "2 hours", "30 minutes")
     const durationMatch = phrase.match(/(\d+(?:\.\d+)?)\s*(\w+)/i)
     if (durationMatch) {
-      const value = parseFloat(durationMatch[1])
-      const unit = durationMatch[2].toLowerCase()
+      const value = parseFloat(durationMatch[1]!)
+      const unit = durationMatch[2]!.toLowerCase()
 
       for (const [key, multiplier] of Object.entries(this.TIME_UNITS)) {
         if (unit.startsWith(key.substring(0, 3))) {
@@ -830,7 +822,7 @@ IMPORTANT:
 
     // Parse time range (e.g., "from 2 to 4 PM" or "2pm to 4pm")
     const rangeMatch = phrase.match(/(?:from\s+)?(\d{1,2}(?::\d{2})?(?:\s*[ap]m)?)\s+to\s+(\d{1,2}(?::\d{2})?(?:\s*[ap]m)?)/i)
-    if (rangeMatch) {
+    if (rangeMatch && rangeMatch[1] && rangeMatch[2]) {
       result.startTime = this.parseTime(rangeMatch[1])
       result.endTime = this.parseTime(rangeMatch[2])
       if (result.startTime && result.endTime) {
@@ -853,10 +845,9 @@ IMPORTANT:
    * Parse a time string into a Date
    */
   private parseTime(timeStr: string): Date | undefined {
-    const _now = new Date()
     const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*([ap]m)?/i)
 
-    if (match) {
+    if (match && match[1]) {
       let hours = parseInt(match[1])
       const minutes = parseInt(match[2] || '0')
       const meridiem = match[3]?.toLowerCase()
@@ -920,7 +911,7 @@ IMPORTANT:
       }
     }
 
-    if (!action && words.length > 0) {
+    if (!action && words.length > 0 && words[0]) {
       action = words[0]
       confidence = 0.3
     }

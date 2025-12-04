@@ -403,7 +403,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
           const addition = amendment as StepAddition
           if (addition.workflowTarget.id) {
             try {
-              const __updatedWorkflow = await db.addStepToWorkflow(addition.workflowTarget.id, {
+              await db.addStepToWorkflow(addition.workflowTarget.id, {
                 name: addition.stepName,
                 duration: addition.duration,
                 type: addition.stepType,
@@ -442,6 +442,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
                 if (stepIndex !== -1) {
                   const removedStep = workflow.steps[stepIndex]
+                  if (!removedStep) continue // Satisfy noUncheckedIndexedAccess
                   // Remove the step
                   const updatedSteps = workflow.steps.filter((_, index) => index !== stepIndex)
 
@@ -508,6 +509,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
                   if (stepIndex !== -1) {
                     const step = workflow.steps[stepIndex]
+                    if (!step) continue // Satisfy noUncheckedIndexedAccess
 
                     // Apply forward dependency changes using shared utility
                     applyForwardDependencyChanges(step, change, workflow.steps)
@@ -788,6 +790,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                     // Update step properties - schema supports importance and urgency for steps
                     const updatedSteps = [...workflow.steps]
                     const step = updatedSteps[stepIndex]
+                    if (!step) continue // Satisfy noUncheckedIndexedAccess
 
                     // Apply the priority changes that are supported
                     if (change.importance !== undefined) {
@@ -849,8 +852,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
                   if (stepIndex !== -1) {
                     const updatedSteps = [...workflow.steps]
+                    const existingStep = updatedSteps[stepIndex]
+                    if (!existingStep) continue // Satisfy noUncheckedIndexedAccess
                     updatedSteps[stepIndex] = {
-                      ...updatedSteps[stepIndex],
+                      ...existingStep,
                       type: change.newType,
                     }
 

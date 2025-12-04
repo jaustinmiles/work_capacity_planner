@@ -1,5 +1,6 @@
-import { Task } from './types'
+import { Task, TaskStep } from './types'
 import { SequencedTask } from './sequencing-types'
+import { TaskStatus, StepStatus } from './enums'
 
 /**
  * Creates a default Task object with all required fields
@@ -20,9 +21,10 @@ export function createMockTask(overrides: Partial<Task> = {}): Task {
     createdAt: new Date(),
     updatedAt: new Date(),
     hasSteps: false,
-    overallStatus: 'not_started',
+    overallStatus: TaskStatus.NotStarted,
     criticalPathDuration: 60,
     worstCaseDuration: 60,
+    archived: false,
     ...overrides,
   }
 }
@@ -32,16 +34,16 @@ export function createMockTask(overrides: Partial<Task> = {}): Task {
  * Can be customized by passing partial overrides
  */
 export function createMockSequencedTask(overrides: Partial<SequencedTask> = {}): SequencedTask {
-  const steps = overrides.steps || [
+  const steps: TaskStep[] = overrides.steps || [
     {
       id: 'step-1',
       taskId: overrides.id || 'task-1',
       name: 'Step 1',
       duration: 30,
-      type: 'focused' as const,
+      type: 'focused',
       dependsOn: [],
       asyncWaitTime: 0,
-      status: 'pending' as const,
+      status: StepStatus.Pending,
       stepIndex: 0,
       percentComplete: 0,
     },
@@ -50,10 +52,10 @@ export function createMockSequencedTask(overrides: Partial<SequencedTask> = {}):
       taskId: overrides.id || 'task-1',
       name: 'Step 2',
       duration: 30,
-      type: 'admin' as const,
+      type: 'admin',
       dependsOn: ['step-1'],
       asyncWaitTime: 0,
-      status: 'pending' as const,
+      status: StepStatus.Pending,
       stepIndex: 1,
       percentComplete: 0,
     },
@@ -76,10 +78,11 @@ export function createMockSequencedTask(overrides: Partial<SequencedTask> = {}):
     createdAt: new Date(),
     updatedAt: new Date(),
     hasSteps: true,
-    overallStatus: 'not_started',
+    overallStatus: TaskStatus.NotStarted,
     criticalPathDuration,
     worstCaseDuration: criticalPathDuration * 1.5,
     steps,
+    archived: false,
     ...overrides,
   }
 }

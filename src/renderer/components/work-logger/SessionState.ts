@@ -34,7 +34,9 @@ export interface PlannedSessionItem {
 
 // Convert time string (HH:mm) to minutes since midnight
 export function timeToMinutes(timeStr: string): number {
-  const [hours, minutes] = timeStr.split(':').map(Number)
+  const parts = timeStr.split(':').map(Number)
+  const hours = parts[0] ?? 0
+  const minutes = parts[1] ?? 0
   return hours * 60 + minutes
 }
 

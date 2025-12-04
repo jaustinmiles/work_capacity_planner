@@ -17,7 +17,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "typecheck": "tsc --noEmit -p tsconfig.dev.json",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix --quiet",
     "test": "vitest",

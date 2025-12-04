@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Card, Typography, Space, Tag, Button, Badge, Tooltip } from '@arco-design/web-react'
 import { IconScan } from '@arco-design/web-react/icon'
 // import { TaskType } from '@shared/enums' // Not used in this component
@@ -225,11 +225,6 @@ export function EisenhowerScatter({
     }
 
     // Start scanning
-    const _tasksOnly = allItemsForScatter.filter(item => !item.isStep)
-    const _stepsOnly = allItemsForScatter.filter(item => item.isStep)
-
-    // Calculate and log the threshold that will be used
-    const _scanThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
 
     // LOGGER_REMOVED: logger.info('🔍 STARTING DIAGONAL SCAN', {
       // category: 'eisenhower-scan',
@@ -289,10 +284,6 @@ export function EisenhowerScatter({
 
       // Find tasks within threshold of scan line
       const currentHighlighted: string[] = []
-
-      // Calculate a dynamic threshold - increase to 25% for better detection
-      // This gives us a wider band around the diagonal line
-      const _dynamicThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
 
       // Log threshold calculation on first frame
       if (frameNum === 1) {
@@ -460,7 +451,7 @@ export function EisenhowerScatter({
         }
       }
 
-      setHighlightedTaskId(currentHighlighted.length > 0 ? currentHighlighted[0] : null)
+      setHighlightedTaskId(currentHighlighted.length > 0 ? (currentHighlighted[0] ?? null) : null)
 
       // Debug logging for animation progress
       if (progress % 0.1 < 0.02) { // Log every ~10% progress
@@ -473,35 +464,7 @@ export function EisenhowerScatter({
       }
 
       if (progress >= 2.0) {
-        // Animation complete - log final results
-        const _scannedTasksInfo = Array.from(scannedTaskIdsRef.current).map(taskId => {
-          const task = allItemsForScatter.find(t => t.id === taskId)
-          return task ? {
-            name: task.name,
-            importance: task.importance,
-            urgency: task.urgency,
-          } : null
-        }).filter(Boolean)
-
-        // LOGGER_REMOVED: logger.error('[SCAN-DEBUG] 🏁 SCAN COMPLETE', {
-          // totalFrames: frameNum,
-          // scannedCount: scannedTaskIdsRef.current.size,
-          // scannedTasks: scannedTasksInfo,
-          // animationDuration: elapsed,
-          // finalScannedTasksState: scannedTasks,
-          // timestamp: new Date().toISOString(),
-          // finalProgress: progress,
-        // })
-
-        if (scannedTaskIdsRef.current.size === 0) {
-          const _threshold = Math.min(containerSize.width, containerSize.height) * 0.15
-          // LOGGER_REMOVED: logger.warn('⚠️ No tasks found during diagonal scan', {
-            // category: 'eisenhower-scan',
-            // message: `No tasks are positioned near the diagonal line (threshold: ${Math.round(threshold)}px)`,
-            // containerSize,
-            // totalTasksScanned: allItemsForScatter.length,
-          // })
-        }
+        // Animation complete
         setIsScanning(false)
         setScanProgress(0)
         setHighlightedTaskId(null)
@@ -687,8 +650,12 @@ export function EisenhowerScatter({
             {/* Task clusters and plotting logic would go here */}
             {/* This would need the full complex rendering logic from the original component */}
             {Array.from(taskClusters.entries()).map(([posKey, clusterTasks]) => {
-              const [x, y] = posKey.split('-').map(Number)
-              const task = clusterTasks[0]
+              const posParts = posKey.split('-').map(Number)
+              const x = posParts[0] ?? 0
+              const y = posParts[1] ?? 0
+              const firstTask = clusterTasks[0]
+              if (!firstTask) return null // Satisfy noUncheckedIndexedAccess
+              const task = firstTask // Create a narrowed const for use in callbacks
               const isHighlighted = highlightedTaskId === task.id
 
               return (
@@ -701,7 +668,7 @@ export function EisenhowerScatter({
                     transform: 'translate(-50%, -50%)',
                     cursor: 'pointer',
                   }}
-                  onClick={() => onSelectTask(task)}
+                  onClick={() => onSelectTask(task as Task)}
                 >
                   {clusterTasks.length > 1 ? (
                     <Tooltip

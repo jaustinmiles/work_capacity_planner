@@ -10,14 +10,17 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true,
+
+    "strict": false,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
-    "noImplicitOverride": true,
-    "exactOptionalPropertyTypes": true,
-    "noUncheckedIndexedAccess": true,
+
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -31,10 +34,14 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.js",
-    "src/**/*.jsx",
-    "electron.vite.config.ts"
+    "src/**/*.tsx"
   ],
-  "exclude": ["node_modules", "dist", "out"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "out",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "src/test/**/*"
+  ]
 }

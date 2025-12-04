@@ -109,7 +109,7 @@ Add these to your local package.json scripts section for Windows compatibility:
   "scripts": {
     "start:windows": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"timeout /t 5 /nobreak >nul && npm run electron:dev\"",
     "restart:windows": "taskkill /F /IM electron.exe 2>nul & npm run start:windows",
-    "typecheck:count:windows": "npx tsc --noEmit -p tsconfig.prod.json 2>&1 | findstr /C:\"error TS\" | find /c /v \"\"",
+    "typecheck:count:windows": "npx tsc --noEmit 2>&1 | findstr /C:\"error TS\" | find /c /v \"\"",
     "postinstall:windows": "node scripts/dev/setup-git-hooks.js || echo Git hooks setup failed"
   }
 }

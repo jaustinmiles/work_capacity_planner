@@ -194,7 +194,7 @@ export function DailyScheduleView({ date, scheduledItems, workPattern, style }: 
 
                   {block.items.length > 0 && (
                     <div style={{ marginLeft: 24 }}>
-                      {block.items.map(item => (
+                      {block.items.map((item: ScheduledItem) => (
                         <div
                           key={item.id}
                           style={{

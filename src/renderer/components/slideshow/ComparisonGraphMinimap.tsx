@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { ComparisonGraph, ItemId, getTransitiveClosure } from '../../utils/comparison-graph'
 import { ComparisonType } from '@/shared/constants'
 

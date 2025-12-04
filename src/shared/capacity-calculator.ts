@@ -25,8 +25,12 @@ export interface BlockCapacity {
  * Calculate duration in minutes between two time strings
  */
 function calculateDuration(startTime: string, endTime: string): number {
-  const [startHour, startMin] = startTime.split(':').map(Number)
-  const [endHour, endMin] = endTime.split(':').map(Number)
+  const startParts = startTime.split(':').map(Number)
+  const endParts = endTime.split(':').map(Number)
+  const startHour = startParts[0] ?? 0
+  const startMin = startParts[1] ?? 0
+  const endHour = endParts[0] ?? 0
+  const endMin = endParts[1] ?? 0
   return endHour * 60 + endMin - (startHour * 60 + startMin)
 }
 

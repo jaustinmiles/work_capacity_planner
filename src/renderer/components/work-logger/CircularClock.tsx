@@ -322,6 +322,7 @@ export function CircularClock({
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
+    return undefined
   }, [dragState, creatingSession, onSessionUpdate, onSessionCreate])
 
   return (
@@ -534,8 +535,12 @@ export function CircularClock({
         {/* Meetings as arcs on outer ring */}
         {meetings.map((meeting) => {
           // Convert HH:MM to minutes
-          const [startH, startM] = meeting.startTime.split(':').map(Number)
-          const [endH, endM] = meeting.endTime.split(':').map(Number)
+          const startParts = meeting.startTime.split(':').map(Number)
+          const endParts = meeting.endTime.split(':').map(Number)
+          const startH = startParts[0] ?? 0
+          const startM = startParts[1] ?? 0
+          const endH = endParts[0] ?? 0
+          const endM = endParts[1] ?? 0
           const startMinutes = startH * 60 + startM
           const endMinutes = endH * 60 + endM
 

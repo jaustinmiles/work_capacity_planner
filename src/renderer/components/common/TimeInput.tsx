@@ -83,7 +83,7 @@ export function TimeInput({
 
     // Handle am/pm notation
     const amPmMatch = processedValue.match(/^(\d{1,2}):?(\d{0,2})\s*(am|pm)$/)
-    if (amPmMatch) {
+    if (amPmMatch && amPmMatch[1] && amPmMatch[3]) {
       let hours = parseInt(amPmMatch[1])
       const minutes = amPmMatch[2] || '00'
       const period = amPmMatch[3]
