@@ -1,10 +1,42 @@
 # CLAUDE.md - Development Guidelines
 
+## 🚨 CRITICAL: Database Operations
+
+**NEVER run these commands directly via Bash:**
+- `npx prisma migrate reset` - **DESTROYS ALL DATA**
+- `npx prisma db push --force-reset` - **DESTROYS ALL DATA**
+- Any raw SQL `DROP DATABASE` / `DELETE FROM` statements
+
+**ALWAYS use MCP database tools instead:**
+```bash
+# Create backup before any schema changes
+mcp__database__backup_database
+
+# Run migrations SAFELY (auto-backs up first)
+mcp__database__safe_migrate --name "migration_name"
+
+# Check migration status (read-only)
+mcp__database__migration_status
+
+# List available backups
+mcp__database__list_backups
+
+# Restore from backup (requires confirm: true)
+mcp__database__restore_database --backupName "backup_name.db" --confirm true
+
+# Generate Prisma client (no DB changes)
+mcp__database__generate_client
+```
+
+**Why?** Claude has destroyed user data by running `prisma migrate reset` without permission. The MCP tools enforce mandatory backups before any destructive operation.
+
+---
+
 ## Core Principles
 
 1. **Quality First** - All tests, lint, and typecheck must pass before pushing
 2. **Clean Code Always** - Remove dead code immediately, no commented-out code, no unused exports
-3. **Use MCP Tools** - Git operations through MCP when available (mcp__git__*)
+3. **Use MCP Tools** - Git and database operations through MCP when available
 4. **Type Safety** - No `any` types, use enums over string literals
 5. **Small Commits** - Commit frequently with clear messages
 

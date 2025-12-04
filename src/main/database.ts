@@ -28,7 +28,7 @@ import { WorkBlockType, BlockConfigKind } from '../shared/enums'
 import { LogQueryOptionsInternal, LogEntryInternal, SessionLogSummary } from '../shared/log-types'
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
-import { getCurrentTime } from '../shared/time-provider'
+import { getCurrentTime, getLocalDateString } from '../shared/time-provider'
 import * as crypto from 'crypto'
 import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
@@ -2221,6 +2221,35 @@ export class DatabaseService {
     }))
   }
 
+  /**
+   * Find the work block that contains a given time on a given date.
+   * Used to associate work sessions with their containing blocks.
+   */
+  async findBlockAtTime(date: string, timeMinutes: number): Promise<{ id: string } | null> {
+    const pattern = await this.getWorkPattern(date)
+    if (!pattern?.blocks) return null
+
+    for (const block of pattern.blocks) {
+      // Parse block times (format: "HH:MM")
+      const [startHour, startMin] = block.startTime.split(':').map(Number)
+      const [endHour, endMin] = block.endTime.split(':').map(Number)
+      const blockStart = startHour * 60 + startMin
+      const blockEnd = endHour * 60 + endMin
+
+      // Handle blocks that cross midnight
+      if (blockEnd < blockStart) {
+        if (timeMinutes >= blockStart || timeMinutes < blockEnd) {
+          return { id: block.id }
+        }
+      } else {
+        if (timeMinutes >= blockStart && timeMinutes < blockEnd) {
+          return { id: block.id }
+        }
+      }
+    }
+    return null
+  }
+
   // Work sessions
   async createWorkSession(data: {
     taskId: string
@@ -2301,12 +2330,25 @@ export class DatabaseService {
       }
     }
 
+    // Find overlapping work block for this session
+    const sessionDate = getLocalDateString(data.startTime)
+    const sessionMinutes = data.startTime.getHours() * 60 + data.startTime.getMinutes()
+    const overlappingBlock = await this.findBlockAtTime(sessionDate, sessionMinutes)
+    const blockId = overlappingBlock?.id ?? null
+
+    if (blockId) {
+      dbLogger.debug('Assigned work session to block', { blockId, sessionDate, sessionMinutes })
+    } else {
+      dbLogger.info('Work session created outside any work block', { sessionDate, sessionMinutes })
+    }
+
     const sessionId = crypto.randomUUID()
 
     dbLogger.debug('Creating work session in database', {
       sessionId,
       taskId: data.taskId,
       stepId: data.stepId,
+      blockId,
       derivedType,
       taskType: task.type,
       startTime: data.startTime.toISOString(),
@@ -2320,6 +2362,7 @@ export class DatabaseService {
         id: sessionId,
         taskId: data.taskId,
         stepId: data.stepId ?? null,
+        blockId,
         type: derivedType, // Still store it for backwards compatibility, will remove field later
         startTime: data.startTime,
         endTime: data.endTime ?? null,

@@ -35,6 +35,8 @@ import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
 import { SwimLaneTimeline } from './SwimLaneTimeline'
 import { CircularClock } from './CircularClock'
+import { LinearTimeline } from './LinearTimeline'
+import { WorkBlock } from '@shared/work-blocks-types'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import {
@@ -82,6 +84,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [expandedWorkflows, setExpandedWorkflows] = useState<Set<string>>(new Set())
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [meetings, setMeetings] = useState<any[]>([])
+  const [workBlocks, setWorkBlocks] = useState<WorkBlock[]>([])
   const [hideCompleted, setHideCompleted] = useState(false)
   const [bedtimeHour, setBedtimeHour] = useState(22) // Default 10 PM
   const [wakeTimeHour, setWakeTimeHour] = useState(6) // Default 6 AM
@@ -141,12 +144,14 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       const db = getDatabase()
       const dbSessions = await db.getWorkSessions(selectedDate)
 
-      // Load meetings for the selected date
+      // Load meetings and work blocks for the selected date
       const workPattern = await db.getWorkPattern(selectedDate)
-      if (workPattern && workPattern.meetings) {
-        setMeetings(workPattern.meetings)
+      if (workPattern) {
+        setMeetings(workPattern.meetings || [])
+        setWorkBlocks(workPattern.blocks || [])
       } else {
         setMeetings([])
+        setWorkBlocks([])
       }
 
       const formattedSessions: WorkSessionData[] = filterActiveSessions(dbSessions)
@@ -788,6 +793,32 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                   wakeTimeHour={wakeTimeHour}
                 />
               </div>
+            </Card>
+
+            {/* Linear Timeline - Zoomable horizontal view */}
+            <Card
+              title="Timeline View"
+              style={{ marginBottom: 16 }}
+              extra={
+                <Space>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Drag to move • Drag edges to resize • Click empty space to create
+                  </Text>
+                </Space>
+              }
+            >
+              <LinearTimeline
+                sessions={sessions}
+                workBlocks={workBlocks}
+                meetings={meetings}
+                onSessionUpdate={handleSessionUpdate}
+                onSessionCreate={handleClockSessionCreate}
+                onSessionDelete={handleSessionDelete}
+                selectedSessionId={selectedSessionId}
+                onSessionSelect={(id) => setSelectedSessionId(id)}
+                currentTime={getCurrentTime()}
+                date={selectedDate}
+              />
             </Card>
 
             {/* Circular clock */}

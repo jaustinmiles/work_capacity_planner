@@ -259,13 +259,14 @@ model TimeEstimateAccuracy {
 }
 
 model WorkBlock {
-  id            String      @id
+  id            String        @id
   patternId     String
   startTime     String
   endTime       String
-  typeConfig    String      @default("{\"kind\":\"system\",\"systemType\":\"blocked\"}") // JSON: BlockTypeConfig
-  totalCapacity Int         @default(0) // Total minutes available in this block
-  WorkPattern   WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  typeConfig    String        @default("{\"kind\":\"system\",\"systemType\":\"blocked\"}") // JSON: BlockTypeConfig
+  totalCapacity Int           @default(0) // Total minutes available in this block
+  WorkPattern   WorkPattern   @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  WorkSession   WorkSession[] // Sessions that occurred during this block
 
   @@index([patternId])
 }
@@ -310,6 +311,7 @@ model WorkSession {
   taskId         String       // Parent task (required)
   stepId         String?      // Workflow step ID (optional, for step-specific sessions)
   patternId      String?      // Work pattern reference (for scheduled sessions)
+  blockId        String?      // Work block this session belongs to
   type           String?      // @deprecated - Type is derived from task/step, field will be removed
   startTime      DateTime     // Session start time
   endTime        DateTime?    // Session end time (null = in progress)
@@ -318,10 +320,12 @@ model WorkSession {
   notes          String?      // Session notes/comments
   createdAt      DateTime     @default(now())
   WorkPattern    WorkPattern? @relation(fields: [patternId], references: [id])
+  WorkBlock      WorkBlock?   @relation(fields: [blockId], references: [id], onDelete: SetNull)
   Task           Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@index([startTime])
   @@index([taskId])
+  @@index([blockId])
 }
 
 model ProductivityPattern {

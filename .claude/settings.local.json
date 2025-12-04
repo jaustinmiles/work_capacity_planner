@@ -24,7 +24,8 @@
   },
   "enabledMcpjsonServers": [
     "diagnostic",
-    "git"
+    "git",
+    "database"
   ],
   "hooks": {
     "PreToolUse": [
@@ -39,5 +40,6 @@
       }
     ]
   },
-  "outputStyle": "Explanatory"
+  "outputStyle": "Explanatory",
+  "enableAllProjectMcpServers": true
 }

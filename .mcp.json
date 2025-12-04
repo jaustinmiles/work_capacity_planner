@@ -7,6 +7,10 @@
     "git": {
       "command": "node",
       "args": ["/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/dist/git-wrapper.js"]
+    },
+    "database": {
+      "command": "node",
+      "args": ["/Users/austinmiles/Documents/code/claude_code/task_planner/scripts/mcp/dist/database-wrapper.js"]
     }
   }
 }
