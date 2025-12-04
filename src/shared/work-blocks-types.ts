@@ -21,11 +21,11 @@ import {
   getTypeRatioInBlock,
   createEmptyAccumulatedTime,
 } from './user-task-types'
-import { WorkBlockType, BlockConfigKind } from './enums'
+import { WorkBlockType, BlockConfigKind, MeetingType } from './enums'
 
 // Re-export for convenience
 export type { BlockTypeConfig } from './user-task-types'
-export { WorkBlockType } from './enums'
+export { WorkBlockType, MeetingType } from './enums'
 
 /**
  * A work block represents a time slot in a day's schedule.
@@ -66,7 +66,7 @@ export interface Meeting {
   name: string
   startTime: string // "HH:MM" format
   endTime: string // "HH:MM" format
-  type: 'meeting' | 'break' | 'personal' | 'blocked'
+  type: MeetingType
   recurring?: 'daily' | 'weekly' | 'none'
   daysOfWeek?: number[] // 0-6 for weekly recurring (0 = Sunday)
 }

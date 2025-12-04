@@ -33,7 +33,7 @@ import {
   isSystemBlock,
   AccumulatedTimeByType,
 } from '@shared/user-task-types'
-import { WorkBlockType, BlockConfigKind } from '@shared/enums'
+import { WorkBlockType, BlockConfigKind, MeetingType } from '@shared/enums'
 import { getCurrentTime } from '@shared/time-provider'
 import { formatTimeFromParts } from '@shared/time-utils'
 import { generateUniqueId } from '@shared/step-id-utils'
@@ -218,7 +218,7 @@ export function WorkBlocksEditor({
       name: '',
       startTime: '14:00',
       endTime: '15:00',
-      type: 'meeting',
+      type: MeetingType.Meeting,
     })
     setShowMeetingModal(true)
   }
@@ -574,7 +574,7 @@ export function WorkBlocksEditor({
                 name: 'Sleep',
                 startTime: '22:00',
                 endTime: '06:00',
-                type: 'blocked',
+                type: MeetingType.Blocked,
               }
               setMeetings([...meetings, sleepBlock])
             }}>

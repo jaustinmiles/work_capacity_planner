@@ -150,11 +150,12 @@ export enum NotificationType {
   Warning = 'warning',
 }
 
-// Work session system types (non-task time tracking)
-// Actual task work sessions use dynamic user-defined type IDs
-export enum WorkSessionType {
+// Meeting/event types for work schedule (recurring events in daily patterns)
+export enum MeetingType {
   Meeting = 'meeting',
   Break = 'break',
+  Personal = 'personal',
+  Blocked = 'blocked',
 }
 
 // Days of the week
