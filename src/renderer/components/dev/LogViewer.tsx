@@ -3,18 +3,9 @@ import { Typography, Card, Table, Select, Button, Space, Tag, Input, Empty, Spin
 import { IconRefresh } from '@arco-design/web-react/icon'
 import { formatDistanceToNow } from 'date-fns'
 import { getDatabase } from '../../services/database'
+import type { LogEntry, SessionLogSummary, LogLevel } from '@shared/log-types'
 
 const { Title, Text } = Typography
-
-interface LogEntry {
-  id: string
-  level: string
-  message: string
-  source: string
-  context: string
-  sessionId: string | null
-  createdAt: string
-}
 
 interface LogViewerProps {
   onClose: () => void
@@ -29,11 +20,15 @@ const LEVEL_COLORS: Record<string, string> = {
 
 export function LogViewer({ onClose: _onClose }: LogViewerProps) {
   const [logs, setLogs] = useState<LogEntry[]>([])
-  const [sessions, setSessions] = useState<Array<{ sessionId: string; logCount: number }>>([])
+  const [sessions, setSessions] = useState<SessionLogSummary[]>([])
   const [loading, setLoading] = useState(false)
-  const [filters, setFilters] = useState({
-    sessionId: undefined as string | undefined,
-    level: undefined as string | undefined,
+  const [filters, setFilters] = useState<{
+    sessionId: string | undefined
+    level: LogLevel | undefined
+    search: string
+  }>({
+    sessionId: undefined,
+    level: undefined,
     search: '',
   })
 
@@ -161,7 +156,7 @@ export function LogViewer({ onClose: _onClose }: LogViewerProps) {
             allowClear
             style={{ width: 120 }}
             value={filters.level}
-            onChange={(value: string | undefined) => setFilters(f => ({ ...f, level: value }))}
+            onChange={(value: string | undefined) => setFilters(f => ({ ...f, level: value as LogLevel | undefined }))}
           >
             <Select.Option value="ERROR">ERROR</Select.Option>
             <Select.Option value="WARN">WARN</Select.Option>

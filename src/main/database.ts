@@ -11,6 +11,7 @@ import {
   AccumulatedTimeResult,
 } from '../shared/user-task-types'
 import { WorkBlockType, BlockConfigKind } from '../shared/enums'
+import { LogQueryOptionsInternal, LogEntryInternal, SessionLogSummary } from '../shared/log-types'
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime } from '../shared/time-provider'
@@ -2277,21 +2278,7 @@ export class DatabaseService {
   }
 
   // Log retrieval for LogViewer component
-  async getSessionLogs(options?: {
-    sessionId?: string
-    level?: string
-    source?: string
-    since?: Date
-    limit?: number
-  }): Promise<Array<{
-    id: string
-    level: string
-    message: string
-    source: string
-    context: string
-    sessionId: string | null
-    createdAt: Date
-  }>> {
+  async getSessionLogs(options?: LogQueryOptionsInternal): Promise<LogEntryInternal[]> {
     const { sessionId, level, source, since, limit = 100 } = options || {}
 
     const where: {
@@ -2314,7 +2301,7 @@ export class DatabaseService {
   }
 
   // Get distinct sessions that have logs
-  async getLoggedSessions(): Promise<Array<{ sessionId: string; logCount: number }>> {
+  async getLoggedSessions(): Promise<SessionLogSummary[]> {
     const result = await this.client.appLog.groupBy({
       by: ['sessionId'],
       _count: { id: true },

@@ -1,6 +1,7 @@
 import { Task, Session, AICallOptions } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
+import { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
 
 
 // Type for the Electron API exposed by preload script
@@ -83,22 +84,8 @@ declare global {
         recordTimeEstimate: (data: any) => Promise<any>
         getTimeAccuracyStats: (__filters?: any) => Promise<any>
         // Log viewer operations (dev mode)
-        getSessionLogs: (options?: {
-          sessionId?: string
-          level?: string
-          source?: string
-          since?: string
-          limit?: number
-        }) => Promise<Array<{
-          id: string
-          level: string
-          message: string
-          source: string
-          context: string
-          sessionId: string | null
-          createdAt: string
-        }>>
-        getLoggedSessions: () => Promise<Array<{ sessionId: string; logCount: number }>>
+        getSessionLogs: (options?: LogQueryOptions) => Promise<LogEntry[]>
+        getLoggedSessions: () => Promise<SessionLogSummary[]>
       }
       // Log persistence
       persistLog?: (logEntry: any) => Promise<void>
@@ -617,25 +604,11 @@ export class RendererDatabaseService {
   }
 
   // Log viewer operations (dev mode)
-  async getSessionLogs(options?: {
-    sessionId?: string
-    level?: string
-    source?: string
-    since?: string
-    limit?: number
-  }): Promise<Array<{
-    id: string
-    level: string
-    message: string
-    source: string
-    context: string
-    sessionId: string | null
-    createdAt: string
-  }>> {
+  async getSessionLogs(options?: LogQueryOptions): Promise<LogEntry[]> {
     return await window.electronAPI.db.getSessionLogs(options)
   }
 
-  async getLoggedSessions(): Promise<Array<{ sessionId: string; logCount: number }>> {
+  async getLoggedSessions(): Promise<SessionLogSummary[]> {
     return await window.electronAPI.db.getLoggedSessions()
   }
 }
