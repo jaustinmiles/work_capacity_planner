@@ -7,7 +7,6 @@ import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { getCurrentTime } from '@shared/time-provider'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType } from '@shared/enums'
 import '@testing-library/jest-dom'
 
 // Mock the stores
@@ -201,7 +200,7 @@ describe('GanttChart', () => {
         duration: 60,
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         completed: false,
         createdAt: new Date(),
         updatedAt: new Date(),

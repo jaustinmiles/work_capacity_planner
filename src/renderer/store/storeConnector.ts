@@ -159,11 +159,9 @@ export const connectStores = () => {
             date: p.date,
             id: b.id,
             time: `${b.startTime}-${b.endTime}`,
-            type: b.type,
+            typeConfig: b.typeConfig,
             capacity: b.capacity ? {
               totalMinutes: (b.capacity as any).totalMinutes,
-              type: (b.capacity as any).type,
-              splitRatio: (b.capacity as any).splitRatio || null,
             } : null,
           })),
         ),

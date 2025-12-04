@@ -13,7 +13,6 @@ import {
   TypeChange,
   AmendmentType,
   EntityType,
-  TaskType,
   DeadlineType,
 } from '../../../shared/amendment-types'
 import { Message } from '../../components/common/Message'
@@ -182,7 +181,7 @@ describe('Amendment Applicator', () => {
         date: expect.any(String),
         plannedMinutes: 120,
         actualMinutes: 120,
-        type: 'focused',
+        type: '', // User-defined task type - empty means unspecified
       })
       expect(Message.success).toHaveBeenCalledWith('Applied 1 amendment')
     })
@@ -210,7 +209,7 @@ describe('Amendment Applicator', () => {
         date: '2024-01-15',
         plannedMinutes: 60,
         actualMinutes: 60,
-        type: 'focused',
+        type: '', // User-defined task type - empty means unspecified
       })
     })
 
@@ -1014,7 +1013,7 @@ describe('Amendment Applicator', () => {
       const mockWorkflow = {
         id: 'workflow-1',
         steps: [
-          { id: 'step-1', name: 'Some Step', duration: 30, type: TaskType.Deep },
+          { id: 'step-1', name: 'Some Step', duration: 30, type: 'deep' },
         ],
       }
       mockDatabase.getSequencedTaskById.mockResolvedValue(mockWorkflow)
@@ -1023,7 +1022,7 @@ describe('Amendment Applicator', () => {
 
       expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
         steps: [
-          { id: 'step-1', name: 'Some Step', duration: 30, type: TaskType.Deep, importance: 7, urgency: 8, cognitiveComplexity: 3 },
+          { id: 'step-1', name: 'Some Step', duration: 30, type: 'deep', importance: 7, urgency: 8, cognitiveComplexity: 3 },
         ],
       })
       expect(Message.success).toHaveBeenCalledWith('Updated priority for step "Some Step"')
@@ -1040,15 +1039,15 @@ describe('Amendment Applicator', () => {
           name: 'Test Task',
           confidence: 0.9,
         },
-        newType: TaskType.Personal,
+        newType: 'personal',
       }
 
       await applyAmendments([amendment])
 
       expect(mockDatabase.updateTask).toHaveBeenCalledWith('task-1', {
-        type: TaskType.Personal,
+        type: 'personal',
       })
-      expect(Message.success).toHaveBeenCalledWith(`Type changed to ${TaskType.Personal}`)
+      expect(Message.success).toHaveBeenCalledWith(`Type changed to ${'personal'}`)
     })
 
     it('should update workflow type', async () => {
@@ -1060,15 +1059,15 @@ describe('Amendment Applicator', () => {
           name: 'Test Workflow',
           confidence: 0.9,
         },
-        newType: TaskType.Admin,
+        newType: 'admin',
       }
 
       await applyAmendments([amendment])
 
       expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
-        type: TaskType.Admin,
+        type: 'admin',
       })
-      expect(Message.success).toHaveBeenCalledWith(`Type changed to ${TaskType.Admin}`)
+      expect(Message.success).toHaveBeenCalledWith(`Type changed to ${'admin'}`)
     })
 
     it('should update step type', async () => {
@@ -1080,14 +1079,14 @@ describe('Amendment Applicator', () => {
           name: 'Test Workflow',
           confidence: 0.9,
         },
-        newType: TaskType.Deep,
+        newType: 'deep',
         stepName: 'Review Step',
       }
 
       const mockWorkflow = {
         id: 'workflow-1',
         steps: [
-          { id: 'step-1', name: 'Review Step', duration: 30, type: TaskType.Admin },
+          { id: 'step-1', name: 'Review Step', duration: 30, type: 'admin' },
         ],
       }
       mockDatabase.getSequencedTaskById.mockResolvedValue(mockWorkflow)
@@ -1096,10 +1095,10 @@ describe('Amendment Applicator', () => {
 
       expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
         steps: [
-          { id: 'step-1', name: 'Review Step', duration: 30, type: TaskType.Deep },
+          { id: 'step-1', name: 'Review Step', duration: 30, type: 'deep' },
         ],
       })
-      expect(Message.success).toHaveBeenCalledWith(`Step type changed to ${TaskType.Deep}`)
+      expect(Message.success).toHaveBeenCalledWith(`Step type changed to ${'deep'}`)
     })
   })
 
@@ -1119,9 +1118,9 @@ describe('Amendment Applicator', () => {
       const mockWorkflow = {
         id: 'workflow-1',
         steps: [
-          { id: 'step-1', name: 'Build Step', duration: 30, type: TaskType.Deep, dependsOn: [], stepIndex: 0 },
-          { id: 'step-2', name: 'Review Step', duration: 20, type: TaskType.Admin, dependsOn: ['step-1'], stepIndex: 1 },
-          { id: 'step-3', name: 'Deploy Step', duration: 15, type: TaskType.Admin, dependsOn: ['step-2'], stepIndex: 2 },
+          { id: 'step-1', name: 'Build Step', duration: 30, type: 'deep', dependsOn: [], stepIndex: 0 },
+          { id: 'step-2', name: 'Review Step', duration: 20, type: 'admin', dependsOn: ['step-1'], stepIndex: 1 },
+          { id: 'step-3', name: 'Deploy Step', duration: 15, type: 'admin', dependsOn: ['step-2'], stepIndex: 2 },
         ],
       }
       mockDatabase.getSequencedTaskById.mockResolvedValue(mockWorkflow)
@@ -1129,8 +1128,8 @@ describe('Amendment Applicator', () => {
       await applyAmendments([amendment])
 
       const expectedSteps = [
-        { id: 'step-1', name: 'Build Step', duration: 30, type: TaskType.Deep, dependsOn: [], stepIndex: 0 },
-        { id: 'step-3', name: 'Deploy Step', duration: 15, type: TaskType.Admin, dependsOn: [], stepIndex: 1 },
+        { id: 'step-1', name: 'Build Step', duration: 30, type: 'deep', dependsOn: [], stepIndex: 0 },
+        { id: 'step-3', name: 'Deploy Step', duration: 15, type: 'admin', dependsOn: [], stepIndex: 1 },
       ]
       expect(mockDatabase.updateSequencedTask).toHaveBeenCalledWith('workflow-1', {
         steps: expectedSteps,
@@ -1154,7 +1153,7 @@ describe('Amendment Applicator', () => {
       const mockWorkflow = {
         id: 'workflow-1',
         steps: [
-          { id: 'step-1', name: 'Build Step', duration: 30, type: TaskType.Deep },
+          { id: 'step-1', name: 'Build Step', duration: 30, type: 'deep' },
         ],
       }
       mockDatabase.getSequencedTaskById.mockResolvedValue(mockWorkflow)

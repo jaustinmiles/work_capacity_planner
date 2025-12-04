@@ -2,7 +2,6 @@ import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { EisenhowerScatter } from '../EisenhowerScatter'
-import { TaskType } from '@shared/enums'
 import type { Task } from '@shared/types'
 import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
 
@@ -43,7 +42,7 @@ describe('EisenhowerScatter', () => {
       importance: 9,
       urgency: 9,
       duration: 60,
-      type: TaskType.Focused,
+      type: 'focused',
       completed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -54,7 +53,7 @@ describe('EisenhowerScatter', () => {
       importance: 5,
       urgency: 5,
       duration: 45,
-      type: TaskType.Admin,
+      type: 'admin',
       completed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -65,7 +64,7 @@ describe('EisenhowerScatter', () => {
       importance: 2,
       urgency: 2,
       duration: 30,
-      type: TaskType.Personal,
+      type: 'personal',
       completed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -76,7 +75,7 @@ describe('EisenhowerScatter', () => {
       importance: 7,
       urgency: 7,
       duration: 60,
-      type: TaskType.Focused,
+      type: 'focused',
       completed: true, // Should not appear
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -512,7 +511,7 @@ describe('EisenhowerScatter', () => {
           importance: 5,
           urgency: 5,
           duration: 30,
-          type: TaskType.Focused,
+          type: 'focused',
           completed: false,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -523,7 +522,7 @@ describe('EisenhowerScatter', () => {
           importance: 5,
           urgency: 5,
           duration: 30,
-          type: TaskType.Admin,
+          type: 'admin',
           completed: false,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -555,7 +554,7 @@ describe('EisenhowerScatter', () => {
           importance: 10,
           urgency: 10,
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           completed: false,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -566,7 +565,7 @@ describe('EisenhowerScatter', () => {
           importance: 0,
           urgency: 0,
           duration: 60,
-          type: TaskType.Admin,
+          type: 'admin',
           completed: false,
           createdAt: new Date(),
           updatedAt: new Date(),

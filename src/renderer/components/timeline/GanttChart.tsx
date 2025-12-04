@@ -3,7 +3,7 @@ import { Card, Typography, Space, Tag, Empty, Tooltip, Button, Alert, Dropdown, 
 import { IconZoomIn, IconZoomOut, IconMoon, IconExpand, IconClockCircle } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType, GanttItemType } from '@shared/enums'
+import { GanttItemType } from '@shared/enums'
 import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { ScheduleMetricsPanel } from './ScheduleMetricsPanel'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
@@ -13,6 +13,8 @@ import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
+import { getTypeColor } from '@shared/user-task-types'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { getCurrentTime, isTimeOverridden } from '@shared/time-provider'
@@ -62,6 +64,7 @@ const ZOOM_PRESETS = [
 export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const { updateTask, updateSequencedTask, workSettings } = useTaskStore()
   const { workPatterns = [], isLoading: workPatternsLoading } = useWorkPatternStore()
+  const userTypes = useSortedUserTaskTypes()
   // Use selectors for optimal re-rendering - only update when these specific values change
   const scheduledItemsFromStore = useSchedulerStore(state => state.scheduledItems)
   const scheduleResult = useSchedulerStore(state => state.scheduleResult)
@@ -745,8 +748,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     {block.startTime} - {block.endTime}
                   </td>
                   <td style={{ padding: '8px' }}>
-                    <Tag color={block.type === 'focused' ? 'blue' : block.type === 'admin' ? 'orange' : 'green'}>
-                      {block.type}
+                    <Tag color={getTypeColor(userTypes, block.type)}>
+                      {userTypes.find(t => t.id === block.type)?.name || block.type}
                     </Tag>
                   </td>
                   <td style={{ padding: '8px' }}>
@@ -1063,7 +1066,7 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                       : isWorkflowRow
                         ? firstItem.workflowName
                         : isUnscheduledRow
-                          ? `${unscheduledInRow.name} (Unscheduled${unscheduledInRow.type === TaskType.Personal ? ' - Personal' : ''})`
+                          ? `${unscheduledInRow.name} (Unscheduled)`
                           : firstItem?.name.replace(/\[.*\]\s*/, '')
 
                     return (

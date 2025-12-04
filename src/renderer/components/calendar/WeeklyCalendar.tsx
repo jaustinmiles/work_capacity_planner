@@ -6,7 +6,7 @@ import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType, UnifiedScheduleItemType } from '@shared/enums'
+import { UnifiedScheduleItemType } from '@shared/enums'
 import { DailyScheduleView } from '../schedule/DailyScheduleView'
 import dayjs from 'dayjs'
 import { dateToYYYYMMDD } from '@shared/time-utils'
@@ -41,13 +41,12 @@ export function WeeklyCalendar() {
   const incompleteTasks = tasks.filter(task => !task.completed)
 
   // Calculate total work capacity needed
+  // Note: With user-configurable task types, we can no longer hardcode type filtering
+  // This is a placeholder - should be refactored to use user task type categories
   const totalFocusedMinutes = incompleteTasks
-    .filter(task => task.type === TaskType.Focused)
     .reduce((sum, task) => sum + task.duration, 0)
 
-  const totalAdminMinutes = incompleteTasks
-    .filter(task => task.type === TaskType.Admin)
-    .reduce((sum, task) => sum + task.duration, 0)
+  const totalAdminMinutes = 0 // Deprecated: use user-configurable types instead
 
   const focusedHours = Math.floor(totalFocusedMinutes / 60)
   const focusedMins = totalFocusedMinutes % 60
@@ -100,19 +99,8 @@ export function WeeklyCalendar() {
     const dateStr = currentDate.format('YYYY-MM-DD')
     const daySchedule = itemsByDate.get(dateStr) || []
 
-    // Calculate time by type for this day
-    const focusedMinutes = daySchedule
-      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === TaskType.Focused)
-      .reduce((sum, item) => {
-        if (item.endTime && item.startTime) {
-          const duration = minutesBetween(item.startTime, item.endTime)
-          return sum + duration
-        }
-        return sum
-      }, 0)
-
-    const admin = daySchedule
-      .filter(item => item.originalItem && 'type' in item.originalItem && item.originalItem.type === TaskType.Admin)
+    // Calculate total scheduled time for this day
+    const totalMinutes = daySchedule
       .reduce((sum, item) => {
         if (item.endTime && item.startTime) {
           const duration = minutesBetween(item.startTime, item.endTime)
@@ -142,19 +130,10 @@ export function WeeklyCalendar() {
         }}>
           {currentDate.date()}
         </div>
-        {hasScheduledTasks && (
-          <Space direction="vertical" size={4} style={{ marginTop: 4 }}>
-            {focusedMinutes > 0 && (
-              <Tag size="small" color="blue" style={{ margin: 0 }}>
-                {Math.floor(focusedMinutes / 60)}h {focusedMinutes % 60 > 0 ? `${focusedMinutes % 60}m` : ''}
-              </Tag>
-            )}
-            {admin > 0 && (
-              <Tag size="small" color="green" style={{ margin: 0 }}>
-                {Math.floor(admin / 60)}h {admin % 60 > 0 ? `${admin % 60}m` : ''}
-              </Tag>
-            )}
-          </Space>
+        {hasScheduledTasks && totalMinutes > 0 && (
+          <Tag size="small" color="blue" style={{ margin: 0, marginTop: 4 }}>
+            {Math.floor(totalMinutes / 60)}h {totalMinutes % 60 > 0 ? `${totalMinutes % 60}m` : ''}
+          </Tag>
         )}
         {!hasScheduledTasks && !isWeekend && hasWorkBlocks && !isPast && (
           <Tag size="small" color="gray" style={{ margin: 0, marginTop: 4 }}>

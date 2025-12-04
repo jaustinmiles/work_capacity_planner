@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { validateAmendment, validateAmendments, formatValidationErrors } from '../schema-generator'
-import { AmendmentType, EntityType, TaskStatus, TaskType, WorkPatternOperation, WorkSessionOperation, DeadlineType } from '../enums'
+import { AmendmentType, EntityType, TaskStatus, WorkPatternOperation, WorkSessionOperation, DeadlineType } from '../enums'
 
 describe('schema-generator', () => {
   describe('validateAmendment', () => {
@@ -47,7 +47,7 @@ describe('schema-generator', () => {
         duration: 60,
         importance: 7,
         urgency: 8,
-        taskType: TaskType.Focused,
+        taskType: 'focused',
       }
 
       const result = validateAmendment(amendment)
@@ -75,12 +75,12 @@ describe('schema-generator', () => {
           {
             name: 'Step 1',
             duration: 30,
-            type: TaskType.Focused,
+            type: 'focused',
           },
           {
             name: 'Step 2',
             duration: 45,
-            type: TaskType.Admin,
+            type: 'admin',
             dependsOn: ['Step 1'],
           },
         ],
@@ -98,12 +98,12 @@ describe('schema-generator', () => {
           {
             name: 'Step 1',
             duration: 30,
-            type: TaskType.Focused,
+            type: 'focused',
           },
           {
             name: 'Step 1', // Duplicate!
             duration: 45,
-            type: TaskType.Admin,
+            type: 'admin',
           },
         ],
       }
@@ -121,13 +121,13 @@ describe('schema-generator', () => {
           {
             name: 'Step 1',
             duration: 30,
-            type: TaskType.Focused,
+            type: 'focused',
             dependsOn: ['Step 2'],
           },
           {
             name: 'Step 2',
             duration: 45,
-            type: TaskType.Admin,
+            type: 'admin',
             dependsOn: ['Step 1'],
           },
         ],
@@ -265,7 +265,7 @@ describe('schema-generator', () => {
         },
         stepName: 'New Step',
         duration: 30,
-        stepType: TaskType.Focused,
+        stepType: 'focused',
       }
 
       const result = validateAmendment(amendment)
@@ -375,7 +375,7 @@ describe('schema-generator', () => {
           name: 'Type Task',
           confidence: 1.0,
         },
-        newType: TaskType.Admin,
+        newType: 'admin',
       }
 
       const result = validateAmendment(amendment)

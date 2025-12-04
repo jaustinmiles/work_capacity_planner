@@ -81,7 +81,7 @@ describe('WorkTrackingService', () => {
     it('should start a work session for a task', async () => {
       const taskId = 'task-123'
       mockDatabase.getCurrentSession.mockResolvedValue({ id: 'session-1' })
-      mockDatabase.getTaskById.mockResolvedValue({ id: taskId, name: 'Test Task' })
+      mockDatabase.getTaskById.mockResolvedValue({ id: taskId, name: 'Test Task', type: 'focused' })
       mockDatabase.createWorkSession.mockResolvedValue({ id: 'ws-generated-123' })
 
       const session = await service.startWorkSession(taskId)
@@ -94,7 +94,7 @@ describe('WorkTrackingService', () => {
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
           taskId,
-          type: 'focused' as const,
+          type: '', // User-defined types - service doesn't know task type
           date: expect.any(String),
         }),
       )

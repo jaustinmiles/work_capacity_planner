@@ -27,8 +27,8 @@ import {
   IconSettings,
 } from '@arco-design/web-react/icon'
 import dayjs from 'dayjs'
-import { TaskType } from '@shared/enums'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
 import { SwimLaneTimeline } from './SwimLaneTimeline'
@@ -40,8 +40,8 @@ import {
   timeToMinutes,
   minutesToTime,
   getTypeColor,
-  getTypeTagColor,
   getTypeDisplayName,
+  getTypeEmojiDisplay,
 } from './SessionState'
 
 const { Text } = Typography
@@ -50,6 +50,13 @@ const { Row, Col } = Grid
 interface WorkLoggerDualProps {
   visible: boolean
   onClose: () => void
+}
+
+/** Option type for task/step selection in work logger */
+interface TaskSelectOption {
+  value: string   // Format: "task:{taskId}" or "step:{stepId}:{taskId}"
+  label: string   // Display name for the task/step
+  type: string    // User-defined task type ID
 }
 
 // Helper function to filter out paused sessions from arrays
@@ -82,6 +89,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
   const { tasks, sequencedTasks, loadTasks, activeWorkSessions } = useTaskStore()
   const { isCompact, isMobile, isDesktop } = useResponsive()
+  const userTaskTypes = useSortedUserTaskTypes()
 
   // Real-time timer for active work sessions (updates every 10 seconds for dogfooding)
   const [, forceUpdate] = useState({})
@@ -147,7 +155,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           // Find task and step details
           const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
           let stepName: string | undefined
-          let type: TaskType = TaskType.Focused // Default
+          let type: string = userTaskTypes[0]?.id || '' // Default to first user type
 
           // Get the type from the task or step, not from the session
           if (task) {
@@ -165,7 +173,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               }
             } else {
               // For regular tasks, use the task's type
-              type = task.type || TaskType.Focused
+              type = task.type || userTaskTypes[0]?.id || ''
             }
           }
 
@@ -176,7 +184,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             startMinutes: startTime.hour() * 60 + startTime.minute(),
             endMinutes: endTime.hour() * 60 + endTime.minute(),
             type,
-            color: getTypeColor(type),
+            color: getTypeColor(userTaskTypes, type),
             isNew: false,
             isDirty: false,
           }
@@ -223,13 +231,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   ) => {
     const task = [...tasks, ...sequencedTasks].find(t => t.id === taskId)
     let stepName: string | undefined
-    let type = task?.type as TaskType || TaskType.Focused
+    let type = task?.type || userTaskTypes[0]?.id || ''
 
     if (stepId && task?.hasSteps && task.steps) {
       const step = task.steps.find(s => s.id === stepId)
       if (step) {
         stepName = step.name
-        type = step.type as TaskType || TaskType.Focused
+        type = step.type || task?.type || userTaskTypes[0]?.id || ''
       }
     }
 
@@ -240,7 +248,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       startMinutes: startMinutes,
       endMinutes: endMinutes,
       type,
-      color: getTypeColor(type),
+      color: getTypeColor(userTaskTypes, type),
       isNew: true,
       isDirty: true,
     }
@@ -385,14 +393,14 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
         // Derive the type from the task, not the session
         const task = allTasks.find(t => t.id === session.taskId)
-        let taskType: TaskType = TaskType.Focused // Default
+        let taskType: string = userTaskTypes[0]?.id || '' // Default to first user type
 
         if (task) {
           if (session.stepId && task.hasSteps && task.steps) {
             const step = task.steps.find(s => s.id === session.stepId)
-            taskType = step?.type as TaskType || task.type as TaskType
+            taskType = step?.type || task.type || ''
           } else {
-            taskType = task.type as TaskType
+            taskType = task.type || '' // Workflows may not have a type
           }
         }
 
@@ -444,7 +452,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
   // Get available tasks for assignment
   const availableTasks = useMemo(() => {
-    const options: Array<{ value: string; label: string; type: TaskType }> = []
+    const options: TaskSelectOption[] = []
 
     const allTasks = [...tasks, ...sequencedTasks]
     allTasks.forEach(task => {
@@ -452,7 +460,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         options.push({
           value: `task:${task.id}`,
           label: task.name,
-          type: task.type as TaskType,
+          type: task.type || '', // Regular tasks should always have type
         })
       } else if (task.steps) {
         // For workflows, we add each step as an option
@@ -461,7 +469,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           options.push({
             value: `step:${step.id}:${task.id}`,
             label: `${task.name} > ${step.name}`,
-            type: step.type as TaskType,
+            type: step.type,
           })
         })
       }
@@ -470,19 +478,18 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     return options
   }, [tasks, sequencedTasks])
 
-  // Calculate summary statistics
+  // Calculate summary statistics - grouped by user-defined type IDs
   const summary = useMemo(() => {
-    const focused = sessions
-      .filter(s => s.type === TaskType.Focused)
-      .reduce((sum, s) => sum + (s.endMinutes - s.startMinutes), 0)
-    const admin = sessions
-      .filter(s => s.type === TaskType.Admin)
-      .reduce((sum, s) => sum + (s.endMinutes - s.startMinutes), 0)
-    const personal = sessions
-      .filter(s => s.type === TaskType.Personal)
-      .reduce((sum, s) => sum + (s.endMinutes - s.startMinutes), 0)
+    const byType: Record<string, number> = {}
+    let total = 0
 
-    return { focused, admin, personal, total: focused + admin + personal }
+    sessions.forEach(s => {
+      const duration = s.endMinutes - s.startMinutes
+      byType[s.type] = (byType[s.type] || 0) + duration
+      total += duration
+    })
+
+    return { byType, total }
   }, [sessions])
 
   const selectedSession = sessions.find(s => s.id === selectedSessionId)
@@ -657,10 +664,16 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             </Space>
           </Col>
           <Col xs={24} sm={24} md={12} lg={12} style={{ textAlign: 'right' }}>
-            <Space>
-              <Tag color="blue">Focused: {summary.focused} min</Tag>
-              <Tag color="orange">Admin: {summary.admin} min</Tag>
-              <Tag color="green">Personal: {summary.personal} min</Tag>
+            <Space wrap>
+              {userTaskTypes.map(type => {
+                const minutes = summary.byType[type.id] || 0
+                if (minutes === 0) return null
+                return (
+                  <Tag key={type.id} color={type.color}>
+                    {type.emoji} {type.name}: {minutes} min
+                  </Tag>
+                )
+              })}
               <Tag>Total: {Math.round(summary.total / 60 * 10) / 10} hours</Tag>
               <Button
                 type="primary"
@@ -774,9 +787,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                     <Col xs={24} sm={12} md={8} lg={8} style={{ textAlign: 'right' }}>
                       <Space>
                         <Tag
-                          color={getTypeTagColor(selectedSession.type)}
+                          color={getTypeColor(userTaskTypes, selectedSession.type)}
                         >
-                          {getTypeDisplayName(selectedSession.type)}
+                          {getTypeEmojiDisplay(userTaskTypes, selectedSession.type)} {getTypeDisplayName(userTaskTypes, selectedSession.type)}
                         </Tag>
                         <Text>{selectedSession.endMinutes - selectedSession.startMinutes} minutes</Text>
                         <Button
@@ -878,15 +891,10 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 <Select.Option key={task.value} value={task.value}>
                   <Space>
                     <Tag
-                      color={getTypeTagColor(task.type)}
+                      color={getTypeColor(userTaskTypes, task.type)}
                       size="small"
                     >
-                      {
-                        task.type === TaskType.Focused ? 'F' :
-                          task.type === TaskType.Admin ? 'A' :
-                            task.type === TaskType.Personal ? 'P' :
-                              '?'
-                      }
+                      {getTypeEmojiDisplay(userTaskTypes, task.type)}
                     </Tag>
                     {task.label}
                   </Space>

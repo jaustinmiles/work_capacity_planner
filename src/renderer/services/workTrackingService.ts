@@ -7,7 +7,6 @@ import {
   toDatabaseWorkSession,
   createUnifiedWorkSession,
 } from '../../shared/unified-work-session-types'
-import { TaskType } from '../../shared/enums'
 import { getCurrentTime } from '@/shared/time-provider'
 import { dateToYYYYMMDD, addDays } from '@/shared/time-utils'
 
@@ -106,7 +105,7 @@ export class WorkTrackingService {
 
       const sessionParams: Parameters<typeof createUnifiedWorkSession>[0] = {
         taskId: dbTaskId,
-        type: TaskType.Focused,
+        type: '', // Will be set from task/step type
         plannedMinutes: 60, // Default 1 hour
       }
 

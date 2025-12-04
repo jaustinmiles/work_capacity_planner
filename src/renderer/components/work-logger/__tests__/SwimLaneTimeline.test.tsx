@@ -2,7 +2,6 @@ import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SwimLaneTimeline } from '../SwimLaneTimeline'
-import { TaskType } from '@shared/enums'
 import type { Task } from '@shared/types'
 import type { WorkSessionData } from '../SessionState'
 import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
@@ -23,7 +22,7 @@ describe('SwimLaneTimeline', () => {
     {
       id: 'task-1',
       name: 'Regular Task',
-      type: TaskType.Focused,
+      type: 'focused',
       duration: 120,
       completed: false,
       hasSteps: false,
@@ -33,7 +32,7 @@ describe('SwimLaneTimeline', () => {
     {
       id: 'workflow-1',
       name: 'Workflow Task',
-      type: TaskType.Focused,
+      type: 'focused',
       duration: 240,
       completed: false,
       hasSteps: true,
@@ -41,14 +40,14 @@ describe('SwimLaneTimeline', () => {
         {
           id: 'step-1',
           name: 'Step 1',
-          type: TaskType.Focused,
+          type: 'focused',
           duration: 60,
           order: 0,
         },
         {
           id: 'step-2',
           name: 'Step 2',
-          type: TaskType.Admin,
+          type: 'admin',
           duration: 30,
           order: 1,
         },
@@ -65,7 +64,7 @@ describe('SwimLaneTimeline', () => {
       taskName: 'Regular Task',
       startMinutes: 540, // 9:00 AM
       endMinutes: 600, // 10:00 AM
-      type: TaskType.Focused,
+      type: 'focused',
       color: '#165DFF',
     },
     {
@@ -76,7 +75,7 @@ describe('SwimLaneTimeline', () => {
       stepName: 'Step 1',
       startMinutes: 660, // 11:00 AM
       endMinutes: 720, // 12:00 PM
-      type: TaskType.Focused,
+      type: 'focused',
       color: '#165DFF',
     },
   ]

@@ -1,5 +1,5 @@
 import { Task, TaskStep } from './types'
-import { TaskType, TaskStatus, StepStatus } from './enums'
+import { TaskStatus, StepStatus } from './enums'
 
 // Re-export TaskStep for backward compatibility
 export type { TaskStep }
@@ -45,7 +45,7 @@ export function createWorkflowTask(params: {
   name: string
   importance: number
   urgency: number
-  type: TaskType
+  type: string // User-defined task type ID
   steps: Omit<TaskStep, 'id' | 'taskId'>[]
   notes?: string
   sessionId: string
@@ -97,13 +97,14 @@ function calculateWorstCase(steps: TaskStep[]): number {
 }
 
 // Example remains the same but uses the new structure
+// Note: 'example-type' is a placeholder - real apps use user-defined type IDs
 export const exampleSequencedTask: SequencedTask = {
   id: 'task-123',
   name: 'Feature Implementation with CI/CD and Code Review',
   duration: 365,
   importance: 8,
   urgency: 7,
-  type: TaskType.Focused,
+  type: 'example-type',
   asyncWaitTime: 0,
   dependencies: [],
   completed: false,
@@ -127,7 +128,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'Data Mining',
       duration: 120,
-      type: TaskType.Focused,
+      type: 'example-type',
       dependsOn: [],
       asyncWaitTime: 0,
       status: StepStatus.Pending,
@@ -139,7 +140,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'Code Authoring',
       duration: 180,
-      type: TaskType.Focused,
+      type: 'example-type',
       dependsOn: ['step-1'],
       asyncWaitTime: 0,
       status: StepStatus.Pending,
@@ -151,7 +152,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'Workflow Running',
       duration: 15,
-      type: TaskType.Admin,
+      type: 'example-type',
       dependsOn: ['step-2'],
       asyncWaitTime: 60,
       status: StepStatus.Pending,
@@ -163,7 +164,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'Verification',
       duration: 30,
-      type: TaskType.Focused,
+      type: 'example-type',
       dependsOn: ['step-3'],
       asyncWaitTime: 0,
       status: StepStatus.Pending,
@@ -175,7 +176,7 @@ export const exampleSequencedTask: SequencedTask = {
       taskId: 'task-123',
       name: 'CL Process (Submit for Review)',
       duration: 20,
-      type: TaskType.Admin,
+      type: 'example-type',
       dependsOn: ['step-4'],
       asyncWaitTime: 480,
       status: StepStatus.Pending,

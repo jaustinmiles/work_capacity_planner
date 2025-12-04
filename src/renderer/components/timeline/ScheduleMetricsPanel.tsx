@@ -21,6 +21,7 @@ import {
 } from '../../../shared/scheduler-metrics'
 import { getCurrentTime } from '../../../shared/time-provider'
 import { calculateRemainingWaitTime, formatCountdown } from '../../../shared/time-utils'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import './ScheduleMetricsPanel.css'
 
 const { Row, Col } = Grid
@@ -41,6 +42,54 @@ interface ScheduleMetricsPanelProps {
   sequencedTasks?: any[]
   currentTime?: Date
   className?: string
+}
+
+/**
+ * Work Hours Metric - displays dynamic type breakdown
+ */
+const WorkHoursMetric: React.FC<{ metrics: SchedulingMetrics }> = ({ metrics }) => {
+  const userTypes = useSortedUserTaskTypes()
+  const hoursByType = metrics.hoursByType || {}
+  const totalHours = Object.values(hoursByType).reduce((sum, h) => sum + h, 0)
+
+  // Get display info for each type
+  const typeBreakdown = Object.entries(hoursByType)
+    .filter(([, hours]) => hours > 0)
+    .map(([typeId, hours]) => {
+      const userType = userTypes.find(t => t.id === typeId)
+      return {
+        typeId,
+        hours,
+        name: userType?.name || typeId,
+        color: userType?.color || '#8c8c8c',
+        emoji: userType?.emoji,
+      }
+    })
+    .slice(0, 3) // Show max 3 types in the breakdown
+
+  return (
+    <div className="metric-card">
+      <div className="metric-icon" style={{ backgroundColor: '#f0f5ff' }}>
+        <IconClockCircle style={{ color: '#1890ff', fontSize: 24 }} />
+      </div>
+      <div className="metric-content">
+        <div className="metric-title">Total Work</div>
+        <div className="metric-value">{Math.round(totalHours)}h</div>
+        <div className="metric-breakdown">
+          <Space size={4} wrap>
+            {typeBreakdown.map(({ typeId, hours, name, color, emoji }) => (
+              <Tag key={typeId} color={color} size="small">
+                {emoji && `${emoji} `}{Math.round(hours)}h {name.toLowerCase()}
+              </Tag>
+            ))}
+            {typeBreakdown.length === 0 && (
+              <Tag color="gray" size="small">No work scheduled</Tag>
+            )}
+          </Space>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
@@ -199,31 +248,7 @@ export const ScheduleMetricsPanel: React.FC<ScheduleMetricsPanelProps> = ({
 
           {/* Work Hours Metric */}
           <Col xs={24} sm={12} lg={6}>
-            <div className="metric-card">
-              <div className="metric-icon" style={{ backgroundColor: '#f0f5ff' }}>
-                <IconClockCircle style={{ color: '#1890ff', fontSize: 24 }} />
-              </div>
-              <div className="metric-content">
-                <div className="metric-title">Total Work</div>
-                <div className="metric-value">
-                  {Math.round(
-                    (metrics.totalFocusedHours || 0) +
-                    (metrics.totalAdminHours || 0) +
-                    (metrics.totalPersonalHours || 0),
-                  )}h
-                </div>
-                <div className="metric-breakdown">
-                  <Space size={4}>
-                    <Tag color="blue" size="small">
-                      {Math.round(metrics.totalFocusedHours || 0)}h focus
-                    </Tag>
-                    <Tag color="green" size="small">
-                      {Math.round(metrics.totalAdminHours || 0)}h admin
-                    </Tag>
-                  </Space>
-                </div>
-              </div>
-            </div>
+            <WorkHoursMetric metrics={metrics} />
           </Col>
 
           {/* Priority Metric */}

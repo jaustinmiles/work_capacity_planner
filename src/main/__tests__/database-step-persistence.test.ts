@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { DatabaseService } from '../database'
-import { TaskType } from '@shared/enums'
 
 describe('Database Step Field Persistence', () => {
   let db: DatabaseService
@@ -37,7 +36,7 @@ describe('Database Step Field Persistence', () => {
         duration: 180,
         importance: 8,
         urgency: 7,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependencies: '[]',
         completed: false,
@@ -54,7 +53,7 @@ describe('Database Step Field Persistence', () => {
           id: `step-1-${Date.now()}`,
           name: 'Step 1',
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           dependsOn: [],
           asyncWaitTime: 0,
           status: 'pending',
@@ -69,7 +68,7 @@ describe('Database Step Field Persistence', () => {
           id: `step-2-${Date.now()}`,
           name: 'Step 2',
           duration: 120,
-          type: TaskType.Admin,
+          type: 'admin',
           dependsOn: [],
           asyncWaitTime: 30,
           status: 'pending',
@@ -133,7 +132,7 @@ describe('Database Step Field Persistence', () => {
           id: (await db.getTaskById(testTaskId)).steps[0].id,
           name: 'Updated Step 1',
           duration: 90,
-          type: TaskType.Focused,
+          type: 'focused',
           dependsOn: [],
           asyncWaitTime: 0,
           status: 'pending',
@@ -148,7 +147,7 @@ describe('Database Step Field Persistence', () => {
           id: (await db.getTaskById(testTaskId)).steps[1].id,
           name: 'Updated Step 2',
           duration: 60,
-          type: TaskType.Admin,
+          type: 'admin',
           dependsOn: [],
           asyncWaitTime: 0,
           status: 'pending',
@@ -178,7 +177,7 @@ describe('Database Step Field Persistence', () => {
           id: (await db.getTaskById(testTaskId)).steps[0].id,
           name: 'Step with null priority',
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           dependsOn: [],
           asyncWaitTime: 0,
           status: 'pending',
@@ -205,7 +204,7 @@ describe('Database Step Field Persistence', () => {
         id: `step-all-fields-${Date.now()}`,
         name: 'Complete Step',
         duration: 45,
-        type: TaskType.Focused,
+        type: 'focused',
         dependsOn: ['some-dep'],
         asyncWaitTime: 15,
         status: 'in_progress',
@@ -230,7 +229,7 @@ describe('Database Step Field Persistence', () => {
         duration: 45,
         importance: 5,
         urgency: 5,
-        type: TaskType.Focused,
+        type: 'focused',
         asyncWaitTime: 0,
         dependencies: [],
         completed: false,

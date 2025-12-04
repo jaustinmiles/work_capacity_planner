@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { TaskQuickEditModal } from '../TaskQuickEditModal'
 import { useTaskStore } from '../../../store/useTaskStore'
-import { TaskType } from '@shared/enums'
 import { Task } from '@shared/types'
 
 // Mock the store
@@ -55,7 +54,7 @@ describe('TaskQuickEditModal', () => {
       duration: 60,
       importance: 5,
       urgency: 5,
-      type: TaskType.Focused,
+      type: 'focused',
       asyncWaitTime: 0,
       dependencies: [],
       completed: false,
@@ -73,7 +72,7 @@ describe('TaskQuickEditModal', () => {
       duration: 120,
       importance: 7,
       urgency: 8,
-      type: TaskType.Admin,
+      type: 'admin',
       asyncWaitTime: 0,
       dependencies: [],
       completed: false,

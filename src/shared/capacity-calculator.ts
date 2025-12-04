@@ -1,20 +1,24 @@
 /**
  * Unified capacity calculator for work blocks
  * Single source of truth for capacity calculations
+ *
+ * This module handles capacity calculations for user-configurable task types.
+ * It works with BlockTypeConfig (single/combo/system) for dynamic type definitions.
  */
 
-import { TaskType, WorkBlockType } from './enums'
-import { logger } from '../logger'
+import {
+  BlockTypeConfig,
+  isSystemBlock,
+  isSingleTypeBlock,
+  isComboBlock,
+} from './user-task-types'
 
+/**
+ * Capacity information for a work block.
+ */
 export interface BlockCapacity {
   totalMinutes: number
-  type: WorkBlockType
-  splitRatio?: SplitRatio  // Only for mixed blocks
-}
-
-export interface SplitRatio {
-  focus: number
-  admin: number
+  typeConfig: BlockTypeConfig
 }
 
 /**
@@ -23,115 +27,82 @@ export interface SplitRatio {
 function calculateDuration(startTime: string, endTime: string): number {
   const [startHour, startMin] = startTime.split(':').map(Number)
   const [endHour, endMin] = endTime.split(':').map(Number)
-  return (endHour * 60 + endMin) - (startHour * 60 + startMin)
+  return endHour * 60 + endMin - (startHour * 60 + startMin)
 }
 
 /**
- * Calculate capacity for a work block based on type
- * This is the single source of truth for all capacity calculations
+ * Get total capacity in minutes for a specific user task type from a block.
+ * This is for display purposes (showing total capacity by type).
+ *
+ * @param block - The block capacity info
+ * @param taskTypeId - The user task type ID to check
+ * @returns Minutes of capacity for that type
  */
-export function calculateBlockCapacity(
-  type: WorkBlockType,
-  startTime: string,
-  endTime: string,
-  splitRatio?: SplitRatio | null,
-): BlockCapacity {
-  const totalMinutes = calculateDuration(startTime, endTime)
-
-  switch (type) {
-    case WorkBlockType.Focused:
-    case WorkBlockType.Admin:
-    case WorkBlockType.Personal:
-    case WorkBlockType.Flexible:
-      return {
-        totalMinutes,
-        type,
-      }
-
-    case WorkBlockType.Mixed: {
-      // Mixed blocks MUST have an explicit split ratio
-      if (!splitRatio) {
-        throw new Error('Mixed blocks require an explicit split ratio')
-      }
-
-      return {
-        totalMinutes,
-        type,
-        splitRatio,
-      }
-    }
-
-    case WorkBlockType.Blocked:
-    case WorkBlockType.Sleep:
-      // Blocked and sleep blocks have no capacity
-      return {
-        totalMinutes: 0,
-        type,
-      }
-
-    default:
-      logger.warn('Unknown block type', { type }, 'capacity-calculator')
-      return {
-        totalMinutes: 0,
-        type,
-      }
-  }
-}
-
-/**
- * Get total capacity for a specific task type from a block (for display purposes)
- * Note: This returns TOTAL capacity, not remaining available capacity
- * For flexible blocks, this only returns capacity when querying for flexible type
- */
-export function getTotalCapacityForTaskType(
-  block: BlockCapacity,
-  taskType: TaskType,
-): number {
-  // Flexible blocks should ONLY count toward flexible capacity
-  // This prevents double-counting in capacity displays
-  if (block.type === WorkBlockType.Flexible) {
-    return taskType === TaskType.Flexible ? block.totalMinutes : 0
+export function getCapacityForType(block: BlockCapacity, taskTypeId: string): number {
+  if (isSystemBlock(block.typeConfig)) {
+    return 0 // System blocks have no task capacity
   }
 
-  // Block type must match task type (except for mixed)
-  if (block.type === WorkBlockType.Mixed && block.splitRatio) {
-    // Mixed blocks split between focus and admin only
-    if (taskType === TaskType.Focused) {
-      return Math.floor(block.totalMinutes * block.splitRatio.focus)
-    } else if (taskType === TaskType.Admin) {
-      return Math.floor(block.totalMinutes * block.splitRatio.admin)
-    }
-    return 0  // Mixed blocks don't support personal tasks
+  if (isSingleTypeBlock(block.typeConfig)) {
+    return block.typeConfig.typeId === taskTypeId ? block.totalMinutes : 0
   }
 
-  // For single-type blocks, must match exactly
-  if (block.type === WorkBlockType.Focused && taskType === TaskType.Focused) {
-    return block.totalMinutes
-  }
-  if (block.type === WorkBlockType.Admin && taskType === TaskType.Admin) {
-    return block.totalMinutes
-  }
-  if (block.type === WorkBlockType.Personal && taskType === TaskType.Personal) {
-    return block.totalMinutes
+  if (isComboBlock(block.typeConfig)) {
+    const allocation = block.typeConfig.allocations.find((a) => a.typeId === taskTypeId)
+    return allocation ? Math.floor(block.totalMinutes * allocation.ratio) : 0
   }
 
   return 0
 }
 
 /**
- * Get scheduler capacity for a specific task type from a block
- * Unlike getTotalCapacityForTaskType, this treats flexible blocks as available for ANY task type
- * Used by the scheduler to determine if a task can fit in a block
+ * Check if a user task type is compatible with a block's type config.
+ *
+ * @param block - The block capacity info
+ * @param taskTypeId - The user task type ID to check
+ * @returns True if the task type can be scheduled in this block
  */
-export function getSchedulerCapacityForTaskType(
-  block: BlockCapacity,
-  taskType: TaskType,
-): number {
-  // Flexible blocks can be used for ANY task type (except Flexible itself which is not a real task type)
-  if (block.type === WorkBlockType.Flexible && taskType !== TaskType.Flexible) {
-    return block.totalMinutes
+export function isTypeCompatibleWithBlock(block: BlockCapacity, taskTypeId: string): boolean {
+  if (isSystemBlock(block.typeConfig)) {
+    return false
   }
 
-  // For all other blocks, use the standard capacity calculation
-  return getTotalCapacityForTaskType(block, taskType)
+  if (isSingleTypeBlock(block.typeConfig)) {
+    return block.typeConfig.typeId === taskTypeId
+  }
+
+  if (isComboBlock(block.typeConfig)) {
+    return block.typeConfig.allocations.some((a) => a.typeId === taskTypeId)
+  }
+
+  return false
+}
+
+/**
+ * Calculate capacity for a block using the type config system.
+ *
+ * @param typeConfig - The block's type configuration
+ * @param startTime - Block start time (HH:MM)
+ * @param endTime - Block end time (HH:MM)
+ * @returns Block capacity info
+ */
+export function calculateBlockCapacity(
+  typeConfig: BlockTypeConfig,
+  startTime: string,
+  endTime: string,
+): BlockCapacity {
+  const totalMinutes = calculateDuration(startTime, endTime)
+
+  // System blocks have zero capacity
+  if (isSystemBlock(typeConfig)) {
+    return {
+      totalMinutes: 0,
+      typeConfig,
+    }
+  }
+
+  return {
+    totalMinutes,
+    typeConfig,
+  }
 }

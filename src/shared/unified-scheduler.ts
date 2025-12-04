@@ -18,9 +18,20 @@
 
 import { Task } from './types'
 import { SequencedTask, TaskStep } from './sequencing-types'
-import { getSchedulerCapacityForTaskType, SplitRatio } from './capacity-calculator'
-import { TaskType, WorkBlockType, UnifiedScheduleItemType } from './enums'
-import { DailyWorkPattern, WorkBlock, WorkMeeting } from './work-blocks-types'
+import { UnifiedScheduleItemType } from './enums'
+import {
+  DailyWorkPattern,
+  WorkBlock,
+  WorkMeeting,
+  isTaskTypeCompatibleWithBlock,
+} from './work-blocks-types'
+import {
+  BlockTypeConfig,
+  isSystemBlock,
+  isSingleTypeBlock,
+  isComboBlock,
+  getTypeRatioInBlock,
+} from './user-task-types'
 import { WorkSettings } from './work-settings-types'
 import { ProductivityPattern, SchedulingPreferences } from './types'
 import { logger } from '@/logger'
@@ -89,7 +100,7 @@ export interface UnifiedScheduleItem {
   importance?: number
   urgency?: number
   cognitiveComplexity?: number
-  taskType?: TaskType
+  taskTypeId?: string // References user-defined task type
 
   // Scheduling properties
   startTime?: Date
@@ -165,14 +176,13 @@ export interface SchedulingDebugInfo {
     endTime: string                         // Always present
     capacity: number                        // Always present
     used: number                            // Always present
-    blockType: WorkBlockType                // Always present
+    typeConfig: BlockTypeConfig             // Always present - block type configuration
     utilization: number                     // Always present
-    capacityBreakdown?: { focus?: number; admin?: number; personal?: number }  // Optional - for mixed blocks
-    usedBreakdown?: { focus?: number; admin?: number; personal?: number }       // Optional - for mixed blocks
+    capacityByType?: Record<string, number> // Optional - per-type capacity for combo blocks
+    usedByType?: Record<string, number>     // Optional - per-type usage for combo blocks
     isCurrent?: boolean                     // Optional - true if this is the current block
     reasonNotFilled?: string[]              // Optional - reasons why block wasn't fully utilized
-    perTypeUtilization?: { focus?: number; admin?: number; personal?: number }  // Optional - utilization by type
-    splitRatio?: { focus: number; admin: number }  // Optional - for mixed blocks
+    perTypeUtilization?: Record<string, number> // Optional - utilization by type
   }>
   warnings: string[]                        // Always present
   totalScheduled: number                    // Always present
@@ -196,9 +206,8 @@ export interface SchedulingDebugInfo {
  */
 export interface SchedulingMetrics {
   totalWorkDays?: number
-  totalFocusedHours?: number
-  totalAdminHours?: number
-  totalPersonalHours?: number
+  /** Dynamic hours by user-defined type ID */
+  hoursByType?: Record<string, number>
   projectedCompletionDate?: Date
   averageUtilization?: number
   peakUtilization?: number
@@ -230,19 +239,17 @@ export interface SchedulingWarning {
 }
 
 /**
- * Extended BlockCapacity for scheduling context.
- * Different from capacity-calculator's BlockCapacity which only tracks totals.
- * This includes runtime scheduling details like actual usage and time bounds.
+ * Extended block capacity for scheduling context.
+ * Tracks runtime scheduling details like actual usage and time bounds.
  */
-interface BlockCapacity {
+interface SchedulerBlockCapacity {
   blockId: string
-  blockType: WorkBlockType
+  typeConfig: BlockTypeConfig
   startTime: Date
   endTime: Date
   totalMinutes: number
   usedMinutes: number
-  splitRatio?: { focus: number; admin: number } | undefined  // Only for mixed blocks
-  usedMinutesByType?: Map<TaskType, number>  // Track per-type usage for mixed blocks
+  usedMinutesByType?: Map<string, number>  // Track per-type usage for combo blocks
 }
 
 interface FitResult {
@@ -250,7 +257,7 @@ interface FitResult {
   canPartiallyFit: boolean
   availableMinutes?: number
   startTime?: Date
-  block?: BlockCapacity
+  block?: SchedulerBlockCapacity
 }
 
 export interface ScheduleResult {
@@ -479,7 +486,7 @@ export class UnifiedScheduler {
     logger.info('allocateToWorkBlocks called', {
       itemCount: items.length,
       itemNames: items.map(i => i.name),
-      itemTypes: items.map(i => i.taskType),
+      itemTypes: items.map(i => i.taskTypeId),
       patternCount: workPatterns.length,
       patternDates: workPatterns.map(p => p.date),
       hasCurrentTime: !!config.currentTime,
@@ -681,20 +688,23 @@ export class UnifiedScheduler {
 
               if (futurePattern) {
                 // Calculate available capacity for this future day
-                // We need to convert blocks to BlockCapacity format for canFitInBlock
-                const blockCapacities: BlockCapacity[] = futurePattern.blocks.map(block => {
+                const blockCapacities: SchedulerBlockCapacity[] = futurePattern.blocks.map(block => {
                   const startTime = this.parseTimeOnDate(lookAheadDate, block.startTime)
                   const endTime = this.parseTimeOnDate(lookAheadDate, block.endTime)
-                  const totalMinutes = calculateTimeStringDuration(block.startTime, block.endTime)
+                  let totalMinutes = calculateTimeStringDuration(block.startTime, block.endTime)
+
+                  // System blocks have zero capacity
+                  if (isSystemBlock(block.typeConfig)) {
+                    totalMinutes = 0
+                  }
 
                   return {
                     blockId: block.id,
-                    blockType: block.type as WorkBlockType,
+                    typeConfig: block.typeConfig,
                     startTime,
                     endTime,
                     totalMinutes,
                     usedMinutes: 0, // Future days have no usage yet
-                    splitRatio: block.capacity?.splitRatio,
                   }
                 })
 
@@ -778,7 +788,7 @@ export class UnifiedScheduler {
       scheduledNames: scheduled.map(s => s.name),
       remainingCount: remaining.length,
       remainingNames: remaining.map(r => r.name),
-      remainingTypes: remaining.map(r => r.taskType),
+      remainingTypes: remaining.map(r => r.taskTypeId),
     })
 
     return scheduled
@@ -855,13 +865,13 @@ export class UnifiedScheduler {
   findAvailableSlots(
     workBlocks: WorkBlock[],
     duration: number,
-    taskType: TaskType,
+    taskTypeId: string,
   ): { startTime: Date; endTime: Date; blockId: string }[] {
     const availableSlots: { startTime: Date; endTime: Date; blockId: string }[] = []
 
     for (const block of workBlocks) {
       // Check if block type is compatible with task type
-      if (!this.isCompatibleBlockType(block, taskType)) {
+      if (!isTaskTypeCompatibleWithBlock(block, taskTypeId)) {
         continue
       }
 
@@ -882,12 +892,6 @@ export class UnifiedScheduler {
 
       // Check if block is large enough for the task
       if (blockDurationMinutes >= duration) {
-        // For now, assume entire block is available
-        // In a more sophisticated implementation, we would:
-        // 1. Check for existing scheduled items in this block
-        // 2. Find gaps between scheduled items
-        // 3. Check capacity constraints (focused vs admin time)
-
         availableSlots.push({
           startTime: blockStartTime,
           endTime: new Date(blockStartTime.getTime() + duration * 60000),
@@ -897,24 +901,6 @@ export class UnifiedScheduler {
     }
 
     return availableSlots
-  }
-
-  /**
-   * Check if a work block type is compatible with a task type
-   */
-  private isCompatibleBlockType(block: WorkBlock, taskType: TaskType): boolean {
-    switch (taskType) {
-      case TaskType.Focused:
-        return block.type === 'focused' || block.type === 'mixed' || block.type === 'flexible'
-      case TaskType.Admin:
-        return block.type === 'admin' || block.type === 'mixed' || block.type === 'flexible'
-      case TaskType.Personal:
-        return block.type === 'personal' || block.type === 'flexible'
-      case TaskType.Mixed:
-        return true // Mixed tasks can go in any block
-      default:
-        return block.type === 'flexible' // Default to flexible blocks
-    }
   }
 
   /**
@@ -1238,54 +1224,34 @@ export class UnifiedScheduler {
   /**
    * Create block capacity tracker from work block
    */
-  private createBlockCapacity(block: WorkBlock, date: Date): BlockCapacity {
+  private createBlockCapacity(block: WorkBlock, date: Date): SchedulerBlockCapacity {
     const startTime = this.parseTimeOnDate(date, block.startTime)
     const endTime = this.parseTimeOnDate(date, block.endTime)
 
-    // Use the capacity already calculated by capacity-calculator in getWorkPattern
-    const capacity = block.capacity
+    // Calculate total minutes from time difference
+    let totalMinutes = calculateTimeStringDuration(block.startTime, block.endTime)
 
-    // Handle both old and new capacity formats
-    let totalMinutes = 0
-    let splitRatio: SplitRatio | undefined = undefined
-
-    if (capacity && 'totalMinutes' in capacity) {
-      totalMinutes = capacity.totalMinutes || 0
-      splitRatio = capacity.splitRatio
+    // System blocks have zero capacity
+    if (isSystemBlock(block.typeConfig)) {
+      totalMinutes = 0
     }
 
-    // Fallback: calculate from time difference if still 0
-    if (totalMinutes === 0) {
-      totalMinutes = calculateTimeStringDuration(block.startTime, block.endTime)
-
-    }
-
-    // Initialize the block capacity with per-type tracking for mixed blocks
-    const blockCapacity: BlockCapacity = {
+    // Initialize the block capacity
+    const blockCapacity: SchedulerBlockCapacity = {
       blockId: block.id,
-      blockType: block.type as WorkBlockType,
+      typeConfig: block.typeConfig,
       startTime,
       endTime,
       totalMinutes,
       usedMinutes: 0,
-      splitRatio,
     }
 
-    // Initialize per-type usage tracking for mixed blocks
-    if (block.type === WorkBlockType.Mixed) {
-      blockCapacity.usedMinutesByType = new Map<TaskType, number>()
-      blockCapacity.usedMinutesByType.set(TaskType.Focused, 0)
-      blockCapacity.usedMinutesByType.set(TaskType.Admin, 0)
-      blockCapacity.usedMinutesByType.set(TaskType.Personal, 0)
-
-      // Log mixed block creation
-      logger.debug('Created mixed block capacity', {
-        blockId: block.id,
-        totalMinutes,
-        splitRatio,
-        focusCapacity: splitRatio ? Math.floor(totalMinutes * splitRatio.focus) : 0,
-        adminCapacity: splitRatio ? Math.floor(totalMinutes * splitRatio.admin) : 0,
-      })
+    // Initialize per-type usage tracking for combo blocks
+    if (isComboBlock(block.typeConfig)) {
+      blockCapacity.usedMinutesByType = new Map<string, number>()
+      for (const allocation of block.typeConfig.allocations) {
+        blockCapacity.usedMinutesByType.set(allocation.typeId, 0)
+      }
     }
 
     return blockCapacity
@@ -1296,7 +1262,7 @@ export class UnifiedScheduler {
    */
   private findBestBlockForItem(
     item: UnifiedScheduleItem,
-    blocks: BlockCapacity[],
+    blocks: SchedulerBlockCapacity[],
     scheduled: UnifiedScheduleItem[],
     currentTime?: Date,
   ): FitResult {
@@ -1317,49 +1283,48 @@ export class UnifiedScheduler {
    */
   private canFitInBlock(
     item: UnifiedScheduleItem,
-    block: BlockCapacity,
+    block: SchedulerBlockCapacity,
     scheduled: UnifiedScheduleItem[],
     currentTime?: Date,
   ): FitResult {
-    // Get the task type
-    const taskType = item.taskType === TaskType.Focused ? TaskType.Focused :
-                     item.taskType === TaskType.Admin ? TaskType.Admin : TaskType.Personal
+    const taskTypeId = item.taskTypeId
 
-    // Calculate total capacity for this task type in this block
-    const totalCapacityForTaskType = getSchedulerCapacityForTaskType(
-      block.splitRatio !== undefined
-        ? { totalMinutes: block.totalMinutes, type: block.blockType, splitRatio: block.splitRatio }
-        : { totalMinutes: block.totalMinutes, type: block.blockType },
-      taskType,
-    )
+    // System blocks don't accept tasks
+    if (isSystemBlock(block.typeConfig)) {
+      return { canFit: false, canPartiallyFit: false }
+    }
 
-    // If this block type doesn't support this task type, capacity will be 0
+    // Check type compatibility
+    if (taskTypeId) {
+      // Single type blocks must match exactly
+      if (isSingleTypeBlock(block.typeConfig) && block.typeConfig.typeId !== taskTypeId) {
+        return { canFit: false, canPartiallyFit: false }
+      }
+
+      // Combo blocks must include this type
+      if (isComboBlock(block.typeConfig)) {
+        const hasType = block.typeConfig.allocations.some(a => a.typeId === taskTypeId)
+        if (!hasType) {
+          return { canFit: false, canPartiallyFit: false }
+        }
+      }
+    }
+
+    // Calculate type-specific capacity for this block
+    const totalCapacityForTaskType = taskTypeId
+      ? getTypeRatioInBlock(taskTypeId, block.typeConfig) * block.totalMinutes
+      : block.totalMinutes
+
     if (totalCapacityForTaskType === 0) {
-      logger.warn('Task rejected: type mismatch', {
-        taskName: item.name,
-        taskType,
-        blockType: block.blockType,
-        blockId: block.blockId,
-        totalCapacityForTaskType,
-      })
       return { canFit: false, canPartiallyFit: false }
     }
 
     // Find when we can start in this block (considering current time and scheduled items)
-    // IMPORTANT: Exclude wait times as they don't block scheduling
     const scheduledNonWaitItems = scheduled.filter(s => !s.isWaitTime)
     const potentialStartTime = this.findNextAvailableTime(block, scheduledNonWaitItems, currentTime)
 
     // Check if we're past the block
     if (potentialStartTime.getTime() >= block.endTime.getTime()) {
-      logger.warn('Task rejected: block full or in past', {
-        taskName: item.name,
-        blockId: block.blockId,
-        blockTime: `${block.startTime.toISOString()} - ${block.endTime.toISOString()}`,
-        potentialStartTime: potentialStartTime.toISOString(),
-        currentTimeProvided: !!currentTime,
-        currentTime: currentTime?.toISOString(),
-      })
       return { canFit: false, canPartiallyFit: false }
     }
 
@@ -1372,39 +1337,23 @@ export class UnifiedScheduler {
       s.startTime >= potentialStartTime &&
       s.endTime <= block.endTime &&
       s.blockId === block.blockId &&
-      !s.isWaitTime,  // Wait times don't consume capacity
+      !s.isWaitTime,
     )
 
     // Calculate available capacity based on block type
     let availableCapacity: number
 
-    if (block.blockType === WorkBlockType.Mixed) {
-      // For mixed blocks, track per-type usage
+    if (isComboBlock(block.typeConfig) && taskTypeId) {
+      // For combo blocks, track per-type usage
       const usedForThisType = scheduledInRemainingWindow
-        .filter(s => s.taskType === taskType)
+        .filter(s => s.taskTypeId === taskTypeId)
         .reduce((sum, s) => sum + s.duration, 0)
 
       // Available is type-specific capacity minus what's scheduled for this type
-      availableCapacity = Math.min(totalCapacityForTaskType - usedForThisType, remainingTimeInBlock)
-
-      // Debug logging for mixed blocks
-      logger.debug('Mixed block capacity check (fixed)', {
-        blockId: block.blockId,
-        taskType,
-        totalCapacityForTaskType,
-        usedForThisType,
-        remainingTimeInBlock,
-        availableCapacity,
-        itemDuration: item.duration,
-        itemName: item.name,
-        potentialStartTime: potentialStartTime.toISOString(),
-      })
+      availableCapacity = Math.min(Math.floor(totalCapacityForTaskType) - usedForThisType, remainingTimeInBlock)
     } else {
       // For single-type blocks, simpler calculation
-      const totalUsed = scheduledInRemainingWindow
-        .reduce((sum, s) => sum + s.duration, 0)
-
-      // Available is remaining time minus what's scheduled
+      const totalUsed = scheduledInRemainingWindow.reduce((sum, s) => sum + s.duration, 0)
       availableCapacity = remainingTimeInBlock - totalUsed
     }
 
@@ -1421,7 +1370,7 @@ export class UnifiedScheduler {
         availableMinutes: availableCapacity,
         startTime: potentialStartTime,
       }
-    } else if (availableCapacity > MINIMUM_SPLIT_SIZE) { // Can partially fit
+    } else if (availableCapacity > MINIMUM_SPLIT_SIZE) {
       return {
         canFit: false,
         canPartiallyFit: true,
@@ -1504,32 +1453,20 @@ export class UnifiedScheduler {
   /**
    * Update block capacity after scheduling an item
    */
-  private updateBlockCapacity(block: BlockCapacity | undefined, item: UnifiedScheduleItem): void {
+  private updateBlockCapacity(block: SchedulerBlockCapacity | undefined, item: UnifiedScheduleItem): void {
     if (!block) return
 
-    // Update total used minutes (for backward compatibility)
+    // Update total used minutes
     block.usedMinutes = (block.usedMinutes || 0) + item.duration
 
-    // For mixed blocks, also track per-type usage
-    if (block.blockType === WorkBlockType.Mixed && item.taskType) {
+    // For combo blocks, also track per-type usage
+    if (isComboBlock(block.typeConfig) && item.taskTypeId) {
       if (!block.usedMinutesByType) {
-        block.usedMinutesByType = new Map<TaskType, number>()
+        block.usedMinutesByType = new Map<string, number>()
       }
-      const currentUsed = block.usedMinutesByType.get(item.taskType) || 0
+      const currentUsed = block.usedMinutesByType.get(item.taskTypeId) || 0
       const newUsed = currentUsed + item.duration
-      block.usedMinutesByType.set(item.taskType, newUsed)
-
-      // Log the update for mixed blocks
-      logger.debug('Updated mixed block capacity', {
-        blockId: block.blockId,
-        itemName: item.name,
-        itemType: item.taskType,
-        itemDuration: item.duration,
-        previousUsed: currentUsed,
-        newUsed,
-        totalUsed: block.usedMinutes,
-        splitRatio: block.splitRatio,
-      })
+      block.usedMinutesByType.set(item.taskTypeId, newUsed)
     }
   }
 
@@ -1557,7 +1494,7 @@ export class UnifiedScheduler {
   /**
    * Find next available time in block
    */
-  private findNextAvailableTime(block: BlockCapacity, scheduledInBlock: UnifiedScheduleItem[], currentTime?: Date): Date {
+  private findNextAvailableTime(block: SchedulerBlockCapacity, scheduledInBlock: UnifiedScheduleItem[], currentTime?: Date): Date {
     // If no current time constraint, start from block start
     if (!currentTime) {
       logger.debug('findNextAvailableTime: No time constraint - using block start time', {
@@ -1899,12 +1836,11 @@ export class UnifiedScheduler {
     endTime: string
     capacity: number
     used: number
-    blockType: WorkBlockType
+    typeConfig: BlockTypeConfig
     utilization: number
-    perTypeUtilization?: { focus?: number; admin?: number; personal?: number }
-    splitRatio?: { focus: number; admin: number }
-    capacityBreakdown?: { focus?: number; admin?: number; personal?: number }
-    usedBreakdown?: { focus?: number; admin?: number; personal?: number }
+    perTypeUtilization?: Record<string, number>
+    capacityByType?: Record<string, number>
+    usedByType?: Record<string, number>
     isCurrent?: boolean
     reasonNotFilled?: string[]
   }> {
@@ -2002,82 +1938,54 @@ export class UnifiedScheduler {
           endTime: block.endTime,
           capacity: totalCapacity,
           used: usedCapacity,
-          blockType: block.type,
+          typeConfig: block.typeConfig,
           utilization: Math.round(utilizationPercent),
           isCurrent,
         }
 
         // Calculate detailed capacity breakdown
-        const capacityBreakdown: any = {}
-        const usedBreakdown: any = {}
+        const capacityByType: Record<string, number> = {}
+        const usedByType: Record<string, number> = {}
         const reasonsNotFilled: string[] = []
 
-        // For mixed blocks, add per-type utilization breakdown
-        if (block.type === WorkBlockType.Mixed && block.capacity?.splitRatio) {
-          const focusCapacity = Math.floor(totalMinutes * block.capacity.splitRatio.focus)
-          const adminCapacity = Math.floor(totalMinutes * block.capacity.splitRatio.admin)
+        // For combo blocks, add per-type utilization breakdown
+        if (isComboBlock(block.typeConfig)) {
+          // Calculate capacity per type based on allocation ratios
+          for (const allocation of block.typeConfig.allocations) {
+            const typeCapacity = Math.floor(totalMinutes * allocation.ratio)
+            capacityByType[allocation.typeId] = typeCapacity
 
-          capacityBreakdown.focus = focusCapacity
-          capacityBreakdown.admin = adminCapacity
+            // Calculate used minutes for this type
+            const typeUsed = itemsInBlock
+              .filter(item => item.taskTypeId === allocation.typeId)
+              .reduce((sum, item) => sum + item.duration, 0)
+            usedByType[allocation.typeId] = typeUsed
 
-          // Calculate used minutes by type
-          const focusUsed = itemsInBlock.filter(item => item.taskType === TaskType.Focused)
-            .reduce((sum, item) => sum + item.duration, 0)
-          const adminUsed = itemsInBlock.filter(item => item.taskType === TaskType.Admin)
-            .reduce((sum, item) => sum + item.duration, 0)
-          const personalUsed = itemsInBlock.filter(item => item.taskType === TaskType.Personal)
-            .reduce((sum, item) => sum + item.duration, 0)
-
-          usedBreakdown.focus = focusUsed
-          usedBreakdown.admin = adminUsed
-          if (personalUsed > 0) usedBreakdown.personal = personalUsed
-
-          blockUtil.perTypeUtilization = {
-            focus: focusCapacity > 0 ? Math.round((focusUsed / focusCapacity) * 100) : 0,
-            admin: adminCapacity > 0 ? Math.round((adminUsed / adminCapacity) * 100) : 0,
-            personal: personalUsed > 0 ? 100 : 0, // Personal tasks can use any capacity
+            // Track underutilization
+            if (typeUsed < typeCapacity) {
+              const unused = typeCapacity - typeUsed
+              reasonsNotFilled.push(`${unused}min ${allocation.typeId} capacity unused`)
+            }
           }
 
-          blockUtil.splitRatio = block.capacity.splitRatio
-          blockUtil.capacityBreakdown = capacityBreakdown
-          blockUtil.usedBreakdown = usedBreakdown
-
-          // Determine reasons for underutilization
-          if (focusUsed < focusCapacity) {
-            const unusedFocus = focusCapacity - focusUsed
-            reasonsNotFilled.push(`${unusedFocus}min focus capacity unused`)
-          }
-          if (adminUsed < adminCapacity) {
-            const unusedAdmin = adminCapacity - adminUsed
-            reasonsNotFilled.push(`${unusedAdmin}min admin capacity unused`)
+          // Calculate per-type utilization percentages
+          const perTypeUtilization: Record<string, number> = {}
+          for (const [typeId, typeCapacity] of Object.entries(capacityByType)) {
+            const typeUsed = usedByType[typeId] || 0
+            perTypeUtilization[typeId] = typeCapacity > 0 ? Math.round((typeUsed / typeCapacity) * 100) : 0
           }
 
-          // Add debug logging for mixed blocks
-          logger.debug('Mixed block utilization', {
-            blockId: block.id,
-            isCurrent,
-            focusCapacity,
-            focusUsed,
-            adminCapacity,
-            adminUsed,
-            perTypeUtilization: blockUtil.perTypeUtilization,
-            reasonsNotFilled,
-          })
-        } else {
+          blockUtil.perTypeUtilization = perTypeUtilization
+          blockUtil.capacityByType = capacityByType
+          blockUtil.usedByType = usedByType
+        } else if (isSingleTypeBlock(block.typeConfig)) {
           // For single-type blocks
-          if (block.type === WorkBlockType.Focused) {
-            capacityBreakdown.focus = totalCapacity
-            usedBreakdown.focus = usedCapacity
-          } else if (block.type === WorkBlockType.Admin) {
-            capacityBreakdown.admin = totalCapacity
-            usedBreakdown.admin = usedCapacity
-          } else if (block.type === WorkBlockType.Personal) {
-            capacityBreakdown.personal = totalCapacity
-            usedBreakdown.personal = usedCapacity
-          }
+          const typeId = block.typeConfig.typeId
+          capacityByType[typeId] = totalCapacity
+          usedByType[typeId] = usedCapacity
 
-          blockUtil.capacityBreakdown = capacityBreakdown
-          blockUtil.usedBreakdown = usedBreakdown
+          blockUtil.capacityByType = capacityByType
+          blockUtil.usedByType = usedByType
 
           if (usedCapacity < totalCapacity) {
             const unusedCapacity = totalCapacity - usedCapacity

@@ -1,7 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
+import { BlockConfigKind, WorkBlockType } from '@/shared/enums'
 
 const prisma = new PrismaClient()
+
+// Helper to create typeConfig JSON strings for tests
+const createSystemBlockConfig = (systemType: WorkBlockType) =>
+  JSON.stringify({ kind: BlockConfigKind.System, systemType })
+
+const createSingleBlockConfig = (typeId: string) =>
+  JSON.stringify({ kind: BlockConfigKind.Single, typeId })
 
 describe('Database Validation Tests', () => {
   let testSessionId: string
@@ -95,7 +103,7 @@ describe('Database Validation Tests', () => {
                 id: 'test-block-' + Date.now(),
                 startTime: '09:00',
                 endTime: '17:00',
-                type: 'focused',
+                typeConfig: createSingleBlockConfig('test-type-focused'),
                 totalCapacity: 240,
               },
             ],
@@ -140,9 +148,8 @@ describe('Database Validation Tests', () => {
                 id: 'template-block-' + Date.now(),
                 startTime: '06:00',
                 endTime: '14:00',
-                type: 'mixed',
-                totalCapacity: 300, // 180 + 120
-                splitRatio: { focus: 0.6, admin: 0.4 }, // 180/300 = 0.6, 120/300 = 0.4
+                typeConfig: createSystemBlockConfig(WorkBlockType.Blocked),
+                totalCapacity: 300,
               },
             ],
           },

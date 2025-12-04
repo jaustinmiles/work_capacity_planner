@@ -96,10 +96,12 @@ describe('Database - Time Tracking', () => {
 
       const result = await db.getTodayAccumulated(testDate)
 
+      // New dynamic format: { byType: Record<string, number>, total: number }
       expect(result).toEqual({
-        focused: 30, // Only 30 (actualMinutes), not plannedMinutes
-        admin: 45,
-        personal: 0,
+        byType: {
+          focused: 30, // Only 30 (actualMinutes), not plannedMinutes
+          admin: 45,
+        },
         total: 75, // 30 + 45
       })
     })
@@ -111,9 +113,7 @@ describe('Database - Time Tracking', () => {
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focused: 0,
-        admin: 0,
-        personal: 0,
+        byType: {},
         total: 0,
       })
     })
@@ -126,9 +126,7 @@ describe('Database - Time Tracking', () => {
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focused: 0,
-        admin: 0,
-        personal: 0,
+        byType: {},
         total: 0,
       })
     })
@@ -165,9 +163,10 @@ describe('Database - Time Tracking', () => {
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focused: 55, // 30 + 25
-        admin: 60,
-        personal: 0,
+        byType: {
+          focused: 55, // 30 + 25
+          admin: 60,
+        },
         total: 115, // 55 + 60
       })
     })
@@ -179,9 +178,7 @@ describe('Database - Time Tracking', () => {
       const result = await db.getTodayAccumulated(testDate)
 
       expect(result).toEqual({
-        focused: 0,
-        admin: 0,
-        personal: 0,
+        byType: {},
         total: 0,
       })
     })

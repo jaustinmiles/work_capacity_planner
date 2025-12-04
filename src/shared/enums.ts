@@ -23,14 +23,10 @@ export enum StepStatus {
   Skipped = 'skipped',
 }
 
-// Task types
-
-export enum TaskType {
-  Focused = 'focused',
-  Admin = 'admin',
-  Personal = 'personal',
-  Mixed = 'mixed', // Only used for work blocks in scheduling, not for individual tasks
-  Flexible = 'flexible', // For flexible capacity that can be used by any task type
+// User task type kind (for distinguishing system vs user-created types)
+export enum UserTaskTypeKind {
+  System = 'system',
+  User = 'user',
 }
 
 // Gantt chart item types
@@ -58,15 +54,18 @@ export enum NextScheduledItemType {
   Step = 'step',
 }
 
-// Work block types for scheduling
+// Work block types for scheduling - non-work time only
+// Task types are now user-defined, not hardcoded
 export enum WorkBlockType {
-  Focused = 'focused',
-  Admin = 'admin',
-  Mixed = 'mixed',
-  Flexible = 'flexible',
-  Personal = 'personal',
   Blocked = 'blocked',
   Sleep = 'sleep',
+}
+
+// Block configuration kinds - how a work block handles task types
+export enum BlockConfigKind {
+  Single = 'single',  // Block accepts only one specific task type
+  Combo = 'combo',    // Block accepts multiple types with ratio-based capacity allocation
+  System = 'system',  // Non-working block (blocked or sleep)
 }
 
 // Amendment types for voice amendments and brainstorm chat
@@ -151,12 +150,12 @@ export enum NotificationType {
   Warning = 'warning',
 }
 
-// Work session types
-export enum WorkSessionType {
-  Focused = 'focused',
-  Admin = 'admin',
+// Meeting/event types for work schedule (recurring events in daily patterns)
+export enum MeetingType {
   Meeting = 'meeting',
   Break = 'break',
+  Personal = 'personal',
+  Blocked = 'blocked',
 }
 
 // Days of the week

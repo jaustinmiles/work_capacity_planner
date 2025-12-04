@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { TaskList } from '../TaskList'
 import { useTaskStore } from '../../../store/useTaskStore'
-import { TaskType } from '@shared/enums'
 
 // Mock the store
 vi.mock('../../../store/useTaskStore')
@@ -82,7 +81,7 @@ describe('TaskList - Task Type Filter', () => {
     {
       id: '1',
       name: 'Focus Task 1',
-      type: TaskType.Focused,
+      type: 'focused',
       duration: 60,
       importance: 5,
       urgency: 5,
@@ -93,7 +92,7 @@ describe('TaskList - Task Type Filter', () => {
     {
       id: '2',
       name: 'Admin Task 1',
-      type: TaskType.Admin,
+      type: 'admin',
       duration: 30,
       importance: 3,
       urgency: 3,
@@ -104,7 +103,7 @@ describe('TaskList - Task Type Filter', () => {
     {
       id: '3',
       name: 'Personal Task 1',
-      type: TaskType.Personal,
+      type: 'personal',
       duration: 45,
       importance: 2,
       urgency: 2,
@@ -115,7 +114,7 @@ describe('TaskList - Task Type Filter', () => {
     {
       id: '4',
       name: 'Focus Task 2',
-      type: TaskType.Focused,
+      type: 'focused',
       duration: 90,
       importance: 4,
       urgency: 4,
@@ -126,7 +125,7 @@ describe('TaskList - Task Type Filter', () => {
     {
       id: '5',
       name: 'Personal Task 2',
-      type: TaskType.Personal,
+      type: 'personal',
       duration: 20,
       importance: 1,
       urgency: 1,

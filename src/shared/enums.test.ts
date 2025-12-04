@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   TaskStatus,
   StepStatus,
-  TaskType,
   AmendmentType,
+  UserTaskTypeKind,
 } from './enums'
 
 describe('enums', () => {
@@ -83,36 +83,17 @@ describe('enums', () => {
     })
   })
 
-  describe('TaskType enum', () => {
+  describe('UserTaskTypeKind enum', () => {
     it('should have correct values', () => {
-      expect(TaskType.Focused).toBe('focused')
-      expect(TaskType.Admin).toBe('admin')
-      expect(TaskType.Personal).toBe('personal')
-      expect(TaskType.Mixed).toBe('mixed')
+      expect(UserTaskTypeKind.System).toBe('system')
+      expect(UserTaskTypeKind.User).toBe('user')
     })
 
     it('should have all expected keys', () => {
-      const keys = Object.keys(TaskType)
-      expect(keys).toHaveLength(5)
-      expect(keys).toContain('Focused')
-      expect(keys).toContain('Admin')
-      expect(keys).toContain('Personal')
-      expect(keys).toContain('Mixed')
-      expect(keys).toContain('Flexible')
-    })
-
-    it('should include Mixed type for work blocks', () => {
-      // Mixed is only for work blocks, not individual tasks
-      expect(TaskType.Mixed).toBe('mixed')
-    })
-
-    it('should support type categorization', () => {
-      const workTypes = [TaskType.Focused, TaskType.Admin]
-      const personalType = TaskType.Personal
-
-      expect(workTypes).toContain(TaskType.Focused)
-      expect(workTypes).toContain(TaskType.Admin)
-      expect(workTypes).not.toContain(personalType)
+      const keys = Object.keys(UserTaskTypeKind)
+      expect(keys).toHaveLength(2)
+      expect(keys).toContain('System')
+      expect(keys).toContain('User')
     })
   })
 
@@ -176,7 +157,7 @@ describe('enums', () => {
   describe('Enum consistency and patterns', () => {
     it('should use consistent naming conventions', () => {
       // All enum names should be PascalCase
-      const enumNames = ['TaskStatus', 'StepStatus', 'TaskType', 'AmendmentType']
+      const enumNames = ['TaskStatus', 'StepStatus', 'UserTaskTypeKind', 'AmendmentType']
       enumNames.forEach(name => {
         expect(name).toMatch(/^[A-Z][a-zA-Z]+$/)
       })
@@ -187,7 +168,7 @@ describe('enums', () => {
       const allValues = [
         ...Object.values(TaskStatus),
         ...Object.values(StepStatus),
-        ...Object.values(TaskType),
+        ...Object.values(UserTaskTypeKind),
         ...Object.values(AmendmentType),
       ]
 

@@ -4,7 +4,6 @@ import { WorkLoggerCalendar } from '../WorkLoggerCalendar'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { getDatabase } from '../../../services/database'
 import dayjs from 'dayjs'
-import { TaskType } from '@shared/enums'
 
 // Mock the database service
 vi.mock('../../../services/database', () => ({
@@ -44,13 +43,13 @@ describe.skip('WorkLoggerCalendar', () => {
       {
         id: 'task-1',
         name: 'Write Documentation',
-        type: TaskType.Focused,
+        type: 'focused',
         hasSteps: false,
       },
       {
         id: 'task-2',
         name: 'Review PRs',
-        type: TaskType.Admin,
+        type: 'admin',
         hasSteps: false,
       },
     ],
@@ -63,12 +62,12 @@ describe.skip('WorkLoggerCalendar', () => {
           {
             id: 'step-1',
             name: 'Design',
-            type: TaskType.Focused,
+            type: 'focused',
           },
           {
             id: 'step-2',
             name: 'Implementation',
-            type: TaskType.Focused,
+            type: 'focused',
           },
         ],
       },
@@ -131,7 +130,7 @@ describe.skip('WorkLoggerCalendar', () => {
         {
           id: 'session-1',
           taskId: 'task-1',
-          type: TaskType.Focused,
+          type: 'focused',
           startTime: new Date('2024-01-01T09:00:00'),
           endTime: new Date('2024-01-01T10:00:00'),
           plannedMinutes: 60,
@@ -154,7 +153,7 @@ describe.skip('WorkLoggerCalendar', () => {
         {
           id: 'session-1',
           taskId: 'task-1',
-          type: TaskType.Focused,
+          type: 'focused',
           startTime: new Date('2024-01-01T09:00:00'),
           endTime: new Date('2024-01-01T10:00:00'),
           plannedMinutes: 60,
@@ -334,7 +333,7 @@ describe.skip('WorkLoggerCalendar', () => {
         {
           id: 'session-1',
           taskId: 'task-1',
-          type: TaskType.Focused,
+          type: 'focused',
           startTime: new Date('2024-01-01T09:00:00'),
           endTime: new Date('2024-01-01T10:00:00'),
           plannedMinutes: 60,
@@ -362,7 +361,7 @@ describe.skip('WorkLoggerCalendar', () => {
         {
           id: 'session-1',
           taskId: 'task-1',
-          type: TaskType.Focused,
+          type: 'focused',
           startTime: new Date('2024-01-01T09:00:00'),
           endTime: new Date('2024-01-01T10:00:00'),
           plannedMinutes: 60,
@@ -371,7 +370,7 @@ describe.skip('WorkLoggerCalendar', () => {
         {
           id: 'session-2',
           taskId: 'task-2',
-          type: TaskType.Admin,
+          type: 'admin',
           startTime: new Date('2024-01-01T11:00:00'),
           endTime: new Date('2024-01-01T11:30:00'),
           plannedMinutes: 30,
@@ -501,7 +500,7 @@ describe.skip('WorkLoggerCalendar', () => {
         {
           id: 'session-1',
           taskId: 'task-1',
-          type: TaskType.Focused,
+          type: 'focused',
           startTime: new Date(`${dayjs().format('YYYY-MM-DD')}T09:00:00`),
           endTime: new Date(`${dayjs().format('YYYY-MM-DD')}T10:00:00`),
           plannedMinutes: 60,
@@ -529,7 +528,7 @@ describe.skip('WorkLoggerCalendar', () => {
         {
           id: 'session-1',
           taskId: 'task-1',
-          type: TaskType.Focused,
+          type: 'focused',
           startTime: new Date('2024-01-01T09:15:00'),
           endTime: new Date('2024-01-01T10:45:00'),
           plannedMinutes: 90,

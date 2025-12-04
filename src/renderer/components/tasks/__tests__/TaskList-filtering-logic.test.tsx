@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { TaskList } from '../TaskList'
 import { useTaskStore } from '../../../store/useTaskStore'
-import { TaskType } from '@shared/enums'
 
 // Mock the store
 vi.mock('../../../store/useTaskStore')
@@ -81,7 +80,7 @@ describe('TaskList - Filtering Logic', () => {
       {
         id: '1',
         name: 'Focus Task 1',
-        type: TaskType.Focused,
+        type: 'focused',
         duration: 60,
         importance: 5,
         urgency: 5,
@@ -92,7 +91,7 @@ describe('TaskList - Filtering Logic', () => {
       {
         id: '2',
         name: 'Admin Task 1',
-        type: TaskType.Admin,
+        type: 'admin',
         duration: 30,
         importance: 3,
         urgency: 3,
@@ -103,7 +102,7 @@ describe('TaskList - Filtering Logic', () => {
       {
         id: '3',
         name: 'Personal Task 1',
-        type: TaskType.Personal,
+        type: 'personal',
         duration: 45,
         importance: 2,
         urgency: 2,
@@ -114,7 +113,7 @@ describe('TaskList - Filtering Logic', () => {
       {
         id: '4',
         name: 'Focus Task 2',
-        type: TaskType.Focused,
+        type: 'focused',
         duration: 90,
         importance: 4,
         urgency: 4,
@@ -125,7 +124,7 @@ describe('TaskList - Filtering Logic', () => {
       {
         id: '5',
         name: 'Admin Task 2',
-        type: TaskType.Admin,
+        type: 'admin',
         duration: 25,
         importance: 3,
         urgency: 3,
@@ -232,7 +231,7 @@ describe('TaskList - Filtering Logic', () => {
       {
         id: '1',
         name: 'Active Task',
-        type: TaskType.Focused,
+        type: 'focused',
         duration: 60,
         importance: 5,
         urgency: 5,
@@ -243,7 +242,7 @@ describe('TaskList - Filtering Logic', () => {
       {
         id: '2',
         name: 'Completed Task',
-        type: TaskType.Admin,
+        type: 'admin',
         duration: 30,
         importance: 3,
         urgency: 3,

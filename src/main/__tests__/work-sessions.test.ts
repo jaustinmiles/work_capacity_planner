@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { DatabaseService } from '../database'
-import { TaskType } from '@shared/enums'
 // import { PrismaClient } from '@prisma/client' // Not needed for mocked tests
 
 // Mock Prisma Client
@@ -280,7 +279,7 @@ describe('Work Session Management', () => {
 
   describe('updateWorkSessionTypesForStep', () => {
     it('should update all work session types for a step', async () => {
-      await db.updateWorkSessionTypesForStep('step-123', TaskType.Admin)
+      await db.updateWorkSessionTypesForStep('step-123', 'admin')
 
       expect(mockPrisma.workSession.updateMany).toHaveBeenCalledWith({
         where: { stepId: 'step-123' },
@@ -331,10 +330,12 @@ describe('Work Session Management', () => {
 
       const result = await db.getTodayAccumulated(testDate)
 
+      // New dynamic format: { byType: Record<string, number>, total: number }
       expect(result).toEqual({
-        focused: 210, // 120 + 90
-        admin: 30,    // Only 30 (actualMinutes)
-        personal: 0,  // no personal time
+        byType: {
+          focused: 210, // 120 + 90
+          admin: 30,    // Only 30 (actualMinutes)
+        },
         total: 240,   // 210 + 30
       })
     })
@@ -346,9 +347,7 @@ describe('Work Session Management', () => {
       const result = await db.getTodayAccumulated('2024-01-15')
 
       expect(result).toEqual({
-        focused: 0,
-        admin: 0,
-        personal: 0,
+        byType: {},
         total: 0,
       })
     })

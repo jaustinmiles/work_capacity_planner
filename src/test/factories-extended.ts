@@ -8,6 +8,37 @@ import type {
   TimeLogEntry,
   WorkSession,
 } from '@/shared/types'
+import { BlockTypeConfig } from '@/shared/user-task-types'
+import { WorkBlockType, BlockConfigKind } from '@/shared/enums'
+import { calculateBlockCapacity } from '@/shared/capacity-calculator'
+
+/**
+ * Helper to create typeConfig from a type string (for backwards compat in tests)
+ */
+function createTypeConfig(type: string): BlockTypeConfig {
+  switch (type) {
+    case 'focused':
+    case 'admin':
+    case 'personal':
+      return { kind: BlockConfigKind.Single, typeId: type }
+    case 'combo':
+    case 'mixed':
+      return {
+        kind: BlockConfigKind.Combo,
+        allocations: [
+          { typeId: 'focused', ratio: 0.5 },
+          { typeId: 'admin', ratio: 0.5 },
+        ],
+      }
+    case 'sleep':
+      return { kind: BlockConfigKind.System, systemType: WorkBlockType.Sleep }
+    case 'blocked':
+    case 'break':
+    case 'meeting':
+    default:
+      return { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
+  }
+}
 
 /**
  * Creates a mock DailyWorkPattern with realistic data
@@ -18,11 +49,11 @@ export function createMockWorkPattern(overrides?: Partial<DailyWorkPattern>): Da
     date: new Date().toISOString().split('T')[0], // Today's date
     dayOfWeek: new Date().getDay(),
     blocks: [
-      createMockWorkBlock({ id: 'block-1', type: 'focused', startTime: '09:00', endTime: '11:00' }),
-      createMockWorkBlock({ id: 'block-2', type: 'admin', startTime: '11:00', endTime: '12:00' }),
-      createMockWorkBlock({ id: 'block-3', type: 'break', startTime: '12:00', endTime: '13:00' }),
-      createMockWorkBlock({ id: 'block-4', type: 'work', startTime: '13:00', endTime: '15:00' }),
-      createMockWorkBlock({ id: 'block-5', type: 'flexible', startTime: '15:00', endTime: '17:00' }),
+      createMockWorkBlock({ id: 'block-1', typeConfig: { kind: BlockConfigKind.Single, typeId: 'focused' }, startTime: '09:00', endTime: '11:00' }),
+      createMockWorkBlock({ id: 'block-2', typeConfig: { kind: BlockConfigKind.Single, typeId: 'admin' }, startTime: '11:00', endTime: '12:00' }),
+      createMockWorkBlock({ id: 'block-3', typeConfig: { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }, startTime: '12:00', endTime: '13:00' }),
+      createMockWorkBlock({ id: 'block-4', typeConfig: { kind: BlockConfigKind.Combo, allocations: [{ typeId: 'focused', ratio: 0.5 }, { typeId: 'admin', ratio: 0.5 }] }, startTime: '13:00', endTime: '15:00' }),
+      createMockWorkBlock({ id: 'block-5', typeConfig: { kind: BlockConfigKind.Single, typeId: 'personal' }, startTime: '15:00', endTime: '17:00' }),
     ],
     totalCapacity: 420, // 7 hours in minutes
     totalAccumulated: 0,
@@ -33,7 +64,7 @@ export function createMockWorkPattern(overrides?: Partial<DailyWorkPattern>): Da
   // Recalculate totalCapacity if blocks were overridden
   if (!overrides?.totalCapacity) {
     defaultPattern.totalCapacity = defaultPattern.blocks.reduce((sum, block) => {
-      if (block.capacity && block.type !== 'break' && block.type !== 'sleep') {
+      if (block.capacity && block.typeConfig.kind !== BlockConfigKind.System) {
         return sum + block.capacity.totalMinutes
       }
       return sum
@@ -44,31 +75,24 @@ export function createMockWorkPattern(overrides?: Partial<DailyWorkPattern>): Da
 }
 
 /**
- * Creates a mock WorkBlock
+ * Creates a mock WorkBlock with typeConfig
  */
-export function createMockWorkBlock(overrides?: Partial<WorkBlock>): WorkBlock {
-  const defaultBlock: WorkBlock = {
-    id: 'block-1',
-    type: 'work',
-    startTime: '09:00',
-    endTime: '10:00',
-    capacity: {
-      totalMinutes: 60,
-      type: 'work' as any, // WorkBlockType
-    },
-    ...overrides,
+export function createMockWorkBlock(overrides?: Partial<WorkBlock> & { type?: string }): WorkBlock {
+  // Handle legacy 'type' property by converting to typeConfig
+  let typeConfig: BlockTypeConfig = overrides?.typeConfig || { kind: 'single', typeId: 'focused' }
+  if (overrides?.type && !overrides?.typeConfig) {
+    typeConfig = createTypeConfig(overrides.type)
   }
 
-  // Calculate capacity from times if not provided
-  if (!overrides?.capacity && defaultBlock.type !== 'break' && defaultBlock.type !== 'sleep') {
-    const [startHour, startMin] = defaultBlock.startTime.split(':').map(Number)
-    const [endHour, endMin] = defaultBlock.endTime.split(':').map(Number)
-    const totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin)
+  const startTime = overrides?.startTime || '09:00'
+  const endTime = overrides?.endTime || '10:00'
 
-    defaultBlock.capacity = {
-      totalMinutes,
-      type: defaultBlock.type as any, // Map to WorkBlockType
-    }
+  const defaultBlock: WorkBlock = {
+    id: overrides?.id || 'block-1',
+    startTime,
+    endTime,
+    typeConfig,
+    capacity: overrides?.capacity || calculateBlockCapacity(typeConfig, startTime, endTime),
   }
 
   return defaultBlock
@@ -204,9 +228,9 @@ export function createOverflowWorkPattern(): DailyWorkPattern {
     blocks: [
       createMockWorkBlock({ id: 'block-1', type: 'focused', startTime: '09:00', endTime: '11:00' }),
       createMockWorkBlock({ id: 'block-2', type: 'admin', startTime: '11:00', endTime: '12:00' }),
-      createMockWorkBlock({ id: 'block-3', type: 'break', startTime: '12:00', endTime: '13:00' }),
-      createMockWorkBlock({ id: 'block-4', type: 'work', startTime: '13:00', endTime: '15:00' }),
-      createMockWorkBlock({ id: 'block-5', type: 'flexible', startTime: '15:00', endTime: '17:00' }),
+      createMockWorkBlock({ id: 'block-3', type: 'blocked', startTime: '12:00', endTime: '13:00' }),
+      createMockWorkBlock({ id: 'block-4', type: 'combo', startTime: '13:00', endTime: '15:00' }),
+      createMockWorkBlock({ id: 'block-5', type: 'personal', startTime: '15:00', endTime: '17:00' }),
     ],
     totalCapacity: 420,
     totalAccumulated: 450, // 30 minutes overflow
@@ -220,12 +244,12 @@ export function createWorkPatternWithMeetings(): DailyWorkPattern {
   return createMockWorkPattern({
     blocks: [
       createMockWorkBlock({ type: 'focused', startTime: '09:00', endTime: '10:00' }),
-      createMockWorkBlock({ type: 'meeting', startTime: '10:00', endTime: '11:00' }), // Meeting block
+      createMockWorkBlock({ type: 'blocked', startTime: '10:00', endTime: '11:00' }), // Meeting block
       createMockWorkBlock({ type: 'admin', startTime: '11:00', endTime: '12:00' }),
-      createMockWorkBlock({ type: 'break', startTime: '12:00', endTime: '13:00' }),
-      createMockWorkBlock({ type: 'meeting', startTime: '13:00', endTime: '14:00' }), // Another meeting
-      createMockWorkBlock({ type: 'work', startTime: '14:00', endTime: '15:00' }),
-      createMockWorkBlock({ type: 'flexible', startTime: '15:00', endTime: '17:00' }),
+      createMockWorkBlock({ type: 'blocked', startTime: '12:00', endTime: '13:00' }),
+      createMockWorkBlock({ type: 'blocked', startTime: '13:00', endTime: '14:00' }), // Another meeting
+      createMockWorkBlock({ type: 'combo', startTime: '14:00', endTime: '15:00' }),
+      createMockWorkBlock({ type: 'personal', startTime: '15:00', endTime: '17:00' }),
     ],
     meetings: [
       createMockMeeting({ title: 'Daily Standup', startTime: '10:00', endTime: '11:00' }),
@@ -245,9 +269,9 @@ export function createWorkPatternWithSleep(): DailyWorkPattern {
       createMockWorkBlock({ type: 'personal', startTime: '07:00', endTime: '09:00' }),
       createMockWorkBlock({ type: 'focused', startTime: '09:00', endTime: '11:00' }),
       createMockWorkBlock({ type: 'admin', startTime: '11:00', endTime: '12:00' }),
-      createMockWorkBlock({ type: 'break', startTime: '12:00', endTime: '13:00' }),
-      createMockWorkBlock({ type: 'work', startTime: '13:00', endTime: '15:00' }),
-      createMockWorkBlock({ type: 'flexible', startTime: '15:00', endTime: '17:00' }),
+      createMockWorkBlock({ type: 'blocked', startTime: '12:00', endTime: '13:00' }),
+      createMockWorkBlock({ type: 'combo', startTime: '13:00', endTime: '15:00' }),
+      createMockWorkBlock({ type: 'personal', startTime: '15:00', endTime: '17:00' }),
       createMockWorkBlock({ type: 'personal', startTime: '17:00', endTime: '22:00' }),
       createMockWorkBlock({ type: 'sleep', startTime: '22:00', endTime: '24:00' }),
     ],
@@ -272,7 +296,7 @@ export function createNextScheduledStep(): NextScheduledItem {
     id: 'step-1',
     title: 'Design API',
     type: 'step',
-    taskType: 'work',
+    taskType: 'focused',
     isStep: true,
     parentId: 'workflow-1',
     parentTitle: 'Feature Implementation',

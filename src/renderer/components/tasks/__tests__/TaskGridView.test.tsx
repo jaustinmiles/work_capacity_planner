@@ -3,10 +3,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { TaskGridView } from '../TaskGridView'
 import { useTaskStore } from '../../../store/useTaskStore'
 import { Task } from '@shared/types'
-import { TaskType } from '@shared/enums'
 
 // Mock the store
 vi.mock('../../../store/useTaskStore')
+
+// Mock the user task type store
+vi.mock('../../../store/useUserTaskTypeStore', () => ({
+  useSortedUserTaskTypes: () => [
+    { id: 'focused', name: 'Focused', color: 'blue', emoji: '🎯' },
+    { id: 'admin', name: 'Admin', color: 'green', emoji: '📋' },
+    { id: 'personal', name: 'Personal', color: 'orange', emoji: '🏠' },
+  ],
+}))
 
 // Mock the Message component
 vi.mock('../../common/Message', () => ({
@@ -44,7 +52,7 @@ describe('TaskGridView', () => {
       duration: 60,
       importance: 7,
       urgency: 8,
-      type: TaskType.Focused,
+      type: 'focused',
       completed: false,
       status: 'not_started',
       cognitiveComplexity: 3,
@@ -58,7 +66,7 @@ describe('TaskGridView', () => {
       duration: 120,
       importance: 5,
       urgency: 5,
-      type: TaskType.Admin,
+      type: 'admin',
       completed: true,
       status: 'completed',
       cognitiveComplexity: 2,
@@ -72,7 +80,7 @@ describe('TaskGridView', () => {
       duration: 30,
       importance: 3,
       urgency: 3,
-      type: TaskType.Personal,
+      type: 'personal',
       completed: false,
       status: 'not_started',
       cognitiveComplexity: 1,
@@ -119,9 +127,10 @@ describe('TaskGridView', () => {
   it('should display task type tags', () => {
     render(<TaskGridView tasks={mockTasks} />)
 
-    expect(screen.getByText('Focused')).toBeInTheDocument()
-    expect(screen.getByText('Admin')).toBeInTheDocument()
-    expect(screen.getByText('Personal')).toBeInTheDocument()
+    // User types display as emoji + name (from useSortedUserTaskTypes mock)
+    expect(screen.getByText('🎯 Focused')).toBeInTheDocument()
+    expect(screen.getByText('📋 Admin')).toBeInTheDocument()
+    expect(screen.getByText('🏠 Personal')).toBeInTheDocument()
   })
 
   it('should calculate and display priority scores', () => {

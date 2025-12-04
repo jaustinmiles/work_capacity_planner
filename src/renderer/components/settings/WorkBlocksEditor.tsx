@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { TaskType, WorkBlockType } from '@shared/enums'
 import {
   Card,
   Space,
@@ -7,7 +6,6 @@ import {
   Typography,
   Grid,
   Select,
-  InputNumber,
   Empty,
   Tag,
   Popconfirm,
@@ -26,12 +24,20 @@ import {
 import {
   WorkBlock,
   WorkMeeting,
-  DEFAULT_WORK_TEMPLATES,
-  getTotalCapacity,
-  getRemainingCapacity,
+  BlockTypeConfig,
 } from '@shared/work-blocks-types'
-import { calculateBlockCapacity, getTotalCapacityForTaskType } from '@shared/capacity-calculator'
+import { calculateBlockCapacity } from '@shared/capacity-calculator'
+import {
+  isSingleTypeBlock,
+  isComboBlock,
+  isSystemBlock,
+  AccumulatedTimeByType,
+} from '@shared/user-task-types'
+import { WorkBlockType, BlockConfigKind, MeetingType } from '@shared/enums'
+import { getCurrentTime } from '@shared/time-provider'
+import { formatTimeFromParts } from '@shared/time-utils'
 import { generateUniqueId } from '@shared/step-id-utils'
+import { useSortedUserTaskTypes, useUserTaskTypeStore } from '@/renderer/store/useUserTaskTypeStore'
 import { Message } from '../common/Message'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
@@ -51,19 +57,49 @@ interface WorkBlocksEditorProps {
     meetings: WorkMeeting[]
     templateName?: string
   }
-  accumulated?: {
-    focus: number
-    admin: number
-    personal: number
-  }
+  accumulated?: AccumulatedTimeByType
   onSave: (__blocks: WorkBlock[], meetings: WorkMeeting[]) => void | Promise<void>
   onClose?: () => void
+}
+
+// Helper to calculate total capacity by type from blocks
+const calculateTotalCapacityByType = (blocks: WorkBlock[]): AccumulatedTimeByType => {
+  const result: AccumulatedTimeByType = {}
+  for (const block of blocks) {
+    if (!block.capacity) continue
+    const { typeConfig, capacity } = block
+
+    if (isSystemBlock(typeConfig)) continue
+
+    if (isSingleTypeBlock(typeConfig)) {
+      result[typeConfig.typeId] = (result[typeConfig.typeId] || 0) + capacity.totalMinutes
+    } else if (isComboBlock(typeConfig)) {
+      for (const alloc of typeConfig.allocations) {
+        const minutes = Math.floor(capacity.totalMinutes * alloc.ratio)
+        result[alloc.typeId] = (result[alloc.typeId] || 0) + minutes
+      }
+    }
+  }
+  return result
+}
+
+// Helper to calculate remaining capacity
+const calculateRemainingCapacity = (
+  totalCapacity: AccumulatedTimeByType,
+  accumulated: AccumulatedTimeByType,
+): AccumulatedTimeByType => {
+  const result: AccumulatedTimeByType = {}
+  const allTypes = new Set([...Object.keys(totalCapacity), ...Object.keys(accumulated)])
+  for (const typeId of allTypes) {
+    result[typeId] = (totalCapacity[typeId] || 0) - (accumulated[typeId] || 0)
+  }
+  return result
 }
 
 export function WorkBlocksEditor({
   date,
   pattern,
-  accumulated = { focus: 0, admin: 0, personal: 0 },
+  accumulated = {},
   onSave,
   onClose,
 }: WorkBlocksEditorProps) {
@@ -76,6 +112,20 @@ export function WorkBlocksEditor({
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false)
   const [templateName, setTemplateName] = useState('')
   const [userTemplates, setUserTemplates] = useState<any[]>([])
+
+  // Load user-defined task types from the store
+  // Use separate selectors to avoid unnecessary re-renders
+  const userTaskTypes = useSortedUserTaskTypes()
+  const typesInitialized = useUserTaskTypeStore(state => state.isInitialized)
+  const loadTypes = useUserTaskTypeStore(state => state.loadTypes)
+
+  // Load types on mount if not initialized (run only once)
+  useEffect(() => {
+    if (!typesInitialized) {
+      loadTypes()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Empty deps - only run on mount
 
   // Update local state when pattern prop changes
   useEffect(() => {
@@ -101,22 +151,28 @@ export function WorkBlocksEditor({
     }
   }
 
-  // Calculate capacity
-  const totalCapacity = getTotalCapacity(blocks)
-  const remainingCapacity = getRemainingCapacity(blocks, accumulated)
+  // Calculate capacity using new helper functions
+  const totalCapacity = calculateTotalCapacityByType(blocks)
+  const remainingCapacity = calculateRemainingCapacity(totalCapacity, accumulated)
 
   const handleAddBlock = () => {
+    // Default to first user type if available, otherwise fallback to 'focused'
+    const defaultTypeId = userTaskTypes.length > 0 ? userTaskTypes[0].id : 'focused'
+    const typeConfig: BlockTypeConfig = {
+      kind: BlockConfigKind.Single,
+      typeId: defaultTypeId,
+    }
+    // Use current time (rounded to nearest hour) as default start time
+    const now = getCurrentTime()
+    const currentHour = new Date(now).getHours()
+    const startTime = formatTimeFromParts(currentHour, 0)
+    const endTime = formatTimeFromParts((currentHour + 3) % 24, 0)
     const newBlock: WorkBlock = {
       id: generateUniqueId('block'),
-      startTime: '09:00',
-      endTime: '12:00',
-      type: WorkBlockType.Mixed,
-      capacity: calculateBlockCapacity(
-        WorkBlockType.Mixed,
-        '09:00',
-        '12:00',
-        { focus: 0.5, admin: 0.5 }, // Default 50/50 split - user can customize
-      ),
+      startTime,
+      endTime,
+      typeConfig,
+      capacity: calculateBlockCapacity(typeConfig, startTime, endTime),
     }
     setBlocks([...blocks, newBlock])
   }
@@ -134,44 +190,26 @@ export function WorkBlocksEditor({
   }
 
   const handleApplyTemplate = (templateId: string) => {
-    // Check default templates first
-    let template = DEFAULT_WORK_TEMPLATES.find(t => t.id === templateId)
-    let isUserTemplate = false
+    // Find user template
+    const userTemplate = userTemplates.find(t => t.id === templateId)
+    if (!userTemplate) return
 
-    // If not found in defaults, check user templates
-    if (!template) {
-      const userTemplate = userTemplates.find(t => t.id === templateId)
-      if (userTemplate) {
-        template = {
-          id: userTemplate.id,
-          name: userTemplate.templateName || 'Custom Template',
-          blocks: userTemplate.blocks,
-        }
-        isUserTemplate = true
-      }
-    }
+    const newBlocks = userTemplate.blocks.map((b: WorkBlock) => ({
+      ...b,
+      id: generateUniqueId('block'),
+    }))
+    setBlocks(newBlocks)
 
-    if (template) {
-      const newBlocks = template.blocks.map((b) => ({
-        ...b,
-        id: generateUniqueId('block'),
+    // Also apply meetings if present
+    if (userTemplate.meetings) {
+      const newMeetings = userTemplate.meetings.map((m: any, index: number) => ({
+        ...m,
+        id: `meeting-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
       }))
-      setBlocks(newBlocks)
-
-      // If it's a user template, also apply meetings
-      if (isUserTemplate) {
-        const userTemplate = userTemplates.find(t => t.id === templateId)
-        if (userTemplate?.meetings) {
-          const newMeetings = userTemplate.meetings.map((m: any, index: number) => ({
-            ...m,
-            id: `meeting-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
-          }))
-          setMeetings(newMeetings)
-        }
-      }
-
-      Message.success(`Applied template: ${template.name}`)
+      setMeetings(newMeetings)
     }
+
+    Message.success(`Applied template: ${userTemplate.templateName || 'Custom Template'}`)
   }
 
   const handleAddMeeting = () => {
@@ -180,7 +218,7 @@ export function WorkBlocksEditor({
       name: '',
       startTime: '14:00',
       endTime: '15:00',
-      type: 'meeting',
+      type: MeetingType.Meeting,
     })
     setShowMeetingModal(true)
   }
@@ -282,23 +320,13 @@ export function WorkBlocksEditor({
                   setSelectedTemplate('') // Clear selection after applying
                 }}
                 style={{ width: 200 }}
+                disabled={userTemplates.length === 0}
               >
-                <Select.OptGroup label="Default Templates">
-                  {DEFAULT_WORK_TEMPLATES.map(template => (
-                    <Select.Option key={template.id} value={template.id}>
-                      {template.name}
-                    </Select.Option>
-                  ))}
-                </Select.OptGroup>
-                {userTemplates.length > 0 && (
-                  <Select.OptGroup label="My Templates">
-                    {userTemplates.map(template => (
-                      <Select.Option key={template.id} value={template.id}>
-                        {template.templateName || 'Unnamed Template'}
-                      </Select.Option>
-                    ))}
-                  </Select.OptGroup>
-                )}
+                {userTemplates.map(template => (
+                  <Select.Option key={template.id} value={template.id}>
+                    {template.templateName || 'Unnamed Template'}
+                  </Select.Option>
+                ))}
               </Select>
               <Button type="primary" onClick={handleSave}>
                 Save Schedule
@@ -336,59 +364,63 @@ export function WorkBlocksEditor({
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             {/* Capacity Summary */}
             <Card>
-        <Row gutter={16}>
-          <Col span={4}>
-            <Space direction="vertical">
-              <Text type="secondary">Focus Time</Text>
-              <Title heading={5}>{formatMinutes(totalCapacity.focus)}</Title>
-            </Space>
-          </Col>
-          <Col span={4}>
-            <Space direction="vertical">
-              <Text type="secondary">Admin Time</Text>
-              <Title heading={5}>{formatMinutes(totalCapacity.admin)}</Title>
-            </Space>
-          </Col>
-          <Col span={4}>
-            <Space direction="vertical">
-              <Text type="secondary">Personal Time</Text>
-              <Title heading={5}>{formatMinutes(totalCapacity.personal)}</Title>
-            </Space>
-          </Col>
-          <Col span={4}>
-            <Space direction="vertical">
-              <Text type="secondary">Used Today</Text>
-              <Space direction="vertical" size={0}>
-                <Text style={{ fontSize: '14px' }}>
-                  <Text type="secondary">Focus:</Text> {formatMinutes(accumulated.focus)}
-                </Text>
-                <Text style={{ fontSize: '14px' }}>
-                  <Text type="secondary">Admin:</Text> {formatMinutes(accumulated.admin)}
-                </Text>
-                <Text style={{ fontSize: '14px' }}>
-                  <Text type="secondary">Personal:</Text> {formatMinutes(accumulated.personal)}
-                </Text>
-              </Space>
-            </Space>
-          </Col>
-          <Col span={8}>
-            <Space direction="vertical">
-              <Text type="secondary">Remaining</Text>
-              <Space wrap>
-                <Tag color={remainingCapacity.focus > 0 ? 'green' : 'red'}>
-                  {formatMinutes(remainingCapacity.focus)} focus
-                </Tag>
-                <Tag color={remainingCapacity.admin > 0 ? 'green' : 'red'}>
-                  {formatMinutes(remainingCapacity.admin)} admin
-                </Tag>
-                <Tag color={remainingCapacity.personal > 0 ? 'purple' : 'red'}>
-                  {formatMinutes(remainingCapacity.personal)} personal
-                </Tag>
-              </Space>
-            </Space>
-          </Col>
-        </Row>
-      </Card>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Space direction="vertical">
+                    <Text type="secondary">Total Capacity</Text>
+                    <Space wrap>
+                      {Object.entries(totalCapacity).map(([typeId, minutes]) => {
+                        const userType = userTaskTypes.find(t => t.id === typeId)
+                        return (
+                          <Tag key={typeId} color={userType?.color || 'blue'}>
+                            {userType?.emoji} {formatMinutes(minutes)} {userType?.name || typeId}
+                          </Tag>
+                        )
+                      })}
+                      {Object.keys(totalCapacity).length === 0 && (
+                        <Text type="secondary">No blocks defined</Text>
+                      )}
+                    </Space>
+                  </Space>
+                </Col>
+                <Col span={8}>
+                  <Space direction="vertical">
+                    <Text type="secondary">Used Today</Text>
+                    <Space wrap>
+                      {Object.entries(accumulated).map(([typeId, minutes]) => {
+                        const userType = userTaskTypes.find(t => t.id === typeId)
+                        return (
+                          <Tag key={typeId} color={userType?.color || 'orange'}>
+                            {userType?.emoji} {formatMinutes(minutes)} {userType?.name || typeId}
+                          </Tag>
+                        )
+                      })}
+                      {Object.keys(accumulated).length === 0 && (
+                        <Text type="secondary">None used</Text>
+                      )}
+                    </Space>
+                  </Space>
+                </Col>
+                <Col span={8}>
+                  <Space direction="vertical">
+                    <Text type="secondary">Remaining</Text>
+                    <Space wrap>
+                      {Object.entries(remainingCapacity).map(([typeId, minutes]) => {
+                        const userType = userTaskTypes.find(t => t.id === typeId)
+                        return (
+                          <Tag key={typeId} color={minutes > 0 ? (userType?.color || 'green') : 'red'}>
+                            {userType?.emoji} {formatMinutes(minutes)} {userType?.name || typeId}
+                          </Tag>
+                        )
+                      })}
+                      {Object.keys(remainingCapacity).length === 0 && (
+                        <Text type="secondary">--</Text>
+                      )}
+                    </Space>
+                  </Space>
+                </Col>
+              </Row>
+            </Card>
 
       {/* Work Blocks */}
       <Card
@@ -433,112 +465,78 @@ export function WorkBlocksEditor({
                   </Col>
                   <Col span={4}>
                     <Select
-                      value={block.type}
+                      value={
+                        isSystemBlock(block.typeConfig) ? 'system' :
+                        isComboBlock(block.typeConfig) ? 'combo' :
+                        isSingleTypeBlock(block.typeConfig) ? block.typeConfig.typeId :
+                        userTaskTypes[0]?.id ?? 'unknown'
+                      }
                       onChange={(value) => {
-                        // When changing to mixed, prompt user to set split ratio
-                        if (value === WorkBlockType.Mixed && block.type !== WorkBlockType.Mixed) {
-                          // Start with 70% focus, 30% admin as a more reasonable default
-                          handleUpdateBlock(block.id, {
-                            type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.Mixed, block.startTime, block.endTime, { focus: 0.7, admin: 0.3 }),
-                          })
-                        } else if (value === WorkBlockType.Flexible) {
-                          // Flexible blocks don't have predetermined capacity split
-                          handleUpdateBlock(block.id, {
-                            type: value,
-                            capacity: undefined, // No preset capacity for flexible blocks
-                          })
-                        } else if (value === 'personal') {
-                          handleUpdateBlock(block.id, {
-                            type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.Personal, block.startTime, block.endTime),
-                          })
-                        } else if (value === TaskType.Focused) {
-                          handleUpdateBlock(block.id, {
-                            type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.Focused, block.startTime, block.endTime),
-                          })
-                        } else if (value === TaskType.Admin) {
-                          handleUpdateBlock(block.id, {
-                            type: value,
-                            capacity: calculateBlockCapacity(WorkBlockType.Admin, block.startTime, block.endTime),
-                          })
+                        let newTypeConfig: BlockTypeConfig
+                        if (value === 'combo') {
+                          // Combo block - use first two types if available
+                          const firstType = userTaskTypes[0]?.id ?? 'focused'
+                          const secondType = userTaskTypes[1]?.id ?? userTaskTypes[0]?.id ?? 'admin'
+                          newTypeConfig = {
+                            kind: BlockConfigKind.Combo,
+                            allocations: [
+                              { typeId: firstType, ratio: 0.7 },
+                              { typeId: secondType, ratio: 0.3 },
+                            ],
+                          }
+                        } else if (value === 'system') {
+                          newTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
+                        } else {
+                          // Single type block using the selected user type ID
+                          newTypeConfig = { kind: BlockConfigKind.Single, typeId: value }
                         }
+                        handleUpdateBlock(block.id, {
+                          typeConfig: newTypeConfig,
+                          capacity: calculateBlockCapacity(newTypeConfig, block.startTime, block.endTime),
+                        })
                       }}
                       style={{ width: '100%' }}
                     >
-                      <Select.Option value={TaskType.Focused}>Focused</Select.Option>
-                      <Select.Option value={TaskType.Admin}>Admin</Select.Option>
-                      <Select.Option value="mixed">Mixed</Select.Option>
-                      <Select.Option value="flexible">Flexible</Select.Option>
-                      <Select.Option value="personal">Personal</Select.Option>
+                      {/* Render user-defined types as options */}
+                      {userTaskTypes.map(type => (
+                        <Select.Option key={type.id} value={type.id}>
+                          {type.emoji} {type.name}
+                        </Select.Option>
+                      ))}
+                      {/* Special options */}
+                      {userTaskTypes.length >= 2 && (
+                        <Select.Option value="combo">🔀 Combo</Select.Option>
+                      )}
+                      <Select.Option value="system">🚫 Blocked</Select.Option>
                     </Select>
                   </Col>
                   <Col span={6}>
-                    {block.type === 'mixed' ? (
+                    {isComboBlock(block.typeConfig) ? (
                       <Space direction="vertical" size="small" style={{ width: '100%' }}>
                         <Text type="secondary" style={{ fontSize: 11 }}>
-                          Total: {(() => {
-                            const startTime = dayjs(`2000-01-01 ${block.startTime}`)
-                            const endTime = dayjs(`2000-01-01 ${block.endTime}`)
-                            return endTime.diff(startTime, 'minute')
-                          })()} mins
+                          Total: {block.capacity?.totalMinutes || 0} mins
                         </Text>
-                        <Space>
-                          <InputNumber
-                            placeholder="Focus mins"
-                            value={block.capacity ? getTotalCapacityForTaskType(block.capacity, TaskType.Focused) : 0}
-                            onChange={(value) => {
-                              // Calculate total block duration
-                              const startTime = dayjs(`2000-01-01 ${block.startTime}`)
-                              const endTime = dayjs(`2000-01-01 ${block.endTime}`)
-                              const totalMinutes = endTime.diff(startTime, 'minute')
-
-                            // Automatically adjust admin time to fill the rest
-                            const focus = Math.min(value || 0, totalMinutes)
-                            const admin = Math.max(0, totalMinutes - focus)
-
-                            handleUpdateBlock(block.id, {
-                              capacity: calculateBlockCapacity(WorkBlockType.Mixed, block.startTime, block.endTime, { focus: focus / totalMinutes, admin: admin / totalMinutes }),
-                            })
-                          }}
-                          min={0}
-                          style={{ width: 100 }}
-                        />
-                        <InputNumber
-                          placeholder="Admin mins"
-                          value={block.capacity ? getTotalCapacityForTaskType(block.capacity, TaskType.Admin) : 0}
-                          onChange={(value) => {
-                            // Calculate total block duration
-                            const startTime = dayjs(`2000-01-01 ${block.startTime}`)
-                            const endTime = dayjs(`2000-01-01 ${block.endTime}`)
-                            const totalMinutes = endTime.diff(startTime, 'minute')
-
-                            // Automatically adjust focus time to fill the rest
-                            const admin = Math.min(value || 0, totalMinutes)
-                            const focus = Math.max(0, totalMinutes - admin)
-
-                            handleUpdateBlock(block.id, {
-                              capacity: calculateBlockCapacity(WorkBlockType.Mixed, block.startTime, block.endTime, { focus: focus / totalMinutes, admin: admin / totalMinutes }),
-                            })
-                          }}
-                          min={0}
-                          style={{ width: 100 }}
-                        />
-                        </Space>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          {block.typeConfig.allocations.map(a => {
+                            const userType = userTaskTypes.find(t => t.id === a.typeId)
+                            return `${Math.round(a.ratio * 100)}% ${userType?.name || a.typeId}`
+                          }).join(' / ')}
+                        </Text>
                       </Space>
-                    ) : block.type === 'personal' ? (
+                    ) : isSystemBlock(block.typeConfig) ? (
                       <Text type="secondary">
-                        All personal time
+                        Blocked time
                       </Text>
-                    ) : block.type === 'flexible' ? (
-                      <Text type="secondary">
-                        Flexible (any work type)
-                      </Text>
-                    ) : (
-                      <Text type="secondary">
-                        {block.type === WorkBlockType.Focused ? 'All focus time' : 'All admin time'}
-                      </Text>
+                    ) : isSingleTypeBlock(block.typeConfig) ? (() => {
+                      const typeId = block.typeConfig.typeId
+                      const userType = userTaskTypes.find(t => t.id === typeId)
+                      return (
+                        <Text type="secondary">
+                          All {userType?.emoji} {userType?.name || typeId} time ({block.capacity?.totalMinutes || 0}min)
+                        </Text>
+                      )
+                    })() : (
+                      <Text type="secondary">Unknown block type</Text>
                     )}
                   </Col>
                   <Col span={2}>
@@ -576,7 +574,7 @@ export function WorkBlocksEditor({
                 name: 'Sleep',
                 startTime: '22:00',
                 endTime: '06:00',
-                type: 'blocked',
+                type: MeetingType.Blocked,
               }
               setMeetings([...meetings, sleepBlock])
             }}>

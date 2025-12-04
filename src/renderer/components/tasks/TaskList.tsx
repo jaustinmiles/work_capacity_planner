@@ -9,8 +9,8 @@ import { useState, useMemo } from 'react'
 import { ScheduleGenerator } from '../schedule/ScheduleGenerator'
 import { TaskQuickEditModal } from './TaskQuickEditModal'
 import { logger } from '@/logger'
-import { TaskType } from '@shared/enums'
 import { searchTasks } from '@shared/search-utils'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 
 
 const { Title, Text } = Typography
@@ -21,9 +21,10 @@ interface TaskListProps {
 
 export function TaskList({ onAddTask }: TaskListProps) {
   const { tasks, loadTasks, sequencedTasks } = useTaskStore()
+  const userTypes = useSortedUserTaskTypes()
   const [scheduleGeneratorVisible, setScheduleGeneratorVisible] = useState(false)
   const [quickEditVisible, setQuickEditVisible] = useState(false)
-  const [taskTypeFilter, setTaskTypeFilter] = useState<TaskType | 'all' | 'work'>('all')
+  const [taskTypeFilter, setTaskTypeFilter] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20) // Show 20 tasks per page
@@ -43,11 +44,9 @@ export function TaskList({ onAddTask }: TaskListProps) {
     setCurrentPage(1) // Reset to first page
   }
 
-  // Apply task type filter
+  // Apply task type filter (filter by user-defined type ID)
   const typeFilteredTasks = taskTypeFilter === 'all'
     ? tasks
-    : taskTypeFilter === 'work'
-    ? tasks.filter(task => task.type === TaskType.Focused || task.type === TaskType.Admin)
     : tasks.filter(task => task.type === taskTypeFilter)
 
   // Apply search filter and compute matched step IDs
@@ -165,10 +164,11 @@ export function TaskList({ onAddTask }: TaskListProps) {
               placeholder="Select task type"
             >
               <Select.Option value="all">All Tasks</Select.Option>
-              <Select.Option value="work">Work Items (Focused + Admin)</Select.Option>
-              <Select.Option value={TaskType.Focused}>Focused Tasks</Select.Option>
-              <Select.Option value={TaskType.Admin}>Admin Tasks</Select.Option>
-              <Select.Option value={TaskType.Personal}>Personal Tasks</Select.Option>
+              {userTypes.map(userType => (
+                <Select.Option key={userType.id} value={userType.id}>
+                  {userType.emoji && `${userType.emoji} `}{userType.name}
+                </Select.Option>
+              ))}
             </Select>
             <Input.Search
               placeholder="Search tasks..."

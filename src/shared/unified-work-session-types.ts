@@ -21,7 +21,6 @@
  * Last Updated: 2025-10-02 (Completed unification)
  */
 
-import { TaskType } from './enums'
 import { generateUniqueId } from './step-id-utils'
 
 /**
@@ -41,8 +40,8 @@ export interface UnifiedWorkSession {
   actualMinutes?: number // null = in progress, number = completed duration
 
   // Type and context
-  /** @deprecated The type should be derived from the task itself, not stored in the session */
-  type: TaskType         // 'focused' | 'admin' | 'personal' - DEPRECATED: derive from task
+  /** User-defined task type ID - references UserTaskType.id */
+  type: string           // User-defined type ID (no longer hardcoded enum)
   notes?: string | undefined
 
   // Metadata (from database)
@@ -90,7 +89,7 @@ export function fromDatabaseWorkSession(dbSession: any): UnifiedWorkSession {
     taskId: dbSession.taskId,
     startTime: new Date(dbSession.startTime),
     plannedMinutes: dbSession.plannedMinutes || 0,
-    type: dbSession.type as TaskType, // @deprecated - should derive from task
+    type: dbSession.type || '', // User-defined type ID
   }
 
   // Add optional fields only if they have values
@@ -189,8 +188,9 @@ export function getElapsedMinutes(session: UnifiedWorkSession): number {
 }
 
 // Get UI color for session type
+// Note: This is a legacy fallback - prefer getTypeColor(userTaskTypes, session.type)
 export function getSessionColor(session: UnifiedWorkSession): string {
-  return session.color || (session.type === TaskType.Focused ? '#165DFF' : '#00B42A')
+  return session.color || '#8c8c8c' // Default gray - should use getTypeColor with userTaskTypes instead
 }
 
 // Create new session with defaults
@@ -198,7 +198,7 @@ export function createUnifiedWorkSession(params: {
   id?: string  // ID is now optional - database will generate if not provided
   taskId: string
   stepId?: string
-  type: TaskType
+  type: string  // User-defined type ID
   plannedMinutes: number
   workflowId?: string
   taskName?: string

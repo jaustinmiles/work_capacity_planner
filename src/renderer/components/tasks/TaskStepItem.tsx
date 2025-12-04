@@ -1,7 +1,7 @@
 import { Space, Typography, Tag, Tooltip, Badge, Button, Progress } from '@arco-design/web-react'
-import { TaskType } from '@shared/enums'
 import { IconClockCircle, IconCalendar, IconExclamationCircle, IconCheck, IconHistory } from '@arco-design/web-react/icon'
 import { TaskStep } from '@shared/sequencing-types'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { getWaitStatus } from '@shared/time-utils'
 import { getCurrentTime } from '@shared/time-provider'
 
@@ -32,6 +32,8 @@ export function TaskStepItem({
   onComplete,
   onStart,
 }: TaskStepItemProps) {
+  const userTypes = useSortedUserTaskTypes()
+
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
@@ -179,9 +181,17 @@ export function TaskStepItem({
             </Tooltip>
           )}
 
-          <Tag size="small" color="gray">
-            {step.type === TaskType.Focused ? 'Focused Work' : 'Admin/Meeting'}
-          </Tag>
+          {(() => {
+            const userType = userTypes.find(t => t.id === step.type)
+            if (userType) {
+              return (
+                <Tag size="small" color={userType.color || 'gray'}>
+                  {userType.emoji && `${userType.emoji} `}{userType.name}
+                </Tag>
+              )
+            }
+            return step.type ? <Tag size="small" color="gray">{step.type}</Tag> : null
+          })()}
 
           {/* Show countdown if waiting, otherwise show async wait time */}
           {waitStatus && (

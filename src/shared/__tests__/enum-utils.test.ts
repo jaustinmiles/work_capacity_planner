@@ -4,22 +4,20 @@
 
 import { describe, it, expect } from 'vitest'
 import { assertNever, isValidEnumValue, parseEnum } from '../enum-utils'
-import { TaskType, StepStatus, AmendmentType } from '../enums'
+import { UserTaskTypeKind, StepStatus, AmendmentType } from '../enums'
 
 describe('enum-utils', () => {
   describe('isValidEnumValue', () => {
-    it('should return true for valid TaskType values', () => {
-      expect(isValidEnumValue(TaskType, 'focused')).toBe(true)
-      expect(isValidEnumValue(TaskType, 'admin')).toBe(true)
-      expect(isValidEnumValue(TaskType, 'personal')).toBe(true)
-      expect(isValidEnumValue(TaskType, 'mixed')).toBe(true)
-      expect(isValidEnumValue(TaskType, 'flexible')).toBe(true)
+    it('should return true for valid UserTaskTypeKind values', () => {
+      expect(isValidEnumValue(UserTaskTypeKind, 'system')).toBe(true)
+      expect(isValidEnumValue(UserTaskTypeKind, 'user')).toBe(true)
     })
 
-    it('should return false for invalid TaskType values', () => {
-      expect(isValidEnumValue(TaskType, 'invalid')).toBe(false)
-      expect(isValidEnumValue(TaskType, '')).toBe(false)
-      expect(isValidEnumValue(TaskType, 'FOCUSED')).toBe(false) // case sensitive
+    it('should return false for invalid UserTaskTypeKind values', () => {
+      expect(isValidEnumValue(UserTaskTypeKind, 'invalid')).toBe(false)
+      expect(isValidEnumValue(UserTaskTypeKind, '')).toBe(false)
+      expect(isValidEnumValue(UserTaskTypeKind, 'SYSTEM')).toBe(false) // case sensitive
+      expect(isValidEnumValue(UserTaskTypeKind, 'admin')).toBe(false)
     })
 
     it('should return true for valid StepStatus values', () => {
@@ -48,20 +46,20 @@ describe('enum-utils', () => {
 
   describe('parseEnum', () => {
     it('should return the value if it is a valid enum value', () => {
-      expect(parseEnum(TaskType, 'focused', TaskType.Admin)).toBe(TaskType.Focused)
-      expect(parseEnum(TaskType, 'admin', TaskType.Focused)).toBe(TaskType.Admin)
+      expect(parseEnum(UserTaskTypeKind, 'system', UserTaskTypeKind.User)).toBe(UserTaskTypeKind.System)
+      expect(parseEnum(UserTaskTypeKind, 'user', UserTaskTypeKind.System)).toBe(UserTaskTypeKind.User)
       expect(parseEnum(StepStatus, 'completed', StepStatus.Pending)).toBe(StepStatus.Completed)
     })
 
     it('should return the fallback if value is invalid', () => {
-      expect(parseEnum(TaskType, 'invalid', TaskType.Admin)).toBe(TaskType.Admin)
-      expect(parseEnum(TaskType, '', TaskType.Focused)).toBe(TaskType.Focused)
+      expect(parseEnum(UserTaskTypeKind, 'invalid', UserTaskTypeKind.User)).toBe(UserTaskTypeKind.User)
+      expect(parseEnum(UserTaskTypeKind, '', UserTaskTypeKind.System)).toBe(UserTaskTypeKind.System)
       expect(parseEnum(StepStatus, 'unknown', StepStatus.Pending)).toBe(StepStatus.Pending)
     })
 
     it('should return fallback for case-sensitive mismatches', () => {
-      expect(parseEnum(TaskType, 'FOCUSED', TaskType.Admin)).toBe(TaskType.Admin)
-      expect(parseEnum(TaskType, 'Focused', TaskType.Admin)).toBe(TaskType.Admin)
+      expect(parseEnum(UserTaskTypeKind, 'SYSTEM', UserTaskTypeKind.User)).toBe(UserTaskTypeKind.User)
+      expect(parseEnum(UserTaskTypeKind, 'System', UserTaskTypeKind.User)).toBe(UserTaskTypeKind.User)
     })
   })
 
@@ -90,29 +88,20 @@ describe('enum-utils', () => {
 
   describe('exhaustive switch pattern with assertNever', () => {
     // This test demonstrates the pattern for exhaustive switch statements
-    function getTaskTypeLabel(type: TaskType): string {
-      switch (type) {
-        case TaskType.Focused:
-          return 'Deep Work'
-        case TaskType.Admin:
-          return 'Administrative'
-        case TaskType.Personal:
-          return 'Personal'
-        case TaskType.Mixed:
-          return 'Mixed'
-        case TaskType.Flexible:
-          return 'Flexible'
+    function getTypeKindLabel(kind: UserTaskTypeKind): string {
+      switch (kind) {
+        case UserTaskTypeKind.System:
+          return 'System Type'
+        case UserTaskTypeKind.User:
+          return 'User-Defined Type'
         default:
-          return assertNever(type)
+          return assertNever(kind)
       }
     }
 
-    it('should handle all TaskType values', () => {
-      expect(getTaskTypeLabel(TaskType.Focused)).toBe('Deep Work')
-      expect(getTaskTypeLabel(TaskType.Admin)).toBe('Administrative')
-      expect(getTaskTypeLabel(TaskType.Personal)).toBe('Personal')
-      expect(getTaskTypeLabel(TaskType.Mixed)).toBe('Mixed')
-      expect(getTaskTypeLabel(TaskType.Flexible)).toBe('Flexible')
+    it('should handle all UserTaskTypeKind values', () => {
+      expect(getTypeKindLabel(UserTaskTypeKind.System)).toBe('System Type')
+      expect(getTypeKindLabel(UserTaskTypeKind.User)).toBe('User-Defined Type')
     })
   })
 })

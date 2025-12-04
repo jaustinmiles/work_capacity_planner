@@ -3,7 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { ResponsiveProvider } from '../../../providers/ResponsiveProvider'
 import { EisenhowerMatrix } from '../EisenhowerMatrix'
 import { useTaskStore } from '../../../store/useTaskStore'
-import { TaskType } from '@shared/enums'
 
 // Don't mock the actual components anymore - test the integration
 // Only mock components that don't exist yet
@@ -45,7 +44,7 @@ describe('EisenhowerMatrix', () => {
       importance: 8,
       urgency: 9,
       duration: 60,
-      type: TaskType.Focused,
+      type: 'focused',
       completed: false,
     },
     {
@@ -54,7 +53,7 @@ describe('EisenhowerMatrix', () => {
       importance: 8,
       urgency: 3,
       duration: 120,
-      type: TaskType.Admin,
+      type: 'admin',
       completed: false,
     },
     {
@@ -63,7 +62,7 @@ describe('EisenhowerMatrix', () => {
       importance: 5,
       urgency: 5,
       duration: 60,
-      type: TaskType.Focused,
+      type: 'focused',
       completed: true, // Should not appear in matrix
     },
   ]

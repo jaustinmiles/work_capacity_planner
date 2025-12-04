@@ -2,8 +2,16 @@ import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { EisenhowerGrid } from '../EisenhowerGrid'
-import { TaskType } from '@shared/enums'
 import type { Task } from '@shared/types'
+
+// Mock the user task type store
+vi.mock('../../../store/useUserTaskTypeStore', () => ({
+  useSortedUserTaskTypes: () => [
+    { id: 'focused', name: 'Focused', color: 'blue', emoji: '🎯' },
+    { id: 'admin', name: 'Admin', color: 'green', emoji: '📋' },
+    { id: 'personal', name: 'Personal', color: 'orange', emoji: '🏠' },
+  ],
+}))
 
 describe('EisenhowerGrid', () => {
   const mockOnAddTask = vi.fn()
@@ -16,7 +24,7 @@ describe('EisenhowerGrid', () => {
       importance: 8,
       urgency: 9,
       duration: 60,
-      type: TaskType.Focused,
+      type: 'focused',
       completed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -27,7 +35,7 @@ describe('EisenhowerGrid', () => {
       importance: 8,
       urgency: 3,
       duration: 120,
-      type: TaskType.Admin,
+      type: 'admin',
       completed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -38,7 +46,7 @@ describe('EisenhowerGrid', () => {
       importance: 3,
       urgency: 8,
       duration: 30,
-      type: TaskType.Personal,
+      type: 'personal',
       completed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -49,7 +57,7 @@ describe('EisenhowerGrid', () => {
       importance: 2,
       urgency: 2,
       duration: 15,
-      type: TaskType.Admin,
+      type: 'admin',
       completed: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -60,7 +68,7 @@ describe('EisenhowerGrid', () => {
       importance: 7,
       urgency: 7,
       duration: 60,
-      type: TaskType.Focused,
+      type: 'focused',
       completed: true, // Should not appear
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -138,8 +146,8 @@ describe('EisenhowerGrid', () => {
       // Find a specific task card
       const taskCard = screen.getByText('Do First Task').closest('.arco-card')
 
-      // Check task metadata tags
-      expect(within(taskCard!).getByText('focused')).toBeInTheDocument()
+      // Check task metadata tags (user-defined types show emoji + name)
+      expect(within(taskCard!).getByText('🎯 Focused')).toBeInTheDocument()
       expect(within(taskCard!).getByText('60m')).toBeInTheDocument()
       expect(within(taskCard!).getByText('I:8')).toBeInTheDocument()
       expect(within(taskCard!).getByText('U:9')).toBeInTheDocument()
@@ -362,10 +370,10 @@ describe('EisenhowerGrid', () => {
         />,
       )
 
-      // Find tags with type colors
-      const focusedTag = screen.getByText('focused')
-      const adminTags = screen.getAllByText('admin')
-      const personalTag = screen.getByText('personal')
+      // Find tags with type colors (now using user type displayName with emoji)
+      const focusedTag = screen.getByText('🎯 Focused')
+      const adminTags = screen.getAllByText('📋 Admin')
+      const personalTag = screen.getByText('🏠 Personal')
 
       expect(focusedTag.closest('.arco-tag')).toHaveClass('arco-tag-blue')
       expect(adminTags[0].closest('.arco-tag')).toHaveClass('arco-tag-green')
@@ -422,7 +430,7 @@ describe('EisenhowerGrid', () => {
           importance: 6,
           urgency: 6,
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           completed: false,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -433,7 +441,7 @@ describe('EisenhowerGrid', () => {
           importance: 5.9,
           urgency: 5.9,
           duration: 60,
-          type: TaskType.Focused,
+          type: 'focused',
           completed: false,
           createdAt: new Date(),
           updatedAt: new Date(),

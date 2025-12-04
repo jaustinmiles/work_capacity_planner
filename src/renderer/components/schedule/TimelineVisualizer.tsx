@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { TaskType, WorkBlockType } from '@shared/enums'
 import { Card } from '@arco-design/web-react'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
-import { getTotalCapacityForTaskType } from '@shared/capacity-calculator'
+import { isSingleTypeBlock, isComboBlock, isSystemBlock, getTypeColor } from '@shared/user-task-types'
+import { useSortedUserTaskTypes } from '@renderer/store/useUserTaskTypeStore'
 import dayjs from 'dayjs'
 
 interface TimelineVisualizerProps {
@@ -37,6 +37,7 @@ export function TimelineVisualizer({
   endHour = 22,
   height = 600,
 }: TimelineVisualizerProps) {
+  const userTypes = useSortedUserTaskTypes()
   const [dragState, setDragState] = useState<DragState | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -170,21 +171,18 @@ export function TimelineVisualizer({
     }
   }, [dragState])
 
-  const getBlockColor = (type: string) => {
-    switch (type) {
-      case TaskType.Focused:
-        return '#165DFF'
-      case TaskType.Admin:
-        return '#FF7D00'
-      case 'mixed':
-        return '#722ED1'
-      case 'personal':
-        return '#52C41A'  // Green for personal time
-      case 'flexible':
-        return '#F5A623'  // Orange for flexible
-      default:
-        return '#86909C'
+  const getBlockColor = (typeConfig: WorkBlock['typeConfig']) => {
+    if (isSystemBlock(typeConfig)) {
+      return '#86909C' // Gray for system blocks
     }
+    if (isSingleTypeBlock(typeConfig)) {
+      // Use dynamic color lookup from user types
+      return getTypeColor(userTypes, typeConfig.typeId)
+    }
+    if (isComboBlock(typeConfig)) {
+      return '#722ED1' // Purple for combo blocks
+    }
+    return '#86909C'
   }
 
   const getMeetingColor = (type: string) => {
@@ -336,10 +334,18 @@ export function TimelineVisualizer({
           <div>
             {isBlock ? (() => {
               const block = item as WorkBlock
-              return `${block.type === WorkBlockType.Focused ? '🎯 Focused' :
-                block.type === WorkBlockType.Admin ? '📋 Admin' :
-                block.type === WorkBlockType.Personal ? '👤 Personal' :
-                block.type === WorkBlockType.Flexible ? '🔀 Flexible' : '🔄 Mixed'} Work`
+              const { typeConfig } = block
+              if (isSystemBlock(typeConfig)) {
+                return `🚫 ${typeConfig.systemType === 'sleep' ? 'Sleep' : 'Blocked'}`
+              }
+              if (isSingleTypeBlock(typeConfig)) {
+                return `📋 ${typeConfig.typeId} Work`
+              }
+              if (isComboBlock(typeConfig)) {
+                const types = typeConfig.allocations.map(a => a.typeId).join('/')
+                return `🔄 ${types} (Combo)`
+              }
+              return 'Work Block'
             })() : (() => {
               const meeting = item as WorkMeeting
               return meeting.name || meeting.type
@@ -350,8 +356,7 @@ export function TimelineVisualizer({
             if (!block.capacity) return null
             return (
               <div style={{ fontSize: 10, marginTop: 4, opacity: 0.9 }}>
-                Focus: {getTotalCapacityForTaskType(block.capacity, TaskType.Focused)}m,
-                Admin: {getTotalCapacityForTaskType(block.capacity, TaskType.Admin)}m
+                Total: {block.capacity.totalMinutes}m
               </div>
             )
           })()}
@@ -394,7 +399,7 @@ export function TimelineVisualizer({
 
         {/* Work blocks */}
         {blocks.map(block =>
-          renderItem(block, 'block', getBlockColor(block.type)),
+          renderItem(block, 'block', getBlockColor(block.typeConfig)),
         )}
 
         {/* Meetings */}

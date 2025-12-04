@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { TaskType } from '@shared/enums'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 import {
   Modal,
@@ -24,7 +23,6 @@ import { Message } from '../common/Message'
 import { formatDuration } from '../../utils/dateUtils'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
-// LOGGER_REMOVED: import { logger } from '@/shared/logger'
 
 
 const { Text } = Typography
@@ -134,7 +132,7 @@ export function WorkSessionsModal({
       title: 'Type',
       dataIndex: 'type',
       render: (type: string) => (
-        <Tag color={type === TaskType.Focused ? 'blue' : 'green'}>
+        <Tag color={sessions.find(s => s.type === type)?.color || 'blue'}>
           {type}
         </Tag>
       ),

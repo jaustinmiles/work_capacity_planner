@@ -1,6 +1,6 @@
 import { Task, Session, AICallOptions } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { TaskType } from '@shared/enums'
+import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
 
 
 // Type for the Electron API exposed by preload script
@@ -17,6 +17,14 @@ declare global {
         deleteSession: (id: string) => Promise<void>
         getCurrentSession: () => Promise<any>
         updateSchedulingPreferences: (sessionId: string, updates: any) => Promise<any>
+        // User task type operations
+        getUserTaskTypes: (sessionId?: string) => Promise<UserTaskType[]>
+        getUserTaskTypeById: (id: string) => Promise<UserTaskType | null>
+        createUserTaskType: (input: Omit<CreateUserTaskTypeInput, 'sessionId'>) => Promise<UserTaskType>
+        updateUserTaskType: (id: string, updates: UpdateUserTaskTypeInput) => Promise<UserTaskType>
+        deleteUserTaskType: (id: string) => Promise<void>
+        reorderUserTaskTypes: (orderedIds: string[]) => Promise<void>
+        sessionHasTaskTypes: (sessionId?: string) => Promise<boolean>
         // Task operations
         getTasks: (includeArchived?: boolean) => Promise<Task[]>
         getSequencedTasks: () => Promise<SequencedTask[]>
@@ -66,7 +74,7 @@ declare global {
         getActiveWorkSession: () => Promise<any | null>
         getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
         getTaskTotalLoggedTime: (taskId: string) => Promise<number>
-        getTodayAccumulated: (__date: string) => Promise<{ focused: number; admin: number; personal?: number; total?: number }>
+        getTodayAccumulated: (__date: string) => Promise<AccumulatedTimeResult>
         // Progress tracking operations
         createStepWorkSession: (data: any) => Promise<any>
         updateTaskStepProgress: (__stepId: string, data: any) => Promise<any>
@@ -85,7 +93,7 @@ declare global {
             estimatedDuration: number
             importance: number
             urgency: number
-            type: TaskType.Focused | 'admin'
+            type: string
             needsMoreInfo?: boolean
           }>
           summary: string
@@ -97,7 +105,7 @@ declare global {
             description: string
             importance: number
             urgency: number
-            type: TaskType.Focused | 'admin'
+            type: string
             steps: any[]
             totalDuration: number
             earliestCompletion: string
@@ -110,7 +118,7 @@ declare global {
             estimatedDuration: number
             importance: number
             urgency: number
-            type: TaskType.Focused | 'admin'
+            type: string
             needsMoreInfo?: boolean
           }>
           summary: string
@@ -149,7 +157,7 @@ declare global {
             id: string
             startTime: string
             endTime: string
-            type: TaskType.Focused | 'admin' | 'mixed'
+            type: string | 'mixed'
             capacity?: {
               focused: number
               admin: number
@@ -170,7 +178,7 @@ declare global {
             id: string
             startTime: string
             endTime: string
-            type: TaskType.Focused | 'admin' | 'mixed' | 'personal'
+            type: string | 'mixed' | 'personal'
             capacity?: {
               focusMinutes?: number
               adminMinutes?: number
@@ -351,7 +359,7 @@ export class RendererDatabaseService {
   async addStepToWorkflow(workflowId: string, stepData: {
     name: string
     duration: number
-    type: TaskType
+    type: string // User-defined task type ID
     afterStep?: string
     beforeStep?: string
     dependencies?: string[]

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { StepSplitModal } from '../StepSplitModal'
 import { TaskStep } from '@shared/sequencing-types'
-import { StepStatus, TaskType } from '@shared/enums'
+import { StepStatus } from '@shared/enums'
 import { vi } from 'vitest'
 
 // Mock the Message component
@@ -18,7 +18,7 @@ describe('StepSplitModal', () => {
     taskId: 'test-task-id',
     name: 'Test Step',
     duration: 120, // 2 hours
-    type: TaskType.Focused,
+    type: 'focused',
     asyncWaitTime: 0,
     dependsOn: [],
     status: StepStatus.Pending,
@@ -158,7 +158,7 @@ describe('StepSplitModal', () => {
       expect(mockOnSplit).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          type: TaskType.Focused,
+          type: 'focused',
           dependsOn: mockStep.dependsOn,
           status: StepStatus.Pending,
           cognitiveComplexity: 3,

@@ -13,7 +13,8 @@
       "mcp__diagnostic__run_test_file",
       "mcp__git__stage_files",
       "mcp__git__create_feature_branch",
-      "mcp__git__commit_changes"
+      "mcp__git__commit_changes",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

@@ -2,7 +2,8 @@ import React from 'react'
 import { Card, Typography, Space, Collapse, Tag, Alert, Table } from '@arco-design/web-react'
 import { IconExclamationCircle, IconInfoCircle } from '@arco-design/web-react/icon'
 import type { SchedulingDebugInfo } from '@shared/unified-scheduler'
-import { WorkBlockType } from '@shared/enums'
+import { getBlockTypeDisplayColor } from '@shared/user-task-types'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 
 const { Title, Text } = Typography
 
@@ -11,6 +12,8 @@ interface SchedulingDebugPanelProps {
 }
 
 export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debugInfo }) => {
+  const userTypes = useSortedUserTaskTypes()
+
   if (!debugInfo) return null
 
   const hasIssues = debugInfo.unscheduledItems.length > 0 || debugInfo.warnings.length > 0
@@ -165,27 +168,20 @@ export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debu
                     title: 'Type',
                     dataIndex: 'blockType',
                     render: (val) => {
-                      const colors: Record<string, string> = {
-                        [WorkBlockType.Focused]: 'blue',
-                        [WorkBlockType.Admin]: 'green',
-                        [WorkBlockType.Mixed]: 'purple',
-                        [WorkBlockType.Personal]: 'orange',
-                        [WorkBlockType.Flexible]: 'cyan',
-                        [WorkBlockType.Blocked]: 'red',
-                        [WorkBlockType.Sleep]: 'gray',
-                      }
-                      return <Tag color={colors[val] || 'default'}>{val}</Tag>
+                      // Get user type name if available, otherwise use the block type value
+                      const userType = userTypes.find(t => t.id === val)
+                      const displayName = userType ? `${userType.emoji} ${userType.name}` : val
+                      return <Tag color={getBlockTypeDisplayColor(val, userTypes)}>{displayName}</Tag>
                     },
                   },
                   {
                     title: 'Capacity',
                     render: (_, record) => {
-                      if (record.capacityBreakdown) {
-                        const parts: string[] = []
-                        if (record.capacityBreakdown.focus) parts.push(`F:${record.capacityBreakdown.focus}`)
-                        if (record.capacityBreakdown.admin) parts.push(`A:${record.capacityBreakdown.admin}`)
-                        if (record.capacityBreakdown.personal) parts.push(`P:${record.capacityBreakdown.personal}`)
-                        return parts.join(' ')
+                      if (record.capacityByType) {
+                        const parts = Object.entries(record.capacityByType)
+                          .filter(([, v]) => v > 0)
+                          .map(([k, v]) => `${k.slice(0, 1).toUpperCase()}:${v}`)
+                        if (parts.length > 0) return parts.join(' ')
                       }
                       return record.capacity || 0
                     },
@@ -196,11 +192,10 @@ export const SchedulingDebugPanel: React.FC<SchedulingDebugPanelProps> = ({ debu
                       const used = record.used ?? 0
                       const total = record.capacity ?? 0
 
-                      if (record.usedBreakdown) {
-                        const parts: string[] = []
-                        if (record.usedBreakdown.focus) parts.push(`F:${record.usedBreakdown.focus}`)
-                        if (record.usedBreakdown.admin) parts.push(`A:${record.usedBreakdown.admin}`)
-                        if (record.usedBreakdown.personal) parts.push(`P:${record.usedBreakdown.personal}`)
+                      if (record.usedByType) {
+                        const parts = Object.entries(record.usedByType)
+                          .filter(([, v]) => v > 0)
+                          .map(([k, v]) => `${k.slice(0, 1).toUpperCase()}:${v}`)
                         const breakdown = parts.join(' ')
                         const percent = total > 0 ? Math.round((used / total) * 100) : 0
                         const color = percent >= 80 ? 'green' : percent > 0 ? 'blue' : 'gray'

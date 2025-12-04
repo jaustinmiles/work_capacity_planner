@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useTaskStore, injectWorkTrackingServiceForTesting, clearInjectedWorkTrackingService } from '../useTaskStore'
-import { TaskType, TaskStatus } from '@shared/enums'
+import { TaskStatus } from '@shared/enums'
 
 // Mock the database
 vi.mock('../../services/database', () => {
@@ -153,7 +153,7 @@ describe('Notes Persistence in Time Tracking', () => {
         id: 'step-3',
         taskId: 'task-1',
         name: 'Test Step',
-        type: TaskType.Focused,
+        type: 'focused',
         duration: 60,
         actualDuration: 15,
         notes: 'Initial notes from earlier',
@@ -167,7 +167,7 @@ describe('Notes Persistence in Time Tracking', () => {
         result.current.sequencedTasks = [{
           id: 'task-1',
           name: 'Test Task',
-          type: TaskType.Focused,
+          type: 'focused',
           importance: 5,
           urgency: 5,
           duration: 60,
@@ -210,7 +210,7 @@ describe('Notes Persistence in Time Tracking', () => {
         id: 'step-4',
         taskId: 'task-2',
         name: 'Step Without Notes',
-        type: TaskType.Admin,
+        type: 'admin',
         duration: 30,
         actualDuration: 0,
         notes: null,
@@ -224,7 +224,7 @@ describe('Notes Persistence in Time Tracking', () => {
         result.current.sequencedTasks = [{
           id: 'task-2',
           name: 'Test Task 2',
-          type: TaskType.Admin,
+          type: 'admin',
           importance: 3,
           urgency: 7,
           duration: 30,
@@ -255,7 +255,7 @@ describe('Notes Persistence in Time Tracking', () => {
         id: 'step-5',
         taskId: 'task-3',
         name: 'Test Step',
-        type: TaskType.Personal,
+        type: 'personal',
         duration: 45,
         actualDuration: 10,
         notes: 'Existing notes',
@@ -269,7 +269,7 @@ describe('Notes Persistence in Time Tracking', () => {
         result.current.sequencedTasks = [{
           id: 'task-3',
           name: 'Test Task 3',
-          type: TaskType.Personal,
+          type: 'personal',
           importance: 4,
           urgency: 4,
           duration: 45,

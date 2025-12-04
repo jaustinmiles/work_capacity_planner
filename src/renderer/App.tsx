@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye } from '@arco-design/web-react/icon'
+import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -19,6 +19,7 @@ import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from './components/settings/MultiDayScheduleEditor'
 import { SessionManager } from './components/session/SessionManager'
+import { TaskTypeManager } from './components/settings/TaskTypeManager'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
 import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
 import { DevTools } from './components/dev/DevTools'
@@ -32,7 +33,7 @@ import { logger } from '@/logger'
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
 
-import { TaskType, TaskStatus, StepStatus, ViewType } from '@shared/enums'
+import { TaskStatus, StepStatus, ViewType } from '@shared/enums'
 
 interface ExtractedTask {
   name: string
@@ -40,7 +41,7 @@ interface ExtractedTask {
   estimatedDuration: number
   importance: number
   urgency: number
-  type: TaskType
+  type: string
   needsMoreInfo?: boolean
 }
 
@@ -106,6 +107,7 @@ function App() {
   const [showWorkLoggerDual, setShowWorkLoggerDual] = useState(false)
   const [showTaskSlideshow, setShowTaskSlideshow] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
+  const [showTaskTypeManager, setShowTaskTypeManager] = useState(false)
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
@@ -518,6 +520,13 @@ function App() {
                 </Button>
                 <Button
                   type="text"
+                  icon={<IconSettings />}
+                  onClick={() => setShowTaskTypeManager(true)}
+                >
+                  Settings
+                </Button>
+                <Button
+                  type="text"
                   icon={<IconUserGroup />}
                   onClick={() => setShowSessionManager(true)}
                 >
@@ -724,6 +733,19 @@ function App() {
               initializeData()
             }}
           />
+
+          {/* Task Type Settings Modal */}
+          <Modal
+            title="Task Type Settings"
+            visible={showTaskTypeManager}
+            onCancel={() => setShowTaskTypeManager(false)}
+            footer={null}
+            style={{ width: 600 }}
+          >
+            <TaskTypeManager embedded onTypesChange={() => {
+              // Types update reactively via store - no need to reload
+            }} />
+          </Modal>
           <DevTools
             visible={showDevTools}
             onClose={() => setShowDevTools(false)}

@@ -19,13 +19,13 @@ import {
   IconDelete,
   IconSave,
 } from '@arco-design/web-react/icon'
-import { TaskType } from '@shared/enums'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 import {
   timeStringToMinutes,
   formatTimeHHMM,
 } from '@shared/time-utils'
 import { useTaskStore } from '../../store/useTaskStore'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
 import dayjs from 'dayjs'
@@ -81,6 +81,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
   const containerRef = useRef<HTMLDivElement>(null)
   const { tasks, sequencedTasks, loadTasks } = useTaskStore()
+  const userTaskTypes = useSortedUserTaskTypes()
 
   // Load existing work sessions for the selected date
   useEffect(() => {
@@ -281,7 +282,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
     const newSession: UnifiedWorkSession = {
       id: sessionId,
       taskId: 'manual-log', // Default taskId for manually created sessions
-      type: TaskType.Focused,
+      type: userTaskTypes[0]?.id || '', // Default to first user type
       plannedMinutes: 60,
       actualMinutes: 60,
       startTime: now,
@@ -302,7 +303,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
   // Get all available tasks and workflow steps
   const availableTasks = useMemo(() => {
     const allTasks = [...tasks, ...sequencedTasks]
-    const taskOptions: Array<{ value: string; label: string; type: TaskType }> = []
+    const taskOptions: Array<{ value: string; label: string; type: string }> = []
 
     // Add standalone tasks
     allTasks.forEach(task => {
@@ -310,7 +311,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
         taskOptions.push({
           value: `task:${task.id}`,
           label: task.name,
-          type: task.type as TaskType,
+          type: task.type || '', // Regular tasks should always have type
         })
       }
     })
@@ -322,7 +323,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           taskOptions.push({
             value: `step:${step.id}:${task.id}`,
             label: `${task.name} > ${step.name}`,
-            type: step.type as TaskType,
+            type: step.type,
           })
         })
       }
@@ -415,13 +416,13 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           // Look up task/step to derive type and color
           let taskName = session.taskName || 'Unassigned'
           let stepName = session.stepName
-          let taskType = TaskType.Focused // Default if not found
+          let taskType = userTaskTypes[0]?.id || '' // Default to first user type if not found
 
           // Find the task to get its type
           const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId)
           if (task) {
             taskName = taskName || task.name
-            taskType = task.type
+            taskType = task.type || '' // Workflows may not have a type
 
             // If it's a step session, check if the step has a different type
             if (session.stepId && task.steps) {
@@ -434,7 +435,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
           }
 
           // Derive color from task type using utility
-          const color = getTypeColor(taskType)
+          const color = getTypeColor(userTaskTypes, taskType)
 
           return (
             <div
@@ -618,14 +619,19 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
 
         {/* Summary */}
         <Card>
-          <Space>
+          <Space wrap>
             <Text>Total logged today:</Text>
-            <Tag color="blue">
-              Focused: {sessions.filter(s => s.type === TaskType.Focused).reduce((sum, s) => sum + (s.actualMinutes ?? 0), 0)} min
-            </Tag>
-            <Tag color="green">
-              Admin: {sessions.filter(s => s.type === TaskType.Admin).reduce((sum, s) => sum + (s.actualMinutes ?? 0), 0)} min
-            </Tag>
+            {userTaskTypes.map(taskType => {
+              const minutes = sessions
+                .filter(s => s.type === taskType.id)
+                .reduce((sum, s) => sum + (s.actualMinutes ?? 0), 0)
+              if (minutes === 0) return null
+              return (
+                <Tag key={taskType.id} color={taskType.color}>
+                  {taskType.emoji} {taskType.name}: {minutes} min
+                </Tag>
+              )
+            })}
           </Space>
         </Card>
       </Space>
@@ -667,7 +673,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
                     stepId,
                     ...(task?.name && { taskName: task.name }),
                     ...(step?.name && { stepName: step.name }),
-                    type: step?.type as TaskType || TaskType.Focused,
+                    type: step?.type || task?.type || userTaskTypes[0]?.id || '',
                   }
                   setSelectedSession(updatedSession)
                   setDirtyIds(new Set([...dirtyIds, updatedSession.id]))
@@ -680,7 +686,7 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
                     stepId: undefined,
                     ...(task?.name && { taskName: task.name }),
                     stepName: undefined,
-                    type: task?.type as TaskType || TaskType.Focused,
+                    type: task?.type || userTaskTypes[0]?.id || '',
                   }
                   setSelectedSession(updatedSession)
                   setDirtyIds(new Set([...dirtyIds, updatedSession.id]))
@@ -689,16 +695,19 @@ export function WorkLoggerCalendar({ visible, onClose }: WorkLoggerCalendarProps
               showSearch
               filterOption
             >
-              {availableTasks.map(task => (
-                <Select.Option key={task.value} value={task.value}>
-                  <Space>
-                    <Tag color={task.type === TaskType.Focused ? 'blue' : 'green'} size="small">
-                      {task.type === TaskType.Focused ? 'Focused' : 'Admin'}
-                    </Tag>
-                    {task.label}
-                  </Space>
-                </Select.Option>
-              ))}
+              {availableTasks.map(task => {
+                const taskTypeInfo = userTaskTypes.find(t => t.id === task.type)
+                return (
+                  <Select.Option key={task.value} value={task.value}>
+                    <Space>
+                      <Tag color={taskTypeInfo?.color || '#8c8c8c'} size="small">
+                        {taskTypeInfo?.emoji} {taskTypeInfo?.name || 'Unknown'}
+                      </Tag>
+                      {task.label}
+                    </Space>
+                  </Select.Option>
+                )
+              })}
             </Select>
 
             <Input.TextArea

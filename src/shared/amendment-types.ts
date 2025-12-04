@@ -6,7 +6,6 @@ import {
   AmendmentType,
   EntityType,
   TaskStatus,
-  TaskType,
   DeadlineType,
   WorkPatternOperation,
   WorkSessionOperation,
@@ -21,7 +20,6 @@ export {
   AmendmentType,
   EntityType,
   TaskStatus,
-  TaskType,
   DeadlineType,
   WorkPatternOperation,
   WorkSessionOperation,
@@ -84,7 +82,7 @@ export interface StepAddition {
   workflowTarget: AmendmentTarget
   stepName: string
   duration: number
-  stepType: TaskType
+  stepType: string // User-defined task type ID
   afterStep?: string  // Name of step to insert after
   beforeStep?: string  // Name of step to insert before
   dependencies?: string[]
@@ -115,7 +113,7 @@ export interface TaskCreation {
   duration: number  // minutes
   importance?: number
   urgency?: number
-  taskType?: TaskType
+  taskType?: string // User-defined task type ID
 }
 
 export interface WorkflowCreation {
@@ -125,7 +123,7 @@ export interface WorkflowCreation {
   steps: Array<{
     name: string
     duration: number
-    type: TaskType
+    type: string // User-defined task type ID
     dependsOn?: string[]
     asyncWaitTime?: number
   }>
@@ -153,7 +151,7 @@ export interface PriorityChange {
 export interface TypeChange {
   type: AmendmentType.TypeChange
   target: AmendmentTarget
-  newType: TaskType
+  newType: string // User-defined task type ID
   stepName?: string  // For changing step type
 }
 
@@ -173,7 +171,7 @@ export interface WorkPatternModification {
     name: string
     startTime: Date  // Transformed from ISO string
     endTime: Date
-    type: TaskType
+    type: string // Meeting type
     recurring?: RecurringPattern
     daysOfWeek?: DayOfWeek[]
   }
@@ -266,7 +264,7 @@ export interface RawWorkPatternModification {
     name: string
     startTime: string  // ISO datetime string
     endTime: string
-    type: TaskType
+    type: string // Meeting type
     recurring?: RecurringPattern
     daysOfWeek?: DayOfWeek[]
   }

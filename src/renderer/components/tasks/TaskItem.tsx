@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { TaskType } from '@shared/enums'
 import { Space, Typography, Tag, Checkbox, Button, Input, Popconfirm, Tooltip, Modal } from '@arco-design/web-react'
 import { IconEdit, IconDelete, IconClockCircle, IconCalendar, IconExclamationCircle, IconCheckCircleFill, IconMindMapping, IconPlayArrow, IconUndo } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -11,6 +10,7 @@ import { WorkflowProgressTracker } from '../progress/WorkflowProgressTracker'
 import { getDatabase } from '../../services/database'
 import { Message } from '../common/Message'
 import { SequencedTask } from '@shared/sequencing-types'
+import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { logger } from '@/logger'
@@ -29,6 +29,7 @@ interface TaskItemProps {
 
 export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskItemProps) {
   const { toggleTaskComplete, deleteTask, selectTask, updateTask, loadTasks } = useTaskStore()
+  const userTypes = useSortedUserTaskTypes()
   const [isEditing, setIsEditing] = useState(false)
   const [editedName, setEditedName] = useState(task.name)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -49,14 +50,18 @@ export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskIt
     })
   }, [task.id, task.actualDuration]) // Re-fetch when actualDuration changes
 
-  const priorityScore = task.importance * task.urgency
-  const priorityColor = priorityScore >= 64 ? 'red' :
-                       priorityScore >= 36 ? 'orange' :
-                       'green'
+  // Priority thresholds (importance × urgency scale is 1-100)
+  const HIGH_PRIORITY_THRESHOLD = 64   // 8×8 or higher
+  const MEDIUM_PRIORITY_THRESHOLD = 36 // 6×6 or higher
 
-  const priorityStatus = priorityScore >= 64 ? 'High Priority' :
-                        priorityScore >= 36 ? 'Medium Priority' :
-                        'Low Priority'
+  const priorityScore = task.importance * task.urgency
+  const priorityColor = priorityScore >= HIGH_PRIORITY_THRESHOLD ? 'red' :
+    priorityScore >= MEDIUM_PRIORITY_THRESHOLD ? 'orange' :
+      'green'
+
+  const priorityStatus = priorityScore >= HIGH_PRIORITY_THRESHOLD ? 'High Priority' :
+    priorityScore >= MEDIUM_PRIORITY_THRESHOLD ? 'Medium Priority' :
+      'Low Priority'
 
   const handleSave = async () => {
     if (editedName.trim()) {
@@ -214,18 +219,25 @@ export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskIt
                       <Tag
                         icon={<IconMindMapping />}
                         color={(task.cognitiveComplexity || 3) >= 4 ? 'red' :
-                              (task.cognitiveComplexity || 3) >= 3 ? 'orange' :
-                              'green'}
+                          (task.cognitiveComplexity || 3) >= 3 ? 'orange' :
+                            'green'}
                         size="small"
                       >
                         Complexity: {task.cognitiveComplexity || 3}/5
                       </Tag>
                     </Tooltip>
 
-                    <Tag size="small" color="gray">
-                      {task.type === TaskType.Focused ? 'Focused Work' :
-                       task.type === TaskType.Personal ? 'Personal' : 'Admin/Meeting'}
-                    </Tag>
+                    {(() => {
+                      const userType = userTypes.find(t => t.id === task.type)
+                      if (userType) {
+                        return (
+                          <Tag size="small" color={userType.color || 'gray'}>
+                            {userType.emoji && `${userType.emoji} `}{userType.name}
+                          </Tag>
+                        )
+                      }
+                      return task.type ? <Tag size="small" color="gray">{task.type}</Tag> : null
+                    })()}
 
                     {task.asyncWaitTime > 0 && (
                       <Tag
@@ -242,7 +254,7 @@ export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskIt
                         <Tag
                           icon={<IconCalendar />}
                           color={dayjs(task.deadline).isBefore(dayjs()) ? 'red' :
-                                 dayjs(task.deadline).isBefore(dayjs().add(1, 'day')) ? 'orange' : 'blue'}
+                            dayjs(task.deadline).isBefore(dayjs().add(1, 'day')) ? 'orange' : 'blue'}
                           size="small"
                         >
                           Due {dayjs(task.deadline).fromNow()}
@@ -306,11 +318,6 @@ export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskIt
                   onClick={() => {
                     logger.ui.debug('Time logging button clicked', {})
                     logger.ui.info('Time logging modal opened', {})
-                      // taskId: task.id,
-                      // taskName: task.name,
-                      // hasSteps: task.hasSteps,
-                    // })
-                    // Use WorkflowProgressTracker for workflows, TaskTimeLoggingModal for regular tasks
                     if (task.hasSteps) {
                       setShowProgressModal(true)
                     } else {
@@ -328,9 +335,9 @@ export function TaskItem({ task, showUnarchive = false, matchedStepIds }: TaskIt
                   onClick={() => {
                     logger.ui.debug('Edit task button clicked', {})
                     logger.ui.info('Task edit modal opened', {})
-                      // taskId: task.id,
-                      // taskName: task.name,
-                      // hasSteps: task.hasSteps,
+                    // taskId: task.id,
+                    // taskName: task.name,
+                    // hasSteps: task.hasSteps,
                     // })
                     setShowEditModal(true)
                   }}

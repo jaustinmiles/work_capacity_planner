@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { TaskType } from '@shared/enums'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 import {
   Modal,
@@ -168,7 +167,7 @@ export function StepWorkSessionsModal({
       title: 'Type',
       dataIndex: 'type',
       render: (type: string) => (
-        <Tag color={type === TaskType.Focused ? 'blue' : 'green'}>
+        <Tag color={sessions.find(s => s.type === type)?.color || 'blue'}>
           {type}
         </Tag>
       ),

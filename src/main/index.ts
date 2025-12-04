@@ -58,6 +58,39 @@ ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string
   return await db.deleteSession(id)
 })
 
+// User task type handlers
+ipcMain.handle('db:getUserTaskTypes', async (_event: IpcMainInvokeEvent, sessionId?: string) => {
+  return await db.getUserTaskTypes(sessionId)
+})
+
+ipcMain.handle('db:getUserTaskTypeById', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.getUserTaskTypeById(id)
+})
+
+ipcMain.handle('db:createUserTaskType', async (_event: IpcMainInvokeEvent, input: any) => {
+  // Inject the current session ID
+  const sessionId = await db.getActiveSession()
+  return await db.createUserTaskType({ ...input, sessionId })
+})
+
+ipcMain.handle('db:updateUserTaskType', async (_event: IpcMainInvokeEvent, id: string, updates: any) => {
+  return await db.updateUserTaskType(id, updates)
+})
+
+ipcMain.handle('db:deleteUserTaskType', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.deleteUserTaskType(id)
+})
+
+ipcMain.handle('db:reorderUserTaskTypes', async (_event: IpcMainInvokeEvent, orderedIds: string[]) => {
+  // Get the current session ID for the reorder operation
+  const sessionId = await db.getActiveSession()
+  return await db.reorderUserTaskTypes(sessionId, orderedIds)
+})
+
+ipcMain.handle('db:sessionHasTaskTypes', async (_event: IpcMainInvokeEvent, sessionId?: string) => {
+  return await db.sessionHasTaskTypes(sessionId)
+})
+
 ipcMain.handle('db:getTasks', async (_event, includeArchived = false) => {
   mainLogger.info('Getting tasks from database...', { includeArchived })
   const tasks = await db.getTasks(includeArchived)

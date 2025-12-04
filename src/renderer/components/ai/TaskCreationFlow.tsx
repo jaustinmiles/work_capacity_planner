@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Modal, Button, Typography, Card, Space, Input, Form, InputNumber, Select, Alert, Spin } from '@arco-design/web-react'
 import { IconQuestionCircle, IconCheckCircle } from '@arco-design/web-react/icon'
-import { TaskType, TaskStatus } from '@shared/enums'
+import { TaskStatus } from '@shared/enums'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 import { logger } from '@/logger'
@@ -22,7 +22,7 @@ interface ExtractedTask {
   estimatedDuration: number
   importance: number
   urgency: number
-  type: TaskType
+  type: string
   needsMoreInfo?: boolean
 }
 

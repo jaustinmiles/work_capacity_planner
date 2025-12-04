@@ -1,18 +1,19 @@
 import { useState } from 'react'
-import { TaskType, WorkBlockType } from '@shared/enums'
 import { Modal, Button, Space, Card, Typography, Radio, Spin, Tag, Alert, Grid, Tabs } from '@arco-design/web-react'
 import { IconSave, IconEye } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useUnifiedScheduler, ScheduleResult, UnifiedScheduleItem } from '../../hooks/useUnifiedScheduler'
 import { OptimizationMode } from '@shared/unified-scheduler'
-import { DailyWorkPattern } from '@shared/work-blocks-types'
+import { DailyWorkPattern, BlockTypeConfig } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { calculateBlockCapacity } from '@shared/capacity-calculator'
+import { createEmptyAccumulatedTime } from '@shared/user-task-types'
+import { WorkBlockType, BlockConfigKind } from '@shared/enums'
 
 
 const { Title, Text } = Typography
@@ -138,13 +139,15 @@ export function ScheduleGenerator({
         const blocks: any[] = []
 
         if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
-          // Regular work day
+          // Regular work day - create system blocked placeholder
+          // Users should configure proper task types and patterns in settings
+          const typeConfig: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
           blocks.push({
             id: `block-${dateStr}-work`,
             startTime: dayWorkHours.startTime,
             endTime: dayWorkHours.endTime,
-            type: WorkBlockType.Flexible,
-            capacity: calculateBlockCapacity(WorkBlockType.Flexible, dayWorkHours.startTime, dayWorkHours.endTime),
+            typeConfig,
+            capacity: calculateBlockCapacity(typeConfig, dayWorkHours.startTime, dayWorkHours.endTime),
           })
         }
         // Removed hardcoded weekend personal blocks - users should configure their own patterns
@@ -154,7 +157,7 @@ export function ScheduleGenerator({
           date: dateStr,
           blocks,
           meetings: [],
-          accumulated: { focus: 0, admin: 0, personal: 0 },
+          accumulated: createEmptyAccumulatedTime(),
         })
       }
 
@@ -363,7 +366,7 @@ export function ScheduleGenerator({
         const date = new Date(dateStr)
         const _dayOfWeek = date.getDay()
         const blocks: any[] = []
-        const isOptimalSchedule = selected.name.includes('Optimal')
+        const _isOptimalSchedule = selected.name.includes('Optimal')
 
         // Fetch existing pattern to preserve meetings (like sleep blocks)
         const existingPattern = await db.getWorkPattern(dateStr)
@@ -391,37 +394,15 @@ export function ScheduleGenerator({
           }, sortedItems[0].endTime!)
           const latestEndStr = dayjs(latestEnd).format('HH:mm')
 
-          // Calculate total capacity used
-          let focus = 0
-          let admin = 0
-          let personal = 0
-
-          for (const item of items) {
-            if (item.taskType === TaskType.Focused) {
-              focus += item.duration
-            } else if (item.taskType === TaskType.Personal) {
-              personal += item.duration
-            } else {
-              admin += item.duration
-            }
-          }
-
-          // For optimal schedules, create blocks with AVAILABLE capacity, not just used capacity
-          // The optimal scheduler can schedule ALL DAY (7am-11pm = 16 hours = 960 minutes)
-          const _totalMinutes = dayjs(latestEnd).diff(dayjs(sortedItems[0].startTime), 'minute')
-
+          // Create block with system blocked type as placeholder
+          // Actual type depends on user-configured task types
+          const typeConfig: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
           blocks.push({
             id: `block-${dateStr}-work`,
             startTime: earliestStart,
             endTime: latestEndStr,
-            type: personal > 0 && focus === 0 && admin === 0 ? WorkBlockType.Personal : WorkBlockType.Flexible,
-            capacity: {
-              // For optimal schedules, use actual capacity if tasks are scheduled
-              // Otherwise show what was actually used
-              focus: isOptimalSchedule ? Math.max(focus, 0) : focus,
-              admin: isOptimalSchedule ? Math.max(admin, 0) : admin,
-              ...(personal > 0 ? { personal } : {}),
-            },
+            typeConfig,
+            capacity: calculateBlockCapacity(typeConfig, earliestStart, latestEndStr),
           })
         }
 
