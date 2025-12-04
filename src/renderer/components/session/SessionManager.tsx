@@ -29,6 +29,7 @@ import { useTaskStore } from '../../store/useTaskStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useUserTaskTypeStore } from '../../store/useUserTaskTypeStore'
+import { useScheduleSnapshotStore } from '../../store/useScheduleSnapshotStore'
 import { resetStoreConnectorState } from '../../store/storeConnector'
 
 
@@ -86,6 +87,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       useWorkPatternStore.getState().clearWorkPatterns()
       useSchedulerStore.getState().clearSchedule()
       useUserTaskTypeStore.getState().clearTypes()
+      useScheduleSnapshotStore.getState().clearSnapshots()
 
       await db.createSession(values.name, values.description)
 
@@ -99,6 +101,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
       await useUserTaskTypeStore.getState().loadTypes()
+      await useScheduleSnapshotStore.getState().loadSnapshots()
       // Schedule will automatically recompute via store subscriptions
     } catch (error) {
       logger.ui.error('Failed to create session', {
@@ -127,6 +130,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       useWorkPatternStore.getState().clearWorkPatterns()
       useSchedulerStore.getState().clearSchedule()
       useUserTaskTypeStore.getState().clearTypes()
+      useScheduleSnapshotStore.getState().clearSnapshots()
 
       const db = getDatabase()
       await db.switchSession(sessionId)
@@ -139,6 +143,7 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
       await useUserTaskTypeStore.getState().loadTypes()
+      await useScheduleSnapshotStore.getState().loadSnapshots()
       // Schedule will automatically recompute via store subscriptions
     } catch (error) {
       logger.ui.error('Failed to switch session', {
@@ -191,9 +196,11 @@ export function SessionManager({ visible, onClose, onSessionChange }: SessionMan
       useWorkPatternStore.getState().clearWorkPatterns()
       useSchedulerStore.getState().clearSchedule()
       useUserTaskTypeStore.getState().clearTypes()
+      useScheduleSnapshotStore.getState().clearSnapshots()
       await useTaskStore.getState().initializeData()
       await useWorkPatternStore.getState().loadWorkPatterns()
       await useUserTaskTypeStore.getState().loadTypes()
+      await useScheduleSnapshotStore.getState().loadSnapshots()
       // Schedule will automatically recompute via reactive subscriptions
     } catch (error) {
       logger.ui.error('Failed to delete session', {

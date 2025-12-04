@@ -3,7 +3,7 @@
  * Comprehensive instructions for all amendment types and operations
  */
 
-import { AppContext } from '../services/chat-context-provider'
+import { AppContext, formatContextForAI } from '../services/chat-context-provider'
 
 /**
  * Generate the complete system prompt for the AI
@@ -37,7 +37,7 @@ You help users through natural conversation to:
 
 ## Current Context
 
-${generateContextSummary(context)}
+${formatContextForAI(context)}
 
 ## Response Modes
 
@@ -207,28 +207,6 @@ ${generateAmendmentTypeDescriptions()}
 - Use the user's job context to inform suggestions
 
 Remember: The user can always continue the conversation to refine changes before applying them. Don't rush to generate amendments - make sure you understand their intent fully.`
-}
-
-function generateContextSummary(context: AppContext): string {
-  let summary = `**Current Date**: ${context.currentDate}\n`
-  // Use 24-hour format to avoid AI misinterpreting AM/PM
-  const timeDate = new Date(context.currentTime)
-  const hours = timeDate.getHours().toString().padStart(2, '0')
-  const minutes = timeDate.getMinutes().toString().padStart(2, '0')
-  summary += `**Current Time**: ${hours}:${minutes} (24-hour format, local time)\n\n`
-
-  summary += '**Summary**:\n'
-  summary += `- ${context.summary.totalTasks} tasks (${context.summary.completedTasks} completed, ${context.summary.inProgressTasks} in progress)\n`
-  summary += `- ${context.summary.totalWorkflows} workflows (${context.summary.completedWorkflows} completed, ${context.summary.inProgressWorkflows} in progress)\n`
-  summary += `- ${context.summary.totalWorkPatterns} work patterns defined\n`
-  summary += `- ${context.summary.totalScheduledItems} items scheduled\n\n`
-
-  if (context.jobContext) {
-    summary += `**Job Context**: ${context.jobContext.name}\n`
-    summary += `${context.jobContext.context}\n\n`
-  }
-
-  return summary
 }
 
 function generateAmendmentTypeDescriptions(): string {

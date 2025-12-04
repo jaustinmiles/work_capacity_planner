@@ -28,6 +28,7 @@ import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
 import { useTaskStore } from './store/useTaskStore'
 import { useWorkPatternStore } from './store/useWorkPatternStore'
 import { useTimeSinkStore } from './store/useTimeSinkStore'
+import { useScheduleSnapshotStore } from './store/useScheduleSnapshotStore'
 import { connectStores } from './store/storeConnector'
 import { getDatabase } from './services/database'
 import { logger } from '@/logger'
@@ -61,6 +62,9 @@ function AppContent() {
 
     // Initialize time sinks
     useTimeSinkStore.getState().loadSinks()
+
+    // Initialize schedule snapshots (for frozen schedule persistence)
+    useScheduleSnapshotStore.getState().loadSnapshots()
 
     logger.system.info('Application initialized', {
       environment: process.env.NODE_ENV,
