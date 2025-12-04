@@ -14,7 +14,8 @@
       "mcp__git__stage_files",
       "mcp__git__create_feature_branch",
       "mcp__git__commit_changes",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
@@ -22,6 +23,7 @@
       "/tmp"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "diagnostic",
     "git",
@@ -40,6 +42,5 @@
       }
     ]
   },
-  "outputStyle": "Explanatory",
-  "enableAllProjectMcpServers": true
+  "outputStyle": "Explanatory"
 }

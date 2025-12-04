@@ -3,6 +3,7 @@ import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
 import { isSingleTypeBlock, isComboBlock, isSystemBlock, getTypeColor } from '@shared/user-task-types'
 import { useSortedUserTaskTypes } from '@renderer/store/useUserTaskTypeStore'
 import { getCurrentTime } from '@shared/time-provider'
+import { parseTimeString } from '@shared/time-utils'
 
 interface TimelineVisualizerProps {
   blocks: WorkBlock[]
@@ -40,12 +41,11 @@ export function TimelineVisualizer({
   const [dragState, setDragState] = useState<DragState | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const totalHours = endHour - startHour
-  const __totalHeight = totalHours * HOUR_HEIGHT
-
   // Convert time string (HH:mm) to pixels from top
   const timeToPixels = (timeStr: string): number => {
-    const [hours, minutes] = timeStr.split(':').map(Number)
+    const parts = timeStr.split(':').map(Number)
+    const hours = parts[0] ?? 0
+    const minutes = parts[1] ?? 0
     const totalMinutes = (hours - startHour) * 60 + minutes
     return (totalMinutes / 60) * HOUR_HEIGHT
   }
@@ -101,8 +101,8 @@ export function TimelineVisualizer({
       const deltaMinutes = Math.round((deltaY / HOUR_HEIGHT) * 60)
 
       // Calculate new start and end times
-      const [startHours, startMinutes] = dragState.initialTime.split(':').map(Number)
-      const [endHours, endMinutes] = (dragState.initialEndTime || '').split(':').map(Number)
+      const [startHours, startMinutes] = parseTimeString(dragState.initialTime)
+      const [endHours, endMinutes] = parseTimeString(dragState.initialEndTime || '')
 
       const newStartTotalMinutes = (startHours - startHour) * 60 + startMinutes + deltaMinutes
       const newEndTotalMinutes = (endHours - startHour) * 60 + endMinutes + deltaMinutes
@@ -168,6 +168,7 @@ export function TimelineVisualizer({
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
+    return undefined
   }, [dragState])
 
   const getBlockColor = (typeConfig: WorkBlock['typeConfig']) => {

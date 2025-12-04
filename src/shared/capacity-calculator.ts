@@ -12,6 +12,7 @@ import {
   isSingleTypeBlock,
   isComboBlock,
 } from './user-task-types'
+import { calculateDuration } from './time-utils'
 
 /**
  * Capacity information for a work block.
@@ -21,14 +22,7 @@ export interface BlockCapacity {
   typeConfig: BlockTypeConfig
 }
 
-/**
- * Calculate duration in minutes between two time strings
- */
-function calculateDuration(startTime: string, endTime: string): number {
-  const [startHour, startMin] = startTime.split(':').map(Number)
-  const [endHour, endMin] = endTime.split(':').map(Number)
-  return endHour * 60 + endMin - (startHour * 60 + startMin)
-}
+// calculateDuration imported from time-utils.ts
 
 /**
  * Get total capacity in minutes for a specific user task type from a block.

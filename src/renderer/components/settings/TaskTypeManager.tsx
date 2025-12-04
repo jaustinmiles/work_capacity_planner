@@ -122,7 +122,7 @@ export function TaskTypeManager({ embedded = false, onTypesChange }: TaskTypeMan
       await createType({
         name: values.name.trim(),
         emoji: values.emoji || '📌',
-        color: values.color || COLOR_PALETTE[0],
+        color: values.color || COLOR_PALETTE[0] || '#4080FF',
       })
 
       Message.success(`Created type "${values.name}"`)

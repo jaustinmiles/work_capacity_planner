@@ -37,7 +37,6 @@ export function TaskGridView({ tasks }: TaskGridViewProps) {
       await updateTask(task.id, {
         completed: !task.completed,
       })
-      const _newStatus = !task.completed ? 'completed' : 'incomplete'
       logger.ui.info('Task completion toggled', {})
 
       Message.success(task.completed ? 'Task marked as incomplete' : 'Task completed!')

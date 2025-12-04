@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Card, Grid, Typography, Space, Tag, Button, Slider } from '@arco-design/web-react'
 import { IconFire, IconCalendar, IconUser, IconClose, IconPlus, IconZoomIn, IconZoomOut } from '@arco-design/web-react/icon'
 import { Task } from '@shared/types'
@@ -157,7 +157,7 @@ export function EisenhowerGrid({ tasks, onAddTask, onSelectTask, containerWidth 
               <Button icon={<IconZoomOut />} size="small" onClick={() => setZoom(Math.max(0.5, zoom - 0.1))} />
               <Slider
                 value={zoom}
-                onChange={(val) => setZoom(Array.isArray(val) ? val[0] : val)}
+                onChange={(val) => setZoom(Array.isArray(val) ? (val[0] ?? 1) : val)}
                 min={0.5}
                 max={2}
                 step={0.1}

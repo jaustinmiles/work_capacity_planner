@@ -1,4 +1,5 @@
 import { UserTaskType, getTypeColor as getTypeColorFromTypes, getTypeName, getTypeEmoji } from '@shared/user-task-types'
+import { parseTimeString } from '@shared/time-utils'
 
 export interface WorkSessionData {
   id: string
@@ -34,7 +35,7 @@ export interface PlannedSessionItem {
 
 // Convert time string (HH:mm) to minutes since midnight
 export function timeToMinutes(timeStr: string): number {
-  const [hours, minutes] = timeStr.split(':').map(Number)
+  const [hours, minutes] = parseTimeString(timeStr)
   return hours * 60 + minutes
 }
 

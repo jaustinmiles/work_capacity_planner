@@ -17,6 +17,18 @@ export class AIService {
   }
 
   /**
+   * Safely extract text from Anthropic response content
+   * Handles the ContentBlock union type narrowing
+   */
+  private extractTextFromResponse(response: Anthropic.Message): string {
+    const content = response.content[0]
+    if (!content || content.type !== 'text') {
+      throw new Error('Unexpected response type from Claude')
+    }
+    return content.text
+  }
+
+  /**
    * Extract tasks from brainstorming text
    */
   async extractTasksFromBrainstorm(brainstormText: string): Promise<{
@@ -90,13 +102,8 @@ Be thorough but realistic. Break down complex items into manageable tasks. If so
         }],
       })
 
-      const content = response.content[0]
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Claude')
-      }
-
       // Extract JSON from the response (Claude sometimes adds extra text)
-      let jsonText = content.text.trim()
+      let jsonText = this.extractTextFromResponse(response).trim()
       const jsonStart = jsonText.indexOf('{')
       const jsonEnd = jsonText.lastIndexOf('}')
 
@@ -251,18 +258,13 @@ Focus on understanding the async nature described in natural language. Be realis
         }],
       })
 
-      const content = response.content[0]
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Claude')
-      }
-
       // Extract JSON from the response (Claude sometimes adds extra text)
-      let jsonText = content.text.trim()
+      let jsonText = this.extractTextFromResponse(response).trim()
 
       // First, check if the response is wrapped in markdown code blocks
       const codeBlockPattern = /```(?:json)?\s*\n?([\s\S]*?)\n?```/
       const codeBlockMatch = jsonText.match(codeBlockPattern)
-      if (codeBlockMatch) {
+      if (codeBlockMatch && codeBlockMatch[1]) {
         jsonText = codeBlockMatch[1].trim()
       }
 
@@ -328,7 +330,7 @@ Focus on understanding the async nature described in natural language. Be realis
 
       // Log extraction details for debugging
       logger.system.debug('AI response JSON extraction', {
-        originalLength: content.text.length,
+        originalLength: jsonText.length,
         extractedLength: extractedJson.length,
         jsonStart,
         jsonEnd,
@@ -393,12 +395,7 @@ Limit to the 15 most important/frequently mentioned terms.`
         }],
       })
 
-      const content = response.content[0]
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Claude')
-      }
-
-      return content.text.trim()
+      return this.extractTextFromResponse(response).trim()
     } catch (error) {
       logger.system.error('Error extracting jargon terms', {
         error: error instanceof Error ? error.message : String(error),
@@ -473,12 +470,7 @@ Make steps actionable and specific. Consider real-world constraints like review 
         }],
       })
 
-      const content = response.content[0]
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Claude')
-      }
-
-      return JSON.parse(content.text)
+      return JSON.parse(this.extractTextFromResponse(response))
     } catch (error) {
       logger.system.error('Error generating workflow steps', {
         error: error instanceof Error ? error.message : String(error),
@@ -554,12 +546,7 @@ Confidence is 0-100 based on how clear and specific the original task was.
         }],
       })
 
-      const content = response.content[0]
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Claude')
-      }
-
-      return JSON.parse(content.text)
+      return JSON.parse(this.extractTextFromResponse(response))
     } catch (error) {
       logger.system.error('Error enhancing task details', {
         error: error instanceof Error ? error.message : String(error),
@@ -635,13 +622,8 @@ Make questions specific to their apparent work patterns. Prioritize questions th
         }],
       })
 
-      const content = response.content[0]
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Claude')
-      }
-
       // Extract JSON from the response
-      let jsonText = content.text.trim()
+      let jsonText = this.extractTextFromResponse(response).trim()
       const jsonStart = jsonText.indexOf('{')
       const jsonEnd = jsonText.lastIndexOf('}')
 
@@ -757,7 +739,7 @@ Important:
         }],
       })
 
-      const text = response.content[0].type === 'text' ? response.content[0].text : ''
+      const text = this.extractTextFromResponse(response)
       const jsonMatch = text.match(/\[[\s\S]*\]/)
       if (!jsonMatch) {
         throw new Error('Failed to extract JSON from response')
@@ -895,13 +877,8 @@ Important:
         }],
       })
 
-      const content = response.content[0]
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Claude')
-      }
-
       // Extract JSON from the response
-      let jsonText = content.text.trim()
+      let jsonText = this.extractTextFromResponse(response).trim()
       const jsonStart = jsonText.indexOf('{')
       const jsonEnd = jsonText.lastIndexOf('}')
 
@@ -973,12 +950,7 @@ Make questions specific and actionable. Avoid generic questions.
         }],
       })
 
-      const content = response.content[0]
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Claude')
-      }
-
-      return JSON.parse(content.text)
+      return JSON.parse(this.extractTextFromResponse(response))
     } catch (error) {
       logger.system.error('Error getting contextual questions', {
         error: error instanceof Error ? error.message : String(error),
@@ -1017,16 +989,7 @@ Make questions specific and actionable. Avoid generic questions.
         throw new Error('Empty response from Claude API')
       }
 
-      const content = response.content[0]
-      if (!content) {
-        throw new Error('No content in Claude API response')
-      }
-
-      if (content.type !== 'text') {
-        throw new Error('Unexpected response type from Claude')
-      }
-
-      return { content: content.text }
+      return { content: this.extractTextFromResponse(response) }
     } catch (error) {
       logger.system.error('Error calling AI service', {
         error: error instanceof Error ? error.message : String(error),

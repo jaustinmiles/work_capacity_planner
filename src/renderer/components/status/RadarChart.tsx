@@ -103,7 +103,7 @@ export function generatePolygonPoints(
  */
 export function getAverageColor(colors: string[]): string {
   if (colors.length === 0) return '#808080'
-  if (colors.length === 1) return colors[0]
+  if (colors.length === 1) return colors[0] ?? '#808080'
 
   let r = 0, g = 0, b = 0
   let validCount = 0

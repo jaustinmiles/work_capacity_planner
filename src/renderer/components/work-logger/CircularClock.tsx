@@ -12,6 +12,7 @@ import { useContainerQuery } from '../../hooks/useContainerQuery'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { Meeting } from '@shared/work-blocks-types'
 import { MeetingType } from '@shared/enums'
+import { parseTimeString } from '@shared/time-utils'
 
 interface CircularClockProps {
   sessions: WorkSessionData[]
@@ -322,6 +323,7 @@ export function CircularClock({
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
+    return undefined
   }, [dragState, creatingSession, onSessionUpdate, onSessionCreate])
 
   return (
@@ -533,9 +535,9 @@ export function CircularClock({
 
         {/* Meetings as arcs on outer ring */}
         {meetings.map((meeting) => {
-          // Convert HH:MM to minutes
-          const [startH, startM] = meeting.startTime.split(':').map(Number)
-          const [endH, endM] = meeting.endTime.split(':').map(Number)
+          // Convert HH:MM to minutes using shared utility
+          const [startH, startM] = parseTimeString(meeting.startTime)
+          const [endH, endM] = parseTimeString(meeting.endTime)
           const startMinutes = startH * 60 + startM
           const endMinutes = endH * 60 + endM
 

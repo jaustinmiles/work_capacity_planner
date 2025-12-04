@@ -4,8 +4,10 @@
  */
 export function parseTimeString(timeStr: string, defaultHour = 0, defaultMinute = 0): [number, number] {
   const parts = timeStr.split(':').map(Number)
-  const hours = (parts.length > 0 && !Number.isNaN(parts[0])) ? parts[0] : defaultHour
-  const minutes = (parts.length > 1 && !Number.isNaN(parts[1])) ? parts[1] : defaultMinute
+  const rawHours = parts[0]
+  const rawMinutes = parts[1]
+  const hours = (rawHours !== undefined && !Number.isNaN(rawHours)) ? rawHours : defaultHour
+  const minutes = (rawMinutes !== undefined && !Number.isNaN(rawMinutes)) ? rawMinutes : defaultMinute
   return [hours, minutes]
 }
 
@@ -62,10 +64,13 @@ export function formatElapsedWithSeconds(startTime: Date, currentTime: Date = ne
  */
 export function parseDateString(dateStr: string): [number, number, number] {
   const parts = dateStr.split('-').map(Number)
+  const rawYear = parts[0]
+  const rawMonth = parts[1]
+  const rawDay = parts[2]
   return [
-    (parts.length > 0 && !Number.isNaN(parts[0])) ? parts[0] : new Date().getFullYear(),
-    (parts.length > 1 && !Number.isNaN(parts[1])) ? parts[1] : 1,
-    (parts.length > 2 && !Number.isNaN(parts[2])) ? parts[2] : 1,
+    (rawYear !== undefined && !Number.isNaN(rawYear)) ? rawYear : new Date().getFullYear(),
+    (rawMonth !== undefined && !Number.isNaN(rawMonth)) ? rawMonth : 1,
+    (rawDay !== undefined && !Number.isNaN(rawDay)) ? rawDay : 1,
   ]
 }
 
@@ -214,7 +219,9 @@ export function formatDateStringForDisplay(dateStr: string, locale?: string): st
   // Check if it's a YYYY-MM-DD format
   const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (dateMatch) {
-    const [, year, month, day] = dateMatch
+    const year = dateMatch[1] ?? '2000'
+    const month = dateMatch[2] ?? '01'
+    const day = dateMatch[3] ?? '01'
     // Create date at noon local time to avoid timezone edge cases
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0)
     return date.toLocaleDateString(locale)
@@ -223,7 +230,9 @@ export function formatDateStringForDisplay(dateStr: string, locale?: string): st
   // For ISO datetime strings, extract just the date portion
   const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})T/)
   if (isoMatch) {
-    const [, year, month, day] = isoMatch
+    const year = isoMatch[1] ?? '2000'
+    const month = isoMatch[2] ?? '01'
+    const day = isoMatch[3] ?? '01'
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0)
     return date.toLocaleDateString(locale)
   }

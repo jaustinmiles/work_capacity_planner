@@ -248,9 +248,6 @@ export function TaskQuickEditModal({
       }))
     }
     setUnsavedChanges(true)
-
-    const _itemName = currentItem.type === 'step' ? currentItem.data.name : currentItem.data.name
-    // LOGGER_REMOVED: logger.debug(`Updated ${field} for ${currentItem.type} ${_itemName}`, { field, value })
   }
 
   const saveCurrentItem = async () => {
@@ -730,7 +727,7 @@ export function TaskQuickEditModal({
               ))}
               <DatePicker
                 value={(editedData as Task)?.deadline ? dayjs((editedData as Task).deadline) : undefined}
-                onChange={(dateString, date) => updateField('deadline', date?.toDate())}
+                onChange={(_dateString, date) => updateField('deadline', date?.toDate())}
                 shortcuts={[
                   {
                     text: 'Today',

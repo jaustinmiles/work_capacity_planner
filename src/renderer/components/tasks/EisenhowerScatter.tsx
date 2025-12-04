@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Card, Typography, Space, Tag, Button, Badge, Tooltip } from '@arco-design/web-react'
 import { IconScan } from '@arco-design/web-react/icon'
 // import { TaskType } from '@shared/enums' // Not used in this component
@@ -20,7 +20,7 @@ interface EisenhowerScatterProps {
 // const logger = getRendererLogger().child({ category: 'eisenhower' })
 
 export function EisenhowerScatter({
-  tasks,
+  tasks: _tasks,
   allItemsForScatter,
   onSelectTask,
   containerSize,
@@ -29,8 +29,6 @@ export function EisenhowerScatter({
   const { ref: scatterContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
   const { isCompact, isMobile } = useResponsive()
   const [debugMode, setDebugMode] = useState(false)
-  const renderCountRef = useRef(0)
-  const frameCountRef = useRef(0)
 
   // Diagonal scan state
   const [isScanning, setIsScanning] = useState(false)
@@ -40,56 +38,14 @@ export function EisenhowerScatter({
   const scanAnimationRef = useRef<number | undefined>(undefined)
   const scannedTaskIdsRef = useRef<Set<string>>(new Set())
 
-
-  // Log state changes
-  useEffect(() => {
-    // LOGGER_REMOVED: logger.warn('[SCAN-DEBUG] 📊 SCANNING STATE CHANGED', {
-      // isScanning,
-      // timestamp: new Date().toISOString(),
-    // })
-  }, [isScanning])
-
-  useEffect(() => {
-    // LOGGER_REMOVED: logger.warn('[SCAN-DEBUG] 📝 SCANNED TASKS CHANGED', {
-      // count: scannedTasks.length,
-      // tasks: scannedTasks.map(t => ({ id: t.id, name: t.name })),
-      // timestamp: new Date().toISOString(),
-    // })
-  }, [scannedTasks])
-
-  // Log every render
-  renderCountRef.current++
-  // LOGGER_REMOVED: logger.info('[SCAN-DEBUG] 🔄 RENDER', {
-    // renderCount: renderCountRef.current,
-    // timestamp: new Date().toISOString(),
-    // tasksCount: tasks.length,
-    // allItemsCount: allItemsForScatter.length,
-    // scannedTasksCount: scannedTasks.length,
-    // isScanning,
-    // scanProgress: scanProgress.toFixed(4),
-    // containerSize,
-  // })
-
   // Calculate responsive padding
   const PADDING_MOBILE = 20
   const PADDING_COMPACT = 40
   const PADDING_DESKTOP = 50
   const padding = isMobile ? PADDING_MOBILE : isCompact ? PADDING_COMPACT : PADDING_DESKTOP
 
-  // Filter incomplete tasks
-  const incompleteTasks = tasks.filter(task => !task.completed)
-
   // Update container size based on container query results
   useEffect(() => {
-    // LOGGER_REMOVED: logger.warn('🔄 [SCATTER] Container resize detected', {
-      // measured: { width: containerWidth, height: containerHeight },
-      // current: containerSize,
-      // hasValidDimensions: !!(containerWidth && containerHeight),
-      // padding,
-      // viewMode: 'scatter',
-      // timestamp: Date.now(),
-    // })
-
     if (containerWidth && containerHeight) {
       const newSize = {
         width: containerWidth,
@@ -101,52 +57,11 @@ export function EisenhowerScatter({
       const heightDiff = Math.abs(newSize.height - containerSize.height)
 
       if (widthDiff > 10 || heightDiff > 10) {
-        // LOGGER_REMOVED: logger.info('📐 [SCATTER] Size calculation', {
-          // input: { containerWidth, containerHeight },
-          // padding,
-          // calculated: newSize,
-          // current: containerSize,
-          // difference: { width: widthDiff, height: heightDiff },
-          // needsUpdate: true,
-          // gridSize: { width: newSize.width - 2 * padding, height: newSize.height - 2 * padding },
-        // })
-
         setContainerSize(newSize)
-      } else {
-        // LOGGER_REMOVED: logger.debug('⏸️ [SCATTER] Size update skipped (difference < 10px)')
       }
     }
   }, [containerWidth, containerHeight, containerSize, padding, setContainerSize])
 
-  // Scatter plot logging - only log when tasks change, not on every resize
-  useEffect(() => {
-    if (incompleteTasks.length > 0) {
-      // LOGGER_REMOVED: logger.debug('EISENHOWER SCATTER DEBUG: Tasks updated', {
-        // category: 'eisenhower',
-        // taskCount: incompleteTasks.length,
-        // containerWidth: containerSize.width,
-        // containerHeight: containerSize.height,
-        // firstTaskImportance: incompleteTasks[0]?.importance,
-        // firstTaskUrgency: incompleteTasks[0]?.urgency,
-      // })
-
-      // LOGGER_REMOVED: logger.info('Scatter view tasks updated', {
-        // category: 'eisenhower',
-        // taskCount: incompleteTasks.length,
-        // importanceDistribution: {
-          // min: Math.min(...incompleteTasks.map(t => t.importance)),
-          // max: Math.max(...incompleteTasks.map(t => t.importance)),
-          // unique: [...new Set(incompleteTasks.map(t => t.importance))],
-        // },
-        // urgencyDistribution: {
-          // min: Math.min(...incompleteTasks.map(t => t.urgency)),
-          // max: Math.max(...incompleteTasks.map(t => t.urgency)),
-          // unique: [...new Set(incompleteTasks.map(t => t.urgency))],
-        // },
-        // timestamp: new Date().toISOString(),
-      // })
-    }
-  }, [incompleteTasks]) // Removed containerSize to prevent spam on resize
 
   // Check if a point has been swept by the diagonal scan
   const hasBeenSweptByScan = useCallback((xPercent: number, yPercent: number, progress?: number) => {
@@ -187,33 +102,13 @@ export function EisenhowerScatter({
     // Point is swept if it's above the diagonal (smaller y value since y=0 is top)
     const isSwept = y <= yOnDiagonal
 
-    // Log sweep check for debugging on key frames
-    const frameNum = frameCountRef.current
-    if (frameNum <= 10 || frameNum % 30 === 0 || isSwept || (frameNum >= 240 && frameNum <= 250)) {
-      // LOGGER_REMOVED: logger.error('[SCAN-DEBUG] 🧹 SWEEP CHECK', {
-        // frameNumber: frameNum,
-        // progress: clampedProgress.toFixed(4),
-        // taskPosition: { xPercent, yPercent, xNorm: x.toFixed(2), yNorm: y.toFixed(2) },
-        // leftBoundary: (1 - clampedProgress).toFixed(2),
-        // yOnDiagonal: yOnDiagonal.toFixed(2),
-        // isSwept,
-        // explanation: isSwept ? 'Task is in swept area' : 'Task not yet swept',
-      // })
-    }
-
     return isSwept
   }, [scanProgress])
 
   // Start/stop diagonal scan animation
   const toggleDiagonalScan = useCallback(() => {
     if (scanAnimationRef.current !== undefined) {
-      // Already scanning - stop it
-      // LOGGER_REMOVED: logger.error('[SCAN-DEBUG] 🛑 STOPPING SCAN', {
-        // timestamp: new Date().toISOString(),
-        // scannedTasksBeforeStop: scannedTasks.length,
-        // scannedTasksList: scannedTasks.map(t => ({ id: t.id, name: t.name })),
-      // })
-      // Stop scanning but KEEP the results visible
+      // Already scanning - stop it but KEEP the results visible
       setIsScanning(false)
       setScanProgress(0)
       setHighlightedTaskId(null)
@@ -225,32 +120,6 @@ export function EisenhowerScatter({
     }
 
     // Start scanning
-    const _tasksOnly = allItemsForScatter.filter(item => !item.isStep)
-    const _stepsOnly = allItemsForScatter.filter(item => item.isStep)
-
-    // Calculate and log the threshold that will be used
-    const _scanThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
-
-    // LOGGER_REMOVED: logger.info('🔍 STARTING DIAGONAL SCAN', {
-      // category: 'eisenhower-scan',
-      // totalItems: allItemsForScatter.length,
-      // tasks: tasksOnly.length,
-      // workflowSteps: stepsOnly.length,
-      // containerSize,
-      // thresholdPixels: Math.round(scanThreshold),
-      // thresholdPercentage: '25% of min dimension',
-      // padding,
-      // timestamp: new Date().toISOString(),
-    // })
-
-    // LOGGER_REMOVED: logger.error('[SCAN-DEBUG] 🟢 STARTING NEW SCAN', {
-      // timestamp: new Date().toISOString(),
-      // clearingPreviousTasks: scannedTasks.length,
-      // previousTasks: scannedTasks.map(t => ({ id: t.id, name: t.name })),
-      // allItemsToScan: allItemsForScatter.length,
-      // itemNames: allItemsForScatter.map(t => t.name),
-    // })
-    frameCountRef.current = 0 // Reset frame counter
     setIsScanning(true)
     setScanProgress(0)
     setScannedTasks([])
@@ -261,124 +130,25 @@ export function EisenhowerScatter({
     const scanStartTime = Date.now()
 
     const animate = () => {
-      frameCountRef.current++
-      const frameNum = frameCountRef.current
       const elapsed = Date.now() - scanStartTime
       const duration = 4000 // 4 seconds total
       const progress = Math.min(elapsed / duration, 2.0) // Allow progress to go beyond 1.0 to 2.0
 
-      // Log EVERY frame
-      // LOGGER_REMOVED: logger.info('[SCAN-DEBUG] 🎬 ANIMATION FRAME', {
-        // frameNumber: frameNum,
-        // elapsed,
-        // progress: progress.toFixed(4),
-        // timestamp: new Date().toISOString(),
-        // containerSize,
-        // scanLine: {
-          // x1: (containerSize.width * (1 - progress)).toFixed(2),
-          // y1: 0,
-          // x2: containerSize.width,
-          // y2: (containerSize.height * progress).toFixed(2),
-        // },
-        // totalTasksToScan: allItemsForScatter.length,
-      // })
-
       setScanProgress(progress)
-
-      // Removed fake tasks - real sweep detection should work now
 
       // Find tasks within threshold of scan line
       const currentHighlighted: string[] = []
 
-      // Calculate a dynamic threshold - increase to 25% for better detection
-      // This gives us a wider band around the diagonal line
-      const _dynamicThreshold = Math.min(containerSize.width, containerSize.height) * 0.25
-
-      // Log threshold calculation on first frame
-      if (frameNum === 1) {
-        // LOGGER_REMOVED: logger.error('[SCAN-DEBUG] 🎯 THRESHOLD CALCULATION', {
-          // containerWidth: containerSize.width,
-          // containerHeight: containerSize.height,
-          // minDimension: Math.min(containerSize.width, containerSize.height),
-          // calculatedThreshold: dynamicThreshold,
-          // percentage: '25%',
-        // })
-      }
-
-      // Track closest task for debugging
       type ScatterItem = Task & { isStep?: boolean; parentWorkflow?: string; stepName?: string; stepIndex?: number }
-      let closestTask: { task: ScatterItem; distance: number } | null = null
 
-      allItemsForScatter.forEach((task: ScatterItem, _taskIndex) => {
+      allItemsForScatter.forEach((task: ScatterItem) => {
         const xPercent = task.urgency * 10 // Convert 0-10 to 0-100%
         const yPercent = 100 - (task.importance * 10) // Convert 0-10 to 0-100%, inverted
 
         const isSwept = hasBeenSweptByScan(xPercent, yPercent, progress)
 
-        // Log EVERY task position on key frames
-        if (frameNum <= 5 || frameNum % 50 === 0 || isSwept || (frameNum >= 240 && frameNum <= 245)) {
-          // LOGGER_REMOVED: logger.error('[SCAN-DEBUG] 📍 TASK POSITION', {
-            // frameNumber: frameNum,
-            // taskIndex,
-            // taskId: task.id,
-            // taskName: task.name,
-            // importance: task.importance,
-            // urgency: task.urgency,
-            // xPercent: xPercent.toFixed(2),
-            // yPercent: yPercent.toFixed(2),
-            // xPixels: ((xPercent / 100) * containerSize.width).toFixed(2),
-            // yPixels: ((yPercent / 100) * containerSize.height).toFixed(2),
-            // isSwept,
-            // progress: progress.toFixed(4),
-          // })
-        }
-
-        // Track if this task has been swept (for debugging)
-        if (!closestTask || isSwept) {
-          closestTask = { task, distance: isSwept ? 0 : 999 }
-        }
-
-        // Log first scan attempt with detailed info
-        if (scannedTaskIdsRef.current.size === 0 && progress > 0.3 && progress < 0.35) {
-          // LOGGER_REMOVED: logger.debug('📏 Scan line position and task sweep status', {
-            // category: 'eisenhower-scan',
-            // scanProgress: progress.toFixed(2),
-            // scanLine: {
-              // x1: Math.round((1 - progress) * containerSize.width),
-              // y1: 0,
-              // x2: containerSize.width,
-              // y2: Math.round(progress * containerSize.height),
-            // },
-            // task: {
-              // name: task.name,
-              // importance: task.importance,
-              // urgency: task.urgency,
-              // isStep: task.isStep || false,
-            // },
-            // position: {
-              // xPercent: xPercent.toFixed(1),
-              // yPercent: yPercent.toFixed(1),
-              // xPixels: Math.round((xPercent / 100) * containerSize.width),
-              // yPixels: Math.round((yPercent / 100) * containerSize.height),
-            // },
-            // isSwept,
-            // willBeScanned: isSwept,
-          // })
-        }
-
         if (isSwept && !scannedTaskIdsRef.current.has(task.id)) {
           currentHighlighted.push(task.id)
-
-          // LOGGER_REMOVED: logger.error('[SCAN-DEBUG] 🎯 ADDING TASK TO SCANNED', {
-            // frameNumber: frameNum,
-            // taskId: task.id,
-            // taskName: task.name,
-            // importance: task.importance,
-            // urgency: task.urgency,
-            // isSwept: true,
-            // scannedSoFar: scannedTaskIdsRef.current.size,
-            // timestamp: new Date().toISOString(),
-          // })
           scannedTaskIdsRef.current.add(task.id)
 
           // Update React state immediately when task is detected
@@ -421,87 +191,17 @@ export function EisenhowerScatter({
                 archived: task.archived,
             }
 
-            const newTasks = [...prev, taskToAdd]
-            // LOGGER_REMOVED: logger.debug('Added task to scanned list', {
-                // taskName: task.name,
-                // totalScanned: newTasks.length,
-            // })
-            return newTasks
+            return [...prev, taskToAdd]
           })
 
           onSelectTask(task)
-
-          // Log the scanned task name for user feedback with more emphasis
-          // LOGGER_REMOVED: logger.info('🎯 TASK FOUND DURING DIAGONAL SCAN', {
-              // category: 'eisenhower-scan',
-              // scanProgress: progress.toFixed(2),
-              // taskName: task.name,
-              // taskType: task.isStep ? 'workflow-step' : 'task',
-              // importance: task.importance,
-              // urgency: task.urgency,
-              // position: { x: xPercent.toFixed(1), y: yPercent.toFixed(1) },
-              // isSwept,
-              // foundCount: scannedTaskIdsRef.current.size,
-          // })
         }
       })
 
-      // Log closest task at midpoint if nothing found yet
-      if (scannedTaskIdsRef.current.size === 0 && progress > 0.5 && progress < 0.55) {
-        if (closestTask) {
-          const { task: _task } = closestTask as { task: ScatterItem; distance: number }
-          // LOGGER_REMOVED: logger.warn('📍 No tasks found yet - checking task', {
-            // category: 'eisenhower-scan',
-            // taskName: task.name,
-            // importance: task.importance,
-            // urgency: task.urgency,
-            // progress: progress.toFixed(2),
-          // })
-        }
-      }
-
-      setHighlightedTaskId(currentHighlighted.length > 0 ? currentHighlighted[0] : null)
-
-      // Debug logging for animation progress
-      if (progress % 0.1 < 0.02) { // Log every ~10% progress
-        // LOGGER_REMOVED: logger.debug('Diagonal scan progress', {
-          // progress: Math.round(progress * 100) / 100,
-          // elapsed: elapsed,
-          // highlighted: currentHighlighted.length,
-          // scanned: scannedTaskIdsRef.current.size,
-        // })
-      }
+      setHighlightedTaskId(currentHighlighted.length > 0 ? (currentHighlighted[0] ?? null) : null)
 
       if (progress >= 2.0) {
-        // Animation complete - log final results
-        const _scannedTasksInfo = Array.from(scannedTaskIdsRef.current).map(taskId => {
-          const task = allItemsForScatter.find(t => t.id === taskId)
-          return task ? {
-            name: task.name,
-            importance: task.importance,
-            urgency: task.urgency,
-          } : null
-        }).filter(Boolean)
-
-        // LOGGER_REMOVED: logger.error('[SCAN-DEBUG] 🏁 SCAN COMPLETE', {
-          // totalFrames: frameNum,
-          // scannedCount: scannedTaskIdsRef.current.size,
-          // scannedTasks: scannedTasksInfo,
-          // animationDuration: elapsed,
-          // finalScannedTasksState: scannedTasks,
-          // timestamp: new Date().toISOString(),
-          // finalProgress: progress,
-        // })
-
-        if (scannedTaskIdsRef.current.size === 0) {
-          const _threshold = Math.min(containerSize.width, containerSize.height) * 0.15
-          // LOGGER_REMOVED: logger.warn('⚠️ No tasks found during diagonal scan', {
-            // category: 'eisenhower-scan',
-            // message: `No tasks are positioned near the diagonal line (threshold: ${Math.round(threshold)}px)`,
-            // containerSize,
-            // totalTasksScanned: allItemsForScatter.length,
-          // })
-        }
+        // Animation complete
         setIsScanning(false)
         setScanProgress(0)
         setHighlightedTaskId(null)
@@ -687,8 +387,12 @@ export function EisenhowerScatter({
             {/* Task clusters and plotting logic would go here */}
             {/* This would need the full complex rendering logic from the original component */}
             {Array.from(taskClusters.entries()).map(([posKey, clusterTasks]) => {
-              const [x, y] = posKey.split('-').map(Number)
-              const task = clusterTasks[0]
+              const posParts = posKey.split('-').map(Number)
+              const x = posParts[0] ?? 0
+              const y = posParts[1] ?? 0
+              const firstTask = clusterTasks[0]
+              if (!firstTask) return null // Satisfy noUncheckedIndexedAccess
+              const task = firstTask // Create a narrowed const for use in callbacks
               const isHighlighted = highlightedTaskId === task.id
 
               return (
@@ -701,7 +405,7 @@ export function EisenhowerScatter({
                     transform: 'translate(-50%, -50%)',
                     cursor: 'pointer',
                   }}
-                  onClick={() => onSelectTask(task)}
+                  onClick={() => onSelectTask(task as Task)}
                 >
                   {clusterTasks.length > 1 ? (
                     <Tooltip

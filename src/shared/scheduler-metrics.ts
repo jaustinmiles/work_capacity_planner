@@ -134,6 +134,7 @@ function calculateUtilizationMetrics(
   scheduled.forEach(item => {
     if (item.startTime) {
       const dateStr = item.startTime.toISOString().split('T')[0]
+      if (!dateStr) return // Satisfy noUncheckedIndexedAccess
       const items = itemsByDate.get(dateStr) || []
       items.push(item)
       itemsByDate.set(dateStr, items)

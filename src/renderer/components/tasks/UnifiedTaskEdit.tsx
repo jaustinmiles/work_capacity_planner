@@ -324,8 +324,12 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
 
     if (targetIndex < 0 || targetIndex >= steps.length) return
 
-    // Swap steps
-    [newSteps[index], newSteps[targetIndex]] = [newSteps[targetIndex], newSteps[index]]
+    // Swap steps - guard against undefined for noUncheckedIndexedAccess
+    const stepAtIndex = newSteps[index]
+    const stepAtTarget = newSteps[targetIndex]
+    if (!stepAtIndex || !stepAtTarget) return
+    newSteps[index] = stepAtTarget
+    newSteps[targetIndex] = stepAtIndex
 
     // Update step indices
     const reindexed = newSteps.map((s, idx) => ({ ...s, stepIndex: idx }))

@@ -362,8 +362,9 @@ export function topologicalSort(
  */
 export function mapToRankings(sortedItems: ItemId[]): ItemRanking[] {
   if (sortedItems.length === 0) return []
-  if (sortedItems.length === 1) {
-    return [{ id: sortedItems[0], rank: 1, score: 10 }]
+  const firstItem = sortedItems[0]
+  if (sortedItems.length === 1 && firstItem !== undefined) {
+    return [{ id: firstItem, rank: 1, score: 10 }]
   }
 
   const rankings: ItemRanking[] = []

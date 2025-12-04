@@ -555,6 +555,7 @@ export function SwimLaneTimeline({
         document.removeEventListener('mouseup', handleMouseUp)
       }
     }
+    return undefined
   }, [dragState, creatingSession, onSessionUpdate, onSessionCreate, hourWidth])
 
   return (

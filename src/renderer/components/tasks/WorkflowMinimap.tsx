@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { StepStatus } from '@shared/enums'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useTaskStore } from '@renderer/store/useTaskStore'

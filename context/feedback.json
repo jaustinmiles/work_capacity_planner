@@ -1765,5 +1765,27 @@
     "timestamp": "2025-12-04T10:14:29.016Z",
     "sessionId": "session-1764843268995-c4863841",
     "resolved": true
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "Ai doesn't know task details, but should",
+    "description": "chat transcript:\n\"\nYou • 4:08:11 AM\nwhat are they\nAssistant • 4:08:17 AM\nI can see from the summary that you have:\n\n- **3 tasks** (2 in progress, 0 completed)\n- **2 scheduled items**\n- **1 work pattern** defined\n\nHowever, I don't have visibility into the specific names and details of these items in my current context. The system only provided me with counts, not the full details.\n\n**Could you tell me what tasks you're tracking?** Or if you'd like, you can:\n\n1. Share what you're working on and I can help you manage it\n2. Ask the app to show your task list directly\n3. Tell me what you'd *like* to be working on today and we can plan from there\n\nWhat would be most helpful?\n\"\n\nthis is unacceptable. the Ai should have everything in context. it should have encyclopedic knowledge of the tasks and workflows. how else would it be able to edit them?? immediate action required. ",
+    "timestamp": "2025-12-04T12:10:34.211Z",
+    "sessionId": "session-1764850234187-1b2d26ee"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "timeline/GanttChart"
+    ],
+    "title": "Timeline 'freeze' is not persistent",
+    "description": "refreshes destroy the 'frozen' timeline, so users have to 'refreeeze' but obviously can't go back in time. action needed asap. ",
+    "timestamp": "2025-12-04T12:11:21.350Z",
+    "sessionId": "session-1764850281323-8cddb1e9"
   }
 ]

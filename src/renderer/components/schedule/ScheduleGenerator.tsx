@@ -14,6 +14,7 @@ import { logger } from '@/logger'
 import { calculateBlockCapacity } from '@shared/capacity-calculator'
 import { createEmptyAccumulatedTime } from '@shared/user-task-types'
 import { WorkBlockType, BlockConfigKind } from '@shared/enums'
+import { dateToYYYYMMDD } from '@shared/time-utils'
 
 
 const { Title, Text } = Typography
@@ -59,7 +60,7 @@ export function ScheduleGenerator({
   // Helper to call scheduler with proper context/config
   const callScheduler = (tasksToSchedule: Task[], workflowsToSchedule: SequencedTask[], workPatterns: DailyWorkPattern[], config: { allowTaskSplitting: boolean; optimizationMode: OptimizationMode }) => {
     const currentTime = new Date()
-    const startDateString = currentTime.toISOString().split('T')[0]
+    const startDateString = dateToYYYYMMDD(currentTime)
 
     const context = {
       startDate: startDateString,
@@ -100,7 +101,7 @@ export function ScheduleGenerator({
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
         date.setDate(date.getDate() + i)
-        const dateStr = date.toISOString().split('T')[0]
+        const dateStr = dateToYYYYMMDD(date)
         const pattern = await db.getWorkPattern(dateStr)
         if (pattern?.meetings) {
           logger.ui.trace('Found meetings for day', {
@@ -129,7 +130,7 @@ export function ScheduleGenerator({
         const date = new Date(today)
         date.setDate(date.getDate() + i)
         const _dayOfWeek = date.getDay()
-        const dateStr = date.toISOString().split('T')[0]
+        const dateStr = dateToYYYYMMDD(date)
 
         // Check if this day has work hours configured
         // Use custom hours for this day if configured, otherwise use default hours
@@ -240,7 +241,7 @@ export function ScheduleGenerator({
       })
 
       setScheduleOptions(options)
-      if (options.length > 0) {
+      if (options.length > 0 && options[0]) {
         setSelectedOption(options[0].id)
       }
 
@@ -345,7 +346,7 @@ export function ScheduleGenerator({
 
       // Get existing patterns for all dates in range
       const allDates = new Set<string>()
-      const firstDate = selected.schedule.length > 0
+      const firstDate = selected.schedule.length > 0 && selected.schedule[0]
         ? dayjs(selected.schedule[0].startTime).format('YYYY-MM-DD')
         : dayjs().format('YYYY-MM-DD')
 
@@ -363,10 +364,7 @@ export function ScheduleGenerator({
       // Create work patterns for each day (including empty days)
       for (const dateStr of Array.from(allDates).sort()) {
         const items = itemsByDate.get(dateStr) || []
-        const date = new Date(dateStr)
-        const _dayOfWeek = date.getDay()
         const blocks: any[] = []
-        const _isOptimalSchedule = selected.name.includes('Optimal')
 
         // Fetch existing pattern to preserve meetings (like sleep blocks)
         const existingPattern = await db.getWorkPattern(dateStr)

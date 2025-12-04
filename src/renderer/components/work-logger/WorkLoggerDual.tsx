@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getCurrentTime } from '@shared/time-provider'
-import { formatMinutes, formatElapsedWithSeconds } from '@shared/time-utils'
+import { formatMinutes, formatElapsedWithSeconds, parseDateString } from '@shared/time-utils'
 import { generateUniqueId } from '@shared/step-id-utils'
 import {
   Modal,
@@ -428,7 +428,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       const dirtySessionsToSave = sessions.filter(s => s.isDirty && s.taskId && validTaskIds.has(s.taskId))
 
       for (const session of dirtySessionsToSave) {
-        const [year, month, day] = selectedDate.split('-').map(Number)
+        const [year, month, day] = parseDateString(selectedDate)
         const startHour = Math.floor(session.startMinutes / 60)
         const startMin = session.startMinutes % 60
         const endHour = Math.floor(session.endMinutes / 60)
@@ -644,8 +644,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           )
 
           // Check for active work session first
-          if (activeSessionEntries.length > 0) {
-            const [_sessionKey, session] = activeSessionEntries[0]
+          const firstEntry = activeSessionEntries[0]
+          if (firstEntry) {
+            const [_sessionKey, session] = firstEntry
 
             // Determine if this is a workflow step or regular task
             let itemName = ''
