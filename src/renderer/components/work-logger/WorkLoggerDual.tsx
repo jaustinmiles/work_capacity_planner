@@ -128,6 +128,15 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     }
   }, [selectedDate, visible])
 
+  // Auto-enable planned overlay when today's snapshot exists
+  // This ensures the frozen schedule comparison persists across modal close/reopen
+  useEffect(() => {
+    const today = dayjs(getCurrentTime()).format('YYYY-MM-DD')
+    if (todaySnapshot && selectedDate === today) {
+      setShowPlannedOverlay(true)
+    }
+  }, [todaySnapshot, selectedDate])
+
   const loadPreferences = async () => {
     try {
       const db = getDatabase()
