@@ -1,6 +1,7 @@
 import { Task, Session, AICallOptions } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
+import { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
 
 
 // Type for the Electron API exposed by preload script
@@ -82,6 +83,9 @@ declare global {
         getStepWorkSessions: (__stepId: string) => Promise<any[]>
         recordTimeEstimate: (data: any) => Promise<any>
         getTimeAccuracyStats: (__filters?: any) => Promise<any>
+        // Log viewer operations (dev mode)
+        getSessionLogs: (options?: LogQueryOptions) => Promise<LogEntry[]>
+        getLoggedSessions: () => Promise<SessionLogSummary[]>
       }
       // Log persistence
       persistLog?: (logEntry: any) => Promise<void>
@@ -597,6 +601,15 @@ export class RendererDatabaseService {
 
   async getTimeAccuracyStats(filters?: any) {
     return await window.electronAPI.db.getTimeAccuracyStats(filters)
+  }
+
+  // Log viewer operations (dev mode)
+  async getSessionLogs(options?: LogQueryOptions): Promise<LogEntry[]> {
+    return await window.electronAPI.db.getSessionLogs(options)
+  }
+
+  async getLoggedSessions(): Promise<SessionLogSummary[]> {
+    return await window.electronAPI.db.getLoggedSessions()
   }
 }
 

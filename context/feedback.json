@@ -826,7 +826,7 @@
   },
   {
     "type": "feature",
-    "priority": "high",
+    "priority": "medium",
     "components": [
       "utils/flexible-scheduler"
     ],
@@ -1230,7 +1230,8 @@
     "description": "Cannot view historical logs from previous sessions. IPC handler for get-session-logs not implemented. Database query methods for ErrorLog table needed. Session selector UI disabled but ready. This blocks debugging of past issues. Need to add database methods to fetch ErrorLog entries by session and implement IPC handler in main process.",
     "source": "TECH_DEBT.md",
     "timestamp": "2025-09-04T10:50:00.622Z",
-    "sessionId": "tech-debt-migration-2025-09-04"
+    "sessionId": "tech-debt-migration-2025-09-04",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1494,7 +1495,8 @@
     "description": "Frequently, if I delete a task, or change a workflow or task, or add one, the task list view needs a refresh (command + r) in order to update. Maybe it's not listening to the proper events",
     "steps": "create a workflow, go to task page, observe workflow isnt there. refresh, observe task appears. Go to workflow pages, delete workflow. Go to task page, observe task display of workflow still remains. Refresh. Observer task disappears. ",
     "timestamp": "2025-09-11T21:24:50.893Z",
-    "sessionId": "session-1757625890883-645927c3"
+    "sessionId": "session-1757625890883-645927c3",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1699,7 +1701,7 @@
   },
   {
     "type": "bug",
-    "priority": "medium",
+    "priority": "high",
     "components": [
       "layout/Navigation",
       "status/WorkStatusWidget"
@@ -1707,6 +1709,7 @@
     "title": "Better responsive design for small screens",
     "description": "The start next task button overflows outside of the work status widget on smaller screen sizes, and many of the progress bars do as well. addiitonally, on small screens, the navigation is impossible to use (all i can see are the arrows to move through the menu left or right, but not the navigation items themselves (like timeline, schedule, calednar, etc). the reason is the log work, slideshow (which should be called 'tournament' anyway or just have a trophy icon or something) and other buttons don't collapse or anything and take up all the space. ",
     "timestamp": "2025-12-04T05:17:56.489Z",
-    "sessionId": "session-1764825476471-be36d15f"
+    "sessionId": "session-1764825476471-be36d15f",
+    "resolved": true
   }
 ]

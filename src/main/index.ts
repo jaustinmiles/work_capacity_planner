@@ -7,6 +7,7 @@ import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
 import type { Task, AICallOptions } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
+import type { LogQueryOptions } from '../shared/log-types'
 
 // Get scoped logger for main process
 const mainLogger = getScopedLogger(LogScope.System)
@@ -223,6 +224,19 @@ ipcMain.handle('log:persist', async (_event: IpcMainInvokeEvent, logEntry: any) 
 
 ipcMain.handle('log:persistBatch', async (_event: IpcMainInvokeEvent, logs: any[]) => {
   return await db.persistLogs(logs)
+})
+
+// Log retrieval handlers for LogViewer (dev mode)
+ipcMain.handle('log:getSessionLogs', async (_event: IpcMainInvokeEvent, options?: LogQueryOptions) => {
+  const parsedOptions = options ? {
+    ...options,
+    since: options.since ? new Date(options.since) : undefined,
+  } : undefined
+  return await db.getSessionLogs(parsedOptions)
+})
+
+ipcMain.handle('log:getLoggedSessions', async () => {
+  return await db.getLoggedSessions()
 })
 
 // Work pattern handlers

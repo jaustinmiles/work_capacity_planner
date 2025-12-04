@@ -3,7 +3,7 @@
  */
 
 import { Logger } from './core/logger'
-import { ConsoleTransport } from './core/transport'
+import { ConsoleTransport, DatabaseTransport } from './core/transport'
 import { LogLevel } from './types'
 
 // Create and configure the singleton logger
@@ -12,7 +12,7 @@ const loggerInstance = Logger.getInstance({
   enableDecorators: true,
   enableStackTrace: true,
   stackTraceDepth: 5,
-  enableDatabase: false, // Will enable once we create DB schema
+  enableDatabase: true, // Enable database persistence for LogViewer
   enableConsole: true,
   enableAggregation: true,
   aggregationWindowMs: 1000,
@@ -20,6 +20,9 @@ const loggerInstance = Logger.getInstance({
 
 // Add console transport
 loggerInstance.addTransport(new ConsoleTransport())
+
+// Add database transport for log persistence (works in renderer process)
+loggerInstance.addTransport(new DatabaseTransport())
 
 // Export the singleton
 export const logger = loggerInstance

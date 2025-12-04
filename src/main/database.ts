@@ -11,6 +11,7 @@ import {
   AccumulatedTimeResult,
 } from '../shared/user-task-types'
 import { WorkBlockType, BlockConfigKind } from '../shared/enums'
+import { LogQueryOptionsInternal, LogEntryInternal, SessionLogSummary } from '../shared/log-types'
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime } from '../shared/time-provider'
@@ -2274,6 +2275,46 @@ export class DatabaseService {
       // Don't let logging errors crash the app
       dbLogger.error('Failed to persist logs', error)
     }
+  }
+
+  // Log retrieval for LogViewer component
+  async getSessionLogs(options?: LogQueryOptionsInternal): Promise<LogEntryInternal[]> {
+    const { sessionId, level, source, since, limit = 100 } = options || {}
+
+    const where: {
+      sessionId?: string
+      level?: string
+      source?: string
+      createdAt?: { gte: Date }
+    } = {}
+
+    if (sessionId) where.sessionId = sessionId
+    if (level) where.level = level
+    if (source) where.source = source
+    if (since) where.createdAt = { gte: since }
+
+    return this.client.appLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    })
+  }
+
+  // Get distinct sessions that have logs
+  async getLoggedSessions(): Promise<SessionLogSummary[]> {
+    const result = await this.client.appLog.groupBy({
+      by: ['sessionId'],
+      _count: { id: true },
+      where: { sessionId: { not: null } },
+      orderBy: { _count: { id: 'desc' } },
+    })
+
+    return result
+      .filter((r): r is typeof r & { sessionId: string } => r.sessionId !== null)
+      .map(r => ({
+        sessionId: r.sessionId,
+        logCount: r._count.id,
+      }))
   }
 
   // Cleanup

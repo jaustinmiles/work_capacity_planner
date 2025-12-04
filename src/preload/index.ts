@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron')
 import type { AICallOptions } from '../shared/types'
+import type { LogQueryOptions, LogEntry, SessionLogSummary } from '../shared/log-types'
 
 // Don't use logger in preload - it runs in a special context
 
@@ -81,6 +82,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getStepWorkSessions: (stepId: string) => ipcRenderer.invoke('db:getStepWorkSessions', stepId),
     recordTimeEstimate: (data: any) => ipcRenderer.invoke('db:recordTimeEstimate', data),
     getTimeAccuracyStats: (filters?: any) => ipcRenderer.invoke('db:getTimeAccuracyStats', filters),
+    // Log viewer operations (dev mode)
+    getSessionLogs: (options?: LogQueryOptions): Promise<LogEntry[]> =>
+      ipcRenderer.invoke('log:getSessionLogs', options),
+    getLoggedSessions: (): Promise<SessionLogSummary[]> =>
+      ipcRenderer.invoke('log:getLoggedSessions'),
   },
 
   // AI operations

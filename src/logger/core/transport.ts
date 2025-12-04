@@ -146,6 +146,74 @@ export class ConsoleTransport extends Transport {
 }
 
 /**
+ * Database Transport - persists logs to the database via IPC
+ * Only works in renderer process where window.electronAPI is available
+ */
+export class DatabaseTransport extends Transport {
+  private batchQueue: LogEntry[] = []
+  private batchTimeout: ReturnType<typeof setTimeout> | null = null
+  private readonly batchSize = 10
+  private readonly batchDelayMs = 2000
+
+  constructor() {
+    super('database')
+  }
+
+  write(entry: LogEntry): void {
+    if (!this.enabled) return
+
+    // Only persist in renderer where window.electronAPI is available
+    if (typeof window === 'undefined' || !(window as any).electronAPI?.persistLogs) return
+
+    // Add to batch queue
+    this.batchQueue.push(entry)
+
+    // Flush immediately if batch is full
+    if (this.batchQueue.length >= this.batchSize) {
+      void this.flush()
+    } else if (!this.batchTimeout) {
+      // Otherwise set a timeout to flush
+      this.batchTimeout = setTimeout(() => void this.flush(), this.batchDelayMs)
+    }
+  }
+
+  private async flush(): Promise<void> {
+    if (this.batchTimeout) {
+      clearTimeout(this.batchTimeout)
+      this.batchTimeout = null
+    }
+
+    if (this.batchQueue.length === 0) return
+
+    const logs = this.batchQueue.map(entry => ({
+      level: ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'][entry.level] || 'INFO',
+      message: entry.message,
+      source: 'renderer',
+      context: {
+        scope: entry.context.scope,
+        component: entry.context.component,
+        tag: entry.context.tag,
+        data: entry.data,
+      },
+    }))
+
+    this.batchQueue = []
+
+    // Persist asynchronously - don't block logging
+    try {
+      await (window as any).electronAPI?.persistLogs?.(logs)
+    } catch {
+      // Silently ignore persistence errors to avoid log loops
+    }
+  }
+
+  destroy(): void {
+    void this.flush()
+    super.destroy()
+  }
+}
+
+/**
  * Electron Transport - forwards logs to the renderer process
  */
 export class ElectronTransport extends Transport {
