@@ -34,7 +34,7 @@ import {
 } from './user-task-types'
 import { WorkSettings } from './work-settings-types'
 import { ProductivityPattern, SchedulingPreferences } from './types'
-import { logger } from '@/logger'
+import { logger } from '../logger'
 import { getCurrentTime, getLocalDateString, timeProvider as _timeProvider } from './time-provider'
 import { calculateDuration as calculateTimeStringDuration, parseTimeString } from './time-utils'
 import { addDays, isSameDay } from 'date-fns'
@@ -2008,7 +2008,7 @@ export class UnifiedScheduler {
 
     logger.debug('Block utilization calculation complete', {
       totalBlocksAdded: utilization.length,
-      dates: [...new Set(utilization.map(u => u.date))],
+      dates: Array.from(new Set(utilization.map(u => u.date))),
       blockIds: utilization.map(u => u.blockId),
     })
 
