@@ -126,6 +126,7 @@ model Session {
   ProductivityPattern  ProductivityPattern[]
   SchedulingPreferences SchedulingPreferences?
   UserTaskType         UserTaskType[]
+  TimeSink             TimeSink[]
 }
 
 // User-configurable task type definition
@@ -142,6 +143,40 @@ model UserTaskType {
   Session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
+}
+
+// Time Sink - Activities that can have time logged but never complete
+// Used for tracking non-task time like "phone calls with friends"
+// Session-scoped - each session has its own set of time sinks
+model TimeSink {
+  id              String            @id
+  sessionId       String
+  name            String            // Display name (e.g., "Phone calls", "Social media")
+  emoji           String            // Emoji icon (e.g., "📞", "📱")
+  color           String            // Hex color (e.g., "#9B59B6")
+  typeId          String?           // Optional link to UserTaskType for categorization
+  sortOrder       Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now())
+  Session         Session           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  TimeSinkSession TimeSinkSession[]
+
+  @@index([sessionId])
+}
+
+// TimeSinkSession - Individual time entries for a time sink
+model TimeSinkSession {
+  id            String    @id
+  timeSinkId    String
+  startTime     DateTime
+  endTime       DateTime?
+  actualMinutes Int?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  TimeSink      TimeSink  @relation(fields: [timeSinkId], references: [id], onDelete: Cascade)
+
+  @@index([timeSinkId])
+  @@index([startTime])
 }
 
 // Task model - Unified model for both simple tasks and workflow containers

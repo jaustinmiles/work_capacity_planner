@@ -23,8 +23,11 @@ import { TaskTypeManager } from './components/settings/TaskTypeManager'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
 import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
 import { DevTools } from './components/dev/DevTools'
+import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
+import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
 import { useTaskStore } from './store/useTaskStore'
 import { useWorkPatternStore } from './store/useWorkPatternStore'
+import { useTimeSinkStore } from './store/useTimeSinkStore'
 import { connectStores } from './store/storeConnector'
 import { getDatabase } from './services/database'
 import { logger } from '@/logger'
@@ -55,6 +58,9 @@ function AppContent() {
 
     // Initialize work patterns
     useWorkPatternStore.getState().loadWorkPatterns()
+
+    // Initialize time sinks
+    useTimeSinkStore.getState().loadSinks()
 
     logger.system.info('Application initialized', {
       environment: process.env.NODE_ENV,
@@ -425,6 +431,13 @@ function AppContent() {
               </div>
             )}
 
+            {/* Time Sink Logger */}
+            {!sidebarCollapsed && (
+              <div style={{ padding: '0 16px 16px 16px' }}>
+                <TimeSinkLogger onOpenSettings={() => setShowTaskTypeManager(true)} />
+              </div>
+            )}
+
           </Sider>
 
           <Layout>
@@ -738,17 +751,24 @@ function AppContent() {
             }}
           />
 
-          {/* Task Type Settings Modal */}
+          {/* Settings Modal */}
           <Modal
-            title="Task Type Settings"
+            title="Settings"
             visible={showTaskTypeManager}
             onCancel={() => setShowTaskTypeManager(false)}
             footer={null}
-            style={{ width: 600 }}
+            style={{ width: 700 }}
           >
-            <TaskTypeManager embedded onTypesChange={() => {
-              // Types update reactively via store - no need to reload
-            }} />
+            <Tabs defaultActiveTab="taskTypes">
+              <Tabs.TabPane key="taskTypes" title="Task Types">
+                <TaskTypeManager embedded onTypesChange={() => {
+                  // Types update reactively via store - no need to reload
+                }} />
+              </Tabs.TabPane>
+              <Tabs.TabPane key="timeSinks" title="Time Sinks">
+                <TimeSinkManager />
+              </Tabs.TabPane>
+            </Tabs>
           </Modal>
           <DevTools
             visible={showDevTools}

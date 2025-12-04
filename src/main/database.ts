@@ -10,6 +10,20 @@ import {
   BlockTypeConfig,
   AccumulatedTimeResult,
 } from '../shared/user-task-types'
+import {
+  TimeSink,
+  TimeSinkSession,
+  CreateTimeSinkInput,
+  UpdateTimeSinkInput,
+  CreateTimeSinkSessionInput,
+  TimeSinkAccumulatedResult,
+  createTimeSink as createTimeSinkEntity,
+  timeSinkToRecord,
+  recordToTimeSink,
+  createTimeSinkSession as createTimeSinkSessionEntity,
+  timeSinkSessionToRecord,
+  recordToTimeSinkSession,
+} from '../shared/time-sink-types'
 import { WorkBlockType, BlockConfigKind } from '../shared/enums'
 import { LogQueryOptionsInternal, LogEntryInternal, SessionLogSummary } from '../shared/log-types'
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
@@ -537,6 +551,299 @@ export class DatabaseService {
     })
 
     return count > 0
+  }
+
+  // ============================================================================
+  // Time Sinks - Session-scoped time tracking for non-task activities
+  // ============================================================================
+
+  /**
+   * Get all time sinks for a session.
+   */
+  async getTimeSinks(sessionId?: string): Promise<TimeSink[]> {
+    const activeSessionId = sessionId || (await this.getActiveSession())
+
+    const records = await this.client.timeSink.findMany({
+      where: { sessionId: activeSessionId },
+      orderBy: { sortOrder: 'asc' },
+    })
+
+    return records.map((record) =>
+      recordToTimeSink({
+        ...record,
+        createdAt: record.createdAt.toISOString(),
+        updatedAt: record.updatedAt.toISOString(),
+      }),
+    )
+  }
+
+  /**
+   * Get a single time sink by ID.
+   */
+  async getTimeSinkById(id: string): Promise<TimeSink | null> {
+    const record = await this.client.timeSink.findUnique({
+      where: { id },
+    })
+
+    if (!record) return null
+
+    return recordToTimeSink({
+      ...record,
+      createdAt: record.createdAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString(),
+    })
+  }
+
+  /**
+   * Create a new time sink.
+   */
+  async createTimeSink(input: CreateTimeSinkInput): Promise<TimeSink> {
+    // Get the next sort order
+    const existingSinks = await this.client.timeSink.findMany({
+      where: { sessionId: input.sessionId },
+      orderBy: { sortOrder: 'desc' },
+      take: 1,
+    })
+
+    const nextSortOrder = existingSinks.length > 0 ? existingSinks[0].sortOrder + 1 : 0
+
+    // Create the entity with generated ID and timestamps
+    const entity = createTimeSinkEntity({
+      ...input,
+      sortOrder: input.sortOrder ?? nextSortOrder,
+    })
+
+    // Convert to record format for database
+    const record = timeSinkToRecord(entity)
+
+    // Create in database
+    const created = await this.client.timeSink.create({
+      data: {
+        id: record.id,
+        sessionId: record.sessionId,
+        name: record.name,
+        emoji: record.emoji,
+        color: record.color,
+        typeId: record.typeId,
+        sortOrder: record.sortOrder,
+        createdAt: new Date(record.createdAt),
+        updatedAt: new Date(record.updatedAt),
+      },
+    })
+
+    dbLogger.info('Created time sink', {
+      id: created.id,
+      name: created.name,
+      sessionId: created.sessionId,
+    })
+
+    return recordToTimeSink({
+      ...created,
+      createdAt: created.createdAt.toISOString(),
+      updatedAt: created.updatedAt.toISOString(),
+    })
+  }
+
+  /**
+   * Update an existing time sink.
+   */
+  async updateTimeSink(id: string, updates: UpdateTimeSinkInput): Promise<TimeSink> {
+    const updated = await this.client.timeSink.update({
+      where: { id },
+      data: {
+        ...updates,
+        updatedAt: getCurrentTime(),
+      },
+    })
+
+    dbLogger.info('Updated time sink', {
+      id: updated.id,
+      name: updated.name,
+      updates,
+    })
+
+    return recordToTimeSink({
+      ...updated,
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+    })
+  }
+
+  /**
+   * Delete a time sink and all its sessions.
+   */
+  async deleteTimeSink(id: string): Promise<void> {
+    await this.client.timeSink.delete({
+      where: { id },
+    })
+
+    dbLogger.info('Deleted time sink', { id })
+  }
+
+  /**
+   * Reorder time sinks by providing an ordered array of IDs.
+   */
+  async reorderTimeSinks(sessionId: string, orderedIds: string[]): Promise<void> {
+    await this.client.$transaction(
+      orderedIds.map((id, index) =>
+        this.client.timeSink.update({
+          where: { id },
+          data: { sortOrder: index },
+        }),
+      ),
+    )
+
+    dbLogger.info('Reordered time sinks', {
+      sessionId,
+      count: orderedIds.length,
+    })
+  }
+
+  // ============================================================================
+  // Time Sink Sessions - Individual time entries for time sinks
+  // ============================================================================
+
+  /**
+   * Create a new time sink session.
+   */
+  async createTimeSinkSession(input: CreateTimeSinkSessionInput): Promise<TimeSinkSession> {
+    const entity = createTimeSinkSessionEntity(input)
+    const record = timeSinkSessionToRecord(entity)
+
+    const created = await this.client.timeSinkSession.create({
+      data: {
+        id: record.id,
+        timeSinkId: record.timeSinkId,
+        startTime: new Date(record.startTime),
+        endTime: record.endTime ? new Date(record.endTime) : null,
+        actualMinutes: record.actualMinutes,
+        notes: record.notes,
+        createdAt: new Date(record.createdAt),
+      },
+    })
+
+    dbLogger.info('Created time sink session', {
+      id: created.id,
+      timeSinkId: created.timeSinkId,
+    })
+
+    return recordToTimeSinkSession({
+      ...created,
+      startTime: created.startTime.toISOString(),
+      endTime: created.endTime?.toISOString() ?? null,
+      createdAt: created.createdAt.toISOString(),
+    })
+  }
+
+  /**
+   * End an active time sink session.
+   */
+  async endTimeSinkSession(id: string, actualMinutes: number, notes?: string): Promise<TimeSinkSession> {
+    const updated = await this.client.timeSinkSession.update({
+      where: { id },
+      data: {
+        endTime: getCurrentTime(),
+        actualMinutes,
+        notes: notes ?? undefined,
+      },
+    })
+
+    dbLogger.info('Ended time sink session', {
+      id: updated.id,
+      actualMinutes,
+    })
+
+    return recordToTimeSinkSession({
+      ...updated,
+      startTime: updated.startTime.toISOString(),
+      endTime: updated.endTime?.toISOString() ?? null,
+      createdAt: updated.createdAt.toISOString(),
+    })
+  }
+
+  /**
+   * Get all sessions for a specific time sink.
+   */
+  async getTimeSinkSessions(timeSinkId: string): Promise<TimeSinkSession[]> {
+    const records = await this.client.timeSinkSession.findMany({
+      where: { timeSinkId },
+      orderBy: { startTime: 'desc' },
+    })
+
+    return records.map((record) =>
+      recordToTimeSinkSession({
+        ...record,
+        startTime: record.startTime.toISOString(),
+        endTime: record.endTime?.toISOString() ?? null,
+        createdAt: record.createdAt.toISOString(),
+      }),
+    )
+  }
+
+  /**
+   * Get the currently active time sink session (if any).
+   */
+  async getActiveTimeSinkSession(): Promise<TimeSinkSession | null> {
+    const record = await this.client.timeSinkSession.findFirst({
+      where: { endTime: null },
+      orderBy: { startTime: 'desc' },
+    })
+
+    if (!record) return null
+
+    return recordToTimeSinkSession({
+      ...record,
+      startTime: record.startTime.toISOString(),
+      endTime: null,
+      createdAt: record.createdAt.toISOString(),
+    })
+  }
+
+  /**
+   * Get accumulated time by time sink for a date range.
+   */
+  async getTimeSinkAccumulated(startDate: string, endDate: string): Promise<TimeSinkAccumulatedResult> {
+    const sessionId = await this.getActiveSession()
+
+    // Get all time sinks for the session
+    const sinks = await this.client.timeSink.findMany({
+      where: { sessionId },
+    })
+
+    const sinkIds = sinks.map(s => s.id)
+
+    // Get all completed sessions in the date range for these sinks
+    const sessions = await this.client.timeSinkSession.findMany({
+      where: {
+        timeSinkId: { in: sinkIds },
+        startTime: { gte: new Date(startDate) },
+        endTime: { lte: new Date(endDate + 'T23:59:59.999Z') },
+        actualMinutes: { not: null },
+      },
+    })
+
+    // Aggregate by sink
+    const bySink: Record<string, number> = {}
+    let total = 0
+
+    for (const session of sessions) {
+      const minutes = session.actualMinutes ?? 0
+      bySink[session.timeSinkId] = (bySink[session.timeSinkId] ?? 0) + minutes
+      total += minutes
+    }
+
+    return { bySink, total }
+  }
+
+  /**
+   * Delete a time sink session.
+   */
+  async deleteTimeSinkSession(id: string): Promise<void> {
+    await this.client.timeSinkSession.delete({
+      where: { id },
+    })
+
+    dbLogger.info('Deleted time sink session', { id })
   }
 
   // Tasks
