@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, WorkSession } from '@prisma/client'
 import { Task, TaskStep } from '../shared/types'
 import {
   UserTaskType,
@@ -2898,6 +2898,95 @@ export class DatabaseService {
     } else if (session.taskId) {
       await this.recalculateTaskActualDuration(session.taskId)
     }
+  }
+
+  /**
+   * Split a work session into two at the specified time.
+   * Uses transaction for atomicity.
+   * @param sessionId - Original session ID (becomes first half)
+   * @param splitTime - Time to split at
+   * @param secondHalfTaskId - Optional: reassign second half to different task
+   * @param secondHalfStepId - Optional: reassign second half to different step
+   */
+  async splitWorkSession(
+    sessionId: string,
+    splitTime: Date,
+    secondHalfTaskId?: string,
+    secondHalfStepId?: string,
+  ): Promise<{ firstHalf: WorkSession; secondHalf: WorkSession }> {
+    const original = await this.client.workSession.findUnique({
+      where: { id: sessionId },
+      include: { Task: true },
+    })
+
+    if (!original) {
+      throw new Error(`Work session not found: ${sessionId}`)
+    }
+
+    // Validate split time
+    if (splitTime <= original.startTime) {
+      throw new Error('Split time must be after session start')
+    }
+    if (original.endTime && splitTime >= original.endTime) {
+      throw new Error('Split time must be before session end')
+    }
+
+    // Calculate durations
+    const firstHalfMinutes = Math.round(
+      (splitTime.getTime() - original.startTime.getTime()) / 60000,
+    )
+    const secondHalfMinutes = original.endTime
+      ? Math.round((original.endTime.getTime() - splitTime.getTime()) / 60000)
+      : null
+
+    // Atomic transaction
+    const result = await this.client.$transaction(async (tx) => {
+      // Update original (becomes first half)
+      const firstHalf = await tx.workSession.update({
+        where: { id: sessionId },
+        data: {
+          endTime: splitTime,
+          actualMinutes: firstHalfMinutes,
+        },
+      })
+
+      // Create new (second half)
+      const secondHalf = await tx.workSession.create({
+        data: {
+          id: generateUniqueId('ws'),
+          taskId: secondHalfTaskId ?? original.taskId,
+          stepId: secondHalfStepId ?? original.stepId,
+          patternId: original.patternId,
+          blockId: original.blockId,
+          type: original.type,
+          startTime: splitTime,
+          endTime: original.endTime,
+          plannedMinutes: secondHalfMinutes ?? 0,
+          actualMinutes: secondHalfMinutes,
+          notes: original.notes,
+        },
+      })
+
+      return { firstHalf, secondHalf }
+    })
+
+    // Recalculate durations for affected tasks (outside transaction)
+    if (original.stepId) {
+      await this.recalculateStepActualDuration(original.stepId)
+    } else if (original.taskId) {
+      await this.recalculateTaskActualDuration(original.taskId)
+    }
+
+    // If reassigned to different task, recalculate that too
+    if (secondHalfTaskId && secondHalfTaskId !== original.taskId) {
+      if (secondHalfStepId) {
+        await this.recalculateStepActualDuration(secondHalfStepId)
+      } else {
+        await this.recalculateTaskActualDuration(secondHalfTaskId)
+      }
+    }
+
+    return result
   }
 
   async recalculateStepActualDuration(stepId: string): Promise<void> {

@@ -13,18 +13,24 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Slider, Switch, Modal } from '@arco-design/web-react'
+import { Slider, Switch, Modal, Button, Tooltip } from '@arco-design/web-react'
+import { IconScissor } from '@arco-design/web-react/icon'
 import { WorkBlock, BlockTypeConfig } from '@shared/work-blocks-types'
 import { UserTaskType, getTypeColor } from '@shared/user-task-types'
 import { TimeSink } from '@shared/time-sink-types'
-import { BlockConfigKind, WorkBlockType } from '@shared/enums'
+import { BlockConfigKind, WorkBlockType, SplitMode } from '@shared/enums'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import {
   WorkSessionData,
   PlannedSessionItem,
   timeToMinutes,
+  minutesToTime,
   checkOverlap,
   roundToFiveMinutes,
+  SplitCursorState,
+  INITIAL_SPLIT_CURSOR_STATE,
+  validateSplitPoint,
+  MIN_SPLIT_DURATION_MINUTES,
 } from './SessionState'
 
 // ============================================================================
@@ -50,6 +56,8 @@ interface LinearTimelineProps {
   timeSinks?: TimeSink[]
   timeSinkSessions?: WorkSessionData[]
   onTimeSinkSessionCreate?: (sinkId: string, startMinutes: number, endMinutes: number) => void
+  // Split session support
+  onSessionSplit?: (sessionId: string, splitMinutes: number) => Promise<void>
 }
 
 interface DragState {
@@ -75,16 +83,19 @@ interface CreatingTimeSinkSession {
 // Constants
 // ============================================================================
 
-const TIMELINE_HEIGHT = 240 // Increased to accommodate time sink lane
-const BLOCK_LANE_HEIGHT = 28
-const SESSION_LANE_HEIGHT = 50
-const SESSION_LANE_Y = 90 // Moved down to make room for larger planned lane
-const PLANNED_LANE_Y = 48 // Above session lane
-const PLANNED_LANE_HEIGHT = 36 // Larger for visibility
-const TIME_SINK_LANE_Y = 150 // Below session lane
-const TIME_SINK_LANE_HEIGHT = 40
-const TIME_SINK_LABEL_Y = 148 // For "Time Sinks" label
+const TIMELINE_HEIGHT = 260 // Increased to accommodate scrubber ruler
 const HOUR_LABEL_HEIGHT = 20
+const SCRUBBER_Y = 20 // Y position of scrubber (below hour labels)
+const SCRUBBER_HEIGHT = 20 // Height of the split cursor ruler bar
+const BLOCK_LANE_Y = 42 // Y position of work block lane (below scrubber)
+const BLOCK_LANE_HEIGHT = 28
+const PLANNED_LANE_Y = 72 // Above session lane
+const PLANNED_LANE_HEIGHT = 32 // Planned overlay
+const SESSION_LANE_Y = 108 // Main session lane
+const SESSION_LANE_HEIGHT = 50
+const TIME_SINK_LANE_Y = 166 // Below session lane
+const TIME_SINK_LANE_HEIGHT = 40
+const TIME_SINK_LABEL_Y = 164 // For "Time Sinks" label
 const TIME_LABEL_WIDTH = 0
 const MIN_ZOOM = 40
 const MAX_ZOOM = 400
@@ -131,6 +142,7 @@ export function LinearTimeline({
   timeSinks = [],
   timeSinkSessions = [],
   onTimeSinkSessionCreate,
+  onSessionSplit,
 }: LinearTimelineProps): React.ReactElement {
   // eslint-disable-next-line no-undef
   const svgRef = useRef<SVGSVGElement>(null)
@@ -176,6 +188,9 @@ export function LinearTimeline({
   const [creatingTimeSinkSession, setCreatingTimeSinkSession] = useState<CreatingTimeSinkSession | null>(null)
   const [showSinkSelector, setShowSinkSelector] = useState(false)
   const [pendingTimeSinkRange, setPendingTimeSinkRange] = useState<{ start: number; end: number } | null>(null)
+
+  // Split cursor state
+  const [splitCursor, setSplitCursor] = useState<SplitCursorState>(INITIAL_SPLIT_CURSOR_STATE)
 
   // Current time indicator
   const [currentMinutes, setCurrentMinutes] = useState<number>(
@@ -257,6 +272,89 @@ export function LinearTimeline({
     }
     onSessionSelect(null)
   }, [dragState, xToMinutes, onSessionSelect, timeSinks.length, onTimeSinkSessionCreate])
+
+  // Split cursor: track mouse over scrubber ruler (finds session at x position)
+  const handleScrubberMouseMove = useCallback((e: React.MouseEvent): void => {
+    // Don't show split cursor during drag/create operations or if frozen
+    if (dragState || creatingSession || creatingTimeSinkSession) return
+    if (splitCursor.mode === SplitMode.Frozen) return
+
+    const rect = svgRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const scrollLeft = containerRef.current?.scrollLeft ?? 0
+    const x = e.clientX - rect.left + scrollLeft
+    const minutes = roundToFiveMinutes(xToMinutes(x))
+
+    // Find which session (if any) is at this x position
+    const sessionAtPosition = sessions.find(session => {
+      // Don't allow splitting time sink sessions
+      if (session.taskId.startsWith('sink-')) return false
+      // Check if minutes falls within this session with minimum margins
+      return minutes > session.startMinutes + MIN_SPLIT_DURATION_MINUTES &&
+             minutes < session.endMinutes - MIN_SPLIT_DURATION_MINUTES
+    })
+
+    if (sessionAtPosition) {
+      setSplitCursor({
+        mode: SplitMode.Hovering,
+        sessionId: sessionAtPosition.id,
+        splitMinutes: minutes,
+        frozenAt: null,
+      })
+    } else {
+      // Clear cursor if not over a valid session
+      if (splitCursor.mode === SplitMode.Hovering) {
+        setSplitCursor(INITIAL_SPLIT_CURSOR_STATE)
+      }
+    }
+  }, [dragState, creatingSession, creatingTimeSinkSession, xToMinutes, sessions, splitCursor.mode])
+
+  // Split cursor: freeze on click in scrubber
+  const handleScrubberClick = useCallback((e: React.MouseEvent): void => {
+    if (splitCursor.mode === SplitMode.Hovering && splitCursor.sessionId) {
+      e.stopPropagation()
+      setSplitCursor(prev => ({
+        ...prev,
+        mode: SplitMode.Frozen,
+        frozenAt: prev.splitMinutes,
+      }))
+    }
+  }, [splitCursor])
+
+  // Clear split cursor on mouse leave from scrubber
+  const handleScrubberMouseLeave = useCallback((): void => {
+    if (splitCursor.mode === SplitMode.Hovering) {
+      setSplitCursor(INITIAL_SPLIT_CURSOR_STATE)
+    }
+  }, [splitCursor.mode])
+
+  // Cancel frozen split cursor
+  const handleCancelSplit = useCallback((): void => {
+    setSplitCursor(INITIAL_SPLIT_CURSOR_STATE)
+  }, [])
+
+  // Execute split
+  const handleExecuteSplit = useCallback(async (): Promise<void> => {
+    if (splitCursor.mode !== SplitMode.Frozen || !splitCursor.sessionId || splitCursor.frozenAt === null) {
+      return
+    }
+
+    const session = sessions.find(s => s.id === splitCursor.sessionId)
+    if (!session) return
+
+    const validation = validateSplitPoint(session, splitCursor.frozenAt, currentMinutes)
+    if (!validation.valid) {
+      // Could show notification here
+      return
+    }
+
+    if (onSessionSplit) {
+      await onSessionSplit(splitCursor.sessionId, splitCursor.frozenAt)
+    }
+
+    setSplitCursor(INITIAL_SPLIT_CURSOR_STATE)
+  }, [splitCursor, sessions, currentMinutes, onSessionSplit])
 
   // Document-level drag handling
   useEffect(() => {
@@ -462,6 +560,38 @@ export function LinearTimeline({
             </span>
           </div>
         )}
+
+        {/* Split controls */}
+        {onSessionSplit && (
+          <>
+            <div style={{ width: 1, height: 16, backgroundColor: '#e5e6eb', margin: '0 4px' }} />
+            {splitCursor.mode === SplitMode.Frozen ? (
+              <>
+                <Tooltip content="Cancel split">
+                  <Button size="small" onClick={handleCancelSplit}>
+                    Cancel
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Split session at cursor position">
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<IconScissor />}
+                    onClick={handleExecuteSplit}
+                  >
+                    Split
+                  </Button>
+                </Tooltip>
+              </>
+            ) : (
+              <Tooltip content="Hover over a session to set split point">
+                <Button size="small" icon={<IconScissor />} disabled>
+                  Split
+                </Button>
+              </Tooltip>
+            )}
+          </>
+        )}
       </div>
 
       {/* Timeline Container (scrollable) */}
@@ -488,13 +618,13 @@ export function LinearTimeline({
             </pattern>
           </defs>
 
-          {/* Background rect for click detection */}
+          {/* Background rect for click detection - starts below scrubber */}
           <rect
             className="timeline-background"
             x={0}
-            y={HOUR_LABEL_HEIGHT}
+            y={SCRUBBER_Y + SCRUBBER_HEIGHT}
             width={totalWidth}
-            height={TIMELINE_HEIGHT - HOUR_LABEL_HEIGHT}
+            height={TIMELINE_HEIGHT - (SCRUBBER_Y + SCRUBBER_HEIGHT)}
             fill="transparent"
           />
 
@@ -521,6 +651,53 @@ export function LinearTimeline({
               )}
             </g>
           ))}
+
+          {/* Scrubber ruler bar for split cursor - like Logic Pro/GarageBand */}
+          {onSessionSplit && (
+            <g>
+              {/* Scrubber background */}
+              <rect
+                x={0}
+                y={SCRUBBER_Y}
+                width={totalWidth}
+                height={SCRUBBER_HEIGHT}
+                fill="#f7f8fa"
+                stroke="#e5e6eb"
+                strokeWidth={1}
+                style={{ cursor: splitCursor.mode === SplitMode.Frozen ? 'default' : 'crosshair' }}
+                onMouseMove={handleScrubberMouseMove}
+                onMouseLeave={handleScrubberMouseLeave}
+                onClick={handleScrubberClick}
+              />
+              {/* Tick marks every 15 minutes */}
+              {Array.from({ length: 24 * 4 + 1 }).map((_, i) => {
+                const minutes = i * 15
+                const isHour = minutes % 60 === 0
+                return (
+                  <line
+                    key={`tick-${i}`}
+                    x1={minutesToX(minutes)}
+                    y1={SCRUBBER_Y + SCRUBBER_HEIGHT - (isHour ? 8 : 4)}
+                    x2={minutesToX(minutes)}
+                    y2={SCRUBBER_Y + SCRUBBER_HEIGHT}
+                    stroke="#c9cdd4"
+                    strokeWidth={isHour ? 1.5 : 0.5}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )
+              })}
+              {/* Label for scrubber */}
+              <text
+                x={4}
+                y={SCRUBBER_Y + 13}
+                fontSize={9}
+                fill="#86909c"
+                style={{ pointerEvents: 'none' }}
+              >
+                ✂️ Split
+              </text>
+            </g>
+          )}
 
           {/* Work Blocks (background layer) */}
           {workBlocks.map(block => {
@@ -550,7 +727,7 @@ export function LinearTimeline({
               <g key={block.id}>
                 <rect
                   x={minutesToX(startMin)}
-                  y={HOUR_LABEL_HEIGHT}
+                  y={BLOCK_LANE_Y}
                   width={width}
                   height={BLOCK_LANE_HEIGHT}
                   fill={blockColor}
@@ -562,7 +739,7 @@ export function LinearTimeline({
                 {width > 80 && (
                   <text
                     x={minutesToX(startMin) + 4}
-                    y={HOUR_LABEL_HEIGHT + BLOCK_LANE_HEIGHT / 2 + 4}
+                    y={BLOCK_LANE_Y + BLOCK_LANE_HEIGHT / 2 + 4}
                     fontSize={10}
                     fill={blockColor}
                     opacity={0.8}
@@ -810,6 +987,43 @@ export function LinearTimeline({
               strokeDasharray="4,2"
               rx={4}
             />
+          )}
+
+          {/* Split cursor indicator */}
+          {splitCursor.mode !== SplitMode.Inactive && splitCursor.splitMinutes !== null && (
+            <g style={{ pointerEvents: 'none' }}>
+              <line
+                x1={minutesToX(splitCursor.frozenAt ?? splitCursor.splitMinutes)}
+                y1={SESSION_LANE_Y - 5}
+                x2={minutesToX(splitCursor.frozenAt ?? splitCursor.splitMinutes)}
+                y2={SESSION_LANE_Y + SESSION_LANE_HEIGHT + 5}
+                stroke="#165DFF"
+                strokeWidth={splitCursor.mode === SplitMode.Frozen ? 2 : 1}
+                strokeDasharray={splitCursor.mode === SplitMode.Frozen ? 'none' : '4,2'}
+                opacity={splitCursor.mode === SplitMode.Frozen ? 1 : 0.6}
+              />
+              {/* Scissors icon at top */}
+              <text
+                x={minutesToX(splitCursor.frozenAt ?? splitCursor.splitMinutes)}
+                y={SESSION_LANE_Y - 10}
+                fontSize={12}
+                fill="#165DFF"
+                textAnchor="middle"
+                opacity={splitCursor.mode === SplitMode.Frozen ? 1 : 0.6}
+              >
+                ✂️
+              </text>
+              {/* Time label */}
+              <text
+                x={minutesToX(splitCursor.frozenAt ?? splitCursor.splitMinutes) + 4}
+                y={SESSION_LANE_Y + SESSION_LANE_HEIGHT + 15}
+                fontSize={10}
+                fill="#165DFF"
+                opacity={0.8}
+              >
+                {minutesToTime(splitCursor.frozenAt ?? splitCursor.splitMinutes)}
+              </text>
+            </g>
           )}
 
           {/* Current time indicator */}

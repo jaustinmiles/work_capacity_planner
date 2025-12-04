@@ -107,6 +107,13 @@ export enum WorkSessionOperation {
   Split = 'split',
 }
 
+// Split cursor mode for work session editing
+export enum SplitMode {
+  Inactive = 'inactive',
+  Hovering = 'hovering',
+  Frozen = 'frozen',
+}
+
 // Chat message roles for brainstorm chat
 export enum ChatMessageRole {
   User = 'user',

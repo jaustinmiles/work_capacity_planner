@@ -89,6 +89,12 @@ declare global {
         createWorkSession: (data: any) => Promise<any>
         updateWorkSession: (__id: string, data: any) => Promise<any>
         deleteWorkSession: (__id: string) => Promise<void>
+        splitWorkSession: (
+          sessionId: string,
+          splitTime: Date,
+          secondHalfTaskId?: string,
+          secondHalfStepId?: string
+        ) => Promise<{ firstHalf: any; secondHalf: any }>
         getWorkSessions: (date: string) => Promise<any[]>
         getActiveWorkSession: () => Promise<any | null>
         getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
@@ -583,6 +589,15 @@ export class RendererDatabaseService {
 
   async deleteWorkSession(id: string) {
     return await window.electronAPI.db.deleteWorkSession(id)
+  }
+
+  async splitWorkSession(
+    sessionId: string,
+    splitTime: Date,
+    secondHalfTaskId?: string,
+    secondHalfStepId?: string,
+  ): Promise<{ firstHalf: any; secondHalf: any }> {
+    return await window.electronAPI.db.splitWorkSession(sessionId, splitTime, secondHalfTaskId, secondHalfStepId)
   }
 
   async getWorkSessions(date: string) {
