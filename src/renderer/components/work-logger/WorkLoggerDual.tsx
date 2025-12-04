@@ -349,6 +349,57 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     }
   }, [sessions, selectedSessionId])
 
+  // Handle time sink session creation from LinearTimeline drag
+  const handleTimeSinkSessionCreate = useCallback(async (
+    sinkId: string,
+    startMinutes: number,
+    endMinutes: number,
+  ) => {
+    try {
+      const sink = timeSinks.find(s => s.id === sinkId)
+
+      // Calculate start and end times based on the selected date
+      const dateBase = dayjs(selectedDate)
+      const startTime = dateBase.hour(Math.floor(startMinutes / 60)).minute(startMinutes % 60).second(0)
+      const endTime = dateBase.hour(Math.floor(endMinutes / 60)).minute(endMinutes % 60).second(0)
+      const actualMinutes = endMinutes - startMinutes
+
+      // Create the time sink session via electron API
+      const session = await window.electronAPI.db.createTimeSinkSession({
+        timeSinkId: sinkId,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        actualMinutes,
+      })
+
+      // Add to local state
+      const newSessionData: WorkSessionData = {
+        id: `sink-${session.id}`,
+        taskId: `sink-${sinkId}`,
+        taskName: `${sink?.emoji || '⏱️'} ${sink?.name || 'Time Sink'}`,
+        startMinutes,
+        endMinutes,
+        type: 'time-sink',
+        color: sink?.color || '#9B59B6',
+        isNew: false,
+        isDirty: false,
+      }
+
+      setSessions(prev => [...prev, newSessionData])
+      logger.ui.info('Created time sink session', {
+        sinkId,
+        startMinutes,
+        endMinutes,
+        actualMinutes,
+      }, 'time-sink-session-created')
+    } catch (error) {
+      logger.ui.error('Failed to create time sink session', {
+        error: error instanceof Error ? error.message : String(error),
+        sinkId,
+      }, 'time-sink-create-error')
+    }
+  }, [selectedDate, timeSinks])
+
   // Keyboard handler for backspace deletion
   useEffect(() => {
     if (!visible) return
@@ -561,6 +612,22 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
     return [...activeTasks, ...activeSequencedTasks]
   }, [tasks, sequencedTasks, hideCompleted])
+
+  // Separate work sessions from time sink sessions for LinearTimeline
+  const { workSessions, timeSinkSessionsForTimeline } = useMemo(() => {
+    const work: WorkSessionData[] = []
+    const sinks: WorkSessionData[] = []
+
+    sessions.forEach(s => {
+      if (s.taskId.startsWith('sink-')) {
+        sinks.push(s)
+      } else {
+        work.push(s)
+      }
+    })
+
+    return { workSessions: work, timeSinkSessionsForTimeline: sinks }
+  }, [sessions])
 
   // Transform frozen schedule snapshot into PlannedSessionItem[] for comparison overlay
   const plannedItemsForDate = useMemo((): PlannedSessionItem[] => {
@@ -863,7 +930,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               }
             >
               <LinearTimeline
-                sessions={sessions}
+                sessions={workSessions}
                 workBlocks={workBlocks}
                 meetings={meetings}
                 onSessionUpdate={handleSessionUpdate}
@@ -876,6 +943,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 plannedItems={plannedItemsForDate}
                 showPlannedOverlay={showPlannedOverlay}
                 onTogglePlannedOverlay={() => setShowPlannedOverlay(!showPlannedOverlay)}
+                timeSinks={timeSinks}
+                timeSinkSessions={timeSinkSessionsForTimeline}
+                onTimeSinkSessionCreate={handleTimeSinkSessionCreate}
               />
             </Card>
 

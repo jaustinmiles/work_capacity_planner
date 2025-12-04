@@ -632,5 +632,7 @@ function getAmendmentSummary(amendment: Amendment): string {
       return `${amendment.operation} work session`
     case AmendmentType.QueryResponse:
       return amendment.response
+    case AmendmentType.TaskTypeCreation:
+      return `Create task type: ${amendment.emoji} ${amendment.name}`
   }
 }

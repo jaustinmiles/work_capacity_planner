@@ -223,10 +223,10 @@ Create new standalone tasks.
   "duration": 30,
   "importance": 5,
   "urgency": 5,
-  "taskType": "focused"
+  "taskType": "type-abc123"
 }
 \`\`\`
-- **taskType**: "focused" | "admin" | "personal"
+- **taskType**: Use a type ID from "Available Task Types" in context (e.g., "type-abc123")
 
 ### 2. workflow_creation
 Create new workflows with multiple steps.
@@ -241,14 +241,14 @@ Create new workflows with multiple steps.
     {
       "name": "Step name",
       "duration": 30,
-      "type": "focused",
+      "type": "type-abc123",
       "dependsOn": [],
       "asyncWaitTime": 0
     }
   ]
 }
 \`\`\`
-- **steps[].type**: "focused" | "admin" | "personal"
+- **steps[].type**: Use a type ID from "Available Task Types" in context
 - **steps[].dependsOn**: Array of step NAMES (not IDs)
 - **steps[].asyncWaitTime**: Wait time in minutes before next step can start
 
@@ -328,7 +328,7 @@ Add new steps to workflows.
   },
   "stepName": "New step name",
   "duration": 30,
-  "stepType": "focused",
+  "stepType": "type-abc123",
   "afterStep": "Previous step name",
   "dependencies": [],
   "asyncWaitTime": 0
@@ -337,7 +337,7 @@ Add new steps to workflows.
 - **workflowTarget**: NOT "target" - uses different field name (required)
 - **stepName**: Non-empty string (required)
 - **duration**: Positive number (required)
-- **stepType**: "focused" | "admin" | "personal" (required)
+- **stepType**: Use a type ID from "Available Task Types" in context (required)
 
 ### 8. step_removal
 Remove steps from workflows.
@@ -416,10 +416,10 @@ Change task type.
     "name": "Task name",
     "confidence": 0.9
   },
-  "newType": "focused"
+  "newType": "type-abc123"
 }
 \`\`\`
-- **newType**: "focused" | "admin" | "personal" (required)
+- **newType**: Use a type ID from "Available Task Types" in context (required)
 
 ### 13. work_pattern_modification
 Add/remove/modify work blocks or meetings in schedule.
@@ -431,12 +431,12 @@ Add/remove/modify work blocks or meetings in schedule.
   "blockData": {
     "startTime": "2025-11-25T19:30:00Z",
     "endTime": "2025-11-25T21:30:00Z",
-    "type": "personal"
+    "type": "type-abc123"
   }
 }
 \`\`\`
 - **operation**: "add_block" | "add_meeting" | "remove_block" | "remove_meeting"
-- **blockData.type**: "focused" | "admin" | "personal" | "mixed" | "flexible"
+- **blockData.type**: Use a task type ID from context, or "blocked"/"sleep" for non-work time
 - For meetings, use **meetingData** instead with name, startTime, endTime, type
 
 ### 14. work_session_edit
@@ -479,6 +479,20 @@ For information-only responses (no changes).
 }
 \`\`\`
 - Use this when user asks a question that doesn't require changes
+
+### 17. task_type_creation
+Create a new user-defined task type.
+\`\`\`json
+{
+  "type": "task_type_creation",
+  "name": "Deep Work",
+  "emoji": "🎯",
+  "color": "#4A90D9"
+}
+\`\`\`
+- **name**: Non-empty string (required) - the type display name
+- **emoji**: Single emoji character (required)
+- **color**: Hex color in "#RRGGBB" format (required)
 `
 }
 

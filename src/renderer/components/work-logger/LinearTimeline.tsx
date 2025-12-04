@@ -13,9 +13,10 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { Slider, Switch } from '@arco-design/web-react'
+import { Slider, Switch, Modal } from '@arco-design/web-react'
 import { WorkBlock, BlockTypeConfig } from '@shared/work-blocks-types'
 import { UserTaskType, getTypeColor } from '@shared/user-task-types'
+import { TimeSink } from '@shared/time-sink-types'
 import { BlockConfigKind, WorkBlockType } from '@shared/enums'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import {
@@ -45,6 +46,10 @@ interface LinearTimelineProps {
   plannedItems?: PlannedSessionItem[]
   showPlannedOverlay?: boolean
   onTogglePlannedOverlay?: () => void
+  // Time sink drag-to-create support
+  timeSinks?: TimeSink[]
+  timeSinkSessions?: WorkSessionData[]
+  onTimeSinkSessionCreate?: (sinkId: string, startMinutes: number, endMinutes: number) => void
 }
 
 interface DragState {
@@ -60,16 +65,25 @@ interface CreatingSession {
   currentMinutes: number
 }
 
+interface CreatingTimeSinkSession {
+  startMinutes: number
+  currentMinutes: number
+  sinkId?: string // Set after sink selection
+}
+
 // ============================================================================
 // Constants
 // ============================================================================
 
-const TIMELINE_HEIGHT = 200 // Increased to accommodate larger planned lane
+const TIMELINE_HEIGHT = 240 // Increased to accommodate time sink lane
 const BLOCK_LANE_HEIGHT = 28
 const SESSION_LANE_HEIGHT = 50
 const SESSION_LANE_Y = 90 // Moved down to make room for larger planned lane
 const PLANNED_LANE_Y = 48 // Above session lane
 const PLANNED_LANE_HEIGHT = 36 // Larger for visibility
+const TIME_SINK_LANE_Y = 150 // Below session lane
+const TIME_SINK_LANE_HEIGHT = 40
+const TIME_SINK_LABEL_Y = 148 // For "Time Sinks" label
 const HOUR_LABEL_HEIGHT = 20
 const TIME_LABEL_WIDTH = 0
 const MIN_ZOOM = 40
@@ -114,6 +128,9 @@ export function LinearTimeline({
   plannedItems = [],
   showPlannedOverlay = false,
   onTogglePlannedOverlay,
+  timeSinks = [],
+  timeSinkSessions = [],
+  onTimeSinkSessionCreate,
 }: LinearTimelineProps): React.ReactElement {
   // eslint-disable-next-line no-undef
   const svgRef = useRef<SVGSVGElement>(null)
@@ -156,6 +173,9 @@ export function LinearTimeline({
   // Drag state
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [creatingSession, setCreatingSession] = useState<CreatingSession | null>(null)
+  const [creatingTimeSinkSession, setCreatingTimeSinkSession] = useState<CreatingTimeSinkSession | null>(null)
+  const [showSinkSelector, setShowSinkSelector] = useState(false)
+  const [pendingTimeSinkRange, setPendingTimeSinkRange] = useState<{ start: number; end: number } | null>(null)
 
   // Current time indicator
   const [currentMinutes, setCurrentMinutes] = useState<number>(
@@ -222,11 +242,21 @@ export function LinearTimeline({
 
     const scrollLeft = containerRef.current?.scrollLeft ?? 0
     const x = e.clientX - rect.left + scrollLeft
+    const y = e.clientY - rect.top
     const minutes = roundToFiveMinutes(xToMinutes(x))
 
-    setCreatingSession({ startMinutes: minutes, currentMinutes: minutes })
+    // Check if click is in time sink lane area
+    const isInTimeSinkLane = y >= TIME_SINK_LANE_Y && y <= TIME_SINK_LANE_Y + TIME_SINK_LANE_HEIGHT
+
+    if (isInTimeSinkLane && timeSinks.length > 0 && onTimeSinkSessionCreate) {
+      // Start creating a time sink session
+      setCreatingTimeSinkSession({ startMinutes: minutes, currentMinutes: minutes })
+    } else {
+      // Create regular work session
+      setCreatingSession({ startMinutes: minutes, currentMinutes: minutes })
+    }
     onSessionSelect(null)
-  }, [dragState, xToMinutes, onSessionSelect])
+  }, [dragState, xToMinutes, onSessionSelect, timeSinks.length, onTimeSinkSessionCreate])
 
   // Document-level drag handling
   useEffect(() => {
@@ -299,6 +329,8 @@ export function LinearTimeline({
         }
       } else if (creatingSession) {
         setCreatingSession(prev => prev ? { ...prev, currentMinutes: minutes } : null)
+      } else if (creatingTimeSinkSession) {
+        setCreatingTimeSinkSession(prev => prev ? { ...prev, currentMinutes: minutes } : null)
       }
     }
 
@@ -323,11 +355,26 @@ export function LinearTimeline({
           }
         }
         setCreatingSession(null)
+      } else if (creatingTimeSinkSession && onTimeSinkSessionCreate) {
+        const start = Math.min(creatingTimeSinkSession.startMinutes, creatingTimeSinkSession.currentMinutes)
+        const end = Math.max(creatingTimeSinkSession.startMinutes, creatingTimeSinkSession.currentMinutes)
+
+        if (end - start >= SNAP_INTERVAL) {
+          // If only one sink, use it directly; otherwise show selector
+          if (timeSinks.length === 1 && timeSinks[0]) {
+            onTimeSinkSessionCreate(timeSinks[0].id, start, end)
+          } else if (timeSinks.length > 1) {
+            // Show sink selector modal
+            setPendingTimeSinkRange({ start, end })
+            setShowSinkSelector(true)
+          }
+        }
+        setCreatingTimeSinkSession(null)
       }
       setDragState(null)
     }
 
-    if (dragState || creatingSession) {
+    if (dragState || creatingSession || creatingTimeSinkSession) {
       document.addEventListener('mousemove', handleMouseMove)
       document.addEventListener('mouseup', handleMouseUp)
       return (): void => {
@@ -339,9 +386,12 @@ export function LinearTimeline({
   }, [
     dragState,
     creatingSession,
+    creatingTimeSinkSession,
     sessions,
+    timeSinks,
     onSessionUpdate,
     onSessionCreate,
+    onTimeSinkSessionCreate,
     getMinutesFromMouseEvent,
     hourWidth,
   ])
@@ -423,7 +473,7 @@ export function LinearTimeline({
           ref={svgRef}
           width={totalWidth}
           height={TIMELINE_HEIGHT}
-          style={{ cursor: dragState || creatingSession ? 'grabbing' : 'crosshair' }}
+          style={{ cursor: dragState || creatingSession || creatingTimeSinkSession ? 'grabbing' : 'crosshair' }}
           onMouseDown={handleBackgroundMouseDown}
         >
           {/* SVG Defs for patterns */}
@@ -693,6 +743,75 @@ export function LinearTimeline({
             />
           )}
 
+          {/* Time Sink Lane Label */}
+          {timeSinks.length > 0 && (
+            <text
+              x={4}
+              y={TIME_SINK_LABEL_Y}
+              fontSize={10}
+              fill="#86909c"
+              fontWeight={500}
+            >
+              ⏱️ Time Sinks
+            </text>
+          )}
+
+          {/* Time Sink Sessions */}
+          {timeSinkSessions.map(session => {
+            const x = minutesToX(session.startMinutes)
+            const width = minutesToX(session.endMinutes) - x
+
+            if (width <= 0) return null
+
+            return (
+              <g key={`sink-${session.id}`}>
+                <rect
+                  x={x}
+                  y={TIME_SINK_LANE_Y}
+                  width={width}
+                  height={TIME_SINK_LANE_HEIGHT}
+                  fill={session.color || '#9B59B6'}
+                  opacity={0.7}
+                  rx={4}
+                  style={{ cursor: 'default' }}
+                >
+                  <title>{session.taskName} ({Math.round(session.endMinutes - session.startMinutes)} min)</title>
+                </rect>
+                {width > 40 && (
+                  <text
+                    x={x + 6}
+                    y={TIME_SINK_LANE_Y + TIME_SINK_LANE_HEIGHT / 2 + 4}
+                    fontSize={10}
+                    fill="#fff"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {session.taskName.length > Math.floor(width / 7)
+                      ? session.taskName.slice(0, Math.floor(width / 7)) + '…'
+                      : session.taskName}
+                  </text>
+                )}
+              </g>
+            )
+          })}
+
+          {/* Creating time sink session preview */}
+          {creatingTimeSinkSession && (
+            <rect
+              x={minutesToX(Math.min(creatingTimeSinkSession.startMinutes, creatingTimeSinkSession.currentMinutes))}
+              y={TIME_SINK_LANE_Y}
+              width={Math.abs(
+                minutesToX(creatingTimeSinkSession.currentMinutes) -
+                minutesToX(creatingTimeSinkSession.startMinutes),
+              )}
+              height={TIME_SINK_LANE_HEIGHT}
+              fill="#9B59B6"
+              opacity={0.3}
+              stroke="#9B59B6"
+              strokeDasharray="4,2"
+              rx={4}
+            />
+          )}
+
           {/* Current time indicator */}
           <line
             x1={minutesToX(currentMinutes)}
@@ -710,6 +829,73 @@ export function LinearTimeline({
           />
         </svg>
       </div>
+
+      {/* Time Sink Selector Modal */}
+      <Modal
+        title="Select Time Sink"
+        visible={showSinkSelector}
+        onCancel={() => {
+          setShowSinkSelector(false)
+          setPendingTimeSinkRange(null)
+        }}
+        footer={null}
+        style={{ maxWidth: 400 }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p style={{ margin: '0 0 8px', color: '#86909c', fontSize: 13 }}>
+            Choose which time sink to log this time to:
+          </p>
+          {timeSinks.map(sink => (
+            <div
+              key={sink.id}
+              onClick={() => {
+                if (pendingTimeSinkRange && onTimeSinkSessionCreate) {
+                  onTimeSinkSessionCreate(sink.id, pendingTimeSinkRange.start, pendingTimeSinkRange.end)
+                }
+                setShowSinkSelector(false)
+                setPendingTimeSinkRange(null)
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 16px',
+                borderRadius: 8,
+                backgroundColor: '#f7f8fa',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = sink.color + '20'
+                e.currentTarget.style.borderColor = sink.color
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = '#f7f8fa'
+                e.currentTarget.style.borderColor = 'transparent'
+              }}
+            >
+              <span style={{ fontSize: 24 }}>{sink.emoji}</span>
+              <div>
+                <div style={{ fontWeight: 500 }}>{sink.name}</div>
+                <div style={{ fontSize: 11, color: '#86909c' }}>
+                  {pendingTimeSinkRange
+                    ? `${pendingTimeSinkRange.end - pendingTimeSinkRange.start} minutes`
+                    : ''}
+                </div>
+              </div>
+              <div
+                style={{
+                  marginLeft: 'auto',
+                  width: 16,
+                  height: 16,
+                  borderRadius: 4,
+                  backgroundColor: sink.color,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   )
 }

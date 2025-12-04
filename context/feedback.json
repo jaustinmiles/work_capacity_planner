@@ -254,7 +254,8 @@
     "title": "Use Notes applied to Tasks/Workflows/Workflow Steps for amendments",
     "description": "So the user story would be like this. As I'm working throughout the day, I complete tasks and use the progress tracking module in order to keep up with my work progress. Then, after a little bit of time, I decide I need to change some of the aspects of my workflow. But as I've been working, I've been adding notes to each step as I track my progress. Notes might include, \"investigated this task and now I'm not sure if I need the follow up task \", or \"through doing this task I've discovered that I need another task which is refactoring.\" I should be able to click a button that is modify workflows based on Notes or something similar and then go through the amendment application process, but using only the notes that I've applied to tasks and not any voice input.\n\nSat Nov 29th edit: still need this, but may get it for free if AI brainstorm chat is context aware of notes already. ",
     "timestamp": "2025-09-01T22:09:44.299Z",
-    "sessionId": "session-1756764584288-rsygv2sag"
+    "sessionId": "session-1756764584288-rsygv2sag",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1775,7 +1776,8 @@
     "title": "Ai doesn't know task details, but should",
     "description": "chat transcript:\n\"\nYou • 4:08:11 AM\nwhat are they\nAssistant • 4:08:17 AM\nI can see from the summary that you have:\n\n- **3 tasks** (2 in progress, 0 completed)\n- **2 scheduled items**\n- **1 work pattern** defined\n\nHowever, I don't have visibility into the specific names and details of these items in my current context. The system only provided me with counts, not the full details.\n\n**Could you tell me what tasks you're tracking?** Or if you'd like, you can:\n\n1. Share what you're working on and I can help you manage it\n2. Ask the app to show your task list directly\n3. Tell me what you'd *like* to be working on today and we can plan from there\n\nWhat would be most helpful?\n\"\n\nthis is unacceptable. the Ai should have everything in context. it should have encyclopedic knowledge of the tasks and workflows. how else would it be able to edit them?? immediate action required. ",
     "timestamp": "2025-12-04T12:10:34.211Z",
-    "sessionId": "session-1764850234187-1b2d26ee"
+    "sessionId": "session-1764850234187-1b2d26ee",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1786,6 +1788,29 @@
     "title": "Timeline 'freeze' is not persistent",
     "description": "refreshes destroy the 'frozen' timeline, so users have to 'refreeeze' but obviously can't go back in time. action needed asap. ",
     "timestamp": "2025-12-04T12:11:21.350Z",
-    "sessionId": "session-1764850281323-8cddb1e9"
+    "sessionId": "session-1764850281323-8cddb1e9",
+    "resolved": true
+  },
+  {
+    "type": "improvement",
+    "priority": "medium",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Should be able to click and drag to create time log blocks for time sinks",
+    "description": "No way to retroactively add time sinks to the logged time for the day as far as I can tell",
+    "timestamp": "2025-12-04T22:33:58.784Z",
+    "sessionId": "session-1764887638768-b1f91bff"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "support markdown rendering",
+    "description": "the ai responds in markdown but it's rendered as regular text",
+    "timestamp": "2025-12-04T22:39:59.165Z",
+    "sessionId": "session-1764887999146-bf4abc06"
   }
 ]
