@@ -1,0 +1,32 @@
+# Codecov Configuration
+# See https://docs.codecov.com/docs/codecovyml-reference
+
+coverage:
+  status:
+    project:
+      default:
+        target: 40%
+        threshold: 2%
+    patch:
+      default:
+        target: 50%
+
+# Files/directories to exclude from coverage
+ignore:
+  - "dist/**"
+  - "e2e/**"
+  - "scripts/**"
+  - "*.config.js"
+  - "*.config.ts"
+  - "electron.js"
+  - "node_modules/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "src/test/**"
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: true

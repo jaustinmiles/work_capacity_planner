@@ -15,7 +15,11 @@
       "mcp__git__create_feature_branch",
       "mcp__git__commit_changes",
       "Bash(npm test:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "mcp__diagnostic__get_coverage_summary",
+      "mcp__diagnostic__get_coverage_by_module",
+      "mcp__diagnostic__get_uncovered_files",
+      "mcp__diagnostic__get_file_coverage"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

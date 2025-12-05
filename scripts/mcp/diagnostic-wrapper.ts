@@ -15,6 +15,14 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 import { spawn } from 'child_process'
 import * as path from 'path'
+import {
+  getCoverageSummary,
+  getCoverageByModule,
+  getUncoveredFiles,
+  getFileCoverage,
+  getPatchCoverage,
+  coverageExists,
+} from './coverage-utils.js'
 
 class DiagnosticWrapper {
   private server: Server
@@ -180,9 +188,81 @@ class DiagnosticWrapper {
               required: ['file'],
             },
           },
-          // TODO(human): Add more MCP tools that wrap your existing scripts
-          // Consider which diagnostic scripts from scripts/tools/diagnostics/
-          // would be most useful as MCP tools
+          // Coverage tools
+          {
+            name: 'get_coverage_summary',
+            description: 'Get overall code coverage metrics (lines, statements, functions, branches). Returns percentages matching CI/Codecov.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                runTests: {
+                  type: 'boolean',
+                  description: 'Run tests first to generate fresh coverage (default: false, uses cached)',
+                  default: false,
+                },
+              },
+            },
+          },
+          {
+            name: 'get_coverage_by_module',
+            description: 'Get coverage breakdown by source module (shared, main, renderer, logger)',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+            },
+          },
+          {
+            name: 'get_uncovered_files',
+            description: 'Get files with lowest coverage, sorted by improvement impact potential',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                module: {
+                  type: 'string',
+                  enum: ['main', 'renderer', 'shared', 'logger'],
+                  description: 'Filter by module (optional)',
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Number of files to return (default: 10)',
+                  default: 10,
+                },
+                minLines: {
+                  type: 'number',
+                  description: 'Minimum uncovered lines to include (default: 50)',
+                  default: 50,
+                },
+              },
+            },
+          },
+          {
+            name: 'get_file_coverage',
+            description: 'Get detailed coverage for a specific file including uncovered line numbers',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                file: {
+                  type: 'string',
+                  description: 'Path to file (relative to project root)',
+                },
+              },
+              required: ['file'],
+            },
+          },
+          {
+            name: 'get_patch_coverage',
+            description: 'Get coverage for files changed since base branch (patch coverage)',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                base: {
+                  type: 'string',
+                  description: 'Base branch to compare against (default: main)',
+                  default: 'main',
+                },
+              },
+            },
+          },
         ] satisfies Tool[],
       }
     })
@@ -213,7 +293,21 @@ class DiagnosticWrapper {
           case 'run_test_file':
             return await this.runTestFile(args)
 
-          // TODO(human): Add cases for additional diagnostic tools
+          // Coverage tools
+          case 'get_coverage_summary':
+            return await this.handleGetCoverageSummary(args)
+
+          case 'get_coverage_by_module':
+            return await this.handleGetCoverageByModule()
+
+          case 'get_uncovered_files':
+            return await this.handleGetUncoveredFiles(args)
+
+          case 'get_file_coverage':
+            return await this.handleGetFileCoverage(args)
+
+          case 'get_patch_coverage':
+            return await this.handleGetPatchCoverage(args)
 
           default:
             throw new Error(`Unknown tool: ${name}`)
@@ -658,11 +752,287 @@ class DiagnosticWrapper {
     }
   }
 
-  // TODO(human): Add methods to call other diagnostic scripts
-  // For example:
-  // - callSchedulerDebug() - wrap scripts/tools/diagnostics/debug-scheduler-state.ts
-  // - callCapacityTrace() - wrap scripts/tools/diagnostics/trace-capacity.ts
-  // - callHealthCheck() - create a health check that runs multiple diagnostic scripts
+  // Coverage tool implementations
+
+  private async handleGetCoverageSummary(args: Record<string, unknown>) {
+    const { runTests = false } = args
+
+    // If runTests is requested, run tests with coverage first
+    if (runTests) {
+      try {
+        await this.runScript('npm', ['run', 'test:coverage'], 300000)
+      } catch {
+        // Tests might fail but coverage is still generated
+      }
+    }
+
+    if (!coverageExists()) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '**Coverage Summary**\n\n⚠️ No coverage data found. Run tests with coverage first:\n```\nmcp__diagnostic__run_tests --coverage true\n```',
+          },
+        ],
+      }
+    }
+
+    const summary = getCoverageSummary()
+
+    if (!summary) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '**Coverage Summary**\n\n❌ Failed to parse coverage data.',
+          },
+        ],
+      }
+    }
+
+    const target = 40
+    const gap = target - summary.lines
+    const icon = summary.lines >= target ? '✅' : '⚠️'
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Coverage Summary**
+
+${icon} **Lines**: ${summary.lines.toFixed(2)}% (target: ${target}%, gap: ${gap > 0 ? gap.toFixed(2) : 'met'}%)
+📊 **Statements**: ${summary.statements.toFixed(2)}%
+🔧 **Functions**: ${summary.functions.toFixed(2)}%
+🌿 **Branches**: ${summary.branches.toFixed(2)}%`,
+        },
+      ],
+    }
+  }
+
+  private async handleGetCoverageByModule() {
+    if (!coverageExists()) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '**Coverage by Module**\n\n⚠️ No coverage data found. Run tests with coverage first.',
+          },
+        ],
+      }
+    }
+
+    const modules = getCoverageByModule()
+
+    if (modules.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '**Coverage by Module**\n\n❌ No module coverage data found.',
+          },
+        ],
+      }
+    }
+
+    const rows = modules.map((m) => {
+      const icon = m.overall >= 80 ? '🟢' : m.overall >= 50 ? '🟡' : '🔴'
+      return `${icon} **${m.name}**: ${m.lines.toFixed(1)}% lines (${m.coveredLines}/${m.totalLines}), ${m.uncoveredLines} uncovered`
+    })
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Coverage by Module**\n\n${rows.join('\n')}`,
+        },
+      ],
+    }
+  }
+
+  private async handleGetUncoveredFiles(args: Record<string, unknown>) {
+    if (!coverageExists()) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '**Uncovered Files**\n\n⚠️ No coverage data found. Run tests with coverage first.',
+          },
+        ],
+      }
+    }
+
+    const files = getUncoveredFiles({
+      module: args.module as string | undefined,
+      limit: (args.limit as number) ?? 10,
+      minLines: (args.minLines as number) ?? 50,
+    })
+
+    if (files.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '**Uncovered Files**\n\n✅ No files with significant uncovered lines found.',
+          },
+        ],
+      }
+    }
+
+    const rows = files.map((f, i) => {
+      return `${i + 1}. **${f.relativePath}**
+   - Coverage: ${f.linesCoverage.toFixed(1)}% | Uncovered: ${f.uncoveredLines} lines | Impact: ${f.impactScore.toFixed(0)}`
+    })
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Uncovered Files** (sorted by improvement impact)\n\n${rows.join('\n\n')}`,
+        },
+      ],
+    }
+  }
+
+  private async handleGetFileCoverage(args: Record<string, unknown>) {
+    const { file } = args
+
+    if (!file || typeof file !== 'string') {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '**File Coverage**\n\n❌ Error: No file specified.',
+          },
+        ],
+      }
+    }
+
+    if (!coverageExists()) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '**File Coverage**\n\n⚠️ No coverage data found. Run tests with coverage first.',
+          },
+        ],
+      }
+    }
+
+    const coverage = getFileCoverage(file)
+
+    if (!coverage) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `**File Coverage**\n\n❌ No coverage data found for: ${file}\n\nThe file may be excluded from coverage or not exist.`,
+          },
+        ],
+      }
+    }
+
+    const icon = coverage.linesCoverage >= 80 ? '🟢' : coverage.linesCoverage >= 50 ? '🟡' : '🔴'
+
+    let output = `**File Coverage: ${file}**
+
+${icon} **Lines**: ${coverage.linesCoverage.toFixed(1)}% (${coverage.coveredLines}/${coverage.totalLines})
+📊 **Statements**: ${coverage.statementsCoverage.toFixed(1)}%
+🔧 **Functions**: ${coverage.functionsCoverage.toFixed(1)}%
+🌿 **Branches**: ${coverage.branchesCoverage.toFixed(1)}%`
+
+    if (coverage.uncoveredLineRanges.length > 0) {
+      const ranges = coverage.uncoveredLineRanges.slice(0, 20).join(', ')
+      const more = coverage.uncoveredLineRanges.length > 20 ? ` ... and ${coverage.uncoveredLineRanges.length - 20} more ranges` : ''
+      output += `\n\n**Uncovered Lines**: ${ranges}${more}`
+    }
+
+    if (coverage.uncoveredFunctions.length > 0) {
+      const funcs = coverage.uncoveredFunctions.slice(0, 10).join(', ')
+      const more = coverage.uncoveredFunctions.length > 10 ? ` ... and ${coverage.uncoveredFunctions.length - 10} more` : ''
+      output += `\n\n**Uncovered Functions**: ${funcs}${more}`
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: output,
+        },
+      ],
+    }
+  }
+
+  private async handleGetPatchCoverage(args: Record<string, unknown>) {
+    const { base = 'main' } = args
+
+    if (!coverageExists()) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: '**Patch Coverage**\n\n⚠️ No coverage data found. Run tests with coverage first.',
+          },
+        ],
+      }
+    }
+
+    const result = getPatchCoverage(base as string)
+
+    if (!result) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `**Patch Coverage**\n\n❌ Failed to calculate patch coverage. Make sure you have changes compared to ${base}.`,
+          },
+        ],
+      }
+    }
+
+    if (result.totalChangedLines === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `**Patch Coverage**\n\n✅ No changed lines found compared to ${base}.`,
+          },
+        ],
+      }
+    }
+
+    const icon = result.patchCoverage >= 50 ? '✅' : '⚠️'
+    const target = 50
+
+    let output = `**Patch Coverage** (vs ${base})
+
+${icon} **Coverage**: ${result.patchCoverage.toFixed(1)}% (target: ${target}%)
+📊 **Changed Lines**: ${result.coveredChangedLines}/${result.totalChangedLines} covered
+
+**Changed Files**:`
+
+    for (const file of result.changedFiles.slice(0, 10)) {
+      const fileIcon = file.coverage >= 50 ? '🟢' : file.coverage >= 25 ? '🟡' : '🔴'
+      output += `\n${fileIcon} **${file.file}**: ${file.coverage.toFixed(0)}% (${file.coveredLines}/${file.addedLines} lines)`
+      if (file.uncoveredLines.length > 0 && file.uncoveredLines.length <= 10) {
+        output += ` - uncovered: ${file.uncoveredLines.join(', ')}`
+      } else if (file.uncoveredLines.length > 10) {
+        output += ` - ${file.uncoveredLines.length} uncovered lines`
+      }
+    }
+
+    if (result.changedFiles.length > 10) {
+      output += `\n... and ${result.changedFiles.length - 10} more files`
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: output,
+        },
+      ],
+    }
+  }
 
   private truncateOutput(output: string, maxChars: number): string {
     if (output.length <= maxChars) {
