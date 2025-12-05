@@ -37,7 +37,6 @@ import {
   getAccumulatedTimeForType,
   mergeAccumulatedTime,
   getBlockTypeDisplayColor,
-  SYSTEM_BLOCK_COLORS,
 } from '../user-task-types'
 
 describe('user-task-types', () => {

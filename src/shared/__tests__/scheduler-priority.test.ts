@@ -290,7 +290,6 @@ describe('scheduler-priority', () => {
     })
 
     it('should return 0.8 for three or more levels off', () => {
-      const task = createTask({ cognitiveComplexity: 1 }) // 1 vs moderate (3) = 2 levels - let's try extreme
       const currentTime = new Date('2025-01-15T10:00:00Z')
       // Need a task with very different complexity from capacity
       const highComplexityTask = createTask({ cognitiveComplexity: 5 })
@@ -357,19 +356,6 @@ describe('scheduler-priority', () => {
   })
 
   describe('calculatePriorityWithBreakdown', () => {
-    // Helper to create TaskStep
-    function createStep(overrides: Partial<TaskStep> = {}): TaskStep {
-      return {
-        id: 'step-1',
-        name: 'Test Step',
-        duration: 30,
-        status: 'not_started',
-        taskId: 'workflow-1',
-        order: 1,
-        ...overrides,
-      } as TaskStep
-    }
-
     it('should calculate priority for a basic task', () => {
       const task = createTask({ importance: 7, urgency: 8 })
       const context = createContext()

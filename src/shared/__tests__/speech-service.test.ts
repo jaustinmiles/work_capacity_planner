@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { SpeechService, getSpeechService } from '../speech-service'
+import { SpeechService } from '../speech-service'
 
 // Mock OpenAI
 vi.mock('openai', () => ({
@@ -125,7 +125,7 @@ describe('speech-service', () => {
       delete process.env.OPENAI_API_KEY
 
       // Re-import to get fresh module with no singleton
-      return import('../speech-service').then(mod => {
+      return import('../speech-service').then(_mod => {
         // Force singleton to be null by accessing private state
         // Since we can't directly access, we test the error case
         expect(() => {
