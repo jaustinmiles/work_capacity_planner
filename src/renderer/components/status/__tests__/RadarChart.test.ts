@@ -10,6 +10,8 @@ import {
   generatePolygonPoints,
   getAverageColor,
   formatMinutesDisplay,
+  createRadarDataPointFromSink,
+  TimeSinkRadarInput,
 } from '../RadarChart'
 
 describe('RadarChart', () => {
@@ -371,6 +373,109 @@ describe('RadarChart', () => {
       expect(result[7].value).toBe(1.0)
       // First type has 10 minutes, should be 10/80 = 0.125
       expect(result[0].value).toBe(0.125)
+    })
+  })
+
+  describe('createRadarDataPointFromSink', () => {
+    const createMockSink = (overrides: Partial<TimeSinkRadarInput> = {}): TimeSinkRadarInput => ({
+      id: 'sink-123',
+      name: 'Phone calls',
+      emoji: '📞',
+      color: '#9B59B6',
+      ...overrides,
+    })
+
+    it('creates correctly structured RadarChartDataPoint', () => {
+      const sink = createMockSink()
+      const accumulatedMinutes = 45
+
+      const result = createRadarDataPointFromSink(sink, accumulatedMinutes)
+
+      expect(result).toMatchObject({
+        typeId: 'sink-sink-123',
+        label: 'Phone calls',
+        value: 0, // Not normalized yet
+        rawValue: 45,
+        color: '#9B59B6',
+        emoji: '📞',
+      })
+    })
+
+    it('prefixes typeId with "sink-" for identification', () => {
+      const sink = createMockSink({ id: 'my-custom-sink' })
+
+      const result = createRadarDataPointFromSink(sink, 30)
+
+      expect(result.typeId).toBe('sink-my-custom-sink')
+    })
+
+    it('sets value to 0 for later normalization', () => {
+      const sink = createMockSink()
+
+      const result = createRadarDataPointFromSink(sink, 100)
+
+      // Value should be 0, to be normalized with other data points afterward
+      expect(result.value).toBe(0)
+    })
+
+    it('preserves raw minutes value', () => {
+      const sink = createMockSink()
+
+      const result = createRadarDataPointFromSink(sink, 120)
+
+      expect(result.rawValue).toBe(120)
+    })
+
+    it('handles zero accumulated minutes', () => {
+      const sink = createMockSink()
+
+      const result = createRadarDataPointFromSink(sink, 0)
+
+      expect(result.rawValue).toBe(0)
+    })
+
+    it('preserves sink metadata (name, emoji, color)', () => {
+      const sink = createMockSink({
+        name: 'Social media',
+        emoji: '📱',
+        color: '#3498DB',
+      })
+
+      const result = createRadarDataPointFromSink(sink, 15)
+
+      expect(result.label).toBe('Social media')
+      expect(result.emoji).toBe('📱')
+      expect(result.color).toBe('#3498DB')
+    })
+
+    it('returns structure compatible with RadarChartDataPoint interface', () => {
+      const sink = createMockSink()
+
+      const result: RadarChartDataPoint = createRadarDataPointFromSink(sink, 60)
+
+      // TypeScript compilation confirms interface compatibility
+      expect(typeof result.typeId).toBe('string')
+      expect(typeof result.label).toBe('string')
+      expect(typeof result.value).toBe('number')
+      expect(typeof result.rawValue).toBe('number')
+      expect(typeof result.color).toBe('string')
+      expect(typeof result.emoji).toBe('string')
+    })
+
+    it('handles sink with special characters in name', () => {
+      const sink = createMockSink({ name: "John's phone & texts" })
+
+      const result = createRadarDataPointFromSink(sink, 20)
+
+      expect(result.label).toBe("John's phone & texts")
+    })
+
+    it('handles large accumulated values', () => {
+      const sink = createMockSink()
+
+      const result = createRadarDataPointFromSink(sink, 1440) // 24 hours in minutes
+
+      expect(result.rawValue).toBe(1440)
     })
   })
 })

@@ -4,6 +4,7 @@ import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, Accumul
 import { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, CreateTimeSinkSessionInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
 import { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
 import { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
+import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 
 
 // Type for the Electron API exposed by preload script
@@ -94,7 +95,7 @@ declare global {
           splitTime: Date,
           secondHalfTaskId?: string,
           secondHalfStepId?: string
-        ) => Promise<{ firstHalf: any; secondHalf: any }>
+        ) => Promise<{ firstHalf: UnifiedWorkSession; secondHalf: UnifiedWorkSession }>
         getWorkSessions: (date: string) => Promise<any[]>
         getActiveWorkSession: () => Promise<any | null>
         getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
@@ -596,7 +597,7 @@ export class RendererDatabaseService {
     splitTime: Date,
     secondHalfTaskId?: string,
     secondHalfStepId?: string,
-  ): Promise<{ firstHalf: any; secondHalf: any }> {
+  ): Promise<{ firstHalf: UnifiedWorkSession; secondHalf: UnifiedWorkSession }> {
     return await window.electronAPI.db.splitWorkSession(sessionId, splitTime, secondHalfTaskId, secondHalfStepId)
   }
 

@@ -19,6 +19,7 @@ export interface WorkSessionData {
   isCollapsed?: boolean
   completed?: boolean // Track if the task was completed in this session
   isReassignment?: boolean // UI flag: session created from split, needs task reassignment
+  isTimeSink?: boolean // True for time sink sessions (vs regular work sessions)
 }
 
 /**

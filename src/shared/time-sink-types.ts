@@ -14,6 +14,7 @@
 
 import { generateUniqueId } from './step-id-utils'
 import { getCurrentTime } from './time-provider'
+import { calculateMinutesBetweenDates } from './time-utils'
 
 // ============================================================================
 // Core Types
@@ -202,10 +203,10 @@ export function calculateSessionDuration(session: TimeSinkSession): number {
   if (!session.endTime) {
     // Session in progress - calculate from start to now
     const now = getCurrentTime()
-    return Math.round((now.getTime() - session.startTime.getTime()) / 60000)
+    return calculateMinutesBetweenDates(session.startTime, now)
   }
 
-  return Math.round((session.endTime.getTime() - session.startTime.getTime()) / 60000)
+  return calculateMinutesBetweenDates(session.startTime, session.endTime)
 }
 
 // ============================================================================

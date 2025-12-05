@@ -248,6 +248,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           isNew: false,
           isDirty: false,
           notes: session.notes,
+          isTimeSink: true, // Explicitly mark as time sink session
         }
       })
 
@@ -430,6 +431,37 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         secondHalfId: result.secondHalf.id,
       }, 'session-split-success')
 
+      // Update sessions state reactively (instead of full reload which orphans modal state)
+      setSessions(prevSessions => {
+        const idx = prevSessions.findIndex(s => s.id === sessionId)
+        if (idx === -1) return prevSessions
+
+        const original = prevSessions[idx]
+        if (!original) return prevSessions
+
+        // Create first half (updated original)
+        const firstHalf: WorkSessionData = {
+          ...original,
+          endMinutes: splitMinutes,
+        }
+
+        // Create second half (new session from split)
+        const secondHalf: WorkSessionData = {
+          ...original,
+          id: result.secondHalf.id,
+          startMinutes: splitMinutes,
+          isReassignment: true, // Mark for reassignment UI
+        }
+
+        // Replace original with both halves
+        return [
+          ...prevSessions.slice(0, idx),
+          firstHalf,
+          secondHalf,
+          ...prevSessions.slice(idx + 1),
+        ]
+      })
+
       // Open task assignment modal for second half
       setPendingSession({
         id: result.secondHalf.id,
@@ -438,9 +470,6 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         isReassignment: true, // Flag to indicate this is a reassignment, not a new session
       })
       setShowAssignModal(true)
-
-      // Reload sessions to reflect split
-      await loadWorkSessions()
 
       Notification.success({
         title: 'Session Split',
@@ -458,7 +487,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         content: 'Failed to split work session. Please try again.',
       })
     }
-  }, [selectedDate, sessions, loadWorkSessions])
+  }, [selectedDate, sessions])
 
   // Keyboard handler for backspace deletion
   useEffect(() => {
@@ -1161,7 +1190,30 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                       taskId,
                       stepId,
                     }, 'session-reassign-success')
-                    await loadWorkSessions()
+
+                    // Update sessions state reactively (instead of full reload)
+                    const task = [...tasks, ...sequencedTasks].find(t => t.id === taskId)
+                    const taskType = task?.type || 'default'
+                    setSessions(prevSessions =>
+                      prevSessions.map(session =>
+                        session.id === sessionIdToUpdate
+                          ? {
+                              ...session,
+                              taskId,
+                              taskName: task?.name || 'Unknown Task',
+                              stepId,
+                              type: taskType,
+                              color: getTypeColor(userTaskTypes, taskType),
+                              isReassignment: false, // Clear the flag after reassignment
+                            }
+                          : session,
+                      ),
+                    )
+
+                    Notification.success({
+                      title: 'Session Reassigned',
+                      content: `Session assigned to ${task?.name || 'task'}.`,
+                    })
                   } catch (error) {
                     logger.ui.error('Failed to reassign session', {
                       error: error instanceof Error ? error.message : String(error),

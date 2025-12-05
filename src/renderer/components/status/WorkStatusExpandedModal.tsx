@@ -9,7 +9,7 @@
 import React, { useMemo, useState } from 'react'
 import { Modal, Space, Typography, Progress, Statistic, Divider, Grid, Checkbox } from '@arco-design/web-react'
 import { IconClose } from '@arco-design/web-react/icon'
-import { RadarChart, prepareRadarChartData, RadarChartDataPoint } from './RadarChart'
+import { RadarChart, prepareRadarChartData, RadarChartDataPoint, createRadarDataPointFromSink } from './RadarChart'
 import { UserTaskType } from '@shared/user-task-types'
 import { TimeSink } from '@shared/time-sink-types'
 import { WorkBlock } from '@shared/work-blocks-types'
@@ -143,6 +143,15 @@ export function WorkStatusExpandedModal({
     })
   }
 
+  // Toggle all time sinks on/off
+  const handleToggleAllSinks = (checked: boolean): void => {
+    if (checked) {
+      setEnabledSinkIds(new Set(timeSinks.map(s => s.id)))
+    } else {
+      setEnabledSinkIds(new Set())
+    }
+  }
+
   // Prepare radar chart data (task types + enabled time sinks)
   const radarData: RadarChartDataPoint[] = useMemo(() => {
     // Start with task type data
@@ -151,17 +160,10 @@ export function WorkStatusExpandedModal({
       userTaskTypes,
     })
 
-    // Add enabled time sink data
+    // Add enabled time sink data using factory function
     const sinkData: RadarChartDataPoint[] = timeSinks
       .filter(sink => enabledSinkIds.has(sink.id))
-      .map(sink => ({
-        typeId: `sink-${sink.id}`,
-        label: sink.name,
-        value: 0, // Will be normalized below
-        rawValue: accumulatedBySink[sink.id] || 0,
-        color: sink.color,
-        emoji: sink.emoji,
-      }))
+      .map(sink => createRadarDataPointFromSink(sink, accumulatedBySink[sink.id] ?? 0))
 
     // Combine and normalize
     const allData = [...taskTypeData, ...sinkData]
@@ -221,6 +223,15 @@ export function WorkStatusExpandedModal({
                   Include Time Sinks:
                 </Text>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {/* Select All checkbox */}
+                  <Checkbox
+                    checked={enabledSinkIds.size === timeSinks.length && timeSinks.length > 0}
+                    indeterminate={enabledSinkIds.size > 0 && enabledSinkIds.size < timeSinks.length}
+                    onChange={handleToggleAllSinks}
+                    style={{ marginRight: 8 }}
+                  >
+                    <Text type="secondary">All</Text>
+                  </Checkbox>
                   {timeSinks.map(sink => (
                     <Checkbox
                       key={sink.id}

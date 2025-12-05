@@ -27,6 +27,15 @@ export function calculateDuration(startTime: string, endTime: string): number {
 }
 
 /**
+ * Calculate duration in minutes between two Date objects
+ * Rounds to nearest minute. Returns 0 if end is before start.
+ */
+export function calculateMinutesBetweenDates(start: Date, end: Date): number {
+  const diffMs = end.getTime() - start.getTime()
+  return Math.max(0, Math.round(diffMs / 60000))
+}
+
+/**
  * Format minutes to readable time string
  */
 export function formatMinutes(minutes: number): string {

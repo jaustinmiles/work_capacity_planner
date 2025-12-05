@@ -3,6 +3,7 @@ import {
   parseTimeString,
   timeStringToMinutes,
   calculateDuration,
+  calculateMinutesBetweenDates,
   formatMinutes,
   formatElapsedWithSeconds,
   parseDateString,
@@ -53,6 +54,46 @@ describe('time-utils', () => {
 
     it('should handle same start and end time', () => {
       expect(calculateDuration('10:00', '10:00')).toBe(0)
+    })
+  })
+
+  describe('calculateMinutesBetweenDates', () => {
+    it('should calculate minutes between two dates', () => {
+      const start = new Date('2024-01-15T10:00:00')
+      const end = new Date('2024-01-15T11:00:00')
+      expect(calculateMinutesBetweenDates(start, end)).toBe(60)
+    })
+
+    it('should handle same date returning 0', () => {
+      const date = new Date('2024-01-15T10:00:00')
+      expect(calculateMinutesBetweenDates(date, date)).toBe(0)
+    })
+
+    it('should round to nearest minute', () => {
+      const start = new Date('2024-01-15T10:00:00')
+      const end = new Date('2024-01-15T10:30:29') // 30 minutes 29 seconds
+      expect(calculateMinutesBetweenDates(start, end)).toBe(30)
+
+      const end2 = new Date('2024-01-15T10:30:31') // 30 minutes 31 seconds
+      expect(calculateMinutesBetweenDates(start, end2)).toBe(31)
+    })
+
+    it('should return 0 if end is before start (no negative values)', () => {
+      const start = new Date('2024-01-15T11:00:00')
+      const end = new Date('2024-01-15T10:00:00')
+      expect(calculateMinutesBetweenDates(start, end)).toBe(0)
+    })
+
+    it('should handle multi-hour durations', () => {
+      const start = new Date('2024-01-15T09:00:00')
+      const end = new Date('2024-01-15T17:30:00')
+      expect(calculateMinutesBetweenDates(start, end)).toBe(510) // 8h 30m
+    })
+
+    it('should handle crossing midnight', () => {
+      const start = new Date('2024-01-15T23:30:00')
+      const end = new Date('2024-01-16T00:30:00')
+      expect(calculateMinutesBetweenDates(start, end)).toBe(60)
     })
   })
 

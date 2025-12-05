@@ -35,7 +35,7 @@ import {
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../shared/time-provider'
-import { timeStringToMinutes, parseDateString, dateToYYYYMMDD } from '../shared/time-utils'
+import { timeStringToMinutes, parseDateString, dateToYYYYMMDD, calculateMinutesBetweenDates } from '../shared/time-utils'
 import * as crypto from 'crypto'
 import { LogScope } from '../logger'
 import { getScopedLogger } from '../logger/scope-helper'
@@ -2931,12 +2931,10 @@ export class DatabaseService {
       throw new Error('Split time must be before session end')
     }
 
-    // Calculate durations
-    const firstHalfMinutes = Math.round(
-      (splitTime.getTime() - original.startTime.getTime()) / 60000,
-    )
+    // Calculate durations using time utility
+    const firstHalfMinutes = calculateMinutesBetweenDates(original.startTime, splitTime)
     const secondHalfMinutes = original.endTime
-      ? Math.round((original.endTime.getTime() - splitTime.getTime()) / 60000)
+      ? calculateMinutesBetweenDates(splitTime, original.endTime)
       : null
 
     // Atomic transaction

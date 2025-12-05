@@ -280,7 +280,7 @@ export function LinearTimeline({
 
       // Find session at this X position (time)
       const sessionAtPosition = sessions.find(session => {
-        if (session.taskId.startsWith('sink-')) return false
+        if (session.isTimeSink) return false // Skip time sink sessions for split
         return minutes > session.startMinutes + MIN_SPLIT_DURATION_MINUTES &&
                minutes < session.endMinutes - MIN_SPLIT_DURATION_MINUTES
       })
@@ -338,7 +338,7 @@ export function LinearTimeline({
     if (isInSessionLane) {
       // Find session at this position (use raw minutes for precise hit detection)
       const clickedSession = sessions.find(session =>
-        !session.taskId.startsWith('sink-') &&
+        !session.isTimeSink && // Skip time sink sessions for selection
         rawMinutes >= session.startMinutes &&
         rawMinutes <= session.endMinutes,
       )
