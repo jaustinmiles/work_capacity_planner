@@ -228,8 +228,10 @@ export function LinearTimeline({
   const getMinutesFromMouseEvent = useCallback((e: MouseEvent): number => {
     if (!svgRef.current) return 0
     const rect = svgRef.current.getBoundingClientRect()
-    const scrollLeft = containerRef.current?.scrollLeft ?? 0
-    const x = e.clientX - rect.left + scrollLeft
+    // NOTE: Do NOT add scrollLeft - getBoundingClientRect() already accounts for scroll position.
+    // The rect.left is relative to viewport, and clientX is also viewport-relative,
+    // so the difference gives the correct X within the element.
+    const x = e.clientX - rect.left
     return roundToFiveMinutes(xToMinutes(x))
   }, [xToMinutes])
 
@@ -283,19 +285,6 @@ export function LinearTimeline({
                minutes < session.endMinutes - MIN_SPLIT_DURATION_MINUTES
       })
 
-      // DEBUG: Log scrubber hover detection
-      console.log('[scrubber hover]', {
-        minutes,
-        sessionsCount: sessions.length,
-        nonSinkSessions: sessions.filter(s => !s.taskId.startsWith('sink-')).map(s => ({
-          id: s.id.slice(0, 8),
-          range: `${s.startMinutes}-${s.endMinutes}`,
-          inRange: minutes > s.startMinutes + MIN_SPLIT_DURATION_MINUTES &&
-                   minutes < s.endMinutes - MIN_SPLIT_DURATION_MINUTES,
-        })),
-        foundSession: sessionAtPosition?.id?.slice(0, 8) ?? null,
-      })
-
       if (sessionAtPosition) {
         setSplitCursor({
           mode: SplitMode.Hovering,
@@ -319,24 +308,18 @@ export function LinearTimeline({
     if (dragState) return
 
     const rect = e.currentTarget.getBoundingClientRect()
-    const scrollLeft = containerRef.current?.scrollLeft ?? 0
-    const x = e.clientX - rect.left + scrollLeft
+    // NOTE: Do NOT add scrollLeft - the overlay is position:absolute with full width,
+    // so getBoundingClientRect().left is always relative to scroll container's left edge.
+    const x = e.clientX - rect.left
     const y = e.clientY - rect.top
-    const minutes = roundToFiveMinutes(xToMinutes(x))
+    const rawMinutes = xToMinutes(x)
+    const minutes = roundToFiveMinutes(rawMinutes)
 
-    // Debug: Zone detection
+    // Zone detection
     const svgY = getSvgY(y)
     const isInScrubberZone = onSessionSplit && y < SCRUBBER_ZONE_END
+    const isInSessionLane = svgY >= SESSION_LANE_Y && svgY <= SESSION_LANE_Y + SESSION_LANE_HEIGHT
     const isInTimeSinkLane = svgY >= TIME_SINK_ZONE_START_OFFSET && svgY <= TIME_SINK_ZONE_END_OFFSET
-    console.log('[mousedown] Zone detection:', {
-      overlayY: y.toFixed(0),
-      svgY: svgY.toFixed(0),
-      isInScrubberZone,
-      isInTimeSinkLane,
-      scrubberEnabled: !!onSessionSplit,
-      scrubberZoneEnd: SCRUBBER_ZONE_END,
-      timeSinkZone: `${TIME_SINK_ZONE_START_OFFSET}-${TIME_SINK_ZONE_END_OFFSET}`,
-    })
 
     // Scrubber zone - handle split cursor freeze
     if (isInScrubberZone) {
@@ -351,16 +334,56 @@ export function LinearTimeline({
       return
     }
 
-    // SVG zone - handle session/time-sink creation
-    if (isInTimeSinkLane && timeSinks.length > 0 && onTimeSinkSessionCreate) {
-      console.log('[mousedown] Creating TIME SINK session at minute:', minutes)
-      setCreatingTimeSinkSession({ startMinutes: minutes, currentMinutes: minutes })
-    } else {
-      console.log('[mousedown] Creating REGULAR session at minute:', minutes)
+    // Session lane - check if clicking on existing session first
+    if (isInSessionLane) {
+      // Find session at this position (use raw minutes for precise hit detection)
+      const clickedSession = sessions.find(session =>
+        !session.taskId.startsWith('sink-') &&
+        rawMinutes >= session.startMinutes &&
+        rawMinutes <= session.endMinutes,
+      )
+
+      if (clickedSession) {
+        // Determine if clicking near edge (for resize) or middle (for move)
+        const sessionX = minutesToX(clickedSession.startMinutes)
+        const sessionWidth = minutesToX(clickedSession.endMinutes) - sessionX
+        const clickXInSession = x - sessionX
+        const edgeThreshold = Math.min(8, sessionWidth / 3)
+
+        let edge: 'start' | 'end' | 'move' = 'move'
+        if (clickXInSession <= edgeThreshold) {
+          edge = 'start'
+        } else if (clickXInSession >= sessionWidth - edgeThreshold) {
+          edge = 'end'
+        }
+
+        onSessionSelect(clickedSession.id)
+        setDragState({
+          sessionId: clickedSession.id,
+          edge,
+          initialMouseX: e.clientX,
+          initialStartMinutes: clickedSession.startMinutes,
+          initialEndMinutes: clickedSession.endMinutes,
+        })
+        return
+      }
+
+      // No session clicked - create new one
       setCreatingSession({ startMinutes: minutes, currentMinutes: minutes })
+      onSessionSelect(null)
+      return
     }
+
+    // Time sink lane - handle time sink session creation
+    if (isInTimeSinkLane && timeSinks.length > 0 && onTimeSinkSessionCreate) {
+      setCreatingTimeSinkSession({ startMinutes: minutes, currentMinutes: minutes })
+      onSessionSelect(null)
+      return
+    }
+
+    // Other areas - deselect
     onSessionSelect(null)
-  }, [dragState, xToMinutes, onSessionSplit, splitCursor, getSvgY, timeSinks.length, onTimeSinkSessionCreate, onSessionSelect])
+  }, [dragState, xToMinutes, minutesToX, onSessionSplit, splitCursor, getSvgY, sessions, timeSinks.length, onTimeSinkSessionCreate, onSessionSelect])
 
   // Unified mouse leave handler
   const handleOverlayMouseLeave = useCallback((): void => {
@@ -418,13 +441,8 @@ export function LinearTimeline({
 
         if (dragState.edge === 'move') {
           const duration = dragState.initialEndMinutes - dragState.initialStartMinutes
-          const rect = svgRef.current?.getBoundingClientRect()
-          if (!rect) return
-
-          const scrollLeft = containerRef.current?.scrollLeft ?? 0
-          const currentX = e.clientX - rect.left + scrollLeft
-          const initialX = dragState.initialMouseX - rect.left + scrollLeft
-          const deltaX = currentX - initialX
+          // For move: calculate delta from initial mouse position (scroll-independent)
+          const deltaX = e.clientX - dragState.initialMouseX
           const deltaMinutes = Math.round(deltaX / (hourWidth / 60))
 
           let newStart = roundToFiveMinutes(dragState.initialStartMinutes + deltaMinutes)
@@ -781,6 +799,28 @@ export function LinearTimeline({
               )}
             </g>
           ))}
+
+          {/* Zone background indicators */}
+          {/* Session lane - subtle blue tint */}
+          <rect
+            x={0}
+            y={SESSION_LANE_Y}
+            width={totalWidth}
+            height={SESSION_LANE_HEIGHT}
+            fill="#165DFF"
+            opacity={0.03}
+          />
+          {/* Time sink lane - subtle purple tint (only if time sinks exist) */}
+          {timeSinks.length > 0 && (
+            <rect
+              x={0}
+              y={TIME_SINK_LANE_Y}
+              width={totalWidth}
+              height={TIME_SINK_LANE_HEIGHT}
+              fill="#9B59B6"
+              opacity={0.05}
+            />
+          )}
 
           {/* Work Blocks (background layer) */}
           {workBlocks.map(block => {
