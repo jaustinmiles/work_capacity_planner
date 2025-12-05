@@ -83,25 +83,31 @@ interface CreatingTimeSinkSession {
 // Constants
 // ============================================================================
 
-const TIMELINE_HEIGHT = 260 // Increased to accommodate scrubber ruler
+const TIMELINE_HEIGHT = 240 // SVG height (scrubber is separate HTML element)
+const SCRUBBER_HEIGHT = 20 // Height of the split cursor ruler bar (HTML element above SVG)
 const HOUR_LABEL_HEIGHT = 20
-const SCRUBBER_Y = 20 // Y position of scrubber (below hour labels)
-const SCRUBBER_HEIGHT = 20 // Height of the split cursor ruler bar
-const BLOCK_LANE_Y = 42 // Y position of work block lane (below scrubber)
+const BLOCK_LANE_Y = 22 // Y position of work block lane
 const BLOCK_LANE_HEIGHT = 28
-const PLANNED_LANE_Y = 72 // Above session lane
+const PLANNED_LANE_Y = 52 // Above session lane
 const PLANNED_LANE_HEIGHT = 32 // Planned overlay
-const SESSION_LANE_Y = 108 // Main session lane
+const SESSION_LANE_Y = 88 // Main session lane
 const SESSION_LANE_HEIGHT = 50
-const TIME_SINK_LANE_Y = 166 // Below session lane
+const TIME_SINK_LANE_Y = 146 // Below session lane
 const TIME_SINK_LANE_HEIGHT = 40
-const TIME_SINK_LABEL_Y = 164 // For "Time Sinks" label
+const TIME_SINK_LABEL_Y = 144 // For "Time Sinks" label
 const TIME_LABEL_WIDTH = 0
 const MIN_ZOOM = 40
 const MAX_ZOOM = 400
 const DEFAULT_ZOOM = 80
 const SNAP_INTERVAL = 5
 const ZOOM_STORAGE_KEY = 'linear-timeline-zoom'
+
+// Zone detection constants for event overlay (Y coordinates in overlay space)
+// When scrubber is enabled, overlay covers scrubber + SVG
+const SCRUBBER_ZONE_END = SCRUBBER_HEIGHT // 0-20px = scrubber zone
+// Time sink zone (in SVG coordinate space)
+const TIME_SINK_ZONE_START_OFFSET = TIME_SINK_LANE_Y
+const TIME_SINK_ZONE_END_OFFSET = TIME_SINK_LANE_Y + TIME_SINK_LANE_HEIGHT
 
 // ============================================================================
 // Helper Functions
@@ -244,90 +250,135 @@ export function LinearTimeline({
     })
   }, [onSessionSelect])
 
-  const handleBackgroundMouseDown = useCallback((e: React.MouseEvent): void => {
+
+  // ============================================================================
+  // Unified Event Overlay Handlers (Zone-based event routing)
+  // ============================================================================
+
+  // Helper to get zone-adjusted Y (accounts for scrubber offset when enabled)
+  const getSvgY = useCallback((overlayY: number): number => {
+    return onSessionSplit ? overlayY - SCRUBBER_HEIGHT : overlayY
+  }, [onSessionSplit])
+
+  // Unified mouse move handler - routes to appropriate zone logic
+  const handleOverlayMouseMove = useCallback((e: React.MouseEvent): void => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    // NOTE: Do NOT add scrollLeft - the overlay is position:absolute with full width,
+    // so getBoundingClientRect().left is always relative to scroll container's left edge.
+    // clientX - rect.left gives the correct X within the full-width overlay.
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const minutes = roundToFiveMinutes(xToMinutes(x))
+
+    // Zone detection
+    if (onSessionSplit && y < SCRUBBER_ZONE_END) {
+      // SCRUBBER ZONE - handle split cursor
+      if (dragState || creatingSession || creatingTimeSinkSession) return
+      if (splitCursor.mode === SplitMode.Frozen) return
+
+      // Find session at this X position (time)
+      const sessionAtPosition = sessions.find(session => {
+        if (session.taskId.startsWith('sink-')) return false
+        return minutes > session.startMinutes + MIN_SPLIT_DURATION_MINUTES &&
+               minutes < session.endMinutes - MIN_SPLIT_DURATION_MINUTES
+      })
+
+      // DEBUG: Log scrubber hover detection
+      console.log('[scrubber hover]', {
+        minutes,
+        sessionsCount: sessions.length,
+        nonSinkSessions: sessions.filter(s => !s.taskId.startsWith('sink-')).map(s => ({
+          id: s.id.slice(0, 8),
+          range: `${s.startMinutes}-${s.endMinutes}`,
+          inRange: minutes > s.startMinutes + MIN_SPLIT_DURATION_MINUTES &&
+                   minutes < s.endMinutes - MIN_SPLIT_DURATION_MINUTES,
+        })),
+        foundSession: sessionAtPosition?.id?.slice(0, 8) ?? null,
+      })
+
+      if (sessionAtPosition) {
+        setSplitCursor({
+          mode: SplitMode.Hovering,
+          sessionId: sessionAtPosition.id,
+          splitMinutes: minutes,
+          frozenAt: null,
+        })
+      } else if (splitCursor.mode === SplitMode.Hovering) {
+        setSplitCursor(INITIAL_SPLIT_CURSOR_STATE)
+      }
+    } else {
+      // SVG ZONE - clear split cursor if hovering and in non-scrubber area
+      if (splitCursor.mode === SplitMode.Hovering) {
+        setSplitCursor(INITIAL_SPLIT_CURSOR_STATE)
+      }
+    }
+  }, [onSessionSplit, dragState, creatingSession, creatingTimeSinkSession, splitCursor.mode, xToMinutes, sessions])
+
+  // Unified mouse down handler - routes to appropriate zone logic
+  const handleOverlayMouseDown = useCallback((e: React.MouseEvent): void => {
     if (dragState) return
 
-    // Only start creating if clicking directly on SVG background
-    // eslint-disable-next-line no-undef
-    const target = e.target as SVGElement
-    if (target.tagName !== 'svg' && !target.classList.contains('timeline-background')) return
-
-    const rect = svgRef.current?.getBoundingClientRect()
-    if (!rect) return
-
+    const rect = e.currentTarget.getBoundingClientRect()
     const scrollLeft = containerRef.current?.scrollLeft ?? 0
     const x = e.clientX - rect.left + scrollLeft
     const y = e.clientY - rect.top
     const minutes = roundToFiveMinutes(xToMinutes(x))
 
-    // Check if click is in time sink lane area
-    const isInTimeSinkLane = y >= TIME_SINK_LANE_Y && y <= TIME_SINK_LANE_Y + TIME_SINK_LANE_HEIGHT
+    // Debug: Zone detection
+    const svgY = getSvgY(y)
+    const isInScrubberZone = onSessionSplit && y < SCRUBBER_ZONE_END
+    const isInTimeSinkLane = svgY >= TIME_SINK_ZONE_START_OFFSET && svgY <= TIME_SINK_ZONE_END_OFFSET
+    console.log('[mousedown] Zone detection:', {
+      overlayY: y.toFixed(0),
+      svgY: svgY.toFixed(0),
+      isInScrubberZone,
+      isInTimeSinkLane,
+      scrubberEnabled: !!onSessionSplit,
+      scrubberZoneEnd: SCRUBBER_ZONE_END,
+      timeSinkZone: `${TIME_SINK_ZONE_START_OFFSET}-${TIME_SINK_ZONE_END_OFFSET}`,
+    })
 
+    // Scrubber zone - handle split cursor freeze
+    if (isInScrubberZone) {
+      if (splitCursor.mode === SplitMode.Hovering && splitCursor.sessionId) {
+        e.stopPropagation()
+        setSplitCursor(prev => ({
+          ...prev,
+          mode: SplitMode.Frozen,
+          frozenAt: prev.splitMinutes,
+        }))
+      }
+      return
+    }
+
+    // SVG zone - handle session/time-sink creation
     if (isInTimeSinkLane && timeSinks.length > 0 && onTimeSinkSessionCreate) {
-      // Start creating a time sink session
+      console.log('[mousedown] Creating TIME SINK session at minute:', minutes)
       setCreatingTimeSinkSession({ startMinutes: minutes, currentMinutes: minutes })
     } else {
-      // Create regular work session
+      console.log('[mousedown] Creating REGULAR session at minute:', minutes)
       setCreatingSession({ startMinutes: minutes, currentMinutes: minutes })
     }
     onSessionSelect(null)
-  }, [dragState, xToMinutes, onSessionSelect, timeSinks.length, onTimeSinkSessionCreate])
+  }, [dragState, xToMinutes, onSessionSplit, splitCursor, getSvgY, timeSinks.length, onTimeSinkSessionCreate, onSessionSelect])
 
-  // Split cursor: track mouse over scrubber ruler (finds session at x position)
-  const handleScrubberMouseMove = useCallback((e: React.MouseEvent): void => {
-    // Don't show split cursor during drag/create operations or if frozen
-    if (dragState || creatingSession || creatingTimeSinkSession) return
-    if (splitCursor.mode === SplitMode.Frozen) return
-
-    const rect = svgRef.current?.getBoundingClientRect()
-    if (!rect) return
-
-    const scrollLeft = containerRef.current?.scrollLeft ?? 0
-    const x = e.clientX - rect.left + scrollLeft
-    const minutes = roundToFiveMinutes(xToMinutes(x))
-
-    // Find which session (if any) is at this x position
-    const sessionAtPosition = sessions.find(session => {
-      // Don't allow splitting time sink sessions
-      if (session.taskId.startsWith('sink-')) return false
-      // Check if minutes falls within this session with minimum margins
-      return minutes > session.startMinutes + MIN_SPLIT_DURATION_MINUTES &&
-             minutes < session.endMinutes - MIN_SPLIT_DURATION_MINUTES
-    })
-
-    if (sessionAtPosition) {
-      setSplitCursor({
-        mode: SplitMode.Hovering,
-        sessionId: sessionAtPosition.id,
-        splitMinutes: minutes,
-        frozenAt: null,
-      })
-    } else {
-      // Clear cursor if not over a valid session
-      if (splitCursor.mode === SplitMode.Hovering) {
-        setSplitCursor(INITIAL_SPLIT_CURSOR_STATE)
-      }
-    }
-  }, [dragState, creatingSession, creatingTimeSinkSession, xToMinutes, sessions, splitCursor.mode])
-
-  // Split cursor: freeze on click in scrubber
-  const handleScrubberClick = useCallback((e: React.MouseEvent): void => {
-    if (splitCursor.mode === SplitMode.Hovering && splitCursor.sessionId) {
-      e.stopPropagation()
-      setSplitCursor(prev => ({
-        ...prev,
-        mode: SplitMode.Frozen,
-        frozenAt: prev.splitMinutes,
-      }))
-    }
-  }, [splitCursor])
-
-  // Clear split cursor on mouse leave from scrubber
-  const handleScrubberMouseLeave = useCallback((): void => {
+  // Unified mouse leave handler
+  const handleOverlayMouseLeave = useCallback((): void => {
     if (splitCursor.mode === SplitMode.Hovering) {
       setSplitCursor(INITIAL_SPLIT_CURSOR_STATE)
     }
   }, [splitCursor.mode])
+
+  // Get cursor style based on current state and zone
+  const getOverlayCursor = useCallback((): string => {
+    if (dragState || creatingSession || creatingTimeSinkSession) {
+      return 'grabbing'
+    }
+    if (splitCursor.mode === SplitMode.Frozen) {
+      return 'default'
+    }
+    return 'crosshair'
+  }, [dragState, creatingSession, creatingTimeSinkSession, splitCursor.mode])
 
   // Cancel frozen split cursor
   const handleCancelSplit = useCallback((): void => {
@@ -599,12 +650,91 @@ export function LinearTimeline({
         ref={containerRef}
         style={{ overflowX: 'auto', overflowY: 'hidden' }}
       >
+        {/* Wrapper for event overlay pattern */}
+        {/* When scrubber enabled: wrapper = SCRUBBER_HEIGHT + SVG height */}
+        <div style={{
+          position: 'relative',
+          width: totalWidth,
+          height: onSessionSplit ? SCRUBBER_HEIGHT + TIMELINE_HEIGHT : TIMELINE_HEIGHT,
+        }}>
+          {/* Event Overlay - captures ALL mouse events, routes by zone */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: totalWidth,
+              height: onSessionSplit ? SCRUBBER_HEIGHT + TIMELINE_HEIGHT : TIMELINE_HEIGHT,
+              zIndex: 10,
+              cursor: getOverlayCursor(),
+              // DEBUG: red tint removed - overlay now correctly sized
+            }}
+            onMouseMove={handleOverlayMouseMove}
+            onMouseDown={handleOverlayMouseDown}
+            onMouseLeave={handleOverlayMouseLeave}
+          />
+
+          {/* Scrubber ruler bar - VISUAL ONLY (pointerEvents: none) */}
+          {onSessionSplit && (
+            <div
+              style={{
+                width: totalWidth,
+                height: SCRUBBER_HEIGHT,
+                backgroundColor: '#f7f8fa',
+                borderBottom: '1px solid #e5e6eb',
+                position: 'relative',
+                pointerEvents: 'none',
+              }}
+            >
+            {/* Scrubber label */}
+            <span style={{
+              position: 'absolute',
+              left: 4,
+              top: 3,
+              fontSize: 9,
+              color: '#86909c',
+              pointerEvents: 'none',
+            }}>
+              ✂️ Split
+            </span>
+            {/* Tick marks rendered as divs for performance */}
+            {Array.from({ length: 25 }).map((_, hour) => (
+              <div
+                key={`scrub-tick-${hour}`}
+                style={{
+                  position: 'absolute',
+                  left: TIME_LABEL_WIDTH + hour * hourWidth,
+                  bottom: 0,
+                  width: 1,
+                  height: 8,
+                  backgroundColor: '#c9cdd4',
+                  pointerEvents: 'none',
+                }}
+              />
+            ))}
+            {/* Split cursor position indicator on scrubber */}
+            {splitCursor.mode !== SplitMode.Inactive && splitCursor.splitMinutes !== null && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: TIME_LABEL_WIDTH + (splitCursor.frozenAt ?? splitCursor.splitMinutes) * (hourWidth / 60),
+                  top: 0,
+                  bottom: 0,
+                  width: splitCursor.mode === SplitMode.Frozen ? 2 : 1,
+                  backgroundColor: '#165DFF',
+                  opacity: splitCursor.mode === SplitMode.Frozen ? 1 : 0.6,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+          </div>
+        )}
+
         <svg
           ref={svgRef}
           width={totalWidth}
-          height={TIMELINE_HEIGHT}
-          style={{ cursor: dragState || creatingSession || creatingTimeSinkSession ? 'grabbing' : 'crosshair' }}
-          onMouseDown={handleBackgroundMouseDown}
+          height={onSessionSplit ? TIMELINE_HEIGHT - SCRUBBER_HEIGHT : TIMELINE_HEIGHT}
+          style={{ pointerEvents: 'none' }}
         >
           {/* SVG Defs for patterns */}
           <defs>
@@ -618,13 +748,13 @@ export function LinearTimeline({
             </pattern>
           </defs>
 
-          {/* Background rect for click detection - starts below scrubber */}
+          {/* Background rect for click detection */}
           <rect
             className="timeline-background"
             x={0}
-            y={SCRUBBER_Y + SCRUBBER_HEIGHT}
+            y={0}
             width={totalWidth}
-            height={TIMELINE_HEIGHT - (SCRUBBER_Y + SCRUBBER_HEIGHT)}
+            height={onSessionSplit ? TIMELINE_HEIGHT - SCRUBBER_HEIGHT : TIMELINE_HEIGHT}
             fill="transparent"
           />
 
@@ -651,53 +781,6 @@ export function LinearTimeline({
               )}
             </g>
           ))}
-
-          {/* Scrubber ruler bar for split cursor - like Logic Pro/GarageBand */}
-          {onSessionSplit && (
-            <g>
-              {/* Scrubber background */}
-              <rect
-                x={0}
-                y={SCRUBBER_Y}
-                width={totalWidth}
-                height={SCRUBBER_HEIGHT}
-                fill="#f7f8fa"
-                stroke="#e5e6eb"
-                strokeWidth={1}
-                style={{ cursor: splitCursor.mode === SplitMode.Frozen ? 'default' : 'crosshair' }}
-                onMouseMove={handleScrubberMouseMove}
-                onMouseLeave={handleScrubberMouseLeave}
-                onClick={handleScrubberClick}
-              />
-              {/* Tick marks every 15 minutes */}
-              {Array.from({ length: 24 * 4 + 1 }).map((_, i) => {
-                const minutes = i * 15
-                const isHour = minutes % 60 === 0
-                return (
-                  <line
-                    key={`tick-${i}`}
-                    x1={minutesToX(minutes)}
-                    y1={SCRUBBER_Y + SCRUBBER_HEIGHT - (isHour ? 8 : 4)}
-                    x2={minutesToX(minutes)}
-                    y2={SCRUBBER_Y + SCRUBBER_HEIGHT}
-                    stroke="#c9cdd4"
-                    strokeWidth={isHour ? 1.5 : 0.5}
-                    style={{ pointerEvents: 'none' }}
-                  />
-                )
-              })}
-              {/* Label for scrubber */}
-              <text
-                x={4}
-                y={SCRUBBER_Y + 13}
-                fontSize={9}
-                fill="#86909c"
-                style={{ pointerEvents: 'none' }}
-              >
-                ✂️ Split
-              </text>
-            </g>
-          )}
 
           {/* Work Blocks (background layer) */}
           {workBlocks.map(block => {
@@ -1042,7 +1125,8 @@ export function LinearTimeline({
             fill="#F53F3F"
           />
         </svg>
-      </div>
+        </div>{/* Close wrapper div */}
+      </div>{/* Close scroll container */}
 
       {/* Time Sink Selector Modal */}
       <Modal
