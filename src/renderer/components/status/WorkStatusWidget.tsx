@@ -8,6 +8,7 @@ import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
+import { useSortedTimeSinks } from '../../store/useTimeSinkStore'
 import { calculateDuration, formatTimeHHMM, dateToYYYYMMDD } from '@shared/time-utils'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
@@ -35,8 +36,9 @@ export function WorkStatusWidget(): React.ReactElement {
   const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
   const workPatterns = useWorkPatternStore(state => state.workPatterns)
 
-  // User-defined task types
+  // User-defined task types and time sinks
   const userTaskTypes = useSortedUserTaskTypes()
+  const timeSinks = useSortedTimeSinks()
 
   // UI state
   const [isExpanded, setIsExpanded] = useState(false)
@@ -44,6 +46,7 @@ export function WorkStatusWidget(): React.ReactElement {
   // Data state
   const [pattern, setPattern] = useState<DailyPattern | null>(null)
   const [accumulatedByType, setAccumulatedByType] = useState<Record<string, number>>({})
+  const [accumulatedBySink, setAccumulatedBySink] = useState<Record<string, number>>({})
   const [accumulatedTotal, setAccumulatedTotal] = useState(0)
   const [currentBlock, setCurrentBlock] = useState<WorkBlock | null>(null)
   const [nextBlock, setNextBlock] = useState<WorkBlock | null>(null)
@@ -96,6 +99,10 @@ export function WorkStatusWidget(): React.ReactElement {
           const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
           setAccumulatedByType(accumulatedData.byType || {})
           setAccumulatedTotal(accumulatedData.total || 0)
+
+          // Load accumulated time by time sink
+          const sinkAccumulatedData = await getDatabase().getTimeSinkAccumulated(currentDate, currentDate)
+          setAccumulatedBySink(sinkAccumulatedData.bySink || {})
         } else {
           // No pattern for today
           setPattern(null)
@@ -103,6 +110,7 @@ export function WorkStatusWidget(): React.ReactElement {
           setNextBlock(null)
           setMeetingMinutes(0)
           setAccumulatedByType({})
+          setAccumulatedBySink({})
           setAccumulatedTotal(0)
         }
       } catch (error) {
@@ -121,6 +129,10 @@ export function WorkStatusWidget(): React.ReactElement {
           const accumulatedData = await getDatabase().getTodayAccumulated(currentDate)
           setAccumulatedByType(accumulatedData.byType || {})
           setAccumulatedTotal(accumulatedData.total || 0)
+
+          // Also refresh time sink accumulated data
+          const sinkAccumulatedData = await getDatabase().getTimeSinkAccumulated(currentDate, currentDate)
+          setAccumulatedBySink(sinkAccumulatedData.bySink || {})
         } catch (error) {
           logger.ui.error('Failed to refresh accumulated times', { error })
         }
@@ -175,8 +187,10 @@ export function WorkStatusWidget(): React.ReactElement {
           visible={isExpanded}
           onClose={() => setIsExpanded(false)}
           accumulatedByType={accumulatedByType}
+          accumulatedBySink={accumulatedBySink}
           capacityByType={capacityByType}
           userTaskTypes={userTaskTypes}
+          timeSinks={timeSinks}
           meetingMinutes={meetingMinutes}
           totalPlannedMinutes={totalPlannedMinutes}
           accumulatedTotal={accumulatedTotal}

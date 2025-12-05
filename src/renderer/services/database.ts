@@ -624,6 +624,10 @@ export class RendererDatabaseService {
     return await window.electronAPI.db.getTodayAccumulated(date)
   }
 
+  async getTimeSinkAccumulated(startDate: string, endDate: string): Promise<TimeSinkAccumulatedResult> {
+    return await window.electronAPI.db.getTimeSinkAccumulated(startDate, endDate)
+  }
+
   // Progress tracking operations
   async createStepWorkSession(data: any) {
     return await window.electronAPI.db.createStepWorkSession(data)
