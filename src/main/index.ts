@@ -341,6 +341,19 @@ ipcMain.handle('db:deleteWorkSession', async (_event: IpcMainInvokeEvent, id: st
   return await db.deleteWorkSession(id)
 })
 
+ipcMain.handle(
+  'db:splitWorkSession',
+  async (
+    _event: IpcMainInvokeEvent,
+    sessionId: string,
+    splitTime: string,
+    secondHalfTaskId?: string,
+    secondHalfStepId?: string,
+  ) => {
+    return await db.splitWorkSession(sessionId, new Date(splitTime), secondHalfTaskId, secondHalfStepId)
+  },
+)
+
 ipcMain.handle('db:getWorkSessionsForTask', async (_event: IpcMainInvokeEvent, taskId: string) => {
   return await db.getWorkSessionsForTask(taskId)
 })

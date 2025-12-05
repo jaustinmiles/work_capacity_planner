@@ -248,6 +248,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
           isNew: false,
           isDirty: false,
           notes: session.notes,
+          isTimeSink: true, // Explicitly mark as time sink session
         }
       })
 
@@ -399,6 +400,94 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       }, 'time-sink-create-error')
     }
   }, [selectedDate, timeSinks])
+
+  // Handle session split from LinearTimeline
+  const handleSessionSplit = useCallback(async (
+    sessionId: string,
+    splitMinutes: number,
+  ): Promise<void> => {
+    try {
+      const db = getDatabase()
+
+      // Convert splitMinutes to Date
+      const [year, month, day] = parseDateString(selectedDate)
+      const splitHour = Math.floor(splitMinutes / 60)
+      const splitMin = splitMinutes % 60
+      const splitTime = new Date(year, month - 1, day, splitHour, splitMin, 0, 0)
+
+      // Get original session for second half info
+      const originalSession = sessions.find(s => s.id === sessionId)
+      if (!originalSession) {
+        throw new Error('Session not found')
+      }
+
+      // Execute split (database creates second half)
+      const result = await db.splitWorkSession(sessionId, splitTime)
+
+      logger.ui.info('Work session split successfully', {
+        originalSessionId: sessionId,
+        splitMinutes,
+        firstHalfId: result.firstHalf.id,
+        secondHalfId: result.secondHalf.id,
+      }, 'session-split-success')
+
+      // Update sessions state reactively (instead of full reload which orphans modal state)
+      setSessions(prevSessions => {
+        const idx = prevSessions.findIndex(s => s.id === sessionId)
+        if (idx === -1) return prevSessions
+
+        const original = prevSessions[idx]
+        if (!original) return prevSessions
+
+        // Create first half (updated original)
+        const firstHalf: WorkSessionData = {
+          ...original,
+          endMinutes: splitMinutes,
+        }
+
+        // Create second half (new session from split)
+        const secondHalf: WorkSessionData = {
+          ...original,
+          id: result.secondHalf.id,
+          startMinutes: splitMinutes,
+          isReassignment: true, // Mark for reassignment UI
+        }
+
+        // Replace original with both halves
+        return [
+          ...prevSessions.slice(0, idx),
+          firstHalf,
+          secondHalf,
+          ...prevSessions.slice(idx + 1),
+        ]
+      })
+
+      // Open task assignment modal for second half
+      setPendingSession({
+        id: result.secondHalf.id,
+        startMinutes: splitMinutes,
+        endMinutes: originalSession.endMinutes,
+        isReassignment: true, // Flag to indicate this is a reassignment, not a new session
+      })
+      setShowAssignModal(true)
+
+      Notification.success({
+        title: 'Session Split',
+        content: 'Session split successfully. Please assign the second half to a task.',
+      })
+    } catch (error) {
+      logger.ui.error('Failed to split work session', {
+        error: error instanceof Error ? error.message : String(error),
+        sessionId,
+        splitMinutes,
+      }, 'session-split-error')
+
+      Notification.error({
+        title: 'Split Failed',
+        content: 'Failed to split work session. Please try again.',
+      })
+    }
+  }, [selectedDate, sessions])
 
   // Keyboard handler for backspace deletion
   useEffect(() => {
@@ -946,6 +1035,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 timeSinks={timeSinks}
                 timeSinkSessions={timeSinkSessionsForTimeline}
                 onTimeSinkSessionCreate={handleTimeSinkSessionCreate}
+                onSessionSplit={handleSessionSplit}
               />
             </Card>
 
@@ -1045,62 +1135,105 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             <Select
               placeholder="Select task or workflow step"
               style={{ width: '100%' }}
-              onChange={(value) => {
+              onChange={async (value) => {
                 logger.ui.debug('Task assignment selected', {
                   selection: value,
                 }, 'session-assign')
 
+                // Check if this is a reassignment from a split operation
+                const isReassignment = pendingSession.isReassignment
+                const sessionIdToUpdate = pendingSession.id
+
+                let taskId: string
+                let stepId: string | undefined
+
                 if (value.startsWith('step:')) {
-                  const [, stepId, taskId] = value.split(':')
-                  logger.ui.debug('Creating session for workflow step', {
+                  const parts = value.split(':')
+                  stepId = parts[1]
+                  taskId = parts[2]
+                  logger.ui.debug('Selected workflow step', {
                     stepId,
                     taskId,
                   }, 'session-workflow-step')
+                } else if (value.startsWith('task:')) {
+                  taskId = value.substring(5)
+                  logger.ui.debug('Selected task', {
+                    taskId,
+                  }, 'session-task')
+                } else {
+                  return
+                }
 
-                  // Verify the taskId exists
-                  const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
-                  if (!taskExists) {
-                    logger.ui.error('Task not found in database', {
+                // Verify the taskId exists
+                const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
+                if (!taskExists) {
+                  logger.ui.error('Task not found in database', {
+                    taskId,
+                  }, 'task-not-found')
+                  Notification.error({
+                    title: 'Invalid Task',
+                    content: 'Selected task not found. Please try again.',
+                  })
+                  return
+                }
+
+                // Handle reassignment (split second half) vs new session creation
+                if (isReassignment && sessionIdToUpdate) {
+                  try {
+                    const db = getDatabase()
+                    await db.updateWorkSession(sessionIdToUpdate, {
                       taskId,
-                    }, 'task-not-found')
-                    Notification.error({
-                      title: 'Invalid Task',
-                      content: 'Selected task not found. Please try again.',
+                      stepId: stepId || null,
                     })
-                    return
-                  }
+                    logger.ui.info('Reassigned split session', {
+                      sessionId: sessionIdToUpdate,
+                      taskId,
+                      stepId,
+                    }, 'session-reassign-success')
 
+                    // Update sessions state reactively (instead of full reload)
+                    const task = [...tasks, ...sequencedTasks].find(t => t.id === taskId)
+                    const taskType = task?.type || 'default'
+                    setSessions(prevSessions =>
+                      prevSessions.map(session =>
+                        session.id === sessionIdToUpdate
+                          ? {
+                              ...session,
+                              taskId,
+                              taskName: task?.name || 'Unknown Task',
+                              stepId,
+                              type: taskType,
+                              color: getTypeColor(userTaskTypes, taskType),
+                              isReassignment: false, // Clear the flag after reassignment
+                            }
+                          : session,
+                      ),
+                    )
+
+                    Notification.success({
+                      title: 'Session Reassigned',
+                      content: `Session assigned to ${task?.name || 'task'}.`,
+                    })
+                  } catch (error) {
+                    logger.ui.error('Failed to reassign session', {
+                      error: error instanceof Error ? error.message : String(error),
+                      sessionId: sessionIdToUpdate,
+                    }, 'session-reassign-error')
+                    Notification.error({
+                      title: 'Reassignment Failed',
+                      content: 'Failed to reassign session. Please try again.',
+                    })
+                  }
+                } else {
+                  // Create new session
                   handleTimelineSessionCreate(
                     taskId,
                     pendingSession.startMinutes!,
                     pendingSession.endMinutes!,
                     stepId,
                   )
-                } else if (value.startsWith('task:')) {
-                  const taskId = value.substring(5)
-                  logger.ui.debug('Creating session for task', {
-                    taskId,
-                  }, 'session-task')
-
-                  // Verify the taskId exists
-                  const taskExists = [...tasks, ...sequencedTasks].some(t => t.id === taskId)
-                  if (!taskExists) {
-                    logger.ui.error('Task not found in database', {
-                      taskId,
-                    }, 'task-not-found')
-                    Notification.error({
-                      title: 'Invalid Task',
-                      content: 'Selected task not found. Please try again.',
-                    })
-                    return
-                  }
-
-                  handleTimelineSessionCreate(
-                    taskId,
-                    pendingSession.startMinutes!,
-                    pendingSession.endMinutes!,
-                  )
                 }
+
                 setPendingSession(null)
                 setShowAssignModal(false)
               }}

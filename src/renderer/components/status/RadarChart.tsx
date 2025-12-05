@@ -461,3 +461,31 @@ export function prepareRadarChartData(input: PrepareRadarDataInput): RadarChartD
     }
   })
 }
+
+/**
+ * Time sink input type for creating radar data points
+ */
+export interface TimeSinkRadarInput {
+  id: string
+  name: string
+  emoji: string
+  color: string
+}
+
+/**
+ * Creates a radar chart data point from a time sink
+ * Value is set to 0 and should be normalized with other data points afterward
+ */
+export function createRadarDataPointFromSink(
+  sink: TimeSinkRadarInput,
+  accumulatedMinutes: number,
+): RadarChartDataPoint {
+  return {
+    typeId: `sink-${sink.id}`,
+    label: sink.name,
+    value: 0, // Will be normalized with other data points
+    rawValue: accumulatedMinutes,
+    color: sink.color,
+    emoji: sink.emoji,
+  }
+}

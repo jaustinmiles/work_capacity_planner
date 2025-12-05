@@ -4,6 +4,7 @@ import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, Accumul
 import { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, CreateTimeSinkSessionInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
 import { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
 import { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
+import { UnifiedWorkSession } from '@shared/unified-work-session-types'
 
 
 // Type for the Electron API exposed by preload script
@@ -89,6 +90,12 @@ declare global {
         createWorkSession: (data: any) => Promise<any>
         updateWorkSession: (__id: string, data: any) => Promise<any>
         deleteWorkSession: (__id: string) => Promise<void>
+        splitWorkSession: (
+          sessionId: string,
+          splitTime: Date,
+          secondHalfTaskId?: string,
+          secondHalfStepId?: string
+        ) => Promise<{ firstHalf: UnifiedWorkSession; secondHalf: UnifiedWorkSession }>
         getWorkSessions: (date: string) => Promise<any[]>
         getActiveWorkSession: () => Promise<any | null>
         getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
@@ -585,6 +592,15 @@ export class RendererDatabaseService {
     return await window.electronAPI.db.deleteWorkSession(id)
   }
 
+  async splitWorkSession(
+    sessionId: string,
+    splitTime: Date,
+    secondHalfTaskId?: string,
+    secondHalfStepId?: string,
+  ): Promise<{ firstHalf: UnifiedWorkSession; secondHalf: UnifiedWorkSession }> {
+    return await window.electronAPI.db.splitWorkSession(sessionId, splitTime, secondHalfTaskId, secondHalfStepId)
+  }
+
   async getWorkSessions(date: string) {
     return await window.electronAPI.db.getWorkSessions(date)
   }
@@ -607,6 +623,10 @@ export class RendererDatabaseService {
 
   async getTodayAccumulated(date: string) {
     return await window.electronAPI.db.getTodayAccumulated(date)
+  }
+
+  async getTimeSinkAccumulated(startDate: string, endDate: string): Promise<TimeSinkAccumulatedResult> {
+    return await window.electronAPI.db.getTimeSinkAccumulated(startDate, endDate)
   }
 
   // Progress tracking operations
