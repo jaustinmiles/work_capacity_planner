@@ -3,7 +3,15 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { timeProvider } from '../time-provider'
+import {
+  timeProvider,
+  getCurrentTime,
+  getCurrentTimeMs,
+  setTimeOverride,
+  isTimeOverridden,
+  subscribeToTimeChanges,
+  getLocalDateString,
+} from '../time-provider'
 
 describe('TimeProvider', () => {
   beforeEach(() => {
@@ -218,6 +226,77 @@ describe('TimeProvider', () => {
       // JavaScript Date will wrap around
       const result = timeProvider.now()
       expect(result).toBeInstanceOf(Date)
+    })
+  })
+
+  describe('Convenience exports', () => {
+    beforeEach(() => {
+      timeProvider.setOverride(null)
+    })
+
+    it('getCurrentTime should return current time', () => {
+      const result = getCurrentTime()
+      expect(result).toBeInstanceOf(Date)
+      expect(Math.abs(result.getTime() - Date.now())).toBeLessThan(100)
+    })
+
+    it('getCurrentTimeMs should return current time in milliseconds', () => {
+      const result = getCurrentTimeMs()
+      expect(typeof result).toBe('number')
+      expect(Math.abs(result - Date.now())).toBeLessThan(100)
+    })
+
+    it('setTimeOverride should set override', () => {
+      const testDate = new Date('2025-06-15T10:00:00')
+      setTimeOverride(testDate)
+
+      expect(timeProvider.isOverridden()).toBe(true)
+      expect(timeProvider.now().toISOString()).toBe(testDate.toISOString())
+    })
+
+    it('setTimeOverride should clear override with null', () => {
+      setTimeOverride(new Date('2025-06-15T10:00:00'))
+      expect(timeProvider.isOverridden()).toBe(true)
+
+      setTimeOverride(null)
+      expect(timeProvider.isOverridden()).toBe(false)
+    })
+
+    it('isTimeOverridden should return override status', () => {
+      expect(isTimeOverridden()).toBe(false)
+
+      setTimeOverride(new Date('2025-06-15T10:00:00'))
+      expect(isTimeOverridden()).toBe(true)
+
+      setTimeOverride(null)
+      expect(isTimeOverridden()).toBe(false)
+    })
+
+    it('subscribeToTimeChanges should subscribe to changes', () => {
+      const listener = vi.fn()
+      const unsubscribe = subscribeToTimeChanges(listener)
+
+      const testDate = new Date('2025-06-15T10:00:00')
+      setTimeOverride(testDate)
+
+      expect(listener).toHaveBeenCalledTimes(1)
+      expect(listener).toHaveBeenCalledWith(testDate)
+
+      unsubscribe()
+    })
+
+    it('getLocalDateString should format date correctly', () => {
+      const date = new Date(2025, 5, 15) // June 15, 2025 (month is 0-indexed)
+      const result = getLocalDateString(date)
+
+      expect(result).toBe('2025-06-15')
+    })
+
+    it('getLocalDateString should pad single digit months and days', () => {
+      const date = new Date(2025, 0, 5) // January 5, 2025
+      const result = getLocalDateString(date)
+
+      expect(result).toBe('2025-01-05')
     })
   })
 })

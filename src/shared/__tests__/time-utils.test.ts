@@ -16,6 +16,8 @@ import {
   parseTimeOnDate,
   addDays,
   isSameDay,
+  extractTimeFromISO,
+  formatDateStringForDisplay,
 } from '../time-utils'
 
 describe('time-utils', () => {
@@ -323,6 +325,62 @@ describe('time-utils', () => {
       const date2 = new Date('2025-01-15T10:00:00')
 
       expect(isSameDay(date1, date2)).toBe(false)
+    })
+  })
+
+  describe('extractTimeFromISO', () => {
+    it('should extract time from ISO datetime string', () => {
+      expect(extractTimeFromISO('2025-11-26T19:30:00Z')).toBe('19:30')
+      expect(extractTimeFromISO('2025-01-15T09:05:00.000Z')).toBe('09:05')
+      expect(extractTimeFromISO('2024-12-25T00:00:00+00:00')).toBe('00:00')
+    })
+
+    it('should handle Date objects', () => {
+      const date = new Date(2024, 0, 15, 14, 30, 0) // Jan 15, 2024 at 14:30
+      const result = extractTimeFromISO(date)
+      expect(result).toBe('14:30')
+    })
+
+    it('should pass through HH:MM strings directly', () => {
+      expect(extractTimeFromISO('19:30')).toBe('19:30')
+      expect(extractTimeFromISO('09:05')).toBe('09:05')
+    })
+
+    it('should handle ISO strings with milliseconds', () => {
+      expect(extractTimeFromISO('2025-11-26T19:30:45.123Z')).toBe('19:30')
+    })
+
+    it('should fallback to Date parsing for non-ISO, non-HH:MM strings', () => {
+      // This hits the last resort fallback path (lines 214-215)
+      // Using a format that doesn't match ISO (no T) or HH:MM pattern
+      const result = extractTimeFromISO('January 15, 2025 14:30:00')
+      // Result depends on local timezone, but should be a valid HH:MM string
+      expect(result).toMatch(/^\d{2}:\d{2}$/)
+    })
+  })
+
+  describe('formatDateStringForDisplay', () => {
+    it('should format YYYY-MM-DD date strings', () => {
+      const result = formatDateStringForDisplay('2024-01-15')
+      // Result will be locale-dependent, but should contain the date parts
+      expect(result).toBeTruthy()
+      expect(result.length).toBeGreaterThan(0)
+    })
+
+    it('should format ISO datetime strings', () => {
+      const result = formatDateStringForDisplay('2024-01-15T10:30:00Z')
+      expect(result).toBeTruthy()
+      expect(result.length).toBeGreaterThan(0)
+    })
+
+    it('should handle custom locale', () => {
+      const result = formatDateStringForDisplay('2024-01-15', 'en-US')
+      expect(result).toBeTruthy()
+    })
+
+    it('should handle other date formats as fallback', () => {
+      const result = formatDateStringForDisplay('January 15, 2024')
+      expect(result).toBeTruthy()
     })
   })
 })

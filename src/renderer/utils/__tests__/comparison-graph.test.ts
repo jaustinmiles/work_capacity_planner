@@ -5,6 +5,8 @@ import {
   hasTransitiveRelationship,
   getTransitiveClosure,
   getMissingComparisons,
+  topologicalSort,
+  mapToRankings,
   type ComparisonResult,
   type ItemId,
 } from '../comparison-graph'
@@ -71,6 +73,72 @@ describe('comparison-graph', () => {
 
       expect(graph.priorityWins.size).toBe(0)
       expect(graph.urgencyWins.size).toBe(0)
+    })
+
+    it('should handle equal priority relationships', () => {
+      const comparisons: ComparisonResult[] = [{
+        itemA: 'task1',
+        itemB: 'task2',
+        higherPriority: 'equal' as any,
+        higherUrgency: 'task1',
+        timestamp: Date.now(),
+      }]
+
+      const graph = buildComparisonGraph(comparisons)
+
+      // Priority is equal, so neither wins
+      expect(graph.priorityWins.size).toBe(0)
+      // But equality should be tracked
+      expect(graph.priorityEquals.get('task1')).toContain('task2')
+      expect(graph.priorityEquals.get('task2')).toContain('task1')
+      // Urgency still has a winner
+      expect(graph.urgencyWins.get('task1')).toContain('task2')
+    })
+
+    it('should handle equal urgency relationships', () => {
+      const comparisons: ComparisonResult[] = [{
+        itemA: 'task1',
+        itemB: 'task2',
+        higherPriority: 'task1',
+        higherUrgency: 'equal' as any,
+        timestamp: Date.now(),
+      }]
+
+      const graph = buildComparisonGraph(comparisons)
+
+      // Priority has a winner
+      expect(graph.priorityWins.get('task1')).toContain('task2')
+      // Urgency is equal
+      expect(graph.urgencyWins.size).toBe(0)
+      expect(graph.urgencyEquals.get('task1')).toContain('task2')
+      expect(graph.urgencyEquals.get('task2')).toContain('task1')
+    })
+
+    it('should accumulate multiple equal relationships', () => {
+      const comparisons: ComparisonResult[] = [
+        {
+          itemA: 'task1',
+          itemB: 'task2',
+          higherPriority: 'equal' as any,
+          higherUrgency: 'equal' as any,
+          timestamp: Date.now(),
+        },
+        {
+          itemA: 'task1',
+          itemB: 'task3',
+          higherPriority: 'equal' as any,
+          higherUrgency: 'equal' as any,
+          timestamp: Date.now(),
+        },
+      ]
+
+      const graph = buildComparisonGraph(comparisons)
+
+      // task1 is equal to both task2 and task3
+      expect(graph.priorityEquals.get('task1')).toContain('task2')
+      expect(graph.priorityEquals.get('task1')).toContain('task3')
+      expect(graph.urgencyEquals.get('task1')).toContain('task2')
+      expect(graph.urgencyEquals.get('task1')).toContain('task3')
     })
 
     it('should handle complex graph with multiple winners and losers', () => {
@@ -482,6 +550,160 @@ describe('comparison-graph', () => {
       // Any new comparison would create or maintain a cycle
       expect(detectCycle(graph, 'Rock', 'Paper')).toBe(true) // Would create cycle
       expect(detectCycle(graph, 'Paper', 'Scissors')).toBe(true) // Would create cycle
+    })
+  })
+
+  describe('topologicalSort', () => {
+    it('should sort items with no dependencies', () => {
+      const items: ItemId[] = ['A', 'B', 'C']
+      const graph = new Map<ItemId, Set<ItemId>>()
+
+      const sorted = topologicalSort(items, graph)
+
+      // Should return items in some valid order (all are valid with no deps)
+      expect(sorted).toHaveLength(3)
+      expect(sorted).toContain('A')
+      expect(sorted).toContain('B')
+      expect(sorted).toContain('C')
+    })
+
+    it('should sort items respecting dependencies', () => {
+      const items: ItemId[] = ['A', 'B', 'C']
+      const graph = new Map<ItemId, Set<ItemId>>([
+        ['A', new Set(['B'])], // A beats B
+        ['B', new Set(['C'])], // B beats C
+      ])
+
+      const sorted = topologicalSort(items, graph)
+
+      // A should come before B, B should come before C
+      expect(sorted.indexOf('A')).toBeLessThan(sorted.indexOf('B'))
+      expect(sorted.indexOf('B')).toBeLessThan(sorted.indexOf('C'))
+    })
+
+    it('should handle empty items array', () => {
+      const items: ItemId[] = []
+      const graph = new Map<ItemId, Set<ItemId>>()
+
+      const sorted = topologicalSort(items, graph)
+      expect(sorted).toHaveLength(0)
+    })
+
+    it('should handle complex dependency graph', () => {
+      const items: ItemId[] = ['A', 'B', 'C', 'D', 'E']
+      const graph = new Map<ItemId, Set<ItemId>>([
+        ['A', new Set(['B', 'C'])], // A beats B and C
+        ['B', new Set(['D'])],      // B beats D
+        ['C', new Set(['D'])],      // C beats D
+        ['D', new Set(['E'])],      // D beats E
+      ])
+
+      const sorted = topologicalSort(items, graph)
+
+      // A must come before B, C
+      // B, C must come before D
+      // D must come before E
+      expect(sorted.indexOf('A')).toBeLessThan(sorted.indexOf('B'))
+      expect(sorted.indexOf('A')).toBeLessThan(sorted.indexOf('C'))
+      expect(sorted.indexOf('B')).toBeLessThan(sorted.indexOf('D'))
+      expect(sorted.indexOf('C')).toBeLessThan(sorted.indexOf('D'))
+      expect(sorted.indexOf('D')).toBeLessThan(sorted.indexOf('E'))
+    })
+
+    it('should handle single item', () => {
+      const items: ItemId[] = ['Alone']
+      const graph = new Map<ItemId, Set<ItemId>>()
+
+      const sorted = topologicalSort(items, graph)
+
+      expect(sorted).toEqual(['Alone'])
+    })
+
+    it('should handle items with self-referential graph entry', () => {
+      const items: ItemId[] = ['A', 'B']
+      const graph = new Map<ItemId, Set<ItemId>>([
+        ['A', new Set(['B'])],
+        ['B', new Set()], // B has entry but beats no one
+      ])
+
+      const sorted = topologicalSort(items, graph)
+
+      expect(sorted.indexOf('A')).toBeLessThan(sorted.indexOf('B'))
+    })
+
+    it('should include items not in graph', () => {
+      const items: ItemId[] = ['A', 'B', 'C']
+      const graph = new Map<ItemId, Set<ItemId>>([
+        ['A', new Set(['B'])],
+        // C is not in graph at all
+      ])
+
+      const sorted = topologicalSort(items, graph)
+
+      expect(sorted).toContain('A')
+      expect(sorted).toContain('B')
+      expect(sorted).toContain('C')
+      expect(sorted.indexOf('A')).toBeLessThan(sorted.indexOf('B'))
+    })
+  })
+
+  describe('mapToRankings', () => {
+    it('should map sorted items to rankings', () => {
+      const sortedItems: ItemId[] = ['A', 'B', 'C']
+
+      const rankings = mapToRankings(sortedItems)
+
+      expect(rankings).toHaveLength(3)
+      expect(rankings[0]).toMatchObject({ id: 'A', rank: 1 })
+      expect(rankings[1]).toMatchObject({ id: 'B', rank: 2 })
+      expect(rankings[2]).toMatchObject({ id: 'C', rank: 3 })
+    })
+
+    it('should handle empty array', () => {
+      const sortedItems: ItemId[] = []
+
+      const rankings = mapToRankings(sortedItems)
+
+      expect(rankings).toHaveLength(0)
+    })
+
+    it('should handle single item', () => {
+      const sortedItems: ItemId[] = ['Only']
+
+      const rankings = mapToRankings(sortedItems)
+
+      expect(rankings).toHaveLength(1)
+      expect(rankings[0]).toMatchObject({ id: 'Only', rank: 1 })
+    })
+
+    it('should include score that decreases with rank', () => {
+      const sortedItems: ItemId[] = ['First', 'Second', 'Third']
+
+      const rankings = mapToRankings(sortedItems)
+
+      expect(rankings[0]!.score).toBeGreaterThan(rankings[1]!.score)
+      expect(rankings[1]!.score).toBeGreaterThan(rankings[2]!.score)
+    })
+
+    it('should assign first item rank 1 with max score', () => {
+      const sortedItems: ItemId[] = ['Winner']
+
+      const rankings = mapToRankings(sortedItems)
+
+      expect(rankings[0]!.rank).toBe(1)
+      expect(rankings[0]!.score).toBe(10) // Max score
+    })
+
+    it('should handle many items', () => {
+      const sortedItems: ItemId[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+
+      const rankings = mapToRankings(sortedItems)
+
+      expect(rankings).toHaveLength(10)
+      expect(rankings[0]!.rank).toBe(1)
+      expect(rankings[9]!.rank).toBe(10)
+      // Last item should have score of 1 (minimum)
+      expect(rankings[9]!.score).toBe(1)
     })
   })
 })

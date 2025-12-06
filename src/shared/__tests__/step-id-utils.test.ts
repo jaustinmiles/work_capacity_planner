@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   generateStableStepId,
   generateRandomStepId,
+  generateLogId,
+  generateUniqueId,
   mapDependenciesToIds,
   preserveStepIds,
   validateDependencies,
@@ -244,6 +246,58 @@ describe('Step ID Utilities', () => {
       const fixed = fixBrokenDependencies(steps)
 
       expect(fixed).toEqual(steps)
+    })
+  })
+
+  describe('generateLogId', () => {
+    it('should generate a composite log ID', () => {
+      const timestamp = '2025-10-02T22:13:19.875Z'
+      const message = 'Main process initialized'
+      const level = 'INFO'
+
+      const result = generateLogId(timestamp, message, level)
+
+      expect(result).toBe('2025-10-02T22:13:19.875Z-Main process initialized-INFO')
+    })
+
+    it('should handle numeric log levels', () => {
+      const result = generateLogId('2025-01-01T00:00:00Z', 'Test message', 2)
+
+      expect(result).toBe('2025-01-01T00:00:00Z-Test message-2')
+    })
+
+    it('should handle empty message', () => {
+      const result = generateLogId('2025-01-01T00:00:00Z', '', 'DEBUG')
+
+      expect(result).toBe('2025-01-01T00:00:00Z--DEBUG')
+    })
+  })
+
+  describe('generateUniqueId', () => {
+    it('should generate unique IDs with custom prefix', () => {
+      const id1 = generateUniqueId('task')
+      const id2 = generateUniqueId('task')
+
+      expect(id1).toMatch(/^task-/)
+      expect(id2).toMatch(/^task-/)
+      expect(id1).not.toBe(id2)
+    })
+
+    it('should handle undefined prefix', () => {
+      const id = generateUniqueId()
+
+      // Without a prefix, it starts with 'undefined-'
+      expect(typeof id).toBe('string')
+      expect(id.split('-').length).toBe(3)
+    })
+
+    it('should include timestamp component', () => {
+      const id = generateUniqueId('test')
+      const parts = id.split('-')
+
+      // Format: prefix-timestamp-random
+      expect(parts.length).toBe(3)
+      expect(parts[0]).toBe('test')
     })
   })
 })

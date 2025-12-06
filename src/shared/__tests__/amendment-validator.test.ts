@@ -3,7 +3,8 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { parseAIResponse, validateWithRetry, transformAmendments } from '../amendment-validator'
+import { parseAIResponse, validateWithRetry, transformAmendments, createUserErrorReport } from '../amendment-validator'
+import type { ValidationLoopResult } from '../amendment-validator'
 import { AmendmentType, WorkPatternOperation, WorkSessionOperation, WorkBlockType } from '../enums'
 import type { RawTimeLog, RawDeadlineChange, RawWorkPatternModification, RawWorkSessionEdit } from '../amendment-types'
 
@@ -340,6 +341,147 @@ Let me know if you need changes.`
 
       // Third one should have transformed deadline
       expect((transformed[2] as any).newDeadline).toBeInstanceOf(Date)
+    })
+  })
+
+  describe('createUserErrorReport', () => {
+    it('should generate basic report with attempt count', () => {
+      const result: ValidationLoopResult = {
+        success: false,
+        attempts: 3,
+        validationResults: [],
+      }
+
+      const report = createUserErrorReport(result)
+      expect(report).toContain('Failed to generate valid amendments after 3 attempts')
+    })
+
+    it('should handle empty validation results', () => {
+      const result: ValidationLoopResult = {
+        success: false,
+        attempts: 5,
+        validationResults: [],
+      }
+
+      const report = createUserErrorReport(result)
+      expect(report).toContain('after 5 attempts')
+      // Should not throw and should return a basic report
+      expect(typeof report).toBe('string')
+    })
+
+    it('should format errors grouped by path', () => {
+      const result: ValidationLoopResult = {
+        success: false,
+        attempts: 2,
+        validationResults: [
+          {
+            valid: false,
+            errors: [
+              { path: 'amendments.0.name', message: 'Name is required' },
+              { path: 'amendments.0.duration', message: 'Duration must be positive' },
+              { path: 'amendments.1.type', message: 'Invalid amendment type' },
+            ],
+          },
+        ],
+      }
+
+      const report = createUserErrorReport(result)
+      expect(report).toContain('The following issues were found')
+      expect(report).toContain('amendments.0')
+      expect(report).toContain('Name is required')
+      expect(report).toContain('Duration must be positive')
+      expect(report).toContain('amendments.1')
+      expect(report).toContain('Invalid amendment type')
+    })
+
+    it('should use only the last validation result', () => {
+      const result: ValidationLoopResult = {
+        success: false,
+        attempts: 3,
+        validationResults: [
+          {
+            valid: false,
+            errors: [{ path: 'amendments.0.name', message: 'First attempt error' }],
+          },
+          {
+            valid: false,
+            errors: [{ path: 'amendments.0.name', message: 'Second attempt error' }],
+          },
+          {
+            valid: false,
+            errors: [{ path: 'amendments.0.name', message: 'Final attempt error' }],
+          },
+        ],
+      }
+
+      const report = createUserErrorReport(result)
+      expect(report).toContain('Final attempt error')
+      expect(report).not.toContain('First attempt error')
+      expect(report).not.toContain('Second attempt error')
+    })
+
+    it('should handle validation result with no errors array', () => {
+      const result: ValidationLoopResult = {
+        success: false,
+        attempts: 1,
+        validationResults: [
+          {
+            valid: false,
+            errors: [],
+          },
+        ],
+      }
+
+      const report = createUserErrorReport(result)
+      expect(report).toContain('after 1 attempts')
+      // Should not contain "issues were found" since errors array is empty
+      expect(report).not.toContain('The following issues were found')
+    })
+
+    it('should group multiple errors under same path', () => {
+      const result: ValidationLoopResult = {
+        success: false,
+        attempts: 1,
+        validationResults: [
+          {
+            valid: false,
+            errors: [
+              { path: 'amendments.0.name', message: 'Name too short' },
+              { path: 'amendments.0.name', message: 'Name contains invalid characters' },
+              { path: 'amendments.0.duration', message: 'Duration required' },
+            ],
+          },
+        ],
+      }
+
+      const report = createUserErrorReport(result)
+      // Both name errors should be grouped under amendments.0
+      expect(report).toContain('amendments.0')
+      expect(report).toContain('Name too short')
+      expect(report).toContain('Name contains invalid characters')
+      expect(report).toContain('Duration required')
+    })
+
+    it('should handle deeply nested paths by grouping on first two segments', () => {
+      const result: ValidationLoopResult = {
+        success: false,
+        attempts: 1,
+        validationResults: [
+          {
+            valid: false,
+            errors: [
+              { path: 'amendments.0.target.name', message: 'Target name invalid' },
+              { path: 'amendments.0.target.confidence', message: 'Confidence out of range' },
+            ],
+          },
+        ],
+      }
+
+      const report = createUserErrorReport(result)
+      // Both should be grouped under "amendments.0" (first two path segments)
+      expect(report).toContain('amendments.0')
+      expect(report).toContain('Target name invalid')
+      expect(report).toContain('Confidence out of range')
     })
   })
 })

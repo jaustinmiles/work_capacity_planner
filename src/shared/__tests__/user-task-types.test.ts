@@ -36,6 +36,7 @@ import {
   addAccumulatedTime,
   getAccumulatedTimeForType,
   mergeAccumulatedTime,
+  getBlockTypeDisplayColor,
 } from '../user-task-types'
 
 describe('user-task-types', () => {
@@ -726,6 +727,57 @@ describe('user-task-types', () => {
     it('handles empty second record', () => {
       const result = mergeAccumulatedTime({ 'type-1': 30 }, {})
       expect(result).toEqual({ 'type-1': 30 })
+    })
+  })
+
+  describe('getBlockTypeDisplayColor', () => {
+    const mockUserTypes: UserTaskType[] = [
+      {
+        id: 'user-type-1',
+        sessionId: 'session-1',
+        name: 'Custom Focus',
+        emoji: '🎯',
+        color: '#FF5500',
+        sortOrder: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]
+
+    it('returns system color for system block types', () => {
+      // Check known system block colors
+      const blockedColor = getBlockTypeDisplayColor(WorkBlockType.Blocked, [])
+      expect(blockedColor).toBe('red')
+
+      const sleepColor = getBlockTypeDisplayColor(WorkBlockType.Sleep, [])
+      expect(sleepColor).toBe('gray')
+    })
+
+    it('returns user-defined color for user types', () => {
+      const result = getBlockTypeDisplayColor('user-type-1', mockUserTypes)
+      expect(result).toBe('#FF5500')
+    })
+
+    it('returns default color for unknown block types', () => {
+      const result = getBlockTypeDisplayColor('unknown-type', [])
+      expect(result).toBe('arcoblue')
+    })
+
+    it('returns default color when user type has no color', () => {
+      const typesWithNoColor: UserTaskType[] = [
+        {
+          id: 'type-no-color',
+          sessionId: 'session-1',
+          name: 'No Color Type',
+          emoji: '📝',
+          color: '',
+          sortOrder: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]
+      const result = getBlockTypeDisplayColor('type-no-color', typesWithNoColor)
+      expect(result).toBe('arcoblue')
     })
   })
 })

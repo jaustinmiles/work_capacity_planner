@@ -410,6 +410,172 @@ describe('schema-generator', () => {
       expect(result.valid).toBe(false)
       expect(result.errors[0]?.message).toContain('must be an object')
     })
+
+    // Target validation edge cases
+    it('should reject target that is not an object', () => {
+      const amendment = {
+        type: AmendmentType.StatusUpdate,
+        target: 'not-an-object',
+        newStatus: TaskStatus.InProgress,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.message.includes('Target must be an object'))).toBe(true)
+    })
+
+    it('should reject target with invalid entity type', () => {
+      const amendment = {
+        type: AmendmentType.StatusUpdate,
+        target: {
+          type: 'invalid_entity_type',
+          name: 'Test Task',
+          confidence: 1.0,
+        },
+        newStatus: TaskStatus.InProgress,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path.includes('type'))).toBe(true)
+    })
+
+    it('should reject target with empty name', () => {
+      const amendment = {
+        type: AmendmentType.StatusUpdate,
+        target: {
+          type: EntityType.Task,
+          name: '',
+          confidence: 1.0,
+        },
+        newStatus: TaskStatus.InProgress,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.message.includes('non-empty string'))).toBe(true)
+    })
+
+    it('should reject target with invalid confidence (too low)', () => {
+      const amendment = {
+        type: AmendmentType.StatusUpdate,
+        target: {
+          type: EntityType.Task,
+          name: 'Test Task',
+          confidence: -0.5,
+        },
+        newStatus: TaskStatus.InProgress,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.message.includes('Confidence'))).toBe(true)
+    })
+
+    it('should reject target with invalid confidence (too high)', () => {
+      const amendment = {
+        type: AmendmentType.StatusUpdate,
+        target: {
+          type: EntityType.Task,
+          name: 'Test Task',
+          confidence: 1.5,
+        },
+        newStatus: TaskStatus.InProgress,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.message.includes('Confidence'))).toBe(true)
+    })
+
+    it('should reject target with non-number confidence', () => {
+      const amendment = {
+        type: AmendmentType.StatusUpdate,
+        target: {
+          type: EntityType.Task,
+          name: 'Test Task',
+          confidence: 'high',
+        },
+        newStatus: TaskStatus.InProgress,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.message.includes('Confidence'))).toBe(true)
+    })
+
+    // WorkflowTarget validation edge cases
+    it('should reject StepAddition with invalid workflow target', () => {
+      const amendment = {
+        type: AmendmentType.StepAddition,
+        workflowTarget: 'not-an-object',
+        stepName: 'New Step',
+        duration: 30,
+        stepType: 'focused',
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+    })
+
+    it('should reject StepAddition without step name', () => {
+      const amendment = {
+        type: AmendmentType.StepAddition,
+        workflowTarget: {
+          type: EntityType.Workflow,
+          name: 'My Workflow',
+          confidence: 1.0,
+        },
+        stepName: '',
+        duration: 30,
+        stepType: 'focused',
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'stepName')).toBe(true)
+    })
+
+    it('should reject DurationChange with zero duration', () => {
+      const amendment = {
+        type: AmendmentType.DurationChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        newDuration: 0,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'newDuration')).toBe(true)
+    })
+
+    it('should reject TaskCreation with negative duration', () => {
+      const amendment = {
+        type: AmendmentType.TaskCreation,
+        name: 'New Task',
+        duration: -10,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'duration')).toBe(true)
+    })
+
+    it('should reject TaskCreation with urgency out of range', () => {
+      const amendment = {
+        type: AmendmentType.TaskCreation,
+        name: 'New Task',
+        duration: 60,
+        urgency: 0, // Invalid: must be 1-10
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'urgency')).toBe(true)
+    })
   })
 
   describe('validateAmendments', () => {
