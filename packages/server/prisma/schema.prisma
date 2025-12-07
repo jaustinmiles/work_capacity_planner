@@ -1,0 +1,398 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model ContextEntry {
+  id           String     @id
+  jobContextId String
+  key          String
+  value        String
+  category     String
+  notes        String?
+  createdAt    DateTime   @default(now())
+  JobContext   JobContext @relation(fields: [jobContextId], references: [id], onDelete: Cascade)
+
+  @@unique([jobContextId, key])
+}
+
+model DailySchedule {
+  id        String    @id
+  dayOfWeek String    @unique
+  startTime String
+  endTime   String
+  Meeting   Meeting[]
+}
+
+model JargonEntry {
+  id           String   @id
+  term         String
+  definition   String
+  category     String?
+  examples     String?
+  relatedTerms String?
+  sessionId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+  Session      Session  @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, term])
+}
+
+model JobContext {
+  id            String         @id
+  name          String
+  description   String
+  context       String
+  asyncPatterns String
+  reviewCycles  String
+  tools         String
+  isActive      Boolean        @default(false)
+  sessionId     String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now())
+  ContextEntry  ContextEntry[]
+  Session       Session        @relation(fields: [sessionId], references: [id])
+}
+
+model Meeting {
+  id            String        @id
+  name          String
+  startTime     String
+  endTime       String
+  recurring     Boolean       @default(false)
+  scheduleId    String
+  DailySchedule DailySchedule @relation(fields: [scheduleId], references: [id])
+}
+
+model Project {
+  id        String   @id
+  name      String
+  color     String
+  createdAt DateTime @default(now())
+  Task      Task[]
+}
+
+model ScheduledTask {
+  id               String   @id
+  taskId           String
+  scheduledDate    DateTime
+  scheduledMinutes Int
+  isPartial        Boolean
+  isStart          Boolean
+  isEnd            Boolean
+  Task             Task     @relation(fields: [taskId], references: [id])
+}
+
+model SequencedTask {
+  id                   String     @id
+  name                 String
+  importance           Int
+  urgency              Int
+  type                 String
+  notes                String?
+  dependencies         String     @default("[]")
+  completed            Boolean    @default(false)
+  totalDuration        Int
+  criticalPathDuration Int
+  worstCaseDuration    Int
+  overallStatus        String     @default("not_started")
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime
+  sessionId            String?
+  deadline             DateTime?
+  deadlineType         String?    // 'hard' | 'soft'
+  Session              Session?   @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  TaskStep             TaskStep[]
+}
+
+model Session {
+  id                    String                 @id
+  name                  String
+  description           String?
+  isActive              Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @default(now())
+  JargonEntry           JargonEntry[]
+  JobContext            JobContext[]
+  SequencedTask         SequencedTask[]
+  Task                  Task[]
+  TimeEstimateAccuracy  TimeEstimateAccuracy[]
+  WorkPattern           WorkPattern[]
+  ProductivityPattern   ProductivityPattern[]
+  SchedulingPreferences SchedulingPreferences?
+  UserTaskType          UserTaskType[]
+  TimeSink              TimeSink[]
+  ScheduleSnapshot      ScheduleSnapshot[]
+}
+
+model ScheduleSnapshot {
+  id           String   @id @default(uuid())
+  sessionId    String
+  label        String?
+  snapshotData String
+  createdAt    DateTime @default(now())
+  Session      Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+model UserTaskType {
+  id        String   @id
+  sessionId String
+  name      String
+  emoji     String
+  color     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  Session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model TimeSink {
+  id              String            @id
+  sessionId       String
+  name            String
+  emoji           String
+  color           String
+  typeId          String?
+  sortOrder       Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @default(now())
+  Session         Session           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  TimeSinkSession TimeSinkSession[]
+
+  @@index([sessionId])
+}
+
+model TimeSinkSession {
+  id            String    @id
+  timeSinkId    String
+  startTime     DateTime
+  endTime       DateTime?
+  actualMinutes Int?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  TimeSink      TimeSink  @relation(fields: [timeSinkId], references: [id], onDelete: Cascade)
+
+  @@index([timeSinkId])
+  @@index([startTime])
+}
+
+model Task {
+  id                   String          @id
+  name                 String
+  duration             Int
+  importance           Int
+  urgency              Int
+  type                 String
+  category             String          @default("work")
+  asyncWaitTime        Int             @default(0)
+  dependencies         String          @default("[]")
+  completed            Boolean         @default(false)
+  completedAt          DateTime?
+  actualDuration       Int?
+  notes                String?
+  projectId            String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime
+  sessionId            String?
+  deadline             DateTime?
+  deadlineType         String?
+  cognitiveComplexity  Int?
+  isLocked             Boolean         @default(false)
+  lockedStartTime      DateTime?
+  hasSteps             Boolean         @default(false)
+  currentStepId        String?
+  overallStatus        String          @default("not_started")
+  criticalPathDuration Int             @default(0)
+  worstCaseDuration    Int             @default(0)
+  archived             Boolean         @default(false)
+  ScheduledTask        ScheduledTask[]
+  Project              Project?        @relation(fields: [projectId], references: [id])
+  Session              Session?        @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  WorkSession          WorkSession[]
+  TaskStep             TaskStep[]      @relation("TaskSteps")
+}
+
+model TaskStep {
+  id                   String         @id
+  name                 String
+  duration             Int
+  type                 String
+  dependsOn            String         @default("[]")
+  asyncWaitTime        Int            @default(0)
+  status               String         @default("pending")
+  sequencedTaskId      String?
+  stepIndex            Int
+  taskId               String
+  percentComplete      Int            @default(0)
+  actualDuration       Int?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  notes                String?
+  cognitiveComplexity  Int?
+  isAsyncTrigger       Boolean        @default(false)
+  expectedResponseTime Int?
+  importance           Int?
+  urgency              Int?
+  Task                 Task           @relation("TaskSteps", fields: [taskId], references: [id], onDelete: Cascade)
+  SequencedTask        SequencedTask? @relation(fields: [sequencedTaskId], references: [id], onDelete: Cascade)
+}
+
+model TimeEstimateAccuracy {
+  id               String   @id
+  sessionId        String
+  taskType         String
+  workflowCategory String?
+  estimatedMinutes Int
+  actualMinutes    Int
+  variance         Float
+  createdAt        DateTime @default(now())
+  Session          Session  @relation(fields: [sessionId], references: [id])
+
+  @@index([taskType])
+  @@index([sessionId])
+}
+
+model WorkBlock {
+  id            String        @id
+  patternId     String
+  startTime     String
+  endTime       String
+  typeConfig    String        @default("{\"kind\":\"system\",\"systemType\":\"blocked\"}")
+  totalCapacity Int           @default(0)
+  WorkPattern   WorkPattern   @relation(fields: [patternId], references: [id], onDelete: Cascade)
+  WorkSession   WorkSession[]
+
+  @@index([patternId])
+}
+
+model WorkMeeting {
+  id          String      @id
+  patternId   String
+  name        String
+  startTime   String
+  endTime     String
+  type        String
+  recurring   String      @default("none")
+  daysOfWeek  String?
+  WorkPattern WorkPattern @relation(fields: [patternId], references: [id], onDelete: Cascade)
+
+  @@index([patternId])
+}
+
+model WorkPattern {
+  id           String        @id
+  date         String
+  isTemplate   Boolean       @default(false)
+  templateName String?
+  sessionId    String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @default(now())
+  WorkBlock    WorkBlock[]
+  WorkMeeting  WorkMeeting[]
+  Session      Session       @relation(fields: [sessionId], references: [id])
+  WorkSession  WorkSession[]
+
+  @@unique([sessionId, date])
+}
+
+model WorkSession {
+  id             String       @id
+  taskId         String
+  stepId         String?
+  patternId      String?
+  blockId        String?
+  type           String?
+  startTime      DateTime
+  endTime        DateTime?
+  plannedMinutes Int          @default(0)
+  actualMinutes  Int?
+  notes          String?
+  createdAt      DateTime     @default(now())
+  WorkPattern    WorkPattern? @relation(fields: [patternId], references: [id])
+  WorkBlock      WorkBlock?   @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  Task           Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([startTime])
+  @@index([taskId])
+  @@index([blockId])
+}
+
+model ProductivityPattern {
+  id                  String   @id
+  sessionId           String
+  timeRangeStart      String
+  timeRangeEnd        String
+  cognitiveCapacity   String
+  preferredComplexity String   @default("[]")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now())
+  Session             Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model SchedulingPreferences {
+  id                        String   @id
+  sessionId                 String   @unique
+  allowWeekendWork          Boolean  @default(false)
+  weekendPenalty            Float    @default(0.5)
+  contextSwitchPenalty      Int      @default(15)
+  asyncParallelizationBonus Int      @default(20)
+  bedtimeHour               Int      @default(22)
+  wakeTimeHour              Int      @default(6)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @default(now())
+  Session                   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model ErrorLog {
+  id        String   @id @default(uuid())
+  level     String
+  message   String
+  context   String
+  error     String?
+  sessionId String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([level])
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+model LogMetric {
+  id          String   @id @default(uuid())
+  processType String
+  memoryUsage String
+  cpuUsage    Float
+  logCount    Int
+  errorCount  Int
+  createdAt   DateTime @default(now())
+
+  @@index([processType])
+  @@index([createdAt])
+}
+
+model AppLog {
+  id        String   @id @default(cuid())
+  level     String
+  message   String
+  source    String
+  context   String
+  sessionId String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([level])
+  @@index([source])
+}

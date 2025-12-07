@@ -1,0 +1,19 @@
+{
+  "name": "@task-planner/shared",
+  "version": "0.1.0",
+  "description": "Shared types, enums, and utilities for Task Planner",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "typescript": "^5.9.2"
+  }
+}

@@ -3,7 +3,13 @@
   "version": "0.1.0",
   "description": "Electron app for managing workload with capacity-based scheduling",
   "main": "electron.js",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
+    "server": "yarn workspace @task-planner/server dev",
+    "server:build": "yarn workspace @task-planner/server build",
     "start": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"wait-on http://localhost:5174 && npm run electron:dev\"",
     "start:stable": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev:stable\" \"wait-on http://localhost:5174 && npm run electron:dev\"",
     "dev": "vite",
