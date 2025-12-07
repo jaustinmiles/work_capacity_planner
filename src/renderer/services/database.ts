@@ -96,6 +96,10 @@ declare global {
           secondHalfTaskId?: string,
           secondHalfStepId?: string
         ) => Promise<{ firstHalf: UnifiedWorkSession; secondHalf: UnifiedWorkSession }>
+        splitTimeSinkSession: (
+          sessionId: string,
+          splitTime: Date
+        ) => Promise<{ firstHalf: TimeSinkSession; secondHalf: TimeSinkSession }>
         getWorkSessions: (date: string) => Promise<any[]>
         getActiveWorkSession: () => Promise<any | null>
         getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
@@ -599,6 +603,13 @@ export class RendererDatabaseService {
     secondHalfStepId?: string,
   ): Promise<{ firstHalf: UnifiedWorkSession; secondHalf: UnifiedWorkSession }> {
     return await window.electronAPI.db.splitWorkSession(sessionId, splitTime, secondHalfTaskId, secondHalfStepId)
+  }
+
+  async splitTimeSinkSession(
+    sessionId: string,
+    splitTime: Date,
+  ): Promise<{ firstHalf: TimeSinkSession; secondHalf: TimeSinkSession }> {
+    return await window.electronAPI.db.splitTimeSinkSession(sessionId, splitTime)
   }
 
   async getWorkSessions(date: string) {

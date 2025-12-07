@@ -13,10 +13,10 @@ import {
   Select,
   Grid,
   Spin,
-  Notification,
   Checkbox,
   Alert,
 } from '@arco-design/web-react'
+import { Notification } from '../common/Notification'
 import {
   IconClockCircle,
   IconLeft,
@@ -421,7 +421,56 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         throw new Error('Session not found')
       }
 
-      // Execute split (database creates second half)
+      // Handle time sink sessions differently (unified edit behavior)
+      if (originalSession.isTimeSink) {
+        // Time sink split - simpler flow, no task reassignment needed
+        const result = await db.splitTimeSinkSession(sessionId, splitTime)
+
+        logger.ui.info('Time sink session split successfully', {
+          originalSessionId: sessionId,
+          splitMinutes,
+          firstHalfId: result.firstHalf.id,
+          secondHalfId: result.secondHalf.id,
+        }, 'time-sink-split-success')
+
+        // Update sessions state reactively
+        setSessions(prevSessions => {
+          const idx = prevSessions.findIndex(s => s.id === sessionId)
+          if (idx === -1) return prevSessions
+
+          const original = prevSessions[idx]
+          if (!original) return prevSessions
+
+          // Create first half (updated original)
+          const firstHalf: WorkSessionData = {
+            ...original,
+            endMinutes: splitMinutes,
+          }
+
+          // Create second half (new session, same time sink - no reassignment)
+          const secondHalf: WorkSessionData = {
+            ...original,
+            id: result.secondHalf.id,
+            startMinutes: splitMinutes,
+            // Time sinks don't need reassignment - both halves stay with same sink
+          }
+
+          return [
+            ...prevSessions.slice(0, idx),
+            firstHalf,
+            secondHalf,
+            ...prevSessions.slice(idx + 1),
+          ]
+        })
+
+        Notification.success({
+          title: 'Time Sink Split',
+          content: 'Time sink session split successfully.',
+        })
+        return
+      }
+
+      // Work session split - includes task reassignment flow
       const result = await db.splitWorkSession(sessionId, splitTime)
 
       logger.ui.info('Work session split successfully', {
@@ -476,7 +525,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         content: 'Session split successfully. Please assign the second half to a task.',
       })
     } catch (error) {
-      logger.ui.error('Failed to split work session', {
+      logger.ui.error('Failed to split session', {
         error: error instanceof Error ? error.message : String(error),
         sessionId,
         splitMinutes,
@@ -484,7 +533,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
       Notification.error({
         title: 'Split Failed',
-        content: 'Failed to split work session. Please try again.',
+        content: 'Failed to split session. Please try again.',
       })
     }
   }, [selectedDate, sessions])

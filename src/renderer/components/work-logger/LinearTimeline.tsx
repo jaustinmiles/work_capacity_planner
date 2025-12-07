@@ -279,8 +279,8 @@ export function LinearTimeline({
       if (splitCursor.mode === SplitMode.Frozen) return
 
       // Find session at this X position (time)
+      // Both work sessions and time sinks can be split (unified editing)
       const sessionAtPosition = sessions.find(session => {
-        if (session.isTimeSink) return false // Skip time sink sessions for split
         return minutes > session.startMinutes + MIN_SPLIT_DURATION_MINUTES &&
                minutes < session.endMinutes - MIN_SPLIT_DURATION_MINUTES
       })

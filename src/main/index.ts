@@ -354,6 +354,13 @@ ipcMain.handle(
   },
 )
 
+ipcMain.handle(
+  'db:splitTimeSinkSession',
+  async (_event: IpcMainInvokeEvent, sessionId: string, splitTime: string) => {
+    return await db.splitTimeSinkSession(sessionId, new Date(splitTime))
+  },
+)
+
 ipcMain.handle('db:getWorkSessionsForTask', async (_event: IpcMainInvokeEvent, taskId: string) => {
   return await db.getWorkSessionsForTask(taskId)
 })

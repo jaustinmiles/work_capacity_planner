@@ -2987,6 +2987,89 @@ export class DatabaseService {
     return result
   }
 
+  /**
+   * Split a time sink session at a specified time.
+   * Similar to splitWorkSession but simpler - both halves stay with the same time sink.
+   * Time sinks don't need task reassignment since they're already categorized.
+   *
+   * @param sessionId - The ID of the time sink session to split
+   * @param splitTime - The time at which to split the session
+   */
+  async splitTimeSinkSession(
+    sessionId: string,
+    splitTime: Date,
+  ): Promise<{ firstHalf: TimeSinkSession; secondHalf: TimeSinkSession }> {
+    const original = await this.client.timeSinkSession.findUnique({
+      where: { id: sessionId },
+    })
+
+    if (!original) {
+      throw new Error(`Time sink session not found: ${sessionId}`)
+    }
+
+    // Validate split time
+    if (splitTime <= original.startTime) {
+      throw new Error('Split time must be after session start')
+    }
+    if (original.endTime && splitTime >= original.endTime) {
+      throw new Error('Split time must be before session end')
+    }
+
+    // Calculate durations using time utility
+    const firstHalfMinutes = calculateMinutesBetweenDates(original.startTime, splitTime)
+    const secondHalfMinutes = original.endTime
+      ? calculateMinutesBetweenDates(splitTime, original.endTime)
+      : null
+
+    // Atomic transaction
+    const result = await this.client.$transaction(async (tx) => {
+      // Update original (becomes first half)
+      const firstHalfRecord = await tx.timeSinkSession.update({
+        where: { id: sessionId },
+        data: {
+          endTime: splitTime,
+          actualMinutes: firstHalfMinutes,
+        },
+      })
+
+      // Create new (second half) - same timeSinkId, no reassignment needed
+      const secondHalfRecord = await tx.timeSinkSession.create({
+        data: {
+          id: generateUniqueId('tss'),
+          timeSinkId: original.timeSinkId,
+          startTime: splitTime,
+          endTime: original.endTime,
+          actualMinutes: secondHalfMinutes,
+          notes: original.notes,
+        },
+      })
+
+      return { firstHalfRecord, secondHalfRecord }
+    })
+
+    // Convert Prisma records (with nulls) to TimeSinkSession (with undefined)
+    return {
+      firstHalf: recordToTimeSinkSession({
+        id: result.firstHalfRecord.id,
+        timeSinkId: result.firstHalfRecord.timeSinkId,
+        startTime: result.firstHalfRecord.startTime.toISOString(),
+        endTime: result.firstHalfRecord.endTime?.toISOString() ?? null,
+        actualMinutes: result.firstHalfRecord.actualMinutes,
+        notes: result.firstHalfRecord.notes,
+        createdAt: result.firstHalfRecord.createdAt.toISOString(),
+      }),
+      secondHalf: recordToTimeSinkSession({
+        id: result.secondHalfRecord.id,
+        timeSinkId: result.secondHalfRecord.timeSinkId,
+        startTime: result.secondHalfRecord.startTime.toISOString(),
+        endTime: result.secondHalfRecord.endTime?.toISOString() ?? null,
+        actualMinutes: result.secondHalfRecord.actualMinutes,
+        notes: result.secondHalfRecord.notes,
+        createdAt: result.secondHalfRecord.createdAt.toISOString(),
+      }),
+    }
+  }
+
   async recalculateStepActualDuration(stepId: string): Promise<void> {
     // Get all work sessions for this step
     const sessions = await this.client.workSession.findMany({

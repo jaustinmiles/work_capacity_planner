@@ -862,13 +862,17 @@ export const useTaskStore = create<TaskStore>()(
     try {
       // Stop work session in WorkTrackingService if there's an active one
       const activeWorkSession = getWorkTrackingService().getCurrentActiveSession()
+      let stoppedExistingSession = false
 
       if (activeWorkSession && activeWorkSession.stepId === stepId) {
         await getWorkTrackingService().stopWorkSession(activeWorkSession.id)
+        stoppedExistingSession = true
       }
 
-      // Create work session record
-      if (totalMinutes > 0) {
+      // Create work session record ONLY if we didn't just stop an active session
+      // (stopWorkSession already updates the existing session with final time)
+      // This prevents duplicate sessions: one from stop, one from create
+      if (totalMinutes > 0 && !stoppedExistingSession) {
         await getDatabase().createStepWorkSession({
           taskStepId: stepId,
           // If there's a session, use its start time, otherwise calculate backward from now
@@ -876,9 +880,6 @@ export const useTaskStore = create<TaskStore>()(
           duration: totalMinutes,
           notes,
         })
-
-        // Emit event to update other components
-        // Event removed - reactive state handles updates
       }
 
       // Find the step to check if it has async wait time
