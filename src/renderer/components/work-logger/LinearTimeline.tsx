@@ -198,6 +198,10 @@ export function LinearTimeline({
   // Split cursor state
   const [splitCursor, setSplitCursor] = useState<SplitCursorState>(INITIAL_SPLIT_CURSOR_STATE)
 
+  // Unified sessions array for split cursor detection
+  // Both work sessions and time sinks are "time blocks" - they share the same editing behavior
+  const allSessions = useMemo(() => [...sessions, ...timeSinkSessions], [sessions, timeSinkSessions])
+
   // Current time indicator
   const [currentMinutes, setCurrentMinutes] = useState<number>(
     currentTime.getHours() * 60 + currentTime.getMinutes(),
@@ -280,7 +284,7 @@ export function LinearTimeline({
 
       // Find session at this X position (time)
       // Both work sessions and time sinks can be split (unified editing)
-      const sessionAtPosition = sessions.find(session => {
+      const sessionAtPosition = allSessions.find(session => {
         return minutes > session.startMinutes + MIN_SPLIT_DURATION_MINUTES &&
                minutes < session.endMinutes - MIN_SPLIT_DURATION_MINUTES
       })
@@ -301,7 +305,7 @@ export function LinearTimeline({
         setSplitCursor(INITIAL_SPLIT_CURSOR_STATE)
       }
     }
-  }, [onSessionSplit, dragState, creatingSession, creatingTimeSinkSession, splitCursor.mode, xToMinutes, sessions])
+  }, [onSessionSplit, dragState, creatingSession, creatingTimeSinkSession, splitCursor.mode, xToMinutes, allSessions])
 
   // Unified mouse down handler - routes to appropriate zone logic
   const handleOverlayMouseDown = useCallback((e: React.MouseEvent): void => {
