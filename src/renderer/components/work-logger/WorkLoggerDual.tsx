@@ -13,10 +13,10 @@ import {
   Select,
   Grid,
   Spin,
-  Notification,
   Checkbox,
   Alert,
 } from '@arco-design/web-react'
+import { Notification } from '../common/Notification'
 import {
   IconClockCircle,
   IconLeft,
@@ -401,7 +401,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     }
   }, [selectedDate, timeSinks])
 
-  // Handle session split from LinearTimeline
+  // Handle session split from LinearTimeline (unified for both work sessions and time sinks)
   const handleSessionSplit = useCallback(async (
     sessionId: string,
     splitMinutes: number,
@@ -415,23 +415,29 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       const splitMin = splitMinutes % 60
       const splitTime = new Date(year, month - 1, day, splitHour, splitMin, 0, 0)
 
-      // Get original session for second half info
+      // Find original session (works for both work sessions and time sinks)
       const originalSession = sessions.find(s => s.id === sessionId)
       if (!originalSession) {
         throw new Error('Session not found')
       }
 
-      // Execute split (database creates second half)
-      const result = await db.splitWorkSession(sessionId, splitTime)
+      // Unified: Determine type and get raw ID
+      const isTimeSink = originalSession.isTimeSink === true
+      const rawId = isTimeSink ? sessionId.replace(/^sink-/, '') : sessionId
 
-      logger.ui.info('Work session split successfully', {
+      // Unified: Call appropriate database method
+      const result = isTimeSink
+        ? await db.splitTimeSinkSession(rawId, splitTime)
+        : await db.splitWorkSession(rawId, splitTime)
+
+      logger.ui.info(`${isTimeSink ? 'Time sink' : 'Work session'} split successfully`, {
         originalSessionId: sessionId,
         splitMinutes,
         firstHalfId: result.firstHalf.id,
         secondHalfId: result.secondHalf.id,
-      }, 'session-split-success')
+      }, isTimeSink ? 'time-sink-split-success' : 'session-split-success')
 
-      // Update sessions state reactively (instead of full reload which orphans modal state)
+      // Unified: Update sessions state reactively
       setSessions(prevSessions => {
         const idx = prevSessions.findIndex(s => s.id === sessionId)
         if (idx === -1) return prevSessions
@@ -439,21 +445,21 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         const original = prevSessions[idx]
         if (!original) return prevSessions
 
-        // Create first half (updated original)
+        // First half (updated original)
         const firstHalf: WorkSessionData = {
           ...original,
           endMinutes: splitMinutes,
         }
 
-        // Create second half (new session from split)
+        // Second half (new session from split)
         const secondHalf: WorkSessionData = {
           ...original,
-          id: result.secondHalf.id,
+          id: isTimeSink ? `sink-${result.secondHalf.id}` : result.secondHalf.id,
           startMinutes: splitMinutes,
-          isReassignment: true, // Mark for reassignment UI
+          // Only work sessions need reassignment flag
+          isReassignment: !isTimeSink,
         }
 
-        // Replace original with both halves
         return [
           ...prevSessions.slice(0, idx),
           firstHalf,
@@ -462,21 +468,25 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         ]
       })
 
-      // Open task assignment modal for second half
-      setPendingSession({
-        id: result.secondHalf.id,
-        startMinutes: splitMinutes,
-        endMinutes: originalSession.endMinutes,
-        isReassignment: true, // Flag to indicate this is a reassignment, not a new session
-      })
-      setShowAssignModal(true)
+      // Post-split: Only work sessions need task reassignment modal
+      if (!isTimeSink) {
+        setPendingSession({
+          id: result.secondHalf.id,
+          startMinutes: splitMinutes,
+          endMinutes: originalSession.endMinutes,
+          isReassignment: true,
+        })
+        setShowAssignModal(true)
+      }
 
       Notification.success({
-        title: 'Session Split',
-        content: 'Session split successfully. Please assign the second half to a task.',
+        title: isTimeSink ? 'Time Sink Split' : 'Session Split',
+        content: isTimeSink
+          ? 'Time sink split successfully.'
+          : 'Session split successfully. Please assign the second half to a task.',
       })
     } catch (error) {
-      logger.ui.error('Failed to split work session', {
+      logger.ui.error('Failed to split session', {
         error: error instanceof Error ? error.message : String(error),
         sessionId,
         splitMinutes,
@@ -484,7 +494,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
 
       Notification.error({
         title: 'Split Failed',
-        content: 'Failed to split work session. Please try again.',
+        content: 'Failed to split session. Please try again.',
       })
     }
   }, [selectedDate, sessions])
@@ -702,21 +712,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     return [...activeTasks, ...activeSequencedTasks]
   }, [tasks, sequencedTasks, hideCompleted])
 
-  // Separate work sessions from time sink sessions for LinearTimeline
-  const { workSessions, timeSinkSessionsForTimeline } = useMemo(() => {
-    const work: WorkSessionData[] = []
-    const sinks: WorkSessionData[] = []
-
-    sessions.forEach(s => {
-      if (s.type === 'time-sink') {
-        sinks.push(s)
-      } else {
-        work.push(s)
-      }
-    })
-
-    return { workSessions: work, timeSinkSessionsForTimeline: sinks }
-  }, [sessions])
+  // Sessions array is now unified - contains both work sessions and time sinks
+  // LinearTimeline handles rendering each at the appropriate Y position via isTimeSink flag
 
   // Transform frozen schedule snapshot into PlannedSessionItem[] for comparison overlay
   const plannedItemsForDate = useMemo((): PlannedSessionItem[] => {
@@ -1019,7 +1016,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
               }
             >
               <LinearTimeline
-                sessions={workSessions}
+                sessions={sessions}
                 workBlocks={workBlocks}
                 meetings={meetings}
                 onSessionUpdate={handleSessionUpdate}
@@ -1033,7 +1030,6 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                 showPlannedOverlay={showPlannedOverlay}
                 onTogglePlannedOverlay={() => setShowPlannedOverlay(!showPlannedOverlay)}
                 timeSinks={timeSinks}
-                timeSinkSessions={timeSinkSessionsForTimeline}
                 onTimeSinkSessionCreate={handleTimeSinkSessionCreate}
                 onSessionSplit={handleSessionSplit}
               />

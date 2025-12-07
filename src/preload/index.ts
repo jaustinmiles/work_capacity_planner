@@ -93,6 +93,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteWorkSession: (id: string) => ipcRenderer.invoke('db:deleteWorkSession', id),
     splitWorkSession: (sessionId: string, splitTime: Date, secondHalfTaskId?: string, secondHalfStepId?: string) =>
       ipcRenderer.invoke('db:splitWorkSession', sessionId, splitTime.toISOString(), secondHalfTaskId, secondHalfStepId),
+    splitTimeSinkSession: (sessionId: string, splitTime: Date) =>
+      ipcRenderer.invoke('db:splitTimeSinkSession', sessionId, splitTime.toISOString()),
     getWorkSessions: (date: string) => ipcRenderer.invoke('db:getWorkSessions', date),
     getActiveWorkSession: () => ipcRenderer.invoke('db:getActiveWorkSession'),
     getWorkSessionsForTask: (taskId: string) => ipcRenderer.invoke('db:getWorkSessionsForTask', taskId),

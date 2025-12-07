@@ -38,6 +38,8 @@ import {
 // ============================================================================
 
 interface LinearTimelineProps {
+  // Unified sessions array - contains both work sessions and time sinks
+  // Each session has isTimeSink flag to determine rendering lane
   sessions: WorkSessionData[]
   workBlocks: WorkBlock[]
   meetings?: Array<{ id: string; name: string; startTime: string; endTime: string; type: string }>
@@ -54,7 +56,6 @@ interface LinearTimelineProps {
   onTogglePlannedOverlay?: () => void
   // Time sink drag-to-create support
   timeSinks?: TimeSink[]
-  timeSinkSessions?: WorkSessionData[]
   onTimeSinkSessionCreate?: (sinkId: string, startMinutes: number, endMinutes: number) => void
   // Split session support
   onSessionSplit?: (sessionId: string, splitMinutes: number) => Promise<void>
@@ -146,7 +147,6 @@ export function LinearTimeline({
   showPlannedOverlay = false,
   onTogglePlannedOverlay,
   timeSinks = [],
-  timeSinkSessions = [],
   onTimeSinkSessionCreate,
   onSessionSplit,
 }: LinearTimelineProps): React.ReactElement {
@@ -197,6 +197,11 @@ export function LinearTimeline({
 
   // Split cursor state
   const [splitCursor, setSplitCursor] = useState<SplitCursorState>(INITIAL_SPLIT_CURSOR_STATE)
+
+  // Sessions array is now unified - work sessions and time sinks share the same editing behavior
+  // Split into separate arrays only for rendering at different Y positions
+  const workSessions = useMemo(() => sessions.filter(s => !s.isTimeSink), [sessions])
+  const timeSinkSessions = useMemo(() => sessions.filter(s => s.isTimeSink), [sessions])
 
   // Current time indicator
   const [currentMinutes, setCurrentMinutes] = useState<number>(
@@ -279,8 +284,8 @@ export function LinearTimeline({
       if (splitCursor.mode === SplitMode.Frozen) return
 
       // Find session at this X position (time)
+      // Both work sessions and time sinks can be split (unified editing)
       const sessionAtPosition = sessions.find(session => {
-        if (session.isTimeSink) return false // Skip time sink sessions for split
         return minutes > session.startMinutes + MIN_SPLIT_DURATION_MINUTES &&
                minutes < session.endMinutes - MIN_SPLIT_DURATION_MINUTES
       })
@@ -961,8 +966,8 @@ export function LinearTimeline({
             )
           })}
 
-          {/* Sessions (interactive layer) */}
-          {sessions.map(session => {
+          {/* Work Sessions (interactive layer - rendered at SESSION_LANE_Y) */}
+          {workSessions.map(session => {
             const x = minutesToX(session.startMinutes)
             const width = minutesToX(session.endMinutes) - x
             const isSelected = session.id === selectedSessionId
@@ -1056,10 +1061,11 @@ export function LinearTimeline({
             </text>
           )}
 
-          {/* Time Sink Sessions */}
+          {/* Time Sink Sessions (now interactive like work sessions) */}
           {timeSinkSessions.map(session => {
             const x = minutesToX(session.startMinutes)
             const width = minutesToX(session.endMinutes) - x
+            const isSelected = session.id === selectedSessionId
 
             if (width <= 0) return null
 
@@ -1071,9 +1077,12 @@ export function LinearTimeline({
                   width={width}
                   height={TIME_SINK_LANE_HEIGHT}
                   fill={session.color || '#9B59B6'}
+                  stroke={isSelected ? '#165DFF' : 'none'}
+                  strokeWidth={isSelected ? 2 : 0}
                   opacity={0.7}
                   rx={4}
-                  style={{ cursor: 'default' }}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => onSessionSelect(session.id)}
                 >
                   <title>{session.taskName} ({Math.round(session.endMinutes - session.startMinutes)} min)</title>
                 </rect>
@@ -1112,42 +1121,54 @@ export function LinearTimeline({
             />
           )}
 
-          {/* Split cursor indicator */}
-          {splitCursor.mode !== SplitMode.Inactive && splitCursor.splitMinutes !== null && (
-            <g style={{ pointerEvents: 'none' }}>
-              <line
-                x1={minutesToX(splitCursor.frozenAt ?? splitCursor.splitMinutes)}
-                y1={SESSION_LANE_Y - 5}
-                x2={minutesToX(splitCursor.frozenAt ?? splitCursor.splitMinutes)}
-                y2={SESSION_LANE_Y + SESSION_LANE_HEIGHT + 5}
-                stroke="#165DFF"
-                strokeWidth={splitCursor.mode === SplitMode.Frozen ? 2 : 1}
-                strokeDasharray={splitCursor.mode === SplitMode.Frozen ? 'none' : '4,2'}
-                opacity={splitCursor.mode === SplitMode.Frozen ? 1 : 0.6}
-              />
-              {/* Scissors icon at top */}
-              <text
-                x={minutesToX(splitCursor.frozenAt ?? splitCursor.splitMinutes)}
-                y={SESSION_LANE_Y - 10}
-                fontSize={12}
-                fill="#165DFF"
-                textAnchor="middle"
-                opacity={splitCursor.mode === SplitMode.Frozen ? 1 : 0.6}
-              >
-                ✂️
-              </text>
-              {/* Time label */}
-              <text
-                x={minutesToX(splitCursor.frozenAt ?? splitCursor.splitMinutes) + 4}
-                y={SESSION_LANE_Y + SESSION_LANE_HEIGHT + 15}
-                fontSize={10}
-                fill="#165DFF"
-                opacity={0.8}
-              >
-                {minutesToTime(splitCursor.frozenAt ?? splitCursor.splitMinutes)}
-              </text>
-            </g>
-          )}
+          {/* Split cursor indicator - spans both work session and time sink lanes */}
+          {splitCursor.mode !== SplitMode.Inactive && splitCursor.splitMinutes !== null && (() => {
+            // Extract values for TypeScript null safety
+            const splitPos = splitCursor.frozenAt ?? splitCursor.splitMinutes
+            // Determine which lane the target session is in
+            const targetSession = sessions.find(s =>
+              s.startMinutes < splitPos && s.endMinutes > splitPos,
+            )
+            const isTimeSinkTarget = targetSession?.isTimeSink === true
+            const laneY = isTimeSinkTarget ? TIME_SINK_LANE_Y : SESSION_LANE_Y
+            const laneHeight = isTimeSinkTarget ? TIME_SINK_LANE_HEIGHT : SESSION_LANE_HEIGHT
+
+            return (
+              <g style={{ pointerEvents: 'none' }}>
+                <line
+                  x1={minutesToX(splitPos)}
+                  y1={laneY - 5}
+                  x2={minutesToX(splitPos)}
+                  y2={laneY + laneHeight + 5}
+                  stroke="#165DFF"
+                  strokeWidth={splitCursor.mode === SplitMode.Frozen ? 2 : 1}
+                  strokeDasharray={splitCursor.mode === SplitMode.Frozen ? 'none' : '4,2'}
+                  opacity={splitCursor.mode === SplitMode.Frozen ? 1 : 0.6}
+                />
+                {/* Scissors icon at top */}
+                <text
+                  x={minutesToX(splitPos)}
+                  y={laneY - 10}
+                  fontSize={12}
+                  fill="#165DFF"
+                  textAnchor="middle"
+                  opacity={splitCursor.mode === SplitMode.Frozen ? 1 : 0.6}
+                >
+                  ✂️
+                </text>
+                {/* Time label */}
+                <text
+                  x={minutesToX(splitPos) + 4}
+                  y={laneY + laneHeight + 15}
+                  fontSize={10}
+                  fill="#165DFF"
+                  opacity={0.8}
+                >
+                  {minutesToTime(splitPos)}
+                </text>
+              </g>
+            )
+          })()}
 
           {/* Current time indicator */}
           <line

@@ -1812,5 +1812,36 @@
     "description": "the ai responds in markdown but it's rendered as regular text",
     "timestamp": "2025-12-04T22:39:59.165Z",
     "sessionId": "session-1764887999146-bf4abc06"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "title": "Completing a step while a work session is active creates duplicate work sessions",
+    "description": "Completing a step while a work session is active creates duplicate work sessions. For example, if i log 12 minutes on a task and complete it, then two concurrent blocks are logged, 12 minutes each, for a total of 24 minutes total. ",
+    "timestamp": "2025-12-05T23:26:53.074Z",
+    "sessionId": "session-1764977213054-aa5d0310"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "schedule/TimelineVisualizer",
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Snipping should work for the time sinks as well as work sessions.",
+    "description": "Snipping should work for the time sinks as well as work sessions. Right now, we can only select and snip a work session, but we should be able to do this for time sinks as well. This applies to the linear timeline visualier on the dual view work logger tool",
+    "timestamp": "2025-12-06T02:27:44.636Z",
+    "sessionId": "session-1764988064614-8f573980"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "timeline/GanttChart"
+    ],
+    "title": "Block utilization should not show blocks from previous days",
+    "description": "Block utilization should not show blocks from previous days. Right now I can see blocks from yesterday. Also the block utilization should be below the gantt timeline. ",
+    "timestamp": "2025-12-06T02:32:34.964Z",
+    "sessionId": "session-1764988354926-4351603a"
   }
 ]

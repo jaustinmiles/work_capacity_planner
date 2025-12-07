@@ -5,14 +5,21 @@ import { IconCheck, IconClose, IconExclamationCircle, IconInfo } from '@arco-des
 
 type NotificationType = 'success' | 'error' | 'warning' | 'info'
 
+/**
+ * Input format for notifications.
+ * Supports both simple string and Arco-style object format for compatibility.
+ */
+type NotificationInput = string | { title?: string; content: string }
+
 interface NotificationProps {
   type: NotificationType
   content: string
+  title?: string
   duration?: number
   onClose?: () => void
 }
 
-const NotificationItem: React.FC<NotificationProps> = ({ type, content, duration = 3000, onClose }) => {
+const NotificationItem: React.FC<NotificationProps> = ({ type, content, title, duration = 3000, onClose }) => {
   const [visible, setVisible] = useState(true)
 
   useEffect(() => {
@@ -26,7 +33,7 @@ const NotificationItem: React.FC<NotificationProps> = ({ type, content, duration
     return () => clearTimeout(timer)
   }, [duration, onClose])
 
-  const getIcon = () => {
+  const getIcon = (): React.ReactElement => {
     switch (type) {
       case 'success':
         return <IconCheck style={{ color: '#52c41a' }} />
@@ -39,7 +46,7 @@ const NotificationItem: React.FC<NotificationProps> = ({ type, content, duration
     }
   }
 
-  const getBackgroundColor = () => {
+  const getBackgroundColor = (): string => {
     switch (type) {
       case 'success':
         return '#f6ffed'
@@ -52,7 +59,7 @@ const NotificationItem: React.FC<NotificationProps> = ({ type, content, duration
     }
   }
 
-  const getBorderColor = () => {
+  const getBorderColor = (): string => {
     switch (type) {
       case 'success':
         return '#b7eb8f'
@@ -69,8 +76,8 @@ const NotificationItem: React.FC<NotificationProps> = ({ type, content, duration
     <div
       style={{
         display: 'flex',
-        alignItems: 'center',
-        padding: '8px 16px',
+        alignItems: 'flex-start',
+        padding: '12px 16px',
         marginBottom: 8,
         background: getBackgroundColor(),
         border: `1px solid ${getBorderColor()}`,
@@ -79,14 +86,33 @@ const NotificationItem: React.FC<NotificationProps> = ({ type, content, duration
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateX(0)' : 'translateX(100%)',
         transition: 'all 0.2s ease',
+        pointerEvents: 'auto',
+        minWidth: 280,
+        maxWidth: 400,
       }}
     >
-      <Space>
-        {getIcon()}
-        <span>{content}</span>
+      <Space align="start" size={8}>
+        <div style={{ marginTop: 2 }}>{getIcon()}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {title && (
+            <span style={{ fontWeight: 600, fontSize: 14 }}>{title}</span>
+          )}
+          <span style={{ fontSize: 13, color: title ? '#666' : 'inherit' }}>{content}</span>
+        </div>
       </Space>
     </div>
   )
+}
+
+/**
+ * Normalizes notification input to props.
+ * Handles both string and object formats.
+ */
+function normalizeInput(input: NotificationInput): { content: string; title?: string } {
+  if (typeof input === 'string') {
+    return { content: input }
+  }
+  return { content: input.content, title: input.title }
 }
 
 class NotificationManager {
@@ -94,7 +120,7 @@ class NotificationManager {
   private root: ReactDOM.Root | null = null
   private notifications: Array<{ id: string; props: NotificationProps }> = []
 
-  private ensureContainer() {
+  private ensureContainer(): void {
     if (!this.container) {
       this.container = document.createElement('div')
       this.container.style.position = 'fixed'
@@ -107,7 +133,7 @@ class NotificationManager {
     }
   }
 
-  private render() {
+  private render(): void {
     if (!this.root) return
 
     this.root.render(
@@ -123,42 +149,60 @@ class NotificationManager {
     )
   }
 
-  private add(type: NotificationType, content: string, duration?: number) {
+  private add(type: NotificationType, input: NotificationInput, duration?: number): void {
     this.ensureContainer()
     const id = `notification-${Date.now()}-${Math.random()}`
-    this.notifications.push({ id, props: { type, content, duration: duration || 3000 } })
+    const { content, title } = normalizeInput(input)
+    this.notifications.push({
+      id,
+      props: { type, content, title, duration: duration ?? 3000 },
+    })
     this.render()
   }
 
-  private remove(id: string) {
+  private remove(id: string): void {
     this.notifications = this.notifications.filter(n => n.id !== id)
     this.render()
   }
 
-  success(content: string, duration?: number) {
-    this.add('success', content, duration)
+  success(input: NotificationInput, duration?: number): void {
+    this.add('success', input, duration)
   }
 
-  error(content: string, duration?: number) {
-    this.add('error', content, duration)
+  error(input: NotificationInput, duration?: number): void {
+    this.add('error', input, duration)
   }
 
-  warning(content: string, duration?: number) {
-    this.add('warning', content, duration)
+  warning(input: NotificationInput, duration?: number): void {
+    this.add('warning', input, duration)
   }
 
-  info(content: string, duration?: number) {
-    this.add('info', content, duration)
+  info(input: NotificationInput, duration?: number): void {
+    this.add('info', input, duration)
   }
 }
 
 // Create a singleton instance
 const notificationManager = new NotificationManager()
 
-// Export the notification API
+/**
+ * React 18-compatible notification API.
+ * Supports both simple string and Arco-style object format:
+ *
+ * @example
+ * // Simple string
+ * Notification.success('Operation completed')
+ *
+ * // Object with title
+ * Notification.error({ title: 'Error', content: 'Something went wrong' })
+ */
 export const Notification = {
-  success: (content: string, duration?: number) => notificationManager.success(content, duration),
-  error: (content: string, duration?: number) => notificationManager.error(content, duration),
-  warning: (content: string, duration?: number) => notificationManager.warning(content, duration),
-  info: (content: string, duration?: number) => notificationManager.info(content, duration),
+  success: (input: NotificationInput, duration?: number): void =>
+    notificationManager.success(input, duration),
+  error: (input: NotificationInput, duration?: number): void =>
+    notificationManager.error(input, duration),
+  warning: (input: NotificationInput, duration?: number): void =>
+    notificationManager.warning(input, duration),
+  info: (input: NotificationInput, duration?: number): void =>
+    notificationManager.info(input, duration),
 }

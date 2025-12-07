@@ -28,6 +28,7 @@ import { JobContextData } from '../../services/chat-context-provider'
 import { formatDateStringForDisplay } from '@shared/time-utils'
 import { logger } from '@/logger'
 import { useVoiceRecording } from '../../hooks/useVoiceRecording'
+import { MarkdownContent } from '../common/MarkdownContent'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -372,7 +373,12 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
                   {message.role === ChatMessageRole.User ? 'You' : 'Assistant'} •{' '}
                   {message.timestamp.toLocaleTimeString()}
                 </div>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
+                {/* Render markdown for assistant messages, plain text for user messages */}
+                {message.role === ChatMessageRole.Assistant ? (
+                  <MarkdownContent content={message.content} />
+                ) : (
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
+                )}
 
                 {/* Amendment Preview */}
                 {message.amendments && message.amendments.length > 0 && (
