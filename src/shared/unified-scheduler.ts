@@ -1789,8 +1789,9 @@ export class UnifiedScheduler {
     const totalItems = scheduled.length + unscheduled.length
     const efficiency = totalItems > 0 ? (scheduled.length / totalItems) * 100 : 100
 
-    // Calculate block utilization
-    const blockUtilization = this.calculateBlockUtilization(scheduled, context.workPatterns, context.currentTime)
+    // Calculate block utilization - only show today's blocks by default
+    const todayDateStr = getLocalDateString(context.currentTime || getCurrentTime())
+    const blockUtilization = this.calculateBlockUtilization(scheduled, context.workPatterns, context.currentTime, todayDateStr)
 
     // Calculate total duration
     const totalDuration = scheduled.reduce((sum, item) => sum + item.duration, 0)
@@ -1824,11 +1825,16 @@ export class UnifiedScheduler {
 
   /**
    * Calculate block utilization for debug info
+   * @param scheduled - Scheduled items to analyze
+   * @param workPatterns - Work patterns to check utilization for
+   * @param currentTime - Current time for determining "today"
+   * @param targetDate - Optional date filter (YYYY-MM-DD format). If provided, only shows blocks for that date.
    */
   private calculateBlockUtilization(
     scheduled: UnifiedScheduleItem[],
     workPatterns: DailyWorkPattern[],
     currentTime?: Date,
+    targetDate?: string,
   ): Array<{
     date: string
     blockId: string
@@ -1879,7 +1885,17 @@ export class UnifiedScheduler {
       return utilization
     }
 
-    workPatterns.forEach(pattern => {
+    // Filter work patterns by targetDate if provided
+    const patternsToProcess = targetDate
+      ? workPatterns.filter(p => p.date === targetDate)
+      : workPatterns
+
+    if (targetDate && patternsToProcess.length === 0) {
+      logger.debug('No work patterns found for target date', { targetDate })
+      return utilization
+    }
+
+    patternsToProcess.forEach(pattern => {
       const dateItems = itemsByDate.get(pattern.date) || []
 
       // Check if blocks exist

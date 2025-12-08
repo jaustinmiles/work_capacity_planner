@@ -29,6 +29,27 @@ interface GanttChartProps {
   sequencedTasks: SequencedTask[]
 }
 
+/**
+ * Block utilization entry from the scheduler's debug info
+ */
+interface BlockUtilizationInfo {
+  date: string
+  blockId: string
+  startTime: string
+  endTime: string
+  capacity: number
+  used: number
+  typeConfig: BlockTypeConfig
+  utilization: number
+  status: string
+  unusedReason?: string
+  perTypeUtilization?: Record<string, number>
+  capacityByType?: Record<string, number>
+  usedByType?: Record<string, number>
+  isCurrent?: boolean
+  reasonNotFilled?: string[]
+}
+
 interface GanttItemWorkflowMetadata {
   workflowId?: string | undefined
   workflowName?: string | undefined
@@ -802,63 +823,6 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
           currentTime={currentTime}
           className="gantt-metrics"
         />
-      )}
-
-      {/* Block Utilization Display */}
-      {!workPatternsLoading && debugInfo?.blockUtilization && debugInfo.blockUtilization.length > 0 && (
-        <Card title="Block Utilization (All Blocks)" style={{ marginTop: 16 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Date</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Block ID</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Time</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Type</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Capacity</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Used</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {debugInfo.blockUtilization.map((block: any, index: number) => (
-                <tr key={`${block.blockId}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '8px' }}>{block.date}</td>
-                  <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.9em' }}>
-                    {block.blockId}
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {block.startTime} - {block.endTime}
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {(() => {
-                      const display = getBlockTypeDisplay(block.typeConfig, userTypes)
-                      return (
-                        <Tag color={display.color}>
-                          {display.name}
-                        </Tag>
-                      )
-                    })()}
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {block.capacity}min
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {block.used}/{block.capacity} ({Math.round((block.used / block.capacity) * 100)}%)
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    {block.status === 'unused' ? (
-                      <Tag color="gray">{block.unusedReason || 'Unused'}</Tag>
-                    ) : block.status === 'partial' ? (
-                      <Tag color="orange">Partially Used</Tag>
-                    ) : (
-                      <Tag color="green">Used</Tag>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
       )}
 
       {/* Gantt Chart - Only show when patterns are loaded */}
@@ -1791,6 +1755,63 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
               </Space>
             </Space>
           </div>
+        </Card>
+      )}
+
+      {/* Block Utilization Display - Shows today's blocks only, positioned below the timeline */}
+      {!workPatternsLoading && debugInfo?.blockUtilization && debugInfo.blockUtilization.length > 0 && (
+        <Card title="Block Utilization (Today)" style={{ marginTop: 16 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Date</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Block ID</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Time</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Type</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Capacity</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Used</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {debugInfo.blockUtilization.map((block: BlockUtilizationInfo, index: number) => (
+                <tr key={`${block.blockId}-${index}`} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px' }}>{block.date}</td>
+                  <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '0.9em' }}>
+                    {block.blockId}
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {block.startTime} - {block.endTime}
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {(() => {
+                      const display = getBlockTypeDisplay(block.typeConfig, userTypes)
+                      return (
+                        <Tag color={display.color}>
+                          {display.name}
+                        </Tag>
+                      )
+                    })()}
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {block.capacity}min
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {block.used}/{block.capacity} ({Math.round((block.used / block.capacity) * 100)}%)
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {block.status === 'unused' ? (
+                      <Tag color="gray">{block.unusedReason || 'Unused'}</Tag>
+                    ) : block.status === 'partial' ? (
+                      <Tag color="orange">Partially Used</Tag>
+                    ) : (
+                      <Tag color="green">Used</Tag>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </Card>
       )}
 

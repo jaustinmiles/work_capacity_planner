@@ -5,6 +5,7 @@ import { useResponsive } from '../../providers/ResponsiveProvider'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
+import { forceImmediateSchedulerUpdate } from '../../store/storeConnector'
 import { formatMinutes } from '@shared/time-utils'
 import { TaskStatus, NotificationType } from '@shared/enums'
 import { logger } from '@/logger'
@@ -48,6 +49,7 @@ export function StartNextTaskWidget(): ReactElement {
 
   // Scheduler store state
   const nextScheduledItem = useSchedulerStore(state => state.nextScheduledItem)
+  const recomputeSchedule = useSchedulerStore(state => state.recomputeSchedule)
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [nextTask, setNextTask] = useState<{
@@ -173,6 +175,17 @@ export function StartNextTaskWidget(): ReactElement {
 
         showNotification(`Completed task: ${activeSession.taskName || 'Task'}`, NotificationType.Success)
       }
+
+      // Force immediate scheduler update to bypass debounce, then recompute schedule
+      // This ensures the completed task is immediately filtered out and removed from queue
+      // without waiting for the debounced reactive chain to propagate
+      forceImmediateSchedulerUpdate()
+      recomputeSchedule()
+
+      // Explicitly sync local state - bypass React's batching/subscription timing
+      // Reading directly from Zustand store ensures we get the latest value immediately
+      const updatedNextItem = useSchedulerStore.getState().nextScheduledItem
+      setNextTask(updatedNextItem)
     } catch (error) {
       logger.ui.error('Failed to complete task', { error })
       showNotification('Failed to complete task', NotificationType.Error)

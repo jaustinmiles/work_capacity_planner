@@ -13,6 +13,7 @@ import React, { useMemo } from 'react'
  * - Unordered lists: - item or * item
  * - Ordered lists: 1. item
  * - Headers: # ## ###
+ * - Tables: | col | col | with |---|---| separator
  */
 
 interface MarkdownContentProps {
@@ -21,12 +22,14 @@ interface MarkdownContentProps {
 }
 
 interface ParsedBlock {
-  type: 'paragraph' | 'code-block' | 'header' | 'list'
+  type: 'paragraph' | 'code-block' | 'header' | 'list' | 'table'
   content: string
   language?: string
   level?: number
   listType?: 'ordered' | 'unordered'
   items?: string[]
+  tableHeaders?: string[]
+  tableRows?: string[][]
 }
 
 /**
@@ -235,6 +238,52 @@ function parseBlocks(content: string): ParsedBlock[] {
       continue
     }
 
+    // Check for table: | col | col | followed by |---|---|
+    if (line.includes('|')) {
+      const nextLine = lines[i + 1]
+      // Check if next line is a separator row (contains |---| pattern)
+      if (nextLine && /^\|?[\s-:|]+\|[\s-:|]+\|?$/.test(nextLine)) {
+        // Parse header row
+        const headerCells = line
+          .split('|')
+          .map(cell => cell.trim())
+          .filter(cell => cell.length > 0)
+
+        // Skip header and separator
+        i += 2
+
+        // Parse data rows
+        const rows: string[][] = []
+        while (i < lines.length) {
+          const rowLine = lines[i]
+          if (rowLine === undefined || !rowLine.includes('|')) {
+            break
+          }
+          // Skip if it looks like another separator row
+          if (/^\|?[\s-:|]+\|[\s-:|]+\|?$/.test(rowLine)) {
+            i++
+            continue
+          }
+          const cells = rowLine
+            .split('|')
+            .map(cell => cell.trim())
+            .filter(cell => cell.length > 0)
+          if (cells.length > 0) {
+            rows.push(cells)
+          }
+          i++
+        }
+
+        blocks.push({
+          type: 'table',
+          content: '',
+          tableHeaders: headerCells,
+          tableRows: rows,
+        })
+        continue
+      }
+    }
+
     // Empty line - skip
     if (line.trim() === '') {
       i++
@@ -324,6 +373,62 @@ function renderBlock(block: ParsedBlock, index: number): React.ReactNode {
             </li>
           ))}
         </ListTag>
+      )
+    }
+
+    case 'table': {
+      return (
+        <div
+          key={key}
+          style={{
+            marginBottom: 12,
+            overflowX: 'auto',
+          }}
+        >
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: 13,
+            }}
+          >
+            <thead>
+              <tr>
+                {block.tableHeaders?.map((header, headerIndex) => (
+                  <th
+                    key={`${key}-header-${headerIndex}`}
+                    style={{
+                      padding: '8px 12px',
+                      borderBottom: '2px solid var(--color-border-2)',
+                      textAlign: 'left',
+                      fontWeight: 600,
+                      backgroundColor: 'var(--color-fill-1)',
+                    }}
+                  >
+                    {parseInlineMarkdown(header, `${key}-header-${headerIndex}`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.tableRows?.map((row, rowIndex) => (
+                <tr key={`${key}-row-${rowIndex}`}>
+                  {row.map((cell, cellIndex) => (
+                    <td
+                      key={`${key}-row-${rowIndex}-cell-${cellIndex}`}
+                      style={{
+                        padding: '8px 12px',
+                        borderBottom: '1px solid var(--color-border-1)',
+                      }}
+                    >
+                      {parseInlineMarkdown(cell, `${key}-row-${rowIndex}-cell-${cellIndex}`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )
     }
 

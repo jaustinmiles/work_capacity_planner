@@ -9,7 +9,6 @@ import {
   TaskStatus,
   WorkPatternOperation,
   WorkSessionOperation,
-  WorkBlockType,
 } from './amendment-types'
 import { isValidEnumValue } from './enums'
 import { detectDependencyCycles } from './graph-utils'
@@ -446,7 +445,8 @@ function validateWorkPatternModification(a: Record<string, unknown>, errors: Val
     const block = a.blockData
     validateDate(block.startTime, 'blockData.startTime', 'Start time', errors)
     validateDate(block.endTime, 'blockData.endTime', 'End time', errors)
-    validateEnumValue(block.type, WorkBlockType, 'blockData.type', errors)
+    // blockData.type can be a user-defined task type ID or a system type (blocked/sleep)
+    validateNonEmptyString(block.type, 'blockData.type', 'Block type', errors)
   }
 
   // Validate meetingData if present

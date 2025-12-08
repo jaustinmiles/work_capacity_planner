@@ -8,6 +8,8 @@
  * - Critical path analysis
  */
 
+import { logger } from '../logger'
+
 export interface GraphNode {
   id: string
   dependencies?: string[]
@@ -45,6 +47,9 @@ export function topologicalSort<T extends GraphNode>(items: T[]): T[] {
   })
 
   // Build adjacency list and calculate in-degree
+  // Track missing dependencies for error reporting
+  const missingDependencies: Array<{ itemId: string; itemName?: string; missingDepId: string }> = []
+
   items.forEach(item => {
     const dependencies = item.dependencies || []
     dependencies.forEach(depId => {
@@ -54,9 +59,24 @@ export function topologicalSort<T extends GraphNode>(items: T[]): T[] {
         dependents.push(item.id)
         adjacencyList.set(depId, dependents)
         inDegree.set(item.id, (inDegree.get(item.id) || 0) + 1)
+      } else {
+        // Track missing dependency for error reporting
+        missingDependencies.push({
+          itemId: item.id,
+          itemName: 'name' in item ? String(item.name) : undefined,
+          missingDepId: depId,
+        })
       }
     })
   })
+
+  // Log warning if there are missing dependencies
+  if (missingDependencies.length > 0) {
+    logger.system.warn('Topological sort encountered missing dependencies', {
+      missingCount: missingDependencies.length,
+      missingDependencies: missingDependencies.slice(0, 10), // Limit to first 10 for logging
+    }, 'missing-dependencies')
+  }
 
   // Start with items that have no dependencies
   const queue: string[] = []

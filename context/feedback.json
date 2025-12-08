@@ -1800,7 +1800,8 @@
     "title": "Should be able to click and drag to create time log blocks for time sinks",
     "description": "No way to retroactively add time sinks to the logged time for the day as far as I can tell",
     "timestamp": "2025-12-04T22:33:58.784Z",
-    "sessionId": "session-1764887638768-b1f91bff"
+    "sessionId": "session-1764887638768-b1f91bff",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1811,7 +1812,8 @@
     "title": "support markdown rendering",
     "description": "the ai responds in markdown but it's rendered as regular text",
     "timestamp": "2025-12-04T22:39:59.165Z",
-    "sessionId": "session-1764887999146-bf4abc06"
+    "sessionId": "session-1764887999146-bf4abc06",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1819,7 +1821,8 @@
     "title": "Completing a step while a work session is active creates duplicate work sessions",
     "description": "Completing a step while a work session is active creates duplicate work sessions. For example, if i log 12 minutes on a task and complete it, then two concurrent blocks are logged, 12 minutes each, for a total of 24 minutes total. ",
     "timestamp": "2025-12-05T23:26:53.074Z",
-    "sessionId": "session-1764977213054-aa5d0310"
+    "sessionId": "session-1764977213054-aa5d0310",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1831,7 +1834,8 @@
     "title": "Snipping should work for the time sinks as well as work sessions.",
     "description": "Snipping should work for the time sinks as well as work sessions. Right now, we can only select and snip a work session, but we should be able to do this for time sinks as well. This applies to the linear timeline visualier on the dual view work logger tool",
     "timestamp": "2025-12-06T02:27:44.636Z",
-    "sessionId": "session-1764988064614-8f573980"
+    "sessionId": "session-1764988064614-8f573980",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1843,5 +1847,81 @@
     "description": "Block utilization should not show blocks from previous days. Right now I can see blocks from yesterday. Also the block utilization should be below the gantt timeline. ",
     "timestamp": "2025-12-06T02:32:34.964Z",
     "sessionId": "session-1764988354926-4351603a"
+  },
+  {
+    "type": "bug",
+    "priority": "medium",
+    "title": "Swim lanes do not resize vertically or become scrollable when many tasks are added",
+    "description": "Swim lanes do not resize vertically or become scrollable when many tasks are added. It's impossible to see the number of rows because the vertical height is fixed. ",
+    "timestamp": "2025-12-07T03:07:15.620Z",
+    "sessionId": "session-1765076835609-4c253c62"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "AI brainstorm dependencies not correct. ",
+    "description": "AI brainstorm dependencies not correct. There is some subtle error that prevents the scheduler from scheduling, When I see the graphs, everything seems fine, but I have to delete the connections and rewire everything in order to make it accept scheduling. So we need better validation on the dependencies. ",
+    "timestamp": "2025-12-07T03:08:24.013Z",
+    "sessionId": "session-1765076903995-65da1ea8"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "status/WorkStatusWidget"
+    ],
+    "title": "Completing the currently active status doesn't remove it from the task queue. ",
+    "description": "Completing the currently active status doesn't remove it from the task queue. When the complete button is pressed, the task or workflow step should be marked as completed and we should NOT get the same one presented to us again (since it's complete) but this is current behavior. Also, the start next task button is recommending to start tasks that have actively counting down async wait timers. We need to make this much more resilient and introduce tests to protect it. ",
+    "timestamp": "2025-12-07T03:10:09.392Z",
+    "sessionId": "session-1765077009372-970bd287"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "settings/MultiDayScheduleEditor",
+      "settings/WorkBlocksEditor"
+    ],
+    "title": "Creating a new block should place the block at the first open position if 'now' is taken",
+    "description": "Creating a new block should place the block at the first open position if 'now' is taken. For example, if it's 1 pm and I create a block, the block should appear at 1 pm. If it's 2 hours long by default, it should end at 3 pm. Then if i create a new one, it should appear AFTER that, starting at 3 pm by default",
+    "timestamp": "2025-12-07T21:02:17.732Z",
+    "sessionId": "session-1765141337717-2c5c7181"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "AI assistant cannot create meetings on the schedule",
+    "description": "AI assistant cannot create meetings on the schedule. User should be able to say \"make a meeting at 4 pm called '...'\" and have the AI put that on the schedule, but I don't think that's a valid amendment type or that it works. ",
+    "timestamp": "2025-12-07T21:03:40.608Z",
+    "sessionId": "session-1765141420595-11ca94ed"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "tasks/TaskList",
+      "tasks/SequencedTaskEdit"
+    ],
+    "title": "Editing a workflow causes a page refresh",
+    "description": "Refreshes should be forbade in the application. everything should be reactive. ",
+    "timestamp": "2025-12-07T21:08:06.505Z",
+    "sessionId": "session-1765141686483-fcdd12d7"
+  },
+  {
+    "type": "improvement",
+    "priority": "medium",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "Move chat to sidebar and show UI updates in real time",
+    "description": "Move chat to sidebar and show UI updates in real time",
+    "timestamp": "2025-12-08T03:50:08.767Z",
+    "sessionId": "session-1765165808744-c0e7cb42"
   }
 ]

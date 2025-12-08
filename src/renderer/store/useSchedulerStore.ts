@@ -67,14 +67,30 @@ function hasStartTime(item: UnifiedScheduleItem): item is UnifiedScheduleItem & 
   return item.startTime !== undefined && item.startTime !== null
 }
 
-// Helper to check if item is a non-work item (meetings, breaks, blocked time, async waits)
+// Helper to check if item is a non-work item or not available for work
+// Filters: meetings, breaks, blocked time, async waits, completed items, and items waiting on async
 function isNonWorkItem(item: UnifiedScheduleItem): boolean {
-  return (
+  // Filter by item type
+  if (
     item.type === UnifiedScheduleItemType.Meeting ||
     item.type === UnifiedScheduleItemType.Break ||
     item.type === UnifiedScheduleItemType.BlockedTime ||
     item.type === UnifiedScheduleItemType.AsyncWait
-  )
+  ) {
+    return true
+  }
+
+  // Filter by item state - completed tasks should not be in the queue
+  if (item.completed === true) {
+    return true
+  }
+
+  // Filter items waiting on async timers - they can't be started yet
+  if (item.isWaitingOnAsync === true) {
+    return true
+  }
+
+  return false
 }
 
 // Helper function to get task color based on type ID

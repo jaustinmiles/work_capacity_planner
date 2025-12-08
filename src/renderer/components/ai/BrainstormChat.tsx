@@ -17,15 +17,15 @@ import {
 } from '@arco-design/web-react'
 import { IconSend, IconRobot, IconUser, IconRefresh, IconVoice, IconPause } from '@arco-design/web-react/icon'
 import { useBrainstormChatStore, ChatStatus } from '../../store/useBrainstormChatStore'
-import { ChatMessageRole, AmendmentType } from '@shared/enums'
-import { Amendment, WorkflowCreation } from '@shared/amendment-types'
+import { ChatMessageRole, AmendmentType, WorkPatternOperation } from '@shared/enums'
+import { Amendment, WorkflowCreation, WorkPatternModification } from '@shared/amendment-types'
 import { WorkflowAmendmentPreview } from '../shared/WorkflowAmendmentPreview'
 import { sendChatMessage, generateAmendments } from '../../services/brainstorm-chat-ai'
 import { applyAmendments, ApplyAmendmentsResult } from '../../utils/amendment-applicator'
 import { IconCheck, IconClose } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { JobContextData } from '../../services/chat-context-provider'
-import { formatDateStringForDisplay } from '@shared/time-utils'
+import { formatDateStringForDisplay, extractTimeFromISO } from '@shared/time-utils'
 import { logger } from '@/logger'
 import { useVoiceRecording } from '../../hooks/useVoiceRecording'
 import { MarkdownContent } from '../common/MarkdownContent'
@@ -632,8 +632,37 @@ function getAmendmentSummary(amendment: Amendment): string {
       return `Update priority for ${amendment.target.name}`
     case AmendmentType.TypeChange:
       return `Change ${amendment.target.name} type to ${amendment.newType}`
-    case AmendmentType.WorkPatternModification:
-      return `Modify work pattern for ${amendment.date instanceof Date ? amendment.date.toLocaleDateString() : formatDateStringForDisplay(amendment.date)}`
+    case AmendmentType.WorkPatternModification: {
+      const mod = amendment as WorkPatternModification
+      const dateStr = mod.date instanceof Date
+        ? mod.date.toLocaleDateString()
+        : formatDateStringForDisplay(String(mod.date))
+
+      // Show specific operation details
+      if (mod.operation === WorkPatternOperation.AddBlock && mod.blockData) {
+        const start = extractTimeFromISO(mod.blockData.startTime)
+        const end = extractTimeFromISO(mod.blockData.endTime)
+        return `Add ${mod.blockData.type} block ${start} - ${end} on ${dateStr}`
+      }
+      if (mod.operation === WorkPatternOperation.AddMeeting && mod.meetingData) {
+        const start = extractTimeFromISO(mod.meetingData.startTime)
+        const end = extractTimeFromISO(mod.meetingData.endTime)
+        return `Add meeting "${mod.meetingData.name}" ${start} - ${end} on ${dateStr}`
+      }
+      if (mod.operation === WorkPatternOperation.RemoveBlock) {
+        return `Remove block on ${dateStr}`
+      }
+      if (mod.operation === WorkPatternOperation.RemoveMeeting) {
+        return `Remove meeting on ${dateStr}`
+      }
+      if (mod.operation === WorkPatternOperation.ModifyBlock) {
+        return `Modify block on ${dateStr}`
+      }
+      if (mod.operation === WorkPatternOperation.ModifyMeeting) {
+        return `Modify meeting on ${dateStr}`
+      }
+      return `Modify work pattern on ${dateStr}`
+    }
     case AmendmentType.WorkSessionEdit:
       return `${amendment.operation} work session`
     case AmendmentType.QueryResponse:

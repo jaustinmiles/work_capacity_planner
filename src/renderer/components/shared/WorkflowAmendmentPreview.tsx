@@ -29,6 +29,16 @@ export function WorkflowAmendmentPreview({
   const totalDuration = amendment.steps.reduce((sum, step) => sum + step.duration, 0)
   const totalAsyncWait = amendment.steps.reduce((sum, step) => sum + (step.asyncWaitTime || 0), 0)
 
+  // Build set of valid step names for dependency validation (case-insensitive)
+  const validStepNames = new Set(
+    amendment.steps.map(s => s.name.toLowerCase().trim()),
+  )
+
+  // Check if a dependency name references a valid step
+  const isDependencyValid = (depName: string): boolean => {
+    return validStepNames.has(depName.toLowerCase().trim())
+  }
+
   if (mode === PreviewMode.Compact) {
     return (
       <Space direction="vertical" size={4}>
@@ -79,7 +89,22 @@ export function WorkflowAmendmentPreview({
               <Text type="warning"> + {step.asyncWaitTime}min wait</Text>
             )}
             {step.dependsOn && step.dependsOn.length > 0 && (
-              <Text type="secondary"> → after: {step.dependsOn.join(', ')}</Text>
+              <span style={{ marginLeft: 4 }}>
+                <Text type="secondary">→ after: </Text>
+                {step.dependsOn.map((dep, depIdx) => {
+                  const isValid = isDependencyValid(dep)
+                  return (
+                    <Tag
+                      key={depIdx}
+                      color={isValid ? 'green' : 'red'}
+                      size="small"
+                      style={{ marginRight: 4, marginLeft: depIdx === 0 ? 0 : 2 }}
+                    >
+                      {isValid ? '✓' : '⚠'} {dep}
+                    </Tag>
+                  )
+                })}
+              </span>
             )}
           </div>
         ))}

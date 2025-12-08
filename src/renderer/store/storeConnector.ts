@@ -50,6 +50,62 @@ export const resetStoreConnectorState = (): void => {
   }
 }
 
+/**
+ * Forces an immediate scheduler update, bypassing the debounce.
+ * Use this for critical operations like task completion where the user
+ * needs to see the UI update immediately without waiting for debounce.
+ *
+ * This reads the current task store state, filters schedulable items,
+ * and immediately pushes them to the scheduler store.
+ */
+export const forceImmediateSchedulerUpdate = (): void => {
+  logger.ui.info('Forcing immediate scheduler update (bypassing debounce)', {}, 'force-immediate-update')
+
+  const taskState = useTaskStore.getState()
+  const current = {
+    tasks: taskState.tasks,
+    sequencedTasks: taskState.sequencedTasks,
+    workSettings: taskState.workSettings,
+    activeWorkSessions: taskState.activeWorkSessions,
+    nextTaskSkipIndex: taskState.nextTaskSkipIndex,
+  }
+
+  // Filter schedulable items (excludes completed tasks)
+  const changes: {
+    tasks?: Task[]
+    sequencedTasks?: SequencedTask[]
+    workSettings?: WorkSettings | null
+    activeWorkSessions?: Set<string>
+  } = {}
+
+  // Always include filtered tasks and workflows for immediate update
+  changes.tasks = filterSchedulableItems(current.tasks)
+  changes.sequencedTasks = filterSchedulableWorkflows(current.sequencedTasks)
+  changes.workSettings = current.workSettings
+  changes.activeWorkSessions = new Set(current.activeWorkSessions.keys())
+
+  logger.ui.info('Immediate update payload', {
+    taskCount: changes.tasks.length,
+    workflowCount: changes.sequencedTasks.length,
+    sessionCount: changes.activeWorkSessions.size,
+  }, 'immediate-update-payload')
+
+  // Push to scheduler store immediately
+  useSchedulerStore.getState().setInputs(changes)
+
+  // Also update skip index
+  useSchedulerStore.getState().setNextTaskSkipIndex(current.nextTaskSkipIndex)
+
+  // Update previous state to prevent duplicate updates when debounce fires
+  previousState = {
+    tasks: current.tasks,
+    sequencedTasks: current.sequencedTasks,
+    workSettings: current.workSettings,
+    activeWorkSessions: current.activeWorkSessions,
+    nextTaskSkipIndex: current.nextTaskSkipIndex,
+  }
+}
+
 export const connectStores = () => {
   if (isConnected) {
     logger.ui.warn('Store connector already initialized', {}, 'store-connector')

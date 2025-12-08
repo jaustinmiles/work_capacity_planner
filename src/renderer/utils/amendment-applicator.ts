@@ -86,8 +86,27 @@ function getAmendmentDescription(amendment: Amendment): string {
       return `Update priority for ${amendment.target.name}`
     case AmendmentType.TypeChange:
       return `Change ${amendment.target.name} type to ${amendment.newType}`
-    case AmendmentType.WorkPatternModification:
-      return `${amendment.operation} work pattern`
+    case AmendmentType.WorkPatternModification: {
+      const mod = amendment as WorkPatternModification
+      // Show specific operation details for better user understanding
+      if (mod.operation === WorkPatternOperation.AddBlock && mod.blockData) {
+        const start = extractTimeFromISO(mod.blockData.startTime)
+        const end = extractTimeFromISO(mod.blockData.endTime)
+        return `Add ${mod.blockData.type} block ${start} - ${end}`
+      }
+      if (mod.operation === WorkPatternOperation.AddMeeting && mod.meetingData) {
+        const start = extractTimeFromISO(mod.meetingData.startTime)
+        const end = extractTimeFromISO(mod.meetingData.endTime)
+        return `Add meeting "${mod.meetingData.name}" ${start} - ${end}`
+      }
+      if (mod.operation === WorkPatternOperation.RemoveBlock) {
+        return 'Remove block'
+      }
+      if (mod.operation === WorkPatternOperation.RemoveMeeting) {
+        return 'Remove meeting'
+      }
+      return `${mod.operation} work pattern`
+    }
     case AmendmentType.WorkSessionEdit:
       return `${amendment.operation} work session`
     case AmendmentType.ArchiveToggle:
@@ -537,6 +556,32 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                 }
               } else {
                 // This is a task/workflow level dependency change
+                // First, build a set of valid entity IDs for validation
+                const allTasks = await db.getTasks()
+                const allWorkflows = await db.getSequencedTasks()
+                const validEntityIds = new Set<string>([
+                  ...allTasks.map(t => t.id),
+                  ...allWorkflows.map(w => w.id),
+                  ...allWorkflows.flatMap(w => w.steps?.map(s => s.id) || []),
+                  ...Array.from(createdTaskMap.values()), // Include newly created tasks
+                ])
+
+                // Validate dependencies before applying
+                const validateDependencyIds = (depIds: string[]): { valid: string[]; invalid: string[] } => {
+                  const valid: string[] = []
+                  const invalid: string[] = []
+                  for (const depId of depIds) {
+                    // Resolve from createdTaskMap first (for batch-created tasks)
+                    const resolvedId = createdTaskMap.get(depId) || depId
+                    if (validEntityIds.has(resolvedId)) {
+                      valid.push(resolvedId)
+                    } else {
+                      invalid.push(depId)
+                    }
+                  }
+                  return { valid, invalid }
+                }
+
                 if (change.target.type === EntityType.Workflow) {
                   // Update workflow dependencies
                   const workflow = await db.getSequencedTaskById(change.target.id)
@@ -544,11 +589,15 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                     let currentDeps = workflow.dependencies || []
 
                     if (change.addDependencies && change.addDependencies.length > 0) {
-                      // Resolve any placeholder task IDs
-                      const resolvedDeps = change.addDependencies.map(dep =>
-                        createdTaskMap.get(dep) || dep,
-                      )
-                      const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
+                      const { valid, invalid } = validateDependencyIds(change.addDependencies)
+                      if (invalid.length > 0) {
+                        Message.warning(`Some dependencies could not be resolved: ${invalid.join(', ')}`)
+                        logger.ui.warn('Invalid dependencies in workflow update', {
+                          workflowId: change.target.id,
+                          invalid,
+                        }, 'invalid-dependencies')
+                      }
+                      const toAdd = valid.filter(d => !currentDeps.includes(d))
                       currentDeps = [...currentDeps, ...toAdd]
                     }
 
@@ -566,11 +615,15 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                     let currentDeps = task.dependencies || []
 
                     if (change.addDependencies && change.addDependencies.length > 0) {
-                      // Resolve any placeholder task IDs
-                      const resolvedDeps = change.addDependencies.map(dep =>
-                        createdTaskMap.get(dep) || dep,
-                      )
-                      const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
+                      const { valid, invalid } = validateDependencyIds(change.addDependencies)
+                      if (invalid.length > 0) {
+                        Message.warning(`Some dependencies could not be resolved: ${invalid.join(', ')}`)
+                        logger.ui.warn('Invalid dependencies in task update', {
+                          taskId: change.target.id,
+                          invalid,
+                        }, 'invalid-dependencies')
+                      }
+                      const toAdd = valid.filter(d => !currentDeps.includes(d))
                       currentDeps = [...currentDeps, ...toAdd]
                     }
 
@@ -664,13 +717,18 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
           })
 
           // STEP 2: Build steps with proper ID-based dependencies
+          // Track unresolved dependencies to surface warnings to user
+          const unresolvedDepsPerStep: Array<{ stepName: string; unresolvedDeps: string[] }> = []
+
           const steps = creation.steps.map((step, index) => {
             const stepId = stepNameToId.get(step.name.toLowerCase())!
+            const unresolvedDeps: string[] = []
 
             // Convert dependency names to IDs
             const dependencyIds = (step.dependsOn || []).map(depName => {
               const depId = stepNameToId.get(depName.toLowerCase())
               if (!depId) {
+                unresolvedDeps.push(depName)
                 logger.ui.warn(`Dependency "${depName}" not found in workflow "${creation.name}"`, {
                   stepName: step.name,
                   availableSteps: Array.from(stepNameToId.keys()),
@@ -678,6 +736,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
               }
               return depId
             }).filter((id): id is string => id !== undefined)
+
+            // Collect unresolved deps for this step
+            if (unresolvedDeps.length > 0) {
+              unresolvedDepsPerStep.push({ stepName: step.name, unresolvedDeps })
+            }
 
             return {
               id: stepId,
@@ -692,6 +755,14 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
               percentComplete: 0,
             }
           })
+
+          // Surface user-visible warning if any dependencies couldn't be resolved
+          if (unresolvedDepsPerStep.length > 0) {
+            const warningMessages = unresolvedDepsPerStep.map(
+              ({ stepName, unresolvedDeps }) => `"${stepName}": ${unresolvedDeps.join(', ')}`,
+            )
+            Message.warning(`Some step dependencies couldn't be linked: ${warningMessages.join('; ')}`)
+          }
 
           // STEP 3: Validate dependencies (orphans + cycles)
           const validationResult = validateWorkflowDependencies(steps)
@@ -935,9 +1006,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
                 if (existingPattern) {
                   // Add block to existing pattern
+                  // CRITICAL: Must preserve block IDs or database will treat all blocks as "to delete"
                   const existingBlocks = existingPattern.WorkBlock || []
                   await db.updateWorkPattern(existingPattern.id, {
-                    blocks: [...existingBlocks.map((b: { startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                    blocks: [...existingBlocks.map((b: { id: string; startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                      id: b.id,  // Preserve existing block ID
                       startTime: b.startTime,
                       endTime: b.endTime,
                       type: b.type,
@@ -981,16 +1054,19 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                 }
 
                 if (existingPattern) {
+                  // CRITICAL: Must preserve IDs or database will treat existing entries as "to delete"
                   const existingMeetings = existingPattern.WorkMeeting || []
                   const existingBlocks = existingPattern.WorkBlock || []
                   await db.updateWorkPattern(existingPattern.id, {
-                    blocks: existingBlocks.map((b: { startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                    blocks: existingBlocks.map((b: { id: string; startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                      id: b.id,  // Preserve existing block ID
                       startTime: b.startTime,
                       endTime: b.endTime,
                       type: b.type,
                       splitRatio: b.splitRatio,
                     })),
-                    meetings: [...existingMeetings.map((m: { name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
+                    meetings: [...existingMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
+                      id: m.id,  // Preserve existing meeting ID
                       name: m.name,
                       startTime: m.startTime,
                       endTime: m.endTime,
@@ -1023,8 +1099,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                 const filteredBlocks = (existingPattern.WorkBlock || []).filter(
                   (b: { id: string }) => b.id !== mod.blockId,
                 )
+                // CRITICAL: Must preserve block IDs for blocks we're keeping
                 await db.updateWorkPattern(existingPattern.id, {
-                  blocks: filteredBlocks.map((b: { startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                  blocks: filteredBlocks.map((b: { id: string; startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                    id: b.id,  // Preserve existing block ID
                     startTime: b.startTime,
                     endTime: b.endTime,
                     type: b.type,
@@ -1048,8 +1126,10 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                 const filteredMeetings = (existingPattern.WorkMeeting || []).filter(
                   (m: { id: string }) => m.id !== mod.meetingId,
                 )
+                // CRITICAL: Must preserve meeting IDs for meetings we're keeping
                 await db.updateWorkPattern(existingPattern.id, {
-                  meetings: filteredMeetings.map((m: { name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
+                  meetings: filteredMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
+                    id: m.id,  // Preserve existing meeting ID
                     name: m.name,
                     startTime: m.startTime,
                     endTime: m.endTime,

@@ -337,10 +337,13 @@ export function SwimLaneTimeline({
   }
 
   // Calculate content-based height for the container
-  // Snap to fit content, but cap at MAX_CONTENT_HEIGHT before scrolling
+  // Snap to fit content, but cap at effectiveMaxHeight before scrolling
+  // maxHeight prop takes precedence over the default MAX_CONTENT_HEIGHT (when numeric)
+  // String values like "100%" are used for CSS but don't affect the calculation
+  const effectiveMaxHeight = typeof maxHeight === 'number' ? maxHeight : MAX_CONTENT_HEIGHT
   const contentHeight = swimLanes.length * laneHeight + HEADER_HEIGHT
-  const snappedHeight = Math.max(MIN_CONTAINER_HEIGHT, Math.min(contentHeight, MAX_CONTENT_HEIGHT))
-  const needsVerticalScroll = contentHeight > MAX_CONTENT_HEIGHT
+  const snappedHeight = Math.max(MIN_CONTAINER_HEIGHT, Math.min(contentHeight, effectiveMaxHeight))
+  const needsVerticalScroll = contentHeight > effectiveMaxHeight
 
   // Helper function to get task type from task ID and optional step ID
   const getTaskType = (taskId: string, stepId?: string): string => {
