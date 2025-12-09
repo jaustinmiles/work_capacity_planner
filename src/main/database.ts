@@ -60,14 +60,54 @@ interface WorkBlockLogData {
 const DEFAULT_TYPE_CONFIG: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
 
 /**
- * Parse typeConfig from database JSON string.
- * Falls back to system blocked if parsing fails.
+ * Parse and validate typeConfig from database JSON string.
+ * Logs errors for invalid configurations and falls back to system blocked.
+ * This validation surfaces data corruption issues rather than hiding them.
  */
 function parseTypeConfig(typeConfigJson: string | null): BlockTypeConfig {
-  if (!typeConfigJson) return DEFAULT_TYPE_CONFIG
+  if (!typeConfigJson) {
+    dbLogger.warn('parseTypeConfig: null typeConfig, using default', { raw: typeConfigJson })
+    return DEFAULT_TYPE_CONFIG
+  }
+
   try {
-    return JSON.parse(typeConfigJson) as BlockTypeConfig
-  } catch {
+    const parsed = JSON.parse(typeConfigJson)
+
+    // Validate the structure - must have a valid 'kind' property
+    if (!parsed || typeof parsed !== 'object') {
+      dbLogger.error('parseTypeConfig: Invalid structure (not an object)', { raw: typeConfigJson, parsed })
+      return DEFAULT_TYPE_CONFIG
+    }
+
+    const validKinds = [BlockConfigKind.Single, BlockConfigKind.Combo, BlockConfigKind.System]
+    if (!validKinds.includes(parsed.kind)) {
+      dbLogger.error('parseTypeConfig: Invalid kind property', {
+        raw: typeConfigJson,
+        kind: parsed.kind,
+        validKinds,
+      })
+      return DEFAULT_TYPE_CONFIG
+    }
+
+    // Validate type-specific required fields
+    if (parsed.kind === BlockConfigKind.Single && typeof parsed.typeId !== 'string') {
+      dbLogger.error('parseTypeConfig: Single block missing typeId', { raw: typeConfigJson, parsed })
+      return DEFAULT_TYPE_CONFIG
+    }
+
+    if (parsed.kind === BlockConfigKind.Combo && !Array.isArray(parsed.allocations)) {
+      dbLogger.error('parseTypeConfig: Combo block missing allocations', { raw: typeConfigJson, parsed })
+      return DEFAULT_TYPE_CONFIG
+    }
+
+    if (parsed.kind === BlockConfigKind.System && !parsed.systemType) {
+      dbLogger.error('parseTypeConfig: System block missing systemType', { raw: typeConfigJson, parsed })
+      return DEFAULT_TYPE_CONFIG
+    }
+
+    return parsed as BlockTypeConfig
+  } catch (e) {
+    dbLogger.error('parseTypeConfig: JSON parse failed', { raw: typeConfigJson, error: String(e) })
     return DEFAULT_TYPE_CONFIG
   }
 }

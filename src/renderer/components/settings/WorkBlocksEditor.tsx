@@ -135,6 +135,25 @@ export function WorkBlocksEditor({
     }
   }, [pattern])
 
+  // Detect invalid block types and alert the user - surfaces data corruption
+  useEffect(() => {
+    const invalidBlocks = blocks.filter(block => {
+      const tc = block.typeConfig
+      return !isComboBlock(tc) && !isSystemBlock(tc) && !isSingleTypeBlock(tc)
+    })
+    if (invalidBlocks.length > 0) {
+      logger.ui.error('Invalid block types detected', {
+        count: invalidBlocks.length,
+        blocks: invalidBlocks.map(b => ({
+          id: b.id,
+          times: `${b.startTime}-${b.endTime}`,
+          typeConfig: b.typeConfig,
+        })),
+      }, 'invalid-block-types')
+      Message.error(`${invalidBlocks.length} block(s) have invalid type configuration. This may indicate data corruption.`)
+    }
+  }, [blocks])
+
   // Load user templates
   useEffect(() => {
     loadUserTemplates()
@@ -536,7 +555,11 @@ export function WorkBlocksEditor({
                         </Text>
                       )
                     })() : (
-                      <Text type="secondary">Unknown block type</Text>
+                      <Space>
+                        <Text type="error">
+                          ⚠️ Invalid block type: {JSON.stringify(block.typeConfig)}
+                        </Text>
+                      </Space>
                     )}
                   </Col>
                   <Col span={2}>

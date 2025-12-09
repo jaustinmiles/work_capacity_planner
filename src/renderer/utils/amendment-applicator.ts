@@ -1019,13 +1019,15 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                 if (existingPattern) {
                   // Add block to existing pattern
                   // CRITICAL: Must preserve block IDs and typeConfig or database will treat all blocks as "to delete"
-                  const existingBlocks = existingPattern.WorkBlock || []
+                  // Use 'blocks' (parsed typeConfig objects) not 'WorkBlock' (raw JSON strings)
+                  // WorkBlock.typeConfig is a JSON string, blocks[].typeConfig is already parsed
+                  const existingBlocks = existingPattern.blocks || []
                   await db.updateWorkPattern(existingPattern.id, {
                     blocks: [...existingBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
                       id: b.id,  // Preserve existing block ID
                       startTime: b.startTime,
                       endTime: b.endTime,
-                      typeConfig: b.typeConfig,  // Preserve existing typeConfig
+                      typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
                       splitRatio: b.splitRatio,
                     })), newBlock],
                   })
@@ -1067,17 +1069,18 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
                 if (existingPattern) {
                   // CRITICAL: Must preserve IDs or database will treat existing entries as "to delete"
-                  const existingMeetings = existingPattern.WorkMeeting || []
-                  const existingBlocks = existingPattern.WorkBlock || []
+                  // Use 'meetings' and 'blocks' (parsed) not 'WorkMeeting'/'WorkBlock' (raw JSON strings)
+                  const existingMeetings = existingPattern.meetings || []
+                  const existingBlocks = existingPattern.blocks || []
                   await db.updateWorkPattern(existingPattern.id, {
                     blocks: existingBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
                       id: b.id,  // Preserve existing block ID
                       startTime: b.startTime,
                       endTime: b.endTime,
-                      typeConfig: b.typeConfig,  // Preserve existing typeConfig
+                      typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
                       splitRatio: b.splitRatio,
                     })),
-                    meetings: [...existingMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
+                    meetings: [...existingMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: number[] | null }) => ({
                       id: m.id,  // Preserve existing meeting ID
                       name: m.name,
                       startTime: m.startTime,
@@ -1108,7 +1111,8 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                   break
                 }
 
-                const filteredBlocks = (existingPattern.WorkBlock || []).filter(
+                // Use 'blocks' (parsed typeConfig objects) not 'WorkBlock' (raw JSON strings)
+                const filteredBlocks = (existingPattern.blocks || []).filter(
                   (b: { id: string }) => b.id !== mod.blockId,
                 )
                 // CRITICAL: Must preserve block IDs for blocks we're keeping
@@ -1117,7 +1121,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                     id: b.id,  // Preserve existing block ID
                     startTime: b.startTime,
                     endTime: b.endTime,
-                    typeConfig: b.typeConfig,  // Preserve existing typeConfig
+                    typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
                     splitRatio: b.splitRatio,
                   })),
                 })
@@ -1135,12 +1139,13 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                   break
                 }
 
-                const filteredMeetings = (existingPattern.WorkMeeting || []).filter(
+                // Use 'meetings' (parsed daysOfWeek) not 'WorkMeeting' (raw JSON strings)
+                const filteredMeetings = (existingPattern.meetings || []).filter(
                   (m: { id: string }) => m.id !== mod.meetingId,
                 )
                 // CRITICAL: Must preserve meeting IDs for meetings we're keeping
                 await db.updateWorkPattern(existingPattern.id, {
-                  meetings: filteredMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
+                  meetings: filteredMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: number[] | null }) => ({
                     id: m.id,  // Preserve existing meeting ID
                     name: m.name,
                     startTime: m.startTime,
