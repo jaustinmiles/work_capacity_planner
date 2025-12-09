@@ -24,7 +24,7 @@ import {
   WorkSessionEdit,
   TaskTypeCreation,
 } from '@shared/amendment-types'
-import { assertNever, StepStatus, WorkPatternOperation, WorkSessionOperation } from '@shared/enums'
+import { assertNever, BlockConfigKind, StepStatus, WorkBlockType, WorkPatternOperation, WorkSessionOperation } from '@shared/enums'
 import { dateToYYYYMMDD, extractTimeFromISO } from '@shared/time-utils'
 import { generateUniqueId, validateWorkflowDependencies } from '@shared/step-id-utils'
 import { useWorkPatternStore } from '../store/useWorkPatternStore'
@@ -997,23 +997,35 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                 const startTimeStr = extractTimeFromISO(mod.blockData.startTime)
                 const endTimeStr = extractTimeFromISO(mod.blockData.endTime)
 
+                // Convert type ID to proper BlockTypeConfig object
+                // Database expects typeConfig: { kind, typeId/systemType }, not just a type string
+                const typeId = mod.blockData.type
+                // Check for system block types (blocked, sleep) - compare as strings since typeId comes from AI
+                const isBlockedType = typeId === 'blocked' || typeId === (WorkBlockType.Blocked as string)
+                const isSleepType = typeId === 'sleep' || typeId === (WorkBlockType.Sleep as string)
+                const typeConfig = isBlockedType
+                  ? { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
+                  : isSleepType
+                  ? { kind: BlockConfigKind.System, systemType: WorkBlockType.Sleep }
+                  : { kind: BlockConfigKind.Single, typeId: typeId }
+
                 const newBlock = {
                   startTime: startTimeStr,
                   endTime: endTimeStr,
-                  type: mod.blockData.type,
+                  typeConfig: typeConfig,  // Use typeConfig object, not type string
                   splitRatio: mod.blockData.splitRatio || null,
                 }
 
                 if (existingPattern) {
                   // Add block to existing pattern
-                  // CRITICAL: Must preserve block IDs or database will treat all blocks as "to delete"
+                  // CRITICAL: Must preserve block IDs and typeConfig or database will treat all blocks as "to delete"
                   const existingBlocks = existingPattern.WorkBlock || []
                   await db.updateWorkPattern(existingPattern.id, {
-                    blocks: [...existingBlocks.map((b: { id: string; startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                    blocks: [...existingBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
                       id: b.id,  // Preserve existing block ID
                       startTime: b.startTime,
                       endTime: b.endTime,
-                      type: b.type,
+                      typeConfig: b.typeConfig,  // Preserve existing typeConfig
                       splitRatio: b.splitRatio,
                     })), newBlock],
                   })
@@ -1028,7 +1040,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
                 // Refresh work pattern store reactively
                 useWorkPatternStore.getState().loadWorkPatterns()
-                Message.success(`Added ${mod.blockData.type} block: ${startTimeStr} - ${endTimeStr}`)
+                Message.success(`Added ${typeId} block: ${startTimeStr} - ${endTimeStr}`)
                 successCount++
                 break
               }
@@ -1058,11 +1070,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                   const existingMeetings = existingPattern.WorkMeeting || []
                   const existingBlocks = existingPattern.WorkBlock || []
                   await db.updateWorkPattern(existingPattern.id, {
-                    blocks: existingBlocks.map((b: { id: string; startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                    blocks: existingBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
                       id: b.id,  // Preserve existing block ID
                       startTime: b.startTime,
                       endTime: b.endTime,
-                      type: b.type,
+                      typeConfig: b.typeConfig,  // Preserve existing typeConfig
                       splitRatio: b.splitRatio,
                     })),
                     meetings: [...existingMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
@@ -1101,11 +1113,11 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
                 )
                 // CRITICAL: Must preserve block IDs for blocks we're keeping
                 await db.updateWorkPattern(existingPattern.id, {
-                  blocks: filteredBlocks.map((b: { id: string; startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
+                  blocks: filteredBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
                     id: b.id,  // Preserve existing block ID
                     startTime: b.startTime,
                     endTime: b.endTime,
-                    type: b.type,
+                    typeConfig: b.typeConfig,  // Preserve existing typeConfig
                     splitRatio: b.splitRatio,
                   })),
                 })
