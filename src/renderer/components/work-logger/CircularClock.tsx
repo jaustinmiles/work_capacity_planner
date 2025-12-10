@@ -27,6 +27,7 @@ interface CircularClockProps {
   sleepBlocks?: Array<{ startMinutes: number; endMinutes: number }>
   bedtimeHour?: number
   wakeTimeHour?: number
+  maxSize?: number // Fixed size for ultra-wide sidebar mode (overrides container-based sizing)
 }
 
 interface DragState {
@@ -63,6 +64,7 @@ export function CircularClock({
   meetings = [],
   bedtimeHour = DEFAULT_BEDTIME,
   wakeTimeHour = DEFAULT_WAKE_TIME,
+  maxSize: propMaxSize,
 }: CircularClockProps) {
   const svgRef = useRef<any>(null)
   const [dragState, setDragState] = useState<DragState | null>(null)
@@ -76,8 +78,27 @@ export function CircularClock({
   const { ref: clockContainerRef, width: containerWidth, height: containerHeight } = useContainerQuery<HTMLDivElement>()
   const { scale: _globalScale, isCompact: _isCompact, isMobile } = useResponsive()
 
-  // Calculate responsive dimensions based on container
+  // Calculate responsive dimensions based on container or fixed maxSize
   const calculateClockDimensions = () => {
+    // If a fixed maxSize is provided (ultra-wide sidebar mode), use it directly
+    if (propMaxSize !== undefined) {
+      const size = Math.max(200, propMaxSize - 40) // 40px padding
+      const scale = size / BASE_CLOCK_SIZE
+
+      return {
+        clockSize: size,
+        center: size / 2,
+        outerRadius: BASE_OUTER_RADIUS * scale,
+        innerRadius: BASE_INNER_RADIUS * scale,
+        hourLabelRadius: BASE_HOUR_LABEL_RADIUS * scale,
+        fontSize: {
+          hours: Math.max(10, Math.floor(12 * scale)),
+          labels: Math.max(8, Math.floor(11 * scale)),
+          tiny: Math.max(6, Math.floor(8 * scale)),
+        },
+      }
+    }
+
     // Use container size if available, with padding
     const maxSize = Math.min(
       containerWidth || BASE_CLOCK_SIZE,

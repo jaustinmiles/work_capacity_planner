@@ -114,6 +114,13 @@ export enum SplitMode {
   Frozen = 'frozen',
 }
 
+// Work Logger layout modes for ultra-wide screens
+export enum WorkLoggerLayoutMode {
+  Stacked = 'stacked',           // Default: components stacked vertically
+  SideBySide = 'side-by-side',   // Clock + LinearTimeline horizontal
+  ClockSidebar = 'clock-sidebar', // Clock as sticky sidebar, timelines get full width
+}
+
 // Chat message roles for brainstorm chat
 export enum ChatMessageRole {
   User = 'user',

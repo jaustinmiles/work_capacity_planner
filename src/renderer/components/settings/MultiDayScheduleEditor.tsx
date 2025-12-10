@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Card,
   Space,
@@ -30,6 +30,7 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
+import { useResponsive } from '../../providers/ResponsiveProvider'
 
 
 dayjs.extend(isSameOrBefore)
@@ -46,6 +47,21 @@ interface MultiDayScheduleEditorProps {
 
 export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: MultiDayScheduleEditorProps) {
   const currentTime = getCurrentTime()
+  const { isUltraWide, isSuperUltraWide } = useResponsive()
+
+  // Dynamic max-width for ultra-wide screens
+  const maxWidth = useMemo(() => {
+    if (isSuperUltraWide) return 2400
+    if (isUltraWide) return 1800
+    return 1200
+  }, [isUltraWide, isSuperUltraWide])
+
+  // Dynamic column span for ultra-wide (show more columns)
+  const columnSpan = useMemo(() => {
+    if (isSuperUltraWide) return 6  // 4 columns (6+6+6+6=24)
+    if (isUltraWide) return 6       // 4 columns
+    return 8                         // 3 columns (8+8+8=24)
+  }, [isUltraWide, isSuperUltraWide])
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs(currentTime),
     dayjs(currentTime).add(6, 'day'),
@@ -394,7 +410,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
     <Card
       style={{
         width: '100%',
-        maxWidth: 1200,
+        maxWidth,
         margin: '0 auto',
       }}
       title={
@@ -442,7 +458,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
           <Divider style={{ margin: '16px 0' }} />
 
           <Row gutter={16}>
-            <Col span={8}>
+            <Col span={columnSpan}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text type="secondary">Copy/Paste</Text>
                 <Space>
@@ -468,7 +484,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
               </Space>
             </Col>
 
-            <Col span={8}>
+            <Col span={columnSpan}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text type="secondary">Apply to Multiple Days</Text>
                 <Space>
@@ -526,7 +542,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
               </Space>
             </Col>
 
-            <Col span={8}>
+            <Col span={columnSpan}>
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text type="secondary">Clear Schedules</Text>
                 <Popconfirm

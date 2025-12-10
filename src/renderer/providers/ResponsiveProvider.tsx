@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 
-type Breakpoint = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl'
+type Breakpoint = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl' | 'uwqhd' | 'suw'
 type Orientation = 'portrait' | 'landscape'
 type ContainerBreakpoint = 'narrow' | 'standard' | 'wide'
 
@@ -21,16 +21,20 @@ interface ResponsiveContextValue {
   isCompact: boolean // Convenience flag for xs/sm breakpoints
   isMobile: boolean // Convenience flag for xs/sm/md breakpoints
   isDesktop: boolean // Convenience flag for lg/xl/xxl breakpoints
+  isUltraWide: boolean // Convenience flag for uwqhd/suw breakpoints (2560px+)
+  isSuperUltraWide: boolean // Convenience flag for suw breakpoint only (3440px+)
 }
 
 // Breakpoint definitions matching Tailwind/common standards
 const BREAKPOINTS = {
-  xs: 0,     // Mobile phones
-  sm: 640,   // Large phones
-  md: 768,   // Tablets
-  lg: 1024,  // Desktop
-  xl: 1280,  // Large desktop
-  xxl: 1536, // Ultra-wide
+  xs: 0,       // Mobile phones
+  sm: 640,     // Large phones
+  md: 768,     // Tablets
+  lg: 1024,    // Desktop
+  xl: 1280,    // Large desktop
+  xxl: 1536,   // Wide desktop
+  uwqhd: 2560, // Ultra-wide QHD (21:9 at 1440p)
+  suw: 3440,   // Super ultra-wide (typical 21:9 ultrawide)
 } as const
 
 // Container query breakpoints for component-level responsiveness
@@ -57,7 +61,9 @@ export const ResponsiveProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       windowHeight: height,
       isCompact: ['xs', 'sm'].includes(breakpoint),
       isMobile: ['xs', 'sm', 'md'].includes(breakpoint),
-      isDesktop: ['lg', 'xl', 'xxl'].includes(breakpoint),
+      isDesktop: ['lg', 'xl', 'xxl', 'uwqhd', 'suw'].includes(breakpoint),
+      isUltraWide: ['uwqhd', 'suw'].includes(breakpoint),
+      isSuperUltraWide: breakpoint === 'suw',
     }
   })
 
@@ -96,7 +102,9 @@ export const ResponsiveProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         windowHeight: height,
         isCompact: ['xs', 'sm'].includes(breakpoint),
         isMobile: ['xs', 'sm', 'md'].includes(breakpoint),
-        isDesktop: ['lg', 'xl', 'xxl'].includes(breakpoint),
+        isDesktop: ['lg', 'xl', 'xxl', 'uwqhd', 'suw'].includes(breakpoint),
+        isUltraWide: ['uwqhd', 'suw'].includes(breakpoint),
+        isSuperUltraWide: breakpoint === 'suw',
       })
 
       // Apply mobile button sizes via inline styles for better specificity
@@ -163,6 +171,8 @@ export const ResponsiveProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
 // Helper function to determine breakpoint from width
 function getBreakpoint(width: number): Breakpoint {
+  if (width >= BREAKPOINTS.suw) return 'suw'
+  if (width >= BREAKPOINTS.uwqhd) return 'uwqhd'
   if (width >= BREAKPOINTS.xxl) return 'xxl'
   if (width >= BREAKPOINTS.xl) return 'xl'
   if (width >= BREAKPOINTS.lg) return 'lg'
@@ -199,6 +209,16 @@ export const useIsDesktop = () => {
 export const useIsCompact = () => {
   const { isCompact } = useResponsive()
   return isCompact
+}
+
+export const useIsUltraWide = () => {
+  const { isUltraWide } = useResponsive()
+  return isUltraWide
+}
+
+export const useIsSuperUltraWide = () => {
+  const { isSuperUltraWide } = useResponsive()
+  return isSuperUltraWide
 }
 
 // Export types for external use

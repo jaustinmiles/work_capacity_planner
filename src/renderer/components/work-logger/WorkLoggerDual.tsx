@@ -39,6 +39,9 @@ import { LinearTimeline } from './LinearTimeline'
 import { WorkBlock } from '@shared/work-blocks-types'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { useResponsive } from '../../providers/ResponsiveProvider'
+import { useLayoutStore } from '../../store/useLayoutStore'
+import { WorkLoggerLayoutMode } from '@shared/enums'
+import { ULTRA_WIDE_DEFAULTS } from '@shared/constants'
 import {
   WorkSessionData,
   PlannedSessionItem,
@@ -99,8 +102,39 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const [sessionToDelete, setSessionToDelete] = useState<WorkSessionData | null>(null)
 
   const { tasks, sequencedTasks, loadTasks, activeWorkSessions } = useTaskStore()
-  const { isCompact, isMobile, isDesktop } = useResponsive()
+  const { isCompact, isMobile, isDesktop, isUltraWide, isSuperUltraWide } = useResponsive()
+  const { workLoggerLayout, swimLaneDayCount } = useLayoutStore()
   const userTaskTypes = useSortedUserTaskTypes()
+
+  // Calculate effective layout mode based on user preference and screen size
+  const effectiveLayout = useMemo(() => {
+    // If user has set a specific preference, respect it
+    if (workLoggerLayout !== WorkLoggerLayoutMode.Stacked) {
+      return workLoggerLayout
+    }
+    // Auto-enhance for ultra-wide screens
+    if (isSuperUltraWide) return WorkLoggerLayoutMode.ClockSidebar
+    if (isUltraWide) return WorkLoggerLayoutMode.SideBySide
+    return WorkLoggerLayoutMode.Stacked
+  }, [workLoggerLayout, isUltraWide, isSuperUltraWide])
+
+  // Calculate dynamic day count for SwimLaneTimeline
+  const effectiveDayCount = useMemo(() => {
+    if (swimLaneDayCount !== 'auto') return swimLaneDayCount
+    if (isSuperUltraWide) return ULTRA_WIDE_DEFAULTS.SWIM_LANE_DAY_COUNT_SUW
+    if (isUltraWide) return ULTRA_WIDE_DEFAULTS.SWIM_LANE_DAY_COUNT_UWQHD
+    return 3 // Default
+  }, [swimLaneDayCount, isUltraWide, isSuperUltraWide])
+
+  // Calculate clock max size for ultra-wide sidebar mode
+  const clockMaxSize = useMemo(() => {
+    if (effectiveLayout === WorkLoggerLayoutMode.ClockSidebar) {
+      return isSuperUltraWide
+        ? ULTRA_WIDE_DEFAULTS.CLOCK_MAX_SIZE_SUW
+        : ULTRA_WIDE_DEFAULTS.CLOCK_MAX_SIZE_UWQHD
+    }
+    return undefined // Use container-based sizing
+  }, [effectiveLayout, isSuperUltraWide])
   const activeSinkSession = useActiveSinkSession()
   const timeSinks = useSortedTimeSinks()
 
@@ -788,8 +822,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       onCancel={onClose}
       footer={null}
       style={{
-        width: isFullscreen ? '100vw' : (isCompact ? '98vw' : isMobile ? '95vw' : '90vw'),
-        maxWidth: isFullscreen ? '100vw' : (isCompact ? undefined : isMobile ? 1200 : isDesktop ? 1600 : 1800),
+        width: isFullscreen ? '100vw' : (isCompact ? '98vw' : isMobile ? '95vw' : isUltraWide ? '95vw' : '90vw'),
+        maxWidth: isFullscreen ? '100vw' : (isCompact ? undefined : isMobile ? 1200 : isSuperUltraWide ? 3200 : isUltraWide ? 2400 : isDesktop ? 1600 : 1800),
         height: isFullscreen ? '100vh' : undefined,
         margin: isFullscreen ? 0 : undefined,
         top: isFullscreen ? 0 : undefined,
@@ -973,87 +1007,266 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
         ) : (
           <>
             {/* Swim lane timeline */}
-            <Card
-              title={
-                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                  <span>Swim Lane View</span>
-                  <Checkbox
-                    checked={hideCompleted}
-                    onChange={setHideCompleted}
+            {/* Layout mode: ClockSidebar - Clock fixed left, timelines full width */}
+            {effectiveLayout === WorkLoggerLayoutMode.ClockSidebar && (
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                {/* Clock Sidebar */}
+                <div style={{
+                  width: ULTRA_WIDE_DEFAULTS.CLOCK_SIDEBAR_WIDTH,
+                  flexShrink: 0,
+                  position: 'sticky',
+                  top: 16,
+                }}>
+                  <Card title="Clock View" style={{ minHeight: 400 }}>
+                    <CircularClock
+                      sessions={sessions}
+                      collapsedWorkflows={new Set(filteredTasks
+                        .filter(t => t.hasSteps && !expandedWorkflows.has(t.id))
+                        .map(t => t.id))}
+                      onSessionUpdate={handleSessionUpdate}
+                      onSessionCreate={handleClockSessionCreate}
+                      onSessionDelete={handleSessionDelete}
+                      selectedSessionId={selectedSessionId || undefined}
+                      onSessionSelect={(id) => setSelectedSessionId(id || null)}
+                      currentTime={getCurrentTime()}
+                      meetings={meetings}
+                      sleepBlocks={[]}
+                      bedtimeHour={bedtimeHour}
+                      wakeTimeHour={wakeTimeHour}
+                      maxSize={clockMaxSize}
+                    />
+                  </Card>
+                </div>
+                {/* Timelines - full width */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Card
+                    title={
+                      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                        <span>Swim Lane View ({effectiveDayCount} Days)</span>
+                        <Checkbox checked={hideCompleted} onChange={setHideCompleted}>
+                          Hide Completed Tasks
+                        </Checkbox>
+                      </Space>
+                    }
+                    style={{ marginBottom: 16 }}>
+                    <SwimLaneTimeline
+                      sessions={sessions}
+                      tasks={filteredTasks}
+                      meetings={meetings}
+                      onSessionUpdate={handleSessionUpdate}
+                      onSessionCreate={handleTimelineSessionCreate}
+                      onSessionDelete={handleSessionDelete}
+                      selectedSessionId={selectedSessionId || undefined}
+                      onSessionSelect={(id) => setSelectedSessionId(id || null)}
+                      expandedWorkflows={expandedWorkflows}
+                      onExpandedWorkflowsChange={handleWorkflowExpansionChange}
+                      bedtimeHour={bedtimeHour}
+                      wakeTimeHour={wakeTimeHour}
+                      maxHeight={isCompact ? 500 : 800}
+                      dayCount={effectiveDayCount}
+                    />
+                  </Card>
+                  <Card
+                    title="Linear Timeline"
+                    style={{ marginBottom: 16 }}
+                    extra={
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Drag to move • Drag edges to resize • Click empty space to create
+                      </Text>
+                    }
                   >
-                    Hide Completed Tasks
-                  </Checkbox>
-                </Space>
-              }
-              style={{ marginBottom: 16 }}>
-              <SwimLaneTimeline
-                sessions={sessions}
-                tasks={filteredTasks}
-                meetings={meetings}
-                onSessionUpdate={handleSessionUpdate}
-                onSessionCreate={handleTimelineSessionCreate}
-                onSessionDelete={handleSessionDelete}
-                selectedSessionId={selectedSessionId || undefined}
-                onSessionSelect={(id) => setSelectedSessionId(id || null)}
-                expandedWorkflows={expandedWorkflows}
-                onExpandedWorkflowsChange={handleWorkflowExpansionChange}
-                bedtimeHour={bedtimeHour}
-                wakeTimeHour={wakeTimeHour}
-                maxHeight={isCompact ? 500 : isMobile ? 600 : 700}
-              />
-            </Card>
+                    <LinearTimeline
+                      sessions={sessions}
+                      workBlocks={workBlocks}
+                      meetings={meetings}
+                      onSessionUpdate={handleSessionUpdate}
+                      onSessionCreate={handleClockSessionCreate}
+                      onSessionDelete={handleSessionDelete}
+                      selectedSessionId={selectedSessionId}
+                      onSessionSelect={(id) => setSelectedSessionId(id)}
+                      currentTime={getCurrentTime()}
+                      date={selectedDate}
+                      plannedItems={plannedItemsForDate}
+                      showPlannedOverlay={showPlannedOverlay}
+                      onTogglePlannedOverlay={() => setShowPlannedOverlay(!showPlannedOverlay)}
+                      timeSinks={timeSinks}
+                      onTimeSinkSessionCreate={handleTimeSinkSessionCreate}
+                      onSessionSplit={handleSessionSplit}
+                    />
+                  </Card>
+                </div>
+              </div>
+            )}
 
-            {/* Linear Timeline - Zoomable horizontal view */}
-            <Card
-              title="Linear Timeline"
-              style={{ marginBottom: 16 }}
-              extra={
-                <Space>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Drag to move • Drag edges to resize • Click empty space to create
-                  </Text>
-                </Space>
-              }
-            >
-              <LinearTimeline
-                sessions={sessions}
-                workBlocks={workBlocks}
-                meetings={meetings}
-                onSessionUpdate={handleSessionUpdate}
-                onSessionCreate={handleClockSessionCreate}
-                onSessionDelete={handleSessionDelete}
-                selectedSessionId={selectedSessionId}
-                onSessionSelect={(id) => setSelectedSessionId(id)}
-                currentTime={getCurrentTime()}
-                date={selectedDate}
-                plannedItems={plannedItemsForDate}
-                showPlannedOverlay={showPlannedOverlay}
-                onTogglePlannedOverlay={() => setShowPlannedOverlay(!showPlannedOverlay)}
-                timeSinks={timeSinks}
-                onTimeSinkSessionCreate={handleTimeSinkSessionCreate}
-                onSessionSplit={handleSessionSplit}
-              />
-            </Card>
+            {/* Layout mode: SideBySide - Clock + Linear horizontal, SwimLane below */}
+            {effectiveLayout === WorkLoggerLayoutMode.SideBySide && (
+              <>
+                <Row gutter={16} style={{ marginBottom: 16 }}>
+                  <Col span={8}>
+                    <Card title="Clock View" style={{ minHeight: 400 }}>
+                      <CircularClock
+                        sessions={sessions}
+                        collapsedWorkflows={new Set(filteredTasks
+                          .filter(t => t.hasSteps && !expandedWorkflows.has(t.id))
+                          .map(t => t.id))}
+                        onSessionUpdate={handleSessionUpdate}
+                        onSessionCreate={handleClockSessionCreate}
+                        onSessionDelete={handleSessionDelete}
+                        selectedSessionId={selectedSessionId || undefined}
+                        onSessionSelect={(id) => setSelectedSessionId(id || null)}
+                        currentTime={getCurrentTime()}
+                        meetings={meetings}
+                        sleepBlocks={[]}
+                        bedtimeHour={bedtimeHour}
+                        wakeTimeHour={wakeTimeHour}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={16}>
+                    <Card
+                      title="Linear Timeline"
+                      style={{ height: '100%' }}
+                      extra={
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Drag to move • Drag edges to resize
+                        </Text>
+                      }
+                    >
+                      <LinearTimeline
+                        sessions={sessions}
+                        workBlocks={workBlocks}
+                        meetings={meetings}
+                        onSessionUpdate={handleSessionUpdate}
+                        onSessionCreate={handleClockSessionCreate}
+                        onSessionDelete={handleSessionDelete}
+                        selectedSessionId={selectedSessionId}
+                        onSessionSelect={(id) => setSelectedSessionId(id)}
+                        currentTime={getCurrentTime()}
+                        date={selectedDate}
+                        plannedItems={plannedItemsForDate}
+                        showPlannedOverlay={showPlannedOverlay}
+                        onTogglePlannedOverlay={() => setShowPlannedOverlay(!showPlannedOverlay)}
+                        timeSinks={timeSinks}
+                        onTimeSinkSessionCreate={handleTimeSinkSessionCreate}
+                        onSessionSplit={handleSessionSplit}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+                <Card
+                  title={
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                      <span>Swim Lane View ({effectiveDayCount} Days)</span>
+                      <Checkbox checked={hideCompleted} onChange={setHideCompleted}>
+                        Hide Completed Tasks
+                      </Checkbox>
+                    </Space>
+                  }
+                  style={{ marginBottom: 16 }}>
+                  <SwimLaneTimeline
+                    sessions={sessions}
+                    tasks={filteredTasks}
+                    meetings={meetings}
+                    onSessionUpdate={handleSessionUpdate}
+                    onSessionCreate={handleTimelineSessionCreate}
+                    onSessionDelete={handleSessionDelete}
+                    selectedSessionId={selectedSessionId || undefined}
+                    onSessionSelect={(id) => setSelectedSessionId(id || null)}
+                    expandedWorkflows={expandedWorkflows}
+                    onExpandedWorkflowsChange={handleWorkflowExpansionChange}
+                    bedtimeHour={bedtimeHour}
+                    wakeTimeHour={wakeTimeHour}
+                    maxHeight={isCompact ? 500 : 700}
+                    dayCount={effectiveDayCount}
+                  />
+                </Card>
+              </>
+            )}
 
-            {/* Circular clock */}
-            <Card title="Clock View - 24-Hour Day View" style={{ minHeight: 500 }}>
-              <CircularClock
-                sessions={sessions}
-                collapsedWorkflows={new Set(filteredTasks
-                  .filter(t => t.hasSteps && !expandedWorkflows.has(t.id))
-                  .map(t => t.id))}
-                onSessionUpdate={handleSessionUpdate}
-                onSessionCreate={handleClockSessionCreate}
-                onSessionDelete={handleSessionDelete}
-                selectedSessionId={selectedSessionId || undefined}
-                onSessionSelect={(id) => setSelectedSessionId(id || null)}
-                currentTime={new Date()}
-                meetings={meetings}
-                sleepBlocks={[]} // TODO: Load sleep blocks
-                bedtimeHour={bedtimeHour}
-                wakeTimeHour={wakeTimeHour}
-              />
-            </Card>
+            {/* Layout mode: Stacked (default) - All components stacked vertically */}
+            {effectiveLayout === WorkLoggerLayoutMode.Stacked && (
+              <>
+                <Card
+                  title={
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                      <span>Swim Lane View</span>
+                      <Checkbox
+                        checked={hideCompleted}
+                        onChange={setHideCompleted}
+                      >
+                        Hide Completed Tasks
+                      </Checkbox>
+                    </Space>
+                  }
+                  style={{ marginBottom: 16 }}>
+                  <SwimLaneTimeline
+                    sessions={sessions}
+                    tasks={filteredTasks}
+                    meetings={meetings}
+                    onSessionUpdate={handleSessionUpdate}
+                    onSessionCreate={handleTimelineSessionCreate}
+                    onSessionDelete={handleSessionDelete}
+                    selectedSessionId={selectedSessionId || undefined}
+                    onSessionSelect={(id) => setSelectedSessionId(id || null)}
+                    expandedWorkflows={expandedWorkflows}
+                    onExpandedWorkflowsChange={handleWorkflowExpansionChange}
+                    bedtimeHour={bedtimeHour}
+                    wakeTimeHour={wakeTimeHour}
+                    maxHeight={isCompact ? 500 : isMobile ? 600 : 700}
+                  />
+                </Card>
+
+                <Card
+                  title="Linear Timeline"
+                  style={{ marginBottom: 16 }}
+                  extra={
+                    <Space>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        Drag to move • Drag edges to resize • Click empty space to create
+                      </Text>
+                    </Space>
+                  }
+                >
+                  <LinearTimeline
+                    sessions={sessions}
+                    workBlocks={workBlocks}
+                    meetings={meetings}
+                    onSessionUpdate={handleSessionUpdate}
+                    onSessionCreate={handleClockSessionCreate}
+                    onSessionDelete={handleSessionDelete}
+                    selectedSessionId={selectedSessionId}
+                    onSessionSelect={(id) => setSelectedSessionId(id)}
+                    currentTime={getCurrentTime()}
+                    date={selectedDate}
+                    plannedItems={plannedItemsForDate}
+                    showPlannedOverlay={showPlannedOverlay}
+                    onTogglePlannedOverlay={() => setShowPlannedOverlay(!showPlannedOverlay)}
+                    timeSinks={timeSinks}
+                    onTimeSinkSessionCreate={handleTimeSinkSessionCreate}
+                    onSessionSplit={handleSessionSplit}
+                  />
+                </Card>
+
+                <Card title="Clock View - 24-Hour Day View" style={{ minHeight: 500 }}>
+                  <CircularClock
+                    sessions={sessions}
+                    collapsedWorkflows={new Set(filteredTasks
+                      .filter(t => t.hasSteps && !expandedWorkflows.has(t.id))
+                      .map(t => t.id))}
+                    onSessionUpdate={handleSessionUpdate}
+                    onSessionCreate={handleClockSessionCreate}
+                    onSessionDelete={handleSessionDelete}
+                    selectedSessionId={selectedSessionId || undefined}
+                    onSessionSelect={(id) => setSelectedSessionId(id || null)}
+                    currentTime={getCurrentTime()}
+                    meetings={meetings}
+                    sleepBlocks={[]}
+                    bedtimeHour={bedtimeHour}
+                    wakeTimeHour={wakeTimeHour}
+                  />
+                </Card>
+              </>
+            )}
 
             {/* Selected session details */}
             {selectedSession && (
