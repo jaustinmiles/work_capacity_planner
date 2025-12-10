@@ -39,6 +39,12 @@ export function TimelineVisualizer({
 }: TimelineVisualizerProps) {
   const userTypes = useSortedUserTaskTypes()
   const [dragState, setDragState] = useState<DragState | null>(null)
+
+  // Helper to get human-readable type name from typeId
+  const getTypeName = (typeId: string): string => {
+    const userType = userTypes.find(t => t.id === typeId)
+    return userType?.name ?? 'Unknown'
+  }
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Convert time string (HH:mm) to pixels from top
@@ -339,10 +345,10 @@ export function TimelineVisualizer({
                 return `🚫 ${typeConfig.systemType === 'sleep' ? 'Sleep' : 'Blocked'}`
               }
               if (isSingleTypeBlock(typeConfig)) {
-                return `📋 ${typeConfig.typeId} Work`
+                return `📋 ${getTypeName(typeConfig.typeId)} Work`
               }
               if (isComboBlock(typeConfig)) {
-                const types = typeConfig.allocations.map(a => a.typeId).join('/')
+                const types = typeConfig.allocations.map(a => getTypeName(a.typeId)).join('/')
                 return `🔄 ${types} (Combo)`
               }
               return 'Work Block'
