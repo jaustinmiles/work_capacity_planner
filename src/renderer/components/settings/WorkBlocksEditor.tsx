@@ -135,28 +135,6 @@ export function WorkBlocksEditor({
     }
   }, [pattern])
 
-  // DEFENSIVE: Validate block typeConfig on every change to surface data corruption early.
-  // This catches blocks with malformed typeConfig (not Single, Combo, or System) which could
-  // occur from database migration issues, API errors, or bugs. Without this check, such blocks
-  // would silently render incorrectly or cause downstream errors. Keep this effect.
-  useEffect(() => {
-    const invalidBlocks = blocks.filter(block => {
-      const tc = block.typeConfig
-      return !isComboBlock(tc) && !isSystemBlock(tc) && !isSingleTypeBlock(tc)
-    })
-    if (invalidBlocks.length > 0) {
-      logger.ui.error('Invalid block types detected', {
-        count: invalidBlocks.length,
-        blocks: invalidBlocks.map(b => ({
-          id: b.id,
-          times: `${b.startTime}-${b.endTime}`,
-          typeConfig: b.typeConfig,
-        })),
-      }, 'invalid-block-types')
-      Message.error(`${invalidBlocks.length} block(s) have invalid type configuration. This may indicate data corruption.`)
-    }
-  }, [blocks])
-
   // Load user templates
   useEffect(() => {
     loadUserTemplates()

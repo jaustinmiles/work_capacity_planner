@@ -343,7 +343,7 @@ export function SwimLaneTimeline({
   const effectiveMaxHeight = typeof maxHeight === 'number' ? maxHeight : MAX_CONTENT_HEIGHT
   const contentHeight = swimLanes.length * laneHeight + HEADER_HEIGHT
   const snappedHeight = Math.max(MIN_CONTAINER_HEIGHT, Math.min(contentHeight, effectiveMaxHeight))
-  const needsVerticalScroll = contentHeight > effectiveMaxHeight
+  // Removed needsVerticalScroll - overflowY: 'auto' handles this automatically
 
   // Helper function to get task type from task ID and optional step ID
   const getTaskType = (taskId: string, stepId?: string): string => {
@@ -565,7 +565,8 @@ export function SwimLaneTimeline({
     <div style={{
       height: snappedHeight,
       position: 'relative',
-      overflow: 'hidden', // Contain the scrollable inner div
+      // Note: Using visible overflow allows the inner div's scroll to work properly
+      // The inner div handles all scrolling, this is just a size container
     }}>
       {/* Zoom Controls - Floating Overlay */}
       <div style={{
@@ -618,10 +619,11 @@ export function SwimLaneTimeline({
         style={{
           position: 'relative',
           overflowX: 'auto', // Allow horizontal scroll for 3-day timeline
-          overflowY: needsVerticalScroll ? 'auto' : 'hidden', // Scroll only when content exceeds max
+          overflowY: 'auto', // Always allow vertical scroll when content overflows
           background: '#fafbfc',
           borderRadius: 8,
-          height: '100%',
+          height: snappedHeight, // Use explicit pixel height instead of 100%
+          maxHeight: snappedHeight, // Cap at the same height to enable scrolling
           width: '100%',
           maxWidth: '100%',
         }}

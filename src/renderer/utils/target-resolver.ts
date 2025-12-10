@@ -1,7 +1,10 @@
 /**
  * Target Resolution Utilities
- * Resolves amendment target names to database IDs using fuzzy matching
+ * Resolves amendment target names to database IDs using exact matching
  * Extracted from amendment-applicator.ts for better separation of concerns
+ *
+ * IMPORTANT: We use EXACT matching only (case-insensitive, trimmed).
+ * No fuzzy/partial matching - if the AI provides wrong names, it's a validation error.
  */
 
 import { Amendment, EntityType, WorkflowCreation } from '@shared/amendment-types'
@@ -36,9 +39,9 @@ export interface DependencyResolutionResult {
 }
 
 /**
- * Find a task, workflow, or step by name using fuzzy matching
+ * Find a task, workflow, or step by name using EXACT matching (case-insensitive).
  *
- * @param name - The name to search for
+ * @param name - The name to search for (exact match after normalization)
  * @param type - Optional entity type to restrict search
  * @param entityData - Pre-loaded task and workflow data
  * @returns FindResult if found, null otherwise
@@ -50,18 +53,17 @@ export function findEntityByName(
 ): FindResult | null {
   const { allTasks, allWorkflows } = entityData
 
-  // Normalize for comparison
+  // Normalize for comparison - EXACT match only (case-insensitive, trimmed)
   const normalizedName = name.toLowerCase().trim()
+
+  // Helper for exact matching
+  const exactMatch = (entityName: string) => entityName.toLowerCase().trim() === normalizedName
 
   // SPECIAL HANDLING: When looking for a "step", search workflow steps first
   if (type === EntityType.Step) {
     for (const workflow of allWorkflows) {
       if (workflow.steps) {
-        const step = workflow.steps.find(s =>
-          s.name.toLowerCase().trim() === normalizedName ||
-          s.name.toLowerCase().includes(normalizedName) ||
-          normalizedName.includes(s.name.toLowerCase()),
-        )
+        const step = workflow.steps.find(s => exactMatch(s.name))
         if (step) {
           logger.ui.info('Found step in workflow', {
             stepName: step.name,
@@ -78,11 +80,7 @@ export function findEntityByName(
       }
     }
     // Not found as step - try as a standalone task (AI may have misclassified)
-    const task = allTasks.find(t =>
-      t.name.toLowerCase().trim() === normalizedName ||
-      t.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(t.name.toLowerCase()),
-    )
+    const task = allTasks.find(t => exactMatch(t.name))
     if (task) {
       logger.ui.info('Correcting target type from step to task', {
         name,
@@ -96,33 +94,17 @@ export function findEntityByName(
 
   // If type is specified, search only that type
   if (type === EntityType.Task) {
-    const task = allTasks.find(t =>
-      t.name.toLowerCase().trim() === normalizedName ||
-      t.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(t.name.toLowerCase()),
-    )
+    const task = allTasks.find(t => exactMatch(t.name))
     if (task) return { id: task.id, type: EntityType.Task }
   } else if (type === EntityType.Workflow) {
-    const workflow = allWorkflows.find(w =>
-      w.name.toLowerCase().trim() === normalizedName ||
-      w.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(w.name.toLowerCase()),
-    )
+    const workflow = allWorkflows.find(w => exactMatch(w.name))
     if (workflow) return { id: workflow.id, type: EntityType.Workflow }
   } else {
     // Search both types - workflows first (more specific)
-    const workflow = allWorkflows.find(w =>
-      w.name.toLowerCase().trim() === normalizedName ||
-      w.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(w.name.toLowerCase()),
-    )
+    const workflow = allWorkflows.find(w => exactMatch(w.name))
     if (workflow) return { id: workflow.id, type: EntityType.Workflow }
 
-    const task = allTasks.find(t =>
-      t.name.toLowerCase().trim() === normalizedName ||
-      t.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(t.name.toLowerCase()),
-    )
+    const task = allTasks.find(t => exactMatch(t.name))
     if (task) return { id: task.id, type: EntityType.Task }
   }
 
@@ -130,10 +112,13 @@ export function findEntityByName(
 }
 
 /**
- * Resolve dependency names to IDs using fuzzy matching.
+ * Resolve dependency names to IDs using exact matching.
  * Handles both task names and workflow step names.
  *
- * @param dependencyNames - Array of dependency names to resolve
+ * Names that don't match any entity are passed through unchanged -
+ * they may be existing IDs that should be validated by the caller.
+ *
+ * @param dependencyNames - Array of dependency names/IDs to resolve
  * @param entityData - Pre-loaded task and workflow data
  * @returns Object with resolved IDs and unresolved names
  */
@@ -145,15 +130,7 @@ export function resolveDependencyNames(
   const unresolved: string[] = []
 
   for (const name of dependencyNames) {
-    // Skip if already an ID (UUIDs or ID-like strings)
-    // IDs typically have format like "task-xxx" or are UUIDs
-    if (name.includes('-') && name.length > 20) {
-      // Looks like an ID, keep it
-      resolved.push(name)
-      continue
-    }
-
-    // Try to find entity by name (search all types)
+    // Try to find entity by exact name match
     const match = findEntityByName(name, undefined, entityData)
     if (match) {
       resolved.push(match.id)
@@ -163,11 +140,12 @@ export function resolveDependencyNames(
         type: match.type,
       }, 'dependency-resolved')
     } else {
-      unresolved.push(name)
-      logger.ui.warn('Could not resolve dependency name', {
+      // Not found by name - pass through unchanged (may be an existing ID)
+      // The caller should validate if this is a valid ID
+      resolved.push(name)
+      logger.ui.info('Dependency not found by name, passing through as-is', {
         name,
-        availableTasks: entityData.allTasks.map(t => t.name).slice(0, 5),
-      }, 'dependency-unresolved')
+      }, 'dependency-passthrough')
     }
   }
 

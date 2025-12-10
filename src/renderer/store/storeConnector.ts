@@ -50,18 +50,6 @@ export const resetStoreConnectorState = (): void => {
   }
 }
 
-// NOTE: forceImmediateSchedulerUpdate was removed.
-// It was an anti-pattern that tried to bypass the reactive subscription chain.
-// The proper solution is to let the debounced subscription flow naturally:
-// 1. Task completion updates TaskStore
-// 2. storeConnector subscription (debounced 16ms) detects change
-// 3. filterSchedulableItems() removes completed task
-// 4. setInputs() updates SchedulerStore
-// 5. Components subscribed to nextScheduledItem re-render automatically
-//
-// If you need faster updates, reduce TASK_STORE_DEBOUNCE_MS in scheduling constants,
-// or use Zustand's subscribeWithSelector for direct component subscriptions.
-
 export const connectStores = () => {
   if (isConnected) {
     logger.ui.warn('Store connector already initialized', {}, 'store-connector')
