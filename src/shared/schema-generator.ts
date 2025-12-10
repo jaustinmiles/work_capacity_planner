@@ -447,6 +447,7 @@ function validateWorkPatternModification(a: Record<string, unknown>, errors: Val
 
     // DEBUG: Log blockData details before validation
     logger.system.debug('Validating blockData', {
+      operation: a.operation,
       blockDataKeys: Object.keys(block),
       typeField: block.type,
       typeofType: typeof block.type,
@@ -455,8 +456,15 @@ function validateWorkPatternModification(a: Record<string, unknown>, errors: Val
 
     validateDate(block.startTime, 'blockData.startTime', 'Start time', errors)
     validateDate(block.endTime, 'blockData.endTime', 'End time', errors)
-    // blockData.type can be a user-defined task type ID or a system type (blocked/sleep)
-    validateNonEmptyString(block.type, 'blockData.type', 'Block type', errors)
+
+    // blockData.type is only required for add_block and modify_block operations
+    // For remove_block, we identify the block by start/end times only
+    const requiresType = a.operation === WorkPatternOperation.AddBlock ||
+                         a.operation === WorkPatternOperation.ModifyBlock
+    if (requiresType) {
+      // blockData.type can be a user-defined task type ID or a system type (blocked/sleep)
+      validateNonEmptyString(block.type, 'blockData.type', 'Block type', errors)
+    }
   }
 
   // Validate meetingData if present
