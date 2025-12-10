@@ -564,8 +564,8 @@ export function SwimLaneTimeline({
   return (
     <div style={{
       height: snappedHeight,
-      maxHeight: maxHeight ?? snappedHeight,
       position: 'relative',
+      overflow: 'hidden', // Contain the scrollable inner div
     }}>
       {/* Zoom Controls - Floating Overlay */}
       <div style={{

@@ -8,7 +8,7 @@ import { DailyWorkPattern, BlockTypeConfig } from '@shared/work-blocks-types'
 import { isSingleTypeBlock, isComboBlock, isSystemBlock } from '@shared/user-task-types'
 import { ScheduleMetricsPanel } from './ScheduleMetricsPanel'
 import { SchedulingDebugPanel as DebugInfoComponent } from './SchedulingDebugInfo'
-import { SchedulingDebugInfo } from '@shared/unified-scheduler'
+import { SchedulingDebugInfo, BlockUtilizationInfo } from '@shared/unified-scheduler'
 import { SchedulingMetrics } from '@shared/scheduler-metrics'
 import { DeadlineViolationBadge } from './DeadlineViolationBadge'
 import { useTaskStore } from '../../store/useTaskStore'
@@ -29,26 +29,6 @@ interface GanttChartProps {
   sequencedTasks: SequencedTask[]
 }
 
-/**
- * Block utilization entry from the scheduler's debug info
- */
-interface BlockUtilizationInfo {
-  date: string
-  blockId: string
-  startTime: string
-  endTime: string
-  capacity: number
-  used: number
-  typeConfig: BlockTypeConfig
-  utilization: number
-  status: string
-  unusedReason?: string
-  perTypeUtilization?: Record<string, number>
-  capacityByType?: Record<string, number>
-  usedByType?: Record<string, number>
-  isCurrent?: boolean
-  reasonNotFilled?: string[]
-}
 
 interface GanttItemWorkflowMetadata {
   workflowId?: string | undefined
@@ -1800,12 +1780,12 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                     {block.used}/{block.capacity} ({Math.round((block.used / block.capacity) * 100)}%)
                   </td>
                   <td style={{ padding: '8px' }}>
-                    {block.status === 'unused' ? (
-                      <Tag color="gray">{block.unusedReason || 'Unused'}</Tag>
-                    ) : block.status === 'partial' ? (
+                    {block.utilization === 0 ? (
+                      <Tag color="gray">{block.reasonNotFilled?.[0] || 'Unused'}</Tag>
+                    ) : block.utilization < 1 ? (
                       <Tag color="orange">Partially Used</Tag>
                     ) : (
-                      <Tag color="green">Used</Tag>
+                      <Tag color="green">Fully Used</Tag>
                     )}
                   </td>
                 </tr>

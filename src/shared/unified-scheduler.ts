@@ -151,6 +151,26 @@ export interface PriorityBreakdown {
   total: number
 }
 
+/**
+ * Block utilization info from scheduler debug output.
+ * Used for displaying block usage in debug panels and metrics.
+ */
+export interface BlockUtilizationInfo {
+  date: string                            // Always present
+  blockId: string                         // Always present
+  startTime: string                       // Always present
+  endTime: string                         // Always present
+  capacity: number                        // Always present (minutes)
+  used: number                            // Always present (minutes)
+  typeConfig: BlockTypeConfig             // Always present - block type configuration
+  utilization: number                     // Always present (0-1 ratio)
+  capacityByType?: Record<string, number> // Optional - per-type capacity for combo blocks
+  usedByType?: Record<string, number>     // Optional - per-type usage for combo blocks
+  isCurrent?: boolean                     // Optional - true if this is the current block
+  reasonNotFilled?: string[]              // Optional - reasons why block wasn't fully utilized
+  perTypeUtilization?: Record<string, number> // Optional - utilization by type
+}
+
 export interface SchedulingDebugInfo {
   scheduledItems: Array<{
     id: string                              // Always present from UnifiedScheduleItem
@@ -169,21 +189,7 @@ export interface SchedulingDebugInfo {
     reason: string                          // Always present
     priorityBreakdown?: PriorityBreakdown | undefined  // Optional - only when originalItem exists
   }>
-  blockUtilization: Array<{
-    date: string                            // Always present
-    blockId: string                         // Always present
-    startTime: string                       // Always present
-    endTime: string                         // Always present
-    capacity: number                        // Always present
-    used: number                            // Always present
-    typeConfig: BlockTypeConfig             // Always present - block type configuration
-    utilization: number                     // Always present
-    capacityByType?: Record<string, number> // Optional - per-type capacity for combo blocks
-    usedByType?: Record<string, number>     // Optional - per-type usage for combo blocks
-    isCurrent?: boolean                     // Optional - true if this is the current block
-    reasonNotFilled?: string[]              // Optional - reasons why block wasn't fully utilized
-    perTypeUtilization?: Record<string, number> // Optional - utilization by type
-  }>
+  blockUtilization: BlockUtilizationInfo[]
   warnings: string[]                        // Always present
   totalScheduled: number                    // Always present
   totalUnscheduled: number                  // Always present

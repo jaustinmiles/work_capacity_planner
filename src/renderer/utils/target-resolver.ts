@@ -175,6 +175,58 @@ export function resolveDependencyNames(
 }
 
 /**
+ * Validates and filters step dependencies within a WorkflowCreation.
+ * AI generates dependsOn arrays with step NAMES - this validates they reference valid steps.
+ *
+ * Mutates the creation in place by removing invalid dependencies from each step.
+ *
+ * @param creation - The WorkflowCreation amendment to validate
+ */
+function validateWorkflowStepDependencies(creation: WorkflowCreation): void {
+  // Build map of valid step names within this workflow (case-insensitive)
+  const validStepNames = new Set<string>()
+  for (const step of creation.steps) {
+    validStepNames.add(step.name.toLowerCase().trim())
+  }
+
+  // Validate dependencies for each step
+  for (const step of creation.steps) {
+    if (step.dependsOn && step.dependsOn.length > 0) {
+      const validDeps: string[] = []
+      const invalidDeps: string[] = []
+
+      for (const depName of step.dependsOn) {
+        const normalizedDep = depName.toLowerCase().trim()
+        if (validStepNames.has(normalizedDep)) {
+          // Keep original name (applicator will convert to IDs after step creation)
+          validDeps.push(depName)
+        } else {
+          invalidDeps.push(depName)
+        }
+      }
+
+      // Update step's dependencies to only include valid ones
+      step.dependsOn = validDeps
+
+      if (invalidDeps.length > 0) {
+        logger.ui.warn('WorkflowCreation step has invalid dependencies', {
+          workflowName: creation.name,
+          stepName: step.name,
+          invalidDeps,
+          availableSteps: Array.from(validStepNames),
+        }, 'workflow-deps-invalid')
+      }
+    }
+  }
+
+  logger.ui.info('Validated WorkflowCreation step dependencies', {
+    workflowName: creation.name,
+    stepCount: creation.steps.length,
+    stepsWithDeps: creation.steps.filter(s => s.dependsOn && s.dependsOn.length > 0).length,
+  }, 'workflow-deps-validated')
+}
+
+/**
  * Resolve target names to IDs by looking up tasks and workflows in the database.
  * This is critical because the AI generates amendments with names but no IDs.
  *
@@ -308,51 +360,8 @@ export async function resolveAmendmentTargets(
     }
 
     // Handle WorkflowCreation - validate step dependencies within the workflow
-    // AI generates dependsOn arrays with step NAMES - validate they reference valid steps
     if (amendment.type === AmendmentType.WorkflowCreation) {
-      const creation = amendment as WorkflowCreation
-
-      // Build map of valid step names within this workflow (case-insensitive)
-      const validStepNames = new Set<string>()
-      for (const step of creation.steps) {
-        validStepNames.add(step.name.toLowerCase().trim())
-      }
-
-      // Validate dependencies for each step
-      for (const step of creation.steps) {
-        if (step.dependsOn && step.dependsOn.length > 0) {
-          const validDeps: string[] = []
-          const invalidDeps: string[] = []
-
-          for (const depName of step.dependsOn) {
-            const normalizedDep = depName.toLowerCase().trim()
-            if (validStepNames.has(normalizedDep)) {
-              // Keep original name (applicator will convert to IDs after step creation)
-              validDeps.push(depName)
-            } else {
-              invalidDeps.push(depName)
-            }
-          }
-
-          // Update step's dependencies to only include valid ones
-          step.dependsOn = validDeps
-
-          if (invalidDeps.length > 0) {
-            logger.ui.warn('WorkflowCreation step has invalid dependencies', {
-              workflowName: creation.name,
-              stepName: step.name,
-              invalidDeps,
-              availableSteps: Array.from(validStepNames),
-            }, 'workflow-deps-invalid')
-          }
-        }
-      }
-
-      logger.ui.info('Validated WorkflowCreation step dependencies', {
-        workflowName: creation.name,
-        stepCount: creation.steps.length,
-        stepsWithDeps: creation.steps.filter(s => s.dependsOn && s.dependsOn.length > 0).length,
-      }, 'workflow-deps-validated')
+      validateWorkflowStepDependencies(amendment as WorkflowCreation)
     }
   }
 }

@@ -38,6 +38,7 @@ import {
   applyReverseDependencyChanges,
 } from './dependency-utils'
 import { resolveAmendmentTargets } from './target-resolver'
+import { getBlockTypeName } from '@shared/user-task-types'
 
 /**
  * Result for a single amendment application
@@ -55,22 +56,6 @@ export interface ApplyAmendmentsResult {
   successCount: number
   errorCount: number
   results: AmendmentResult[]
-}
-
-/**
- * Convert a block type ID to a human-readable name.
- * Users should never see raw type IDs like "type-mis1uq9z-2f69ccfd3".
- * Instead, they should see names like "Household" or "Admin".
- */
-function getBlockTypeName(typeId: string): string {
-  // Handle system types directly
-  if (typeId === 'blocked' || typeId === WorkBlockType.Blocked) return 'Blocked'
-  if (typeId === 'sleep' || typeId === WorkBlockType.Sleep) return 'Sleep'
-
-  // Look up user-defined type name from store
-  const userTypes = useUserTaskTypeStore.getState().types
-  const userType = userTypes.find(t => t.id === typeId)
-  return userType?.name ?? typeId  // Fallback to ID only if truly unknown
 }
 
 /**
@@ -108,7 +93,7 @@ function getAmendmentDescription(amendment: Amendment): string {
       if (mod.operation === WorkPatternOperation.AddBlock && mod.blockData) {
         const start = extractTimeFromISO(mod.blockData.startTime)
         const end = extractTimeFromISO(mod.blockData.endTime)
-        const typeName = getBlockTypeName(mod.blockData.type)
+        const typeName = getBlockTypeName(mod.blockData.type, useUserTaskTypeStore.getState().types)
         return `Add ${typeName} block ${start} - ${end}`
       }
       if (mod.operation === WorkPatternOperation.AddMeeting && mod.meetingData) {
@@ -1059,7 +1044,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
                 // Refresh work pattern store reactively
                 useWorkPatternStore.getState().loadWorkPatterns()
-                Message.success(`Added ${getBlockTypeName(typeId)} block: ${startTimeStr} - ${endTimeStr}`)
+                Message.success(`Added ${getBlockTypeName(typeId, useUserTaskTypeStore.getState().types)} block: ${startTimeStr} - ${endTimeStr}`)
                 successCount++
                 break
               }

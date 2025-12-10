@@ -135,7 +135,10 @@ export function WorkBlocksEditor({
     }
   }, [pattern])
 
-  // Detect invalid block types and alert the user - surfaces data corruption
+  // DEFENSIVE: Validate block typeConfig on every change to surface data corruption early.
+  // This catches blocks with malformed typeConfig (not Single, Combo, or System) which could
+  // occur from database migration issues, API errors, or bugs. Without this check, such blocks
+  // would silently render incorrectly or cause downstream errors. Keep this effect.
   useEffect(() => {
     const invalidBlocks = blocks.filter(block => {
       const tc = block.typeConfig

@@ -17,7 +17,7 @@ import {
 } from '@arco-design/web-react'
 import { IconSend, IconRobot, IconUser, IconRefresh, IconVoice, IconPause } from '@arco-design/web-react/icon'
 import { useBrainstormChatStore, ChatStatus } from '../../store/useBrainstormChatStore'
-import { ChatMessageRole, AmendmentType, WorkPatternOperation, WorkBlockType } from '@shared/enums'
+import { ChatMessageRole, AmendmentType, WorkPatternOperation } from '@shared/enums'
 import { useUserTaskTypeStore } from '../../store/useUserTaskTypeStore'
 import { Amendment, WorkflowCreation, WorkPatternModification } from '@shared/amendment-types'
 import { WorkflowAmendmentPreview } from '../shared/WorkflowAmendmentPreview'
@@ -27,6 +27,7 @@ import { IconCheck, IconClose } from '@arco-design/web-react/icon'
 import { getDatabase } from '../../services/database'
 import { JobContextData } from '../../services/chat-context-provider'
 import { formatDateStringForDisplay, extractTimeFromISO } from '@shared/time-utils'
+import { getBlockTypeName } from '@shared/user-task-types'
 import { logger } from '@/logger'
 import { useVoiceRecording } from '../../hooks/useVoiceRecording'
 import { MarkdownContent } from '../common/MarkdownContent'
@@ -603,19 +604,6 @@ function getStatusMessage(status: ChatStatus): string {
 }
 
 /**
- * Convert a block type ID to a human-readable name.
- * Users should never see raw type IDs like "type-mis1uq9z-2f69ccfd3".
- */
-function getBlockTypeName(typeId: string): string {
-  if (typeId === 'blocked' || typeId === WorkBlockType.Blocked) return 'Blocked'
-  if (typeId === 'sleep' || typeId === WorkBlockType.Sleep) return 'Sleep'
-
-  const userTypes = useUserTaskTypeStore.getState().types
-  const userType = userTypes.find(t => t.id === typeId)
-  return userType?.name ?? typeId
-}
-
-/**
  * Get summary text for amendment
  */
 function getAmendmentSummary(amendment: Amendment): string {
@@ -656,7 +644,7 @@ function getAmendmentSummary(amendment: Amendment): string {
       if (mod.operation === WorkPatternOperation.AddBlock && mod.blockData) {
         const start = extractTimeFromISO(mod.blockData.startTime)
         const end = extractTimeFromISO(mod.blockData.endTime)
-        const typeName = getBlockTypeName(mod.blockData.type)
+        const typeName = getBlockTypeName(mod.blockData.type, useUserTaskTypeStore.getState().types)
         return `Add ${typeName} block ${start} - ${end} on ${dateStr}`
       }
       if (mod.operation === WorkPatternOperation.AddMeeting && mod.meetingData) {

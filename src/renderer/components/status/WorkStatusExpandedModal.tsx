@@ -10,11 +10,10 @@ import React, { useMemo, useState } from 'react'
 import { Modal, Space, Typography, Progress, Statistic, Divider, Grid, Checkbox } from '@arco-design/web-react'
 import { IconClose } from '@arco-design/web-react/icon'
 import { RadarChart, prepareRadarChartData, RadarChartDataPoint, createRadarDataPointFromSink } from './RadarChart'
-import { UserTaskType } from '@shared/user-task-types'
+import { UserTaskType, getBlockTypeConfigName } from '@shared/user-task-types'
 import { TimeSink } from '@shared/time-sink-types'
 import { WorkBlock } from '@shared/work-blocks-types'
 import { formatMinutes } from '@shared/time-utils'
-import { BlockConfigKind, WorkBlockType } from '@shared/enums'
 
 const { Title, Text } = Typography
 const { Row, Col } = Grid
@@ -38,31 +37,6 @@ export interface WorkStatusExpandedModalProps {
   nextBlock: WorkBlock | null
 }
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-function getBlockTypeName(block: WorkBlock | null, userTypes: UserTaskType[]): string {
-  if (!block) return 'None'
-
-  const { typeConfig } = block
-  if (typeConfig.kind === BlockConfigKind.System) {
-    return typeConfig.systemType === WorkBlockType.Sleep ? 'Sleep' : 'Blocked'
-  }
-  if (typeConfig.kind === BlockConfigKind.Single) {
-    const userType = userTypes.find(t => t.id === typeConfig.typeId)
-    return userType?.name || 'Unknown'
-  }
-  if (typeConfig.kind === BlockConfigKind.Combo) {
-    return typeConfig.allocations
-      .map(a => {
-        const userType = userTypes.find(t => t.id === a.typeId)
-        return userType?.name || 'Unknown'
-      })
-      .join(' / ')
-  }
-  return 'Unknown'
-}
 
 // ============================================================================
 // Sub-Components
@@ -346,7 +320,7 @@ export function WorkStatusExpandedModal({
               <Text>
                 <strong>{currentBlock.startTime} - {currentBlock.endTime}</strong>
               </Text>
-              <Text>{getBlockTypeName(currentBlock, userTaskTypes)}</Text>
+              <Text>{getBlockTypeConfigName(currentBlock.typeConfig, userTaskTypes)}</Text>
               {currentBlock.capacity && (
                 <Text type="secondary">
                   Capacity: {formatMinutes(currentBlock.capacity.totalMinutes)}
@@ -366,7 +340,7 @@ export function WorkStatusExpandedModal({
               <Text>
                 <strong>{nextBlock.startTime} - {nextBlock.endTime}</strong>
               </Text>
-              <Text>{getBlockTypeName(nextBlock, userTaskTypes)}</Text>
+              <Text>{getBlockTypeConfigName(nextBlock.typeConfig, userTaskTypes)}</Text>
               {nextBlock.capacity && (
                 <Text type="secondary">
                   Capacity: {formatMinutes(nextBlock.capacity.totalMinutes)}

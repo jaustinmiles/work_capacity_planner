@@ -125,6 +125,53 @@ export function getTypeName(types: UserTaskType[], typeId: string): string {
 }
 
 /**
+ * Get the display name for a block type, handling both system types and user-defined types.
+ * System types (Blocked, Sleep) are resolved directly without lookup.
+ * User-defined types are looked up from the provided types array.
+ *
+ * @param typeId - Either a system type string or user-defined type ID
+ * @param types - Array of user-defined task types
+ * @returns Human-readable name ('Blocked', 'Sleep', user type name, or 'Unknown')
+ */
+export function getBlockTypeName(typeId: string, types: UserTaskType[]): string {
+  // Handle system types directly - no lookup needed
+  if (typeId === WorkBlockType.Blocked || typeId === 'blocked') {
+    return 'Blocked'
+  }
+  if (typeId === WorkBlockType.Sleep || typeId === 'sleep') {
+    return 'Sleep'
+  }
+
+  // Look up user-defined type name
+  return getTypeName(types, typeId)
+}
+
+/**
+ * Get the display name for a BlockTypeConfig, handling all config kinds.
+ * - System blocks: Returns 'Blocked' or 'Sleep'
+ * - Single blocks: Returns the user-defined type name
+ * - Combo blocks: Returns type names joined with ' / '
+ *
+ * @param config - The block type configuration
+ * @param types - Array of user-defined task types for name lookup
+ * @returns Human-readable name for the block configuration
+ */
+export function getBlockTypeConfigName(config: BlockTypeConfig, types: UserTaskType[]): string {
+  if (config.kind === BlockConfigKind.System) {
+    return config.systemType === WorkBlockType.Sleep ? 'Sleep' : 'Blocked'
+  }
+  if (config.kind === BlockConfigKind.Single) {
+    return getTypeName(types, config.typeId) || 'Unknown'
+  }
+  if (config.kind === BlockConfigKind.Combo) {
+    return config.allocations
+      .map(a => getTypeName(types, a.typeId) || 'Unknown')
+      .join(' / ')
+  }
+  return 'Unknown'
+}
+
+/**
  * Get a type by its ID.
  */
 export function getTypeById(types: UserTaskType[], typeId: string): UserTaskType | undefined {

@@ -17,6 +17,16 @@ export interface GraphNode {
 }
 
 /**
+ * Represents a dependency that was referenced but not found in the item set.
+ * Used for error reporting during dependency resolution.
+ */
+export interface MissingDependency {
+  itemId: string        // ID of the item that has the missing dependency
+  itemName?: string     // Optional name for better error messages
+  missingDepId: string  // ID of the dependency that wasn't found
+}
+
+/**
  * Build a dependency graph from items with dependencies
  */
 export function buildDependencyGraph<T extends GraphNode>(items: T[]): Map<string, string[]> {
@@ -48,7 +58,7 @@ export function topologicalSort<T extends GraphNode>(items: T[]): T[] {
 
   // Build adjacency list and calculate in-degree
   // Track missing dependencies for error reporting
-  const missingDependencies: Array<{ itemId: string; itemName?: string; missingDepId: string }> = []
+  const missingDependencies: MissingDependency[] = []
 
   items.forEach(item => {
     const dependencies = item.dependencies || []
