@@ -60,7 +60,7 @@ const WorkHoursMetric: React.FC<{ metrics: SchedulingMetrics }> = ({ metrics }) 
       return {
         typeId,
         hours,
-        name: userType?.name || typeId,
+        name: userType?.name || 'Unknown',
         color: userType?.color || '#8c8c8c',
         emoji: userType?.emoji,
       }

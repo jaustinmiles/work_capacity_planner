@@ -57,7 +57,7 @@ function getBlockTypeName(block: WorkBlock | null, userTypes: UserTaskType[]): s
     return typeConfig.allocations
       .map(a => {
         const userType = userTypes.find(t => t.id === a.typeId)
-        return userType?.name || a.typeId
+        return userType?.name || 'Unknown'
       })
       .join(' / ')
   }

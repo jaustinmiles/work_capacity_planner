@@ -392,7 +392,7 @@ export function WorkBlocksEditor({
                         const userType = userTaskTypes.find(t => t.id === typeId)
                         return (
                           <Tag key={typeId} color={userType?.color || 'blue'}>
-                            {userType?.emoji} {formatMinutes(minutes)} {userType?.name || typeId}
+                            {userType?.emoji} {formatMinutes(minutes)} {userType?.name || 'Unknown'}
                           </Tag>
                         )
                       })}
@@ -410,7 +410,7 @@ export function WorkBlocksEditor({
                         const userType = userTaskTypes.find(t => t.id === typeId)
                         return (
                           <Tag key={typeId} color={userType?.color || 'orange'}>
-                            {userType?.emoji} {formatMinutes(minutes)} {userType?.name || typeId}
+                            {userType?.emoji} {formatMinutes(minutes)} {userType?.name || 'Unknown'}
                           </Tag>
                         )
                       })}
@@ -428,7 +428,7 @@ export function WorkBlocksEditor({
                         const userType = userTaskTypes.find(t => t.id === typeId)
                         return (
                           <Tag key={typeId} color={minutes > 0 ? (userType?.color || 'green') : 'red'}>
-                            {userType?.emoji} {formatMinutes(minutes)} {userType?.name || typeId}
+                            {userType?.emoji} {formatMinutes(minutes)} {userType?.name || 'Unknown'}
                           </Tag>
                         )
                       })}
@@ -538,7 +538,7 @@ export function WorkBlocksEditor({
                         <Text type="secondary" style={{ fontSize: 11 }}>
                           {block.typeConfig.allocations.map(a => {
                             const userType = userTaskTypes.find(t => t.id === a.typeId)
-                            return `${Math.round(a.ratio * 100)}% ${userType?.name || a.typeId}`
+                            return `${Math.round(a.ratio * 100)}% ${userType?.name || 'Unknown'}`
                           }).join(' / ')}
                         </Text>
                       </Space>
@@ -551,7 +551,7 @@ export function WorkBlocksEditor({
                       const userType = userTaskTypes.find(t => t.id === typeId)
                       return (
                         <Text type="secondary">
-                          All {userType?.emoji} {userType?.name || typeId} time ({block.capacity?.totalMinutes || 0}min)
+                          All {userType?.emoji} {userType?.name || 'Unknown'} time ({block.capacity?.totalMinutes || 0}min)
                         </Text>
                       )
                     })() : (
