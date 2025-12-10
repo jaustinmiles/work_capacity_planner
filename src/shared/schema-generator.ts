@@ -12,6 +12,7 @@ import {
 } from './amendment-types'
 import { isValidEnumValue } from './enums'
 import { detectDependencyCycles } from './graph-utils'
+import { logger } from '../logger'
 
 export interface ValidationError {
   path: string
@@ -443,6 +444,15 @@ function validateWorkPatternModification(a: Record<string, unknown>, errors: Val
   // Validate blockData if present
   if (a.blockData && isObject(a.blockData)) {
     const block = a.blockData
+
+    // DEBUG: Log blockData details before validation
+    logger.system.debug('Validating blockData', {
+      blockDataKeys: Object.keys(block),
+      typeField: block.type,
+      typeofType: typeof block.type,
+      blockDataPreview: JSON.stringify(block).substring(0, 500),
+    }, 'blockdata-validation')
+
     validateDate(block.startTime, 'blockData.startTime', 'Start time', errors)
     validateDate(block.endTime, 'blockData.endTime', 'End time', errors)
     // blockData.type can be a user-defined task type ID or a system type (blocked/sleep)

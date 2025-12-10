@@ -112,8 +112,22 @@ export async function validateWithRetry(
       const retryFeedback = attempt > 1 ? lastErrors : undefined
       const aiResponse = await generateAmendments(retryFeedback)
 
+      // DEBUG: Log raw AI response before parsing
+      logger.system.info('Raw AI response received', {
+        attempt,
+        responseLength: aiResponse.length,
+        responsePreview: aiResponse.substring(0, 2000),
+      }, 'ai-raw-response')
+
       // Parse AI response
       const { amendments } = parseAIResponse(aiResponse)
+
+      // DEBUG: Log parsed amendments before validation
+      logger.system.info('Parsed amendments before validation', {
+        attempt,
+        amendmentCount: Array.isArray(amendments) ? amendments.length : 0,
+        amendmentsPreview: JSON.stringify(amendments, null, 2).substring(0, 3000),
+      }, 'ai-parsed-amendments')
 
       if (!amendments) {
         lastErrors = `Failed to parse JSON from AI response. Please provide a valid JSON array of amendments.\n\nReceived:\n${aiResponse.substring(0, 500)}`
