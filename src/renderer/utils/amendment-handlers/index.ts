@@ -5,6 +5,10 @@
 // Export shared types
 export type { HandlerContext, HandlerResult } from './types'
 
+// Export shared utilities
+export { findStepByName, findStepIndexByName } from './step-utils'
+export { resolveTaskType } from './task-type-utils'
+
 // Export task amendment handlers
 export {
   handleStatusUpdate,

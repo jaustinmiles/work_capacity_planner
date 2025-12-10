@@ -14,39 +14,12 @@ import type {
   ArchiveToggle,
 } from '@shared/amendment-types'
 import { EntityType, TaskStatus } from '@shared/amendment-types'
-import type { TaskStep, Task } from '@shared/types'
+import { getCurrentTime } from '@shared/time-provider'
+import type { Task, TaskStep } from '@shared/types'
 import type { HandlerContext } from './types'
 import { Message } from '../../components/common/Message'
-import { useUserTaskTypeStore } from '../../store/useUserTaskTypeStore'
-import { logger } from '@/logger'
-
-/**
- * Validate and resolve a task type ID against user-defined types.
- * Returns a valid type ID or empty string if not found.
- */
-function resolveTaskType(requestedType: string | undefined): string {
-  if (!requestedType) return ''
-
-  const userTypes = useUserTaskTypeStore.getState().types
-  const matchedType = userTypes.find(t =>
-    t.id === requestedType ||
-    t.name.toLowerCase() === requestedType.toLowerCase(),
-  )
-
-  if (matchedType) {
-    return matchedType.id
-  }
-
-  // Log warning if type not found
-  if (requestedType) {
-    logger.ui.warn('Task type not found in user-defined types', {
-      requestedType,
-      availableTypes: userTypes.map(t => ({ id: t.id, name: t.name })),
-    }, 'task-type-resolution')
-  }
-
-  return ''
-}
+import { findStepByName, findStepIndexByName } from './step-utils'
+import { resolveTaskType } from './task-type-utils'
 
 export async function handleStatusUpdate(
   amendment: StatusUpdate,
@@ -57,14 +30,24 @@ export async function handleStatusUpdate(
       // Update workflow step status
       const workflow = await ctx.db.getSequencedTaskById(amendment.target.id)
       if (workflow && workflow.steps) {
-        const step = workflow.steps.find((s: TaskStep) =>
-          s.name.toLowerCase().includes(amendment.stepName!.toLowerCase()) ||
-          amendment.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-        )
+        const step = findStepByName(workflow.steps, amendment.stepName)
         if (step) {
-          await ctx.db.updateTaskStepProgress(step.id, {
-            status: amendment.newStatus,
-          })
+          // Handle async wait time: if completing a step with asyncWaitTime,
+          // transition to 'waiting' status instead of 'completed'
+          if (
+            amendment.newStatus === TaskStatus.Completed &&
+            step.asyncWaitTime &&
+            step.asyncWaitTime > 0
+          ) {
+            await ctx.db.updateTaskStepProgress(step.id, {
+              status: 'waiting',
+              completedAt: getCurrentTime(),
+            })
+          } else {
+            await ctx.db.updateTaskStepProgress(step.id, {
+              status: amendment.newStatus,
+            })
+          }
         } else {
           ctx.markFailed(`Step "${amendment.stepName}" not found in workflow "${workflow.name}"`)
         }
@@ -97,16 +80,13 @@ export async function handleTimeLog(
       // Log time for workflow step
       const workflow = await ctx.db.getSequencedTaskById(amendment.target.id)
       if (workflow && workflow.steps) {
-        const step = workflow.steps.find((s: TaskStep) =>
-          s.name.toLowerCase().includes(amendment.stepName!.toLowerCase()) ||
-          amendment.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-        )
+        const step = findStepByName(workflow.steps, amendment.stepName)
         if (step) {
           // Create work session for the step
           await ctx.db.createWorkSession({
             stepId: step.id,
             taskId: workflow.id,
-            date: amendment.date || new Date(),
+            date: amendment.date || getCurrentTime(),
             plannedMinutes: step.duration,
             actualMinutes: amendment.duration,
             description: amendment.description || `Time logged for step: ${step.name}`,
@@ -120,10 +100,14 @@ export async function handleTimeLog(
       }
     } else {
       // Log time for task - look up task's type from database
+      // Use toISOString for consistent UTC date format in storage
       const task = await ctx.db.getTaskById(amendment.target.id)
+      const dateStr = amendment.date
+        ? amendment.date.toISOString().split('T')[0]
+        : getCurrentTime().toISOString().split('T')[0]
       await ctx.db.createWorkSession({
         taskId: amendment.target.id,
-        date: amendment.date ? amendment.date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        date: dateStr,
         plannedMinutes: amendment.duration,
         actualMinutes: amendment.duration,
         type: task?.type || '',
@@ -143,10 +127,7 @@ export async function handleNoteAddition(
       // Add note to workflow step
       const workflow = await ctx.db.getSequencedTaskById(amendment.target.id)
       if (workflow && workflow.steps) {
-        const step = workflow.steps.find((s: TaskStep) =>
-          s.name.toLowerCase().includes(amendment.stepName!.toLowerCase()) ||
-          amendment.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-        )
+        const step = findStepByName(workflow.steps, amendment.stepName)
         if (step) {
           const currentNotes = step.notes || ''
           const newNotes = amendment.append
@@ -198,10 +179,7 @@ export async function handleDurationChange(
       // Update workflow step duration
       const workflow = await ctx.db.getSequencedTaskById(amendment.target.id)
       if (workflow && workflow.steps) {
-        const step = workflow.steps.find((s: TaskStep) =>
-          s.name.toLowerCase().includes(amendment.stepName!.toLowerCase()) ||
-          amendment.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-        )
+        const step = findStepByName(workflow.steps, amendment.stepName)
         if (step) {
           // Update the step duration
           await ctx.db.updateTaskStepProgress(step.id, {
@@ -335,10 +313,7 @@ export async function handlePriorityChange(
       // Changing priority for a workflow step
       const workflow = await ctx.db.getSequencedTaskById(amendment.target.id)
       if (workflow && workflow.steps) {
-        const stepIndex = workflow.steps.findIndex(s =>
-          s.name.toLowerCase().includes(amendment.stepName!.toLowerCase()) ||
-          amendment.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-        )
+        const stepIndex = findStepIndexByName(workflow.steps, amendment.stepName)
 
         if (stepIndex !== -1) {
           // Update step properties - schema supports importance and urgency for steps
@@ -388,10 +363,7 @@ export async function handleTypeChange(
       // Changing type for a workflow step
       const workflow = await ctx.db.getSequencedTaskById(amendment.target.id)
       if (workflow && workflow.steps) {
-        const stepIndex = workflow.steps.findIndex(s =>
-          s.name.toLowerCase().includes(amendment.stepName!.toLowerCase()) ||
-          amendment.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-        )
+        const stepIndex = findStepIndexByName(workflow.steps, amendment.stepName)
 
         if (stepIndex !== -1) {
           const updatedSteps = [...workflow.steps]

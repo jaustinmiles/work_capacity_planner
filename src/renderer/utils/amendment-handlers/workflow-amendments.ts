@@ -13,40 +13,13 @@ import { StepStatus } from '@shared/enums'
 import { generateUniqueId, validateWorkflowDependencies } from '@shared/step-id-utils'
 import type { HandlerContext } from './types'
 import { Message } from '../../components/common/Message'
-import { useUserTaskTypeStore } from '../../store/useUserTaskTypeStore'
 import { logger } from '@/logger'
 import {
   applyForwardDependencyChanges,
   applyReverseDependencyChanges,
 } from '../dependency-utils'
-
-/**
- * Validate and resolve a task type ID against user-defined types.
- * Returns a valid type ID or empty string if not found.
- */
-function resolveTaskType(requestedType: string | undefined): string {
-  if (!requestedType) return ''
-
-  const userTypes = useUserTaskTypeStore.getState().types
-  const matchedType = userTypes.find(t =>
-    t.id === requestedType ||
-    t.name.toLowerCase() === requestedType.toLowerCase(),
-  )
-
-  if (matchedType) {
-    return matchedType.id
-  }
-
-  // Log warning if type not found
-  if (requestedType) {
-    logger.ui.warn('Task type not found in user-defined types', {
-      requestedType,
-      availableTypes: userTypes.map(t => ({ id: t.id, name: t.name })),
-    }, 'task-type-resolution')
-  }
-
-  return ''
-}
+import { findStepIndexByName } from './step-utils'
+import { resolveTaskType } from './task-type-utils'
 
 export async function handleWorkflowCreation(
   amendment: WorkflowCreation,
@@ -180,10 +153,7 @@ export async function handleStepRemoval(
     try {
       const workflow = await ctx.db.getSequencedTaskById(amendment.workflowTarget.id)
       if (workflow && workflow.steps) {
-        const stepIndex = workflow.steps.findIndex(s =>
-          s.name.toLowerCase().includes(amendment.stepName.toLowerCase()) ||
-          amendment.stepName.toLowerCase().includes(s.name.toLowerCase()),
-        )
+        const stepIndex = findStepIndexByName(workflow.steps, amendment.stepName)
 
         if (stepIndex !== -1) {
           const removedStep = workflow.steps[stepIndex]
