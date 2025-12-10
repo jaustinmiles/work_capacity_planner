@@ -17,7 +17,8 @@ import {
 } from '@arco-design/web-react'
 import { IconSend, IconRobot, IconUser, IconRefresh, IconVoice, IconPause } from '@arco-design/web-react/icon'
 import { useBrainstormChatStore, ChatStatus } from '../../store/useBrainstormChatStore'
-import { ChatMessageRole, AmendmentType, WorkPatternOperation } from '@shared/enums'
+import { ChatMessageRole, AmendmentType, WorkPatternOperation, WorkBlockType } from '@shared/enums'
+import { useUserTaskTypeStore } from '../../store/useUserTaskTypeStore'
 import { Amendment, WorkflowCreation, WorkPatternModification } from '@shared/amendment-types'
 import { WorkflowAmendmentPreview } from '../shared/WorkflowAmendmentPreview'
 import { sendChatMessage, generateAmendments } from '../../services/brainstorm-chat-ai'
@@ -602,6 +603,19 @@ function getStatusMessage(status: ChatStatus): string {
 }
 
 /**
+ * Convert a block type ID to a human-readable name.
+ * Users should never see raw type IDs like "type-mis1uq9z-2f69ccfd3".
+ */
+function getBlockTypeName(typeId: string): string {
+  if (typeId === 'blocked' || typeId === WorkBlockType.Blocked) return 'Blocked'
+  if (typeId === 'sleep' || typeId === WorkBlockType.Sleep) return 'Sleep'
+
+  const userTypes = useUserTaskTypeStore.getState().types
+  const userType = userTypes.find(t => t.id === typeId)
+  return userType?.name ?? typeId
+}
+
+/**
  * Get summary text for amendment
  */
 function getAmendmentSummary(amendment: Amendment): string {
@@ -642,7 +656,8 @@ function getAmendmentSummary(amendment: Amendment): string {
       if (mod.operation === WorkPatternOperation.AddBlock && mod.blockData) {
         const start = extractTimeFromISO(mod.blockData.startTime)
         const end = extractTimeFromISO(mod.blockData.endTime)
-        return `Add ${mod.blockData.type} block ${start} - ${end} on ${dateStr}`
+        const typeName = getBlockTypeName(mod.blockData.type)
+        return `Add ${typeName} block ${start} - ${end} on ${dateStr}`
       }
       if (mod.operation === WorkPatternOperation.AddMeeting && mod.meetingData) {
         const start = extractTimeFromISO(mod.meetingData.startTime)
