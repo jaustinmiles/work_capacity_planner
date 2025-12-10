@@ -607,7 +607,7 @@ describe('Database CRUD Coverage Tests', () => {
         mockPrisma.workPattern.create.mockResolvedValue({
           ...mockWorkPattern,
           WorkBlock: [
-            { id: 'wb-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}', totalCapacity: 180 },
+            { id: 'wb-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}', totalCapacity: 180 },
           ],
         })
 
