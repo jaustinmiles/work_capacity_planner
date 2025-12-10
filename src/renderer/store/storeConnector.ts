@@ -50,61 +50,17 @@ export const resetStoreConnectorState = (): void => {
   }
 }
 
-/**
- * Forces an immediate scheduler update, bypassing the debounce.
- * Use this for critical operations like task completion where the user
- * needs to see the UI update immediately without waiting for debounce.
- *
- * This reads the current task store state, filters schedulable items,
- * and immediately pushes them to the scheduler store.
- */
-export const forceImmediateSchedulerUpdate = (): void => {
-  logger.ui.info('Forcing immediate scheduler update (bypassing debounce)', {}, 'force-immediate-update')
-
-  const taskState = useTaskStore.getState()
-  const current = {
-    tasks: taskState.tasks,
-    sequencedTasks: taskState.sequencedTasks,
-    workSettings: taskState.workSettings,
-    activeWorkSessions: taskState.activeWorkSessions,
-    nextTaskSkipIndex: taskState.nextTaskSkipIndex,
-  }
-
-  // Filter schedulable items (excludes completed tasks)
-  const changes: {
-    tasks?: Task[]
-    sequencedTasks?: SequencedTask[]
-    workSettings?: WorkSettings | null
-    activeWorkSessions?: Set<string>
-  } = {}
-
-  // Always include filtered tasks and workflows for immediate update
-  changes.tasks = filterSchedulableItems(current.tasks)
-  changes.sequencedTasks = filterSchedulableWorkflows(current.sequencedTasks)
-  changes.workSettings = current.workSettings
-  changes.activeWorkSessions = new Set(current.activeWorkSessions.keys())
-
-  logger.ui.info('Immediate update payload', {
-    taskCount: changes.tasks.length,
-    workflowCount: changes.sequencedTasks.length,
-    sessionCount: changes.activeWorkSessions.size,
-  }, 'immediate-update-payload')
-
-  // Push to scheduler store immediately
-  useSchedulerStore.getState().setInputs(changes)
-
-  // Also update skip index
-  useSchedulerStore.getState().setNextTaskSkipIndex(current.nextTaskSkipIndex)
-
-  // Update previous state to prevent duplicate updates when debounce fires
-  previousState = {
-    tasks: current.tasks,
-    sequencedTasks: current.sequencedTasks,
-    workSettings: current.workSettings,
-    activeWorkSessions: current.activeWorkSessions,
-    nextTaskSkipIndex: current.nextTaskSkipIndex,
-  }
-}
+// NOTE: forceImmediateSchedulerUpdate was removed.
+// It was an anti-pattern that tried to bypass the reactive subscription chain.
+// The proper solution is to let the debounced subscription flow naturally:
+// 1. Task completion updates TaskStore
+// 2. storeConnector subscription (debounced 16ms) detects change
+// 3. filterSchedulableItems() removes completed task
+// 4. setInputs() updates SchedulerStore
+// 5. Components subscribed to nextScheduledItem re-render automatically
+//
+// If you need faster updates, reduce TASK_STORE_DEBOUNCE_MS in scheduling constants,
+// or use Zustand's subscribeWithSelector for direct component subscriptions.
 
 export const connectStores = () => {
   if (isConnected) {
