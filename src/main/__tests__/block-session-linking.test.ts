@@ -65,8 +65,8 @@ describe('Block-Session Linking', () => {
         id: 'pattern-1',
         date: '2024-12-04',
         WorkBlock: [
-          { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}' },
-          { id: 'block-2', startTime: '13:00', endTime: '17:00', typeConfig: '{}' },
+          { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
+          { id: 'block-2', startTime: '13:00', endTime: '17:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
         ],
         WorkMeeting: [],
       })
@@ -81,7 +81,7 @@ describe('Block-Session Linking', () => {
         id: 'pattern-1',
         date: '2024-12-04',
         WorkBlock: [
-          { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}' },
+          { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
         ],
         WorkMeeting: [],
       })
@@ -96,7 +96,7 @@ describe('Block-Session Linking', () => {
         id: 'pattern-1',
         date: '2024-12-04',
         WorkBlock: [
-          { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}' },
+          { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
         ],
         WorkMeeting: [],
       })
@@ -111,7 +111,7 @@ describe('Block-Session Linking', () => {
         id: 'pattern-1',
         date: '2024-12-04',
         WorkBlock: [
-          { id: 'night-block', startTime: '22:00', endTime: '02:00', typeConfig: '{}' },
+          { id: 'night-block', startTime: '22:00', endTime: '02:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
         ],
         WorkMeeting: [],
       })
@@ -136,8 +136,8 @@ describe('Block-Session Linking', () => {
   describe('updateWorkPattern - Block ID Preservation', () => {
     it('preserves block IDs when updating existing blocks', async () => {
       const existingBlocks = [
-        { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}' },
-        { id: 'block-2', startTime: '13:00', endTime: '17:00', typeConfig: '{}' },
+        { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
+        { id: 'block-2', startTime: '13:00', endTime: '17:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
       ]
 
       mockPrisma.workBlock.findMany.mockResolvedValue(existingBlocks)
@@ -169,7 +169,7 @@ describe('Block-Session Linking', () => {
 
     it('throws error when trying to delete block with sessions', async () => {
       const existingBlocks = [
-        { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}' },
+        { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
       ]
 
       mockPrisma.workBlock.findMany.mockResolvedValue(existingBlocks)
@@ -184,8 +184,8 @@ describe('Block-Session Linking', () => {
 
     it('allows deleting blocks without sessions', async () => {
       const existingBlocks = [
-        { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}' },
-        { id: 'block-2', startTime: '13:00', endTime: '17:00', typeConfig: '{}' },
+        { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
+        { id: 'block-2', startTime: '13:00', endTime: '17:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
       ]
 
       mockPrisma.workBlock.findMany.mockResolvedValue(existingBlocks)
@@ -193,7 +193,7 @@ describe('Block-Session Linking', () => {
       mockPrisma.workPattern.update.mockResolvedValue({
         id: 'pattern-1',
         date: '2024-12-04',
-        WorkBlock: [{ id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}' }],
+        WorkBlock: [{ id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}' }],
         WorkMeeting: [],
       })
 
@@ -210,7 +210,7 @@ describe('Block-Session Linking', () => {
 
     it('creates new blocks while preserving existing ones', async () => {
       const existingBlocks = [
-        { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}' },
+        { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
       ]
 
       mockPrisma.workBlock.findMany.mockResolvedValue(existingBlocks)
@@ -219,8 +219,8 @@ describe('Block-Session Linking', () => {
         id: 'pattern-1',
         date: '2024-12-04',
         WorkBlock: [
-          { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{}' },
-          { id: 'new-block', startTime: '13:00', endTime: '17:00', typeConfig: '{}' },
+          { id: 'block-1', startTime: '09:00', endTime: '12:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
+          { id: 'new-block', startTime: '13:00', endTime: '17:00', typeConfig: '{"kind":"single","typeId":"type-test"}' },
         ],
         WorkMeeting: [],
       })

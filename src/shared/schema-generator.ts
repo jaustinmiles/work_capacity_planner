@@ -9,10 +9,10 @@ import {
   TaskStatus,
   WorkPatternOperation,
   WorkSessionOperation,
-  WorkBlockType,
 } from './amendment-types'
 import { isValidEnumValue } from './enums'
 import { detectDependencyCycles } from './graph-utils'
+import { logger } from '../logger'
 
 export interface ValidationError {
   path: string
@@ -444,9 +444,22 @@ function validateWorkPatternModification(a: Record<string, unknown>, errors: Val
   // Validate blockData if present
   if (a.blockData && isObject(a.blockData)) {
     const block = a.blockData
+
+    // DEBUG: Log blockData details before validation
+    logger.system.debug('Validating blockData', {
+      operation: a.operation,
+      blockDataKeys: Object.keys(block),
+      typeField: block.type,
+      typeofType: typeof block.type,
+      blockDataPreview: JSON.stringify(block).substring(0, 500),
+    }, 'blockdata-validation')
+
     validateDate(block.startTime, 'blockData.startTime', 'Start time', errors)
     validateDate(block.endTime, 'blockData.endTime', 'End time', errors)
-    validateEnumValue(block.type, WorkBlockType, 'blockData.type', errors)
+
+    // blockData.type is required for ALL operations including remove_block
+    // This allows the UI to display which type of block is being removed for user confirmation
+    validateNonEmptyString(block.type, 'blockData.type', 'Block type', errors)
   }
 
   // Validate meetingData if present

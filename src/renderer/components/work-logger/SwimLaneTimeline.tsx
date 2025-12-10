@@ -337,10 +337,13 @@ export function SwimLaneTimeline({
   }
 
   // Calculate content-based height for the container
-  // Snap to fit content, but cap at MAX_CONTENT_HEIGHT before scrolling
+  // Snap to fit content, but cap at effectiveMaxHeight before scrolling
+  // maxHeight prop takes precedence over the default MAX_CONTENT_HEIGHT (when numeric)
+  // String values like "100%" are used for CSS but don't affect the calculation
+  const effectiveMaxHeight = typeof maxHeight === 'number' ? maxHeight : MAX_CONTENT_HEIGHT
   const contentHeight = swimLanes.length * laneHeight + HEADER_HEIGHT
-  const snappedHeight = Math.max(MIN_CONTAINER_HEIGHT, Math.min(contentHeight, MAX_CONTENT_HEIGHT))
-  const needsVerticalScroll = contentHeight > MAX_CONTENT_HEIGHT
+  const snappedHeight = Math.max(MIN_CONTAINER_HEIGHT, Math.min(contentHeight, effectiveMaxHeight))
+  // Removed needsVerticalScroll - overflowY: 'auto' handles this automatically
 
   // Helper function to get task type from task ID and optional step ID
   const getTaskType = (taskId: string, stepId?: string): string => {
@@ -561,8 +564,9 @@ export function SwimLaneTimeline({
   return (
     <div style={{
       height: snappedHeight,
-      maxHeight: maxHeight ?? snappedHeight,
       position: 'relative',
+      // Note: Using visible overflow allows the inner div's scroll to work properly
+      // The inner div handles all scrolling, this is just a size container
     }}>
       {/* Zoom Controls - Floating Overlay */}
       <div style={{
@@ -615,10 +619,11 @@ export function SwimLaneTimeline({
         style={{
           position: 'relative',
           overflowX: 'auto', // Allow horizontal scroll for 3-day timeline
-          overflowY: needsVerticalScroll ? 'auto' : 'hidden', // Scroll only when content exceeds max
+          overflowY: 'auto', // Always allow vertical scroll when content overflows
           background: '#fafbfc',
           borderRadius: 8,
-          height: '100%',
+          height: snappedHeight, // Use explicit pixel height instead of 100%
+          maxHeight: snappedHeight, // Cap at the same height to enable scrolling
           width: '100%',
           maxWidth: '100%',
         }}

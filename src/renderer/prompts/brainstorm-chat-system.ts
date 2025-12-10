@@ -91,11 +91,16 @@ ${generateAmendmentTypeDescriptions()}
    - Mixed blocks accept both (split by ratio)
    - Flexible blocks accept any type
 
-4. **Validation**: Your JSON will be validated against the schema
+4. **Task Type IDs Are Required**:
+   - For blockData.type, taskType, stepType, newType: ALWAYS use a type ID from "Available Task Types" section
+   - NEVER use empty strings "" - validation will fail
+   - System types "blocked" and "sleep" are only for non-work blocks
+
+5. **Validation**: Your JSON will be validated against the schema
    - If validation fails, you'll get specific error feedback
    - You have up to 5 attempts to fix errors
 
-5. **Dates**: ALWAYS use ISO date-time strings in this format: "YYYY-MM-DDTHH:mm:ssZ"
+6. **Dates**: ALWAYS use ISO date-time strings in this format: "YYYY-MM-DDTHH:mm:ssZ"
    - Example: "2025-11-23T19:00:00Z" for 7 PM on Nov 23, 2025
    - Never use Date objects (JSON doesn't support them)
    - Include timezone offset (Z for UTC, or +HH:mm)
@@ -436,7 +441,7 @@ Add/remove/modify work blocks or meetings in schedule.
 }
 \`\`\`
 - **operation**: "add_block" | "add_meeting" | "remove_block" | "remove_meeting"
-- **blockData.type**: Use a task type ID from context, or "blocked"/"sleep" for non-work time
+- **blockData.type** (required): MUST be a task type ID from "Available Task Types" section (e.g., "type-abc123"), or "blocked"/"sleep" for non-work time. NEVER leave empty.
 - For meetings, use **meetingData** instead with name, startTime, endTime, type
 
 ### 14. work_session_edit

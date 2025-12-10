@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, ReactElement } from 'react'
+import { useState, useMemo, ReactElement } from 'react'
 import { Space, Typography, Button, Tag, Alert } from '@arco-design/web-react'
 import { IconPlayArrow, IconPause, IconCheck, IconSkipNext } from '@arco-design/web-react/icon'
 import { useResponsive } from '../../providers/ResponsiveProvider'
@@ -29,12 +29,9 @@ interface NotificationState {
 export function StartNextTaskWidget(): ReactElement {
   const { isCompact } = useResponsive()
 
-  // Task store state
+  // Task store state - only subscribe to what we need
   const activeWorkSessions = useTaskStore(state => state.activeWorkSessions)
   const isLoading = useTaskStore(state => state.isLoading)
-  const tasks = useTaskStore(state => state.tasks)
-  const sequencedTasks = useTaskStore(state => state.sequencedTasks)
-  const nextTaskSkipIndex = useTaskStore(state => state.nextTaskSkipIndex)
   const startNextTask = useTaskStore(state => state.startNextTask)
   const pauseWorkOnTask = useTaskStore(state => state.pauseWorkOnTask)
   const pauseWorkOnStep = useTaskStore(state => state.pauseWorkOnStep)
@@ -46,15 +43,11 @@ export function StartNextTaskWidget(): ReactElement {
   // Work pattern store state
   const workPatternsLoading = useWorkPatternStore(state => state.isLoading)
 
-  // Scheduler store state
+  // Scheduler store state - nextScheduledItem is reactive and updates automatically
+  // when tasks change (via storeConnector subscription chain)
   const nextScheduledItem = useSchedulerStore(state => state.nextScheduledItem)
 
   const [isProcessing, setIsProcessing] = useState(false)
-  const [nextTask, setNextTask] = useState<{
-    title: string
-    estimatedDuration: number
-    type: string
-  } | null>(null)
 
   // Notification state
   const [notification, setNotification] = useState<NotificationState>({
@@ -75,34 +68,13 @@ export function StartNextTaskWidget(): ReactElement {
     return sessions.length > 0 ? sessions[0] : null
   }, [activeWorkSessions])
 
-  // Load next task when relevant state changes
-  useEffect(() => {
-    const loadNextTask = (): void => {
-      // Only load if no active session
-      if (activeWorkSessions.size > 0) {
-        setNextTask(null)
-        return
-      }
-
-      // Don't load while patterns or store is loading
-      if (workPatternsLoading || isLoading) {
-        return
-      }
-
-      // Next scheduled item is now reactive state from scheduler store
-      setNextTask(nextScheduledItem)
-    }
-
-    loadNextTask()
-  }, [
-    activeWorkSessions.size,
-    workPatternsLoading,
-    isLoading,
-    tasks,
-    sequencedTasks,
-    nextScheduledItem,
-    nextTaskSkipIndex,
-  ])
+  // Derive nextTask from reactive store state - no manual sync needed
+  // When activeWorkSessions exists, we show active session instead of next task
+  const nextTask = useMemo(() => {
+    if (activeWorkSessions.size > 0) return null
+    if (workPatternsLoading || isLoading) return null
+    return nextScheduledItem
+  }, [activeWorkSessions.size, workPatternsLoading, isLoading, nextScheduledItem])
 
   // Handler functions
   const handleStartNextTask = async (): Promise<void> => {
@@ -173,6 +145,14 @@ export function StartNextTaskWidget(): ReactElement {
 
         showNotification(`Completed task: ${activeSession.taskName || 'Task'}`, NotificationType.Success)
       }
+
+      // No manual sync needed - the reactive chain handles this:
+      // 1. updateTask() updates TaskStore
+      // 2. storeConnector subscription detects change
+      // 3. filterSchedulableItems() removes completed task
+      // 4. setInputs() updates SchedulerStore.nextScheduledItem
+      // 5. This component's subscription to nextScheduledItem triggers re-render
+      // 6. useMemo derives nextTask from the new nextScheduledItem
     } catch (error) {
       logger.ui.error('Failed to complete task', { error })
       showNotification('Failed to complete task', NotificationType.Error)

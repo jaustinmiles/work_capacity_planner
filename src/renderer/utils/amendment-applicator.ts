@@ -5,8 +5,6 @@
 import {
   Amendment,
   AmendmentType,
-  EntityType,
-  TaskStatus,
   StatusUpdate,
   TimeLog,
   NoteAddition,
@@ -24,20 +22,35 @@ import {
   WorkSessionEdit,
   TaskTypeCreation,
 } from '@shared/amendment-types'
-import { assertNever, StepStatus, WorkPatternOperation, WorkSessionOperation } from '@shared/enums'
-import { dateToYYYYMMDD, extractTimeFromISO } from '@shared/time-utils'
-import { generateUniqueId, validateWorkflowDependencies } from '@shared/step-id-utils'
-import { useWorkPatternStore } from '../store/useWorkPatternStore'
-import { useUserTaskTypeStore } from '../store/useUserTaskTypeStore'
+import { assertNever } from '@shared/enums'
+import { extractTimeFromISO } from '@shared/time-utils'
 import { getDatabase } from '../services/database'
-import { Message } from '../components/common/Message'
 import { logger } from '@/logger'
 import { useTaskStore } from '../store/useTaskStore'
-import {
-  applyForwardDependencyChanges,
-  applyReverseDependencyChanges,
-} from './dependency-utils'
+import { useUserTaskTypeStore } from '../store/useUserTaskTypeStore'
 import { resolveAmendmentTargets } from './target-resolver'
+import { getBlockTypeName } from '@shared/user-task-types'
+import { Message } from '../components/common/Message'
+import { WorkPatternOperation } from '@shared/enums'
+import type { HandlerContext } from './amendment-handlers'
+import {
+  handleStatusUpdate,
+  handleTimeLog,
+  handleNoteAddition,
+  handleDurationChange,
+  handleTaskCreation,
+  handleDeadlineChange,
+  handlePriorityChange,
+  handleTypeChange,
+  handleArchiveToggle,
+  handleWorkflowCreation,
+  handleStepAddition,
+  handleStepRemoval,
+  handleDependencyChange,
+  handleWorkPatternModification,
+  handleWorkSessionEdit,
+  handleTaskTypeCreation,
+} from './amendment-handlers'
 
 /**
  * Result for a single amendment application
@@ -86,8 +99,28 @@ function getAmendmentDescription(amendment: Amendment): string {
       return `Update priority for ${amendment.target.name}`
     case AmendmentType.TypeChange:
       return `Change ${amendment.target.name} type to ${amendment.newType}`
-    case AmendmentType.WorkPatternModification:
-      return `${amendment.operation} work pattern`
+    case AmendmentType.WorkPatternModification: {
+      const mod = amendment as WorkPatternModification
+      // Show specific operation details for better user understanding
+      if (mod.operation === WorkPatternOperation.AddBlock && mod.blockData) {
+        const start = extractTimeFromISO(mod.blockData.startTime)
+        const end = extractTimeFromISO(mod.blockData.endTime)
+        const typeName = getBlockTypeName(mod.blockData.type, useUserTaskTypeStore.getState().types)
+        return `Add ${typeName} block ${start} - ${end}`
+      }
+      if (mod.operation === WorkPatternOperation.AddMeeting && mod.meetingData) {
+        const start = extractTimeFromISO(mod.meetingData.startTime)
+        const end = extractTimeFromISO(mod.meetingData.endTime)
+        return `Add meeting "${mod.meetingData.name}" ${start} - ${end}`
+      }
+      if (mod.operation === WorkPatternOperation.RemoveBlock) {
+        return 'Remove block'
+      }
+      if (mod.operation === WorkPatternOperation.RemoveMeeting) {
+        return 'Remove meeting'
+      }
+      return `${mod.operation} work pattern`
+    }
     case AmendmentType.WorkSessionEdit:
       return `${amendment.operation} work session`
     case AmendmentType.ArchiveToggle:
@@ -97,34 +130,6 @@ function getAmendmentDescription(amendment: Amendment): string {
     case AmendmentType.TaskTypeCreation:
       return `Create task type "${amendment.name}"`
   }
-}
-
-/**
- * Validate and resolve a task type ID against user-defined types.
- * Returns a valid type ID or empty string if not found.
- */
-function resolveTaskType(requestedType: string | undefined): string {
-  if (!requestedType) return ''
-
-  const userTypes = useUserTaskTypeStore.getState().types
-  const matchedType = userTypes.find(t =>
-    t.id === requestedType ||
-    t.name.toLowerCase() === requestedType.toLowerCase(),
-  )
-
-  if (matchedType) {
-    return matchedType.id
-  }
-
-  // Log warning if type not found
-  if (requestedType) {
-    logger.ui.warn('Task type not found in user-defined types', {
-      requestedType,
-      availableTypes: userTypes.map(t => ({ id: t.id, name: t.name })),
-    }, 'task-type-resolution')
-  }
-
-  return ''
 }
 
 export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAmendmentsResult> {
@@ -162,23 +167,15 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
     currentAmendmentError = error
   }
 
-    // totalAmendments: amendments.length,
-    // amendmentTypes: amendments.map(a => a.type),
-    // stepAdditions: amendments.filter(a => a.type === AmendmentType.StepAddition).map(a => {
-      // const sa = a as StepAddition
-      // return {
-        // workflowName: sa.workflowTarget.name,
-        // stepName: sa.stepName,
-        // afterStep: sa.afterStep,
-        // beforeStep: sa.beforeStep,
-        // dependencies: sa.dependencies,
-      // }
-    // }),
-    // stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n'),
-  // })
-
   // Track newly created task IDs to resolve placeholders
   const createdTaskMap = new Map<string, string>() // placeholder -> actual ID
+
+  // Create handler context
+  const ctx: HandlerContext = {
+    db,
+    markFailed,
+    createdTaskMap,
+  }
 
   for (const amendment of amendments) {
     // Reset tracking for this amendment
@@ -191,1065 +188,106 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
 
     try {
       switch (amendment.type) {
-        case AmendmentType.StatusUpdate: {
-          const update = amendment as StatusUpdate
-          if (update.target.id) {
-            if (update.stepName) {
-              // Update workflow step status
-              // Find the step in the workflow
-              const workflow = await db.getSequencedTaskById(update.target.id)
-              if (workflow && workflow.steps) {
-                const step = workflow.steps.find(s =>
-                  s.name.toLowerCase().includes(update.stepName!.toLowerCase()) ||
-                  update.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-                )
-                if (step) {
-                  await db.updateTaskStepProgress(step.id, {
-                    status: update.newStatus,
-                  })
-                  successCount++
-                } else {
-                  markFailed(`Step "${update.stepName}" not found in workflow "${workflow.name}"`)
-                  errorCount++
-                }
-              } else {
-                markFailed(`Workflow not found or has no steps for target "${update.target.name}"`)
-                errorCount++
-              }
-            } else if (update.target.type === EntityType.Workflow) {
-              // Update workflow status
-              await db.updateSequencedTask(update.target.id, {
-                overallStatus: update.newStatus,
-              })
-              successCount++
-            } else {
-              // Update task status
-              await db.updateTask(update.target.id, {
-                completed: update.newStatus === TaskStatus.Completed,
-                overallStatus: update.newStatus,
-              })
-              successCount++
-            }
-          } else {
-            markFailed(`Cannot update "${update.target.name}" - target not found in database`)
-            errorCount++
-          }
+        case AmendmentType.StatusUpdate:
+          await handleStatusUpdate(amendment as StatusUpdate, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.TimeLog: {
-          const log = amendment as TimeLog
-          if (log.target.id) {
-            if (log.stepName) {
-              // Log time for workflow step
-              const workflow = await db.getSequencedTaskById(log.target.id)
-              if (workflow && workflow.steps) {
-                const step = workflow.steps.find(s =>
-                  s.name.toLowerCase().includes(log.stepName!.toLowerCase()) ||
-                  log.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-                )
-                if (step) {
-                  // Create work session for the step
-                  await db.createWorkSession({
-                    stepId: step.id,
-                    taskId: workflow.id,
-                    date: log.date || new Date(),
-                    plannedMinutes: step.duration,
-                    actualMinutes: log.duration,
-                    description: log.description || `Time logged for step: ${step.name}`,
-                    type: step.type as any,
-                  })
-                  successCount++
-                } else {
-                  markFailed(`Step "${log.stepName}" not found in workflow "${workflow.name}"`)
-                  errorCount++
-                }
-              } else {
-                markFailed(`Workflow not found or has no steps for target "${log.target.name}"`)
-                errorCount++
-              }
-            } else {
-              // Log time for task - look up task's type from database
-              const task = await db.getTaskById(log.target.id)
-              await db.createWorkSession({
-                taskId: log.target.id,
-                date: log.date ? log.date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                plannedMinutes: log.duration,
-                actualMinutes: log.duration,
-                type: task?.type || '',
-              })
-              successCount++
-            }
-          } else {
-            markFailed(`Cannot log time for "${log.target.name}" - target not found in database`)
-            errorCount++
-          }
+        case AmendmentType.TimeLog:
+          await handleTimeLog(amendment as TimeLog, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.NoteAddition: {
-          const note = amendment as NoteAddition
-          if (note.target.id) {
-            if (note.stepName) {
-              // Add note to workflow step
-              const workflow = await db.getSequencedTaskById(note.target.id)
-              if (workflow && workflow.steps) {
-                const step = workflow.steps.find(s =>
-                  s.name.toLowerCase().includes(note.stepName!.toLowerCase()) ||
-                  note.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-                )
-                if (step) {
-                  const currentNotes = step.notes || ''
-                  const newNotes = note.append
-                    ? currentNotes + (currentNotes ? '\n' : '') + note.note
-                    : note.note
-
-                  // Update the step with new notes
-                  await db.updateTaskStepProgress(step.id, {
-                    notes: newNotes,
-                  })
-                  successCount++
-                } else {
-                  markFailed(`Step "${note.stepName}" not found in workflow "${workflow.name}"`)
-                  errorCount++
-                }
-              } else {
-                markFailed(`Workflow not found or has no steps for target "${note.target.name}"`)
-                errorCount++
-              }
-            } else if (note.target.type === EntityType.Workflow) {
-              // Add note to workflow
-              const workflow = await db.getSequencedTaskById(note.target.id)
-              if (workflow) {
-                const currentNotes = workflow.notes || ''
-                const newNotes = note.append
-                  ? currentNotes + (currentNotes ? '\n' : '') + note.note
-                  : note.note
-                await db.updateSequencedTask(note.target.id, { notes: newNotes })
-                successCount++
-              }
-            } else {
-              // Add note to task
-              const task = await db.getTaskById(note.target.id)
-              if (task) {
-                const currentNotes = task.notes || ''
-                const newNotes = note.append
-                  ? currentNotes + (currentNotes ? '\n' : '') + note.note
-                  : note.note
-                await db.updateTask(note.target.id, { notes: newNotes })
-                successCount++
-              }
-            }
-          } else {
-            markFailed(`Cannot add note to "${note.target.name}" - target not found in database`)
-            errorCount++
-          }
+        case AmendmentType.NoteAddition:
+          await handleNoteAddition(amendment as NoteAddition, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.DurationChange: {
-          const change = amendment as DurationChange
-          if (change.target.id) {
-            if (change.stepName) {
-              // Update workflow step duration
-              const workflow = await db.getSequencedTaskById(change.target.id)
-              if (workflow && workflow.steps) {
-                const step = workflow.steps.find(s =>
-                  s.name.toLowerCase().includes(change.stepName!.toLowerCase()) ||
-                  change.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-                )
-                if (step) {
-                  // Update the step duration
-                  await db.updateTaskStepProgress(step.id, {
-                    duration: change.newDuration,
-                  })
-
-                  // Recalculate workflow total duration
-                  const updatedWorkflow = await db.getSequencedTaskById(change.target.id)
-                  if (updatedWorkflow && updatedWorkflow.steps) {
-                    const newTotalDuration = updatedWorkflow.steps.reduce((sum, s) => sum + s.duration, 0)
-                    await db.updateSequencedTask(change.target.id, {
-                      duration: newTotalDuration,
-                    })
-                  }
-
-                  successCount++
-                } else {
-                  markFailed(`Step "${change.stepName}" not found in workflow "${workflow.name}"`)
-                  errorCount++
-                }
-              } else {
-                markFailed(`Workflow not found or has no steps for target "${change.target.name}"`)
-                errorCount++
-              }
-            } else if (change.target.type === EntityType.Workflow) {
-              // Update workflow duration
-              await db.updateSequencedTask(change.target.id, {
-                duration: change.newDuration,
-              })
-              successCount++
-            } else {
-              // Update task duration
-              await db.updateTask(change.target.id, {
-                duration: change.newDuration,
-              })
-              successCount++
-            }
-          } else {
-            markFailed(`Cannot update duration for "${change.target.name}" - target not found in database`)
-            errorCount++
-          }
+        case AmendmentType.DurationChange:
+          await handleDurationChange(amendment as DurationChange, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.StepAddition: {
-          const addition = amendment as StepAddition
-          if (addition.workflowTarget.id) {
-            try {
-              await db.addStepToWorkflow(addition.workflowTarget.id, {
-                name: addition.stepName,
-                duration: addition.duration,
-                type: addition.stepType,
-                afterStep: addition.afterStep,
-                beforeStep: addition.beforeStep,
-                dependencies: addition.dependencies,
-                asyncWaitTime: addition.asyncWaitTime || 0,
-              })
-              successCount++
-              // UI refresh will be triggered by DATA_REFRESH_NEEDED event at end of applyAmendments
-            } catch (error) {
-              logger.ui.error('Failed to add step to workflow', {
-                error: error instanceof Error ? error.message : String(error),
-                stepName: addition.stepName,
-              }, 'step-add-error')
-              Message.error(`Failed to add step "${addition.stepName}" to workflow`)
-              errorCount++
-            }
-          } else {
-            Message.warning(`Cannot add step to ${addition.workflowTarget.name} - workflow not found`)
-            errorCount++
-          }
+        case AmendmentType.StepAddition:
+          await handleStepAddition(amendment as StepAddition, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.StepRemoval: {
-          const removal = amendment as StepRemoval
-          if (removal.workflowTarget.id) {
-            try {
-              const workflow = await db.getSequencedTaskById(removal.workflowTarget.id)
-              if (workflow && workflow.steps) {
-                const stepIndex = workflow.steps.findIndex(s =>
-                  s.name.toLowerCase().includes(removal.stepName.toLowerCase()) ||
-                  removal.stepName.toLowerCase().includes(s.name.toLowerCase()),
-                )
-
-                if (stepIndex !== -1) {
-                  const removedStep = workflow.steps[stepIndex]
-                  if (!removedStep) continue // Satisfy noUncheckedIndexedAccess
-                  // Remove the step
-                  const updatedSteps = workflow.steps.filter((_, index) => index !== stepIndex)
-
-                  // Update step indices
-                  updatedSteps.forEach((step, index) => {
-                    step.stepIndex = index
-                  })
-
-                  // Remove dependencies on the removed step
-                  updatedSteps.forEach(step => {
-                    if (step.dependsOn && step.dependsOn.includes(removedStep.id)) {
-                      step.dependsOn = step.dependsOn.filter(id => id !== removedStep.id)
-                    }
-                  })
-
-                  // Update workflow duration
-                  const newDuration = updatedSteps.reduce((sum, step) => sum + step.duration, 0)
-
-                  await db.updateSequencedTask(removal.workflowTarget.id, {
-                    steps: updatedSteps,
-                    duration: newDuration,
-                  })
-
-                  successCount++
-                  Message.success(`Removed step "${removal.stepName}"`)
-                } else {
-                  Message.warning(`Step "${removal.stepName}" not found in workflow`)
-                  errorCount++
-                }
-              } else {
-                Message.warning('Workflow not found or has no steps')
-                errorCount++
-              }
-            } catch (error) {
-              logger.ui.error('Failed to remove step', {
-                error: error instanceof Error ? error.message : String(error),
-                stepName: removal.stepName,
-              }, 'step-remove-error')
-              Message.error(`Failed to remove step "${removal.stepName}"`)
-              errorCount++
-            }
-          } else {
-            Message.warning(`Cannot remove step from ${removal.workflowTarget.name} - workflow not found`)
-            errorCount++
-          }
+        case AmendmentType.StepRemoval:
+          await handleStepRemoval(amendment as StepRemoval, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.DependencyChange: {
-          const change = amendment as DependencyChange
-
-          if (change.target.id) {
-            try {
-              if (change.stepName) {
-                // This is a workflow step dependency change
-
-                // Get the workflow
-                const workflow = await db.getSequencedTaskById(change.target.id)
-                if (workflow && workflow.steps) {
-                  // Find the step
-                  const stepIndex = workflow.steps.findIndex(s =>
-                    s.name.toLowerCase() === change.stepName.toLowerCase(),
-                  )
-
-                  if (stepIndex !== -1) {
-                    const step = workflow.steps[stepIndex]
-                    if (!step) continue // Satisfy noUncheckedIndexedAccess
-
-                    // Apply forward dependency changes using shared utility
-                    applyForwardDependencyChanges(step, change, workflow.steps)
-
-                    // Update the step in the workflow
-                    workflow.steps[stepIndex] = step
-
-                    // Apply reverse dependency changes using shared utility
-                    applyReverseDependencyChanges(step, change, workflow.steps)
-
-                    // Save the workflow with all updates
-                    await db.updateSequencedTask(change.target.id, { steps: workflow.steps })
-
-                    successCount++
-                  } else {
-                    Message.warning(`Step "${change.stepName}" not found in workflow`)
-                    errorCount++
-                  }
-                } else {
-                  Message.warning(`Workflow ${change.target.name} not found or has no steps`)
-                  errorCount++
-                }
-              } else {
-                // This is a task/workflow level dependency change
-                if (change.target.type === EntityType.Workflow) {
-                  // Update workflow dependencies
-                  const workflow = await db.getSequencedTaskById(change.target.id)
-                  if (workflow) {
-                    let currentDeps = workflow.dependencies || []
-
-                    if (change.addDependencies && change.addDependencies.length > 0) {
-                      // Resolve any placeholder task IDs
-                      const resolvedDeps = change.addDependencies.map(dep =>
-                        createdTaskMap.get(dep) || dep,
-                      )
-                      const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
-                      currentDeps = [...currentDeps, ...toAdd]
-                    }
-
-                    if (change.removeDependencies && change.removeDependencies.length > 0) {
-                      currentDeps = currentDeps.filter(d => !change.removeDependencies!.includes(d))
-                    }
-
-                    await db.updateSequencedTask(change.target.id, { dependencies: currentDeps })
-                    successCount++
-                  }
-                } else {
-                  // Update task dependencies
-                  const task = await db.getTaskById(change.target.id)
-                  if (task) {
-                    let currentDeps = task.dependencies || []
-
-                    if (change.addDependencies && change.addDependencies.length > 0) {
-                      // Resolve any placeholder task IDs
-                      const resolvedDeps = change.addDependencies.map(dep =>
-                        createdTaskMap.get(dep) || dep,
-                      )
-                      const toAdd = resolvedDeps.filter(d => !currentDeps.includes(d))
-                      currentDeps = [...currentDeps, ...toAdd]
-                    }
-
-                    if (change.removeDependencies && change.removeDependencies.length > 0) {
-                      currentDeps = currentDeps.filter(d => !change.removeDependencies!.includes(d))
-                    }
-
-                    await db.updateTask(change.target.id, { dependencies: currentDeps })
-                    successCount++
-                  }
-                }
-              }
-            } catch (error) {
-              logger.ui.error('Failed to update dependencies', {
-                error: error instanceof Error ? error.message : String(error),
-                targetName: change.target.name,
-              }, 'dependencies-update-error')
-              Message.error(`Failed to update dependencies for ${change.target.name}`)
-              errorCount++
-            }
-          } else {
-            Message.warning(`Cannot update dependencies for ${change.target.name} - not found`)
-            errorCount++
-          }
+        case AmendmentType.DependencyChange:
+          await handleDependencyChange(amendment as DependencyChange, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.TaskCreation: {
-          const creation = amendment as TaskCreation
-
-          // Check if this might be a workflow step that was misidentified
-          // Look for patterns that suggest this should be a workflow step
-          // Check for duplicate task names to prevent creating duplicates
-          const existingTasks = await db.getTasks()
-          const duplicateTask = existingTasks.find(t =>
-            t.name === creation.name &&
-            !t.completed &&
-            Math.abs(t.duration - creation.duration) < 30, // Similar duration
-          )
-
-          if (duplicateTask) {
-            Message.warning(`Task "${creation.name}" already exists`)
-            // Track the existing task ID for dependency resolution
-            const placeholderIndex = amendments.findIndex(a =>
-              a.type === AmendmentType.TaskCreation && a === amendment,
-            )
-            createdTaskMap.set(`task-new-${placeholderIndex + 1}`, duplicateTask.id)
-            break
-          }
-
-          // Create the task - use notes field since description doesn't exist in schema
-          const taskData = {
-            name: creation.name,
-            notes: creation.description || '',
-            importance: creation.importance || 5,
-            urgency: creation.urgency || 5,
-            duration: creation.duration,
-            type: resolveTaskType(creation.taskType),
-            asyncWaitTime: 0,
-            completed: false,
-            dependencies: [],
-            hasSteps: false as const,
-            overallStatus: TaskStatus.NotStarted,
-            criticalPathDuration: creation.duration,
-            worstCaseDuration: creation.duration,
-            archived: false,
-          }
-
-          const newTask = await db.createTask(taskData)
-          successCount++
-
-          // Track the created task ID for resolving placeholders
-          // Look for task-new-N pattern in amendments
-          const placeholderIndex = amendments.findIndex(a =>
-            a.type === AmendmentType.TaskCreation && a === amendment,
-          )
-          createdTaskMap.set(`task-new-${placeholderIndex + 1}`, newTask.id)
-
+        case AmendmentType.TaskCreation:
+          await handleTaskCreation(amendment as TaskCreation, ctx, amendments)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.WorkflowCreation: {
-          const creation = amendment as WorkflowCreation
-          const totalDuration = creation.steps.reduce((sum, step) => sum + step.duration, 0)
-
-          // STEP 1: Generate unique IDs for all steps first (name → ID map)
-          const stepNameToId = new Map<string, string>()
-          creation.steps.forEach((step) => {
-            const stepId = generateUniqueId('step')
-            stepNameToId.set(step.name.toLowerCase(), stepId)
-          })
-
-          // STEP 2: Build steps with proper ID-based dependencies
-          const steps = creation.steps.map((step, index) => {
-            const stepId = stepNameToId.get(step.name.toLowerCase())!
-
-            // Convert dependency names to IDs
-            const dependencyIds = (step.dependsOn || []).map(depName => {
-              const depId = stepNameToId.get(depName.toLowerCase())
-              if (!depId) {
-                logger.ui.warn(`Dependency "${depName}" not found in workflow "${creation.name}"`, {
-                  stepName: step.name,
-                  availableSteps: Array.from(stepNameToId.keys()),
-                }, 'dependency-resolution')
-              }
-              return depId
-            }).filter((id): id is string => id !== undefined)
-
-            return {
-              id: stepId,
-              taskId: '', // Will be set when saved
-              name: step.name,
-              duration: step.duration,
-              type: resolveTaskType(step.type),
-              dependsOn: dependencyIds, // NOW USING IDs, NOT NAMES
-              asyncWaitTime: step.asyncWaitTime || 0,
-              status: StepStatus.Pending,
-              stepIndex: index,
-              percentComplete: 0,
-            }
-          })
-
-          // STEP 3: Validate dependencies (orphans + cycles)
-          const validationResult = validateWorkflowDependencies(steps)
-          if (!validationResult.isValid) {
-            logger.ui.error(`Invalid dependencies in workflow "${creation.name}"`, {
-              errors: validationResult.errors,
-            }, 'dependency-validation')
-            Message.error(`Workflow "${creation.name}": ${validationResult.errors[0]}`)
-            errorCount++
-            break
-          }
-
-          const workflowData = {
-            name: creation.name,
-            notes: creation.description || '',
-            importance: creation.importance || 5,
-            urgency: creation.urgency || 5,
-            duration: totalDuration,
-            type: steps[0]?.type || '',
-            asyncWaitTime: 0,
-            completed: false,
-            dependencies: [],
-            criticalPathDuration: totalDuration,
-            worstCaseDuration: totalDuration,
-            steps: steps,
-            hasSteps: true as const,
-            overallStatus: TaskStatus.NotStarted,
-            archived: false,
-          }
-
-          await db.createSequencedTask(workflowData)
-          Message.success(`Created workflow: ${creation.name} (${steps.length} steps)`)
-          successCount++
+        case AmendmentType.WorkflowCreation:
+          await handleWorkflowCreation(amendment as WorkflowCreation, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.DeadlineChange: {
-          const change = amendment as DeadlineChange
-          if (change.target.id) {
-            try {
-              const deadline = change.newDeadline
-              const deadlineType = change.deadlineType
-
-              if (change.stepName) {
-                // Changing deadline for a workflow step
-                Message.warning('Step deadlines are not yet supported')
-                errorCount++
-              } else if (change.target.type === EntityType.Workflow) {
-                // Update workflow deadline
-                await db.updateSequencedTask(change.target.id, {
-                  deadline: deadline,
-                  deadlineType: deadlineType,
-                })
-                successCount++
-                Message.success(`Deadline updated to ${change.newDeadline.toLocaleString()}`)
-              } else {
-                // Update task deadline
-                await db.updateTask(change.target.id, {
-                  deadline: deadline,
-                  deadlineType: deadlineType,
-                })
-                successCount++
-                Message.success(`Deadline updated to ${change.newDeadline.toLocaleString()}`)
-              }
-            } catch (error) {
-              logger.ui.error('Failed to update deadline', {
-                error: error instanceof Error ? error.message : String(error),
-                targetName: change.target.name,
-              }, 'deadline-update-error')
-              Message.error(`Failed to update deadline for ${change.target.name}`)
-              errorCount++
-            }
-          } else {
-            Message.warning(`Cannot update deadline for ${change.target.name} - not found`)
-            errorCount++
-          }
+        case AmendmentType.DeadlineChange:
+          await handleDeadlineChange(amendment as DeadlineChange, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.PriorityChange: {
-          const change = amendment as PriorityChange
-          if (change.target.id) {
-            try {
-              const updates: any = {}
-              if (change.importance !== undefined) updates.importance = change.importance
-              if (change.urgency !== undefined) updates.urgency = change.urgency
-              if (change.cognitiveComplexity !== undefined) updates.cognitiveComplexity = change.cognitiveComplexity
-
-              if (change.stepName) {
-                // Changing priority for a workflow step
-                const workflow = await db.getSequencedTaskById(change.target.id)
-                if (workflow && workflow.steps) {
-                  const stepIndex = workflow.steps.findIndex(s =>
-                    s.name.toLowerCase().includes(change.stepName!.toLowerCase()) ||
-                    change.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-                  )
-
-                  if (stepIndex !== -1) {
-                    // Update step properties - schema supports importance and urgency for steps
-                    const updatedSteps = [...workflow.steps]
-                    const step = updatedSteps[stepIndex]
-                    if (!step) continue // Satisfy noUncheckedIndexedAccess
-
-                    // Apply the priority changes that are supported
-                    if (change.importance !== undefined) {
-                      step.importance = change.importance
-                    }
-                    if (change.urgency !== undefined) {
-                      step.urgency = change.urgency
-                    }
-                    if (change.cognitiveComplexity !== undefined) {
-                      step.cognitiveComplexity = change.cognitiveComplexity
-                    }
-
-                    await db.updateSequencedTask(change.target.id, { steps: updatedSteps })
-                    successCount++
-                    Message.success(`Updated priority for step "${change.stepName}"`)
-                  } else {
-                    Message.warning(`Step "${change.stepName}" not found`)
-                    errorCount++
-                  }
-                }
-              } else if (change.target.type === EntityType.Workflow) {
-                // Update workflow priority
-                await db.updateSequencedTask(change.target.id, updates)
-                successCount++
-                Message.success('Priority updated successfully')
-              } else {
-                // Update task priority
-                await db.updateTask(change.target.id, updates)
-                successCount++
-                Message.success('Priority updated successfully')
-              }
-            } catch (error) {
-              logger.ui.error('Failed to update priority', {
-                error: error instanceof Error ? error.message : String(error),
-                targetName: change.target.name,
-              }, 'priority-update-error')
-              Message.error(`Failed to update priority for ${change.target.name}`)
-              errorCount++
-            }
-          } else {
-            Message.warning(`Cannot update priority for ${change.target.name} - not found`)
-            errorCount++
-          }
+        case AmendmentType.PriorityChange:
+          await handlePriorityChange(amendment as PriorityChange, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.TypeChange: {
-          const change = amendment as TypeChange
-          if (change.target.id) {
-            try {
-              if (change.stepName) {
-                // Changing type for a workflow step
-                const workflow = await db.getSequencedTaskById(change.target.id)
-                if (workflow && workflow.steps) {
-                  const stepIndex = workflow.steps.findIndex(s =>
-                    s.name.toLowerCase().includes(change.stepName!.toLowerCase()) ||
-                    change.stepName!.toLowerCase().includes(s.name.toLowerCase()),
-                  )
-
-                  if (stepIndex !== -1) {
-                    const updatedSteps = [...workflow.steps]
-                    const existingStep = updatedSteps[stepIndex]
-                    if (!existingStep) continue // Satisfy noUncheckedIndexedAccess
-                    updatedSteps[stepIndex] = {
-                      ...existingStep,
-                      type: change.newType,
-                    }
-
-                    await db.updateSequencedTask(change.target.id, { steps: updatedSteps })
-                    successCount++
-                    Message.success(`Step type changed to ${change.newType}`)
-                  } else {
-                    Message.warning(`Step "${change.stepName}" not found`)
-                    errorCount++
-                  }
-                }
-              } else if (change.target.type === EntityType.Workflow) {
-                // Update workflow type
-                await db.updateSequencedTask(change.target.id, { type: change.newType })
-                successCount++
-                Message.success(`Type changed to ${change.newType}`)
-              } else {
-                // Update task type
-                await db.updateTask(change.target.id, { type: change.newType })
-                successCount++
-                Message.success(`Type changed to ${change.newType}`)
-              }
-            } catch (error) {
-              logger.ui.error('Failed to update type', {
-                error: error instanceof Error ? error.message : String(error),
-                targetName: change.target.name,
-              }, 'type-update-error')
-              Message.error(`Failed to update type for ${change.target.name}`)
-              errorCount++
-            }
-          } else {
-            Message.warning(`Cannot update type for ${change.target.name} - not found`)
-            errorCount++
-          }
+        case AmendmentType.TypeChange:
+          await handleTypeChange(amendment as TypeChange, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.WorkPatternModification: {
-          const mod = amendment as WorkPatternModification
-
-          // Date is now always a proper Date object after transformation in amendment-validator.ts
-          // Use local date extraction to get YYYY-MM-DD string
-          const dateStr = dateToYYYYMMDD(mod.date)
-
-          logger.ui.info('WorkPatternModification processing', {
-            operation: mod.operation,
-            originalDate: String(mod.date),
-            parsedDateStr: dateStr,
-          }, 'work-pattern-mod')
-
-          try {
-            // Get existing pattern for this date
-            const existingPattern = await db.getWorkPattern(dateStr)
-
-            switch (mod.operation) {
-              case WorkPatternOperation.AddBlock: {
-                if (!mod.blockData) {
-                  Message.warning('Block data required for AddBlock operation')
-                  errorCount++
-                  break
-                }
-
-                // Extract time directly from ISO string to avoid timezone conversion issues
-                // The AI provides times that represent local time encoded in ISO format
-                const startTimeStr = extractTimeFromISO(mod.blockData.startTime)
-                const endTimeStr = extractTimeFromISO(mod.blockData.endTime)
-
-                const newBlock = {
-                  startTime: startTimeStr,
-                  endTime: endTimeStr,
-                  type: mod.blockData.type,
-                  splitRatio: mod.blockData.splitRatio || null,
-                }
-
-                if (existingPattern) {
-                  // Add block to existing pattern
-                  const existingBlocks = existingPattern.WorkBlock || []
-                  await db.updateWorkPattern(existingPattern.id, {
-                    blocks: [...existingBlocks.map((b: { startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
-                      startTime: b.startTime,
-                      endTime: b.endTime,
-                      type: b.type,
-                      splitRatio: b.splitRatio,
-                    })), newBlock],
-                  })
-                } else {
-                  // Create new pattern with this block
-                  await db.createWorkPattern({
-                    date: dateStr,
-                    blocks: [newBlock],
-                    meetings: [],
-                  })
-                }
-
-                // Refresh work pattern store reactively
-                useWorkPatternStore.getState().loadWorkPatterns()
-                Message.success(`Added ${mod.blockData.type} block: ${startTimeStr} - ${endTimeStr}`)
-                successCount++
-                break
-              }
-
-              case WorkPatternOperation.AddMeeting: {
-                if (!mod.meetingData) {
-                  Message.warning('Meeting data required for AddMeeting operation')
-                  errorCount++
-                  break
-                }
-
-                // Extract time directly from ISO string to avoid timezone conversion issues
-                const meetingStartStr = extractTimeFromISO(mod.meetingData.startTime)
-                const meetingEndStr = extractTimeFromISO(mod.meetingData.endTime)
-
-                const newMeeting = {
-                  name: mod.meetingData.name,
-                  startTime: meetingStartStr,
-                  endTime: meetingEndStr,
-                  type: mod.meetingData.type,
-                  recurring: mod.meetingData.recurring || 'none', // Default to 'none' - Prisma requires non-null
-                  daysOfWeek: mod.meetingData.daysOfWeek || null,
-                }
-
-                if (existingPattern) {
-                  const existingMeetings = existingPattern.WorkMeeting || []
-                  const existingBlocks = existingPattern.WorkBlock || []
-                  await db.updateWorkPattern(existingPattern.id, {
-                    blocks: existingBlocks.map((b: { startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
-                      startTime: b.startTime,
-                      endTime: b.endTime,
-                      type: b.type,
-                      splitRatio: b.splitRatio,
-                    })),
-                    meetings: [...existingMeetings.map((m: { name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
-                      name: m.name,
-                      startTime: m.startTime,
-                      endTime: m.endTime,
-                      type: m.type,
-                      recurring: m.recurring || 'none', // Ensure non-null for Prisma
-                      daysOfWeek: m.daysOfWeek,
-                    })), newMeeting],
-                  })
-                } else {
-                  await db.createWorkPattern({
-                    date: dateStr,
-                    blocks: [],
-                    meetings: [newMeeting],
-                  })
-                }
-
-                useWorkPatternStore.getState().loadWorkPatterns()
-                Message.success(`Added meeting "${mod.meetingData.name}": ${meetingStartStr} - ${meetingEndStr}`)
-                successCount++
-                break
-              }
-
-              case WorkPatternOperation.RemoveBlock: {
-                if (!existingPattern || !mod.blockId) {
-                  Message.warning('Cannot remove block - pattern or block ID not found')
-                  errorCount++
-                  break
-                }
-
-                const filteredBlocks = (existingPattern.WorkBlock || []).filter(
-                  (b: { id: string }) => b.id !== mod.blockId,
-                )
-                await db.updateWorkPattern(existingPattern.id, {
-                  blocks: filteredBlocks.map((b: { startTime: string; endTime: string; type: string; splitRatio?: Record<string, number> | null }) => ({
-                    startTime: b.startTime,
-                    endTime: b.endTime,
-                    type: b.type,
-                    splitRatio: b.splitRatio,
-                  })),
-                })
-
-                useWorkPatternStore.getState().loadWorkPatterns()
-                Message.success('Removed work block')
-                successCount++
-                break
-              }
-
-              case WorkPatternOperation.RemoveMeeting: {
-                if (!existingPattern || !mod.meetingId) {
-                  Message.warning('Cannot remove meeting - pattern or meeting ID not found')
-                  errorCount++
-                  break
-                }
-
-                const filteredMeetings = (existingPattern.WorkMeeting || []).filter(
-                  (m: { id: string }) => m.id !== mod.meetingId,
-                )
-                await db.updateWorkPattern(existingPattern.id, {
-                  meetings: filteredMeetings.map((m: { name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: string | null }) => ({
-                    name: m.name,
-                    startTime: m.startTime,
-                    endTime: m.endTime,
-                    type: m.type,
-                    recurring: m.recurring || 'none', // Ensure non-null for Prisma
-                    daysOfWeek: m.daysOfWeek,
-                  })),
-                })
-
-                useWorkPatternStore.getState().loadWorkPatterns()
-                Message.success('Removed meeting')
-                successCount++
-                break
-              }
-
-              case WorkPatternOperation.ModifyBlock:
-              case WorkPatternOperation.ModifyMeeting: {
-                // These require more complex logic - for now show info message
-                Message.info('Block/meeting modification coming soon')
-                break
-              }
-
-              default: {
-                Message.warning(`Unknown work pattern operation: ${mod.operation}`)
-                errorCount++
-              }
-            }
-          } catch (error) {
-            const errMsg = error instanceof Error ? error.message : String(error)
-            logger.ui.error('Failed to modify work pattern', {
-              error: errMsg,
-              date: dateStr,
-              operation: mod.operation,
-            }, 'work-pattern-modification-error')
-            markFailed(`Failed to modify work pattern: ${errMsg}`)
-            errorCount++
-          }
+        case AmendmentType.WorkPatternModification:
+          await handleWorkPatternModification(amendment as WorkPatternModification, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.WorkSessionEdit: {
-          const edit = amendment as WorkSessionEdit
-
-          try {
-            switch (edit.operation) {
-              case WorkSessionOperation.Create: {
-                if (!edit.taskId) {
-                  Message.warning('Task ID required to create work session')
-                  errorCount++
-                  break
-                }
-
-                const startTime = edit.startTime
-                  ? (edit.startTime instanceof Date ? edit.startTime : new Date(edit.startTime))
-                  : new Date()
-
-                await db.createWorkSession({
-                  taskId: edit.taskId,
-                  stepId: edit.stepId,
-                  startTime,
-                  endTime: edit.endTime
-                    ? (edit.endTime instanceof Date ? edit.endTime : new Date(edit.endTime))
-                    : undefined,
-                  plannedMinutes: edit.plannedMinutes || 30,
-                  actualMinutes: edit.actualMinutes,
-                  notes: edit.notes,
-                })
-                Message.success('Created work session')
-                successCount++
-                break
-              }
-
-              case WorkSessionOperation.Update: {
-                if (!edit.sessionId) {
-                  Message.warning('Session ID required to update work session')
-                  errorCount++
-                  break
-                }
-
-                await db.updateWorkSession(edit.sessionId, {
-                  startTime: edit.startTime
-                    ? (edit.startTime instanceof Date ? edit.startTime : new Date(edit.startTime))
-                    : undefined,
-                  endTime: edit.endTime
-                    ? (edit.endTime instanceof Date ? edit.endTime : new Date(edit.endTime))
-                    : undefined,
-                  plannedMinutes: edit.plannedMinutes,
-                  actualMinutes: edit.actualMinutes,
-                  notes: edit.notes,
-                })
-                Message.success('Updated work session')
-                successCount++
-                break
-              }
-
-              case WorkSessionOperation.Delete: {
-                if (!edit.sessionId) {
-                  Message.warning('Session ID required to delete work session')
-                  errorCount++
-                  break
-                }
-
-                await db.deleteWorkSession(edit.sessionId)
-                Message.success('Deleted work session')
-                successCount++
-                break
-              }
-
-              case WorkSessionOperation.Split: {
-                // Split requires new database method - defer for now
-                Message.info('Work session split not yet implemented')
-                break
-              }
-            }
-          } catch (error) {
-            logger.ui.error('Failed to edit work session', {
-              error: error instanceof Error ? error.message : String(error),
-              operation: edit.operation,
-            }, 'work-session-edit-error')
-            Message.error(`Failed to ${edit.operation} work session`)
-            errorCount++
-          }
+        case AmendmentType.WorkSessionEdit:
+          await handleWorkSessionEdit(amendment as WorkSessionEdit, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.ArchiveToggle: {
-          const toggle = amendment as ArchiveToggle
-          if (toggle.target.id) {
-            if (toggle.target.type === EntityType.Workflow) {
-              await db.updateSequencedTask(toggle.target.id, {
-                archived: toggle.archive,
-              })
-              Message.success(`${toggle.archive ? 'Archived' : 'Unarchived'} workflow: ${toggle.target.name}`)
-              successCount++
-            } else if (toggle.target.type === EntityType.Task) {
-              if (toggle.archive) {
-                await db.archiveTask(toggle.target.id)
-              } else {
-                await db.unarchiveTask(toggle.target.id)
-              }
-              Message.success(`${toggle.archive ? 'Archived' : 'Unarchived'} task: ${toggle.target.name}`)
-              successCount++
-            } else {
-              Message.warning('Cannot archive/unarchive steps directly')
-              errorCount++
-            }
-          } else {
-            Message.warning(`Cannot find ${toggle.target.name} to archive/unarchive`)
-            errorCount++
-          }
+        case AmendmentType.ArchiveToggle:
+          await handleArchiveToggle(amendment as ArchiveToggle, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
-        case AmendmentType.QueryResponse: {
+        case AmendmentType.QueryResponse:
           // QueryResponse doesn't modify anything, just informational
           // No action needed
           break
-        }
 
-        case AmendmentType.TaskTypeCreation: {
-          const creation = amendment as TaskTypeCreation
-          try {
-            // Validate hex color format
-            if (!creation.color.match(/^#[0-9A-Fa-f]{6}$/)) {
-              Message.warning(`Invalid color format "${creation.color}" - must be #RRGGBB`)
-              errorCount++
-              break
-            }
-
-            // Check for duplicate type name
-            const existingTypes = useUserTaskTypeStore.getState().types
-            const duplicate = existingTypes.find(
-              t => t.name.toLowerCase() === creation.name.toLowerCase(),
-            )
-            if (duplicate) {
-              Message.warning(`Task type "${creation.name}" already exists`)
-              errorCount++
-              break
-            }
-
-            // Create the new task type
-            await useUserTaskTypeStore.getState().createType({
-              name: creation.name.trim(),
-              emoji: creation.emoji || '📌',
-              color: creation.color.toUpperCase(),
-            })
-
-            Message.success(`Created task type: ${creation.emoji} ${creation.name}`)
-            successCount++
-          } catch (error) {
-            const errMsg = error instanceof Error ? error.message : String(error)
-            logger.ui.error('Failed to create task type', {
-              error: errMsg,
-              name: creation.name,
-            }, 'task-type-creation-error')
-            Message.error(`Failed to create task type "${creation.name}": ${errMsg}`)
-            errorCount++
-          }
+        case AmendmentType.TaskTypeCreation:
+          await handleTaskTypeCreation(amendment as TaskTypeCreation, ctx)
+          if (!currentAmendmentFailed) successCount++
+          else errorCount++
           break
-        }
 
         default: {
           // This will cause a compile-time error if we miss any enum values

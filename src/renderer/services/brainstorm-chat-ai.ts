@@ -129,7 +129,9 @@ export async function generateAmendments(options: GenerateAmendmentsOptions): Pr
   }
 
   if (validationResult.amendments) {
-    result.amendments = validationResult.amendments
+    // Transform raw amendments (with string dates) to proper Amendment objects (with Date objects)
+    // This is critical - validateWithRetry() returns raw JSON with string dates
+    result.amendments = transformAmendments(validationResult.amendments as RawAmendment[])
   }
 
   return result

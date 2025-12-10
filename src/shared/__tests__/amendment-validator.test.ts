@@ -77,6 +77,45 @@ Let me know if you need changes.`
       const result = parseAIResponse(response)
       expect(result.amendments).toBeNull()
     })
+
+    it('should extract JSON from code block with surrounding text', () => {
+      const response = `Here's what I created for you:
+
+\`\`\`json
+[{"type": "task_creation", "name": "Test Task", "duration": 60}]
+\`\`\`
+
+Let me know if you need anything else!`
+
+      const result = parseAIResponse(response)
+      expect(result.amendments).toBeDefined()
+      expect(Array.isArray(result.amendments)).toBe(true)
+      expect(result.rawText).toContain('Let me know if you need anything else')
+    })
+
+    it('should handle malformed JSON in code block gracefully', () => {
+      const response = `Here's the data:
+
+\`\`\`json
+[{"type": "task_creation", broken json here}]
+\`\`\`
+
+Done!`
+
+      const result = parseAIResponse(response)
+      // Should fall through to null since the JSON in code block is invalid
+      expect(result.amendments).toBeNull()
+    })
+
+    it('should handle code block without language specifier', () => {
+      const response = `\`\`\`
+[{"type": "task_creation", "name": "Task", "duration": 30}]
+\`\`\``
+
+      const result = parseAIResponse(response)
+      expect(result.amendments).toBeDefined()
+      expect(Array.isArray(result.amendments)).toBe(true)
+    })
   })
 
   describe('validateWithRetry', () => {
@@ -184,6 +223,86 @@ Let me know if you need changes.`
       expect(mockGenerate).toHaveBeenCalledTimes(2)
       expect(mockGenerate.mock.calls[1]?.[0]).toBeDefined()
       expect(mockGenerate.mock.calls[1]?.[0]).toContain('Failed to parse JSON')
+    })
+
+    it('should handle thrown exceptions during generation', async () => {
+      const mockGenerate = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce(
+          JSON.stringify([
+            {
+              type: AmendmentType.TaskCreation,
+              name: 'Valid Task',
+              duration: 60,
+            },
+          ]),
+        )
+
+      const onRetry = vi.fn()
+      const result = await validateWithRetry(mockGenerate, {
+        maxAttempts: 3,
+        onRetry,
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.attempts).toBe(2)
+      expect(onRetry).toHaveBeenCalledTimes(1)
+      expect(onRetry.mock.calls[0]?.[1]).toContain('Network error')
+    })
+
+    it('should call onValidationError when all attempts exhausted', async () => {
+      const mockGenerate = vi.fn().mockResolvedValue('invalid json always')
+
+      const onValidationError = vi.fn()
+      const result = await validateWithRetry(mockGenerate, {
+        maxAttempts: 2,
+        onValidationError,
+      })
+
+      expect(result.success).toBe(false)
+      expect(onValidationError).toHaveBeenCalledTimes(1)
+      expect(onValidationError.mock.calls[0]?.[0]).toContain('Failed to parse JSON')
+    })
+
+    it('should call onRetry when validation fails (not just parse errors)', async () => {
+      const mockGenerate = vi
+        .fn()
+        .mockResolvedValueOnce(
+          JSON.stringify([
+            {
+              type: AmendmentType.TaskCreation,
+              name: '', // Invalid empty name
+              duration: 60,
+            },
+          ]),
+        )
+        .mockResolvedValueOnce('still failing')
+        .mockResolvedValueOnce('third attempt')
+
+      const onRetry = vi.fn()
+      await validateWithRetry(mockGenerate, {
+        maxAttempts: 3, // Need 3 attempts to get 2 onRetry calls
+        onRetry,
+      })
+
+      expect(onRetry).toHaveBeenCalledTimes(2)
+      // First retry should have validation error message
+      expect(onRetry.mock.calls[0]?.[1]).toContain('VALIDATION ERRORS')
+    })
+
+    it('should handle multiple consecutive exceptions gracefully', async () => {
+      const mockGenerate = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('First error'))
+        .mockRejectedValueOnce(new Error('Second error'))
+        .mockRejectedValueOnce(new Error('Third error'))
+
+      const result = await validateWithRetry(mockGenerate, { maxAttempts: 3 })
+
+      expect(result.success).toBe(false)
+      expect(result.attempts).toBe(3)
+      expect(result.errors).toContain('Third error')
     })
   })
 

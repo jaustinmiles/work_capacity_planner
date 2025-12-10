@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
-import { isSingleTypeBlock, isComboBlock, isSystemBlock, getTypeColor } from '@shared/user-task-types'
+import { isSingleTypeBlock, isComboBlock, isSystemBlock, getTypeColor, getTypeName } from '@shared/user-task-types'
 import { useSortedUserTaskTypes } from '@renderer/store/useUserTaskTypeStore'
 import { getCurrentTime } from '@shared/time-provider'
 import { parseTimeString } from '@shared/time-utils'
@@ -39,6 +39,7 @@ export function TimelineVisualizer({
 }: TimelineVisualizerProps) {
   const userTypes = useSortedUserTaskTypes()
   const [dragState, setDragState] = useState<DragState | null>(null)
+
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Convert time string (HH:mm) to pixels from top
@@ -339,10 +340,10 @@ export function TimelineVisualizer({
                 return `🚫 ${typeConfig.systemType === 'sleep' ? 'Sleep' : 'Blocked'}`
               }
               if (isSingleTypeBlock(typeConfig)) {
-                return `📋 ${typeConfig.typeId} Work`
+                return `📋 ${getTypeName(userTypes, typeConfig.typeId)} Work`
               }
               if (isComboBlock(typeConfig)) {
-                const types = typeConfig.allocations.map(a => a.typeId).join('/')
+                const types = typeConfig.allocations.map(a => getTypeName(userTypes, a.typeId)).join('/')
                 return `🔄 ${types} (Combo)`
               }
               return 'Work Block'

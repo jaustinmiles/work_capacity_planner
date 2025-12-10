@@ -29,7 +29,7 @@ export function WorkflowGraph({ task }: WorkflowGraphProps) {
   const getTypeInfo = (typeId: string) => {
     const userType = userTaskTypes.find(t => t.id === typeId)
     return {
-      name: userType?.name || typeId,
+      name: userType?.name || 'Unknown',
       color: userType?.color || '#8c8c8c',
       bgColor: userType ? `${userType.color}15` : '#f5f5f5',
       emoji: userType?.emoji || '',

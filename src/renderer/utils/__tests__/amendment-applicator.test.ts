@@ -754,7 +754,7 @@ describe('Amendment Applicator', () => {
       expect(Message.success).toHaveBeenCalledWith('Applied 2 amendments')
     })
 
-    it('should handle partial step name matches', async () => {
+    it('should handle exact step name matches (case-insensitive)', async () => {
       const amendment: StatusUpdate = {
         type: 'status_update',
         target: {
@@ -764,7 +764,7 @@ describe('Amendment Applicator', () => {
           confidence: 0.9,
         },
         newStatus: 'completed',
-        stepName: 'review', // Partial match for 'Code Review'
+        stepName: 'Code Review', // Exact match (case-insensitive)
       }
 
       mockDatabase.getSequencedTaskById.mockResolvedValue({

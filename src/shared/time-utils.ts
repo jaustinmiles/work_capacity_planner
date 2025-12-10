@@ -249,3 +249,50 @@ export function formatDateStringForDisplay(dateStr: string, locale?: string): st
   // Fallback for other formats
   return new Date(dateStr).toLocaleDateString(locale)
 }
+
+/**
+ * Safely parse a date string to Date object
+ * Returns undefined if parsing fails
+ *
+ * IMPORTANT: For ISO strings with 'Z' timezone suffix, we extract the date/time
+ * components directly WITHOUT timezone conversion. This is because the AI sends
+ * times that represent the user's intended LOCAL time encoded in ISO format.
+ * Using `new Date(isoString)` would interpret Z as UTC and shift the time.
+ *
+ * @param dateStr - Date string to parse (ISO format, YYYY-MM-DD, or other Date-parseable format)
+ * @returns Date object or undefined if parsing fails
+ */
+export function safeParseDateString(dateStr: string | undefined): Date | undefined {
+  if (!dateStr) return undefined
+  try {
+    // For ISO strings, extract components directly to avoid timezone conversion
+    // Match: "2025-12-09" or "2025-12-09T15:21:00Z" or "2025-12-09T15:21:00.000Z"
+    const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?/)
+    if (isoMatch) {
+      const [, year, month, day, hours, minutes, seconds] = isoMatch
+      // Create date using LOCAL timezone (not UTC interpretation)
+      // Use || '0' for optional time components that might be undefined
+      const date = new Date(
+        parseInt(year || '0'),
+        parseInt(month || '1') - 1,  // Month is 0-indexed
+        parseInt(day || '1'),
+        parseInt(hours || '0'),
+        parseInt(minutes || '0'),
+        parseInt(seconds || '0'),
+      )
+      if (isNaN(date.getTime())) {
+        return undefined
+      }
+      return date
+    }
+
+    // Fallback for other date formats (non-ISO)
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) {
+      return undefined
+    }
+    return date
+  } catch {
+    return undefined
+  }
+}

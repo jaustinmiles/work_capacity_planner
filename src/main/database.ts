@@ -56,20 +56,79 @@ interface WorkBlockLogData {
   typeConfig: string
 }
 
-// Default typeConfig for system blocks
+// Default typeConfig fallback for blocks that have null typeConfig (legacy data)
 const DEFAULT_TYPE_CONFIG: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
 
 /**
- * Parse typeConfig from database JSON string.
- * Falls back to system blocked if parsing fails.
+ * Error thrown when typeConfig parsing fails due to invalid or corrupt data.
+ */
+export class TypeConfigParseError extends Error {
+  constructor(message: string, public readonly rawValue: string | null) {
+    super(message)
+    this.name = 'TypeConfigParseError'
+  }
+}
+
+/**
+ * Parse and validate typeConfig from database JSON string.
+ * Throws TypeConfigParseError on invalid data - callers must handle errors explicitly.
+ * This ensures data corruption is surfaced rather than silently hidden.
  */
 function parseTypeConfig(typeConfigJson: string | null): BlockTypeConfig {
-  if (!typeConfigJson) return DEFAULT_TYPE_CONFIG
-  try {
-    return JSON.parse(typeConfigJson) as BlockTypeConfig
-  } catch {
-    return DEFAULT_TYPE_CONFIG
+  if (!typeConfigJson) {
+    const error = new TypeConfigParseError('typeConfig is null or empty', typeConfigJson)
+    dbLogger.error('parseTypeConfig: null typeConfig', { raw: typeConfigJson })
+    throw error
   }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(typeConfigJson)
+  } catch (e) {
+    const error = new TypeConfigParseError(`JSON parse failed: ${String(e)}`, typeConfigJson)
+    dbLogger.error('parseTypeConfig: JSON parse failed', { raw: typeConfigJson, error: String(e) })
+    throw error
+  }
+
+  // Validate the structure - must have a valid 'kind' property
+  if (!parsed || typeof parsed !== 'object') {
+    const error = new TypeConfigParseError('Invalid structure (not an object)', typeConfigJson)
+    dbLogger.error('parseTypeConfig: Invalid structure', { raw: typeConfigJson, parsed })
+    throw error
+  }
+
+  const validKinds = [BlockConfigKind.Single, BlockConfigKind.Combo, BlockConfigKind.System]
+  const parsedObj = parsed as Record<string, unknown>
+  if (!validKinds.includes(parsedObj.kind as BlockConfigKind)) {
+    const error = new TypeConfigParseError(`Invalid kind: ${String(parsedObj.kind)}`, typeConfigJson)
+    dbLogger.error('parseTypeConfig: Invalid kind property', {
+      raw: typeConfigJson,
+      kind: parsedObj.kind,
+      validKinds,
+    })
+    throw error
+  }
+
+  // Validate type-specific required fields
+  if (parsedObj.kind === BlockConfigKind.Single && typeof parsedObj.typeId !== 'string') {
+    const error = new TypeConfigParseError('Single block missing typeId', typeConfigJson)
+    dbLogger.error('parseTypeConfig: Single block missing typeId', { raw: typeConfigJson, parsed })
+    throw error
+  }
+
+  if (parsedObj.kind === BlockConfigKind.Combo && !Array.isArray(parsedObj.allocations)) {
+    const error = new TypeConfigParseError('Combo block missing allocations', typeConfigJson)
+    dbLogger.error('parseTypeConfig: Combo block missing allocations', { raw: typeConfigJson, parsed })
+    throw error
+  }
+
+  if (parsedObj.kind === BlockConfigKind.System && !parsedObj.systemType) {
+    const error = new TypeConfigParseError('System block missing systemType', typeConfigJson)
+    dbLogger.error('parseTypeConfig: System block missing systemType', { raw: typeConfigJson, parsed })
+    throw error
+  }
+
+  return parsed as BlockTypeConfig
 }
 
 /**

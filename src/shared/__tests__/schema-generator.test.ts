@@ -4,7 +4,14 @@
 
 import { describe, it, expect } from 'vitest'
 import { validateAmendment, validateAmendments, formatValidationErrors } from '../schema-generator'
-import { AmendmentType, EntityType, TaskStatus, WorkPatternOperation, WorkSessionOperation, DeadlineType } from '../enums'
+import {
+  AmendmentType,
+  EntityType,
+  TaskStatus,
+  WorkPatternOperation,
+  WorkSessionOperation,
+  DeadlineType,
+} from '../enums'
 
 describe('schema-generator', () => {
   describe('validateAmendment', () => {
@@ -575,6 +582,261 @@ describe('schema-generator', () => {
       const result = validateAmendment(amendment)
       expect(result.valid).toBe(false)
       expect(result.errors.some(e => e.path === 'urgency')).toBe(true)
+    })
+
+    // NoteAddition append validation
+    it('should reject NoteAddition with non-boolean append', () => {
+      const amendment = {
+        type: AmendmentType.NoteAddition,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        note: 'A note',
+        append: 'yes', // Invalid: must be boolean
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'append')).toBe(true)
+    })
+
+    // WorkflowCreation edge cases
+    it('should reject WorkflowCreation with empty steps array', () => {
+      const amendment = {
+        type: AmendmentType.WorkflowCreation,
+        name: 'Empty Workflow',
+        steps: [], // Invalid: must have at least one step
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'steps')).toBe(true)
+    })
+
+    it('should reject WorkflowCreation with non-object step', () => {
+      const amendment = {
+        type: AmendmentType.WorkflowCreation,
+        name: 'Bad Workflow',
+        steps: ['not an object', { name: 'Valid Step', duration: 30, type: 'focused' }],
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path.includes('steps[0]'))).toBe(true)
+    })
+
+    // WorkPatternModification validation
+    it('should validate WorkPatternModification with blockData', () => {
+      const amendment = {
+        type: AmendmentType.WorkPatternModification,
+        date: new Date('2025-12-15'),
+        operation: WorkPatternOperation.AddBlock,
+        blockData: {
+          startTime: new Date('2025-12-15T09:00:00'),
+          endTime: new Date('2025-12-15T12:00:00'),
+          type: 'focused',
+        },
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject WorkPatternModification with invalid date string in blockData', () => {
+      const amendment = {
+        type: AmendmentType.WorkPatternModification,
+        date: new Date('2025-12-15'),
+        operation: WorkPatternOperation.AddBlock,
+        blockData: {
+          startTime: 'not-a-date',
+          endTime: new Date('2025-12-15T12:00:00'),
+          type: 'focused',
+        },
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'blockData.startTime')).toBe(true)
+    })
+
+    it('should reject WorkPatternModification with missing blockData.type', () => {
+      const amendment = {
+        type: AmendmentType.WorkPatternModification,
+        date: new Date('2025-12-15'),
+        operation: WorkPatternOperation.RemoveBlock,
+        blockData: {
+          startTime: new Date('2025-12-15T09:00:00'),
+          endTime: new Date('2025-12-15T12:00:00'),
+          // Missing type - required for all operations including remove
+        },
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'blockData.type')).toBe(true)
+    })
+
+    it('should validate WorkPatternModification with meetingData', () => {
+      const amendment = {
+        type: AmendmentType.WorkPatternModification,
+        date: new Date('2025-12-15'),
+        operation: WorkPatternOperation.AddMeeting,
+        meetingData: {
+          name: 'Team Standup',
+          startTime: new Date('2025-12-15T10:00:00'),
+          endTime: new Date('2025-12-15T10:30:00'),
+          type: 'recurring',
+        },
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject WorkPatternModification with invalid meetingData', () => {
+      const amendment = {
+        type: AmendmentType.WorkPatternModification,
+        date: new Date('2025-12-15'),
+        operation: WorkPatternOperation.AddMeeting,
+        meetingData: {
+          name: '', // Invalid: empty name
+          startTime: new Date('2025-12-15T10:00:00'),
+          endTime: new Date('2025-12-15T10:30:00'),
+          type: 'recurring',
+        },
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'meetingData.name')).toBe(true)
+    })
+
+    // WorkSessionEdit validation
+    it('should validate WorkSessionEdit', () => {
+      const amendment = {
+        type: AmendmentType.WorkSessionEdit,
+        operation: WorkSessionOperation.Update,
+        sessionId: 'session-123',
+        startTime: new Date('2025-12-15T09:00:00'),
+        endTime: new Date('2025-12-15T10:30:00'),
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject WorkSessionEdit split without splitSessions', () => {
+      const amendment = {
+        type: AmendmentType.WorkSessionEdit,
+        operation: WorkSessionOperation.Split,
+        sessionId: 'session-123',
+        // Missing required splitSessions array
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'splitSessions')).toBe(true)
+    })
+
+    // ArchiveToggle validation
+    it('should validate ArchiveToggle', () => {
+      const amendment = {
+        type: AmendmentType.ArchiveToggle,
+        target: {
+          type: EntityType.Task,
+          name: 'Old Task',
+          confidence: 1.0,
+        },
+        archive: true,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject ArchiveToggle with non-boolean archive', () => {
+      const amendment = {
+        type: AmendmentType.ArchiveToggle,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        archive: 'true', // Invalid: must be boolean
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'archive')).toBe(true)
+    })
+
+    // Date validation edge cases
+    it('should accept date as ISO string', () => {
+      const amendment = {
+        type: AmendmentType.DeadlineChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        newDeadline: '2025-12-31T23:59:59Z', // Valid ISO string
+        deadlineType: DeadlineType.Hard,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject date that is neither Date nor string', () => {
+      const amendment = {
+        type: AmendmentType.DeadlineChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        newDeadline: 12345, // Invalid: number is not a valid date type
+        deadlineType: DeadlineType.Hard,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'newDeadline')).toBe(true)
+    })
+
+    // PriorityChange with cognitiveComplexity
+    it('should validate PriorityChange with cognitiveComplexity', () => {
+      const amendment = {
+        type: AmendmentType.PriorityChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Complex Task',
+          confidence: 1.0,
+        },
+        importance: 8,
+        cognitiveComplexity: 4,
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(true)
+    })
+
+    it('should reject PriorityChange with out-of-range cognitiveComplexity', () => {
+      const amendment = {
+        type: AmendmentType.PriorityChange,
+        target: {
+          type: EntityType.Task,
+          name: 'Task',
+          confidence: 1.0,
+        },
+        cognitiveComplexity: 10, // Invalid: must be 1-5
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'cognitiveComplexity')).toBe(true)
     })
   })
 

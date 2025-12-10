@@ -18,6 +18,7 @@ import {
   isSameDay,
   extractTimeFromISO,
   formatDateStringForDisplay,
+  safeParseDateString,
 } from '../time-utils'
 
 describe('time-utils', () => {
@@ -381,6 +382,75 @@ describe('time-utils', () => {
     it('should handle other date formats as fallback', () => {
       const result = formatDateStringForDisplay('January 15, 2024')
       expect(result).toBeTruthy()
+    })
+  })
+
+  describe('safeParseDateString', () => {
+    it('should return undefined for undefined input', () => {
+      expect(safeParseDateString(undefined)).toBeUndefined()
+    })
+
+    it('should return undefined for empty string', () => {
+      expect(safeParseDateString('')).toBeUndefined()
+    })
+
+    it('should parse YYYY-MM-DD date format', () => {
+      const result = safeParseDateString('2025-12-09')
+      expect(result).toBeInstanceOf(Date)
+      expect(result?.getFullYear()).toBe(2025)
+      expect(result?.getMonth()).toBe(11) // December (0-indexed)
+      expect(result?.getDate()).toBe(9)
+    })
+
+    it('should parse ISO datetime with Z suffix without timezone shift', () => {
+      // CRITICAL: This tests that "2025-12-09T15:21:00Z" is interpreted as
+      // 15:21 LOCAL time, not UTC (which would shift based on timezone)
+      const result = safeParseDateString('2025-12-09T15:21:00Z')
+      expect(result).toBeInstanceOf(Date)
+      expect(result?.getFullYear()).toBe(2025)
+      expect(result?.getMonth()).toBe(11)
+      expect(result?.getDate()).toBe(9)
+      expect(result?.getHours()).toBe(15)
+      expect(result?.getMinutes()).toBe(21)
+      expect(result?.getSeconds()).toBe(0)
+    })
+
+    it('should parse ISO datetime with milliseconds', () => {
+      const result = safeParseDateString('2025-12-09T15:21:30.123Z')
+      expect(result).toBeInstanceOf(Date)
+      expect(result?.getHours()).toBe(15)
+      expect(result?.getMinutes()).toBe(21)
+      expect(result?.getSeconds()).toBe(30)
+    })
+
+    it('should parse ISO datetime without seconds', () => {
+      const result = safeParseDateString('2025-12-09T15:21Z')
+      expect(result).toBeInstanceOf(Date)
+      expect(result?.getHours()).toBe(15)
+      expect(result?.getMinutes()).toBe(21)
+      expect(result?.getSeconds()).toBe(0)
+    })
+
+    it('should handle date-only format with time defaulting to midnight', () => {
+      const result = safeParseDateString('2025-01-15')
+      expect(result).toBeInstanceOf(Date)
+      expect(result?.getHours()).toBe(0)
+      expect(result?.getMinutes()).toBe(0)
+    })
+
+    it('should return undefined for invalid date strings', () => {
+      expect(safeParseDateString('not-a-date')).toBeUndefined()
+      expect(safeParseDateString('abc123')).toBeUndefined()
+      expect(safeParseDateString('hello world')).toBeUndefined()
+    })
+
+    it('should handle fallback parsing for non-ISO formats', () => {
+      // This tests the Date constructor fallback path
+      const result = safeParseDateString('January 15, 2025')
+      expect(result).toBeInstanceOf(Date)
+      expect(result?.getFullYear()).toBe(2025)
+      expect(result?.getMonth()).toBe(0) // January
+      expect(result?.getDate()).toBe(15)
     })
   })
 })

@@ -17,6 +17,7 @@ import {
   WorkSessionEdit,
 } from './amendment-types'
 import { AmendmentType } from './enums'
+import { safeParseDateString } from './time-utils'
 import { logger } from '../logger'
 
 export interface ValidationLoopOptions {
@@ -112,8 +113,22 @@ export async function validateWithRetry(
       const retryFeedback = attempt > 1 ? lastErrors : undefined
       const aiResponse = await generateAmendments(retryFeedback)
 
+      // DEBUG: Log raw AI response before parsing
+      logger.system.info('Raw AI response received', {
+        attempt,
+        responseLength: aiResponse.length,
+        responsePreview: aiResponse.substring(0, 2000),
+      }, 'ai-raw-response')
+
       // Parse AI response
       const { amendments } = parseAIResponse(aiResponse)
+
+      // DEBUG: Log parsed amendments before validation
+      logger.system.info('Parsed amendments before validation', {
+        attempt,
+        amendmentCount: Array.isArray(amendments) ? amendments.length : 0,
+        amendmentsPreview: JSON.stringify(amendments, null, 2).substring(0, 3000),
+      }, 'ai-parsed-amendments')
 
       if (!amendments) {
         lastErrors = `Failed to parse JSON from AI response. Please provide a valid JSON array of amendments.\n\nReceived:\n${aiResponse.substring(0, 500)}`
@@ -232,29 +247,8 @@ export function createUserErrorReport(result: ValidationLoopResult): string {
 // ============================================================================
 // TRANSFORMATION FUNCTIONS
 // Convert RawAmendment (string dates from AI) to Amendment (proper Date objects)
+// Uses safeParseDateString from time-utils.ts for consistent date parsing
 // ============================================================================
-
-/**
- * Safely parse a date string to Date object
- * Returns undefined if parsing fails
- */
-function safeParseDateString(dateStr: string | undefined): Date | undefined {
-  if (!dateStr) return undefined
-  try {
-    const date = new Date(dateStr)
-    if (isNaN(date.getTime())) {
-      logger.system.debug('Failed to parse date string', { dateStr }, 'date-parse-failed')
-      return undefined
-    }
-    return date
-  } catch (e) {
-    logger.system.debug('Exception parsing date string', {
-      dateStr,
-      error: e instanceof Error ? e.message : String(e),
-    }, 'date-parse-exception')
-    return undefined
-  }
-}
 
 /**
  * Transform a single raw amendment to a proper Amendment with Date objects

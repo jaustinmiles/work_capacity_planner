@@ -1,10 +1,14 @@
 /**
  * Target Resolution Utilities
- * Resolves amendment target names to database IDs using fuzzy matching
+ * Resolves amendment target names to database IDs using exact matching
  * Extracted from amendment-applicator.ts for better separation of concerns
+ *
+ * IMPORTANT: We use EXACT matching only (case-insensitive, trimmed).
+ * No fuzzy/partial matching - if the AI provides wrong names, it's a validation error.
  */
 
-import { Amendment, EntityType } from '@shared/amendment-types'
+import { Amendment, EntityType, WorkflowCreation } from '@shared/amendment-types'
+import { AmendmentType } from '@shared/enums'
 import { logger } from '@/logger'
 import { getDatabase } from '../services/database'
 
@@ -21,15 +25,23 @@ export interface FindResult {
 /**
  * Loaded entity data for target resolution
  */
-interface EntityData {
+export interface EntityData {
   allTasks: Array<{ id: string; name: string }>
   allWorkflows: Array<{ id: string; name: string; steps?: Array<{ id: string; name: string }> }>
 }
 
 /**
- * Find a task, workflow, or step by name using fuzzy matching
+ * Result type for dependency name resolution
+ */
+export interface DependencyResolutionResult {
+  resolved: string[]
+  unresolved: string[]
+}
+
+/**
+ * Find a task, workflow, or step by name using EXACT matching (case-insensitive).
  *
- * @param name - The name to search for
+ * @param name - The name to search for (exact match after normalization)
  * @param type - Optional entity type to restrict search
  * @param entityData - Pre-loaded task and workflow data
  * @returns FindResult if found, null otherwise
@@ -41,18 +53,17 @@ export function findEntityByName(
 ): FindResult | null {
   const { allTasks, allWorkflows } = entityData
 
-  // Normalize for comparison
+  // Normalize for comparison - EXACT match only (case-insensitive, trimmed)
   const normalizedName = name.toLowerCase().trim()
+
+  // Helper for exact matching
+  const exactMatch = (entityName: string) => entityName.toLowerCase().trim() === normalizedName
 
   // SPECIAL HANDLING: When looking for a "step", search workflow steps first
   if (type === EntityType.Step) {
     for (const workflow of allWorkflows) {
       if (workflow.steps) {
-        const step = workflow.steps.find(s =>
-          s.name.toLowerCase().trim() === normalizedName ||
-          s.name.toLowerCase().includes(normalizedName) ||
-          normalizedName.includes(s.name.toLowerCase()),
-        )
+        const step = workflow.steps.find(s => exactMatch(s.name))
         if (step) {
           logger.ui.info('Found step in workflow', {
             stepName: step.name,
@@ -69,11 +80,7 @@ export function findEntityByName(
       }
     }
     // Not found as step - try as a standalone task (AI may have misclassified)
-    const task = allTasks.find(t =>
-      t.name.toLowerCase().trim() === normalizedName ||
-      t.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(t.name.toLowerCase()),
-    )
+    const task = allTasks.find(t => exactMatch(t.name))
     if (task) {
       logger.ui.info('Correcting target type from step to task', {
         name,
@@ -87,33 +94,17 @@ export function findEntityByName(
 
   // If type is specified, search only that type
   if (type === EntityType.Task) {
-    const task = allTasks.find(t =>
-      t.name.toLowerCase().trim() === normalizedName ||
-      t.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(t.name.toLowerCase()),
-    )
+    const task = allTasks.find(t => exactMatch(t.name))
     if (task) return { id: task.id, type: EntityType.Task }
   } else if (type === EntityType.Workflow) {
-    const workflow = allWorkflows.find(w =>
-      w.name.toLowerCase().trim() === normalizedName ||
-      w.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(w.name.toLowerCase()),
-    )
+    const workflow = allWorkflows.find(w => exactMatch(w.name))
     if (workflow) return { id: workflow.id, type: EntityType.Workflow }
   } else {
     // Search both types - workflows first (more specific)
-    const workflow = allWorkflows.find(w =>
-      w.name.toLowerCase().trim() === normalizedName ||
-      w.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(w.name.toLowerCase()),
-    )
+    const workflow = allWorkflows.find(w => exactMatch(w.name))
     if (workflow) return { id: workflow.id, type: EntityType.Workflow }
 
-    const task = allTasks.find(t =>
-      t.name.toLowerCase().trim() === normalizedName ||
-      t.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(t.name.toLowerCase()),
-    )
+    const task = allTasks.find(t => exactMatch(t.name))
     if (task) return { id: task.id, type: EntityType.Task }
   }
 
@@ -121,10 +112,104 @@ export function findEntityByName(
 }
 
 /**
+ * Resolve dependency names to IDs using exact matching.
+ * Handles both task names and workflow step names.
+ *
+ * Names that don't match any entity are passed through unchanged -
+ * they may be existing IDs that should be validated by the caller.
+ *
+ * @param dependencyNames - Array of dependency names/IDs to resolve
+ * @param entityData - Pre-loaded task and workflow data
+ * @returns Object with resolved IDs and unresolved names
+ */
+export function resolveDependencyNames(
+  dependencyNames: string[],
+  entityData: EntityData,
+): DependencyResolutionResult {
+  const resolved: string[] = []
+  const unresolved: string[] = []
+
+  for (const name of dependencyNames) {
+    // Try to find entity by exact name match
+    const match = findEntityByName(name, undefined, entityData)
+    if (match) {
+      resolved.push(match.id)
+      logger.ui.info('Resolved dependency name to ID', {
+        name,
+        resolvedId: match.id,
+        type: match.type,
+      }, 'dependency-resolved')
+    } else {
+      // Not found by name - pass through unchanged (may be an existing ID)
+      // The caller should validate if this is a valid ID
+      resolved.push(name)
+      logger.ui.info('Dependency not found by name, passing through as-is', {
+        name,
+      }, 'dependency-passthrough')
+    }
+  }
+
+  return { resolved, unresolved }
+}
+
+/**
+ * Validates and filters step dependencies within a WorkflowCreation.
+ * AI generates dependsOn arrays with step NAMES - this validates they reference valid steps.
+ *
+ * Mutates the creation in place by removing invalid dependencies from each step.
+ *
+ * @param creation - The WorkflowCreation amendment to validate
+ */
+function validateWorkflowStepDependencies(creation: WorkflowCreation): void {
+  // Build map of valid step names within this workflow (case-insensitive)
+  const validStepNames = new Set<string>()
+  for (const step of creation.steps) {
+    validStepNames.add(step.name.toLowerCase().trim())
+  }
+
+  // Validate dependencies for each step
+  for (const step of creation.steps) {
+    if (step.dependsOn && step.dependsOn.length > 0) {
+      const validDeps: string[] = []
+      const invalidDeps: string[] = []
+
+      for (const depName of step.dependsOn) {
+        const normalizedDep = depName.toLowerCase().trim()
+        if (validStepNames.has(normalizedDep)) {
+          // Keep original name (applicator will convert to IDs after step creation)
+          validDeps.push(depName)
+        } else {
+          invalidDeps.push(depName)
+        }
+      }
+
+      // Update step's dependencies to only include valid ones
+      step.dependsOn = validDeps
+
+      if (invalidDeps.length > 0) {
+        logger.ui.warn('WorkflowCreation step has invalid dependencies', {
+          workflowName: creation.name,
+          stepName: step.name,
+          invalidDeps,
+          availableSteps: Array.from(validStepNames),
+        }, 'workflow-deps-invalid')
+      }
+    }
+  }
+
+  logger.ui.info('Validated WorkflowCreation step dependencies', {
+    workflowName: creation.name,
+    stepCount: creation.steps.length,
+    stepsWithDeps: creation.steps.filter(s => s.dependsOn && s.dependsOn.length > 0).length,
+  }, 'workflow-deps-validated')
+}
+
+/**
  * Resolve target names to IDs by looking up tasks and workflows in the database.
  * This is critical because the AI generates amendments with names but no IDs.
  *
- * Mutates the amendments array in place by setting target.id and workflowTarget.id
+ * Mutates the amendments array in place by setting target.id, workflowTarget.id,
+ * and resolving dependency arrays (addDependencies, removeDependencies, etc.)
  *
  * @param amendments - Array of amendments to resolve targets for
  * @param db - Database instance (optional, will use getDatabase() if not provided)
@@ -193,6 +278,68 @@ export async function resolveAmendmentTargets(
           availableWorkflows: allWorkflows.map(w => w.name).slice(0, 5),
         }, 'workflow-target-not-found')
       }
+    }
+
+    // Handle DependencyChange amendments - resolve dependency arrays
+    if ('addDependencies' in amendment && amendment.addDependencies && amendment.addDependencies.length > 0) {
+      const result = resolveDependencyNames(amendment.addDependencies, entityData)
+      amendment.addDependencies = result.resolved
+      if (result.unresolved.length > 0) {
+        logger.ui.warn('Some addDependencies could not be resolved', {
+          unresolved: result.unresolved,
+          amendmentType: amendment.type,
+        }, 'dependency-resolution-partial')
+      }
+    }
+
+    if ('removeDependencies' in amendment && amendment.removeDependencies && amendment.removeDependencies.length > 0) {
+      const result = resolveDependencyNames(amendment.removeDependencies, entityData)
+      amendment.removeDependencies = result.resolved
+      if (result.unresolved.length > 0) {
+        logger.ui.warn('Some removeDependencies could not be resolved', {
+          unresolved: result.unresolved,
+          amendmentType: amendment.type,
+        }, 'dependency-resolution-partial')
+      }
+    }
+
+    if ('addDependents' in amendment && amendment.addDependents && amendment.addDependents.length > 0) {
+      const result = resolveDependencyNames(amendment.addDependents, entityData)
+      amendment.addDependents = result.resolved
+      if (result.unresolved.length > 0) {
+        logger.ui.warn('Some addDependents could not be resolved', {
+          unresolved: result.unresolved,
+          amendmentType: amendment.type,
+        }, 'dependency-resolution-partial')
+      }
+    }
+
+    if ('removeDependents' in amendment && amendment.removeDependents && amendment.removeDependents.length > 0) {
+      const result = resolveDependencyNames(amendment.removeDependents, entityData)
+      amendment.removeDependents = result.resolved
+      if (result.unresolved.length > 0) {
+        logger.ui.warn('Some removeDependents could not be resolved', {
+          unresolved: result.unresolved,
+          amendmentType: amendment.type,
+        }, 'dependency-resolution-partial')
+      }
+    }
+
+    // Handle StepAddition amendments - resolve dependencies array
+    if ('dependencies' in amendment && amendment.dependencies && amendment.dependencies.length > 0) {
+      const result = resolveDependencyNames(amendment.dependencies, entityData)
+      amendment.dependencies = result.resolved
+      if (result.unresolved.length > 0) {
+        logger.ui.warn('Some step dependencies could not be resolved', {
+          unresolved: result.unresolved,
+          amendmentType: amendment.type,
+        }, 'dependency-resolution-partial')
+      }
+    }
+
+    // Handle WorkflowCreation - validate step dependencies within the workflow
+    if (amendment.type === AmendmentType.WorkflowCreation) {
+      validateWorkflowStepDependencies(amendment as WorkflowCreation)
     }
   }
 }
