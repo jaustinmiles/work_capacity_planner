@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { findEntityByName, resolveDependencyNames, EntityData } from '../target-resolver'
 import { EntityType } from '@shared/amendment-types'
 
