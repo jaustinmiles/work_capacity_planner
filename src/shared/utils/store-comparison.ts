@@ -180,17 +180,40 @@ export function filterSchedulableItems(tasks: Task[]): Task[] {
 }
 
 /**
- * Filters schedulable workflows (those with incomplete steps)
+ * Filters schedulable workflows (those with actionable steps)
+ *
+ * A workflow is schedulable if it has at least one step that:
+ * - Is not completed
+ * - Is not skipped
+ * - Is not waiting (async work in progress)
+ *
+ * Workflows with ONLY waiting steps should still appear on the schedule
+ * (to show wait blocks), but they shouldn't be in the "next task" queue.
+ * This filtering happens at the workflow level for the store connector.
  */
 export function filterSchedulableWorkflows(workflows: SequencedTask[]): SequencedTask[] {
   return workflows.filter(workflow => {
     // Don't schedule completed workflows
     if (workflow.completed) return false
 
-    // Must have at least one incomplete step
-    return workflow.steps.some(step =>
+    // Must have at least one actionable step (not completed, skipped, or waiting)
+    // Steps in 'waiting' status have async work in progress and can't be started
+    const hasActionableStep = workflow.steps.some(step =>
       step.status !== 'completed' &&
-      step.status !== 'skipped',
+      step.status !== 'skipped' &&
+      step.status !== 'waiting',
     )
+
+    // Also include workflows that have waiting steps (for schedule display)
+    // but only if they also have pending steps that could become actionable
+    const hasWaitingStep = workflow.steps.some(step => step.status === 'waiting')
+    const hasPendingStep = workflow.steps.some(step =>
+      step.status === 'pending' || step.status === 'in_progress',
+    )
+
+    // Include if:
+    // 1. Has actionable steps (can be worked on now), OR
+    // 2. Has waiting steps AND pending steps (will become actionable after wait)
+    return hasActionableStep || (hasWaitingStep && hasPendingStep)
   })
 }

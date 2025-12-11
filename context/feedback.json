@@ -1968,5 +1968,17 @@
     "description": "When I freeze the schedule, I should be able to see the EXACT thing I froze at any point in time when I go to the work logger dual view, but I see incomplete results or that it has been deleted randomly. The snapshots should be saved in the database and persistent!",
     "timestamp": "2025-12-11T00:22:34.604Z",
     "sessionId": "session-1765412554581-d5cb978a"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "status/WorkStatusWidget",
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Start next task button shows workflow only, expected time is missing",
+    "description": "When a workflow step is started, the workflow's name is shown instead of the step. the user must click the work logging component to see hte step they are currently working on. We should also color the currently in progress task differently (or have some UI indicator that it is in progress), and actively shrink the block. What I mean by this - If a task takes 30 minutes and we are working on it, when we check in 15 minutes later, we should see a block 15 minutes long (estimate - logged). Then if we go over time we can have some sort of indicator. But in the start next task AND in the dual view work logger we need to display the time estimate of the task along with how long we've been working, and show a task/step's remaining time",
+    "timestamp": "2025-12-11T03:43:49.070Z",
+    "sessionId": "session-1765424629053-b521ce91"
   }
 ]
