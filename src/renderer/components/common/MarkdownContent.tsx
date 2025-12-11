@@ -51,6 +51,45 @@ function sanitizeUrl(url: string): string | null {
 }
 
 /**
+ * Parse table cells from a row, handling:
+ * - Leading/trailing pipes (optional in markdown tables)
+ * - Escaped pipes (\|) inside cell content
+ * - Empty cells (preserved, not filtered)
+ */
+function parseTableCells(line: string): string[] {
+  // Handle escaped pipes by temporarily replacing them
+  const ESCAPE_PLACEHOLDER = '\x00PIPE\x00'
+  const withPlaceholders = line.replace(/\\\|/g, ESCAPE_PLACEHOLDER)
+
+  // Split by unescaped pipes
+  const rawCells = withPlaceholders.split('|')
+
+  // Process cells: trim whitespace, restore escaped pipes
+  const cells = rawCells.map(cell =>
+    cell.trim().replace(new RegExp(ESCAPE_PLACEHOLDER, 'g'), '|'),
+  )
+
+  // Remove leading empty cell if line started with |
+  // Remove trailing empty cell if line ended with |
+  if (cells.length > 0 && cells[0] === '') {
+    cells.shift()
+  }
+  if (cells.length > 0 && cells[cells.length - 1] === '') {
+    cells.pop()
+  }
+
+  return cells
+}
+
+/**
+ * Check if a line looks like a table header (contains | and followed by separator)
+ */
+function isTableSeparator(line: string | undefined): boolean {
+  if (!line) return false
+  return /^\|?[\s-:|]+\|[\s-:|]+\|?$/.test(line)
+}
+
+/**
  * Parse inline markdown (bold, italic, code, links) within a text string.
  * Returns an array of React elements.
  */
@@ -242,12 +281,9 @@ function parseBlocks(content: string): ParsedBlock[] {
     if (line.includes('|')) {
       const nextLine = lines[i + 1]
       // Check if next line is a separator row (contains |---| pattern)
-      if (nextLine && /^\|?[\s-:|]+\|[\s-:|]+\|?$/.test(nextLine)) {
-        // Parse header row
-        const headerCells = line
-          .split('|')
-          .map(cell => cell.trim())
-          .filter(cell => cell.length > 0)
+      if (isTableSeparator(nextLine)) {
+        // Parse header row using helper that handles escaped pipes and empty cells
+        const headerCells = parseTableCells(line)
 
         // Skip header and separator
         i += 2
@@ -260,17 +296,14 @@ function parseBlocks(content: string): ParsedBlock[] {
             break
           }
           // Skip if it looks like another separator row
-          if (/^\|?[\s-:|]+\|[\s-:|]+\|?$/.test(rowLine)) {
+          if (isTableSeparator(rowLine)) {
             i++
             continue
           }
-          const cells = rowLine
-            .split('|')
-            .map(cell => cell.trim())
-            .filter(cell => cell.length > 0)
-          if (cells.length > 0) {
-            rows.push(cells)
-          }
+          // Parse cells using helper that handles escaped pipes and empty cells
+          const cells = parseTableCells(rowLine)
+          // Include row even if all cells are empty (preserves structure)
+          rows.push(cells)
           i++
         }
 
@@ -301,6 +334,8 @@ function parseBlocks(content: string): ParsedBlock[] {
       if (nextLine.match(/^#{1,3}\s+/)) break
       if (nextLine.match(/^[-*]\s+/)) break
       if (nextLine.match(/^\d+\.\s+/)) break
+      // Stop if this line looks like a table header (has | and followed by separator)
+      if (nextLine.includes('|') && isTableSeparator(lines[i + 1])) break
       paragraphLines.push(nextLine)
       i++
     }
