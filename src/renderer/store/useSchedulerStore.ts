@@ -25,6 +25,10 @@ export interface NextScheduledItem {
   title: string
   estimatedDuration: number
   scheduledStartTime: Date
+  /** Logged time in minutes (for showing remaining time) */
+  loggedMinutes: number
+  /** Workflow name (for step items, to show context) */
+  workflowName?: string
 }
 
 interface SchedulerStoreState {
@@ -206,6 +210,7 @@ const computeSchedule = (
 
 const extractNextScheduledItem = (
   scheduleResult: ScheduleResult | null,
+  tasks: Task[],
   sequencedTasks: SequencedTask[],
   skipIndex: number,
 ): NextScheduledItem | null => {
@@ -264,17 +269,21 @@ const extractNextScheduledItem = (
         title: step.name,
         estimatedDuration: step.duration,
         scheduledStartTime: itemWithStartTime.startTime,
+        loggedMinutes: step.actualDuration ?? 0,
+        workflowName: workflow.name,
       }
     }
   }
 
-  // Regular task - use original ID for split tasks
+  // Regular task - look up actual logged time from task data
+  const task = tasks.find(t => t.id === taskId)
   return {
     type: NextScheduledItemType.Task,
     id: taskId,
     title: itemWithStartTime.name,
     estimatedDuration: itemWithStartTime.duration,
     scheduledStartTime: itemWithStartTime.startTime,
+    loggedMinutes: task?.actualDuration ?? 0,
   }
 }
 
@@ -346,7 +355,8 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         const scheduledItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []
         const nextScheduledItem = extractNextScheduledItem(
           scheduleResult,
-          newState.sequencedTasks,
+          validTasks,
+          validWorkflows,
           state.nextTaskSkipIndex,
         )
 
@@ -361,6 +371,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         // This prevents the Gantt chart from being cleared unnecessarily
         const nextScheduledItem = extractNextScheduledItem(
           state.scheduleResult,
+          state.tasks,
           state.sequencedTasks,
           state.nextTaskSkipIndex,
         )
@@ -381,6 +392,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
       const state = get()
       const nextScheduledItem = extractNextScheduledItem(
         state.scheduleResult,
+        state.tasks,
         state.sequencedTasks,
         index,
       )
@@ -407,6 +419,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
       const scheduledItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []
       const nextScheduledItem = extractNextScheduledItem(
         scheduleResult,
+        state.tasks,
         state.sequencedTasks,
         state.nextTaskSkipIndex,
       )

@@ -186,26 +186,61 @@ export function StartNextTaskWidget(): ReactElement {
 
           {(() => {
             if (activeSession) {
-              // Show active session details
+              // Show active session details with progress info
+              const itemId = activeSession.stepId || activeSession.taskId
+              const progress = getWorkSessionProgress(itemId)
+              const remainingMinutes = Math.max(0, activeSession.plannedMinutes - progress.elapsedMinutes)
+              const isOverdue = progress.elapsedMinutes > activeSession.plannedMinutes
+
               return (
                 <Space direction="vertical" style={{ width: '100%' }}>
-                  <Text>Working on: {activeSession.taskName || activeSession.stepName || 'Unknown'}</Text>
-                  <Space>
-                    <Tag color="blue">{formatMinutes(activeSession.plannedMinutes)}</Tag>
+                  <Text>
+                    {progress.isPaused ? '⏸️ Paused: ' : '▶️ Working on: '}
+                    {activeSession.taskName || activeSession.stepName || 'Unknown'}
+                  </Text>
+                  <Space wrap>
+                    <Tag color={isOverdue ? 'red' : 'blue'}>
+                      {isOverdue
+                        ? `⚠️ ${formatMinutes(progress.elapsedMinutes - activeSession.plannedMinutes)} over`
+                        : `${formatMinutes(remainingMinutes)} remaining`}
+                    </Tag>
+                    <Tag color="gray">
+                      {formatMinutes(progress.elapsedMinutes)} elapsed
+                    </Tag>
                     <Tag color={activeSession.stepId ? 'purple' : 'green'}>
-                      {activeSession.stepId ? '🔄 Workflow Step' : '📋 Task'}
+                      {activeSession.stepId ? '🔄 Step' : '📋 Task'}
                     </Tag>
                   </Space>
                 </Space>
               )
             } else if (nextTask) {
+              const remainingMinutes = Math.max(0, nextTask.estimatedDuration - nextTask.loggedMinutes)
+              const isOverdue = nextTask.loggedMinutes > nextTask.estimatedDuration
+              const hasLoggedTime = nextTask.loggedMinutes > 0
+
               return (
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <Text>Next: {nextTask.title}</Text>
-                  <Space>
-                    <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
+                  {nextTask.workflowName && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Workflow: {nextTask.workflowName}
+                    </Text>
+                  )}
+                  <Space wrap>
+                    {hasLoggedTime ? (
+                      <>
+                        <Tag color={isOverdue ? 'red' : 'blue'}>
+                          {isOverdue ? '⚠️ Overdue' : `${formatMinutes(remainingMinutes)} remaining`}
+                        </Tag>
+                        <Tag color="gray">
+                          {formatMinutes(nextTask.loggedMinutes)} logged
+                        </Tag>
+                      </>
+                    ) : (
+                      <Tag color="blue">{formatMinutes(nextTask.estimatedDuration)}</Tag>
+                    )}
                     <Tag color={nextTask.type === 'step' ? 'purple' : 'green'}>
-                      {nextTask.type === 'step' ? '🔄 Workflow Step' : '📋 Task'}
+                      {nextTask.type === 'step' ? '🔄 Step' : '📋 Task'}
                     </Tag>
                   </Space>
                 </Space>
