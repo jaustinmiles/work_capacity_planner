@@ -20,7 +20,9 @@ import dayjs from 'dayjs'
 import { logger } from '@/logger'
 import { getCurrentTime, isTimeOverridden } from '@shared/time-provider'
 import { parseTimeOnDate, dateToYYYYMMDD, addDays } from '@shared/time-utils'
-
+import { useResponsive } from '../../providers/ResponsiveProvider'
+import { useLayoutStore } from '../../store/useLayoutStore'
+import { ULTRA_WIDE_DEFAULTS } from '@shared/constants'
 
 const { Text } = Typography
 
@@ -54,14 +56,19 @@ interface GanttItem extends GanttItemWorkflowMetadata {
   isFutureWait?: boolean | undefined
 }
 
-// Zoom presets
+// Zoom presets (including ultra-wide options)
 const ZOOM_PRESETS = [
   { label: 'Week View', value: 30, description: 'See entire week' },
   { label: 'Day View', value: 60, description: 'See full days' },
   { label: 'Half Day', value: 120, description: 'Standard view' },
   { label: 'Detailed', value: 180, description: 'See task details' },
   { label: 'Hourly', value: 240, description: 'Hour by hour' },
+  { label: 'Ultra-Wide', value: 200, description: 'For 2560px+ screens' },
+  { label: 'Max Detail', value: 280, description: 'For 3440px+ screens' },
 ]
+
+// Row label width default
+const DEFAULT_ROW_LABEL_WIDTH = 180
 
 // Block type display colors
 const COMBO_BLOCK_COLOR = '#722ED1'
@@ -108,6 +115,23 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   const { updateTask, updateSequencedTask, workSettings } = useTaskStore()
   const { workPatterns = [], isLoading: workPatternsLoading } = useWorkPatternStore()
   const userTypes = useSortedUserTaskTypes()
+  const { isUltraWide, isSuperUltraWide } = useResponsive()
+  const { ganttRowLabelWidth } = useLayoutStore()
+
+  // Calculate effective row label width based on user preference or breakpoint
+  const effectiveRowLabelWidth = useMemo(() => {
+    if (ganttRowLabelWidth !== 'auto') return ganttRowLabelWidth
+    if (isSuperUltraWide) return ULTRA_WIDE_DEFAULTS.GANTT_ROW_LABEL_WIDTH_SUW
+    if (isUltraWide) return ULTRA_WIDE_DEFAULTS.GANTT_ROW_LABEL_WIDTH_UWQHD
+    return DEFAULT_ROW_LABEL_WIDTH
+  }, [ganttRowLabelWidth, isUltraWide, isSuperUltraWide])
+
+  // Calculate default zoom based on breakpoint
+  const defaultZoom = useMemo(() => {
+    if (isSuperUltraWide) return ULTRA_WIDE_DEFAULTS.GANTT_ZOOM_SUW
+    if (isUltraWide) return ULTRA_WIDE_DEFAULTS.GANTT_ZOOM_UWQHD
+    return 120 // Default
+  }, [isUltraWide, isSuperUltraWide])
   // Use selectors for optimal re-rendering - only update when these specific values change
   const scheduledItemsFromStore = useSchedulerStore(state => state.scheduledItems)
   const scheduleResult = useSchedulerStore(state => state.scheduleResult)
@@ -135,6 +159,14 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     return () => clearInterval(interval)
   }, [])
 
+  // Initialize zoom based on ultra-wide breakpoint (only on mount)
+  useEffect(() => {
+    if (isUltraWide && pixelsPerHour === 120) {
+      setPixelsPerHour(defaultZoom)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount
+
   // Time changes are now handled reactively through stores
 
   // Zoom controls
@@ -147,8 +179,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
   }, [])
 
   const handleZoomReset = useCallback(() => {
-    setPixelsPerHour(120)
-  }, [])
+    setPixelsPerHour(defaultZoom)
+  }, [defaultZoom])
 
   // Handle freeze schedule snapshot
   const handleFreezeSchedule = useCallback(async () => {
@@ -1139,8 +1171,8 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
-                              width: 180,
-                              minWidth: 180,
+                              width: effectiveRowLabelWidth,
+                              minWidth: effectiveRowLabelWidth,
                               height: '100%',
                               display: 'flex',
                               alignItems: 'center',

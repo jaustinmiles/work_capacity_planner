@@ -37,6 +37,7 @@ interface SwimLaneTimelineProps {
   bedtimeHour?: number
   wakeTimeHour?: number
   maxHeight?: number | string
+  dayCount?: number // Dynamic day count for ultra-wide screens (default: 3)
 }
 
 const TIME_LABEL_WIDTH = 120
@@ -46,8 +47,7 @@ const MAX_CONTENT_HEIGHT = 500 // Max height before vertical scrolling kicks in
 const START_HOUR = 0
 const END_HOUR = 24
 const HOURS_PER_DAY = 24
-const TOTAL_DAYS = 3 // Show yesterday, today, tomorrow
-const TOTAL_HOURS = HOURS_PER_DAY * TOTAL_DAYS // 72 hours total
+const DEFAULT_TOTAL_DAYS = 3 // Show yesterday, today, tomorrow by default
 // Removed unused: MIN_LANE_HEIGHT, MAX_LANE_HEIGHT
 const MIN_HOUR_WIDTH = 40
 const MAX_HOUR_WIDTH = 200
@@ -74,7 +74,11 @@ export function SwimLaneTimeline({
   bedtimeHour = 22,
   wakeTimeHour = 6,
   maxHeight,
+  dayCount = DEFAULT_TOTAL_DAYS,
 }: SwimLaneTimelineProps) {
+  // Calculate total hours based on day count
+  const TOTAL_DAYS = dayCount
+  const TOTAL_HOURS = HOURS_PER_DAY * TOTAL_DAYS
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [creatingSession, setCreatingSession] = useState<{
     taskId: string

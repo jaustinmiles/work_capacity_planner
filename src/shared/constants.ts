@@ -40,3 +40,37 @@ export const DATE_FORMATS = {
   ISO_DATE: 'YYYY-MM-DD',
   TIME_24H: 'HH:mm',
 } as const
+
+export const RESPONSIVE_BREAKPOINTS = {
+  xs: 0,
+  sm: 640,
+  md: 768,
+  lg: 1024,
+  xl: 1280,
+  xxl: 1536,
+  uwqhd: 2560,
+  suw: 3440,
+} as const
+
+export const ULTRA_WIDE_DEFAULTS = {
+  // SwimLaneTimeline
+  SWIM_LANE_DAY_COUNT_UWQHD: 5,
+  SWIM_LANE_DAY_COUNT_SUW: 7,
+  SWIM_LANE_HOUR_WIDTH_UWQHD: 100,
+  SWIM_LANE_HOUR_WIDTH_SUW: 120,
+
+  // LinearTimeline
+  LINEAR_ZOOM_UWQHD: 100,
+  LINEAR_ZOOM_SUW: 140,
+
+  // GanttChart
+  GANTT_ZOOM_UWQHD: 150,
+  GANTT_ZOOM_SUW: 180,
+  GANTT_ROW_LABEL_WIDTH_UWQHD: 220,
+  GANTT_ROW_LABEL_WIDTH_SUW: 280,
+
+  // CircularClock sidebar mode
+  CLOCK_SIDEBAR_WIDTH: 400,
+  CLOCK_MAX_SIZE_UWQHD: 500,
+  CLOCK_MAX_SIZE_SUW: 550,
+} as const

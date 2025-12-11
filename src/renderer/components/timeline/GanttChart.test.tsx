@@ -4,10 +4,18 @@ import { GanttChart } from './GanttChart'
 import { useTaskStore } from '../../store/useTaskStore'
 import { useSchedulerStore } from '../../store/useSchedulerStore'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
+import { ResponsiveProvider } from '../../providers/ResponsiveProvider'
 import { getCurrentTime } from '@shared/time-provider'
 import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import '@testing-library/jest-dom'
+
+// Helper to wrap component with required providers
+const renderWithProviders = (ui: React.ReactElement) => {
+  return render(
+    <ResponsiveProvider>{ui}</ResponsiveProvider>,
+  )
+}
 
 // Mock the stores
 vi.mock('../../store/useTaskStore')
@@ -153,7 +161,7 @@ describe('GanttChart', () => {
     const mockTasks: Task[] = []
     const mockSequencedTasks: SequencedTask[] = []
 
-    render(<GanttChart tasks={mockTasks} sequencedTasks={mockSequencedTasks} />)
+    renderWithProviders(<GanttChart tasks={mockTasks} sequencedTasks={mockSequencedTasks} />)
 
     // Wait for the component to load and display the empty state
     await waitFor(() => {
@@ -208,7 +216,7 @@ describe('GanttChart', () => {
     ]
     const mockSequencedTasks: SequencedTask[] = []
 
-    render(<GanttChart tasks={mockTasks} sequencedTasks={mockSequencedTasks} />)
+    renderWithProviders(<GanttChart tasks={mockTasks} sequencedTasks={mockSequencedTasks} />)
 
     // Wait for the component to load - just check that it renders without error
     await waitFor(() => {

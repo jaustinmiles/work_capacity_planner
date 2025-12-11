@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
 import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
@@ -121,7 +121,14 @@ function AppContent() {
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
-  const { isCompact, isMobile } = useResponsive()
+  const { isCompact, isMobile, isUltraWide, isSuperUltraWide } = useResponsive()
+
+  // Dynamic content max-width based on screen size
+  const contentMaxWidth = useMemo(() => {
+    if (isSuperUltraWide) return 2800
+    if (isUltraWide) return 2200
+    return 1200
+  }, [isUltraWide, isSuperUltraWide])
 
   // Sidebar collapsed state - persist to localStorage + auto-collapse on narrow screens
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -569,12 +576,12 @@ function AppContent() {
                   type="error"
                   title="Error"
                   content={error}
-                  style={{ marginBottom: 16, maxWidth: 1200, margin: '0 auto 16px auto' }}
+                  style={{ marginBottom: 16, maxWidth: contentMaxWidth, margin: '0 auto 16px auto' }}
                   showIcon
                 />
               )}
 
-              <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+              <div style={{ maxWidth: contentMaxWidth, margin: '0 auto' }}>
                 {isLoading ? (
                   <div style={{ textAlign: 'center', padding: '60px 0' }}>
                     <Spin size={40} />
