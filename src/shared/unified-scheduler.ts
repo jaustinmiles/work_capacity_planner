@@ -1763,6 +1763,13 @@ export class UnifiedScheduler {
         undefined,
     }))
 
+    // Helper to resolve item ID to human-readable name
+    const allItems = [...scheduled, ...unscheduled]
+    const resolveItemName = (id: string): string => {
+      const found = allItems.find(item => item.id === id)
+      return found?.name ?? `[unknown: ${id}]`
+    }
+
     // Enhance unscheduled items with better reasons
     const unscheduledItems = unscheduled.map(item => {
       let reason = 'Could not find suitable time slot'
@@ -1773,7 +1780,9 @@ export class UnifiedScheduler {
           !scheduled.some(s => s.id === depId),
         )
         if (unblockedDeps.length > 0) {
-          reason = `Blocked by dependencies: ${unblockedDeps.join(', ')}`
+          // Resolve IDs to human-readable names
+          const depNames = unblockedDeps.map(resolveItemName)
+          reason = `Blocked by dependencies: ${depNames.join(', ')}`
         }
       } else if (item.duration > 480) {
         reason = 'Task duration exceeds maximum block size (8 hours)'
