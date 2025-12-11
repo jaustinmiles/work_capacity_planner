@@ -428,6 +428,8 @@ Change task type.
 
 ### 13. work_pattern_modification
 Add/remove/modify work blocks or meetings in schedule.
+
+**For adding a work block:**
 \`\`\`json
 {
   "type": "work_pattern_modification",
@@ -440,9 +442,33 @@ Add/remove/modify work blocks or meetings in schedule.
   }
 }
 \`\`\`
-- **operation**: "add_block" | "add_meeting" | "remove_block" | "remove_meeting"
 - **blockData.type** (required): MUST be a task type ID from "Available Task Types" section (e.g., "type-abc123"), or "blocked"/"sleep" for non-work time. NEVER leave empty.
-- For meetings, use **meetingData** instead with name, startTime, endTime, type
+
+**For adding a meeting (blocked time with a name):**
+\`\`\`json
+{
+  "type": "work_pattern_modification",
+  "date": "2025-11-25",
+  "operation": "add_meeting",
+  "meetingData": {
+    "name": "Team Standup",
+    "startTime": "2025-11-25T09:00:00Z",
+    "endTime": "2025-11-25T09:30:00Z",
+    "type": "meeting",
+    "recurring": "none"
+  }
+}
+\`\`\`
+- **meetingData.name** (required): Name of the meeting
+- **meetingData.startTime** and **endTime** (required): ISO 8601 format
+- **meetingData.type**: Any string describing the meeting type (e.g., "meeting", "standup", "1on1")
+- **meetingData.recurring**: "none" | "daily" | "weekly" | "biweekly" | "monthly"
+
+**Operations:**
+- **"add_block"**: Use blockData to add a work time block
+- **"add_meeting"**: Use meetingData to add a meeting/blocked time with a name
+- **"remove_block"**: Requires blockId
+- **"remove_meeting"**: Requires meetingId
 
 ### 14. work_session_edit
 Create, update, or delete time tracking sessions.
