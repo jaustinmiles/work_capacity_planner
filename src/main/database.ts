@@ -3413,13 +3413,26 @@ export class DatabaseService {
       orderBy: { createdAt: 'desc' },
     })
 
-    return records.map((record) => ({
-      id: record.id,
-      sessionId: record.sessionId,
-      createdAt: record.createdAt,
-      label: record.label,
-      data: deserializeSnapshotData(record.snapshotData),
-    }))
+    // Map records with error handling for corrupt JSON
+    // Skip records with corrupt data rather than failing entire query
+    const snapshots: ScheduleSnapshot[] = []
+    for (const record of records) {
+      try {
+        snapshots.push({
+          id: record.id,
+          sessionId: record.sessionId,
+          createdAt: record.createdAt,
+          label: record.label,
+          data: deserializeSnapshotData(record.snapshotData),
+        })
+      } catch (error) {
+        dbLogger.error('Failed to deserialize snapshot data, skipping corrupt record', {
+          snapshotId: record.id,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+    return snapshots
   }
 
   /**
@@ -3446,9 +3459,12 @@ export class DatabaseService {
    */
   async getTodayScheduleSnapshot(): Promise<ScheduleSnapshot | null> {
     const sessionId = await this.getActiveSession()
-    const today = getLocalDateString(getCurrentTime())
-    const startOfDay = new Date(today + 'T00:00:00')
-    const endOfDay = new Date(today + 'T23:59:59')
+    const now = getCurrentTime()
+
+    // Create proper timezone-aware start/end of day dates
+    // Use the current time's date parts to avoid timezone conversion issues
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
 
     const record = await this.client.scheduleSnapshot.findFirst({
       where: {

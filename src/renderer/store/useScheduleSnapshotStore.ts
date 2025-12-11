@@ -123,18 +123,21 @@ export const useScheduleSnapshotStore = create<ScheduleSnapshotStoreState>()(
      */
     deleteSnapshot: async (id: string): Promise<void> => {
       try {
+        const isTodaySnapshot = get().todaySnapshot?.id === id
+
         await window.electronAPI.db.deleteScheduleSnapshot(id)
 
-        set((state) => {
-          const newSnapshots = state.snapshots.filter((s) => s.id !== id)
-          const isTodaySnapshot = state.todaySnapshot?.id === id
+        // Remove from local state
+        set((state) => ({
+          snapshots: state.snapshots.filter((s) => s.id !== id),
+          // Temporarily clear today's snapshot if it was deleted
+          todaySnapshot: isTodaySnapshot ? null : state.todaySnapshot,
+        }))
 
-          return {
-            snapshots: newSnapshots,
-            // If we deleted today's snapshot, clear it (could reload to get next most recent)
-            todaySnapshot: isTodaySnapshot ? null : state.todaySnapshot,
-          }
-        })
+        // If we deleted today's snapshot, reload from DB to get next most recent
+        if (isTodaySnapshot) {
+          await get().loadTodaySnapshot()
+        }
 
         logger.ui.info('Deleted schedule snapshot', { id }, 'snapshot-deleted')
       } catch (error) {
