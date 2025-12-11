@@ -61,6 +61,7 @@ import { calculateSchedulingMetrics } from './scheduler-metrics'
 
 export enum SchedulingConflictType {
   DependencyCycle = 'dependency_cycle',
+  MissingDependency = 'missing_dependency',
   CapacityExceeded = 'capacity_exceeded',
   DeadlineImpossible = 'deadline_impossible',
   ResourceConflict = 'resource_conflict'
@@ -1645,7 +1646,7 @@ export class UnifiedScheduler {
 
         if (!dependencyExists) {
           errors.push({
-            type: SchedulingConflictType.DependencyCycle,
+            type: SchedulingConflictType.MissingDependency,
             affectedItems: [item.id, depId],
             description: `Item "${item.name}" depends on missing item "${depId}"`,
             severity: SeverityLevel.Error,

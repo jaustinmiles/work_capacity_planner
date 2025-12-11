@@ -1737,14 +1737,44 @@ export class DatabaseService {
       }
     }
 
-    // CRITICAL: Dependencies are provided as step NAMES but need to be stored as step IDs
-    // Currently storing names directly which causes the dependency wiring bug
-    const dependenciesToStore = stepData.dependencies || []
-    dbLogger.debug('About to create step with dependencies', {
+    // Resolve dependency names to step IDs within this workflow
+    // Dependencies may come as either step names OR step IDs - we handle both
+    const resolvedDependencies: string[] = []
+    const existingStepNameToId = new Map(existingSteps.map(s => [s.name.toLowerCase().trim(), s.id]))
+    const existingStepIds = new Set(existingSteps.map(s => s.id))
+
+    for (const dep of stepData.dependencies || []) {
+      const normalizedDep = dep.toLowerCase().trim()
+
+      // First check if it's already an existing step ID
+      if (existingStepIds.has(dep)) {
+        resolvedDependencies.push(dep)
+        dbLogger.debug('Dependency is already a valid step ID', { dep })
+      }
+      // Then check if it's a step name that we can resolve
+      else if (existingStepNameToId.has(normalizedDep)) {
+        const resolvedId = existingStepNameToId.get(normalizedDep)!
+        resolvedDependencies.push(resolvedId)
+        dbLogger.debug('Resolved dependency name to ID', {
+          depName: dep,
+          resolvedId,
+        })
+      }
+      // If not found, log a warning but still store it (might be cross-workflow dep)
+      else {
+        resolvedDependencies.push(dep)
+        dbLogger.warn('Dependency not found in workflow, storing as-is', {
+          dep,
+          workflowId,
+          existingStepNames: Array.from(existingStepNameToId.keys()),
+        })
+      }
+    }
+
+    dbLogger.debug('Dependencies resolved for new step', {
       stepName: stepData.name,
-      dependenciesProvided: stepData.dependencies,
-      willStoreAs: dependenciesToStore,
-      note: 'BUG: These should be step IDs but are currently step names',
+      originalDependencies: stepData.dependencies,
+      resolvedDependencies,
     })
 
     // Create the new step
@@ -1757,7 +1787,7 @@ export class DatabaseService {
         duration: stepData.duration,
         type: stepData.type,
         stepIndex: newStepIndex,
-        dependsOn: JSON.stringify(dependenciesToStore),
+        dependsOn: JSON.stringify(resolvedDependencies),
         asyncWaitTime: stepData.asyncWaitTime || 0,
         status: 'pending',
         percentComplete: 0,
@@ -1768,7 +1798,7 @@ export class DatabaseService {
       newStepId,
       stepName: stepData.name,
       stepIndex: newStepIndex,
-      storedDependsOn: JSON.stringify(dependenciesToStore),
+      storedDependsOn: JSON.stringify(resolvedDependencies),
     })
 
     // Update the workflow's total duration
