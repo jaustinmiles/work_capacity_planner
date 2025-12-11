@@ -65,7 +65,13 @@ module.exports = [
       'react-hooks': reactHooks,
     },
     rules: {
-      // TypeScript rules
+      // =====================================
+      // TYPESCRIPT STRICT MODE RULES
+      // =====================================
+      // Goal: Enforce type safety throughout the codebase
+      // Status: Gradually enabling stricter rules
+      //
+      // ACTIVE ENFORCEMENT:
       'no-unused-vars': 'off', // Must be off for TypeScript files to use @typescript-eslint/no-unused-vars
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
@@ -73,16 +79,20 @@ module.exports = [
         caughtErrorsIgnorePattern: '^_',
         ignoreRestSiblings: true,
       }],
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-empty-function': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn', // TODO: Upgrade to 'error' (~500 fixes needed)
+      '@typescript-eslint/no-empty-function': ['warn', {
+        allow: ['arrowFunctions'], // Allow empty arrow functions for noops/mocks
+      }],
       '@typescript-eslint/explicit-function-return-type': ['warn', {
         allowExpressions: true,
         allowTypedFunctionExpressions: true,
         allowHigherOrderFunctions: true,
         allowDirectConstAssertionInArrowFunctions: true,
       }],
-      '@typescript-eslint/no-non-null-assertion': 'warn',
-      // Commented out rules that require type information for now
+      '@typescript-eslint/no-non-null-assertion': 'warn', // TODO: Upgrade to 'error' (~200 fixes needed)
+      //
+      // PLANNED STRICTNESS (requires type-aware linting setup):
+      // These rules require parserOptions.project = './tsconfig.json'
       // '@typescript-eslint/strict-boolean-expressions': ['warn', {
       //   allowString: true,
       //   allowNumber: true,
