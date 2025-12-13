@@ -3,7 +3,7 @@
  * Unified conversational interface for task/workflow management
  */
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Modal,
   Input,
@@ -30,6 +30,7 @@ import { formatDateStringForDisplay, extractTimeFromISO } from '@shared/time-uti
 import { getBlockTypeName } from '@shared/user-task-types'
 import { logger } from '@/logger'
 import { useVoiceRecording } from '../../hooks/useVoiceRecording'
+import { useGlobalHotkeys, formatHotkey, HotkeyConfig } from '../../hooks/useGlobalHotkeys'
 import { MarkdownContent } from '../common/MarkdownContent'
 
 const { TextArea } = Input
@@ -135,6 +136,28 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
       logger.ui.error('Voice recording error', { error }, 'voice-error')
     },
   })
+
+  // Toggle voice recording handler for hotkey
+  const toggleVoiceRecording = useCallback(() => {
+    if (recordingState === 'recording') {
+      stopRecording()
+    } else if (!isTranscribing && status === ChatStatus.Idle) {
+      startRecording()
+    }
+  }, [recordingState, isTranscribing, status, startRecording, stopRecording])
+
+  // Global hotkey for voice recording (Ctrl+Shift+R)
+  // Only active when modal is visible
+  const voiceHotkey: HotkeyConfig = useMemo(() => ({
+    key: 'r',
+    ctrl: true,
+    shift: true,
+    handler: toggleVoiceRecording,
+    description: 'Toggle voice recording',
+    disabled: !visible, // Disable when modal is closed
+  }), [toggleVoiceRecording, visible])
+
+  useGlobalHotkeys([voiceHotkey])
 
   // Load job contexts on mount
   useEffect(() => {
@@ -457,20 +480,15 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
           )}
 
           <Space>
-            {/* Voice input toggle */}
+            {/* Voice input toggle - Ctrl+Shift+R hotkey */}
             <Button
               type={recordingState === 'recording' ? 'primary' : 'default'}
               status={recordingState === 'recording' ? 'danger' : undefined}
               icon={recordingState === 'recording' ? <IconPause /> : <IconVoice />}
-              onClick={() => {
-                if (recordingState === 'recording') {
-                  stopRecording()
-                } else {
-                  startRecording()
-                }
-              }}
+              onClick={toggleVoiceRecording}
               disabled={status !== ChatStatus.Idle || isTranscribing}
               loading={isTranscribing}
+              title={`${recordingState === 'recording' ? 'Stop recording' : 'Start voice input'} (${formatHotkey(voiceHotkey)})`}
             >
               {recordingState === 'recording' ? 'Stop' : 'Voice'}
             </Button>

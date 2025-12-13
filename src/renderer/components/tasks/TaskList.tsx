@@ -73,10 +73,20 @@ export function TaskList({ onAddTask }: TaskListProps) {
   const completedTasks = filteredTasks.filter(task => task.completed && !task.archived)
   const archivedTasks = filteredTasks.filter(task => task.archived)
 
-  // Apply pagination
+  // Sort incomplete tasks by priority BEFORE pagination
+  // Correct order: Filter → Sort → Paginate
+  const sortedIncompleteTasks = useMemo(() => {
+    return [...incompleteTasks].sort((a, b) => {
+      const priorityA = a.importance * a.urgency
+      const priorityB = b.importance * b.urgency
+      return priorityB - priorityA
+    })
+  }, [incompleteTasks])
+
+  // Apply pagination AFTER sorting
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
-  const paginatedIncompleteTasks = incompleteTasks.slice(startIndex, endIndex)
+  const paginatedIncompleteTasks = sortedIncompleteTasks.slice(startIndex, endIndex)
   const paginatedCompletedTasks = completedTasks.slice(0, 5) // Always show just 5 completed tasks
 
   const handleDeleteAllTasks = async () => {
@@ -102,13 +112,6 @@ export function TaskList({ onAddTask }: TaskListProps) {
     // Reload tasks to reflect any changes
     await loadTasks()
   }
-
-  // Sort incomplete tasks by priority (importance * urgency)
-  const sortedIncompleteTasks = [...paginatedIncompleteTasks].sort((a, b) => {
-    const priorityA = a.importance * a.urgency
-    const priorityB = b.importance * b.urgency
-    return priorityB - priorityA
-  })
 
   // Calculate progress
   const totalTasks = tasks.length
@@ -290,7 +293,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
           </Space>
         }
       >
-        {sortedIncompleteTasks.length === 0 ? (
+        {paginatedIncompleteTasks.length === 0 ? (
           <Empty
             description={
               <Space direction="vertical">
@@ -312,7 +315,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
           />
         ) : viewMode === 'list' ? (
           <List
-            dataSource={sortedIncompleteTasks}
+            dataSource={paginatedIncompleteTasks}
             render={(task) => (
               <List.Item key={task.id}>
                 <TaskItem task={task} matchedStepIds={matchedStepIdsMap.get(task.id)} />
@@ -320,7 +323,7 @@ export function TaskList({ onAddTask }: TaskListProps) {
             )}
           />
         ) : (
-          <TaskGridView tasks={sortedIncompleteTasks} />
+          <TaskGridView tasks={paginatedIncompleteTasks} />
         )}
       </Card>
 

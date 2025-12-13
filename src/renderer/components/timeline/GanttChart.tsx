@@ -598,14 +598,20 @@ export function GanttChart({ tasks, sequencedTasks }: GanttChartProps) {
     chartContainerRef.current.scrollLeft = Math.max(0, scrollPosition)
   }, [chartStartTime, pixelsPerHour])
 
-  // Auto-snap to now when chart first loads or when snap function updates
+  // Store the snap function in a ref to avoid useEffect dependency issues
+  // This prevents the chart from snapping back on hover/interaction
+  const handleSnapToNowRef = useRef(handleSnapToNow)
+  handleSnapToNowRef.current = handleSnapToNow
+
+  // Auto-snap to now ONLY when chart first mounts
+  // Using ref pattern to avoid re-triggering on every render
   useEffect(() => {
     // Small delay to ensure DOM is ready
     const timer = setTimeout(() => {
-      handleSnapToNow()
+      handleSnapToNowRef.current()
     }, 100)
     return () => clearTimeout(timer)
-  }, [handleSnapToNow]) // Depend on the function - re-runs when its dependencies change
+  }, []) // Empty deps - only run on mount
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

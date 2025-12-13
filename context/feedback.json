@@ -1867,7 +1867,8 @@
     "title": "AI brainstorm dependencies not correct. ",
     "description": "AI brainstorm dependencies not correct. There is some subtle error that prevents the scheduler from scheduling, When I see the graphs, everything seems fine, but I have to delete the connections and rewire everything in order to make it accept scheduling. So we need better validation on the dependencies. \n\n12/10/25 update. this is still not working, but we already did work on it. Users still have to go edit the workflows in the graph view or manually to get the scheduler to recognize the dependencies. ",
     "timestamp": "2025-12-07T03:08:24.013Z",
-    "sessionId": "session-1765076903995-65da1ea8"
+    "sessionId": "session-1765076903995-65da1ea8",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1878,7 +1879,8 @@
     "title": "Completing the currently active status doesn't remove it from the task queue. ",
     "description": "Completing the currently active status doesn't remove it from the task queue. When the complete button is pressed, the task or workflow step should be marked as completed and we should NOT get the same one presented to us again (since it's complete) but this is current behavior. Also, the start next task button is recommending to start tasks that have actively counting down async wait timers. We need to make this much more resilient and introduce tests to protect it. ",
     "timestamp": "2025-12-07T03:10:09.392Z",
-    "sessionId": "session-1765077009372-970bd287"
+    "sessionId": "session-1765077009372-970bd287",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1902,7 +1904,8 @@
     "title": "AI assistant cannot create meetings on the schedule",
     "description": "AI assistant cannot create meetings on the schedule. User should be able to say \"make a meeting at 4 pm called '...'\" and have the AI put that on the schedule, but I don't think that's a valid amendment type or that it works. ",
     "timestamp": "2025-12-07T21:03:40.608Z",
-    "sessionId": "session-1765141420595-11ca94ed"
+    "sessionId": "session-1765141420595-11ca94ed",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1914,7 +1917,8 @@
     "title": "Editing a workflow causes a page refresh",
     "description": "Refreshes should be forbade in the application. everything should be reactive. ",
     "timestamp": "2025-12-07T21:08:06.505Z",
-    "sessionId": "session-1765141686483-fcdd12d7"
+    "sessionId": "session-1765141686483-fcdd12d7",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1933,7 +1937,8 @@
     "title": "AI assistant cannot create meetings/blocked time",
     "description": "AI assistant cannot create meetings/blocked time. I explicitly told it of 2 regions of blocked time and it did not even attempt to create the meetings. ",
     "timestamp": "2025-12-10T20:18:22.491Z",
-    "sessionId": "session-1765397902467-2aab5ad9"
+    "sessionId": "session-1765397902467-2aab5ad9",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1944,7 +1949,8 @@
     "title": "Table rendering doesn't always work in AI chat markdown rendering",
     "description": "Standalone Tasks: | Task | Duration | Type | |------|----------|------| | Email & appointments check-in | 15min | ✍️ Admin | | Admin brain dump check-in | 15min | ✍️ Admin | | Ear training song practice | 20min | 🎵 Music | | Cut wires off guitar | 5min | 🎵 Music |\nStation Setup Workflow (pending steps): | Step | Duration | Type | |------|----------|------| | Set up recording section | 25min | 🏠 Household | | Wire manage desk area | 20min | 🏠 Household | | Move therapy chair | 10min | 🏠 Household | | Applause sign on smart outlet | 5min | 🏠 Household |\nOffice Workflow (pending, plus new steps): | Step | Duration | Type | |------|----------|------| | Clear floor (NEW) | ~15min? | 🏠 Household | | Vacuum (NEW) | ~10min? | 🏠 Household | | Steam clean floor | 20min | 🏠 Household |\n\nthis is an example. I see this as raw text, not markdown rendering. ",
     "timestamp": "2025-12-11T00:03:26.755Z",
-    "sessionId": "session-1765411406734-bce7417d"
+    "sessionId": "session-1765411406734-bce7417d",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1955,7 +1961,8 @@
     "title": "Scheduling debug info displays ids instead of step names",
     "description": "Set up recording section (preamp, iRig, audio routing)\nworkflow-step\n25 min\nTotal: 38\nE:25 C:+5 W:+13\nBlocked by dependencies: step-mizpbmvt-c040440d5\nWire manage desk area\nworkflow-step\n20 min\nTotal: 38\nE:25 C:+5 W:+13\nBlocked by dependencies: step-mizpbmw0-e068acca9, step-mizpbmvw-8d80e8771\nMove therapy chair to other side of table\nworkflow-step\n10 min\nTotal: 38\nE:25 C:+5 W:+13\nCould not find suitable time slot\nApplause sign on smart outlet\nworkflow-step\n5 min\nTotal: 38\nE:25 C:+5 W:+13\nBlocked by dependencies: step-mizpbmvn-ac6e3bebd\n\nthese are impossible for the user to decipher",
     "timestamp": "2025-12-11T00:11:02.554Z",
-    "sessionId": "session-1765411862530-f32a782e"
+    "sessionId": "session-1765411862530-f32a782e",
+    "resolved": true
   },
   {
     "type": "bug",
@@ -1967,7 +1974,8 @@
     "title": "Freezing schedule is extremely fragile",
     "description": "When I freeze the schedule, I should be able to see the EXACT thing I froze at any point in time when I go to the work logger dual view, but I see incomplete results or that it has been deleted randomly. The snapshots should be saved in the database and persistent!",
     "timestamp": "2025-12-11T00:22:34.604Z",
-    "sessionId": "session-1765412554581-d5cb978a"
+    "sessionId": "session-1765412554581-d5cb978a",
+    "resolved": true
   },
   {
     "type": "improvement",
@@ -1979,7 +1987,8 @@
     "title": "Start next task button shows workflow only, expected time is missing",
     "description": "When a workflow step is started, the workflow's name is shown instead of the step. the user must click the work logging component to see hte step they are currently working on. We should also color the currently in progress task differently (or have some UI indicator that it is in progress), and actively shrink the block. What I mean by this - If a task takes 30 minutes and we are working on it, when we check in 15 minutes later, we should see a block 15 minutes long (estimate - logged). Then if we go over time we can have some sort of indicator. But in the start next task AND in the dual view work logger we need to display the time estimate of the task along with how long we've been working, and show a task/step's remaining time",
     "timestamp": "2025-12-11T03:43:49.070Z",
-    "sessionId": "session-1765424629053-b521ce91"
+    "sessionId": "session-1765424629053-b521ce91",
+    "resolved": true
   },
   {
     "type": "bug",
