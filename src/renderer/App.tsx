@@ -57,14 +57,29 @@ function AppContent() {
     // Connect stores for reactive updates
     const disconnectStores = connectStores()
 
-    // Initialize work patterns
-    useWorkPatternStore.getState().loadWorkPatterns()
+    // Initialize stores asynchronously
+    // Using async IIFE since useEffect can't be async directly
+    const initializeStores = async () => {
+      try {
+        // Initialize work patterns
+        await useWorkPatternStore.getState().loadWorkPatterns()
 
-    // Initialize time sinks
-    useTimeSinkStore.getState().loadSinks()
+        // Initialize time sinks
+        await useTimeSinkStore.getState().loadSinks()
 
-    // Initialize schedule snapshots (for frozen schedule persistence)
-    useScheduleSnapshotStore.getState().loadSnapshots()
+        // Initialize schedule snapshots (for frozen schedule persistence)
+        // Important: await this to ensure snapshots are loaded before user interaction
+        await useScheduleSnapshotStore.getState().loadSnapshots()
+
+        logger.system.info('All stores initialized successfully', {}, 'app-init')
+      } catch (error) {
+        logger.system.error('Failed to initialize stores', {
+          error: error instanceof Error ? error.message : String(error),
+        }, 'app-init-error')
+      }
+    }
+
+    initializeStores()
 
     logger.system.info('Application initialized', {
       environment: process.env.NODE_ENV,

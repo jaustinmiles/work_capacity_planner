@@ -168,8 +168,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           worstCaseDuration,
         })
 
-        // Update stores for reactive UI updates
-        await useTaskStore.getState().initializeData()
+        // Store is updated reactively by updateSequencedTask - no manual refresh needed
         // Schedule will automatically recompute via store subscription
         logger.db.info('Workflow saved successfully', {
           workflowId: task.id,
@@ -178,8 +177,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
       } else {
         // Regular task save
         await updateTask(task.id, editedTask)
-        // Update stores for reactive UI updates
-        await useTaskStore.getState().initializeData()
+        // Store is updated reactively by updateTask - no manual refresh needed
         // Schedule will automatically recompute via reactive subscriptions
         logger.db.info('Task saved successfully', {
           taskId: task.id,
@@ -289,8 +287,7 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
           worstCaseDuration,
         })
 
-        // Update stores for reactive UI updates
-        await useTaskStore.getState().initializeData()
+        // Store is updated reactively by updateSequencedTask - no manual refresh needed
         // Schedule will automatically recompute via reactive subscriptions
         logger.db.info('Step saved to database', {
           workflowId: task.id,

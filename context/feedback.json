@@ -1968,5 +1968,77 @@
     "description": "When I freeze the schedule, I should be able to see the EXACT thing I froze at any point in time when I go to the work logger dual view, but I see incomplete results or that it has been deleted randomly. The snapshots should be saved in the database and persistent!",
     "timestamp": "2025-12-11T00:22:34.604Z",
     "sessionId": "session-1765412554581-d5cb978a"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "status/WorkStatusWidget",
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "Start next task button shows workflow only, expected time is missing",
+    "description": "When a workflow step is started, the workflow's name is shown instead of the step. the user must click the work logging component to see hte step they are currently working on. We should also color the currently in progress task differently (or have some UI indicator that it is in progress), and actively shrink the block. What I mean by this - If a task takes 30 minutes and we are working on it, when we check in 15 minutes later, we should see a block 15 minutes long (estimate - logged). Then if we go over time we can have some sort of indicator. But in the start next task AND in the dual view work logger we need to display the time estimate of the task along with how long we've been working, and show a task/step's remaining time",
+    "timestamp": "2025-12-11T03:43:49.070Z",
+    "sessionId": "session-1765424629053-b521ce91"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "title": "Task list has several bugs. ",
+    "description": "First, the UI that shows the total shows a page number that is always 1 on the grid view, because the actual pages are controlled by a SECOND page counter outside of the widget that also controls the regular list view. Because of this, sorting the columns doesn't sort everything, but just the slice of data shown on that 'page' (not the table page, which is always 1)",
+    "timestamp": "2025-12-12T06:54:23.439Z",
+    "sessionId": "session-1765522463416-f171c948"
+  },
+  {
+    "type": "feature",
+    "priority": "high",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "Save chats and context",
+    "description": "The context is broken - I see no way to save contexts, and we should be able to save chats and start new chats and go back to older chats freely. This should all be saved in the database. ",
+    "timestamp": "2025-12-12T06:57:28.324Z",
+    "sessionId": "session-1765522648300-d1dd0999"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "timeline/GanttChart"
+    ],
+    "title": "Hovering a tool tip in the gantt chart causes snap to now",
+    "description": "Hovering a tool tip in the gantt chart causes snap to now, making it impossible for users to scroll to a future time and hover. The snap to now should only happen on startup (when the component is first brought up and rendered) and when the 'jump to now' button is clicked",
+    "timestamp": "2025-12-12T07:23:28.828Z",
+    "sessionId": "session-1765524208809-d3a6f355"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "The clock view on the dual view work logger is too narrow on UW monitors",
+    "description": "The clock view on the dual view work logger is too narrow on UW monitors. On ultrawide, the swim lanes are too wide and the clock doesn't have enough room. This is weird since there's actuall more horizontal space to take up on my monitor for the whole popup... ",
+    "timestamp": "2025-12-13T03:31:01.150Z",
+    "sessionId": "session-1765596661130-68643bed"
+  },
+  {
+    "type": "feature",
+    "priority": "critical",
+    "components": [
+      "other"
+    ],
+    "title": "Hotkey for generic voice transcription",
+    "description": "I find myself wanting to document behavior in the app with my voice without having something pop up that hides or makes the background dimmer. Just a hotkey that allows for voice transcription into text in a simple, non UI hiding component that will print out the transcription for me to copy. It should use OpenAI whisper like we currently do in the app. should not be hard or require much new stuff. ",
+    "timestamp": "2025-12-13T03:33:16.728Z",
+    "sessionId": "session-1765596796707-a1bc8045"
+  },
+  {
+    "type": "bug",
+    "priority": "critical",
+    "title": "AI can't see work sessions ",
+    "description": "this is a critical feature of the app! example user conversation: You • 7:38:09 PM\nLet's do a full review of my day so far, and all the task type categories I have and what I've spent my time on, and recommendations on how to spend the rest of my day to make it well rounded in terms of balancing time for task types\nAssistant • 7:38:37 PM\nDay Review: December 12, 2025\nLet me break down your day comprehensively.\n---\nYour Task Type Categories\nCategory\tEmoji\tFocus Area\nMusic/Poetry/Art\t🎵\tCreative expression\nMindfulness/Life Reset\t🧘\tMental wellness\nStretching/Yoga\t🌊\tPhysical flexibility\nExercise/Blading\t🛼\tPhysical fitness\nTherapy/EMDR\t💭\tMental health work\nSocial/Relationships\t👥\tFriends & community\nPartner\t💕\tRomantic relationship\nApp\t💻\tDevelopment work\nHealth/Sleep\t😴\tRest & recovery\nHousehold\t🏠\tHome maintenance\nPlanning\t🧠\tOrganization\n---\nWhat You've Completed Today\nTask\tType\tDuration\nPlan for day\t🧠 Planning\t60 min\nMorning Stretching/Yoga\t🌊 Stretching/Yoga\t45 min\nMorning Mindfulness/EMDR Practice\t🧘 Mindfulness\t30 min\nOffice cleaning\t🏠 Household\t11 min\nTotal completed: ~146 minutes (~2.4 hours)\n---\nYour Scheduled Blocks (Today)\nLooking at your work pattern for today:\n4:30-4:40 PM → 👥 Social/Relationships (10 min)\n4:45-5:40 PM → 🎵 Music/Poetry/Art (55 min)\n5:40-7:10 PM → 💻 App (90 min)\nYou're currently at 7:38 PM, so those blocks have passed.\n---\nTime Distribution So Far\n🧠 Planning:        ████████████ 60 min (41%)\n🌊 Stretching:      █████████ 45 min (31%)\n🧘 Mindfulness:     ██████ 30 min (21%)\n🏠 Household:       ██ 11 min (7%)\nCategories NOT touched today:\n🎵 Music/Poetry/Art\n🛼 Exercise/Blading\n💭 Therapy/EMDR\n👥 Social/Relationships\n💕 Partner\n💻 App\n😴 Health/Sleep\n---\nRecommendations for the Rest of Your Evening\nGiven it's 7:38 PM and assuming you have ~3-4 hours before winding down:\nHigh Priority (Urgency 8-10 items needing attention)\n🎵 Music: \"Go to Studio\" workflow - You have a step in progress (\"Organize and decide what to take\"). Even 15-30 min to complete this keeps momentum.\n💕 Partner: \"Bonding Before SpaceX Party\" (Urgency 10, Importance 8) - Just needs 10 min to schedule. Quick win.\n👥 Social: \"Hang Out with Ian\" (Urgency 10, Importance 8) - Step 1 is in \"waiting\" status. Check if you got a response?\n🧘 Mindfulness: \"Listen to Attention Audiobook\" (Urgency 8, Importance 10) - Only 5 min to block time. Easy.\nFor Balance, Consider Adding:\nGap\tSuggestion\tTime\n🛼 No exercise today\t\"Garage Practice\" is ready (60 min) or even 20-30 min\t30-60 min\n💻 No app work\t\"Time Sinks + Retro Upgrade\" (90 min) - break into 45 min chunk?\t45 min\n💭 No therapy/EMDR\t\"Complete EMDR Chapter\" (Urgency 7, Importance 9)\t30-45 min\n---\nSuggested Evening Flow\n7:45 PM  - 💕 Schedule bonding time (10 min) ← quick win\n8:00 PM  - 🛼 Garage Practice (45 min) ← get movement in\n8:45 PM  - 🎵 Finish \"organize what to take\" step (20 min)\n9:05 PM  - 💭 EMDR Chapter work (45 min) ← mental health\n9:50 PM  - 😴 Start Nighttime Routine setup\nThis would give you coverage across 7 categories today instead of 4, and addresses your highest urgency items.\n---\nQuestions for you:\nWhat time are you planning to wind down tonight?\nDid you already do the scheduled blocks (Social, Music, App) that were on your calendar, or did those get skipped?\nIs there anything else that happened today I should know about?\nYou • 7:42:10 PM\nOkay, so I think you're missing a little something because what I see is that I've completed two hours and two minutes on music, poetry, and art, even though I only scheduled 55. And then 30 minutes on mindfulness, 45 minutes on stretching and yoga, 10 minutes on social relationships, 35 minutes on household, and 50 minutes for planning. So I don't know what you were doing, maybe you're looking at only the planned stuff and not the actual stuff, but like, I would expect the analysis to be like, okay, you plan time to do social, household, and music, poetry, art, and social, I think I already said that, and then you planned work for your app, so you should probably do work for your app. And then here's another category where you can do work where you haven't done it yet, like therapy, health sleep, or exercise planning, but I don't really think your analysis is right so far.\nAssistant • 7:42:22 PM\nYou're completely right, and I apologize for the confusion. I was looking at the task completion data and scheduled blocks, but I don't actually have visibility into your actual time tracking / work session data in the context I was given.\nThe context mentions \"12 recent sessions\" but doesn't show me the breakdown of what those sessions were. So I was essentially guessing based on task statuses rather than your real tracked time.\n---\nWhat You Actually Did Today (per your correction):\nCategory\tActual Time\n🎵 Music/Poetry/Art\t2h 2min (122 min)\n🧠 Planning\t50 min\n🌊 Stretching/Yoga\t45 min\n🏠 Household\t35 min\n🧘 Mindfulness\t30 min\n👥 Social/Relationships\t10 min\nTotal: ~4 hours 52 minutes\n---\nCorrected Analysis\nCategories you've touched: 6 of 11 ✓\nCategories with zero time today:\n🛼 Exercise/Blading\n💭 Therapy/EMDR\n💕 Partner\n💻 App (you scheduled 90 min but didn't do it)\n😴 Health/Sleep\n---\nActual Recommendations\n💻 App - You planned it, didn't do it. This seems like the obvious gap to fill if you have energy for focused work.\nPick ONE other untouched category based on energy:\n- Low energy → 😴 Health/Sleep (Nighttime Routine planning) - Medium energy → 💭 Therapy/EMDR (chapter work) - High energy → 🛼 Exercise/Blading (garage practice)\n💕 Partner - \"Bonding Before SpaceX Party\" is urgency 10. Even a quick 10-min scheduling task covers this.\n---\nDoes this analysis feel more accurate now? And what's your energy level like for the rest of the evening?",
+    "timestamp": "2025-12-13T03:43:29.414Z",
+    "sessionId": "session-1765597409398-a1119835"
   }
 ]

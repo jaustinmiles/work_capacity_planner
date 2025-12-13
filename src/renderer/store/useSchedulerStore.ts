@@ -25,6 +25,10 @@ export interface NextScheduledItem {
   title: string
   estimatedDuration: number
   scheduledStartTime: Date
+  /** Logged time in minutes (for showing remaining time) */
+  loggedMinutes: number
+  /** Workflow name (for step items, to show context) */
+  workflowName?: string
 }
 
 interface SchedulerStoreState {
@@ -206,6 +210,7 @@ const computeSchedule = (
 
 const extractNextScheduledItem = (
   scheduleResult: ScheduleResult | null,
+  tasks: Task[],
   sequencedTasks: SequencedTask[],
   skipIndex: number,
 ): NextScheduledItem | null => {
@@ -232,46 +237,10 @@ const extractNextScheduledItem = (
   if (workItems.length === 0) return null
 
   // Handle skipIndex bounds properly
+  // If we've skipped past all available items, return null (no more tasks)
+  // This is better than wrapping which causes completed tasks to reappear
   if (skipIndex >= workItems.length) {
-    // If we've skipped past all available items, wrap back to the first
-    // This provides better UX than showing "no tasks"
-    const wrappedIndex = skipIndex % workItems.length
-    const scheduledItem = workItems[wrappedIndex]
-    if (!scheduledItem || !hasStartTime(scheduledItem)) return null
-
-    // Continue with the wrapped item (TypeScript knows startTime exists via type guard)
-    const targetItem = scheduledItem
-
-    // Add the rest of the function logic using targetItem
-    // Use originalTaskId if this is a split task, otherwise use the item's ID
-    const taskId = targetItem.originalTaskId || targetItem.id
-
-    if (targetItem.type === UnifiedScheduleItemType.WorkflowStep) {
-      const workflow = sequencedTasks.find(seq =>
-        seq.steps.some(step => step.id === taskId),
-      )
-      const step = workflow?.steps.find(s => s.id === taskId)
-
-      if (step && workflow) {
-        return {
-          type: NextScheduledItemType.Step,
-          id: step.id,
-          workflowId: workflow.id,
-          title: step.name,
-          estimatedDuration: step.duration,
-          scheduledStartTime: targetItem.startTime,
-        }
-      }
-    }
-
-    // Regular task - use original ID for split tasks
-    return {
-      type: NextScheduledItemType.Task,
-      id: taskId,
-      title: targetItem.name,
-      estimatedDuration: targetItem.duration,
-      scheduledStartTime: targetItem.startTime,
-    }
+    return null
   }
 
   const targetIndex = Math.min(skipIndex, workItems.length - 1)
@@ -300,17 +269,21 @@ const extractNextScheduledItem = (
         title: step.name,
         estimatedDuration: step.duration,
         scheduledStartTime: itemWithStartTime.startTime,
+        loggedMinutes: step.actualDuration ?? 0,
+        workflowName: workflow.name,
       }
     }
   }
 
-  // Regular task - use original ID for split tasks
+  // Regular task - look up actual logged time from task data
+  const task = tasks.find(t => t.id === taskId)
   return {
     type: NextScheduledItemType.Task,
     id: taskId,
     title: itemWithStartTime.name,
     estimatedDuration: itemWithStartTime.duration,
     scheduledStartTime: itemWithStartTime.startTime,
+    loggedMinutes: task?.actualDuration ?? 0,
   }
 }
 
@@ -382,7 +355,8 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         const scheduledItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []
         const nextScheduledItem = extractNextScheduledItem(
           scheduleResult,
-          newState.sequencedTasks,
+          validTasks,
+          validWorkflows,
           state.nextTaskSkipIndex,
         )
 
@@ -397,6 +371,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
         // This prevents the Gantt chart from being cleared unnecessarily
         const nextScheduledItem = extractNextScheduledItem(
           state.scheduleResult,
+          state.tasks,
           state.sequencedTasks,
           state.nextTaskSkipIndex,
         )
@@ -417,6 +392,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
       const state = get()
       const nextScheduledItem = extractNextScheduledItem(
         state.scheduleResult,
+        state.tasks,
         state.sequencedTasks,
         index,
       )
@@ -443,6 +419,7 @@ export const useSchedulerStore = create<SchedulerStoreState>()(
       const scheduledItems = scheduleResult ? addColorsToItems(scheduleResult.scheduled) : []
       const nextScheduledItem = extractNextScheduledItem(
         scheduleResult,
+        state.tasks,
         state.sequencedTasks,
         state.nextTaskSkipIndex,
       )
