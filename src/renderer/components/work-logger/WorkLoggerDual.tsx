@@ -135,6 +135,14 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     }
     return undefined // Use container-based sizing
   }, [effectiveLayout, isSuperUltraWide])
+
+  // Calculate clock sidebar width for ultra-wide screens
+  // Sidebar grows to accommodate larger clock on ultrawide displays
+  const clockSidebarWidth = useMemo(() => {
+    if (isSuperUltraWide) return ULTRA_WIDE_DEFAULTS.CLOCK_SIDEBAR_WIDTH_SUW
+    if (isUltraWide) return ULTRA_WIDE_DEFAULTS.CLOCK_SIDEBAR_WIDTH_UWQHD
+    return ULTRA_WIDE_DEFAULTS.CLOCK_SIDEBAR_WIDTH
+  }, [isUltraWide, isSuperUltraWide])
   const activeSinkSession = useActiveSinkSession()
   const timeSinks = useSortedTimeSinks()
 
@@ -1010,9 +1018,9 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             {/* Layout mode: ClockSidebar - Clock fixed left, timelines full width */}
             {effectiveLayout === WorkLoggerLayoutMode.ClockSidebar && (
               <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                {/* Clock Sidebar */}
+                {/* Clock Sidebar - width adapts to ultrawide screens */}
                 <div style={{
-                  width: ULTRA_WIDE_DEFAULTS.CLOCK_SIDEBAR_WIDTH,
+                  width: clockSidebarWidth,
                   flexShrink: 0,
                   position: 'sticky',
                   top: 16,

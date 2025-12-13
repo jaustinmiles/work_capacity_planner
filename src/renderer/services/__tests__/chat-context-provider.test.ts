@@ -340,6 +340,157 @@ describe('Chat Context Provider', () => {
 
       expect(result).toContain('Meetings: Team Standup (09:00-09:30)')
     })
+
+    it('should include work session details with task names', () => {
+      const context = createMockContext({
+        tasks: [
+          {
+            id: 'task-1',
+            name: 'Write Documentation',
+            duration: 60,
+            importance: 5,
+            urgency: 5,
+            type: 'focused',
+            sessionId: 'session-1',
+            asyncWaitTime: 0,
+            dependencies: [],
+            completed: false,
+            hasSteps: false,
+            overallStatus: TaskStatus.NotStarted,
+            criticalPathDuration: 60,
+            worstCaseDuration: 60,
+            createdAt: new Date('2024-01-15'),
+            updatedAt: new Date('2024-01-15'),
+          },
+        ],
+        workSessions: [
+          {
+            id: 'ws-1',
+            taskId: 'task-1',
+            startTime: new Date('2024-01-15T10:00:00Z'),
+            endTime: new Date('2024-01-15T10:45:00Z'),
+            plannedMinutes: 60,
+            actualMinutes: 45,
+          },
+        ],
+        summary: {
+          ...createMockContext().summary,
+          totalTasks: 1,
+          totalWorkSessions: 1,
+        },
+      })
+
+      const result = formatContextForAI(context)
+
+      expect(result).toContain('## Recent Work Sessions (1)')
+      expect(result).toContain('**Write Documentation**')
+      expect(result).toContain('45 min')
+    })
+
+    it('should show ACTIVE indicator for ongoing sessions', () => {
+      const context = createMockContext({
+        tasks: [
+          {
+            id: 'task-1',
+            name: 'Code Review',
+            duration: 30,
+            importance: 5,
+            urgency: 5,
+            type: 'admin',
+            sessionId: 'session-1',
+            asyncWaitTime: 0,
+            dependencies: [],
+            completed: false,
+            hasSteps: false,
+            overallStatus: TaskStatus.InProgress,
+            criticalPathDuration: 30,
+            worstCaseDuration: 30,
+            createdAt: new Date('2024-01-15'),
+            updatedAt: new Date('2024-01-15'),
+          },
+        ],
+        workSessions: [
+          {
+            id: 'ws-1',
+            taskId: 'task-1',
+            startTime: new Date('2024-01-15T09:30:00Z'),
+            // No endTime = ongoing session
+            plannedMinutes: 30,
+          },
+        ],
+        summary: {
+          ...createMockContext().summary,
+          totalTasks: 1,
+          totalWorkSessions: 1,
+        },
+      })
+
+      const result = formatContextForAI(context)
+
+      expect(result).toContain('**Code Review**')
+      expect(result).toContain('ongoing')
+      expect(result).toContain('ACTIVE')
+    })
+
+    it('should include workflow step names for step sessions', () => {
+      const context = createMockContext({
+        tasks: [
+          {
+            id: 'workflow-1',
+            name: 'Release v1.0',
+            duration: 180,
+            importance: 9,
+            urgency: 8,
+            type: 'focused',
+            sessionId: 'session-1',
+            asyncWaitTime: 0,
+            dependencies: [],
+            completed: false,
+            hasSteps: true,
+            overallStatus: TaskStatus.InProgress,
+            criticalPathDuration: 240,
+            worstCaseDuration: 300,
+            createdAt: new Date('2024-01-15'),
+            updatedAt: new Date('2024-01-15'),
+            steps: [
+              {
+                id: 'step-1',
+                taskId: 'workflow-1',
+                name: 'Write changelog',
+                duration: 30,
+                type: 'focused',
+                dependsOn: [],
+                asyncWaitTime: 0,
+                status: 'completed',
+                stepIndex: 0,
+                percentComplete: 100,
+              },
+            ],
+          },
+        ],
+        workSessions: [
+          {
+            id: 'ws-1',
+            taskId: 'workflow-1',
+            stepId: 'step-1',
+            startTime: new Date('2024-01-15T09:00:00Z'),
+            endTime: new Date('2024-01-15T09:30:00Z'),
+            plannedMinutes: 30,
+            actualMinutes: 30,
+          },
+        ],
+        summary: {
+          ...createMockContext().summary,
+          totalWorkflows: 1,
+          totalWorkSessions: 1,
+        },
+      })
+
+      const result = formatContextForAI(context)
+
+      expect(result).toContain('**Write changelog (workflow: Release v1.0)**')
+      expect(result).toContain('30 min')
+    })
   })
 
   describe('estimateTokenCount', () => {

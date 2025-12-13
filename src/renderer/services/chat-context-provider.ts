@@ -221,6 +221,69 @@ export function formatContextForAI(context: AppContext): string {
       formatted += `  - Meetings: ${pattern.meetings.map(m => `${m.name} (${m.startTime}-${m.endTime})`).join(', ')}\n`
     }
   })
+  formatted += '\n'
+
+  // Work Sessions - show actual session details, not just count
+  if (context.workSessions && context.workSessions.length > 0) {
+    formatted += `## Recent Work Sessions (${context.workSessions.length})\n\n`
+    formatted += 'These are actual work sessions the user has logged:\n\n'
+
+    // Create lookup maps for task and step names
+    const taskNameMap = new Map<string, string>()
+    const stepNameMap = new Map<string, { name: string; workflowName: string }>()
+
+    context.tasks.forEach(task => {
+      taskNameMap.set(task.id, task.name)
+      if (task.steps) {
+        task.steps.forEach(step => {
+          stepNameMap.set(step.id, { name: step.name, workflowName: task.name })
+        })
+      }
+    })
+
+    // Format each work session (limit to 10 most recent)
+    const recentSessions = context.workSessions.slice(0, 10)
+    recentSessions.forEach(session => {
+      // Determine what this session was for
+      let sessionName: string
+      if (session.stepId) {
+        const stepInfo = stepNameMap.get(session.stepId)
+        sessionName = stepInfo
+          ? `${stepInfo.name} (workflow: ${stepInfo.workflowName})`
+          : `Step ${session.stepId}`
+      } else {
+        sessionName = taskNameMap.get(session.taskId) || `Task ${session.taskId}`
+      }
+
+      // Calculate duration
+      let durationStr: string
+      if (session.endTime) {
+        const durationMs = session.endTime.getTime() - session.startTime.getTime()
+        const durationMinutes = Math.round(durationMs / 60000)
+        durationStr = `${durationMinutes} min`
+      } else {
+        durationStr = 'ongoing'
+      }
+
+      // Format the session entry
+      const isActive = !session.endTime
+      const startTimeStr = session.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      formatted += `- **${sessionName}**: ${durationStr}`
+      if (isActive) {
+        formatted += ' ⏱️ ACTIVE'
+      }
+      formatted += ` (started ${startTimeStr})`
+      if (session.notes) {
+        formatted += `\n  - Notes: ${session.notes.substring(0, 100)}${session.notes.length > 100 ? '...' : ''}`
+      }
+      formatted += '\n'
+    })
+
+    if (context.workSessions.length > 10) {
+      formatted += `\n_...and ${context.workSessions.length - 10} more sessions_\n`
+    }
+    formatted += '\n'
+  }
 
   return formatted
 }
