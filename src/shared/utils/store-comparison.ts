@@ -6,6 +6,7 @@
 import type { Task } from '@shared/types'
 import type { SequencedTask } from '@shared/sequencing-types'
 import type { WorkSettings } from '@shared/work-settings-types'
+import { StepStatus } from '@shared/enums'
 
 /**
  * Creates a deterministic key representing all relevant task properties
@@ -199,16 +200,16 @@ export function filterSchedulableWorkflows(workflows: SequencedTask[]): Sequence
     // Must have at least one actionable step (not completed, skipped, or waiting)
     // Steps in 'waiting' status have async work in progress and can't be started
     const hasActionableStep = workflow.steps.some(step =>
-      step.status !== 'completed' &&
-      step.status !== 'skipped' &&
-      step.status !== 'waiting',
+      step.status !== StepStatus.Completed &&
+      step.status !== StepStatus.Skipped &&
+      step.status !== StepStatus.Waiting,
     )
 
     // Also include workflows that have waiting steps (for schedule display)
     // but only if they also have pending steps that could become actionable
-    const hasWaitingStep = workflow.steps.some(step => step.status === 'waiting')
+    const hasWaitingStep = workflow.steps.some(step => step.status === StepStatus.Waiting)
     const hasPendingStep = workflow.steps.some(step =>
-      step.status === 'pending' || step.status === 'in_progress',
+      step.status === StepStatus.Pending || step.status === StepStatus.InProgress,
     )
 
     // Include if:
