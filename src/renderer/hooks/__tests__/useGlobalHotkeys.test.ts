@@ -6,7 +6,7 @@ describe('useGlobalHotkeys', () => {
     // Helper to create mock keyboard events
     const createKeyEvent = (
       key: string,
-      options: { ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean; metaKey?: boolean } = {}
+      options: { ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean; metaKey?: boolean } = {},
     ): KeyboardEvent => {
       return new KeyboardEvent('keydown', {
         key,
