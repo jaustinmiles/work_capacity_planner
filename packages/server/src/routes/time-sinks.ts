@@ -203,6 +203,58 @@ export async function timeSinkRoutes(fastify: FastifyInstance): Promise<void> {
     return session || null
   })
 
+  // GET /api/time-sink-sessions/accumulated - Get accumulated time by sink
+  fastify.get('/api/time-sink-sessions/accumulated', async (request) => {
+    const { startDate, endDate } = request.query as {
+      startDate?: string
+      endDate?: string
+    }
+
+    const sessionId = await getActiveSessionId()
+    if (!sessionId) return {}
+
+    const where: Record<string, unknown> = {
+      endTime: { not: null },
+      TimeSink: { sessionId },
+    }
+
+    if (startDate && endDate) {
+      where.startTime = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      }
+    }
+
+    const sessions = await db.timeSinkSession.findMany({
+      where,
+      select: {
+        actualMinutes: true,
+        TimeSink: {
+          select: { id: true, name: true, emoji: true, color: true },
+        },
+      },
+    })
+
+    // Group by time sink
+    const accumulated: Record<
+      string,
+      { timeSink: { id: string; name: string; emoji: string; color: string }; totalMinutes: number }
+    > = {}
+
+    for (const session of sessions) {
+      const sinkId = session.TimeSink.id
+      if (!accumulated[sinkId]) {
+        accumulated[sinkId] = {
+          timeSink: session.TimeSink,
+          totalMinutes: 0,
+        }
+      }
+      accumulated[sinkId].totalMinutes += session.actualMinutes || 0
+    }
+
+    return Object.values(accumulated)
+  })
+
   // POST /api/time-sink-sessions - Start a time sink session
   fastify.post('/api/time-sink-sessions', async (request, reply) => {
     const { timeSinkId, notes } = request.body as {
@@ -297,57 +349,5 @@ export async function timeSinkRoutes(fastify: FastifyInstance): Promise<void> {
     } catch {
       return reply.status(404).send({ error: 'Time sink session not found' })
     }
-  })
-
-  // GET /api/time-sink-sessions/accumulated - Get accumulated time by sink
-  fastify.get('/api/time-sink-sessions/accumulated', async (request) => {
-    const { startDate, endDate } = request.query as {
-      startDate?: string
-      endDate?: string
-    }
-
-    const sessionId = await getActiveSessionId()
-    if (!sessionId) return {}
-
-    const where: Record<string, unknown> = {
-      endTime: { not: null },
-      TimeSink: { sessionId },
-    }
-
-    if (startDate && endDate) {
-      where.startTime = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
-      }
-    }
-
-    const sessions = await db.timeSinkSession.findMany({
-      where,
-      select: {
-        actualMinutes: true,
-        TimeSink: {
-          select: { id: true, name: true, emoji: true, color: true },
-        },
-      },
-    })
-
-    // Group by time sink
-    const accumulated: Record<
-      string,
-      { timeSink: { id: string; name: string; emoji: string; color: string }; totalMinutes: number }
-    > = {}
-
-    for (const session of sessions) {
-      const sinkId = session.TimeSink.id
-      if (!accumulated[sinkId]) {
-        accumulated[sinkId] = {
-          timeSink: session.TimeSink,
-          totalMinutes: 0,
-        }
-      }
-      accumulated[sinkId].totalMinutes += session.actualMinutes || 0
-    }
-
-    return Object.values(accumulated)
   })
 }
