@@ -42,6 +42,30 @@ export async function sessionRoutes(fastify: FastifyInstance): Promise<void> {
     return session
   })
 
+  // PUT /api/sessions/:id - Update session details
+  fastify.put('/api/sessions/:id', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { name, description } = request.body as {
+      name?: string
+      description?: string
+    }
+
+    try {
+      const session = await db.session.update({
+        where: { id },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
+          updatedAt: new Date(),
+        },
+      })
+
+      return session
+    } catch {
+      return reply.status(404).send({ error: 'Session not found' })
+    }
+  })
+
   // PUT /api/sessions/:id/activate - Activate a session
   fastify.put('/api/sessions/:id/activate', async (request, reply) => {
     const { id } = request.params as { id: string }

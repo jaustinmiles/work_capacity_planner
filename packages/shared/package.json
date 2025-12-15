@@ -1,15 +1,27 @@
 {
   "name": "@task-planner/shared",
   "version": "0.1.0",
-  "description": "Shared types, enums, and utilities for Task Planner",
+  "description": "Shared types, enums, services, and utilities for Task Planner",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./services": {
+      "types": "./dist/services/index.d.ts",
+      "import": "./dist/services/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "openai": "^4.77.3",
     "date-fns": "^4.1.0"
   },
   "devDependencies": {

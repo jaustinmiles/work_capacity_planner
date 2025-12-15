@@ -18,6 +18,7 @@
     "@fastify/cors": "^10.0.0",
     "@fastify/multipart": "^9.0.0",
     "@prisma/client": "^6.13.0",
+    "@task-planner/shared": "workspace:*",
     "dotenv": "^17.2.1",
     "fastify": "^5.0.0",
     "openai": "^5.12.0",
@@ -27,7 +28,7 @@
     "@types/node": "^24.2.0",
     "pino-pretty": "^13.0.0",
     "prisma": "^6.13.0",
-    "tsx": "^4.19.0",
+    "tsx": "~4.20.0",
     "typescript": "^5.9.2"
   }
 }

@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import multipart from '@fastify/multipart'
 import { config } from 'dotenv'
 import { resolve } from 'path'
 import { networkInterfaces } from 'os'
@@ -15,7 +16,8 @@ import { workSessionRoutes } from './routes/work-sessions.js'
 import { workPatternRoutes } from './routes/work-patterns.js'
 import { userTaskTypeRoutes } from './routes/user-task-types.js'
 import { timeSinkRoutes } from './routes/time-sinks.js'
-// TODO: Add scheduling, AI, and speech routes once shared package is set up
+import { aiRoutes } from './routes/ai.js'
+import { speechRoutes } from './routes/speech.js'
 
 // Import database
 import { disconnectDb } from './db/index.js'
@@ -38,6 +40,13 @@ fastify.register(cors, {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 })
 
+// Enable multipart file uploads (for speech transcription)
+fastify.register(multipart, {
+  limits: {
+    fileSize: 25 * 1024 * 1024, // 25MB limit for Whisper API
+  },
+})
+
 // Health check endpoint
 fastify.get('/api/health', async () => {
   return {
@@ -45,7 +54,14 @@ fastify.get('/api/health', async () => {
     timestamp: new Date().toISOString(),
     version: '0.1.0',
     routes: {
-      sessions: ['GET /api/sessions', 'POST /api/sessions', 'PUT /api/sessions/:id/activate'],
+      sessions: [
+        'GET /api/sessions',
+        'GET /api/sessions/active',
+        'POST /api/sessions',
+        'PUT /api/sessions/:id',
+        'PUT /api/sessions/:id/activate',
+        'DELETE /api/sessions/:id',
+      ],
       tasks: [
         'GET /api/tasks',
         'POST /api/tasks',
@@ -54,14 +70,28 @@ fastify.get('/api/health', async () => {
         'DELETE /api/tasks/:id',
         'POST /api/tasks/:id/complete',
         'POST /api/tasks/:id/archive',
+        'POST /api/tasks/:id/promote',
         'GET /api/tasks/:id/steps',
         'POST /api/tasks/:id/steps',
+        'PUT /api/tasks/:taskId/steps/:stepId',
+        'DELETE /api/tasks/:taskId/steps/:stepId',
+      ],
+      workflows: [
+        'GET /api/workflows',
+        'POST /api/workflows',
+        'DELETE /api/workflows/:id',
       ],
       workSessions: [
         'GET /api/work-sessions',
+        'GET /api/work-sessions/active',
+        'GET /api/work-sessions/stats',
+        'GET /api/work-sessions/accumulated',
+        'GET /api/work-sessions/task/:taskId',
+        'GET /api/work-sessions/task/:taskId/total',
         'POST /api/work-sessions/start',
         'PUT /api/work-sessions/:id/stop',
-        'GET /api/work-sessions/stats',
+        'DELETE /api/work-sessions/:id',
+        'POST /api/work-sessions/:id/split',
       ],
       workPatterns: [
         'GET /api/work-patterns',
@@ -89,12 +119,20 @@ fastify.get('/api/health', async () => {
         'PUT /api/time-sinks/reorder',
         'GET /api/time-sink-sessions',
         'GET /api/time-sink-sessions/active',
+        'GET /api/time-sink-sessions/accumulated',
+        'GET /api/time-sink-sessions/date/:date',
         'POST /api/time-sink-sessions',
         'PUT /api/time-sink-sessions/:id/end',
         'DELETE /api/time-sink-sessions/:id',
-        'GET /api/time-sink-sessions/accumulated',
+        'POST /api/time-sink-sessions/:id/split',
       ],
-      // TODO: scheduling, ai, speech routes pending shared package setup
+      ai: [
+        'POST /api/ai/brainstorm',
+        'POST /api/ai/workflows',
+        'POST /api/ai/schedule',
+        'POST /api/ai/jargon',
+      ],
+      speech: ['GET /api/speech/formats', 'POST /api/speech/transcribe'],
     },
   }
 })
@@ -106,7 +144,8 @@ fastify.register(workSessionRoutes)
 fastify.register(workPatternRoutes)
 fastify.register(userTaskTypeRoutes)
 fastify.register(timeSinkRoutes)
-// TODO: Register scheduling, AI, and speech routes once shared package is set up
+fastify.register(aiRoutes)
+fastify.register(speechRoutes)
 
 // Get local network IP for mobile access
 function getLocalIP(): string {

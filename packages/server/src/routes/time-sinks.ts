@@ -255,6 +255,33 @@ export async function timeSinkRoutes(fastify: FastifyInstance): Promise<void> {
     return Object.values(accumulated)
   })
 
+  // GET /api/time-sink-sessions/date/:date - Get sessions for specific date
+  fastify.get('/api/time-sink-sessions/date/:date', async (request) => {
+    const { date } = request.params as { date: string }
+
+    const startOfDay = new Date(date)
+    startOfDay.setHours(0, 0, 0, 0)
+    const endOfDay = new Date(date)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    const sessions = await db.timeSinkSession.findMany({
+      where: {
+        startTime: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      include: {
+        TimeSink: {
+          select: { id: true, name: true, emoji: true, color: true },
+        },
+      },
+      orderBy: { startTime: 'desc' },
+    })
+
+    return sessions
+  })
+
   // POST /api/time-sink-sessions - Start a time sink session
   fastify.post('/api/time-sink-sessions', async (request, reply) => {
     const { timeSinkId, notes } = request.body as {
@@ -348,6 +375,83 @@ export async function timeSinkRoutes(fastify: FastifyInstance): Promise<void> {
       return { success: true }
     } catch {
       return reply.status(404).send({ error: 'Time sink session not found' })
+    }
+  })
+
+  // POST /api/time-sink-sessions/:id/split - Split session at a specific time
+  fastify.post('/api/time-sink-sessions/:id/split', async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { splitTime } = request.body as { splitTime: string }
+
+    const session = await db.timeSinkSession.findUnique({
+      where: { id },
+    })
+
+    if (!session) {
+      return reply.status(404).send({ error: 'Time sink session not found' })
+    }
+
+    const splitDate = new Date(splitTime)
+
+    // Validate split time is within session bounds
+    if (splitDate <= session.startTime) {
+      return reply.status(400).send({ error: 'Split time must be after session start' })
+    }
+
+    if (session.endTime && splitDate >= session.endTime) {
+      return reply.status(400).send({ error: 'Split time must be before session end' })
+    }
+
+    // Calculate minutes for first part
+    const firstPartMinutes = Math.round(
+      (splitDate.getTime() - session.startTime.getTime()) / (1000 * 60),
+    )
+
+    // Update original session to end at split point
+    await db.timeSinkSession.update({
+      where: { id },
+      data: {
+        endTime: splitDate,
+        actualMinutes: firstPartMinutes,
+      },
+    })
+
+    // Calculate minutes for second part
+    const secondPartEnd = session.endTime || new Date()
+    const secondPartMinutes = Math.round(
+      (secondPartEnd.getTime() - splitDate.getTime()) / (1000 * 60),
+    )
+
+    // Create new session starting at split point
+    const newSession = await db.timeSinkSession.create({
+      data: {
+        id: crypto.randomUUID(),
+        timeSinkId: session.timeSinkId,
+        startTime: splitDate,
+        endTime: session.endTime,
+        actualMinutes: session.endTime ? secondPartMinutes : null,
+        notes: session.notes,
+      },
+      include: {
+        TimeSink: {
+          select: { id: true, name: true, emoji: true, color: true },
+        },
+      },
+    })
+
+    // Return both sessions
+    const updatedOriginal = await db.timeSinkSession.findUnique({
+      where: { id },
+      include: {
+        TimeSink: {
+          select: { id: true, name: true, emoji: true, color: true },
+        },
+      },
+    })
+
+    return {
+      original: updatedOriginal,
+      new: newSession,
     }
   })
 }

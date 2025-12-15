@@ -317,4 +317,150 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(404).send({ error: 'Step not found' })
     }
   })
+
+  // === Workflows (tasks with steps) ===
+
+  // GET /api/workflows - Get all workflows for active session
+  fastify.get('/api/workflows', async () => {
+    const sessionId = await getActiveSessionId()
+    if (!sessionId) {
+      return []
+    }
+
+    const workflows = await db.task.findMany({
+      where: {
+        sessionId,
+        hasSteps: true,
+        archived: false,
+      },
+      include: {
+        TaskStep: {
+          orderBy: { stepIndex: 'asc' },
+        },
+      },
+      orderBy: [{ importance: 'desc' }, { urgency: 'desc' }, { createdAt: 'desc' }],
+    })
+
+    return workflows
+  })
+
+  // POST /api/workflows - Create workflow with steps
+  fastify.post('/api/workflows', async (request, reply) => {
+    const sessionId = await getActiveSessionId()
+    if (!sessionId) {
+      return reply.status(400).send({ error: 'No active session' })
+    }
+
+    const body = request.body as {
+      name: string
+      duration: number
+      importance: number
+      urgency: number
+      type: string
+      category?: string
+      notes?: string
+      deadline?: string
+      deadlineType?: string
+      cognitiveComplexity?: number
+      steps: Array<{
+        name: string
+        duration: number
+        type: string
+        dependsOn?: string[]
+        asyncWaitTime?: number
+        cognitiveComplexity?: number
+      }>
+    }
+
+    const taskId = crypto.randomUUID()
+
+    // Create the workflow task
+    const workflow = await db.task.create({
+      data: {
+        id: taskId,
+        sessionId,
+        name: body.name,
+        duration: body.duration,
+        importance: body.importance,
+        urgency: body.urgency,
+        type: body.type,
+        category: body.category || 'work',
+        notes: body.notes || null,
+        deadline: body.deadline ? new Date(body.deadline) : null,
+        deadlineType: body.deadlineType || null,
+        cognitiveComplexity: body.cognitiveComplexity || null,
+        hasSteps: true,
+        updatedAt: new Date(),
+      },
+    })
+
+    // Create all steps
+    if (body.steps && body.steps.length > 0) {
+      await db.taskStep.createMany({
+        data: body.steps.map((step, index) => ({
+          id: crypto.randomUUID(),
+          taskId,
+          name: step.name,
+          duration: step.duration,
+          type: step.type,
+          stepIndex: index,
+          dependsOn: JSON.stringify(step.dependsOn || []),
+          asyncWaitTime: step.asyncWaitTime || 0,
+          cognitiveComplexity: step.cognitiveComplexity || null,
+        })),
+      })
+    }
+
+    // Return workflow with steps
+    const result = await db.task.findUnique({
+      where: { id: taskId },
+      include: {
+        TaskStep: {
+          orderBy: { stepIndex: 'asc' },
+        },
+      },
+    })
+
+    return result
+  })
+
+  // DELETE /api/workflows/:id - Delete workflow and all its steps
+  fastify.delete('/api/workflows/:id', async (request, reply) => {
+    const { id } = request.params as { id: string }
+
+    try {
+      // Delete steps first (cascade should handle this, but be explicit)
+      await db.taskStep.deleteMany({
+        where: { taskId: id },
+      })
+
+      // Delete the workflow task
+      await db.task.delete({
+        where: { id },
+      })
+
+      return { success: true }
+    } catch {
+      return reply.status(404).send({ error: 'Workflow not found' })
+    }
+  })
+
+  // POST /api/tasks/:id/promote - Promote task to workflow
+  fastify.post('/api/tasks/:id/promote', async (request, reply) => {
+    const { id } = request.params as { id: string }
+
+    try {
+      const task = await db.task.update({
+        where: { id },
+        data: {
+          hasSteps: true,
+          updatedAt: new Date(),
+        },
+      })
+
+      return task
+    } catch {
+      return reply.status(404).send({ error: 'Task not found' })
+    }
+  })
 }
