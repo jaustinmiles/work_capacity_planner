@@ -5,6 +5,8 @@
  * Update SERVER_URL to your Mac's local IP address.
  */
 
+/* global fetch, RequestInit */
+
 // TODO: Make this configurable via app settings
 const SERVER_URL = 'http://192.168.1.100:3001'
 

@@ -155,6 +155,7 @@ export function ScheduleGenerator({
 
         // Always add the pattern, even if blocks are empty (for proper multi-day display)
         baseWorkPatterns.push({
+          id: `temp-${dateStr}`, // Temporary ID for in-memory patterns
           date: dateStr,
           blocks,
           meetings: [],
@@ -408,14 +409,14 @@ export function ScheduleGenerator({
         // User must explicitly define work blocks for each day
 
         // Save work pattern (preserve existing meetings like sleep blocks)
+        const blocksToSave = blocks.map((b: any) => ({
+          startTime: b.startTime,
+          endTime: b.endTime,
+          typeConfig: b.typeConfig, // Use typeConfig if available
+        }))
         await db.createWorkPattern({
           date: dateStr,
-          blocks: blocks.map(b => ({
-            startTime: b.startTime,
-            endTime: b.endTime,
-            type: b.type,
-            capacity: b.capacity,
-          })),
+          blocks: blocksToSave as any,
           meetings: existingMeetings,
         })
       }

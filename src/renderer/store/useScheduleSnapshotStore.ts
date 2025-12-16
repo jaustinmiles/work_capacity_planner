@@ -57,6 +57,11 @@ export const useScheduleSnapshotStore = create<ScheduleSnapshotStoreState>()(
       set({ isLoading: true, error: null })
 
       try {
+        // Snapshots not yet on HTTP server - use IPC if available
+        if (!window.electronAPI?.db) {
+          set({ snapshots: [], isLoading: false, isInitialized: true })
+          return
+        }
         const snapshots = await window.electronAPI.db.getScheduleSnapshots()
 
         set({
@@ -83,6 +88,11 @@ export const useScheduleSnapshotStore = create<ScheduleSnapshotStoreState>()(
      */
     loadTodaySnapshot: async (): Promise<void> => {
       try {
+        // Snapshots not yet on HTTP server - use IPC if available
+        if (!window.electronAPI?.db) {
+          set({ todaySnapshot: null })
+          return
+        }
         const todaySnapshot = await window.electronAPI.db.getTodayScheduleSnapshot()
         set({ todaySnapshot })
       } catch (error) {
@@ -96,6 +106,10 @@ export const useScheduleSnapshotStore = create<ScheduleSnapshotStoreState>()(
      */
     createSnapshot: async (scheduleResult: ScheduleResult, label?: string): Promise<ScheduleSnapshot> => {
       try {
+        // Snapshots not yet on HTTP server - use IPC if available
+        if (!window.electronAPI?.db) {
+          throw new Error('Schedule snapshots not available - server not connected')
+        }
         const snapshotData = createSnapshotData(scheduleResult, getCurrentTime())
         const newSnapshot = await window.electronAPI.db.createScheduleSnapshot(snapshotData, label)
 
@@ -123,6 +137,10 @@ export const useScheduleSnapshotStore = create<ScheduleSnapshotStoreState>()(
      */
     deleteSnapshot: async (id: string): Promise<void> => {
       try {
+        // Snapshots not yet on HTTP server - use IPC if available
+        if (!window.electronAPI?.db) {
+          throw new Error('Schedule snapshots not available - server not connected')
+        }
         const isTodaySnapshot = get().todaySnapshot?.id === id
 
         await window.electronAPI.db.deleteScheduleSnapshot(id)

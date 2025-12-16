@@ -19,6 +19,7 @@ import {
   isComboBlock,
   createEmptyAccumulatedTime,
 } from '@/shared/user-task-types'
+import { getDatabase } from '@/renderer/services/database'
 
 // Use dynamic accumulated time type
 type AccumulatedTime = AccumulatedTimeByType
@@ -146,7 +147,7 @@ export const useWorkPatternStore = create<WorkPatternStoreState>()(
     loadWorkPatterns: async () => {
       set({ isLoading: true, error: null })
       try {
-        const patterns = await window.electronAPI.db.getWorkPatterns()
+        const patterns = await getDatabase().getWorkPatterns()
 
         // Find today's pattern
         const currentTime = getCurrentTime()

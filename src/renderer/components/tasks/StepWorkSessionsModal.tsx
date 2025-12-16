@@ -134,11 +134,12 @@ export function StepWorkSessionsModal({
         : new Date()
 
       await getDatabase().createStepWorkSession({
-        taskStepId: stepId,
+        stepId: stepId,
         taskId: taskId,
         startTime: startTime,
-        duration: values.plannedMinutes,
+        plannedMinutes: values.plannedMinutes,
         notes: values.notes || '',
+        type: '', // Will be derived from task
       })
 
       Message.success('Work session added')

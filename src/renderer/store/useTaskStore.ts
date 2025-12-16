@@ -874,11 +874,12 @@ export const useTaskStore = create<TaskStore>()(
       // This prevents duplicate sessions: one from stop, one from create
       if (totalMinutes > 0 && !stoppedExistingSession) {
         await getDatabase().createStepWorkSession({
-          taskStepId: stepId,
+          stepId: stepId,
           // If there's a session, use its start time, otherwise calculate backward from now
           startTime: session?.startTime || addMinutes(getCurrentTime(), -totalMinutes),
-          duration: totalMinutes,
+          plannedMinutes: totalMinutes,
           notes,
+          type: '', // Will be derived from task
         })
       }
 
@@ -1110,10 +1111,11 @@ export const useTaskStore = create<TaskStore>()(
   logWorkSession: async (stepId: string, minutes: number, notes?: string) => {
     try {
       await getDatabase().createStepWorkSession({
-        taskStepId: stepId,
+        stepId: stepId,
         startTime: addMinutes(getCurrentTime(), -minutes), // Start time is minutes ago
-        duration: minutes,
+        plannedMinutes: minutes,
         notes,
+        type: '', // Will be derived from task
       })
 
       // Update step's actual duration

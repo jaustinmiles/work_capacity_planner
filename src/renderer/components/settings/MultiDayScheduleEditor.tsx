@@ -108,6 +108,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
 
         if (pattern) {
           patternsMap.set(dateStr, {
+            id: pattern.id || `temp-${dateStr}`,
             date: dateStr,
             blocks: pattern.blocks || [],
             meetings: pattern.meetings || [],

@@ -1,292 +1,108 @@
+/**
+ * Database service for the renderer process
+ *
+ * This service provides a unified interface for all data operations.
+ * It uses HTTP to communicate with the server (same server for desktop, mobile, and web).
+ *
+ * Server URL can be configured via setServerUrl() for connecting to remote servers.
+ *
+ * NOTE: Some features still use IPC (window.electronAPI) because they aren't yet
+ * implemented on the server. These will be migrated over time.
+ */
+
+/* global fetch */
+
 import { Task, Session, AICallOptions } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
-import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
-import { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, CreateTimeSinkSessionInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
+import {
+  UserTaskType,
+  CreateUserTaskTypeInput,
+  UpdateUserTaskTypeInput,
+  AccumulatedTimeResult,
+} from '@shared/user-task-types'
+import {
+  TimeSink,
+  TimeSinkSession,
+  CreateTimeSinkInput,
+  UpdateTimeSinkInput,
+  CreateTimeSinkSessionInput,
+  TimeSinkAccumulatedResult,
+} from '@shared/time-sink-types'
 import { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
 import { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import { DailyWorkPattern } from '@shared/work-blocks-types'
 
+// Import all API client functions
+import * as api from './api-client'
 
-// Type for the Electron API exposed by preload script
+// ============================================================================
+// GLOBAL TYPE DECLARATION FOR ELECTRON IPC
+// ONLY for features NOT YET migrated to the server
+// TODO: Remove these as each feature gets server routes
+// ============================================================================
 declare global {
   interface Window {
-
-    electronAPI: {
+    electronAPI?: {
       db: {
-        // Session management
-        getSessions: () => Promise<Session[]>
-        createSession: (__name: string, description?: string) => Promise<Session>
-        switchSession: (__sessionId: string) => Promise<Session>
-        updateSession: (id: string, __updates: { name?: string; description?: string }) => Promise<Session>
-        deleteSession: (id: string) => Promise<void>
-        getCurrentSession: () => Promise<any>
-        updateSchedulingPreferences: (sessionId: string, updates: any) => Promise<any>
-        // User task type operations
-        getUserTaskTypes: (sessionId?: string) => Promise<UserTaskType[]>
-        getUserTaskTypeById: (id: string) => Promise<UserTaskType | null>
-        createUserTaskType: (input: Omit<CreateUserTaskTypeInput, 'sessionId'>) => Promise<UserTaskType>
-        updateUserTaskType: (id: string, updates: UpdateUserTaskTypeInput) => Promise<UserTaskType>
-        deleteUserTaskType: (id: string) => Promise<void>
-        reorderUserTaskTypes: (orderedIds: string[]) => Promise<void>
-        sessionHasTaskTypes: (sessionId?: string) => Promise<boolean>
-        // Time sink operations
-        getTimeSinks: (sessionId?: string) => Promise<TimeSink[]>
-        getTimeSinkById: (id: string) => Promise<TimeSink | null>
-        createTimeSink: (input: Omit<CreateTimeSinkInput, 'sessionId'>) => Promise<TimeSink>
-        updateTimeSink: (id: string, updates: UpdateTimeSinkInput) => Promise<TimeSink>
-        deleteTimeSink: (id: string) => Promise<void>
-        reorderTimeSinks: (orderedIds: string[]) => Promise<void>
-        // Time sink session operations
-        createTimeSinkSession: (data: Omit<CreateTimeSinkSessionInput, 'startTime' | 'endTime'> & { startTime: string; endTime?: string }) => Promise<TimeSinkSession>
-        endTimeSinkSession: (id: string, actualMinutes: number, notes?: string) => Promise<TimeSinkSession>
-        getTimeSinkSessions: (timeSinkId: string) => Promise<TimeSinkSession[]>
-        getTimeSinkSessionsByDate: (date: string) => Promise<TimeSinkSession[]>
-        getActiveTimeSinkSession: () => Promise<TimeSinkSession | null>
-        getTimeSinkAccumulated: (startDate: string, endDate: string) => Promise<TimeSinkAccumulatedResult>
-        deleteTimeSinkSession: (id: string) => Promise<void>
-        // Task operations
-        getTasks: (includeArchived?: boolean) => Promise<Task[]>
-        getSequencedTasks: () => Promise<SequencedTask[]>
-        createTask: (__taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<Task>
-        createSequencedTask: (taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>) => Promise<SequencedTask>
-        updateTask: (__id: string, updates: Partial<Task>) => Promise<Task>
-        updateSequencedTask: (__id: string, updates: Partial<SequencedTask>) => Promise<SequencedTask>
-        deleteTask: (__id: string) => Promise<void>
-        archiveTask: (id: string) => Promise<Task>
-        unarchiveTask: (id: string) => Promise<Task>
-        promoteTaskToWorkflow: (taskId: string) => Promise<Task>
-        deleteSequencedTask: (id: string) => Promise<void>
-        addStepToWorkflow: (__workflowId: string, stepData: any) => Promise<SequencedTask>
-        initializeDefaultData: () => Promise<void>
-        getTaskById: (__id: string) => Promise<Task | null>
-        getSequencedTaskById: (id: string) => Promise<SequencedTask | null>
-        // Job context operations
-        getJobContexts: () => Promise<any[]>
-        getActiveJobContext: () => Promise<any | null>
-        createJobContext: (__data: any) => Promise<any>
-        updateJobContext: (id: string, __updates: any) => Promise<any>
+        // ❌ JOB CONTEXT - Not yet on server
+        getJobContexts: () => Promise<unknown[]>
+        getActiveJobContext: () => Promise<unknown | null>
+        createJobContext: (__data: unknown) => Promise<unknown>
+        updateJobContext: (id: string, __updates: unknown) => Promise<unknown>
         deleteJobContext: (id: string) => Promise<void>
-        addContextEntry: (__jobContextId: string, entry: any) => Promise<any>
-        // Jargon dictionary
-        getJargonEntries: () => Promise<any[]>
-        createJargonEntry: (__data: any) => Promise<any>
-        updateJargonEntry: (id: string, __updates: any) => Promise<any>
+        addContextEntry: (__jobContextId: string, entry: unknown) => Promise<unknown>
+
+        // ❌ JARGON DICTIONARY - Not yet on server
+        getJargonEntries: () => Promise<unknown[]>
+        createJargonEntry: (__data: unknown) => Promise<unknown>
+        updateJargonEntry: (id: string, __updates: unknown) => Promise<unknown>
         updateJargonDefinition: (term: string, __definition: string) => Promise<void>
         deleteJargonEntry: (id: string) => Promise<void>
         getJargonDictionary: () => Promise<Record<string, string>>
-        // Development helpers
-        deleteAllTasks: () => Promise<void>
-        deleteAllSequencedTasks: () => Promise<void>
-        deleteAllUserData: () => Promise<void>
-        // Work pattern operations
-        getWorkPattern: (__date: string) => Promise<any>
-        getWorkPatterns: () => Promise<any[]>
-        deleteWorkPattern: (id: string) => Promise<void>
-        createWorkPattern: (__data: any) => Promise<any>
-        updateWorkPattern: (id: string, __data: any) => Promise<any>
-        getWorkTemplates: () => Promise<any[]>
-        saveAsTemplate: (date: string, __templateName: string) => Promise<any>
-        // Work session operations
-        createWorkSession: (data: any) => Promise<any>
-        updateWorkSession: (__id: string, data: any) => Promise<any>
-        deleteWorkSession: (__id: string) => Promise<void>
-        splitWorkSession: (
-          sessionId: string,
-          splitTime: Date,
-          secondHalfTaskId?: string,
-          secondHalfStepId?: string
-        ) => Promise<{ firstHalf: UnifiedWorkSession; secondHalf: UnifiedWorkSession }>
-        splitTimeSinkSession: (
-          sessionId: string,
-          splitTime: Date
-        ) => Promise<{ firstHalf: TimeSinkSession; secondHalf: TimeSinkSession }>
-        getWorkSessions: (date: string) => Promise<any[]>
-        getActiveWorkSession: () => Promise<any | null>
-        getWorkSessionsForTask: (__taskId: string) => Promise<any[]>
-        getTaskTotalLoggedTime: (taskId: string) => Promise<number>
-        getTodayAccumulated: (__date: string) => Promise<AccumulatedTimeResult>
-        // Progress tracking operations
-        createStepWorkSession: (data: any) => Promise<any>
-        updateTaskStepProgress: (__stepId: string, data: any) => Promise<any>
-        getStepWorkSessions: (__stepId: string) => Promise<any[]>
-        recordTimeEstimate: (data: any) => Promise<any>
-        getTimeAccuracyStats: (__filters?: any) => Promise<any>
-        // Log viewer operations (dev mode)
-        getSessionLogs: (options?: LogQueryOptions) => Promise<LogEntry[]>
-        getLoggedSessions: () => Promise<SessionLogSummary[]>
-        // Schedule snapshot operations
+
+        // ❌ SCHEDULE SNAPSHOTS - Not yet on server
         createScheduleSnapshot: (data: ScheduleSnapshotData, label?: string) => Promise<ScheduleSnapshot>
         getScheduleSnapshots: (sessionId?: string) => Promise<ScheduleSnapshot[]>
         getScheduleSnapshotById: (id: string) => Promise<ScheduleSnapshot | null>
         getTodayScheduleSnapshot: () => Promise<ScheduleSnapshot | null>
         deleteScheduleSnapshot: (id: string) => Promise<void>
-      }
-      // Log persistence
-      persistLog?: (logEntry: any) => Promise<void>
-      persistLogs?: (logs: any[]) => Promise<void>
-      ai: {
-        extractTasksFromBrainstorm: (brainstormText: string) => Promise<{
-          tasks: Array<{
-            name: string
-            description: string
-            estimatedDuration: number
-            importance: number
-            urgency: number
-            type: string
-            needsMoreInfo?: boolean
-          }>
-          summary: string
-        }>
-        extractJargonTerms: (__contextText: string) => Promise<string>
-        extractWorkflowsFromBrainstorm: (brainstormText: string, __jobContext?: string) => Promise<{
-          workflows: Array<{
-            name: string
-            description: string
-            importance: number
-            urgency: number
-            type: string
-            steps: any[]
-            totalDuration: number
-            earliestCompletion: string
-            worstCaseCompletion: string
-            notes: string
-          }>
-          standaloneTasks: Array<{
-            name: string
-            description: string
-            estimatedDuration: number
-            importance: number
-            urgency: number
-            type: string
-            needsMoreInfo?: boolean
-          }>
-          summary: string
-        }>
-        generateWorkflowSteps: (taskDescription: string, __context?: any) => Promise<{
-          workflowName: string
-          steps: any[]
-          duration: number
-          notes: string
-        }>
-        enhanceTaskDetails: (taskName: string, __currentDetails?: any) => Promise<{
-          suggestions: any
-          confidence: number
-        }>
-        getContextualQuestions: (taskName: string, __taskDescription?: string) => Promise<{
-          questions: Array<{
-            question: string
-            type: 'text' | 'number' | 'choice'
-            choices?: string[]
-            purpose: string
-          }>
-        }>
-        getJobContextualQuestions: (brainstormText: string, __jobContext?: string) => Promise<{
-          questions: Array<{
-            question: string
-            type: 'text' | 'number' | 'choice'
-            choices?: string[]
-            purpose: string
-            priority: 'high' | 'medium' | 'low'
-          }>
-          suggestedJobContext?: string
-        }>
-        extractScheduleFromVoice: (voiceText: string, __targetDate: string) => Promise<{
-          date: string
-          blocks: Array<{
-            id: string
-            startTime: string
-            endTime: string
-            type: string | 'mixed'
-            capacity?: {
-              focused: number
-              admin: number
-            }
-          }>
-          meetings: Array<{
-            id: string
-            name: string
-            startTime: string
-            endTime: string
-            type: 'meeting' | 'break' | 'personal' | 'blocked'
-          }>
-          summary: string
-        }>
-        extractMultiDayScheduleFromVoice: (voiceText: string, __startDate: string) => Promise<Array<{
-          date: string
-          blocks: Array<{
-            id: string
-            startTime: string
-            endTime: string
-            type: string | 'mixed' | 'personal'
-            capacity?: {
-              focusMinutes?: number
-              adminMinutes?: number
-              personalMinutes?: number
-            }
-          }>
-          meetings: Array<{
-            id: string
-            name: string
-            startTime: string
-            endTime: string
-            type: 'meeting' | 'break' | 'personal' | 'blocked'
-          }>
-          summary: string
-        }>>
-        parseAmendment: (transcription: string, __context: any) => Promise<any>
-        callAI: (options: AICallOptions) => Promise<{ content: string }>
-      }
-      speech: {
-        transcribeAudio: (audioFilePath: string, __options?: any) => Promise<{
-          text: string
-        }>
-        transcribeAudioBuffer: (audioBuffer: Buffer, __filename: string, options?: any) => Promise<{
-          text: string
-        }>
-        getSupportedFormats: () => Promise<string[]>
-        getBrainstormingSettings: () => Promise<{
-          language: string
-          prompt: string
-        }>
-        getWorkflowSettings: () => Promise<{
-          language: string
-          prompt: string
-        }>
-        getSchedulingSettings: () => Promise<{
-          language: string
-          prompt: string
-        }>
-      }
-      // Feedback operations
-      saveFeedback?: (feedback: any) => Promise<boolean>
-      readFeedback?: () => Promise<any[]>
-      loadFeedback?: () => Promise<any[]>
-      updateFeedback?: (updatedFeedback: any) => Promise<boolean>
-      getSessionId?: () => Promise<string>
-      // Main process logging
-      onMainLog?: (callback: (entry: any) => void) => void
-    }
 
+        // ❌ LOG VIEWER - Dev-only, not exposed via HTTP
+        getSessionLogs: (options?: LogQueryOptions) => Promise<LogEntry[]>
+        getLoggedSessions: () => Promise<SessionLogSummary[]>
+
+        // ❌ DEV HELPERS - Intentionally not exposed via HTTP for safety
+        deleteAllTasks: () => Promise<void>
+        deleteAllSequencedTasks: () => Promise<void>
+        deleteAllUserData: () => Promise<void>
+      }
+      // ❌ LOG PERSISTENCE - Dev-only
+      persistLog?: (logEntry: unknown) => Promise<void>
+      persistLogs?: (logs: unknown[]) => Promise<void>
+
+      // ❌ FEEDBACK - Dev-only
+      saveFeedback?: (feedback: unknown) => Promise<boolean>
+      readFeedback?: () => Promise<unknown[]>
+      loadFeedback?: () => Promise<unknown[]>
+      updateFeedback?: (updatedFeedback: unknown) => Promise<boolean>
+      getSessionId?: () => Promise<string>
+
+      // ❌ MAIN PROCESS LOGGING - Electron-only
+      onMainLog?: (callback: (entry: unknown) => void) => void
+    }
   }
 }
 
 /**
  * Database service for the renderer process
- * Uses Electron IPC to communicate with the main process database
+ * Uses HTTP to communicate with the server
  */
 export class RendererDatabaseService {
   private static instance: RendererDatabaseService
 
   private constructor() {
-    // Check if we're in an Electron environment
-    if (typeof window === 'undefined') {
-      throw new Error('Window object not available')
-    }
-
-    // Wait for electronAPI to be available (it might load asynchronously)
-    if (!window.electronAPI) {
-      throw new Error('Electron API not available. Make sure the preload script is loaded correctly.')
-    }
+    // No special initialization needed for HTTP client
   }
 
   static getInstance(): RendererDatabaseService {
@@ -296,38 +112,76 @@ export class RendererDatabaseService {
     return RendererDatabaseService.instance
   }
 
-  // Session management
+  /**
+   * Configure the server URL for API requests
+   * Call this before any other operations to connect to a different server
+   */
+  setServerUrl(url: string): void {
+    api.setApiBaseUrl(url)
+  }
+
+  /**
+   * Get the current server URL
+   */
+  getServerUrl(): string {
+    return api.getApiBaseUrl()
+  }
+
+  /**
+   * Check if the server is reachable
+   */
+  async checkServerHealth(): Promise<boolean> {
+    try {
+      const response = await fetch(`${api.getApiBaseUrl()}/api/health`)
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+
+  // ============================================================================
+  // SESSION MANAGEMENT
+  // ============================================================================
+
   async getSessions(): Promise<Session[]> {
-    return await window.electronAPI.db.getSessions()
+    return await api.getSessions()
   }
 
   async createSession(name: string, description?: string): Promise<Session> {
-    const session = await window.electronAPI.db.createSession(name, description)
+    const session = await api.createSession(name, description)
     // Save the newly created session as last used
-    window.localStorage.setItem('lastUsedSessionId', session.id)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('lastUsedSessionId', session.id)
+    }
     return session
   }
 
   async switchSession(sessionId: string): Promise<Session> {
-    const session = await window.electronAPI.db.switchSession(sessionId)
+    const session = await api.activateSession(sessionId)
     // Save the last used session ID to localStorage
-    window.localStorage.setItem('lastUsedSessionId', sessionId)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('lastUsedSessionId', sessionId)
+    }
     return session
   }
 
   async updateSession(id: string, updates: { name?: string; description?: string }): Promise<Session> {
-    return await window.electronAPI.db.updateSession(id, updates)
+    return await api.updateSession(id, updates)
   }
 
   async deleteSession(id: string): Promise<void> {
-    return await window.electronAPI.db.deleteSession(id)
+    return await api.deleteSession(id)
   }
 
-  async getCurrentSession(): Promise<any> {
-    return await window.electronAPI.db.getCurrentSession()
+  async getCurrentSession(): Promise<Session | null> {
+    return await api.getActiveSession()
   }
 
   async loadLastUsedSession(): Promise<void> {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return
+    }
+
     const lastUsedSessionId = window.localStorage.getItem('lastUsedSessionId')
 
     if (lastUsedSessionId) {
@@ -343,257 +197,240 @@ export class RendererDatabaseService {
           // Session no longer exists, clear the stored ID
           window.localStorage.removeItem('lastUsedSessionId')
         }
-      } catch (_error) {
+      } catch {
         window.localStorage.removeItem('lastUsedSessionId')
       }
     }
   }
 
-  async updateSchedulingPreferences(sessionId: string, updates: any): Promise<any> {
-    return await window.electronAPI.db.updateSchedulingPreferences(sessionId, updates)
+  async updateSchedulingPreferences(sessionId: string, updates: unknown): Promise<unknown> {
+    return await api.updateSchedulingPreferences(sessionId, updates)
   }
 
-  // Task operations
+  // ============================================================================
+  // TASK OPERATIONS
+  // ============================================================================
+
   async getTasks(includeArchived = false): Promise<Task[]> {
-    return await window.electronAPI.db.getTasks(includeArchived)
+    return await api.getTasks({ archived: includeArchived ? undefined : false })
   }
 
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<Task> {
-    return await window.electronAPI.db.createTask(taskData)
+    return await api.createTask(taskData)
   }
 
   async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
-    return await window.electronAPI.db.updateTask(id, updates)
+    return await api.updateTask(id, updates)
   }
 
   async deleteTask(id: string): Promise<void> {
-    return await window.electronAPI.db.deleteTask(id)
+    return await api.deleteTask(id)
   }
 
   async archiveTask(id: string): Promise<Task> {
-    return await window.electronAPI.db.archiveTask(id)
+    return await api.archiveTask(id)
   }
 
   async unarchiveTask(id: string): Promise<Task> {
-    return await window.electronAPI.db.unarchiveTask(id)
+    return await api.unarchiveTask(id)
   }
 
   async promoteTaskToWorkflow(taskId: string): Promise<Task> {
-    return await window.electronAPI.db.promoteTaskToWorkflow(taskId)
+    return await api.promoteTaskToWorkflow(taskId)
   }
 
-  // Sequenced task operations
+  async getTaskById(id: string): Promise<Task | null> {
+    return await api.getTaskById(id)
+  }
+
+  // ============================================================================
+  // SEQUENCED TASK / WORKFLOW OPERATIONS
+  // ============================================================================
+
   async getSequencedTasks(): Promise<SequencedTask[]> {
-    return await window.electronAPI.db.getSequencedTasks()
+    return await api.getWorkflows()
   }
 
-  async createSequencedTask(taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>): Promise<SequencedTask> {
-    return await window.electronAPI.db.createSequencedTask(taskData)
+  async createSequencedTask(
+    taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>,
+  ): Promise<SequencedTask> {
+    return await api.createWorkflow(taskData)
   }
 
   async updateSequencedTask(id: string, updates: Partial<SequencedTask>): Promise<SequencedTask> {
-    return await window.electronAPI.db.updateSequencedTask(id, updates)
+    return await api.updateTask(id, updates)
   }
 
   async deleteSequencedTask(id: string): Promise<void> {
-    return await window.electronAPI.db.deleteSequencedTask(id)
+    return await api.deleteWorkflow(id)
   }
 
-  async addStepToWorkflow(workflowId: string, stepData: {
-    name: string
-    duration: number
-    type: string // User-defined task type ID
-    afterStep?: string
-    beforeStep?: string
-    dependencies?: string[]
-    asyncWaitTime?: number
-  }): Promise<SequencedTask> {
-    return await window.electronAPI.db.addStepToWorkflow(workflowId, stepData)
-  }
-
-  // Utility methods
-  async getTaskById(id: string): Promise<Task | null> {
-    return await window.electronAPI.db.getTaskById(id)
+  async addStepToWorkflow(
+    workflowId: string,
+    stepData: {
+      name: string
+      duration: number
+      type: string
+      afterStep?: string
+      beforeStep?: string
+      dependencies?: string[]
+      asyncWaitTime?: number
+    },
+  ): Promise<SequencedTask> {
+    return await api.addStepToWorkflow(workflowId, stepData)
   }
 
   async getSequencedTaskById(id: string): Promise<SequencedTask | null> {
-    return await window.electronAPI.db.getSequencedTaskById(id)
+    return await api.getTaskById(id)
   }
 
-  // Initialize with default data
-  async initializeDefaultData(): Promise<void> {
-    return await window.electronAPI.db.initializeDefaultData()
+  // ============================================================================
+  // USER TASK TYPE OPERATIONS
+  // ============================================================================
+
+  async getUserTaskTypes(_sessionId?: string): Promise<UserTaskType[]> {
+    return await api.getUserTaskTypes()
   }
 
-  // AI-powered operations
-  async extractTasksFromBrainstorm(brainstormText: string) {
-    return await window.electronAPI.ai.extractTasksFromBrainstorm(brainstormText)
+  async getUserTaskTypeById(id: string): Promise<UserTaskType | null> {
+    return await api.getUserTaskTypeById(id)
   }
 
-  async extractWorkflowsFromBrainstorm(brainstormText: string, jobContext?: string) {
-    return await window.electronAPI.ai.extractWorkflowsFromBrainstorm(brainstormText, jobContext)
+  async createUserTaskType(input: Omit<CreateUserTaskTypeInput, 'sessionId'>): Promise<UserTaskType> {
+    return await api.createUserTaskType(input)
   }
 
-  async generateWorkflowSteps(taskDescription: string, context?: any) {
-    return await window.electronAPI.ai.generateWorkflowSteps(taskDescription, context)
+  async updateUserTaskType(id: string, updates: UpdateUserTaskTypeInput): Promise<UserTaskType> {
+    return await api.updateUserTaskType(id, updates)
   }
 
-  async enhanceTaskDetails(taskName: string, currentDetails?: any) {
-    return await window.electronAPI.ai.enhanceTaskDetails(taskName, currentDetails)
+  async deleteUserTaskType(id: string): Promise<void> {
+    return await api.deleteUserTaskType(id)
   }
 
-  async getContextualQuestions(taskName: string, taskDescription?: string) {
-    return await window.electronAPI.ai.getContextualQuestions(taskName, taskDescription)
+  async reorderUserTaskTypes(orderedIds: string[]): Promise<void> {
+    return await api.reorderUserTaskTypes(orderedIds)
   }
 
-  async getJobContextualQuestions(brainstormText: string, jobContext?: string) {
-    return await window.electronAPI.ai.getJobContextualQuestions(brainstormText, jobContext)
+  async sessionHasTaskTypes(_sessionId?: string): Promise<boolean> {
+    return await api.sessionHasTaskTypes()
   }
 
-  async extractScheduleFromVoice(voiceText: string, targetDate: string) {
-    return await window.electronAPI.ai.extractScheduleFromVoice(voiceText, targetDate)
+  // ============================================================================
+  // TIME SINK OPERATIONS
+  // ============================================================================
+
+  async getTimeSinks(_sessionId?: string): Promise<TimeSink[]> {
+    return await api.getTimeSinks()
   }
 
-  async extractMultiDayScheduleFromVoice(voiceText: string, startDate: string) {
-    return await window.electronAPI.ai.extractMultiDayScheduleFromVoice(voiceText, startDate)
+  async getTimeSinkById(id: string): Promise<TimeSink | null> {
+    return await api.getTimeSinkById(id)
   }
 
-  async extractJargonTerms(contextText: string) {
-    return await window.electronAPI.ai.extractJargonTerms(contextText)
+  async createTimeSink(input: Omit<CreateTimeSinkInput, 'sessionId'>): Promise<TimeSink> {
+    return await api.createTimeSink(input)
   }
 
-  async callAI(options: AICallOptions) {
-    return await window.electronAPI.ai.callAI(options)
+  async updateTimeSink(id: string, updates: UpdateTimeSinkInput): Promise<TimeSink> {
+    return await api.updateTimeSink(id, updates)
   }
 
-  // Speech-to-text operations
-  async transcribeAudio(audioFilePath: string, options?: any) {
-    return await window.electronAPI.speech.transcribeAudio(audioFilePath, options)
+  async deleteTimeSink(id: string): Promise<void> {
+    return await api.deleteTimeSink(id)
   }
 
-  async transcribeAudioBuffer(audioBuffer: Buffer, filename: string, options?: any) {
-    return await window.electronAPI.speech.transcribeAudioBuffer(audioBuffer, filename, options)
+  async reorderTimeSinks(orderedIds: string[]): Promise<void> {
+    return await api.reorderTimeSinks(orderedIds)
   }
 
-  async getSupportedFormats() {
-    return await window.electronAPI.speech.getSupportedFormats()
+  // ============================================================================
+  // TIME SINK SESSION OPERATIONS
+  // ============================================================================
+
+  async createTimeSinkSession(
+    data: Omit<CreateTimeSinkSessionInput, 'startTime' | 'endTime'> & { startTime: string; endTime?: string },
+  ): Promise<TimeSinkSession> {
+    return await api.createTimeSinkSession(data)
   }
 
-  async getBrainstormingSettings() {
-    return await window.electronAPI.speech.getBrainstormingSettings()
+  async endTimeSinkSession(id: string, actualMinutes: number, notes?: string): Promise<TimeSinkSession> {
+    return await api.endTimeSinkSession(id, actualMinutes, notes)
   }
 
-  async getWorkflowSettings() {
-    return await window.electronAPI.speech.getWorkflowSettings()
+  async getTimeSinkSessions(timeSinkId: string): Promise<TimeSinkSession[]> {
+    return await api.getTimeSinkSessions(timeSinkId)
   }
 
-  async getSchedulingSettings() {
-    return await window.electronAPI.speech.getSchedulingSettings()
+  async getTimeSinkSessionsByDate(date: string): Promise<TimeSinkSession[]> {
+    return await api.getTimeSinkSessionsByDate(date)
   }
 
-  // Job context operations
-  async getJobContexts() {
-    return await window.electronAPI.db.getJobContexts()
+  async getActiveTimeSinkSession(): Promise<TimeSinkSession | null> {
+    return await api.getActiveTimeSinkSession()
   }
 
-  async getActiveJobContext() {
-    return await window.electronAPI.db.getActiveJobContext()
+  async getTimeSinkAccumulated(startDate: string, endDate: string): Promise<TimeSinkAccumulatedResult> {
+    return await api.getTimeSinkAccumulated(startDate, endDate)
   }
 
-  async createJobContext(data: any) {
-    return await window.electronAPI.db.createJobContext(data)
+  async deleteTimeSinkSession(id: string): Promise<void> {
+    return await api.deleteTimeSinkSession(id)
   }
 
-  async updateJobContext(id: string, updates: any) {
-    return await window.electronAPI.db.updateJobContext(id, updates)
+  async splitTimeSinkSession(
+    sessionId: string,
+    splitTime: Date,
+  ): Promise<{ firstHalf: TimeSinkSession; secondHalf: TimeSinkSession }> {
+    return await api.splitTimeSinkSession(sessionId, splitTime)
   }
 
-  async deleteJobContext(id: string) {
-    return await window.electronAPI.db.deleteJobContext(id)
+  // ============================================================================
+  // WORK PATTERN OPERATIONS
+  // ============================================================================
+
+  async getWorkPattern(date: string): Promise<DailyWorkPattern | null> {
+    return (await api.getWorkPattern(date)) as DailyWorkPattern | null
   }
 
-  async addContextEntry(jobContextId: string, entry: any) {
-    return await window.electronAPI.db.addContextEntry(jobContextId, entry)
+  async createWorkPattern(data: Partial<DailyWorkPattern>): Promise<DailyWorkPattern> {
+    return (await api.createWorkPattern(data)) as DailyWorkPattern
   }
 
-  // Jargon dictionary operations
-  async getJargonEntries() {
-    return await window.electronAPI.db.getJargonEntries()
+  async updateWorkPattern(id: string, data: Partial<DailyWorkPattern>): Promise<DailyWorkPattern> {
+    return (await api.updateWorkPattern(id, data)) as DailyWorkPattern
   }
 
-  async createJargonEntry(data: any) {
-    return await window.electronAPI.db.createJargonEntry(data)
+  async getWorkPatterns(): Promise<DailyWorkPattern[]> {
+    return (await api.getWorkPatterns()) as DailyWorkPattern[]
   }
 
-  async updateJargonEntry(id: string, updates: any) {
-    return await window.electronAPI.db.updateJargonEntry(id, updates)
+  async deleteWorkPattern(id: string): Promise<void> {
+    return await api.deleteWorkPattern(id)
   }
 
-  async updateJargonDefinition(term: string, definition: string) {
-    return await window.electronAPI.db.updateJargonDefinition(term, definition)
+  async getWorkTemplates(): Promise<DailyWorkPattern[]> {
+    return (await api.getWorkTemplates()) as DailyWorkPattern[]
   }
 
-  async deleteJargonEntry(id: string) {
-    return await window.electronAPI.db.deleteJargonEntry(id)
+  async saveAsTemplate(date: string, templateName: string): Promise<DailyWorkPattern> {
+    return (await api.saveAsTemplate(date, templateName)) as DailyWorkPattern
   }
 
-  async getJargonDictionary() {
-    return await window.electronAPI.db.getJargonDictionary()
+  // ============================================================================
+  // WORK SESSION OPERATIONS
+  // ============================================================================
+
+  async createWorkSession(data: Partial<UnifiedWorkSession>): Promise<UnifiedWorkSession> {
+    return (await api.createWorkSession(data)) as UnifiedWorkSession
   }
 
-  // Development helpers
-  async deleteAllTasks() {
-    return await window.electronAPI.db.deleteAllTasks()
+  async updateWorkSession(id: string, data: Partial<UnifiedWorkSession>): Promise<UnifiedWorkSession> {
+    return (await api.updateWorkSession(id, data)) as UnifiedWorkSession
   }
 
-  async deleteAllSequencedTasks() {
-    return await window.electronAPI.db.deleteAllSequencedTasks()
-  }
-
-  async deleteAllUserData() {
-    return await window.electronAPI.db.deleteAllUserData()
-  }
-
-  // Work pattern operations
-  async getWorkPattern(date: string) {
-    return await window.electronAPI.db.getWorkPattern(date)
-  }
-
-  async createWorkPattern(data: any) {
-    return await window.electronAPI.db.createWorkPattern(data)
-  }
-
-  async updateWorkPattern(id: string, data: any) {
-    return await window.electronAPI.db.updateWorkPattern(id, data)
-  }
-
-  async getWorkPatterns() {
-    return await window.electronAPI.db.getWorkPatterns()
-  }
-
-  async deleteWorkPattern(id: string) {
-    return await window.electronAPI.db.deleteWorkPattern(id)
-  }
-
-  async getWorkTemplates() {
-    return await window.electronAPI.db.getWorkTemplates()
-  }
-
-  async saveAsTemplate(date: string, templateName: string) {
-    return await window.electronAPI.db.saveAsTemplate(date, templateName)
-  }
-
-  // Work session operations
-  async createWorkSession(data: any) {
-    return await window.electronAPI.db.createWorkSession(data)
-  }
-
-  async updateWorkSession(id: string, data: any) {
-    return await window.electronAPI.db.updateWorkSession(id, data)
-  }
-
-  async deleteWorkSession(id: string) {
-    return await window.electronAPI.db.deleteWorkSession(id)
+  async deleteWorkSession(id: string): Promise<void> {
+    return await api.deleteWorkSession(id)
   }
 
   async splitWorkSession(
@@ -602,93 +439,377 @@ export class RendererDatabaseService {
     secondHalfTaskId?: string,
     secondHalfStepId?: string,
   ): Promise<{ firstHalf: UnifiedWorkSession; secondHalf: UnifiedWorkSession }> {
-    return await window.electronAPI.db.splitWorkSession(sessionId, splitTime, secondHalfTaskId, secondHalfStepId)
+    return await api.splitWorkSession(sessionId, splitTime, secondHalfTaskId, secondHalfStepId)
   }
 
-  async splitTimeSinkSession(
-    sessionId: string,
-    splitTime: Date,
-  ): Promise<{ firstHalf: TimeSinkSession; secondHalf: TimeSinkSession }> {
-    return await window.electronAPI.db.splitTimeSinkSession(sessionId, splitTime)
+  async getWorkSessions(date: string): Promise<UnifiedWorkSession[]> {
+    return (await api.getWorkSessions(date)) as UnifiedWorkSession[]
   }
 
-  async getWorkSessions(date: string) {
-    return await window.electronAPI.db.getWorkSessions(date)
+  async getActiveWorkSession(): Promise<UnifiedWorkSession | null> {
+    return (await api.getActiveWorkSession()) as UnifiedWorkSession | null
   }
 
-  async getTimeSinkSessionsByDate(date: string): Promise<TimeSinkSession[]> {
-    return await window.electronAPI.db.getTimeSinkSessionsByDate(date)
+  async getWorkSessionsForTask(taskId: string): Promise<UnifiedWorkSession[]> {
+    return (await api.getWorkSessionsForTask(taskId)) as UnifiedWorkSession[]
   }
 
-  async getActiveWorkSession() {
-    return await window.electronAPI.db.getActiveWorkSession()
+  async getTaskTotalLoggedTime(taskId: string): Promise<number> {
+    return await api.getTaskTotalLoggedTime(taskId)
   }
 
-  async getWorkSessionsForTask(taskId: string) {
-    return await window.electronAPI.db.getWorkSessionsForTask(taskId)
+  async getTodayAccumulated(date: string): Promise<AccumulatedTimeResult> {
+    return await api.getTodayAccumulated(date)
   }
 
-  async getTaskTotalLoggedTime(taskId: string) {
-    return await window.electronAPI.db.getTaskTotalLoggedTime(taskId)
+  // ============================================================================
+  // PROGRESS TRACKING OPERATIONS
+  // ============================================================================
+
+  async createStepWorkSession(data: Partial<UnifiedWorkSession>): Promise<UnifiedWorkSession> {
+    return (await api.createStepWorkSession(data)) as UnifiedWorkSession
   }
 
-  async getTodayAccumulated(date: string) {
-    return await window.electronAPI.db.getTodayAccumulated(date)
+  async updateTaskStepProgress(stepId: string, data: Record<string, unknown>): Promise<void> {
+    await api.updateTaskStepProgress(stepId, data)
   }
 
-  async getTimeSinkAccumulated(startDate: string, endDate: string): Promise<TimeSinkAccumulatedResult> {
-    return await window.electronAPI.db.getTimeSinkAccumulated(startDate, endDate)
+  async getStepWorkSessions(stepId: string): Promise<UnifiedWorkSession[]> {
+    return (await api.getStepWorkSessions(stepId)) as UnifiedWorkSession[]
   }
 
-  // Progress tracking operations
-  async createStepWorkSession(data: any) {
-    return await window.electronAPI.db.createStepWorkSession(data)
+  async recordTimeEstimate(data: Record<string, unknown>): Promise<void> {
+    await api.recordTimeEstimate(data)
   }
 
-  async updateTaskStepProgress(stepId: string, data: any) {
-    return await window.electronAPI.db.updateTaskStepProgress(stepId, data)
+  async getTimeAccuracyStats(filters?: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return (await api.getTimeAccuracyStats(filters)) as Record<string, unknown>
   }
 
-  async getStepWorkSessions(stepId: string) {
-    return await window.electronAPI.db.getStepWorkSessions(stepId)
+  // ============================================================================
+  // AI-POWERED OPERATIONS
+  // ============================================================================
+
+  async extractTasksFromBrainstorm(brainstormText: string): Promise<{
+    tasks: Array<{
+      name: string
+      description: string
+      estimatedDuration: number
+      importance: number
+      urgency: number
+      type: string
+      needsMoreInfo?: boolean
+    }>
+    summary: string
+  }> {
+    return await api.extractTasksFromBrainstorm(brainstormText)
   }
 
-  async recordTimeEstimate(data: any) {
-    return await window.electronAPI.db.recordTimeEstimate(data)
+  async extractWorkflowsFromBrainstorm(
+    brainstormText: string,
+    jobContext?: string,
+  ): Promise<{
+    workflows: Array<{
+      name: string
+      description: string
+      importance: number
+      urgency: number
+      type: string
+      steps: unknown[]
+      totalDuration: number
+      earliestCompletion: string
+      worstCaseCompletion: string
+      notes: string
+    }>
+    standaloneTasks: Array<{
+      name: string
+      description: string
+      estimatedDuration: number
+      importance: number
+      urgency: number
+      type: string
+      needsMoreInfo?: boolean
+    }>
+    summary: string
+  }> {
+    return await api.extractWorkflowsFromBrainstorm(brainstormText, jobContext)
   }
 
-  async getTimeAccuracyStats(filters?: any) {
-    return await window.electronAPI.db.getTimeAccuracyStats(filters)
+  async generateWorkflowSteps(
+    taskDescription: string,
+    context?: unknown,
+  ): Promise<{
+    workflowName: string
+    steps: unknown[]
+    duration: number
+    notes: string
+  }> {
+    return await api.generateWorkflowSteps(taskDescription, context)
   }
 
-  // Log viewer operations (dev mode)
-  async getSessionLogs(options?: LogQueryOptions): Promise<LogEntry[]> {
-    return await window.electronAPI.db.getSessionLogs(options)
+  async enhanceTaskDetails(
+    taskName: string,
+    currentDetails?: unknown,
+  ): Promise<{
+    suggestions: unknown
+    confidence: number
+  }> {
+    return await api.enhanceTaskDetails(taskName, currentDetails)
   }
 
-  async getLoggedSessions(): Promise<SessionLogSummary[]> {
-    return await window.electronAPI.db.getLoggedSessions()
+  async getContextualQuestions(
+    taskName: string,
+    taskDescription?: string,
+  ): Promise<{
+    questions: Array<{
+      question: string
+      type: 'text' | 'number' | 'choice'
+      choices?: string[]
+      purpose: string
+    }>
+  }> {
+    return await api.getContextualQuestions(taskName, taskDescription)
   }
 
-  // Schedule snapshot operations
+  async getJobContextualQuestions(
+    brainstormText: string,
+    jobContext?: string,
+  ): Promise<{
+    questions: Array<{
+      question: string
+      type: 'text' | 'number' | 'choice'
+      choices?: string[]
+      purpose: string
+      priority: 'high' | 'medium' | 'low'
+    }>
+    suggestedJobContext?: string
+  }> {
+    return await api.getJobContextualQuestions(brainstormText, jobContext)
+  }
+
+  async extractScheduleFromVoice(
+    voiceText: string,
+    targetDate: string,
+  ): Promise<{
+    date: string
+    blocks: Array<{
+      id: string
+      startTime: string
+      endTime: string
+      type: string | 'mixed'
+      capacity?: {
+        focused: number
+        admin: number
+      }
+    }>
+    meetings: Array<{
+      id: string
+      name: string
+      startTime: string
+      endTime: string
+      type: 'meeting' | 'break' | 'personal' | 'blocked'
+    }>
+    summary: string
+  }> {
+    return await api.extractScheduleFromVoice(voiceText, targetDate)
+  }
+
+  async extractMultiDayScheduleFromVoice(
+    voiceText: string,
+    startDate: string,
+  ): Promise<
+    Array<{
+      date: string
+      blocks: Array<{
+        id: string
+        startTime: string
+        endTime: string
+        type: string | 'mixed' | 'personal'
+        capacity?: {
+          focusMinutes?: number
+          adminMinutes?: number
+          personalMinutes?: number
+        }
+      }>
+      meetings: Array<{
+        id: string
+        name: string
+        startTime: string
+        endTime: string
+        type: 'meeting' | 'break' | 'personal' | 'blocked'
+      }>
+      summary: string
+    }>
+  > {
+    return await api.extractMultiDayScheduleFromVoice(voiceText, startDate)
+  }
+
+  async extractJargonTerms(contextText: string): Promise<string> {
+    return await api.extractJargonTerms(contextText)
+  }
+
+  async callAI(options: AICallOptions): Promise<{ content: string }> {
+    return await api.callAI(options)
+  }
+
+  // ============================================================================
+  // SPEECH-TO-TEXT OPERATIONS
+  // ============================================================================
+
+  async transcribeAudio(
+    audioFilePath: string,
+    options?: unknown,
+  ): Promise<{
+    text: string
+  }> {
+    return await api.transcribeAudio(audioFilePath, options)
+  }
+
+  async transcribeAudioBuffer(
+    audioBuffer: ArrayBuffer | Uint8Array,
+    filename: string,
+    options?: { context?: string },
+  ): Promise<{
+    text: string
+  }> {
+    return await api.transcribeAudioBuffer(audioBuffer, filename, options)
+  }
+
+  async getSupportedFormats(): Promise<string[]> {
+    return await api.getSupportedFormats()
+  }
+
+  async getBrainstormingSettings(): Promise<{
+    language: string
+    prompt: string
+  }> {
+    return await api.getBrainstormingSettings()
+  }
+
+  async getWorkflowSettings(): Promise<{
+    language: string
+    prompt: string
+  }> {
+    return await api.getWorkflowSettings()
+  }
+
+  async getSchedulingSettings(): Promise<{
+    language: string
+    prompt: string
+  }> {
+    return await api.getSchedulingSettings()
+  }
+
+  // ============================================================================
+  // JOB CONTEXT OPERATIONS (Not yet on server - stubs)
+  // ============================================================================
+
+  async getJobContexts(): Promise<unknown[]> {
+    return await api.getJobContexts()
+  }
+
+  async getActiveJobContext(): Promise<unknown | null> {
+    return await api.getActiveJobContext()
+  }
+
+  async createJobContext(data: unknown): Promise<unknown> {
+    return await api.createJobContext(data)
+  }
+
+  async updateJobContext(id: string, updates: unknown): Promise<unknown> {
+    return await api.updateJobContext(id, updates)
+  }
+
+  async deleteJobContext(id: string): Promise<void> {
+    return await api.deleteJobContext(id)
+  }
+
+  async addContextEntry(jobContextId: string, entry: unknown): Promise<unknown> {
+    return await api.addContextEntry(jobContextId, entry)
+  }
+
+  // ============================================================================
+  // JARGON DICTIONARY OPERATIONS (Not yet on server - stubs)
+  // ============================================================================
+
+  async getJargonEntries(): Promise<unknown[]> {
+    return await api.getJargonEntries()
+  }
+
+  async createJargonEntry(data: unknown): Promise<unknown> {
+    return await api.createJargonEntry(data)
+  }
+
+  async updateJargonEntry(id: string, updates: unknown): Promise<unknown> {
+    return await api.updateJargonEntry(id, updates)
+  }
+
+  async updateJargonDefinition(term: string, definition: string): Promise<void> {
+    return await api.updateJargonDefinition(term, definition)
+  }
+
+  async deleteJargonEntry(id: string): Promise<void> {
+    return await api.deleteJargonEntry(id)
+  }
+
+  async getJargonDictionary(): Promise<Record<string, string>> {
+    return await api.getJargonDictionary()
+  }
+
+  // ============================================================================
+  // SCHEDULE SNAPSHOT OPERATIONS (Not yet on server - stubs)
+  // ============================================================================
+
   async createScheduleSnapshot(data: ScheduleSnapshotData, label?: string): Promise<ScheduleSnapshot> {
-    return await window.electronAPI.db.createScheduleSnapshot(data, label)
+    return await api.createScheduleSnapshot(data, label)
   }
 
   async getScheduleSnapshots(sessionId?: string): Promise<ScheduleSnapshot[]> {
-    return await window.electronAPI.db.getScheduleSnapshots(sessionId)
+    return await api.getScheduleSnapshots(sessionId)
   }
 
   async getScheduleSnapshotById(id: string): Promise<ScheduleSnapshot | null> {
-    return await window.electronAPI.db.getScheduleSnapshotById(id)
+    return await api.getScheduleSnapshotById(id)
   }
 
   async getTodayScheduleSnapshot(): Promise<ScheduleSnapshot | null> {
-    return await window.electronAPI.db.getTodayScheduleSnapshot()
+    return await api.getTodayScheduleSnapshot()
   }
 
   async deleteScheduleSnapshot(id: string): Promise<void> {
-    return await window.electronAPI.db.deleteScheduleSnapshot(id)
+    return await api.deleteScheduleSnapshot(id)
+  }
+
+  // ============================================================================
+  // LOG VIEWER OPERATIONS (Not exposed via HTTP for security)
+  // ============================================================================
+
+  async getSessionLogs(_options?: LogQueryOptions): Promise<LogEntry[]> {
+    return await api.getSessionLogs(_options)
+  }
+
+  async getLoggedSessions(): Promise<SessionLogSummary[]> {
+    return await api.getLoggedSessions()
+  }
+
+  // ============================================================================
+  // DEVELOPMENT HELPERS (Not available via HTTP for safety)
+  // ============================================================================
+
+  async initializeDefaultData(): Promise<void> {
+    return await api.initializeDefaultData()
+  }
+
+  async deleteAllTasks(): Promise<void> {
+    return await api.deleteAllTasks()
+  }
+
+  async deleteAllSequencedTasks(): Promise<void> {
+    return await api.deleteAllSequencedTasks()
+  }
+
+  async deleteAllUserData(): Promise<void> {
+    return await api.deleteAllUserData()
   }
 }
 
@@ -701,3 +822,6 @@ export const getDatabase = (): RendererDatabaseService => {
   }
   return dbInstance
 }
+
+// Re-export API client functions for direct use if needed
+export { setApiBaseUrl, getApiBaseUrl } from './api-client'

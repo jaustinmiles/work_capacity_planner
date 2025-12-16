@@ -183,8 +183,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     try {
       const db = getDatabase()
       // Get the current session preferences
-      const session = await db.getCurrentSession()
-      if (session && session.SchedulingPreferences) {
+      const session = await db.getCurrentSession() as any
+      if (session?.SchedulingPreferences) {
         setBedtimeHour(session.SchedulingPreferences.bedtimeHour || 22)
         setWakeTimeHour(session.SchedulingPreferences.wakeTimeHour || 6)
       }
@@ -220,7 +220,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             : dayjs(getCurrentTime()) // Use time provider for active sessions
 
           // Find task and step details
-          const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
+          const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || (session as any).Task
           let stepName: string | undefined
           let type: string = userTaskTypes[0]?.id || '' // Default to first user type
 
@@ -407,8 +407,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       const endTime = dateBase.hour(Math.floor(endMinutes / 60)).minute(endMinutes % 60).second(0)
       const actualMinutes = endMinutes - startMinutes
 
-      // Create the time sink session via electron API
-      const session = await window.electronAPI.db.createTimeSinkSession({
+      // Create the time sink session via database service
+      const session = await getDatabase().createTimeSinkSession({
         timeSinkId: sinkId,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
@@ -1400,7 +1400,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                     const db = getDatabase()
                     await db.updateWorkSession(sessionIdToUpdate, {
                       taskId,
-                      stepId: stepId || null,
+                      stepId: stepId || undefined,
                     })
                     logger.ui.info('Reassigned split session', {
                       sessionId: sessionIdToUpdate,

@@ -209,6 +209,7 @@ module.exports = [
     ignores: [
       'node_modules/',
       'dist/',
+      '**/dist/',
       'scripts/mcp/dist/',
       'build/',
       'coverage/',

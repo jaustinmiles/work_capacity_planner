@@ -86,10 +86,10 @@ export async function handleTimeLog(
           await ctx.db.createWorkSession({
             stepId: step.id,
             taskId: workflow.id,
-            date: amendment.date || getCurrentTime(),
+            startTime: amendment.date || getCurrentTime(),
             plannedMinutes: step.duration,
             actualMinutes: amendment.duration,
-            description: amendment.description || `Time logged for step: ${step.name}`,
+            notes: amendment.description || `Time logged for step: ${step.name}`,
             type: step.type as any,
           })
         } else {
@@ -100,14 +100,11 @@ export async function handleTimeLog(
       }
     } else {
       // Log time for task - look up task's type from database
-      // Use toISOString for consistent UTC date format in storage
       const task = await ctx.db.getTaskById(amendment.target.id)
-      const dateStr = amendment.date
-        ? amendment.date.toISOString().split('T')[0]
-        : getCurrentTime().toISOString().split('T')[0]
+      const startTime = amendment.date || getCurrentTime()
       await ctx.db.createWorkSession({
         taskId: amendment.target.id,
-        date: dateStr,
+        startTime: startTime,
         plannedMinutes: amendment.duration,
         actualMinutes: amendment.duration,
         type: task?.type || '',

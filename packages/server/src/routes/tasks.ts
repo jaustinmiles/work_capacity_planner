@@ -375,7 +375,7 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     const taskId = crypto.randomUUID()
 
     // Create the workflow task
-    const workflow = await db.task.create({
+    const _workflow = await db.task.create({
       data: {
         id: taskId,
         sessionId,

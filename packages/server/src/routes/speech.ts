@@ -23,7 +23,7 @@ export async function speechRoutes(fastify: FastifyInstance): Promise<void> {
         formats: speech.getSupportedFormats(),
         maxSizeMB: 25,
       }
-    } catch (error) {
+    } catch {
       // Return formats even without API key
       return {
         formats: ['mp3', 'mp4', 'mpeg', 'mpga', 'm4a', 'wav', 'webm'],

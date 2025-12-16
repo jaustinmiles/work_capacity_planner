@@ -52,10 +52,16 @@ export interface WorkBlockCapacity {
  * A daily work pattern contains all blocks and meetings for a specific date.
  */
 export interface DailyWorkPattern {
+  id: string // Database pattern ID
   date: string // "YYYY-MM-DD" format
   blocks: WorkBlock[]
   accumulated: AccumulatedTimeByType // Dynamic: { [typeId]: minutes }
   meetings: Meeting[]
+  // Optional template fields
+  isTemplate?: boolean
+  templateName?: string
+  // Optional recurring field for UI state
+  recurring?: 'none' | 'daily' | 'weekly'
 }
 
 /**

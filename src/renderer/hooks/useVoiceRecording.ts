@@ -83,7 +83,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}): UseVo
       const transcriptionResult = await getDatabase().transcribeAudioBuffer(
         uint8Array as unknown as Buffer,
         filename,
-        { prompt: transcriptionPrompt },
+        { context: transcriptionPrompt },
       )
 
       const text = transcriptionResult.text
@@ -175,7 +175,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}): UseVo
       const transcriptionResult = await getDatabase().transcribeAudioBuffer(
         uint8Array as unknown as Buffer,
         file.name,
-        { prompt: transcriptionPrompt },
+        { context: transcriptionPrompt },
       )
 
       const text = transcriptionResult.text

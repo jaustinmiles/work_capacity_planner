@@ -172,9 +172,9 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
 
   const loadJobContexts = async (): Promise<void> => {
     const db = getDatabase()
-    const contexts = await db.getJobContexts()
+    const contexts = await db.getJobContexts() as any[]
     setJobContexts(
-      contexts.map(ctx => ({
+      contexts.map((ctx: any) => ({
         id: ctx.id,
         name: ctx.name,
         data: {
@@ -189,7 +189,7 @@ export function BrainstormChat({ visible, onClose }: BrainstormChatProps): React
     )
 
     // Load active context
-    const activeContext = await db.getActiveJobContext()
+    const activeContext = await db.getActiveJobContext() as any
     if (activeContext) {
       setSelectedContextId(activeContext.id)
       setJobContext({

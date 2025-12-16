@@ -6,6 +6,7 @@ import type { WorkPatternModification } from '@shared/amendment-types'
 import { BlockConfigKind, WorkBlockType, WorkPatternOperation } from '@shared/enums'
 import { dateToYYYYMMDD, extractTimeFromISO } from '@shared/time-utils'
 import { getBlockTypeName } from '@shared/user-task-types'
+import { generateUniqueId } from '@shared/step-id-utils'
 import type { HandlerContext } from './types'
 import { Message } from '../../components/common/Message'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
@@ -56,10 +57,10 @@ export async function handleWorkPatternModification(
           : { kind: BlockConfigKind.Single, typeId: typeId }
 
         const newBlock = {
+          id: generateUniqueId('blk'),
           startTime: startTimeStr,
           endTime: endTimeStr,
           typeConfig: typeConfig,  // Use typeConfig object, not type string
-          splitRatio: amendment.blockData.splitRatio || null,
         }
 
         if (existingPattern) {
@@ -68,20 +69,20 @@ export async function handleWorkPatternModification(
           // Use 'blocks' (parsed typeConfig objects) not 'WorkBlock' (raw JSON strings)
           // WorkBlock.typeConfig is a JSON string, blocks[].typeConfig is already parsed
           const existingBlocks = existingPattern.blocks || []
+          const updatedBlocks = [...existingBlocks.map((b: any) => ({
+            id: b.id,  // Preserve existing block ID
+            startTime: b.startTime,
+            endTime: b.endTime,
+            typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
+          })), newBlock]
           await ctx.db.updateWorkPattern(existingPattern.id, {
-            blocks: [...existingBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
-              id: b.id,  // Preserve existing block ID
-              startTime: b.startTime,
-              endTime: b.endTime,
-              typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
-              splitRatio: b.splitRatio,
-            })), newBlock],
+            blocks: updatedBlocks,
           })
         } else {
           // Create new pattern with this block
           await ctx.db.createWorkPattern({
             date: dateStr,
-            blocks: [newBlock],
+            blocks: [newBlock as any],
             meetings: [],
           })
         }
@@ -104,6 +105,7 @@ export async function handleWorkPatternModification(
         const meetingEndStr = extractTimeFromISO(amendment.meetingData.endTime)
 
         const newMeeting = {
+          id: generateUniqueId('mtg'),
           name: amendment.meetingData.name,
           startTime: meetingStartStr,
           endTime: meetingEndStr,
@@ -117,29 +119,30 @@ export async function handleWorkPatternModification(
           // Use 'meetings' and 'blocks' (parsed) not 'WorkMeeting'/'WorkBlock' (raw JSON strings)
           const existingMeetings = existingPattern.meetings || []
           const existingBlocks = existingPattern.blocks || []
+          const updatedBlocks = existingBlocks.map((b: any) => ({
+            id: b.id,  // Preserve existing block ID
+            startTime: b.startTime,
+            endTime: b.endTime,
+            typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
+          }))
+          const updatedMeetings = [...existingMeetings.map((m: any) => ({
+            id: m.id,  // Preserve existing meeting ID
+            name: m.name,
+            startTime: m.startTime,
+            endTime: m.endTime,
+            type: m.type,
+            recurring: m.recurring || 'none', // Ensure non-null for Prisma
+            daysOfWeek: m.daysOfWeek,
+          })), newMeeting]
           await ctx.db.updateWorkPattern(existingPattern.id, {
-            blocks: existingBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
-              id: b.id,  // Preserve existing block ID
-              startTime: b.startTime,
-              endTime: b.endTime,
-              typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
-              splitRatio: b.splitRatio,
-            })),
-            meetings: [...existingMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: number[] | null }) => ({
-              id: m.id,  // Preserve existing meeting ID
-              name: m.name,
-              startTime: m.startTime,
-              endTime: m.endTime,
-              type: m.type,
-              recurring: m.recurring || 'none', // Ensure non-null for Prisma
-              daysOfWeek: m.daysOfWeek,
-            })), newMeeting],
+            blocks: updatedBlocks,
+            meetings: updatedMeetings,
           })
         } else {
           await ctx.db.createWorkPattern({
             date: dateStr,
             blocks: [],
-            meetings: [newMeeting],
+            meetings: [newMeeting as any],
           })
         }
 
@@ -157,17 +160,17 @@ export async function handleWorkPatternModification(
 
         // Use 'blocks' (parsed typeConfig objects) not 'WorkBlock' (raw JSON strings)
         const filteredBlocks = (existingPattern.blocks || []).filter(
-          (b: { id: string }) => b.id !== amendment.blockId,
+          (b: any) => b.id !== amendment.blockId,
         )
         // CRITICAL: Must preserve block IDs for blocks we're keeping
+        const updatedBlocks = filteredBlocks.map((b: any) => ({
+          id: b.id,  // Preserve existing block ID
+          startTime: b.startTime,
+          endTime: b.endTime,
+          typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
+        }))
         await ctx.db.updateWorkPattern(existingPattern.id, {
-          blocks: filteredBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
-            id: b.id,  // Preserve existing block ID
-            startTime: b.startTime,
-            endTime: b.endTime,
-            typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
-            splitRatio: b.splitRatio,
-          })),
+          blocks: updatedBlocks,
         })
 
         useWorkPatternStore.getState().loadWorkPatterns()
@@ -184,19 +187,20 @@ export async function handleWorkPatternModification(
 
         // Use 'meetings' (parsed daysOfWeek) not 'WorkMeeting' (raw JSON strings)
         const filteredMeetings = (existingPattern.meetings || []).filter(
-          (m: { id: string }) => m.id !== amendment.meetingId,
+          (m: any) => m.id !== amendment.meetingId,
         )
         // CRITICAL: Must preserve meeting IDs for meetings we're keeping
+        const updatedMeetings = filteredMeetings.map((m: any) => ({
+          id: m.id,  // Preserve existing meeting ID
+          name: m.name,
+          startTime: m.startTime,
+          endTime: m.endTime,
+          type: m.type,
+          recurring: m.recurring || 'none', // Ensure non-null for Prisma
+          daysOfWeek: m.daysOfWeek,
+        }))
         await ctx.db.updateWorkPattern(existingPattern.id, {
-          meetings: filteredMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: number[] | null }) => ({
-            id: m.id,  // Preserve existing meeting ID
-            name: m.name,
-            startTime: m.startTime,
-            endTime: m.endTime,
-            type: m.type,
-            recurring: m.recurring || 'none', // Ensure non-null for Prisma
-            daysOfWeek: m.daysOfWeek,
-          })),
+          meetings: updatedMeetings,
         })
 
         useWorkPatternStore.getState().loadWorkPatterns()
