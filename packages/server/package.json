@@ -18,7 +18,7 @@
     "@fastify/cors": "^10.0.0",
     "@fastify/multipart": "^9.0.0",
     "@prisma/client": "^6.13.0",
-    "@task-planner/shared": "workspace:*",
+    "@task-planner/shared": "*",
     "dotenv": "^17.2.1",
     "fastify": "^5.0.0",
     "openai": "^5.12.0",

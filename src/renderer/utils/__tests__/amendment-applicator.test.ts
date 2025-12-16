@@ -191,7 +191,7 @@ describe('Amendment Applicator', () => {
 
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith({
         taskId: 'task-1',
-        date: expect.any(String),
+        startTime: expect.any(Date),
         plannedMinutes: 120,
         actualMinutes: 120,
         type: '', // User-defined task type - empty means unspecified
@@ -219,7 +219,7 @@ describe('Amendment Applicator', () => {
 
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith({
         taskId: 'task-1',
-        date: '2024-01-15',
+        startTime: expect.any(Date),
         plannedMinutes: 60,
         actualMinutes: 60,
         type: '', // User-defined task type - empty means unspecified
@@ -255,10 +255,10 @@ describe('Amendment Applicator', () => {
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith({
         stepId: 'step-2',
         taskId: 'wf-1',
-        date: expect.any(Date),
+        startTime: expect.any(Date),
         plannedMinutes: 45,
         actualMinutes: 90,
-        description: 'Time logged for step: Testing',
+        notes: 'Time logged for step: Testing',
         type: 'focused',
       })
     })

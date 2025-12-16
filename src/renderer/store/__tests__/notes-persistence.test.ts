@@ -117,8 +117,8 @@ describe('Notes Persistence in Time Tracking', () => {
       // Verify that createStepWorkSession was called with notes
       expect(mockCreateStepWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
-          taskStepId: stepId,
-          duration: actualMinutes,
+          stepId: stepId,
+          plannedMinutes: actualMinutes,
           notes: notes,
         }),
       )
@@ -310,8 +310,8 @@ describe('Notes Persistence in Time Tracking', () => {
       // Verify WorkSession was created with notes
       expect(mockCreateStepWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
-          taskStepId: stepId,
-          duration: minutes,
+          stepId: stepId,
+          plannedMinutes: minutes,
           notes: notes,
         }),
       )
