@@ -2222,10 +2222,13 @@ export class DatabaseService {
       (b: any) => !b.id || !existingBlockIds.has(b.id),
     )
 
-    // Delete all meetings (meetings don't have sessions referencing them)
-    await this.client.workMeeting.deleteMany({
-      where: { patternId: id },
-    })
+    // Only process meetings if explicitly provided (undefined = preserve existing)
+    // This prevents AddBlock operations from accidentally deleting all meetings
+    if (updates.meetings !== undefined) {
+      await this.client.workMeeting.deleteMany({
+        where: { patternId: id },
+      })
+    }
 
     // Now update pattern with new blocks and meetings
     const pattern = await this.client.workPattern.update({
@@ -2245,16 +2248,19 @@ export class DatabaseService {
             }
           }),
         },
-        WorkMeeting: {
-          create: (updates.meetings || []).map((m: any) => {
-            const { patternId: _patternId, id: _id, ...meetingData } = m
-            return {
-              id: crypto.randomUUID(),
-              ...meetingData,
-              daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
-            }
-          }),
-        },
+        // Only update meetings if explicitly provided (matches deletion logic above)
+        ...(updates.meetings !== undefined && {
+          WorkMeeting: {
+            create: updates.meetings.map((m: any) => {
+              const { patternId: _patternId, id: _id, ...meetingData } = m
+              return {
+                id: crypto.randomUUID(),
+                ...meetingData,
+                daysOfWeek: m.daysOfWeek ? JSON.stringify(m.daysOfWeek) : null,
+              }
+            }),
+          },
+        }),
       },
       include: {
         WorkBlock: true,

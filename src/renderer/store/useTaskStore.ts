@@ -63,6 +63,7 @@ interface TaskStore {
   pauseWorkOnStep: (stepId: string) => Promise<void>
   pauseWorkOnTask: (taskId: string) => Promise<void>
   completeStep: (__stepId: string, actualMinutes?: number, __notes?: string) => Promise<void>
+  skipAsyncWait: (stepId: string) => Promise<void>
   getExpiredWaitTimeUpdates: () => Promise<Map<string, SequencedTask>>
   checkAndCompleteExpiredWaitTimes: () => Promise<void>
   startExpiredWaitTimePolling: () => () => void
@@ -950,6 +951,63 @@ export const useTaskStore = create<TaskStore>()(
       })
 
       // Re-throw the error so the calling function knows it failed
+      throw error
+    }
+  },
+
+  /**
+   * Skip remaining async wait time and transition step to completed
+   * Used when external event completes faster than expected
+   */
+  skipAsyncWait: async (stepId: string) => {
+    const state = get()
+
+    // Find the step and validate it's in waiting status
+    const workflow = state.sequencedTasks.find(t =>
+      t.steps.some(s => s.id === stepId),
+    )
+
+    if (!workflow) {
+      logger.ui.warn('[skipAsyncWait] Step not found', { stepId })
+      return
+    }
+
+    const step = workflow.steps.find(s => s.id === stepId)
+    if (!step || step.status !== StepStatus.Waiting) {
+      logger.ui.warn('[skipAsyncWait] Step not in waiting status', {
+        stepId,
+        status: step?.status,
+      })
+      return
+    }
+
+    try {
+      // Update database - transition from waiting to completed
+      await getDatabase().updateTaskStepProgress(stepId, {
+        status: StepStatus.Completed,
+      })
+
+      // Reload workflow to reflect changes
+      const updatedTask = await getDatabase().getSequencedTaskById(workflow.id)
+
+      if (updatedTask) {
+        set(state => ({
+          sequencedTasks: state.sequencedTasks.map(t =>
+            t.id === workflow.id ? updatedTask : t,
+          ),
+        }))
+      }
+
+      logger.ui.info('[skipAsyncWait] Async wait skipped successfully', {
+        stepId,
+        workflowId: workflow.id,
+      }, 'async-wait-skipped')
+
+    } catch (error) {
+      logger.system.error('[useTaskStore] skipAsyncWait failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stepId,
+      })
       throw error
     }
   },

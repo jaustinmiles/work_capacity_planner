@@ -34,7 +34,7 @@ export function SequencedTaskView({
   onResetWorkflow,
   onDelete,
 }: SequencedTaskViewProps) {
-  const { activeWorkSessions, isStepActivelyWorkedOn } = useTaskStore()
+  const { activeWorkSessions, isStepActivelyWorkedOn, skipAsyncWait } = useTaskStore()
   const userTypes = useSortedUserTaskTypes()
   const [showDetails, setShowDetails] = useState(false)
   const [showEditView, setShowEditView] = useState(false)
@@ -428,6 +428,7 @@ export function SequencedTaskView({
                           timeLogged={stepTimeLogs[step.id] || 0}
                           onStart={handleStepStart}
                           onComplete={handleStepComplete}
+                          onSkipWait={skipAsyncWait}
                         />
                       ))}
                     </div>

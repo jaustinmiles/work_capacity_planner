@@ -15,6 +15,16 @@ import { UnifiedScheduleItem } from './unified-scheduler'
 import { StepStatus, UnifiedScheduleItemType } from './enums'
 
 /**
+ * Special marker for tasks without explicit type.
+ * Used for strict type enforcement - untyped tasks should not silently
+ * match any block. They require explicit handling.
+ *
+ * Tasks should ALWAYS have a type assigned. This marker indicates
+ * a data validation issue that should be addressed upstream.
+ */
+export const UNTYPED_TASK_MARKER = '__UNTYPED__'
+
+/**
  * Convert various input types to UnifiedScheduleItem format
  *
  * This function is responsible for:
@@ -287,6 +297,9 @@ function determineItemType(item: Task | TaskStep): UnifiedScheduleItemType {
 /**
  * Extract task type from various formats
  * Returns user-defined task type ID (string)
+ *
+ * If no type is found, returns UNTYPED_TASK_MARKER to ensure
+ * strict type enforcement. Tasks should always have a type assigned.
  */
 function extractTaskType(item: Task | TaskStep): string {
   // TaskStep has taskType property
@@ -299,8 +312,9 @@ function extractTaskType(item: Task | TaskStep): string {
     return item.type as string
   }
 
-  // Default to empty string if not specified
-  return ''
+  // Return explicit marker for untyped tasks - NOT empty string
+  // This ensures untyped tasks are handled explicitly, not silently ignored
+  return UNTYPED_TASK_MARKER
 }
 
 /**

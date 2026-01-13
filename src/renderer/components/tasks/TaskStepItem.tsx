@@ -18,6 +18,7 @@ interface TaskStepItemProps {
   timeLogged?: number  // Total minutes logged
   onComplete?: (__stepId: string) => void
   onStart?: (stepId: string) => void
+  onSkipWait?: (stepId: string) => void
 }
 
 export function TaskStepItem({
@@ -31,6 +32,7 @@ export function TaskStepItem({
   timeLogged = 0,
   onComplete,
   onStart,
+  onSkipWait,
 }: TaskStepItemProps) {
   const userTypes = useSortedUserTaskTypes()
 
@@ -145,6 +147,18 @@ export function TaskStepItem({
                   onClick={() => onComplete(step.id)}
                 >
                   Complete
+                </Button>
+              )}
+              {/* Show skip wait button for active waits (not expired) */}
+              {isWaiting && waitStatus && !waitStatus.expired && onSkipWait && (
+                <Button
+                  size="mini"
+                  type="outline"
+                  status="warning"
+                  icon={<IconClockCircle />}
+                  onClick={() => onSkipWait(step.id)}
+                >
+                  End Wait Early
                 </Button>
               )}
             </Space>

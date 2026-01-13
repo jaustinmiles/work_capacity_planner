@@ -10,6 +10,26 @@
  * - Meeting: Events that block out time (meetings, breaks, etc.)
  */
 
+/**
+ * Semantic type for date strings in "YYYY-MM-DD" format.
+ * Used throughout the codebase for date-only values (no time component).
+ * Example: "2024-01-15"
+ */
+export type DateString = string
+
+/**
+ * Historical work data for a date or date range.
+ * Used when viewing past work distribution or aggregating across multiple days.
+ */
+export interface HistoricalWorkData {
+  accumulatedByType: Record<string, number>
+  accumulatedBySink: Record<string, number>
+  capacityByType: Record<string, number>
+  meetingMinutes: number
+  totalPlannedMinutes: number
+  accumulatedTotal: number
+}
+
 import { calculateDuration } from './time-utils'
 import {
   BlockTypeConfig,
