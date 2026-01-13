@@ -207,10 +207,9 @@ module.exports = [
 
   {
     ignores: [
-      'node_modules/',
-      'dist/',
-      'scripts/mcp/dist/',
-      'build/',
+      '**/node_modules/',
+      '**/dist/',
+      '**/build/',
       'coverage/',
       'docs/',
       'prisma/migrations/',
