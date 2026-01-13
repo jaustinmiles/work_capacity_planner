@@ -57,6 +57,7 @@ model JobContext {
   updatedAt     DateTime       @default(now())
   ContextEntry  ContextEntry[]
   Session       Session        @relation(fields: [sessionId], references: [id])
+  Conversation  Conversation[]
 }
 
 model Meeting {
@@ -128,6 +129,7 @@ model Session {
   UserTaskType          UserTaskType[]
   TimeSink              TimeSink[]
   ScheduleSnapshot      ScheduleSnapshot[]
+  Conversation          Conversation[]
 }
 
 // Schedule Snapshot - Captures schedule state at a point in time
@@ -407,8 +409,47 @@ model AppLog {
   context   String   // JSON string of context data
   sessionId String?
   createdAt DateTime @default(now())
-  
+
   @@index([createdAt])
   @@index([level])
   @@index([source])
+}
+
+// =============================================================================
+// Chat/Conversation Models
+// =============================================================================
+
+// Conversation - A chat session with the AI assistant
+// Conversations persist across app restarts and can be resumed
+// Uses branded ID types at runtime (ConversationId) for type safety
+model Conversation {
+  id           String        @id // ConversationId at runtime
+  sessionId    String
+  jobContextId String?
+  title        String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  isArchived   Boolean       @default(false)
+  Session      Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  JobContext   JobContext?   @relation(fields: [jobContextId], references: [id], onDelete: SetNull)
+  ChatMessage  ChatMessage[]
+
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+// ChatMessage - Individual message within a conversation
+// Messages can contain embedded amendment cards (JSON serialized)
+// Uses branded ID types at runtime (ChatMessageId) for type safety
+model ChatMessage {
+  id             String       @id // ChatMessageId at runtime
+  conversationId String
+  role           String       // 'user' | 'assistant' | 'system'
+  content        String
+  amendments     String?      // JSON: AmendmentCard[] - embedded amendment proposals
+  createdAt      DateTime     @default(now())
+  Conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
 }

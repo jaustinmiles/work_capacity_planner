@@ -75,6 +75,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteJargonEntry: (id: string) => ipcRenderer.invoke('db:deleteJargonEntry', id),
     getJargonDictionary: () => ipcRenderer.invoke('db:getJargonDictionary'),
     updateJargonDefinition: (term: string, definition: string) => ipcRenderer.invoke('db:updateJargonDefinition', term, definition),
+    // Conversation & Chat operations
+    getConversations: () => ipcRenderer.invoke('db:getConversations'),
+    getConversationById: (id: string) => ipcRenderer.invoke('db:getConversationById', id),
+    createConversation: (data: { title?: string; jobContextId?: string }) =>
+      ipcRenderer.invoke('db:createConversation', data),
+    updateConversation: (id: string, updates: { title?: string; jobContextId?: string | null; isArchived?: boolean }) =>
+      ipcRenderer.invoke('db:updateConversation', id, updates),
+    deleteConversation: (id: string) => ipcRenderer.invoke('db:deleteConversation', id),
+    getChatMessages: (conversationId: string) => ipcRenderer.invoke('db:getChatMessages', conversationId),
+    createChatMessage: (data: { conversationId: string; role: string; content: string; amendments?: any[] }) =>
+      ipcRenderer.invoke('db:createChatMessage', data),
+    updateMessageAmendmentStatus: (messageId: string, cardId: string, status: 'pending' | 'applied' | 'skipped') =>
+      ipcRenderer.invoke('db:updateMessageAmendmentStatus', messageId, cardId, status),
+    deleteChatMessage: (id: string) => ipcRenderer.invoke('db:deleteChatMessage', id),
     // Development helpers
     deleteAllTasks: () => ipcRenderer.invoke('db:deleteAllTasks'),
     deleteAllSequencedTasks: () => ipcRenderer.invoke('db:deleteAllSequencedTasks'),

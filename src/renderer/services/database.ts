@@ -74,6 +74,16 @@ declare global {
         updateJargonDefinition: (term: string, __definition: string) => Promise<void>
         deleteJargonEntry: (id: string) => Promise<void>
         getJargonDictionary: () => Promise<Record<string, string>>
+        // Conversation & Chat operations
+        getConversations: () => Promise<any[]>
+        getConversationById: (id: string) => Promise<any | null>
+        createConversation: (data: { title?: string; jobContextId?: string }) => Promise<any>
+        updateConversation: (id: string, updates: { title?: string; jobContextId?: string | null; isArchived?: boolean }) => Promise<any>
+        deleteConversation: (id: string) => Promise<void>
+        getChatMessages: (conversationId: string) => Promise<any[]>
+        createChatMessage: (data: { conversationId: string; role: string; content: string; amendments?: any[] }) => Promise<any>
+        updateMessageAmendmentStatus: (messageId: string, cardId: string, status: 'pending' | 'applied' | 'skipped') => Promise<void>
+        deleteChatMessage: (id: string) => Promise<void>
         // Development helpers
         deleteAllTasks: () => Promise<void>
         deleteAllSequencedTasks: () => Promise<void>
@@ -539,6 +549,43 @@ export class RendererDatabaseService {
 
   async getJargonDictionary() {
     return await window.electronAPI.db.getJargonDictionary()
+  }
+
+  // Conversation & Chat operations
+  async getConversations() {
+    return await window.electronAPI.db.getConversations()
+  }
+
+  async getConversationById(id: string) {
+    return await window.electronAPI.db.getConversationById(id)
+  }
+
+  async createConversation(data: { title?: string; jobContextId?: string }) {
+    return await window.electronAPI.db.createConversation(data)
+  }
+
+  async updateConversation(id: string, updates: { title?: string; jobContextId?: string | null; isArchived?: boolean }) {
+    return await window.electronAPI.db.updateConversation(id, updates)
+  }
+
+  async deleteConversation(id: string) {
+    return await window.electronAPI.db.deleteConversation(id)
+  }
+
+  async getChatMessages(conversationId: string) {
+    return await window.electronAPI.db.getChatMessages(conversationId)
+  }
+
+  async createChatMessage(data: { conversationId: string; role: string; content: string; amendments?: any[] }) {
+    return await window.electronAPI.db.createChatMessage(data)
+  }
+
+  async updateMessageAmendmentStatus(messageId: string, cardId: string, status: 'pending' | 'applied' | 'skipped') {
+    return await window.electronAPI.db.updateMessageAmendmentStatus(messageId, cardId, status)
+  }
+
+  async deleteChatMessage(id: string) {
+    return await window.electronAPI.db.deleteChatMessage(id)
   }
 
   // Development helpers
