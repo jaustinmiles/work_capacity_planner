@@ -139,7 +139,7 @@ function AppContent() {
 
   // Responsive breakpoints
   const [screenWidth, setScreenWidth] = useState(window.innerWidth)
-  const { isCompact, isMobile, isUltraWide, isSuperUltraWide } = useResponsive()
+  const { isMobile, isUltraWide, isSuperUltraWide } = useResponsive()
 
   // Dynamic content max-width based on screen size
   const contentMaxWidth = useMemo(() => {
@@ -544,15 +544,22 @@ function AppContent() {
                 />
               </Tabs>
 
-              {/* Action Buttons - collapse to icons on small screens */}
-              <Space wrap style={{ flexShrink: 0 }}>
+              {/* Action Buttons - collapse to icons on mobile, allow overflow scroll */}
+              <div style={{
+                display: 'flex',
+                gap: 8,
+                flexShrink: 1,
+                minWidth: 0,
+                overflow: 'auto',
+                maxWidth: isMobile ? 200 : undefined,
+              }}>
                 <Button
                   type={sidebarOpen ? 'primary' : 'text'}
                   icon={<IconMessage />}
                   onClick={toggleSidebar}
                   title="AI Chat"
                 >
-                  {!isCompact && 'Chat'}
+                  {!isMobile && 'Chat'}
                 </Button>
                 <Button
                   type="primary"
@@ -560,7 +567,7 @@ function AppContent() {
                   onClick={() => setShowWorkLoggerDual(true)}
                   title="Log Work"
                 >
-                  {!isCompact && 'Log Work'}
+                  {!isMobile && 'Log Work'}
                 </Button>
                 <Button
                   type="text"
@@ -568,7 +575,7 @@ function AppContent() {
                   onClick={() => setShowTaskSlideshow(true)}
                   title="Tournament"
                 >
-                  {!isCompact && 'Tournament'}
+                  {!isMobile && 'Tournament'}
                 </Button>
                 <Button
                   type="text"
@@ -576,7 +583,7 @@ function AppContent() {
                   onClick={() => setShowTaskTypeManager(true)}
                   title="Settings"
                 >
-                  {!isCompact && 'Settings'}
+                  {!isMobile && 'Settings'}
                 </Button>
                 <Button
                   type="text"
@@ -584,9 +591,9 @@ function AppContent() {
                   onClick={() => setShowSessionManager(true)}
                   title="Sessions"
                 >
-                  {!isCompact && 'Sessions'}
+                  {!isMobile && 'Sessions'}
                 </Button>
-              </Space>
+              </div>
             </Header>
 
             <Content style={{
