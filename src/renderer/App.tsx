@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Layout, Typography, ConfigProvider, Button, Space, Badge, Spin, Alert, Popconfirm, Tabs, Modal } from '@arco-design/web-react'
-import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconBulb, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings } from '@arco-design/web-react/icon'
+import { IconApps, IconCalendar, IconList, IconBranch, IconSchedule, IconDelete, IconUserGroup, IconClockCircle, IconMenuFold, IconMenuUnfold, IconEye, IconSettings, IconMessage } from '@arco-design/web-react/icon'
 import enUS from '@arco-design/web-react/es/locale/en-US'
 import { Message } from './components/common/Message'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
@@ -12,7 +12,8 @@ import { SequencedTaskView } from './components/tasks/SequencedTaskView'
 import { EisenhowerMatrix } from './components/tasks/EisenhowerMatrix'
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar'
 import { GanttChart } from './components/timeline/GanttChart'
-import { BrainstormChat } from './components/ai/BrainstormChat'
+import { ChatSidebar } from './components/chat/ChatSidebar'
+import { useConversationStore } from './store/useConversationStore'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
 // VoiceAmendmentModal removed - voice functionality now integrated into BrainstormChat
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
@@ -124,8 +125,10 @@ function AppContent() {
   const [activeView, setActiveView] = useState<ViewType>(ViewType.Timeline)
   const [taskFormVisible, setTaskFormVisible] = useState(false)
   const [sequencedTaskFormVisible, setSequencedTaskFormVisible] = useState(false)
-  const [brainstormModalVisible, setBrainstormModalVisible] = useState(false)
   const [taskCreationFlowVisible, setTaskCreationFlowVisible] = useState(false)
+
+  // Chat sidebar state from conversation store
+  const { sidebarOpen, toggleSidebar } = useConversationStore()
   const [extractedTasks, setExtractedTasks] = useState<ExtractedTask[]>([])
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
@@ -544,6 +547,14 @@ function AppContent() {
               {/* Action Buttons - collapse to icons on small screens */}
               <Space wrap style={{ flexShrink: 0 }}>
                 <Button
+                  type={sidebarOpen ? 'primary' : 'text'}
+                  icon={<IconMessage />}
+                  onClick={toggleSidebar}
+                  title="AI Chat"
+                >
+                  {!isCompact && 'Chat'}
+                </Button>
+                <Button
                   type="primary"
                   icon={<IconClockCircle />}
                   onClick={() => setShowWorkLoggerDual(true)}
@@ -738,10 +749,8 @@ function AppContent() {
             }}
           />
 
-          <BrainstormChat
-            visible={brainstormModalVisible}
-            onClose={() => setBrainstormModalVisible(false)}
-          />
+          {/* Chat Sidebar */}
+          <ChatSidebar onNavigateToView={setActiveView} />
 
           <TaskCreationFlow
             visible={taskCreationFlowVisible}
@@ -807,25 +816,6 @@ function AppContent() {
             onClose={() => setTaskFormVisible(false)}
           />
 
-          {/* Floating Brain Button for AI Brainstorm (includes voice input) */}
-          <Button
-            type="primary"
-            shape="circle"
-            size="large"
-            icon={<IconBulb />}
-            onClick={() => setBrainstormModalVisible(true)}
-            style={{
-              position: 'fixed',
-              bottom: 24,
-              left: 24,
-              width: 56,
-              height: 56,
-              backgroundColor: '#faad14',
-              borderColor: '#faad14',
-              boxShadow: '0 4px 12px rgba(255, 193, 7, 0.3)',
-              zIndex: 1000,
-            }}
-          />
         </Layout>
     </ConfigProvider>
   )
