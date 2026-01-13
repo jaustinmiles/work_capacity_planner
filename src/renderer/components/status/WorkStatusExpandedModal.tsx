@@ -14,7 +14,7 @@ import dayjs from 'dayjs'
 import { RadarChart, prepareRadarChartData, RadarChartDataPoint, createRadarDataPointFromSink } from './RadarChart'
 import { UserTaskType, getBlockTypeConfigName } from '@shared/user-task-types'
 import { TimeSink } from '@shared/time-sink-types'
-import { WorkBlock, getTotalCapacityByType } from '@shared/work-blocks-types'
+import { WorkBlock, getTotalCapacityByType, DateString, HistoricalWorkData, Meeting } from '@shared/work-blocks-types'
 import { formatMinutes, calculateDuration } from '@shared/time-utils'
 import { getDatabase } from '../../services/database'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
@@ -30,7 +30,7 @@ const { Row, Col } = Grid
 export interface WorkStatusExpandedModalProps {
   visible: boolean
   onClose: () => void
-  initialDate: string // The date for the initially loaded data (today)
+  initialDate: DateString // The date for the initially loaded data (today), "YYYY-MM-DD" format
   accumulatedByType: Record<string, number>
   accumulatedBySink: Record<string, number>
   capacityByType: Record<string, number>
@@ -93,25 +93,60 @@ function TypeBreakdownRow({ type, logged, planned }: TypeBreakdownRowProps): Rea
 // Helper Functions
 // ============================================================================
 
-function formatDateTitle(date: string, today: string): string {
+function formatDateTitle(date: DateString, today: DateString): string {
   if (date === today) return "Today's Work Distribution"
   const yesterday = dayjs(today).subtract(1, 'day').format('YYYY-MM-DD')
   if (date === yesterday) return "Yesterday's Work Distribution"
   return `Work Distribution - ${dayjs(date).format('MMM D, YYYY')}`
 }
 
+function formatDateRangeTitle(startDate: DateString, endDate: DateString): string {
+  const start = dayjs(startDate)
+  const end = dayjs(endDate)
+  const dayCount = end.diff(start, 'day') + 1
+  return `${dayCount}-Day Summary: ${start.format('MMM D')} - ${end.format('MMM D, YYYY')}`
+}
+
+/**
+ * Aggregate work data across multiple dates
+ */
+function aggregateWorkData(dataPoints: HistoricalWorkData[]): HistoricalWorkData {
+  const result: HistoricalWorkData = {
+    accumulatedByType: {},
+    accumulatedBySink: {},
+    capacityByType: {},
+    meetingMinutes: 0,
+    totalPlannedMinutes: 0,
+    accumulatedTotal: 0,
+  }
+
+  for (const data of dataPoints) {
+    // Aggregate by type
+    for (const [typeId, minutes] of Object.entries(data.accumulatedByType)) {
+      result.accumulatedByType[typeId] = (result.accumulatedByType[typeId] || 0) + minutes
+    }
+
+    // Aggregate by sink
+    for (const [sinkId, minutes] of Object.entries(data.accumulatedBySink)) {
+      result.accumulatedBySink[sinkId] = (result.accumulatedBySink[sinkId] || 0) + minutes
+    }
+
+    // Aggregate capacity by type
+    for (const [typeId, minutes] of Object.entries(data.capacityByType)) {
+      result.capacityByType[typeId] = (result.capacityByType[typeId] || 0) + minutes
+    }
+
+    result.meetingMinutes += data.meetingMinutes
+    result.totalPlannedMinutes += data.totalPlannedMinutes
+    result.accumulatedTotal += data.accumulatedTotal
+  }
+
+  return result
+}
+
 // ============================================================================
 // Main Component
 // ============================================================================
-
-interface HistoricalData {
-  accumulatedByType: Record<string, number>
-  accumulatedBySink: Record<string, number>
-  capacityByType: Record<string, number>
-  meetingMinutes: number
-  totalPlannedMinutes: number
-  accumulatedTotal: number
-}
 
 export function WorkStatusExpandedModal({
   visible,
@@ -131,24 +166,45 @@ export function WorkStatusExpandedModal({
   // Work patterns for historical date lookup
   const workPatterns = useWorkPatternStore(state => state.workPatterns)
 
-  // Date selection state
-  const [selectedDate, setSelectedDate] = useState<string>(initialDate)
+  // Date selection state - supports both single day and date range modes
+  const [isRangeMode, setIsRangeMode] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<DateString>(initialDate)
+  // Initialize range to last 7 days (computed once, then managed by state)
+  const [rangeStartDate, setRangeStartDate] = useState<DateString>(() => {
+    // Safe computation that works even if dayjs isn't fully available in tests
+    try {
+      return dayjs(initialDate).subtract(6, 'day').format('YYYY-MM-DD')
+    } catch {
+      // Fallback: compute manually
+      const date = new Date(initialDate)
+      date.setDate(date.getDate() - 6)
+      return date.toISOString().split('T')[0] as DateString
+    }
+  })
+  const [rangeEndDate, setRangeEndDate] = useState<DateString>(initialDate)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Historical data state (overrides props when viewing non-initial dates)
-  const [historicalData, setHistoricalData] = useState<HistoricalData | null>(null)
+  // Historical data state (overrides props when viewing non-initial dates or ranges)
+  const [historicalData, setHistoricalData] = useState<HistoricalWorkData | null>(null)
 
   // State for which time sinks are shown in the radar chart
   const [enabledSinkIds, setEnabledSinkIds] = useState<Set<string>>(new Set())
 
-  // Reset date when modal closes
+  // Reset state when modal closes
   const handleClose = (): void => {
     setSelectedDate(initialDate)
+    setIsRangeMode(false)
     setHistoricalData(null)
     onClose()
   }
 
-  // Navigate to previous/next day
+  // Toggle between single day and range mode
+  const toggleRangeMode = (): void => {
+    setIsRangeMode(!isRangeMode)
+    setHistoricalData(null) // Reset data when switching modes
+  }
+
+  // Navigate to previous/next day (single day mode)
   const goToPreviousDay = (): void => {
     setSelectedDate(dayjs(selectedDate).subtract(1, 'day').format('YYYY-MM-DD'))
   }
@@ -159,66 +215,78 @@ export function WorkStatusExpandedModal({
 
   const goToToday = (): void => {
     setSelectedDate(initialDate)
+    setRangeEndDate(initialDate)
   }
 
-  // Fetch historical data when date changes
+  // Helper to fetch data for a single date
+  const fetchSingleDayData = async (date: DateString): Promise<HistoricalWorkData> => {
+    const db = getDatabase()
+    const pattern = workPatterns.find(p => p.date === date)
+
+    const accumulatedData = await db.getTodayAccumulated(date)
+    const sinkData = await db.getTimeSinkAccumulated(date, date)
+
+    const histCapacityByType = pattern
+      ? getTotalCapacityByType(pattern.blocks, [])
+      : {}
+
+    const histMeetingMinutes = pattern?.meetings?.reduce((total: number, meeting: Meeting) => {
+      return total + calculateDuration(meeting.startTime, meeting.endTime)
+    }, 0) || 0
+
+    const histTotalPlannedMinutes = Object.values(histCapacityByType).reduce(
+      (sum, mins) => sum + mins, 0,
+    )
+
+    return {
+      accumulatedByType: accumulatedData.byType || {},
+      accumulatedBySink: sinkData.bySink || {},
+      capacityByType: histCapacityByType,
+      meetingMinutes: histMeetingMinutes,
+      totalPlannedMinutes: histTotalPlannedMinutes,
+      accumulatedTotal: accumulatedData.total || 0,
+    }
+  }
+
+  // Fetch historical data when date/range changes
   useEffect(() => {
-    // If viewing the initial date (today), use props data
-    if (selectedDate === initialDate) {
+    // In single-day mode viewing today, use props data
+    if (!isRangeMode && selectedDate === initialDate) {
       setHistoricalData(null)
       return
     }
 
-    const fetchHistoricalData = async (): Promise<void> => {
+    const fetchData = async (): Promise<void> => {
       setIsLoading(true)
       try {
-        const db = getDatabase()
+        if (isRangeMode) {
+          // Fetch data for each day in the range and aggregate
+          const start = dayjs(rangeStartDate)
+          const end = dayjs(rangeEndDate)
+          const dayCount = end.diff(start, 'day') + 1
+          const dataPoints: HistoricalWorkData[] = []
 
-        // Get pattern for selected date
-        const pattern = workPatterns.find(p => p.date === selectedDate)
+          for (let i = 0; i < dayCount; i++) {
+            const date = start.add(i, 'day').format('YYYY-MM-DD') as DateString
+            const dayData = await fetchSingleDayData(date)
+            dataPoints.push(dayData)
+          }
 
-        // Fetch accumulated work time
-        const accumulatedData = await db.getTodayAccumulated(selectedDate)
-
-        // Fetch time sink accumulated
-        const sinkData = await db.getTimeSinkAccumulated(selectedDate, selectedDate)
-
-        // Calculate capacity from pattern blocks
-        const histCapacityByType = pattern
-          ? getTotalCapacityByType(pattern.blocks, [])
-          : {}
-
-        // Calculate meeting minutes
-        interface MeetingWithTime {
-          startTime: string
-          endTime: string
+          setHistoricalData(aggregateWorkData(dataPoints))
+        } else {
+          // Single day mode - fetch just that day
+          const dayData = await fetchSingleDayData(selectedDate)
+          setHistoricalData(dayData)
         }
-        const histMeetingMinutes = pattern?.meetings?.reduce((total: number, meeting: MeetingWithTime) => {
-          return total + calculateDuration(meeting.startTime, meeting.endTime)
-        }, 0) || 0
-
-        // Total planned = sum of all capacities
-        const histTotalPlannedMinutes = Object.values(histCapacityByType).reduce(
-          (sum, mins) => sum + mins, 0,
-        )
-
-        setHistoricalData({
-          accumulatedByType: accumulatedData.byType || {},
-          accumulatedBySink: sinkData.bySink || {},
-          capacityByType: histCapacityByType,
-          meetingMinutes: histMeetingMinutes,
-          totalPlannedMinutes: histTotalPlannedMinutes,
-          accumulatedTotal: accumulatedData.total || 0,
-        })
       } catch (error) {
-        logger.ui.error('Failed to fetch historical work data', { error })
+        logger.ui.error('Failed to fetch work data', { error, isRangeMode, selectedDate, rangeStartDate, rangeEndDate })
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchHistoricalData()
-  }, [selectedDate, initialDate, workPatterns])
+    fetchData()
+  }, [isRangeMode, selectedDate, rangeStartDate, rangeEndDate, initialDate, workPatterns])
 
   // Use historical data if loaded, otherwise use props
   const displayData = historicalData ?? {
@@ -230,8 +298,8 @@ export function WorkStatusExpandedModal({
     accumulatedTotal,
   }
 
-  // Whether we're viewing today (show current/next block) or a historical date
-  const isViewingToday = selectedDate === initialDate
+  // Whether we're viewing today (show current/next block) or a historical date/range
+  const isViewingToday = !isRangeMode && selectedDate === initialDate
 
   // Toggle a time sink in the radar chart
   const handleToggleSink = (sinkId: string): void => {
@@ -293,28 +361,69 @@ export function WorkStatusExpandedModal({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: 24 }}>
           <Space>
             <span>📊</span>
-            <span>{formatDateTitle(selectedDate, initialDate)}</span>
+            <span>
+              {isRangeMode
+                ? formatDateRangeTitle(rangeStartDate, rangeEndDate)
+                : formatDateTitle(selectedDate, initialDate)}
+            </span>
           </Space>
           <Space size="small">
+            {/* Mode toggle button */}
             <Button
               size="small"
-              type="secondary"
-              icon={<IconLeft />}
-              onClick={goToPreviousDay}
-            />
-            <DatePicker
-              size="small"
-              value={selectedDate}
-              onChange={(dateString) => dateString && setSelectedDate(dateString as string)}
-              style={{ width: 140 }}
-              allowClear={false}
-            />
-            <Button
-              size="small"
-              type="secondary"
-              icon={<IconRight />}
-              onClick={goToNextDay}
-            />
+              type={isRangeMode ? 'primary' : 'secondary'}
+              onClick={toggleRangeMode}
+              style={{ marginRight: 8 }}
+            >
+              {isRangeMode ? '📅 Range' : '📅 Single'}
+            </Button>
+
+            {isRangeMode ? (
+              /* Date range mode - show start and end date pickers */
+              <>
+                <DatePicker
+                  size="small"
+                  value={rangeStartDate}
+                  onChange={(dateString) => dateString && setRangeStartDate(dateString as DateString)}
+                  style={{ width: 130 }}
+                  allowClear={false}
+                  placeholder="Start"
+                />
+                <Text style={{ margin: '0 4px' }}>→</Text>
+                <DatePicker
+                  size="small"
+                  value={rangeEndDate}
+                  onChange={(dateString) => dateString && setRangeEndDate(dateString as DateString)}
+                  style={{ width: 130 }}
+                  allowClear={false}
+                  placeholder="End"
+                />
+              </>
+            ) : (
+              /* Single day mode - show navigation buttons and date picker */
+              <>
+                <Button
+                  size="small"
+                  type="secondary"
+                  icon={<IconLeft />}
+                  onClick={goToPreviousDay}
+                />
+                <DatePicker
+                  size="small"
+                  value={selectedDate}
+                  onChange={(dateString) => dateString && setSelectedDate(dateString as DateString)}
+                  style={{ width: 140 }}
+                  allowClear={false}
+                />
+                <Button
+                  size="small"
+                  type="secondary"
+                  icon={<IconRight />}
+                  onClick={goToNextDay}
+                />
+              </>
+            )}
+
             {!isViewingToday && (
               <Button size="small" type="primary" onClick={goToToday}>
                 Today

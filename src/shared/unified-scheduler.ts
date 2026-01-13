@@ -283,22 +283,45 @@ interface BlockScoreResult {
  * Scoring weights for block selection.
  * These determine the relative importance of different matching factors.
  *
- * Design rationale:
- * - TYPE_MATCH_EXACT is highest because scheduling in wrong-type blocks
- *   is the primary user complaint
- * - TYPE_MATCH_COMBO gives partial credit for combo blocks containing the type
- * - COMBO_RATIO_BONUS rewards blocks where this type has higher allocation
- * - CAN_FIT_ENTIRELY prefers not splitting tasks across days
- * - CAPACITY_AVAILABLE helps balance load across blocks
- * - TIME_PROXIMITY is lowest - it's just a tiebreaker
+ * ## Design Rationale & User Benefits
+ *
+ * The weights are ordered by how much they affect user satisfaction:
+ *
+ * 1. **TYPE_MATCH_EXACT (100)** - Single-type blocks matching task type exactly.
+ *    User benefit: Tasks appear in the dedicated block the user created for that type.
+ *    Without this, a "Deep Work" task could end up in an "Admin" block.
+ *    This is the #1 user complaint when wrong.
+ *
+ * 2. **TYPE_MATCH_COMBO (50)** - Combo blocks that include the task type.
+ *    User benefit: When no exact match exists, task goes to a block that allows it.
+ *    Lower than exact because users prefer dedicated blocks over shared ones.
+ *
+ * 3. **CAN_FIT_ENTIRELY (25)** - Task fits without splitting across days.
+ *    User benefit: Avoids fragmented work. A 2-hour task stays in one block.
+ *
+ * 4. **CAPACITY_AVAILABLE (20)** - Scaled by remaining capacity (0-20 points).
+ *    User benefit: Balances load across similar blocks. Prevents one block
+ *    from being overloaded while another sits empty.
+ *
+ * 5. **COMBO_RATIO_BONUS (15)** - Bonus when type has ≥50% allocation in combo.
+ *    User benefit: A combo block allocated 70% to "Deep Work" is preferred
+ *    for deep work tasks over one allocated only 30%.
+ *
+ * 6. **TIME_PROXIMITY (5)** - Earlier blocks score slightly higher.
+ *    User benefit: Tiebreaker when all else is equal. Tasks get scheduled
+ *    sooner rather than later (front-loading principle).
+ *
+ * The relative values ensure type matching always dominates:
+ * - TYPE_MATCH_EXACT (100) beats all other factors combined (115 max)
+ * - TYPE_MATCH_COMBO (50) + max bonuses (60) still loses to EXACT (100)
  */
 const BLOCK_SCORING_WEIGHTS = {
   TYPE_MATCH_EXACT: 100,      // Single-type block matches task type exactly
   TYPE_MATCH_COMBO: 50,       // Combo block includes the task type
-  COMBO_RATIO_BONUS: 15,      // Bonus for higher ratio in combo block
   CAN_FIT_ENTIRELY: 25,       // Task fits completely without splitting
-  CAPACITY_AVAILABLE: 20,     // Scaled by remaining capacity percentage
-  TIME_PROXIMITY: 5,          // Closer to current time (tiebreaker only)
+  CAPACITY_AVAILABLE: 20,     // Scaled by remaining capacity percentage (0-20)
+  COMBO_RATIO_BONUS: 15,      // Bonus when this type has ≥50% allocation in combo
+  TIME_PROXIMITY: 5,          // Earlier blocks preferred (tiebreaker)
 } as const
 
 export interface ScheduleResult {
@@ -1346,14 +1369,9 @@ export class UnifiedScheduler {
       return { canFit: false, canPartiallyFit: false }
     }
 
-    // Sort by score (descending), then by start time (ascending) as tiebreaker
-    scoredBlocks.sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score  // Higher score wins
-      }
-      // Tiebreaker: earlier block preferred
-      return a.block.startTime.getTime() - b.block.startTime.getTime()
-    })
+    // Sort by score (descending) - TIME_PROXIMITY is built into the score
+    // so earlier blocks naturally score higher when all else is equal
+    scoredBlocks.sort((a, b) => b.score - a.score)
 
     const best = scoredBlocks[0]
 
@@ -1541,6 +1559,11 @@ export class UnifiedScheduler {
     const taskTypeId = item.taskTypeId
 
     // --- Type Matching Score (most important) ---
+    // NOTE: Type compatibility is ALSO checked upfront in canFitInBlock() as a filter.
+    // However, we still need scoring because BOTH exact-match blocks AND combo blocks
+    // can pass the filter. Scoring ensures we PREFER exact-match blocks over combos.
+    // Example: A "Deep Work" task matches both a dedicated "Deep Work" block (exact)
+    // and a "Deep Work + Admin" combo block. Without scoring, we might pick the combo.
     if (taskTypeId && taskTypeId !== UNTYPED_TASK_MARKER) {
       if (isSingleTypeBlock(block.typeConfig)) {
         if (block.typeConfig.typeId === taskTypeId) {
@@ -1553,7 +1576,10 @@ export class UnifiedScheduler {
           score += BLOCK_SCORING_WEIGHTS.TYPE_MATCH_COMBO
           reasons.push(`Combo includes type: ${taskTypeId}`)
 
-          // Bonus for higher allocation ratio
+          // Bonus for higher allocation ratio in combo blocks.
+          // User benefit: If user has a 70/30 "Deep Work/Admin" combo and a 30/70 combo,
+          // deep work tasks will prefer the block where deep work has more time allocated.
+          // This respects the user's intent when designing their schedule.
           if (allocation.ratio >= 0.5) {
             score += BLOCK_SCORING_WEIGHTS.COMBO_RATIO_BONUS
             reasons.push(`High ratio in combo: ${(allocation.ratio * 100).toFixed(0)}%`)
@@ -1575,6 +1601,17 @@ export class UnifiedScheduler {
       score += capacityScore
       reasons.push(`Capacity: ${fitResult.availableMinutes}/${block.totalMinutes}min`)
     }
+
+    // --- Time Proximity Score (prefer earlier blocks, acts as tiebreaker) ---
+    // Gives fractional points based on block start time within the day
+    // Earlier blocks get higher scores (closer to full TIME_PROXIMITY points)
+    const dayStartMs = new Date(block.startTime).setHours(0, 0, 0, 0)
+    const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000
+    const blockStartMs = block.startTime.getTime()
+    const dayProgress = (blockStartMs - dayStartMs) / (dayEndMs - dayStartMs)
+    const proximityScore = Math.floor((1 - dayProgress) * BLOCK_SCORING_WEIGHTS.TIME_PROXIMITY)
+    score += proximityScore
+    reasons.push(`Time proximity: ${proximityScore}/${BLOCK_SCORING_WEIGHTS.TIME_PROXIMITY}`)
 
     return {
       block,
@@ -1607,12 +1644,14 @@ export class UnifiedScheduler {
     const endTime = new Date(startTime.getTime() + duration * 60000)
 
 
-    // CRITICAL: Require blockId for all scheduled items
-    // This prevents "Outside Work Hours" scheduling bugs
+    // INVARIANT VALIDATION (not debug logic - this is production safety)
+    // Require blockId for all scheduled items to prevent "Outside Work Hours" bugs.
+    // This validation catches programming errors where the scheduling logic
+    // attempts to schedule an item without properly assigning it to a block.
+    // The throw is intentional - we want this to fail loudly in dev/test rather
+    // than silently produce incorrect schedules that confuse users.
     if (!fitResult.block?.blockId) {
-      // This is a programming error that should never occur in normal operation
-      // If it does, it indicates a bug in the scheduling logic
-      logger.error('CRITICAL: scheduleItemInBlock called without valid block', {
+      logger.error('scheduleItemInBlock called without valid block', {
         itemId: item.id,
         itemName: item.name,
         hasBlock: !!fitResult.block,
