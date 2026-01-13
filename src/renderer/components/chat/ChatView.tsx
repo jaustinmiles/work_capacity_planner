@@ -14,6 +14,7 @@ import { ChatMessageRole, ViewType } from '@shared/enums'
 import { AmendmentCard } from './AmendmentCard'
 import { sendChatMessage } from '../../services/brainstorm-chat-ai'
 import { parseAIResponse } from '../../services/chat-response-parser'
+import { MarkdownContent } from '../common/MarkdownContent'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -37,19 +38,17 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
 
   const [inputValue, setInputValue] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<any>(null)
+  const shouldScrollRef = useRef(false)
 
   const isSending = status === ConversationStatus.Sending
 
-  // Auto-scroll to bottom when messages change
+  // Only scroll when explicitly requested (after sending/receiving)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent])
-
-  // Focus input on mount
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+    if (shouldScrollRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      shouldScrollRef.current = false
+    }
+  }, [messages])
 
   const handleSend = useCallback(async () => {
     const content = inputValue.trim()
@@ -57,6 +56,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
 
     setInputValue('')
     setStatus(ConversationStatus.Sending)
+    shouldScrollRef.current = true
 
     try {
       // Add user message
@@ -80,6 +80,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
 
       // Add assistant message with amendments
       await addAssistantMessage(parsed.content, parsed.amendments)
+      shouldScrollRef.current = true
 
       setStatus(ConversationStatus.Idle)
     } catch (error) {
@@ -181,7 +182,6 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
       >
         <div style={{ display: 'flex', gap: 8 }}>
           <TextArea
-            ref={inputRef}
             value={inputValue}
             onChange={setInputValue}
             onKeyDown={handleKeyDown}
@@ -251,7 +251,11 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
           color: 'var(--color-text-1)',
         }}
       >
-        <Text style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Text>
+        {isUser ? (
+          <Text style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Text>
+        ) : (
+          <MarkdownContent content={message.content} />
+        )}
       </div>
 
       {/* Amendment cards */}

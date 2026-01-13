@@ -202,10 +202,10 @@ export interface RawChatMessage {
  */
 export function toConversation(raw: RawConversation): Conversation {
   // Import dynamically to avoid circular dependencies
-  const { ConversationId } = require('./id-types')
+  const { toConversationId } = require('./id-types')
 
   return {
-    id: ConversationId(raw.id),
+    id: toConversationId(raw.id),
     sessionId: raw.sessionId,
     jobContextId: raw.jobContextId,
     title: raw.title,
@@ -221,7 +221,7 @@ export function toConversation(raw: RawConversation): Conversation {
  */
 export function toChatMessageRecord(raw: RawChatMessage): ChatMessageRecord {
   // Import dynamically to avoid circular dependencies
-  const { ChatMessageId, ConversationId } = require('./id-types')
+  const { toChatMessageId, toConversationId } = require('./id-types')
 
   let amendments: AmendmentCard[] | null = null
   if (raw.amendments) {
@@ -233,8 +233,8 @@ export function toChatMessageRecord(raw: RawChatMessage): ChatMessageRecord {
   }
 
   return {
-    id: ChatMessageId(raw.id),
-    conversationId: ConversationId(raw.conversationId),
+    id: toChatMessageId(raw.id),
+    conversationId: toConversationId(raw.conversationId),
     role: raw.role as ChatMessageRole,
     content: raw.content,
     amendments,

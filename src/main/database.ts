@@ -35,6 +35,18 @@ import {
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../shared/time-provider'
+import {
+  generateConversationId,
+  generateChatMessageId,
+  toConversationId,
+  toChatMessageId,
+} from '../shared/id-types'
+import {
+  Conversation,
+  ChatMessageRecord,
+  AmendmentCard,
+} from '../shared/conversation-types'
+import { ChatMessageRole } from '../shared/enums'
 import { timeStringToMinutes, parseDateString, dateToYYYYMMDD, calculateMinutesBetweenDates } from '../shared/time-utils'
 import * as crypto from 'crypto'
 import { LogScope } from '../logger'
@@ -3513,7 +3525,7 @@ export class DatabaseService {
    * Get all conversations for the current session.
    * Returns conversations with message counts, ordered by most recently updated.
    */
-  async getConversations(): Promise<any[]> {
+  async getConversations(): Promise<Conversation[]> {
     const sessionId = await this.getActiveSession()
     const conversations = await this.client.conversation.findMany({
       where: {
@@ -3528,8 +3540,8 @@ export class DatabaseService {
       orderBy: { updatedAt: 'desc' },
     })
 
-    return conversations.map(conv => ({
-      id: conv.id,
+    return conversations.map((conv): Conversation => ({
+      id: toConversationId(conv.id),
       sessionId: conv.sessionId,
       jobContextId: conv.jobContextId,
       title: conv.title,
@@ -3543,7 +3555,7 @@ export class DatabaseService {
   /**
    * Get a single conversation by ID with message count.
    */
-  async getConversationById(id: string): Promise<any | null> {
+  async getConversationById(id: string): Promise<Conversation | null> {
     const conversation = await this.client.conversation.findUnique({
       where: { id },
       include: {
@@ -3556,7 +3568,7 @@ export class DatabaseService {
     if (!conversation) return null
 
     return {
-      id: conversation.id,
+      id: toConversationId(conversation.id),
       sessionId: conversation.sessionId,
       jobContextId: conversation.jobContextId,
       title: conversation.title,
@@ -3573,10 +3585,10 @@ export class DatabaseService {
   async createConversation(data: {
     title?: string
     jobContextId?: string
-  }): Promise<any> {
+  }): Promise<Conversation> {
     const sessionId = await this.getActiveSession()
-    const id = `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
-    const title = data.title || `Chat ${new Date().toLocaleDateString()}`
+    const id = generateConversationId()
+    const title = data.title || `Chat ${getCurrentTime().toLocaleDateString()}`
 
     const conversation = await this.client.conversation.create({
       data: {
@@ -3591,7 +3603,7 @@ export class DatabaseService {
     dbLogger.info('Created conversation', { id, title })
 
     return {
-      id: conversation.id,
+      id: toConversationId(conversation.id),
       sessionId: conversation.sessionId,
       jobContextId: conversation.jobContextId,
       title: conversation.title,
@@ -3609,7 +3621,7 @@ export class DatabaseService {
     title?: string
     jobContextId?: string | null
     isArchived?: boolean
-  }): Promise<any> {
+  }): Promise<Conversation> {
     const conversation = await this.client.conversation.update({
       where: { id },
       data: updates,
@@ -3623,7 +3635,7 @@ export class DatabaseService {
     dbLogger.info('Updated conversation', { id, updates })
 
     return {
-      id: conversation.id,
+      id: toConversationId(conversation.id),
       sessionId: conversation.sessionId,
       jobContextId: conversation.jobContextId,
       title: conversation.title,
@@ -3648,16 +3660,16 @@ export class DatabaseService {
   /**
    * Get all messages for a conversation, ordered by creation time.
    */
-  async getChatMessages(conversationId: string): Promise<any[]> {
+  async getChatMessages(conversationId: string): Promise<ChatMessageRecord[]> {
     const messages = await this.client.chatMessage.findMany({
       where: { conversationId },
       orderBy: { createdAt: 'asc' },
     })
 
-    return messages.map(msg => ({
-      id: msg.id,
-      conversationId: msg.conversationId,
-      role: msg.role,
+    return messages.map((msg): ChatMessageRecord => ({
+      id: toChatMessageId(msg.id),
+      conversationId: toConversationId(msg.conversationId),
+      role: msg.role as ChatMessageRole,
       content: msg.content,
       amendments: msg.amendments ? JSON.parse(msg.amendments) : null,
       createdAt: msg.createdAt,
@@ -3669,11 +3681,11 @@ export class DatabaseService {
    */
   async createChatMessage(data: {
     conversationId: string
-    role: string
+    role: ChatMessageRole
     content: string
-    amendments?: any[]
-  }): Promise<any> {
-    const id = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+    amendments?: AmendmentCard[]
+  }): Promise<ChatMessageRecord> {
+    const id = generateChatMessageId()
 
     const message = await this.client.chatMessage.create({
       data: {
@@ -3688,13 +3700,13 @@ export class DatabaseService {
     // Update conversation's updatedAt timestamp
     await this.client.conversation.update({
       where: { id: data.conversationId },
-      data: { updatedAt: new Date() },
+      data: { updatedAt: getCurrentTime() },
     })
 
     return {
-      id: message.id,
-      conversationId: message.conversationId,
-      role: message.role,
+      id: toChatMessageId(message.id),
+      conversationId: toConversationId(message.conversationId),
+      role: message.role as ChatMessageRole,
       content: message.content,
       amendments: message.amendments ? JSON.parse(message.amendments) : null,
       createdAt: message.createdAt,
@@ -3708,7 +3720,7 @@ export class DatabaseService {
   async updateMessageAmendmentStatus(
     messageId: string,
     cardId: string,
-    status: 'pending' | 'applied' | 'skipped',
+    status: AmendmentCard['status'],
   ): Promise<void> {
     const message = await this.client.chatMessage.findUnique({
       where: { id: messageId },
@@ -3718,14 +3730,14 @@ export class DatabaseService {
       throw new Error(`Message ${messageId} not found or has no amendments`)
     }
 
-    const amendments = JSON.parse(message.amendments) as any[]
-    const cardIndex = amendments.findIndex((card: any) => card.id === cardId)
+    const amendments: AmendmentCard[] = JSON.parse(message.amendments)
+    const card = amendments.find((c) => c.id === cardId)
 
-    if (cardIndex === -1) {
+    if (!card) {
       throw new Error(`Amendment card ${cardId} not found in message ${messageId}`)
     }
 
-    amendments[cardIndex].status = status
+    card.status = status
 
     await this.client.chatMessage.update({
       where: { id: messageId },

@@ -8,6 +8,8 @@ import { getScopedLogger } from '../logger/scope-helper'
 import type { Task, AICallOptions } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
 import type { LogQueryOptions } from '../shared/log-types'
+import type { AmendmentCard } from '../shared/conversation-types'
+import { ChatMessageRole } from '../shared/enums'
 
 // Get scoped logger for main process
 const mainLogger = getScopedLogger(LogScope.System)
@@ -289,7 +291,7 @@ ipcMain.handle('db:getChatMessages', async (_event: IpcMainInvokeEvent, conversa
   return await db.getChatMessages(conversationId)
 })
 
-ipcMain.handle('db:createChatMessage', async (_event: IpcMainInvokeEvent, data: { conversationId: string; role: string; content: string; amendments?: any[] }) => {
+ipcMain.handle('db:createChatMessage', async (_event: IpcMainInvokeEvent, data: { conversationId: string; role: ChatMessageRole; content: string; amendments?: AmendmentCard[] }) => {
   return await db.createChatMessage(data)
 })
 
