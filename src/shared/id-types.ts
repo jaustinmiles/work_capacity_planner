@@ -44,7 +44,7 @@ export type ConversationId = Brand<string, 'ConversationId'>
  *
  * @throws Error if id is empty or not a string
  */
-export function ConversationId(id: string): ConversationId {
+export function toConversationId(id: string): ConversationId {
   if (!id || typeof id !== 'string') {
     throw new Error('Invalid ConversationId: must be a non-empty string')
   }
@@ -65,7 +65,7 @@ export function isConversationId(id: unknown): id is ConversationId {
 export function generateConversationId(): ConversationId {
   const timestamp = Date.now()
   const random = Math.random().toString(36).slice(2, 9)
-  return ConversationId(`conv_${timestamp}_${random}`)
+  return toConversationId(`conv_${timestamp}_${random}`)
 }
 
 // =============================================================================
@@ -84,7 +84,7 @@ export type ChatMessageId = Brand<string, 'ChatMessageId'>
  *
  * @throws Error if id is empty or not a string
  */
-export function ChatMessageId(id: string): ChatMessageId {
+export function toChatMessageId(id: string): ChatMessageId {
   if (!id || typeof id !== 'string') {
     throw new Error('Invalid ChatMessageId: must be a non-empty string')
   }
@@ -105,7 +105,7 @@ export function isChatMessageId(id: unknown): id is ChatMessageId {
 export function generateChatMessageId(): ChatMessageId {
   const timestamp = Date.now()
   const random = Math.random().toString(36).slice(2, 9)
-  return ChatMessageId(`msg_${timestamp}_${random}`)
+  return toChatMessageId(`msg_${timestamp}_${random}`)
 }
 
 // =============================================================================

@@ -101,7 +101,7 @@ export function useResizable(options: UseResizableOptions): UseResizableReturn {
   // Load initial size from storage or use default
   const [size, setSize] = useState<number>(() => {
     if (storageKey && typeof window !== 'undefined') {
-      const saved = localStorage.getItem(storageKey)
+      const saved = window.localStorage.getItem(storageKey)
       if (saved) {
         const parsed = parseInt(saved, 10)
         if (!isNaN(parsed) && parsed >= minSize && parsed <= maxSize) {
@@ -161,7 +161,7 @@ export function useResizable(options: UseResizableOptions): UseResizableReturn {
 
     // Persist to storage
     if (storageKey) {
-      localStorage.setItem(storageKey, size.toString())
+      window.localStorage.setItem(storageKey, size.toString())
     }
 
     onResizeEnd?.(size)

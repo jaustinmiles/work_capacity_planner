@@ -15,7 +15,7 @@ import {
   AmendmentCard,
   CreateConversationInput,
 } from '@shared/conversation-types'
-import { ConversationId, ChatMessageId } from '@shared/id-types'
+import { ConversationId, ChatMessageId, toConversationId, toChatMessageId } from '@shared/id-types'
 import { getDatabase } from '../services/database'
 import { JobContextData } from '../services/chat-context-provider'
 
@@ -206,7 +206,7 @@ export const useConversationStore = create<ConversationState>()(
 
           // Convert raw database records to typed Conversations
           const conversations: Conversation[] = rawConversations.map((raw: any) => ({
-            id: ConversationId(raw.id),
+            id: toConversationId(raw.id),
             sessionId: raw.sessionId,
             jobContextId: raw.jobContextId,
             title: raw.title,
@@ -235,7 +235,7 @@ export const useConversationStore = create<ConversationState>()(
         })
 
         const conversation: Conversation = {
-          id: ConversationId(rawConversation.id),
+          id: toConversationId(rawConversation.id),
           sessionId: rawConversation.sessionId,
           jobContextId: rawConversation.jobContextId,
           title: rawConversation.title,
@@ -268,8 +268,8 @@ export const useConversationStore = create<ConversationState>()(
 
           // Convert raw database records to typed ChatMessageRecords
           const messages: ChatMessageRecord[] = rawMessages.map((raw: any) => ({
-            id: ChatMessageId(raw.id),
-            conversationId: ConversationId(raw.conversationId),
+            id: toChatMessageId(raw.id),
+            conversationId: toConversationId(raw.conversationId),
             role: raw.role as ChatMessageRole,
             content: raw.content,
             amendments: raw.amendments,
@@ -339,8 +339,8 @@ export const useConversationStore = create<ConversationState>()(
         })
 
         const message: ChatMessageRecord = {
-          id: ChatMessageId(rawMessage.id),
-          conversationId: ConversationId(rawMessage.conversationId),
+          id: toChatMessageId(rawMessage.id),
+          conversationId: toConversationId(rawMessage.conversationId),
           role: ChatMessageRole.User,
           content: rawMessage.content,
           amendments: null,
@@ -370,8 +370,8 @@ export const useConversationStore = create<ConversationState>()(
         })
 
         const message: ChatMessageRecord = {
-          id: ChatMessageId(rawMessage.id),
-          conversationId: ConversationId(rawMessage.conversationId),
+          id: toChatMessageId(rawMessage.id),
+          conversationId: toConversationId(rawMessage.conversationId),
           role: ChatMessageRole.Assistant,
           content: rawMessage.content,
           amendments: rawMessage.amendments,
