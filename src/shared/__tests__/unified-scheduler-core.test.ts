@@ -7,6 +7,7 @@ import { UnifiedScheduler } from '../unified-scheduler'
 import { UnifiedScheduleItem, ScheduleContext, ScheduleConfig } from '../unified-scheduler'
 import { Task } from '../types'
 import { DailyWorkPattern } from '../work-blocks-types'
+import { UnifiedScheduleItemType } from '../enums'
 
 describe('UnifiedScheduler - Core Functionality', () => {
   let scheduler: UnifiedScheduler
@@ -289,17 +290,19 @@ describe('UnifiedScheduler - Core Functionality', () => {
         {
           id: 'focus-task',
           name: 'Focus Task',
+          type: UnifiedScheduleItemType.Task,
           duration: 60,
           priority: 50,
-          taskType: 'focused',
+          taskTypeId: 'focused',
           originalItem: createTestTask('focus-task', 60),
         },
         {
           id: 'admin-task',
           name: 'Admin Task',
+          type: UnifiedScheduleItemType.Task,
           duration: 45,
           priority: 50,
-          taskType: 'admin',
+          taskTypeId: 'admin',
           originalItem: createTestTask('admin-task', 45, { taskType: 'admin' }),
         },
       ]
@@ -325,9 +328,10 @@ describe('UnifiedScheduler - Core Functionality', () => {
       const largeTask: UnifiedScheduleItem = {
         id: 'large-task',
         name: 'Large Task',
+        type: UnifiedScheduleItemType.Task,
         duration: 240, // 4 hours - exceeds morning focus block
         priority: 50,
-        taskType: 'focused',
+        taskTypeId: 'focused',
         originalItem: createTestTask('large-task', 240),
       }
 

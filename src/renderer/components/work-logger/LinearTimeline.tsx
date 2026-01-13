@@ -18,7 +18,7 @@ import { IconScissor } from '@arco-design/web-react/icon'
 import { WorkBlock, BlockTypeConfig } from '@shared/work-blocks-types'
 import { UserTaskType, getTypeColor } from '@shared/user-task-types'
 import { TimeSink } from '@shared/time-sink-types'
-import { BlockConfigKind, WorkBlockType, SplitMode } from '@shared/enums'
+import { BlockConfigKind, WorkBlockType, SplitMode, UnifiedScheduleItemType } from '@shared/enums'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import {
   WorkSessionData,
@@ -917,7 +917,10 @@ export function LinearTimeline({
           })}
 
           {/* Planned items overlay (from frozen schedule snapshot) */}
-          {showPlannedOverlay && plannedItems.map(item => {
+          {/* Filter out async-wait items - only show actual tasks */}
+          {showPlannedOverlay && plannedItems
+            .filter(item => item.type !== UnifiedScheduleItemType.AsyncWait)
+            .map(item => {
             const x = minutesToX(item.startMinutes)
             const width = minutesToX(item.endMinutes) - x
 

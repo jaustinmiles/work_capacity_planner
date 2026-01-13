@@ -186,6 +186,7 @@ export function WorkStatusWidget(): React.ReactElement {
         <WorkStatusExpandedModal
           visible={isExpanded}
           onClose={() => setIsExpanded(false)}
+          initialDate={currentDate}
           accumulatedByType={accumulatedByType}
           accumulatedBySink={accumulatedBySink}
           capacityByType={capacityByType}

@@ -45,7 +45,7 @@ import {
   calculateCriticalPath,
   calculateDependencyChainLength,
 } from './graph-utils'
-import { convertToUnifiedItems, validateConvertedItems } from './scheduler-converters'
+import { convertToUnifiedItems, validateConvertedItems, UNTYPED_TASK_MARKER } from './scheduler-converters'
 import {
   calculatePriority,
   calculatePriorityWithBreakdown,
@@ -71,7 +71,8 @@ export enum SchedulingWarningType {
   SoftDeadlineRisk = 'soft_deadline_risk',
   CapacityWarning = 'capacity_warning',
   CognitiveMismatch = 'cognitive_mismatch',
-  ContextSwitch = 'context_switch'
+  ContextSwitch = 'context_switch',
+  MissingBlockId = 'missing_block_id',
 }
 
 export enum OptimizationMode {
@@ -266,6 +267,39 @@ interface FitResult {
   startTime?: Date
   block?: SchedulerBlockCapacity
 }
+
+/**
+ * Result of scoring a block for scheduling an item.
+ * Higher scores indicate better matches.
+ */
+interface BlockScoreResult {
+  block: SchedulerBlockCapacity
+  score: number
+  fitResult: FitResult
+  reasons: string[]  // For debugging/logging
+}
+
+/**
+ * Scoring weights for block selection.
+ * These determine the relative importance of different matching factors.
+ *
+ * Design rationale:
+ * - TYPE_MATCH_EXACT is highest because scheduling in wrong-type blocks
+ *   is the primary user complaint
+ * - TYPE_MATCH_COMBO gives partial credit for combo blocks containing the type
+ * - COMBO_RATIO_BONUS rewards blocks where this type has higher allocation
+ * - CAN_FIT_ENTIRELY prefers not splitting tasks across days
+ * - CAPACITY_AVAILABLE helps balance load across blocks
+ * - TIME_PROXIMITY is lowest - it's just a tiebreaker
+ */
+const BLOCK_SCORING_WEIGHTS = {
+  TYPE_MATCH_EXACT: 100,      // Single-type block matches task type exactly
+  TYPE_MATCH_COMBO: 50,       // Combo block includes the task type
+  COMBO_RATIO_BONUS: 15,      // Bonus for higher ratio in combo block
+  CAN_FIT_ENTIRELY: 25,       // Task fits completely without splitting
+  CAPACITY_AVAILABLE: 20,     // Scaled by remaining capacity percentage
+  TIME_PROXIMITY: 5,          // Closer to current time (tiebreaker only)
+} as const
 
 export interface ScheduleResult {
   scheduled: UnifiedScheduleItem[]
@@ -575,7 +609,8 @@ export class UnifiedScheduler {
         .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
 
       // Schedule meetings and breaks first (for time blocking only)
-      const meetingItems = this.scheduleMeetings(pattern.meetings || [], blockDate)
+      // Pass dayBlocks so meetings can be associated with blocks for capacity tracking
+      const meetingItems = this.scheduleMeetings(pattern.meetings || [], blockDate, dayBlocks)
       // Add meetings to scheduled array so they block time
       scheduled.push(...meetingItems)
 
@@ -607,6 +642,11 @@ export class UnifiedScheduler {
             // Create wait block with SAME ID as parent task so dependencies flow naturally
             const waitStartTime = item.completedAt ? new Date(item.completedAt) : (config.currentTime || currentDate)
 
+            // Find the block containing the wait start time for proper block association
+            const containingBlock = dayBlocks.find(block =>
+              waitStartTime >= block.startTime && waitStartTime < block.endTime,
+            )
+
             const waitTimeItem: UnifiedScheduleItem = {
               id: item.id, // Use same ID as parent task for natural dependency flow
               name: `⏳ Waiting: ${item.name}`,
@@ -616,6 +656,7 @@ export class UnifiedScheduler {
               startTime: waitStartTime,
               endTime: new Date(waitStartTime.getTime() + item.asyncWaitTime * 60000),
               isWaitTime: true,
+              blockId: containingBlock?.blockId, // Associate with containing block
               ...(item.workflowId && { workflowId: item.workflowId }),
               ...(item.workflowName && { workflowName: item.workflowName }),
               ...(item.originalItem && { originalItem: item.originalItem }),
@@ -653,6 +694,7 @@ export class UnifiedScheduler {
                 startTime: scheduledItem.endTime,
                 endTime: new Date(scheduledItem.endTime.getTime() + item.asyncWaitTime * 60000),
                 isWaitTime: true,
+                blockId: scheduledItem.blockId, // Inherit blockId from parent task
                 ...(item.workflowId && { workflowId: item.workflowId }),
                 ...(item.workflowName && { workflowName: item.workflowName }),
               }
@@ -1265,7 +1307,18 @@ export class UnifiedScheduler {
   }
 
   /**
-   * Find the best block for an item
+   * Find the best block for an item using a scoring algorithm.
+   *
+   * This replaces simple first-match logic with intelligent scoring that
+   * prioritizes type-matched blocks over chronologically earlier blocks.
+   *
+   * Algorithm:
+   * 1. Score all blocks that can accommodate the item
+   * 2. Sort by score (descending), with time as tiebreaker
+   * 3. Return the highest-scoring block
+   *
+   * This fixes the bug where errands ended up in "focused work" blocks
+   * simply because the focused block came first chronologically.
    */
   private findBestBlockForItem(
     item: UnifiedScheduleItem,
@@ -1273,16 +1326,52 @@ export class UnifiedScheduler {
     scheduled: UnifiedScheduleItem[],
     currentTime?: Date,
   ): FitResult {
+    // Score all candidate blocks
+    const scoredBlocks: BlockScoreResult[] = []
 
     for (const block of blocks) {
-      const fitResult = this.canFitInBlock(item, block, scheduled, currentTime)
-
-      if (fitResult.canFit || fitResult.canPartiallyFit) {
-        return { ...fitResult, block }
+      const scoreResult = this.scoreBlockForItem(item, block, scheduled, currentTime)
+      if (scoreResult) {
+        scoredBlocks.push(scoreResult)
       }
     }
 
-    return { canFit: false, canPartiallyFit: false }
+    // No blocks can accommodate this item
+    if (scoredBlocks.length === 0) {
+      logger.debug('No blocks available for item', {
+        itemName: item.name,
+        itemType: item.taskTypeId,
+        blocksChecked: blocks.length,
+      })
+      return { canFit: false, canPartiallyFit: false }
+    }
+
+    // Sort by score (descending), then by start time (ascending) as tiebreaker
+    scoredBlocks.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score  // Higher score wins
+      }
+      // Tiebreaker: earlier block preferred
+      return a.block.startTime.getTime() - b.block.startTime.getTime()
+    })
+
+    const best = scoredBlocks[0]
+
+    // TypeScript guard - should never happen since we check length above
+    if (!best) {
+      return { canFit: false, canPartiallyFit: false }
+    }
+
+    logger.debug('Selected best block for item', {
+      itemName: item.name,
+      itemType: item.taskTypeId,
+      selectedBlockId: best.block.blockId,
+      score: best.score,
+      reasons: best.reasons,
+      alternativesConsidered: scoredBlocks.length - 1,
+    })
+
+    return { ...best.fitResult, block: best.block }
   }
 
   /**
@@ -1301,19 +1390,30 @@ export class UnifiedScheduler {
       return { canFit: false, canPartiallyFit: false }
     }
 
-    // Check type compatibility
-    if (taskTypeId) {
-      // Single type blocks must match exactly
-      if (isSingleTypeBlock(block.typeConfig) && block.typeConfig.typeId !== taskTypeId) {
-        return { canFit: false, canPartiallyFit: false }
-      }
+    // STRICT TYPE ENFORCEMENT: Untyped tasks cannot be scheduled in typed blocks
+    // This prevents tasks from silently going into any available block
+    // Tasks should ALWAYS have a type assigned - this catches data validation issues
+    if (!taskTypeId || taskTypeId === UNTYPED_TASK_MARKER) {
+      logger.warn('Task has no type - cannot schedule in typed block', {
+        itemId: item.id,
+        itemName: item.name,
+        taskTypeId,
+        blockId: block.blockId,
+      })
+      return { canFit: false, canPartiallyFit: false }
+    }
 
-      // Combo blocks must include this type
-      if (isComboBlock(block.typeConfig)) {
-        const hasType = block.typeConfig.allocations.some(a => a.typeId === taskTypeId)
-        if (!hasType) {
-          return { canFit: false, canPartiallyFit: false }
-        }
+    // Check type compatibility - type is guaranteed to exist at this point
+    // Single type blocks must match exactly
+    if (isSingleTypeBlock(block.typeConfig) && block.typeConfig.typeId !== taskTypeId) {
+      return { canFit: false, canPartiallyFit: false }
+    }
+
+    // Combo blocks must include this type
+    if (isComboBlock(block.typeConfig)) {
+      const hasType = block.typeConfig.allocations.some(a => a.typeId === taskTypeId)
+      if (!hasType) {
+        return { canFit: false, canPartiallyFit: false }
       }
     }
 
@@ -1339,28 +1439,53 @@ export class UnifiedScheduler {
     const remainingTimeInBlock = Math.floor((block.endTime.getTime() - potentialStartTime.getTime()) / 60000)
 
     // Get scheduled items that will be in the remaining time window
-    const scheduledInRemainingWindow = scheduled.filter(s =>
-      s.startTime && s.endTime &&
-      s.startTime >= potentialStartTime &&
-      s.endTime <= block.endTime &&
-      s.blockId === block.blockId &&
-      !s.isWaitTime,
-    )
+    // CRITICAL: Include meetings that overlap this time window regardless of blockId
+    // Meetings block ALL overlapping time, not just their assigned block
+    const scheduledInRemainingWindow = scheduled.filter(s => {
+      // Skip wait time items - they don't consume block capacity
+      if (s.isWaitTime) return false
+
+      // Must have valid times
+      if (!s.startTime || !s.endTime) return false
+
+      // Check if item overlaps with remaining window [potentialStartTime, block.endTime]
+      const overlapsWindow = s.startTime < block.endTime && s.endTime > potentialStartTime
+      if (!overlapsWindow) return false
+
+      // Include if:
+      // (a) it's a meeting (meetings block ALL overlapping time), OR
+      // (b) it's assigned to this specific block
+      return s.type === UnifiedScheduleItemType.Meeting || s.blockId === block.blockId
+    })
+
+    // Helper to calculate actual overlapping time within the remaining window
+    // This is critical for meetings that partially overlap - we only count the overlapping portion
+    const calculateOverlapDuration = (item: UnifiedScheduleItem): number => {
+      if (!item.startTime || !item.endTime) return 0
+
+      // Calculate the intersection of [item.startTime, item.endTime] with [potentialStartTime, block.endTime]
+      const overlapStart = Math.max(item.startTime.getTime(), potentialStartTime.getTime())
+      const overlapEnd = Math.min(item.endTime.getTime(), block.endTime.getTime())
+
+      // Return overlap in minutes (0 if no overlap)
+      return Math.max(0, Math.floor((overlapEnd - overlapStart) / 60000))
+    }
 
     // Calculate available capacity based on block type
     let availableCapacity: number
 
     if (isComboBlock(block.typeConfig) && taskTypeId) {
       // For combo blocks, track per-type usage
+      // Use overlap duration for accurate capacity calculation
       const usedForThisType = scheduledInRemainingWindow
         .filter(s => s.taskTypeId === taskTypeId)
-        .reduce((sum, s) => sum + s.duration, 0)
+        .reduce((sum, s) => sum + calculateOverlapDuration(s), 0)
 
       // Available is type-specific capacity minus what's scheduled for this type
       availableCapacity = Math.min(Math.floor(totalCapacityForTaskType) - usedForThisType, remainingTimeInBlock)
     } else {
-      // For single-type blocks, simpler calculation
-      const totalUsed = scheduledInRemainingWindow.reduce((sum, s) => sum + s.duration, 0)
+      // For single-type blocks, use overlap duration for accurate capacity
+      const totalUsed = scheduledInRemainingWindow.reduce((sum, s) => sum + calculateOverlapDuration(s), 0)
       availableCapacity = remainingTimeInBlock - totalUsed
     }
 
@@ -1390,6 +1515,76 @@ export class UnifiedScheduler {
   }
 
   /**
+   * Score how well a block matches an item for scheduling.
+   *
+   * Returns null if the block cannot accommodate the item at all.
+   * Higher scores indicate better fits.
+   *
+   * The scoring prioritizes type matching over chronological order,
+   * solving the bug where errands ended up in "focused work" blocks.
+   */
+  private scoreBlockForItem(
+    item: UnifiedScheduleItem,
+    block: SchedulerBlockCapacity,
+    scheduled: UnifiedScheduleItem[],
+    currentTime?: Date,
+  ): BlockScoreResult | null {
+    // First check if block can accommodate item at all
+    const fitResult = this.canFitInBlock(item, block, scheduled, currentTime)
+
+    if (!fitResult.canFit && !fitResult.canPartiallyFit) {
+      return null  // Block cannot be used
+    }
+
+    let score = 0
+    const reasons: string[] = []
+    const taskTypeId = item.taskTypeId
+
+    // --- Type Matching Score (most important) ---
+    if (taskTypeId && taskTypeId !== UNTYPED_TASK_MARKER) {
+      if (isSingleTypeBlock(block.typeConfig)) {
+        if (block.typeConfig.typeId === taskTypeId) {
+          score += BLOCK_SCORING_WEIGHTS.TYPE_MATCH_EXACT
+          reasons.push(`Exact type match: ${taskTypeId}`)
+        }
+      } else if (isComboBlock(block.typeConfig)) {
+        const allocation = block.typeConfig.allocations.find(a => a.typeId === taskTypeId)
+        if (allocation) {
+          score += BLOCK_SCORING_WEIGHTS.TYPE_MATCH_COMBO
+          reasons.push(`Combo includes type: ${taskTypeId}`)
+
+          // Bonus for higher allocation ratio
+          if (allocation.ratio >= 0.5) {
+            score += BLOCK_SCORING_WEIGHTS.COMBO_RATIO_BONUS
+            reasons.push(`High ratio in combo: ${(allocation.ratio * 100).toFixed(0)}%`)
+          }
+        }
+      }
+    }
+
+    // --- Fit Quality Score ---
+    if (fitResult.canFit) {
+      score += BLOCK_SCORING_WEIGHTS.CAN_FIT_ENTIRELY
+      reasons.push('Can fit task entirely')
+    }
+
+    // --- Capacity Score (prefer less crowded blocks) ---
+    if (fitResult.availableMinutes !== undefined && block.totalMinutes > 0) {
+      const capacityRatio = fitResult.availableMinutes / block.totalMinutes
+      const capacityScore = Math.floor(capacityRatio * BLOCK_SCORING_WEIGHTS.CAPACITY_AVAILABLE)
+      score += capacityScore
+      reasons.push(`Capacity: ${fitResult.availableMinutes}/${block.totalMinutes}min`)
+    }
+
+    return {
+      block,
+      score,
+      fitResult,
+      reasons,
+    }
+  }
+
+  /**
    * Schedule an item in a block
    */
   private scheduleItemInBlock(
@@ -1412,16 +1607,33 @@ export class UnifiedScheduler {
     const endTime = new Date(startTime.getTime() + duration * 60000)
 
 
+    // CRITICAL: Require blockId for all scheduled items
+    // This prevents "Outside Work Hours" scheduling bugs
+    if (!fitResult.block?.blockId) {
+      // This is a programming error that should never occur in normal operation
+      // If it does, it indicates a bug in the scheduling logic
+      logger.error('CRITICAL: scheduleItemInBlock called without valid block', {
+        itemId: item.id,
+        itemName: item.name,
+        hasBlock: !!fitResult.block,
+        hasBlockId: !!fitResult.block?.blockId,
+        fitResult: {
+          canFit: fitResult.canFit,
+          canPartiallyFit: fitResult.canPartiallyFit,
+        },
+      })
+      throw new Error(
+        `Cannot schedule item "${item.name}" (${item.id}) without a valid block. ` +
+        'This is a bug in the scheduler logic.',
+      )
+    }
+
     const result: UnifiedScheduleItem = {
       ...item,
       startTime,
       endTime,
       duration,
-    }
-
-    // Add blockId if the block exists
-    if (fitResult.block?.blockId) {
-      result.blockId = fitResult.block.blockId
+      blockId: fitResult.block.blockId,
     }
 
     return result
@@ -1591,8 +1803,20 @@ export class UnifiedScheduler {
 
   /**
    * Schedule meetings for a day
+   *
+   * Meetings are given blockId associations when they overlap with work blocks.
+   * This allows them to be included in capacity calculations and prevent
+   * tasks from being scheduled during meeting times.
+   *
+   * @param meetings - List of meetings for the day
+   * @param date - The date to schedule meetings on
+   * @param blocks - Available work blocks for blockId association
    */
-  private scheduleMeetings(meetings: WorkMeeting[], date: Date): UnifiedScheduleItem[] {
+  private scheduleMeetings(
+    meetings: WorkMeeting[],
+    date: Date,
+    blocks: SchedulerBlockCapacity[],
+  ): UnifiedScheduleItem[] {
     return meetings.map(meeting => {
       const startTime = this.parseTimeOnDate(date, meeting.startTime)
       let endTime = this.parseTimeOnDate(date, meeting.endTime)
@@ -1605,6 +1829,17 @@ export class UnifiedScheduler {
       }
       const duration = (endTime.getTime() - startTime.getTime()) / 60000 // Convert to minutes
 
+      // Find which block this meeting falls into (or overlaps with)
+      // Meetings can span multiple blocks; associate with the primary overlapping block
+      const containingBlock = blocks.find(block =>
+        startTime >= block.startTime && startTime < block.endTime,
+      )
+
+      // If meeting starts outside blocks, find any overlapping block
+      const overlappingBlock = containingBlock ?? blocks.find(block =>
+        startTime < block.endTime && endTime > block.startTime,
+      )
+
       return {
         id: meeting.id,
         name: meeting.name,
@@ -1615,6 +1850,7 @@ export class UnifiedScheduler {
         endTime,
         locked: true,
         originalItem: meeting,
+        blockId: overlappingBlock?.blockId, // Associate meeting with block for capacity tracking
       }
     })
   }
@@ -1751,7 +1987,7 @@ export class UnifiedScheduler {
     warnings: string[] = [],
   ): SchedulingDebugInfo {
     // Add priority breakdown for both scheduled and unscheduled items
-    const scheduledItems = scheduled.slice(0, 10).map(item => ({
+    const scheduledItems = scheduled.map(item => ({
       id: item.id,
       name: item.name,
       type: item.type,
