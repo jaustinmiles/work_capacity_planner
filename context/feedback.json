@@ -2066,5 +2066,16 @@
     "timestamp": "2025-12-29T22:06:48.014Z",
     "sessionId": "session-1767046007994-d9f10823",
     "resolved": true
+  },
+  {
+    "type": "feature",
+    "priority": "medium",
+    "components": [
+      "ai/BrainstormModal"
+    ],
+    "title": "Allow playback of chat messages through human voice emulator + other voice fixes",
+    "description": "if the user is speaking in voice, the timer currently doesn't increment, just displaying 0. It would also be cool if we could batch the requests and render the transcript as the user is speaking. But the overall request is for narration of the AI response back to the user if the user is doing voice mode. ",
+    "timestamp": "2026-01-13T22:24:04.119Z",
+    "sessionId": "session-1768343044096-99cf9d85"
   }
 ]

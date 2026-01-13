@@ -169,18 +169,10 @@ export function WorkStatusExpandedModal({
   // Date selection state - supports both single day and date range modes
   const [isRangeMode, setIsRangeMode] = useState(false)
   const [selectedDate, setSelectedDate] = useState<DateString>(initialDate)
-  // Initialize range to last 7 days (computed once, then managed by state)
-  const [rangeStartDate, setRangeStartDate] = useState<DateString>(() => {
-    // Safe computation that works even if dayjs isn't fully available in tests
-    try {
-      return dayjs(initialDate).subtract(6, 'day').format('YYYY-MM-DD')
-    } catch {
-      // Fallback: compute manually
-      const date = new Date(initialDate)
-      date.setDate(date.getDate() - 6)
-      return date.toISOString().split('T')[0] as DateString
-    }
-  })
+  // Initialize range to last 7 days
+  const [rangeStartDate, setRangeStartDate] = useState<DateString>(
+    dayjs(initialDate).subtract(6, 'day').format('YYYY-MM-DD'),
+  )
   const [rangeEndDate, setRangeEndDate] = useState<DateString>(initialDate)
   const [isLoading, setIsLoading] = useState(false)
 

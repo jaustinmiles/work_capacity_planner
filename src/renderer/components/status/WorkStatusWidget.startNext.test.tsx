@@ -55,11 +55,7 @@ vi.mock('../../store/useTaskStore', () => ({
   ),
 }))
 
-vi.mock('dayjs', () => ({
-  default: vi.fn(() => ({
-    format: vi.fn(() => '2024-01-15'),
-  })),
-}))
+// Note: dayjs works in Node.js - no mock needed
 
 vi.mock('../../utils/events', () => ({
   appEvents: { on: vi.fn(), off: vi.fn() },
