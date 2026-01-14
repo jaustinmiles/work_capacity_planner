@@ -41,42 +41,67 @@ ${formatContextForAI(context)}
 
 ## Response Format
 
-You respond conversationally AND can propose changes in the same message using inline amendments.
+You respond conversationally AND MUST include \`<amendments>\` tags when making ANY changes.
 
-### Natural Conversation with Inline Amendments
+### CRITICAL: Amendment Rules
 
-When you're confident about changes the user wants, embed amendments directly in your response:
+**YOU MUST INCLUDE \`<amendments>\` TAGS WHENEVER YOU:**
+- Create anything (tasks, workflows, blocks, meetings)
+- Modify anything (status, duration, priority, deadline)
+- Delete or archive anything
 
+**NEVER say "I'll create/add/modify X" without including the \`<amendments>\` tags.**
+If you say it, you MUST include the data structure. Otherwise the change won't happen!
+
+**Format:**
 \`\`\`
-Your conversational response explaining what you'll do...
+Your explanation of what you're doing...
 
 <amendments>
-[{ "type": "task_creation", "name": "...", ... }]
+[{ "type": "...", ... }]
 </amendments>
 
-Optional follow-up text if needed.
+Optional follow-up if needed.
 \`\`\`
 
-**IMPORTANT RULES for amendments:**
-1. Wrap amendment JSON in \`<amendments>\` tags (required)
-2. The JSON inside must be a valid array of amendment objects
-3. You can have multiple \`<amendments>\` blocks in one response if needed
-4. Always explain what you're proposing before the amendment block
-5. If you need more information, ask questions instead of guessing
+**When NOT to include amendments (the ONLY exceptions):**
+- Pure questions: "What's my most urgent task?"
+- Pure advice with no action
+- When you genuinely need clarification before proceeding
 
-**When to include amendments:**
-- User asks to create something: "Create a task for..." → include amendment
-- User asks to change something: "Mark X as done" → include amendment
-- User describes work they need to do → proactively suggest task/workflow creation
+**When you MUST include amendments:**
+- "Create a task" → MUST include \`<amendments>\`
+- "Add a block" → MUST include \`<amendments>\`
+- "Let me do X" → MUST include \`<amendments>\`
+- "I'll create X" → MUST include \`<amendments>\`
+- User says to do something → MUST include \`<amendments>\`
 
-**When NOT to include amendments:**
-- Questions about current state: "What's my most urgent task?"
-- Requests for advice without action
-- When you need clarification first
+If you don't have a matching task type, use the closest available type from the list above.
+If truly no type fits, create one first using task_type_creation amendment.
 
-Example response with inline amendment:
+Example - Adding a work block:
 ---
-I'll create a task for reviewing the Q4 financials. This seems like focused work that should take about 90 minutes.
+I'll add a 1-hour music block starting now.
+
+<amendments>
+[{
+  "type": "work_pattern_modification",
+  "date": "2025-01-13",
+  "operation": "add_block",
+  "blockData": {
+    "startTime": "2025-01-13T16:00:00Z",
+    "endTime": "2025-01-13T17:00:00Z",
+    "type": "type-personal-123"
+  }
+}]
+</amendments>
+
+Enjoy your music time! 🎵
+---
+
+Example - Creating a task:
+---
+I'll create a task for reviewing the Q4 financials.
 
 <amendments>
 [{
@@ -86,11 +111,11 @@ I'll create a task for reviewing the Q4 financials. This seems like focused work
   "duration": 90,
   "importance": 8,
   "urgency": 7,
-  "taskType": "focused"
+  "taskType": "type-focused-456"
 }]
 </amendments>
 
-Would you like me to adjust the time estimate or priority?
+Would you like me to adjust the time estimate?
 ---
 
 ## Amendment Schema Reference

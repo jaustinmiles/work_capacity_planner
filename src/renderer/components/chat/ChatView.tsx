@@ -15,6 +15,7 @@ import { AmendmentCard } from './AmendmentCard'
 import { sendChatMessage } from '../../services/brainstorm-chat-ai'
 import { parseAIResponse } from '../../services/chat-response-parser'
 import { MarkdownContent } from '../common/MarkdownContent'
+import { applyAmendments } from '../../utils/amendment-applicator'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -216,16 +217,21 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
   const { updateAmendmentStatus } = useConversationStore()
 
   const handleApplyAmendment = async (card: AmendmentCardType) => {
-    // Update status to applied
-    await updateAmendmentStatus(message.id, card.id, 'applied')
+    // Actually apply the amendment to the database
+    const result = await applyAmendments([card.amendment])
 
-    // Navigate to target view if specified
-    if (card.preview.targetView && onNavigateToView) {
-      onNavigateToView(card.preview.targetView)
+    if (result.successCount > 0) {
+      // Update status to applied only if it succeeded
+      await updateAmendmentStatus(message.id, card.id, 'applied')
+
+      // Navigate to target view if specified (for visual feedback)
+      if (card.preview.targetView && onNavigateToView) {
+        onNavigateToView(card.preview.targetView)
+      }
+    } else {
+      // Amendment failed - don't mark as applied
+      // The applyAmendments function already shows error messages
     }
-
-    // Set highlighted item for visual feedback
-    // This would be set after the amendment is actually applied
   }
 
   const handleSkipAmendment = async (card: AmendmentCardType) => {
