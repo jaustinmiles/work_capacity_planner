@@ -5,7 +5,12 @@
  * These types integrate with the branded ID types for compile-time safety.
  */
 
-import { ConversationId, ChatMessageId } from './id-types'
+import {
+  ConversationId,
+  ChatMessageId,
+  toConversationId,
+  toChatMessageId,
+} from './id-types'
 import { ChatMessageRole, ViewType } from './enums'
 import { Amendment } from './amendment-types'
 
@@ -201,9 +206,6 @@ export interface RawChatMessage {
  * Convert a raw database conversation to a typed Conversation.
  */
 export function toConversation(raw: RawConversation): Conversation {
-  // Import dynamically to avoid circular dependencies
-  const { toConversationId } = require('./id-types')
-
   return {
     id: toConversationId(raw.id),
     sessionId: raw.sessionId,
@@ -220,9 +222,6 @@ export function toConversation(raw: RawConversation): Conversation {
  * Convert a raw database chat message to a typed ChatMessageRecord.
  */
 export function toChatMessageRecord(raw: RawChatMessage): ChatMessageRecord {
-  // Import dynamically to avoid circular dependencies
-  const { toChatMessageId, toConversationId } = require('./id-types')
-
   let amendments: AmendmentCard[] | null = null
   if (raw.amendments) {
     try {
