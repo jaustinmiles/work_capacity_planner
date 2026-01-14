@@ -13,7 +13,9 @@ import { ChatMessageRecord, AmendmentCard as AmendmentCardType } from '@shared/c
 import { ChatMessageRole, ViewType } from '@shared/enums'
 import { AmendmentCard } from './AmendmentCard'
 import { sendChatMessage } from '../../services/brainstorm-chat-ai'
-import { parseAIResponse } from '../../services/chat-response-parser'
+import { parseAIResponse, generatePreview } from '../../services/chat-response-parser'
+import { generateUniqueId } from '@shared/step-id-utils'
+import { AmendmentCard as AmendmentCardData } from '@shared/conversation-types'
 import { MarkdownContent } from '../common/MarkdownContent'
 import { applyAmendments } from '../../utils/amendment-applicator'
 import {
@@ -139,11 +141,34 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
         jobContext: currentJobContext || undefined,
       })
 
-      // Parse response for amendments
-      const parsed = parseAIResponse(result.response)
+      // Use amendments from result if available, otherwise parse from response
+      // CRITICAL: sendChatMessage already extracts and validates amendments
+      // Re-parsing would fail because the JSON was already stripped from the text
+      let amendments: AmendmentCardData[] = []
+      let responseContent = result.response
+
+      if (result.amendments && result.amendments.length > 0) {
+        // Use pre-extracted amendments - convert to AmendmentCard format
+        amendments = result.amendments.map((amendment) => ({
+          id: generateUniqueId('amend'),
+          amendment,
+          status: 'pending' as const,
+          preview: generatePreview(amendment),
+        }))
+        // Clean up any remaining empty tags from the response
+        responseContent = result.response.replace(/<amendments>\s*<\/amendments>/gi, '').trim()
+        logger.ui.info('Using pre-extracted amendments', {
+          count: amendments.length,
+        }, 'amendment-extraction')
+      } else {
+        // Fallback: parse response for amendments (for backwards compatibility)
+        const parsed = parseAIResponse(result.response)
+        responseContent = parsed.content
+        amendments = parsed.amendments
+      }
 
       // Add assistant message with amendments
-      await addAssistantMessage(parsed.content, parsed.amendments)
+      await addAssistantMessage(responseContent, amendments)
 
       setStatus(ConversationStatus.Idle)
     } catch (error) {
