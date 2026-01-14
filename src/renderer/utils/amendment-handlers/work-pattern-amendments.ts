@@ -4,7 +4,7 @@
 
 import type { WorkPatternModification } from '@shared/amendment-types'
 import { BlockConfigKind, WorkBlockType, WorkPatternOperation } from '@shared/enums'
-import { dateToYYYYMMDD, extractTimeFromISO } from '@shared/time-utils'
+import { dateToYYYYMMDD, extractTimeFromISO, safeParseDateString } from '@shared/time-utils'
 import { getBlockTypeName } from '@shared/user-task-types'
 import type { HandlerContext } from './types'
 import { Message } from '../../components/common/Message'
@@ -16,9 +16,12 @@ export async function handleWorkPatternModification(
   amendment: WorkPatternModification,
   ctx: HandlerContext,
 ): Promise<void> {
-  // Date is now always a proper Date object after transformation in amendment-validator.ts
-  // Use local date extraction to get YYYY-MM-DD string
-  const dateStr = dateToYYYYMMDD(amendment.date)
+  // Date may be a Date object (fresh from AI) or string (after database round-trip)
+  // Handle both cases safely
+  const amendmentDate = typeof amendment.date === 'string'
+    ? safeParseDateString(amendment.date) || new Date()
+    : amendment.date
+  const dateStr = dateToYYYYMMDD(amendmentDate)
 
   logger.ui.info('WorkPatternModification processing', {
     operation: amendment.operation,
