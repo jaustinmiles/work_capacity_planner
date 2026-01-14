@@ -7,7 +7,7 @@
 
 import { Amendment, AmendmentType } from '@shared/amendment-types'
 import { AmendmentCard, AmendmentPreview } from '@shared/conversation-types'
-import { ViewType } from '@shared/enums'
+import { AmendmentCardStatus, ViewType } from '@shared/enums'
 import { generateUniqueId } from '@shared/step-id-utils'
 import { extractTimeFromISO, formatDateStringForDisplay } from '@shared/time-utils'
 import { getBlockTypeName } from '@shared/user-task-types'
@@ -73,7 +73,7 @@ export function parseAIResponse(response: string): ParsedResponse {
           amendments.push({
             id: generateUniqueId('amend'),
             amendment: amendment as Amendment,
-            status: 'pending',
+            status: AmendmentCardStatus.Pending,
             preview: generatePreview(amendment as Amendment),
           })
         }

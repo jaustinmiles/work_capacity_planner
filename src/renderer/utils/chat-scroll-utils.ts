@@ -5,6 +5,8 @@
  * These help implement smart auto-scrolling that only triggers when appropriate.
  */
 
+import { ScrollBehavior } from '@shared/enums'
+
 // =============================================================================
 // Constants
 // =============================================================================
@@ -133,11 +135,11 @@ export function shouldAutoScrollPermissive(
  * Scroll an element to the bottom smoothly.
  *
  * @param element - The element to scroll
- * @param behavior - Scroll behavior ('smooth' or 'instant')
+ * @param behavior - Scroll behavior (smooth, instant, or auto)
  */
 export function scrollToBottom(
   element: HTMLElement | null,
-  behavior: 'smooth' | 'instant' | 'auto' = 'smooth',
+  behavior: ScrollBehavior = ScrollBehavior.Smooth,
 ): void {
   if (!element) return
 
@@ -152,12 +154,12 @@ export function scrollToBottom(
  *
  * @param container - The scrollable container
  * @param target - The target element to scroll into view
- * @param behavior - Scroll behavior
+ * @param behavior - Scroll behavior (smooth, instant, or auto)
  */
 export function scrollToElement(
   container: HTMLElement | null,
   target: HTMLElement | null,
-  behavior: 'smooth' | 'instant' | 'auto' = 'smooth',
+  behavior: ScrollBehavior = ScrollBehavior.Smooth,
 ): void {
   if (!container || !target) return
 

@@ -87,11 +87,16 @@ export function ChatSidebar({ onNavigateToView }: ChatSidebarProps): React.React
       style={{
         background: 'var(--color-bg-1)',
         borderLeft: '1px solid var(--color-border)',
-        position: 'relative',
+        // Fixed position to stay pinned to viewport, independent of page scroll
+        position: 'fixed',
+        right: 0,
+        top: 0,
+        bottom: 0,
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
+        height: '100vh',
         overflow: 'hidden',
+        zIndex: 100, // Above main content but below modals
       }}
     >
       {/* Resize Handle */}

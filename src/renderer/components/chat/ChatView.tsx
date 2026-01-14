@@ -13,9 +13,10 @@ import { ChatMessageRecord, AmendmentCard as AmendmentCardType } from '@shared/c
 import { ChatMessageRole, ViewType } from '@shared/enums'
 import { AmendmentCard } from './AmendmentCard'
 import { sendChatMessage } from '../../services/brainstorm-chat-ai'
-import { parseAIResponse, generatePreview } from '../../services/chat-response-parser'
+import { generatePreview } from '../../services/chat-response-parser'
 import { generateUniqueId } from '@shared/step-id-utils'
 import { AmendmentCard as AmendmentCardData } from '@shared/conversation-types'
+import { AmendmentCardStatus } from '@shared/enums'
 import { MarkdownContent } from '../common/MarkdownContent'
 import { applyAmendments } from '../../utils/amendment-applicator'
 import {
@@ -24,6 +25,7 @@ import {
   shouldSendOnKeyDown,
 } from '../../utils/chat-message-utils'
 import { shouldAutoScroll, scrollToBottom } from '../../utils/chat-scroll-utils'
+import { ScrollBehavior } from '@shared/enums'
 import { useVoiceRecording } from '../../hooks/useVoiceRecording'
 import {
   useGlobalHotkeys,
@@ -34,6 +36,22 @@ import { logger } from '@/logger'
 
 const { TextArea } = Input
 const { Text } = Typography
+
+// =============================================================================
+// Hotkey Configuration
+// =============================================================================
+
+/** Voice recording hotkey: Ctrl+Shift+R */
+const VOICE_HOTKEY_CONFIG = {
+  key: 'r',
+  ctrl: true,
+  shift: true,
+  description: 'Toggle voice recording',
+} as const
+
+// =============================================================================
+// Component
+// =============================================================================
 
 interface ChatViewProps {
   onNavigateToView?: (view: ViewType) => void
@@ -87,13 +105,10 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     }
   }, [recordingState, isTranscribing, isSending, startRecording, stopRecording])
 
-  // Global hotkey for voice recording (Ctrl+Shift+R)
+  // Global hotkey for voice recording - uses config from top of file
   const voiceHotkey: HotkeyConfig = useMemo(() => ({
-    key: 'r',
-    ctrl: true,
-    shift: true,
+    ...VOICE_HOTKEY_CONFIG,
     handler: toggleVoiceRecording,
-    description: 'Toggle voice recording',
   }), [toggleVoiceRecording])
 
   useGlobalHotkeys([voiceHotkey])
@@ -114,7 +129,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
   // Smart auto-scroll: only scroll if user was already at bottom
   useEffect(() => {
     if (wasAtBottomRef.current && messagesContainerRef.current) {
-      scrollToBottom(messagesContainerRef.current, 'smooth')
+      scrollToBottom(messagesContainerRef.current, ScrollBehavior.Smooth)
     }
   }, [messages])
 
@@ -141,30 +156,22 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
         jobContext: currentJobContext || undefined,
       })
 
-      // Use amendments from result if available, otherwise parse from response
-      // CRITICAL: sendChatMessage already extracts and validates amendments
-      // Re-parsing would fail because the JSON was already stripped from the text
-      let amendments: AmendmentCardData[] = []
-      let responseContent = result.response
+      // Convert amendments from result to AmendmentCard format
+      // sendChatMessage extracts and validates amendments from AI response
+      const amendments: AmendmentCardData[] = (result.amendments || []).map((amendment) => ({
+        id: generateUniqueId('amend'),
+        amendment,
+        status: AmendmentCardStatus.Pending,
+        preview: generatePreview(amendment),
+      }))
 
-      if (result.amendments && result.amendments.length > 0) {
-        // Use pre-extracted amendments - convert to AmendmentCard format
-        amendments = result.amendments.map((amendment) => ({
-          id: generateUniqueId('amend'),
-          amendment,
-          status: 'pending' as const,
-          preview: generatePreview(amendment),
-        }))
-        // Clean up any remaining empty tags from the response
-        responseContent = result.response.replace(/<amendments>\s*<\/amendments>/gi, '').trim()
-        logger.ui.info('Using pre-extracted amendments', {
+      // Clean up any remaining empty amendment tags from the response
+      const responseContent = result.response.replace(/<amendments>\s*<\/amendments>/gi, '').trim()
+
+      if (amendments.length > 0) {
+        logger.ui.info('Extracted amendments from response', {
           count: amendments.length,
         }, 'amendment-extraction')
-      } else {
-        // Fallback: parse response for amendments (for backwards compatibility)
-        const parsed = parseAIResponse(result.response)
-        responseContent = parsed.content
-        amendments = parsed.amendments
       }
 
       // Add assistant message with amendments
@@ -333,7 +340,7 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
 
     if (result.successCount > 0) {
       // Update status to applied only if it succeeded
-      await updateAmendmentStatus(message.id, card.id, 'applied')
+      await updateAmendmentStatus(message.id, card.id, AmendmentCardStatus.Applied)
 
       // Navigate to target view if specified (for visual feedback)
       if (card.preview.targetView && onNavigateToView) {
@@ -346,7 +353,7 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
   }
 
   const handleSkipAmendment = async (card: AmendmentCardType) => {
-    await updateAmendmentStatus(message.id, card.id, 'skipped')
+    await updateAmendmentStatus(message.id, card.id, AmendmentCardStatus.Skipped)
   }
 
   return (

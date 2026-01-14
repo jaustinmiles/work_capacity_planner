@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 import type { AICallOptions } from '../shared/types'
 import type { LogQueryOptions, LogEntry, SessionLogSummary } from '../shared/log-types'
+import { AmendmentCardStatus } from '../shared/enums'
 
 // Don't use logger in preload - it runs in a special context
 
@@ -86,7 +87,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getChatMessages: (conversationId: string) => ipcRenderer.invoke('db:getChatMessages', conversationId),
     createChatMessage: (data: { conversationId: string; role: string; content: string; amendments?: any[] }) =>
       ipcRenderer.invoke('db:createChatMessage', data),
-    updateMessageAmendmentStatus: (messageId: string, cardId: string, status: 'pending' | 'applied' | 'skipped') =>
+    updateMessageAmendmentStatus: (messageId: string, cardId: string, status: AmendmentCardStatus) =>
       ipcRenderer.invoke('db:updateMessageAmendmentStatus', messageId, cardId, status),
     deleteChatMessage: (id: string) => ipcRenderer.invoke('db:deleteChatMessage', id),
     // Development helpers

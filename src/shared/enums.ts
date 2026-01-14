@@ -136,12 +136,19 @@ export enum RecurringPattern {
   Custom = 'custom',
 }
 
-// Amendment status tracking
+// Amendment status tracking (for processing outcomes)
 export enum AmendmentStatus {
   Pending = 'pending',
   Applied = 'applied',
   Rejected = 'rejected',
   Error = 'error',
+}
+
+// Amendment card status (for UI card states)
+export enum AmendmentCardStatus {
+  Pending = 'pending',
+  Applied = 'applied',
+  Skipped = 'skipped',
 }
 
 // Entity types for amendments
@@ -223,6 +230,13 @@ export enum JsonSchemaType {
   Array = 'array',
   Integer = 'integer',
   Null = 'null',
+}
+
+// Scroll behavior for chat and UI scrolling
+export enum ScrollBehavior {
+  Smooth = 'smooth',
+  Instant = 'instant',
+  Auto = 'auto',
 }
 
 // Re-export enum utility functions from enum-utils.ts for backwards compatibility

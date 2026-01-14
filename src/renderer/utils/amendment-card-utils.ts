@@ -5,8 +5,7 @@
  * Extracted from AmendmentCard component for testability.
  */
 
-import { AmendmentType } from '@shared/enums'
-import { AmendmentCardStatus } from '@shared/conversation-types'
+import { AmendmentCardStatus, AmendmentType } from '@shared/enums'
 
 /**
  * Icon identifiers for amendment types.
@@ -94,9 +93,9 @@ export interface AmendmentStatusFlags {
  */
 export function getAmendmentStatusFlags(status: AmendmentCardStatus): AmendmentStatusFlags {
   return {
-    isPending: status === 'pending',
-    isApplied: status === 'applied',
-    isSkipped: status === 'skipped',
+    isPending: status === AmendmentCardStatus.Pending,
+    isApplied: status === AmendmentCardStatus.Applied,
+    isSkipped: status === AmendmentCardStatus.Skipped,
   }
 }
 
@@ -150,11 +149,11 @@ export function formatDuration(minutes: number): string {
  */
 export function getCardBorderColor(status: AmendmentCardStatus): string {
   switch (status) {
-    case 'applied':
+    case AmendmentCardStatus.Applied:
       return 'var(--color-success-light-4)'
-    case 'skipped':
+    case AmendmentCardStatus.Skipped:
       return 'var(--color-border-2)'
-    case 'pending':
+    case AmendmentCardStatus.Pending:
     default:
       return 'var(--color-border)'
   }
@@ -165,11 +164,11 @@ export function getCardBorderColor(status: AmendmentCardStatus): string {
  */
 export function getCardBackgroundColor(status: AmendmentCardStatus): string {
   switch (status) {
-    case 'applied':
+    case AmendmentCardStatus.Applied:
       return 'var(--color-success-light-1)'
-    case 'skipped':
+    case AmendmentCardStatus.Skipped:
       return 'var(--color-fill-2)'
-    case 'pending':
+    case AmendmentCardStatus.Pending:
     default:
       return 'var(--color-bg-1)'
   }
@@ -179,5 +178,5 @@ export function getCardBackgroundColor(status: AmendmentCardStatus): string {
  * Get opacity based on status.
  */
 export function getCardOpacity(status: AmendmentCardStatus): number {
-  return status === 'skipped' ? 0.7 : 1
+  return status === AmendmentCardStatus.Skipped ? 0.7 : 1
 }

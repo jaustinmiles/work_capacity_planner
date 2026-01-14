@@ -17,7 +17,7 @@ import {
   IconList,
 } from '@arco-design/web-react/icon'
 import { AmendmentCard as AmendmentCardType } from '@shared/conversation-types'
-import { AmendmentType } from '@shared/enums'
+import { AmendmentCardStatus, AmendmentType } from '@shared/enums'
 
 const { Text, Title } = Typography
 
@@ -92,9 +92,9 @@ export function AmendmentCard({
     }
   }
 
-  const isPending = status === 'pending'
-  const isApplied = status === 'applied'
-  const isSkipped = status === 'skipped'
+  const isPending = status === AmendmentCardStatus.Pending
+  const isApplied = status === AmendmentCardStatus.Applied
+  const isSkipped = status === AmendmentCardStatus.Skipped
 
   return (
     <Card

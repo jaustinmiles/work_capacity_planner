@@ -91,7 +91,7 @@ export function ConversationList(): React.ReactElement {
         dataSource={conversations}
         render={(conversation: Conversation) => (
           <List.Item
-            key={conversation.id as string}
+            key={conversation.id}
             style={{
               padding: '12px 16px',
               cursor: 'pointer',

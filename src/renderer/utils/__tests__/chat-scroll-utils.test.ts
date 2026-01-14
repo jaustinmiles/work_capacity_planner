@@ -16,6 +16,7 @@ import {
   didContentChange,
   ScrollState,
 } from '../chat-scroll-utils'
+import { ScrollBehavior } from '@shared/enums'
 
 // Helper to create mock HTML element with scroll properties
 function createMockElement(
@@ -265,7 +266,7 @@ describe('chat-scroll-utils', () => {
         scrollTo,
       })
 
-      scrollToBottom(element, 'instant')
+      scrollToBottom(element, ScrollBehavior.Instant)
 
       expect(scrollTo).toHaveBeenCalledWith({
         top: 500,

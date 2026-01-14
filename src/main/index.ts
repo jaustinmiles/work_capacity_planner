@@ -9,7 +9,7 @@ import type { Task, AICallOptions } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
 import type { LogQueryOptions } from '../shared/log-types'
 import type { AmendmentCard } from '../shared/conversation-types'
-import { ChatMessageRole } from '../shared/enums'
+import { AmendmentCardStatus, ChatMessageRole } from '../shared/enums'
 
 // Get scoped logger for main process
 const mainLogger = getScopedLogger(LogScope.System)
@@ -295,7 +295,7 @@ ipcMain.handle('db:createChatMessage', async (_event: IpcMainInvokeEvent, data: 
   return await db.createChatMessage(data)
 })
 
-ipcMain.handle('db:updateMessageAmendmentStatus', async (_event: IpcMainInvokeEvent, messageId: string, cardId: string, status: 'pending' | 'applied' | 'skipped') => {
+ipcMain.handle('db:updateMessageAmendmentStatus', async (_event: IpcMainInvokeEvent, messageId: string, cardId: string, status: AmendmentCardStatus) => {
   return await db.updateMessageAmendmentStatus(messageId, cardId, status)
 })
 

@@ -7,7 +7,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { ChatMessageRole } from '@shared/enums'
+import { AmendmentCardStatus, ChatMessageRole } from '@shared/enums'
 import {
   Conversation,
   ChatMessageRecord,
@@ -121,7 +121,7 @@ interface ConversationState {
   updateAmendmentStatus: (
     messageId: ChatMessageId,
     cardId: string,
-    status: 'pending' | 'applied' | 'skipped'
+    status: AmendmentCardStatus
   ) => Promise<void>
   setHighlightedItemId: (id: string | null) => void
 

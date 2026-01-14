@@ -11,20 +11,15 @@ import {
   toConversationId,
   toChatMessageId,
 } from './id-types'
-import { ChatMessageRole, ViewType } from './enums'
+import { AmendmentCardStatus, ChatMessageRole, ViewType } from './enums'
 import { Amendment } from './amendment-types'
+
+// Re-export the enum for convenience (consumers can import from either location)
+export { AmendmentCardStatus }
 
 // =============================================================================
 // Amendment Card Types
 // =============================================================================
-
-/**
- * Status of an amendment card within a chat message.
- * - pending: User hasn't acted on this amendment yet
- * - applied: User clicked Apply and the amendment was successfully applied
- * - skipped: User clicked Skip to decline this amendment
- */
-export type AmendmentCardStatus = 'pending' | 'applied' | 'skipped'
 
 /**
  * Preview data for an amendment card.

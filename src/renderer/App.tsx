@@ -128,7 +128,7 @@ function AppContent() {
   const [taskCreationFlowVisible, setTaskCreationFlowVisible] = useState(false)
 
   // Chat sidebar state from conversation store
-  const { sidebarOpen, toggleSidebar } = useConversationStore()
+  const { sidebarOpen, sidebarWidth, toggleSidebar } = useConversationStore()
   const [extractedTasks, setExtractedTasks] = useState<ExtractedTask[]>([])
   const [showWorkSchedule, setShowWorkSchedule] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
@@ -469,7 +469,11 @@ function AppContent() {
 
           </Sider>
 
-          <Layout>
+          <Layout style={{
+            // Add right margin when chat sidebar is open (sidebar is fixed position)
+            marginRight: sidebarOpen ? sidebarWidth : 0,
+            transition: 'margin-right 0.2s ease',
+          }}>
             <Header style={{
               background: '#FAFBFC',
               borderBottom: '1px solid #E5E8EF',

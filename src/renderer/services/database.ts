@@ -1,4 +1,5 @@
 import { Task, Session, AICallOptions } from '@shared/types'
+import { AmendmentCardStatus } from '@shared/enums'
 import { SequencedTask } from '@shared/sequencing-types'
 import { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
 import { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, CreateTimeSinkSessionInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
@@ -82,7 +83,7 @@ declare global {
         deleteConversation: (id: string) => Promise<void>
         getChatMessages: (conversationId: string) => Promise<any[]>
         createChatMessage: (data: { conversationId: string; role: string; content: string; amendments?: any[] }) => Promise<any>
-        updateMessageAmendmentStatus: (messageId: string, cardId: string, status: 'pending' | 'applied' | 'skipped') => Promise<void>
+        updateMessageAmendmentStatus: (messageId: string, cardId: string, status: AmendmentCardStatus) => Promise<void>
         deleteChatMessage: (id: string) => Promise<void>
         // Development helpers
         deleteAllTasks: () => Promise<void>
@@ -580,7 +581,7 @@ export class RendererDatabaseService {
     return await window.electronAPI.db.createChatMessage(data)
   }
 
-  async updateMessageAmendmentStatus(messageId: string, cardId: string, status: 'pending' | 'applied' | 'skipped') {
+  async updateMessageAmendmentStatus(messageId: string, cardId: string, status: AmendmentCardStatus) {
     return await window.electronAPI.db.updateMessageAmendmentStatus(messageId, cardId, status)
   }
 
