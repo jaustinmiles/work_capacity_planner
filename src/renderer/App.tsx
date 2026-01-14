@@ -15,7 +15,7 @@ import { GanttChart } from './components/timeline/GanttChart'
 import { ChatSidebar } from './components/chat/ChatSidebar'
 import { useConversationStore } from './store/useConversationStore'
 import { TaskCreationFlow } from './components/ai/TaskCreationFlow'
-// VoiceAmendmentModal removed - voice functionality now integrated into BrainstormChat
+// VoiceAmendmentModal removed - voice functionality now integrated into ChatView
 import { WorkStatusWidget } from './components/status/WorkStatusWidget'
 import { WorkScheduleModal } from './components/settings/WorkScheduleModal'
 import { MultiDayScheduleEditor } from './components/settings/MultiDayScheduleEditor'
@@ -544,14 +544,15 @@ function AppContent() {
                 />
               </Tabs>
 
-              {/* Action Buttons - collapse to icons on mobile, allow overflow scroll */}
+              {/* Action Buttons - collapse to icons on mobile, shrink aggressively to preserve navigation */}
               <div style={{
                 display: 'flex',
                 gap: 8,
-                flexShrink: 1,
-                minWidth: 0,
-                overflow: 'auto',
-                maxWidth: isMobile ? 200 : undefined,
+                flexShrink: 10, // Shrink much faster than navigation tabs
+                flexGrow: 0, // Don't grow - use natural width
+                minWidth: isMobile ? 120 : 180, // Minimum to show icons
+                overflow: 'hidden', // Hide overflow rather than scroll
+                maxWidth: isMobile ? 200 : 400, // Cap width even on desktop
               }}>
                 <Button
                   type={sidebarOpen ? 'primary' : 'text'}

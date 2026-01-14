@@ -1,6 +1,6 @@
 /**
  * Reusable component for previewing workflow amendments
- * Used in BrainstormChat and VoiceAmendmentModal
+ * Used in ChatView's AmendmentCard
  */
 import React from 'react'
 import { Space, Tag, Typography } from '@arco-design/web-react'

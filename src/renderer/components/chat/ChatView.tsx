@@ -5,9 +5,9 @@
  * Handles message rendering, streaming content, and amendment cards.
  */
 
-import React, { useRef, useEffect, useState, useCallback } from 'react'
-import { Input, Button, Spin, Typography } from '@arco-design/web-react'
-import { IconSend } from '@arco-design/web-react/icon'
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
+import { Input, Button, Spin, Typography, Alert } from '@arco-design/web-react'
+import { IconSend, IconVoice, IconPause } from '@arco-design/web-react/icon'
 import { useConversationStore, ConversationStatus } from '../../store/useConversationStore'
 import { ChatMessageRecord, AmendmentCard as AmendmentCardType } from '@shared/conversation-types'
 import { ChatMessageRole, ViewType } from '@shared/enums'
@@ -16,6 +16,19 @@ import { sendChatMessage } from '../../services/brainstorm-chat-ai'
 import { parseAIResponse } from '../../services/chat-response-parser'
 import { MarkdownContent } from '../common/MarkdownContent'
 import { applyAmendments } from '../../utils/amendment-applicator'
+import {
+  buildConversationHistory,
+  isValidUserInput,
+  shouldSendOnKeyDown,
+} from '../../utils/chat-message-utils'
+import { shouldAutoScroll, scrollToBottom } from '../../utils/chat-scroll-utils'
+import { useVoiceRecording } from '../../hooks/useVoiceRecording'
+import {
+  useGlobalHotkeys,
+  formatHotkey,
+  HotkeyConfig,
+} from '../../hooks/useGlobalHotkeys'
+import { logger } from '@/logger'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -38,36 +51,86 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
   } = useConversationStore()
 
   const [inputValue, setInputValue] = useState('')
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const shouldScrollRef = useRef(false)
+  const wasAtBottomRef = useRef(true)
 
   const isSending = status === ConversationStatus.Sending
 
-  // Only scroll when explicitly requested (after sending/receiving)
+  // Voice recording integration
+  const {
+    recordingState,
+    isTranscribing,
+    recordingDuration,
+    error: voiceError,
+    startRecording,
+    stopRecording,
+  } = useVoiceRecording({
+    transcriptionPrompt: 'Task planning brainstorm conversation',
+    onTranscriptionComplete: (text: string): void => {
+      setInputValue((prev) => (prev ? prev + ' ' + text : text))
+      logger.ui.info('Voice transcription complete', { textLength: text.length }, 'voice-transcription')
+    },
+    onError: (error: string): void => {
+      logger.ui.error('Voice recording error', { error }, 'voice-error')
+    },
+  })
+
+  // Toggle voice recording handler for hotkey
+  const toggleVoiceRecording = useCallback((): void => {
+    if (recordingState === 'recording') {
+      stopRecording()
+    } else if (!isTranscribing && !isSending) {
+      startRecording()
+    }
+  }, [recordingState, isTranscribing, isSending, startRecording, stopRecording])
+
+  // Global hotkey for voice recording (Ctrl+Shift+R)
+  const voiceHotkey: HotkeyConfig = useMemo(() => ({
+    key: 'r',
+    ctrl: true,
+    shift: true,
+    handler: toggleVoiceRecording,
+    description: 'Toggle voice recording',
+  }), [toggleVoiceRecording])
+
+  useGlobalHotkeys([voiceHotkey])
+
+  // Track scroll position before new messages arrive
   useEffect(() => {
-    if (shouldScrollRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-      shouldScrollRef.current = false
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    const handleScroll = (): void => {
+      wasAtBottomRef.current = shouldAutoScroll(container)
+    }
+
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Smart auto-scroll: only scroll if user was already at bottom
+  useEffect(() => {
+    if (wasAtBottomRef.current && messagesContainerRef.current) {
+      scrollToBottom(messagesContainerRef.current, 'smooth')
     }
   }, [messages])
 
   const handleSend = useCallback(async () => {
     const content = inputValue.trim()
-    if (!content || isSending) return
+    if (!isValidUserInput(content) || isSending) return
 
+    // Ensure we scroll to bottom after sending
+    wasAtBottomRef.current = true
     setInputValue('')
     setStatus(ConversationStatus.Sending)
-    shouldScrollRef.current = true
 
     try {
       // Add user message
       await addUserMessage(content)
 
       // Get conversation history for context
-      const conversationHistory = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }))
+      const conversationHistory = buildConversationHistory(messages)
 
       // Call AI
       const result = await sendChatMessage({
@@ -81,7 +144,6 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
 
       // Add assistant message with amendments
       await addAssistantMessage(parsed.content, parsed.amendments)
-      shouldScrollRef.current = true
 
       setStatus(ConversationStatus.Idle)
     } catch (error) {
@@ -99,8 +161,8 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     setError,
   ])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (shouldSendOnKeyDown(e.nativeEvent)) {
       e.preventDefault()
       handleSend()
     }
@@ -117,6 +179,7 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
     >
       {/* Messages */}
       <div
+        ref={messagesContainerRef}
         style={{
           flex: 1,
           overflow: 'auto',
@@ -181,6 +244,20 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
           background: 'var(--color-bg-2)',
         }}
       >
+        {/* Voice recording indicator */}
+        {(recordingState === 'recording' || isTranscribing) && (
+          <div style={{ marginBottom: 8, color: 'var(--color-text-2)', fontSize: 12 }}>
+            {isTranscribing
+              ? 'Transcribing audio...'
+              : `Recording: ${recordingDuration}s - Click stop when done`}
+          </div>
+        )}
+
+        {/* Voice error display */}
+        {voiceError && (
+          <Alert type="error" content={voiceError} closable style={{ marginBottom: 8 }} />
+        )}
+
         <div style={{ display: 'flex', gap: 8 }}>
           <TextArea
             value={inputValue}
@@ -192,10 +269,19 @@ export function ChatView({ onNavigateToView }: ChatViewProps): React.ReactElemen
             style={{ flex: 1 }}
           />
           <Button
+            type={recordingState === 'recording' ? 'primary' : 'default'}
+            status={recordingState === 'recording' ? 'danger' : undefined}
+            icon={recordingState === 'recording' ? <IconPause /> : <IconVoice />}
+            onClick={toggleVoiceRecording}
+            loading={isTranscribing}
+            disabled={isSending}
+            title={`${recordingState === 'recording' ? 'Stop recording' : 'Start voice input'} (${formatHotkey(voiceHotkey)})`}
+          />
+          <Button
             type="primary"
             icon={isSending ? <Spin size={16} /> : <IconSend />}
             onClick={handleSend}
-            disabled={!inputValue.trim() || isSending}
+            disabled={!inputValue.trim() || isSending || recordingState === 'recording'}
           />
         </div>
       </div>

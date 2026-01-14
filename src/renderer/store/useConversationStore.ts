@@ -2,8 +2,7 @@
  * Conversation Store
  *
  * Manages chat sidebar state, conversations, and messages with database persistence.
- * Replaces the sessionStorage-based useBrainstormChatStore with a full database-backed
- * implementation supporting multiple conversations and inline amendment cards.
+ * Supports multiple conversations with inline amendment cards.
  */
 
 import { create } from 'zustand'

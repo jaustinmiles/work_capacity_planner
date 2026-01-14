@@ -1,6 +1,6 @@
 /**
  * Hook for voice recording and transcription
- * Extracts recording logic from VoiceAmendmentModal for reuse in BrainstormChat
+ * Used by ChatView for voice input functionality
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react'
