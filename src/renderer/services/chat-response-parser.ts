@@ -9,6 +9,20 @@ import { Amendment, AmendmentType } from '@shared/amendment-types'
 import { AmendmentCard, AmendmentPreview } from '@shared/conversation-types'
 import { ViewType } from '@shared/enums'
 import { generateUniqueId } from '@shared/step-id-utils'
+import { extractTimeFromISO, formatDateStringForDisplay } from '@shared/time-utils'
+import { getBlockTypeName } from '@shared/user-task-types'
+import { useUserTaskTypeStore } from '../store/useUserTaskTypeStore'
+
+/**
+ * Format a date for display, handling both Date objects and ISO strings.
+ * Date objects may come from fresh AI responses, strings from database round-trips.
+ */
+function formatDateForDisplay(date: Date | string): string {
+  if (date instanceof Date) {
+    return date.toLocaleDateString()
+  }
+  return formatDateStringForDisplay(date)
+}
 
 /**
  * Result of parsing an AI response.
@@ -266,33 +280,45 @@ export function generatePreview(amendment: Amendment): AmendmentPreview {
 
 /**
  * Helper to describe work pattern modifications.
+ * Returns human-readable description with type name, date, and times.
  */
 function getWorkPatternDescription(amendment: Amendment & { type: AmendmentType.WorkPatternModification }): string {
-  const { operation, blockData, meetingData } = amendment
+  const { operation, blockData, meetingData, date } = amendment
+
+  // Format the date for display
+  const dateStr = formatDateForDisplay(date)
+
+  // Get user task types for looking up human-readable names
+  const userTypes = useUserTaskTypeStore.getState().types
 
   switch (operation) {
     case 'add_block':
       if (blockData) {
-        return `Add ${blockData.type} block`
+        const typeName = getBlockTypeName(blockData.type, userTypes)
+        const startTime = extractTimeFromISO(blockData.startTime)
+        const endTime = extractTimeFromISO(blockData.endTime)
+        return `Add ${typeName} block on ${dateStr} (${startTime} - ${endTime})`
       }
-      return 'Add work block'
+      return `Add work block on ${dateStr}`
 
     case 'remove_block':
-      return 'Remove work block'
+      return `Remove work block on ${dateStr}`
 
     case 'modify_block':
-      return 'Modify work block'
+      return `Modify work block on ${dateStr}`
 
     case 'add_meeting':
       if (meetingData) {
-        return `Add meeting: ${meetingData.name}`
+        const startTime = extractTimeFromISO(meetingData.startTime)
+        const endTime = extractTimeFromISO(meetingData.endTime)
+        return `Add meeting "${meetingData.name}" on ${dateStr} (${startTime} - ${endTime})`
       }
-      return 'Add meeting'
+      return `Add meeting on ${dateStr}`
 
     case 'remove_meeting':
-      return 'Remove meeting'
+      return `Remove meeting on ${dateStr}`
 
     default:
-      return 'Modify schedule'
+      return `Modify schedule on ${dateStr}`
   }
 }
