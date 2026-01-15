@@ -8,6 +8,8 @@ import { getScopedLogger } from '../logger/scope-helper'
 import type { Task, AICallOptions } from '../shared/types'
 import type { TaskStep } from '../shared/sequencing-types'
 import type { LogQueryOptions } from '../shared/log-types'
+import type { AmendmentCard } from '../shared/conversation-types'
+import { AmendmentCardStatus, ChatMessageRole } from '../shared/enums'
 
 // Get scoped logger for main process
 const mainLogger = getScopedLogger(LogScope.System)
@@ -262,6 +264,43 @@ ipcMain.handle('db:deleteJargonEntry', async (_event: IpcMainInvokeEvent, id: st
 
 ipcMain.handle('db:getJargonDictionary', async () => {
   return await db.getJargonDictionary()
+})
+
+// Conversation & Chat Message handlers
+ipcMain.handle('db:getConversations', async () => {
+  return await db.getConversations()
+})
+
+ipcMain.handle('db:getConversationById', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.getConversationById(id)
+})
+
+ipcMain.handle('db:createConversation', async (_event: IpcMainInvokeEvent, data: { title?: string; jobContextId?: string }) => {
+  return await db.createConversation(data)
+})
+
+ipcMain.handle('db:updateConversation', async (_event: IpcMainInvokeEvent, id: string, updates: { title?: string; jobContextId?: string | null; isArchived?: boolean }) => {
+  return await db.updateConversation(id, updates)
+})
+
+ipcMain.handle('db:deleteConversation', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.deleteConversation(id)
+})
+
+ipcMain.handle('db:getChatMessages', async (_event: IpcMainInvokeEvent, conversationId: string) => {
+  return await db.getChatMessages(conversationId)
+})
+
+ipcMain.handle('db:createChatMessage', async (_event: IpcMainInvokeEvent, data: { conversationId: string; role: ChatMessageRole; content: string; amendments?: AmendmentCard[] }) => {
+  return await db.createChatMessage(data)
+})
+
+ipcMain.handle('db:updateMessageAmendmentStatus', async (_event: IpcMainInvokeEvent, messageId: string, cardId: string, status: AmendmentCardStatus) => {
+  return await db.updateMessageAmendmentStatus(messageId, cardId, status)
+})
+
+ipcMain.handle('db:deleteChatMessage', async (_event: IpcMainInvokeEvent, id: string) => {
+  return await db.deleteChatMessage(id)
 })
 
 // Development helpers

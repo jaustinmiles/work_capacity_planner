@@ -35,6 +35,18 @@ import {
 import { calculateBlockCapacity } from '../shared/capacity-calculator'
 import { generateRandomStepId, generateUniqueId } from '../shared/step-id-utils'
 import { getCurrentTime, getLocalDateString } from '../shared/time-provider'
+import {
+  generateConversationId,
+  generateChatMessageId,
+  toConversationId,
+  toChatMessageId,
+} from '../shared/id-types'
+import {
+  Conversation,
+  ChatMessageRecord,
+  AmendmentCard,
+} from '../shared/conversation-types'
+import { ChatMessageRole } from '../shared/enums'
 import { timeStringToMinutes, parseDateString, dateToYYYYMMDD, calculateMinutesBetweenDates } from '../shared/time-utils'
 import * as crypto from 'crypto'
 import { LogScope } from '../logger'
@@ -3503,6 +3515,247 @@ export class DatabaseService {
     })
 
     dbLogger.info('Deleted schedule snapshot', { id })
+  }
+
+  // ===========================================================================
+  // Conversation & Chat Message Methods
+  // ===========================================================================
+
+  /**
+   * Get all conversations for the current session.
+   * Returns conversations with message counts, ordered by most recently updated.
+   */
+  async getConversations(): Promise<Conversation[]> {
+    const sessionId = await this.getActiveSession()
+    const conversations = await this.client.conversation.findMany({
+      where: {
+        sessionId,
+        isArchived: false,
+      },
+      include: {
+        _count: {
+          select: { ChatMessage: true },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    return conversations.map((conv): Conversation => ({
+      id: toConversationId(conv.id),
+      sessionId: conv.sessionId,
+      jobContextId: conv.jobContextId,
+      title: conv.title,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+      isArchived: conv.isArchived,
+      messageCount: conv._count.ChatMessage,
+    }))
+  }
+
+  /**
+   * Get a single conversation by ID with message count.
+   */
+  async getConversationById(id: string): Promise<Conversation | null> {
+    const conversation = await this.client.conversation.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { ChatMessage: true },
+        },
+      },
+    })
+
+    if (!conversation) return null
+
+    return {
+      id: toConversationId(conversation.id),
+      sessionId: conversation.sessionId,
+      jobContextId: conversation.jobContextId,
+      title: conversation.title,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      isArchived: conversation.isArchived,
+      messageCount: conversation._count.ChatMessage,
+    }
+  }
+
+  /**
+   * Create a new conversation.
+   */
+  async createConversation(data: {
+    title?: string
+    jobContextId?: string
+  }): Promise<Conversation> {
+    const sessionId = await this.getActiveSession()
+    const id = generateConversationId()
+    const title = data.title || `Chat ${getCurrentTime().toLocaleDateString()}`
+
+    const conversation = await this.client.conversation.create({
+      data: {
+        id,
+        sessionId,
+        jobContextId: data.jobContextId || null,
+        title,
+        isArchived: false,
+      },
+    })
+
+    dbLogger.info('Created conversation', { id, title })
+
+    return {
+      id: toConversationId(conversation.id),
+      sessionId: conversation.sessionId,
+      jobContextId: conversation.jobContextId,
+      title: conversation.title,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      isArchived: conversation.isArchived,
+      messageCount: 0,
+    }
+  }
+
+  /**
+   * Update an existing conversation.
+   */
+  async updateConversation(id: string, updates: {
+    title?: string
+    jobContextId?: string | null
+    isArchived?: boolean
+  }): Promise<Conversation> {
+    const conversation = await this.client.conversation.update({
+      where: { id },
+      data: updates,
+      include: {
+        _count: {
+          select: { ChatMessage: true },
+        },
+      },
+    })
+
+    dbLogger.info('Updated conversation', { id, updates })
+
+    return {
+      id: toConversationId(conversation.id),
+      sessionId: conversation.sessionId,
+      jobContextId: conversation.jobContextId,
+      title: conversation.title,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      isArchived: conversation.isArchived,
+      messageCount: conversation._count.ChatMessage,
+    }
+  }
+
+  /**
+   * Delete a conversation and all its messages (cascade delete).
+   */
+  async deleteConversation(id: string): Promise<void> {
+    await this.client.conversation.delete({
+      where: { id },
+    })
+
+    dbLogger.info('Deleted conversation', { id })
+  }
+
+  /**
+   * Get all messages for a conversation, ordered by creation time.
+   */
+  async getChatMessages(conversationId: string): Promise<ChatMessageRecord[]> {
+    const messages = await this.client.chatMessage.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    return messages.map((msg): ChatMessageRecord => ({
+      id: toChatMessageId(msg.id),
+      conversationId: toConversationId(msg.conversationId),
+      role: msg.role as ChatMessageRole,
+      content: msg.content,
+      amendments: msg.amendments ? JSON.parse(msg.amendments) : null,
+      createdAt: msg.createdAt,
+    }))
+  }
+
+  /**
+   * Create a new chat message.
+   */
+  async createChatMessage(data: {
+    conversationId: string
+    role: ChatMessageRole
+    content: string
+    amendments?: AmendmentCard[]
+  }): Promise<ChatMessageRecord> {
+    const id = generateChatMessageId()
+
+    const message = await this.client.chatMessage.create({
+      data: {
+        id,
+        conversationId: data.conversationId,
+        role: data.role,
+        content: data.content,
+        amendments: data.amendments ? JSON.stringify(data.amendments) : null,
+      },
+    })
+
+    // Update conversation's updatedAt timestamp
+    await this.client.conversation.update({
+      where: { id: data.conversationId },
+      data: { updatedAt: getCurrentTime() },
+    })
+
+    return {
+      id: toChatMessageId(message.id),
+      conversationId: toConversationId(message.conversationId),
+      role: message.role as ChatMessageRole,
+      content: message.content,
+      amendments: message.amendments ? JSON.parse(message.amendments) : null,
+      createdAt: message.createdAt,
+    }
+  }
+
+  /**
+   * Update the status of a specific amendment card within a message.
+   * Used when user applies or skips an amendment.
+   */
+  async updateMessageAmendmentStatus(
+    messageId: string,
+    cardId: string,
+    status: AmendmentCard['status'],
+  ): Promise<void> {
+    const message = await this.client.chatMessage.findUnique({
+      where: { id: messageId },
+    })
+
+    if (!message || !message.amendments) {
+      throw new Error(`Message ${messageId} not found or has no amendments`)
+    }
+
+    const amendments: AmendmentCard[] = JSON.parse(message.amendments)
+    const card = amendments.find((c) => c.id === cardId)
+
+    if (!card) {
+      throw new Error(`Amendment card ${cardId} not found in message ${messageId}`)
+    }
+
+    card.status = status
+
+    await this.client.chatMessage.update({
+      where: { id: messageId },
+      data: { amendments: JSON.stringify(amendments) },
+    })
+
+    dbLogger.info('Updated amendment card status', { messageId, cardId, status })
+  }
+
+  /**
+   * Delete a chat message.
+   */
+  async deleteChatMessage(id: string): Promise<void> {
+    await this.client.chatMessage.delete({
+      where: { id },
+    })
+
+    dbLogger.info('Deleted chat message', { id })
   }
 }
 

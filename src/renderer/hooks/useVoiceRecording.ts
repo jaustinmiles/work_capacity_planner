@@ -1,6 +1,6 @@
 /**
  * Hook for voice recording and transcription
- * Extracts recording logic from VoiceAmendmentModal for reuse in BrainstormChat
+ * Used by ChatView for voice input functionality
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react'
@@ -56,17 +56,33 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}): UseVo
   const audioChunksRef = useRef<Blob[]>([])
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Cleanup on unmount
+  // Start/stop duration timer when recording state changes
   useEffect(() => {
+    if (recordingState === 'recording') {
+      // Start the duration timer
+      const startTime = Date.now()
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(Math.floor((Date.now() - startTime) / 1000))
+      }, 1000)
+    }
+
     return () => {
-      if (mediaRecorderRef.current && recordingState === 'recording') {
-        mediaRecorderRef.current.stop()
-      }
+      // Cleanup timer when leaving recording state or unmounting
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
       }
     }
   }, [recordingState])
+
+  // Stop media recorder on unmount if still recording
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop()
+      }
+    }
+  }, [])
 
   const processAudioBlob = useCallback(async (audioBlob: Blob) => {
     setIsTranscribing(true)
@@ -128,10 +144,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}): UseVo
 
         // Clean up stream tracks
         stream.getTracks().forEach(track => track.stop())
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current)
-          recordingTimerRef.current = null
-        }
+        // Timer cleanup is now handled by useEffect when recordingState changes
         setRecordingDuration(0)
       }
 
@@ -139,12 +152,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}): UseVo
       mediaRecorder.start(100) // Collect data every 100ms
       setRecordingState('recording')
       setError(null)
-
-      // Start duration timer
-      const startTime = Date.now()
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration(Math.floor((Date.now() - startTime) / 1000))
-      }, 1000)
+      // Timer is now started by useEffect when recordingState changes to 'recording'
 
     } catch (err) {
       const errorMessage = 'Failed to start recording. Please check your microphone permissions.'
