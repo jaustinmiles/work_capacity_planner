@@ -379,14 +379,38 @@ export class TrpcDatabaseService {
   async createWorkSession(data: {
     taskId: string
     stepId?: string
-    startTime: Date
+    startTime?: Date
+    date?: Date | string  // Alternative to startTime - used by amendment handlers
+    endTime?: Date
     plannedMinutes?: number
+    actualMinutes?: number
+    notes?: string
+    description?: string
+    type?: string
+    blockId?: string
+    patternId?: string
   }): Promise<unknown> {
+    // Normalize startTime - accept either startTime or date property
+    let startTime: Date
+    if (data.startTime) {
+      startTime = data.startTime instanceof Date ? data.startTime : new Date(data.startTime)
+    } else if (data.date) {
+      startTime = data.date instanceof Date ? data.date : new Date(data.date)
+    } else {
+      // Default to current time if neither is provided
+      startTime = new Date()
+    }
+
     return this.client.workSession.create.mutate({
       taskId: data.taskId,
       stepId: data.stepId,
-      startTime: data.startTime,
+      startTime,
+      endTime: data.endTime,
       plannedMinutes: data.plannedMinutes || 0,
+      actualMinutes: data.actualMinutes,
+      notes: data.notes || data.description, // description is an alias for notes
+      blockId: data.blockId,
+      patternId: data.patternId,
     })
   }
 
