@@ -6,6 +6,7 @@ import { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, Cr
 import { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
 import { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import { getTrpcDatabase } from './database-trpc'
 
 
 // Type for the Electron API exposed by preload script
@@ -759,7 +760,6 @@ export const getDatabase = (): RendererDatabaseService => {
       // Use tRPC service for server/client mode
       console.info('[Database] Using tRPC mode (server/client)')
       // Return tRPC service cast as RendererDatabaseService (same interface)
-      const { getTrpcDatabase } = require('./database-trpc')
       dbInstance = getTrpcDatabase() as unknown as RendererDatabaseService
     } else {
       // Use IPC service for local mode
@@ -770,8 +770,5 @@ export const getDatabase = (): RendererDatabaseService => {
   return dbInstance
 }
 
-/**
- * Get the tRPC database service (for server/client mode).
- * Import this directly when you need tRPC-specific functionality.
- */
-export { getTrpcDatabase } from './database-trpc'
+// Re-export for direct access when needed
+export { getTrpcDatabase }
