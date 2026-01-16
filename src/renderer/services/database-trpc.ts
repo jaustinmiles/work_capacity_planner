@@ -507,7 +507,12 @@ export class TrpcDatabaseService {
   }
 
   async getChatMessages(conversationId: string): Promise<unknown[]> {
-    return this.client.conversation.getMessages.query({ conversationId })
+    const messages = await this.client.conversation.getMessages.query({ conversationId })
+    // Parse amendments JSON string to array (server stores as JSON string)
+    return messages.map((msg) => ({
+      ...msg,
+      amendments: msg.amendments ? JSON.parse(msg.amendments as string) : null,
+    }))
   }
 
   async createChatMessage(data: {
