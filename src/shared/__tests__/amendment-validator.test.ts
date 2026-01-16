@@ -359,9 +359,13 @@ Done!`
 
       const result = transformed[0] as any
       expect(result.type).toBe(AmendmentType.WorkPatternModification)
-      expect(result.date).toBeInstanceOf(Date)
-      expect(result.blockData.startTime).toBeInstanceOf(Date)
-      expect(result.blockData.endTime).toBeInstanceOf(Date)
+      // WorkPatternModification uses LocalDate (YYYY-MM-DD string) and LocalTime (HH:MM string)
+      expect(typeof result.date).toBe('string')
+      expect(result.date).toMatch(/^\d{4}-\d{2}-\d{2}$/) // LocalDate format
+      expect(typeof result.blockData.startTime).toBe('string')
+      expect(result.blockData.startTime).toMatch(/^\d{2}:\d{2}$/) // LocalTime format
+      expect(typeof result.blockData.endTime).toBe('string')
+      expect(result.blockData.endTime).toMatch(/^\d{2}:\d{2}$/) // LocalTime format
     })
 
     it('should transform RawWorkSessionEdit date strings to Date objects', () => {

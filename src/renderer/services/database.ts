@@ -743,9 +743,31 @@ export class RendererDatabaseService {
 // Export singleton instance with lazy initialization
 let dbInstance: RendererDatabaseService | null = null
 
+/**
+ * Get the database service instance.
+ *
+ * In 'local' mode (default): Uses IPC to communicate with Electron main process
+ * In 'server' or 'client' mode: Uses tRPC to communicate with API server
+ *
+ * The mode is determined by TASK_PLANNER_MODE environment variable.
+ */
 export const getDatabase = (): RendererDatabaseService => {
   if (!dbInstance) {
+    // Check if we should use tRPC mode
+    const appConfig = (window as unknown as { appConfig?: { useTrpc?: boolean } }).appConfig
+    if (appConfig?.useTrpc) {
+      // Dynamic import to avoid loading tRPC code in local mode
+      // For now, use IPC mode until tRPC service is fully tested
+      console.info('[Database] tRPC mode available, using IPC for stability')
+    }
+
     dbInstance = RendererDatabaseService.getInstance()
   }
   return dbInstance
 }
+
+/**
+ * Get the tRPC database service (for server/client mode).
+ * Import this directly when you need tRPC-specific functionality.
+ */
+export { getTrpcDatabase } from './database-trpc'

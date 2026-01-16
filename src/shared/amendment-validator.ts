@@ -19,6 +19,40 @@ import {
 import { AmendmentType } from './enums'
 import { safeParseDateString } from './time-utils'
 import { logger } from '../logger'
+import type { LocalDate, LocalTime } from './datetime-types'
+import { getCurrentLocalDate, getCurrentLocalTime } from './datetime-types'
+
+/**
+ * Extract LocalDate (YYYY-MM-DD) from an ISO date string
+ */
+function parseToLocalDate(isoString: string | undefined): LocalDate | null {
+  if (!isoString) return null
+  // Try to extract YYYY-MM-DD from the string
+  const match = isoString.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (match) return match[1] as LocalDate
+  // Try parsing as Date and extracting date part
+  const date = safeParseDateString(isoString)
+  if (date) return date.toISOString().split('T')[0] as LocalDate
+  return null
+}
+
+/**
+ * Extract LocalTime (HH:MM) from an ISO datetime string or time string
+ */
+function parseToLocalTime(timeString: string | undefined): LocalTime | null {
+  if (!timeString) return null
+  // Try to match HH:MM pattern anywhere in the string
+  const match = timeString.match(/(\d{2}:\d{2})/)
+  if (match) return match[1] as LocalTime
+  // Try parsing as Date and extracting time part
+  const date = safeParseDateString(timeString)
+  if (date) {
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    return `${hours}:${minutes}` as LocalTime
+  }
+  return null
+}
 
 export interface ValidationLoopOptions {
   maxAttempts?: number  // Default: 5
@@ -283,7 +317,7 @@ function transformAmendment(raw: RawAmendment): Amendment {
 
     case AmendmentType.WorkPatternModification: {
       const rawPattern = raw as RawWorkPatternModification
-      const date = safeParseDateString(rawPattern.date)
+      const date = parseToLocalDate(rawPattern.date)
       if (!date) {
         logger.system.warn('WorkPatternModification has invalid date, using current date', {
           rawDate: rawPattern.date,
@@ -291,16 +325,16 @@ function transformAmendment(raw: RawAmendment): Amendment {
       }
       const transformed: WorkPatternModification = {
         ...rawPattern,
-        date: date || new Date(),
+        date: date || getCurrentLocalDate(),
         blockData: rawPattern.blockData ? {
           ...rawPattern.blockData,
-          startTime: safeParseDateString(rawPattern.blockData.startTime) || new Date(),
-          endTime: safeParseDateString(rawPattern.blockData.endTime) || new Date(),
+          startTime: parseToLocalTime(rawPattern.blockData.startTime) || getCurrentLocalTime(),
+          endTime: parseToLocalTime(rawPattern.blockData.endTime) || getCurrentLocalTime(),
         } : undefined,
         meetingData: rawPattern.meetingData ? {
           ...rawPattern.meetingData,
-          startTime: safeParseDateString(rawPattern.meetingData.startTime) || new Date(),
-          endTime: safeParseDateString(rawPattern.meetingData.endTime) || new Date(),
+          startTime: parseToLocalTime(rawPattern.meetingData.startTime) || getCurrentLocalTime(),
+          endTime: parseToLocalTime(rawPattern.meetingData.endTime) || getCurrentLocalTime(),
         } : undefined,
       }
       return transformed

@@ -14,8 +14,9 @@ import {
   DayOfWeek,
   AmendmentStatus,
 } from './enums'
+import type { LocalTime, LocalDate } from './datetime-types'
 
-// Re-export enums for convenience
+// Re-export enums and datetime types for convenience
 export {
   AmendmentType,
   EntityType,
@@ -28,6 +29,7 @@ export {
   DayOfWeek,
   AmendmentStatus,
 }
+export type { LocalTime, LocalDate } from './datetime-types'
 
 export interface AmendmentTarget {
   type: EntityType
@@ -157,20 +159,20 @@ export interface TypeChange {
 
 export interface WorkPatternModification {
   type: AmendmentType.WorkPatternModification
-  date: Date  // Transformed from ISO string
+  date: LocalDate  // "YYYY-MM-DD" format
   operation: WorkPatternOperation
   blockId?: string  // For modify/remove operations
   meetingId?: string  // For modify/remove operations
   blockData?: {
-    startTime: Date  // Transformed from ISO string
-    endTime: Date
+    startTime: LocalTime  // "HH:MM" 24-hour format
+    endTime: LocalTime
     type: WorkBlockType
     splitRatio?: Record<string, number>  // For mixed blocks
   }
   meetingData?: {
     name: string
-    startTime: Date  // Transformed from ISO string
-    endTime: Date
+    startTime: LocalTime  // "HH:MM" 24-hour format
+    endTime: LocalTime
     type: string // Meeting type
     recurring?: RecurringPattern
     daysOfWeek?: DayOfWeek[]

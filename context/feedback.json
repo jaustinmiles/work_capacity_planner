@@ -2077,5 +2077,40 @@
     "description": "if the user is speaking in voice, the timer currently doesn't increment, just displaying 0. It would also be cool if we could batch the requests and render the transcript as the user is speaking. But the overall request is for narration of the AI response back to the user if the user is doing voice mode. ",
     "timestamp": "2026-01-13T22:24:04.119Z",
     "sessionId": "session-1768343044096-99cf9d85"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "status/WorkStatusWidget"
+    ],
+    "title": "Make expanded work distribution slide in as a side panel",
+    "description": "instead of a popup, this should slide in from the side and take the place of the original sidebar but wider and with more details. This is so users can interact with it while also using the chat window. ",
+    "timestamp": "2026-01-14T23:06:12.369Z",
+    "sessionId": "session-1768431972346-9877a549"
+  },
+  {
+    "type": "bug",
+    "priority": "high",
+    "components": [
+      "work-logger/WorkLoggerDualView"
+    ],
+    "title": "When assigning a work session to a task, we should filter out all archived and completed tasks",
+    "description": "When assigning a work session to a task, we should filter out all archived and completed tasks. This happens specifically in the timeline editor in the work logger component. Also, we should be able to search the dropdown list (filter it)",
+    "timestamp": "2026-01-15T03:53:02.524Z",
+    "sessionId": "session-1768449182508-eabd43ce"
+  },
+  {
+    "type": "improvement",
+    "priority": "high",
+    "components": [
+      "utils/flexible-scheduler",
+      "settings/WorkBlocksEditor",
+      "status/WorkStatusWidget"
+    ],
+    "title": "Meetings should have a type",
+    "description": "Let's update the meetings model so that meetings can have a type. THis is because, if I spend all day in meetings, I don't want my radar chart (work status widget, extended details) to show nothing for my work category. ",
+    "timestamp": "2026-01-15T18:42:21.509Z",
+    "sessionId": "session-1768502541489-876ed478"
   }
 ]
