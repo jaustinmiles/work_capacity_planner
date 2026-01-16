@@ -756,12 +756,16 @@ export const getDatabase = (): RendererDatabaseService => {
     // Check if we should use tRPC mode
     const appConfig = (window as unknown as { appConfig?: { useTrpc?: boolean } }).appConfig
     if (appConfig?.useTrpc) {
-      // Dynamic import to avoid loading tRPC code in local mode
-      // For now, use IPC mode until tRPC service is fully tested
-      console.info('[Database] tRPC mode available, using IPC for stability')
+      // Use tRPC service for server/client mode
+      console.info('[Database] Using tRPC mode (server/client)')
+      // Return tRPC service cast as RendererDatabaseService (same interface)
+      const { getTrpcDatabase } = require('./database-trpc')
+      dbInstance = getTrpcDatabase() as unknown as RendererDatabaseService
+    } else {
+      // Use IPC service for local mode
+      console.info('[Database] Using IPC mode (local)')
+      dbInstance = RendererDatabaseService.getInstance()
     }
-
-    dbInstance = RendererDatabaseService.getInstance()
   }
   return dbInstance
 }
