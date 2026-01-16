@@ -407,8 +407,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       const endTime = dateBase.hour(Math.floor(endMinutes / 60)).minute(endMinutes % 60).second(0)
       const actualMinutes = endMinutes - startMinutes
 
-      // Create the time sink session via electron API
-      const session = await window.electronAPI.db.createTimeSinkSession({
+      // Create the time sink session via database service
+      const session = await getDatabase().createTimeSinkSession({
         timeSinkId: sinkId,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),

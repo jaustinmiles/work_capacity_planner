@@ -30,6 +30,7 @@ import {
 import { getCurrentTime } from '@/shared/time-provider'
 import { dateToYYYYMMDD } from '@/shared/time-utils'
 import { logger } from '@/logger'
+import { getDatabase } from '@/renderer/services/database'
 import { getWorkTrackingServiceInstance } from './useTaskStore'
 
 interface TimeSinkStoreState {
@@ -81,7 +82,7 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
       set({ isLoading: true, error: null })
 
       try {
-        const sinks = await window.electronAPI.db.getTimeSinks()
+        const sinks = await getDatabase().getTimeSinks()
 
         set({
           sinks,
@@ -108,7 +109,7 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
      */
     createSink: async (input): Promise<TimeSink> => {
       try {
-        const newSink = await window.electronAPI.db.createTimeSink(input)
+        const newSink = await getDatabase().createTimeSink(input)
 
         set((state) => ({
           sinks: [...state.sinks, newSink],
@@ -132,7 +133,7 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
      */
     updateSink: async (id, updates): Promise<TimeSink> => {
       try {
-        const updatedSink = await window.electronAPI.db.updateTimeSink(id, updates)
+        const updatedSink = await getDatabase().updateTimeSink(id, updates)
 
         set((state) => ({
           sinks: state.sinks.map((s) => (s.id === id ? updatedSink : s)),
@@ -157,7 +158,7 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
      */
     deleteSink: async (id): Promise<void> => {
       try {
-        await window.electronAPI.db.deleteTimeSink(id)
+        await getDatabase().deleteTimeSink(id)
 
         set((state) => ({
           sinks: state.sinks.filter((s) => s.id !== id),
@@ -176,7 +177,7 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
      */
     reorderSinks: async (orderedIds): Promise<void> => {
       try {
-        await window.electronAPI.db.reorderTimeSinks(orderedIds)
+        await getDatabase().reorderTimeSinks(orderedIds)
 
         // Reorder in local state
         set((state) => {
@@ -241,7 +242,7 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
 
       try {
         const now = getCurrentTime()
-        const session = await window.electronAPI.db.createTimeSinkSession({
+        const session = await getDatabase().createTimeSinkSession({
           timeSinkId: sinkId,
           startTime: now.toISOString(),
           notes,
@@ -276,7 +277,7 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
         // Calculate actual minutes
         const actualMinutes = calculateSessionDuration(activeSinkSession)
 
-        const stoppedSession = await window.electronAPI.db.endTimeSinkSession(
+        const stoppedSession = await getDatabase().endTimeSinkSession(
           activeSinkSession.id,
           actualMinutes,
           notes,
@@ -302,7 +303,7 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
      */
     loadActiveSession: async (): Promise<void> => {
       try {
-        const activeSession = await window.electronAPI.db.getActiveTimeSinkSession()
+        const activeSession = await getDatabase().getActiveTimeSinkSession()
         set({ activeSinkSession: activeSession })
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
@@ -315,7 +316,7 @@ export const useTimeSinkStore = create<TimeSinkStoreState>()(
      */
     getAccumulatedTime: async (startDate, endDate): Promise<TimeSinkAccumulatedResult> => {
       try {
-        return await window.electronAPI.db.getTimeSinkAccumulated(startDate, endDate)
+        return await getDatabase().getTimeSinkAccumulated(startDate, endDate)
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         logger.ui.error('Failed to get accumulated time', { error: errorMessage }, 'time-sink-accumulated-error')

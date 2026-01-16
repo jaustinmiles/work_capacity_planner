@@ -365,6 +365,81 @@ export class RendererDatabaseService {
     return await window.electronAPI.db.updateSchedulingPreferences(sessionId, updates)
   }
 
+  // User task type operations
+  async getUserTaskTypes(): Promise<UserTaskType[]> {
+    return await window.electronAPI.db.getUserTaskTypes()
+  }
+
+  async getUserTaskTypeById(id: string): Promise<UserTaskType | null> {
+    return await window.electronAPI.db.getUserTaskTypeById(id)
+  }
+
+  async createUserTaskType(input: Omit<CreateUserTaskTypeInput, 'sessionId'>): Promise<UserTaskType> {
+    return await window.electronAPI.db.createUserTaskType(input)
+  }
+
+  async updateUserTaskType(id: string, updates: UpdateUserTaskTypeInput): Promise<UserTaskType> {
+    return await window.electronAPI.db.updateUserTaskType(id, updates)
+  }
+
+  async deleteUserTaskType(id: string): Promise<void> {
+    return await window.electronAPI.db.deleteUserTaskType(id)
+  }
+
+  async reorderUserTaskTypes(orderedIds: string[]): Promise<void> {
+    return await window.electronAPI.db.reorderUserTaskTypes(orderedIds)
+  }
+
+  async sessionHasTaskTypes(): Promise<boolean> {
+    return await window.electronAPI.db.sessionHasTaskTypes()
+  }
+
+  // Time sink operations
+  async getTimeSinks(): Promise<TimeSink[]> {
+    return await window.electronAPI.db.getTimeSinks()
+  }
+
+  async getTimeSinkById(id: string): Promise<TimeSink | null> {
+    return await window.electronAPI.db.getTimeSinkById(id)
+  }
+
+  async createTimeSink(input: Omit<CreateTimeSinkInput, 'sessionId'>): Promise<TimeSink> {
+    return await window.electronAPI.db.createTimeSink(input)
+  }
+
+  async updateTimeSink(id: string, updates: UpdateTimeSinkInput): Promise<TimeSink> {
+    return await window.electronAPI.db.updateTimeSink(id, updates)
+  }
+
+  async deleteTimeSink(id: string): Promise<void> {
+    return await window.electronAPI.db.deleteTimeSink(id)
+  }
+
+  async reorderTimeSinks(orderedIds: string[]): Promise<void> {
+    return await window.electronAPI.db.reorderTimeSinks(orderedIds)
+  }
+
+  // Time sink session operations
+  async createTimeSinkSession(data: { timeSinkId: string; startTime: string; endTime?: string; actualMinutes?: number; notes?: string }): Promise<TimeSinkSession> {
+    return await window.electronAPI.db.createTimeSinkSession(data)
+  }
+
+  async endTimeSinkSession(id: string, actualMinutes: number, notes?: string): Promise<TimeSinkSession> {
+    return await window.electronAPI.db.endTimeSinkSession(id, actualMinutes, notes)
+  }
+
+  async getTimeSinkSessions(timeSinkId: string): Promise<TimeSinkSession[]> {
+    return await window.electronAPI.db.getTimeSinkSessions(timeSinkId)
+  }
+
+  async getActiveTimeSinkSession(): Promise<TimeSinkSession | null> {
+    return await window.electronAPI.db.getActiveTimeSinkSession()
+  }
+
+  async deleteTimeSinkSession(id: string): Promise<void> {
+    return await window.electronAPI.db.deleteTimeSinkSession(id)
+  }
+
   // Task operations
   async getTasks(includeArchived = false): Promise<Task[]> {
     return await window.electronAPI.db.getTasks(includeArchived)

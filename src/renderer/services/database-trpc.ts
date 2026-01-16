@@ -173,9 +173,11 @@ export class TrpcDatabaseService {
   // ============================================================================
 
   async getSequencedTasks(): Promise<SequencedTask[]> {
-    // Sequenced tasks are just tasks with hasSteps=true, the tRPC getAll already includes steps
+    // Sequenced tasks are tasks with hasSteps=true AND actual steps
     const tasks = await this.client.task.getAll.query({ includeArchived: false })
-    return tasks as SequencedTask[]
+    // Filter to only include tasks that have steps (workflows)
+    const sequencedTasks = tasks.filter((t) => t.hasSteps && t.steps && t.steps.length > 0)
+    return sequencedTasks as SequencedTask[]
   }
 
   async getSequencedTaskById(id: string): Promise<SequencedTask | null> {
@@ -199,6 +201,10 @@ export class TrpcDatabaseService {
 
   async deleteSequencedTask(id: string): Promise<void> {
     await this.client.task.delete.mutate({ id })
+  }
+
+  async getStepWorkSessions(stepId: string): Promise<unknown[]> {
+    return this.client.workflow.getStepWorkSessions.query({ stepId })
   }
 
   // ============================================================================
@@ -303,6 +309,22 @@ export class TrpcDatabaseService {
     await this.client.timeSink.deleteSession.mutate({ id })
   }
 
+  async getTimeSinkAccumulated(
+    startDate: string,
+    endDate: string,
+  ): Promise<{ bySink: Record<string, number>; total: number }> {
+    const result = await this.client.timeSink.getAccumulated.query({ startDate, endDate })
+    // Transform array response to Record<sinkId, minutes> format expected by consumers
+    const bySink: Record<string, number> = {}
+    for (const item of result.bySink) {
+      bySink[item.sink.id] = item.totalMinutes
+    }
+    return {
+      bySink,
+      total: result.totalMinutes,
+    }
+  }
+
   // ============================================================================
   // Work Patterns
   // ============================================================================
@@ -386,6 +408,12 @@ export class TrpcDatabaseService {
   async getTaskTotalLoggedTime(taskId: string): Promise<number> {
     const result = await this.client.workSession.getTotalTimeForTask.query({ taskId })
     return result.totalMinutes
+  }
+
+  async getTodayAccumulated(
+    date: string,
+  ): Promise<{ byType: Record<string, number>; totalMinutes: number }> {
+    return this.client.workSession.getAccumulatedByDate.query({ date })
   }
 
   // ============================================================================

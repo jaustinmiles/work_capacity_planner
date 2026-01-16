@@ -25,6 +25,7 @@ import {
   getSortedTypes,
 } from '@/shared/user-task-types'
 import { logger } from '@/logger'
+import { getDatabase } from '@/renderer/services/database'
 
 interface UserTaskTypeStoreState {
   // Core state
@@ -65,7 +66,7 @@ export const useUserTaskTypeStore = create<UserTaskTypeStoreState>()(
       set({ isLoading: true, error: null })
 
       try {
-        const types = await window.electronAPI.db.getUserTaskTypes()
+        const types = await getDatabase().getUserTaskTypes()
 
         set({
           types,
@@ -89,7 +90,7 @@ export const useUserTaskTypeStore = create<UserTaskTypeStoreState>()(
      */
     createType: async (input) => {
       try {
-        const newType = await window.electronAPI.db.createUserTaskType(input)
+        const newType = await getDatabase().createUserTaskType(input)
 
         set((state) => ({
           types: [...state.types, newType],
@@ -113,7 +114,7 @@ export const useUserTaskTypeStore = create<UserTaskTypeStoreState>()(
      */
     updateType: async (id, updates) => {
       try {
-        const updatedType = await window.electronAPI.db.updateUserTaskType(id, updates)
+        const updatedType = await getDatabase().updateUserTaskType(id, updates)
 
         set((state) => ({
           types: state.types.map((t) => (t.id === id ? updatedType : t)),
@@ -139,7 +140,7 @@ export const useUserTaskTypeStore = create<UserTaskTypeStoreState>()(
      */
     deleteType: async (id) => {
       try {
-        await window.electronAPI.db.deleteUserTaskType(id)
+        await getDatabase().deleteUserTaskType(id)
 
         set((state) => ({
           types: state.types.filter((t) => t.id !== id),
@@ -158,7 +159,7 @@ export const useUserTaskTypeStore = create<UserTaskTypeStoreState>()(
      */
     reorderTypes: async (orderedIds) => {
       try {
-        await window.electronAPI.db.reorderUserTaskTypes(orderedIds)
+        await getDatabase().reorderUserTaskTypes(orderedIds)
 
         // Update local state with new order
         set((state) => {

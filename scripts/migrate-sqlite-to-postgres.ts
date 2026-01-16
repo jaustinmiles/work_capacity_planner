@@ -171,8 +171,8 @@ function processRow(table: string, row: Record<string, unknown>): Record<string,
   const processed: Record<string, unknown> = {}
 
   for (const [key, value] of Object.entries(row)) {
-    // Handle dates
-    if (key.toLowerCase().includes('at') || key.toLowerCase().includes('time') || key === 'deadline') {
+    // Handle dates - only fields that END with specific suffixes or are exact matches
+    if (isDateField(table, key)) {
       processed[key] = parseDate(value as string | number | null)
     }
     // Handle booleans
@@ -185,7 +185,57 @@ function processRow(table: string, row: Record<string, unknown>): Record<string,
     }
   }
 
-  return processed
+  // Apply defaults for non-nullable fields
+  return applyDefaults(table, processed)
+}
+
+/**
+ * Check if a field is a date field based on schema
+ */
+function isDateField(table: string, field: string): boolean {
+  // These fields look like dates but are actually strings or integers
+  const nonDateFields: Record<string, string[]> = {
+    WorkBlock: ['startTime', 'endTime'],
+    WorkMeeting: ['startTime', 'endTime'],
+    WorkPattern: ['date'],
+    Task: ['asyncWaitTime', 'expectedResponseTime'],
+    TaskStep: ['asyncWaitTime', 'expectedResponseTime'],
+  }
+  if (nonDateFields[table]?.includes(field)) {
+    return false
+  }
+
+  // Fields that END with these suffixes are DateTime
+  const dateSuffixes = ['At', 'Time']
+  for (const suffix of dateSuffixes) {
+    if (field.endsWith(suffix)) return true
+  }
+
+  // Exact match date fields
+  const exactDateFields = ['deadline']
+  return exactDateFields.includes(field)
+}
+
+/**
+ * Apply default values for non-nullable fields that might be null in SQLite
+ */
+function applyDefaults(table: string, row: Record<string, unknown>): Record<string, unknown> {
+  // Fields that need default values when null
+  const defaults: Record<string, Record<string, unknown>> = {
+    Task: { asyncWaitTime: 0 },
+    TaskStep: { asyncWaitTime: 0 },
+  }
+
+  const tableDefaults = defaults[table]
+  if (tableDefaults) {
+    for (const [field, defaultValue] of Object.entries(tableDefaults)) {
+      if (row[field] === null || row[field] === undefined) {
+        row[field] = defaultValue
+      }
+    }
+  }
+
+  return row
 }
 
 /**

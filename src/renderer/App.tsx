@@ -30,6 +30,7 @@ import { useTaskStore } from './store/useTaskStore'
 import { useWorkPatternStore } from './store/useWorkPatternStore'
 import { useTimeSinkStore } from './store/useTimeSinkStore'
 import { useScheduleSnapshotStore } from './store/useScheduleSnapshotStore'
+import { useUserTaskTypeStore } from './store/useUserTaskTypeStore'
 import { connectStores } from './store/storeConnector'
 import { getDatabase } from './services/database'
 import { logger } from '@/logger'
@@ -71,6 +72,9 @@ function AppContent() {
         // Initialize schedule snapshots (for frozen schedule persistence)
         // Important: await this to ensure snapshots are loaded before user interaction
         await useScheduleSnapshotStore.getState().loadSnapshots()
+
+        // Initialize user task types (needed for task type display)
+        await useUserTaskTypeStore.getState().loadTypes()
 
         logger.system.info('All stores initialized successfully', {}, 'app-init')
       } catch (error) {
