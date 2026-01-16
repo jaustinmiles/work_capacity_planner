@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { DatabaseService } from '../database'
 
-describe('Database Step Field Persistence', () => {
+// Skip these tests if no PostgreSQL DATABASE_URL is configured
+const hasPostgresUrl = process.env.DATABASE_URL?.startsWith('postgresql://') || process.env.DATABASE_URL?.startsWith('postgres://')
+
+describe.skipIf(!hasPostgresUrl)('Database Step Field Persistence', () => {
   let db: DatabaseService
   let testSessionId: string
   let testTaskId: string
