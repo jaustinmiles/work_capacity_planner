@@ -50,6 +50,7 @@ export class TrpcDatabaseService {
 
   private constructor() {
     // Create client with dynamic session ID
+    console.log('TrpcDatabaseService constructor', window.appConfig.serverUrl, window.appConfig.apiKey)
     this.client = createDynamicClient(
       window.appConfig.serverUrl,
       window.appConfig.apiKey,
