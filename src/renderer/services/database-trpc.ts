@@ -395,7 +395,24 @@ export class TrpcDatabaseService {
     if (data.startTime) {
       startTime = data.startTime instanceof Date ? data.startTime : new Date(data.startTime)
     } else if (data.date) {
-      startTime = data.date instanceof Date ? data.date : new Date(data.date)
+      if (data.date instanceof Date) {
+        startTime = data.date
+      } else {
+        // Parse date string to LOCAL time (not UTC)
+        // "2024-01-16" should create midnight local time, not UTC
+        // Use T00:00:00 suffix to get local timezone interpretation
+        const dateStr = data.date as string
+        const today = new Date()
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+        if (dateStr === todayStr) {
+          // If logging for today, use current time
+          startTime = new Date()
+        } else {
+          // For past/future dates, use noon to avoid timezone edge cases
+          startTime = new Date(dateStr + 'T12:00:00')
+        }
+      }
     } else {
       // Default to current time if neither is provided
       startTime = new Date()
