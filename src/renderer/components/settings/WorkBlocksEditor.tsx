@@ -36,6 +36,7 @@ import {
 import { WorkBlockType, BlockConfigKind, MeetingType } from '@shared/enums'
 import { getCurrentTime } from '@shared/time-provider'
 import { formatTimeFromParts } from '@shared/time-utils'
+import { toLocalTime } from '@shared/datetime-types'
 import { generateUniqueId } from '@shared/step-id-utils'
 import { useSortedUserTaskTypes, useUserTaskTypeStore } from '@/renderer/store/useUserTaskTypeStore'
 import { Message } from '../common/Message'
@@ -165,8 +166,8 @@ export function WorkBlocksEditor({
     // Use current time (rounded to nearest hour) as default start time
     const now = getCurrentTime()
     const currentHour = new Date(now).getHours()
-    const startTime = formatTimeFromParts(currentHour, 0)
-    const endTime = formatTimeFromParts((currentHour + 3) % 24, 0)
+    const startTime = toLocalTime(formatTimeFromParts(currentHour, 0))
+    const endTime = toLocalTime(formatTimeFromParts((currentHour + 3) % 24, 0))
     const newBlock: WorkBlock = {
       id: generateUniqueId('block'),
       startTime,
@@ -216,8 +217,8 @@ export function WorkBlocksEditor({
     setEditingMeeting({
       id: `meeting-${Date.now()}`,
       name: '',
-      startTime: '14:00',
-      endTime: '15:00',
+      startTime: toLocalTime('14:00'),
+      endTime: toLocalTime('15:00'),
       type: MeetingType.Meeting,
     })
     setShowMeetingModal(true)
@@ -449,7 +450,7 @@ export function WorkBlocksEditor({
                   <Col span={4}>
                     <ClockTimePicker
                       value={block.startTime}
-                      onChange={(value) => handleUpdateBlock(block.id, { startTime: value })}
+                      onChange={(value) => handleUpdateBlock(block.id, { startTime: toLocalTime(value) })}
                       style={{ width: '100%' }}
                     />
                   </Col>
@@ -459,7 +460,7 @@ export function WorkBlocksEditor({
                   <Col span={4}>
                     <ClockTimePicker
                       value={block.endTime}
-                      onChange={(value) => handleUpdateBlock(block.id, { endTime: value })}
+                      onChange={(value) => handleUpdateBlock(block.id, { endTime: toLocalTime(value) })}
                       style={{ width: '100%' }}
                     />
                   </Col>
@@ -576,8 +577,8 @@ export function WorkBlocksEditor({
               const sleepBlock: WorkMeeting = {
                 id: `sleep-${Date.now()}`,
                 name: 'Sleep',
-                startTime: '22:00',
-                endTime: '06:00',
+                startTime: toLocalTime('22:00'),
+                endTime: toLocalTime('06:00'),
                 type: MeetingType.Blocked,
               }
               setMeetings([...meetings, sleepBlock])

@@ -89,8 +89,8 @@ I'll add a 1-hour music block starting now.
   "date": "2025-01-13",
   "operation": "add_block",
   "blockData": {
-    "startTime": "2025-01-13T16:00:00Z",
-    "endTime": "2025-01-13T17:00:00Z",
+    "startTime": "16:00",
+    "endTime": "17:00",
     "type": "type-personal-123"
   }
 }]
@@ -152,10 +152,11 @@ ${generateAmendmentTypeDescriptions()}
    - If validation fails, you'll get specific error feedback
    - You have up to 5 attempts to fix errors
 
-6. **Dates**: ALWAYS use ISO date-time strings in this format: "YYYY-MM-DDTHH:mm:ssZ"
-   - Example: "2025-11-23T19:00:00Z" for 7 PM on Nov 23, 2025
-   - Never use Date objects (JSON doesn't support them)
-   - Include timezone offset (Z for UTC, or +HH:mm)
+6. **Dates and Times**: Use SIMPLE formats (NOT ISO with timezone):
+   - **Dates**: "YYYY-MM-DD" format (e.g., "2025-11-23")
+   - **Times**: "HH:MM" 24-hour format (e.g., "09:30", "19:00", "14:45")
+   - **NEVER** use ISO format with timezone suffix (no "Z" or "+00:00")
+   - These represent LOCAL time in the user's timezone, not UTC
 
 ### Examples
 
@@ -238,8 +239,8 @@ ${generateAmendmentTypeDescriptions()}
     "operation": "add_meeting",
     "meetingData": {
       "name": "Team Standup",
-      "startTime": "2025-11-23T09:00:00Z",
-      "endTime": "2025-11-23T09:30:00Z",
+      "startTime": "09:00",
+      "endTime": "09:30",
       "type": "admin",
       "recurring": "daily"
     }
@@ -439,11 +440,11 @@ Set or modify deadlines.
     "name": "Task name",
     "confidence": 0.9
   },
-  "newDeadline": "2025-11-30T17:00:00Z",
+  "newDeadline": "2025-11-30",
   "isHard": true
 }
 \`\`\`
-- **newDeadline**: ISO date string (required)
+- **newDeadline**: Date string in "YYYY-MM-DD" format (required)
 
 ### 11. priority_change
 Update importance, urgency, or cognitive complexity.
@@ -488,8 +489,8 @@ Add/remove/modify work blocks or meetings in schedule.
   "date": "2025-11-25",
   "operation": "add_block",
   "blockData": {
-    "startTime": "2025-11-25T19:30:00Z",
-    "endTime": "2025-11-25T21:30:00Z",
+    "startTime": "19:30",
+    "endTime": "21:30",
     "type": "type-abc123"
   }
 }
@@ -504,15 +505,15 @@ Add/remove/modify work blocks or meetings in schedule.
   "operation": "add_meeting",
   "meetingData": {
     "name": "Team Standup",
-    "startTime": "2025-11-25T09:00:00Z",
-    "endTime": "2025-11-25T09:30:00Z",
+    "startTime": "09:00",
+    "endTime": "09:30",
     "type": "meeting",
     "recurring": "none"
   }
 }
 \`\`\`
 - **meetingData.name** (required): Name of the meeting
-- **meetingData.startTime** and **endTime** (required): ISO 8601 format
+- **meetingData.startTime** and **endTime** (required): "HH:MM" 24-hour format
 - **meetingData.type**: Any string describing the meeting type (e.g., "meeting", "standup", "1on1")
 - **meetingData.recurring**: "none" | "daily" | "weekly" | "biweekly" | "monthly"
 

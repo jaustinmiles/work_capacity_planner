@@ -15,6 +15,7 @@ import { calculateBlockCapacity } from '@shared/capacity-calculator'
 import { createEmptyAccumulatedTime } from '@shared/user-task-types'
 import { WorkBlockType, BlockConfigKind } from '@shared/enums'
 import { dateToYYYYMMDD } from '@shared/time-utils'
+import { toLocalDate } from '@shared/datetime-types'
 
 
 const { Title, Text } = Typography
@@ -130,7 +131,7 @@ export function ScheduleGenerator({
         const date = new Date(today)
         date.setDate(date.getDate() + i)
         const _dayOfWeek = date.getDay()
-        const dateStr = dateToYYYYMMDD(date)
+        const dateStr = toLocalDate(dateToYYYYMMDD(date))
 
         // Check if this day has work hours configured
         // Use custom hours for this day if configured, otherwise use default hours

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { WorkBlock, WorkMeeting } from '@shared/work-blocks-types'
+import { WorkBlock, WorkMeeting, LocalTime } from '@shared/work-blocks-types'
 import { isSingleTypeBlock, isComboBlock, isSystemBlock, getTypeColor, getTypeName } from '@shared/user-task-types'
 import { useSortedUserTaskTypes } from '@renderer/store/useUserTaskTypeStore'
 import { getCurrentTime } from '@shared/time-provider'
 import { parseTimeString } from '@shared/time-utils'
+import { toLocalTime } from '@shared/datetime-types'
 
 interface TimelineVisualizerProps {
   blocks: WorkBlock[]
@@ -51,8 +52,8 @@ export function TimelineVisualizer({
     return (totalMinutes / 60) * HOUR_HEIGHT
   }
 
-  // Convert pixels from top to time string (HH:mm)
-  const pixelsToTime = (pixels: number): string => {
+  // Convert pixels from top to time (LocalTime)
+  const pixelsToTime = (pixels: number): LocalTime => {
     const totalMinutes = Math.round((pixels / HOUR_HEIGHT) * 60)
     const hours = Math.floor(totalMinutes / 60) + startHour
     const minutes = totalMinutes % 60
@@ -61,13 +62,13 @@ export function TimelineVisualizer({
     const clampedHours = Math.max(startHour, Math.min(endHour - 1, hours))
     const clampedMinutes = hours >= endHour ? 59 : minutes
 
-    return `${clampedHours.toString().padStart(2, '0')}:${clampedMinutes.toString().padStart(2, '0')}`
+    return toLocalTime(`${clampedHours.toString().padStart(2, '0')}:${clampedMinutes.toString().padStart(2, '0')}`)
   }
 
   // Return time as-is without rounding
-  const roundToQuarter = (timeStr: string): string => {
+  const roundToQuarter = (time: LocalTime): LocalTime => {
     // No rounding - return the exact time
-    return timeStr
+    return time
   }
 
   const handleMouseDown = (e: React.MouseEvent, type: 'block' | 'meeting', id: string, edge: 'start' | 'end' | 'move') => {

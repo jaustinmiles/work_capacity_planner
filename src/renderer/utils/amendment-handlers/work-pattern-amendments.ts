@@ -4,7 +4,6 @@
 
 import type { WorkPatternModification } from '@shared/amendment-types'
 import { BlockConfigKind, WorkBlockType, WorkPatternOperation } from '@shared/enums'
-import { dateToYYYYMMDD, extractTimeFromISO, safeParseDateString } from '@shared/time-utils'
 import { getBlockTypeName } from '@shared/user-task-types'
 import type { HandlerContext } from './types'
 import { Message } from '../../components/common/Message'
@@ -16,12 +15,9 @@ export async function handleWorkPatternModification(
   amendment: WorkPatternModification,
   ctx: HandlerContext,
 ): Promise<void> {
-  // Date may be a Date object (fresh from AI) or string (after database round-trip)
-  // Handle both cases safely
-  const amendmentDate = typeof amendment.date === 'string'
-    ? safeParseDateString(amendment.date) || new Date()
-    : amendment.date
-  const dateStr = dateToYYYYMMDD(amendmentDate)
+  // amendment.date is now a LocalDate (branded "YYYY-MM-DD" string)
+  // No conversion needed - use directly
+  const dateStr = amendment.date
 
   logger.ui.info('WorkPatternModification processing', {
     operation: amendment.operation,
@@ -41,10 +37,9 @@ export async function handleWorkPatternModification(
           break
         }
 
-        // Extract time directly from ISO string to avoid timezone conversion issues
-        // The AI provides times that represent local time encoded in ISO format
-        const startTimeStr = extractTimeFromISO(amendment.blockData.startTime)
-        const endTimeStr = extractTimeFromISO(amendment.blockData.endTime)
+        // Times are already LocalTime strings ("HH:MM" format) - use directly
+        const startTimeStr = amendment.blockData.startTime
+        const endTimeStr = amendment.blockData.endTime
 
         // Convert type ID to proper BlockTypeConfig object
         // Database expects typeConfig: { kind, typeId/systemType }, not just a type string
@@ -102,9 +97,9 @@ export async function handleWorkPatternModification(
           break
         }
 
-        // Extract time directly from ISO string to avoid timezone conversion issues
-        const meetingStartStr = extractTimeFromISO(amendment.meetingData.startTime)
-        const meetingEndStr = extractTimeFromISO(amendment.meetingData.endTime)
+        // Times are already LocalTime strings ("HH:MM" format) - use directly
+        const meetingStartStr = amendment.meetingData.startTime
+        const meetingEndStr = amendment.meetingData.endTime
 
         const newMeeting = {
           name: amendment.meetingData.name,

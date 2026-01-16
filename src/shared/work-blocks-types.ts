@@ -8,14 +8,18 @@
  * - WorkBlock: A time slot with a type configuration (single, combo, or system)
  * - DailyWorkPattern: A day's schedule with blocks and accumulated time by type
  * - Meeting: Events that block out time (meetings, breaks, etc.)
+ *
+ * Note: Uses LocalTime ("HH:MM") and LocalDate ("YYYY-MM-DD") branded types
+ * for type safety and to prevent timezone bugs.
  */
 
+import { LocalTime, LocalDate } from './datetime-types'
+
 /**
- * Semantic type for date strings in "YYYY-MM-DD" format.
- * Used throughout the codebase for date-only values (no time component).
- * Example: "2024-01-15"
+ * @deprecated Use LocalDate from datetime-types.ts instead.
+ * Kept for backward compatibility during migration.
  */
-export type DateString = string
+export type DateString = LocalDate
 
 /**
  * Historical work data for a date or date range.
@@ -46,6 +50,7 @@ import { WorkBlockType, BlockConfigKind, MeetingType } from './enums'
 // Re-export for convenience
 export type { BlockTypeConfig } from './user-task-types'
 export { WorkBlockType, MeetingType } from './enums'
+export type { LocalTime, LocalDate } from './datetime-types'
 
 /**
  * A work block represents a time slot in a day's schedule.
@@ -53,8 +58,8 @@ export { WorkBlockType, MeetingType } from './enums'
  */
 export interface WorkBlock {
   id: string
-  startTime: string // "HH:MM" format (e.g., "09:00")
-  endTime: string // "HH:MM" format (e.g., "12:00")
+  startTime: LocalTime // "HH:MM" format (e.g., "09:00")
+  endTime: LocalTime // "HH:MM" format (e.g., "12:00")
   typeConfig: BlockTypeConfig // Determines what task types this block accepts
   capacity?: WorkBlockCapacity // Calculated capacity info
 }
@@ -72,7 +77,7 @@ export interface WorkBlockCapacity {
  * A daily work pattern contains all blocks and meetings for a specific date.
  */
 export interface DailyWorkPattern {
-  date: string // "YYYY-MM-DD" format
+  date: LocalDate // "YYYY-MM-DD" format
   blocks: WorkBlock[]
   accumulated: AccumulatedTimeByType // Dynamic: { [typeId]: minutes }
   meetings: Meeting[]
@@ -84,8 +89,8 @@ export interface DailyWorkPattern {
 export interface Meeting {
   id: string
   name: string
-  startTime: string // "HH:MM" format
-  endTime: string // "HH:MM" format
+  startTime: LocalTime // "HH:MM" format
+  endTime: LocalTime // "HH:MM" format
   type: MeetingType
   recurring?: 'daily' | 'weekly' | 'none'
   daysOfWeek?: number[] // 0-6 for weekly recurring (0 = Sunday)
@@ -271,8 +276,8 @@ export function getBlockCapacityForType(block: WorkBlock, taskTypeId: string): n
  */
 export function createSingleTypeBlock(
   id: string,
-  startTime: string,
-  endTime: string,
+  startTime: LocalTime,
+  endTime: LocalTime,
   typeId: string,
 ): WorkBlock {
   return {
@@ -288,8 +293,8 @@ export function createSingleTypeBlock(
  */
 export function createComboBlock(
   id: string,
-  startTime: string,
-  endTime: string,
+  startTime: LocalTime,
+  endTime: LocalTime,
   allocations: Array<{ typeId: string; ratio: number }>,
 ): WorkBlock {
   return {
@@ -305,8 +310,8 @@ export function createComboBlock(
  */
 export function createSystemBlock(
   id: string,
-  startTime: string,
-  endTime: string,
+  startTime: LocalTime,
+  endTime: LocalTime,
   systemType: WorkBlockType,
 ): WorkBlock {
   return {

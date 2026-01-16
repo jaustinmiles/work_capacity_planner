@@ -18,6 +18,7 @@ import {
 } from './amendment-types'
 import { AmendmentType } from './enums'
 import { safeParseDateString } from './time-utils'
+import { toLocalDate, toLocalTime, getCurrentLocalDate, getCurrentLocalTime } from './datetime-types'
 import { logger } from '../logger'
 
 export interface ValidationLoopOptions {
@@ -246,12 +247,28 @@ export function createUserErrorReport(result: ValidationLoopResult): string {
 
 // ============================================================================
 // TRANSFORMATION FUNCTIONS
-// Convert RawAmendment (string dates from AI) to Amendment (proper Date objects)
-// Uses safeParseDateString from time-utils.ts for consistent date parsing
+// Convert RawAmendment (string dates from AI) to Amendment (proper typed values)
+// Uses toLocalDate/toLocalTime for schedule data (fixes timezone bug)
+// Uses safeParseDateString for absolute timestamps (TimeLog, DeadlineChange)
 // ============================================================================
 
 /**
- * Transform a single raw amendment to a proper Amendment with Date objects
+ * Safe wrapper for toLocalTime that falls back to current time on error
+ */
+function safeToLocalTime(input: string): import('./datetime-types').LocalTime {
+  try {
+    return toLocalTime(input)
+  } catch (e) {
+    logger.system.warn('Invalid time format, using current time', {
+      rawTime: input,
+      error: e instanceof Error ? e.message : String(e),
+    }, 'time-parse-fallback')
+    return getCurrentLocalTime()
+  }
+}
+
+/**
+ * Transform a single raw amendment to a proper Amendment with typed values
  */
 function transformAmendment(raw: RawAmendment): Amendment {
   switch (raw.type) {
@@ -283,25 +300,38 @@ function transformAmendment(raw: RawAmendment): Amendment {
 
     case AmendmentType.WorkPatternModification: {
       const rawPattern = raw as RawWorkPatternModification
-      const date = safeParseDateString(rawPattern.date)
-      if (!date) {
+
+      // Transform date - use toLocalDate which extracts YYYY-MM-DD from ISO strings
+      // This is the KEY FIX: we treat the date portion as local, not UTC
+      let date = getCurrentLocalDate()
+      try {
+        date = toLocalDate(rawPattern.date)
+      } catch (e) {
         logger.system.warn('WorkPatternModification has invalid date, using current date', {
           rawDate: rawPattern.date,
+          error: e instanceof Error ? e.message : String(e),
         }, 'work-pattern-date-fallback')
       }
+
+      // Transform blockData times - toLocalTime extracts HH:MM as local time
+      const blockData = rawPattern.blockData ? {
+        ...rawPattern.blockData,
+        startTime: safeToLocalTime(rawPattern.blockData.startTime),
+        endTime: safeToLocalTime(rawPattern.blockData.endTime),
+      } : undefined
+
+      // Transform meetingData times
+      const meetingData = rawPattern.meetingData ? {
+        ...rawPattern.meetingData,
+        startTime: safeToLocalTime(rawPattern.meetingData.startTime),
+        endTime: safeToLocalTime(rawPattern.meetingData.endTime),
+      } : undefined
+
       const transformed: WorkPatternModification = {
         ...rawPattern,
-        date: date || new Date(),
-        blockData: rawPattern.blockData ? {
-          ...rawPattern.blockData,
-          startTime: safeParseDateString(rawPattern.blockData.startTime) || new Date(),
-          endTime: safeParseDateString(rawPattern.blockData.endTime) || new Date(),
-        } : undefined,
-        meetingData: rawPattern.meetingData ? {
-          ...rawPattern.meetingData,
-          startTime: safeParseDateString(rawPattern.meetingData.startTime) || new Date(),
-          endTime: safeParseDateString(rawPattern.meetingData.endTime) || new Date(),
-        } : undefined,
+        date,
+        blockData,
+        meetingData,
       }
       return transformed
     }

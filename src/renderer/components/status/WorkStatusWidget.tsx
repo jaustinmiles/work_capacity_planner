@@ -10,6 +10,7 @@ import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { useSortedUserTaskTypes } from '../../store/useUserTaskTypeStore'
 import { useSortedTimeSinks } from '../../store/useTimeSinkStore'
 import { calculateDuration, formatTimeHHMM, dateToYYYYMMDD } from '@shared/time-utils'
+import { toLocalDate } from '@shared/datetime-types'
 import { logger } from '@/logger'
 import { getCurrentTime } from '@shared/time-provider'
 import { getDatabase } from '../../services/database'
@@ -55,7 +56,7 @@ export function WorkStatusWidget(): React.ReactElement {
   // Get current date
   const currentDate = useMemo(() => {
     const now = getCurrentTime()
-    return dateToYYYYMMDD(now)
+    return toLocalDate(dateToYYYYMMDD(now))
   }, [])
 
   // Load work data when patterns change

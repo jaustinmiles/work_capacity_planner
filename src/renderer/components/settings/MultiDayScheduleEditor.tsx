@@ -22,6 +22,7 @@ import {
 } from '@arco-design/web-react/icon'
 import { WorkBlock, WorkMeeting, DailyWorkPattern } from '@shared/work-blocks-types'
 import { calculateDuration } from '@shared/time-utils'
+import { toLocalDate } from '@shared/datetime-types'
 import { getDatabase } from '../../services/database'
 import { WorkBlocksEditor } from './WorkBlocksEditor'
 import { Message } from '../common/Message'
@@ -108,7 +109,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
 
         if (pattern) {
           patternsMap.set(dateStr, {
-            date: dateStr,
+            date: toLocalDate(dateStr),
             blocks: pattern.blocks || [],
             meetings: pattern.meetings || [],
             accumulated: accumulatedData?.byType || {},

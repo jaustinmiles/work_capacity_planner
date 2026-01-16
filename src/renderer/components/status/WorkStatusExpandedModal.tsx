@@ -16,6 +16,7 @@ import { UserTaskType, getBlockTypeConfigName } from '@shared/user-task-types'
 import { TimeSink } from '@shared/time-sink-types'
 import { WorkBlock, getTotalCapacityByType, DateString, HistoricalWorkData, Meeting } from '@shared/work-blocks-types'
 import { formatMinutes, calculateDuration } from '@shared/time-utils'
+import { toLocalDate } from '@shared/datetime-types'
 import { getDatabase } from '../../services/database'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
 import { logger } from '@/logger'
@@ -171,7 +172,7 @@ export function WorkStatusExpandedModal({
   const [selectedDate, setSelectedDate] = useState<DateString>(initialDate)
   // Initialize range to last 7 days
   const [rangeStartDate, setRangeStartDate] = useState<DateString>(
-    dayjs(initialDate).subtract(6, 'day').format('YYYY-MM-DD'),
+    toLocalDate(dayjs(initialDate).subtract(6, 'day').format('YYYY-MM-DD')),
   )
   const [rangeEndDate, setRangeEndDate] = useState<DateString>(initialDate)
   const [isLoading, setIsLoading] = useState(false)
@@ -198,11 +199,11 @@ export function WorkStatusExpandedModal({
 
   // Navigate to previous/next day (single day mode)
   const goToPreviousDay = (): void => {
-    setSelectedDate(dayjs(selectedDate).subtract(1, 'day').format('YYYY-MM-DD'))
+    setSelectedDate(toLocalDate(dayjs(selectedDate).subtract(1, 'day').format('YYYY-MM-DD')))
   }
 
   const goToNextDay = (): void => {
-    setSelectedDate(dayjs(selectedDate).add(1, 'day').format('YYYY-MM-DD'))
+    setSelectedDate(toLocalDate(dayjs(selectedDate).add(1, 'day').format('YYYY-MM-DD')))
   }
 
   const goToToday = (): void => {

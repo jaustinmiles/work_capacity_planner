@@ -342,13 +342,13 @@ Done!`
       expect(result.newDeadline).toBeInstanceOf(Date)
     })
 
-    it('should transform RawWorkPatternModification date strings to Date objects', () => {
+    it('should transform RawWorkPatternModification to LocalDate and LocalTime (THE TIMEZONE BUG FIX)', () => {
       const rawWorkPattern: RawWorkPatternModification = {
         type: AmendmentType.WorkPatternModification,
         date: '2025-01-20',
         operation: WorkPatternOperation.AddBlock,
         blockData: {
-          startTime: '2025-01-20T09:00:00Z',
+          startTime: '2025-01-20T09:00:00Z', // ISO with Z suffix
           endTime: '2025-01-20T12:00:00Z',
           type: WorkBlockType.Focused,
         },
@@ -359,9 +359,12 @@ Done!`
 
       const result = transformed[0] as any
       expect(result.type).toBe(AmendmentType.WorkPatternModification)
-      expect(result.date).toBeInstanceOf(Date)
-      expect(result.blockData.startTime).toBeInstanceOf(Date)
-      expect(result.blockData.endTime).toBeInstanceOf(Date)
+
+      // KEY ASSERTIONS: Now uses LocalDate and LocalTime strings, NOT Date objects
+      // This fixes the timezone bug - times are extracted as local, not converted from UTC
+      expect(result.date).toBe('2025-01-20') // LocalDate string
+      expect(result.blockData.startTime).toBe('09:00') // LocalTime extracted from ISO
+      expect(result.blockData.endTime).toBe('12:00') // NOT shifted by timezone!
     })
 
     it('should transform RawWorkSessionEdit date strings to Date objects', () => {
