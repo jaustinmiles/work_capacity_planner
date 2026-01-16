@@ -8,7 +8,7 @@
  */
 
 import { createDynamicClient, type ApiClient } from '@shared/trpc-client'
-import type { Task, Session } from '@shared/types'
+import type { Task, Session, AICallOptions } from '@shared/types'
 import type { SequencedTask } from '@shared/sequencing-types'
 import { ChatMessageRole } from '@shared/enums'
 import type { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput } from '@shared/user-task-types'
@@ -592,6 +592,18 @@ export class TrpcDatabaseService {
 
   async deleteScheduleSnapshot(id: string): Promise<void> {
     await this.client.snapshot.delete.mutate({ id })
+  }
+
+  // ============================================================================
+  // AI Operations (still use IPC since API key is local to the Electron app)
+  // ============================================================================
+
+  async callAI(options: AICallOptions): Promise<{ content: string }> {
+    // AI calls still go through IPC because:
+    // 1. The API key is stored locally on the Electron app
+    // 2. AI calls don't need to be shared across clients
+    // 3. Keeping AI local avoids exposing keys on the network
+    return await window.electronAPI.ai.callAI(options)
   }
 }
 
