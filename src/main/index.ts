@@ -336,16 +336,21 @@ ipcMain.handle('db:deleteAllUserData', async () => {
 })
 
 // Log persistence handlers (dev mode only)
+// In client mode, logs are not persisted locally - silently return
 ipcMain.handle('log:persist', async (_event: IpcMainInvokeEvent, logEntry: any) => {
+  if (isClientMode) return // No local database in client mode
   return await getDb().persistLog(logEntry)
 })
 
 ipcMain.handle('log:persistBatch', async (_event: IpcMainInvokeEvent, logs: any[]) => {
+  if (isClientMode) return // No local database in client mode
   return await getDb().persistLogs(logs)
 })
 
 // Log retrieval handlers for LogViewer (dev mode)
+// In client mode, return empty results
 ipcMain.handle('log:getSessionLogs', async (_event: IpcMainInvokeEvent, options?: LogQueryOptions) => {
+  if (isClientMode) return [] // No local logs in client mode
   const parsedOptions = options ? {
     ...options,
     since: options.since ? new Date(options.since) : undefined,
@@ -354,6 +359,7 @@ ipcMain.handle('log:getSessionLogs', async (_event: IpcMainInvokeEvent, options?
 })
 
 ipcMain.handle('log:getLoggedSessions', async () => {
+  if (isClientMode) return [] // No local logs in client mode
   return await getDb().getLoggedSessions()
 })
 
