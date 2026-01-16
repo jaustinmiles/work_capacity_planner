@@ -565,6 +565,18 @@ export class TrpcDatabaseService {
     await this.client.conversation.deleteMessage.mutate({ id })
   }
 
+  async updateMessageAmendmentStatus(
+    messageId: string,
+    cardId: string,
+    status: 'pending' | 'applied' | 'rejected' | 'modified',
+  ): Promise<void> {
+    await this.client.conversation.updateAmendmentStatus.mutate({
+      messageId,
+      cardId,
+      status,
+    })
+  }
+
   // ============================================================================
   // Snapshots
   // ============================================================================
