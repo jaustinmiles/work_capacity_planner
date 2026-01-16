@@ -9,6 +9,7 @@
 
 import { createDynamicClient, type ApiClient } from '@shared/trpc-client'
 import type { Task, Session } from '@shared/types'
+import type { SequencedTask } from '@shared/sequencing-types'
 import { ChatMessageRole } from '@shared/enums'
 import type { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput } from '@shared/user-task-types'
 import type { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput } from '@shared/time-sink-types'
@@ -164,6 +165,40 @@ export class TrpcDatabaseService {
   async promoteTaskToWorkflow(taskId: string): Promise<Task> {
     const task = await this.client.task.promoteToWorkflow.mutate({ id: taskId })
     return task as Task
+  }
+
+  // ============================================================================
+  // Sequenced Tasks (Tasks with Steps/Workflows)
+  // These are the same as regular tasks but include step data
+  // ============================================================================
+
+  async getSequencedTasks(): Promise<SequencedTask[]> {
+    // Sequenced tasks are just tasks with hasSteps=true, the tRPC getAll already includes steps
+    const tasks = await this.client.task.getAll.query({ includeArchived: false })
+    return tasks as SequencedTask[]
+  }
+
+  async getSequencedTaskById(id: string): Promise<SequencedTask | null> {
+    const task = await this.client.task.getById.query({ id })
+    return task as SequencedTask | null
+  }
+
+  async createSequencedTask(
+    taskData: Omit<SequencedTask, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>,
+  ): Promise<SequencedTask> {
+    const task = await this.client.task.create.mutate(
+      taskData as Parameters<typeof this.client.task.create.mutate>[0],
+    )
+    return task as SequencedTask
+  }
+
+  async updateSequencedTask(id: string, updates: Partial<SequencedTask>): Promise<SequencedTask> {
+    const task = await this.client.task.update.mutate({ id, ...updates })
+    return task as SequencedTask
+  }
+
+  async deleteSequencedTask(id: string): Promise<void> {
+    await this.client.task.delete.mutate({ id })
   }
 
   // ============================================================================
