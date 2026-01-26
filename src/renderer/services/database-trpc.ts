@@ -42,6 +42,34 @@ function nullToUndefined<T extends Record<string, unknown>>(obj: T): T {
 }
 
 /**
+ * Convert Uint8Array to base64 string in browser environment.
+ * Browser's Uint8Array.toString() doesn't support encoding arguments like Node's Buffer,
+ * so we need to use btoa() with proper byte-to-char conversion.
+ *
+ * IMPORTANT: This is exported for testing. Do not remove - this fixes a critical bug
+ * where browser Uint8Array.toString('base64') doesn't work like Node's Buffer.
+ */
+export function uint8ArrayToBase64(bytes: Uint8Array | Buffer): string {
+  // Handle actual Node Buffer (shouldn't happen in browser, but be safe)
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(bytes)) {
+    return bytes.toString('base64')
+  }
+
+  // Browser environment: convert Uint8Array to base64 using btoa
+  // Process in chunks to avoid stack overflow on large arrays
+  const CHUNK_SIZE = 8192
+  let binary = ''
+  const uint8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+
+  for (let i = 0; i < uint8.length; i += CHUNK_SIZE) {
+    const chunk = uint8.subarray(i, Math.min(i + CHUNK_SIZE, uint8.length))
+    binary += String.fromCharCode.apply(null, Array.from(chunk))
+  }
+
+  return window.btoa(binary)
+}
+
+/**
  * tRPC-based database service
  * Implements the same interface as RendererDatabaseService but uses HTTP/tRPC
  */
@@ -850,8 +878,10 @@ export class TrpcDatabaseService {
     filename: string,
     options?: { language?: string; prompt?: string },
   ): Promise<{ text: string; savedPath: string }> {
-    // Convert Buffer to base64 for JSON transport (tRPC uses JSON)
-    const audioBase64 = audioBuffer.toString('base64')
+    // Convert to base64 for JSON transport (tRPC uses JSON)
+    // Note: audioBuffer is actually a Uint8Array cast as Buffer from the browser,
+    // so we use our helper that handles both Node Buffer and browser Uint8Array
+    const audioBase64 = uint8ArrayToBase64(audioBuffer)
 
     return this.client.speech.transcribeBuffer.mutate({
       audioBase64,

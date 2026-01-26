@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { SpeechService } from '../speech-service'
+import { SpeechService, getMimeType, AUDIO_MIME_TYPES } from '../speech-service'
 
 // Mock OpenAI
 vi.mock('openai', () => ({
@@ -103,6 +103,89 @@ describe('speech-service', () => {
       expect(settings.prompt).toContain('scheduling')
       expect(settings.prompt).toContain('time blocks')
       expect(settings.prompt).toContain('work patterns')
+    })
+  })
+
+  describe('AUDIO_MIME_TYPES', () => {
+    it('should have correct MIME type for webm', () => {
+      expect(AUDIO_MIME_TYPES['webm']).toBe('audio/webm')
+    })
+
+    it('should have correct MIME type for mp3', () => {
+      expect(AUDIO_MIME_TYPES['mp3']).toBe('audio/mpeg')
+    })
+
+    it('should have correct MIME type for wav', () => {
+      expect(AUDIO_MIME_TYPES['wav']).toBe('audio/wav')
+    })
+
+    it('should have correct MIME type for m4a', () => {
+      expect(AUDIO_MIME_TYPES['m4a']).toBe('audio/mp4')
+    })
+
+    it('should have correct MIME type for ogg formats', () => {
+      expect(AUDIO_MIME_TYPES['ogg']).toBe('audio/ogg')
+      expect(AUDIO_MIME_TYPES['oga']).toBe('audio/ogg')
+    })
+
+    it('should have correct MIME type for flac', () => {
+      expect(AUDIO_MIME_TYPES['flac']).toBe('audio/flac')
+    })
+  })
+
+  describe('getMimeType', () => {
+    it('should return correct MIME type for .webm files', () => {
+      expect(getMimeType('recording.webm')).toBe('audio/webm')
+    })
+
+    it('should return correct MIME type for .mp3 files', () => {
+      expect(getMimeType('audio.mp3')).toBe('audio/mpeg')
+    })
+
+    it('should return correct MIME type for .wav files', () => {
+      expect(getMimeType('sound.wav')).toBe('audio/wav')
+    })
+
+    it('should return correct MIME type for .m4a files', () => {
+      expect(getMimeType('voice.m4a')).toBe('audio/mp4')
+    })
+
+    it('should return correct MIME type for .flac files', () => {
+      expect(getMimeType('music.flac')).toBe('audio/flac')
+    })
+
+    it('should return correct MIME type for .ogg files', () => {
+      expect(getMimeType('audio.ogg')).toBe('audio/ogg')
+    })
+
+    it('should handle uppercase extensions', () => {
+      expect(getMimeType('recording.WEBM')).toBe('audio/webm')
+      expect(getMimeType('audio.MP3')).toBe('audio/mpeg')
+    })
+
+    it('should handle mixed case extensions', () => {
+      expect(getMimeType('recording.WeBm')).toBe('audio/webm')
+    })
+
+    it('should handle filenames with paths', () => {
+      expect(getMimeType('/path/to/recording.webm')).toBe('audio/webm')
+      expect(getMimeType('C:\\Users\\audio.mp3')).toBe('audio/mpeg')
+    })
+
+    it('should handle filenames with multiple dots', () => {
+      expect(getMimeType('my.recording.file.webm')).toBe('audio/webm')
+    })
+
+    it('should return application/octet-stream for unknown formats', () => {
+      expect(getMimeType('document.pdf')).toBe('application/octet-stream')
+      expect(getMimeType('video.avi')).toBe('application/octet-stream')
+      expect(getMimeType('noextension')).toBe('application/octet-stream')
+    })
+
+    it('should handle timestamp-based filenames like browser recordings', () => {
+      // This is the actual filename pattern from browser MediaRecorder
+      expect(getMimeType('recording-1769471151980.webm')).toBe('audio/webm')
+      expect(getMimeType('audio_2026-01-26T23-45-51-988Z_recording-1769471151980.webm')).toBe('audio/webm')
     })
   })
 

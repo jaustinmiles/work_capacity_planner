@@ -1,8 +1,31 @@
-import OpenAI from 'openai'
+import OpenAI, { toFile } from 'openai'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import { logger } from '../logger'
+import { getCurrentTime } from './time-provider'
+
+/** MIME type mapping for audio formats (exported for testing) */
+export const AUDIO_MIME_TYPES: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  mp4: 'audio/mp4',
+  mpeg: 'audio/mpeg',
+  mpga: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  wav: 'audio/wav',
+  webm: 'audio/webm',
+  flac: 'audio/flac',
+  ogg: 'audio/ogg',
+  oga: 'audio/ogg',
+}
+
+/**
+ * Get MIME type for an audio file based on extension (exported for testing)
+ */
+export function getMimeType(filename: string): string {
+  const ext = path.extname(filename).toLowerCase().substring(1)
+  return AUDIO_MIME_TYPES[ext] || 'application/octet-stream'
+}
 
 /**
  * Get the persistent audio backup directory path.
@@ -49,19 +72,23 @@ export class SpeechService {
           fs.mkdirSync(audioDir, { recursive: true })
         }
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const timestamp = getCurrentTime().toISOString().replace(/[:.]/g, '-')
         const filename = path.basename(audioFilePath)
         const archivePath = path.join(audioDir, `audio_${timestamp}_${filename}`)
         fs.copyFileSync(audioFilePath, archivePath)
         logger.system.debug(`Audio file archived to: ${archivePath}`)
       }
 
-      // Use createReadStream which is more reliable with various audio formats
-      // toFile can have issues with browser-recorded webm/opus files
-      const audioStream = fs.createReadStream(audioFilePath)
+      // Use toFile to wrap audio buffer with explicit MIME type
+      // This ensures OpenAI properly recognizes WebM/Opus files
+      const audioBuffer = fs.readFileSync(audioFilePath)
+      const fileName = path.basename(audioFilePath)
+      const audioFile = await toFile(audioBuffer, fileName, {
+        type: getMimeType(fileName),
+      })
 
       const transcription = await this.openai.audio.transcriptions.create({
-        file: audioStream,
+        file: audioFile,
         model: 'whisper-1',
         language: options?.language,
         prompt: options?.prompt,
@@ -121,7 +148,7 @@ export class SpeechService {
         fs.mkdirSync(audioDir, { recursive: true })
       }
 
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const timestamp = getCurrentTime().toISOString().replace(/[:.]/g, '-')
       const savedFilePath = path.join(audioDir, `audio_${timestamp}_${filename}`)
       fs.writeFileSync(savedFilePath, audioBuffer)
       logger.system.debug(`Audio file saved to: ${savedFilePath}`)
