@@ -18,6 +18,7 @@ import { jargonRouter } from './jargon'
 import { conversationRouter } from './conversation'
 import { snapshotRouter } from './snapshot'
 import { logRouter } from './log'
+import { speechRouter } from './speech'
 
 /**
  * Main application router
@@ -35,6 +36,7 @@ import { logRouter } from './log'
  * - conversation: Chat persistence
  * - snapshot: Schedule snapshots
  * - log: Application logging
+ * - speech: Speech-to-text transcription
  */
 export const appRouter = router({
   session: sessionRouter,
@@ -49,6 +51,7 @@ export const appRouter = router({
   conversation: conversationRouter,
   snapshot: snapshotRouter,
   log: logRouter,
+  speech: speechRouter,
 })
 
 /**

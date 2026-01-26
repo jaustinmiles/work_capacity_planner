@@ -16,7 +16,7 @@ import { ChatMessageRole } from '../../shared/enums'
  */
 const createConversationInput = z.object({
   title: z.string().optional(),
-  jobContextId: z.string().optional(),
+  jobContextId: z.string().nullable().optional(),
 })
 
 /**
@@ -25,7 +25,7 @@ const createConversationInput = z.object({
 const updateConversationInput = z.object({
   id: z.string(),
   title: z.string().optional(),
-  jobContextId: z.string().optional(),
+  jobContextId: z.string().nullable().optional(),
   isArchived: z.boolean().optional(),
 })
 
@@ -36,7 +36,7 @@ const createMessageInput = z.object({
   conversationId: z.string(),
   role: z.nativeEnum(ChatMessageRole),
   content: z.string(),
-  amendments: z.string().optional(), // JSON string of AmendmentCard[]
+  amendments: z.string().nullable().optional(), // JSON string of AmendmentCard[]
 })
 
 /**

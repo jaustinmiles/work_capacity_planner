@@ -141,7 +141,7 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
     amendmentCount: amendments.length,
     types: amendments.map(a => a.type),
   }, 'target-resolution-start')
-  await resolveAmendmentTargets(amendments, db)
+  const resolutionResults = await resolveAmendmentTargets(amendments, db)
 
   let successCount = 0
   let errorCount = 0
@@ -177,7 +177,19 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
     createdTaskMap,
   }
 
-  for (const amendment of amendments) {
+  for (const resolutionResult of resolutionResults) {
+    const { amendment, resolved, error: resolutionError } = resolutionResult
+
+    // FAIL FAST: Check if target resolution failed
+    if (!resolved) {
+      recordError(amendment, resolutionError || 'Target resolution failed')
+      logger.ui.warn('Skipping amendment due to unresolved target', {
+        amendmentType: amendment.type,
+        error: resolutionError,
+      }, 'amendment-resolution-failed')
+      continue
+    }
+
     // Reset tracking for this amendment
     currentAmendmentFailed = false
     currentAmendmentError = ''
@@ -329,6 +341,8 @@ export async function applyAmendments(amendments: Amendment[]): Promise<ApplyAme
   // Update stores if any amendments succeeded
   if (successCount > 0) {
     await useTaskStore.getState().initializeData()
+    // Notify that work sessions may have changed (triggers WorkLoggerDual refresh)
+    useTaskStore.getState().notifyWorkSessionsChanged()
     // Schedule will automatically recompute via reactive subscriptions
   }
 

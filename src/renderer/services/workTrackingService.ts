@@ -89,6 +89,7 @@ export class WorkTrackingService {
       // Fetch task and step names for display
       let taskName: string | undefined
       let stepName: string | undefined
+      let plannedMinutes = 60 // Default 1 hour, but will be overridden if we find the task/step
 
       if (workflowId && stepId) {
         // For workflow steps, get the workflow task and find the specific step
@@ -98,6 +99,8 @@ export class WorkTrackingService {
           if (step) {
             stepName = step.name
             taskName = workflow.name // Also include workflow name for context
+            // Use the step's duration as planned minutes
+            plannedMinutes = step.duration || 60
           }
         }
       } else if (taskId) {
@@ -105,6 +108,8 @@ export class WorkTrackingService {
         const task = await this.database.getTaskById(taskId)
         if (task) {
           taskName = task.name
+          // Use the task's duration as planned minutes
+          plannedMinutes = task.duration || 60
         }
       }
 
@@ -117,7 +122,7 @@ export class WorkTrackingService {
       const sessionParams: Parameters<typeof createUnifiedWorkSession>[0] = {
         taskId: dbTaskId,
         type: '', // Will be set from task/step type
-        plannedMinutes: 60, // Default 1 hour
+        plannedMinutes, // Use actual task/step duration
       }
 
       // Only add optional fields if they have values
@@ -374,7 +379,9 @@ export class WorkTrackingService {
       session &&
       typeof session.id === 'string' &&
       (session.startTime instanceof Date || typeof session.startTime === 'string') &&
-      typeof session.type === 'string' &&
+      // type is nullable in the database schema (String?), so accept null/undefined
+      // fromDatabaseWorkSession() will default it to '' for the UI
+      (session.type === null || session.type === undefined || typeof session.type === 'string') &&
       (typeof session.plannedMinutes === 'number' || typeof session.actualMinutes === 'number')
     )
   }

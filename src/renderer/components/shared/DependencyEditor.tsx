@@ -154,7 +154,6 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = (props) => {
       // Update the amendment
       const amendmentProps = props as AmendmentModeProps
       logger.ui.debug('DependencyEditor: Updating amendment', {})
-    undefined
       amendmentProps.onChange({
         ...amendmentProps.amendment,
         addDependencies: filtered,
@@ -163,7 +162,6 @@ export const DependencyEditor: React.FC<DependencyEditorProps> = (props) => {
       // Update direct dependencies
       const directProps = props as DirectModeProps
       logger.ui.debug('DependencyEditor: Updating direct dependencies', {})
-    undefined
       directProps.onForwardDependenciesChange(newValue)
     }
   }

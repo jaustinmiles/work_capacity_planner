@@ -7,7 +7,7 @@
  * No fuzzy/partial matching - if the AI provides wrong names, it's a validation error.
  */
 
-import { Amendment, EntityType, WorkflowCreation } from '@shared/amendment-types'
+import { Amendment, AmendmentResolutionResult, EntityType, WorkflowCreation } from '@shared/amendment-types'
 import { AmendmentType } from '@shared/enums'
 import { logger } from '@/logger'
 import { getDatabase } from '../services/database'
@@ -205,20 +205,48 @@ function validateWorkflowStepDependencies(creation: WorkflowCreation): void {
 }
 
 /**
+ * Check if an amendment requires a target to be resolved.
+ * Some amendments (like TaskCreation, WorkflowCreation) don't need target resolution.
+ */
+function amendmentRequiresTarget(amendment: Amendment): boolean {
+  // These amendment types create new entities, they don't need existing targets
+  const creationTypes = [
+    AmendmentType.TaskCreation,
+    AmendmentType.WorkflowCreation,
+    AmendmentType.TaskTypeCreation,
+    AmendmentType.QueryResponse,
+  ]
+  return !creationTypes.includes(amendment.type)
+}
+
+/**
+ * Check if an amendment requires a workflow target (for step operations).
+ */
+function amendmentRequiresWorkflowTarget(amendment: Amendment): boolean {
+  return amendment.type === AmendmentType.StepAddition ||
+         amendment.type === AmendmentType.StepRemoval
+}
+
+/**
  * Resolve target names to IDs by looking up tasks and workflows in the database.
  * This is critical because the AI generates amendments with names but no IDs.
  *
  * Mutates the amendments array in place by setting target.id, workflowTarget.id,
  * and resolving dependency arrays (addDependencies, removeDependencies, etc.)
  *
+ * Returns resolution results for each amendment indicating success or failure.
+ * This enables fail-fast behavior in the applicator.
+ *
  * @param amendments - Array of amendments to resolve targets for
  * @param db - Database instance (optional, will use getDatabase() if not provided)
+ * @returns Array of resolution results, one per amendment
  */
 export async function resolveAmendmentTargets(
   amendments: Amendment[],
   db?: ReturnType<typeof getDatabase>,
-): Promise<void> {
+): Promise<AmendmentResolutionResult[]> {
   const database = db || getDatabase()
+  const results: AmendmentResolutionResult[] = []
 
   // Load all tasks and workflows once
   const allTasks = await database.getTasks()
@@ -228,6 +256,9 @@ export async function resolveAmendmentTargets(
 
   // Process each amendment and resolve targets
   for (const amendment of amendments) {
+    let resolved = true
+    let error: string | undefined
+
     // Handle amendments with 'target' field
     if ('target' in amendment && amendment.target && !amendment.target.id) {
       const match = findEntityByName(amendment.target.name, amendment.target.type as EntityType, entityData)
@@ -253,7 +284,10 @@ export async function resolveAmendmentTargets(
             }, 'stepname-propagated')
           }
         }
-      } else {
+      } else if (amendmentRequiresTarget(amendment)) {
+        // Only mark as failed if this amendment type actually needs a target
+        resolved = false
+        error = `Target "${amendment.target.name}" not found in database`
         logger.ui.warn('Could not resolve amendment target', {
           name: amendment.target.name,
           type: amendment.target.type,
@@ -272,7 +306,10 @@ export async function resolveAmendmentTargets(
           name: amendment.workflowTarget.name,
           id: match.id,
         }, 'workflow-target-resolved')
-      } else {
+      } else if (amendmentRequiresWorkflowTarget(amendment)) {
+        // Only mark as failed if this amendment type actually needs a workflow target
+        resolved = false
+        error = `Workflow "${amendment.workflowTarget.name}" not found in database`
         logger.ui.warn('Could not resolve workflow target', {
           name: amendment.workflowTarget.name,
           availableWorkflows: allWorkflows.map(w => w.name).slice(0, 5),
@@ -341,5 +378,14 @@ export async function resolveAmendmentTargets(
     if (amendment.type === AmendmentType.WorkflowCreation) {
       validateWorkflowStepDependencies(amendment as WorkflowCreation)
     }
+
+    // Add result for this amendment
+    results.push({
+      amendment,
+      resolved,
+      error,
+    })
   }
+
+  return results
 }

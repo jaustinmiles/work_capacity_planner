@@ -204,50 +204,109 @@ export const workPatternRouter = router({
   }),
 
   /**
-   * Create a new work pattern
+   * Create or update a work pattern (upsert)
+   * Uses upsert to handle unique constraint on (sessionId, date)
    */
   create: sessionProcedure.input(createPatternInput).mutation(async ({ ctx, input }) => {
-    const id = generateUniqueId('pattern')
     const now = getCurrentTime()
 
-    const pattern = await ctx.prisma.workPattern.create({
-      data: {
-        id,
-        date: input.date,
-        isTemplate: input.isTemplate,
-        templateName: input.templateName || null,
-        sessionId: ctx.sessionId,
-        createdAt: now,
-        updatedAt: now,
-        WorkBlock: input.blocks
-          ? {
-              create: input.blocks.map((block) => ({
-                id: generateUniqueId('block'),
-                startTime: block.startTime,
-                endTime: block.endTime,
-                typeConfig: JSON.stringify(block.typeConfig),
-                totalCapacity: 0, // Will be calculated on read
-              })),
-            }
-          : undefined,
-        WorkMeeting: input.meetings
-          ? {
-              create: input.meetings.map((meeting) => ({
-                id: generateUniqueId('meeting'),
-                name: meeting.name,
-                startTime: meeting.startTime,
-                endTime: meeting.endTime,
-                type: meeting.type,
-                recurring: meeting.recurring,
-                daysOfWeek: meeting.daysOfWeek || null,
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        WorkBlock: true,
-        WorkMeeting: true,
-      },
+    // Use transaction to handle upsert with related blocks/meetings
+    const pattern = await ctx.prisma.$transaction(async (tx) => {
+      // Check if pattern exists for this date
+      const existing = await tx.workPattern.findUnique({
+        where: {
+          sessionId_date: {
+            sessionId: ctx.sessionId,
+            date: input.date,
+          },
+        },
+      })
+
+      if (existing) {
+        // Delete existing blocks and meetings before update
+        await tx.workBlock.deleteMany({ where: { patternId: existing.id } })
+        await tx.workMeeting.deleteMany({ where: { patternId: existing.id } })
+
+        // Update existing pattern
+        return tx.workPattern.update({
+          where: { id: existing.id },
+          data: {
+            isTemplate: input.isTemplate,
+            templateName: input.templateName || null,
+            updatedAt: now,
+            WorkBlock: input.blocks
+              ? {
+                  create: input.blocks.map((block) => ({
+                    id: generateUniqueId('block'),
+                    startTime: block.startTime,
+                    endTime: block.endTime,
+                    typeConfig: JSON.stringify(block.typeConfig),
+                    totalCapacity: 0,
+                  })),
+                }
+              : undefined,
+            WorkMeeting: input.meetings
+              ? {
+                  create: input.meetings.map((meeting) => ({
+                    id: generateUniqueId('meeting'),
+                    name: meeting.name,
+                    startTime: meeting.startTime,
+                    endTime: meeting.endTime,
+                    type: meeting.type,
+                    recurring: meeting.recurring,
+                    daysOfWeek: meeting.daysOfWeek || null,
+                  })),
+                }
+              : undefined,
+          },
+          include: {
+            WorkBlock: true,
+            WorkMeeting: true,
+          },
+        })
+      } else {
+        // Create new pattern
+        const id = generateUniqueId('pattern')
+        return tx.workPattern.create({
+          data: {
+            id,
+            date: input.date,
+            isTemplate: input.isTemplate,
+            templateName: input.templateName || null,
+            sessionId: ctx.sessionId,
+            createdAt: now,
+            updatedAt: now,
+            WorkBlock: input.blocks
+              ? {
+                  create: input.blocks.map((block) => ({
+                    id: generateUniqueId('block'),
+                    startTime: block.startTime,
+                    endTime: block.endTime,
+                    typeConfig: JSON.stringify(block.typeConfig),
+                    totalCapacity: 0,
+                  })),
+                }
+              : undefined,
+            WorkMeeting: input.meetings
+              ? {
+                  create: input.meetings.map((meeting) => ({
+                    id: generateUniqueId('meeting'),
+                    name: meeting.name,
+                    startTime: meeting.startTime,
+                    endTime: meeting.endTime,
+                    type: meeting.type,
+                    recurring: meeting.recurring,
+                    daysOfWeek: meeting.daysOfWeek || null,
+                  })),
+                }
+              : undefined,
+          },
+          include: {
+            WorkBlock: true,
+            WorkMeeting: true,
+          },
+        })
+      }
     })
 
     return formatPattern(pattern)

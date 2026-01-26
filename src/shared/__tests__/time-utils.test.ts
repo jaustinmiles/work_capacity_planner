@@ -330,10 +330,22 @@ describe('time-utils', () => {
   })
 
   describe('extractTimeFromISO', () => {
-    it('should extract time from ISO datetime string', () => {
-      expect(extractTimeFromISO('2025-11-26T19:30:00Z')).toBe('19:30')
-      expect(extractTimeFromISO('2025-01-15T09:05:00.000Z')).toBe('09:05')
-      expect(extractTimeFromISO('2024-12-25T00:00:00+00:00')).toBe('00:00')
+    it('should convert UTC times (Z suffix) to local time', () => {
+      // Z suffix = UTC, should convert to LOCAL time
+      // Create expected values by parsing the same strings
+      const expected1 = formatTimeHHMM(new Date('2025-11-26T19:30:00Z'))
+      const expected2 = formatTimeHHMM(new Date('2025-01-15T09:05:00.000Z'))
+      const expected3 = formatTimeHHMM(new Date('2024-12-25T00:00:00+00:00'))
+
+      expect(extractTimeFromISO('2025-11-26T19:30:00Z')).toBe(expected1)
+      expect(extractTimeFromISO('2025-01-15T09:05:00.000Z')).toBe(expected2)
+      expect(extractTimeFromISO('2024-12-25T00:00:00+00:00')).toBe(expected3)
+    })
+
+    it('should extract time directly from strings WITHOUT timezone', () => {
+      // No Z suffix = already local time, extract directly
+      expect(extractTimeFromISO('2025-11-26T19:30:00')).toBe('19:30')
+      expect(extractTimeFromISO('2025-01-15T09:05:00')).toBe('09:05')
     })
 
     it('should handle Date objects', () => {
@@ -347,8 +359,10 @@ describe('time-utils', () => {
       expect(extractTimeFromISO('09:05')).toBe('09:05')
     })
 
-    it('should handle ISO strings with milliseconds', () => {
-      expect(extractTimeFromISO('2025-11-26T19:30:45.123Z')).toBe('19:30')
+    it('should convert UTC times with milliseconds to local', () => {
+      // Z suffix with milliseconds - should still convert to local
+      const expected = formatTimeHHMM(new Date('2025-11-26T19:30:45.123Z'))
+      expect(extractTimeFromISO('2025-11-26T19:30:45.123Z')).toBe(expected)
     })
 
     it('should fallback to Date parsing for non-ISO, non-HH:MM strings', () => {
@@ -402,31 +416,41 @@ describe('time-utils', () => {
       expect(result?.getDate()).toBe(9)
     })
 
-    it('should parse ISO datetime with Z suffix without timezone shift', () => {
-      // CRITICAL: This tests that "2025-12-09T15:21:00Z" is interpreted as
-      // 15:21 LOCAL time, not UTC (which would shift based on timezone)
+    it('should parse ISO datetime with Z suffix respecting UTC', () => {
+      // Z suffix means UTC - getUTCHours() should match the string,
+      // getHours() returns local time (varies by timezone)
       const result = safeParseDateString('2025-12-09T15:21:00Z')
       expect(result).toBeInstanceOf(Date)
       expect(result?.getFullYear()).toBe(2025)
-      expect(result?.getMonth()).toBe(11)
-      expect(result?.getDate()).toBe(9)
-      expect(result?.getHours()).toBe(15)
-      expect(result?.getMinutes()).toBe(21)
-      expect(result?.getSeconds()).toBe(0)
+      // UTC values should be preserved
+      expect(result?.getUTCHours()).toBe(15)
+      expect(result?.getUTCMinutes()).toBe(21)
+      expect(result?.getUTCSeconds()).toBe(0)
     })
 
-    it('should parse ISO datetime with milliseconds', () => {
+    it('should parse ISO datetime with milliseconds respecting UTC', () => {
       const result = safeParseDateString('2025-12-09T15:21:30.123Z')
       expect(result).toBeInstanceOf(Date)
-      expect(result?.getHours()).toBe(15)
-      expect(result?.getMinutes()).toBe(21)
-      expect(result?.getSeconds()).toBe(30)
+      // UTC values should be preserved
+      expect(result?.getUTCHours()).toBe(15)
+      expect(result?.getUTCMinutes()).toBe(21)
+      expect(result?.getUTCSeconds()).toBe(30)
     })
 
-    it('should parse ISO datetime without seconds', () => {
+    it('should parse ISO datetime without seconds respecting UTC', () => {
       const result = safeParseDateString('2025-12-09T15:21Z')
       expect(result).toBeInstanceOf(Date)
-      expect(result?.getHours()).toBe(15)
+      // UTC values should be preserved
+      expect(result?.getUTCHours()).toBe(15)
+      expect(result?.getUTCMinutes()).toBe(21)
+      expect(result?.getUTCSeconds()).toBe(0)
+    })
+
+    it('should parse ISO datetime WITHOUT timezone as local time', () => {
+      // No Z suffix = local time, getHours() should match the string
+      const result = safeParseDateString('2025-12-09T15:21:00')
+      expect(result).toBeInstanceOf(Date)
+      expect(result?.getHours()).toBe(15) // LOCAL hours
       expect(result?.getMinutes()).toBe(21)
       expect(result?.getSeconds()).toBe(0)
     })

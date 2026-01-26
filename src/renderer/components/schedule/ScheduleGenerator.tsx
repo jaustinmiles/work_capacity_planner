@@ -121,10 +121,30 @@ export function ScheduleGenerator({
         meetingTypes: allMeetings.map(m => ({ name: m.name, type: m.type, date: m.date })),
       }, 'schedule-existing-meetings')
 
-      // Create base work patterns for the next 30 days with proper work hours
+      // Create base work patterns for the next 30 days
+      // IMPORTANT: Use user-configured patterns when available, only fall back to placeholder for unconfigured dates
       const baseWorkPatterns: DailyWorkPattern[] = []
 
-      // Removed check for personal tasks - no longer using hardcoded weekend blocks
+      // First, fetch all user-configured patterns to build a map
+      const userPatternsMap = new Map<string, { blocks: any[]; meetings: any[] }>()
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today)
+        date.setDate(date.getDate() + i)
+        const dateStr = dateToYYYYMMDD(date)
+        const pattern = await db.getWorkPattern(dateStr)
+        if (pattern) {
+          // Use the user's configured blocks and meetings
+          userPatternsMap.set(dateStr, {
+            blocks: pattern.blocks || [],
+            meetings: pattern.meetings || [],
+          })
+        }
+      }
+
+      logger.ui.info('Found user-configured work patterns', {
+        configuredDates: userPatternsMap.size,
+        dates: Array.from(userPatternsMap.keys()),
+      }, 'schedule-user-patterns')
 
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
@@ -132,34 +152,48 @@ export function ScheduleGenerator({
         const _dayOfWeek = date.getDay()
         const dateStr = dateToYYYYMMDD(date)
 
-        // Check if this day has work hours configured
-        // Use custom hours for this day if configured, otherwise use default hours
-        const dayWorkHours = workSettings?.customWorkHours?.[_dayOfWeek] || workSettings?.defaultWorkHours
+        // Check if user has configured a pattern for this date
+        const userPattern = userPatternsMap.get(dateStr)
 
-        // Create work pattern for each day (even if empty, so weekends are included)
-        const blocks: any[] = []
+        if (userPattern && userPattern.blocks.length > 0) {
+          // Use user's configured blocks - these have the correct typeConfig
+          logger.ui.debug('Using user-configured blocks for date', {
+            date: dateStr,
+            blockCount: userPattern.blocks.length,
+            blockTypes: userPattern.blocks.map((b: { typeConfig: BlockTypeConfig }) => b.typeConfig),
+          }, 'schedule-using-user-blocks')
 
-        if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
-          // Regular work day - create system blocked placeholder
-          // Users should configure proper task types and patterns in settings
-          const typeConfig: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
-          blocks.push({
-            id: `block-${dateStr}-work`,
-            startTime: dayWorkHours.startTime,
-            endTime: dayWorkHours.endTime,
-            typeConfig,
-            capacity: calculateBlockCapacity(typeConfig, dayWorkHours.startTime, dayWorkHours.endTime),
+          baseWorkPatterns.push({
+            date: dateStr,
+            blocks: userPattern.blocks,
+            meetings: userPattern.meetings,
+            accumulated: createEmptyAccumulatedTime(),
+          })
+        } else {
+          // No user pattern - fall back to placeholder based on work settings
+          const dayWorkHours = workSettings?.customWorkHours?.[_dayOfWeek] || workSettings?.defaultWorkHours
+          const blocks: any[] = []
+
+          if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
+            // Create System Blocked placeholder - user should configure proper patterns
+            // This is a fallback that won't schedule any tasks (System blocks reject all types)
+            const typeConfig: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
+            blocks.push({
+              id: `block-${dateStr}-work`,
+              startTime: dayWorkHours.startTime,
+              endTime: dayWorkHours.endTime,
+              typeConfig,
+              capacity: calculateBlockCapacity(typeConfig, dayWorkHours.startTime, dayWorkHours.endTime),
+            })
+          }
+
+          baseWorkPatterns.push({
+            date: dateStr,
+            blocks,
+            meetings: userPattern?.meetings || [],
+            accumulated: createEmptyAccumulatedTime(),
           })
         }
-        // Removed hardcoded weekend personal blocks - users should configure their own patterns
-
-        // Always add the pattern, even if blocks are empty (for proper multi-day display)
-        baseWorkPatterns.push({
-          date: dateStr,
-          blocks,
-          meetings: [],
-          accumulated: createEmptyAccumulatedTime(),
-        })
       }
 
       // Option 1: Optimal (Mathematical optimization for earliest completion)

@@ -262,10 +262,45 @@ function validateStatusUpdate(a: Record<string, unknown>, errors: ValidationErro
 function validateTimeLog(a: Record<string, unknown>, errors: ValidationError[]): void {
   validateTarget(a.target, 'target', errors)
 
-  if (typeof a.duration !== 'number' || a.duration < 0) {
+  // Date is required for time logging - must know WHICH DAY the time was spent
+  if (!a.date) {
+    errors.push({
+      path: 'date',
+      message: 'Date is required for time logging (ISO date string, e.g., "2025-01-24")',
+      received: 'undefined',
+    })
+  } else {
+    validateDate(a.date, 'date', 'Date', errors)
+  }
+
+  // startTime is required - must know when the work session started
+  if (!a.startTime) {
+    errors.push({
+      path: 'startTime',
+      message: 'Start time is required for time logging (ISO datetime string, e.g., "2025-01-24T09:00:00")',
+      received: 'undefined',
+    })
+  } else {
+    validateDate(a.startTime, 'startTime', 'Start time', errors)
+  }
+
+  // endTime is required - duration is calculated from start/end times
+  if (!a.endTime) {
+    errors.push({
+      path: 'endTime',
+      message: 'End time is required for time logging (ISO datetime string, e.g., "2025-01-24T10:30:00")',
+      received: 'undefined',
+    })
+  } else {
+    validateDate(a.endTime, 'endTime', 'End time', errors)
+  }
+
+  // Duration is now optional - calculated from times if not provided
+  // But if provided, must be valid
+  if (a.duration !== undefined && (typeof a.duration !== 'number' || a.duration < 0)) {
     errors.push({
       path: 'duration',
-      message: 'Duration must be a non-negative number',
+      message: 'Duration must be a non-negative number (minutes). Can be omitted - will be calculated from start/end times.',
       received: String(a.duration),
     })
   }
@@ -569,8 +604,11 @@ function getSchemaHint(path: string): string {
     // DurationChange
     'newDuration': '   → SCHEMA: duration_change requires "newDuration": positive number (minutes)\n',
 
-    // TimeLog
-    'duration': '   → SCHEMA: time_log requires "duration": non-negative number (minutes); step_addition requires "duration": positive number\n',
+    // TimeLog - requires date, startTime, and endTime
+    'date': '   → SCHEMA: time_log requires "date": ISO date string (e.g., "2025-01-24")\n',
+    'startTime': '   → SCHEMA: time_log requires "startTime": ISO datetime (e.g., "2025-01-24T09:00:00")\n',
+    'endTime': '   → SCHEMA: time_log requires "endTime": ISO datetime (e.g., "2025-01-24T10:30:00"). Duration is calculated from times.\n',
+    'duration': '   → SCHEMA: time_log "duration" is optional (calculated from times); step_addition requires "duration": positive number\n',
 
     // ArchiveToggle
     'archive': '   → SCHEMA: archive_toggle requires "archive": true|false (boolean)\n',

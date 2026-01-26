@@ -361,6 +361,52 @@ export class RendererDatabaseService {
     }
   }
 
+  /**
+   * Ensures a valid session is set before making session-scoped requests.
+   * For IPC mode, sessions are managed by the main process, so this is simpler.
+   */
+  async ensureSession(): Promise<string> {
+    // Try to load from localStorage first
+    const lastUsedSessionId = window.localStorage.getItem('lastUsedSessionId')
+    if (lastUsedSessionId) {
+      const sessions = await this.getSessions()
+      if (sessions.some(s => s.id === lastUsedSessionId)) {
+        await this.switchSession(lastUsedSessionId)
+        return lastUsedSessionId
+      }
+      window.localStorage.removeItem('lastUsedSessionId')
+    }
+
+    // Get all sessions
+    const sessions = await this.getSessions()
+
+    // Use active session if any
+    const activeSession = sessions.find(s => s.isActive)
+    if (activeSession) {
+      window.localStorage.setItem('lastUsedSessionId', activeSession.id)
+      return activeSession.id
+    }
+
+    // Use first available session
+    if (sessions.length > 0) {
+      const firstSession = sessions[0]!
+      await this.switchSession(firstSession.id)
+      return firstSession.id
+    }
+
+    // Create default session
+    const newSession = await this.createSession('Default Session', 'Auto-created session')
+    await this.switchSession(newSession.id)
+    return newSession.id
+  }
+
+  /**
+   * Check if a session is currently set
+   */
+  hasSession(): boolean {
+    return window.localStorage.getItem('lastUsedSessionId') !== null
+  }
+
   async updateSchedulingPreferences(sessionId: string, updates: any): Promise<any> {
     return await window.electronAPI.db.updateSchedulingPreferences(sessionId, updates)
   }

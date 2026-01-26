@@ -7,6 +7,7 @@
     "start": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"wait-on http://localhost:5174 && npm run electron:dev\"",
     "start:stable": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev:stable\" \"wait-on http://localhost:5174 && npm run electron:dev\"",
     "start:client": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev\" \"wait-on http://localhost:5174 && npm run electron:client\"",
+    "start:client:stable": "npm run build:main && npm run build:preload && concurrently -k \"npm run dev:stable\" \"wait-on http://localhost:5174 && npm run electron:client\"",
     "start:server-mode": "concurrently -k \"npm run server:dev\" \"sleep 2 && npm run start\"",
     "dev": "vite",
     "dev:stable": "vite --config vite.config.stable.ts",

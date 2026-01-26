@@ -59,10 +59,14 @@ function AppContent() {
     // Connect stores for reactive updates
     const disconnectStores = connectStores()
 
-    // Initialize stores asynchronously
+    // Initialize stores asynchronously AFTER session is ensured
     // Using async IIFE since useEffect can't be async directly
     const initializeStores = async () => {
       try {
+        // CRITICAL: Ensure session is set before loading any session-scoped data
+        const db = getDatabase()
+        await db.ensureSession()
+
         // Initialize work patterns
         await useWorkPatternStore.getState().loadWorkPatterns()
 
@@ -206,7 +210,27 @@ function AppContent() {
   // Initialize data when app starts
   useEffect(() => {
     logger.system.info('App initialization started - loading data from database', {}, 'app-data-init')
-    initializeData()
+
+    // Ensure session is set BEFORE loading any data
+    // This is critical for tRPC mode where session ID must be in headers
+    const initWithSession = async () => {
+      try {
+        const db = getDatabase()
+        const sessionId = await db.ensureSession()
+        logger.system.info('Session ensured', { sessionId }, 'app-session-init')
+
+        // Now safe to load data
+        initializeData()
+      } catch (error) {
+        logger.system.error('Failed to ensure session', {
+          error: error instanceof Error ? error.message : String(error),
+        }, 'app-session-error')
+        // Still try to initialize - might work in local mode
+        initializeData()
+      }
+    }
+
+    initWithSession()
 
     // Start polling for expired wait times (separate from task completion)
     // This prevents race conditions during task completion

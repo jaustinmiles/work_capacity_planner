@@ -18,17 +18,33 @@ import { disconnectPrisma } from './prisma'
 
 const app = express()
 
-// Enable CORS for all origins in development
-// In production, you might want to restrict this to specific IPs
+// CORS configuration - restrict to localhost and local network IPs
+const isAllowedOrigin = (origin: string | undefined): boolean => {
+  if (!origin) return true // Allow requests with no origin (same-origin, curl, etc.)
+  return (
+    origin.startsWith('http://localhost') ||
+    origin.startsWith('http://127.0.0.1') ||
+    origin.startsWith('http://192.168.') || // Local network Class C
+    origin.startsWith('http://10.') // Local network Class A
+  )
+}
+
 app.use(
   cors({
-    origin: true, // Allow all origins for local network access
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true)
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS policy`))
+      }
+    },
     credentials: true,
   }),
 )
 
-// Parse JSON bodies
-app.use(express.json())
+// Parse JSON bodies with increased limit for audio transcription
+// Base64-encoded audio can be large (25MB audio → ~33MB base64)
+app.use(express.json({ limit: '50mb' }))
 
 // Health check endpoint
 app.get('/health', (_req, res) => {

@@ -34,15 +34,52 @@ const updateStepInput = z.object({
   taskId: z.string(),
   stepId: z.string(),
   status: z.string().optional(),
-  actualDuration: z.number().int().optional(),
-  notes: z.string().optional(),
+  actualDuration: z.number().int().nullable().optional(),
+  notes: z.string().nullable().optional(),
   percentComplete: z.number().int().min(0).max(100).optional(),
-  completedAt: z.date().optional(),
-  startedAt: z.date().optional(),
+  completedAt: z.date().nullable().optional(),
+  startedAt: z.date().nullable().optional(),
   name: z.string().optional(),
   duration: z.number().int().optional(),
   type: z.string().optional(),
-  cognitiveComplexity: z.number().int().min(1).max(5).optional(),
+  cognitiveComplexity: z.number().int().min(1).max(5).nullable().optional(),
+})
+
+/**
+ * Schema for step data in updateWithSteps
+ */
+const stepDataSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  duration: z.number().int(),
+  type: z.string(),
+  dependsOn: z.array(z.string()).default([]),
+  asyncWaitTime: z.number().int().default(0),
+  cognitiveComplexity: z.number().int().min(1).max(5).nullable().optional(),
+  isAsyncTrigger: z.boolean().default(false),
+  expectedResponseTime: z.number().int().nullable().optional(),
+  stepIndex: z.number().int(),
+  status: z.string().optional(),
+  percentComplete: z.number().int().optional(),
+  actualDuration: z.number().int().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  importance: z.number().int().nullable().optional(),
+  urgency: z.number().int().nullable().optional(),
+})
+
+/**
+ * Schema for updating a workflow with all its steps atomically
+ */
+const updateWithStepsInput = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  importance: z.number().int().min(1).max(10).optional(),
+  urgency: z.number().int().min(1).max(10).optional(),
+  type: z.string().optional(),
+  notes: z.string().nullable().optional(),
+  deadline: z.date().nullable().optional(),
+  deadlineType: z.enum(['hard', 'soft']).nullable().optional(),
+  steps: z.array(stepDataSchema),
 })
 
 export const workflowRouter = router({
@@ -253,5 +290,87 @@ export const workflowRouter = router({
       )
 
       return { success: true }
+    }),
+
+  /**
+   * Update a workflow with all its steps atomically
+   * This handles the complete workflow update in a single transaction
+   */
+  updateWithSteps: protectedProcedure
+    .input(updateWithStepsInput)
+    .mutation(async ({ ctx, input }) => {
+      const now = getCurrentTime()
+
+      return ctx.prisma.$transaction(async (tx) => {
+        // 1. Delete all existing steps for this workflow
+        await tx.taskStep.deleteMany({
+          where: { taskId: input.id },
+        })
+
+        // 2. Create all new steps
+        for (const step of input.steps) {
+          // Generate new ID if the step ID doesn't follow our pattern
+          const stepId = step.id.startsWith('step-') ? step.id : generateUniqueId('step')
+
+          await tx.taskStep.create({
+            data: {
+              id: stepId,
+              taskId: input.id,
+              name: step.name,
+              duration: step.duration,
+              type: step.type,
+              dependsOn: JSON.stringify(step.dependsOn),
+              asyncWaitTime: step.asyncWaitTime,
+              cognitiveComplexity: step.cognitiveComplexity ?? null,
+              isAsyncTrigger: step.isAsyncTrigger,
+              expectedResponseTime: step.expectedResponseTime ?? null,
+              stepIndex: step.stepIndex,
+              status: step.status ?? 'pending',
+              percentComplete: step.percentComplete ?? 0,
+              actualDuration: step.actualDuration ?? null,
+              notes: step.notes ?? null,
+              importance: step.importance ?? null,
+              urgency: step.urgency ?? null,
+            },
+          })
+        }
+
+        // 3. Calculate workflow durations from steps
+        const totalDuration = input.steps.reduce((sum, s) => sum + s.duration, 0)
+        const totalAsyncTime = input.steps.reduce((sum, s) => sum + s.asyncWaitTime, 0)
+
+        // 4. Update workflow metadata
+        const workflow = await tx.task.update({
+          where: { id: input.id },
+          data: {
+            name: input.name,
+            importance: input.importance,
+            urgency: input.urgency,
+            type: input.type,
+            notes: input.notes,
+            deadline: input.deadline,
+            deadlineType: input.deadlineType,
+            duration: totalDuration,
+            criticalPathDuration: totalDuration,
+            worstCaseDuration: totalDuration + totalAsyncTime,
+            updatedAt: now,
+          },
+          include: {
+            TaskStep: {
+              orderBy: { stepIndex: 'asc' },
+            },
+          },
+        })
+
+        // 5. Format and return the result
+        return {
+          ...workflow,
+          dependencies: JSON.parse(workflow.dependencies || '[]'),
+          steps: workflow.TaskStep.map((step) => ({
+            ...step,
+            dependsOn: JSON.parse(step.dependsOn || '[]'),
+          })),
+        }
+      })
     }),
 })

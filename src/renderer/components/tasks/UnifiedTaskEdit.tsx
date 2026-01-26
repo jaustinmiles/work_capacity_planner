@@ -610,7 +610,13 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
                     </Text>
                     {step.dependsOn && step.dependsOn.length > 0 && (
                       <Text type="secondary">
-                        Depends on: {Array.isArray(step.dependsOn) ? step.dependsOn.join(', ') : JSON.parse(step.dependsOn).join(', ')}
+                        Depends on: {(() => {
+                          const depIds = Array.isArray(step.dependsOn) ? step.dependsOn : JSON.parse(step.dependsOn)
+                          return depIds.map((id: string) => {
+                            const depStep = steps.find(s => s.id === id)
+                            return depStep?.name || id
+                          }).join(', ')
+                        })()}
                       </Text>
                     )}
                     {step.notes && <Text type="secondary">{step.notes}</Text>}

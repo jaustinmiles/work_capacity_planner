@@ -35,6 +35,8 @@ dist-ssr
 *.db-journal
 prisma/*.db
 prisma/*.db-journal
+prisma/*.backup*
+prisma/*.db.backup.*
 
 # Logs and temporary files
 *.log

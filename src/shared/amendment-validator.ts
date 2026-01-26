@@ -291,12 +291,57 @@ function transformAmendment(raw: RawAmendment): Amendment {
   switch (raw.type) {
     case AmendmentType.TimeLog: {
       const rawTimeLog = raw as RawTimeLog
+      const startTime = safeParseDateString(rawTimeLog.startTime)
+      const endTime = safeParseDateString(rawTimeLog.endTime)
+
+      // Warn if times fail to parse (especially important when duration not provided)
+      if (rawTimeLog.startTime && !startTime) {
+        logger.system.warn('TimeLog startTime failed to parse', {
+          rawStartTime: rawTimeLog.startTime,
+        }, 'timelog-starttime-parse-failed')
+      }
+      if (rawTimeLog.endTime && !endTime) {
+        logger.system.warn('TimeLog endTime failed to parse', {
+          rawEndTime: rawTimeLog.endTime,
+        }, 'timelog-endtime-parse-failed')
+      }
+
+      // Calculate duration from start/end times if not provided
+      let duration = rawTimeLog.duration
+      if (duration === undefined && startTime && endTime) {
+        duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))
+        logger.system.debug('Calculated TimeLog duration from times', {
+          startTime: rawTimeLog.startTime,
+          endTime: rawTimeLog.endTime,
+          calculatedDuration: duration,
+        }, 'timelog-duration-calc')
+      } else if (duration === undefined && (!startTime || !endTime)) {
+        // Duration was not provided AND we couldn't calculate it from times
+        logger.system.warn('TimeLog duration will default to 0 (times not available for calculation)', {
+          hasDuration: rawTimeLog.duration !== undefined,
+          hasStartTime: !!startTime,
+          hasEndTime: !!endTime,
+          rawStartTime: rawTimeLog.startTime,
+          rawEndTime: rawTimeLog.endTime,
+        }, 'timelog-duration-fallback')
+      }
+
       const transformed: TimeLog = {
         ...rawTimeLog,
+        duration: duration ?? 0,
         date: safeParseDateString(rawTimeLog.date),
-        startTime: safeParseDateString(rawTimeLog.startTime),
-        endTime: safeParseDateString(rawTimeLog.endTime),
+        startTime,
+        endTime,
       }
+
+      logger.system.info('Transformed TimeLog amendment', {
+        target: transformed.target.name,
+        date: rawTimeLog.date,
+        startTime: rawTimeLog.startTime,
+        endTime: rawTimeLog.endTime,
+        duration: transformed.duration,
+      }, 'timelog-transform')
+
       return transformed
     }
 

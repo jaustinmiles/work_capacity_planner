@@ -19,6 +19,29 @@ import { getDatabase } from '../services/database'
 import { JobContextData } from '../services/chat-context-provider'
 
 // =============================================================================
+// Helpers
+// =============================================================================
+
+/**
+ * Safely parses amendments from any input type.
+ * Handles string (JSON), array, null, or undefined.
+ * This is a defensive helper to prevent "amendments.map is not a function" errors.
+ */
+function parseAmendments(amendments: unknown): AmendmentCard[] | null {
+  if (!amendments) return null
+  if (Array.isArray(amendments)) return amendments as AmendmentCard[]
+  if (typeof amendments === 'string') {
+    try {
+      const parsed = JSON.parse(amendments)
+      return Array.isArray(parsed) ? parsed : null
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -271,7 +294,7 @@ export const useConversationStore = create<ConversationState>()(
             conversationId: toConversationId(raw.conversationId),
             role: raw.role as ChatMessageRole,
             content: raw.content,
-            amendments: raw.amendments,
+            amendments: parseAmendments(raw.amendments),
             createdAt: new Date(raw.createdAt),
           }))
 
@@ -373,7 +396,7 @@ export const useConversationStore = create<ConversationState>()(
           conversationId: toConversationId(rawMessage.conversationId),
           role: ChatMessageRole.Assistant,
           content: rawMessage.content,
-          amendments: rawMessage.amendments,
+          amendments: parseAmendments(rawMessage.amendments),
           createdAt: new Date(rawMessage.createdAt),
         }
 

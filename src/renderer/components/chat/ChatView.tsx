@@ -383,7 +383,7 @@ function MessageBubble({ message, onNavigateToView }: MessageBubbleProps): React
       </div>
 
       {/* Amendment cards */}
-      {message.amendments && message.amendments.length > 0 && (
+      {message.amendments && Array.isArray(message.amendments) && message.amendments.length > 0 && (
         <div
           style={{
             marginTop: 8,

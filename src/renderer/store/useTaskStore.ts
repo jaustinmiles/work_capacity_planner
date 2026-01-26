@@ -28,6 +28,11 @@ interface TaskStore {
   activeWorkSessions: Map<string, UnifiedWorkSession>
   workSessionHistory: UnifiedWorkSession[]
 
+  // Work session version counter - increments when work sessions are created/modified
+  // Components (like WorkLoggerDual) can watch this to know when to reload
+  workSessionsVersion: number
+  notifyWorkSessionsChanged: () => void
+
   // Next task widget state (session-scoped, resets on app restart)
   nextTaskSkipIndex: number
   incrementNextTaskSkipIndex: () => void
@@ -160,6 +165,12 @@ export const useTaskStore = create<TaskStore>()(
     // Progress tracking state
     activeWorkSessions: new Map(),
     workSessionHistory: [],
+
+    // Work session version counter - increments when work sessions are created/modified
+    workSessionsVersion: 0,
+    notifyWorkSessionsChanged: () => {
+      set({ workSessionsVersion: get().workSessionsVersion + 1 })
+    },
 
     // Next task widget state
     nextTaskSkipIndex: 0,
@@ -1390,6 +1401,8 @@ export const useTaskStore = create<TaskStore>()(
       set({
         error: error instanceof Error ? error.message : 'Failed to start next task',
       })
+      // Re-throw so callers can handle the error (e.g., show error notification)
+      throw error
     }
   },
 }

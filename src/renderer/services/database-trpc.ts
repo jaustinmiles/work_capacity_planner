@@ -122,6 +122,62 @@ export class TrpcDatabaseService {
     }
   }
 
+  /**
+   * Ensures a valid session is set before making session-scoped requests.
+   * Called automatically during initialization.
+   *
+   * Priority:
+   * 1. Use localStorage session if valid
+   * 2. Use active session from server
+   * 3. Use first available session
+   * 4. Create a default session if none exist
+   */
+  async ensureSession(): Promise<string> {
+    // If we already have a session ID set, verify it's valid
+    if (this.currentSessionId) {
+      try {
+        const sessions = await this.getSessions()
+        if (sessions.some((s) => s.id === this.currentSessionId)) {
+          return this.currentSessionId
+        }
+      } catch {
+        // Session invalid, continue to find/create one
+      }
+      this.currentSessionId = null
+      window.localStorage.removeItem('lastUsedSessionId')
+    }
+
+    // Try to get sessions from server
+    const sessions = await this.getSessions()
+
+    // Try active session first
+    const activeSession = sessions.find((s) => s.isActive)
+    if (activeSession) {
+      this.currentSessionId = activeSession.id
+      window.localStorage.setItem('lastUsedSessionId', activeSession.id)
+      return activeSession.id
+    }
+
+    // Use first available session
+    if (sessions.length > 0) {
+      const firstSession = sessions[0]!
+      await this.switchSession(firstSession.id)
+      return firstSession.id
+    }
+
+    // No sessions exist - create default
+    const newSession = await this.createSession('Default Session', 'Auto-created session')
+    await this.switchSession(newSession.id)
+    return newSession.id
+  }
+
+  /**
+   * Check if a session is currently set
+   */
+  hasSession(): boolean {
+    return this.currentSessionId !== null
+  }
+
   // ============================================================================
   // Task Operations
   // ============================================================================
@@ -195,6 +251,41 @@ export class TrpcDatabaseService {
   }
 
   async updateSequencedTask(id: string, updates: Partial<SequencedTask>): Promise<SequencedTask> {
+    // If steps are included, use the dedicated atomic workflow update endpoint
+    if (updates.steps && updates.steps.length > 0) {
+      const workflowInput = {
+        id,
+        name: updates.name,
+        importance: updates.importance,
+        urgency: updates.urgency,
+        type: updates.type,
+        notes: updates.notes,
+        deadline: updates.deadline,
+        deadlineType: updates.deadlineType,
+        steps: updates.steps.map((step, index) => ({
+          id: step.id,
+          name: step.name,
+          duration: step.duration,
+          type: step.type,
+          dependsOn: Array.isArray(step.dependsOn) ? step.dependsOn : [],
+          asyncWaitTime: step.asyncWaitTime ?? 0,
+          cognitiveComplexity: step.cognitiveComplexity,
+          isAsyncTrigger: step.isAsyncTrigger ?? false,
+          expectedResponseTime: step.expectedResponseTime,
+          stepIndex: step.stepIndex ?? index,
+          status: step.status,
+          percentComplete: step.percentComplete,
+          actualDuration: step.actualDuration,
+          notes: step.notes,
+          importance: step.importance,
+          urgency: step.urgency,
+        })),
+      }
+      const task = await this.client.workflow.updateWithSteps.mutate(workflowInput)
+      return task as SequencedTask
+    }
+
+    // Fallback for metadata-only updates (no steps)
     const task = await this.client.task.update.mutate({ id, ...updates })
     return task as SequencedTask
   }
@@ -203,8 +294,104 @@ export class TrpcDatabaseService {
     await this.client.task.delete.mutate({ id })
   }
 
+  async addStepToWorkflow(
+    workflowId: string,
+    stepData: {
+      name: string
+      duration: number
+      type: string
+      afterStep?: string
+      beforeStep?: string
+      dependencies?: string[]
+      asyncWaitTime?: number
+    },
+  ): Promise<SequencedTask> {
+    // Add the step to the workflow
+    await this.client.workflow.addStep.mutate({
+      workflowId,
+      name: stepData.name,
+      duration: stepData.duration,
+      type: stepData.type,
+      afterStep: stepData.afterStep,
+      beforeStep: stepData.beforeStep,
+      dependencies: stepData.dependencies,
+      asyncWaitTime: stepData.asyncWaitTime ?? 0,
+    })
+    // Return the updated workflow with all steps
+    const workflow = await this.getSequencedTaskById(workflowId)
+    if (!workflow) {
+      throw new Error(`Workflow ${workflowId} not found after adding step`)
+    }
+    return workflow
+  }
+
   async getStepWorkSessions(stepId: string): Promise<unknown[]> {
     return this.client.workflow.getStepWorkSessions.query({ stepId })
+  }
+
+  /**
+   * Update a task step's progress/status.
+   * This is a helper that finds the taskId from the step and calls updateStep.
+   */
+  async updateTaskStepProgress(
+    stepId: string,
+    data: {
+      status?: string
+      startedAt?: Date | null
+      completedAt?: Date | null
+      percentComplete?: number
+      actualDuration?: number | null
+      notes?: string | null
+    },
+  ): Promise<void> {
+    // First, we need to find the taskId for this step
+    // We'll do this by getting all sequenced tasks and finding the one with this step
+    const tasks = await this.getSequencedTasks()
+    let taskId: string | null = null
+
+    for (const task of tasks) {
+      if (task.steps?.some(s => s.id === stepId)) {
+        taskId = task.id
+        break
+      }
+    }
+
+    if (!taskId) {
+      throw new Error(`Step ${stepId} not found in any workflow`)
+    }
+
+    // Now update the step using the workflow.updateStep mutation
+    await this.client.workflow.updateStep.mutate({
+      taskId,
+      stepId,
+      ...data,
+    })
+  }
+
+  /**
+   * Update a task step directly when taskId is known.
+   */
+  async updateTaskStep(
+    taskId: string,
+    stepId: string,
+    data: {
+      status?: string
+      startedAt?: Date | null
+      completedAt?: Date | null
+      percentComplete?: number
+      actualDuration?: number | null
+      notes?: string | null
+      name?: string
+      duration?: number
+      type?: string
+      cognitiveComplexity?: number | null
+    },
+  ): Promise<unknown> {
+    return this.client.workflow.updateStep.mutate({
+      taskId,
+      stepId,
+      ...data,
+    })
   }
 
   // ============================================================================
@@ -423,8 +610,9 @@ export class TrpcDatabaseService {
       stepId: data.stepId,
       startTime,
       endTime: data.endTime,
-      plannedMinutes: data.plannedMinutes || 0,
-      actualMinutes: data.actualMinutes,
+      // Zod schema requires integers - ensure values are rounded
+      plannedMinutes: Math.round(data.plannedMinutes || 0),
+      actualMinutes: data.actualMinutes !== undefined ? Math.round(data.actualMinutes) : undefined,
       notes: data.notes || data.description, // description is an alias for notes
       blockId: data.blockId,
       patternId: data.patternId,
@@ -432,9 +620,17 @@ export class TrpcDatabaseService {
   }
 
   async updateWorkSession(id: string, data: unknown): Promise<unknown> {
+    const sanitized = data as Record<string, unknown>
+    // Zod schema requires integers - ensure minute values are rounded
+    if (typeof sanitized.plannedMinutes === 'number') {
+      sanitized.plannedMinutes = Math.round(sanitized.plannedMinutes)
+    }
+    if (typeof sanitized.actualMinutes === 'number') {
+      sanitized.actualMinutes = Math.round(sanitized.actualMinutes)
+    }
     return this.client.workSession.update.mutate({
       id,
-      ...(data as Record<string, unknown>),
+      ...sanitized,
     } as Parameters<typeof this.client.workSession.update.mutate>[0])
   }
 
@@ -570,12 +766,18 @@ export class TrpcDatabaseService {
     }
     const enumRole = roleMap[data.role] ?? ChatMessageRole.User
 
-    return this.client.conversation.createMessage.mutate({
+    const rawMessage = await this.client.conversation.createMessage.mutate({
       conversationId: data.conversationId,
       role: enumRole,
       content: data.content,
       amendments: data.amendments ? JSON.stringify(data.amendments) : undefined,
     })
+
+    // Parse amendments JSON string to array (server stores as JSON string)
+    return {
+      ...rawMessage,
+      amendments: rawMessage.amendments ? JSON.parse(rawMessage.amendments as string) : null,
+    }
   }
 
   async deleteChatMessage(id: string): Promise<void> {
@@ -662,6 +864,25 @@ export class TrpcDatabaseService {
     // 2. AI calls don't need to be shared across clients
     // 3. Keeping AI local avoids exposing keys on the network
     return await window.electronAPI.ai.callAI(options)
+  }
+
+  // ============================================================================
+  // Speech Operations (via tRPC since server has the OpenAI API key)
+  // ============================================================================
+
+  async transcribeAudioBuffer(
+    audioBuffer: Buffer,
+    filename: string,
+    options?: { language?: string; prompt?: string },
+  ): Promise<{ text: string; savedPath: string }> {
+    // Convert Buffer to base64 for JSON transport (tRPC uses JSON)
+    const audioBase64 = audioBuffer.toString('base64')
+
+    return this.client.speech.transcribeBuffer.mutate({
+      audioBase64,
+      filename,
+      options,
+    })
   }
 }
 

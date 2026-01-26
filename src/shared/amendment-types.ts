@@ -356,6 +356,19 @@ export interface AmendmentResult {
   needsClarification?: string[]
 }
 
+/**
+ * Result of resolving an amendment's target before application.
+ * Used by the fail-fast strategy to catch resolution failures early.
+ */
+export interface AmendmentResolutionResult {
+  /** The amendment that was resolved */
+  amendment: Amendment
+  /** Whether the target was successfully resolved to an ID */
+  resolved: boolean
+  /** Error message if resolution failed */
+  error?: string
+}
+
 export interface AmendmentContext {
   // Current context to help with parsing
   activeTaskId?: string

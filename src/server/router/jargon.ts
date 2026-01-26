@@ -16,9 +16,9 @@ import { getCurrentTime } from '../../shared/time-provider'
 const createInput = z.object({
   term: z.string().min(1),
   definition: z.string().min(1),
-  category: z.string().optional(),
-  examples: z.string().optional(),
-  relatedTerms: z.string().optional(),
+  category: z.string().nullable().optional(),
+  examples: z.string().nullable().optional(),
+  relatedTerms: z.string().nullable().optional(),
 })
 
 /**
@@ -28,9 +28,9 @@ const updateInput = z.object({
   id: z.string(),
   term: z.string().min(1).optional(),
   definition: z.string().min(1).optional(),
-  category: z.string().optional(),
-  examples: z.string().optional(),
-  relatedTerms: z.string().optional(),
+  category: z.string().nullable().optional(),
+  examples: z.string().nullable().optional(),
+  relatedTerms: z.string().nullable().optional(),
 })
 
 /**

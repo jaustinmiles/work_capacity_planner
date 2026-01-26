@@ -183,7 +183,7 @@ describe('schema-generator', () => {
       expect(result.valid).toBe(true)
     })
 
-    it('should validate TimeLog', () => {
+    it('should validate TimeLog with required time fields', () => {
       const amendment = {
         type: AmendmentType.TimeLog,
         target: {
@@ -191,11 +191,32 @@ describe('schema-generator', () => {
           name: 'My Task',
           confidence: 0.95,
         },
-        duration: 45,
+        date: '2025-01-24',
+        startTime: '2025-01-24T09:00:00',
+        endTime: '2025-01-24T09:45:00',
+        duration: 45, // Optional - can be calculated from times
       }
 
       const result = validateAmendment(amendment)
       expect(result.valid).toBe(true)
+    })
+
+    it('should reject TimeLog without required time fields', () => {
+      const amendment = {
+        type: AmendmentType.TimeLog,
+        target: {
+          type: EntityType.Task,
+          name: 'My Task',
+          confidence: 0.95,
+        },
+        duration: 45, // Duration alone is not enough
+      }
+
+      const result = validateAmendment(amendment)
+      expect(result.valid).toBe(false)
+      expect(result.errors.some(e => e.path === 'date')).toBe(true)
+      expect(result.errors.some(e => e.path === 'startTime')).toBe(true)
+      expect(result.errors.some(e => e.path === 'endTime')).toBe(true)
     })
 
     it('should reject TimeLog with negative duration', () => {
@@ -206,6 +227,9 @@ describe('schema-generator', () => {
           name: 'My Task',
           confidence: 0.95,
         },
+        date: '2025-01-24',
+        startTime: '2025-01-24T09:00:00',
+        endTime: '2025-01-24T09:45:00',
         duration: -30, // Invalid
       }
 

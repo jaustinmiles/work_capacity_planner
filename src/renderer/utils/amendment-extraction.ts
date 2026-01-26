@@ -183,6 +183,10 @@ export function generatePreview(amendment: Amendment): AmendmentPreview {
         details: {
           target: amendment.target.name,
           duration: amendment.duration,
+          date: amendment.date,
+          startTime: amendment.startTime,
+          endTime: amendment.endTime,
+          description: amendment.description,
         },
       }
 
@@ -229,17 +233,38 @@ export function generatePreview(amendment: Amendment): AmendmentPreview {
         },
       }
 
-    case AmendmentType.DependencyChange:
+    case AmendmentType.DependencyChange: {
+      // Build a descriptive summary of what's changing
+      const targetName = amendment.stepName || amendment.target?.name || 'item'
+      const parts: string[] = []
+      if (amendment.addDependencies?.length) {
+        parts.push(`add: ${amendment.addDependencies.join(', ')}`)
+      }
+      if (amendment.removeDependencies?.length) {
+        parts.push(`remove: ${amendment.removeDependencies.join(', ')}`)
+      }
+      if (amendment.addDependents?.length) {
+        parts.push(`dependents add: ${amendment.addDependents.join(', ')}`)
+      }
+      if (amendment.removeDependents?.length) {
+        parts.push(`dependents remove: ${amendment.removeDependents.join(', ')}`)
+      }
+      const changesSummary = parts.length > 0 ? ` (${parts.join('; ')})` : ''
+
       return {
         title: 'Update Dependencies',
-        description: `Modify dependencies for "${amendment.stepName}"`,
+        description: `Modify dependencies for "${targetName}"${changesSummary}`,
         targetView: ViewType.Workflows,
         details: {
+          target: targetName,
           stepName: amendment.stepName,
           addDependencies: amendment.addDependencies,
           removeDependencies: amendment.removeDependencies,
+          addDependents: amendment.addDependents,
+          removeDependents: amendment.removeDependents,
         },
       }
+    }
 
     case AmendmentType.DeadlineChange:
       return {
@@ -293,6 +318,10 @@ export function generatePreview(amendment: Amendment): AmendmentPreview {
         targetView: ViewType.Timeline,
         details: {
           operation: amendment.operation,
+          startTime: amendment.startTime,
+          endTime: amendment.endTime,
+          plannedMinutes: amendment.plannedMinutes,
+          taskId: amendment.taskId,
         },
       }
 

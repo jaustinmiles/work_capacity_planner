@@ -152,7 +152,7 @@ describe('Chat Context Provider', () => {
       expect(result).toContain('Steps (2)')
       expect(result).toContain('Step 1')
       expect(result).toContain('Step 2')
-      expect(result).toContain('Depends on: step-1')
+      expect(result).toContain('Depends on: Step 1')
     })
 
     it('should include job context when provided', () => {

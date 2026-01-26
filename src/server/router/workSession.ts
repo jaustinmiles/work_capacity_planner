@@ -16,14 +16,14 @@ import { parseDateString, calculateMinutesBetweenDates } from '../../shared/time
  */
 const createSessionInput = z.object({
   taskId: z.string(),
-  stepId: z.string().optional(),
+  stepId: z.string().nullable().optional(),
   startTime: z.date(),
-  endTime: z.date().optional(),
+  endTime: z.date().nullable().optional(),
   plannedMinutes: z.number().int().default(0),
-  actualMinutes: z.number().int().optional(),
-  notes: z.string().optional(),
-  blockId: z.string().optional(),
-  patternId: z.string().optional(),
+  actualMinutes: z.number().int().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  blockId: z.string().nullable().optional(),
+  patternId: z.string().nullable().optional(),
 })
 
 /**
@@ -32,13 +32,13 @@ const createSessionInput = z.object({
 const updateSessionInput = z.object({
   id: z.string(),
   startTime: z.date().optional(),
-  endTime: z.date().optional(),
+  endTime: z.date().nullable().optional(),
   plannedMinutes: z.number().int().optional(),
-  actualMinutes: z.number().int().optional(),
-  notes: z.string().optional(),
+  actualMinutes: z.number().int().nullable().optional(),
+  notes: z.string().nullable().optional(),
   taskId: z.string().optional(),
-  stepId: z.string().optional(),
-  blockId: z.string().optional(),
+  stepId: z.string().nullable().optional(),
+  blockId: z.string().nullable().optional(),
 })
 
 /**
@@ -105,14 +105,14 @@ export const workSessionRouter = router({
       data: {
         id,
         taskId: input.taskId,
-        stepId: input.stepId || null,
+        stepId: input.stepId ?? null,
         startTime: input.startTime,
-        endTime: input.endTime || null,
+        endTime: input.endTime ?? null,
         plannedMinutes: input.plannedMinutes,
-        actualMinutes: input.actualMinutes || null,
-        notes: input.notes || null,
-        blockId: blockId || null,
-        patternId: input.patternId || null,
+        actualMinutes: input.actualMinutes ?? null,  // Use ?? to preserve 0 values
+        notes: input.notes ?? null,
+        blockId: blockId ?? null,
+        patternId: input.patternId ?? null,
       },
       include: {
         Task: true,
@@ -319,8 +319,8 @@ export const workSessionRouter = router({
         const secondHalf = await tx.workSession.create({
           data: {
             id: generateUniqueId('wsession'),
-            taskId: input.secondHalfTaskId || original.taskId,
-            stepId: input.secondHalfStepId || original.stepId,
+            taskId: input.secondHalfTaskId ?? original.taskId,
+            stepId: input.secondHalfStepId ?? original.stepId,
             startTime: input.splitTime,
             endTime: original.endTime,
             plannedMinutes: 0,

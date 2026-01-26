@@ -18,7 +18,7 @@ const createTimeSinkInput = z.object({
   name: z.string().min(1),
   emoji: z.string().min(1),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-  typeId: z.string().optional(),
+  typeId: z.string().nullable().optional(),
   sortOrder: z.number().int().optional(),
 })
 
@@ -30,7 +30,7 @@ const updateTimeSinkInput = z.object({
   name: z.string().min(1).optional(),
   emoji: z.string().min(1).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
-  typeId: z.string().optional(),
+  typeId: z.string().nullable().optional(),
   sortOrder: z.number().int().optional(),
 })
 
@@ -40,9 +40,9 @@ const updateTimeSinkInput = z.object({
 const createTimeSinkSessionInput = z.object({
   timeSinkId: z.string(),
   startTime: z.date(),
-  endTime: z.date().optional(),
-  actualMinutes: z.number().int().optional(),
-  notes: z.string().optional(),
+  endTime: z.date().nullable().optional(),
+  actualMinutes: z.number().int().nullable().optional(),
+  notes: z.string().nullable().optional(),
 })
 
 /**

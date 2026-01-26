@@ -12,6 +12,7 @@ import { generateUniqueId } from '@shared/step-id-utils'
 import { extractTimeFromISO, formatDateStringForDisplay } from '@shared/time-utils'
 import { getBlockTypeName } from '@shared/user-task-types'
 import { useUserTaskTypeStore } from '../store/useUserTaskTypeStore'
+import { logger } from '@/logger'
 
 /**
  * Format a date for display, handling both Date objects and ISO strings.
@@ -79,7 +80,10 @@ export function parseAIResponse(response: string): ParsedResponse {
         }
       }
     } catch (e) {
-      console.warn('Failed to parse amendments JSON:', e, jsonContent)
+      logger.ui.warn('Failed to parse amendments JSON', {
+        error: e instanceof Error ? e.message : String(e),
+        jsonPreview: jsonContent.substring(0, 500),
+      }, 'amendment-json-parse-failed')
     }
   }
 
@@ -150,6 +154,10 @@ export function generatePreview(amendment: Amendment): AmendmentPreview {
         details: {
           target: amendment.target.name,
           duration: amendment.duration,
+          date: amendment.date,
+          startTime: amendment.startTime,
+          endTime: amendment.endTime,
+          description: amendment.description,
         },
       }
 
@@ -196,6 +204,39 @@ export function generatePreview(amendment: Amendment): AmendmentPreview {
         },
       }
 
+    case AmendmentType.DependencyChange: {
+      // Build a descriptive summary of what's changing
+      const targetName = amendment.stepName || amendment.target?.name || 'item'
+      const parts: string[] = []
+      if (amendment.addDependencies?.length) {
+        parts.push(`add: ${amendment.addDependencies.join(', ')}`)
+      }
+      if (amendment.removeDependencies?.length) {
+        parts.push(`remove: ${amendment.removeDependencies.join(', ')}`)
+      }
+      if (amendment.addDependents?.length) {
+        parts.push(`dependents add: ${amendment.addDependents.join(', ')}`)
+      }
+      if (amendment.removeDependents?.length) {
+        parts.push(`dependents remove: ${amendment.removeDependents.join(', ')}`)
+      }
+      const changesSummary = parts.length > 0 ? ` (${parts.join('; ')})` : ''
+
+      return {
+        title: 'Update Dependencies',
+        description: `Modify dependencies for "${targetName}"${changesSummary}`,
+        targetView: ViewType.Workflows,
+        details: {
+          target: targetName,
+          stepName: amendment.stepName,
+          addDependencies: amendment.addDependencies,
+          removeDependencies: amendment.removeDependencies,
+          addDependents: amendment.addDependents,
+          removeDependents: amendment.removeDependents,
+        },
+      }
+    }
+
     case AmendmentType.DeadlineChange:
       return {
         title: 'Set Deadline',
@@ -216,6 +257,17 @@ export function generatePreview(amendment: Amendment): AmendmentPreview {
           target: amendment.target.name,
           importance: amendment.importance,
           urgency: amendment.urgency,
+        },
+      }
+
+    case AmendmentType.TypeChange:
+      return {
+        title: 'Change Type',
+        description: `Change type of "${amendment.target.name}" to ${amendment.newType}`,
+        targetView: ViewType.Tasks,
+        details: {
+          target: amendment.target.name,
+          newType: amendment.newType,
         },
       }
 

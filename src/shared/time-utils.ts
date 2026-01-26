@@ -185,32 +185,42 @@ export function isSameDay(date1: Date, date2: Date): boolean {
 /**
  * Extract HH:MM time string from an ISO datetime string or Date object
  *
- * IMPORTANT: For ISO strings, extracts the time portion directly without timezone conversion.
- * This is intentional because the AI provides times that represent the user's intended local time
- * encoded in the ISO format (e.g., "2025-11-26T19:30:00Z" means "7:30 PM" in user's local time).
+ * Timezone handling:
+ * - Date objects: Extract local time directly
+ * - Strings WITH timezone (Z or +/-offset): Parse to Date, then extract LOCAL time
+ * - Strings WITHOUT timezone: Extract directly (already represents local time)
  *
- * @param input - ISO datetime string (e.g., "2025-11-26T19:30:00Z") or Date object
- * @returns HH:MM string (e.g., "19:30")
+ * @param input - ISO datetime string or Date object
+ * @returns HH:MM string in local time (e.g., "09:30")
  */
 export function extractTimeFromISO(input: string | Date): string {
   if (input instanceof Date) {
     return formatTimeHHMM(input)
   }
 
-  // Match ISO datetime format: extract HH:MM from the time portion
-  // Handles: "2025-11-26T19:30:00Z", "2025-11-26T19:30:00.000Z", "2025-11-26T19:30:00+00:00"
+  // If string has timezone marker, parse to Date first to get LOCAL time
+  // "2025-01-25T17:00:00Z" in Seattle (UTC-8) → 09:00 local
+  if (input.endsWith('Z') || /[+-]\d{2}:\d{2}/.test(input)) {
+    const date = new Date(input)
+    if (!isNaN(date.getTime())) {
+      return formatTimeHHMM(date)
+    }
+  }
+
+  // No timezone = already local time, extract directly
+  // "2025-01-25T09:00:00" → "09:00"
   const isoMatch = input.match(/T(\d{2}):(\d{2})/)
   if (isoMatch) {
     return `${isoMatch[1]}:${isoMatch[2]}`
   }
 
-  // Fallback: try to parse as time string directly (e.g., "19:30")
+  // Fallback: try to parse as time string directly (e.g., "09:30")
   const timeMatch = input.match(/^(\d{2}):(\d{2})$/)
   if (timeMatch) {
     return input
   }
 
-  // Last resort: parse as Date (will apply timezone conversion)
+  // Last resort: parse as Date
   return formatTimeHHMM(new Date(input))
 }
 
@@ -254,10 +264,9 @@ export function formatDateStringForDisplay(dateStr: string, locale?: string): st
  * Safely parse a date string to Date object
  * Returns undefined if parsing fails
  *
- * IMPORTANT: For ISO strings with 'Z' timezone suffix, we extract the date/time
- * components directly WITHOUT timezone conversion. This is because the AI sends
- * times that represent the user's intended LOCAL time encoded in ISO format.
- * Using `new Date(isoString)` would interpret Z as UTC and shift the time.
+ * Timezone handling:
+ * - Strings WITH timezone (Z or +/-offset): Parse with new Date() to respect UTC
+ * - Strings WITHOUT timezone: Treat as local time by extracting components
  *
  * @param dateStr - Date string to parse (ISO format, YYYY-MM-DD, or other Date-parseable format)
  * @returns Date object or undefined if parsing fails
@@ -265,33 +274,32 @@ export function formatDateStringForDisplay(dateStr: string, locale?: string): st
 export function safeParseDateString(dateStr: string | undefined): Date | undefined {
   if (!dateStr) return undefined
   try {
-    // For ISO strings, extract components directly to avoid timezone conversion
-    // Match: "2025-12-09" or "2025-12-09T15:21:00Z" or "2025-12-09T15:21:00.000Z"
+    // If string has timezone marker (Z or +/-offset), parse the FULL string
+    // This respects UTC and lets JavaScript handle the conversion to local
+    if (dateStr.endsWith('Z') || /[+-]\d{2}:\d{2}/.test(dateStr)) {
+      const date = new Date(dateStr)
+      return isNaN(date.getTime()) ? undefined : date
+    }
+
+    // No timezone = treat as local time
+    // Extract components and create local Date
     const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?/)
     if (isoMatch) {
       const [, year, month, day, hours, minutes, seconds] = isoMatch
-      // Create date using LOCAL timezone (not UTC interpretation)
-      // Use || '0' for optional time components that might be undefined
       const date = new Date(
         parseInt(year || '0'),
-        parseInt(month || '1') - 1,  // Month is 0-indexed
+        parseInt(month || '1') - 1,
         parseInt(day || '1'),
         parseInt(hours || '0'),
         parseInt(minutes || '0'),
         parseInt(seconds || '0'),
       )
-      if (isNaN(date.getTime())) {
-        return undefined
-      }
-      return date
+      return isNaN(date.getTime()) ? undefined : date
     }
 
-    // Fallback for other date formats (non-ISO)
+    // Fallback for other date formats
     const date = new Date(dateStr)
-    if (isNaN(date.getTime())) {
-      return undefined
-    }
-    return date
+    return isNaN(date.getTime()) ? undefined : date
   } catch {
     return undefined
   }
