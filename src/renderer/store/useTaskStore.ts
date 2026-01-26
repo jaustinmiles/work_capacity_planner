@@ -15,6 +15,9 @@ import { getCurrentTime } from '@shared/time-provider'
 import { addMinutes } from '../utils/dateUtils'
 
 
+// localStorage key for sprint mode persistence
+const SPRINT_MODE_STORAGE_KEY = 'taskPlanner_sprintModeEnabled'
+
 interface TaskStore {
   tasks: Task[]
   sequencedTasks: SequencedTask[]
@@ -23,6 +26,9 @@ interface TaskStore {
   error: string | null
   workSettings: WorkSettings
   includeArchived: boolean  // Track whether archived tasks should be shown
+
+  // Sprint management state
+  sprintModeEnabled: boolean  // Whether scheduler should filter to sprint tasks only
 
   // Progress tracking state
   activeWorkSessions: Map<string, UnifiedWorkSession>
@@ -61,6 +67,12 @@ interface TaskStore {
 
   // Settings actions
   updateWorkSettings: (__settings: WorkSettings) => Promise<void>
+
+  // Sprint management actions
+  setSprintModeEnabled: (enabled: boolean) => void
+  addTaskToSprint: (taskId: string) => Promise<void>
+  removeTaskFromSprint: (taskId: string) => Promise<void>
+  clearSprint: () => Promise<void>
 
   // Progress tracking actions
   startWorkOnStep: (stepId: string, __workflowId: string) => Promise<void>
@@ -153,6 +165,17 @@ export const useTaskStore = create<TaskStore>()(
     error: null,
     // Work patterns now in useWorkPatternStore
     includeArchived: false,  // Default to not showing archived tasks
+
+    // Sprint mode - persisted to localStorage
+    sprintModeEnabled: (() => {
+      try {
+        const saved = window.localStorage.getItem(SPRINT_MODE_STORAGE_KEY)
+        return saved === 'true'
+      } catch {
+        return false
+      }
+    })(),
+
     workSettings: (() => {
       try {
         const saved = window.localStorage.getItem('workSettings')
@@ -547,6 +570,91 @@ export const useTaskStore = create<TaskStore>()(
   updateWorkSettings: async (settings: WorkSettings) => {
     set({ workSettings: settings })
     window.localStorage.setItem('workSettings', JSON.stringify(settings))
+  },
+
+  // Sprint management actions
+  setSprintModeEnabled: (enabled: boolean) => {
+    set({ sprintModeEnabled: enabled })
+    window.localStorage.setItem(SPRINT_MODE_STORAGE_KEY, String(enabled))
+    // Force scheduler recomputation when sprint mode changes
+    useSchedulerStore.getState().recomputeSchedule()
+    logger.ui.info('Sprint mode toggled', { enabled }, 'sprint-mode')
+  },
+
+  addTaskToSprint: async (taskId: string) => {
+    try {
+      const task = get().tasks.find(t => t.id === taskId)
+      const workflow = get().sequencedTasks.find(w => w.id === taskId)
+
+      if (task) {
+        await getDatabase().updateTask(taskId, { inActiveSprint: true })
+        set({
+          tasks: get().tasks.map(t =>
+            t.id === taskId ? { ...t, inActiveSprint: true } : t,
+          ),
+        })
+      } else if (workflow) {
+        await getDatabase().updateTask(taskId, { inActiveSprint: true })
+        set({
+          sequencedTasks: get().sequencedTasks.map(w =>
+            w.id === taskId ? { ...w, inActiveSprint: true } : w,
+          ),
+        })
+      }
+      logger.ui.info('Task added to sprint', { taskId }, 'sprint-add')
+    } catch (error) {
+      logger.ui.error('Failed to add task to sprint', { taskId, error }, 'sprint-error')
+      throw error
+    }
+  },
+
+  removeTaskFromSprint: async (taskId: string) => {
+    try {
+      const task = get().tasks.find(t => t.id === taskId)
+      const workflow = get().sequencedTasks.find(w => w.id === taskId)
+
+      if (task) {
+        await getDatabase().updateTask(taskId, { inActiveSprint: false })
+        set({
+          tasks: get().tasks.map(t =>
+            t.id === taskId ? { ...t, inActiveSprint: false } : t,
+          ),
+        })
+      } else if (workflow) {
+        await getDatabase().updateTask(taskId, { inActiveSprint: false })
+        set({
+          sequencedTasks: get().sequencedTasks.map(w =>
+            w.id === taskId ? { ...w, inActiveSprint: false } : w,
+          ),
+        })
+      }
+      logger.ui.info('Task removed from sprint', { taskId }, 'sprint-remove')
+    } catch (error) {
+      logger.ui.error('Failed to remove task from sprint', { taskId, error }, 'sprint-error')
+      throw error
+    }
+  },
+
+  clearSprint: async () => {
+    try {
+      const tasksInSprint = get().tasks.filter(t => t.inActiveSprint)
+      const workflowsInSprint = get().sequencedTasks.filter(w => w.inActiveSprint)
+
+      // Update all tasks in parallel
+      await Promise.all([
+        ...tasksInSprint.map(t => getDatabase().updateTask(t.id, { inActiveSprint: false })),
+        ...workflowsInSprint.map(w => getDatabase().updateTask(w.id, { inActiveSprint: false })),
+      ])
+
+      set({
+        tasks: get().tasks.map(t => ({ ...t, inActiveSprint: false })),
+        sequencedTasks: get().sequencedTasks.map(w => ({ ...w, inActiveSprint: false })),
+      })
+      logger.ui.info('Sprint cleared', { taskCount: tasksInSprint.length + workflowsInSprint.length }, 'sprint-clear')
+    } catch (error) {
+      logger.ui.error('Failed to clear sprint', { error }, 'sprint-error')
+      throw error
+    }
   },
 
   getTaskById: (id) => get().tasks.find(task => task.id === id),

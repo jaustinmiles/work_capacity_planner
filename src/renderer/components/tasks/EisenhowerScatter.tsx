@@ -189,6 +189,7 @@ export function EisenhowerScatter({
                 steps: task.steps,
                 isAsyncTrigger: task.isAsyncTrigger,
                 archived: task.archived,
+                inActiveSprint: task.inActiveSprint,
             }
 
             return [...prev, taskToAdd]

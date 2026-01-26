@@ -152,6 +152,7 @@ export async function handleWorkflowCreation(
     hasSteps: true as const,
     overallStatus: TaskStatus.NotStarted,
     archived: false,
+    inActiveSprint: false,
   }
 
   await ctx.db.createSequencedTask(workflowData)

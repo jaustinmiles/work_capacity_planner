@@ -81,6 +81,7 @@ export function createWorkflowTask(params: {
     worstCaseDuration,
     steps,
     archived: false,
+    inActiveSprint: false,
   }
 }
 
@@ -122,6 +123,7 @@ export const exampleSequencedTask: SequencedTask = {
   criticalPathDuration: 425,
   worstCaseDuration: 1200,
   archived: false,
+  inActiveSprint: false,
   steps: [
     {
       id: 'step-1',

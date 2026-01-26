@@ -169,6 +169,7 @@ export function TaskCreationFlow({ visible, onClose, extractedTasks }: TaskCreat
           ? task.enhancedSuggestions.suggestions.duration
           : task.estimatedDuration,
         archived: false,
+        inActiveSprint: false,
       }
 
       await addTask(taskData)

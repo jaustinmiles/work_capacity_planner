@@ -71,6 +71,7 @@ export function TaskSplitModal({ task, visible, onClose, onSplit }: TaskSplitMod
         criticalPathDuration: task.criticalPathDuration,
         worstCaseDuration: task.worstCaseDuration,
         archived: false,
+        inActiveSprint: false,
       }
 
       // Update the original task

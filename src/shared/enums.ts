@@ -207,6 +207,14 @@ export enum ViewType {
   Workflows = 'workflows',
   Timeline = 'timeline',
   Schedule = 'schedule',
+  Sprint = 'sprint',
+}
+
+// Sprint filter modes for task list views
+export enum SprintFilterMode {
+  All = 'all', // Show all tasks (default)
+  SprintOnly = 'sprint', // Show only inActiveSprint=true
+  BacklogOnly = 'backlog', // Show only inActiveSprint=false
 }
 
 // AI Processing modes for brainstorming

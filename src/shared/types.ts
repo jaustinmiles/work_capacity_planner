@@ -48,6 +48,7 @@ export interface Task extends TimeLoggable {
   worstCaseDuration: number
   steps?: TaskStep[] // Optional - populated when needed
   archived: boolean // whether task/workflow is archived
+  inActiveSprint: boolean // sprint membership for focus mode
 
   // For async optimization (computed, not stored)
   isAsyncTrigger?: boolean
@@ -122,6 +123,7 @@ export interface TaskFilters {
   type?: string // User-defined task type ID
   projectId?: string
   search?: string
+  inActiveSprint?: boolean // Filter by sprint membership
 }
 
 export interface ProductivityPattern {

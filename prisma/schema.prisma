@@ -228,6 +228,7 @@ model Task {
   criticalPathDuration Int             @default(0)
   worstCaseDuration    Int             @default(0)
   archived             Boolean         @default(false)
+  inActiveSprint       Boolean         @default(false)  // Sprint membership for focus mode
   ScheduledTask        ScheduledTask[]
   Project              Project?        @relation(fields: [projectId], references: [id])
   Session              Session?        @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
