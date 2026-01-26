@@ -2,7 +2,15 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaClient } from '@prisma/client'
 import { BlockConfigKind, WorkBlockType } from '@/shared/enums'
 
-const prisma = new PrismaClient()
+// Skip these tests if no PostgreSQL DATABASE_URL is configured
+// This test file requires a real database connection
+const hasPostgresUrl =
+  process.env.DATABASE_URL?.startsWith('postgresql://') ||
+  process.env.DATABASE_URL?.startsWith('postgres://')
+
+// Only instantiate PrismaClient if we have a PostgreSQL URL
+// This prevents connection errors when tests are skipped
+const prisma = hasPostgresUrl ? new PrismaClient() : (null as unknown as PrismaClient)
 
 // Helper to create typeConfig JSON strings for tests
 const createSystemBlockConfig = (systemType: WorkBlockType) =>
@@ -11,7 +19,7 @@ const createSystemBlockConfig = (systemType: WorkBlockType) =>
 const createSingleBlockConfig = (typeId: string) =>
   JSON.stringify({ kind: BlockConfigKind.Single, typeId })
 
-describe('Database Validation Tests', () => {
+describe.skipIf(!hasPostgresUrl)('Database Validation Tests', () => {
   let testSessionId: string
 
   beforeAll(async () => {

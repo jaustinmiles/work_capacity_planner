@@ -6,6 +6,7 @@ import { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, Cr
 import { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
 import { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
 import { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import { getTrpcDatabase } from './database-trpc'
 
 
 // Type for the Electron API exposed by preload script
@@ -360,8 +361,129 @@ export class RendererDatabaseService {
     }
   }
 
+  /**
+   * Ensures a valid session is set before making session-scoped requests.
+   * For IPC mode, sessions are managed by the main process, so this is simpler.
+   */
+  async ensureSession(): Promise<string> {
+    // Try to load from localStorage first
+    const lastUsedSessionId = window.localStorage.getItem('lastUsedSessionId')
+    if (lastUsedSessionId) {
+      const sessions = await this.getSessions()
+      if (sessions.some(s => s.id === lastUsedSessionId)) {
+        await this.switchSession(lastUsedSessionId)
+        return lastUsedSessionId
+      }
+      window.localStorage.removeItem('lastUsedSessionId')
+    }
+
+    // Get all sessions
+    const sessions = await this.getSessions()
+
+    // Use active session if any
+    const activeSession = sessions.find(s => s.isActive)
+    if (activeSession) {
+      window.localStorage.setItem('lastUsedSessionId', activeSession.id)
+      return activeSession.id
+    }
+
+    // Use first available session
+    if (sessions.length > 0) {
+      const firstSession = sessions[0]!
+      await this.switchSession(firstSession.id)
+      return firstSession.id
+    }
+
+    // Create default session
+    const newSession = await this.createSession('Default Session', 'Auto-created session')
+    await this.switchSession(newSession.id)
+    return newSession.id
+  }
+
+  /**
+   * Check if a session is currently set
+   */
+  hasSession(): boolean {
+    return window.localStorage.getItem('lastUsedSessionId') !== null
+  }
+
   async updateSchedulingPreferences(sessionId: string, updates: any): Promise<any> {
     return await window.electronAPI.db.updateSchedulingPreferences(sessionId, updates)
+  }
+
+  // User task type operations
+  async getUserTaskTypes(): Promise<UserTaskType[]> {
+    return await window.electronAPI.db.getUserTaskTypes()
+  }
+
+  async getUserTaskTypeById(id: string): Promise<UserTaskType | null> {
+    return await window.electronAPI.db.getUserTaskTypeById(id)
+  }
+
+  async createUserTaskType(input: Omit<CreateUserTaskTypeInput, 'sessionId'>): Promise<UserTaskType> {
+    return await window.electronAPI.db.createUserTaskType(input)
+  }
+
+  async updateUserTaskType(id: string, updates: UpdateUserTaskTypeInput): Promise<UserTaskType> {
+    return await window.electronAPI.db.updateUserTaskType(id, updates)
+  }
+
+  async deleteUserTaskType(id: string): Promise<void> {
+    return await window.electronAPI.db.deleteUserTaskType(id)
+  }
+
+  async reorderUserTaskTypes(orderedIds: string[]): Promise<void> {
+    return await window.electronAPI.db.reorderUserTaskTypes(orderedIds)
+  }
+
+  async sessionHasTaskTypes(): Promise<boolean> {
+    return await window.electronAPI.db.sessionHasTaskTypes()
+  }
+
+  // Time sink operations
+  async getTimeSinks(): Promise<TimeSink[]> {
+    return await window.electronAPI.db.getTimeSinks()
+  }
+
+  async getTimeSinkById(id: string): Promise<TimeSink | null> {
+    return await window.electronAPI.db.getTimeSinkById(id)
+  }
+
+  async createTimeSink(input: Omit<CreateTimeSinkInput, 'sessionId'>): Promise<TimeSink> {
+    return await window.electronAPI.db.createTimeSink(input)
+  }
+
+  async updateTimeSink(id: string, updates: UpdateTimeSinkInput): Promise<TimeSink> {
+    return await window.electronAPI.db.updateTimeSink(id, updates)
+  }
+
+  async deleteTimeSink(id: string): Promise<void> {
+    return await window.electronAPI.db.deleteTimeSink(id)
+  }
+
+  async reorderTimeSinks(orderedIds: string[]): Promise<void> {
+    return await window.electronAPI.db.reorderTimeSinks(orderedIds)
+  }
+
+  // Time sink session operations
+  async createTimeSinkSession(data: { timeSinkId: string; startTime: string; endTime?: string; actualMinutes?: number; notes?: string }): Promise<TimeSinkSession> {
+    return await window.electronAPI.db.createTimeSinkSession(data)
+  }
+
+  async endTimeSinkSession(id: string, actualMinutes: number, notes?: string): Promise<TimeSinkSession> {
+    return await window.electronAPI.db.endTimeSinkSession(id, actualMinutes, notes)
+  }
+
+  async getTimeSinkSessions(timeSinkId: string): Promise<TimeSinkSession[]> {
+    return await window.electronAPI.db.getTimeSinkSessions(timeSinkId)
+  }
+
+  async getActiveTimeSinkSession(): Promise<TimeSinkSession | null> {
+    return await window.electronAPI.db.getActiveTimeSinkSession()
+  }
+
+  async deleteTimeSinkSession(id: string): Promise<void> {
+    return await window.electronAPI.db.deleteTimeSinkSession(id)
   }
 
   // Task operations
@@ -743,9 +865,31 @@ export class RendererDatabaseService {
 // Export singleton instance with lazy initialization
 let dbInstance: RendererDatabaseService | null = null
 
+/**
+ * Get the database service instance.
+ *
+ * In 'local' mode (default): Uses IPC to communicate with Electron main process
+ * In 'server' or 'client' mode: Uses tRPC to communicate with API server
+ *
+ * The mode is determined by TASK_PLANNER_MODE environment variable.
+ */
 export const getDatabase = (): RendererDatabaseService => {
   if (!dbInstance) {
-    dbInstance = RendererDatabaseService.getInstance()
+    // Check if we should use tRPC mode
+    const appConfig = (window as unknown as { appConfig?: { useTrpc?: boolean } }).appConfig
+    if (appConfig?.useTrpc) {
+      // Use tRPC service for server/client mode
+      console.info('[Database] Using tRPC mode (server/client)')
+      // Return tRPC service cast as RendererDatabaseService (same interface)
+      dbInstance = getTrpcDatabase() as unknown as RendererDatabaseService
+    } else {
+      // Use IPC service for local mode
+      console.info('[Database] Using IPC mode (local)')
+      dbInstance = RendererDatabaseService.getInstance()
+    }
   }
   return dbInstance
 }
+
+// Re-export for direct access when needed
+export { getTrpcDatabase }

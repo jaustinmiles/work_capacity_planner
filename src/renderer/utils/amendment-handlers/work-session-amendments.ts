@@ -33,8 +33,13 @@ export async function handleWorkSessionEdit(
           endTime: amendment.endTime
             ? (amendment.endTime instanceof Date ? amendment.endTime : new Date(amendment.endTime))
             : undefined,
-          plannedMinutes: amendment.plannedMinutes || 30,
-          actualMinutes: amendment.actualMinutes,
+          // Only include plannedMinutes if provided (no arbitrary defaults)
+          plannedMinutes: amendment.plannedMinutes !== undefined
+            ? Math.round(amendment.plannedMinutes)
+            : 0,
+          actualMinutes: amendment.actualMinutes !== undefined
+            ? Math.round(amendment.actualMinutes)
+            : undefined,
           notes: amendment.notes,
         })
         Message.success('Created work session')
@@ -55,8 +60,13 @@ export async function handleWorkSessionEdit(
           endTime: amendment.endTime
             ? (amendment.endTime instanceof Date ? amendment.endTime : new Date(amendment.endTime))
             : undefined,
-          plannedMinutes: amendment.plannedMinutes,
-          actualMinutes: amendment.actualMinutes,
+          // Zod schema requires integers - round to prevent validation errors
+          plannedMinutes: amendment.plannedMinutes !== undefined
+            ? Math.round(amendment.plannedMinutes)
+            : undefined,
+          actualMinutes: amendment.actualMinutes !== undefined
+            ? Math.round(amendment.actualMinutes)
+            : undefined,
           notes: amendment.notes,
         })
         Message.success('Updated work session')

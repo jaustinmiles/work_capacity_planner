@@ -27,12 +27,16 @@ dist-ssr
 .env
 .env.local
 .env.production
+.env.server
+.env.client
 
 # Database
 *.db
 *.db-journal
 prisma/*.db
 prisma/*.db-journal
+prisma/*.backup*
+prisma/*.db.backup.*
 
 # Logs and temporary files
 *.log

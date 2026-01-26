@@ -14,8 +14,9 @@ import {
   DayOfWeek,
   AmendmentStatus,
 } from './enums'
+import type { LocalTime, LocalDate } from './datetime-types'
 
-// Re-export enums for convenience
+// Re-export enums and datetime types for convenience
 export {
   AmendmentType,
   EntityType,
@@ -28,6 +29,7 @@ export {
   DayOfWeek,
   AmendmentStatus,
 }
+export type { LocalTime, LocalDate } from './datetime-types'
 
 export interface AmendmentTarget {
   type: EntityType
@@ -157,20 +159,20 @@ export interface TypeChange {
 
 export interface WorkPatternModification {
   type: AmendmentType.WorkPatternModification
-  date: Date  // Transformed from ISO string
+  date: LocalDate  // "YYYY-MM-DD" format
   operation: WorkPatternOperation
   blockId?: string  // For modify/remove operations
   meetingId?: string  // For modify/remove operations
   blockData?: {
-    startTime: Date  // Transformed from ISO string
-    endTime: Date
+    startTime: LocalTime  // "HH:MM" 24-hour format
+    endTime: LocalTime
     type: WorkBlockType
     splitRatio?: Record<string, number>  // For mixed blocks
   }
   meetingData?: {
     name: string
-    startTime: Date  // Transformed from ISO string
-    endTime: Date
+    startTime: LocalTime  // "HH:MM" 24-hour format
+    endTime: LocalTime
     type: string // Meeting type
     recurring?: RecurringPattern
     daysOfWeek?: DayOfWeek[]
@@ -352,6 +354,19 @@ export interface AmendmentResult {
   confidence: number  // Overall confidence
   warnings?: string[]
   needsClarification?: string[]
+}
+
+/**
+ * Result of resolving an amendment's target before application.
+ * Used by the fail-fast strategy to catch resolution failures early.
+ */
+export interface AmendmentResolutionResult {
+  /** The amendment that was resolved */
+  amendment: Amendment
+  /** Whether the target was successfully resolved to an ID */
+  resolved: boolean
+  /** Error message if resolution failed */
+  error?: string
 }
 
 export interface AmendmentContext {

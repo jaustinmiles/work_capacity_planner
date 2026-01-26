@@ -5,6 +5,21 @@ import { AmendmentCardStatus } from '../shared/enums'
 
 // Don't use logger in preload - it runs in a special context
 
+// App configuration exposed to renderer
+// These values come from environment variables set when the app starts
+const appConfig = {
+  mode: process.env.TASK_PLANNER_MODE || 'local',
+  serverUrl:
+    process.env.TASK_PLANNER_MODE === 'server'
+      ? `http://localhost:${process.env.TASK_PLANNER_PORT || '3001'}`
+      : process.env.TASK_PLANNER_SERVER_URL || 'http://localhost:3001',
+  apiKey: process.env.TASK_PLANNER_API_KEY || '',
+  useTrpc: process.env.TASK_PLANNER_MODE === 'server' || process.env.TASK_PLANNER_MODE === 'client',
+}
+
+// Expose app configuration to renderer
+contextBridge.exposeInMainWorld('appConfig', appConfig)
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {

@@ -237,6 +237,13 @@ export function getNextBlock(blocks: WorkBlock[], time: Date = new Date()): Work
 export function isTaskTypeCompatibleWithBlock(block: WorkBlock, taskTypeId: string): boolean {
   const typeConfig = block.typeConfig
 
+  // Defensive check: typeConfig should be an object, not a JSON string
+  // This catches serialization issues in the client-server architecture
+  if (typeof typeConfig === 'string') {
+    console.warn('[work-blocks-types] typeConfig is a string, should be an object. Block ID:', block.id)
+    return false
+  }
+
   if (isSystemBlock(typeConfig)) {
     return false // System blocks don't accept tasks
   }

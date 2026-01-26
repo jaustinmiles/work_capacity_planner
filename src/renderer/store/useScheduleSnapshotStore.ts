@@ -20,6 +20,7 @@ import {
 import { ScheduleResult } from '@shared/unified-scheduler'
 import { getCurrentTime } from '@shared/time-provider'
 import { logger } from '@/logger'
+import { getDatabase } from '@/renderer/services/database'
 
 interface ScheduleSnapshotStoreState {
   // Core state
@@ -57,7 +58,7 @@ export const useScheduleSnapshotStore = create<ScheduleSnapshotStoreState>()(
       set({ isLoading: true, error: null })
 
       try {
-        const snapshots = await window.electronAPI.db.getScheduleSnapshots()
+        const snapshots = await getDatabase().getScheduleSnapshots()
 
         set({
           snapshots,
@@ -83,7 +84,7 @@ export const useScheduleSnapshotStore = create<ScheduleSnapshotStoreState>()(
      */
     loadTodaySnapshot: async (): Promise<void> => {
       try {
-        const todaySnapshot = await window.electronAPI.db.getTodayScheduleSnapshot()
+        const todaySnapshot = await getDatabase().getTodayScheduleSnapshot()
         set({ todaySnapshot })
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
@@ -97,7 +98,7 @@ export const useScheduleSnapshotStore = create<ScheduleSnapshotStoreState>()(
     createSnapshot: async (scheduleResult: ScheduleResult, label?: string): Promise<ScheduleSnapshot> => {
       try {
         const snapshotData = createSnapshotData(scheduleResult, getCurrentTime())
-        const newSnapshot = await window.electronAPI.db.createScheduleSnapshot(snapshotData, label)
+        const newSnapshot = await getDatabase().createScheduleSnapshot(snapshotData, label)
 
         set((state) => ({
           snapshots: [newSnapshot, ...state.snapshots],
@@ -125,7 +126,7 @@ export const useScheduleSnapshotStore = create<ScheduleSnapshotStoreState>()(
       try {
         const isTodaySnapshot = get().todaySnapshot?.id === id
 
-        await window.electronAPI.db.deleteScheduleSnapshot(id)
+        await getDatabase().deleteScheduleSnapshot(id)
 
         // Remove from local state
         set((state) => ({

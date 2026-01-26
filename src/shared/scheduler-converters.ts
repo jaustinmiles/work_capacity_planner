@@ -48,7 +48,8 @@ export function convertToUnifiedItems(
 
   for (const item of items) {
     // Handle SequencedTask (workflow with steps)
-    if ('steps' in item && item.steps) {
+    // CRITICAL: Check steps.length > 0, not just truthiness - empty array [] is truthy!
+    if ('steps' in item && item.steps && item.steps.length > 0) {
       const workflow = item as SequencedTask
       const beforeCount = unified.length
 
@@ -136,7 +137,8 @@ function processSequencedTask(
       cognitiveComplexity: step.cognitiveComplexity || 3,
 
       // Task type ID (references UserTaskType)
-      taskTypeId: step.type || '',
+      // Use UNTYPED_TASK_MARKER for strict type matching (empty string would silently fail to match)
+      taskTypeId: step.type || UNTYPED_TASK_MARKER,
 
       // Dependencies
       dependencies: step.dependsOn || [],

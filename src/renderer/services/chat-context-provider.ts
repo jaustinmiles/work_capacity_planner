@@ -201,11 +201,17 @@ export function formatContextForAI(context: AppContext): string {
     formatted += `  - Status: ${workflow.overallStatus}, Total Duration: ${workflow.duration}min, Critical Path: ${workflow.criticalPathDuration}min\n`
     formatted += `  - Importance: ${workflow.importance}, Urgency: ${workflow.urgency}, Type: ${workflow.type}\n`
     if (workflow.steps) {
+      // Build step ID to name map for resolving dependencies
+      const stepIdToName = new Map<string, string>()
+      workflow.steps.forEach(s => stepIdToName.set(s.id, s.name))
+
       formatted += `  - Steps (${workflow.steps.length}):\n`
       workflow.steps.forEach(step => {
         formatted += `    - ${step.name} (${step.duration}min, ${step.type}, ${step.status})\n`
         if (step.dependsOn && step.dependsOn.length > 0) {
-          formatted += `      - Depends on: ${step.dependsOn.join(', ')}\n`
+          // Convert step IDs to names for AI context
+          const depNames = step.dependsOn.map(id => stepIdToName.get(id) || id)
+          formatted += `      - Depends on: ${depNames.join(', ')}\n`
         }
       })
     }

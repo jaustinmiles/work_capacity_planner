@@ -1,8 +1,16 @@
 import OpenAI from 'openai'
-import { toFile } from 'openai/uploads'
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 import { logger } from '../logger'
+
+/**
+ * Get the persistent audio backup directory path.
+ * Uses ~/.work-planner/audio/ for persistence across reboots.
+ */
+function getAudioBackupDir(): string {
+  return path.join(os.homedir(), '.work-planner', 'audio')
+}
 
 /**
  * Service for speech-to-text conversion using OpenAI Whisper
@@ -34,29 +42,26 @@ export class SpeechService {
         throw new Error('Audio file exceeds 25MB limit for Whisper API')
       }
 
-      // Copy file to archive if it's not already in our tmp directory
-      if (!audioFilePath.includes('/tmp/work-planner-audio')) {
-        const tempDir = '/tmp/work-planner-audio'
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true })
+      // Copy file to persistent archive directory
+      const audioDir = getAudioBackupDir()
+      if (!audioFilePath.includes(audioDir)) {
+        if (!fs.existsSync(audioDir)) {
+          fs.mkdirSync(audioDir, { recursive: true })
         }
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
         const filename = path.basename(audioFilePath)
-        const archivePath = path.join(tempDir, `audio_${timestamp}_${filename}`)
+        const archivePath = path.join(audioDir, `audio_${timestamp}_${filename}`)
         fs.copyFileSync(audioFilePath, archivePath)
         logger.system.debug(`Audio file archived to: ${archivePath}`)
       }
 
-      // Create a proper file object for OpenAI API
-      const audioBuffer = fs.readFileSync(audioFilePath)
-      const fileName = path.basename(audioFilePath)
-      const audioFile = await toFile(audioBuffer, fileName, {
-        type: this.getMimeType(fileName),
-      })
+      // Use createReadStream which is more reliable with various audio formats
+      // toFile can have issues with browser-recorded webm/opus files
+      const audioStream = fs.createReadStream(audioFilePath)
 
       const transcription = await this.openai.audio.transcriptions.create({
-        file: audioFile,
+        file: audioStream,
         model: 'whisper-1',
         language: options?.language,
         prompt: options?.prompt,
@@ -110,21 +115,21 @@ export class SpeechService {
         throw new Error('Audio buffer exceeds 25MB limit for Whisper API')
       }
 
-      // Save audio files to system tmp directory
-      const tempDir = '/tmp/work-planner-audio'
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true })
+      // Save audio files to persistent directory (survives reboots)
+      const audioDir = getAudioBackupDir()
+      if (!fs.existsSync(audioDir)) {
+        fs.mkdirSync(audioDir, { recursive: true })
       }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-      const tempFilePath = path.join(tempDir, `audio_${timestamp}_${filename}`)
-      fs.writeFileSync(tempFilePath, audioBuffer)
-      logger.system.debug(`Audio file saved to: ${tempFilePath}`)
+      const savedFilePath = path.join(audioDir, `audio_${timestamp}_${filename}`)
+      fs.writeFileSync(savedFilePath, audioBuffer)
+      logger.system.debug(`Audio file saved to: ${savedFilePath}`)
 
-      const result = await this.transcribeAudio(tempFilePath, options)
+      const result = await this.transcribeAudio(savedFilePath, options)
       return {
         ...result,
-        savedPath: tempFilePath,
+        savedPath: savedFilePath,
       }
     } catch (error) {
       logger.system.error('Error transcribing audio buffer:', { error })
@@ -133,23 +138,6 @@ export class SpeechService {
       }
       throw new Error('Failed to transcribe audio buffer: Unknown error')
     }
-  }
-
-  /**
-   * Get MIME type for a file based on its extension
-   */
-  private getMimeType(filename: string): string {
-    const ext = path.extname(filename).toLowerCase().substring(1)
-    const mimeTypes: Record<string, string> = {
-      'mp3': 'audio/mpeg',
-      'mp4': 'audio/mp4',
-      'mpeg': 'audio/mpeg',
-      'mpga': 'audio/mpeg',
-      'm4a': 'audio/mp4',
-      'wav': 'audio/wav',
-      'webm': 'audio/webm',
-    }
-    return mimeTypes[ext] || 'application/octet-stream'
   }
 
   /**

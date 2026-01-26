@@ -327,7 +327,7 @@ Mark tasks/workflows/steps as not_started, in_progress, waiting, or completed.
 - **confidence**: 0.0 to 1.0
 
 ### 4. time_log
-Record actual time spent on tasks or steps.
+Record actual time spent on tasks or steps. Requires specific date and times.
 \`\`\`json
 {
   "type": "time_log",
@@ -336,10 +336,22 @@ Record actual time spent on tasks or steps.
     "name": "Task name",
     "confidence": 0.9
   },
-  "duration": 30
+  "date": "2025-01-24",
+  "startTime": "2025-01-24T09:00:00",
+  "endTime": "2025-01-24T10:30:00",
+  "description": "Optional description of work done"
 }
 \`\`\`
-- **duration**: Time in minutes (required, non-negative number)
+- **date**: ISO date string (REQUIRED) - which day the time was spent, e.g., "2025-01-24"
+- **startTime**: ISO datetime string (REQUIRED) - when work started, e.g., "2025-01-24T09:00:00"
+- **endTime**: ISO datetime string (REQUIRED) - when work ended, e.g., "2025-01-24T10:30:00"
+- **description**: Optional description of the work performed
+- **duration**: Optional - automatically calculated from startTime and endTime
+
+**IMPORTANT**: When user says "I did X for 90 minutes yesterday morning", you must:
+1. Determine the date (yesterday = calculate from today's date)
+2. Estimate reasonable start/end times (e.g., "morning" → 9:00 AM start)
+3. Calculate end time from duration (9:00 AM + 90 min = 10:30 AM)
 
 ### 5. note_addition
 Add or append notes to tasks/workflows/steps.

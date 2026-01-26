@@ -6,7 +6,7 @@
 import { Amendment, RawAmendment } from '@shared/amendment-types'
 import { ChatMessageRole } from '@shared/enums'
 import { validateWithRetry, ValidationLoopResult, parseAIResponse, transformAmendments } from '@shared/amendment-validator'
-import { validateAmendments } from '@shared/schema-generator'
+import { validateAmendments, formatValidationErrors } from '@shared/schema-generator'
 import { gatherAppContext, formatContextForAI, AppContext, JobContextData } from './chat-context-provider'
 import { generateSystemPrompt } from '../prompts/brainstorm-chat-system'
 import { getDatabase } from './database'
@@ -82,6 +82,19 @@ export async function sendChatMessage(options: SendMessageOptions): Promise<Send
     if (validationResult.valid) {
       // Transform raw amendments (with string dates) to proper Amendment objects (with Date objects)
       result.amendments = transformAmendments(parsed.amendments as RawAmendment[])
+    } else {
+      // Show validation errors to user instead of silently dropping amendments
+      const errorSummary = formatValidationErrors(validationResult)
+      logger.ui.warn('Amendment validation failed', {
+        errors: validationResult.errors,
+        amendmentCount: Array.isArray(parsed.amendments) ? parsed.amendments.length : 0,
+      }, 'amendment-validation-failed')
+
+      // Append error to response so user sees it
+      result.response = (result.response || '') +
+        '\n\n⚠️ **I tried to create amendments but they failed validation:**\n' +
+        errorSummary +
+        '\n\nPlease provide more specific times (e.g., "from 9am to 10:30am on Jan 24").'
     }
 
     return result

@@ -112,7 +112,8 @@ export async function handleWorkPatternModification(
           endTime: meetingEndStr,
           type: amendment.meetingData.type,
           recurring: amendment.meetingData.recurring || 'none', // Default to 'none' - Prisma requires non-null
-          daysOfWeek: amendment.meetingData.daysOfWeek || null,
+          // Zod schema uses .optional() which accepts undefined but NOT null
+          daysOfWeek: amendment.meetingData.daysOfWeek || undefined,
         }
 
         if (existingPattern) {
@@ -135,7 +136,8 @@ export async function handleWorkPatternModification(
               endTime: m.endTime,
               type: m.type,
               recurring: m.recurring || 'none', // Ensure non-null for Prisma
-              daysOfWeek: m.daysOfWeek,
+              // Convert null to undefined - Zod schema uses .optional() which rejects null
+              daysOfWeek: m.daysOfWeek ?? undefined,
             })), newMeeting],
           })
         } else {
@@ -198,7 +200,8 @@ export async function handleWorkPatternModification(
             endTime: m.endTime,
             type: m.type,
             recurring: m.recurring || 'none', // Ensure non-null for Prisma
-            daysOfWeek: m.daysOfWeek,
+            // Convert null to undefined - Zod schema uses .optional() which rejects null
+            daysOfWeek: m.daysOfWeek ?? undefined,
           })),
         })
 

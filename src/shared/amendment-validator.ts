@@ -19,6 +19,40 @@ import {
 import { AmendmentType } from './enums'
 import { safeParseDateString } from './time-utils'
 import { logger } from '../logger'
+import type { LocalDate, LocalTime } from './datetime-types'
+import { getCurrentLocalDate, getCurrentLocalTime } from './datetime-types'
+
+/**
+ * Extract LocalDate (YYYY-MM-DD) from an ISO date string
+ */
+function parseToLocalDate(isoString: string | undefined): LocalDate | null {
+  if (!isoString) return null
+  // Try to extract YYYY-MM-DD from the string
+  const match = isoString.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (match) return match[1] as LocalDate
+  // Try parsing as Date and extracting date part
+  const date = safeParseDateString(isoString)
+  if (date) return date.toISOString().split('T')[0] as LocalDate
+  return null
+}
+
+/**
+ * Extract LocalTime (HH:MM) from an ISO datetime string or time string
+ */
+function parseToLocalTime(timeString: string | undefined): LocalTime | null {
+  if (!timeString) return null
+  // Try to match HH:MM pattern anywhere in the string
+  const match = timeString.match(/(\d{2}:\d{2})/)
+  if (match) return match[1] as LocalTime
+  // Try parsing as Date and extracting time part
+  const date = safeParseDateString(timeString)
+  if (date) {
+    const hours = date.getHours().toString().padStart(2, '0')
+    const minutes = date.getMinutes().toString().padStart(2, '0')
+    return `${hours}:${minutes}` as LocalTime
+  }
+  return null
+}
 
 export interface ValidationLoopOptions {
   maxAttempts?: number  // Default: 5
@@ -257,12 +291,57 @@ function transformAmendment(raw: RawAmendment): Amendment {
   switch (raw.type) {
     case AmendmentType.TimeLog: {
       const rawTimeLog = raw as RawTimeLog
+      const startTime = safeParseDateString(rawTimeLog.startTime)
+      const endTime = safeParseDateString(rawTimeLog.endTime)
+
+      // Warn if times fail to parse (especially important when duration not provided)
+      if (rawTimeLog.startTime && !startTime) {
+        logger.system.warn('TimeLog startTime failed to parse', {
+          rawStartTime: rawTimeLog.startTime,
+        }, 'timelog-starttime-parse-failed')
+      }
+      if (rawTimeLog.endTime && !endTime) {
+        logger.system.warn('TimeLog endTime failed to parse', {
+          rawEndTime: rawTimeLog.endTime,
+        }, 'timelog-endtime-parse-failed')
+      }
+
+      // Calculate duration from start/end times if not provided
+      let duration = rawTimeLog.duration
+      if (duration === undefined && startTime && endTime) {
+        duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))
+        logger.system.debug('Calculated TimeLog duration from times', {
+          startTime: rawTimeLog.startTime,
+          endTime: rawTimeLog.endTime,
+          calculatedDuration: duration,
+        }, 'timelog-duration-calc')
+      } else if (duration === undefined && (!startTime || !endTime)) {
+        // Duration was not provided AND we couldn't calculate it from times
+        logger.system.warn('TimeLog duration will default to 0 (times not available for calculation)', {
+          hasDuration: rawTimeLog.duration !== undefined,
+          hasStartTime: !!startTime,
+          hasEndTime: !!endTime,
+          rawStartTime: rawTimeLog.startTime,
+          rawEndTime: rawTimeLog.endTime,
+        }, 'timelog-duration-fallback')
+      }
+
       const transformed: TimeLog = {
         ...rawTimeLog,
+        duration: duration ?? 0,
         date: safeParseDateString(rawTimeLog.date),
-        startTime: safeParseDateString(rawTimeLog.startTime),
-        endTime: safeParseDateString(rawTimeLog.endTime),
+        startTime,
+        endTime,
       }
+
+      logger.system.info('Transformed TimeLog amendment', {
+        target: transformed.target.name,
+        date: rawTimeLog.date,
+        startTime: rawTimeLog.startTime,
+        endTime: rawTimeLog.endTime,
+        duration: transformed.duration,
+      }, 'timelog-transform')
+
       return transformed
     }
 
@@ -283,7 +362,7 @@ function transformAmendment(raw: RawAmendment): Amendment {
 
     case AmendmentType.WorkPatternModification: {
       const rawPattern = raw as RawWorkPatternModification
-      const date = safeParseDateString(rawPattern.date)
+      const date = parseToLocalDate(rawPattern.date)
       if (!date) {
         logger.system.warn('WorkPatternModification has invalid date, using current date', {
           rawDate: rawPattern.date,
@@ -291,16 +370,16 @@ function transformAmendment(raw: RawAmendment): Amendment {
       }
       const transformed: WorkPatternModification = {
         ...rawPattern,
-        date: date || new Date(),
+        date: date || getCurrentLocalDate(),
         blockData: rawPattern.blockData ? {
           ...rawPattern.blockData,
-          startTime: safeParseDateString(rawPattern.blockData.startTime) || new Date(),
-          endTime: safeParseDateString(rawPattern.blockData.endTime) || new Date(),
+          startTime: parseToLocalTime(rawPattern.blockData.startTime) || getCurrentLocalTime(),
+          endTime: parseToLocalTime(rawPattern.blockData.endTime) || getCurrentLocalTime(),
         } : undefined,
         meetingData: rawPattern.meetingData ? {
           ...rawPattern.meetingData,
-          startTime: safeParseDateString(rawPattern.meetingData.startTime) || new Date(),
-          endTime: safeParseDateString(rawPattern.meetingData.endTime) || new Date(),
+          startTime: parseToLocalTime(rawPattern.meetingData.startTime) || getCurrentLocalTime(),
+          endTime: parseToLocalTime(rawPattern.meetingData.endTime) || getCurrentLocalTime(),
         } : undefined,
       }
       return transformed

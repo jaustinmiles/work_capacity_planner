@@ -14,116 +14,135 @@ import { AmendmentCardStatus, ChatMessageRole } from '../shared/enums'
 // Get scoped logger for main process
 const mainLogger = getScopedLogger(LogScope.System)
 
+// Check if we're in client mode (tRPC connects to remote server, no local DB)
+const isClientMode = process.env.TASK_PLANNER_MODE === 'client'
+
 // Initialize database service (declare it here for IPC handlers)
-let db: DatabaseService
+// In client mode, db will remain undefined - renderer uses tRPC instead
+let db: DatabaseService | undefined
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
-  // Initialize database service once when app is ready
-  db = DatabaseService.getInstance()
+  if (isClientMode) {
+    // Client mode: renderer uses tRPC to connect to remote server
+    // No local database needed
+    mainLogger.info('Running in CLIENT mode - no local database')
+    mainLogger.info('Server URL', { url: process.env.TASK_PLANNER_SERVER_URL })
+  } else {
+    // Local or server mode: initialize local database
+    db = DatabaseService.getInstance()
 
-  // Log database path for debugging
-  const dbPath = process.env.DATABASE_URL || 'file:./dev.db'
-  mainLogger.info('Database path', { path: dbPath })
-  mainLogger.info('Working directory', { cwd: process.cwd() })
+    // Log database path for debugging
+    const dbPath = process.env.DATABASE_URL || 'file:./dev.db'
+    mainLogger.info('Database path', { path: dbPath })
+    mainLogger.info('Working directory', { cwd: process.cwd() })
+  }
   mainLogger.info('Main process initialized successfully')
 })
 
+// Helper to get database instance, throws if in client mode
+function getDb(): DatabaseService {
+  if (isClientMode || !db) {
+    throw new Error('Database not available in client mode - use tRPC instead')
+  }
+  return db
+}
+
 // IPC handlers for database operations
+// In client mode, these won't be used (renderer uses tRPC)
 // Session management handlers
 ipcMain.handle('db:getSessions', async () => {
   mainLogger.info('Getting sessions...')
-  if (!db) db = DatabaseService.getInstance()
-  return await db.getSessions()
+  return await getDb().getSessions()
 })
 
 ipcMain.handle('db:createSession', async (_event: IpcMainInvokeEvent, name: string, description?: string) => {
-  return await db.createSession(name, description)
+  return await getDb().createSession(name, description)
 })
 
 ipcMain.handle('db:switchSession', async (_event: IpcMainInvokeEvent, sessionId: string) => {
-  return await db.switchSession(sessionId)
+  return await getDb().switchSession(sessionId)
 })
 
 ipcMain.handle('db:updateSession', async (_event: IpcMainInvokeEvent, id: string, updates: { name?: string; description?: string }) => {
-  return await db.updateSession(id, updates)
+  return await getDb().updateSession(id, updates)
 })
 
 ipcMain.handle('db:getCurrentSession', async () => {
-  return await db.getCurrentSession()
+  return await getDb().getCurrentSession()
 })
 
 ipcMain.handle('db:updateSchedulingPreferences', async (_event: IpcMainInvokeEvent, sessionId: string, updates: any) => {
-  return await db.updateSchedulingPreferences(sessionId, updates)
+  return await getDb().updateSchedulingPreferences(sessionId, updates)
 })
 
 ipcMain.handle('db:deleteSession', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteSession(id)
+  return await getDb().deleteSession(id)
 })
 
 // User task type handlers
 ipcMain.handle('db:getUserTaskTypes', async (_event: IpcMainInvokeEvent, sessionId?: string) => {
-  return await db.getUserTaskTypes(sessionId)
+  return await getDb().getUserTaskTypes(sessionId)
 })
 
 ipcMain.handle('db:getUserTaskTypeById', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.getUserTaskTypeById(id)
+  return await getDb().getUserTaskTypeById(id)
 })
 
 ipcMain.handle('db:createUserTaskType', async (_event: IpcMainInvokeEvent, input: any) => {
   // Inject the current session ID
-  const sessionId = await db.getActiveSession()
-  return await db.createUserTaskType({ ...input, sessionId })
+  const sessionId = await getDb().getActiveSession()
+  return await getDb().createUserTaskType({ ...input, sessionId })
 })
 
 ipcMain.handle('db:updateUserTaskType', async (_event: IpcMainInvokeEvent, id: string, updates: any) => {
-  return await db.updateUserTaskType(id, updates)
+  return await getDb().updateUserTaskType(id, updates)
 })
 
 ipcMain.handle('db:deleteUserTaskType', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteUserTaskType(id)
+  return await getDb().deleteUserTaskType(id)
 })
 
 ipcMain.handle('db:reorderUserTaskTypes', async (_event: IpcMainInvokeEvent, orderedIds: string[]) => {
   // Get the current session ID for the reorder operation
-  const sessionId = await db.getActiveSession()
-  return await db.reorderUserTaskTypes(sessionId, orderedIds)
+  const sessionId = await getDb().getActiveSession()
+  return await getDb().reorderUserTaskTypes(sessionId, orderedIds)
 })
 
 ipcMain.handle('db:sessionHasTaskTypes', async (_event: IpcMainInvokeEvent, sessionId?: string) => {
-  return await db.sessionHasTaskTypes(sessionId)
+  return await getDb().sessionHasTaskTypes(sessionId)
 })
 
 // Time sink handlers
 ipcMain.handle('db:getTimeSinks', async (_event: IpcMainInvokeEvent, sessionId?: string) => {
-  return await db.getTimeSinks(sessionId)
+  return await getDb().getTimeSinks(sessionId)
 })
 
 ipcMain.handle('db:getTimeSinkById', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.getTimeSinkById(id)
+  return await getDb().getTimeSinkById(id)
 })
 
 ipcMain.handle('db:createTimeSink', async (_event: IpcMainInvokeEvent, input: { name: string; emoji: string; color: string; typeId?: string; sortOrder?: number }) => {
-  const sessionId = await db.getActiveSession()
-  return await db.createTimeSink({ ...input, sessionId })
+  const sessionId = await getDb().getActiveSession()
+  return await getDb().createTimeSink({ ...input, sessionId })
 })
 
 ipcMain.handle('db:updateTimeSink', async (_event: IpcMainInvokeEvent, id: string, updates: { name?: string; emoji?: string; color?: string; typeId?: string | null; sortOrder?: number }) => {
-  return await db.updateTimeSink(id, updates)
+  return await getDb().updateTimeSink(id, updates)
 })
 
 ipcMain.handle('db:deleteTimeSink', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteTimeSink(id)
+  return await getDb().deleteTimeSink(id)
 })
 
 ipcMain.handle('db:reorderTimeSinks', async (_event: IpcMainInvokeEvent, orderedIds: string[]) => {
-  const sessionId = await db.getActiveSession()
-  return await db.reorderTimeSinks(sessionId, orderedIds)
+  const sessionId = await getDb().getActiveSession()
+  return await getDb().reorderTimeSinks(sessionId, orderedIds)
 })
 
 // Time sink session handlers
 ipcMain.handle('db:createTimeSinkSession', async (_event: IpcMainInvokeEvent, data: { timeSinkId: string; startTime: string; endTime?: string; actualMinutes?: number; notes?: string }) => {
-  return await db.createTimeSinkSession({
+  return await getDb().createTimeSinkSession({
     ...data,
     startTime: new Date(data.startTime),
     endTime: data.endTime ? new Date(data.endTime) : undefined,
@@ -131,253 +150,259 @@ ipcMain.handle('db:createTimeSinkSession', async (_event: IpcMainInvokeEvent, da
 })
 
 ipcMain.handle('db:endTimeSinkSession', async (_event: IpcMainInvokeEvent, id: string, actualMinutes: number, notes?: string) => {
-  return await db.endTimeSinkSession(id, actualMinutes, notes)
+  return await getDb().endTimeSinkSession(id, actualMinutes, notes)
 })
 
 ipcMain.handle('db:getTimeSinkSessions', async (_event: IpcMainInvokeEvent, timeSinkId: string) => {
-  return await db.getTimeSinkSessions(timeSinkId)
+  return await getDb().getTimeSinkSessions(timeSinkId)
 })
 
 ipcMain.handle('db:getTimeSinkSessionsByDate', async (_event: IpcMainInvokeEvent, date: string) => {
-  return await db.getTimeSinkSessionsByDate(date)
+  return await getDb().getTimeSinkSessionsByDate(date)
 })
 
 ipcMain.handle('db:getActiveTimeSinkSession', async () => {
-  return await db.getActiveTimeSinkSession()
+  return await getDb().getActiveTimeSinkSession()
 })
 
 ipcMain.handle('db:getTimeSinkAccumulated', async (_event: IpcMainInvokeEvent, startDate: string, endDate: string) => {
-  return await db.getTimeSinkAccumulated(startDate, endDate)
+  return await getDb().getTimeSinkAccumulated(startDate, endDate)
 })
 
 ipcMain.handle('db:deleteTimeSinkSession', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteTimeSinkSession(id)
+  return await getDb().deleteTimeSinkSession(id)
 })
 
 ipcMain.handle('db:getTasks', async (_event: IpcMainInvokeEvent, includeArchived = false) => {
   mainLogger.info('Getting tasks from database...', { includeArchived })
-  const tasks = await db.getTasks(includeArchived)
+  const tasks = await getDb().getTasks(includeArchived)
   mainLogger.info(`Found ${tasks.length} tasks`)
   return tasks
 })
 
 ipcMain.handle('db:getSequencedTasks', async () => {
-  return await db.getSequencedTasks()
+  return await getDb().getSequencedTasks()
 })
 
 ipcMain.handle('db:createTask', async (_event: IpcMainInvokeEvent, taskData: Partial<Task>) => {
-  return await db.createTask(taskData as Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>)
+  return await getDb().createTask(taskData as Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'sessionId'>)
 })
 
 ipcMain.handle('db:createSequencedTask', async (_event: IpcMainInvokeEvent, taskData: unknown) => {
-  return await db.createSequencedTask(taskData)
+  return await getDb().createSequencedTask(taskData)
 })
 
 ipcMain.handle('db:updateTask', async (_event: IpcMainInvokeEvent, id: string, updates: Partial<Task>) => {
-  return await db.updateTask(id, updates)
+  return await getDb().updateTask(id, updates)
 })
 
 ipcMain.handle('db:updateSequencedTask', async (_event: IpcMainInvokeEvent, id: string, updates: unknown) => {
-  return await db.updateSequencedTask(id, updates)
+  return await getDb().updateSequencedTask(id, updates)
 })
 ipcMain.handle('db:addStepToWorkflow', async (_event: IpcMainInvokeEvent, workflowId: string, stepData: Partial<TaskStep>) => {
-  return await db.addStepToWorkflow(workflowId, stepData as any)
+  return await getDb().addStepToWorkflow(workflowId, stepData as any)
 })
 
 ipcMain.handle('db:deleteTask', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteTask(id)
+  return await getDb().deleteTask(id)
 })
 
 ipcMain.handle('db:archiveTask', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.archiveTask(id)
+  return await getDb().archiveTask(id)
 })
 
 ipcMain.handle('db:unarchiveTask', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.unarchiveTask(id)
+  return await getDb().unarchiveTask(id)
 })
 
 ipcMain.handle('db:promoteTaskToWorkflow', async (_event: IpcMainInvokeEvent, taskId: string) => {
-  return await db.promoteTaskToWorkflow(taskId)
+  return await getDb().promoteTaskToWorkflow(taskId)
 })
 
 ipcMain.handle('db:deleteSequencedTask', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteSequencedTask(id)
+  return await getDb().deleteSequencedTask(id)
 })
 
 ipcMain.handle('db:initializeDefaultData', async () => {
-  return await db.initializeDefaultData()
+  return await getDb().initializeDefaultData()
 })
 
 ipcMain.handle('db:getTaskById', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.getTaskById(id)
+  return await getDb().getTaskById(id)
 })
 
 ipcMain.handle('db:getSequencedTaskById', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.getSequencedTaskById(id)
+  return await getDb().getSequencedTaskById(id)
 })
 
 // Job context handlers
 ipcMain.handle('db:getJobContexts', async () => {
-  return await db.getJobContexts()
+  return await getDb().getJobContexts()
 })
 
 ipcMain.handle('db:getActiveJobContext', async () => {
-  return await db.getActiveJobContext()
+  return await getDb().getActiveJobContext()
 })
 
 ipcMain.handle('db:createJobContext', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.createJobContext(data as any)
+  return await getDb().createJobContext(data as any)
 })
 
 ipcMain.handle('db:updateJobContext', async (_event: IpcMainInvokeEvent, id: string, updates: unknown) => {
-  return await db.updateJobContext(id, updates as any)
+  return await getDb().updateJobContext(id, updates as any)
 })
 
 ipcMain.handle('db:deleteJobContext', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteJobContext(id)
+  return await getDb().deleteJobContext(id)
 })
 
 ipcMain.handle('db:addContextEntry', async (_event: IpcMainInvokeEvent, jobContextId: string, entry: unknown) => {
-  return await db.addContextEntry(jobContextId, entry)
+  return await getDb().addContextEntry(jobContextId, entry)
 })
 
 // Jargon dictionary handlers
 ipcMain.handle('db:getJargonEntries', async () => {
-  return await db.getJargonEntries()
+  return await getDb().getJargonEntries()
 })
 
 ipcMain.handle('db:createJargonEntry', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.createJargonEntry(data as any)
+  return await getDb().createJargonEntry(data as any)
 })
 
 ipcMain.handle('db:updateJargonEntry', async (_event: IpcMainInvokeEvent, id: string, updates: unknown) => {
-  return await db.updateJargonEntry(id, updates as any)
+  return await getDb().updateJargonEntry(id, updates as any)
 })
 
 ipcMain.handle('db:updateJargonDefinition', async (_event: IpcMainInvokeEvent, term: string, definition: string) => {
-  return await db.updateJargonDefinition(term, definition)
+  return await getDb().updateJargonDefinition(term, definition)
 })
 
 ipcMain.handle('db:deleteJargonEntry', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteJargonEntry(id)
+  return await getDb().deleteJargonEntry(id)
 })
 
 ipcMain.handle('db:getJargonDictionary', async () => {
-  return await db.getJargonDictionary()
+  return await getDb().getJargonDictionary()
 })
 
 // Conversation & Chat Message handlers
 ipcMain.handle('db:getConversations', async () => {
-  return await db.getConversations()
+  return await getDb().getConversations()
 })
 
 ipcMain.handle('db:getConversationById', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.getConversationById(id)
+  return await getDb().getConversationById(id)
 })
 
 ipcMain.handle('db:createConversation', async (_event: IpcMainInvokeEvent, data: { title?: string; jobContextId?: string }) => {
-  return await db.createConversation(data)
+  return await getDb().createConversation(data)
 })
 
 ipcMain.handle('db:updateConversation', async (_event: IpcMainInvokeEvent, id: string, updates: { title?: string; jobContextId?: string | null; isArchived?: boolean }) => {
-  return await db.updateConversation(id, updates)
+  return await getDb().updateConversation(id, updates)
 })
 
 ipcMain.handle('db:deleteConversation', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteConversation(id)
+  return await getDb().deleteConversation(id)
 })
 
 ipcMain.handle('db:getChatMessages', async (_event: IpcMainInvokeEvent, conversationId: string) => {
-  return await db.getChatMessages(conversationId)
+  return await getDb().getChatMessages(conversationId)
 })
 
 ipcMain.handle('db:createChatMessage', async (_event: IpcMainInvokeEvent, data: { conversationId: string; role: ChatMessageRole; content: string; amendments?: AmendmentCard[] }) => {
-  return await db.createChatMessage(data)
+  return await getDb().createChatMessage(data)
 })
 
 ipcMain.handle('db:updateMessageAmendmentStatus', async (_event: IpcMainInvokeEvent, messageId: string, cardId: string, status: AmendmentCardStatus) => {
-  return await db.updateMessageAmendmentStatus(messageId, cardId, status)
+  return await getDb().updateMessageAmendmentStatus(messageId, cardId, status)
 })
 
 ipcMain.handle('db:deleteChatMessage', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteChatMessage(id)
+  return await getDb().deleteChatMessage(id)
 })
 
 // Development helpers
 ipcMain.handle('db:deleteAllTasks', async () => {
-  return await db.deleteAllTasks()
+  return await getDb().deleteAllTasks()
 })
 
 ipcMain.handle('db:deleteAllSequencedTasks', async () => {
-  return await db.deleteAllSequencedTasks()
+  return await getDb().deleteAllSequencedTasks()
 })
 
 ipcMain.handle('db:deleteAllUserData', async () => {
-  return await db.deleteAllUserData()
+  return await getDb().deleteAllUserData()
 })
 
 // Log persistence handlers (dev mode only)
+// In client mode, logs are not persisted locally - silently return
 ipcMain.handle('log:persist', async (_event: IpcMainInvokeEvent, logEntry: any) => {
-  return await db.persistLog(logEntry)
+  if (isClientMode) return // No local database in client mode
+  return await getDb().persistLog(logEntry)
 })
 
 ipcMain.handle('log:persistBatch', async (_event: IpcMainInvokeEvent, logs: any[]) => {
-  return await db.persistLogs(logs)
+  if (isClientMode) return // No local database in client mode
+  return await getDb().persistLogs(logs)
 })
 
 // Log retrieval handlers for LogViewer (dev mode)
+// In client mode, return empty results
 ipcMain.handle('log:getSessionLogs', async (_event: IpcMainInvokeEvent, options?: LogQueryOptions) => {
+  if (isClientMode) return [] // No local logs in client mode
   const parsedOptions = options ? {
     ...options,
     since: options.since ? new Date(options.since) : undefined,
   } : undefined
-  return await db.getSessionLogs(parsedOptions)
+  return await getDb().getSessionLogs(parsedOptions)
 })
 
 ipcMain.handle('log:getLoggedSessions', async () => {
-  return await db.getLoggedSessions()
+  if (isClientMode) return [] // No local logs in client mode
+  return await getDb().getLoggedSessions()
 })
 
 // Work pattern handlers
 ipcMain.handle('db:getWorkPattern', async (_event: IpcMainInvokeEvent, date: string) => {
-  return await db.getWorkPattern(date)
+  return await getDb().getWorkPattern(date)
 })
 
 ipcMain.handle('db:getWorkPatterns', async () => {
-  return await db.getWorkPatterns()
+  return await getDb().getWorkPatterns()
 })
 
 ipcMain.handle('db:createWorkPattern', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.createWorkPattern(data as any)
+  return await getDb().createWorkPattern(data as any)
 })
 
 ipcMain.handle('db:updateWorkPattern', async (_event: IpcMainInvokeEvent, id: string, data: unknown) => {
-  return await db.updateWorkPattern(id, data as any)
+  return await getDb().updateWorkPattern(id, data as any)
 })
 
 ipcMain.handle('db:deleteWorkPattern', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteWorkPattern(id)
+  return await getDb().deleteWorkPattern(id)
 })
 
 ipcMain.handle('db:getWorkTemplates', async () => {
-  return await db.getWorkTemplates()
+  return await getDb().getWorkTemplates()
 })
 
 ipcMain.handle('db:saveAsTemplate', async (_event: IpcMainInvokeEvent, date: string, templateName: string) => {
-  return await db.saveAsTemplate(date, templateName)
+  return await getDb().saveAsTemplate(date, templateName)
 })
 
 // Work session handlers
 ipcMain.handle('db:createWorkSession', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.createWorkSession(data as any)
+  return await getDb().createWorkSession(data as any)
 })
 
 ipcMain.handle('db:updateWorkSession', async (_event: IpcMainInvokeEvent, id: string, data: unknown) => {
-  return await db.updateWorkSession(id, data)
+  return await getDb().updateWorkSession(id, data)
 })
 
 ipcMain.handle('db:deleteWorkSession', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteWorkSession(id)
+  return await getDb().deleteWorkSession(id)
 })
 
 ipcMain.handle(
@@ -389,77 +414,77 @@ ipcMain.handle(
     secondHalfTaskId?: string,
     secondHalfStepId?: string,
   ) => {
-    return await db.splitWorkSession(sessionId, new Date(splitTime), secondHalfTaskId, secondHalfStepId)
+    return await getDb().splitWorkSession(sessionId, new Date(splitTime), secondHalfTaskId, secondHalfStepId)
   },
 )
 
 ipcMain.handle(
   'db:splitTimeSinkSession',
   async (_event: IpcMainInvokeEvent, sessionId: string, splitTime: string) => {
-    return await db.splitTimeSinkSession(sessionId, new Date(splitTime))
+    return await getDb().splitTimeSinkSession(sessionId, new Date(splitTime))
   },
 )
 
 ipcMain.handle('db:getWorkSessionsForTask', async (_event: IpcMainInvokeEvent, taskId: string) => {
-  return await db.getWorkSessionsForTask(taskId)
+  return await getDb().getWorkSessionsForTask(taskId)
 })
 
 ipcMain.handle('db:getWorkSessions', async (_event: IpcMainInvokeEvent, date: string) => {
-  return await db.getWorkSessions(date)
+  return await getDb().getWorkSessions(date)
 })
 
 ipcMain.handle('db:getActiveWorkSession', async () => {
-  return await db.getActiveWorkSession()
+  return await getDb().getActiveWorkSession()
 })
 
 ipcMain.handle('db:getTaskTotalLoggedTime', async (_event: IpcMainInvokeEvent, taskId: string) => {
-  return await db.getTaskTotalLoggedTime(taskId)
+  return await getDb().getTaskTotalLoggedTime(taskId)
 })
 
 ipcMain.handle('db:getTodayAccumulated', async (_event: IpcMainInvokeEvent, date: string) => {
-  return await db.getTodayAccumulated(date)
+  return await getDb().getTodayAccumulated(date)
 })
 
 // Progress tracking handlers
 ipcMain.handle('db:createStepWorkSession', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.createStepWorkSession(data)
+  return await getDb().createStepWorkSession(data)
 })
 
 ipcMain.handle('db:updateTaskStepProgress', async (_event: IpcMainInvokeEvent, stepId: string, data: unknown) => {
-  return await db.updateTaskStepProgress(stepId, data)
+  return await getDb().updateTaskStepProgress(stepId, data)
 })
 
 ipcMain.handle('db:getStepWorkSessions', async (_event: IpcMainInvokeEvent, stepId: string) => {
-  return await db.getStepWorkSessions(stepId)
+  return await getDb().getStepWorkSessions(stepId)
 })
 
 ipcMain.handle('db:recordTimeEstimate', async (_event: IpcMainInvokeEvent, data: unknown) => {
-  return await db.recordTimeEstimate(data)
+  return await getDb().recordTimeEstimate(data)
 })
 
 ipcMain.handle('db:getTimeAccuracyStats', async (_event: IpcMainInvokeEvent, filters?: unknown) => {
-  return await db.getTimeAccuracyStats(filters)
+  return await getDb().getTimeAccuracyStats(filters)
 })
 
 // Schedule snapshot handlers
 ipcMain.handle('db:createScheduleSnapshot', async (_event: IpcMainInvokeEvent, data: unknown, label?: string) => {
-  return await db.createScheduleSnapshot(data as Parameters<typeof db.createScheduleSnapshot>[0], label)
+  return await getDb().createScheduleSnapshot(data as Parameters<DatabaseService['createScheduleSnapshot']>[0], label)
 })
 
 ipcMain.handle('db:getScheduleSnapshots', async (_event: IpcMainInvokeEvent, sessionId?: string) => {
-  return await db.getScheduleSnapshots(sessionId)
+  return await getDb().getScheduleSnapshots(sessionId)
 })
 
 ipcMain.handle('db:getScheduleSnapshotById', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.getScheduleSnapshotById(id)
+  return await getDb().getScheduleSnapshotById(id)
 })
 
 ipcMain.handle('db:getTodayScheduleSnapshot', async () => {
-  return await db.getTodayScheduleSnapshot()
+  return await getDb().getTodayScheduleSnapshot()
 })
 
 ipcMain.handle('db:deleteScheduleSnapshot', async (_event: IpcMainInvokeEvent, id: string) => {
-  return await db.deleteScheduleSnapshot(id)
+  return await getDb().deleteScheduleSnapshot(id)
 })
 
 // AI operation handlers
@@ -518,7 +543,7 @@ ipcMain.handle('ai:parseAmendment', async (_event: IpcMainInvokeEvent, transcrip
 
   // Fetch job contexts to provide domain knowledge to the AI
   try {
-    const jobContexts = await db.getJobContexts()
+    const jobContexts = await getDb().getJobContexts()
     if (jobContexts && jobContexts.length > 0) {
       (context as any).jobContexts = jobContexts
       mainLogger.debug('Including job contexts in amendment parsing', { count: jobContexts.length })

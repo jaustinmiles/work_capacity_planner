@@ -90,12 +90,12 @@ describe('WorkTrackingService', () => {
       expect(session.taskId).toBe(taskId)
       expect(session.taskName).toBe('Test Task')
       expect(session.startTime).toBeInstanceOf(Date)
-      expect(session.plannedMinutes).toBe(60) // UnifiedWorkSession has default 60 minutes
+      expect(session.plannedMinutes).toBeUndefined() // No magic defaults - uses task duration if available
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
           taskId,
           type: '', // User-defined types - service doesn't know task type
-          date: expect.any(String),
+          startTime: expect.any(Date),
         }),
       )
     })
@@ -146,7 +146,7 @@ describe('WorkTrackingService', () => {
     })
 
     it('should handle database errors gracefully', async () => {
-      mockDatabase.getCurrentSession.mockRejectedValue(new Error('Database connection failed'))
+      mockDatabase.getTaskById.mockRejectedValue(new Error('Database connection failed'))
 
       await expect(
         service.startWorkSession('task-1'),

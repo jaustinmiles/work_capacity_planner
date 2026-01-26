@@ -15,11 +15,13 @@ import type {
 } from '@shared/amendment-types'
 import { EntityType, TaskStatus } from '@shared/amendment-types'
 import { getCurrentTime } from '@shared/time-provider'
+import { dateToYYYYMMDD, safeParseDateString } from '@shared/time-utils'
 import type { Task, TaskStep } from '@shared/types'
 import type { HandlerContext } from './types'
 import { Message } from '../../components/common/Message'
 import { findStepByName, findStepIndexByName } from './step-utils'
 import { resolveTaskType } from './task-type-utils'
+import { logger } from '@/logger'
 
 export async function handleStatusUpdate(
   amendment: StatusUpdate,
@@ -75,6 +77,14 @@ export async function handleTimeLog(
   amendment: TimeLog,
   ctx: HandlerContext,
 ): Promise<void> {
+  logger.ui.info('handleTimeLog called', {
+    targetId: amendment.target.id,
+    targetName: amendment.target.name,
+    duration: amendment.duration,
+    date: String(amendment.date),
+    stepName: amendment.stepName,
+  }, 'timelog-handler-start')
+
   if (amendment.target.id) {
     if (amendment.stepName) {
       // Log time for workflow step
@@ -83,37 +93,92 @@ export async function handleTimeLog(
         const step = findStepByName(workflow.steps, amendment.stepName)
         if (step) {
           // Create work session for the step
+          // Date may be a Date object (fresh from AI) or string (after database round-trip)
+          const stepDateObj = typeof amendment.date === 'string'
+            ? safeParseDateString(amendment.date) || getCurrentTime()
+            : amendment.date || getCurrentTime()
+
+          // Parse startTime and endTime - may be Date objects or strings after DB round-trip
+          const startTimeObj = typeof amendment.startTime === 'string'
+            ? safeParseDateString(amendment.startTime)
+            : amendment.startTime
+          const endTimeObj = typeof amendment.endTime === 'string'
+            ? safeParseDateString(amendment.endTime)
+            : amendment.endTime
+
           await ctx.db.createWorkSession({
             stepId: step.id,
             taskId: workflow.id,
-            date: amendment.date || getCurrentTime(),
+            startTime: startTimeObj || stepDateObj,
+            endTime: endTimeObj,
             plannedMinutes: step.duration,
             actualMinutes: amendment.duration,
             description: amendment.description || `Time logged for step: ${step.name}`,
             type: step.type as any,
           })
+          logger.ui.info('Work session created for step', {
+            stepId: step.id,
+            workflowId: workflow.id,
+            actualMinutes: amendment.duration,
+          }, 'timelog-step-success')
         } else {
+          logger.ui.warn('Step not found for time log', {
+            stepName: amendment.stepName,
+            workflowName: workflow.name,
+          }, 'timelog-step-not-found')
           ctx.markFailed(`Step "${amendment.stepName}" not found in workflow "${workflow.name}"`)
         }
       } else {
+        logger.ui.warn('Workflow not found for time log', {
+          targetName: amendment.target.name,
+        }, 'timelog-workflow-not-found')
         ctx.markFailed(`Workflow not found or has no steps for target "${amendment.target.name}"`)
       }
     } else {
       // Log time for task - look up task's type from database
-      // Use toISOString for consistent UTC date format in storage
+      // Date may be a Date object (fresh from AI) or string (after database round-trip)
+      // Handle both cases safely - same pattern as work-pattern-amendments.ts
       const task = await ctx.db.getTaskById(amendment.target.id)
-      const dateStr = amendment.date
-        ? amendment.date.toISOString().split('T')[0]
-        : getCurrentTime().toISOString().split('T')[0]
+      const dateObj = typeof amendment.date === 'string'
+        ? safeParseDateString(amendment.date) || getCurrentTime()
+        : amendment.date || getCurrentTime()
+      const dateStr = dateToYYYYMMDD(dateObj)
+
+      // Parse startTime and endTime - may be Date objects or strings after DB round-trip
+      const startTimeObj = typeof amendment.startTime === 'string'
+        ? safeParseDateString(amendment.startTime)
+        : amendment.startTime
+      const endTimeObj = typeof amendment.endTime === 'string'
+        ? safeParseDateString(amendment.endTime)
+        : amendment.endTime
+
+      logger.ui.debug('Creating work session for task', {
+        taskId: amendment.target.id,
+        dateStr,
+        startTime: startTimeObj?.toISOString(),
+        endTime: endTimeObj?.toISOString(),
+        actualMinutes: amendment.duration,
+      }, 'timelog-task-creating')
+
       await ctx.db.createWorkSession({
         taskId: amendment.target.id,
-        date: dateStr,
+        startTime: startTimeObj || dateObj,
+        endTime: endTimeObj,
         plannedMinutes: amendment.duration,
         actualMinutes: amendment.duration,
         type: task?.type || '',
       })
+
+      logger.ui.info('Work session created for task', {
+        taskId: amendment.target.id,
+        dateStr,
+        actualMinutes: amendment.duration,
+      }, 'timelog-task-success')
     }
   } else {
+    logger.ui.warn('TimeLog target has no ID', {
+      targetName: amendment.target.name,
+    }, 'timelog-no-target-id')
     ctx.markFailed(`Cannot log time for "${amendment.target.name}" - target not found in database`)
   }
 }

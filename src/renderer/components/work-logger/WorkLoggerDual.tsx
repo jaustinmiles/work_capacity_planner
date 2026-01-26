@@ -101,7 +101,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const todaySnapshot = useTodaySnapshot()
   const [sessionToDelete, setSessionToDelete] = useState<WorkSessionData | null>(null)
 
-  const { tasks, sequencedTasks, loadTasks, activeWorkSessions } = useTaskStore()
+  const { tasks, sequencedTasks, loadTasks, activeWorkSessions, workSessionsVersion } = useTaskStore()
   const { isCompact, isMobile, isDesktop, isUltraWide, isSuperUltraWide } = useResponsive()
   const { workLoggerLayout, swimLaneDayCount } = useLayoutStore()
   const userTaskTypes = useSortedUserTaskTypes()
@@ -161,14 +161,15 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
     return () => clearInterval(timer)
   }, [visible, activeWorkSessions.size, activeSinkSession])
 
-  // Load sessions when date changes or modal opens
+  // Load sessions when date changes, modal opens, or work sessions are modified externally
+  // workSessionsVersion changes when amendments create/modify work sessions
   useEffect(() => {
     if (visible) {
       loadWorkSessions()
       loadTasks()
       loadPreferences()
     }
-  }, [selectedDate, visible])
+  }, [selectedDate, visible, workSessionsVersion])
 
   // Auto-enable planned overlay when today's snapshot exists
   // This ensures the frozen schedule comparison persists across modal close/reopen
@@ -407,8 +408,8 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
       const endTime = dateBase.hour(Math.floor(endMinutes / 60)).minute(endMinutes % 60).second(0)
       const actualMinutes = endMinutes - startMinutes
 
-      // Create the time sink session via electron API
-      const session = await window.electronAPI.db.createTimeSinkSession({
+      // Create the time sink session via database service
+      const session = await getDatabase().createTimeSinkSession({
         timeSinkId: sinkId,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),

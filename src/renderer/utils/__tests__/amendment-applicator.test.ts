@@ -191,7 +191,8 @@ describe('Amendment Applicator', () => {
 
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith({
         taskId: 'task-1',
-        date: expect.any(String),
+        startTime: expect.any(Date),
+        endTime: undefined,
         plannedMinutes: 120,
         actualMinutes: 120,
         type: '', // User-defined task type - empty means unspecified
@@ -200,7 +201,8 @@ describe('Amendment Applicator', () => {
     })
 
     it('should log time with specific date', async () => {
-      const specificDate = new Date('2024-01-15')
+      // Use local midnight (not UTC) to avoid timezone issues with dateToYYYYMMDD()
+      const specificDate = new Date(2024, 0, 15)  // January 15, 2024 local time
       const amendment: TimeLog = {
         type: 'time_log',
         target: {
@@ -219,7 +221,8 @@ describe('Amendment Applicator', () => {
 
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith({
         taskId: 'task-1',
-        date: '2024-01-15',
+        startTime: specificDate,  // Uses the date as startTime when no explicit startTime provided
+        endTime: undefined,
         plannedMinutes: 60,
         actualMinutes: 60,
         type: '', // User-defined task type - empty means unspecified
@@ -255,7 +258,8 @@ describe('Amendment Applicator', () => {
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith({
         stepId: 'step-2',
         taskId: 'wf-1',
-        date: expect.any(Date),
+        startTime: expect.any(Date),
+        endTime: undefined,
         plannedMinutes: 45,
         actualMinutes: 90,
         description: 'Time logged for step: Testing',
@@ -509,7 +513,7 @@ describe('Amendment Applicator', () => {
       expect(Message.success).toHaveBeenCalledWith('Applied 1 amendment')
     })
 
-    it('should warn when workflow target is not found', async () => {
+    it('should fail fast when workflow target is not found', async () => {
       const amendment: StepAddition = {
         type: 'step_addition',
         workflowTarget: {
@@ -521,11 +525,12 @@ describe('Amendment Applicator', () => {
         duration: 30,
       }
 
-      await applyAmendments([amendment])
+      const result = await applyAmendments([amendment])
 
-      expect(Message.warning).toHaveBeenCalledWith(
-        'Cannot add step to Unknown Workflow - workflow not found',
-      )
+      // Fail-fast: target resolution failure is caught early and recorded as error
+      expect(result.errorCount).toBe(1)
+      expect(result.successCount).toBe(0)
+      expect(Message.error).toHaveBeenCalledWith('Failed to apply 1 amendment')
     })
   })
 

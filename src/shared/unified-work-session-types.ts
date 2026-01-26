@@ -35,9 +35,9 @@ export interface UnifiedWorkSession {
 
   // Time tracking (aligns with database schema)
   startTime: Date
-  endTime?: Date         // null = in progress, Date = completed
-  plannedMinutes: number // Estimated duration
-  actualMinutes?: number // null = in progress, number = completed duration
+  endTime?: Date          // undefined = in progress, Date = completed
+  plannedMinutes?: number // Estimated duration (undefined if not specified)
+  actualMinutes?: number  // undefined = in progress, number = completed duration
 
   // Type and context
   /** User-defined task type ID - references UserTaskType.id */
@@ -205,7 +205,7 @@ export function createUnifiedWorkSession(params: {
   taskId: string
   stepId?: string
   type: string  // User-defined type ID
-  plannedMinutes: number
+  plannedMinutes?: number  // Optional - undefined if task has no duration estimate
   workflowId?: string
   taskName?: string
   stepName?: string

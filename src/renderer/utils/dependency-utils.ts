@@ -8,13 +8,29 @@ import { logger } from '@/logger'
  */
 
 /**
+ * Result of applying dependency changes
+ */
+export interface DependencyChangeResult {
+  added: string[]
+  removed: string[]
+  notFound: string[]
+}
+
+/**
  * Apply forward dependency changes to a step
+ * Returns information about what was changed and what failed
  */
 export function applyForwardDependencyChanges(
   step: TaskStep,
   change: DependencyChange,
   allSteps: TaskStep[],
-): void {
+): DependencyChangeResult {
+  const result: DependencyChangeResult = {
+    added: [],
+    removed: [],
+    notFound: [],
+  }
+
   // Add new forward dependencies
   if (change.addDependencies && change.addDependencies.length > 0) {
     for (const depName of change.addDependencies) {
@@ -22,9 +38,15 @@ export function applyForwardDependencyChanges(
       const depStep = allSteps.find(s =>
         s.name.toLowerCase() === depName.toLowerCase(),
       )
-      if (depStep && !step.dependsOn.includes(depStep.id)) {
-        step.dependsOn.push(depStep.id)
-        logger.ui.info('Added forward dependency', { depStep: depStep.name, step: step.name })
+      if (depStep) {
+        if (!step.dependsOn.includes(depStep.id)) {
+          step.dependsOn.push(depStep.id)
+          result.added.push(depName)
+          logger.ui.info('Added forward dependency', { depStep: depStep.name, step: step.name })
+        }
+      } else {
+        result.notFound.push(depName)
+        logger.ui.warn('Forward dependency not found', { depName, step: step.name })
       }
     }
   }
@@ -36,30 +58,52 @@ export function applyForwardDependencyChanges(
         s.name.toLowerCase() === depName.toLowerCase(),
       )
       if (depStep) {
+        const beforeLen = step.dependsOn.length
         step.dependsOn = step.dependsOn.filter(id => id !== depStep.id)
-        logger.ui.info('Removed forward dependency', { depStep: depStep.name, step: step.name })
+        if (step.dependsOn.length < beforeLen) {
+          result.removed.push(depName)
+          logger.ui.info('Removed forward dependency', { depStep: depStep.name, step: step.name })
+        }
+      } else {
+        result.notFound.push(depName)
+        logger.ui.warn('Forward dependency to remove not found', { depName, step: step.name })
       }
     }
   }
+
+  return result
 }
 
 /**
  * Apply reverse dependency changes (update other steps to depend on this one)
+ * Returns information about what was changed and what failed
  */
 export function applyReverseDependencyChanges(
   targetStep: TaskStep,
   change: DependencyChange,
   allSteps: TaskStep[],
-): void {
+): DependencyChangeResult {
+  const result: DependencyChangeResult = {
+    added: [],
+    removed: [],
+    notFound: [],
+  }
+
   // Add reverse dependencies (make other steps depend on this one)
   if (change.addDependents && change.addDependents.length > 0) {
     for (const dependentName of change.addDependents) {
       const dependentStep = allSteps.find(s =>
         s.name.toLowerCase() === dependentName.toLowerCase(),
       )
-      if (dependentStep && !dependentStep.dependsOn.includes(targetStep.id)) {
-        dependentStep.dependsOn.push(targetStep.id)
-        logger.ui.info('Added reverse dependency', { dependent: dependentStep.name, target: targetStep.name })
+      if (dependentStep) {
+        if (!dependentStep.dependsOn.includes(targetStep.id)) {
+          dependentStep.dependsOn.push(targetStep.id)
+          result.added.push(dependentName)
+          logger.ui.info('Added reverse dependency', { dependent: dependentStep.name, target: targetStep.name })
+        }
+      } else {
+        result.notFound.push(dependentName)
+        logger.ui.warn('Reverse dependency target not found', { dependentName, target: targetStep.name })
       }
     }
   }
@@ -71,13 +115,22 @@ export function applyReverseDependencyChanges(
         s.name.toLowerCase() === dependentName.toLowerCase(),
       )
       if (dependentStep) {
+        const beforeLen = dependentStep.dependsOn.length
         dependentStep.dependsOn = dependentStep.dependsOn.filter(
           id => id !== targetStep.id,
         )
-        logger.ui.info('Removed reverse dependency', { dependent: dependentStep.name, target: targetStep.name })
+        if (dependentStep.dependsOn.length < beforeLen) {
+          result.removed.push(dependentName)
+          logger.ui.info('Removed reverse dependency', { dependent: dependentStep.name, target: targetStep.name })
+        }
+      } else {
+        result.notFound.push(dependentName)
+        logger.ui.warn('Reverse dependency to remove not found', { dependentName, target: targetStep.name })
       }
     }
   }
+
+  return result
 }
 
 /**
@@ -230,4 +283,38 @@ export function directToAmendmentDependencies(
     addDependents,
     removeDependents,
   }
+}
+
+/**
+ * Format dependency IDs as a comma-separated string of names for display
+ *
+ * @param dependencyIds - Array of step IDs that are dependencies
+ * @param allSteps - Array of all steps with id and name
+ * @returns Comma-separated string of step names (or IDs if name not found)
+ */
+export function formatDependenciesForDisplay(
+  dependencyIds: string[],
+  allSteps: Array<{ id: string; name: string }>,
+): string {
+  return getDependencyNames(dependencyIds, allSteps).join(', ')
+}
+
+/**
+ * Check if a DependencyChange amendment has any actual changes
+ *
+ * @param change - DependencyChange amendment details
+ * @returns true if there are any dependency changes to apply
+ */
+export function hasDependencyChanges(change: {
+  addDependencies?: string[]
+  removeDependencies?: string[]
+  addDependents?: string[]
+  removeDependents?: string[]
+}): boolean {
+  return (
+    (change.addDependencies?.length ?? 0) +
+    (change.removeDependencies?.length ?? 0) +
+    (change.addDependents?.length ?? 0) +
+    (change.removeDependents?.length ?? 0)
+  ) > 0
 }
