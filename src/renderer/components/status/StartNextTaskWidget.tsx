@@ -189,8 +189,10 @@ export function StartNextTaskWidget(): ReactElement {
               // Show active session details with progress info
               const itemId = activeSession.stepId || activeSession.taskId
               const progress = getWorkSessionProgress(itemId)
-              const remainingMinutes = Math.max(0, activeSession.plannedMinutes - progress.elapsedMinutes)
-              const isOverdue = progress.elapsedMinutes > activeSession.plannedMinutes
+              const plannedMinutes = activeSession.plannedMinutes ?? 0
+              const hasEstimate = activeSession.plannedMinutes !== undefined
+              const remainingMinutes = Math.max(0, plannedMinutes - progress.elapsedMinutes)
+              const isOverdue = hasEstimate && progress.elapsedMinutes > plannedMinutes
 
               return (
                 <Space direction="vertical" style={{ width: '100%' }}>
@@ -200,9 +202,11 @@ export function StartNextTaskWidget(): ReactElement {
                   </Text>
                   <Space wrap>
                     <Tag color={isOverdue ? 'red' : 'blue'}>
-                      {isOverdue
-                        ? `⚠️ ${formatMinutes(progress.elapsedMinutes - activeSession.plannedMinutes)} over`
-                        : `${formatMinutes(remainingMinutes)} remaining`}
+                      {!hasEstimate
+                        ? 'No estimate'
+                        : isOverdue
+                          ? `⚠️ ${formatMinutes(progress.elapsedMinutes - plannedMinutes)} over`
+                          : `${formatMinutes(remainingMinutes)} remaining`}
                     </Tag>
                     <Tag color="gray">
                       {formatMinutes(progress.elapsedMinutes)} elapsed

@@ -330,6 +330,15 @@ export class TrpcDatabaseService {
   }
 
   /**
+   * Get a workflow by one of its step IDs.
+   * More efficient than loading all tasks and searching.
+   */
+  async getWorkflowByStepId(stepId: string): Promise<SequencedTask | null> {
+    const workflow = await this.client.workflow.getByStepId.query({ stepId })
+    return workflow as SequencedTask | null
+  }
+
+  /**
    * Update a task step's progress/status.
    * This is a helper that finds the taskId from the step and calls updateStep.
    */
@@ -344,17 +353,9 @@ export class TrpcDatabaseService {
       notes?: string | null
     },
   ): Promise<void> {
-    // First, we need to find the taskId for this step
-    // We'll do this by getting all sequenced tasks and finding the one with this step
-    const tasks = await this.getSequencedTasks()
-    let taskId: string | null = null
-
-    for (const task of tasks) {
-      if (task.steps?.some(s => s.id === stepId)) {
-        taskId = task.id
-        break
-      }
-    }
+    // Use efficient lookup instead of loading all tasks
+    const workflow = await this.getWorkflowByStepId(stepId)
+    const taskId = workflow?.id
 
     if (!taskId) {
       throw new Error(`Step ${stepId} not found in any workflow`)

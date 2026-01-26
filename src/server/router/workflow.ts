@@ -84,6 +84,47 @@ const updateWithStepsInput = z.object({
 
 export const workflowRouter = router({
   /**
+   * Get a workflow by one of its step IDs
+   * Useful when you have a stepId but need the parent workflow
+   */
+  getByStepId: protectedProcedure
+    .input(z.object({ stepId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // First find the step to get its taskId (workflowId)
+      const step = await ctx.prisma.taskStep.findUnique({
+        where: { id: input.stepId },
+        select: { taskId: true },
+      })
+
+      if (!step) {
+        return null
+      }
+
+      // Now get the full workflow with all its steps
+      const workflow = await ctx.prisma.task.findUnique({
+        where: { id: step.taskId },
+        include: {
+          TaskStep: {
+            orderBy: { stepIndex: 'asc' },
+          },
+        },
+      })
+
+      if (!workflow) {
+        return null
+      }
+
+      return {
+        ...workflow,
+        dependencies: JSON.parse(workflow.dependencies || '[]'),
+        steps: workflow.TaskStep.map((s) => ({
+          ...s,
+          dependsOn: JSON.parse(s.dependsOn || '[]'),
+        })),
+      }
+    }),
+
+  /**
    * Add a step to a workflow
    */
   addStep: protectedProcedure.input(addStepInput).mutation(async ({ ctx, input }) => {

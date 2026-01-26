@@ -18,6 +18,8 @@ import {
 } from '@arco-design/web-react/icon'
 import { AmendmentCard as AmendmentCardType } from '@shared/conversation-types'
 import { AmendmentCardStatus, AmendmentType } from '@shared/enums'
+import { formatTimeLogDate, formatTimeLogTime } from '../../utils/amendment-display-formatters'
+import { hasDependencyChanges } from '../../utils/dependency-utils'
 
 const { Text, Title } = Typography
 
@@ -253,10 +255,7 @@ function PreviewDetails({ details, type }: PreviewDetailsProps): React.ReactElem
       const addDependents = details.addDependents as string[] | undefined
       const removeDependents = details.removeDependents as string[] | undefined
 
-      const hasChanges = (addDeps?.length || 0) + (removeDeps?.length || 0) +
-        (addDependents?.length || 0) + (removeDependents?.length || 0) > 0
-
-      if (!hasChanges) return null
+      if (!hasDependencyChanges(details)) return null
 
       return (
         <div
@@ -316,16 +315,8 @@ function PreviewDetails({ details, type }: PreviewDetailsProps): React.ReactElem
       const endTime = details.endTime as string | Date | undefined
       const plannedMinutes = details.plannedMinutes as number | undefined
 
-      // Format time for display (HH:MM)
-      const formatTime = (time: string | Date | undefined): string | null => {
-        if (!time) return null
-        const date = typeof time === 'string' ? new Date(time) : time
-        if (isNaN(date.getTime())) return null
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-
-      const formattedStart = formatTime(startTime)
-      const formattedEnd = formatTime(endTime)
+      const formattedStart = formatTimeLogTime(startTime)
+      const formattedEnd = formatTimeLogTime(endTime)
 
       const hasDetails = formattedStart || formattedEnd || plannedMinutes
 
@@ -359,25 +350,9 @@ function PreviewDetails({ details, type }: PreviewDetailsProps): React.ReactElem
       const duration = details.duration as number | undefined
       const description = details.description as string | undefined
 
-      // Format date for display (Mon, Jan 24)
-      const formatDate = (d: string | Date | undefined): string | null => {
-        if (!d) return null
-        const dateObj = typeof d === 'string' ? new Date(d) : d
-        if (isNaN(dateObj.getTime())) return null
-        return dateObj.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
-      }
-
-      // Format time for display (HH:MM)
-      const formatTime = (time: string | Date | undefined): string | null => {
-        if (!time) return null
-        const dateObj = typeof time === 'string' ? new Date(time) : time
-        if (isNaN(dateObj.getTime())) return null
-        return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-
-      const formattedDate = formatDate(date)
-      const formattedStart = formatTime(startTime)
-      const formattedEnd = formatTime(endTime)
+      const formattedDate = formatTimeLogDate(date)
+      const formattedStart = formatTimeLogTime(startTime)
+      const formattedEnd = formatTimeLogTime(endTime)
 
       const hasDetails = formattedDate || formattedStart || formattedEnd || description
 

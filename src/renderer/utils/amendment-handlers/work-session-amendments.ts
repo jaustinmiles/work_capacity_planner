@@ -33,8 +33,10 @@ export async function handleWorkSessionEdit(
           endTime: amendment.endTime
             ? (amendment.endTime instanceof Date ? amendment.endTime : new Date(amendment.endTime))
             : undefined,
-          // Zod schema requires integers - round to prevent validation errors
-          plannedMinutes: Math.round(amendment.plannedMinutes || 30),
+          // Only include plannedMinutes if provided (no arbitrary defaults)
+          plannedMinutes: amendment.plannedMinutes !== undefined
+            ? Math.round(amendment.plannedMinutes)
+            : 0,
           actualMinutes: amendment.actualMinutes !== undefined
             ? Math.round(amendment.actualMinutes)
             : undefined,

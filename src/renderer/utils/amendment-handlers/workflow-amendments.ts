@@ -39,7 +39,10 @@ export async function handleWorkflowCreation(
   const unresolvedDepsPerStep: Array<{ stepName: string; unresolvedDeps: string[] }> = []
 
   const steps = amendment.steps.map((step, index) => {
-    const stepId = stepNameToId.get(step.name.toLowerCase())!
+    const stepId = stepNameToId.get(step.name.toLowerCase())
+    if (!stepId) {
+      throw new Error(`Step ID not found for "${step.name}" - this should not happen`)
+    }
     const unresolvedDeps: string[] = []
 
     // Convert dependency names to IDs
@@ -212,6 +215,8 @@ export async function handleDependencyChange(
     try {
       if (amendment.stepName) {
         // This is a workflow step dependency change
+        // Capture stepName for use after async calls (TypeScript narrowing doesn't persist)
+        const targetStepName = amendment.stepName
 
         // Get the workflow
         const workflow = await ctx.db.getSequencedTaskById(amendment.target.id)
@@ -266,7 +271,7 @@ export async function handleDependencyChange(
 
             // VERIFY: Find the updated step and check its dependencies
             const updatedStep = updatedWorkflow.steps?.find(s =>
-              s.name.toLowerCase() === amendment.stepName!.toLowerCase(),
+              s.name.toLowerCase() === targetStepName.toLowerCase(),
             )
             if (!updatedStep) {
               ctx.markFailed(`Step "${step.name}" not found after update`)
@@ -285,7 +290,7 @@ export async function handleDependencyChange(
 
               const retryWorkflow = await ctx.db.updateSequencedTask(amendment.target.id, { steps: workflow.steps })
               const retryStep = retryWorkflow?.steps?.find(s =>
-                s.name.toLowerCase() === amendment.stepName!.toLowerCase(),
+                s.name.toLowerCase() === targetStepName.toLowerCase(),
               )
               actualDeps = JSON.stringify([...(retryStep?.dependsOn || [])].sort())
 
@@ -353,7 +358,8 @@ export async function handleDependencyChange(
             }
 
             if (amendment.removeDependencies && amendment.removeDependencies.length > 0) {
-              currentDeps = currentDeps.filter(d => !amendment.removeDependencies!.includes(d))
+              const depsToRemove = amendment.removeDependencies
+              currentDeps = currentDeps.filter(d => !depsToRemove.includes(d))
             }
 
             // Check if any changes are needed
@@ -415,7 +421,8 @@ export async function handleDependencyChange(
             }
 
             if (amendment.removeDependencies && amendment.removeDependencies.length > 0) {
-              currentDeps = currentDeps.filter(d => !amendment.removeDependencies!.includes(d))
+              const depsToRemove = amendment.removeDependencies
+              currentDeps = currentDeps.filter(d => !depsToRemove.includes(d))
             }
 
             // Check if any changes are needed

@@ -284,3 +284,37 @@ export function directToAmendmentDependencies(
     removeDependents,
   }
 }
+
+/**
+ * Format dependency IDs as a comma-separated string of names for display
+ *
+ * @param dependencyIds - Array of step IDs that are dependencies
+ * @param allSteps - Array of all steps with id and name
+ * @returns Comma-separated string of step names (or IDs if name not found)
+ */
+export function formatDependenciesForDisplay(
+  dependencyIds: string[],
+  allSteps: Array<{ id: string; name: string }>,
+): string {
+  return getDependencyNames(dependencyIds, allSteps).join(', ')
+}
+
+/**
+ * Check if a DependencyChange amendment has any actual changes
+ *
+ * @param change - DependencyChange amendment details
+ * @returns true if there are any dependency changes to apply
+ */
+export function hasDependencyChanges(change: {
+  addDependencies?: string[]
+  removeDependencies?: string[]
+  addDependents?: string[]
+  removeDependents?: string[]
+}): boolean {
+  return (
+    (change.addDependencies?.length ?? 0) +
+    (change.removeDependencies?.length ?? 0) +
+    (change.addDependents?.length ?? 0) +
+    (change.removeDependents?.length ?? 0)
+  ) > 0
+}

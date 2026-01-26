@@ -90,7 +90,7 @@ describe('WorkTrackingService', () => {
       expect(session.taskId).toBe(taskId)
       expect(session.taskName).toBe('Test Task')
       expect(session.startTime).toBeInstanceOf(Date)
-      expect(session.plannedMinutes).toBe(60) // UnifiedWorkSession has default 60 minutes
+      expect(session.plannedMinutes).toBeUndefined() // No magic defaults - uses task duration if available
       expect(mockDatabase.createWorkSession).toHaveBeenCalledWith(
         expect.objectContaining({
           taskId,

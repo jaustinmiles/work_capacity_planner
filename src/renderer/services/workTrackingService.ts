@@ -89,7 +89,7 @@ export class WorkTrackingService {
       // Fetch task and step names for display
       let taskName: string | undefined
       let stepName: string | undefined
-      let plannedMinutes = 60 // Default 1 hour, but will be overridden if we find the task/step
+      let plannedMinutes: number | undefined
 
       if (workflowId && stepId) {
         // For workflow steps, get the workflow task and find the specific step
@@ -99,8 +99,8 @@ export class WorkTrackingService {
           if (step) {
             stepName = step.name
             taskName = workflow.name // Also include workflow name for context
-            // Use the step's duration as planned minutes
-            plannedMinutes = step.duration || 60
+            // Use the step's duration as planned minutes (no default)
+            plannedMinutes = step.duration
           }
         }
       } else if (taskId) {
@@ -108,8 +108,8 @@ export class WorkTrackingService {
         const task = await this.database.getTaskById(taskId)
         if (task) {
           taskName = task.name
-          // Use the task's duration as planned minutes
-          plannedMinutes = task.duration || 60
+          // Use the task's duration as planned minutes (no default)
+          plannedMinutes = task.duration
         }
       }
 

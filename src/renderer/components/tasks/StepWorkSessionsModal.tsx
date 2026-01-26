@@ -217,7 +217,7 @@ export function StepWorkSessionsModal({
     },
   ]
 
-  const totalPlanned = sessions.reduce((sum, s) => sum + s.plannedMinutes, 0)
+  const totalPlanned = sessions.reduce((sum, s) => sum + (s.plannedMinutes || 0), 0)
   const totalActual = sessions.reduce((sum, s) => sum + (s.actualMinutes || 0), 0)
 
   return (
