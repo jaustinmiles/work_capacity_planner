@@ -23,6 +23,7 @@ import { SessionManager } from './components/session/SessionManager'
 import { TaskTypeManager } from './components/settings/TaskTypeManager'
 import { WorkLoggerDual } from './components/work-logger/WorkLoggerDual'
 import { TaskSlideshow } from './components/slideshow/TaskSlideshow'
+import { SprintBoard } from './components/sprint/SprintBoard'
 import { DevTools } from './components/dev/DevTools'
 import { TimeSinkManager } from './components/time-sinks/TimeSinkManager'
 import { TimeSinkLogger } from './components/time-sinks/TimeSinkLogger'
@@ -557,6 +558,15 @@ function AppContent() {
                   }
                 />
                 <Tabs.TabPane
+                  key={ViewType.Sprint}
+                  title={
+                    <Space>
+                      <IconApps />
+                      {!isMobile && <span>Sprint</span>}
+                    </Space>
+                  }
+                />
+                <Tabs.TabPane
                   key={ViewType.Calendar}
                   title={
                     <Space>
@@ -666,6 +676,12 @@ function AppContent() {
                     {activeView === ViewType.Matrix && (
                       <ErrorBoundary>
                         <EisenhowerMatrix onAddTask={() => setTaskFormVisible(true)} />
+                      </ErrorBoundary>
+                    )}
+
+                    {activeView === ViewType.Sprint && (
+                      <ErrorBoundary>
+                        <SprintBoard />
                       </ErrorBoundary>
                     )}
 

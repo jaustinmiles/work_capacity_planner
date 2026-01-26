@@ -72,6 +72,7 @@ const updateTaskInput = z.object({
   lockedStartTime: z.date().nullable().optional(),
   overallStatus: z.string().optional(),
   archived: z.boolean().optional(),
+  inActiveSprint: z.boolean().optional(),
 })
 
 /**
@@ -106,6 +107,7 @@ function formatTask(task: {
   criticalPathDuration: number
   worstCaseDuration: number
   archived: boolean
+  inActiveSprint: boolean
   TaskStep?: Array<{
     id: string
     name: string

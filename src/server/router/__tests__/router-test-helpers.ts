@@ -65,6 +65,8 @@ export function createMockPrisma() {
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
     },
     timeSink: {
       findMany: vi.fn(),
@@ -76,6 +78,7 @@ export function createMockPrisma() {
     timeSinkSession: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
@@ -89,6 +92,7 @@ export function createMockPrisma() {
     },
     chatMessage: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
@@ -102,17 +106,52 @@ export function createMockPrisma() {
       delete: vi.fn(),
     },
     jobContext: {
+      findMany: vi.fn(),
       findFirst: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       upsert: vi.fn(),
+      delete: vi.fn(),
     },
     contextEntry: {
       findMany: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
       upsert: vi.fn(),
+      delete: vi.fn(),
       deleteMany: vi.fn(),
+    },
+    appLog: {
+      create: vi.fn(),
+      createMany: vi.fn(),
+      findMany: vi.fn(),
+      groupBy: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    scheduleSnapshot: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+    },
+    userTaskType: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      count: vi.fn(),
+    },
+    jargonEntry: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
     },
     $transaction: vi.fn((callback) => {
       // For simple transactions, just execute the callback
@@ -219,6 +258,188 @@ export function createMockWorkSession(overrides: Record<string, unknown> = {}) {
     actualMinutes: null,
     notes: null,
     type: 'development',
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock time sink for testing
+ */
+export function createMockTimeSink(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'sink-123',
+    sessionId: 'test-session-id',
+    name: 'Phone Calls',
+    emoji: '📞',
+    color: '#FF5733',
+    typeId: null,
+    sortOrder: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock time sink session for testing
+ */
+export function createMockTimeSinkSession(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'sinksession-123',
+    timeSinkId: 'sink-123',
+    startTime: new Date(),
+    endTime: null,
+    actualMinutes: null,
+    notes: null,
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock conversation for testing
+ */
+export function createMockConversation(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'conv-123',
+    sessionId: 'test-session-id',
+    title: 'Test Conversation',
+    jobContextId: null,
+    isArchived: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ChatMessage: [],
+    JobContext: null,
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock chat message for testing
+ */
+export function createMockChatMessage(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'msg-123',
+    conversationId: 'conv-123',
+    role: 'user',
+    content: 'Hello',
+    amendments: null,
+    createdAt: new Date(),
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock job context for testing
+ */
+export function createMockJobContext(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'jctx-123',
+    sessionId: 'test-session-id',
+    name: 'Development',
+    description: 'Software development context',
+    context: 'Working on Task Planner',
+    asyncPatterns: '',
+    reviewCycles: '',
+    tools: '',
+    isActive: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ContextEntry: [],
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock context entry for testing
+ */
+export function createMockContextEntry(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'entry-123',
+    jobContextId: 'jctx-123',
+    key: 'tech_stack',
+    value: 'TypeScript, React',
+    category: 'technical',
+    notes: null,
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock jargon entry for testing
+ */
+export function createMockJargonEntry(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'jargon-123',
+    sessionId: 'test-session-id',
+    term: 'MVP',
+    definition: 'Minimum Viable Product',
+    category: 'business',
+    examples: null,
+    relatedTerms: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock user task type for testing
+ */
+export function createMockUserTaskType(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'type-123',
+    sessionId: 'test-session-id',
+    name: 'Development',
+    emoji: '💻',
+    color: '#3B82F6',
+    sortOrder: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock session for testing
+ */
+export function createMockSession(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'session-123',
+    name: 'Default Session',
+    description: null,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock schedule snapshot for testing
+ */
+export function createMockSnapshot(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'snapshot-123',
+    sessionId: 'test-session-id',
+    label: 'Morning Snapshot',
+    snapshotData: '{}',
+    createdAt: new Date(),
+    ...overrides,
+  }
+}
+
+/**
+ * Creates a mock app log entry for testing
+ */
+export function createMockAppLog(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    level: 'info',
+    message: 'Test log',
+    source: 'test',
+    context: '{}',
+    sessionId: 'test-session-id',
+    createdAt: new Date(),
     ...overrides,
   }
 }

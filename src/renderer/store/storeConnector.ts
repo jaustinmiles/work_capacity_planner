@@ -22,6 +22,8 @@ import {
   haveActiveSessionsChanged,
   filterSchedulableItems,
   filterSchedulableWorkflows,
+  filterSprintTasks,
+  filterSprintWorkflows,
 } from '@shared/utils/store-comparison'
 
 let isConnected = false
@@ -89,17 +91,34 @@ export const connectStores = () => {
           activeWorkSessions?: Set<string>
         } = {}
 
+        // Get sprint mode status for filtering
+        const sprintModeEnabled = useTaskStore.getState().sprintModeEnabled
+
         // Compare tasks using proper content comparison that includes ALL scheduling-relevant properties
         if (haveTasksChanged(current.tasks, previousState.tasks)) {
           // CRITICAL: Filter out completed tasks before passing to scheduler
           // This prevents the scheduler from trying to schedule completed tasks
-          changes.tasks = filterSchedulableItems(current.tasks)
+          let schedulableTasks = filterSchedulableItems(current.tasks)
+
+          // Apply sprint filtering when sprint mode is enabled
+          if (sprintModeEnabled) {
+            schedulableTasks = filterSprintTasks(schedulableTasks)
+          }
+
+          changes.tasks = schedulableTasks
         }
 
         // Compare sequenced tasks (workflows) with proper content comparison
         if (haveSequencedTasksChanged(current.sequencedTasks, previousState.sequencedTasks)) {
           // Filter out completed workflows before passing to scheduler
-          changes.sequencedTasks = filterSchedulableWorkflows(current.sequencedTasks)
+          let schedulableWorkflows = filterSchedulableWorkflows(current.sequencedTasks)
+
+          // Apply sprint filtering when sprint mode is enabled
+          if (sprintModeEnabled) {
+            schedulableWorkflows = filterSprintWorkflows(schedulableWorkflows)
+          }
+
+          changes.sequencedTasks = schedulableWorkflows
         }
 
         // Compare work settings with all relevant properties

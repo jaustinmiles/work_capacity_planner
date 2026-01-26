@@ -28,6 +28,7 @@ export function createTaskComparisonKey(task: Task): string {
     task.deadline ?? 'null',
     task.isLocked ? '1' : '0',
     task.lockedStartTime?.toString() ?? 'null',
+    task.inActiveSprint ? '1' : '0',
   ]
 
   return props.join(':')
@@ -46,6 +47,7 @@ export function createSequencedTaskComparisonKey(workflow: SequencedTask): strin
     workflow.importance?.toString() ?? '0',
     workflow.deadline ?? 'null',
     workflow.overallStatus ?? 'null',
+    workflow.inActiveSprint ? '1' : '0',
   ]
 
   // Include all step states
@@ -217,4 +219,20 @@ export function filterSchedulableWorkflows(workflows: SequencedTask[]): Sequence
     // 2. Has waiting steps AND pending steps (will become actionable after wait)
     return hasActionableStep || (hasWaitingStep && hasPendingStep)
   })
+}
+
+/**
+ * Filters tasks to only include those in the active sprint.
+ * Used when sprint mode is enabled for scheduling.
+ */
+export function filterSprintTasks(tasks: Task[]): Task[] {
+  return tasks.filter(task => task.inActiveSprint === true)
+}
+
+/**
+ * Filters workflows to only include those in the active sprint.
+ * Used when sprint mode is enabled for scheduling.
+ */
+export function filterSprintWorkflows(workflows: SequencedTask[]): SequencedTask[] {
+  return workflows.filter(workflow => workflow.inActiveSprint === true)
 }

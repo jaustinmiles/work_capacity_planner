@@ -320,6 +320,7 @@ export async function handleTaskCreation(
     criticalPathDuration: amendment.duration,
     worstCaseDuration: amendment.duration,
     archived: false,
+    inActiveSprint: false,
   }
 
   const newTask = await ctx.db.createTask(taskData)

@@ -25,6 +25,7 @@ export function createMockTask(overrides: Partial<Task> = {}): Task {
     criticalPathDuration: 60,
     worstCaseDuration: 60,
     archived: false,
+    inActiveSprint: false,
     ...overrides,
   }
 }
@@ -83,6 +84,7 @@ export function createMockSequencedTask(overrides: Partial<SequencedTask> = {}):
     worstCaseDuration: criticalPathDuration * 1.5,
     steps,
     archived: false,
+    inActiveSprint: false,
     ...overrides,
   }
 }

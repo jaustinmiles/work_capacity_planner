@@ -20,7 +20,8 @@
       "mcp__diagnostic__get_coverage_by_module",
       "mcp__diagnostic__get_uncovered_files",
       "mcp__diagnostic__get_file_coverage",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(git stash show:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
