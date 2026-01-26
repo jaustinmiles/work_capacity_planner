@@ -15,6 +15,7 @@ import type { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput } f
 import type { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput } from '@shared/time-sink-types'
 import type { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
 import { serializeSnapshotData, deserializeSnapshotData } from '@shared/schedule-snapshot-types'
+import { amendmentsToJSON, amendmentsFromJSON } from './amendment-serialization'
 
 // Type for app config exposed by preload
 declare global {
@@ -567,8 +568,7 @@ export class TrpcDatabaseService {
   async createWorkSession(data: {
     taskId: string
     stepId?: string
-    startTime?: Date
-    date?: Date | string  // Alternative to startTime - used by amendment handlers
+    startTime: Date  // Required - amendment handlers must normalize to Date before calling
     endTime?: Date
     plannedMinutes?: number
     actualMinutes?: number
@@ -578,33 +578,7 @@ export class TrpcDatabaseService {
     blockId?: string
     patternId?: string
   }): Promise<unknown> {
-    // Normalize startTime - accept either startTime or date property
-    let startTime: Date
-    if (data.startTime) {
-      startTime = data.startTime instanceof Date ? data.startTime : new Date(data.startTime)
-    } else if (data.date) {
-      if (data.date instanceof Date) {
-        startTime = data.date
-      } else {
-        // Parse date string to LOCAL time (not UTC)
-        // "2024-01-16" should create midnight local time, not UTC
-        // Use T00:00:00 suffix to get local timezone interpretation
-        const dateStr = data.date as string
-        const today = new Date()
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-
-        if (dateStr === todayStr) {
-          // If logging for today, use current time
-          startTime = new Date()
-        } else {
-          // For past/future dates, use noon to avoid timezone edge cases
-          startTime = new Date(dateStr + 'T12:00:00')
-        }
-      }
-    } else {
-      // Default to current time if neither is provided
-      startTime = new Date()
-    }
+    const startTime = data.startTime instanceof Date ? data.startTime : new Date(data.startTime)
 
     return this.client.workSession.create.mutate({
       taskId: data.taskId,
@@ -749,7 +723,7 @@ export class TrpcDatabaseService {
     // Parse amendments JSON string to array (server stores as JSON string)
     return messages.map((msg) => ({
       ...msg,
-      amendments: msg.amendments ? JSON.parse(msg.amendments as string) : null,
+      amendments: amendmentsFromJSON(msg.amendments as string),
     }))
   }
 
@@ -771,13 +745,13 @@ export class TrpcDatabaseService {
       conversationId: data.conversationId,
       role: enumRole,
       content: data.content,
-      amendments: data.amendments ? JSON.stringify(data.amendments) : undefined,
+      amendments: amendmentsToJSON(data.amendments),
     })
 
     // Parse amendments JSON string to array (server stores as JSON string)
     return {
       ...rawMessage,
-      amendments: rawMessage.amendments ? JSON.parse(rawMessage.amendments as string) : null,
+      amendments: amendmentsFromJSON(rawMessage.amendments as string),
     }
   }
 

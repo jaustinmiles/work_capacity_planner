@@ -83,9 +83,6 @@ export class WorkTrackingService {
         throw new Error('Cannot start new work session: another session is already active')
       }
 
-      // Get current session info from database
-      const currentSession = await this.database.getCurrentSession()
-
       // Fetch task and step names for display
       let taskName: string | undefined
       let stepName: string | undefined
@@ -139,11 +136,7 @@ export class WorkTrackingService {
       // Save to database as an active work session (no endTime)
       // For workflows: taskId = workflowId, stepId = stepId
       // For regular tasks: taskId = taskId, stepId = undefined
-      const dbPayload = {
-        ...toDatabaseWorkSession(workSession),
-        sessionId: currentSession?.id || 'session-1',
-        date: dateToYYYYMMDD(getCurrentTime()),
-      }
+      const dbPayload = toDatabaseWorkSession(workSession)
 
       // Create session in database and get the database-generated ID
       const dbSession = await this.database.createWorkSession(dbPayload)

@@ -38,6 +38,7 @@ import { StepSplitModal } from './StepSplitModal'
 import { StepWorkSessionsModal } from './StepWorkSessionsModal'
 import { DependencyEditor } from '../shared/DependencyEditor'
 import { Message } from '../common/Message'
+import { formatDependenciesForDisplay } from '../../utils/dependency-utils'
 import { getDatabase } from '../../services/database'
 import { logger } from '@/logger'
 
@@ -610,13 +611,10 @@ export function UnifiedTaskEdit({ task, onClose, startInEditMode = false }: Unif
                     </Text>
                     {step.dependsOn && step.dependsOn.length > 0 && (
                       <Text type="secondary">
-                        Depends on: {(() => {
-                          const depIds = Array.isArray(step.dependsOn) ? step.dependsOn : JSON.parse(step.dependsOn)
-                          return depIds.map((id: string) => {
-                            const depStep = steps.find(s => s.id === id)
-                            return depStep?.name || id
-                          }).join(', ')
-                        })()}
+                        Depends on: {formatDependenciesForDisplay(
+                          Array.isArray(step.dependsOn) ? step.dependsOn : JSON.parse(step.dependsOn),
+                          steps,
+                        )}
                       </Text>
                     )}
                     {step.notes && <Text type="secondary">{step.notes}</Text>}

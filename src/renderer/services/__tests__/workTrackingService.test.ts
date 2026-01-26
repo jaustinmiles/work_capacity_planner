@@ -95,7 +95,7 @@ describe('WorkTrackingService', () => {
         expect.objectContaining({
           taskId,
           type: '', // User-defined types - service doesn't know task type
-          date: expect.any(String),
+          startTime: expect.any(Date),
         }),
       )
     })
@@ -146,7 +146,7 @@ describe('WorkTrackingService', () => {
     })
 
     it('should handle database errors gracefully', async () => {
-      mockDatabase.getCurrentSession.mockRejectedValue(new Error('Database connection failed'))
+      mockDatabase.getTaskById.mockRejectedValue(new Error('Database connection failed'))
 
       await expect(
         service.startWorkSession('task-1'),

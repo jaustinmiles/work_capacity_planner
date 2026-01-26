@@ -21,6 +21,46 @@ import {
 import { findStepIndexByName } from './step-utils'
 import { resolveTaskType } from './task-type-utils'
 
+/**
+ * Apply dependency changes to a dependency array
+ * Returns the updated dependencies and whether any changes were made
+ */
+function applyEntityDependencyChanges(
+  currentDeps: string[],
+  addDeps: string[] | undefined,
+  removeDeps: string[] | undefined,
+  validateFn: (ids: string[]) => { valid: string[]; invalid: string[] },
+  entityId: string,
+  entityType: 'workflow' | 'task',
+): { updatedDeps: string[]; hasChanges: boolean; invalidDeps: string[] } {
+  const originalDeps = [...currentDeps]
+  let updatedDeps = [...currentDeps]
+  const invalidDeps: string[] = []
+
+  // Add new dependencies
+  if (addDeps && addDeps.length > 0) {
+    const { valid, invalid } = validateFn(addDeps)
+    if (invalid.length > 0) {
+      invalidDeps.push(...invalid)
+      Message.warning(`Some dependencies could not be resolved: ${invalid.join(', ')}`)
+      logger.ui.warn(`Invalid dependencies in ${entityType} update`, {
+        [`${entityType}Id`]: entityId,
+        invalid,
+      }, 'invalid-dependencies')
+    }
+    const toAdd = valid.filter(d => !updatedDeps.includes(d))
+    updatedDeps = [...updatedDeps, ...toAdd]
+  }
+
+  // Remove dependencies
+  if (removeDeps && removeDeps.length > 0) {
+    updatedDeps = updatedDeps.filter(d => !removeDeps.includes(d))
+  }
+
+  const hasChanges = JSON.stringify(originalDeps.sort()) !== JSON.stringify(updatedDeps.sort())
+  return { updatedDeps, hasChanges, invalidDeps }
+}
+
 export async function handleWorkflowCreation(
   amendment: WorkflowCreation,
   ctx: HandlerContext,
@@ -341,35 +381,21 @@ export async function handleDependencyChange(
           // Update workflow dependencies
           const workflow = await ctx.db.getSequencedTaskById(amendment.target.id)
           if (workflow) {
-            const originalDeps = [...(workflow.dependencies || [])]
-            let currentDeps = workflow.dependencies || []
+            const { updatedDeps, hasChanges } = applyEntityDependencyChanges(
+              workflow.dependencies || [],
+              amendment.addDependencies,
+              amendment.removeDependencies,
+              validateDependencyIds,
+              amendment.target.id,
+              'workflow',
+            )
 
-            if (amendment.addDependencies && amendment.addDependencies.length > 0) {
-              const { valid, invalid } = validateDependencyIds(amendment.addDependencies)
-              if (invalid.length > 0) {
-                Message.warning(`Some dependencies could not be resolved: ${invalid.join(', ')}`)
-                logger.ui.warn('Invalid dependencies in workflow update', {
-                  workflowId: amendment.target.id,
-                  invalid,
-                }, 'invalid-dependencies')
-              }
-              const toAdd = valid.filter(d => !currentDeps.includes(d))
-              currentDeps = [...currentDeps, ...toAdd]
-            }
-
-            if (amendment.removeDependencies && amendment.removeDependencies.length > 0) {
-              const depsToRemove = amendment.removeDependencies
-              currentDeps = currentDeps.filter(d => !depsToRemove.includes(d))
-            }
-
-            // Check if any changes are needed
-            const hasChanges = JSON.stringify(originalDeps.sort()) !== JSON.stringify(currentDeps.sort())
             if (!hasChanges) {
               Message.success(`Dependencies for "${amendment.target.name}" already up to date`)
               return
             }
 
-            const updatedWorkflow = await ctx.db.updateSequencedTask(amendment.target.id, { dependencies: currentDeps })
+            const updatedWorkflow = await ctx.db.updateSequencedTask(amendment.target.id, { dependencies: updatedDeps })
 
             // VERIFY: Check that the database actually returned a result
             if (!updatedWorkflow) {
@@ -378,20 +404,20 @@ export async function handleDependencyChange(
             }
 
             // VERIFY: Check that dependencies actually changed
-            const expectedDeps = JSON.stringify([...currentDeps].sort())
+            const expectedDeps = JSON.stringify([...updatedDeps].sort())
             let actualDeps = JSON.stringify([...(updatedWorkflow.dependencies || [])].sort())
             if (expectedDeps !== actualDeps) {
               // Retry once before failing (user preference)
               logger.ui.warn('Workflow dependencies mismatch on first attempt, retrying...', {
-                expected: currentDeps,
+                expected: updatedDeps,
                 actual: updatedWorkflow.dependencies,
               }, 'dependency-verify-retry')
 
-              const retryWorkflow = await ctx.db.updateSequencedTask(amendment.target.id, { dependencies: currentDeps })
+              const retryWorkflow = await ctx.db.updateSequencedTask(amendment.target.id, { dependencies: updatedDeps })
               actualDeps = JSON.stringify([...(retryWorkflow?.dependencies || [])].sort())
 
               if (expectedDeps !== actualDeps) {
-                ctx.markFailed(`Workflow dependencies were not saved correctly after retry. Expected: ${currentDeps.join(', ')}, Got: ${retryWorkflow?.dependencies?.join(', ') || 'none'}`)
+                ctx.markFailed(`Workflow dependencies were not saved correctly after retry. Expected: ${updatedDeps.join(', ')}, Got: ${retryWorkflow?.dependencies?.join(', ') || 'none'}`)
                 return
               }
             }
@@ -404,35 +430,21 @@ export async function handleDependencyChange(
           // Update task dependencies
           const task = await ctx.db.getTaskById(amendment.target.id)
           if (task) {
-            const originalDeps = [...(task.dependencies || [])]
-            let currentDeps = task.dependencies || []
+            const { updatedDeps, hasChanges } = applyEntityDependencyChanges(
+              task.dependencies || [],
+              amendment.addDependencies,
+              amendment.removeDependencies,
+              validateDependencyIds,
+              amendment.target.id,
+              'task',
+            )
 
-            if (amendment.addDependencies && amendment.addDependencies.length > 0) {
-              const { valid, invalid } = validateDependencyIds(amendment.addDependencies)
-              if (invalid.length > 0) {
-                Message.warning(`Some dependencies could not be resolved: ${invalid.join(', ')}`)
-                logger.ui.warn('Invalid dependencies in task update', {
-                  taskId: amendment.target.id,
-                  invalid,
-                }, 'invalid-dependencies')
-              }
-              const toAdd = valid.filter(d => !currentDeps.includes(d))
-              currentDeps = [...currentDeps, ...toAdd]
-            }
-
-            if (amendment.removeDependencies && amendment.removeDependencies.length > 0) {
-              const depsToRemove = amendment.removeDependencies
-              currentDeps = currentDeps.filter(d => !depsToRemove.includes(d))
-            }
-
-            // Check if any changes are needed
-            const hasChanges = JSON.stringify(originalDeps.sort()) !== JSON.stringify(currentDeps.sort())
             if (!hasChanges) {
               Message.success(`Dependencies for "${amendment.target.name}" already up to date`)
               return
             }
 
-            const updatedTask = await ctx.db.updateTask(amendment.target.id, { dependencies: currentDeps })
+            const updatedTask = await ctx.db.updateTask(amendment.target.id, { dependencies: updatedDeps })
 
             // VERIFY: Check that the database actually returned a result
             if (!updatedTask) {
@@ -441,20 +453,20 @@ export async function handleDependencyChange(
             }
 
             // VERIFY: Check that dependencies actually changed
-            const expectedDeps = JSON.stringify([...currentDeps].sort())
+            const expectedDeps = JSON.stringify([...updatedDeps].sort())
             let actualDeps = JSON.stringify([...(updatedTask.dependencies || [])].sort())
             if (expectedDeps !== actualDeps) {
               // Retry once before failing (user preference)
               logger.ui.warn('Task dependencies mismatch on first attempt, retrying...', {
-                expected: currentDeps,
+                expected: updatedDeps,
                 actual: updatedTask.dependencies,
               }, 'dependency-verify-retry')
 
-              const retryTask = await ctx.db.updateTask(amendment.target.id, { dependencies: currentDeps })
+              const retryTask = await ctx.db.updateTask(amendment.target.id, { dependencies: updatedDeps })
               actualDeps = JSON.stringify([...(retryTask?.dependencies || [])].sort())
 
               if (expectedDeps !== actualDeps) {
-                ctx.markFailed(`Task dependencies were not saved correctly after retry. Expected: ${currentDeps.join(', ')}, Got: ${retryTask?.dependencies?.join(', ') || 'none'}`)
+                ctx.markFailed(`Task dependencies were not saved correctly after retry. Expected: ${updatedDeps.join(', ')}, Got: ${retryTask?.dependencies?.join(', ') || 'none'}`)
                 return
               }
             }

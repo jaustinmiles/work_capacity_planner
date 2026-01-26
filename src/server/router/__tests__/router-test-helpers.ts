@@ -38,6 +38,7 @@ export function createMockPrisma() {
     },
     workPattern: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),

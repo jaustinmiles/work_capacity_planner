@@ -5,15 +5,13 @@ import { Task } from '@shared/types'
 import { SequencedTask } from '@shared/sequencing-types'
 import { useUnifiedScheduler, ScheduleResult, UnifiedScheduleItem } from '../../hooks/useUnifiedScheduler'
 import { OptimizationMode } from '@shared/unified-scheduler'
-import { DailyWorkPattern, BlockTypeConfig } from '@shared/work-blocks-types'
+import { DailyWorkPattern } from '@shared/work-blocks-types'
 import { getDatabase } from '../../services/database'
 import { useTaskStore } from '../../store/useTaskStore'
 import { Message } from '../common/Message'
 import dayjs from 'dayjs'
 import { logger } from '@/logger'
-import { calculateBlockCapacity } from '@shared/capacity-calculator'
 import { createEmptyAccumulatedTime } from '@shared/user-task-types'
-import { WorkBlockType, BlockConfigKind } from '@shared/enums'
 import { dateToYYYYMMDD } from '@shared/time-utils'
 
 
@@ -122,79 +120,32 @@ export function ScheduleGenerator({
       }, 'schedule-existing-meetings')
 
       // Create base work patterns for the next 30 days
-      // IMPORTANT: Use user-configured patterns when available, only fall back to placeholder for unconfigured dates
+      // Only include dates that have user-configured patterns
       const baseWorkPatterns: DailyWorkPattern[] = []
 
-      // First, fetch all user-configured patterns to build a map
-      const userPatternsMap = new Map<string, { blocks: any[]; meetings: any[] }>()
       for (let i = 0; i < 30; i++) {
         const date = new Date(today)
         date.setDate(date.getDate() + i)
         const dateStr = dateToYYYYMMDD(date)
         const pattern = await db.getWorkPattern(dateStr)
-        if (pattern) {
-          // Use the user's configured blocks and meetings
-          userPatternsMap.set(dateStr, {
-            blocks: pattern.blocks || [],
-            meetings: pattern.meetings || [],
-          })
-        }
+
+        // Only add patterns that have user-configured blocks
+        // Days without patterns are simply skipped - no placeholder blocks
+        const blocks = pattern?.blocks || []
+        const meetings = pattern?.meetings || []
+
+        baseWorkPatterns.push({
+          date: dateStr,
+          blocks,
+          meetings,
+          accumulated: createEmptyAccumulatedTime(),
+        })
       }
 
-      logger.ui.info('Found user-configured work patterns', {
-        configuredDates: userPatternsMap.size,
-        dates: Array.from(userPatternsMap.keys()),
-      }, 'schedule-user-patterns')
-
-      for (let i = 0; i < 30; i++) {
-        const date = new Date(today)
-        date.setDate(date.getDate() + i)
-        const _dayOfWeek = date.getDay()
-        const dateStr = dateToYYYYMMDD(date)
-
-        // Check if user has configured a pattern for this date
-        const userPattern = userPatternsMap.get(dateStr)
-
-        if (userPattern && userPattern.blocks.length > 0) {
-          // Use user's configured blocks - these have the correct typeConfig
-          logger.ui.debug('Using user-configured blocks for date', {
-            date: dateStr,
-            blockCount: userPattern.blocks.length,
-            blockTypes: userPattern.blocks.map((b: { typeConfig: BlockTypeConfig }) => b.typeConfig),
-          }, 'schedule-using-user-blocks')
-
-          baseWorkPatterns.push({
-            date: dateStr,
-            blocks: userPattern.blocks,
-            meetings: userPattern.meetings,
-            accumulated: createEmptyAccumulatedTime(),
-          })
-        } else {
-          // No user pattern - fall back to placeholder based on work settings
-          const dayWorkHours = workSettings?.customWorkHours?.[_dayOfWeek] || workSettings?.defaultWorkHours
-          const blocks: any[] = []
-
-          if (dayWorkHours && dayWorkHours.startTime && dayWorkHours.endTime) {
-            // Create System Blocked placeholder - user should configure proper patterns
-            // This is a fallback that won't schedule any tasks (System blocks reject all types)
-            const typeConfig: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
-            blocks.push({
-              id: `block-${dateStr}-work`,
-              startTime: dayWorkHours.startTime,
-              endTime: dayWorkHours.endTime,
-              typeConfig,
-              capacity: calculateBlockCapacity(typeConfig, dayWorkHours.startTime, dayWorkHours.endTime),
-            })
-          }
-
-          baseWorkPatterns.push({
-            date: dateStr,
-            blocks,
-            meetings: userPattern?.meetings || [],
-            accumulated: createEmptyAccumulatedTime(),
-          })
-        }
-      }
+      logger.ui.info('Loaded work patterns for scheduling', {
+        totalDays: baseWorkPatterns.length,
+        daysWithBlocks: baseWorkPatterns.filter(p => p.blocks.length > 0).length,
+      }, 'schedule-patterns-loaded')
 
       // Option 1: Optimal (Mathematical optimization for earliest completion)
       const incompleteTasks = tasks.filter(t => !t.completed)
@@ -368,7 +319,7 @@ export function ScheduleGenerator({
     try {
       const db = getDatabase()
 
-      // Group scheduled items by date
+      // Group scheduled items by date - only dates with items need to be saved
       const itemsByDate = new Map<string, UnifiedScheduleItem[]>()
 
       for (const item of selected.schedule) {
@@ -378,76 +329,23 @@ export function ScheduleGenerator({
         itemsByDate.set(dateStr, existing)
       }
 
-      // Get existing patterns for all dates in range
-      const allDates = new Set<string>()
-      const firstDate = selected.schedule.length > 0 && selected.schedule[0]
-        ? dayjs(selected.schedule[0].startTime).format('YYYY-MM-DD')
-        : dayjs().format('YYYY-MM-DD')
-
-      // Generate all dates for the next 30 days to match what was displayed
-      for (let i = 0; i < 30; i++) {
-        const date = dayjs(firstDate).add(i, 'day')
-        allDates.add(date.format('YYYY-MM-DD'))
-      }
-
-      // Also add any dates that have scheduled items
-      for (const item of selected.schedule) {
-        allDates.add(dayjs(item.startTime).format('YYYY-MM-DD'))
-      }
-
-      // Create work patterns for each day (including empty days)
-      for (const dateStr of Array.from(allDates).sort()) {
-        const items = itemsByDate.get(dateStr) || []
-        const blocks: any[] = []
-
-        // Fetch existing pattern to preserve meetings (like sleep blocks)
+      // Only save work patterns for dates that have scheduled items
+      // Don't overwrite user patterns for dates without scheduled work
+      for (const dateStr of itemsByDate.keys()) {
+        // Fetch existing pattern to preserve user's blocks and meetings
         const existingPattern = await db.getWorkPattern(dateStr)
+        const existingBlocks = existingPattern?.blocks || []
         const existingMeetings = existingPattern?.meetings || []
 
-        if (items.length > 0) {
-          // Find the earliest start and latest end time for all items on this day
-          const sortedItems = items
-            .filter(item => item.startTime && item.endTime)
-            .sort((a, b) => a.startTime!.getTime() - b.startTime!.getTime())
-
-          // Safety check - ensure we have items after sorting
-          if (!sortedItems.length || !sortedItems[0]) {
-            logger.ui.error('Unexpected empty sortedItems after sorting', {
-              dateStr,
-              itemsLength: items.length,
-            }, 'schedule-sort-error')
-            continue
-          }
-
-          const earliestStart = dayjs(sortedItems[0].startTime).format('HH:mm')
-          const latestEnd = sortedItems.reduce((latest, item) => {
-            const itemEnd = item.endTime!
-            return itemEnd > latest ? itemEnd : latest
-          }, sortedItems[0].endTime!)
-          const latestEndStr = dayjs(latestEnd).format('HH:mm')
-
-          // Create block with system blocked type as placeholder
-          // Actual type depends on user-configured task types
-          const typeConfig: BlockTypeConfig = { kind: BlockConfigKind.System, systemType: WorkBlockType.Blocked }
-          blocks.push({
-            id: `block-${dateStr}-work`,
-            startTime: earliestStart,
-            endTime: latestEndStr,
-            typeConfig,
-            capacity: calculateBlockCapacity(typeConfig, earliestStart, latestEndStr),
-          })
-        }
-
-        // NO DEFAULT BLOCKS! Days without patterns have no work scheduled
-        // User must explicitly define work blocks for each day
-
-        // Save work pattern (preserve existing meetings like sleep blocks)
+        // Preserve the user's existing work pattern - scheduler doesn't modify blocks
+        // The schedule is just a plan for which tasks go where, not a block modification
         await db.createWorkPattern({
           date: dateStr,
-          blocks: blocks.map(b => ({
+          blocks: existingBlocks.map((b: any) => ({
             startTime: b.startTime,
             endTime: b.endTime,
             type: b.type,
+            typeConfig: b.typeConfig,
             capacity: b.capacity,
           })),
           meetings: existingMeetings,
