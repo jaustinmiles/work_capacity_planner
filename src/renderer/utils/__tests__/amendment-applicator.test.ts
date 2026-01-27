@@ -464,8 +464,8 @@ describe('Amendment Applicator', () => {
 
       await applyAmendments([amendment])
 
-      // Should update the step duration and recalculate workflow total
-      expect(mockDatabase.updateTaskStepProgress).toHaveBeenCalledWith('step-2', {
+      // Should update the step duration using updateTaskStep
+      expect(mockDatabase.updateTaskStep).toHaveBeenCalledWith('wf-1', 'step-2', {
         duration: 120,
       })
       // Should recalculate total workflow duration
