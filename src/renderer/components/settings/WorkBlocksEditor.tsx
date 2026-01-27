@@ -38,6 +38,7 @@ import { getCurrentTime } from '@shared/time-provider'
 import { formatTimeFromParts } from '@shared/time-utils'
 import { generateUniqueId } from '@shared/step-id-utils'
 import { useSortedUserTaskTypes, useUserTaskTypeStore } from '@/renderer/store/useUserTaskTypeStore'
+import { useResponsive } from '../../providers/ResponsiveProvider'
 import { Message } from '../common/Message'
 import { ClockTimePicker } from '../common/ClockTimePicker'
 import { TimelineVisualizer } from '../schedule/TimelineVisualizer'
@@ -118,6 +119,9 @@ export function WorkBlocksEditor({
   const userTaskTypes = useSortedUserTaskTypes()
   const typesInitialized = useUserTaskTypeStore(state => state.isInitialized)
   const loadTypes = useUserTaskTypeStore(state => state.loadTypes)
+
+  // Responsive breakpoints for layout
+  const { isMobile } = useResponsive()
 
   // Load types on mount if not initialized (run only once)
   useEffect(() => {
@@ -359,20 +363,21 @@ export function WorkBlocksEditor({
         </Row>
       </Card>
 
-      <Row gutter={16}>
-        <Col span={12}>
+      {/* Main layout - stacks on mobile */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={24} md={12} lg={12}>
           <Space direction="vertical" style={{ width: '100%' }} size="large">
-            {/* Capacity Summary */}
+            {/* Capacity Summary - stacks columns on mobile */}
             <Card>
-              <Row gutter={16}>
-                <Col span={8}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={8} md={8}>
                   <Space direction="vertical">
                     <Text type="secondary">Total Capacity</Text>
                     <Space wrap>
                       {Object.entries(totalCapacity).map(([typeId, minutes]) => {
                         const userType = userTaskTypes.find(t => t.id === typeId)
                         return (
-                          <Tag key={typeId} color={userType?.color || 'blue'}>
+                          <Tag key={typeId} color={userType?.color || 'blue'} size={isMobile ? 'small' : 'default'}>
                             {userType?.emoji} {formatMinutes(minutes)} {userType?.name || 'Unknown'}
                           </Tag>
                         )
@@ -383,14 +388,14 @@ export function WorkBlocksEditor({
                     </Space>
                   </Space>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={8} md={8}>
                   <Space direction="vertical">
                     <Text type="secondary">Used Today</Text>
                     <Space wrap>
                       {Object.entries(accumulated).map(([typeId, minutes]) => {
                         const userType = userTaskTypes.find(t => t.id === typeId)
                         return (
-                          <Tag key={typeId} color={userType?.color || 'orange'}>
+                          <Tag key={typeId} color={userType?.color || 'orange'} size={isMobile ? 'small' : 'default'}>
                             {userType?.emoji} {formatMinutes(minutes)} {userType?.name || 'Unknown'}
                           </Tag>
                         )
@@ -401,14 +406,14 @@ export function WorkBlocksEditor({
                     </Space>
                   </Space>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={8} md={8}>
                   <Space direction="vertical">
                     <Text type="secondary">Remaining</Text>
                     <Space wrap>
                       {Object.entries(remainingCapacity).map(([typeId, minutes]) => {
                         const userType = userTaskTypes.find(t => t.id === typeId)
                         return (
-                          <Tag key={typeId} color={minutes > 0 ? (userType?.color || 'green') : 'red'}>
+                          <Tag key={typeId} color={minutes > 0 ? (userType?.color || 'green') : 'red'} size={isMobile ? 'small' : 'default'}>
                             {userType?.emoji} {formatMinutes(minutes)} {userType?.name || 'Unknown'}
                           </Tag>
                         )
@@ -740,8 +745,13 @@ export function WorkBlocksEditor({
       </Modal>
           </Space>
         </Col>
-        <Col span={12}>
-          <div style={{ height: 'calc(100vh - 200px)', position: 'sticky', top: 16 }}>
+        <Col xs={24} sm={24} md={12} lg={12}>
+          <div style={{
+            height: isMobile ? 'auto' : 'calc(100vh - 200px)',
+            position: isMobile ? 'relative' : 'sticky',
+            top: isMobile ? 0 : 16,
+            marginTop: isMobile ? 16 : 0,
+          }}>
             <TimelineVisualizer
               blocks={blocks}
               meetings={meetings}
@@ -749,7 +759,7 @@ export function WorkBlocksEditor({
               onMeetingUpdate={(id, updates) => handleUpdateMeeting(id, updates)}
               startHour={6}
               endHour={22}
-              height={Math.max(600, window.innerHeight - 250)}
+              height={isMobile ? 400 : Math.max(600, window.innerHeight - 250)}
             />
           </div>
         </Col>

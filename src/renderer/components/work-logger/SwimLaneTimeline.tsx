@@ -14,6 +14,7 @@ import { useContainerQuery } from '../../hooks/useContainerQuery'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import { getCurrentTime } from '@shared/time-provider'
 import { MeetingType } from '@shared/enums'
+import { MOBILE_LAYOUT } from '@shared/constants'
 
 const { Text } = Typography
 
@@ -40,7 +41,7 @@ interface SwimLaneTimelineProps {
   dayCount?: number // Dynamic day count for ultra-wide screens (default: 3)
 }
 
-const TIME_LABEL_WIDTH = 120
+// Note: Time label width is now responsive - see responsiveTimeLabelWidth in component
 const HEADER_HEIGHT = 40
 const MIN_CONTAINER_HEIGHT = 200
 const MAX_CONTENT_HEIGHT = 500 // Max height before vertical scrolling kicks in
@@ -100,13 +101,23 @@ export function SwimLaneTimeline({
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showCircadianRhythm, setShowCircadianRhythm] = useState(false)
 
-  // Responsive container measurement
-  const { ref: timelineRef, width: _containerWidth } = useContainerQuery<HTMLDivElement>()
-  const { isCompact: _isCompact } = useResponsive()
+  // Responsive container measurement - now actively used for responsive sizing
+  const { ref: timelineRef, width: containerWidth, isNarrow } = useContainerQuery<HTMLDivElement>()
+  const { isCompact, isMobile } = useResponsive()
   const userTaskTypes = useSortedUserTaskTypes()
+
+  // Responsive time label width based on viewport
+  const responsiveTimeLabelWidth = React.useMemo(() => {
+    if (isMobile || isNarrow) return MOBILE_LAYOUT.SWIM_LANE_TIME_LABEL_WIDTH_MOBILE
+    if (isCompact) return MOBILE_LAYOUT.SWIM_LANE_TIME_LABEL_WIDTH_TABLET
+    return MOBILE_LAYOUT.SWIM_LANE_TIME_LABEL_WIDTH_DESKTOP
+  }, [isMobile, isCompact, isNarrow])
 
   // Hour width is simply the baseHourWidth - no complex calculations needed
   const hourWidth = baseHourWidth
+
+  // containerWidth available from useContainerQuery for future auto-zoom features
+  void containerWidth
 
 
   // Use external state if provided, otherwise use internal
@@ -143,13 +154,13 @@ export function SwimLaneTimeline({
   const minutesToPixels = (minutes: number): number => {
     const hours = minutes / 60 - START_HOUR
     // Add one day's worth of hours to position in "Today" (middle section)
-    return (hours + HOURS_PER_DAY) * hourWidth + TIME_LABEL_WIDTH
+    return (hours + HOURS_PER_DAY) * hourWidth + responsiveTimeLabelWidth
   }
 
   // Convert pixels to minutes (accounting for day offset in 3-day view)
   const pixelsToMinutes = (pixels: number): number => {
     // Subtract the day offset to get back to today's minutes
-    const hours = (pixels - TIME_LABEL_WIDTH) / hourWidth - HOURS_PER_DAY + START_HOUR
+    const hours = (pixels - responsiveTimeLabelWidth) / hourWidth - HOURS_PER_DAY + START_HOUR
     return Math.max(START_HOUR * 60, Math.min(END_HOUR * 60, hours * 60))
   }
 
@@ -410,7 +421,7 @@ export function SwimLaneTimeline({
     }
     const timelineRect = timelineArea.getBoundingClientRect()
 
-    const x = e.clientX - timelineRect.left + TIME_LABEL_WIDTH
+    const x = e.clientX - timelineRect.left + responsiveTimeLabelWidth
     setCreatingSession({
       taskId,
       ...(stepId !== undefined && { stepId }),
@@ -504,7 +515,7 @@ export function SwimLaneTimeline({
           const htmlLane = lane as HTMLElement
           const rect = htmlLane.getBoundingClientRect()
           if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
-            const x = e.clientX - rect.left + TIME_LABEL_WIDTH
+            const x = e.clientX - rect.left + responsiveTimeLabelWidth
             setCreatingSession({ ...creatingSession, currentX: x })
             break
           }
@@ -646,8 +657,8 @@ export function SwimLaneTimeline({
         >
           <div
             style={{
-              width: TIME_LABEL_WIDTH,
-              minWidth: TIME_LABEL_WIDTH,
+              width: responsiveTimeLabelWidth,
+              minWidth: responsiveTimeLabelWidth,
               borderRight: '1px solid #e5e6eb',
               display: 'flex',
               alignItems: 'center',
@@ -715,12 +726,12 @@ export function SwimLaneTimeline({
             const nowHours = currentTime.getHours() + currentTime.getMinutes() / 60
             if (nowHours >= START_HOUR && nowHours <= END_HOUR) {
               const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes()
-              const nowLeft = minutesToPixels(nowMinutes) - TIME_LABEL_WIDTH
+              const nowLeft = minutesToPixels(nowMinutes) - responsiveTimeLabelWidth
               return (
                 <div
                   style={{
                     position: 'absolute',
-                    left: TIME_LABEL_WIDTH + nowLeft,
+                    left: responsiveTimeLabelWidth + nowLeft,
                     top: 0,
                     bottom: 0,
                     width: 2,
@@ -756,15 +767,15 @@ export function SwimLaneTimeline({
                 borderBottom: '1px solid #e5e6eb',
                 display: 'flex',
                 position: 'relative',
-                width: TIME_LABEL_WIDTH + TOTAL_HOURS * hourWidth,
-                minWidth: TIME_LABEL_WIDTH + TOTAL_HOURS * hourWidth,
+                width: responsiveTimeLabelWidth + TOTAL_HOURS * hourWidth,
+                minWidth: responsiveTimeLabelWidth + TOTAL_HOURS * hourWidth,
               }}
             >
               {/* Task name */}
               <div
                 style={{
-                  width: TIME_LABEL_WIDTH,
-                  minWidth: TIME_LABEL_WIDTH,
+                  width: responsiveTimeLabelWidth,
+                  minWidth: responsiveTimeLabelWidth,
                   borderRight: '1px solid #e5e6eb',
                   padding: '4px',
                   display: 'flex',
@@ -840,7 +851,7 @@ export function SwimLaneTimeline({
                   <svg
                     style={{
                       position: 'absolute',
-                      left: TIME_LABEL_WIDTH,
+                      left: responsiveTimeLabelWidth,
                       top: 0,
                       width: TOTAL_HOURS * hourWidth,
                       height: '100%',
@@ -985,7 +996,7 @@ export function SwimLaneTimeline({
                       key={sessionKey}
                       style={{
                         position: 'absolute',
-                        left: left - TIME_LABEL_WIDTH,
+                        left: left - responsiveTimeLabelWidth,
                         top: Math.max(2, 4 * zoomFactor),
                         bottom: Math.max(2, 4 * zoomFactor),
                         width,
@@ -1110,7 +1121,7 @@ export function SwimLaneTimeline({
                     <div
                       style={{
                         position: 'absolute',
-                        left: Math.min(creatingSession.startX, creatingSession.currentX) - TIME_LABEL_WIDTH,
+                        left: Math.min(creatingSession.startX, creatingSession.currentX) - responsiveTimeLabelWidth,
                         top: 4,
                         bottom: 4,
                         width: Math.abs(creatingSession.currentX - creatingSession.startX),

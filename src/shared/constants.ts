@@ -76,3 +76,30 @@ export const ULTRA_WIDE_DEFAULTS = {
   CLOCK_MAX_SIZE_UWQHD: 500,
   CLOCK_MAX_SIZE_SUW: 550,
 } as const
+
+/**
+ * Mobile and compact layout constants
+ * Used for responsive design on smaller screens
+ */
+export const MOBILE_LAYOUT = {
+  // Navigation action buttons overflow
+  NAV_VISIBLE_BUTTONS_MOBILE: 2,    // Show 2 inline on mobile (<768px)
+  NAV_VISIBLE_BUTTONS_COMPACT: 3,   // Show 3 inline on compact (768-1024px)
+  NAV_VISIBLE_BUTTONS_DESKTOP: 5,   // Show all 5 inline on desktop (>1024px)
+
+  // Sidebar collapse widths
+  SIDEBAR_COLLAPSED_WIDTH_MOBILE: 0,   // Fully hidden on mobile
+  SIDEBAR_COLLAPSED_WIDTH_TABLET: 60,  // Small icon bar on tablet
+  SIDEBAR_COLLAPSED_WIDTH_DESKTOP: 80, // Icon bar on desktop
+  FLOATING_BUTTON_SIZE: 44,            // Touch-friendly minimum (WCAG)
+
+  // GanttChart responsive sizing
+  GANTT_ROW_LABEL_WIDTH_MOBILE: 100,
+  GANTT_ROW_LABEL_WIDTH_TABLET: 140,
+  GANTT_ROW_LABEL_WIDTH_DESKTOP: 180,
+
+  // SwimLaneTimeline responsive sizing
+  SWIM_LANE_TIME_LABEL_WIDTH_MOBILE: 80,
+  SWIM_LANE_TIME_LABEL_WIDTH_TABLET: 100,
+  SWIM_LANE_TIME_LABEL_WIDTH_DESKTOP: 120,
+} as const

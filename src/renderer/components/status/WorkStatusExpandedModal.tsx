@@ -10,6 +10,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import { Modal, Space, Typography, Progress, Statistic, Divider, Grid, Checkbox, Button, Spin } from '@arco-design/web-react'
 import { DatePicker } from '@arco-design/web-react'
 import { IconClose, IconLeft, IconRight } from '@arco-design/web-react/icon'
+import { useResponsive } from '../../providers/ResponsiveProvider'
 import dayjs from 'dayjs'
 import { RadarChart, prepareRadarChartData, RadarChartDataPoint, createRadarDataPointFromSink } from './RadarChart'
 import { UserTaskType, getBlockTypeConfigName } from '@shared/user-task-types'
@@ -163,6 +164,9 @@ export function WorkStatusExpandedModal({
   currentBlock,
   nextBlock,
 }: WorkStatusExpandedModalProps): React.ReactElement {
+  // Responsive layout
+  const { isMobile, isCompact } = useResponsive()
+
   // Work patterns for historical date lookup
   const workPatterns = useWorkPatternStore(state => state.workPatterns)
 
@@ -350,22 +354,29 @@ export function WorkStatusExpandedModal({
       visible={visible}
       onCancel={handleClose}
       title={
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingRight: 24 }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          alignItems: isMobile ? 'flex-start' : 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          paddingRight: 24,
+          gap: isMobile ? 12 : 0,
+        }}>
           <Space>
             <span>📊</span>
-            <span>
+            <span style={{ fontSize: isMobile ? 14 : 16 }}>
               {isRangeMode
                 ? formatDateRangeTitle(rangeStartDate, rangeEndDate)
                 : formatDateTitle(selectedDate, initialDate)}
             </span>
           </Space>
-          <Space size="small">
+          <Space size="small" wrap style={{ justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
             {/* Mode toggle button */}
             <Button
               size="small"
               type={isRangeMode ? 'primary' : 'secondary'}
               onClick={toggleRangeMode}
-              style={{ marginRight: 8 }}
             >
               {isRangeMode ? '📅 Range' : '📅 Single'}
             </Button>
@@ -377,7 +388,7 @@ export function WorkStatusExpandedModal({
                   size="small"
                   value={rangeStartDate}
                   onChange={(dateString) => dateString && setRangeStartDate(dateString as DateString)}
-                  style={{ width: 130 }}
+                  style={{ width: isMobile ? 110 : 130 }}
                   allowClear={false}
                   placeholder="Start"
                 />
@@ -386,7 +397,7 @@ export function WorkStatusExpandedModal({
                   size="small"
                   value={rangeEndDate}
                   onChange={(dateString) => dateString && setRangeEndDate(dateString as DateString)}
-                  style={{ width: 130 }}
+                  style={{ width: isMobile ? 110 : 130 }}
                   allowClear={false}
                   placeholder="End"
                 />
@@ -404,7 +415,7 @@ export function WorkStatusExpandedModal({
                   size="small"
                   value={selectedDate}
                   onChange={(dateString) => dateString && setSelectedDate(dateString as DateString)}
-                  style={{ width: 140 }}
+                  style={{ width: isMobile ? 110 : 140 }}
                   allowClear={false}
                 />
                 <Button
@@ -425,7 +436,10 @@ export function WorkStatusExpandedModal({
         </div>
       }
       footer={null}
-      style={{ width: '90vw', maxWidth: 900 }}
+      style={{
+        width: isMobile ? '95vw' : '90vw',
+        maxWidth: isMobile ? 400 : isCompact ? 700 : 900,
+      }}
       closeIcon={<IconClose />}
     >
       {isLoading ? (
@@ -434,16 +448,16 @@ export function WorkStatusExpandedModal({
         </div>
       ) : (
         <>
-      <Row gutter={24}>
+      <Row gutter={[16, 24]}>
         {/* Left Column - Radar Chart */}
-        <Col span={12}>
+        <Col xs={24} sm={24} md={12}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <Title heading={6} style={{ marginBottom: 16 }}>
               Time Distribution by Type
             </Title>
             <RadarChart
               data={radarData}
-              size={350}
+              size={isMobile ? 280 : isCompact ? 320 : 350}
               showLabels={true}
               showGrid={true}
               fillOpacity={0.4}
@@ -460,15 +474,20 @@ export function WorkStatusExpandedModal({
                 <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
                   Include Time Sinks:
                 </Text>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: isMobile ? 4 : 8,
+                  fontSize: isMobile ? 12 : 14,
+                }}>
                   {/* Select All checkbox */}
                   <Checkbox
                     checked={enabledSinkIds.size === timeSinks.length && timeSinks.length > 0}
                     indeterminate={enabledSinkIds.size > 0 && enabledSinkIds.size < timeSinks.length}
                     onChange={handleToggleAllSinks}
-                    style={{ marginRight: 8 }}
+                    style={{ marginRight: isMobile ? 4 : 8 }}
                   >
-                    <Text type="secondary">All</Text>
+                    <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>All</Text>
                   </Checkbox>
                   {timeSinks.map(sink => (
                     <Checkbox
@@ -477,10 +496,10 @@ export function WorkStatusExpandedModal({
                       onChange={() => handleToggleSink(sink.id)}
                       style={{ marginRight: 0 }}
                     >
-                      <span style={{ color: sink.color }}>
-                        {sink.emoji} {sink.name}
+                      <span style={{ color: sink.color, fontSize: isMobile ? 12 : 14 }}>
+                        {sink.emoji} {isMobile ? '' : sink.name}
                       </span>
-                      {(displayData.accumulatedBySink[sink.id] ?? 0) > 0 && (
+                      {!isMobile && (displayData.accumulatedBySink[sink.id] ?? 0) > 0 && (
                         <Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}>
                           ({formatMinutes(displayData.accumulatedBySink[sink.id] ?? 0)})
                         </Text>
@@ -494,7 +513,7 @@ export function WorkStatusExpandedModal({
         </Col>
 
         {/* Right Column - Type Breakdown */}
-        <Col span={12}>
+        <Col xs={24} sm={24} md={12}>
           <Title heading={6} style={{ marginBottom: 16 }}>
             Progress by Type
           </Title>
@@ -529,8 +548,8 @@ export function WorkStatusExpandedModal({
       <Title heading={6} style={{ marginBottom: 16 }}>
         Day Statistics
       </Title>
-      <Row gutter={24}>
-        <Col span={6}>
+      <Row gutter={[16, 16]}>
+        <Col xs={12} sm={6}>
           <Statistic
             title="Total Logged"
             value={displayData.accumulatedTotal}
@@ -541,7 +560,7 @@ export function WorkStatusExpandedModal({
             {formatMinutes(displayData.accumulatedTotal)}
           </Text>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Statistic
             title="Total Planned"
             value={displayData.totalPlannedMinutes + displayData.meetingMinutes}
@@ -551,7 +570,7 @@ export function WorkStatusExpandedModal({
             {formatMinutes(displayData.totalPlannedMinutes + displayData.meetingMinutes)}
           </Text>
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Statistic
             title="Progress"
             value={overallProgress}
@@ -559,7 +578,7 @@ export function WorkStatusExpandedModal({
             styleValue={{ color: overallProgress >= 100 ? '#00b42a' : '#165DFF' }}
           />
         </Col>
-        <Col span={6}>
+        <Col xs={12} sm={6}>
           <Statistic
             title="Remaining"
             value={Math.max(0, displayData.totalPlannedMinutes - displayData.accumulatedTotal)}
@@ -575,8 +594,8 @@ export function WorkStatusExpandedModal({
       {isViewingToday && (
         <>
           <Divider />
-          <Row gutter={24}>
-            <Col span={12}>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12}>
               <Title heading={6} style={{ marginBottom: 8 }}>
                 Current Block
               </Title>
@@ -596,7 +615,7 @@ export function WorkStatusExpandedModal({
                 <Text type="secondary">No active work block</Text>
               )}
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Title heading={6} style={{ marginBottom: 8 }}>
                 Next Block
               </Title>

@@ -150,8 +150,8 @@ export function WeeklyCalendar() {
       <Card>
         <Title heading={5} style={{ marginBottom: 16 }}>Workload Summary</Title>
 
-        <Row gutter={16}>
-          <Col span={8}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={8}>
             <Statistic
               title={
                 <Space>
@@ -163,7 +163,7 @@ export function WeeklyCalendar() {
               style={{ color: '#165DFF' }}
             />
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={12} md={8}>
             <Statistic
               title={
                 <Space>
@@ -175,7 +175,7 @@ export function WeeklyCalendar() {
               style={{ color: '#00B42A' }}
             />
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={24} md={8}>
             <Statistic
               title={
                 <Space>
@@ -251,9 +251,9 @@ export function WeeklyCalendar() {
         </Card>
       )}
 
-      {/* Calendar and Schedule View */}
-      <Row gutter={16}>
-        <Col span={14}>
+      {/* Calendar and Schedule View - stacks on mobile */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={24} md={14} lg={14}>
           <Card>
             <Title heading={5} style={{ marginBottom: 16 }}>
               <Space>
@@ -315,8 +315,8 @@ export function WeeklyCalendar() {
           </Card>
         </Col>
 
-        {/* Daily Schedule View */}
-        <Col span={10}>
+        {/* Daily Schedule View - full width on mobile, stacks below calendar */}
+        <Col xs={24} sm={24} md={10} lg={10}>
           {selectedDate ? (
             <DailyScheduleView
               date={selectedDate.format('YYYY-MM-DD')}
