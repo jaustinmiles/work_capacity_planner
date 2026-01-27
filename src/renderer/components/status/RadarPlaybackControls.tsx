@@ -176,10 +176,10 @@ export function RadarPlaybackControls({
         </Button.Group>
       </div>
 
-      {/* Current date display */}
+      {/* Current date display - shows cumulative progress */}
       <div style={{ textAlign: 'center' }}>
         <Text type="secondary" style={{ fontSize: isMobile ? 12 : 14 }}>
-          📅 {formattedDate}
+          📊 Through {formattedDate}
           <Text
             style={{
               marginLeft: 8,
@@ -187,7 +187,7 @@ export function RadarPlaybackControls({
               fontSize: isMobile ? 11 : 12,
             }}
           >
-            (Day {currentFrame + 1} of {frameCount})
+            ({currentFrame + 1} {currentFrame === 0 ? 'day' : 'days'} accumulated)
           </Text>
         </Text>
       </div>

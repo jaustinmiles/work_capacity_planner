@@ -384,13 +384,18 @@ export function WorkStatusExpandedModal({
   }
 
   // Prepare radar chart data (task types + enabled time sinks)
-  // Uses animation frame data when animating, otherwise uses aggregate/selected data
+  // Uses cumulative animation frame data when animating (aggregates from day 1 to current frame)
   const radarData: RadarChartDataPoint[] = useMemo(() => {
     // Determine which data source to use
-    const animationFrame = animationFrames[animation.currentFrame]
-    const sourceData = isAnimating && animationFrame !== undefined
-      ? animationFrame
-      : displayData
+    let sourceData: HistoricalWorkData
+
+    if (isAnimating && animationFrames.length > 0) {
+      // Aggregate all frames from 0 to currentFrame (cumulative view)
+      const framesToAggregate = animationFrames.slice(0, animation.currentFrame + 1)
+      sourceData = aggregateWorkData(framesToAggregate)
+    } else {
+      sourceData = displayData
+    }
 
     // Start with task type data
     const taskTypeData = prepareRadarChartData({
@@ -439,7 +444,7 @@ export function WorkStatusExpandedModal({
             <span style={{ fontSize: isMobile ? 14 : 16 }}>
               {isRangeMode
                 ? isAnimating
-                  ? `${formatDateRangeTitle(rangeStartDate, rangeEndDate)} — ${dayjs(currentAnimationDate).format('MMM D')}`
+                  ? `${dayjs(rangeStartDate).format('MMM D')} → ${dayjs(currentAnimationDate).format('MMM D')} (cumulative)`
                   : formatDateRangeTitle(rangeStartDate, rangeEndDate)
                 : formatDateTitle(selectedDate, initialDate)}
             </span>
