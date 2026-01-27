@@ -1,9 +1,9 @@
+/* Import responsive design system - must come before @tailwind */
+@import './styles/responsive.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import responsive design system */
-@import './styles/responsive.css';
 
 /* Arco Design overrides for better desktop experience */
 .arco-layout-sider {

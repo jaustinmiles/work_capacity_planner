@@ -989,23 +989,24 @@ export const useTaskStore = create<TaskStore>()(
         stoppedExistingSession = true
       }
 
-      // Create work session record ONLY if we didn't just stop an active session
-      // (stopWorkSession already updates the existing session with final time)
-      // This prevents duplicate sessions: one from stop, one from create
-      if (totalMinutes > 0 && !stoppedExistingSession) {
-        await getDatabase().createStepWorkSession({
-          taskStepId: stepId,
-          // If there's a session, use its start time, otherwise calculate backward from now
-          startTime: session?.startTime || addMinutes(getCurrentTime(), -totalMinutes),
-          duration: totalMinutes,
-          notes,
-        })
-      }
-
       // Find the step to check if it has async wait time
       const step = state.sequencedTasks
         .flatMap(t => t.steps)
         .find(s => s.id === stepId)
+
+      // Create work session record ONLY if we didn't just stop an active session
+      // (stopWorkSession already updates the existing session with final time)
+      // This prevents duplicate sessions: one from stop, one from create
+      if (totalMinutes > 0 && !stoppedExistingSession && step) {
+        await getDatabase().createStepWorkSession({
+          taskId: step.taskId,
+          stepId: stepId,
+          // If there's a session, use its start time, otherwise calculate backward from now
+          startTime: session?.startTime || addMinutes(getCurrentTime(), -totalMinutes),
+          actualMinutes: totalMinutes,
+          notes,
+        })
+      }
 
 
       // If step has asyncWaitTime, transition to 'waiting' instead of 'completed'
@@ -1286,18 +1287,24 @@ export const useTaskStore = create<TaskStore>()(
 
   logWorkSession: async (stepId: string, minutes: number, notes?: string) => {
     try {
-      await getDatabase().createStepWorkSession({
-        taskStepId: stepId,
-        startTime: addMinutes(getCurrentTime(), -minutes), // Start time is minutes ago
-        duration: minutes,
-        notes,
-      })
-
-      // Update step's actual duration
+      // Find the step first to get taskId
       const step = get().sequencedTasks
         .flatMap(t => t.steps)
         .find(s => s.id === stepId)
 
+      if (!step) {
+        throw new Error(`Step not found: ${stepId}`)
+      }
+
+      await getDatabase().createStepWorkSession({
+        taskId: step.taskId,
+        stepId: stepId,
+        startTime: addMinutes(getCurrentTime(), -minutes), // Start time is minutes ago
+        actualMinutes: minutes,
+        notes,
+      })
+
+      // Update step's actual duration
       if (step) {
         const newActualDuration = (step.actualDuration || 0) + minutes
 
@@ -1327,7 +1334,7 @@ export const useTaskStore = create<TaskStore>()(
 
   loadWorkSessionHistory: async (stepId: string) => {
     try {
-      const sessions = await getDatabase().getStepWorkSessions(stepId)
+      const sessions = await getDatabase().getStepWorkSessions(stepId) as UnifiedWorkSession[]
       set({ workSessionHistory: sessions })
     } catch (error) {
       set({

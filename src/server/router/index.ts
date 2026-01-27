@@ -19,6 +19,7 @@ import { conversationRouter } from './conversation'
 import { snapshotRouter } from './snapshot'
 import { logRouter } from './log'
 import { speechRouter } from './speech'
+import { aiRouter } from './ai'
 
 /**
  * Main application router
@@ -37,6 +38,7 @@ import { speechRouter } from './speech'
  * - snapshot: Schedule snapshots
  * - log: Application logging
  * - speech: Speech-to-text transcription
+ * - ai: AI operations (Claude for chat, brainstorm, workflows)
  */
 export const appRouter = router({
   session: sessionRouter,
@@ -52,6 +54,7 @@ export const appRouter = router({
   snapshot: snapshotRouter,
   log: logRouter,
   speech: speechRouter,
+  ai: aiRouter,
 })
 
 /**

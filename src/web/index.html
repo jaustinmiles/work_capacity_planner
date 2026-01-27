@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http: https: ws: wss:;" />
+    <title>Task Planner</title>
+    <script>
+      // Inject appConfig for web client (replaces Electron preload script)
+      // In web mode, we always use tRPC to connect to the server
+
+      // Check for API key in URL params (for easy iPad setup)
+      // Usage: http://server:5175/?apiKey=your-key-here
+      // The key is saved to localStorage and URL is cleaned up
+      (function() {
+        const params = new URLSearchParams(window.location.search);
+        const urlApiKey = params.get('apiKey');
+        if (urlApiKey) {
+          localStorage.setItem('taskPlannerApiKey', urlApiKey);
+          // Clean up URL to hide the key from browser history
+          params.delete('apiKey');
+          const newUrl = params.toString()
+            ? window.location.pathname + '?' + params.toString()
+            : window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
+      })();
+
+      window.appConfig = {
+        mode: 'client',
+        serverUrl: window.location.origin,
+        apiKey: localStorage.getItem('taskPlannerApiKey') || '',
+        useTrpc: true
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

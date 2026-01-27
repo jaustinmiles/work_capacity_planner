@@ -54,7 +54,7 @@ export function StepWorkSessionsModal({
     setLoading(true)
     try {
       const data = await getDatabase().getStepWorkSessions(stepId)
-      setSessions(data)
+      setSessions(data as UnifiedWorkSession[])
     } catch (error) {
       logger.ui.error('Failed to load work sessions', {
         error: error instanceof Error ? error.message : String(error),
@@ -134,10 +134,10 @@ export function StepWorkSessionsModal({
         : new Date()
 
       await getDatabase().createStepWorkSession({
-        taskStepId: stepId,
         taskId: taskId,
+        stepId: stepId,
         startTime: startTime,
-        duration: values.plannedMinutes,
+        actualMinutes: values.plannedMinutes,
         notes: values.notes || '',
       })
 

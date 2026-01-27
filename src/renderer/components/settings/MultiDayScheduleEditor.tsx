@@ -163,16 +163,11 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
           meetings,
         })
       } else {
-        // Check if any meeting is a sleep block with recurring set
-        const sleepMeeting = meetings?.find(m =>
-          (m.name === 'Sleep' || m.type === 'blocked') && m.recurring === 'daily',
-        )
-
+        // Create new pattern (sleep/recurring handling is done at the database level)
         await db.createWorkPattern({
           date,
           blocks,
           meetings,
-          recurring: sleepMeeting ? 'daily' : 'none',
         })
       }
 
@@ -295,7 +290,7 @@ export function MultiDayScheduleEditor({ visible, onClose: _onClose, onSave }: M
             comparison: `${pattern.date} >= ${today}`,
           })
           try {
-            await db.deleteWorkPattern(pattern.id)
+            await db.deleteWorkPattern(pattern.id!)
             logger.ui.info('Successfully deleted pattern', { id: pattern.id }, 'pattern-delete-success')
             clearedCount++
           } catch (error) {

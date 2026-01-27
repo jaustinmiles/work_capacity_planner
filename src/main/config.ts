@@ -3,15 +3,16 @@
  *
  * Manages configuration for server/client mode operation.
  * Configuration can come from environment variables or a config file.
+ *
+ * NOTE: 'local' mode has been deprecated. All clients now use tRPC.
  */
 
 /**
  * Application mode
  * - 'server': Run both the API server and Electron UI (primary machine)
  * - 'client': Run only Electron UI, connect to remote server
- * - 'local': Traditional mode - use local IPC (no network server)
  */
-export type AppMode = 'server' | 'client' | 'local'
+export type AppMode = 'server' | 'client'
 
 /**
  * Application configuration
@@ -29,7 +30,7 @@ export interface AppConfig {
   /** Port for server mode */
   port: number
 
-  /** Whether to use tRPC instead of IPC */
+  /** Whether to use tRPC instead of IPC (always true now) */
   useTrpc: boolean
 }
 
@@ -37,30 +38,35 @@ export interface AppConfig {
  * Default configuration values
  */
 const DEFAULT_CONFIG: AppConfig = {
-  mode: 'local',
+  mode: 'server',
   serverUrl: 'http://localhost:3001',
   apiKey: '',
   port: 3001,
-  useTrpc: false,
+  useTrpc: true,
 }
 
 /**
  * Load configuration from environment variables
  */
 export function loadConfig(): AppConfig {
-  const mode = (process.env.TASK_PLANNER_MODE || 'local') as AppMode
+  const modeEnv = process.env.TASK_PLANNER_MODE
+  let mode: AppMode = 'server'
 
   // Validate mode
-  if (!['server', 'client', 'local'].includes(mode)) {
-    console.warn(`Invalid TASK_PLANNER_MODE "${mode}", falling back to "local"`)
+  if (modeEnv === 'server' || modeEnv === 'client') {
+    mode = modeEnv
+  } else if (modeEnv && modeEnv !== 'local') {
+    console.warn(`Invalid TASK_PLANNER_MODE "${modeEnv}", falling back to "server"`)
+  } else if (modeEnv === 'local') {
+    console.warn('TASK_PLANNER_MODE="local" is deprecated. Using "server" mode instead.')
   }
 
   const config: AppConfig = {
-    mode: ['server', 'client', 'local'].includes(mode) ? mode : 'local',
+    mode,
     serverUrl: process.env.TASK_PLANNER_SERVER_URL || DEFAULT_CONFIG.serverUrl,
     apiKey: process.env.TASK_PLANNER_API_KEY || DEFAULT_CONFIG.apiKey,
     port: parseInt(process.env.TASK_PLANNER_PORT || String(DEFAULT_CONFIG.port), 10),
-    useTrpc: mode === 'server' || mode === 'client',
+    useTrpc: true, // Always true - local IPC mode is deprecated
   }
 
   return config

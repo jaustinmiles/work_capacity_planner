@@ -83,7 +83,7 @@ export function SequencedTaskView({
 
         // Fetch work sessions for all steps
         for (const step of task.steps) {
-          const sessions = await db.getStepWorkSessions(step.id)
+          const sessions = await db.getStepWorkSessions(step.id) as Array<{ actualMinutes?: number; plannedMinutes?: number }>
           const totalMinutes = sessions.reduce((sum, session) => {
             const minutes = session.actualMinutes || session.plannedMinutes || 0
             return sum + minutes

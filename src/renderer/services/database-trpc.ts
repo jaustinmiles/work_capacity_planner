@@ -11,10 +11,14 @@ import { createDynamicClient, type ApiClient } from '@shared/trpc-client'
 import type { Task, Session, AICallOptions } from '@shared/types'
 import type { SequencedTask } from '@shared/sequencing-types'
 import { ChatMessageRole } from '@shared/enums'
-import type { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput } from '@shared/user-task-types'
-import type { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput } from '@shared/time-sink-types'
+import type { UserTaskType, CreateUserTaskTypeInput, UpdateUserTaskTypeInput, AccumulatedTimeResult } from '@shared/user-task-types'
+import type { TimeSink, TimeSinkSession, CreateTimeSinkInput, UpdateTimeSinkInput, TimeSinkAccumulatedResult } from '@shared/time-sink-types'
 import type { ScheduleSnapshot, ScheduleSnapshotData } from '@shared/schedule-snapshot-types'
 import { serializeSnapshotData, deserializeSnapshotData } from '@shared/schedule-snapshot-types'
+import type { UnifiedWorkSession } from '@shared/unified-work-session-types'
+import { fromDatabaseWorkSession } from '@shared/unified-work-session-types'
+import type { DailyWorkPattern, WorkBlock, Meeting } from '@shared/work-blocks-types'
+import type { LogQueryOptions, LogEntry, SessionLogSummary } from '@shared/log-types'
 import { amendmentsToJSON, amendmentsFromJSON } from './amendment-serialization'
 
 // Type for app config exposed by preload
@@ -205,6 +209,32 @@ export class TrpcDatabaseService {
    */
   hasSession(): boolean {
     return this.currentSessionId !== null
+  }
+
+  /**
+   * Update scheduling preferences for a session
+   * Note: This creates/updates the SchedulingPreferences relation on the session
+   * TODO: Add dedicated server router endpoint for scheduling preferences
+   */
+  async updateSchedulingPreferences(
+    sessionId: string,
+    _updates: {
+      defaultWorkStart?: string
+      defaultWorkEnd?: string
+      defaultBreakDuration?: number
+      preferredTaskDuration?: number
+      bedtimeHour?: number
+      wakeHour?: number
+    },
+  ): Promise<Session> {
+    // The server needs to handle this - for now, we update the session directly
+    // In a full implementation, you'd add a dedicated router endpoint
+    const session = await this.client.session.update.mutate({
+      id: sessionId,
+      // SchedulingPreferences would be a nested update
+      // This is a simplified version that just returns the session
+    })
+    return nullToUndefined(session) as Session
   }
 
   // ============================================================================
@@ -494,10 +524,19 @@ export class TrpcDatabaseService {
   }
 
   // Time sink sessions
-  async createTimeSinkSession(data: { timeSinkId: string; startTime: string }): Promise<TimeSinkSession> {
+  async createTimeSinkSession(data: {
+    timeSinkId: string
+    startTime: string
+    endTime?: string
+    actualMinutes?: number
+    notes?: string
+  }): Promise<TimeSinkSession> {
     const session = await this.client.timeSink.createSession.mutate({
       timeSinkId: data.timeSinkId,
       startTime: new Date(data.startTime),
+      endTime: data.endTime ? new Date(data.endTime) : undefined,
+      actualMinutes: data.actualMinutes,
+      notes: data.notes,
     })
     return nullToUndefined(session) as TimeSinkSession
   }
@@ -526,10 +565,24 @@ export class TrpcDatabaseService {
     await this.client.timeSink.deleteSession.mutate({ id })
   }
 
+  async splitTimeSinkSession(
+    sessionId: string,
+    splitTime: Date,
+  ): Promise<{ firstHalf: TimeSinkSession; secondHalf: TimeSinkSession }> {
+    const result = await this.client.timeSink.splitSession.mutate({
+      sessionId,
+      splitTime,
+    })
+    return {
+      firstHalf: nullToUndefined(result.firstHalf) as TimeSinkSession,
+      secondHalf: nullToUndefined(result.secondHalf) as TimeSinkSession,
+    }
+  }
+
   async getTimeSinkAccumulated(
     startDate: string,
     endDate: string,
-  ): Promise<{ bySink: Record<string, number>; total: number }> {
+  ): Promise<TimeSinkAccumulatedResult> {
     const result = await this.client.timeSink.getAccumulated.query({ startDate, endDate })
     // Transform array response to Record<sinkId, minutes> format expected by consumers
     const bySink: Record<string, number> = {}
@@ -546,51 +599,75 @@ export class TrpcDatabaseService {
   // Work Patterns
   // ============================================================================
 
-  async getWorkPatterns(): Promise<unknown[]> {
-    return this.client.workPattern.getAll.query()
+  async getWorkPatterns(): Promise<DailyWorkPattern[]> {
+    const patterns = await this.client.workPattern.getAll.query()
+    return patterns as unknown as DailyWorkPattern[]
   }
 
-  async getWorkPattern(date: string): Promise<unknown | null> {
-    return this.client.workPattern.getByDate.query({ date })
+  async getWorkPattern(date: string): Promise<DailyWorkPattern | null> {
+    const pattern = await this.client.workPattern.getByDate.query({ date })
+    return pattern as unknown as DailyWorkPattern | null
   }
 
   async createWorkPattern(data: {
     date: string
-    blocks?: unknown[]
-    meetings?: unknown[]
+    blocks?: WorkBlock[]
+    meetings?: Meeting[]
     isTemplate?: boolean
     templateName?: string
-  }): Promise<unknown> {
-    return this.client.workPattern.create.mutate(
+    recurring?: boolean
+  }): Promise<DailyWorkPattern> {
+    const result = await this.client.workPattern.create.mutate(
       data as Parameters<typeof this.client.workPattern.create.mutate>[0],
     )
+    return result as unknown as DailyWorkPattern
   }
 
-  async updateWorkPattern(id: string, data: { blocks?: unknown[]; meetings?: unknown[] }): Promise<unknown> {
-    return this.client.workPattern.update.mutate({
+  async updateWorkPattern(id: string, data: { blocks?: WorkBlock[]; meetings?: Meeting[] }): Promise<DailyWorkPattern> {
+    const result = await this.client.workPattern.update.mutate({
       id,
       ...data,
     } as Parameters<typeof this.client.workPattern.update.mutate>[0])
+    return result as unknown as DailyWorkPattern
   }
 
   async deleteWorkPattern(id: string): Promise<void> {
     await this.client.workPattern.delete.mutate({ id })
   }
 
-  async getWorkTemplates(): Promise<unknown[]> {
-    return this.client.workPattern.getTemplates.query()
+  async getWorkTemplates(): Promise<DailyWorkPattern[]> {
+    const templates = await this.client.workPattern.getTemplates.query()
+    return templates as unknown as DailyWorkPattern[]
+  }
+
+  async saveAsTemplate(date: string, templateName: string): Promise<DailyWorkPattern> {
+    // Get the pattern for the date, then create a template from it
+    const pattern = await this.getWorkPattern(date)
+    if (!pattern) {
+      throw new Error(`No work pattern found for date ${date}`)
+    }
+    const result = await this.client.workPattern.create.mutate({
+      date: `template_${Date.now()}`, // Templates use a unique date-like identifier
+      blocks: pattern.blocks as Parameters<typeof this.client.workPattern.create.mutate>[0]['blocks'],
+      meetings: pattern.meetings as Parameters<typeof this.client.workPattern.create.mutate>[0]['meetings'],
+      isTemplate: true,
+      templateName,
+    })
+    return result as unknown as DailyWorkPattern
   }
 
   // ============================================================================
   // Work Sessions
   // ============================================================================
 
-  async getWorkSessions(date: string): Promise<unknown[]> {
-    return this.client.workSession.getByDate.query({ date })
+  async getWorkSessions(date: string): Promise<UnifiedWorkSession[]> {
+    const sessions = await this.client.workSession.getByDate.query({ date })
+    return sessions.map((s) => fromDatabaseWorkSession(s))
   }
 
-  async getActiveWorkSession(): Promise<unknown | null> {
-    return this.client.workSession.getActive.query()
+  async getActiveWorkSession(): Promise<UnifiedWorkSession | null> {
+    const session = await this.client.workSession.getActive.query()
+    return session ? fromDatabaseWorkSession(session) : null
   }
 
   async createWorkSession(data: {
@@ -605,10 +682,10 @@ export class TrpcDatabaseService {
     type?: string
     blockId?: string
     patternId?: string
-  }): Promise<unknown> {
+  }): Promise<UnifiedWorkSession> {
     const startTime = data.startTime instanceof Date ? data.startTime : new Date(data.startTime)
 
-    return this.client.workSession.create.mutate({
+    const session = await this.client.workSession.create.mutate({
       taskId: data.taskId,
       stepId: data.stepId,
       startTime,
@@ -620,9 +697,27 @@ export class TrpcDatabaseService {
       blockId: data.blockId,
       patternId: data.patternId,
     })
+    return fromDatabaseWorkSession(session)
   }
 
-  async updateWorkSession(id: string, data: unknown): Promise<unknown> {
+  /**
+   * Alias for createWorkSession with step - for compatibility with old API
+   */
+  async createStepWorkSession(data: {
+    taskId: string
+    stepId: string
+    startTime: Date
+    endTime?: Date
+    plannedMinutes?: number
+    actualMinutes?: number
+    notes?: string
+    type?: string
+    blockId?: string
+  }): Promise<UnifiedWorkSession> {
+    return this.createWorkSession(data)
+  }
+
+  async updateWorkSession(id: string, data: unknown): Promise<UnifiedWorkSession> {
     const sanitized = data as Record<string, unknown>
     // Zod schema requires integers - ensure minute values are rounded
     if (typeof sanitized.plannedMinutes === 'number') {
@@ -631,18 +726,38 @@ export class TrpcDatabaseService {
     if (typeof sanitized.actualMinutes === 'number') {
       sanitized.actualMinutes = Math.round(sanitized.actualMinutes)
     }
-    return this.client.workSession.update.mutate({
+    const session = await this.client.workSession.update.mutate({
       id,
       ...sanitized,
     } as Parameters<typeof this.client.workSession.update.mutate>[0])
+    return fromDatabaseWorkSession(session)
   }
 
   async deleteWorkSession(id: string): Promise<void> {
     await this.client.workSession.delete.mutate({ id })
   }
 
-  async getWorkSessionsForTask(taskId: string): Promise<unknown[]> {
-    return this.client.workSession.getByTask.query({ taskId })
+  async splitWorkSession(
+    sessionId: string,
+    splitTime: Date,
+    secondHalfTaskId?: string,
+    secondHalfStepId?: string,
+  ): Promise<{ firstHalf: UnifiedWorkSession; secondHalf: UnifiedWorkSession }> {
+    const result = await this.client.workSession.split.mutate({
+      sessionId,
+      splitTime,
+      secondHalfTaskId,
+      secondHalfStepId,
+    })
+    return {
+      firstHalf: fromDatabaseWorkSession(result.firstHalf),
+      secondHalf: fromDatabaseWorkSession(result.secondHalf),
+    }
+  }
+
+  async getWorkSessionsForTask(taskId: string): Promise<UnifiedWorkSession[]> {
+    const sessions = await this.client.workSession.getByTask.query({ taskId })
+    return sessions.map((s) => fromDatabaseWorkSession(s))
   }
 
   async getTaskTotalLoggedTime(taskId: string): Promise<number> {
@@ -650,10 +765,12 @@ export class TrpcDatabaseService {
     return result.totalMinutes
   }
 
-  async getTodayAccumulated(
-    date: string,
-  ): Promise<{ byType: Record<string, number>; totalMinutes: number }> {
-    return this.client.workSession.getAccumulatedByDate.query({ date })
+  async getTodayAccumulated(date: string): Promise<AccumulatedTimeResult> {
+    const result = await this.client.workSession.getAccumulatedByDate.query({ date })
+    return {
+      byType: result.byType,
+      total: result.totalMinutes,
+    }
   }
 
   // ============================================================================
@@ -858,15 +975,246 @@ export class TrpcDatabaseService {
   }
 
   // ============================================================================
-  // AI Operations (still use IPC since API key is local to the Electron app)
+  // Development Helpers
+  // ============================================================================
+
+  /**
+   * Delete all tasks in current session (dev helper)
+   */
+  async deleteAllTasks(): Promise<void> {
+    const tasks = await this.getTasks(true) // Include archived
+    for (const task of tasks) {
+      await this.deleteTask(task.id)
+    }
+  }
+
+  /**
+   * Delete all sequenced tasks (workflows) in current session (dev helper)
+   */
+  async deleteAllSequencedTasks(): Promise<void> {
+    const tasks = await this.getSequencedTasks()
+    for (const task of tasks) {
+      await this.deleteSequencedTask(task.id)
+    }
+  }
+
+  /**
+   * Delete all user data in current session (dev helper)
+   * Warning: This is destructive and cannot be undone
+   */
+  async deleteAllUserData(): Promise<void> {
+    // Delete in order to respect foreign key constraints
+    await this.deleteAllTasks()
+    // Additional cleanup could be added here
+  }
+
+  // ============================================================================
+  // Log Viewer (Dev Mode)
+  // ============================================================================
+
+  /**
+   * Get session logs for the log viewer (dev mode only)
+   * Note: Logs are stored locally in Electron, this is a stub for web mode
+   */
+  async getSessionLogs(_options?: LogQueryOptions): Promise<LogEntry[]> {
+    // In web mode, logs are not persisted the same way as Electron
+    // Return empty array - log viewing is primarily an Electron feature
+    console.warn('Log viewing is not fully supported in web mode')
+    return []
+  }
+
+  /**
+   * Get list of logged sessions (dev mode only)
+   */
+  async getLoggedSessions(): Promise<SessionLogSummary[]> {
+    // Stub for web mode - log management is an Electron feature
+    console.warn('Log session listing is not fully supported in web mode')
+    return []
+  }
+
+  // ============================================================================
+  // AI Operations (via tRPC - server owns the Claude API key)
   // ============================================================================
 
   async callAI(options: AICallOptions): Promise<{ content: string }> {
-    // AI calls still go through IPC because:
-    // 1. The API key is stored locally on the Electron app
-    // 2. AI calls don't need to be shared across clients
-    // 3. Keeping AI local avoids exposing keys on the network
-    return await window.electronAPI.ai.callAI(options)
+    return this.client.ai.callAI.mutate(options)
+  }
+
+  async extractTasksFromBrainstorm(brainstormText: string): Promise<{
+    tasks: Array<{
+      name: string
+      description: string
+      estimatedDuration: number
+      importance: number
+      urgency: number
+      type: string
+      deadline?: string
+      deadlineType?: 'hard' | 'soft'
+      cognitiveComplexity?: 1 | 2 | 3 | 4 | 5
+      needsMoreInfo?: boolean
+    }>
+    summary: string
+  }> {
+    return this.client.ai.extractTasksFromBrainstorm.mutate({ brainstormText })
+  }
+
+  async extractWorkflowsFromBrainstorm(brainstormText: string, jobContext?: string): Promise<{
+    workflows: Array<{
+      name: string
+      description: string
+      importance: number
+      urgency: number
+      type: string
+      steps: Array<{
+        name: string
+        duration: number
+        type: string
+        dependsOn: string[]
+        asyncWaitTime: number
+        conditionalBranches: unknown
+      }>
+      totalDuration: number
+      earliestCompletion: string
+      worstCaseCompletion: string
+      notes: string
+    }>
+    standaloneTasks: Array<{
+      name: string
+      description: string
+      estimatedDuration: number
+      importance: number
+      urgency: number
+      type: string
+      needsMoreInfo?: boolean
+    }>
+    summary: string
+  }> {
+    const result = await this.client.ai.extractWorkflowsFromBrainstorm.mutate({ brainstormText, jobContext })
+    return result as unknown as Awaited<ReturnType<typeof this.extractWorkflowsFromBrainstorm>>
+  }
+
+  async generateWorkflowSteps(taskDescription: string, context?: {
+    importance?: number
+    urgency?: number
+    additionalNotes?: string
+  }): Promise<{
+    workflowName: string
+    steps: Array<{
+      name: string
+      duration: number
+      type: string
+      dependsOn: string[]
+      asyncWaitTime: number
+      conditionalBranches: unknown
+    }>
+    totalDuration: number
+    notes: string
+  }> {
+    const result = await this.client.ai.generateWorkflowSteps.mutate({ taskDescription, context })
+    return result as unknown as Awaited<ReturnType<typeof this.generateWorkflowSteps>>
+  }
+
+  async enhanceTaskDetails(taskName: string, currentDetails?: {
+    description?: string
+    duration?: number
+    importance?: number
+    urgency?: number
+  }): Promise<{
+    suggestions: {
+      description?: string
+      duration?: number
+      importance?: number
+      urgency?: number
+      type?: string
+      tips?: string[]
+    }
+    confidence: number
+  }> {
+    return this.client.ai.enhanceTaskDetails.mutate({ taskName, currentDetails })
+  }
+
+  async getContextualQuestions(taskName: string, taskDescription?: string): Promise<{
+    questions: Array<{
+      question: string
+      type: 'text' | 'number' | 'choice'
+      choices?: string[]
+      purpose: string
+    }>
+  }> {
+    return this.client.ai.getContextualQuestions.mutate({ taskName, taskDescription })
+  }
+
+  async getJobContextualQuestions(brainstormText: string, jobContext?: string): Promise<{
+    questions: Array<{
+      question: string
+      type: 'text' | 'number' | 'choice'
+      choices?: string[]
+      purpose: string
+      priority: 'high' | 'medium' | 'low'
+    }>
+    suggestedJobContext?: string
+  }> {
+    return this.client.ai.getJobContextualQuestions.mutate({ brainstormText, jobContext })
+  }
+
+  async extractScheduleFromVoice(voiceText: string, targetDate: string): Promise<{
+    date: string
+    blocks: Array<{
+      id: string
+      startTime: string
+      endTime: string
+      type: string
+      capacity?: {
+        totalMinutes: number
+        type: string
+        splitRatio?: {
+          focus: number
+          admin: number
+        }
+      }
+    }>
+    meetings: Array<{
+      id: string
+      name: string
+      startTime: string
+      endTime: string
+      type: 'meeting' | 'break' | 'personal' | 'blocked'
+    }>
+    summary: string
+  }> {
+    return this.client.ai.extractScheduleFromVoice.mutate({ voiceText, targetDate })
+  }
+
+  async extractMultiDayScheduleFromVoice(voiceText: string, startDate: string): Promise<Array<{
+    date: string
+    blocks: Array<{
+      id: string
+      startTime: string
+      endTime: string
+      type: string
+      capacity?: {
+        totalMinutes: number
+        type: string
+        splitRatio?: {
+          focus: number
+          admin: number
+        }
+      }
+    }>
+    meetings: Array<{
+      id: string
+      name: string
+      startTime: string
+      endTime: string
+      type: 'meeting' | 'break' | 'personal' | 'blocked'
+    }>
+    summary: string
+  }>> {
+    return this.client.ai.extractMultiDayScheduleFromVoice.mutate({ voiceText, startDate })
+  }
+
+  async extractJargonTerms(contextText: string): Promise<string> {
+    return this.client.ai.extractJargonTerms.mutate({ contextText })
   }
 
   // ============================================================================

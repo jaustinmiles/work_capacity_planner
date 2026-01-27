@@ -241,8 +241,7 @@ export class WorkTrackingService {
   async saveActiveSession(session: UnifiedWorkSession): Promise<void> {
     try {
       const dbData = toDatabaseWorkSession(session)
-      const result = await this.database.updateWorkSession(session.id, dbData)
-      return result
+      await this.database.updateWorkSession(session.id, dbData)
     } catch (error) {
       this.handleSessionError(error as Error, 'saving active session')
       throw error

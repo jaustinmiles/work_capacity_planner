@@ -341,13 +341,7 @@ export function ScheduleGenerator({
         // The schedule is just a plan for which tasks go where, not a block modification
         await db.createWorkPattern({
           date: dateStr,
-          blocks: existingBlocks.map((b: any) => ({
-            startTime: b.startTime,
-            endTime: b.endTime,
-            type: b.type,
-            typeConfig: b.typeConfig,
-            capacity: b.capacity,
-          })),
+          blocks: existingBlocks,
           meetings: existingMeetings,
         })
       }

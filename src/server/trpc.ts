@@ -23,12 +23,15 @@ export interface Context {
 
 /**
  * Creates the context for each tRPC request.
- * Extracts API key from headers and validates it.
+ * Extracts API key from headers or URL query params and validates it.
  */
 export async function createContext(
   opts: CreateExpressContextOptions,
 ): Promise<Context> {
-  const apiKey = opts.req.headers['x-api-key'] as string | undefined
+  // Check header first, then URL query param as fallback (for easy iPad setup)
+  const apiKey =
+    (opts.req.headers['x-api-key'] as string | undefined) ||
+    (opts.req.query.apiKey as string | undefined)
   const auth = validateApiKey(apiKey)
 
   // Get active session ID from header (client sends this)

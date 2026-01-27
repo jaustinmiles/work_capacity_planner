@@ -254,7 +254,15 @@ export const useConversationStore = create<ConversationState>()(
         const rawConversation = await db.createConversation({
           title: input?.title,
           jobContextId: input?.jobContextId,
-        })
+        }) as {
+          id: string
+          sessionId: string
+          jobContextId: string | null
+          title: string
+          createdAt: string | Date
+          updatedAt: string | Date
+          isArchived: boolean
+        }
 
         const conversation: Conversation = {
           id: toConversationId(rawConversation.id),
@@ -358,7 +366,12 @@ export const useConversationStore = create<ConversationState>()(
           conversationId: activeConversationId as string,
           role: ChatMessageRole.User,
           content,
-        })
+        }) as {
+          id: string
+          conversationId: string
+          content: string
+          createdAt: string | Date
+        }
 
         const message: ChatMessageRecord = {
           id: toChatMessageId(rawMessage.id),
@@ -389,7 +402,13 @@ export const useConversationStore = create<ConversationState>()(
           role: ChatMessageRole.Assistant,
           content,
           amendments,
-        })
+        }) as {
+          id: string
+          conversationId: string
+          content: string
+          amendments: unknown
+          createdAt: string | Date
+        }
 
         const message: ChatMessageRecord = {
           id: toChatMessageId(rawMessage.id),
@@ -419,7 +438,12 @@ export const useConversationStore = create<ConversationState>()(
 
       updateAmendmentStatus: async (messageId, cardId, status) => {
         const db = getDatabase()
-        await db.updateMessageAmendmentStatus(messageId as string, cardId, status)
+        // Cast enum to expected string literal type (values are compatible at runtime)
+        await db.updateMessageAmendmentStatus(
+          messageId as string,
+          cardId,
+          status as 'pending' | 'applied' | 'rejected' | 'modified',
+        )
 
         // Update local state
         set((state) => ({
