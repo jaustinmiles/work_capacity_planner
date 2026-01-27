@@ -42,6 +42,8 @@ export interface RadarPlaybackControlsProps {
   onSeek: (frame: number) => void
   /** Whether the control is disabled (e.g., during loading) */
   disabled?: boolean
+  /** Current radar chart area as percentage of max (0-100) */
+  areaPercent?: number
 }
 
 // ============================================================================
@@ -76,6 +78,7 @@ export function RadarPlaybackControls({
   onSpeedChange,
   onSeek,
   disabled = false,
+  areaPercent,
 }: RadarPlaybackControlsProps): React.ReactElement {
   const { isMobile } = useResponsive()
 
@@ -189,6 +192,18 @@ export function RadarPlaybackControls({
           >
             ({currentFrame + 1} {currentFrame === 0 ? 'day' : 'days'} accumulated)
           </Text>
+          {areaPercent !== undefined && (
+            <Text
+              style={{
+                marginLeft: 12,
+                color: 'var(--color-primary-6)',
+                fontSize: isMobile ? 11 : 12,
+                fontWeight: 600,
+              }}
+            >
+              ◆ {areaPercent}% coverage
+            </Text>
+          )}
         </Text>
       </div>
     </div>

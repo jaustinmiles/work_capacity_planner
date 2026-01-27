@@ -12,7 +12,7 @@ import { DatePicker } from '@arco-design/web-react'
 import { IconClose, IconLeft, IconRight } from '@arco-design/web-react/icon'
 import { useResponsive } from '../../providers/ResponsiveProvider'
 import dayjs from 'dayjs'
-import { RadarChart, prepareRadarChartData, RadarChartDataPoint, createRadarDataPointFromSink } from './RadarChart'
+import { RadarChart, prepareRadarChartData, RadarChartDataPoint, createRadarDataPointFromSink, calculateRadarAreaPercent } from './RadarChart'
 import { RadarPlaybackControls } from './RadarPlaybackControls'
 import { useRadarAnimation } from '../../hooks/useRadarAnimation'
 import { AnimationPlayState } from '@shared/enums'
@@ -383,8 +383,15 @@ export function WorkStatusExpandedModal({
     }
   }
 
+  // Pre-compute the final frame's aggregate for stable normalization during animation
+  const finalFrameAggregate = useMemo((): HistoricalWorkData | null => {
+    if (animationFrames.length === 0) return null
+    return aggregateWorkData(animationFrames)
+  }, [animationFrames])
+
   // Prepare radar chart data (task types + enabled time sinks)
   // Uses cumulative animation frame data when animating (aggregates from day 1 to current frame)
+  // Normalizes against the FINAL frame's values so the scale stays consistent throughout animation
   const radarData: RadarChartDataPoint[] = useMemo(() => {
     // Determine which data source to use
     let sourceData: HistoricalWorkData
@@ -408,22 +415,41 @@ export function WorkStatusExpandedModal({
       .filter(sink => enabledSinkIds.has(sink.id))
       .map(sink => createRadarDataPointFromSink(sink, sourceData.accumulatedBySink[sink.id] ?? 0))
 
-    // Combine and normalize
+    // Combine all data points
     const allData = [...taskTypeData, ...sinkData]
 
-    // Re-normalize values based on combined max
-    const maxValue = Math.max(...allData.map(d => d.rawValue), 1)
+    // For animation: normalize against the FINAL frame's max so scale stays constant
+    // This makes the chart "grow" toward its final shape rather than constantly rescaling
+    let maxValue: number
+    if (isAnimating && finalFrameAggregate) {
+      // Calculate max from final frame's full aggregate
+      const finalTaskValues = userTaskTypes.map(t => finalFrameAggregate.accumulatedByType[t.id] || 0)
+      const finalSinkValues = timeSinks
+        .filter(sink => enabledSinkIds.has(sink.id))
+        .map(sink => finalFrameAggregate.accumulatedBySink[sink.id] || 0)
+      maxValue = Math.max(...finalTaskValues, ...finalSinkValues, 1)
+    } else {
+      // Normal mode: normalize against current data
+      maxValue = Math.max(...allData.map(d => d.rawValue), 1)
+    }
+
     return allData.map(d => ({
       ...d,
       value: d.rawValue / maxValue,
     }))
-  }, [displayData, isAnimating, animationFrames, animation.currentFrame, userTaskTypes, timeSinks, enabledSinkIds])
+  }, [displayData, isAnimating, animationFrames, animation.currentFrame, finalFrameAggregate, userTaskTypes, timeSinks, enabledSinkIds])
 
   // Calculate overall progress
   const overallProgress = useMemo(() => {
     if (displayData.totalPlannedMinutes === 0) return 0
     return Math.round((displayData.accumulatedTotal / displayData.totalPlannedMinutes) * 100)
   }, [displayData.accumulatedTotal, displayData.totalPlannedMinutes])
+
+  // Calculate radar chart area as percentage of maximum possible area
+  const radarAreaPercent = useMemo(() => {
+    const values = radarData.map(d => d.value)
+    return calculateRadarAreaPercent(values)
+  }, [radarData])
 
   return (
     <Modal
@@ -602,6 +628,7 @@ export function WorkStatusExpandedModal({
                 onSpeedChange={animation.setSpeed}
                 onSeek={animation.seekToFrame}
                 disabled={isPreloadingAnimation}
+                areaPercent={radarAreaPercent}
               />
             )}
 
