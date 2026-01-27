@@ -246,8 +246,8 @@ export async function handleDurationChange(
       if (workflow && workflow.steps) {
         const step = findStepByName(workflow.steps, amendment.stepName)
         if (step) {
-          // Update the step duration
-          await ctx.db.updateTaskStepProgress(step.id, {
+          // Update the step duration using updateTaskStep which supports duration
+          await ctx.db.updateTaskStep(workflow.id, step.id, {
             duration: amendment.newDuration,
           })
 

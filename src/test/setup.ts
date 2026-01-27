@@ -6,6 +6,17 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 
+// Mock appConfig for tRPC database service
+Object.defineProperty(window, 'appConfig', {
+  writable: true,
+  value: {
+    mode: 'client',
+    serverUrl: 'http://localhost:3001',
+    apiKey: 'test-api-key',
+    useTrpc: true,
+  },
+})
+
 // Mock window functions BEFORE any other setup
 Object.defineProperty(window, 'addEventListener', {
   writable: true,
@@ -133,3 +144,7 @@ vi.mock('@arco-design/web-react/lib/_class/VirtualList', () => ({
     return children
   }),
 }))
+
+// Note: Database module is NOT mocked globally.
+// Tests that need database mocks should set up their own via vi.mock('@renderer/services/database')
+// This allows tests to have full control over their database mock implementation.

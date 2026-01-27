@@ -183,11 +183,13 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
   const loadPreferences = async () => {
     try {
       const db = getDatabase()
-      // Get the current session preferences
       const session = await db.getCurrentSession()
-      if (session && session.SchedulingPreferences) {
-        setBedtimeHour(session.SchedulingPreferences.bedtimeHour || 22)
-        setWakeTimeHour(session.SchedulingPreferences.wakeTimeHour || 6)
+      if (session) {
+        const prefs = await db.getSchedulingPreferences(session.id)
+        if (prefs) {
+          setBedtimeHour(prefs.bedtimeHour)
+          setWakeTimeHour(prefs.wakeHour)
+        }
       }
     } catch (error) {
       logger.ui.error('Failed to load preferences', {
@@ -221,7 +223,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             : dayjs(getCurrentTime()) // Use time provider for active sessions
 
           // Find task and step details
-          const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId) || session.Task
+          const task = [...tasks, ...sequencedTasks].find(t => t.id === session.taskId)
           let stepName: string | undefined
           let type: string = userTaskTypes[0]?.id || '' // Default to first user type
 
@@ -234,7 +236,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
                   const step = t.steps.find(s => s.id === session.stepId)
                   if (step) {
                     stepName = step.name
-                    type = step.type || task.type
+                    type = step.type || task.type || ''
                     break
                   }
                 }
@@ -1486,7 +1488,7 @@ export function WorkLoggerDual({ visible, onClose }: WorkLoggerDualProps) {
             if (session) {
               await db.updateSchedulingPreferences(session.id, {
                 bedtimeHour,
-                wakeTimeHour,
+                wakeHour: wakeTimeHour,
               })
               logger.ui.info('Updated circadian settings', {
                 bedtimeHour,

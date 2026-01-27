@@ -113,7 +113,7 @@ export async function gatherAppContext(jobContext?: JobContextData): Promise<App
         taskId: ws.taskId,
         stepId: ws.stepId,
         startTime: new Date(ws.startTime),
-        plannedMinutes: ws.plannedMinutes,
+        plannedMinutes: ws.plannedMinutes ?? 0,
         actualMinutes: ws.actualMinutes,
         notes: ws.notes,
       }

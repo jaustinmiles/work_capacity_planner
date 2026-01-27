@@ -11,6 +11,8 @@
 
 import express from 'express'
 import cors from 'cors'
+import path from 'node:path'
+import fs from 'node:fs'
 import * as trpcExpress from '@trpc/server/adapters/express'
 import { appRouter } from './router'
 import { createContext } from './trpc'
@@ -61,17 +63,49 @@ app.use(
   trpcExpress.createExpressMiddleware({
     router: appRouter,
     createContext,
-    onError({ error, path }) {
-      console.error(`tRPC error on ${path}:`, error.message)
+    onError({ error, path: errorPath }) {
+      console.error(`tRPC error on ${errorPath}:`, error.message)
     },
   }),
 )
 
+// Static file serving for web client
+// Serves the built web app from dist/web
+const webDistPath = path.join(__dirname, '../../dist/web')
+const webIndexPath = path.join(webDistPath, 'index.html')
+
+// Only serve static files if the web build exists
+if (fs.existsSync(webDistPath)) {
+  // Serve static assets (JS, CSS, images, etc.)
+  app.use(express.static(webDistPath))
+
+  // SPA fallback: serve index.html for any non-API routes
+  // This enables client-side routing to work properly
+  // Note: '/{*splat}' syntax required for path-to-regexp v8+ / Express 5
+  app.get('/{*splat}', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/trpc') || req.path === '/health') {
+      return next()
+    }
+
+    // Serve index.html for all other routes
+    if (fs.existsSync(webIndexPath)) {
+      res.sendFile(webIndexPath)
+    } else {
+      next()
+    }
+  })
+}
+
 // Get port from environment or default
 const port = parseInt(process.env.TASK_PLANNER_PORT || '3001', 10)
 
+// Check if web client is available
+const hasWebClient = fs.existsSync(webDistPath) && fs.existsSync(webIndexPath)
+
 // Start server
 const server = app.listen(port, '0.0.0.0', () => {
+  const webStatus = hasWebClient ? 'Available' : 'Not built (run: npm run build:web)'
   console.log(`
   ╔════════════════════════════════════════════════════════════╗
   ║                                                            ║
@@ -82,6 +116,8 @@ const server = app.listen(port, '0.0.0.0', () => {
   ║                                                            ║
   ║   Health:  http://localhost:${port}/health                  ║
   ║   tRPC:    http://localhost:${port}/trpc                    ║
+  ║                                                            ║
+  ║   Web Client: ${webStatus.padEnd(40)}║
   ║                                                            ║
   ╚════════════════════════════════════════════════════════════╝
   `)

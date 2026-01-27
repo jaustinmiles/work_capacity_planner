@@ -95,10 +95,10 @@ const mockDbApi = {
   getTimeSinkAccumulated: vi.fn().mockResolvedValue({ bySink: {}, total: 0 }),
 }
 
-Object.defineProperty(window, 'electronAPI', {
-  value: { db: mockDbApi },
-  writable: true,
-})
+// Mock the database module to use our test mock
+vi.mock('@renderer/services/database', () => ({
+  getDatabase: vi.fn(() => mockDbApi),
+}))
 
 // Import store after mocks are set up
 import { useTimeSinkStore } from '../useTimeSinkStore'

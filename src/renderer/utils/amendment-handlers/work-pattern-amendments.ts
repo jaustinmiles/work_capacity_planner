@@ -4,8 +4,10 @@
 
 import type { WorkPatternModification } from '@shared/amendment-types'
 import { BlockConfigKind, WorkBlockType, WorkPatternOperation } from '@shared/enums'
+import { generateUniqueId } from '@shared/step-id-utils'
 import { dateToYYYYMMDD, extractTimeFromISO, safeParseDateString } from '@shared/time-utils'
 import { getBlockTypeName } from '@shared/user-task-types'
+import type { WorkBlock, Meeting } from '@shared/work-blocks-types'
 import type { HandlerContext } from './types'
 import { Message } from '../../components/common/Message'
 import { useWorkPatternStore } from '../../store/useWorkPatternStore'
@@ -59,32 +61,27 @@ export async function handleWorkPatternModification(
           : { kind: BlockConfigKind.Single, typeId: typeId }
 
         const newBlock = {
+          id: generateUniqueId('block'),
           startTime: startTimeStr,
           endTime: endTimeStr,
           typeConfig: typeConfig,  // Use typeConfig object, not type string
           splitRatio: amendment.blockData.splitRatio || null,
         }
 
-        if (existingPattern) {
+        if (existingPattern && existingPattern.id) {
           // Add block to existing pattern
           // CRITICAL: Must preserve block IDs and typeConfig or database will treat all blocks as "to delete"
           // Use 'blocks' (parsed typeConfig objects) not 'WorkBlock' (raw JSON strings)
           // WorkBlock.typeConfig is a JSON string, blocks[].typeConfig is already parsed
           const existingBlocks = existingPattern.blocks || []
           await ctx.db.updateWorkPattern(existingPattern.id, {
-            blocks: [...existingBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
-              id: b.id,  // Preserve existing block ID
-              startTime: b.startTime,
-              endTime: b.endTime,
-              typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
-              splitRatio: b.splitRatio,
-            })), newBlock],
+            blocks: [...existingBlocks, newBlock as WorkBlock],
           })
         } else {
           // Create new pattern with this block
           await ctx.db.createWorkPattern({
             date: dateStr,
-            blocks: [newBlock],
+            blocks: [newBlock as WorkBlock],
             meetings: [],
           })
         }
@@ -107,6 +104,7 @@ export async function handleWorkPatternModification(
         const meetingEndStr = extractTimeFromISO(amendment.meetingData.endTime)
 
         const newMeeting = {
+          id: generateUniqueId('meeting'),
           name: amendment.meetingData.name,
           startTime: meetingStartStr,
           endTime: meetingEndStr,
@@ -116,35 +114,18 @@ export async function handleWorkPatternModification(
           daysOfWeek: amendment.meetingData.daysOfWeek || undefined,
         }
 
-        if (existingPattern) {
+        if (existingPattern && existingPattern.id) {
           // CRITICAL: Must preserve IDs or database will treat existing entries as "to delete"
-          // Use 'meetings' and 'blocks' (parsed) not 'WorkMeeting'/'WorkBlock' (raw JSON strings)
           const existingMeetings = existingPattern.meetings || []
-          const existingBlocks = existingPattern.blocks || []
           await ctx.db.updateWorkPattern(existingPattern.id, {
-            blocks: existingBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
-              id: b.id,  // Preserve existing block ID
-              startTime: b.startTime,
-              endTime: b.endTime,
-              typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
-              splitRatio: b.splitRatio,
-            })),
-            meetings: [...existingMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: number[] | null }) => ({
-              id: m.id,  // Preserve existing meeting ID
-              name: m.name,
-              startTime: m.startTime,
-              endTime: m.endTime,
-              type: m.type,
-              recurring: m.recurring || 'none', // Ensure non-null for Prisma
-              // Convert null to undefined - Zod schema uses .optional() which rejects null
-              daysOfWeek: m.daysOfWeek ?? undefined,
-            })), newMeeting],
+            blocks: existingPattern.blocks || [],
+            meetings: [...existingMeetings, newMeeting as Meeting],
           })
         } else {
           await ctx.db.createWorkPattern({
             date: dateStr,
             blocks: [],
-            meetings: [newMeeting],
+            meetings: [newMeeting as Meeting],
           })
         }
 
@@ -154,25 +135,18 @@ export async function handleWorkPatternModification(
       }
 
       case WorkPatternOperation.RemoveBlock: {
-        if (!existingPattern || !amendment.blockId) {
+        if (!existingPattern || !existingPattern.id || !amendment.blockId) {
           Message.warning('Cannot remove block - pattern or block ID not found')
           ctx.markFailed('Cannot remove block - pattern or block ID not found')
           break
         }
 
-        // Use 'blocks' (parsed typeConfig objects) not 'WorkBlock' (raw JSON strings)
+        // Filter out the block to remove
         const filteredBlocks = (existingPattern.blocks || []).filter(
-          (b: { id: string }) => b.id !== amendment.blockId,
+          (b) => b.id !== amendment.blockId,
         )
-        // CRITICAL: Must preserve block IDs for blocks we're keeping
         await ctx.db.updateWorkPattern(existingPattern.id, {
-          blocks: filteredBlocks.map((b: { id: string; startTime: string; endTime: string; typeConfig?: unknown; splitRatio?: Record<string, number> | null }) => ({
-            id: b.id,  // Preserve existing block ID
-            startTime: b.startTime,
-            endTime: b.endTime,
-            typeConfig: b.typeConfig,  // Already a parsed object from 'blocks'
-            splitRatio: b.splitRatio,
-          })),
+          blocks: filteredBlocks,
         })
 
         useWorkPatternStore.getState().loadWorkPatterns()
@@ -181,28 +155,18 @@ export async function handleWorkPatternModification(
       }
 
       case WorkPatternOperation.RemoveMeeting: {
-        if (!existingPattern || !amendment.meetingId) {
+        if (!existingPattern || !existingPattern.id || !amendment.meetingId) {
           Message.warning('Cannot remove meeting - pattern or meeting ID not found')
           ctx.markFailed('Cannot remove meeting - pattern or meeting ID not found')
           break
         }
 
-        // Use 'meetings' (parsed daysOfWeek) not 'WorkMeeting' (raw JSON strings)
+        // Filter out the meeting to remove
         const filteredMeetings = (existingPattern.meetings || []).filter(
-          (m: { id: string }) => m.id !== amendment.meetingId,
+          (m) => m.id !== amendment.meetingId,
         )
-        // CRITICAL: Must preserve meeting IDs for meetings we're keeping
         await ctx.db.updateWorkPattern(existingPattern.id, {
-          meetings: filteredMeetings.map((m: { id: string; name: string; startTime: string; endTime: string; type: string; recurring?: string | null; daysOfWeek?: number[] | null }) => ({
-            id: m.id,  // Preserve existing meeting ID
-            name: m.name,
-            startTime: m.startTime,
-            endTime: m.endTime,
-            type: m.type,
-            recurring: m.recurring || 'none', // Ensure non-null for Prisma
-            // Convert null to undefined - Zod schema uses .optional() which rejects null
-            daysOfWeek: m.daysOfWeek ?? undefined,
-          })),
+          meetings: filteredMeetings,
         })
 
         useWorkPatternStore.getState().loadWorkPatterns()
